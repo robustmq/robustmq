@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::memory::engine::MemoryStorageEngine;
+use crate::commitlog::memory::engine::MemoryStorageEngine;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 
 impl MemoryStorageEngine {

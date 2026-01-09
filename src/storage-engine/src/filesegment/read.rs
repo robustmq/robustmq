@@ -16,7 +16,7 @@ use super::file::SegmentFile;
 use super::SegmentIdentity;
 use crate::{
     core::{cache::StorageCacheManager, error::StorageEngineError},
-    segment::{
+    filesegment::{
         file::{open_segment_write, ReadData},
         index::read::{get_index_data_by_key, get_index_data_by_offset, get_index_data_by_tag},
     },
@@ -111,11 +111,9 @@ mod tests {
 
     use super::{segment_read_by_key, segment_read_by_offset, segment_read_by_tag};
     use crate::{
-        core::{
-            cache::StorageCacheManager, shard_offset::save_latest_offset_by_shard,
-            test_tool::test_init_segment,
-        },
-        segment::{
+        commitlog::offset::CommitLogOffset,
+        core::{cache::StorageCacheManager, test_tool::test_init_segment},
+        filesegment::{
             file::SegmentFile,
             write::{WriteChannelDataRecord, WriteManager},
             SegmentIdentity,
@@ -140,7 +138,6 @@ mod tests {
     ) {
         let (segment_iden, cache_manager, fold, rocksdb_engine_handler) =
             test_init_segment(engine_storage_type).await;
-        save_latest_offset_by_shard(&rocksdb_engine_handler, &segment_iden.shard_name, 0).unwrap();
 
         let client_poll = Arc::new(ClientPool::new(100));
 
@@ -176,12 +173,20 @@ mod tests {
 
     #[tokio::test]
     async fn read_by_offset_test() {
-        let (segment_iden, _, fold, rocksdb_engine_handler) =
+        let (segment_iden, cache_manager, fold, rocksdb_engine_handler) =
             test_base_write_data(StorageType::EngineSegment, 30).await;
         let segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
                 .await
                 .unwrap();
+        let commit_offset =
+            CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+        commit_offset
+            .save_earliest_offset(&segment_iden.shard_name, 0)
+            .unwrap();
+        commit_offset
+            .save_latest_offset(&segment_iden.shard_name, 0)
+            .unwrap();
 
         let max_record = 2;
         let max_size = 1024 * 1024 * 1024;
@@ -200,7 +205,7 @@ mod tests {
 
         let mut i = 5;
         for row in resp {
-            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{i}"));
+            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{}", i));
             i += 1;
         }
 
@@ -219,7 +224,7 @@ mod tests {
 
         let mut i: i32 = 10;
         for row in resp {
-            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{i}"));
+            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{}", i));
             i += 1;
         }
     }

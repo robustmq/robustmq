@@ -22,7 +22,7 @@ use protocol::meta::meta_service_journal::{DeleteSegmentRaw, DeleteSegmentReques
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
-use crate::{core::cache::StorageCacheManager, segment::SegmentIdentity};
+use crate::core::cache::StorageCacheManager;
 
 pub async fn start_segment_expire_thread(
     client_pool: Arc<ClientPool>,
@@ -61,7 +61,7 @@ async fn scan_and_delete_segment0(
                 continue;
             }
 
-            let segment_iden = SegmentIdentity::new(shard_name, segment.segment_seq);
+            let segment_iden = super::SegmentIdentity::new(shard_name, segment.segment_seq);
             let Some(meta) = cache_manager.get_segment_meta(&segment_iden) else {
                 continue;
             };

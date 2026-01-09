@@ -166,7 +166,7 @@ mod tests {
         assert_eq!(segment.segment.segment_seq, 0);
         let meta = segment.segment_meta.clone().unwrap();
         assert_eq!(meta.start_offset, 0);
-        assert_eq!(meta.end_offset, -1);
+        assert_eq!(meta.end_offset, 0);
         assert_eq!(meta.start_timestamp, -1);
         assert_eq!(meta.end_timestamp, -1);
 
@@ -201,7 +201,7 @@ mod tests {
         assert_eq!(segment.segment.segment_seq, 0);
         let meta = segment.segment_meta.clone().unwrap();
         assert_eq!(meta.start_offset, 0);
-        assert_eq!(meta.end_offset, -1);
+        assert_eq!(meta.end_offset, 0);
         assert_eq!(meta.start_timestamp, t as i64);
         assert_eq!(meta.end_timestamp, -1);
     }
@@ -302,7 +302,7 @@ mod tests {
         assert_eq!(info1.segment.segment_seq, 1);
         let meta = info1.segment_meta.clone().unwrap();
         assert_eq!(meta.start_offset, 101);
-        assert_eq!(meta.end_offset, -1);
+        assert_eq!(meta.end_offset, 101);
         assert_eq!(meta.start_timestamp, -1);
         assert_eq!(meta.end_timestamp, -1);
     }
@@ -417,7 +417,7 @@ mod tests {
         assert_eq!(info1.segment.segment_seq, 1);
         let meta = info1.segment_meta.clone().unwrap();
         assert_eq!(meta.start_offset, 101);
-        assert_eq!(meta.end_offset, -1);
+        assert_eq!(meta.end_offset, 101);
         assert_eq!(meta.start_timestamp, -1);
         assert_eq!(meta.end_timestamp, -1);
     }

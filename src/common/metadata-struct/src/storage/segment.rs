@@ -95,7 +95,10 @@ pub fn str_to_segment_status(status: &str) -> Result<SegmentStatus, CommonError>
         "PreSealUp" => Ok(SegmentStatus::PreSealUp),
         "SealUp" => Ok(SegmentStatus::SealUp),
         "PreDelete" => Ok(SegmentStatus::PreDelete),
-        _ => Err(CommonError::CommonError("".to_string())),
+        _ => Err(CommonError::CommonError(format!(
+            "Invalid segment status '{}'. Valid values are: Write, PreSealUp, SealUp, PreDelete",
+            status
+        ))),
     }
 }
 

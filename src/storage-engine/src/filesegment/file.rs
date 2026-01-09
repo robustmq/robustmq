@@ -322,7 +322,7 @@ mod tests {
     use crate::core::cache::StorageCacheManager;
     use crate::core::error::StorageEngineError;
     use crate::core::test_tool::{test_build_data_fold, test_build_segment};
-    use crate::segment::SegmentIdentity;
+    use crate::filesegment::SegmentIdentity;
     use broker_core::cache::BrokerCacheManager;
     use bytes::Bytes;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};

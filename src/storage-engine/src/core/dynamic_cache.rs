@@ -14,8 +14,9 @@
 
 use super::cache::StorageCacheManager;
 use crate::{
+    commitlog::offset::CommitLogOffset,
     core::{error::StorageEngineError, segment::delete_local_segment, shard::delete_local_shard},
-    segment::{file::open_segment_write, index::segment::SegmentIndexManager, SegmentIdentity},
+    filesegment::{file::open_segment_write, segment_offset::SegmentOffset, SegmentIdentity},
 };
 use common_config::broker::broker_config;
 use metadata_struct::storage::segment::EngineSegment;
@@ -134,7 +135,8 @@ async fn parse_segment_meta(
             let meta = EngineSegmentMetadata::decode(data)?;
             let segment_iden = SegmentIdentity::new(&meta.shard_name, meta.segment_seq);
 
-            let segment_index_manager = SegmentIndexManager::new(rocksdb_engine_handler.clone());
+            // todo
+            let segment_index_manager = SegmentOffset::new(rocksdb_engine_handler.clone());
             segment_index_manager.batch_save_segment_metadata(
                 &segment_iden,
                 meta.start_offset,
@@ -142,6 +144,11 @@ async fn parse_segment_meta(
                 meta.start_timestamp,
                 meta.end_timestamp,
             )?;
+
+            let commit_offset =
+                CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+            commit_offset.save_earliest_offset(&segment_iden.shard_name, 0)?;
+            commit_offset.save_latest_offset(&segment_iden.shard_name, 0)?;
 
             cache_manager.set_segment_meta(meta);
             cache_manager.sort_offset_index(&segment_iden.shard_name);

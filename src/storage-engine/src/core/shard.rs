@@ -15,8 +15,8 @@
 use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
 use super::segment::delete_local_segment;
-use crate::segment::file::data_fold_shard;
-use crate::segment::SegmentIdentity;
+use crate::filesegment::file::data_fold_shard;
+use crate::filesegment::SegmentIdentity;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::AdapterShardInfo;
@@ -30,8 +30,9 @@ use tokio::time::sleep;
 use tracing::{error, info};
 
 #[derive(Clone, Debug, Default)]
-pub struct ShardState {
+pub struct ShardOffsetState {
     pub earliest_offset: u64,
+    pub high_watermark_offset: u64,
     pub latest_offset: u64,
 }
 

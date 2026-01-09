@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
-use crate::core::shard::ShardState;
+use crate::{commitlog::offset::CommitLogOffset, core::cache::StorageCacheManager};
 use dashmap::DashMap;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER;
@@ -32,17 +31,17 @@ pub struct IndexInfo {
 pub struct RocksDBStorageEngine {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub cache_manager: Arc<StorageCacheManager>,
+    pub commitlog_offset: Arc<CommitLogOffset>,
     pub shard_write_locks: DashMap<String, Arc<tokio::sync::Mutex<()>>>,
-    pub shard_state: DashMap<String, ShardState>,
 }
 
 impl RocksDBStorageEngine {
     pub fn new(cache_manager: Arc<StorageCacheManager>, db: Arc<RocksDBEngine>) -> Self {
         RocksDBStorageEngine {
-            rocksdb_engine_handler: db,
-            cache_manager,
+            rocksdb_engine_handler: db.clone(),
+            cache_manager: cache_manager.clone(),
             shard_write_locks: DashMap::with_capacity(8),
-            shard_state: DashMap::with_capacity(8),
+            commitlog_offset: Arc::new(CommitLogOffset::new(cache_manager.clone(), db.clone())),
         }
     }
 

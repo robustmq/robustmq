@@ -27,10 +27,12 @@
 // limitations under the License.
 
 use super::cache::StorageCacheManager;
+use crate::commitlog::memory::engine::MemoryStorageEngine;
+use crate::commitlog::offset::CommitLogOffset;
+use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::segment::create_local_segment;
-use crate::memory::engine::MemoryStorageEngine;
-use crate::rocksdb::engine::RocksDBStorageEngine;
-use crate::segment::SegmentIdentity;
+use crate::filesegment::offset::FileSegmentOffset;
+use crate::filesegment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
 use common_base::tools::{now_second, unique_id};
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
@@ -120,6 +122,41 @@ pub async fn test_init_segment(
     });
     cache_manager.sort_offset_index(&segment_iden.shard_name);
 
+    if engine_storage_type == StorageType::EngineMemory
+        || engine_storage_type == StorageType::EngineRocksDB
+    {
+        let commit_offset =
+            CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+        commit_offset
+            .save_earliest_offset(&segment_iden.shard_name, 0)
+            .unwrap();
+        commit_offset
+            .save_latest_offset(&segment_iden.shard_name, 0)
+            .unwrap();
+    }
+
+    if engine_storage_type == StorageType::EngineSegment {
+        let commit_offset =
+            FileSegmentOffset::new(rocksdb_engine_handler.clone(), cache_manager.clone());
+        commit_offset
+            .segment_offset
+            .save_start_offset(&segment_iden, 0)
+            .unwrap();
+        commit_offset
+            .segment_offset
+            .save_end_offset(&segment_iden, 0)
+            .unwrap();
+
+        commit_offset
+            .segment_offset
+            .save_start_timestamp(&segment_iden, 0)
+            .unwrap();
+        commit_offset
+            .segment_offset
+            .save_end_timestamp(&segment_iden, 0)
+            .unwrap();
+    }
+
     (segment_iden, cache_manager, fold, rocksdb_engine_handler)
 }
 
@@ -132,7 +169,7 @@ pub fn test_build_rocksdb_engine() -> RocksDBStorageEngine {
     RocksDBStorageEngine::new(cache_manager, db)
 }
 
-pub fn test_build_memory_engine() -> crate::memory::engine::MemoryStorageEngine {
+pub fn test_build_memory_engine() -> MemoryStorageEngine {
     let db = test_rocksdb_instance();
     let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
         BrokerConfig::default(),

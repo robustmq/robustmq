@@ -64,10 +64,10 @@ use std::{
 };
 use storage_adapter::driver::StorageDriverManager;
 use storage_engine::{
-    clients::manager::ClientConnectionManager, core::cache::StorageCacheManager,
-    group::OffsetManager, handler::adapter::StorageEngineHandler,
-    memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine,
-    segment::write::WriteManager, StorageEngineParams, StorageEngineServer,
+    clients::manager::ClientConnectionManager, commitlog::memory::engine::MemoryStorageEngine,
+    commitlog::rocksdb::engine::RocksDBStorageEngine, core::cache::StorageCacheManager,
+    filesegment::write::WriteManager, group::OffsetManager, handler::adapter::StorageEngineHandler,
+    StorageEngineParams, StorageEngineServer,
 };
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};

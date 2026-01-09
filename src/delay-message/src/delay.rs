@@ -19,17 +19,13 @@ use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::tools::{now_second, unique_id};
 use common_base::utils::serialize::serialize;
-use common_config::broker::broker_config;
 use common_config::storage::StorageType;
-use grpc_clients::meta::mqtt::call::placement_create_topic;
 use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-use protocol::meta::meta_service_mqtt::CreateTopicRequest;
 use std::sync::Arc;
-use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
-use tokio::time::{sleep, timeout};
+use storage_adapter::topic::create_topic_full;
 use tracing::debug;
 
 pub const DELAY_QUEUE_MESSAGE_TOPIC: &str = "$delay-queue-message";
@@ -132,7 +128,6 @@ pub(crate) async fn init_inner_topic(
         DELAY_QUEUE_MESSAGE_TOPIC.to_string(),
         DELAY_QUEUE_INDEX_TOPIC.to_string(),
     ] {
-        // create topic metadata
         let uid = unique_id();
         let topic = Topic {
             topic_id: uid.clone(),
@@ -143,42 +138,15 @@ pub(crate) async fn init_inner_topic(
             storage_name_list: Topic::create_partition_name(&uid, 1),
             create_time: now_second(),
         };
-        let conf = broker_config();
-        let request = CreateTopicRequest {
-            topic_name: topic_name.clone(),
-            content: topic.encode()?,
-        };
-        placement_create_topic(
+        let shard_config = build_delay_message_shard_config(&StorageType::EngineRocksDB)?;
+        create_topic_full(
+            broker_cache,
+            &delay_message_manager.storage_driver_manager,
             &delay_message_manager.client_pool,
-            &conf.get_meta_service_addr(),
-            request,
+            &topic,
+            &shard_config,
         )
         .await?;
-
-        // wait topic create complete with timeout (30 seconds)
-        let wait_result = timeout(Duration::from_secs(30), async {
-            loop {
-                if broker_cache.get_topic_by_name(&topic_name).is_some() {
-                    break;
-                }
-                sleep(Duration::from_millis(10)).await;
-            }
-        })
-        .await;
-
-        if wait_result.is_err() {
-            return Err(CommonError::CommonError(format!(
-                "Timeout waiting for topic '{}' to be created after 30 seconds",
-                topic_name
-            )));
-        }
-
-        // todo create topic message storage
-        let config = build_delay_message_shard_config(&StorageType::EngineRocksDB)?;
-        delay_message_manager
-            .storage_driver_manager
-            .create_storage_resource(&topic_name, &config)
-            .await?;
     }
     Ok(())
 }

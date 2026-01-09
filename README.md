@@ -23,11 +23,11 @@
 </h3>
 
 <p align="center">
-  <a href="#-introduction">Introduction</a> •
+  <a href="#-introduction--vision">Introduction & Vision</a> •
   <a href="#-features">Features</a> •
-  <a href="#-architecture">Architecture</a> •
+  <a href="#%EF%B8%8F-robustmq-development-roadmap">Roadmap</a> •
+  <a href="#%EF%B8%8F-architecture">Architecture</a> •
   <a href="#-quick-start">Quick Start</a> •
-  <a href="#-build-script">Build Script</a> •
   <a href="#-documentation">Documentation</a> •
   <a href="#-contributing">Contributing</a> •
   <a href="#-community">Community</a>
@@ -36,9 +36,9 @@
 ---
 
 > **⚠️ Development Status**
-> RobustMQ is currently in early preview phase with active development and testing. A stable release is anticipated in Q3-Q4 2025. Our roadmap includes achieving production readiness and pursuing Apache top-level project status.
+> RobustMQ is in early development and **not production-ready**. We are currently in **Phase 1** focusing on building a solid architectural foundation. See [Roadmap](#%EF%B8%8F-robustmq-development-roadmap) for detailed development plan and timeline.
 
-## 🚀 Introduction
+## 🚀 Introduction & Vision
 
 **RobustMQ** is a next-generation, high-performance message queue built in Rust, designed for modern cloud-native and AI systems. It unifies MQTT, Kafka, and AMQP protocols with compute-storage separation architecture, enabling microsecond latency and elastic scaling.
 
@@ -48,7 +48,29 @@ Traditional message queues face critical challenges in the AI era: **protocol fr
 
 RobustMQ provides a **unified messaging platform** with flexible architecture that supports all scenarios, eliminating the need to maintain multiple message queue systems.
 
-**Vision**: Become the next-generation cloud-native and AI-native messaging infrastructure, targeting Apache top-level project status.
+### Our Vision
+
+RobustMQ is exploring to become an **ALL-IN-ONE next-generation messaging platform**. Our core philosophy: **Simplicity** and **Slow is Fast**.
+
+This is a **long-term journey**. We prioritize building a rock-solid foundation over rushing features. We believe in avoiding the chaos of frequent refactoring by investing time upfront in thoughtful design and architecture.
+
+As a **community-driven project** (not a commercial venture), we embrace being slow and deliberate. We're committed to quality over speed, depth over breadth. **The journey is as important as the destination** — and we're here for the long run.
+
+*Target: Become the next-generation cloud-native and AI-native messaging infrastructure, aspiring to Apache top-level project status.*
+
+## 🗺️ RobustMQ Development Roadmap
+
+**Long-term Vision**: Minimalist architecture with multi-protocol support, pluggable storage, and minimal deployment footprint.
+
+### Roadmap
+
+**Phase 1: Foundation (Current)** - Building a scalable technical architecture with solid, streamlined, and abstraction-friendly code implementation. Establishing a robust foundation for multi-protocol adaptation, pluggable storage, extensibility, and elasticity. *We are investing significant time here to avoid frequent refactoring in the long term.*
+
+**Phase 2: MQTT Broker** - Deliver a stable, high-performance MQTT Broker with complete protocol support (MQTT 3.x/5.0/SN) and optimized for edge deployment with package size under 20MB.
+
+**Phase 3: Kafka Protocol** - Start Kafka protocol adaptation work after achieving Phase 1 and 2 goals.
+
+
 
 ## ✨ Features
 
@@ -60,6 +82,7 @@ RobustMQ provides a **unified messaging platform** with flexible architecture th
 - **🛠️ Zero-Operations**: Single binary deployment with built-in Raft consensus and comprehensive management tools
 - **🔐 Enterprise Security**: Multi-auth support, fine-grained permissions, and end-to-end encryption
 - **📊 Full Observability**: Prometheus metrics, OpenTelemetry tracing, and Grafana dashboards
+
 
 ## 🏗️ Architecture
 

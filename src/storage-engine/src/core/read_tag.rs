@@ -17,15 +17,15 @@ use crate::{
         manager::ClientConnectionManager,
         packet::{build_read_req, read_resp_parse},
     },
+    commitlog::memory::engine::MemoryStorageEngine,
+    commitlog::rocksdb::engine::RocksDBStorageEngine,
     core::{
         batch_call::{call_read_data_by_all_node, merge_records},
         cache::StorageCacheManager,
         error::StorageEngineError,
         segment::segment_validator,
     },
-    memory::engine::MemoryStorageEngine,
-    rocksdb::engine::RocksDBStorageEngine,
-    segment::read::segment_read_by_tag,
+    filesegment::read::segment_read_by_tag,
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{

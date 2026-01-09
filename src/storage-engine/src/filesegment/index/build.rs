@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::error::StorageEngineError;
-use crate::segment::SegmentIdentity;
+use crate::filesegment::SegmentIdentity;
 use common_base::utils::serialize::serialize;
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::engine::{
@@ -34,38 +34,6 @@ pub struct IndexData {
     pub offset: u64,
     pub timestamp: u64,
     pub position: u64,
-}
-
-pub fn delete_segment_index(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_iden: &SegmentIdentity,
-) -> Result<(), StorageEngineError> {
-    let prefix_key_name = segment_base(&segment_iden.shard_name, segment_iden.segment);
-    let data = engine_list_by_prefix_to_map_by_engine::<IndexData>(
-        rocksdb_engine_handler,
-        DB_COLUMN_FAMILY_STORAGE_ENGINE,
-        &prefix_key_name,
-    )?;
-
-    if data.is_empty() {
-        return Ok(());
-    }
-
-    let cf = rocksdb_engine_handler
-        .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
-        .ok_or_else(|| {
-            StorageEngineError::CommonErrorStr(format!(
-                "Column family '{}' not found",
-                DB_COLUMN_FAMILY_STORAGE_ENGINE
-            ))
-        })?;
-
-    let mut batch = WriteBatch::default();
-    for raw in data.iter() {
-        batch.delete_cf(&cf, raw.key().as_bytes());
-    }
-    rocksdb_engine_handler.write_batch(batch)?;
-    Ok(())
 }
 
 #[derive(Default, Clone)]
@@ -177,11 +145,43 @@ pub fn save_index(
     Ok(())
 }
 
+pub fn delete_segment_index(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    segment_iden: &SegmentIdentity,
+) -> Result<(), StorageEngineError> {
+    let prefix_key_name = segment_base(&segment_iden.shard_name, segment_iden.segment);
+    let data = engine_list_by_prefix_to_map_by_engine::<IndexData>(
+        rocksdb_engine_handler,
+        DB_COLUMN_FAMILY_STORAGE_ENGINE,
+        &prefix_key_name,
+    )?;
+
+    if data.is_empty() {
+        return Ok(());
+    }
+
+    let cf = rocksdb_engine_handler
+        .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
+        .ok_or_else(|| {
+            StorageEngineError::CommonErrorStr(format!(
+                "Column family '{}' not found",
+                DB_COLUMN_FAMILY_STORAGE_ENGINE
+            ))
+        })?;
+
+    let mut batch = WriteBatch::default();
+    for raw in data.iter() {
+        batch.delete_cf(&cf, raw.key().as_bytes());
+    }
+    rocksdb_engine_handler.write_batch(batch)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::core::test_tool::test_build_segment;
-    use crate::segment::index::read::{
+    use crate::filesegment::index::read::{
         get_index_data_by_key, get_index_data_by_offset, get_index_data_by_tag,
         get_index_data_by_timestamp,
     };

@@ -12,28 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::SegmentIdentity;
 use crate::core::error::StorageEngineError;
-use crate::segment::SegmentIdentity;
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::engine::{
-    offset_segment_end, offset_segment_start, timestamp_segment_end, timestamp_segment_start,
+    offset_segment_end, offset_segment_high_watermark, offset_segment_start, timestamp_segment_end,
+    timestamp_segment_start,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::engine::{engine_get_by_engine, engine_save_by_engine};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
 use std::sync::Arc;
 
-pub struct SegmentIndexManager {
+#[derive(Clone)]
+pub struct SegmentOffset {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
-impl SegmentIndexManager {
+impl SegmentOffset {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        SegmentIndexManager {
+        SegmentOffset {
             rocksdb_engine_handler,
         }
     }
 
+    // === segment start offset ===
     pub fn save_start_offset(
         &self,
         segment_iden: &SegmentIdentity,
@@ -65,6 +68,38 @@ impl SegmentIndexManager {
         Ok(-1)
     }
 
+    // === segment high_watermark offset ===
+    pub fn save_high_watermark_offset(
+        &self,
+        segment_iden: &SegmentIdentity,
+        end_offset: i64,
+    ) -> Result<(), StorageEngineError> {
+        let key = offset_segment_high_watermark(&segment_iden.shard_name, segment_iden.segment);
+        Ok(engine_save_by_engine(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+            end_offset,
+        )?)
+    }
+
+    pub fn get_high_watermark_offset(
+        &self,
+        segment_iden: &SegmentIdentity,
+    ) -> Result<i64, StorageEngineError> {
+        let key = offset_segment_end(&segment_iden.shard_name, segment_iden.segment);
+        if let Some(res) = engine_get_by_engine::<i64>(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+        )? {
+            return Ok(res.data);
+        }
+
+        Ok(-1)
+    }
+
+    // === segment end offset ===
     pub fn save_end_offset(
         &self,
         segment_iden: &SegmentIdentity,
@@ -95,6 +130,7 @@ impl SegmentIndexManager {
         Ok(-1)
     }
 
+    // === segment start timestamp ===
     pub fn save_start_timestamp(
         &self,
         segment_iden: &SegmentIdentity,
@@ -125,6 +161,7 @@ impl SegmentIndexManager {
         Ok(-1)
     }
 
+    // === segment end timestamp ===
     pub fn save_end_timestamp(
         &self,
         segment_iden: &SegmentIdentity,
@@ -155,6 +192,7 @@ impl SegmentIndexManager {
         Ok(-1)
     }
 
+    // Update Segment info
     pub fn batch_save_segment_metadata(
         &self,
         segment_iden: &SegmentIdentity,
@@ -195,7 +233,7 @@ impl SegmentIndexManager {
 
 #[cfg(test)]
 mod tests {
-    use super::SegmentIndexManager;
+    use super::SegmentOffset;
     use crate::core::test_tool::test_build_segment;
     use rocksdb_engine::test::test_rocksdb_instance;
 
@@ -204,7 +242,7 @@ mod tests {
         let rocksdb_engine_handler = test_rocksdb_instance();
         let segment_iden = test_build_segment();
 
-        let offset_index = SegmentIndexManager::new(rocksdb_engine_handler);
+        let offset_index = SegmentOffset::new(rocksdb_engine_handler);
 
         let start_offset = 100;
         let res = offset_index.save_start_offset(&segment_iden, start_offset);
@@ -228,7 +266,7 @@ mod tests {
         let rocksdb_engine_handler = test_rocksdb_instance();
         let segment_iden = test_build_segment();
 
-        let offset_index = SegmentIndexManager::new(rocksdb_engine_handler);
+        let offset_index = SegmentOffset::new(rocksdb_engine_handler);
 
         let start_offset = 100;
         let res = offset_index.save_start_offset(&segment_iden, start_offset);
@@ -251,7 +289,7 @@ mod tests {
     fn batch_save_segment_metadata_test() {
         let rocksdb_engine_handler = test_rocksdb_instance();
         let segment_iden = test_build_segment();
-        let segment_index = SegmentIndexManager::new(rocksdb_engine_handler);
+        let segment_index = SegmentOffset::new(rocksdb_engine_handler);
 
         let start_offset = 100;
         let end_offset = 1000;

@@ -14,9 +14,9 @@
 
 use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
-use crate::segment::file::{open_segment_write, SegmentFile};
-use crate::segment::index::build::delete_segment_index;
-use crate::segment::SegmentIdentity;
+use crate::filesegment::file::{open_segment_write, SegmentFile};
+use crate::filesegment::index::build::delete_segment_index;
+use crate::filesegment::SegmentIdentity;
 use common_config::broker::broker_config;
 use metadata_struct::storage::segment::EngineSegment;
 use rocksdb_engine::rocksdb::RocksDBEngine;

@@ -46,6 +46,10 @@ pub fn offset_segment_end(shard: &str, segment: u32) -> String {
     format!("{}offset/end", segment_base(shard, segment))
 }
 
+pub fn offset_segment_high_watermark(shard: &str, segment: u32) -> String {
+    format!("{}offset/high-watermark", segment_base(shard, segment))
+}
+
 pub fn timestamp_segment_start(shard: &str, segment: u32) -> String {
     format!("{}timestamp/start", segment_base(shard, segment))
 }
