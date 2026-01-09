@@ -77,11 +77,11 @@ async fn parse_shard(
     data: &[u8],
 ) -> Result<(), StorageEngineError> {
     match action_type {
-        BrokerUpdateCacheActionType::Set => {
+        BrokerUpdateCacheActionType::Create => {
             let shard = EngineShard::decode(data)?;
             cache_manager.set_shard(shard);
         }
-
+        BrokerUpdateCacheActionType::Update => {}
         BrokerUpdateCacheActionType::Delete => {
             let shard = EngineShard::decode(data)?;
             delete_local_shard(
@@ -101,7 +101,7 @@ async fn parse_segment(
     data: &[u8],
 ) -> Result<(), StorageEngineError> {
     match action_type {
-        BrokerUpdateCacheActionType::Set => {
+        BrokerUpdateCacheActionType::Create => {
             let segment = EngineSegment::decode(data)?;
             cache_manager.set_segment(&segment);
             let segment_iden = SegmentIdentity::new(&segment.shard_name, segment.segment_seq);
@@ -115,6 +115,8 @@ async fn parse_segment(
                 cache_manager.remove_leader_segment(&segment_iden);
             }
         }
+
+        BrokerUpdateCacheActionType::Update => {}
         BrokerUpdateCacheActionType::Delete => {
             let segment = EngineSegment::decode(data)?;
             let segment_iden = SegmentIdentity::new(&segment.shard_name, segment.segment_seq);
@@ -154,6 +156,7 @@ async fn parse_segment_meta(
             cache_manager.sort_offset_index(&segment_iden.shard_name);
         }
 
+        BrokerUpdateCacheActionType::Update => {}
         BrokerUpdateCacheActionType::Delete => {}
     }
     Ok(())

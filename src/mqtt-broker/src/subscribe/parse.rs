@@ -110,7 +110,7 @@ pub async fn start_update_parse_thread(
                 let Some(data) = result else { continue };
 
                 match (data.resource_type, data.action_type) {
-                    (BrokerUpdateCacheResourceType::Topic, BrokerUpdateCacheActionType::Set) => {
+                    (BrokerUpdateCacheResourceType::Topic, BrokerUpdateCacheActionType::Create) => {
                         if let Some(topic) = data.topic {
                             if let Err(e) = parse_subscribe_by_new_topic(&client_pool, &cache_manager, &subscribe_manager, &topic).await {
                                 error!("Failed to parse subscriptions for new topic '{}': {}", topic.topic_name, e);
@@ -123,7 +123,7 @@ pub async fn start_update_parse_thread(
                             subscribe_manager.remove_by_topic(&topic.topic_name);
                         }
                     }
-                    (BrokerUpdateCacheResourceType::Subscribe, BrokerUpdateCacheActionType::Set) => {
+                    (BrokerUpdateCacheResourceType::Subscribe, BrokerUpdateCacheActionType::Create) => {
                         if let Some(subscribe) = data.subscribe {
                             if let Err(e) = parse_subscribe_by_new_subscribe(&subscribe_manager, &cache_manager, &client_pool, &subscribe).await {
                                 error!("Failed to parse new subscription for client '{}', path '{}': {}",
