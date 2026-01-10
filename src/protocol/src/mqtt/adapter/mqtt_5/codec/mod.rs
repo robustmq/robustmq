@@ -14,3 +14,5 @@
 
 mod decoder;
 mod encoder;
+
+struct Mqtt5Codec;

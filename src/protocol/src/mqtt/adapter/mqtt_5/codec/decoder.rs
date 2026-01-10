@@ -11,3 +11,19 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+use crate::mqtt::adapter::mqtt_5::codec::Mqtt5Codec;
+use crate::mqtt::adapter::mqtt_5::packet::Packet;
+use bytes::BytesMut;
+use common_base::error::mqtt_protocol_error::MQTTProtocolError;
+use tokio_util::codec;
+
+#[allow(dead_code)]
+impl codec::Decoder for Mqtt5Codec {
+    type Item = Packet;
+    type Error = MQTTProtocolError;
+
+    fn decode(&mut self, _src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        todo!()
+    }
+}

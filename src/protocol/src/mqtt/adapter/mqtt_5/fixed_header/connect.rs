@@ -12,21 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::mqtt::adapter::common::control_packet_type::ControlPacketType;
+
 #[allow(dead_code)]
-pub enum Packet {
-    Connect,
-    ConnAck,
-    Publish,
-    PubAck,
-    PubRec,
-    PubRel,
-    PubComp,
-    Subscribe,
-    SubAck,
-    Unsubscribe,
-    UnsubAck,
-    PingReq,
-    PingResp,
-    Disconnect,
-    Auth,
+#[derive()]
+pub struct ConnectFixedHeader {
+    control_packet_type: ControlPacketType,
+    remaining_len: u32,
+}
+#[allow(dead_code)]
+impl ConnectFixedHeader {
+    pub fn new(remaining_len: u32) -> Self {
+        Self {
+            control_packet_type: ControlPacketType::Connect,
+            remaining_len,
+        }
+    }
+
+    pub fn control_packet_type(&self) -> &ControlPacketType {
+        &self.control_packet_type
+    }
+
+    pub fn set_remaining_len(&mut self, len: u32) {
+        self.remaining_len = len;
+    }
 }
