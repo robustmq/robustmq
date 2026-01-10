@@ -12,8 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod codec;
-mod fixed_header;
-mod packet;
-mod payload;
-mod variable_header;
+mod decoder;
+mod encoder;
