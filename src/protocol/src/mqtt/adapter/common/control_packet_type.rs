@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ControlPacketType {
     Connect,
     ConnAck,
@@ -29,4 +29,5 @@ pub enum ControlPacketType {
     PingReq,
     PingResp,
     Disconnect,
+    Auth,
 }

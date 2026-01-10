@@ -15,7 +15,7 @@
 use crate::mqtt::adapter::common::control_packet_type::ControlPacketType;
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnsubscribeFixedHeader {
     control_packet_type: ControlPacketType,
     remaining_len: u32,

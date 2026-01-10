@@ -206,3 +206,5 @@ src/common/rocksdb-engine/data
 src/storage-adapter/data
 src/storage-adapter/robustmq_data
 tests/data
+
+precommit_venv

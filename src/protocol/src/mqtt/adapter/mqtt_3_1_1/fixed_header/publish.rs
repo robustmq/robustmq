@@ -43,7 +43,7 @@ impl PublishFixedHeader {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PublishFixedHeaderFlags {
     dup: bool,
     qos: QoSLevel,
