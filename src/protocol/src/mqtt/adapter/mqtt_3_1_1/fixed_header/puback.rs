@@ -12,10 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod codec;
-mod mqtt_3;
-mod mqtt_3_1_1;
-mod mqtt_5;
-mod mqtt_sn;
+use crate::mqtt::adapter::common::control_packet_type::ControlPacketType;
 
-pub(crate) mod common;
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PubAckFixedHeader {
+    pub control_packet_type: ControlPacketType,
+    pub remaining_len: u32,
+}
+
+#[allow(dead_code)]
+impl PubAckFixedHeader {
+    pub fn new() -> Self {
+        PubAckFixedHeader {
+            control_packet_type: ControlPacketType::PubAck,
+            remaining_len: 2,
+        }
+    }
+
+    pub fn control_packet_type(&self) -> &ControlPacketType {
+        &self.control_packet_type
+    }
+}

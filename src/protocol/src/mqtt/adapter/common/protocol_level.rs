@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod codec;
-mod mqtt_3;
-mod mqtt_3_1_1;
-mod mqtt_5;
-mod mqtt_sn;
-
-pub(crate) mod common;
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProtocolLevel {
+    Mqtt3 = 3,
+    Mqtt3_1_1 = 4,
+    Mqtt5 = 5,
+}

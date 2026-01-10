@@ -12,10 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod codec;
-mod mqtt_3;
-mod mqtt_3_1_1;
-mod mqtt_5;
-mod mqtt_sn;
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct PubCompVariableHeader {
+    packet_identifier: u16,
+}
 
-pub(crate) mod common;
+#[allow(dead_code)]
+impl PubCompVariableHeader {
+    pub fn new(packet_identifier: u16) -> Self {
+        PubCompVariableHeader { packet_identifier }
+    }
+
+    pub fn packet_identifier(&self) -> u16 {
+        self.packet_identifier
+    }
+}

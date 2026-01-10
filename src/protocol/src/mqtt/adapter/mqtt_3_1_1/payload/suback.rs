@@ -12,10 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod codec;
-mod mqtt_3;
-mod mqtt_3_1_1;
-mod mqtt_5;
-mod mqtt_sn;
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubAckPayload {
+    return_codes: Vec<SubAckReturnCode>,
+}
 
-pub(crate) mod common;
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SubAckReturnCode {
+    SuccessQoS0,
+    SuccessQoS1,
+    SuccessQoS2,
+    Failure,
+}
+
+#[allow(dead_code)]
+impl SubAckPayload {
+    pub fn new(return_codes: Vec<SubAckReturnCode>) -> Self {
+        SubAckPayload { return_codes }
+    }
+
+    pub fn return_codes(&self) -> &Vec<SubAckReturnCode> {
+        &self.return_codes
+    }
+}

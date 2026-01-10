@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod codec;
-mod mqtt_3;
-mod mqtt_3_1_1;
-mod mqtt_5;
-mod mqtt_sn;
-
-pub(crate) mod common;
+pub(crate) mod control_packet_type;
+pub(crate) mod protocol_level;
+pub(crate) mod qos;

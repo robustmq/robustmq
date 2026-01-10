@@ -12,10 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod codec;
-mod mqtt_3;
-mod mqtt_3_1_1;
-mod mqtt_5;
-mod mqtt_sn;
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct PublishPayload {
+    application_message: String,
+}
 
-pub(crate) mod common;
+#[allow(dead_code)]
+impl PublishPayload {
+    pub fn new(application_message: String) -> Self {
+        PublishPayload {
+            application_message,
+        }
+    }
+
+    pub fn application_message(&self) -> &str {
+        &self.application_message
+    }
+}

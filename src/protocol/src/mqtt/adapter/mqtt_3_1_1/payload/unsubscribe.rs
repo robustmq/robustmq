@@ -12,10 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod codec;
-mod mqtt_3;
-mod mqtt_3_1_1;
-mod mqtt_5;
-mod mqtt_sn;
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnsubscribePayload {
+    topic_filters: Vec<String>,
+}
 
-pub(crate) mod common;
+#[allow(dead_code)]
+impl UnsubscribePayload {
+    pub fn new(topic_filters: Vec<String>) -> Self {
+        UnsubscribePayload { topic_filters }
+    }
+
+    pub fn topic_filters(&self) -> &Vec<String> {
+        &self.topic_filters
+    }
+}

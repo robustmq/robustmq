@@ -12,10 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod codec;
-mod mqtt_3;
-mod mqtt_3_1_1;
-mod mqtt_5;
-mod mqtt_sn;
+use crate::mqtt::adapter::common::qos::QoSLevel;
 
-pub(crate) mod common;
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubscribePayload {
+    topics: Vec<(String, QoSLevel)>,
+}
+
+#[allow(dead_code)]
+impl SubscribePayload {
+    pub fn new(topics: Vec<(String, QoSLevel)>) -> Self {
+        SubscribePayload { topics }
+    }
+
+    pub fn topics(&self) -> &Vec<(String, QoSLevel)> {
+        &self.topics
+    }
+}

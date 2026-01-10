@@ -12,10 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod codec;
-mod mqtt_3;
-mod mqtt_3_1_1;
-mod mqtt_5;
-mod mqtt_sn;
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubAckVariableHeader {
+    packet_identifier: u16,
+}
+#[allow(dead_code)]
+impl SubAckVariableHeader {
+    pub fn new(packet_identifier: u16) -> Self {
+        SubAckVariableHeader { packet_identifier }
+    }
 
-pub(crate) mod common;
+    pub fn packet_identifier(&self) -> u16 {
+        self.packet_identifier
+    }
+}

@@ -12,10 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod codec;
-mod mqtt_3;
-mod mqtt_3_1_1;
-mod mqtt_5;
-mod mqtt_sn;
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct PublishVariableHeader {
+    topic_name: String,
+    packet_identifier: Option<u16>,
+}
 
-pub(crate) mod common;
+#[allow(dead_code)]
+impl PublishVariableHeader {
+    pub fn new(topic_name: String, packet_identifier: Option<u16>) -> Self {
+        PublishVariableHeader {
+            topic_name,
+            packet_identifier,
+        }
+    }
+
+    pub fn topic_name(&self) -> &str {
+        &self.topic_name
+    }
+
+    pub fn packet_identifier(&self) -> Option<u16> {
+        self.packet_identifier
+    }
+}

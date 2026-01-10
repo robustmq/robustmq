@@ -11,3 +11,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReturnCode {
+    ConnectionAccepted = 0,
+    UnacceptableProtocolVersion = 1,
+    IdentifierRejected = 2,
+    ServerUnavailable = 3,
+    BadUserNameOrPassword = 4,
+    NotAuthorized = 5,
+}
