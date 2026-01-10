@@ -25,9 +25,7 @@ pub struct MemoryStorageEngine {
     //(shard, lock)
     pub shard_write_locks: DashMap<String, Arc<tokio::sync::Mutex<()>>>,
     pub config: StorageDriverMemoryConfig,
-    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
-    pub cache_manager: Arc<StorageCacheManager>,
-    pub commitlog_offset: Arc<CommitLogOffset>,
+    pub commit_log_offset: Arc<CommitLogOffset>,
 
     // ====Message Data====
     //(shard, (offset,Record))
@@ -47,15 +45,13 @@ impl MemoryStorageEngine {
         config: StorageDriverMemoryConfig,
     ) -> Self {
         MemoryStorageEngine {
-            cache_manager: cache_manager.clone(),
-            rocksdb_engine_handler: rocksdb_engine_handler.clone(),
             shard_data: DashMap::with_capacity(8),
             tag_index: DashMap::with_capacity(8),
             key_index: DashMap::with_capacity(8),
             timestamp_index: DashMap::with_capacity(8),
             shard_write_locks: DashMap::with_capacity(8),
             config,
-            commitlog_offset: Arc::new(CommitLogOffset::new(
+            commit_log_offset: Arc::new(CommitLogOffset::new(
                 cache_manager.clone(),
                 rocksdb_engine_handler.clone(),
             )),

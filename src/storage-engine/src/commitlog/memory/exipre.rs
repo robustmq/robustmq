@@ -25,7 +25,7 @@ impl MemoryStorageEngine {
     ) -> Result<(), StorageEngineError> {
         let next_num = current_shard_data.len() + new_message_count;
         if next_num > self.config.max_records_per_shard {
-            let offset = self.commitlog_offset.get_earliest_offset(shard_name)?;
+            let offset = self.commit_log_offset.get_earliest_offset(shard_name)?;
             let discard_num = (current_shard_data.len() as f64 * 0.2) as u64;
 
             if let Some(key_map) = self.key_index.get_mut(shard_name) {
@@ -43,7 +43,7 @@ impl MemoryStorageEngine {
             }
 
             let new_earliest = offset + discard_num;
-            self.commitlog_offset
+            self.commit_log_offset
                 .save_earliest_offset(shard_name, new_earliest)?;
             self.cleanup_indexes_by_offset(shard_name, new_earliest);
         }
