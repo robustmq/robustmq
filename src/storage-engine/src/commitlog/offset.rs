@@ -99,6 +99,7 @@ impl CommitLogOffset {
     }
 
     //======== high watermark offset ========
+    #[allow(dead_code)]
     fn save_high_watermark_offset_by_shard(
         &self,
         shard: &str,
@@ -113,6 +114,7 @@ impl CommitLogOffset {
         )?)
     }
 
+    #[allow(dead_code)]
     fn read_high_watermark_offset_by_shard(
         &self,
         shard: &str,
