@@ -14,13 +14,13 @@
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
-use crate::filesegment::file::open_segment_write;
 use crate::filesegment::index::build::{save_index, BuildIndexRaw, IndexTypeEnum};
 use crate::filesegment::offset::FileSegmentOffset;
 use crate::filesegment::scroll::{
     is_start_or_end_offset, is_trigger_next_segment_scroll, trigger_next_segment_scroll,
     trigger_update_start_or_end_info,
 };
+use crate::filesegment::segment_file::open_segment_write;
 use crate::filesegment::SegmentIdentity;
 use bytes::Bytes;
 use common_base::tools::now_second;
@@ -528,7 +528,7 @@ async fn batch_write(
 mod tests {
     use super::*;
     use crate::core::test_tool::test_init_segment;
-    use crate::filesegment::file::SegmentFile;
+    use crate::filesegment::segment_file::SegmentFile;
     use bytes::Bytes;
     use common_config::storage::StorageType;
     use metadata_struct::storage::storage_record::StorageRecordMetadata;

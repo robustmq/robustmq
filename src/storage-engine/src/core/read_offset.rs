@@ -20,8 +20,8 @@ use crate::{
     commitlog::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine},
     core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
     filesegment::{
-        file::open_segment_write, index::read::get_in_segment_by_offset, offset::FileSegmentOffset,
-        read::segment_read_by_offset, SegmentIdentity,
+        index::read::get_in_segment_by_offset, offset::FileSegmentOffset,
+        read::segment_read_by_offset, segment_file::open_segment_write, SegmentIdentity,
     },
 };
 use common_config::{broker::broker_config, storage::StorageType};

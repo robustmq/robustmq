@@ -14,7 +14,7 @@
 
 use crate::core::error::StorageEngineError;
 use crate::filesegment::SegmentIdentity;
-use crate::{core::cache::StorageCacheManager, filesegment::file::SegmentFile};
+use crate::{core::cache::StorageCacheManager, filesegment::segment_file::SegmentFile};
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::meta::storage::call::{
@@ -223,7 +223,7 @@ mod tests {
     use super::*;
     use crate::core::cache::StorageCacheManager;
     use crate::core::test_tool::{test_build_data_fold, test_build_segment, test_init_conf};
-    use crate::filesegment::file::SegmentFile;
+    use crate::filesegment::segment_file::SegmentFile;
     use broker_core::cache::BrokerCacheManager;
     use common_config::broker::default_broker_config;
     use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};

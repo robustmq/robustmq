@@ -15,11 +15,11 @@
 use metadata_struct::storage::segment::{segment_name, EngineSegment};
 
 pub mod expire;
-pub mod file;
 pub mod index;
 pub mod offset;
 pub mod read;
 pub mod scroll;
+pub mod segment_file;
 pub mod segment_offset;
 pub mod write;
 

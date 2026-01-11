@@ -15,7 +15,7 @@
 use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
 use super::segment::delete_local_segment;
-use crate::filesegment::file::data_fold_shard;
+use crate::filesegment::segment_file::data_fold_shard;
 use crate::filesegment::SegmentIdentity;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;

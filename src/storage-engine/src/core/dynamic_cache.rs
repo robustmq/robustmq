@@ -16,7 +16,9 @@ use super::cache::StorageCacheManager;
 use crate::{
     commitlog::offset::CommitLogOffset,
     core::{error::StorageEngineError, segment::delete_local_segment, shard::delete_local_shard},
-    filesegment::{file::open_segment_write, segment_offset::SegmentOffset, SegmentIdentity},
+    filesegment::{
+        segment_file::open_segment_write, segment_offset::SegmentOffset, SegmentIdentity,
+    },
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::segment::EngineSegment;

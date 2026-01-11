@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::file::SegmentFile;
+use super::segment_file::SegmentFile;
 use super::SegmentIdentity;
 use crate::{
     core::{cache::StorageCacheManager, error::StorageEngineError},
     filesegment::{
-        file::{open_segment_write, ReadData},
         index::read::{get_index_data_by_key, get_index_data_by_offset, get_index_data_by_tag},
+        segment_file::{open_segment_write, ReadData},
     },
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -114,7 +114,7 @@ mod tests {
         commitlog::offset::CommitLogOffset,
         core::{cache::StorageCacheManager, test_tool::test_init_segment},
         filesegment::{
-            file::SegmentFile,
+            segment_file::SegmentFile,
             write::{WriteChannelDataRecord, WriteManager},
             SegmentIdentity,
         },
