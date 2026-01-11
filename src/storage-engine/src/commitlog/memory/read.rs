@@ -142,9 +142,9 @@ impl MemoryStorageEngine {
 
         match strategy {
             AdapterOffsetStrategy::Earliest => {
-                Ok(self.commitlog_offset.get_earliest_offset(shard)?)
+                Ok(self.commit_log_offset.get_earliest_offset(shard)?)
             }
-            AdapterOffsetStrategy::Latest => Ok(self.commitlog_offset.get_latest_offset(shard)?),
+            AdapterOffsetStrategy::Latest => Ok(self.commit_log_offset.get_latest_offset(shard)?),
         }
     }
 
@@ -165,7 +165,10 @@ impl MemoryStorageEngine {
         timestamp: u64,
     ) -> Option<u64> {
         let data_map = self.shard_data.get(shard)?;
-        let shard_state = self.cache_manager.get_offset_state(shard)?;
+        let shard_state = self
+            .commit_log_offset
+            .cache_manager
+            .get_offset_state(shard)?;
 
         let start = start_offset.unwrap_or(0);
         let end = shard_state.latest_offset;
@@ -207,8 +210,10 @@ mod tests {
         let shard_name = unique_id();
         let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
-        let commit_offset =
-            CommitLogOffset::new(cache_manager.clone(), engine.rocksdb_engine_handler.clone());
+        let commit_offset = CommitLogOffset::new(
+            cache_manager.clone(),
+            engine.commit_log_offset.rocksdb_engine_handler.clone(),
+        );
 
         commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
         commit_offset.save_latest_offset(&shard_name, 0).unwrap();

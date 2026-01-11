@@ -35,7 +35,7 @@ pub async fn update_cache_by_add_session(
     send_cache_update(
         call_manager,
         client_pool,
-        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Session,
         || Ok(serialize::serialize(&session)?),
     )
@@ -65,7 +65,7 @@ pub async fn update_cache_by_add_schema(
     send_cache_update(
         call_manager,
         client_pool,
-        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Schema,
         || Ok(serialize::serialize(&schema)?),
     )
@@ -95,7 +95,7 @@ pub async fn update_cache_by_add_schema_bind(
     send_cache_update(
         call_manager,
         client_pool,
-        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::SchemaResource,
         || Ok(serialize::serialize(&bind_data)?),
     )
@@ -125,7 +125,7 @@ pub async fn update_cache_by_add_connector(
     send_cache_update(
         call_manager,
         client_pool,
-        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Connector,
         || Ok(serialize::serialize(&connector)?),
     )
@@ -155,7 +155,7 @@ pub async fn update_cache_by_add_user(
     send_cache_update(
         call_manager,
         client_pool,
-        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::User,
         || Ok(serialize::serialize(&user)?),
     )
@@ -185,7 +185,7 @@ pub async fn update_cache_by_add_subscribe(
     send_cache_update(
         call_manager,
         client_pool,
-        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Subscribe,
         || Ok(serialize::serialize(&subscribe)?),
     )
@@ -215,7 +215,7 @@ pub async fn update_cache_by_add_topic(
     send_cache_update(
         call_manager,
         client_pool,
-        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Topic,
         || Ok(serialize::serialize(&topic)?),
     )
@@ -245,7 +245,7 @@ pub async fn update_cache_by_add_node(
     send_cache_update(
         call_manager,
         client_pool,
-        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Node,
         || Ok(serialize::serialize(&node)?),
     )
@@ -275,7 +275,7 @@ pub async fn update_cache_by_set_resource_config(
     send_cache_update(
         call_manager,
         client_pool,
-        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::ClusterResourceConfig,
         || Ok(serialize::serialize(&config)?),
     )

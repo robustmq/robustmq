@@ -415,7 +415,7 @@ mod tests {
     fn test_is_ignore_push_non_node_type() {
         let node = create_test_node(1);
         let message = BrokerCallMessage {
-            action_type: BrokerUpdateCacheActionType::Set,
+            action_type: BrokerUpdateCacheActionType::Create,
             resource_type: BrokerUpdateCacheResourceType::Shard,
             data: vec![],
         };
@@ -430,7 +430,7 @@ mod tests {
         let data = serialize::serialize(&target_node).unwrap();
 
         let message = BrokerCallMessage {
-            action_type: BrokerUpdateCacheActionType::Set,
+            action_type: BrokerUpdateCacheActionType::Create,
             resource_type: BrokerUpdateCacheResourceType::Node,
             data,
         };
@@ -445,7 +445,7 @@ mod tests {
         let data = serialize::serialize(&target_node).unwrap();
 
         let message = BrokerCallMessage {
-            action_type: BrokerUpdateCacheActionType::Set,
+            action_type: BrokerUpdateCacheActionType::Create,
             resource_type: BrokerUpdateCacheResourceType::Node,
             data,
         };
@@ -457,7 +457,7 @@ mod tests {
     fn test_is_ignore_push_invalid_data() {
         let node = create_test_node(1);
         let message = BrokerCallMessage {
-            action_type: BrokerUpdateCacheActionType::Set,
+            action_type: BrokerUpdateCacheActionType::Create,
             resource_type: BrokerUpdateCacheResourceType::Node,
             data: vec![1, 2, 3],
         };

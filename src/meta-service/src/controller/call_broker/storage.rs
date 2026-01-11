@@ -29,7 +29,7 @@ pub async fn update_cache_by_set_shard(
     send_cache_update(
         broker_call_manager,
         client_pool,
-        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Shard,
         || Ok(shard_info.encode()?),
     )
@@ -59,7 +59,7 @@ pub async fn update_cache_by_set_segment(
     send_cache_update(
         broker_call_manager,
         client_pool,
-        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Segment,
         || Ok(segment_info.encode()?),
     )
@@ -89,7 +89,7 @@ pub async fn update_cache_by_set_segment_meta(
     send_cache_update(
         broker_call_manager,
         client_pool,
-        BrokerUpdateCacheActionType::Set,
+        BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::SegmentMeta,
         || Ok(segment_info.encode()?),
     )

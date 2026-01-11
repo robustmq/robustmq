@@ -51,6 +51,7 @@ enum BrokerUpdateCacheResourceType {
 }
 
 enum BrokerUpdateCacheActionType {
-  Set = 0;
-  Delete = 1;
+  Create = 0;
+  Update = 1;
+  Delete = 2;
 }

@@ -52,6 +52,27 @@ jobs:
         with:
           submodules: true
 
+      # Free up disk space on GitHub Actions runners
+      - name: Free disk space
+        run: |
+          echo "==========================================="
+          echo "Disk space before cleanup:"
+          df -h
+          echo "==========================================="
+          
+          # Remove unnecessary files to free up space
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo apt-get clean
+          
+          echo "==========================================="
+          echo "Disk space after cleanup:"
+          df -h
+          echo "==========================================="
+
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install system dependencies
@@ -66,53 +87,30 @@ jobs:
         with:
           shared-key: "integration-tests"
           cache-on-failure: true
-          # Allow all branches to save cache for faster PR iterations
-          # save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
-          # Cache key includes Cargo.lock to ensure cache invalidation when dependencies change
-          key: ${{ hashFiles('**/Cargo.lock') }}
+          # Clean cache to prevent disk space issues
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      # Additional cache for compiled binaries
-      # Only invalidate when Cargo.lock changes (dependencies change)
-      # Source code changes will use incremental compilation
-      - name: Cache compiled binaries
-        uses: actions/cache@v5
-        with:
-          path: |
-            target/debug/broker-server
-            target/debug/deps
-            target/debug/build
-            target/debug/.fingerprint
-            target/debug/incremental
-          # Key only on Cargo.lock - source changes use incremental compilation
-          key: binaries-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            binaries-${{ runner.os }}-
-
-      - name: Check cache status
+      - name: Check disk space
         run: |
           echo "=========================================="
-          echo "Cache Status Check"
+          echo "Disk Space Status"
+          echo "=========================================="
+          df -h
           echo "=========================================="
 
-          if [ -f "target/debug/broker-server" ]; then
-            echo "✅ Binary cache HIT - broker-server exists"
-            echo "   Size: $(du -h target/debug/broker-server | cut -f1)"
-            echo "   Modified: $(stat -c '%y' target/debug/broker-server 2>/dev/null || stat -f '%Sm' target/debug/broker-server)"
-            echo ""
-            echo "Expected: Incremental compilation (fast)"
-          else
-            echo "❌ Binary cache MISS - fresh build required"
-            echo ""
-            echo "Expected: Full compilation (slow)"
+      - name: Clean target directory to save space
+        run: |
+          # Remove old test artifacts and incremental compilation cache
+          if [ -d "target/debug" ]; then
+            echo "Cleaning target/debug directory..."
+            # Keep only essential files, remove test artifacts
+            find target/debug -maxdepth 1 -type f -name "*.d" -delete || true
+            find target/debug -maxdepth 1 -type f -name "*.rlib" -delete || true
+            # Clean old incremental cache (keep recent ones)
+            find target/debug/incremental -type d -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+            echo "Cleanup complete"
+            df -h
           fi
-
-          # Check incremental cache
-          if [ -d "target/debug/incremental" ]; then
-            INCREMENTAL_SIZE=$(du -sh target/debug/incremental 2>/dev/null | cut -f1 || echo "0")
-            echo "   Incremental cache: $INCREMENTAL_SIZE"
-          fi
-
-          echo "=========================================="
 
       - name: Run integration tests with broker
         run: |

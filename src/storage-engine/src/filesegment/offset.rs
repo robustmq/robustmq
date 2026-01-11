@@ -55,7 +55,10 @@ impl FileSegmentOffset {
         let segment_iden = SegmentIdentity::new(shard_name, segment.segment_seq);
         let offset = self.segment_offset.get_end_offset(&segment_iden)?;
         if offset < 0 {
-            return Err(StorageEngineError::CommonErrorStr("".to_string()));
+            return Err(StorageEngineError::CommonErrorStr(format!(
+                "Invalid end offset {} for shard '{}' segment {}: offset cannot be negative",
+                offset, shard_name, segment.segment_seq
+            )));
         }
         Ok(offset as u64)
     }
@@ -90,7 +93,10 @@ impl FileSegmentOffset {
         };
 
         if meta.start_offset < 0 {
-            return Err(StorageEngineError::CommonErrorStr("".to_string()));
+            return Err(StorageEngineError::CommonErrorStr(format!(
+                "Invalid start offset {} for shard '{}' segment {}: offset cannot be negative",
+                meta.start_offset, shard_name, shard.start_segment_seq
+            )));
         }
         Ok(meta.start_offset as u64)
     }

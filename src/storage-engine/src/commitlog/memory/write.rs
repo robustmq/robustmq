@@ -132,7 +132,7 @@ impl MemoryStorageEngine {
 
         // save data
         let mut offset_res = Vec::with_capacity(messages.len());
-        let mut offset = self.commitlog_offset.get_latest_offset(shard_name)?;
+        let mut offset = self.commit_log_offset.get_latest_offset(shard_name)?;
         for msg in messages.iter() {
             offset_res.push(AdapterWriteRespRow {
                 pkid: msg.pkid,
@@ -149,7 +149,7 @@ impl MemoryStorageEngine {
             offset += 1;
         }
 
-        self.commitlog_offset
+        self.commit_log_offset
             .save_latest_offset(shard_name, offset)?;
         Ok(offset_res)
     }
@@ -175,8 +175,10 @@ mod tests {
         let shard_name = unique_id();
         let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
-        let commit_offset =
-            CommitLogOffset::new(cache_manager.clone(), engine.rocksdb_engine_handler.clone());
+        let commit_offset = CommitLogOffset::new(
+            cache_manager.clone(),
+            engine.commit_log_offset.rocksdb_engine_handler.clone(),
+        );
 
         commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
         commit_offset.save_latest_offset(&shard_name, 0).unwrap();
@@ -207,7 +209,7 @@ mod tests {
         assert!(data.contains_key(&2));
         assert!(data.contains_key(&10));
         let earliest = engine
-            .commitlog_offset
+            .commit_log_offset
             .get_earliest_offset(&shard_name)
             .unwrap();
         assert_eq!(earliest, 2);
@@ -223,8 +225,10 @@ mod tests {
         let shard_name = unique_id();
         let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
-        let commit_offset =
-            CommitLogOffset::new(cache_manager.clone(), engine.rocksdb_engine_handler.clone());
+        let commit_offset = CommitLogOffset::new(
+            cache_manager.clone(),
+            engine.commit_log_offset.rocksdb_engine_handler.clone(),
+        );
 
         commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
         commit_offset.save_latest_offset(&shard_name, 0).unwrap();

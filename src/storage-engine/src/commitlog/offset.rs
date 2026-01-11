@@ -24,8 +24,8 @@ use rocksdb_engine::{
 use std::sync::Arc;
 
 pub struct CommitLogOffset {
-    cache_manager: Arc<StorageCacheManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub cache_manager: Arc<StorageCacheManager>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 impl CommitLogOffset {
     pub fn new(
@@ -99,7 +99,8 @@ impl CommitLogOffset {
     }
 
     //======== high watermark offset ========
-    fn _save_high_watermark_offset_by_shard(
+    #[allow(dead_code)]
+    fn save_high_watermark_offset_by_shard(
         &self,
         shard: &str,
         offset: u64,
@@ -113,7 +114,8 @@ impl CommitLogOffset {
         )?)
     }
 
-    fn _read_high_watermark_offset_by_shard(
+    #[allow(dead_code)]
+    fn read_high_watermark_offset_by_shard(
         &self,
         shard: &str,
     ) -> Result<Option<u64>, StorageEngineError> {
@@ -191,4 +193,80 @@ impl CommitLogOffset {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use crate::core::cache::StorageCacheManager;
+    use broker_core::cache::BrokerCacheManager;
+    use common_config::config::BrokerConfig;
+    use rocksdb_engine::test::test_rocksdb_instance;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_save_and_read_earliest_offset() {
+        let rocksdb_engine = test_rocksdb_instance();
+        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+        let offset_manager = CommitLogOffset::new(cache_manager, rocksdb_engine.clone());
+
+        let shard_name = "test_shard";
+        let offset = 12345u64;
+
+        // Test save
+        offset_manager
+            .save_earliest_offset_by_shard(shard_name, offset)
+            .unwrap();
+
+        // Test read
+        let result = offset_manager
+            .read_earliest_offset_by_shard(shard_name)
+            .unwrap();
+
+        assert_eq!(result, Some(offset));
+    }
+
+    #[tokio::test]
+    async fn test_save_and_read_high_watermark_offset() {
+        let rocksdb_engine = test_rocksdb_instance();
+        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+        let offset_manager = CommitLogOffset::new(cache_manager, rocksdb_engine.clone());
+
+        let shard_name = "test_shard";
+        let offset = 67890u64;
+
+        // Test save
+        offset_manager
+            .save_high_watermark_offset_by_shard(shard_name, offset)
+            .unwrap();
+
+        // Test read
+        let result = offset_manager
+            .read_high_watermark_offset_by_shard(shard_name)
+            .unwrap();
+
+        assert_eq!(result, Some(offset));
+    }
+
+    #[tokio::test]
+    async fn test_save_and_read_latest_offset() {
+        let rocksdb_engine = test_rocksdb_instance();
+        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+        let offset_manager = CommitLogOffset::new(cache_manager, rocksdb_engine.clone());
+
+        let shard_name = "test_shard";
+        let offset = 99999u64;
+
+        // Test save
+        offset_manager
+            .save_latest_offset_by_shard(shard_name, offset)
+            .unwrap();
+
+        // Test read
+        let result = offset_manager
+            .read_latest_offset_by_shard(shard_name)
+            .unwrap();
+
+        assert_eq!(result, Some(offset));
+    }
+}
