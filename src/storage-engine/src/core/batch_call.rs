@@ -16,6 +16,7 @@ use crate::{
     clients::{manager::ClientConnectionManager, packet::read_resp_parse},
     core::{cache::StorageCacheManager, error::StorageEngineError},
 };
+use common_config::broker::broker_config;
 use futures::future::join_all;
 use metadata_struct::storage::storage_record::StorageRecord;
 use protocol::storage::{codec::StorageEnginePacket, protocol::ReadReq};
@@ -25,10 +26,9 @@ use tracing::warn;
 pub async fn call_read_data_by_all_node(
     cache_manager: &Arc<StorageCacheManager>,
     client_connection_manager: &Arc<ClientConnectionManager>,
-    target_broker_id: u64,
     read_req: ReadReq,
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-    let remote_nodes = get_remote_leader_nodes(cache_manager, &read_req, target_broker_id);
+    let remote_nodes = get_remote_leader_nodes(cache_manager, &read_req);
 
     if remote_nodes.is_empty() {
         return Ok(Vec::new());
@@ -80,14 +80,14 @@ pub async fn call_read_data_by_all_node(
 fn get_remote_leader_nodes(
     cache_manager: &Arc<StorageCacheManager>,
     read_req: &ReadReq,
-    target_broker_id: u64,
 ) -> Vec<u64> {
+    let conf = broker_config();
     let mut nodes: Vec<u64> = read_req
         .body
         .messages
         .iter()
         .flat_map(|msg| cache_manager.get_segment_leader_nodes(&msg.shard_name))
-        .filter(|node_id| *node_id != target_broker_id)
+        .filter(|node_id| *node_id != conf.broker_id)
         .collect();
 
     nodes.sort_unstable();

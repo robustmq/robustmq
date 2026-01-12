@@ -112,6 +112,7 @@ mod tests {
         let read_req = ReadReq::new(ReadReqBody::new(vec![ReadReqMessage::new(
             shard_name.clone(),
             ReadType::Offset,
+            false,
             ReadReqFilter::by_offset(0),
             ReadReqOptions::new(1024 * 1024, 5),
         )]));
@@ -137,6 +138,7 @@ mod tests {
         let read_req = ReadReq::new(ReadReqBody::new(vec![ReadReqMessage::new(
             shard_name.clone(),
             ReadType::Key,
+            false,
             ReadReqFilter {
                 offset: Some(0),
                 key: Some("key-3".to_string()),
@@ -164,6 +166,7 @@ mod tests {
         let read_req = ReadReq::new(ReadReqBody::new(vec![ReadReqMessage::new(
             shard_name.clone(),
             ReadType::Tag,
+            false,
             ReadReqFilter {
                 offset: Some(0),
                 tag: Some("tag-1".to_string()),

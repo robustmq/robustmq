@@ -171,6 +171,7 @@ impl StorageEngineHandler {
             shard_name: shard.to_string(),
             tag: tag.to_string(),
             start_offset,
+            batch_call_source: false,
             read_config: read_config.clone(),
         })
         .await
@@ -192,6 +193,7 @@ impl StorageEngineHandler {
             rocksdb_storage_engine: self.rocksdb_storage_engine.clone(),
             client_connection_manager: self.client_connection_manager.clone(),
             shard_name: shard.to_string(),
+            batch_call_source: false,
             key: key.to_string(),
         })
         .await
