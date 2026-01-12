@@ -125,17 +125,17 @@ async fn parse_segment(
             };
 
             let segment_iden = SegmentIdentity::new(&segment.shard_name, segment.segment_seq);
-            if shard.config.storage_type == StorageType::EngineSegment {
-                let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
-                segment_file.try_create().await?;
-            }
+            cache_manager.set_segment(&segment);
 
             let conf = broker_config();
             if conf.broker_id == segment.leader {
                 cache_manager.add_leader_segment(&segment_iden);
             }
 
-            cache_manager.set_segment(&segment);
+            if shard.config.storage_type == StorageType::EngineSegment {
+                let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
+                segment_file.try_create().await?;
+            }
         }
 
         BrokerUpdateCacheActionType::Update => {

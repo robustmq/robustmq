@@ -17,15 +17,14 @@ use crate::{
         manager::ClientConnectionManager,
         packet::{build_read_req, read_resp_parse},
     },
-    commitlog::memory::engine::MemoryStorageEngine,
-    commitlog::rocksdb::engine::RocksDBStorageEngine,
+    commitlog::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine},
     core::{
         batch_call::{call_read_data_by_all_node, merge_records},
         cache::StorageCacheManager,
         error::StorageEngineError,
         segment::segment_validator,
     },
-    filesegment::read::segment_read_by_key,
+    filesegment::{read::segment_read_by_key, SegmentIdentity},
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::storage_record::StorageRecord;
@@ -44,12 +43,14 @@ pub struct ReadByKeyParams {
     pub client_connection_manager: Arc<ClientConnectionManager>,
     pub shard_name: String,
     pub key: String,
+    pub batch_call_source: bool,
 }
 
 pub struct ReadByRemoteKeyParams {
     pub cache_manager: Arc<StorageCacheManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub client_connection_manager: Arc<ClientConnectionManager>,
+    pub leader_id: u64,
     pub shard_name: String,
     pub segment: u32,
     pub key: String,
@@ -75,7 +76,8 @@ pub async fn read_by_key(
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
 
-        segment_validator(cache_manager, shard_name, active_segment.segment_seq)?;
+        let segment_iden = SegmentIdentity::new(shard_name, active_segment.segment_seq);
+        segment_validator(cache_manager, &shard, &active_segment, &segment_iden)?;
         let conf = broker_config();
         let results = if conf.broker_id == active_segment.leader {
             match engine_type {
@@ -93,6 +95,7 @@ pub async fn read_by_key(
                 rocksdb_engine_handler: rocksdb_engine_handler.clone(),
                 client_connection_manager: client_connection_manager.clone(),
                 shard_name: shard_name.to_string(),
+                leader_id: active_segment.leader,
                 segment: active_segment.segment_seq,
                 key: key.to_string(),
             })
@@ -105,15 +108,13 @@ pub async fn read_by_key(
         let local_records =
             read_by_segment(cache_manager, rocksdb_engine_handler, shard_name, key).await?;
 
-        let conf = broker_config();
-        let read_req = build_req(&params.shard_name, &params.key);
-        let remote_records = call_read_data_by_all_node(
-            cache_manager,
-            client_connection_manager,
-            conf.broker_id,
-            read_req,
-        )
-        .await?;
+        if params.batch_call_source {
+            return Ok(local_records);
+        }
+
+        let read_req = build_req(&params.shard_name, &params.key, true);
+        let remote_records =
+            call_read_data_by_all_node(cache_manager, client_connection_manager, read_req).await?;
 
         return Ok(merge_records(local_records, remote_records));
     }
@@ -125,25 +126,25 @@ pub async fn read_by_remote(
     params: ReadByRemoteKeyParams,
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
     let client_connection_manager = &params.client_connection_manager;
-    let read_req = build_req(&params.shard_name, &params.key);
-    let conf = broker_config();
+    let read_req = build_req(&params.shard_name, &params.key, false);
     let resp = client_connection_manager
-        .write_send(conf.broker_id, StorageEnginePacket::ReadReq(read_req))
+        .write_send(params.leader_id, StorageEnginePacket::ReadReq(read_req))
         .await?;
 
     match resp {
         StorageEnginePacket::ReadResp(resp) => Ok(read_resp_parse(&resp)?),
         packet => Err(StorageEngineError::ReceivedPacketError(
-            conf.broker_id,
+            params.leader_id,
             format!("Expected ReadResp, got {:?}", packet),
         )),
     }
 }
 
-fn build_req(shard_name: &str, key: &str) -> ReadReq {
+fn build_req(shard_name: &str, key: &str, batch_call_source: bool) -> ReadReq {
     let messages = vec![ReadReqMessage {
         shard_name: shard_name.to_string(),
         read_type: ReadType::Key,
+        batch_call_source,
         filter: ReadReqFilter {
             key: Some(key.to_string()),
             ..Default::default()

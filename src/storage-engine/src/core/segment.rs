@@ -18,23 +18,19 @@ use crate::filesegment::index::build::delete_segment_index;
 use crate::filesegment::segment_file::{open_segment_write, SegmentFile};
 use crate::filesegment::SegmentIdentity;
 use common_config::broker::broker_config;
+use common_config::storage::StorageType;
 use metadata_struct::storage::segment::EngineSegment;
+use metadata_struct::storage::shard::EngineShard;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tracing::{error, info};
 
 pub fn segment_validator(
     cache_manager: &Arc<StorageCacheManager>,
-    shard_name: &str,
-    segment: u32,
+    shard: &EngineShard,
+    segment: &EngineSegment,
+    segment_iden: &SegmentIdentity,
 ) -> Result<(), StorageEngineError> {
-    let segment_iden = SegmentIdentity::new(shard_name, segment);
-    let segment = if let Some(segment) = cache_manager.get_segment(&segment_iden) {
-        segment
-    } else {
-        return Err(StorageEngineError::SegmentNotExist(segment_iden.name()));
-    };
-
     if !segment.allow_read() {
         return Err(StorageEngineError::SegmentStatusError(
             segment_iden.name(),
@@ -42,7 +38,9 @@ pub fn segment_validator(
         ));
     }
 
-    if cache_manager.get_segment_meta(&segment_iden).is_none() {
+    if shard.config.storage_type == StorageType::EngineSegment
+        && cache_manager.get_segment_meta(segment_iden).is_none()
+    {
         return Err(StorageEngineError::SegmentFileMetaNotExists(
             segment_iden.name(),
         ));

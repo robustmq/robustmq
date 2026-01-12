@@ -160,6 +160,7 @@ pub async fn read_data_req(
                     rocksdb_storage_engine: rocksdb_storage_engine.clone(),
                     client_connection_manager: client_connection_manager.clone(),
                     shard_name: raw.shard_name.clone(),
+                    batch_call_source: raw.batch_call_source,
                     key,
                 })
                 .await?
@@ -182,6 +183,7 @@ pub async fn read_data_req(
                     client_connection_manager: client_connection_manager.clone(),
                     shard_name: raw.shard_name.clone(),
                     tag,
+                    batch_call_source: raw.batch_call_source,
                     start_offset: raw.filter.offset,
                     read_config,
                 })
@@ -306,6 +308,7 @@ mod tests {
             messages: vec![ReadReqMessage {
                 shard_name: segment_iden.shard_name.clone(),
                 read_type: ReadType::Offset,
+                batch_call_source: true,
                 filter: ReadReqFilter {
                     offset: Some(5),
                     ..Default::default()
@@ -342,6 +345,7 @@ mod tests {
             messages: vec![ReadReqMessage {
                 shard_name: segment_iden.shard_name.clone(),
                 read_type: ReadType::Key,
+                batch_call_source: true,
                 filter: ReadReqFilter {
                     offset: Some(0),
                     key: Some(key.clone()),
@@ -376,6 +380,7 @@ mod tests {
             messages: vec![ReadReqMessage {
                 shard_name: segment_iden.shard_name.clone(),
                 read_type: ReadType::Tag,
+                batch_call_source: true,
                 filter: ReadReqFilter {
                     offset: Some(0),
                     tag: Some(tag.clone()),

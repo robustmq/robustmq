@@ -50,7 +50,8 @@ pub async fn batch_write(
         return Err(StorageEngineError::SegmentNotExist(shard_name.to_owned()));
     };
 
-    segment_validator(cache_manager, shard_name, active_segment.segment_seq)?;
+    let segment_iden = SegmentIdentity::new(shard_name, active_segment.segment_seq);
+    segment_validator(cache_manager, &shard, &active_segment, &segment_iden)?;
 
     let conf = broker_config();
 

@@ -74,7 +74,7 @@ pub async fn read_by_offset(
         return Err(StorageEngineError::SegmentNotExist(segment_iden.name()));
     };
 
-    segment_validator(cache_manager, shard_name, segment.segment_seq)?;
+    segment_validator(cache_manager, &shard, &segment, &segment_iden)?;
 
     let conf = broker_config();
     let results = if conf.broker_id == segment.leader {
@@ -106,7 +106,7 @@ pub async fn read_by_offset(
     } else {
         read_by_remote(
             client_connection_manager,
-            conf.broker_id,
+            segment.leader,
             shard_name,
             offset,
             read_config,
@@ -126,6 +126,7 @@ pub async fn read_by_remote(
     let messages = vec![ReadReqMessage {
         shard_name: shard_name.to_string(),
         read_type: ReadType::Offset,
+        batch_call_source: false,
         filter: ReadReqFilter {
             offset: Some(offset),
             ..Default::default()

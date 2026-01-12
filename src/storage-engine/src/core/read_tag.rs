@@ -17,15 +17,14 @@ use crate::{
         manager::ClientConnectionManager,
         packet::{build_read_req, read_resp_parse},
     },
-    commitlog::memory::engine::MemoryStorageEngine,
-    commitlog::rocksdb::engine::RocksDBStorageEngine,
+    commitlog::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine},
     core::{
         batch_call::{call_read_data_by_all_node, merge_records},
         cache::StorageCacheManager,
         error::StorageEngineError,
         segment::segment_validator,
     },
-    filesegment::read::segment_read_by_tag,
+    filesegment::{read::segment_read_by_tag, SegmentIdentity},
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{
@@ -48,6 +47,7 @@ pub struct ReadByTagParams {
     pub tag: String,
     pub start_offset: Option<u64>,
     pub read_config: AdapterReadConfig,
+    pub batch_call_source: bool,
 }
 
 pub struct ReadByRemoteTagParams {
@@ -83,7 +83,8 @@ pub async fn read_by_tag(
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
 
-        segment_validator(cache_manager, shard_name, active_segment.segment_seq)?;
+        let segment_iden = SegmentIdentity::new(shard_name, active_segment.segment_seq);
+        segment_validator(cache_manager, &shard, &active_segment, &segment_iden)?;
 
         let conf = broker_config();
         let results = if conf.broker_id == active_segment.leader {
@@ -127,12 +128,6 @@ pub async fn read_by_tag(
     }
 
     if engine_type == StorageType::EngineSegment {
-        let read_req = build_req(
-            &params.shard_name,
-            &params.tag,
-            params.start_offset,
-            &params.read_config,
-        );
         let local_records = read_by_segment(
             cache_manager,
             rocksdb_engine_handler,
@@ -143,14 +138,19 @@ pub async fn read_by_tag(
         )
         .await?;
 
-        let conf = broker_config();
-        let remote_records = call_read_data_by_all_node(
-            cache_manager,
-            client_connection_manager,
-            conf.broker_id,
-            read_req,
-        )
-        .await?;
+        if params.batch_call_source {
+            return Ok(local_records);
+        }
+
+        let read_req = build_req(
+            &params.shard_name,
+            &params.tag,
+            params.start_offset,
+            &params.read_config,
+            true,
+        );
+        let remote_records =
+            call_read_data_by_all_node(cache_manager, client_connection_manager, read_req).await?;
 
         return Ok(merge_records(local_records, remote_records));
     }
@@ -167,7 +167,7 @@ pub async fn read_by_remote(
     let start_offset = params.start_offset;
     let read_config = &params.read_config;
 
-    let read_req = build_req(shard_name, tag, start_offset, read_config);
+    let read_req = build_req(shard_name, tag, start_offset, read_config, false);
     let conf = broker_config();
     let resp = client_connection_manager
         .write_send(conf.broker_id, StorageEnginePacket::ReadReq(read_req))
@@ -187,10 +187,12 @@ fn build_req(
     tag: &str,
     start_offset: Option<u64>,
     read_config: &AdapterReadConfig,
+    batch_call_source: bool,
 ) -> ReadReq {
     let messages = vec![ReadReqMessage {
         shard_name: shard_name.to_string(),
         read_type: ReadType::Tag,
+        batch_call_source,
         filter: ReadReqFilter {
             tag: Some(tag.to_string()),
             offset: start_offset,

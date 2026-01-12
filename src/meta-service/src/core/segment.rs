@@ -23,6 +23,7 @@ use crate::core::segment_meta::{
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use bytes::Bytes;
+use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentStatus};
@@ -55,16 +56,17 @@ pub async fn create_segment(
 
         sync_save_segment_info(raft_manager, &segment).await?;
         update_cache_by_set_segment(call_manager, client_pool, segment.clone()).await?;
-
-        create_segment_metadata(
-            cache_manager,
-            raft_manager,
-            call_manager,
-            client_pool,
-            &segment,
-            start_offset as i64,
-        )
-        .await?;
+        if shard_info.config.storage_type == StorageType::EngineSegment {
+            create_segment_metadata(
+                cache_manager,
+                raft_manager,
+                call_manager,
+                client_pool,
+                &segment,
+                start_offset as i64,
+            )
+            .await?;
+        }
 
         segment
     };

@@ -42,6 +42,7 @@ mod tests {
         let read_req = ReadReq::new(ReadReqBody::new(vec![ReadReqMessage::new(
             "test-shard".to_string(),
             ReadType::Offset,
+            false,
             ReadReqFilter::by_offset(0),
             ReadReqOptions::new(1024 * 1024, 10),
         )]));

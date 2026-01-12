@@ -76,7 +76,9 @@ impl ReqHeader {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        rkyv::to_bytes::<rkyv::rancor::Error>(self).unwrap().to_vec()
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
@@ -106,7 +108,9 @@ impl RespHeader {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        rkyv::to_bytes::<rkyv::rancor::Error>(self).unwrap().to_vec()
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
@@ -129,7 +133,9 @@ impl WriteReqBody {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        rkyv::to_bytes::<rkyv::rancor::Error>(self).unwrap().to_vec()
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
@@ -152,7 +158,9 @@ impl WriteReq {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        rkyv::to_bytes::<rkyv::rancor::Error>(self).unwrap().to_vec()
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
@@ -211,7 +219,9 @@ impl WriteRespBody {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        rkyv::to_bytes::<rkyv::rancor::Error>(self).unwrap().to_vec()
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
@@ -241,7 +251,9 @@ impl WriteResp {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        rkyv::to_bytes::<rkyv::rancor::Error>(self).unwrap().to_vec()
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
@@ -315,6 +327,7 @@ impl ReadReqOptions {
 pub struct ReadReqMessage {
     pub shard_name: String,
     pub read_type: ReadType,
+    pub batch_call_source: bool,
     pub filter: ReadReqFilter,
     pub options: ReadReqOptions,
 }
@@ -323,12 +336,14 @@ impl ReadReqMessage {
     pub fn new(
         shard_name: String,
         read_type: ReadType,
+        batch_call_source: bool,
         filter: ReadReqFilter,
         options: ReadReqOptions,
     ) -> Self {
         Self {
             shard_name,
             read_type,
+            batch_call_source,
             filter,
             options,
         }
@@ -346,7 +361,9 @@ impl ReadReqBody {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        rkyv::to_bytes::<rkyv::rancor::Error>(self).unwrap().to_vec()
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
@@ -369,7 +386,9 @@ impl ReadReq {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        rkyv::to_bytes::<rkyv::rancor::Error>(self).unwrap().to_vec()
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
@@ -388,7 +407,9 @@ impl ReadRespBody {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        rkyv::to_bytes::<rkyv::rancor::Error>(self).unwrap().to_vec()
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
@@ -418,7 +439,9 @@ impl ReadResp {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        rkyv::to_bytes::<rkyv::rancor::Error>(self).unwrap().to_vec()
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
@@ -434,7 +457,13 @@ mod tests {
     fn test_read_request_encode_decode() {
         let filter = ReadReqFilter::by_offset(100);
         let options = ReadReqOptions::new(1024 * 1024, 100);
-        let message = ReadReqMessage::new("shard1".to_string(), ReadType::Offset, filter, options);
+        let message = ReadReqMessage::new(
+            "shard1".to_string(),
+            ReadType::Offset,
+            false,
+            filter,
+            options,
+        );
         let body = ReadReqBody::new(vec![message]);
         let req = ReadReq::new(body);
 
