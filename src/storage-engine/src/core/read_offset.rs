@@ -74,7 +74,7 @@ pub async fn read_by_offset(
         return Err(StorageEngineError::SegmentNotExist(segment_iden.name()));
     };
 
-    segment_validator(cache_manager, shard_name, segment.segment_seq)?;
+    segment_validator(cache_manager, &shard, &segment, &segment_iden)?;
 
     let conf = broker_config();
     let results = if conf.broker_id == segment.leader {

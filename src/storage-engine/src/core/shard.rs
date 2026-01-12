@@ -17,7 +17,7 @@ use super::error::StorageEngineError;
 use super::segment::delete_local_segment;
 use crate::filesegment::segment_file::data_fold_shard;
 use crate::filesegment::SegmentIdentity;
-use common_config::broker::broker_config;
+use common_config::{broker::broker_config, storage::StorageType};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::AdapterShardInfo;
 use protocol::meta::meta_service_journal::{CreateShardRequest, DeleteShardRequest};
@@ -95,8 +95,9 @@ pub async fn create_shard_to_place(
     client_pool: &Arc<ClientPool>,
     shard: &AdapterShardInfo,
 ) -> Result<(), StorageEngineError> {
-    let shard_name = &shard.shard_name;
+    is_support_storage_type(shard.config.storage_type)?;
 
+    let shard_name = &shard.shard_name;
     let conf: &common_config::config::BrokerConfig = broker_config();
     let request = CreateShardRequest {
         shard_name: shard_name.to_string(),
@@ -113,12 +114,22 @@ pub async fn create_shard_to_place(
     let wait_result = timeout(Duration::from_secs(3), async {
         loop {
             let segment_iden = SegmentIdentity::new(shard_name, 0);
-            if cache_manager.shards.contains_key(shard_name)
+            if shard.config.storage_type == StorageType::EngineSegment
+                && cache_manager.shards.contains_key(shard_name)
                 && cache_manager.get_segment(&segment_iden).is_some()
                 && cache_manager.get_segment_meta(&segment_iden).is_some()
             {
                 return;
             }
+
+            if (shard.config.storage_type == StorageType::EngineMemory
+                || shard.config.storage_type == StorageType::EngineRocksDB)
+                && cache_manager.shards.contains_key(shard_name)
+                && cache_manager.get_segment(&segment_iden).is_some()
+            {
+                return;
+            }
+
             sleep(Duration::from_millis(100)).await;
         }
     })
@@ -152,4 +163,18 @@ pub async fn delete_shard_to_place(
     )
     .await?;
     Ok(())
+}
+
+pub fn is_support_storage_type(storage_type: StorageType) -> Result<(), StorageEngineError> {
+    if storage_type == StorageType::EngineMemory
+        || storage_type == StorageType::EngineRocksDB
+        || storage_type == StorageType::EngineSegment
+    {
+        return Ok(());
+    }
+
+    Err(StorageEngineError::CommonErrorStr(format!(
+        "Unsupported storage type '{:?}'. Supported types are: EngineMemory, EngineRocksDB, EngineSegment",
+        storage_type
+    )))
 }

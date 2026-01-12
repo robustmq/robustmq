@@ -17,15 +17,14 @@ use crate::{
         manager::ClientConnectionManager,
         packet::{build_read_req, read_resp_parse},
     },
-    commitlog::memory::engine::MemoryStorageEngine,
-    commitlog::rocksdb::engine::RocksDBStorageEngine,
+    commitlog::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine},
     core::{
         batch_call::{call_read_data_by_all_node, merge_records},
         cache::StorageCacheManager,
         error::StorageEngineError,
         segment::segment_validator,
     },
-    filesegment::read::segment_read_by_tag,
+    filesegment::{read::segment_read_by_tag, SegmentIdentity},
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{
@@ -84,7 +83,8 @@ pub async fn read_by_tag(
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
 
-        segment_validator(cache_manager, shard_name, active_segment.segment_seq)?;
+        let segment_iden = SegmentIdentity::new(shard_name, active_segment.segment_seq);
+        segment_validator(cache_manager, &shard, &active_segment, &segment_iden)?;
 
         let conf = broker_config();
         let results = if conf.broker_id == active_segment.leader {
