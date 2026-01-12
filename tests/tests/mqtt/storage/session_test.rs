@@ -64,8 +64,11 @@ mod tests {
         assert_eq!(result.broker_id.unwrap(), 3);
         assert_eq!(result.connection_id.unwrap(), 3);
 
-        let result = session_storage.list_session().await.unwrap();
-        let prefix_len = result.len();
+        let result = session_storage
+            .list_session(Some(client_id.clone()))
+            .await
+            .unwrap();
+
         assert!(!result.is_empty());
 
         session_storage
@@ -79,7 +82,10 @@ mod tests {
             .unwrap();
         assert!(result.is_none());
 
-        let result = session_storage.list_session().await.unwrap();
-        assert_eq!(result.len(), prefix_len - 1);
+        let result = session_storage
+            .list_session(Some(client_id.clone()))
+            .await
+            .unwrap();
+        assert!(result.is_empty());
     }
 }
