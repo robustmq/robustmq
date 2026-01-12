@@ -25,8 +25,8 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::fs::remove_dir_all;
 use std::path::Path;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tokio::time::sleep;
+use std::time::Duration;
+use tokio::time::{sleep, timeout};
 use tracing::{error, info};
 
 #[derive(Clone, Debug, Default)]
@@ -109,23 +109,31 @@ pub async fn create_shard_to_place(
     )
     .await?;
 
-    let start = Instant::now();
-    loop {
-        let segment_iden = SegmentIdentity::new(shard_name, 0);
-        if cache_manager.shards.contains_key(shard_name)
-            && cache_manager.get_segment(&segment_iden).is_some()
-            && cache_manager.get_segment_meta(&segment_iden).is_some()
-        {
-            info!("Shard {} created successfully", shard_name);
-            return Ok(());
+    // Wait for shard to be created in local cache with timeout
+    let wait_result = timeout(Duration::from_secs(3), async {
+        loop {
+            let segment_iden = SegmentIdentity::new(shard_name, 0);
+            if cache_manager.shards.contains_key(shard_name)
+                && cache_manager.get_segment(&segment_iden).is_some()
+                && cache_manager.get_segment_meta(&segment_iden).is_some()
+            {
+                return;
+            }
+            sleep(Duration::from_millis(100)).await;
         }
-        if start.elapsed().as_millis() >= 3000 {
-            break;
-        }
+    })
+    .await;
 
-        sleep(Duration::from_millis(100)).await
+    match wait_result {
+        Ok(_) => {
+            info!("Shard {} created successfully", shard_name);
+            Ok(())
+        }
+        Err(_) => Err(StorageEngineError::CommonErrorStr(format!(
+            "Timeout waiting for shard '{}' to be created in local cache after 3 seconds",
+            shard_name
+        ))),
     }
-    Ok(())
 }
 
 pub async fn delete_shard_to_place(
