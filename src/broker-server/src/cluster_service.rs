@@ -22,7 +22,7 @@ use protocol::broker::broker_common::{
 };
 use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
 use tonic::{Request, Response, Status};
-use tracing::{info, warn};
+use tracing::warn;
 
 pub struct GrpcBrokerCommonService {
     mqtt_params: MqttBrokerServerParams,
@@ -47,7 +47,10 @@ impl BrokerCommonService for GrpcBrokerCommonService {
         let req = request.into_inner();
         for record in req.records.iter() {
             if let Err(e) = update_cache(&self.mqtt_params, &self.storage_params, record).await {
-                warn!("{:?}", e);
+                warn!(
+                    "Failed to update cache for resource type {:?}, action: {:?}, error: {:?}",
+                    record.resource_type(), record.action_type(), e
+                );
             }
         }
 
