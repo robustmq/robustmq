@@ -120,6 +120,9 @@ pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
 
 pub fn publish_data(cli: &Client, message: Message, is_err: bool) {
     let err = cli.publish(message);
+    if err.is_err() {
+        println!("resp error:{err:?}");
+    }
     if is_err {
         assert!(err.is_err());
     } else {

@@ -69,17 +69,27 @@ mod tests {
                 let call_fn = |msg: Message| {
                     let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
                     let bl0 = payload == message_content;
-                    let user_properties = msg
+                    let user_properties = match msg
                         .properties()
                         .get_string_pair_at(PropertyCode::UserProperty, 0)
-                        .unwrap();
+                    {
+                        Some(data) => data,
+                        None => {
+                            return false;
+                        }
+                    };
                     let bl1 = user_properties.0 == *"age";
                     let bl2 = user_properties.1 == *"1";
 
-                    let user_properties = msg
+                    let user_properties = match msg
                         .properties()
                         .get_string_pair_at(PropertyCode::UserProperty, 1)
-                        .unwrap();
+                    {
+                        Some(data) => data,
+                        None => {
+                            return false;
+                        }
+                    };
                     let bl3 = user_properties.0 == *"name";
                     let bl4 = user_properties.1 == *"robustmq";
 
