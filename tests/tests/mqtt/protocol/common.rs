@@ -99,13 +99,11 @@ pub fn build_conn_pros(
 
 pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
     let create_opts = build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
-    println!("{client_properties:?}");
     let cli_res = Client::new(create_opts);
     if let Err(e) = cli_res {
         panic!("{e:?}");
     } else {
         let cli = cli_res.unwrap();
-
         let conn_opts = build_conn_pros(client_properties.clone(), client_properties.err_pwd);
         let result = cli.connect(conn_opts);
         if result.is_err() {
@@ -122,7 +120,6 @@ pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
 
 pub fn publish_data(cli: &Client, message: Message, is_err: bool) {
     let err = cli.publish(message);
-    println!("{err:?}");
     if is_err {
         assert!(err.is_err());
     } else {

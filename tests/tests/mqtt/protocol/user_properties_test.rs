@@ -29,7 +29,7 @@ mod tests {
     async fn user_properties_test() {
         for network in network_types() {
             for qos in qos_list() {
-                let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
+                let topic = format!("/user_properties_test/{}/{}/{}", unique_id(), network, qos);
                 let client_id =
                     build_client_id(format!("user_properties_test_{network}_{qos}").as_str());
 

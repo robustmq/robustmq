@@ -138,7 +138,7 @@ impl StorageEngineServer {
 
         match recv.recv().await {
             Ok(_) => {
-                info!("Journal has stopped.");
+                info!("Storage Engine has stopped.");
                 if inner_stop.send(true).is_ok() {
                     StorageEngineServer::stop_server(cache_manager, client_pool).await;
                 }

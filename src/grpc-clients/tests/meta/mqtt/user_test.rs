@@ -16,7 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
-    use common_base::tools::now_second;
+    use common_base::tools::{now_second, unique_id};
     use grpc_clients::meta::mqtt::call::{
         placement_create_user, placement_delete_user, placement_list_user,
     };
@@ -33,7 +33,7 @@ mod tests {
     async fn mqtt_user_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
-        let user_name: String = "chungka".to_string();
+        let user_name: String = unique_id();
         let password: String = "123456".to_string();
 
         let mqtt_user: MqttUser = MqttUser {
@@ -48,62 +48,50 @@ mod tests {
             user_name: mqtt_user.username.clone(),
             content: mqtt_user.encode().unwrap(),
         };
-        match placement_create_user(&client_pool, &addrs, request).await {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        placement_create_user(&client_pool, &addrs, request)
+            .await
+            .unwrap();
 
         let request: ListUserRequest = ListUserRequest {
             user_name: mqtt_user.username.clone(),
         };
 
-        match placement_list_user(&client_pool, &addrs, request).await {
-            Ok(data) => {
-                let mut flag: bool = false;
-                for raw in data.users {
-                    let user = MqttUser::decode(&raw).unwrap();
-                    if mqtt_user == user {
-                        flag = true;
-                    }
-                }
-                assert!(flag);
-            }
-            Err(e) => {
-                panic!("{e:?}");
+        let data = placement_list_user(&client_pool, &addrs, request)
+            .await
+            .unwrap();
+
+        let mut flag: bool = false;
+        for raw in data.users {
+            let user = MqttUser::decode(&raw).unwrap();
+            if mqtt_user == user {
+                flag = true;
             }
         }
+        assert!(flag);
 
         let request: DeleteUserRequest = DeleteUserRequest {
             user_name: mqtt_user.username.clone(),
         };
 
-        match placement_delete_user(&client_pool, &addrs, request).await {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        placement_delete_user(&client_pool, &addrs, request)
+            .await
+            .unwrap();
 
         let request: ListUserRequest = ListUserRequest {
             user_name: mqtt_user.username.clone(),
         };
 
-        match placement_list_user(&client_pool, &addrs, request).await {
-            Ok(data) => {
-                let mut flag: bool = false;
-                for raw in data.users {
-                    let user = MqttUser::decode(&raw).unwrap();
-                    if mqtt_user == user {
-                        flag = true;
-                    }
-                }
-                assert!(!flag);
-            }
-            Err(e) => {
-                panic!("{e:?}");
+        let data = placement_list_user(&client_pool, &addrs, request)
+            .await
+            .unwrap();
+
+        let mut flag: bool = false;
+        for raw in data.users {
+            let user = MqttUser::decode(&raw).unwrap();
+            if mqtt_user == user {
+                flag = true;
             }
         }
+        assert!(!flag);
     }
 }

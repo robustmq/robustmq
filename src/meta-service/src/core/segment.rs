@@ -140,7 +140,6 @@ async fn build_segment(
 
     let node_list: Vec<BrokerNode> = cache_manager.get_engine_node_list();
     let replica_num = shard_info.config.replica_num as usize;
-    println!("node_list:{:?}", node_list);
     if node_list.len() < replica_num {
         return Err(MetaServiceError::NotEnoughEngineNodes(
             "CreateSegment".to_string(),

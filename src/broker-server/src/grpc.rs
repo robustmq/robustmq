@@ -42,7 +42,7 @@ use tracing::info;
 pub async fn start_grpc_server(
     place_params: MetaServiceServerParams,
     mqtt_params: MqttBrokerServerParams,
-    journal_params: StorageEngineParams,
+    engine_params: StorageEngineParams,
     grpc_port: u32,
 ) -> Result<(), CommonError> {
     let ip = format!("0.0.0.0:{grpc_port}").parse()?;
@@ -61,7 +61,7 @@ pub async fn start_grpc_server(
         .add_service(
             BrokerCommonServiceServer::new(GrpcBrokerCommonService::new(
                 mqtt_params.clone(),
-                journal_params.clone(),
+                engine_params.clone(),
             ))
             .max_decoding_message_size(grpc_max_decoding_message_size),
         );
@@ -92,7 +92,7 @@ pub async fn start_grpc_server(
 
     if is_engine_node(&config.roles) {
         route = route.add_service(
-            BrokerStorageServiceServer::new(get_storage_engine_inner_handler(&journal_params))
+            BrokerStorageServiceServer::new(get_storage_engine_inner_handler(&engine_params))
                 .max_decoding_message_size(grpc_max_decoding_message_size),
         );
     }
