@@ -16,12 +16,12 @@ use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use common_base::tools::now_second;
 use futures::{SinkExt, StreamExt};
+use parking_lot::Mutex;
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::storage::codec::StorageEnginePacket;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
-use tokio::sync::Mutex;
 use tokio::time::{sleep, timeout};
 use tokio_util::codec::Framed;
 use tracing::{error, warn};
@@ -92,24 +92,28 @@ impl NodeConnection {
         &self,
         req_packet: &StorageEnginePacket,
     ) -> Result<StorageEnginePacket, StorageEngineError> {
-        let mut conn_guard = self.connection.lock().await;
+        let mut conn = {
+            let mut guard = self.connection.lock();
+            guard.take()
+        };
 
-        if conn_guard.is_none() {
-            drop(conn_guard);
+        if conn.is_none() {
             self.ensure_connection().await?;
-            conn_guard = self.connection.lock().await;
+            let mut guard = self.connection.lock();
+            conn = guard.take();
         }
 
-        let conn = conn_guard
-            .as_mut()
-            .ok_or_else(|| StorageEngineError::NoAvailableConn(self.node_id))?;
+        let mut conn = conn.ok_or_else(|| StorageEngineError::NoAvailableConn(self.node_id))?;
 
-        match self.send_and_recv(conn, req_packet).await {
-            Ok(response) => Ok(response),
-            Err(e) => {
-                *conn_guard = None;
-                Err(e)
+        let result = self.send_and_recv(&mut conn, req_packet).await;
+
+        match result {
+            Ok(response) => {
+                let mut guard = self.connection.lock();
+                *guard = Some(conn);
+                Ok(response)
             }
+            Err(e) => Err(e),
         }
     }
 
@@ -120,7 +124,7 @@ impl NodeConnection {
     ) -> Result<StorageEnginePacket, StorageEngineError> {
         let wrapper = RobustMQCodecWrapper::StorageEngine(req_packet.clone());
         conn.stream
-            .send(wrapper.clone())
+            .send(wrapper)
             .await
             .map_err(|e| StorageEngineError::CommonErrorStr(format!("Send error: {}", e)))?;
 
@@ -146,8 +150,14 @@ impl NodeConnection {
     }
 
     async fn ensure_connection(&self) -> Result<(), StorageEngineError> {
+        {
+            if self.connection.lock().is_some() {
+                return Ok(());
+            }
+        }
+
         let stream = self.open().await?;
-        let mut conn_guard = self.connection.lock().await;
+        let mut conn_guard = self.connection.lock();
         *conn_guard = Some(ClientConnection {
             stream,
             last_active_time: now_second(),
@@ -176,7 +186,7 @@ impl NodeConnection {
             last_active_time: now_second(),
         };
 
-        let mut conn_guard = self.connection.lock().await;
+        let mut conn_guard = self.connection.lock();
         if conn_guard.is_some() {
             warn!("Replaced existing connection on node {}", self.node_id);
         }
@@ -186,20 +196,22 @@ impl NodeConnection {
     }
 
     pub async fn get_last_active_time(&self) -> Option<u64> {
-        let conn_guard = self.connection.lock().await;
+        let conn_guard = self.connection.lock();
         conn_guard.as_ref().map(|c| c.last_active_time)
     }
 
     pub async fn close_connection(&self) -> Result<(), StorageEngineError> {
-        use futures::SinkExt;
+        let conn = {
+            let mut guard = self.connection.lock();
+            guard.take()
+        };
 
-        let mut conn_guard = self.connection.lock().await;
-        if let Some(conn) = conn_guard.as_mut() {
+        if let Some(mut conn) = conn {
             if let Err(e) = conn.stream.close().await {
                 error!("Failed to close connection to node {}: {}", self.node_id, e);
             }
         }
-        *conn_guard = None;
+
         Ok(())
     }
 }
