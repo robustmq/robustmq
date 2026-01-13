@@ -49,7 +49,9 @@ impl BrokerCommonService for GrpcBrokerCommonService {
             if let Err(e) = update_cache(&self.mqtt_params, &self.storage_params, record).await {
                 warn!(
                     "Failed to update cache for resource type {:?}, action: {:?}, error: {:?}",
-                    record.resource_type(), record.action_type(), e
+                    record.resource_type(),
+                    record.action_type(),
+                    e
                 );
             }
         }
