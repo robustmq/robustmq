@@ -7614,6 +7614,7 @@ dependencies = [
  "grpc-clients",
  "metadata-struct",
  "network-server",
+ "parking_lot",
  "prost",
  "protocol",
  "rkyv 0.8.13",
