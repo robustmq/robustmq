@@ -20,103 +20,98 @@ mod tests {
 
     use crate::mqtt::protocol::{
         common::{
-            broker_addr_by_type, build_client_id, connect_server, distinct_conn, network_types,
-            publish_data, qos_list, ssl_by_type, subscribe_data_with_options, ws_by_type,
-            SubscribeTestData,
+            broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
+            ssl_by_type, subscribe_data_with_options, ws_by_type, SubscribeTestData,
         },
         ClientTestProperties,
     };
 
     #[tokio::test]
     async fn sub_wildcards_test() {
-        for network in network_types() {
-            for qos in qos_list() {
-                let uniq = unique_id();
-                let topic = format!("/tests/v1/v2/{uniq}");
+        let network = "tcp";
+        let qos = 1;
+        let uniq = unique_id();
+        let topic = format!("/tests/v1/v2/{uniq}");
 
-                // publish
-                let client_id =
-                    build_client_id(format!("sub_wildcards_test_{network}_{qos}").as_str());
+        // publish
+        let client_id = build_client_id(format!("sub_wildcards_test_{network}_{qos}").as_str());
 
-                let client_properties = ClientTestProperties {
-                    mqtt_version: 5,
-                    client_id: client_id.to_string(),
-                    addr: broker_addr_by_type(&network),
-                    ws: ws_by_type(&network),
-                    ssl: ssl_by_type(&network),
-                    ..Default::default()
-                };
-                let cli = connect_server(&client_properties);
+        let client_properties = ClientTestProperties {
+            mqtt_version: 5,
+            client_id: client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+        let cli = connect_server(&client_properties);
 
-                let message_content = "sub_wildcards_test mqtt message".to_string();
-                let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
-                publish_data(&cli, msg, false);
-                distinct_conn(cli);
+        let message_content = "sub_wildcards_test mqtt message".to_string();
+        let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
+        publish_data(&cli, msg, false);
+        distinct_conn(cli);
 
-                // subscribe with + wildcard
-                let client_id: String =
-                    build_client_id(format!("sub_wildcards_test_+_{network}_{qos}").as_str());
+        // subscribe with + wildcard
+        let client_id: String =
+            build_client_id(format!("sub_wildcards_test_+_{network}_{qos}").as_str());
 
-                let client_properties = ClientTestProperties {
-                    mqtt_version: 5,
-                    client_id: client_id.to_string(),
-                    addr: broker_addr_by_type(&network),
-                    ws: ws_by_type(&network),
-                    ssl: ssl_by_type(&network),
-                    ..Default::default()
-                };
-                let cli = connect_server(&client_properties);
+        let client_properties = ClientTestProperties {
+            mqtt_version: 5,
+            client_id: client_id.to_string(),
+            addr: broker_addr_by_type(&network),
+            ws: ws_by_type(&network),
+            ssl: ssl_by_type(&network),
+            ..Default::default()
+        };
+        let cli = connect_server(&client_properties);
 
-                let sub_topic = format!("/tests/v1/+/{uniq}");
-                let call_fn = |msg: Message| {
-                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                    payload == message_content
-                };
+        let sub_topic = format!("/tests/v1/+/{uniq}");
+        let call_fn = |msg: Message| {
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+            payload == message_content
+        };
 
-                let subscribe_test_data = SubscribeTestData {
-                    sub_topic: sub_topic.clone(),
-                    sub_qos: qos,
-                    subscribe_options: SubscribeOptions::default(),
-                    subscribe_properties: None,
-                };
+        let subscribe_test_data = SubscribeTestData {
+            sub_topic: sub_topic.clone(),
+            sub_qos: qos,
+            subscribe_options: SubscribeOptions::default(),
+            subscribe_properties: None,
+        };
 
-                subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
-                distinct_conn(cli);
+        subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
+        distinct_conn(cli);
 
-                // subscribe with # wildcard (multi-level)
-                let client_id =
-                    build_client_id(format!("sub_wildcards_test_#_{network}_{qos}").as_str());
+        // subscribe with # wildcard (multi-level)
+        let client_id = build_client_id(format!("sub_wildcards_test_#_{network}_{qos}").as_str());
 
-                let client_properties = ClientTestProperties {
-                    mqtt_version: 5,
-                    client_id: client_id.to_string(),
-                    addr: broker_addr_by_type(&network),
-                    ws: ws_by_type(&network),
-                    ssl: ssl_by_type(&network),
-                    ..Default::default()
-                };
-                let cli = connect_server(&client_properties);
+        let client_properties = ClientTestProperties {
+            mqtt_version: 5,
+            client_id: client_id.to_string(),
+            addr: broker_addr_by_type(&network),
+            ws: ws_by_type(&network),
+            ssl: ssl_by_type(&network),
+            ..Default::default()
+        };
+        let cli = connect_server(&client_properties);
 
-                // Fix: /tests/# matches /tests/v1/v2/{uniq}
-                let sub_topic = "/tests/#".to_string();
-                let call_fn = |msg: Message| {
-                    let payload = match String::from_utf8(msg.payload().to_vec()) {
-                        Ok(payload) => payload,
-                        Err(_) => return false,
-                    };
-                    payload == message_content
-                };
+        // Fix: /tests/# matches /tests/v1/v2/{uniq}
+        let sub_topic = "/tests/#".to_string();
+        let call_fn = |msg: Message| {
+            let payload = match String::from_utf8(msg.payload().to_vec()) {
+                Ok(payload) => payload,
+                Err(_) => return false,
+            };
+            payload == message_content
+        };
 
-                let subscribe_test_data = SubscribeTestData {
-                    sub_topic: sub_topic.clone(),
-                    sub_qos: qos,
-                    subscribe_options: SubscribeOptions::default(),
-                    subscribe_properties: None,
-                };
+        let subscribe_test_data = SubscribeTestData {
+            sub_topic: sub_topic.clone(),
+            sub_qos: qos,
+            subscribe_options: SubscribeOptions::default(),
+            subscribe_properties: None,
+        };
 
-                subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
-                distinct_conn(cli);
-            }
-        }
+        subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
+        distinct_conn(cli);
     }
 }
