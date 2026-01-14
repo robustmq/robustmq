@@ -206,7 +206,7 @@ export const sidebar = [
             link: "/en/ContributionGuide/ContributingCode/Cargo-Running",
           },
           {
-            text: "Troubleshooting",
+            text: "Tokio Console",
             link: "/en/ContributionGuide/ContributingCode/Troubleshooting",
           },
           {

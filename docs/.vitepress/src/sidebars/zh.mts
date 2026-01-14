@@ -228,7 +228,7 @@ export const sidebar = [
             link: "/zh/ContributionGuide/ContributingCode/Cargo-Running",
           },
           {
-            text: "故障排查",
+            text: "Tokio Console",
             link: "/zh/ContributionGuide/ContributingCode/Troubleshooting",
           },
           {
