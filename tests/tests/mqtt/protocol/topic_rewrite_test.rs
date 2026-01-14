@@ -43,7 +43,6 @@ mod tests {
             dest_topic: format!("{prefix}y/z/$2"),
             regex: format!("^{prefix}y/(.+)/z/(.+)$"),
         };
-        println!("{:?}", req);
         let res = admin_client.create_topic_rewrite(&req).await;
         assert!(res.is_ok());
 

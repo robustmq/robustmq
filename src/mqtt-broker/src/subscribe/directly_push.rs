@@ -123,7 +123,10 @@ impl DirectlyPushManager {
                         processed_count += count;
                     }
                     Err(e) => {
-                        return Err(e);
+                        warn!(
+                            "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}]: {}",
+                            row.client_id, row.group_name, row.topic_name, row.sub_path, e
+                        );
                     }
                 }
             }
