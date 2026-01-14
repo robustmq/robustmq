@@ -28,7 +28,7 @@ mod tests {
     async fn topic_alias_test() {
         let network = "tcp";
         let qos = 1;
-        let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
+        let topic = format!("/topic_alias_test/{}/{}/{}", unique_id(), network, qos);
         let client_id = build_client_id(format!("topic_alias_test_{network}_{qos}").as_str());
 
         let client_properties = ClientTestProperties {

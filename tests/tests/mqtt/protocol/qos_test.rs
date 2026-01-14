@@ -34,7 +34,7 @@ mod tests {
         for protocol in protocol_versions() {
             for network in network_types() {
                 for qos in qos_list() {
-                    let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
+                    let topic = format!("/publish_qos_test/{}/{}/{}", unique_id(), network, qos);
                     let client_id =
                         build_client_id(format!("publish_qos_test_{network}_{qos}").as_str());
 
@@ -78,7 +78,7 @@ mod tests {
         for protocol in protocol_versions() {
             for network in network_types() {
                 for qos in qos_list() {
-                    let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
+                    let topic = format!("/publish_qos_test/{}/{}/{}", unique_id(), network, qos);
                     let client_id =
                         build_client_id(format!("subscribe_qos_test_{network}_{qos}").as_str());
                     let client_properties = ClientTestProperties {

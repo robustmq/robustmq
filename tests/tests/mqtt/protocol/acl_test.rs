@@ -119,7 +119,7 @@ mod tests {
     async fn user_publish_authorization_test() {
         let topic = format!(
             "{}/{}",
-            "/tests/user_publish_authorization_test",
+            "/user_publish_authorization_test/user_publish_authorization_test",
             unique_id()
         );
 
@@ -130,7 +130,7 @@ mod tests {
     async fn client_publish_authorization_test() {
         let topic = format!(
             "{}/{}",
-            "/tests/client_publish_authorization_test",
+            "/client_publish_authorization_test/client_publish_authorization_test",
             unique_id()
         );
 

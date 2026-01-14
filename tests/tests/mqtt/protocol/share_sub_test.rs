@@ -31,7 +31,7 @@ mod tests {
 
     #[tokio::test]
     async fn share_single_subscribe_test() {
-        let topic = format!("/tests/{}", unique_id());
+        let topic = format!("/share_single_subscribe_test/{}", unique_id());
         let group_name = unique_id();
         let sub_topic = format!("$share/{group_name}{topic}");
         single_test(topic, sub_topic, "share_single_subscribe_test").await;
@@ -39,7 +39,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 10)]
     async fn share_multi_subscribe_test() {
-        let topic = format!("/multigroup/{}", unique_id());
+        let topic = format!("/share_multi_subscribe_test/{}", unique_id());
         let group_name = unique_id();
         let sub_topic = format!("$share/{group_name}{topic}");
         multi_test(

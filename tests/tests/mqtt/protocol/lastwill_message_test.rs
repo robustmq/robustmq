@@ -38,7 +38,7 @@ mod tests {
         let mut props = Properties::new();
         props.push_u32(PropertyCode::WillDelayInterval, 10).unwrap();
         let will_message_content = "will message content".to_string();
-        let will_topic = format!("/tests/{}", unique_id());
+        let will_topic = format!("/last_will_message_test/{}", unique_id());
         let will = MessageBuilder::new()
             .properties(props)
             .payload(will_message_content.clone())
