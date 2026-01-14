@@ -228,16 +228,16 @@ export const sidebar = [
             link: "/zh/ContributionGuide/ContributingCode/Cargo-Running",
           },
           {
-            text: "Tokio Console",
-            link: "/zh/ContributionGuide/ContributingCode/Troubleshooting",
-          },
-          {
             text: "VSCode 运行",
             link: "/zh/ContributionGuide/ContributingCode/VsCode-Running",
           },
           {
             text: "代码结构",
             link: "/zh/ContributionGuide/ContributingCode/Code-Structure",
+          },
+          {
+            text: "Tokio Console",
+            link: "/zh/ContributionGuide/ContributingCode/Troubleshooting",
           },
           {
             text: "Pprof 使用指南",
