@@ -101,10 +101,17 @@ impl SessionStorage {
         Ok(Some(data))
     }
 
-    pub async fn list_session(&self) -> Result<DashMap<String, MqttSession>, CommonError> {
+    pub async fn list_session(
+        &self,
+        client_id: Option<String>,
+    ) -> Result<DashMap<String, MqttSession>, CommonError> {
         let config = broker_config();
         let request = ListSessionRequest {
-            client_id: "".to_string(),
+            client_id: if let Some(id) = client_id {
+                id
+            } else {
+                "".to_string()
+            },
         };
 
         let reply =

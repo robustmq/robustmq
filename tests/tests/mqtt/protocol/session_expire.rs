@@ -43,7 +43,7 @@ mod tests {
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-        let topic = format!("/tests/v1/v2/{}", unique_id());
+        let topic = format!("/session_expire_test/v1/v2/{}", unique_id());
 
         let message_content = "session expire test".to_string();
         let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
@@ -100,7 +100,7 @@ mod tests {
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-        let topic = format!("/tests/v1/v2/{}", unique_id());
+        let topic = format!("/session_expire_test/v1/v2/{}", unique_id());
 
         let message_content = "session close test".to_string();
         let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);

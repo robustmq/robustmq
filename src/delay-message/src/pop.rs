@@ -104,7 +104,10 @@ pub async fn delay_message_process(
             );
         }
         Err(e) => {
-            error!("{}", e);
+            error!(
+                "Failed to send delay message to target shard. unique_id={}, target_topic={}, offset={}, error={}",
+                delay_info.unique_id, delay_info.target_topic_name, delay_info.offset, e
+            );
         }
     };
     delete_delay_index_info(storage_driver_manager, delay_info).await?;

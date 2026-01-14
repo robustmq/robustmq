@@ -136,6 +136,14 @@ async fn parse_segment(
                 let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
                 segment_file.try_create().await?;
             }
+            if shard.config.storage_type == StorageType::EngineMemory
+                && shard.config.storage_type == StorageType::EngineRocksDB
+            {
+                let commit_log_offset =
+                    CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+                commit_log_offset.save_earliest_offset(&shard.shard_name, 0)?;
+                commit_log_offset.save_latest_offset(&shard.shard_name, 0)?;
+            }
         }
 
         BrokerUpdateCacheActionType::Update => {

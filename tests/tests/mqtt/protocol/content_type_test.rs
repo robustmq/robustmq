@@ -34,7 +34,7 @@ mod tests {
 
         // payload_format_indicator = 0 => success
         let will_message_content = "Hello, world".as_bytes();
-        let will_topic = format!("/tests/{}", unique_id());
+        let will_topic = format!("/payload_format_indicator_connect_test/{}", unique_id());
         let will = MessageBuilder::new()
             .payload(will_message_content)
             .topic(will_topic.clone())
@@ -59,7 +59,7 @@ mod tests {
             build_client_id(format!("payload_format_indicator_test_{network}_{qos}").as_str());
 
         let will_message_content = &[0xff, 0xfe, 0xfd];
-        let will_topic = format!("/tests/{}", unique_id());
+        let will_topic = format!("/payload_format_indicator_connect_test/{}", unique_id());
         let will = MessageBuilder::new()
             .payload(will_message_content)
             .topic(will_topic.clone())
@@ -84,7 +84,7 @@ mod tests {
             .push_int(PropertyCode::PayloadFormatIndicator, 1)
             .unwrap();
         let will_message_content = "Hello, world".as_bytes();
-        let will_topic = format!("/tests/{}", unique_id());
+        let will_topic = format!("/payload_format_indicator_connect_test/{}", unique_id());
         let will = MessageBuilder::new()
             .properties(props.clone())
             .payload(will_message_content)
@@ -109,7 +109,7 @@ mod tests {
             build_client_id(format!("payload_format_indicator_test_{network}_{qos}").as_str());
 
         let will_message_content = &[0xff, 0xfe, 0xfd];
-        let will_topic = format!("/tests/{}", unique_id());
+        let will_topic = format!("/payload_format_indicator_connect_test/{}", unique_id());
         let will = MessageBuilder::new()
             .properties(props)
             .payload(will_message_content)
@@ -135,7 +135,12 @@ mod tests {
     async fn payload_format_indicator_publish_test() {
         let network = "tcp";
         let qos = 1;
-        let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
+        let topic = format!(
+            "/payload_format_indicator_connect_test/{}/{}/{}",
+            unique_id(),
+            network,
+            qos
+        );
         let client_id = build_client_id(
             format!("payload_format_indicator_publish_test_{network}_{qos}").as_str(),
         );
@@ -202,7 +207,12 @@ mod tests {
     async fn content_type_test() {
         let network = "tcp";
         let qos = 1;
-        let topic = format!("/tests/{}/{}/{}", unique_id(), network, qos);
+        let topic = format!(
+            "/payload_format_indicator_connect_test/{}/{}/{}",
+            unique_id(),
+            network,
+            qos
+        );
         let client_id = build_client_id(format!("ucontent_type_test_{network}_{qos}").as_str());
 
         let client_properties = ClientTestProperties {

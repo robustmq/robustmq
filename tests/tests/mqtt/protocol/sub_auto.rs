@@ -32,7 +32,7 @@ mod tests {
         let admin_client = create_test_env().await;
 
         let uniq = unique_id();
-        let topic = format!("/tests/v1/v2/{uniq}");
+        let topic = format!("/sub_auto_test/v1/v2/{uniq}");
 
         let network = "tcp";
         let qos = 2;

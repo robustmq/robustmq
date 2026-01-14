@@ -202,7 +202,7 @@ impl BrokerServer {
         // start grpc server
         let place_params = self.place_params.clone();
         let mqtt_params = self.mqtt_params.clone();
-        let journal_params = self.engine_params.clone();
+        let engine_params = self.engine_params.clone();
         let broker_cache = self.broker_cache.clone();
         let server_runtime =
             create_runtime("server-runtime", self.config.runtime.runtime_worker_threads);
@@ -212,7 +212,7 @@ impl BrokerServer {
         let grpc_ready_check = grpc_ready.clone();
         server_runtime.spawn(async move {
             if let Err(e) =
-                start_grpc_server(place_params, mqtt_params, journal_params, grpc_port).await
+                start_grpc_server(place_params, mqtt_params, engine_params, grpc_port).await
             {
                 error!("Failed to start GRPC server: {}", e);
                 std::process::exit(1);
@@ -269,7 +269,7 @@ impl BrokerServer {
 
         let mut place_stop_send = None;
         let mut mqtt_stop_send = None;
-        let mut journal_stop_send = None;
+        let mut engine_stop_send = None;
 
         let config = broker_config();
         // start meta service
@@ -298,16 +298,14 @@ impl BrokerServer {
             self.register_node(raw_stop_send.clone()).await;
         });
 
-        // start journal server
-        let journal_runtime = create_runtime(
-            "journal-runtime",
-            self.config.runtime.runtime_worker_threads,
-        );
+        // start storage engine server
+        let engine_runtime =
+            create_runtime("engine-runtime", self.config.runtime.runtime_worker_threads);
 
         if is_engine_node(&config.roles) {
-            journal_stop_send = Some(stop_send.clone());
+            engine_stop_send = Some(stop_send.clone());
             let server = StorageEngineServer::new(self.engine_params.clone(), stop_send);
-            journal_runtime.spawn(async move {
+            engine_runtime.spawn(async move {
                 server.start().await;
             });
             self.wait_for_engine_ready();
@@ -339,7 +337,7 @@ impl BrokerServer {
         });
 
         // awaiting stop
-        self.awaiting_stop(place_stop_send, mqtt_stop_send, journal_stop_send);
+        self.awaiting_stop(place_stop_send, mqtt_stop_send, engine_stop_send);
     }
 
     async fn build_meta_service(
@@ -476,7 +474,7 @@ impl BrokerServer {
         &self,
         place_stop: Option<broadcast::Sender<bool>>,
         mqtt_stop: Option<broadcast::Sender<bool>>,
-        journal_stop: Option<broadcast::Sender<bool>>,
+        engine_stop: Option<broadcast::Sender<bool>>,
     ) {
         self.main_runtime.block_on(async {
             self.broker_cache
@@ -507,9 +505,9 @@ impl BrokerServer {
                 );
             }
 
-            if let Some(sx) = journal_stop {
+            if let Some(sx) = engine_stop {
                 if let Err(e) = sx.send(true) {
-                    error!("journal stop signal, error message{}", e);
+                    error!("storage engine stop signal, error message{}", e);
                 }
                 sleep(Duration::from_secs(3));
             }
@@ -574,13 +572,13 @@ impl BrokerServer {
     }
 
     fn wait_for_engine_ready(&self) {
-        let journal_port = self.config.storage_runtime.tcp_port;
+        let engine_port = self.config.storage_runtime.tcp_port;
         let max_wait_time = Duration::from_secs(10);
         let check_interval = Duration::from_millis(100);
         let start_time = std::time::Instant::now();
 
         while start_time.elapsed() < max_wait_time {
-            match std::net::TcpStream::connect(format!("127.0.0.1:{journal_port}")) {
+            match std::net::TcpStream::connect(format!("127.0.0.1:{engine_port}")) {
                 Ok(_) => {
                     info!("Storage Engine startup check completed");
                     return;

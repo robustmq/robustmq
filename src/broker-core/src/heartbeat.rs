@@ -22,8 +22,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
-use tokio::time::sleep;
-use tracing::{debug, error, info};
+use tokio::time::{sleep, timeout};
+use tracing::{debug, error, info, warn};
 
 use crate::{cache::BrokerCacheManager, cluster::ClusterStorage};
 
@@ -45,15 +45,45 @@ pub async fn report_heartbeat(
 ) {
     let ac_fn = async || -> ResultCommonError {
         let cluster_storage = ClusterStorage::new(client_pool.clone());
-        if let Err(e) = cluster_storage.heartbeat().await {
-            if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
-                if let Err(e) = register_node(client_pool, cache_manager).await {
-                    error!("{}", e);
-                }
+        let config = broker_config();
+
+        // Send heartbeat with 1 second timeout
+        match timeout(Duration::from_secs(1), cluster_storage.heartbeat()).await {
+            Ok(Ok(())) => {
+                debug!("Heartbeat report success for node {}", config.broker_id);
             }
-            error!("{}", e);
-        } else {
-            debug!("heartbeat report success");
+            Ok(Err(e)) => {
+                // Heartbeat failed
+                if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
+                    warn!(
+                        "Node {} does not exist in Meta Service, attempting to re-register",
+                        config.broker_id
+                    );
+                    if let Err(register_err) = register_node(client_pool, cache_manager).await {
+                        error!(
+                            "Failed to re-register node {} after heartbeat failure: {}",
+                            config.broker_id, register_err
+                        );
+                    } else {
+                        info!("Node {} successfully re-registered", config.broker_id);
+                    }
+                }
+                error!(
+                    "Heartbeat failed for node {} ({}:{}): {}",
+                    config.broker_id,
+                    config.broker_ip.as_deref().unwrap_or("unknown"),
+                    config.grpc_port,
+                    e
+                );
+            }
+            Err(_) => {
+                error!(
+                    "Heartbeat timeout (1s) for node {} ({}:{}), Meta Service may be unresponsive",
+                    config.broker_id,
+                    config.broker_ip.as_deref().unwrap_or("unknown"),
+                    config.grpc_port
+                );
+            }
         }
         Ok(())
     };

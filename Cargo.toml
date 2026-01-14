@@ -56,8 +56,8 @@ license = "Apache-2.0"
 # ====================
 # Async Runtime & Utilities
 # ====================
-tokio = { version = "1.45.1", features = ["full"] }
-tokio-util = { version = "0.7.15", features = ["full"] }
+tokio = { version = "1.49.0", features = ["full"] }
+tokio-util = { version = "0.7.18", features = ["full"] }
 futures = "0.3.31"
 futures-util = "0.3.31"
 async-trait = "0.1.88"
