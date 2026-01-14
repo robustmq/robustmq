@@ -137,7 +137,7 @@ pub fn create_runtime(runtime_name: &str, worker_threads: usize) -> Runtime {
 }
 
 pub fn get_runtime_worker_threads() -> usize {
-    64
+    8
 }
 
 #[cfg(test)]
