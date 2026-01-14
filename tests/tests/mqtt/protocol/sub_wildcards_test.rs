@@ -58,9 +58,9 @@ mod tests {
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
             client_id: client_id.to_string(),
-            addr: broker_addr_by_type(&network),
-            ws: ws_by_type(&network),
-            ssl: ssl_by_type(&network),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
@@ -87,9 +87,9 @@ mod tests {
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
             client_id: client_id.to_string(),
-            addr: broker_addr_by_type(&network),
-            ws: ws_by_type(&network),
-            ssl: ssl_by_type(&network),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
