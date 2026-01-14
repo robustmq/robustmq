@@ -46,7 +46,7 @@ max_log_files = 50
 [tokio_console]
 grpc_web = true
 kind = "tokio_console"
-bind = "127.0.0.1:5673"
+bind = "127.0.0.1:5674"
 
 [journal]
 kind = "rolling_file"
