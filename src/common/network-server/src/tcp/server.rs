@@ -85,7 +85,6 @@ impl TcpServer {
             .await?;
         } else {
             acceptor_process(
-                self.name.clone(),
                 self.proc_config.accept_thread_num,
                 self.connection_manager.clone(),
                 self.broker_cache.clone(),
