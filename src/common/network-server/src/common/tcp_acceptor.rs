@@ -46,6 +46,7 @@ use tracing::{debug, error, info};
 ///
 #[allow(clippy::too_many_arguments)]
 pub async fn acceptor_process(
+    name: String,
     accept_thread_num: usize,
     connection_manager: Arc<ConnectionManager>,
     broker_cache: Arc<BrokerCacheManager>,
@@ -63,6 +64,7 @@ pub async fn acceptor_process(
         let network_type = network_type.clone();
         let row_codec = codec.clone();
         let row_broker_cache = broker_cache.clone();
+        let row_name = name.clone();
         tokio::spawn(async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
@@ -71,10 +73,20 @@ pub async fn acceptor_process(
             loop {
                 select! {
                     val = stop_rx.recv() => {
-                        if let Ok(flag) = val {
-                            if flag {
-                                debug!("{} Server acceptor thread {} stopped successfully.", network_type, index);
-                                break;
+                        match val{
+                            Ok(flag) =>{
+                                if flag {
+                                    debug!("{} Server acceptor thread {} stopped successfully.", network_type, index);
+                                    break;
+                                }
+                            }
+                            Err(e) => {
+                                error!(
+                                    "{} Server acceptor thread {} (protocol: {:?}) stop_rx.recv() error: {} - this may cause high CPU usage due to busy loop,{}",
+                                    network_type, index, row_codec.protocol, e, row_name
+                                );
+                                // Add delay to prevent busy loop when channel is in error state
+                                sleep(Duration::from_millis(3000)).await;
                             }
                         }
                     }

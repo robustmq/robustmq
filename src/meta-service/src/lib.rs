@@ -94,7 +94,6 @@ impl MetaServiceServer {
             self.client_pool.clone(),
             self.broker_call_manager.clone(),
         );
-
         tokio::spawn(async move {
             ctrl.start_node_heartbeat_check().await;
         });

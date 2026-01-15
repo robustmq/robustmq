@@ -47,35 +47,22 @@ pub struct ServerParams {
 }
 
 pub struct Server {
-    client_pool: Arc<ClientPool>,
-    cache_manager: Arc<StorageCacheManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    write_manager: Arc<WriteManager>,
-    connection_manager: Arc<ConnectionManager>,
-    broker_cache: Arc<BrokerCacheManager>,
-    memory_storage_engine: Arc<MemoryStorageEngine>,
-    rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
-    client_connection_manager: Arc<ClientConnectionManager>,
+    tcp_server: TcpServer,
 }
 
 impl Server {
-    pub fn new(params: ServerParams) -> Server {
-        Server {
-            client_pool: params.client_pool,
-            cache_manager: params.cache_manager,
-            rocksdb_engine_handler: params.rocksdb_engine_handler,
-            connection_manager: params.connection_manager,
-            broker_cache: params.broker_cache,
-            write_manager: params.write_manager,
-            memory_storage_engine: params.memory_storage_engine,
-            rocksdb_storage_engine: params.rocksdb_storage_engine,
-            client_connection_manager: params.client_connection_manager,
-        }
-    }
-
-    pub async fn start(&self, stop_sx: broadcast::Sender<bool>) {
+    pub fn new(params: ServerParams, stop_sx: broadcast::Sender<bool>) -> Server {
         let conf = broker_config();
-        let command = self.create_command();
+        let storage: Box<dyn Command + Send + Sync> = Box::new(StorageEngineHandlerCommand::new(
+            params.cache_manager.clone(),
+            params.rocksdb_engine_handler.clone(),
+            params.write_manager.clone(),
+            params.memory_storage_engine.clone(),
+            params.rocksdb_storage_engine.clone(),
+            params.client_connection_manager.clone(),
+            params.connection_manager.clone(),
+        ));
+        let command = Arc::new(storage);
 
         let proc_config = ProcessorConfig {
             accept_thread_num: conf.network.accept_thread_num,
@@ -85,33 +72,29 @@ impl Server {
         };
 
         let context: ServerContext = ServerContext {
-            connection_manager: self.connection_manager.clone(),
-            client_pool: self.client_pool.clone(),
+            connection_manager: params.connection_manager.clone(),
+            client_pool: params.client_pool.clone(),
             command: command.clone(),
             network_type: NetworkConnectionType::Tcp,
             proc_config,
             stop_sx: stop_sx.clone(),
-            broker_cache: self.broker_cache.clone(),
+            broker_cache: params.broker_cache.clone(),
         };
 
         // TCP Server
         let name = "Storage Engine".to_string();
         let tcp_server = TcpServer::new(name.clone(), context.clone());
-        if let Err(e) = tcp_server.start(false, conf.storage_runtime.tcp_port).await {
-            error!("Storage Engine tCP server start fail, error:{}", e);
-        }
+        Server { tcp_server }
     }
 
-    fn create_command(&self) -> Arc<Box<dyn Command + Send + Sync>> {
-        let storage: Box<dyn Command + Send + Sync> = Box::new(StorageEngineHandlerCommand::new(
-            self.cache_manager.clone(),
-            self.rocksdb_engine_handler.clone(),
-            self.write_manager.clone(),
-            self.memory_storage_engine.clone(),
-            self.rocksdb_storage_engine.clone(),
-            self.client_connection_manager.clone(),
-            self.connection_manager.clone(),
-        ));
-        Arc::new(storage)
+    pub async fn start(&self) {
+        let conf = broker_config();
+        if let Err(e) = self
+            .tcp_server
+            .start(false, conf.storage_runtime.tcp_port)
+            .await
+        {
+            error!("Storage Engine tCP server start fail, error:{}", e);
+        }
     }
 }

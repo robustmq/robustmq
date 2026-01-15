@@ -20,7 +20,9 @@ use metadata_struct::{
     delay_info::DelayMessageIndexInfo, storage::convert::convert_engine_record_to_adapter,
 };
 use std::sync::Arc;
+use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
+use tokio::time::sleep;
 use tokio::{select, sync::broadcast};
 use tracing::{debug, error, info, warn};
 
@@ -54,19 +56,24 @@ pub(crate) fn spawn_delay_message_pop_threads(
                             _ => {}
                         }
                     }
-                    _ =  pop_delay_queue(
+                    res =  pop_delay_queue(
                         &new_delay_message_manager,
                         shard_no,
                     ) => {
-                        // Yield to other tasks to avoid tight loops when many messages expire
-                        tokio::task::yield_now().await;
+                        if let Err(e) = res{
+                            error!("{}",e);
+                            break;
+                        }
                     }
                 }
             }
         });
     }
 }
-pub async fn pop_delay_queue(delay_message_manager: &Arc<DelayMessageManager>, shard_no: u32) {
+pub async fn pop_delay_queue(
+    delay_message_manager: &Arc<DelayMessageManager>,
+    shard_no: u32,
+) -> Result<(), CommonError> {
     if let Some(mut delay_queue) = delay_message_manager.delay_queue_list.get_mut(&shard_no) {
         if let Some(expired) = delay_queue.next().await {
             let delay_message = expired.into_inner();
@@ -88,8 +95,18 @@ pub async fn pop_delay_queue(delay_message_manager: &Arc<DelayMessageManager>, s
                     );
                 }
             });
+        } else {
+            debug!(
+                "Delay queue shard {} returned None from next() - queue may be empty or in unexpected state",
+                shard_no
+            );
+            sleep(Duration::from_millis(100)).await;
         }
+        return Ok(());
     }
+
+    Err(CommonError::CommonError(
+        format!("Failed to acquire lock on delay queue shard {} - lock is held by another operation (possible contention)",shard_no)))
 }
 
 pub async fn delay_message_process(

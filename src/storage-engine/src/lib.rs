@@ -92,19 +92,21 @@ impl StorageEngineServer {
     }
 
     fn start_tcp_server(&self) {
-        let tcp_server = Server::new(crate::server::ServerParams {
-            client_pool: self.client_pool.clone(),
-            cache_manager: self.cache_manager.clone(),
-            rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
-            connection_manager: self.connection_manager.clone(),
-            write_manager: self.write_manager.clone(),
-            broker_cache: self.cache_manager.broker_cache.clone(),
-            memory_storage_engine: self.memory_storage_engine.clone(),
-            rocksdb_storage_engine: self.rocksdb_storage_engine.clone(),
-            client_connection_manager: self.client_connection_manager.clone(),
-        });
-        let stop_sx = self.inner_stop.clone();
-        tokio::spawn(async move { tcp_server.start(stop_sx).await });
+        let tcp_server = Server::new(
+            crate::server::ServerParams {
+                client_pool: self.client_pool.clone(),
+                cache_manager: self.cache_manager.clone(),
+                rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
+                connection_manager: self.connection_manager.clone(),
+                write_manager: self.write_manager.clone(),
+                broker_cache: self.cache_manager.broker_cache.clone(),
+                memory_storage_engine: self.memory_storage_engine.clone(),
+                rocksdb_storage_engine: self.rocksdb_storage_engine.clone(),
+                client_connection_manager: self.client_connection_manager.clone(),
+            },
+            self.inner_stop.clone(),
+        );
+        tokio::spawn(async move { tcp_server.start().await });
     }
 
     fn start_daemon_thread(&self) {
