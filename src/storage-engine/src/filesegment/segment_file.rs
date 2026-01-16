@@ -231,11 +231,18 @@ impl SegmentFile {
             self.ensure_mmap().await?;
 
             if let Some(ref mmap) = self.mmap_cache {
-                return self.read_by_offset_mmap(mmap, start_position, start_offset, max_size, max_record);
+                return self.read_by_offset_mmap(
+                    mmap,
+                    start_position,
+                    start_offset,
+                    max_size,
+                    max_record,
+                );
             }
         }
 
-        self.read_by_offset_traditional(start_position, start_offset, max_size, max_record).await
+        self.read_by_offset_traditional(start_position, start_offset, max_size, max_record)
+            .await
     }
 
     fn read_by_offset_mmap(
@@ -1024,7 +1031,10 @@ mod tests {
         let traditional_sequential_throughput =
             (file_size as f64) / traditional_sequential_avg.as_secs_f64() / 1024.0 / 1024.0;
         println!("  Average time: {:?}", traditional_sequential_avg);
-        println!("  Throughput: {:.2} MB/s\n", traditional_sequential_throughput);
+        println!(
+            "  Throughput: {:.2} MB/s\n",
+            traditional_sequential_throughput
+        );
 
         // Summary for sequential read
         println!("Sequential Read by Offset:");
