@@ -67,7 +67,7 @@ impl MmapWrapper {
         Ok(&self.mmap[position as usize..end as usize])
     }
 
-    fn _read_u64_at(&self, position: u64) -> Result<u64, StorageEngineError> {
+    fn read_u64_at(&self, position: u64) -> Result<u64, StorageEngineError> {
         let bytes = self.read_at(position, 8)?;
         Ok(u64::from_be_bytes(bytes.try_into().unwrap()))
     }
@@ -220,6 +220,89 @@ impl SegmentFile {
     /// A list of records and their byte positions in the segment file, in the order in which they are stored in the segment file.
     ///
     pub async fn read_by_offset(
+        &mut self,
+        start_position: u64,
+        start_offset: u64,
+        max_size: u64,
+        max_record: u64,
+    ) -> Result<Vec<ReadData>, StorageEngineError> {
+        // Whether to enable mmap can be configured based on the small and large parameters.
+        if self.mmap_enabled {
+            self.ensure_mmap().await?;
+
+            if let Some(ref mmap) = self.mmap_cache {
+                return self.read_by_offset_mmap(mmap, start_position, start_offset, max_size, max_record);
+            }
+        }
+
+        self.read_by_offset_traditional(start_position, start_offset, max_size, max_record).await
+    }
+
+    fn read_by_offset_mmap(
+        &self,
+        mmap: &MmapWrapper,
+        start_position: u64,
+        start_offset: u64,
+        max_size: u64,
+        max_record: u64,
+    ) -> Result<Vec<ReadData>, StorageEngineError> {
+        let mut results = Vec::new();
+        let mut already_size = 0;
+        let mut pos = start_position;
+
+        // Get file size for boundary check
+        let file_size = mmap.file_size;
+
+        loop {
+            if results.len() >= max_record as usize {
+                break;
+            }
+
+            // Check if we have enough bytes for the header (offset + total_len + metadata_len)
+            // Minimum header size: 8 + 4 + 4 = 16 bytes
+            if pos + 16 > file_size {
+                break;
+            }
+
+            // read offset (8 bytes) and total_len (4 bytes)
+            let offset = mmap.read_u64_at(pos)?;
+            let total_len = mmap.read_u32_at(pos + 8)?;
+
+            if offset < start_offset {
+                pos += 20 + total_len as u64;
+                continue;
+            }
+
+            // Check if we can read the full record.
+            // File format: offset(8) + total_len(4) + metadata_len(4) + metadata + data_len(4) + data
+            // total_len = metadata_len + data_len
+            // So full record size = 8 + 4 + 4 + total_len + 4 = 20 + total_len
+            // Boundary check: pos + 16 (offset+total_len+metadata_len) + total_len <= file_size
+            if pos + 16 + total_len as u64 > file_size {
+                break;
+            }
+
+            // read record at position + 12 (skip offset and total_len)
+            let record = self.read_record_mmap(mmap, pos)?;
+
+            let data_size = record.data.len() as u64;
+            if already_size + data_size > max_size {
+                break;
+            }
+            already_size += data_size;
+
+            results.push(ReadData {
+                record,
+                position: pos,
+            });
+
+            pos += 20 + total_len as u64;
+        }
+
+        Ok(results)
+    }
+
+    async fn read_by_offset_traditional(
         &self,
         start_position: u64,
         start_offset: u64,
@@ -839,7 +922,7 @@ mod tests {
         println!("==========================================\n");
 
         // Warm up mmap by (this initializes the mmap cache)
-        let _ = segment.ensure_mmap().await;
+        // let _ = segment.ensure_mmap().await;
 
         // Benchmark 1: Random read by position (mmap IO path)
         println!("[Random Read by Position - Mmap IO]");
@@ -865,7 +948,6 @@ mod tests {
         println!("[Random Read by Position - Traditional IO]");
         let mut traditional_random_times = Vec::new();
         for _ in 0..5 {
-            segment.clear_cache(); // Clear mmap cache
             let start = Instant::now();
             let res = segment.read_by_positions(positions.clone()).await.unwrap();
             let elapsed = start.elapsed();
@@ -880,9 +962,7 @@ mod tests {
         println!("  Throughput: {:.2} MB/s\n", traditional_random_throughput);
 
         // Summary
-        println!("=== Performance Summary ===");
-
-        println!("Random Read:");
+        println!("Random Read by Position:");
         println!(
             "  Traditional IO: {:?} ({:.2} MB/s)",
             traditional_random_avg, traditional_random_throughput
@@ -892,7 +972,73 @@ mod tests {
             mmap_random_avg, mmap_random_throughput
         );
         let random_speedup = traditional_random_avg.as_secs_f64() / mmap_random_avg.as_secs_f64();
-        println!("  Mmap speedup: {:.2}x", random_speedup);
+        println!("  Mmap speedup: {:.2}x\n", random_speedup);
+        println!("============================\n");
+
+        // ============================================================
+        // Benchmark 3: Sequential read by offset (mmap IO path)
+        // ============================================================
+        segment.mmap_enabled = true;
+        segment.clear_cache();
+        // let _ = segment.ensure_mmap().await;
+
+        println!("[Sequential Read by Offset - Mmap IO]");
+        let mut mmap_sequential_times = Vec::new();
+        for _ in 0..5 {
+            let start = Instant::now();
+            let res = segment
+                .read_by_offset(0, 0, 1024 * 1024 * 1024, RECORD_COUNT as u64)
+                .await
+                .unwrap();
+            let elapsed = start.elapsed();
+            mmap_sequential_times.push(elapsed);
+            assert_eq!(res.len(), RECORD_COUNT);
+        }
+        let mmap_sequential_avg =
+            mmap_sequential_times.iter().sum::<Duration>() / mmap_sequential_times.len() as u32;
+        let mmap_sequential_throughput =
+            (file_size as f64) / mmap_sequential_avg.as_secs_f64() / 1024.0 / 1024.0;
+        println!("  Average time: {:?}", mmap_sequential_avg);
+        println!("  Throughput: {:.2} MB/s\n", mmap_sequential_throughput);
+
+        segment.clear_cache();
+        segment.mmap_enabled = false;
+
+        // ============================================================
+        // Benchmark 4: Sequential read by offset (traditional IO path)
+        // ============================================================
+        println!("[Sequential Read by Offset - Traditional IO]");
+        let mut traditional_sequential_times = Vec::new();
+        for _ in 0..5 {
+            let start = Instant::now();
+            let res = segment
+                .read_by_offset(0, 0, 1024 * 1024 * 1024, RECORD_COUNT as u64)
+                .await
+                .unwrap();
+            let elapsed = start.elapsed();
+            traditional_sequential_times.push(elapsed);
+            assert_eq!(res.len(), RECORD_COUNT);
+        }
+        let traditional_sequential_avg = traditional_sequential_times.iter().sum::<Duration>()
+            / traditional_sequential_times.len() as u32;
+        let traditional_sequential_throughput =
+            (file_size as f64) / traditional_sequential_avg.as_secs_f64() / 1024.0 / 1024.0;
+        println!("  Average time: {:?}", traditional_sequential_avg);
+        println!("  Throughput: {:.2} MB/s\n", traditional_sequential_throughput);
+
+        // Summary for sequential read
+        println!("Sequential Read by Offset:");
+        println!(
+            "  Traditional IO: {:?} ({:.2} MB/s)",
+            traditional_sequential_avg, traditional_sequential_throughput
+        );
+        println!(
+            "  Mmap IO: {:?} ({:.2} MB/s)",
+            mmap_sequential_avg, mmap_sequential_throughput
+        );
+        let sequential_speedup =
+            traditional_sequential_avg.as_secs_f64() / mmap_sequential_avg.as_secs_f64();
+        println!("  Mmap speedup: {:.2}x", sequential_speedup);
         println!("============================\n");
 
         // Clean up

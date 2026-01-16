@@ -181,10 +181,10 @@ async fn read_by_segment(
     read_config: &AdapterReadConfig,
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
     let segment_iden = SegmentIdentity::new(shard_name, segment);
-    let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
+    let mut segment_file = open_segment_write(cache_manager, &segment_iden).await?;
     let data_list = segment_read_by_offset(
         rocksdb_engine_handler,
-        &segment_file,
+        &mut segment_file,
         &segment_iden,
         offset,
         read_config.max_size,
