@@ -143,6 +143,7 @@ mobc = "0.9.0"
 opendal = { version = "0.51", features = ["services-s3"] }
 zstd = "0.13"
 twox-hash = "2.1.2"
+memmap2 = "0.9.9"
 
 # ====================
 # Message Queue & Streaming

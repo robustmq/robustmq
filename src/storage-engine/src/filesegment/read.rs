@@ -62,7 +62,7 @@ pub async fn segment_read_by_key(
 
     if let Some(index) = index_data {
         let segment_iden = SegmentIdentity::new(shard_name, index.segment);
-        let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
+        let mut segment_file = open_segment_write(cache_manager, &segment_iden).await?;
         return segment_file.read_by_positions(vec![index.position]).await;
     }
     Ok(Vec::new())
@@ -97,7 +97,7 @@ pub async fn segment_read_by_tag(
 
     for (segment_no, positions) in segment_positions {
         let segment_iden = SegmentIdentity::new(shard_name, segment_no);
-        let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
+        let mut segment_file = open_segment_write(cache_manager, &segment_iden).await?;
         let data_list = segment_file.read_by_positions(positions).await?;
         all_results.extend(data_list);
     }

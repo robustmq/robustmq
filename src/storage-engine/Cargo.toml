@@ -47,3 +47,4 @@ broker-core.workspace = true
 twox-hash.workspace = true
 rkyv.workspace = true
 parking_lot.workspace = true
+memmap2.workspace = true
