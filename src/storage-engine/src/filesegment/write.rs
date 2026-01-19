@@ -558,7 +558,7 @@ mod tests {
         let (segment_iden, cache_manager, fold, rocksdb) =
             test_init_segment(StorageType::EngineSegment).await;
 
-        let segment_file =
+        let mut segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
                 .await
                 .unwrap();
@@ -606,7 +606,7 @@ mod tests {
         let (segment_iden, cache_manager, fold, rocksdb) =
             test_init_segment(StorageType::EngineSegment).await;
 
-        let segment_file =
+        let mut segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
                 .await
                 .unwrap();
@@ -676,7 +676,7 @@ mod tests {
             assert_eq!(row.pkid, row.offset);
         }
 
-        let segment_file =
+        let mut segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
                 .await
                 .unwrap();

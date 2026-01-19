@@ -29,7 +29,7 @@ use std::{collections::HashMap, sync::Arc};
 /// Use index (if there's any) to find the last nearest start byte position given the offset
 pub async fn segment_read_by_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_file: &SegmentFile,
+    segment_file: &mut SegmentFile,
     segment_iden: &SegmentIdentity,
     offset: u64,
     max_size: u64,
@@ -62,7 +62,7 @@ pub async fn segment_read_by_key(
 
     if let Some(index) = index_data {
         let segment_iden = SegmentIdentity::new(shard_name, index.segment);
-        let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
+        let mut segment_file = open_segment_write(cache_manager, &segment_iden).await?;
         return segment_file.read_by_positions(vec![index.position]).await;
     }
     Ok(Vec::new())
@@ -97,7 +97,7 @@ pub async fn segment_read_by_tag(
 
     for (segment_no, positions) in segment_positions {
         let segment_iden = SegmentIdentity::new(shard_name, segment_no);
-        let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
+        let mut segment_file = open_segment_write(cache_manager, &segment_iden).await?;
         let data_list = segment_file.read_by_positions(positions).await?;
         all_results.extend(data_list);
     }
@@ -175,7 +175,7 @@ mod tests {
     async fn read_by_offset_test() {
         let (segment_iden, cache_manager, fold, rocksdb_engine_handler) =
             test_base_write_data(StorageType::EngineSegment, 30).await;
-        let segment_file =
+        let mut segment_file =
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
                 .await
                 .unwrap();
@@ -192,7 +192,7 @@ mod tests {
         let max_size = 1024 * 1024 * 1024;
         let resp = segment_read_by_offset(
             &rocksdb_engine_handler,
-            &segment_file,
+            &mut segment_file,
             &segment_iden,
             5,
             max_size,
@@ -212,7 +212,7 @@ mod tests {
         let max_record = 5;
         let resp = segment_read_by_offset(
             &rocksdb_engine_handler,
-            &segment_file,
+            &mut segment_file,
             &segment_iden,
             10,
             max_size,
