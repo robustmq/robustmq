@@ -163,7 +163,11 @@ fn read_frame_process(
                         }
                         Err(e) => {
                             record_received_error_metrics(network_type.clone());
-                            debug!(
+                            let err_str = e.to_string();
+                            if err_str.contains("connection lost") {
+                                break;
+                            }
+                            error!(
                                 "{} connection parsing packet format error message :{:?}",
                                 network_type, e
                             )
