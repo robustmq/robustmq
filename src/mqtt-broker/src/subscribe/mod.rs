@@ -147,9 +147,9 @@ impl PushManager {
                 );
 
                 let stop_sx = sub_thread_stop_sx.clone();
-                tokio::spawn(async move {
+                tokio::spawn(Box::pin(async move {
                     push_manager.start(&stop_sx).await;
-                });
+                }));
 
                 self.directly_buckets_push_thread
                     .insert(bucket_id, thread_data);
