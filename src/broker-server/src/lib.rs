@@ -115,14 +115,14 @@ impl BrokerServer {
         ));
 
         // meta params
-        let meta_params = main_runtime.block_on(async {
+        let meta_params = main_runtime.block_on(Box::pin(async {
             BrokerServer::build_meta_service(
                 client_pool.clone(),
                 rocksdb_engine_handler.clone(),
                 broker_cache.clone(),
             )
             .await
-        });
+        }));
 
         let offset_manager = Arc::new(OffsetManager::new(
             client_pool.clone(),
@@ -210,14 +210,14 @@ impl BrokerServer {
 
         let grpc_ready = Arc::new(AtomicBool::new(false));
         let grpc_ready_check = grpc_ready.clone();
-        server_runtime.spawn(async move {
+        server_runtime.spawn(Box::pin(async move {
             if let Err(e) =
                 start_grpc_server(place_params, mqtt_params, engine_params, grpc_port).await
             {
                 error!("Failed to start GRPC server: {}", e);
                 std::process::exit(1);
             }
-        });
+        }));
 
         // Start Admin Server
         let state = Arc::new(HttpState {
@@ -279,10 +279,10 @@ impl BrokerServer {
         let place_params = self.place_params.clone();
         if is_meta_node(&config.roles) {
             place_stop_send = Some(stop_send.clone());
-            place_runtime.spawn(async move {
+            place_runtime.spawn(Box::pin(async move {
                 let mut pc = MetaServiceServer::new(place_params, stop_send.clone());
                 pc.start().await;
-            });
+            }));
         }
 
         // check placement ready
@@ -305,9 +305,9 @@ impl BrokerServer {
         if is_engine_node(&config.roles) {
             engine_stop_send = Some(stop_send.clone());
             let server = StorageEngineServer::new(self.engine_params.clone(), stop_send);
-            engine_runtime.spawn(async move {
+            engine_runtime.spawn(Box::pin(async move {
                 server.start().await;
-            });
+            }));
             self.wait_for_engine_ready();
         }
 
@@ -318,9 +318,9 @@ impl BrokerServer {
         if is_broker_node(&config.roles) {
             mqtt_stop_send = Some(stop_send.clone());
             let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop_send.clone());
-            mqtt_runtime.spawn(async move {
+            mqtt_runtime.spawn(Box::pin(async move {
                 server.start().await;
-            });
+            }));
         }
 
         // connection gc
@@ -332,9 +332,9 @@ impl BrokerServer {
         // offset flush thread
         let offset_cache = self.offset_manager.clone();
         let raw_stop_send = stop_send;
-        server_runtime.spawn(async move {
+        server_runtime.spawn(Box::pin(async move {
             offset_cache.offset_save_thread(raw_stop_send).await;
-        });
+        }));
 
         // awaiting stop
         self.awaiting_stop(place_stop_send, mqtt_stop_send, engine_stop_send);
@@ -476,7 +476,7 @@ impl BrokerServer {
         mqtt_stop: Option<broadcast::Sender<bool>>,
         engine_stop: Option<broadcast::Sender<bool>>,
     ) {
-        self.main_runtime.block_on(async {
+        self.main_runtime.block_on(Box::pin(async {
             self.broker_cache
                 .set_status(common_base::node_status::NodeStatus::Running)
                 .await;
@@ -518,7 +518,7 @@ impl BrokerServer {
                 }
             }
             sleep(Duration::from_secs(3));
-        });
+        }));
     }
 
     fn check_grpc_server_ready(&self, grpc_port: u32, grpc_ready: Arc<AtomicBool>) {
@@ -604,9 +604,9 @@ impl BrokerServer {
             Ok(()) => {
                 // heartbeat report
                 let raw_client_pool = client_pool.clone();
-                tokio::spawn(async move {
+                tokio::spawn(Box::pin(async move {
                     report_heartbeat(&raw_client_pool, &broker_cache, main_stop.clone()).await;
-                });
+                }));
 
                 info!("Node {} has been successfully registered", config.broker_id);
             }

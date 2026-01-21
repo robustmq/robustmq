@@ -24,10 +24,6 @@ fi
 # Cleanup function
 cleanup() {
     if [ "$START_BROKER" == "true" ]; then
-        # Stop tail process if running
-        if [ ! -z "$TAIL_PID" ]; then
-            kill $TAIL_PID 2>/dev/null || true
-        fi
         # Stop broker if running
         if [ ! -z "$BROKER_PID" ]; then
             echo "Stopping broker-server..."
@@ -212,16 +208,12 @@ if [ "$START_BROKER" == "true" ]; then
 
     echo ""
     echo "Starting broker-server..."
-    echo "Broker logs will be written to 1.log and tailed below..."
+    echo "Broker logs will be output to console..."
     echo "=========================================="
 
-    # Start broker and redirect output to file
-    ./target/debug/broker-server > 1.log 2>&1 &
+    # Start broker with output to console
+    ./target/debug/broker-server &
     BROKER_PID=$!
-
-    # Start tailing the log in background
-    tail -f 1.log &
-    TAIL_PID=$!
 
     echo "Waiting for broker to be ready..."
     MAX_WAIT=1800  # Maximum wait time in seconds (30 minutes for compilation + startup)
@@ -235,7 +227,6 @@ if [ "$START_BROKER" == "true" ]; then
             echo "=========================================="
             echo "❌ Broker process died unexpectedly"
             echo "=========================================="
-            kill $TAIL_PID 2>/dev/null || true
             exit 1
         fi
 
@@ -246,8 +237,6 @@ if [ "$START_BROKER" == "true" ]; then
             echo "=========================================="
             echo "✅ Broker is ready after ${ELAPSED}s (MQTT port 1883 is listening)"
             echo "=========================================="
-            # Stop tailing the log
-            kill $TAIL_PID 2>/dev/null || true
             BROKER_READY=true
             break
         fi
@@ -260,7 +249,6 @@ if [ "$START_BROKER" == "true" ]; then
         echo "=========================================="
         echo "❌ Broker failed to start within ${MAX_WAIT}s"
         echo "=========================================="
-        kill $TAIL_PID 2>/dev/null || true
         exit 1
     fi
 

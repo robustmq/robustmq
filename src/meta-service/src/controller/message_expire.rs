@@ -26,6 +26,7 @@ use rocksdb_engine::warp::StorageDataWrap;
 use std::sync::Arc;
 use tracing::error;
 
+#[derive(Clone)]
 pub struct MessageExpire {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }

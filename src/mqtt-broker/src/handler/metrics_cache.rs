@@ -64,395 +64,365 @@ macro_rules! record_metric_safe {
     };
 }
 
-fn record_basic_metrics_thread(
+async fn record_basic_metrics(
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     cache_manager: Arc<MQTTCacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     time_window: u64,
-    stop_send: broadcast::Sender<bool>,
-) {
-    tokio::spawn(async move {
-        let record_func = async || -> ResultCommonError {
-            let now: u64 = now_second();
+) -> ResultCommonError {
+    let now: u64 = now_second();
 
-            // connection num
-            metrics_cache_manager
-                .record_connection_num(now, connection_manager.connections.len() as u64)?;
+    // connection num
+    metrics_cache_manager
+        .record_connection_num(now, connection_manager.connections.len() as u64)?;
 
-            // topic num
-            metrics_cache_manager
-                .record_topic_num(now, cache_manager.broker_cache.topic_list.len() as u64)?;
+    // topic num
+    metrics_cache_manager
+        .record_topic_num(now, cache_manager.broker_cache.topic_list.len() as u64)?;
 
-            // subscribe num
-            metrics_cache_manager
-                .record_subscribe_num(now, subscribe_manager.subscribe_list.len() as u64)?;
+    // subscribe num
+    metrics_cache_manager
+        .record_subscribe_num(now, subscribe_manager.subscribe_list.len() as u64)?;
 
-            // record metrics
-            record_mqtt_connections_set(connection_manager.connections.len() as i64);
-            record_mqtt_sessions_set(cache_manager.session_info.len() as i64);
-            record_mqtt_topics_set(cache_manager.broker_cache.topic_list.len() as i64);
-            record_mqtt_subscribers_set(subscribe_manager.subscribe_list.len() as i64);
-            record_mqtt_subscriptions_shared_set(0);
+    // record metrics
+    record_mqtt_connections_set(connection_manager.connections.len() as i64);
+    record_mqtt_sessions_set(cache_manager.session_info.len() as i64);
+    record_mqtt_topics_set(cache_manager.broker_cache.topic_list.len() as i64);
+    record_mqtt_subscribers_set(subscribe_manager.subscribe_list.len() as i64);
+    record_mqtt_subscriptions_shared_set(0);
 
-            // message in
-            let num = record_mqtt_messages_received_get();
-            record_cumulative_metric!(
-                metrics_cache_manager,
-                record_message_in_num,
-                get_pre_message_in,
-                now,
-                num,
-                time_window
-            );
+    // message in
+    let num = record_mqtt_messages_received_get();
+    record_cumulative_metric!(
+        metrics_cache_manager,
+        record_message_in_num,
+        get_pre_message_in,
+        now,
+        num,
+        time_window
+    );
 
-            // message out
-            let num = record_mqtt_messages_sent_get();
-            record_cumulative_metric!(
-                metrics_cache_manager,
-                record_message_out_num,
-                get_pre_message_out,
-                now,
-                num,
-                time_window
-            );
+    // message out
+    let num = record_mqtt_messages_sent_get();
+    record_cumulative_metric!(
+        metrics_cache_manager,
+        record_message_out_num,
+        get_pre_message_out,
+        now,
+        num,
+        time_window
+    );
 
-            // message drop
-            let num = record_messages_dropped_no_subscribers_get();
-            record_cumulative_metric!(
-                metrics_cache_manager,
-                record_message_drop_num,
-                get_pre_message_drop,
-                now,
-                num,
-                time_window
-            );
+    // message drop
+    let num = record_messages_dropped_no_subscribers_get();
+    record_cumulative_metric!(
+        metrics_cache_manager,
+        record_message_drop_num,
+        get_pre_message_drop,
+        now,
+        num,
+        time_window
+    );
 
-            Ok(())
-        };
-        loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
-    });
+    Ok(())
 }
 
-fn record_topic_metrics_thread(
+async fn record_topic_metrics(
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     cache_manager: Arc<MQTTCacheManager>,
     time_window: u64,
-    stop_send: broadcast::Sender<bool>,
-) {
-    tokio::spawn(async move {
-        let record_func = async || -> ResultCommonError {
-            let now: u64 = now_second();
+) -> ResultCommonError {
+    let now: u64 = now_second();
 
-            for topic in cache_manager.broker_cache.get_all_topic_name() {
-                record_metric_safe!(format!("topic {}", topic), {
-                    // topic in
-                    let num = get_topic_messages_written(&topic);
-                    record_cumulative_metric!(
-                        metrics_cache_manager,
-                        record_topic_in_num,
-                        get_topic_in_pre_total,
-                        now,
-                        num,
-                        time_window,
-                        &topic
-                    );
+    for topic in cache_manager.broker_cache.get_all_topic_name() {
+        record_metric_safe!(format!("topic {}", topic), {
+            // topic in
+            let num = get_topic_messages_written(&topic);
+            record_cumulative_metric!(
+                metrics_cache_manager,
+                record_topic_in_num,
+                get_topic_in_pre_total,
+                now,
+                num,
+                time_window,
+                &topic
+            );
 
-                    // topic out
-                    let num = get_topic_messages_sent(&topic);
-                    record_cumulative_metric!(
-                        metrics_cache_manager,
-                        record_topic_out_num,
-                        get_topic_out_pre_total,
-                        now,
-                        num,
-                        time_window,
-                        &topic
-                    );
-                    Ok::<(), common_base::error::common::CommonError>(())
-                });
-            }
+            // topic out
+            let num = get_topic_messages_sent(&topic);
+            record_cumulative_metric!(
+                metrics_cache_manager,
+                record_topic_out_num,
+                get_topic_out_pre_total,
+                now,
+                num,
+                time_window,
+                &topic
+            );
+            Ok::<(), common_base::error::common::CommonError>(())
+        });
+    }
 
-            Ok(())
-        };
-        loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
-    });
+    Ok(())
 }
 
-fn record_session_metrics_thread(
+async fn record_session_metrics(
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     cache_manager: Arc<MQTTCacheManager>,
     time_window: u64,
-    stop_send: broadcast::Sender<bool>,
-) {
-    tokio::spawn(async move {
-        let record_func = async || -> ResultCommonError {
-            let now: u64 = now_second();
+) -> ResultCommonError {
+    let now: u64 = now_second();
 
-            for client_id in cache_manager.get_session_client_id_list() {
-                record_metric_safe!(format!("session {}", client_id), {
-                    // session in
-                    let num = get_session_messages_in(&client_id);
-                    record_cumulative_metric!(
-                        metrics_cache_manager,
-                        record_session_in_num,
-                        get_session_in_pre_total,
-                        now,
-                        num,
-                        time_window,
-                        &client_id
-                    );
+    for client_id in cache_manager.get_session_client_id_list() {
+        record_metric_safe!(format!("session {}", client_id), {
+            // session in
+            let num = get_session_messages_in(&client_id);
+            record_cumulative_metric!(
+                metrics_cache_manager,
+                record_session_in_num,
+                get_session_in_pre_total,
+                now,
+                num,
+                time_window,
+                &client_id
+            );
 
-                    // session out
-                    let num = get_session_messages_out(&client_id);
-                    record_cumulative_metric!(
-                        metrics_cache_manager,
-                        record_session_out_num,
-                        get_session_out_pre_total,
-                        now,
-                        num,
-                        time_window,
-                        &client_id
-                    );
-                    Ok::<(), common_base::error::common::CommonError>(())
-                });
-            }
+            // session out
+            let num = get_session_messages_out(&client_id);
+            record_cumulative_metric!(
+                metrics_cache_manager,
+                record_session_out_num,
+                get_session_out_pre_total,
+                now,
+                num,
+                time_window,
+                &client_id
+            );
+            Ok::<(), common_base::error::common::CommonError>(())
+        });
+    }
 
-            Ok(())
-        };
-        loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
-    });
+    Ok(())
 }
 
-fn record_connector_metrics_thread(
+async fn record_connector_metrics(
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     connector_manager: Arc<ConnectorManager>,
     time_window: u64,
-    stop_send: broadcast::Sender<bool>,
-) {
-    tokio::spawn(async move {
-        let record_func = async || -> ResultCommonError {
-            let now: u64 = now_second();
+) -> ResultCommonError {
+    let now: u64 = now_second();
 
-            for connector in connector_manager.get_all_connector() {
-                record_metric_safe!(format!("connector {}", connector.connector_name), {
-                    // success messages
-                    let num = get_connector_messages_sent_success(&connector.connector_name);
-                    record_cumulative_metric!(
-                        metrics_cache_manager,
-                        record_connector_success_num,
-                        get_connector_success_pre_total,
-                        now,
-                        num,
-                        time_window,
-                        &connector.connector_name
-                    );
-
-                    // failure messages
-                    let num = get_connector_messages_sent_failure(&connector.connector_name);
-                    record_cumulative_metric!(
-                        metrics_cache_manager,
-                        record_connector_failure_num,
-                        get_connector_failure_pre_total,
-                        now,
-                        num,
-                        time_window,
-                        &connector.connector_name
-                    );
-                    Ok::<(), common_base::error::common::CommonError>(())
-                });
-            }
-
-            // total success messages
-            let num = get_connector_messages_sent_success_total();
+    for connector in connector_manager.get_all_connector() {
+        record_metric_safe!(format!("connector {}", connector.connector_name), {
+            // success messages
+            let num = get_connector_messages_sent_success(&connector.connector_name);
             record_cumulative_metric!(
                 metrics_cache_manager,
-                record_connector_success_total_num,
-                get_connector_success_total_pre,
+                record_connector_success_num,
+                get_connector_success_pre_total,
                 now,
                 num,
-                time_window
+                time_window,
+                &connector.connector_name
             );
 
-            // total failure messages
-            let num = get_connector_messages_sent_failure_total();
+            // failure messages
+            let num = get_connector_messages_sent_failure(&connector.connector_name);
             record_cumulative_metric!(
                 metrics_cache_manager,
-                record_connector_failure_total_num,
-                get_connector_failure_total_pre,
+                record_connector_failure_num,
+                get_connector_failure_pre_total,
                 now,
                 num,
-                time_window
+                time_window,
+                &connector.connector_name
             );
+            Ok::<(), common_base::error::common::CommonError>(())
+        });
+    }
 
-            Ok(())
-        };
-        loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
-    });
+    // total success messages
+    let num = get_connector_messages_sent_success_total();
+    record_cumulative_metric!(
+        metrics_cache_manager,
+        record_connector_success_total_num,
+        get_connector_success_total_pre,
+        now,
+        num,
+        time_window
+    );
+
+    // total failure messages
+    let num = get_connector_messages_sent_failure_total();
+    record_cumulative_metric!(
+        metrics_cache_manager,
+        record_connector_failure_total_num,
+        get_connector_failure_total_pre,
+        now,
+        num,
+        time_window
+    );
+
+    Ok(())
 }
 
-fn record_subscribe_metrics_thread(
+async fn record_subscribe_metrics(
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     subscribe_manager: Arc<SubscribeManager>,
     time_window: u64,
-    stop_send: broadcast::Sender<bool>,
-) {
-    tokio::spawn(async move {
-        let record_func = async || -> ResultCommonError {
-            let now: u64 = now_second();
+) -> ResultCommonError {
+    let now: u64 = now_second();
 
-            for raw in subscribe_manager.subscribe_list.iter() {
-                let sub = raw.value();
-                record_metric_safe!(format!("subscribe {}:{}", sub.client_id, sub.path), {
-                    // send success
-                    let num = get_subscribe_messages_sent(&sub.client_id, &sub.path, true);
-                    record_cumulative_metric!(
-                        metrics_cache_manager,
-                        record_subscribe_send_num,
-                        get_subscribe_send_pre_total,
-                        now,
-                        num,
-                        time_window,
-                        &sub.client_id,
-                        &sub.path,
-                        true
-                    );
+    for raw in subscribe_manager.subscribe_list.iter() {
+        let sub = raw.value();
+        record_metric_safe!(format!("subscribe {}:{}", sub.client_id, sub.path), {
+            // send success
+            let num = get_subscribe_messages_sent(&sub.client_id, &sub.path, true);
+            record_cumulative_metric!(
+                metrics_cache_manager,
+                record_subscribe_send_num,
+                get_subscribe_send_pre_total,
+                now,
+                num,
+                time_window,
+                &sub.client_id,
+                &sub.path,
+                true
+            );
 
-                    // send failure
-                    let num = get_subscribe_messages_sent(&sub.client_id, &sub.path, false);
-                    record_cumulative_metric!(
-                        metrics_cache_manager,
-                        record_subscribe_send_num,
-                        get_subscribe_send_pre_total,
-                        now,
-                        num,
-                        time_window,
-                        &sub.client_id,
-                        &sub.path,
-                        false
-                    );
-                    Ok::<(), common_base::error::common::CommonError>(())
-                });
-            }
+            // send failure
+            let num = get_subscribe_messages_sent(&sub.client_id, &sub.path, false);
+            record_cumulative_metric!(
+                metrics_cache_manager,
+                record_subscribe_send_num,
+                get_subscribe_send_pre_total,
+                now,
+                num,
+                time_window,
+                &sub.client_id,
+                &sub.path,
+                false
+            );
+            Ok::<(), common_base::error::common::CommonError>(())
+        });
+    }
 
-            // for row1 in subscribe_manager
-            //     .directly_sub_manager
-            //     .directly_client_id_push
-            //     .iter()
-            // {
-            //     for raw in row1.value().data_list.iter() {
-            //         for sub in raw.value().iter() {
-            //             record_metric_safe!(
-            //                 format!(
-            //                     "exclusive {}:{}:{}",
-            //                     sub.client_id, sub.sub_path, sub.topic_name
-            //                 ),
-            //                 {
-            //                     // send success
-            //                     let num = get_subscribe_topic_messages_sent(
-            //                         &sub.client_id,
-            //                         &sub.sub_path,
-            //                         &sub.topic_name,
-            //                         true,
-            //                     );
-            //                     record_cumulative_metric!(
-            //                         metrics_cache_manager,
-            //                         record_subscribe_topic_send_num,
-            //                         get_subscribe_topic_send_pre_total,
-            //                         now,
-            //                         num,
-            //                         time_window,
-            //                         &sub.client_id,
-            //                         &sub.sub_path,
-            //                         &sub.topic_name,
-            //                         true
-            //                     );
+    // for row1 in subscribe_manager
+    //     .directly_sub_manager
+    //     .directly_client_id_push
+    //     .iter()
+    // {
+    //     for raw in row1.value().data_list.iter() {
+    //         for sub in raw.value().iter() {
+    //             record_metric_safe!(
+    //                 format!(
+    //                     "exclusive {}:{}:{}",
+    //                     sub.client_id, sub.sub_path, sub.topic_name
+    //                 ),
+    //                 {
+    //                     // send success
+    //                     let num = get_subscribe_topic_messages_sent(
+    //                         &sub.client_id,
+    //                         &sub.sub_path,
+    //                         &sub.topic_name,
+    //                         true,
+    //                     );
+    //                     record_cumulative_metric!(
+    //                         metrics_cache_manager,
+    //                         record_subscribe_topic_send_num,
+    //                         get_subscribe_topic_send_pre_total,
+    //                         now,
+    //                         num,
+    //                         time_window,
+    //                         &sub.client_id,
+    //                         &sub.sub_path,
+    //                         &sub.topic_name,
+    //                         true
+    //                     );
 
-            //                     // send failure
-            //                     let num = get_subscribe_topic_messages_sent(
-            //                         &sub.client_id,
-            //                         &sub.sub_path,
-            //                         &sub.topic_name,
-            //                         false,
-            //                     );
-            //                     record_cumulative_metric!(
-            //                         metrics_cache_manager,
-            //                         record_subscribe_topic_send_num,
-            //                         get_subscribe_topic_send_pre_total,
-            //                         now,
-            //                         num,
-            //                         time_window,
-            //                         &sub.client_id,
-            //                         &sub.sub_path,
-            //                         &sub.topic_name,
-            //                         false
-            //                     );
-            //                     Ok::<(), common_base::error::common::CommonError>(())
-            //                 }
-            //             );
-            //         }
-            //     }
-            // }
+    //                     // send failure
+    //                     let num = get_subscribe_topic_messages_sent(
+    //                         &sub.client_id,
+    //                         &sub.sub_path,
+    //                         &sub.topic_name,
+    //                         false,
+    //                     );
+    //                     record_cumulative_metric!(
+    //                         metrics_cache_manager,
+    //                         record_subscribe_topic_send_num,
+    //                         get_subscribe_topic_send_pre_total,
+    //                         now,
+    //                         num,
+    //                         time_window,
+    //                         &sub.client_id,
+    //                         &sub.sub_path,
+    //                         &sub.topic_name,
+    //                         false
+    //                     );
+    //                     Ok::<(), common_base::error::common::CommonError>(())
+    //                 }
+    //             );
+    //         }
+    //     }
+    // }
 
-            // for (_, share_data) in subscribe_manager.share_push_list() {
-            //     for sub_entry in share_data.sub_list.iter() {
-            //         let client_id = sub_entry.key();
-            //         let subscriber = sub_entry.value();
-            //         record_metric_safe!(
-            //             format!(
-            //                 "shared {}:{}:{}",
-            //                 client_id, subscriber.sub_path, subscriber.topic_name
-            //             ),
-            //             {
-            //                 // send success
-            //                 let num = get_subscribe_topic_messages_sent(
-            //                     client_id,
-            //                     &subscriber.sub_path,
-            //                     &subscriber.topic_name,
-            //                     true,
-            //                 );
-            //                 record_cumulative_metric!(
-            //                     metrics_cache_manager,
-            //                     record_subscribe_topic_send_num,
-            //                     get_subscribe_topic_send_pre_total,
-            //                     now,
-            //                     num,
-            //                     time_window,
-            //                     client_id,
-            //                     &subscriber.sub_path,
-            //                     &subscriber.topic_name,
-            //                     true
-            //                 );
+    // for (_, share_data) in subscribe_manager.share_push_list() {
+    //     for sub_entry in share_data.sub_list.iter() {
+    //         let client_id = sub_entry.key();
+    //         let subscriber = sub_entry.value();
+    //         record_metric_safe!(
+    //             format!(
+    //                 "shared {}:{}:{}",
+    //                 client_id, subscriber.sub_path, subscriber.topic_name
+    //             ),
+    //             {
+    //                 // send success
+    //                 let num = get_subscribe_topic_messages_sent(
+    //                     client_id,
+    //                     &subscriber.sub_path,
+    //                     &subscriber.topic_name,
+    //                     true,
+    //                 );
+    //                 record_cumulative_metric!(
+    //                     metrics_cache_manager,
+    //                     record_subscribe_topic_send_num,
+    //                     get_subscribe_topic_send_pre_total,
+    //                     now,
+    //                     num,
+    //                     time_window,
+    //                     client_id,
+    //                     &subscriber.sub_path,
+    //                     &subscriber.topic_name,
+    //                     true
+    //                 );
 
-            //                 // send failure
-            //                 let num = get_subscribe_topic_messages_sent(
-            //                     client_id,
-            //                     &subscriber.sub_path,
-            //                     &subscriber.topic_name,
-            //                     false,
-            //                 );
-            //                 record_cumulative_metric!(
-            //                     metrics_cache_manager,
-            //                     record_subscribe_topic_send_num,
-            //                     get_subscribe_topic_send_pre_total,
-            //                     now,
-            //                     num,
-            //                     time_window,
-            //                     client_id,
-            //                     &subscriber.sub_path,
-            //                     &subscriber.topic_name,
-            //                     false
-            //                 );
-            //                 Ok::<(), common_base::error::common::CommonError>(())
-            //             }
-            //         );
-            //     }
-            // }
+    //                 // send failure
+    //                 let num = get_subscribe_topic_messages_sent(
+    //                     client_id,
+    //                     &subscriber.sub_path,
+    //                     &subscriber.topic_name,
+    //                     false,
+    //                 );
+    //                 record_cumulative_metric!(
+    //                     metrics_cache_manager,
+    //                     record_subscribe_topic_send_num,
+    //                     get_subscribe_topic_send_pre_total,
+    //                     now,
+    //                     num,
+    //                     time_window,
+    //                     client_id,
+    //                     &subscriber.sub_path,
+    //                     &subscriber.topic_name,
+    //                     false
+    //                 );
+    //                 Ok::<(), common_base::error::common::CommonError>(())
+    //             }
+    //         );
+    //     }
+    // }
 
-            Ok(())
-        };
-        loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
-    });
+    Ok(())
 }
 
 pub fn metrics_record_thread(
@@ -466,42 +436,99 @@ pub fn metrics_record_thread(
 ) {
     info!("Metrics record thread start successfully");
 
-    record_basic_metrics_thread(
-        metrics_cache_manager.clone(),
-        cache_manager.clone(),
-        subscribe_manager.clone(),
-        connection_manager,
-        time_window,
-        stop_send.clone(),
-    );
+    // Basic metrics thread
+    {
+        let metrics_cache_manager = metrics_cache_manager.clone();
+        let cache_manager = cache_manager.clone();
+        let subscribe_manager = subscribe_manager.clone();
+        let connection_manager = connection_manager;
+        let stop_send = stop_send.clone();
+        tokio::spawn(Box::pin(async move {
+            let record_func = async || {
+                record_basic_metrics(
+                    metrics_cache_manager.clone(),
+                    cache_manager.clone(),
+                    subscribe_manager.clone(),
+                    connection_manager.clone(),
+                    time_window,
+                )
+                .await
+            };
+            loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
+        }));
+    }
 
-    record_topic_metrics_thread(
-        metrics_cache_manager.clone(),
-        cache_manager.clone(),
-        time_window,
-        stop_send.clone(),
-    );
+    // Topic metrics thread
+    {
+        let metrics_cache_manager = metrics_cache_manager.clone();
+        let cache_manager = cache_manager.clone();
+        let stop_send = stop_send.clone();
+        tokio::spawn(Box::pin(async move {
+            let record_func = async || {
+                record_topic_metrics(
+                    metrics_cache_manager.clone(),
+                    cache_manager.clone(),
+                    time_window,
+                )
+                .await
+            };
+            loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
+        }));
+    }
 
-    record_subscribe_metrics_thread(
-        metrics_cache_manager.clone(),
-        subscribe_manager,
-        time_window,
-        stop_send.clone(),
-    );
+    // Subscribe metrics thread
+    {
+        let metrics_cache_manager = metrics_cache_manager.clone();
+        let subscribe_manager = subscribe_manager;
+        let stop_send = stop_send.clone();
+        tokio::spawn(Box::pin(async move {
+            let record_func = async || {
+                record_subscribe_metrics(
+                    metrics_cache_manager.clone(),
+                    subscribe_manager.clone(),
+                    time_window,
+                )
+                .await
+            };
+            loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
+        }));
+    }
 
-    record_session_metrics_thread(
-        metrics_cache_manager.clone(),
-        cache_manager,
-        time_window,
-        stop_send.clone(),
-    );
+    // Session metrics thread
+    {
+        let metrics_cache_manager = metrics_cache_manager.clone();
+        let cache_manager = cache_manager;
+        let stop_send = stop_send.clone();
+        tokio::spawn(Box::pin(async move {
+            let record_func = async || {
+                record_session_metrics(
+                    metrics_cache_manager.clone(),
+                    cache_manager.clone(),
+                    time_window,
+                )
+                .await
+            };
+            loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
+        }));
+    }
 
-    record_connector_metrics_thread(
-        metrics_cache_manager,
-        connector_manager,
-        time_window,
-        stop_send,
-    );
+    // Connector metrics thread
+    {
+        let metrics_cache_manager = metrics_cache_manager;
+        let connector_manager = connector_manager;
+        let stop_send = stop_send;
+        tokio::spawn(Box::pin(async move {
+            let record_func = async || {
+                record_connector_metrics(
+                    metrics_cache_manager.clone(),
+                    connector_manager.clone(),
+                    time_window,
+                )
+                .await
+            };
+            loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
+        }));
+    }
 }
 
 fn calc_value(max_value: u64, min_value: u64, time_window: u64) -> u64 {

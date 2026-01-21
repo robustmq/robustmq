@@ -288,7 +288,7 @@ pub fn start_rabbitmq_connector(
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
-    tokio::spawn(async move {
+    tokio::spawn(Box::pin(async move {
         let rabbitmq_config = match &connector.config {
             metadata_struct::mqtt::bridge::ConnectorConfig::RabbitMQ(config) => config.clone(),
             _ => {
@@ -324,5 +324,5 @@ pub fn start_rabbitmq_connector(
                 e
             );
         }
-    });
+    }));
 }

@@ -147,7 +147,7 @@ pub fn start_kafka_connector(
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
-    tokio::spawn(async move {
+    tokio::spawn(Box::pin(async move {
         let kafka_config = match &connector.config {
             metadata_struct::mqtt::bridge::ConnectorConfig::Kafka(config) => config.clone(),
             _ => {
@@ -182,5 +182,5 @@ pub fn start_kafka_connector(
                 e
             );
         }
-    });
+    }));
 }

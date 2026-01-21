@@ -94,10 +94,9 @@ impl MetaServiceServer {
             self.client_pool.clone(),
             self.broker_call_manager.clone(),
         );
-
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             ctrl.start_node_heartbeat_check().await;
-        });
+        }));
     }
 
     async fn start_raft_machine(&self) {
@@ -132,7 +131,7 @@ impl MetaServiceServer {
         let cache_manager = self.cache_manager.clone();
         let raft_manager = self.raft_manager.clone();
         let stop_send = self.inner_stop.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             start_connector_scheduler(
                 &cache_manager,
                 &raft_manager,
@@ -141,7 +140,7 @@ impl MetaServiceServer {
                 stop_send,
             )
             .await;
-        });
+        }));
     }
 
     pub fn start_init(&self) {

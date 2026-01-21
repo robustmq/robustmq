@@ -86,7 +86,7 @@ pub async fn acceptor_tls_process(
         let network_type = network_type.clone();
         let row_codec = codec.clone();
         let row_broker_cache = broker_cache.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
                 network_type, index
@@ -139,7 +139,7 @@ pub async fn acceptor_tls_process(
                     }
                 };
             }
-        });
+        }));
     }
     Ok(())
 }

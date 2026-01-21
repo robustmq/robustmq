@@ -179,7 +179,7 @@ pub fn start_mysql_connector(
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
-    tokio::spawn(async move {
+    tokio::spawn(Box::pin(async move {
         let mysql_config = match &connector.config {
             metadata_struct::mqtt::bridge::ConnectorConfig::MySQL(config) => config.clone(),
             _ => {
@@ -214,5 +214,5 @@ pub fn start_mysql_connector(
                 e
             );
         }
-    });
+    }));
 }

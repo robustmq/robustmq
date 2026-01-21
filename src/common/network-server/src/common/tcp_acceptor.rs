@@ -132,7 +132,7 @@ fn read_frame_process(
     mut connection_stop_rx: Receiver<bool>,
     network_type: NetworkConnectionType,
 ) {
-    tokio::spawn(async move {
+    tokio::spawn(Box::pin(async move {
         loop {
             select! {
                 val = connection_stop_rx.recv() =>{
@@ -185,5 +185,5 @@ fn read_frame_process(
                 }
             }
         }
-    });
+    }));
 }

@@ -47,7 +47,7 @@ pub(crate) async fn acceptor_process(
         let network_type = network_type.clone();
         let row_codec = codec.clone();
         let row_broker_cache = broker_cache.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
                 network_type, index
@@ -115,7 +115,7 @@ pub(crate) async fn acceptor_process(
                     }
                 };
             }
-        });
+        }));
     }
 }
 
@@ -163,7 +163,11 @@ fn read_frame_process(
                         }
                         Err(e) => {
                             record_received_error_metrics(network_type.clone());
-                            debug!(
+                            let err_str = e.to_string();
+                            if err_str.contains("connection lost") {
+                                break;
+                            }
+                            error!(
                                 "{} connection parsing packet format error message :{:?}",
                                 network_type, e
                             )

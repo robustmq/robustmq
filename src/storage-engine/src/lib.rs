@@ -53,31 +53,41 @@ pub struct StorageEngineParams {
 
 pub struct StorageEngineServer {
     client_pool: Arc<ClientPool>,
-    connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<StorageCacheManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
     write_manager: Arc<WriteManager>,
     main_stop: broadcast::Sender<bool>,
     inner_stop: broadcast::Sender<bool>,
     client_connection_manager: Arc<ClientConnectionManager>,
-    memory_storage_engine: Arc<MemoryStorageEngine>,
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    server: Arc<Server>,
 }
 
 impl StorageEngineServer {
     pub fn new(params: StorageEngineParams, main_stop: Sender<bool>) -> Self {
         let (inner_stop, _) = broadcast::channel(2);
+        let server = Arc::new(Server::new(
+            crate::server::ServerParams {
+                client_pool: params.client_pool.clone(),
+                cache_manager: params.cache_manager.clone(),
+                rocksdb_engine_handler: params.rocksdb_engine_handler.clone(),
+                connection_manager: params.connection_manager.clone(),
+                write_manager: params.write_manager.clone(),
+                broker_cache: params.cache_manager.broker_cache.clone(),
+                memory_storage_engine: params.memory_storage_engine.clone(),
+                rocksdb_storage_engine: params.rocksdb_storage_engine.clone(),
+                client_connection_manager: params.client_connection_manager.clone(),
+            },
+            inner_stop.clone(),
+        ));
         StorageEngineServer {
             client_pool: params.client_pool,
             cache_manager: params.cache_manager,
-            rocksdb_engine_handler: params.rocksdb_engine_handler,
-            connection_manager: params.connection_manager,
             write_manager: params.write_manager,
             client_connection_manager: params.client_connection_manager,
-            memory_storage_engine: params.memory_storage_engine,
             rocksdb_storage_engine: params.rocksdb_storage_engine,
             main_stop,
             inner_stop,
+            server,
         }
     }
 
@@ -92,19 +102,8 @@ impl StorageEngineServer {
     }
 
     fn start_tcp_server(&self) {
-        let tcp_server = Server::new(crate::server::ServerParams {
-            client_pool: self.client_pool.clone(),
-            cache_manager: self.cache_manager.clone(),
-            rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
-            connection_manager: self.connection_manager.clone(),
-            write_manager: self.write_manager.clone(),
-            broker_cache: self.cache_manager.broker_cache.clone(),
-            memory_storage_engine: self.memory_storage_engine.clone(),
-            rocksdb_storage_engine: self.rocksdb_storage_engine.clone(),
-            client_connection_manager: self.client_connection_manager.clone(),
-        });
-        let stop_sx = self.inner_stop.clone();
-        tokio::spawn(async move { tcp_server.start(stop_sx).await });
+        let server = self.server.clone();
+        tokio::spawn(async move { server.start().await });
     }
 
     fn start_daemon_thread(&self) {
@@ -118,9 +117,9 @@ impl StorageEngineServer {
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
         let stop_sx = self.inner_stop.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             start_segment_expire_thread(client_pool, cache_manager, &stop_sx).await
-        });
+        }));
 
         // rocksdb engine
         let rocksdb_storage_engine = self.rocksdb_storage_engine.clone();

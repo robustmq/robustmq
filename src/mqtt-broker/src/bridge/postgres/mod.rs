@@ -238,7 +238,7 @@ pub fn start_postgres_connector(
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
-    tokio::spawn(async move {
+    tokio::spawn(Box::pin(async move {
         let postgres_config = match &connector.config {
             metadata_struct::mqtt::bridge::ConnectorConfig::Postgres(config) => config.clone(),
             _ => {
@@ -272,5 +272,5 @@ pub fn start_postgres_connector(
                 e
             );
         }
-    });
+    }));
 }

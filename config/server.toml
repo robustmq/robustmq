@@ -68,3 +68,8 @@ tcp_port = 1778
 max_segment_size = 1073741824
 data_path = ["./data/broker/engine"]
 io_thread_num = 4
+
+[runtime]
+runtime_worker_threads = 16
+tls_cert = "./config/certs/cert.pem"
+tls_key = "./config/certs/key.pem"
