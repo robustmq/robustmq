@@ -127,35 +127,31 @@ impl Server {
 
     pub async fn start(&self) -> ResultMqttBrokerError {
         let conf = broker_config();
-        if let Err(e) = self
-            .tcp_server
+        self.tcp_server
             .start(false, conf.mqtt_server.tcp_port)
-            .await
-        {
-            error!("TCP server start fail, error:{}", e);
-        }
+            .await?;
 
-        if let Err(e) = self.tls_server.start(true, conf.mqtt_server.tls_port).await {
-            error!("TLS server start fail, error:{}", e);
-        }
+        self.tls_server
+            .start(true, conf.mqtt_server.tls_port)
+            .await?;
 
         let ws_server = self.ws_server.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             if let Err(e) = ws_server.start_ws().await {
                 error!("WebSocket server start fail, error:{}", e);
+                std::process::exit(1);
             }
-        });
+        }));
 
         let ws_server = self.ws_server.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             if let Err(e) = ws_server.start_wss().await {
                 error!("WebSockets server start fail, error:{}", e);
+                std::process::exit(1);
             }
-        });
+        }));
 
-        if let Err(e) = self.quic_server.start(conf.mqtt_server.quic_port).await {
-            error!("QUIC server start fail, error:{}", e);
-        }
+        self.quic_server.start(conf.mqtt_server.quic_port).await?;
         Ok(())
     }
 

@@ -75,13 +75,13 @@ impl BrokerController {
             self.client_pool.clone(),
         );
         let stop_send = self.stop_send.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             let ac_fn = async || -> ResultCommonError {
                 session.session_expire().await;
                 Ok(())
             };
             loop_select_ticket(ac_fn, 1000, &stop_send).await;
-        });
+        }));
 
         // Periodically check if the session has expired
         let session = SessionExpire::new(
@@ -91,35 +91,35 @@ impl BrokerController {
         );
 
         let stop_send = self.stop_send.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             let ac_fn = async || -> ResultCommonError {
                 session.last_will_expire_send().await;
                 Ok(())
             };
             loop_select_ticket(ac_fn, 1000, &stop_send).await;
-        });
+        }));
 
         // Whether the timed message expires
         let message = MessageExpire::new(self.rocksdb_engine_handler.clone());
         let stop_send = self.stop_send.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             let ac_fn = async || -> ResultCommonError {
                 message.retain_message_expire().await;
                 Ok(())
             };
             loop_select_ticket(ac_fn, 1000, &stop_send).await;
-        });
+        }));
 
         // Periodically detects whether a will message is sent
         let message = MessageExpire::new(self.rocksdb_engine_handler.clone());
         let stop_send = self.stop_send.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             let ac_fn = async || -> ResultCommonError {
                 message.last_will_message_expire().await;
                 Ok(())
             };
             loop_select_ticket(ac_fn, 1000, &stop_send).await;
-        });
+        }));
 
         // storage engine gc
         let raft_manager = self.raft_manager.clone();
@@ -127,7 +127,7 @@ impl BrokerController {
         let call_manager = self.call_manager.clone();
         let client_pool = self.client_pool.clone();
         let stop_send = self.stop_send.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             start_engine_delete_gc_thread(
                 raft_manager,
                 cache_manager,
@@ -136,6 +136,6 @@ impl BrokerController {
                 stop_send,
             )
             .await;
-        });
+        }));
     }
 }

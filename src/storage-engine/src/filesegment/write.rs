@@ -192,7 +192,7 @@ pub fn create_io_thread(
     mut data_recv: Receiver<WriteChannelData>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    tokio::spawn(async move {
+    tokio::spawn(Box::pin(async move {
         let mut stop_recv = stop_send.subscribe();
         let mut write_data_list: HashMap<SegmentIdentity, Vec<StorageRecord>> = HashMap::new();
 
@@ -245,7 +245,7 @@ pub fn create_io_thread(
             shard_sender_list.clear();
             tmp_offset_info.clear();
             index_info_list.clear();
-            
+
             for channel_data in results {
                 let shard_name = channel_data.segment_iden.shard_name.to_string();
                 let segment = channel_data.segment_iden.segment;
@@ -383,7 +383,7 @@ pub fn create_io_thread(
                 }
             }
         }
-    });
+    }));
 }
 
 fn success_save_offset(

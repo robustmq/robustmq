@@ -143,9 +143,9 @@ impl MqttBrokerServer {
             self.cache_manager.clone(),
             raw_stop_send,
         );
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             keep_alive.start_heartbeat_check().await;
-        });
+        }));
 
         // sync auth info
         let auth_driver = self.auth_driver.clone();
@@ -168,9 +168,9 @@ impl MqttBrokerServer {
             self.storage_driver_manager.clone(),
             self.client_pool.clone(),
         );
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             system_topic.start_thread(raw_stop_send).await;
-        });
+        }));
 
         // metrics record
         let metrics_cache_manager = self.metrics_cache_manager.clone();
@@ -208,12 +208,12 @@ impl MqttBrokerServer {
 
     fn start_server(&self) {
         let server = self.server.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             if let Err(e) = server.start().await {
                 error!("Failed to start MQTT broker server: {}", e);
                 std::process::exit(1);
             }
-        });
+        }));
     }
 
     fn start_connector_thread(&self) {
@@ -221,10 +221,10 @@ impl MqttBrokerServer {
         let connector_manager = self.connector_manager.clone();
         let stop_send = self.inner_stop.clone();
         let client_poll = self.client_pool.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             start_connector_thread(client_poll, message_storage, connector_manager, stop_send)
                 .await;
-        });
+        }));
     }
 
     async fn start_subscribe_push(&self) {
@@ -256,10 +256,10 @@ impl MqttBrokerServer {
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
         let stop_send = self.inner_stop.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             start_update_parse_thread(client_pool, cache_manager, subscribe_manager, rx, stop_send)
                 .await;
-        });
+        }));
     }
 
     fn start_delay_message_thread(&self) {

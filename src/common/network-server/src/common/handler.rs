@@ -47,7 +47,7 @@ pub fn handler_process(
         let raw_network_type = network_type.clone();
 
         let semaphore = Arc::new(Semaphore::new(5));
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             debug!(
                 "Server handler process thread {} start successfully.",
                 index
@@ -92,7 +92,7 @@ pub fn handler_process(
                     }
                 }
             }
-        });
+        }));
     }
 }
 

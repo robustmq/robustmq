@@ -117,9 +117,9 @@ impl StorageEngineServer {
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
         let stop_sx = self.inner_stop.clone();
-        tokio::spawn(async move {
+        tokio::spawn(Box::pin(async move {
             start_segment_expire_thread(client_pool, cache_manager, &stop_sx).await
-        });
+        }));
 
         // rocksdb engine
         let rocksdb_storage_engine = self.rocksdb_storage_engine.clone();
