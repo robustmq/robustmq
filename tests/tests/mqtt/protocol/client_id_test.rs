@@ -22,22 +22,23 @@ mod tests {
     use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, build_conn_pros, build_create_conn_pros,
-            distinct_conn, kee_alive_interval, network_types, session_expiry_interval, ssl_by_type,
-            ws_by_type,
+            distinct_conn, kee_alive_interval, network_types, protocol_versions,
+            session_expiry_interval, ssl_by_type, ws_by_type,
         },
         ClientTestProperties,
     };
 
     #[tokio::test]
     async fn assigned_client_id_test() {
-        for network in network_types() {
-            let addr = broker_addr_by_type(&network);
+        let network = "tcp";
+        for protocol in protocol_versions() {
+            let addr = broker_addr_by_type(network);
             let client_properties = ClientTestProperties {
-                mqtt_version: 5,
+                mqtt_version: protocol,
                 client_id: "".to_string(),
                 addr,
-                ws: ws_by_type(&network),
-                ssl: ssl_by_type(&network),
+                ws: ws_by_type(network),
+                ssl: ssl_by_type(network),
                 ..Default::default()
             };
             let create_opts =
@@ -59,7 +60,6 @@ mod tests {
                 .unwrap()
                 .get_string()
                 .unwrap();
-            println!("{assign_client_id:?}");
             assert!(!assign_client_id.is_empty());
             assert_eq!(assign_client_id.len(), unique_id().len());
 

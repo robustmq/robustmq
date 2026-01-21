@@ -28,7 +28,7 @@ pub fn qos_list() -> Vec<i32> {
 }
 
 pub fn protocol_versions() -> Vec<u32> {
-    vec![5]
+    vec![3, 4, 5]
 }
 
 pub async fn create_test_env() -> AdminHttpClient {

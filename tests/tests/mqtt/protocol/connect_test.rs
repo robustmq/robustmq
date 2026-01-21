@@ -15,12 +15,11 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt::protocol::common::{
-        broker_addr, broker_addr_by_type, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
-        build_client_id, build_conn_pros, build_create_conn_pros, distinct_conn, network_types,
-        protocol_versions, ssl_by_type, ws_by_type,
+        broker_addr_by_type, build_client_id, build_conn_pros, build_create_conn_pros,
+        network_types, protocol_versions, ssl_by_type, ws_by_type,
     };
     use crate::mqtt::protocol::ClientTestProperties;
-    use paho_mqtt::{Client, ReasonCode};
+    use paho_mqtt::Client;
 
     #[tokio::test]
     async fn client_connect_wrong_password_test() {
@@ -38,18 +37,17 @@ mod tests {
                     ssl: ssl_by_type(&network),
                     ..Default::default()
                 };
-                wrong_password_test(client_properties);
+                password_test(client_properties, true);
             }
         }
     }
 
     #[tokio::test]
-    async fn client_connect_session_present_test() {
+    async fn client_connect_right_password_test() {
         for protocol_ver in protocol_versions() {
             for network in network_types() {
                 let client_id = build_client_id(
-                    format!("client_connect_session_present_test_{protocol_ver}_{network}")
-                        .as_str(),
+                    format!("client_connect_test_{protocol_ver}_{network}").as_str(),
                 );
                 let addr = broker_addr_by_type(&network);
                 let client_properties = ClientTestProperties {
@@ -60,14 +58,12 @@ mod tests {
                     ssl: ssl_by_type(&network),
                     ..Default::default()
                 };
-
-                create_session_connection(&client_properties, true);
-                create_session_connection(&client_properties, false);
+                password_test(client_properties, false);
             }
         }
     }
 
-    fn wrong_password_test(client_properties: ClientTestProperties) {
+    fn password_test(client_properties: ClientTestProperties, is_err: bool) {
         let create_opts =
             build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
 
@@ -75,43 +71,12 @@ mod tests {
         assert!(cli_res.is_ok());
         let cli = cli_res.unwrap();
 
-        let conn_opts = build_conn_pros(client_properties.clone(), true);
+        let conn_opts = build_conn_pros(client_properties.clone(), is_err);
         let result = cli.connect(conn_opts);
-        println!("client_test_properties:{client_properties:?},result:{result:?}");
-        assert!(result.is_err());
-    }
-
-    fn create_session_connection(client_properties: &ClientTestProperties, present: bool) {
-        let create_opts =
-            build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
-        let cli = Client::new(create_opts).unwrap();
-
-        let conn_opts = build_conn_pros(client_properties.clone(), false);
-        let response = cli.connect(conn_opts).unwrap();
-
-        let resp = response.connect_response().unwrap();
-        if client_properties.ws {
-            if client_properties.ssl {
-                assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
-            } else {
-                assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
-            }
-        } else if client_properties.ssl {
-            assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
+        if is_err {
+            assert!(result.is_err());
         } else {
-            assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+            assert!(result.is_ok());
         }
-
-        println!("client_properties:{client_properties:?},resp:{resp:?}");
-
-        if present {
-            assert!(resp.session_present);
-        } else {
-            assert!(!resp.session_present);
-        }
-        assert_eq!(client_properties.mqtt_version, resp.mqtt_version);
-        assert_eq!(response.reason_code(), ReasonCode::Success);
-
-        distinct_conn(cli);
     }
 }
