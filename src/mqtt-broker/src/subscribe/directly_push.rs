@@ -124,7 +124,7 @@ impl DirectlyPushManager {
                     }
                     Err(e) => {
                         warn!(
-                            "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}]: {}",
+                            "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}],error message: {}",
                             row.client_id, row.group_name, row.topic_name, row.sub_path, e
                         );
                     }
