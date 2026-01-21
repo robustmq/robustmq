@@ -112,13 +112,13 @@ pub async fn create_shard_to_place(
 
     // Wait for shard to be created in local cache with timeout
     let wait_result = timeout(Duration::from_secs(3), async {
-        loop {
-            let segment_iden = SegmentIdentity::new(shard_name, 0);
+    loop {
+        let segment_iden = SegmentIdentity::new(shard_name, 0);
             if shard.config.storage_type == StorageType::EngineSegment
                 && cache_manager.shards.contains_key(shard_name)
-                && cache_manager.get_segment(&segment_iden).is_some()
-                && cache_manager.get_segment_meta(&segment_iden).is_some()
-            {
+            && cache_manager.get_segment(&segment_iden).is_some()
+            && cache_manager.get_segment_meta(&segment_iden).is_some()
+        {
                 return;
             }
 
