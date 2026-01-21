@@ -48,7 +48,7 @@ pub async fn report_heartbeat(
         let config = broker_config();
 
         // Send heartbeat with 1 second timeout
-        match timeout(Duration::from_secs(1), cluster_storage.heartbeat()).await {
+        match timeout(Duration::from_secs(3), cluster_storage.heartbeat()).await {
             Ok(Ok(())) => {
                 debug!("Heartbeat report success for node {}", config.broker_id);
             }
@@ -78,7 +78,7 @@ pub async fn report_heartbeat(
             }
             Err(_) => {
                 error!(
-                    "Heartbeat timeout (1s) for node {} ({}:{}), Meta Service may be unresponsive",
+                    "Heartbeat timeout (3s) for node {} ({}:{}), Meta Service may be unresponsive",
                     config.broker_id,
                     config.broker_ip.as_deref().unwrap_or("unknown"),
                     config.grpc_port
