@@ -77,7 +77,7 @@ pub fn start_pulsar_connector(
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
-    tokio::spawn(async move {
+    tokio::spawn(Box::pin(async move {
         let pulsar_config = match &connector.config {
             metadata_struct::mqtt::bridge::ConnectorConfig::Pulsar(config) => config.clone(),
             _ => {
@@ -112,5 +112,5 @@ pub fn start_pulsar_connector(
                 e
             );
         }
-    });
+    }));
 }

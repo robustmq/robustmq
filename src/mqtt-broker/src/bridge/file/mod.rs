@@ -221,7 +221,7 @@ pub fn start_local_file_connector(
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
-    tokio::spawn(async move {
+    tokio::spawn(Box::pin(async move {
         let local_file_config = match &connector.config {
             metadata_struct::mqtt::bridge::ConnectorConfig::LocalFile(config) => config.clone(),
             _ => {
@@ -256,7 +256,7 @@ pub fn start_local_file_connector(
                 e
             );
         }
-    });
+    }));
 }
 
 #[cfg(test)]

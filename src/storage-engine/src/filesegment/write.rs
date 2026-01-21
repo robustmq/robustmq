@@ -194,6 +194,17 @@ pub fn create_io_thread(
 ) {
     tokio::spawn(async move {
         let mut stop_recv = stop_send.subscribe();
+        let mut write_data_list: HashMap<SegmentIdentity, Vec<StorageRecord>> = HashMap::new();
+
+        let mut pkid_offset: HashMap<SegmentIdentity, HashMap<u64, u64>> = HashMap::new();
+
+        let mut shard_sender_list: HashMap<
+            SegmentIdentity,
+            Vec<oneshot::Sender<SegmentWriteResp>>,
+        > = HashMap::new();
+        let mut tmp_offset_info = HashMap::new();
+        let mut index_info_list: HashMap<SegmentIdentity, Vec<BuildIndexRaw>> = HashMap::new();
+
         loop {
             match stop_recv.try_recv() {
                 Ok(bl) => {
@@ -229,18 +240,12 @@ pub fn create_io_thread(
                 sleep(Duration::from_millis(10)).await;
                 continue;
             }
-
-            let mut write_data_list: HashMap<SegmentIdentity, Vec<StorageRecord>> = HashMap::new();
-
-            let mut pkid_offset: HashMap<SegmentIdentity, HashMap<u64, u64>> = HashMap::new();
-
-            let mut shard_sender_list: HashMap<
-                SegmentIdentity,
-                Vec<oneshot::Sender<SegmentWriteResp>>,
-            > = HashMap::new();
-            let mut tmp_offset_info = HashMap::new();
-            let mut index_info_list: HashMap<SegmentIdentity, Vec<BuildIndexRaw>> = HashMap::new();
-
+            write_data_list.clear();
+            pkid_offset.clear();
+            shard_sender_list.clear();
+            tmp_offset_info.clear();
+            index_info_list.clear();
+            
             for channel_data in results {
                 let shard_name = channel_data.segment_iden.shard_name.to_string();
                 let segment = channel_data.segment_iden.segment;

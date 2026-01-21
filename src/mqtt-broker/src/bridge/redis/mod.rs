@@ -292,7 +292,7 @@ pub fn start_redis_connector(
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
-    tokio::spawn(async move {
+    tokio::spawn(Box::pin(async move {
         let redis_config = match &connector.config {
             metadata_struct::mqtt::bridge::ConnectorConfig::Redis(config) => config.clone(),
             _ => {
@@ -326,5 +326,5 @@ pub fn start_redis_connector(
                 connector.connector_name, e
             );
         }
-    });
+    }));
 }

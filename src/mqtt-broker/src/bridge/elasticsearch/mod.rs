@@ -184,7 +184,7 @@ pub fn start_elasticsearch_connector(
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
-    tokio::spawn(async move {
+    tokio::spawn(Box::pin(async move {
         let es_config = match &connector.config {
             metadata_struct::mqtt::bridge::ConnectorConfig::Elasticsearch(config) => config.clone(),
             _ => {
@@ -218,5 +218,5 @@ pub fn start_elasticsearch_connector(
                 e
             );
         }
-    });
+    }));
 }

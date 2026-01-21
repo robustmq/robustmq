@@ -74,7 +74,7 @@ pub fn start_greptimedb_connector(
     connector: MQTTConnector,
     thread: BridgePluginThread,
 ) {
-    tokio::spawn(async move {
+    tokio::spawn(Box::pin(async move {
         let greptimedb_config = match &connector.config {
             metadata_struct::mqtt::bridge::ConnectorConfig::GreptimeDB(config) => config.clone(),
             _ => {
@@ -109,5 +109,5 @@ pub fn start_greptimedb_connector(
                 e
             );
         }
-    });
+    }));
 }
