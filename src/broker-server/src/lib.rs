@@ -41,7 +41,7 @@ use meta_service::{
 use mqtt_broker::{
     bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},
-    handler::cache::MQTTCacheManager as MqttCacheManager,
+    core::cache::MQTTCacheManager as MqttCacheManager,
     security::AuthDriver,
     subscribe::manager::SubscribeManager,
 };

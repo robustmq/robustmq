@@ -25,7 +25,7 @@ use metadata_struct::{
     connection::NetworkConnection,
     mqtt::{connection::MQTTConnection, session::MqttSession},
 };
-use mqtt_broker::handler::cache::ConnectionLiveTime;
+use mqtt_broker::core::cache::ConnectionLiveTime;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default)]

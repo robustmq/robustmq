@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::MQTTCacheManager;
-use crate::handler::tool::ResultMqttBrokerError;
+use crate::core::cache::MQTTCacheManager;
+use crate::core::tool::ResultMqttBrokerError;
 use crate::storage::user::UserStorage;
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
@@ -58,7 +58,7 @@ pub fn is_super_user(cache_manager: &Arc<MQTTCacheManager>, username: &str) -> b
 #[cfg(test)]
 mod test {
     use super::is_super_user;
-    use crate::handler::tool::test_build_mqtt_cache_manager;
+    use crate::core::tool::test_build_mqtt_cache_manager;
     use common_base::tools::now_second;
     use metadata_struct::mqtt::user::MqttUser;
 

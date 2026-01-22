@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::flapping_detect::FlappingDetectCondition;
+use crate::core::flapping_detect::FlappingDetectCondition;
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::enum_type::time_unit_enum::TimeUnit;
@@ -238,7 +238,7 @@ impl AclMetadata {
 
 #[cfg(test)]
 mod test {
-    use crate::handler::flapping_detect::FlappingDetectCondition;
+    use crate::core::flapping_detect::FlappingDetectCondition;
     use crate::security::auth::metadata::AclMetadata;
     use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
     use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;

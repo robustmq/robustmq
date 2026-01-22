@@ -14,7 +14,7 @@
 
 use common_base::error::{common::CommonError, ResultCommonError};
 use mqtt_broker::{
-    broker::MqttBrokerServerParams, handler::dynamic_cache::update_mqtt_cache_metadata,
+    broker::MqttBrokerServerParams, core::dynamic_cache::update_mqtt_cache_metadata,
 };
 use protocol::broker::broker_common::{
     broker_common_service_server::BrokerCommonService, BrokerUpdateCacheResourceType,

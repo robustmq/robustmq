@@ -36,8 +36,8 @@ pub async fn build_message_expire(
 
 #[cfg(test)]
 mod tests {
-    use crate::handler::message::build_message_expire;
-    use crate::handler::tool::test_build_mqtt_cache_manager;
+    use crate::core::message::build_message_expire;
+    use crate::core::tool::test_build_mqtt_cache_manager;
     use common_base::tools::now_second;
     use common_config::config::{BrokerConfig, MqttProtocolConfig};
     use protocol::mqtt::common::PublishProperties;

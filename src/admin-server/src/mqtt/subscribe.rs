@@ -22,7 +22,7 @@ use crate::{
 };
 use axum::{extract::State, Json};
 use mqtt_broker::{
-    handler::sub_share::{decode_share_info, is_mqtt_share_subscribe, is_share_sub_leader},
+    core::sub_share::{decode_share_info, is_mqtt_share_subscribe, is_share_sub_leader},
     subscribe::common::Subscriber,
 };
 use serde::{Deserialize, Serialize};
@@ -165,7 +165,7 @@ use common_base::{
 };
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use mqtt_broker::{
-    handler::error::MqttBrokerError,
+    core::error::MqttBrokerError,
     storage::{auto_subscribe::AutoSubscribeStorage, local::LocalStorage},
 };
 use protocol::mqtt::common::{qos, retain_forward_rule};

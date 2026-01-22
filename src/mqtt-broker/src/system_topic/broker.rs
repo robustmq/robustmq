@@ -28,7 +28,7 @@ use super::{
     SYSTEM_TOPIC_BROKERS_DATETIME, SYSTEM_TOPIC_BROKERS_SYSDESCR, SYSTEM_TOPIC_BROKERS_UPTIME,
     SYSTEM_TOPIC_BROKERS_VERSION,
 };
-use crate::handler::cache::MQTTCacheManager;
+use crate::core::cache::MQTTCacheManager;
 
 pub(crate) async fn report_cluster_status(
     client_pool: &Arc<ClientPool>,

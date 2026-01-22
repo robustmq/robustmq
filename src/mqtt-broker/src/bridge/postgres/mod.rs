@@ -24,7 +24,7 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use storage_adapter::driver::StorageDriverManager;
 use tracing::{error, warn};
 
-use crate::handler::tool::ResultMqttBrokerError;
+use crate::core::tool::ResultMqttBrokerError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
@@ -199,7 +199,7 @@ impl ConnectorSink for PostgresBridgePlugin {
 
     async fn init_sink(
         &self,
-    ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
+    ) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
         let pool = self.create_pool().await?;
         Ok(pool)
     }

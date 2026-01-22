@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::MQTTCacheManager;
+use crate::core::cache::MQTTCacheManager;
 use crate::storage::local::LocalStorage;
 use crate::subscribe::common::Subscriber;
 use common_base::enum_type::delay_type::DelayType;

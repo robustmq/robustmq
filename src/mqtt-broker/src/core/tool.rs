@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::MQTTCacheManager;
-use crate::handler::error::MqttBrokerError;
+use crate::core::cache::MQTTCacheManager;
+use crate::core::error::MqttBrokerError;
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::default_broker_config;
 use grpc_clients::pool::ClientPool;

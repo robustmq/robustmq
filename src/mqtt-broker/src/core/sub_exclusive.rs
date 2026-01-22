@@ -65,7 +65,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        handler::sub_exclusive::{
+        core::sub_exclusive::{
             already_exclusive_subscribe, decode_exclusive_sub_path_to_topic_name, is_exclusive_sub,
         },
         subscribe::manager::SubscribeManager,

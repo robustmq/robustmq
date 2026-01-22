@@ -70,7 +70,7 @@ mod tests {
     use dashmap::DashMap;
     use protocol::mqtt::common::RetainHandling;
 
-    use crate::handler::sub_option::{
+    use crate::core::sub_option::{
         get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local,
         is_send_retain_msg_by_retain_handling,
     };

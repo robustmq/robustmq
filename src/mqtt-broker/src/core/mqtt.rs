@@ -19,24 +19,24 @@ use super::response::build_pub_ack_fail;
 use super::retain::{is_new_sub, try_send_retain_message, TrySendRetainMessageContext};
 use super::sub_auto::try_auto_subscribe;
 use super::subscribe::{save_subscribe, SaveSubscribeContext};
-use crate::handler::cache::{
+use crate::core::cache::{
     ConnectionLiveTime, MQTTCacheManager, QosAckPackageData, QosAckPackageType,
 };
-use crate::handler::connection::{build_connection, get_client_id};
-use crate::handler::flapping_detect::check_flapping_detect;
-use crate::handler::last_will::save_last_will_message;
-use crate::handler::metrics::record_publish_receive_metrics;
-use crate::handler::response::{
+use crate::core::connection::{build_connection, get_client_id};
+use crate::core::flapping_detect::check_flapping_detect;
+use crate::core::last_will::save_last_will_message;
+use crate::core::metrics::record_publish_receive_metrics;
+use crate::core::response::{
     build_puback, build_pubrec, response_packet_mqtt_connect_fail,
     response_packet_mqtt_connect_success, response_packet_mqtt_distinct_by_reason,
     response_packet_mqtt_ping_resp, response_packet_mqtt_pubcomp_fail,
     response_packet_mqtt_pubcomp_success, response_packet_mqtt_suback,
     response_packet_mqtt_unsuback, ResponsePacketMqttConnectSuccessContext,
 };
-use crate::handler::session::{build_session, save_session, BuildSessionContext};
-use crate::handler::subscribe::remove_subscribe;
-use crate::handler::topic::{get_topic_name, try_init_topic};
-use crate::handler::validator::{
+use crate::core::session::{build_session, save_session, BuildSessionContext};
+use crate::core::subscribe::remove_subscribe;
+use crate::core::topic::{get_topic_name, try_init_topic};
+use crate::core::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
 use crate::security::AuthDriver;
@@ -156,6 +156,8 @@ impl MqttService {
                 Some("get_client_id returned empty result".to_string()),
             );
         };
+
+        
 
         let connection = build_connection(
             context.connect_id,

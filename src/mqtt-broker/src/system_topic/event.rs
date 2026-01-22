@@ -30,7 +30,7 @@ use super::{
     write_topic_data, SYSTEM_TOPIC_BROKERS_CONNECTED, SYSTEM_TOPIC_BROKERS_DISCONNECTED,
     SYSTEM_TOPIC_BROKERS_SUBSCRIBED, SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED,
 };
-use crate::handler::cache::MQTTCacheManager;
+use crate::core::cache::MQTTCacheManager;
 
 #[derive(Clone)]
 pub struct StReportDisconnectedEventContext {

@@ -14,7 +14,7 @@
 
 #[cfg(test)]
 mod tests {
-    use mqtt_broker::handler::connection::REQUEST_RESPONSE_PREFIX_NAME;
+    use mqtt_broker::core::connection::REQUEST_RESPONSE_PREFIX_NAME;
     use paho_mqtt::{Client, PropertyCode, ReasonCode};
 
     use crate::mqtt::protocol::{

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use super::Authentication;
-use crate::handler::cache::MQTTCacheManager;
-use crate::handler::error::MqttBrokerError;
+use crate::core::cache::MQTTCacheManager;
+use crate::core::error::MqttBrokerError;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use axum::async_trait;
 use bcrypt;
@@ -279,7 +279,7 @@ impl Authentication for Redis {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::handler::tool::test_build_mqtt_cache_manager;
+    use crate::core::tool::test_build_mqtt_cache_manager;
     use common_base::tools::now_second;
     use common_config::security::PasswordConfig;
     use metadata_struct::mqtt::user::MqttUser;

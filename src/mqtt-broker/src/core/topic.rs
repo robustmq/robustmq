@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use super::error::MqttBrokerError;
-use crate::handler::cache::MQTTCacheManager;
-use crate::handler::tool::ResultMqttBrokerError;
+use crate::core::cache::MQTTCacheManager;
+use crate::core::tool::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 use bytes::Bytes;
 use common_base::tools::{now_second, unique_id};
@@ -195,7 +195,7 @@ pub async fn delete_topic(
 #[cfg(test)]
 mod test {
     use super::topic_name_validator;
-    use crate::handler::error::MqttBrokerError;
+    use crate::core::error::MqttBrokerError;
 
     #[test]
     pub fn topic_name_validator_test() {

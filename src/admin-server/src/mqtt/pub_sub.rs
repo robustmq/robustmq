@@ -63,7 +63,7 @@ use common_base::{
 use common_config::broker::broker_config;
 use metadata_struct::mqtt::message::MqttMessage;
 use mqtt_broker::{
-    handler::{retain::save_retain_message, topic::try_init_topic},
+    core::{retain::save_retain_message, topic::try_init_topic},
     storage::message::MessageStorage,
 };
 use protocol::mqtt::common::{Publish, PublishProperties};

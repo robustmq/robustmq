@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use super::cache::MQTTCacheManager;
-use crate::handler::error::MqttBrokerError;
-use crate::handler::tool::ResultMqttBrokerError;
+use crate::core::error::MqttBrokerError;
+use crate::core::tool::ResultMqttBrokerError;
 use crate::subscribe::common::{decode_sub_path, is_match_sub_and_topic};
 use common_base::enum_type::topic_rewrite_action_enum::TopicRewriteActionEnum;
 use common_base::error::common::CommonError;
@@ -93,7 +93,7 @@ fn gen_rewrite_topic(
 mod tests {
     use std::time::Duration;
 
-    use crate::handler::tool::test_build_mqtt_cache_manager;
+    use crate::core::tool::test_build_mqtt_cache_manager;
 
     use super::*;
     use common_base::tools::now_millis;

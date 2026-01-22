@@ -24,7 +24,7 @@ use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillPrope
 use super::cache::MQTTCacheManager;
 use super::error::MqttBrokerError;
 use super::last_will::last_will_delay_interval;
-use crate::handler::tool::ResultMqttBrokerError;
+use crate::core::tool::ResultMqttBrokerError;
 use crate::storage::session::SessionStorage;
 
 #[derive(Clone)]
@@ -141,7 +141,7 @@ async fn session_expiry_interval(
 #[cfg(test)]
 mod test {
     use super::session_expiry_interval;
-    use crate::handler::tool::test_build_mqtt_cache_manager;
+    use crate::core::tool::test_build_mqtt_cache_manager;
     use common_config::broker::default_broker_config;
     use metadata_struct::mqtt::session::MqttSession;
     use protocol::mqtt::common::ConnectProperties;

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::MQTTCacheManager;
-use crate::handler::error::MqttBrokerError;
-use crate::handler::last_will::send_last_will_message;
+use crate::core::cache::MQTTCacheManager;
+use crate::core::error::MqttBrokerError;
+use crate::core::last_will::send_last_will_message;
 use crate::subscribe::manager::SubscribeManager;
 use broker_core::tool::wait_cluster_running;
 use common_metrics::mqtt::session::record_mqtt_session_deleted;

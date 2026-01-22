@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::MQTTCacheManager;
-use crate::handler::error::MqttBrokerError;
-use crate::handler::sub_exclusive::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
-use crate::handler::sub_share::{decode_share_info, is_mqtt_share_subscribe};
-use crate::handler::sub_wildcards::is_wildcards;
-use crate::handler::tool::ResultMqttBrokerError;
+use crate::core::cache::MQTTCacheManager;
+use crate::core::error::MqttBrokerError;
+use crate::core::sub_exclusive::{decode_exclusive_sub_path_to_topic_name, is_exclusive_sub};
+use crate::core::sub_share::{decode_share_info, is_mqtt_share_subscribe};
+use crate::core::sub_wildcards::is_wildcards;
+use crate::core::tool::ResultMqttBrokerError;
 use common_base::error::client_unavailable_error_by_str;
 use common_metrics::mqtt::subscribe::{
     record_subscribe_bytes_sent, record_subscribe_messages_sent, record_subscribe_topic_bytes_sent,
@@ -197,8 +197,8 @@ pub fn record_sub_send_metrics(
 
 #[cfg(test)]
 mod tests {
-    use crate::handler::error::MqttBrokerError;
-    use crate::handler::tool::test_build_mqtt_cache_manager;
+    use crate::core::error::MqttBrokerError;
+    use crate::core::tool::test_build_mqtt_cache_manager;
     use crate::subscribe::common::{
         build_sub_path_regex, client_unavailable_error, decode_share_info, decode_sub_path,
         get_sub_topic_name_list, is_error_by_suback, is_match_sub_and_topic, is_wildcards, min_qos,

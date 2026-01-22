@@ -51,7 +51,7 @@ fn payload_format_indicator_check(payload: &[u8], payload_format_indicator: u8) 
 
 #[cfg(test)]
 mod test {
-    use crate::handler::content_type::payload_format_indicator_check;
+    use crate::core::content_type::payload_format_indicator_check;
 
     #[tokio::test]
     async fn payload_format_indicator_check_test() {

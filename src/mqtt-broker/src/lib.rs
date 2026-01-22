@@ -15,7 +15,8 @@
 #![allow(clippy::result_large_err)]
 pub mod bridge;
 pub mod broker;
-pub mod handler;
+pub mod core;
+pub mod mqtt;
 pub mod security;
 pub mod server;
 pub mod storage;

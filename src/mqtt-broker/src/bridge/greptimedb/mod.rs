@@ -29,7 +29,7 @@ use crate::{
         core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
         manager::ConnectorManager,
     },
-    handler::tool::ResultMqttBrokerError,
+    core::tool::ResultMqttBrokerError,
 };
 
 mod sender;
@@ -54,7 +54,7 @@ impl ConnectorSink for GreptimeDBBridgePlugin {
 
     async fn init_sink(
         &self,
-    ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
+    ) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
         sender::Sender::new(&self.config)
     }
 

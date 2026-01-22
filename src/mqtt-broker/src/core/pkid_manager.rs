@@ -25,7 +25,7 @@ use dashmap::DashMap;
 use protocol::mqtt::common::QoS;
 use tokio::time::sleep;
 
-use crate::handler::cache::{ClientPkidData, QosAckPacketInfo};
+use crate::core::cache::{ClientPkidData, QosAckPacketInfo};
 
 #[derive(Clone)]
 pub struct PkidManager {
