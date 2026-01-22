@@ -37,13 +37,13 @@ mod tests {
         let client_id = build_client_id(
             format!("client_connect_session_present_test_{protocol}_{network}").as_str(),
         );
-        let addr = broker_addr_by_type(&network);
+        let addr = broker_addr_by_type(network);
         let client_properties = ClientTestProperties {
             mqtt_version: protocol,
             client_id,
             addr,
-            ws: ws_by_type(&network),
-            ssl: ssl_by_type(&network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
             ..Default::default()
         };
 

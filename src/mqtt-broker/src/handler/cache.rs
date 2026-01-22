@@ -51,7 +51,7 @@ pub struct MetadataChangeData {
     pub value: String,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ConnectionLiveTime {
     pub protocol: MqttProtocol,
     pub keep_live: u16,

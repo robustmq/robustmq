@@ -138,7 +138,6 @@ impl MqttService {
             return res;
         }
 
-
         let (data, resp) = get_client_id(
             &self.protocol,
             context.connect.clean_session,

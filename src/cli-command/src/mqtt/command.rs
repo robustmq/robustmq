@@ -1464,8 +1464,7 @@ impl MqttBrokerCommand {
             .get_cluster_overview::<admin_server::mqtt::overview::OverViewResp>()
             .await
         {
-            Ok(overview) => {
-                let data = overview.data;
+            Ok(data) => {
                 println!("\n📊 Cluster Overview");
                 println!("{:<30} {}", "Cluster Name", data.cluster_name);
                 println!("{:<30} {}", "Placement Status", data.placement_status);

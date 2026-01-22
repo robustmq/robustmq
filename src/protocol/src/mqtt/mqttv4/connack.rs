@@ -230,7 +230,10 @@ mod tests {
 
         let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
         let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
-        assert_eq!(connack_return.code, super::ConnectReturnCode::IdentifierRejected);
+        assert_eq!(
+            connack_return.code,
+            super::ConnectReturnCode::IdentifierRejected
+        );
     }
 
     #[tokio::test]
