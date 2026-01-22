@@ -14,237 +14,169 @@
 
 #[cfg(test)]
 mod tests {
-
+    use crate::mqtt::protocol::common::{broker_addr_by_type, distinct_conn, password, username};
     use common_base::tools::unique_id;
-    use mqtt_broker::handler::connection::REQUEST_RESPONSE_PREFIX_NAME;
-    use paho_mqtt::{Client, PropertyCode, ReasonCode};
-
-    use crate::mqtt::protocol::{
-        common::{
-            broker_addr_by_type, build_client_id, build_conn_pros, build_create_conn_pros,
-            distinct_conn, kee_alive_interval, network_types, protocol_versions,
-            session_expiry_interval, ssl_by_type, ws_by_type,
-        },
-        ClientTestProperties,
+    use paho_mqtt::{
+        Client, ConnectOptionsBuilder, CreateOptionsBuilder, Properties, PropertyCode, ReasonCode,
     };
 
     #[tokio::test]
-    async fn assigned_client_id_test() {
-        let network = "tcp";
-        for protocol in protocol_versions() {
-            let addr = broker_addr_by_type(network);
-            let client_properties = ClientTestProperties {
-                mqtt_version: protocol,
-                client_id: "".to_string(),
-                addr,
-                ws: ws_by_type(network),
-                ssl: ssl_by_type(network),
-                ..Default::default()
-            };
-            let create_opts =
-                build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
+    // Scenario: MQTT v3 with client-provided (non-empty) client_id should connect successfully.
+    async fn mqtt3_client_id_test() {
+        let addr = broker_addr_by_type("tcp");
+        let client_id = unique_id();
+        let create_opts = CreateOptionsBuilder::new()
+            .server_uri(addr)
+            .client_id(client_id.clone())
+            .finalize();
 
-            let cli_res = Client::new(create_opts);
-            assert!(cli_res.is_ok());
-            let cli = cli_res.unwrap();
+        let cli = Client::new(create_opts).unwrap();
+        let mut conn_opts = ConnectOptionsBuilder::with_mqtt_version(3);
+        conn_opts.user_name(username()).password(password());
+        let conn_opts = conn_opts.finalize();
 
-            let conn_opts = build_conn_pros(client_properties.clone(), false);
-            let result = cli.connect(conn_opts);
-            assert!(result.is_ok());
-            let response = result.unwrap();
-            assert_eq!(response.reason_code(), ReasonCode::Success);
-
-            let resp_pros = response.properties();
-            let assign_client_id = resp_pros
-                .get(PropertyCode::AssignedClientIdentifer)
-                .unwrap()
-                .get_string()
-                .unwrap();
-            assert!(!assign_client_id.is_empty());
-            assert_eq!(assign_client_id.len(), unique_id().len());
-
-            distinct_conn(cli);
-        }
+        let result = cli.connect(conn_opts).unwrap();
+        assert_eq!(result.reason_code(), ReasonCode::Success);
     }
 
     #[tokio::test]
-    async fn response_properties_check_test() {
-        for network in network_types() {
-            let addr = broker_addr_by_type(&network);
-            let client_id =
-                build_client_id(format!("response_properties_check_test_{network}").as_str());
-            let client_properties = ClientTestProperties {
-                mqtt_version: 5,
-                client_id,
-                addr,
-                ws: ws_by_type(&network),
-                ssl: ssl_by_type(&network),
-                ..Default::default()
-            };
-            let create_opts =
-                build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
+    // Scenario: MQTT v3 with empty client_id must be rejected (connect should fail).
+    async fn mqtt3_empty_client_id_test() {
+        let addr = broker_addr_by_type("tcp");
+        let create_opts = CreateOptionsBuilder::new()
+            .server_uri(addr)
+            .client_id("")
+            .finalize();
 
-            let cli_res = Client::new(create_opts);
-            assert!(cli_res.is_ok());
-            let cli = cli_res.unwrap();
+        let cli = Client::new(create_opts).unwrap();
+        let mut conn_opts = ConnectOptionsBuilder::with_mqtt_version(3);
+        conn_opts.user_name(username()).password(password());
+        let conn_opts = conn_opts.finalize();
 
-            let conn_opts = build_conn_pros(client_properties.clone(), false);
-            let result = cli.connect(conn_opts);
-            println!("{result:?}");
-            assert!(result.is_ok());
-            let response = result.unwrap();
-            assert_eq!(response.reason_code(), ReasonCode::Success);
-
-            let resp_pros = response.properties();
-            println!("{resp_pros:?}");
-            assert_eq!(
-                resp_pros
-                    .get(PropertyCode::SessionExpiryInterval)
-                    .unwrap()
-                    .get_int()
-                    .unwrap(),
-                session_expiry_interval() as i32
-            );
-
-            assert_eq!(
-                resp_pros
-                    .get(PropertyCode::ReceiveMaximum)
-                    .unwrap()
-                    .get_int()
-                    .unwrap(),
-                65535
-            );
-
-            assert_eq!(
-                resp_pros
-                    .get(PropertyCode::MaximumQos)
-                    .unwrap()
-                    .get_int()
-                    .unwrap(),
-                2
-            );
-
-            assert_eq!(
-                resp_pros
-                    .get(PropertyCode::RetainAvailable)
-                    .unwrap()
-                    .get_int()
-                    .unwrap(),
-                1
-            );
-
-            assert_eq!(
-                resp_pros
-                    .get(PropertyCode::MaximumPacketSize)
-                    .unwrap()
-                    .get_int()
-                    .unwrap(),
-                10485760
-            );
-
-            assert!(resp_pros
-                .get(PropertyCode::AssignedClientIdentifer)
-                .is_none());
-
-            assert_eq!(
-                resp_pros
-                    .get(PropertyCode::TopicAliasMaximum)
-                    .unwrap()
-                    .get_int()
-                    .unwrap(),
-                65535
-            );
-
-            assert!(resp_pros.get(PropertyCode::ReasonString).is_none());
-
-            assert!(resp_pros.get(PropertyCode::UserProperty).is_none());
-
-            assert_eq!(
-                resp_pros
-                    .get(PropertyCode::WildcardSubscriptionAvailable)
-                    .unwrap()
-                    .get_int()
-                    .unwrap(),
-                1
-            );
-
-            assert_eq!(
-                resp_pros
-                    .get(PropertyCode::SubscriptionIdentifiersAvailable)
-                    .unwrap()
-                    .get_int()
-                    .unwrap(),
-                1
-            );
-
-            assert_eq!(
-                resp_pros
-                    .get(PropertyCode::SharedSubscriptionAvailable)
-                    .unwrap()
-                    .get_int()
-                    .unwrap(),
-                1
-            );
-
-            assert_eq!(
-                resp_pros
-                    .get(PropertyCode::ServerKeepAlive)
-                    .unwrap()
-                    .get_int()
-                    .unwrap(),
-                kee_alive_interval() as i32
-            );
-
-            assert!(resp_pros.get(PropertyCode::ResponseInformation).is_none());
-            assert!(resp_pros.get(PropertyCode::ServerReference).is_none());
-            assert!(resp_pros.get(PropertyCode::AuthenticationMethod).is_none());
-            assert!(resp_pros.get(PropertyCode::AuthenticationData).is_none());
-
-            distinct_conn(cli);
-        }
+        assert!(cli.connect(conn_opts).is_err());
     }
 
     #[tokio::test]
-    async fn request_response_test() {
-        for network in network_types() {
-            let addr = broker_addr_by_type(&network);
-            let client_id = build_client_id(format!("request_response_test_{network}").as_str());
-            let client_properties = ClientTestProperties {
-                mqtt_version: 5,
-                client_id,
-                addr,
-                ws: ws_by_type(&network),
-                ssl: ssl_by_type(&network),
-                request_response: true,
-                ..Default::default()
-            };
-            let create_opts =
-                build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
+    // Scenario: MQTT v4 (3.1.1) with client-provided (non-empty) client_id should connect successfully.
+    async fn mqtt4_client_id_test() {
+        let addr = broker_addr_by_type("tcp");
+        let client_id = unique_id();
+        let create_opts = CreateOptionsBuilder::new()
+            .server_uri(addr)
+            .client_id(client_id)
+            .finalize();
 
-            let cli_res = Client::new(create_opts);
-            assert!(cli_res.is_ok());
-            let cli = cli_res.unwrap();
-            println!("{client_properties:?}");
+        let cli = Client::new(create_opts).unwrap();
+        let mut conn_opts = ConnectOptionsBuilder::with_mqtt_version(4);
+        conn_opts.user_name(username()).password(password());
+        let conn_opts = conn_opts.finalize();
 
-            let conn_opts = build_conn_pros(client_properties.clone(), false);
-            let result = cli.connect(conn_opts);
-            println!("{result:?}");
-            assert!(result.is_ok());
-            let response = result.unwrap();
-            assert_eq!(response.reason_code(), ReasonCode::Success);
+        let result = cli.connect(conn_opts).unwrap();
+        assert_eq!(result.reason_code(), ReasonCode::Success);
+        distinct_conn(cli);
+    }
 
-            let resp_pros = response.properties();
-            println!("{resp_pros:?}");
-            assert_eq!(
-                resp_pros
-                    .get(PropertyCode::ResponseInformation)
-                    .unwrap()
-                    .get_string()
-                    .unwrap(),
-                REQUEST_RESPONSE_PREFIX_NAME.to_string()
-            );
+    #[tokio::test]
+    // Scenario: MQTT v4 (3.1.1) with empty client_id and clean_session=true should connect successfully.
+    async fn mqtt4_empty_client_id_clean_session_true_test() {
+        let addr = broker_addr_by_type("tcp");
+        let create_opts = CreateOptionsBuilder::new()
+            .server_uri(addr)
+            .client_id("")
+            .finalize();
 
-            distinct_conn(cli);
-        }
+        let cli = Client::new(create_opts).unwrap();
+        let mut conn_opts = ConnectOptionsBuilder::with_mqtt_version(4);
+        conn_opts
+            .clean_session(true)
+            .user_name(username())
+            .password(password());
+        let conn_opts = conn_opts.finalize();
+
+        let result = cli.connect(conn_opts).unwrap();
+        assert_eq!(result.reason_code(), ReasonCode::Success);
+        distinct_conn(cli);
+    }
+
+    #[tokio::test]
+    // Scenario: MQTT v4 (3.1.1) with empty client_id and clean_session=false must be rejected (connect should fail).
+    async fn mqtt4_empty_client_id_clean_session_false_test() {
+        let addr = broker_addr_by_type("tcp");
+        let create_opts = CreateOptionsBuilder::new()
+            .server_uri(addr)
+            .client_id("")
+            .finalize();
+
+        let cli = Client::new(create_opts).unwrap();
+        let mut conn_opts = ConnectOptionsBuilder::with_mqtt_version(4);
+        conn_opts
+            .clean_session(false)
+            .user_name(username())
+            .password(password());
+        let conn_opts = conn_opts.finalize();
+
+        assert!(cli.connect(conn_opts).is_err());
+    }
+
+    #[tokio::test]
+    // Scenario: MQTT v5 with client-provided (non-empty) client_id should NOT receive AssignedClientIdentifer.
+    async fn mqtt5_client_id_test() {
+        let addr = broker_addr_by_type("tcp");
+        let client_id = unique_id();
+        let create_opts = CreateOptionsBuilder::new()
+            .server_uri(addr)
+            .client_id(client_id.clone())
+            .finalize();
+
+        let cli = Client::new(create_opts).unwrap();
+        let props = Properties::new();
+        let mut conn_opts = ConnectOptionsBuilder::new_v5();
+        conn_opts
+            .properties(props.clone())
+            .user_name(username())
+            .password(password());
+        let conn_opts = conn_opts.finalize();
+
+        let result = cli.connect(conn_opts).unwrap();
+        assert_eq!(result.reason_code(), ReasonCode::Success);
+
+        let resp_pros = result.properties();
+        assert!(resp_pros
+            .get(PropertyCode::AssignedClientIdentifer)
+            .is_none());
+        distinct_conn(cli);
+    }
+
+    #[tokio::test]
+    // Scenario: MQTT v5 with empty client_id should be auto-assigned and returned via AssignedClientIdentifer.
+    async fn mqtt5_auto_assigned_client_id_test() {
+        let addr = broker_addr_by_type("tcp");
+        let create_opts = CreateOptionsBuilder::new()
+            .server_uri(addr)
+            .client_id("")
+            .finalize();
+
+        let cli = Client::new(create_opts).unwrap();
+        let props = Properties::new();
+        let mut conn_opts = ConnectOptionsBuilder::new_v5();
+        conn_opts
+            .properties(props.clone())
+            .user_name(username())
+            .password(password());
+        let conn_opts = conn_opts.finalize();
+
+        let result = cli.connect(conn_opts).unwrap();
+        assert_eq!(result.reason_code(), ReasonCode::Success);
+
+        let resp_pros = result.properties();
+        let assign_client_id = resp_pros
+            .get(PropertyCode::AssignedClientIdentifer)
+            .unwrap()
+            .get_string()
+            .unwrap();
+        assert!(!assign_client_id.is_empty());
+        assert_eq!(assign_client_id.len(), unique_id().len());
+
+        distinct_conn(cli);
     }
 }

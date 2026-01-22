@@ -122,9 +122,9 @@ pub fn response_packet_mqtt_connect_fail(
     debug!("{code:?},{error_reason:?}");
     if !protocol.is_mqtt5() {
         let new_code = if code == ConnectReturnCode::ClientIdentifierNotValid {
-            ConnectReturnCode::BadClientId
+            ConnectReturnCode::IdentifierRejected
         } else if code == ConnectReturnCode::ProtocolError {
-            ConnectReturnCode::RefusedProtocolVersion
+            ConnectReturnCode::UnacceptableProtocolVersion
         } else if code == ConnectReturnCode::Success || code == ConnectReturnCode::NotAuthorized {
             code
         } else {

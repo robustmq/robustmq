@@ -28,9 +28,10 @@ use metadata_struct::{
 use mqtt_broker::handler::cache::ConnectionLiveTime;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ClientListReq {
     pub source_ip: Option<String>,
+    pub client_id: Option<String>,
     pub connection_id: Option<u64>,
     pub limit: Option<u32>,
     pub page: Option<u32>,

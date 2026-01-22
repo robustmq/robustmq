@@ -30,12 +30,15 @@ pub struct ClientTestProperties {
     pub(crate) packet_size: Option<u32>,
 }
 
+pub mod login_test;
+pub mod client_id_test;
+pub mod protocol_version_test;
+pub mod connect_test;
+
 pub mod acl_test;
 pub mod blacklist_test;
 pub mod common;
-pub mod client_id_test;
 pub mod connect_packet_size_test;
-pub mod connect_test;
 pub mod connector_test;
 pub mod content_type_test;
 pub mod delay_publish_test;

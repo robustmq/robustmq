@@ -567,8 +567,8 @@ pub enum ConnectReturnCode {
     ConnectionRateExceeded,
 
     // MQTT 3/4
-    RefusedProtocolVersion,
-    BadClientId,
+    UnacceptableProtocolVersion,
+    IdentifierRejected,
     ServiceUnavailable,
 }
 

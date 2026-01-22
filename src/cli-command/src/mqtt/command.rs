@@ -722,11 +722,7 @@ impl MqttBrokerCommand {
             connection_id: None,
             limit: Some(DEFAULT_PAGE_SIZE),
             page: Some(DEFAULT_PAGE_NUM),
-            sort_field: None,
-            sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
+            ..Default::default()
         };
 
         match admin_client
