@@ -48,7 +48,7 @@ impl fmt::Display for NetworkConnectionType {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct NetworkConnection {
     pub connection_type: NetworkConnectionType,
     pub connection_id: u64,

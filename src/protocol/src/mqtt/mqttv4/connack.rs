@@ -57,8 +57,8 @@ pub fn write(connack: &ConnAck, buffer: &mut BytesMut) -> Result<usize, MQTTProt
 fn connect_return(num: u8) -> Result<ConnectReturnCode, MQTTProtocolError> {
     match num {
         0 => Ok(ConnectReturnCode::Success),
-        1 => Ok(ConnectReturnCode::RefusedProtocolVersion),
-        2 => Ok(ConnectReturnCode::BadClientId),
+        1 => Ok(ConnectReturnCode::UnacceptableProtocolVersion),
+        2 => Ok(ConnectReturnCode::IdentifierRejected),
         3 => Ok(ConnectReturnCode::ServiceUnavailable),
         4 => Ok(ConnectReturnCode::BadUserNamePassword),
         5 => Ok(ConnectReturnCode::NotAuthorized),
@@ -69,8 +69,8 @@ fn connect_return(num: u8) -> Result<ConnectReturnCode, MQTTProtocolError> {
 fn connect_code(return_code: ConnectReturnCode) -> u8 {
     match return_code {
         ConnectReturnCode::Success => 0,
-        ConnectReturnCode::RefusedProtocolVersion => 1,
-        ConnectReturnCode::BadClientId => 2,
+        ConnectReturnCode::UnacceptableProtocolVersion => 1,
+        ConnectReturnCode::IdentifierRejected => 2,
         ConnectReturnCode::ServiceUnavailable => 3,
         ConnectReturnCode::BadUserNamePassword => 4,
         ConnectReturnCode::NotAuthorized => 5,
@@ -204,7 +204,7 @@ mod tests {
     async fn test_connack_connect_return_code_is_refused_protocol_version() {
         let connack = ConnAck {
             session_present: false,
-            code: super::ConnectReturnCode::RefusedProtocolVersion,
+            code: super::ConnectReturnCode::UnacceptableProtocolVersion,
         };
 
         let mut buffer = BytesMut::new();
@@ -214,7 +214,7 @@ mod tests {
         let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
         assert_eq!(
             connack_return.code,
-            super::ConnectReturnCode::RefusedProtocolVersion
+            super::ConnectReturnCode::UnacceptableProtocolVersion
         );
     }
 
@@ -222,7 +222,7 @@ mod tests {
     async fn test_connack_connect_return_code_is_bad_client_id() {
         let connack = ConnAck {
             session_present: false,
-            code: super::ConnectReturnCode::BadClientId,
+            code: super::ConnectReturnCode::IdentifierRejected,
         };
 
         let mut buffer = BytesMut::new();
@@ -230,7 +230,10 @@ mod tests {
 
         let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
         let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
-        assert_eq!(connack_return.code, super::ConnectReturnCode::BadClientId);
+        assert_eq!(
+            connack_return.code,
+            super::ConnectReturnCode::IdentifierRejected
+        );
     }
 
     #[tokio::test]

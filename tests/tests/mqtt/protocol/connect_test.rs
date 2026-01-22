@@ -14,104 +14,195 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::mqtt::protocol::common::{
-        broker_addr, broker_addr_by_type, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
-        build_client_id, build_conn_pros, build_create_conn_pros, distinct_conn, network_types,
-        protocol_versions, ssl_by_type, ws_by_type,
+    use mqtt_broker::handler::connection::REQUEST_RESPONSE_PREFIX_NAME;
+    use paho_mqtt::{Client, PropertyCode, ReasonCode};
+
+    use crate::mqtt::protocol::{
+        common::{
+            broker_addr_by_type, build_client_id, build_conn_pros, build_create_conn_pros,
+            distinct_conn, kee_alive_interval, network_types, session_expiry_interval, ssl_by_type,
+            ws_by_type,
+        },
+        ClientTestProperties,
     };
-    use crate::mqtt::protocol::ClientTestProperties;
-    use paho_mqtt::{Client, ReasonCode};
+    #[tokio::test]
+    async fn response_properties_check_test() {
+        for network in network_types() {
+            let addr = broker_addr_by_type(&network);
+            let client_id =
+                build_client_id(format!("response_properties_check_test_{network}").as_str());
+            let client_properties = ClientTestProperties {
+                mqtt_version: 5,
+                client_id,
+                addr,
+                ws: ws_by_type(&network),
+                ssl: ssl_by_type(&network),
+                ..Default::default()
+            };
+            let create_opts =
+                build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
+
+            let cli_res = Client::new(create_opts);
+            assert!(cli_res.is_ok());
+            let cli = cli_res.unwrap();
+
+            let conn_opts = build_conn_pros(client_properties.clone(), false);
+            let result = cli.connect(conn_opts);
+            println!("{result:?}");
+            assert!(result.is_ok());
+            let response = result.unwrap();
+            assert_eq!(response.reason_code(), ReasonCode::Success);
+
+            let resp_pros = response.properties();
+            println!("{resp_pros:?}");
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::SessionExpiryInterval)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                session_expiry_interval() as i32
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::ReceiveMaximum)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                65535
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::MaximumQos)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                2
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::RetainAvailable)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                1
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::MaximumPacketSize)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                10485760
+            );
+
+            assert!(resp_pros
+                .get(PropertyCode::AssignedClientIdentifer)
+                .is_none());
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::TopicAliasMaximum)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                65535
+            );
+
+            assert!(resp_pros.get(PropertyCode::ReasonString).is_none());
+
+            assert!(resp_pros.get(PropertyCode::UserProperty).is_none());
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::WildcardSubscriptionAvailable)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                1
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::SubscriptionIdentifiersAvailable)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                1
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::SharedSubscriptionAvailable)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                1
+            );
+
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::ServerKeepAlive)
+                    .unwrap()
+                    .get_int()
+                    .unwrap(),
+                kee_alive_interval() as i32
+            );
+
+            assert!(resp_pros.get(PropertyCode::ResponseInformation).is_none());
+            assert!(resp_pros.get(PropertyCode::ServerReference).is_none());
+            assert!(resp_pros.get(PropertyCode::AuthenticationMethod).is_none());
+            assert!(resp_pros.get(PropertyCode::AuthenticationData).is_none());
+
+            distinct_conn(cli);
+        }
+    }
 
     #[tokio::test]
-    async fn client_connect_wrong_password_test() {
-        for protocol_ver in protocol_versions() {
-            for network in network_types() {
-                let client_id = build_client_id(
-                    format!("client_connect_wrong_password_test_{protocol_ver}_{network}").as_str(),
-                );
-                let addr = broker_addr_by_type(&network);
-                let client_properties = ClientTestProperties {
-                    mqtt_version: protocol_ver,
-                    client_id,
-                    addr,
-                    ws: ws_by_type(&network),
-                    ssl: ssl_by_type(&network),
-                    ..Default::default()
-                };
-                wrong_password_test(client_properties);
-            }
+    async fn request_response_test() {
+        for network in network_types() {
+            let addr = broker_addr_by_type(&network);
+            let client_id = build_client_id(format!("request_response_test_{network}").as_str());
+            let client_properties = ClientTestProperties {
+                mqtt_version: 5,
+                client_id,
+                addr,
+                ws: ws_by_type(&network),
+                ssl: ssl_by_type(&network),
+                request_response: true,
+                ..Default::default()
+            };
+            let create_opts =
+                build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
+
+            let cli_res = Client::new(create_opts);
+            assert!(cli_res.is_ok());
+            let cli = cli_res.unwrap();
+            println!("{client_properties:?}");
+
+            let conn_opts = build_conn_pros(client_properties.clone(), false);
+            let result = cli.connect(conn_opts);
+            println!("{result:?}");
+            assert!(result.is_ok());
+            let response = result.unwrap();
+            assert_eq!(response.reason_code(), ReasonCode::Success);
+
+            let resp_pros = response.properties();
+            println!("{resp_pros:?}");
+            assert_eq!(
+                resp_pros
+                    .get(PropertyCode::ResponseInformation)
+                    .unwrap()
+                    .get_string()
+                    .unwrap(),
+                REQUEST_RESPONSE_PREFIX_NAME.to_string()
+            );
+
+            distinct_conn(cli);
         }
-    }
-
-    #[tokio::test]
-    async fn client_connect_session_present_test() {
-        for protocol_ver in protocol_versions() {
-            for network in network_types() {
-                let client_id = build_client_id(
-                    format!("client_connect_session_present_test_{protocol_ver}_{network}")
-                        .as_str(),
-                );
-                let addr = broker_addr_by_type(&network);
-                let client_properties = ClientTestProperties {
-                    mqtt_version: protocol_ver,
-                    client_id,
-                    addr,
-                    ws: ws_by_type(&network),
-                    ssl: ssl_by_type(&network),
-                    ..Default::default()
-                };
-
-                create_session_connection(&client_properties, true);
-                create_session_connection(&client_properties, false);
-            }
-        }
-    }
-
-    fn wrong_password_test(client_properties: ClientTestProperties) {
-        let create_opts =
-            build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
-
-        let cli_res = Client::new(create_opts);
-        assert!(cli_res.is_ok());
-        let cli = cli_res.unwrap();
-
-        let conn_opts = build_conn_pros(client_properties.clone(), true);
-        let result = cli.connect(conn_opts);
-        println!("client_test_properties:{client_properties:?},result:{result:?}");
-        assert!(result.is_err());
-    }
-
-    fn create_session_connection(client_properties: &ClientTestProperties, present: bool) {
-        let create_opts =
-            build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
-        let cli = Client::new(create_opts).unwrap();
-
-        let conn_opts = build_conn_pros(client_properties.clone(), false);
-        let response = cli.connect(conn_opts).unwrap();
-
-        let resp = response.connect_response().unwrap();
-        if client_properties.ws {
-            if client_properties.ssl {
-                assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
-            } else {
-                assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
-            }
-        } else if client_properties.ssl {
-            assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-        } else {
-            assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-        }
-
-        println!("client_properties:{client_properties:?},resp:{resp:?}");
-
-        if present {
-            assert!(resp.session_present);
-        } else {
-            assert!(!resp.session_present);
-        }
-        assert_eq!(client_properties.mqtt_version, resp.mqtt_version);
-        assert_eq!(response.reason_code(), ReasonCode::Success);
-
-        distinct_conn(cli);
     }
 }

@@ -23,7 +23,7 @@ use axum::extract::State;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct SessionListReq {
     pub client_id: Option<String>,
     pub limit: Option<u32>,
@@ -35,7 +35,7 @@ pub struct SessionListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct SessionListRow {
     pub client_id: String,
     pub session_expiry: u64,

@@ -28,9 +28,10 @@ use metadata_struct::{
 use mqtt_broker::handler::cache::ConnectionLiveTime;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ClientListReq {
     pub source_ip: Option<String>,
+    pub client_id: Option<String>,
     pub connection_id: Option<u64>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
@@ -41,7 +42,7 @@ pub struct ClientListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ClientListRow {
     pub client_id: String,
     pub connection_id: u64,
@@ -52,6 +53,13 @@ pub struct ClientListRow {
 }
 use axum::extract::Query;
 use std::sync::Arc;
+
+#[derive(Clone)]
+struct ClientListRowLite {
+    pub client_id: String,
+    pub connection_id: u64,
+    pub mqtt_connection: MQTTConnection,
+}
 
 pub async fn client_list(
     State(state): State<Arc<HttpState>>,
@@ -67,24 +75,41 @@ pub async fn client_list(
         params.exact_match,
     );
 
-    let mut clients: Vec<ClientListRow> = Vec::new();
-    for (connection_id, mqtt_client) in state.mqtt_context.cache_manager.connection_info.clone() {
-        let session = state
-            .mqtt_context
-            .cache_manager
-            .get_session_info(&mqtt_client.client_id);
-        let network_connection = state.connection_manager.get_connect(mqtt_client.connect_id);
-        let heartbeat = state
-            .mqtt_context
-            .cache_manager
-            .get_heartbeat(&mqtt_client.client_id);
-        clients.push(ClientListRow {
+    // Build a lightweight list first (only fields needed for filtering/sorting/pagination),
+    // then enrich paginated rows with session/network/heartbeat data.
+    let mut clients: Vec<ClientListRowLite> = Vec::new();
+    for entry in state.mqtt_context.cache_manager.connection_info.iter() {
+        let connection_id = *entry.key();
+        let mqtt_client = entry.value();
+
+        if let Some(want_conn_id) = params.connection_id {
+            // `connect_id` should equal the dashmap key, but accept either for safety.
+            if connection_id != want_conn_id && mqtt_client.connect_id != want_conn_id {
+                continue;
+            }
+        }
+
+        if let Some(want_client_id) = &params.client_id {
+            if mqtt_client.client_id != *want_client_id {
+                continue;
+            }
+        }
+
+        if let Some(want_source_ip) = &params.source_ip {
+            let ok = if want_source_ip.contains(':') {
+                mqtt_client.source_ip_addr == *want_source_ip
+            } else {
+                mqtt_client.source_ip_addr.starts_with(want_source_ip)
+            };
+            if !ok {
+                continue;
+            }
+        }
+
+        clients.push(ClientListRowLite {
             connection_id,
             client_id: mqtt_client.client_id.clone(),
             mqtt_connection: mqtt_client.clone(),
-            network_connection,
-            session,
-            heartbeat,
         });
     }
 
@@ -92,10 +117,47 @@ pub async fn client_list(
     let sorted = apply_sorting(filtered, &options);
     let pagination = apply_pagination(sorted, &options);
 
+    let data = pagination
+        .0
+        .into_iter()
+        .map(|lite| {
+            let session = state
+                .mqtt_context
+                .cache_manager
+                .get_session_info(&lite.client_id);
+            let network_connection = state
+                .connection_manager
+                .get_connect(lite.mqtt_connection.connect_id);
+            let heartbeat = state
+                .mqtt_context
+                .cache_manager
+                .get_heartbeat(&lite.client_id);
+            ClientListRow {
+                client_id: lite.client_id,
+                connection_id: lite.connection_id,
+                mqtt_connection: lite.mqtt_connection,
+                network_connection,
+                session,
+                heartbeat,
+            }
+        })
+        .collect::<Vec<ClientListRow>>();
+
     success_response(PageReplyData {
-        data: pagination.0,
+        data,
         total_count: pagination.1,
     })
+}
+
+impl Queryable for ClientListRowLite {
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "connection_id" => Some(self.connection_id.to_string()),
+            "client_id" => Some(self.client_id.to_string()),
+            "source_ip" => Some(self.mqtt_connection.source_ip_addr.clone()),
+            _ => None,
+        }
+    }
 }
 
 impl Queryable for ClientListRow {
@@ -103,6 +165,7 @@ impl Queryable for ClientListRow {
         match field {
             "connection_id" => Some(self.connection_id.to_string()),
             "client_id" => Some(self.client_id.to_string()),
+            "source_ip" => Some(self.mqtt_connection.source_ip_addr.clone()),
             _ => None,
         }
     }

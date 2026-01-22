@@ -274,11 +274,21 @@ impl AdminHttpClient {
     }
 
     /// Get cluster overview
-    pub async fn get_cluster_overview<R>(&self) -> Result<AdminServerResponse<R>, HttpClientError>
+    pub async fn get_cluster_overview<R>(&self) -> Result<R, HttpClientError>
     where
         R: for<'de> Deserialize<'de>,
     {
         self.get(&api_path(MQTT_OVERVIEW_PATH)).await
+    }
+
+    /// Get MQTT monitor data (GET with query parameters)
+    pub async fn get_monitor_data<T, R>(&self, request: &T) -> Result<R, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.get_with_params(&api_path(MQTT_MONITOR_PATH), request)
+            .await
     }
 
     /// Get client list

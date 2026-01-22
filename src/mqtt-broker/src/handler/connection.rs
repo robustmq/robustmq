@@ -15,7 +15,9 @@
 use super::cache::MQTTCacheManager;
 use super::keep_alive::client_keep_live_time;
 use crate::handler::flow_control::is_connection_rate_exceeded;
-use crate::handler::response::response_packet_mqtt_distinct_by_reason;
+use crate::handler::response::{
+    response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
+};
 use crate::handler::tool::ResultMqttBrokerError;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::manager::SubscribeManager;
@@ -25,7 +27,9 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-use protocol::mqtt::common::{Connect, ConnectProperties, DisconnectReasonCode, MqttProtocol};
+use protocol::mqtt::common::{
+    Connect, ConnectProperties, ConnectReturnCode, DisconnectReasonCode, MqttPacket, MqttProtocol,
+};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
@@ -96,11 +100,56 @@ pub async fn build_connection(
     MQTTConnection::new(config)
 }
 
-pub fn get_client_id(client_id: &str) -> (String, bool) {
-    if client_id.is_empty() {
-        (unique_id(), true)
-    } else {
-        (client_id.to_owned(), false)
+pub fn get_client_id(
+    protocol: &MqttProtocol,
+    clean_session: bool,
+    client_id: &str,
+) -> (Option<(String, bool)>, Option<MqttPacket>) {
+    match protocol {
+        MqttProtocol::Mqtt3 => {
+            if client_id.is_empty() {
+                return (
+                    None,
+                    Some(response_packet_mqtt_connect_fail(
+                        protocol,
+                        ConnectReturnCode::IdentifierRejected,
+                        &None,
+                        None,
+                    )),
+                );
+            }
+            // For MQTT 3.x, client_id is provided by client (non-empty here),
+            // so it is NOT an auto-assigned client identifier.
+            (Some((client_id.to_owned(), false)), None)
+        }
+
+        MqttProtocol::Mqtt4 => {
+            if client_id.is_empty() && !clean_session {
+                return (
+                    None,
+                    Some(response_packet_mqtt_connect_fail(
+                        protocol,
+                        ConnectReturnCode::IdentifierRejected,
+                        &None,
+                        None,
+                    )),
+                );
+            }
+
+            if client_id.is_empty() {
+                (Some((unique_id(), true)), None)
+            } else {
+                (Some((client_id.to_owned(), false)), None)
+            }
+        }
+
+        MqttProtocol::Mqtt5 => {
+            if client_id.is_empty() {
+                (Some((unique_id(), true)), None)
+            } else {
+                (Some((client_id.to_owned(), false)), None)
+            }
+        }
     }
 }
 
@@ -246,8 +295,7 @@ mod test {
     use crate::handler::tool::test_build_mqtt_cache_manager;
 
     use super::{
-        build_connection, get_client_id, response_information, MQTTConnection,
-        REQUEST_RESPONSE_PREFIX_NAME,
+        build_connection, response_information, MQTTConnection, REQUEST_RESPONSE_PREFIX_NAME,
     };
     use common_config::broker::default_broker_config;
     use protocol::mqtt::common::{Connect, ConnectProperties};
@@ -299,16 +347,29 @@ mod test {
 
     #[tokio::test]
     pub async fn get_client_id_test() {
-        let client_id = "".to_string();
-        let (new_client_id, is_new) = get_client_id(&client_id);
-        assert!(is_new);
-        assert!(!new_client_id.is_empty());
+        let (data, resp) =
+            super::get_client_id(&protocol::mqtt::common::MqttProtocol::Mqtt3, true, "");
+        assert!(data.is_none());
+        assert!(resp.is_some());
 
-        let client_id = "client_id-***".to_string();
-        let (new_client_id, is_new) = get_client_id(&client_id);
-        assert!(!is_new);
-        assert_eq!(new_client_id, client_id);
-        assert!(!new_client_id.is_empty());
+        let (data, resp) =
+            super::get_client_id(&protocol::mqtt::common::MqttProtocol::Mqtt4, false, "");
+        assert!(data.is_none());
+        assert!(resp.is_some());
+
+        let (data, resp) =
+            super::get_client_id(&protocol::mqtt::common::MqttProtocol::Mqtt4, true, "");
+        assert!(resp.is_none());
+        let (cid, auto) = data.unwrap();
+        assert!(!cid.is_empty());
+        assert!(auto);
+
+        let (data, resp) =
+            super::get_client_id(&protocol::mqtt::common::MqttProtocol::Mqtt5, true, "");
+        assert!(resp.is_none());
+        let (cid, auto) = data.unwrap();
+        assert!(!cid.is_empty());
+        assert!(auto);
     }
 
     #[tokio::test]

@@ -156,7 +156,7 @@ pub(crate) fn read_tls_frame_process(
     mut connection_stop_rx: Receiver<bool>,
     network_type: NetworkConnectionType,
 ) {
-    tokio::spawn(async move {
+    tokio::spawn(Box::pin(async move {
         loop {
             select! {
                 val = connection_stop_rx.recv() =>{
@@ -201,7 +201,7 @@ pub(crate) fn read_tls_frame_process(
                 }
             }
         }
-    });
+    }));
 }
 
 #[allow(clippy::result_large_err)]

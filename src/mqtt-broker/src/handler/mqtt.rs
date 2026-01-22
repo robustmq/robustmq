@@ -126,7 +126,6 @@ impl MqttService {
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
         let cluster = self.cache_manager.broker_cache.get_cluster_config().await;
 
-        // connect params validator
         if let Some(res) = connect_validator(
             &self.protocol,
             &cluster,
@@ -139,8 +138,25 @@ impl MqttService {
             return res;
         }
 
-        // blacklist check
-        let (client_id, new_client_id) = get_client_id(&context.connect.client_id);
+        let (data, resp) = get_client_id(
+            &self.protocol,
+            context.connect.clean_session,
+            &context.connect.client_id,
+        );
+
+        if let Some(pkt) = resp {
+            return pkt;
+        }
+
+        let Some((client_id, new_client_id)) = data else {
+            return response_packet_mqtt_connect_fail(
+                &self.protocol,
+                ConnectReturnCode::UnspecifiedError,
+                &context.connect_properties,
+                Some("get_client_id returned empty result".to_string()),
+            );
+        };
+
         let connection = build_connection(
             context.connect_id,
             client_id.clone(),

@@ -16,17 +16,74 @@
 mod tests {
     use admin_server::mqtt::session::{SessionListReq, SessionListRow};
     use common_base::tools::{now_second, unique_id};
-    use paho_mqtt::{Message, QOS_1};
+    use paho_mqtt::{Client, Message, ReasonCode, QOS_1};
     use std::time::Duration;
     use tokio::time::{sleep, timeout};
 
     use crate::mqtt::protocol::{
         common::{
-            broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
-            distinct_conn_close, publish_data, session_expiry_interval, ssl_by_type, ws_by_type,
+            broker_addr, broker_addr_by_type, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
+            build_client_id, build_conn_pros, build_create_conn_pros, connect_server,
+            create_test_env, distinct_conn, distinct_conn_close, publish_data,
+            session_expiry_interval, ssl_by_type, ws_by_type,
         },
         ClientTestProperties,
     };
+
+    #[tokio::test]
+    async fn client_connect_session_present_test() {
+        let network = "tcp";
+        let protocol = 5;
+        let client_id = build_client_id(
+            format!("client_connect_session_present_test_{protocol}_{network}").as_str(),
+        );
+        let addr = broker_addr_by_type(network);
+        let client_properties = ClientTestProperties {
+            mqtt_version: protocol,
+            client_id,
+            addr,
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+
+        create_session_connection(&client_properties, true);
+        create_session_connection(&client_properties, false);
+    }
+
+    fn create_session_connection(client_properties: &ClientTestProperties, present: bool) {
+        let create_opts =
+            build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
+        let cli = Client::new(create_opts).unwrap();
+
+        let conn_opts = build_conn_pros(client_properties.clone(), false);
+        let response = cli.connect(conn_opts).unwrap();
+
+        let resp = response.connect_response().unwrap();
+        if client_properties.ws {
+            if client_properties.ssl {
+                assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
+            } else {
+                assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
+            }
+        } else if client_properties.ssl {
+            assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
+        } else {
+            assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+        }
+
+        println!("client_properties:{client_properties:?},resp:{resp:?}");
+
+        if present {
+            assert!(resp.session_present);
+        } else {
+            assert!(!resp.session_present);
+        }
+        assert_eq!(client_properties.mqtt_version, resp.mqtt_version);
+        assert_eq!(response.reason_code(), ReasonCode::Success);
+
+        distinct_conn(cli);
+    }
 
     #[tokio::test]
     async fn session_expire_test() {

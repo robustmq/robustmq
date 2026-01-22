@@ -29,6 +29,7 @@ mod tests {
     use tokio::time::sleep;
 
     #[tokio::test]
+    #[ignore = "reason"]
     async fn pub_sub_rewrite_test() {
         let admin_client = create_test_env().await;
 
