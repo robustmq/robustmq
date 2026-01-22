@@ -82,8 +82,7 @@ pub trait ConnectorSink: Send + Sync {
 
     async fn validate(&self) -> ResultMqttBrokerError;
 
-    async fn init_sink(&self)
-        -> Result<Self::SinkResource, crate::core::error::MqttBrokerError>;
+    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError>;
 
     async fn send_batch(
         &self,

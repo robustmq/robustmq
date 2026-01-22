@@ -187,9 +187,7 @@ impl ConnectorSink for FileBridgePlugin {
         Ok(())
     }
 
-    async fn init_sink(
-        &self,
-    ) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
         FileWriter::new(self.config.clone()).await
     }
 

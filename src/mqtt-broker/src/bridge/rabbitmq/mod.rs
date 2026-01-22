@@ -100,9 +100,7 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         Ok(())
     }
 
-    async fn init_sink(
-        &self,
-    ) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
         info!(
             "Initializing RabbitMQ channel: {}:{}/{} exchange: {} (timeout: {}s, heartbeat: {}s)",
             self.config.server,
@@ -254,9 +252,10 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         }
 
         if failed_records.len() == records.len() {
-            return Err(crate::core::error::MqttBrokerError::CommonError(
-                format!("All {} records failed to send to RabbitMQ", records.len()),
-            ));
+            return Err(crate::core::error::MqttBrokerError::CommonError(format!(
+                "All {} records failed to send to RabbitMQ",
+                records.len()
+            )));
         }
 
         Ok(())

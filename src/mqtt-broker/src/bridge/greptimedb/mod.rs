@@ -52,9 +52,7 @@ impl ConnectorSink for GreptimeDBBridgePlugin {
         Ok(())
     }
 
-    async fn init_sink(
-        &self,
-    ) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
         sender::Sender::new(&self.config)
     }
 

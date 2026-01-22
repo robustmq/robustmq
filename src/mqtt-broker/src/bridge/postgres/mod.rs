@@ -197,9 +197,7 @@ impl ConnectorSink for PostgresBridgePlugin {
         Ok(())
     }
 
-    async fn init_sink(
-        &self,
-    ) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
         let pool = self.create_pool().await?;
         Ok(pool)
     }

@@ -49,9 +49,7 @@ impl ConnectorSink for PulsarBridgePlugin {
         Ok(())
     }
 
-    async fn init_sink(
-        &self,
-    ) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
         let producer = pulsar_producer::Producer::new(&self.config)
             .build_producer()
             .await?;
