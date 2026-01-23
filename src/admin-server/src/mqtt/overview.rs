@@ -23,7 +23,7 @@ use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use mqtt_broker::{
-    bridge::manager::ConnectorManager, handler::cache::MQTTCacheManager,
+    bridge::manager::ConnectorManager, core::cache::MQTTCacheManager,
     subscribe::manager::SubscribeManager,
 };
 use network_server::common::connection_manager::ConnectionManager;

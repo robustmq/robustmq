@@ -15,7 +15,7 @@
 use axum::{extract::State, Json};
 use common_base::http_response::{error_response, success_response};
 use metadata_struct::schema::{SchemaData, SchemaResourceBind, SchemaType};
-use mqtt_broker::{handler::error::MqttBrokerError, storage::schema::SchemaStorage};
+use mqtt_broker::{core::error::MqttBrokerError, storage::schema::SchemaStorage};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use validator::Validate;

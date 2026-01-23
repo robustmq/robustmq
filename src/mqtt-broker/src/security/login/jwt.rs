@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use super::Authentication;
-use crate::handler::cache::MQTTCacheManager;
-use crate::handler::error::MqttBrokerError;
+use crate::core::cache::MQTTCacheManager;
+use crate::core::error::MqttBrokerError;
 use axum::async_trait;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
@@ -182,7 +182,7 @@ impl Authentication for JwtAuth {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::handler::tool::test_build_mqtt_cache_manager;
+    use crate::core::tool::test_build_mqtt_cache_manager;
     use jsonwebtoken::{encode, EncodingKey, Header};
 
     #[tokio::test]

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::MQTTCacheManager;
-use crate::handler::error::MqttBrokerError;
-use crate::handler::topic::try_init_topic;
+use crate::core::cache::MQTTCacheManager;
+use crate::core::error::MqttBrokerError;
+use crate::core::topic::try_init_topic;
 use crate::storage::message::MessageStorage;
 use crate::system_topic::packet::bytes::{
     SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED, SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT,
@@ -386,7 +386,7 @@ pub(crate) async fn write_topic_data(
 
 #[cfg(test)]
 mod test {
-    use crate::handler::tool::test_build_mqtt_cache_manager0;
+    use crate::core::tool::test_build_mqtt_cache_manager0;
     use crate::system_topic::write_topic_data;
     use common_base::tools::{get_local_ip, unique_id};
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};

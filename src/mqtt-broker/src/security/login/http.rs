@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use super::Authentication;
-use crate::handler::cache::MQTTCacheManager;
-use crate::handler::error::MqttBrokerError;
+use crate::core::cache::MQTTCacheManager;
+use crate::core::error::MqttBrokerError;
 use crate::security::storage::http::HttpAuthStorageAdapter;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use axum::async_trait;
@@ -153,7 +153,7 @@ impl Authentication for HttpAuth {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::handler::tool::test_build_mqtt_cache_manager;
+    use crate::core::tool::test_build_mqtt_cache_manager;
     use std::collections::HashMap;
 
     #[tokio::test]

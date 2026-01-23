@@ -32,8 +32,8 @@ use serde_json::{json, Value};
 use storage_adapter::driver::StorageDriverManager;
 use tracing::error;
 
-use crate::handler::error::MqttBrokerError;
-use crate::handler::tool::ResultMqttBrokerError;
+use crate::core::error::MqttBrokerError;
+use crate::core::tool::ResultMqttBrokerError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},

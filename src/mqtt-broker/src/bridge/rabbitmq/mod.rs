@@ -28,7 +28,7 @@ use metadata_struct::{
 use storage_adapter::driver::StorageDriverManager;
 use tracing::{debug, error, info, warn};
 
-use crate::handler::tool::ResultMqttBrokerError;
+use crate::core::tool::ResultMqttBrokerError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
@@ -76,14 +76,14 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         let connection = Connection::connect(&uri, ConnectionProperties::default())
             .await
             .map_err(|e| {
-                crate::handler::error::MqttBrokerError::CommonError(format!(
+                crate::core::error::MqttBrokerError::CommonError(format!(
                     "Failed to connect to RabbitMQ at {}:{}: {}",
                     self.config.server, self.config.port, e
                 ))
             })?;
 
         let channel = connection.create_channel().await.map_err(|e| {
-            crate::handler::error::MqttBrokerError::CommonError(format!(
+            crate::core::error::MqttBrokerError::CommonError(format!(
                 "Failed to create channel: {}",
                 e
             ))
@@ -100,9 +100,7 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         Ok(())
     }
 
-    async fn init_sink(
-        &self,
-    ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
         info!(
             "Initializing RabbitMQ channel: {}:{}/{} exchange: {} (timeout: {}s, heartbeat: {}s)",
             self.config.server,
@@ -254,9 +252,10 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         }
 
         if failed_records.len() == records.len() {
-            return Err(crate::handler::error::MqttBrokerError::CommonError(
-                format!("All {} records failed to send to RabbitMQ", records.len()),
-            ));
+            return Err(crate::core::error::MqttBrokerError::CommonError(format!(
+                "All {} records failed to send to RabbitMQ",
+                records.len()
+            )));
         }
 
         Ok(())

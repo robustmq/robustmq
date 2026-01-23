@@ -31,7 +31,7 @@ mod tests {
         let client_id: String = "client_id_11111".to_string();
         let session = MqttSession {
             client_id: client_id.clone(),
-            session_expiry: 1000,
+            session_expiry_interval: 1000,
             broker_id: Some(1),
             reconnect_time: Some(now_second()),
             ..Default::default()
@@ -50,19 +50,6 @@ mod tests {
         assert_eq!(result.client_id, client_id);
         assert_eq!(result.broker_id.unwrap(), 1);
         assert!(result.connection_id.is_none());
-
-        session_storage
-            .update_session(client_id.clone(), 3, 3, now_second(), 0)
-            .await
-            .unwrap();
-
-        let result = session_storage
-            .get_session(client_id.clone())
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.broker_id.unwrap(), 3);
-        assert_eq!(result.connection_id.unwrap(), 3);
 
         let result = session_storage
             .list_session(Some(client_id.clone()))

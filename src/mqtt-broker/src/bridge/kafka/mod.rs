@@ -24,7 +24,7 @@ use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
 use storage_adapter::driver::StorageDriverManager;
 use tracing::error;
 
-use crate::handler::tool::ResultMqttBrokerError;
+use crate::core::tool::ResultMqttBrokerError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
@@ -49,9 +49,7 @@ impl ConnectorSink for KafkaBridgePlugin {
         Ok(())
     }
 
-    async fn init_sink(
-        &self,
-    ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
         use tracing::info;
 
         let mut client_config = rdkafka::ClientConfig::new();
@@ -120,7 +118,7 @@ impl ConnectorSink for KafkaBridgePlugin {
         let results = join_all(send_futures).await;
 
         if results.iter().all(|r| r.is_err()) {
-            return Err(crate::handler::error::MqttBrokerError::CommonError(
+            return Err(crate::core::error::MqttBrokerError::CommonError(
                 "All records failed to send to Kafka".to_string(),
             ));
         }

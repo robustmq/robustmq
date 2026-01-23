@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::MQTTCacheManager;
-use crate::handler::inner::{delete_session_by_req, send_last_will_message_by_req};
+use crate::core::cache::MQTTCacheManager;
+use crate::core::inner::{delete_session_by_req, send_last_will_message_by_req};
 use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
 use protocol::broker::broker_mqtt::broker_mqtt_service_server::BrokerMqttService;

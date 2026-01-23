@@ -22,7 +22,7 @@ mod tests {
     };
     use crate::mqtt::protocol::ClientTestProperties;
     use common_base::tools::unique_id;
-    use mqtt_broker::handler::constant::{
+    use mqtt_broker::core::constant::{
         SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE,
     };
     use paho_mqtt::{Message, MessageBuilder, PropertyCode, RetainHandling, SubscribeOptions};

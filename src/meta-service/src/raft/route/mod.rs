@@ -218,10 +218,6 @@ impl DataRoute {
                 self.route_mqtt.delete_session(storage_data.value.clone())?;
                 Ok(None)
             }
-            StorageDataType::MqttUpdateSession => {
-                self.route_mqtt.update_session(storage_data.value.clone())?;
-                Ok(None)
-            }
             StorageDataType::MqttSaveLastWillMessage => {
                 self.route_mqtt
                     .save_last_will_message(storage_data.value.clone())?;

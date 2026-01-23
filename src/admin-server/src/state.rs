@@ -17,7 +17,7 @@ use std::sync::Arc;
 use broker_core::cache::BrokerCacheManager;
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::{
-    bridge::manager::ConnectorManager, handler::cache::MQTTCacheManager,
+    bridge::manager::ConnectorManager, core::cache::MQTTCacheManager,
     subscribe::manager::SubscribeManager,
 };
 use network_server::common::connection_manager::ConnectionManager;

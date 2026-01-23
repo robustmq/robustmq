@@ -19,7 +19,7 @@ use crate::{
         core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
         manager::ConnectorManager,
     },
-    handler::tool::ResultMqttBrokerError,
+    core::tool::ResultMqttBrokerError,
 };
 use axum::async_trait;
 use grpc_clients::pool::ClientPool;
@@ -49,9 +49,7 @@ impl ConnectorSink for PulsarBridgePlugin {
         Ok(())
     }
 
-    async fn init_sink(
-        &self,
-    ) -> Result<Self::SinkResource, crate::handler::error::MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
         let producer = pulsar_producer::Producer::new(&self.config)
             .build_producer()
             .await?;

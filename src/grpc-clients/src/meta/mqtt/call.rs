@@ -32,7 +32,7 @@ use protocol::meta::meta_service_mqtt::{
     SaveLastWillMessageReply, SaveLastWillMessageRequest, SetAutoSubscribeRuleReply,
     SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
     SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateConnectorReply,
-    UpdateConnectorRequest, UpdateSessionReply, UpdateSessionRequest,
+    UpdateConnectorRequest,
 };
 use tonic::Streaming;
 
@@ -123,12 +123,6 @@ generate_mqtt_service_call!(
     ListSessionRequest,
     ListSessionReply,
     ListSession
-);
-generate_mqtt_service_call!(
-    placement_update_session,
-    UpdateSessionRequest,
-    UpdateSessionReply,
-    UpdateSession
 );
 generate_mqtt_service_call!(
     placement_save_last_will_message,

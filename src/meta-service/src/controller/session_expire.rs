@@ -167,7 +167,7 @@ impl SessionExpire {
     fn is_session_expire(&self, session: &MqttSession) -> bool {
         if session.connection_id.is_none() && session.broker_id.is_none() {
             if let Some(distinct_time) = session.distinct_time {
-                if now_second() >= (session.session_expiry + distinct_time) {
+                if now_second() >= (session.session_expiry_interval + distinct_time) {
                     return true;
                 }
             }
@@ -312,7 +312,7 @@ mod tests {
         let session_expire = SessionExpire::new(rocksdb_engine_handler, cache_manager, client_pool);
 
         let session = MqttSession {
-            session_expiry: now_second() - 100,
+            session_expiry_interval: now_second() - 100,
             distinct_time: Some(5),
             ..Default::default()
         };
@@ -321,7 +321,7 @@ mod tests {
         let session = MqttSession {
             broker_id: Some(1),
             reconnect_time: Some(now_second()),
-            session_expiry: now_second() + 100,
+            session_expiry_interval: now_second() + 100,
             distinct_time: None,
             ..Default::default()
         };
@@ -340,7 +340,7 @@ mod tests {
         let session_storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
         let client_id = unique_id();
         let session = MqttSession {
-            session_expiry: 3,
+            session_expiry_interval: 3,
             distinct_time: Some(now_second()),
             client_id: client_id.clone(),
             ..Default::default()

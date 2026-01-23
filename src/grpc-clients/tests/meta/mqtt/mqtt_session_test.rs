@@ -14,20 +14,17 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use crate::common::get_placement_addr;
     use common_base::tools::unique_id;
     use grpc_clients::meta::mqtt::call::{
         placement_create_session, placement_delete_session, placement_list_session,
-        placement_update_session,
     };
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use protocol::meta::meta_service_mqtt::{
-        CreateSessionRequest, DeleteSessionRequest, ListSessionRequest, UpdateSessionRequest,
+        CreateSessionRequest, DeleteSessionRequest, ListSessionRequest,
     };
-
-    use crate::common::get_placement_addr;
+    use std::sync::Arc;
 
     #[tokio::test]
 
@@ -37,7 +34,6 @@ mod tests {
         let client_id: String = unique_id();
         let connection_id: u64 = 1;
         let broker_id: u64 = 1;
-        let update_broker_id: u64 = 2;
         let session_expiry: u64 = 10000;
         let last_will_delay_interval: u64 = 10000;
 
@@ -48,108 +44,72 @@ mod tests {
             Some(last_will_delay_interval),
         );
         mqtt_session.update_broker_id(Some(broker_id));
-        mqtt_session.update_connnction_id(Some(connection_id));
+        mqtt_session.update_connection_id(Some(connection_id));
 
         let request = CreateSessionRequest {
             client_id: client_id.clone(),
             session: mqtt_session.encode().unwrap(),
         };
 
-        match placement_create_session(&client_pool, &addrs, request).await {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        placement_create_session(&client_pool, &addrs, request)
+            .await
+            .unwrap();
 
         let request = ListSessionRequest {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        match placement_list_session(&client_pool, &addrs, request).await {
-            Ok(data) => {
-                let mut flag: bool = false;
-                for raw in data.sessions {
-                    let session = MqttSession::decode(&raw).unwrap();
-                    if mqtt_session == session {
-                        flag = true;
-                    }
-                }
-                assert!(flag);
-            }
-            Err(e) => {
-                panic!("{e:?}");
+        let data = placement_list_session(&client_pool, &addrs, request)
+            .await
+            .unwrap();
+        let mut flag: bool = false;
+        for raw in data.sessions {
+            let session = MqttSession::decode(&raw).unwrap();
+            if mqtt_session == session {
+                flag = true;
             }
         }
-
-        mqtt_session.update_broker_id(Some(update_broker_id));
-        mqtt_session.update_reconnect_time();
-        mqtt_session.update_distinct_time();
-
-        let request = UpdateSessionRequest {
-            client_id: mqtt_session.client_id.clone(),
-            connection_id: mqtt_session.connection_id.unwrap(),
-            broker_id: mqtt_session.broker_id.unwrap_or(1100),
-            reconnect_time: mqtt_session.reconnect_time.unwrap(),
-            distinct_time: mqtt_session.distinct_time.unwrap(),
-        };
-
-        match placement_update_session(&client_pool, &addrs, request).await {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        assert!(flag);
 
         let request = ListSessionRequest {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        match placement_list_session(&client_pool, &addrs, request).await {
-            Ok(data) => {
-                let mut flag: bool = false;
-                for raw in data.sessions {
-                    let session = MqttSession::decode(&raw).unwrap();
-                    if mqtt_session == session {
-                        flag = true;
-                    }
-                }
-                assert!(flag);
-            }
-            Err(e) => {
-                panic!("{e:?}");
+        let data = placement_list_session(&client_pool, &addrs, request)
+            .await
+            .unwrap();
+        let mut flag: bool = false;
+        for raw in data.sessions {
+            let session = MqttSession::decode(&raw).unwrap();
+            if mqtt_session == session {
+                flag = true;
             }
         }
+        assert!(flag);
 
         let request = DeleteSessionRequest {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        match placement_delete_session(&client_pool, &addrs, request).await {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        placement_delete_session(&client_pool, &addrs, request)
+            .await
+            .unwrap();
 
         let request = ListSessionRequest {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        match placement_list_session(&client_pool, &addrs, request).await {
-            Ok(data) => {
-                let mut flag: bool = false;
-                for raw in data.sessions {
-                    let session = MqttSession::decode(&raw).unwrap();
-                    if mqtt_session == session {
-                        flag = true;
-                    }
-                }
-                assert!(!flag);
-            }
-            Err(e) => {
-                panic!("{e:?}");
+        let data = placement_list_session(&client_pool, &addrs, request)
+            .await
+            .unwrap();
+
+        let mut flag: bool = false;
+        for raw in data.sessions {
+            let session = MqttSession::decode(&raw).unwrap();
+            if mqtt_session == session {
+                flag = true;
             }
         }
+        assert!(!flag);
     }
 }

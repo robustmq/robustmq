@@ -44,7 +44,6 @@ use protocol::meta::meta_service_mqtt::{
     DeleteSessionRequest, DeleteSubscribeRequest, DeleteTopicRequest,
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, SaveLastWillMessageRequest,
     SetAutoSubscribeRuleRequest, SetSubscribeRequest, SetTopicRetainMessageRequest,
-    UpdateSessionRequest,
 };
 use protocol::mqtt::common::{qos, retain_forward_rule, QoS, RetainHandling};
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -158,39 +157,6 @@ impl DataRouteMqtt {
         Ok(())
     }
 
-    pub fn update_session(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let req = UpdateSessionRequest::decode(value.as_ref())?;
-        let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
-
-        if let Some(mut session) = storage.get(&req.client_id)? {
-            if req.connection_id > 0 {
-                session.update_connnction_id(Some(req.connection_id));
-            } else {
-                session.update_connnction_id(None);
-            }
-
-            if req.broker_id > 0 {
-                session.update_broker_id(Some(req.broker_id));
-            } else {
-                session.update_broker_id(None);
-            }
-
-            if req.reconnect_time > 0 {
-                session.reconnect_time = Some(req.reconnect_time);
-            }
-
-            if req.distinct_time > 0 {
-                session.distinct_time = Some(req.distinct_time);
-            } else {
-                session.distinct_time = None;
-            }
-
-            storage.save(&req.client_id, session)?;
-        }
-
-        Ok(())
-    }
-
     pub fn delete_session(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
@@ -232,9 +198,12 @@ impl DataRouteMqtt {
         let req = DeleteSubscribeRequest::decode(value.as_ref())?;
         if !req.path.is_empty() {
             storage.delete_by_path(&req.client_id, &req.path)?;
-        } else {
+        }
+
+        if !req.client_id.is_empty() {
             storage.delete_by_client_id(&req.client_id)?;
         }
+
         Ok(())
     }
 

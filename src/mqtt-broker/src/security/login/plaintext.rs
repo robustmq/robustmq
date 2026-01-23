@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use super::Authentication;
-use crate::handler::cache::MQTTCacheManager;
-use crate::handler::error::MqttBrokerError;
+use crate::core::cache::MQTTCacheManager;
+use crate::core::error::MqttBrokerError;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use axum::async_trait;
 use std::sync::Arc;
@@ -105,8 +105,8 @@ mod test {
     use std::sync::Arc;
 
     use super::Plaintext;
-    use crate::handler::cache::MQTTCacheManager;
-    use crate::handler::tool::test_build_mqtt_cache_manager;
+    use crate::core::cache::MQTTCacheManager;
+    use crate::core::tool::test_build_mqtt_cache_manager;
     use crate::security::login::Authentication;
 
     #[tokio::test]

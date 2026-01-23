@@ -30,7 +30,7 @@ use super::{
     write_topic_data, SYSTEM_TOPIC_BROKERS_CONNECTED, SYSTEM_TOPIC_BROKERS_DISCONNECTED,
     SYSTEM_TOPIC_BROKERS_SUBSCRIBED, SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED,
 };
-use crate::handler::cache::MQTTCacheManager;
+use crate::core::cache::MQTTCacheManager;
 
 #[derive(Clone)]
 pub struct StReportDisconnectedEventContext {
@@ -145,7 +145,7 @@ pub async fn st_report_connected_event(context: StReportConnectedEventContext) {
             proto_name: "MQTT".to_string(),
             keepalive: context.connection.keep_alive,
             ip_address: context.connection.source_ip_addr.clone(),
-            expiry_interval: context.session.session_expiry,
+            expiry_interval: context.session.session_expiry_interval,
             connected_at: now_millis(),
             connect_ack: 1,
             client_id: context.session.client_id.to_string(),

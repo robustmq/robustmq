@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub struct MqttSession {
     pub client_id: String,
-    pub session_expiry: u64,
+    pub session_expiry_interval: u64,
     pub is_contain_last_will: bool,
     pub last_will_delay_interval: Option<u64>,
     pub create_time: u64,
@@ -38,7 +38,7 @@ impl MqttSession {
     ) -> MqttSession {
         MqttSession {
             client_id,
-            session_expiry,
+            session_expiry_interval: session_expiry,
             is_contain_last_will,
             last_will_delay_interval,
             create_time: now_second(),
@@ -46,7 +46,7 @@ impl MqttSession {
         }
     }
 
-    pub fn update_connnction_id(&mut self, connection_id: Option<u64>) {
+    pub fn update_connection_id(&mut self, connection_id: Option<u64>) {
         self.connection_id = connection_id;
     }
 
