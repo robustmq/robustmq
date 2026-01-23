@@ -84,7 +84,7 @@ pub async fn session_list(
             };
             sessions.push(SessionListRow {
                 client_id: session.client_id.clone(),
-                session_expiry: session.session_expiry,
+                session_expiry: session.session_expiry_interval,
                 is_contain_last_will: session.is_contain_last_will,
                 last_will_delay_interval: session.last_will_delay_interval,
                 create_time: session.create_time,
@@ -108,7 +108,7 @@ pub async fn session_list(
             };
             sessions.push(SessionListRow {
                 client_id: session.client_id.clone(),
-                session_expiry: session.session_expiry,
+                session_expiry: session.session_expiry_interval,
                 is_contain_last_will: session.is_contain_last_will,
                 last_will_delay_interval: session.last_will_delay_interval,
                 create_time: session.create_time,

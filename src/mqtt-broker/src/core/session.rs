@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use common_base::tools::now_second;
-use common_config::broker::broker_config;
-use common_metrics::mqtt::session::record_mqtt_session_created;
-use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::session::MqttSession;
-use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
-
 use super::cache::MQTTCacheManager;
 use super::error::MqttBrokerError;
 use super::last_will::last_will_delay_interval;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::storage::session::SessionStorage;
+use crate::subscribe::manager::SubscribeManager;
+use common_config::broker::broker_config;
+use common_metrics::mqtt::session::record_mqtt_session_created;
+use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::session::MqttSession;
+use protocol::mqtt::common::{
+    Connect, ConnectProperties, LastWill, LastWillProperties, MqttProtocol,
+};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct BuildSessionContext {
@@ -37,70 +37,117 @@ pub struct BuildSessionContext {
     pub last_will_properties: Option<LastWillProperties>,
     pub client_pool: Arc<ClientPool>,
     pub cache_manager: Arc<MQTTCacheManager>,
+    pub subscribe_manager: Arc<SubscribeManager>,
 }
 
-pub async fn build_session(
+/// Create, restore, or reset the MQTT session during CONNECT handling.
+///
+/// - MQTT 3.1 / 3.1.1: `connect.clean_session` corresponds to the Clean Session flag.
+/// - MQTT 5.0: the same flag corresponds to Clean Start (the session is started fresh when set).
+///
+/// Behavior:
+/// - If `clean_session/clean_start = 1`: delete any existing session state (both remote storage and
+///   local caches), then create a new session and return `(session, true)`.
+/// - If `clean_session/clean_start = 0`: try to load an existing session from storage. If found,
+///   mark it online (update connection/broker IDs, reconnect time, clear distinct_time), persist it,
+///   and return `(session, false)`. If not found, create a new session, persist it, and return
+///   `(session, true)`.
+///
+/// The returned boolean indicates whether a new session was created (`true`) or an existing session
+/// was resumed (`false`). Callers should typically map this to CONNACK `Session Present` as
+/// `session_present = !new_session`.
+pub async fn session_process(
+    protocol: &MqttProtocol,
     context: BuildSessionContext,
 ) -> Result<(MqttSession, bool), MqttBrokerError> {
+    let session_storage = SessionStorage::new(context.client_pool.clone());
+    if context.connect.clean_session {
+        // Clean Session = 1
+        session_storage
+            .delete_session(context.client_id.clone())
+            .await?;
+        delete_session_by_local(
+            &context.cache_manager,
+            &context.subscribe_manager,
+            &context.client_id,
+        );
+        let session = build_new_session(&context).await;
+        if protocol.is_mqtt5() {
+            save_session(
+                session.clone(),
+                context.client_id.clone(),
+                &context.client_pool,
+            )
+            .await?;
+        }
+        return Ok((session, true));
+    }
+
+    // Clean Session = 0
+    if let Some(mut session) = session_storage
+        .get_session(context.client_id.clone())
+        .await?
+    {
+        let conf = broker_config();
+        session.update_connection_id(Some(context.connect_id));
+        session.update_broker_id(Some(conf.broker_id));
+        session.update_reconnect_time();
+        session.distinct_time = None;
+        save_session(
+            session.clone(),
+            context.client_id.clone(),
+            &context.client_pool,
+        )
+        .await?;
+        return Ok((session, false));
+    }
+
+    let session = build_new_session(&context).await;
+    save_session(
+        session.clone(),
+        context.client_id.clone(),
+        &context.client_pool,
+    )
+    .await?;
+    Ok((session, true))
+}
+
+pub fn delete_session_by_local(
+    cache_manager: &Arc<MQTTCacheManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
+    client_id: &str,
+) {
+    subscribe_manager.remove_by_client_id(client_id);
+    cache_manager.remove_session(client_id);
+}
+
+async fn build_new_session(context: &BuildSessionContext) -> MqttSession {
     let session_expiry =
         session_expiry_interval(&context.cache_manager, &context.connect_properties).await;
     let is_contain_last_will = context.last_will.is_some();
     let last_will_delay_interval = last_will_delay_interval(&context.last_will_properties);
-
-    let (mut session, new_session) = if context.connect.clean_session {
-        let session_storage = SessionStorage::new(context.client_pool.clone());
-        match session_storage.get_session(context.client_id.clone()).await {
-            Ok(Some(session)) => (session, false),
-            Ok(None) => (
-                MqttSession::new(
-                    context.client_id,
-                    session_expiry,
-                    is_contain_last_will,
-                    last_will_delay_interval,
-                ),
-                true,
-            ),
-            Err(e) => {
-                return Err(MqttBrokerError::CommonError(e.to_string()));
-            }
-        }
-    } else {
-        (
-            MqttSession::new(
-                context.client_id,
-                session_expiry,
-                is_contain_last_will,
-                last_will_delay_interval,
-            ),
-            true,
-        )
-    };
-
+    let mut session = MqttSession::new(
+        context.client_id.clone(),
+        session_expiry,
+        is_contain_last_will,
+        last_will_delay_interval,
+    );
     let conf = broker_config();
-    session.update_connnction_id(Some(context.connect_id));
+    session.update_connection_id(Some(context.connect_id));
     session.update_broker_id(Some(conf.broker_id));
     session.update_reconnect_time();
-    Ok((session, new_session))
+    session
 }
 
-pub async fn save_session(
-    connect_id: u64,
+async fn save_session(
     session: MqttSession,
-    new_session: bool,
     client_id: String,
     client_pool: &Arc<ClientPool>,
 ) -> ResultMqttBrokerError {
-    let conf = broker_config();
     let session_storage = SessionStorage::new(client_pool.clone());
-    if new_session {
-        session_storage
-            .set_session(client_id.clone(), &session)
-            .await?;
-    } else {
-        session_storage
-            .update_session(client_id, connect_id, conf.broker_id, now_second(), 0)
-            .await?;
-    }
+    session_storage
+        .set_session(client_id.clone(), &session)
+        .await?;
     record_mqtt_session_created();
     Ok(())
 }
@@ -151,7 +198,7 @@ mod test {
         let client_id = "client_id_test-**".to_string();
         let session = MqttSession::new(client_id.clone(), 10, false, None);
         assert_eq!(client_id, session.client_id);
-        assert_eq!(10, session.session_expiry);
+        assert_eq!(10, session.session_expiry_interval);
         assert!(!session.is_contain_last_will);
         assert!(session.last_will_delay_interval.is_none());
 

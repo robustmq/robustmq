@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use super::{MqttService, MqttServiceConnectContext};
-
 use crate::core::cache::ConnectionLiveTime;
 use crate::core::connection::{build_connection, get_client_id};
 use crate::core::flapping_detect::check_flapping_detect;
@@ -22,11 +21,10 @@ use crate::core::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_connect_success,
     ResponsePacketMqttConnectSuccessContext,
 };
-use crate::core::session::{build_session, save_session, BuildSessionContext};
+use crate::core::session::{session_process, BuildSessionContext};
 use crate::core::sub_auto::try_auto_subscribe;
 use crate::core::validator::connect_validator;
 use crate::system_topic::event::{st_report_connected_event, StReportConnectedEventContext};
-
 use common_base::tools::now_second;
 use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
 use protocol::mqtt::common::{ConnectReturnCode, MqttPacket};
@@ -47,6 +45,7 @@ impl MqttService {
             return res;
         }
 
+        // client id
         let (data, resp) = get_client_id(
             &self.protocol,
             context.connect.clean_session,
@@ -76,6 +75,25 @@ impl MqttService {
         )
         .await;
 
+        // flapping detect check
+        if cluster.mqtt_flapping_detect.enable {
+            if let Err(e) = check_flapping_detect(
+                context.connect.client_id.clone(),
+                &self.cache_manager,
+                &self.rocksdb_engine_handler,
+            )
+            .await
+            {
+                return response_packet_mqtt_connect_fail(
+                    &self.protocol,
+                    ConnectReturnCode::UnspecifiedError,
+                    &context.connect_properties,
+                    Some(e.to_string()),
+                );
+            }
+        }
+
+        // auth check
         if self.auth_driver.auth_connect_check(&connection).await {
             return response_packet_mqtt_connect_fail(
                 &self.protocol,
@@ -118,37 +136,24 @@ impl MqttService {
             }
         }
 
-        // flapping detect check
-        if cluster.mqtt_flapping_detect.enable {
-            if let Err(e) = check_flapping_detect(
-                context.connect.client_id.clone(),
-                &self.cache_manager,
-                &self.rocksdb_engine_handler,
-            )
-            .await
-            {
-                return response_packet_mqtt_connect_fail(
-                    &self.protocol,
-                    ConnectReturnCode::UnspecifiedError,
-                    &context.connect_properties,
-                    Some(e.to_string()),
-                );
-            }
-        }
-
-        let (session, new_session) = match build_session(BuildSessionContext {
-            connect_id: context.connect_id,
-            client_id: client_id.clone(),
-            connect: context.connect.clone(),
-            connect_properties: context.connect_properties.clone(),
-            last_will: context.last_will.clone(),
-            last_will_properties: context.last_will_properties.clone(),
-            client_pool: self.client_pool.clone(),
-            cache_manager: self.cache_manager.clone(),
-        })
+        // session process
+        let (session, new_session) = match session_process(
+            &self.protocol,
+            BuildSessionContext {
+                connect_id: context.connect_id,
+                client_id: client_id.clone(),
+                connect: context.connect.clone(),
+                connect_properties: context.connect_properties.clone(),
+                last_will: context.last_will.clone(),
+                last_will_properties: context.last_will_properties.clone(),
+                client_pool: self.client_pool.clone(),
+                cache_manager: self.cache_manager.clone(),
+                subscribe_manager: self.subscribe_manager.clone(),
+            },
+        )
         .await
         {
-            Ok(data) => data,
+            Ok((session, new_session)) => (session, new_session),
             Err(e) => {
                 return response_packet_mqtt_connect_fail(
                     &self.protocol,
@@ -158,23 +163,6 @@ impl MqttService {
                 );
             }
         };
-
-        if let Err(e) = save_session(
-            context.connect_id,
-            session.clone(),
-            new_session,
-            client_id.clone(),
-            &self.client_pool,
-        )
-        .await
-        {
-            return response_packet_mqtt_connect_fail(
-                &self.protocol,
-                ConnectReturnCode::MalformedPacket,
-                &context.connect_properties,
-                Some(e.to_string()),
-            );
-        }
 
         if let Err(e) = save_last_will_message(
             client_id.clone(),
@@ -238,8 +226,8 @@ impl MqttService {
             cluster: cluster.clone(),
             client_id: client_id.clone(),
             auto_client_id: new_client_id,
-            session_expiry_interval: session.session_expiry as u32,
-            session_present: new_session,
+            session_expiry_interval: session.session_expiry_interval as u32,
+            session_present: !new_session,
             keep_alive: connection.keep_alive,
             connect_properties: context.connect_properties.clone(),
         })

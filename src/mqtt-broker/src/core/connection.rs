@@ -14,10 +14,12 @@
 
 use super::cache::MQTTCacheManager;
 use super::keep_alive::client_keep_live_time;
+use crate::core::error::MqttBrokerError;
 use crate::core::flow_control::is_connection_rate_exceeded;
 use crate::core::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
 };
+use crate::core::session::delete_session_by_local;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::manager::SubscribeManager;
@@ -25,10 +27,12 @@ use common_base::tools::{now_second, unique_id};
 use futures_util::SinkExt;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
+use metadata_struct::mqtt::session::MqttSession;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{
-    Connect, ConnectProperties, ConnectReturnCode, DisconnectReasonCode, MqttPacket, MqttProtocol,
+    Connect, ConnectProperties, ConnectReturnCode, DisconnectProperties, DisconnectReasonCode,
+    MqttPacket, MqttProtocol,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -38,7 +42,18 @@ use tokio_util::codec::FramedWrite;
 use tracing::{error, warn};
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
-pub const DISCONNECT_FLAG_NOT_DELETE_SESSION: &str = "DISCONNECT_FLAG_NOT_DELETE_SESSION";
+
+#[derive(Clone)]
+pub struct DisconnectConnectionContext {
+    pub cache_manager: Arc<MQTTCacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub subscribe_manager: Arc<SubscribeManager>,
+    pub disconnect_properties: Option<DisconnectProperties>,
+    pub connection: MQTTConnection,
+    pub session: MqttSession,
+    pub protocol: MqttProtocol,
+}
 
 pub async fn build_connection(
     connect_id: u64,
@@ -164,39 +179,118 @@ pub fn response_information(connect_properties: &Option<ConnectProperties>) -> O
     None
 }
 
-pub fn is_delete_session(user_properties: &Vec<(String, String)>) -> bool {
-    for (key, value) in user_properties {
-        if *key == *DISCONNECT_FLAG_NOT_DELETE_SESSION && value == "true" {
-            return false;
+/// Handle connection teardown and persist session state according to MQTT semantics.
+///
+/// - MQTT 3.1 / 3.1.1: if `Clean Session = 1`, the session is deleted on disconnect; otherwise the
+///   session is kept and marked offline.
+/// - MQTT 5.0: the effective Session Expiry Interval used at disconnect time is:
+///   `DISCONNECT.properties.session_expiry_interval` (if present) otherwise the value stored in the
+///   session (set during CONNECT). If the effective expiry is 0, delete the session immediately;
+///   otherwise keep the session, mark it offline, and persist the effective expiry.
+pub async fn disconnect_connection(context: DisconnectConnectionContext) -> ResultMqttBrokerError {
+    let session_storage = SessionStorage::new(context.client_pool.clone());
+    let session_expiry_interval =
+        get_session_expiry_interval(&context.session, &context.disconnect_properties);
+    if is_delete_session(
+        &context.connection,
+        &context.protocol,
+        session_expiry_interval,
+    ) {
+        session_storage
+            .delete_session(context.connection.client_id.clone())
+            .await?;
+        delete_session_by_local(
+            &context.cache_manager,
+            &context.subscribe_manager,
+            &context.connection.client_id,
+        );
+    } else {
+        let mut new_session = context.session.clone();
+        if context.protocol.is_mqtt5() {
+            // MQTT5: DISCONNECT Session Expiry Interval (if present) overrides the session expiry.
+            new_session.session_expiry_interval = session_expiry_interval as u64;
         }
+        new_session.connection_id = None;
+        new_session.broker_id = None;
+        new_session.reconnect_time = None;
+        new_session.distinct_time = Some(now_second());
+        session_storage
+            .set_session(context.connection.client_id.clone(), &new_session)
+            .await?;
     }
-    true
+
+    context
+        .connection_manager
+        .close_connect(context.connection.connect_id)
+        .await;
+    context
+        .cache_manager
+        .remove_connection(context.connection.connect_id);
+    Ok(())
 }
 
-pub async fn disconnect_connection(
-    client_id: &str,
-    connect_id: u64,
+pub fn build_server_disconnect_conn_context(
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     connection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,
-    delete_session: bool,
-) -> ResultMqttBrokerError {
-    let session_storage = SessionStorage::new(client_pool.clone());
-    if delete_session {
-        session_storage.delete_session(client_id.to_owned()).await?;
-        cache_manager.remove_session(client_id);
-        subscribe_manager.remove_by_client_id(client_id);
+    connect_id: u64,
+    protocol: &MqttProtocol,
+) -> Result<DisconnectConnectionContext, MqttBrokerError> {
+    let connection = if let Some(connection) = cache_manager.get_connection(connect_id) {
+        connection
     } else {
-        cache_manager.update_session_connect_id(client_id, None);
-        session_storage
-            .update_session(client_id.to_owned(), 0, 0, 0, now_second())
-            .await?;
+        return Err(MqttBrokerError::NotFoundConnectionInCache(connect_id));
+    };
+
+    let session = if let Some(session) = cache_manager.get_session_info(&connection.client_id) {
+        session
+    } else {
+        return Err(MqttBrokerError::SessionDoesNotExist);
+    };
+
+    let disconnect_properties = Some(DisconnectProperties {
+        session_expiry_interval: Some(session.session_expiry_interval as u32),
+        ..Default::default()
+    });
+
+    Ok(DisconnectConnectionContext {
+        cache_manager: cache_manager.clone(),
+        client_pool: client_pool.clone(),
+        connection_manager: connection_manager.clone(),
+        subscribe_manager: subscribe_manager.clone(),
+        disconnect_properties,
+        connection,
+        session,
+        protocol: protocol.clone(),
+    })
+}
+
+fn is_delete_session(
+    connection: &MQTTConnection,
+    protocol: &MqttProtocol,
+    session_expiry_interval: u32,
+) -> bool {
+    if (protocol.is_mqtt3() || protocol.is_mqtt4()) && connection.clean_session {
+        return true;
     }
 
-    connection_manager.close_connect(connect_id).await;
-    cache_manager.remove_connection(connect_id);
-    Ok(())
+    if protocol.is_mqtt5() && session_expiry_interval == 0 {
+        return true;
+    }
+    false
+}
+
+fn get_session_expiry_interval(
+    session: &MqttSession,
+    disconnect_properties: &Option<DisconnectProperties>,
+) -> u32 {
+    if let Some(properties) = disconnect_properties {
+        if let Some(expiry) = properties.session_expiry_interval {
+            return expiry;
+        }
+    }
+    session.session_expiry_interval as u32
 }
 
 pub async fn tcp_establish_connection_check(

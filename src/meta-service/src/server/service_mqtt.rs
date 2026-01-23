@@ -25,7 +25,7 @@ use crate::server::services::mqtt::connector::{
 };
 use crate::server::services::mqtt::session::{
     create_session_by_req, delete_session_by_req, get_last_will_message_by_req,
-    list_session_by_req, save_last_will_message_by_req, update_session_by_req,
+    list_session_by_req, save_last_will_message_by_req,
 };
 use crate::server::services::mqtt::share_sub::get_share_sub_leader_by_req;
 use crate::server::services::mqtt::subscribe::{
@@ -62,7 +62,7 @@ use protocol::meta::meta_service_mqtt::{
     SaveLastWillMessageReply, SaveLastWillMessageRequest, SetAutoSubscribeRuleReply,
     SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
     SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateConnectorReply,
-    UpdateConnectorRequest, UpdateSessionReply, UpdateSessionRequest,
+    UpdateConnectorRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -184,25 +184,6 @@ impl MqttService for GrpcMqttService {
             &self.raft_manager,
             &self.call_manager,
             &self.client_pool,
-            &req,
-        )
-        .await
-        .map_err(Self::to_status)
-        .map(Response::new)
-    }
-
-    async fn update_session(
-        &self,
-        request: Request<UpdateSessionRequest>,
-    ) -> Result<Response<UpdateSessionReply>, Status> {
-        let req = request.into_inner();
-        self.validate_request(&req)?;
-
-        update_session_by_req(
-            &self.raft_manager,
-            &self.call_manager,
-            &self.client_pool,
-            &self.rocksdb_engine_handler,
             &req,
         )
         .await

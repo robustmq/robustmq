@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::MQTTCacheManager;
 use crate::core::error::MqttBrokerError;
 use crate::core::last_will::send_last_will_message;
+use crate::core::{cache::MQTTCacheManager, session::delete_session_by_local};
 use crate::subscribe::manager::SubscribeManager;
 use broker_core::tool::wait_cluster_running;
 use common_metrics::mqtt::session::record_mqtt_session_deleted;
@@ -43,8 +43,7 @@ pub async fn delete_session_by_req(
     }
 
     for client_id in req.client_id.iter() {
-        subscribe_manager.remove_by_client_id(client_id);
-        cache_manager.remove_session(client_id);
+        delete_session_by_local(cache_manager, subscribe_manager, client_id);
     }
     record_mqtt_session_deleted();
     Ok(DeleteSessionReply::default())

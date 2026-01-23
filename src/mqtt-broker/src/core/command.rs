@@ -15,7 +15,8 @@
 use super::flow_control::is_qos_message;
 use super::mqtt::{MqttService, MqttServiceConnectContext, MqttServiceContext};
 use crate::core::cache::MQTTCacheManager;
-use crate::core::connection::disconnect_connection;
+use crate::core::connection::{build_server_disconnect_conn_context, disconnect_connection};
+use crate::core::error::MqttBrokerError;
 use crate::core::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
 };
@@ -179,32 +180,23 @@ impl Command for MQTTHandlerCommand {
                 ));
             }
         };
+
         if let Some(mut pkg) = resp_package {
             pkg.request_packet = mqtt_packet_to_string(&packet);
             resp_package = Some(pkg);
         }
 
-        if let Some(pkg) = resp_package.clone() {
-            if let MqttPacket::Disconnect(_, _) = pkg.packet.get_mqtt_packet().unwrap() {
-                if let Some(connection) = self
-                    .cache_manager
-                    .get_connection(tcp_connection.connection_id)
-                {
-                    if let Err(e) = disconnect_connection(
-                        &connection.client_id,
-                        connection.connect_id,
-                        &self.cache_manager,
-                        &self.client_pool,
-                        &self.connection_manager,
-                        &self.subscribe_manager,
-                        true,
-                    )
-                    .await
-                    {
-                        error!("{}", e);
-                    };
-                }
-            }
+        if let Err(e) = self
+            .try_process_distinct_packet(tcp_connection, &resp_package)
+            .await
+        {
+            error!(
+                connect_id = tcp_connection.connection_id,
+                protocol = ?tcp_connection.get_protocol(),
+                request_packet = %mqtt_packet_to_string(&packet),
+                error = %e,
+                "Failed to process server-side disconnect side effects"
+            );
         }
 
         record_packet_process_duration(
@@ -215,7 +207,29 @@ impl Command for MQTTHandlerCommand {
         resp_package
     }
 }
+
 impl MQTTHandlerCommand {
+    async fn try_process_distinct_packet(
+        &self,
+        tcp_connection: &NetworkConnection,
+        resp_package: &Option<ResponsePackage>,
+    ) -> Result<(), MqttBrokerError> {
+        if let Some(pkg) = resp_package.clone() {
+            if let MqttPacket::Disconnect(_, _) = pkg.packet.get_mqtt_packet().unwrap() {
+                let context = build_server_disconnect_conn_context(
+                    &self.cache_manager,
+                    &self.client_pool,
+                    &self.connection_manager,
+                    &self.subscribe_manager,
+                    tcp_connection.connection_id,
+                    &tcp_connection.get_protocol(),
+                )?;
+                disconnect_connection(context).await?;
+            }
+        }
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn process_connect(
         &self,

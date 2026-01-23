@@ -15,6 +15,8 @@
 use super::cache::{ConnectionLiveTime, MQTTCacheManager};
 use super::connection::disconnect_connection;
 use super::response::response_packet_mqtt_distinct_by_reason;
+use crate::core::connection::build_server_disconnect_conn_context;
+use crate::core::error::MqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
@@ -31,7 +33,7 @@ use protocol::robust::RobustMQPacketWrapper;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::broadcast::{self};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 #[derive(Clone)]
 pub struct TrySendDistinctPacketContext {
@@ -112,7 +114,22 @@ impl ClientKeepAlive {
                         protocol: protocol.to_mqtt(),
                         connect_id,
                     };
-                    self.try_send_distinct_packet(context);
+                    tokio::spawn(async move {
+                        if let Err(e) = try_send_distinct_packet(&context).await {
+                            warn!(
+                                connect_id = context.connect_id,
+                                client_id = %context.connection.client_id,
+                                protocol = ?context.protocol,
+                                error = %e,
+                                "Heartbeat timeout: failed to actively disconnect connection"
+                            );
+                        } else {
+                            debug!(
+                                "Heartbeat timeout, active disconnection {} successful",
+                                context.connect_id
+                            );
+                        }
+                    });
                 }
             }
         }
@@ -123,59 +140,6 @@ impl ClientKeepAlive {
             }
         }
         Ok(())
-    }
-
-    fn try_send_distinct_packet(&self, context: TrySendDistinctPacketContext) {
-        tokio::spawn(async move {
-            if context.network.is_tcp() {
-                let _ = context
-                    .connection_manager
-                    .write_tcp_frame(
-                        context.connection.connect_id,
-                        RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
-                    )
-                    .await;
-            } else if context.network.is_quic() {
-                let _ = context
-                    .connection_manager
-                    .write_quic_frame(
-                        context.connection.connect_id,
-                        RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
-                    )
-                    .await;
-            } else {
-                let mut codec = MqttCodec::new(Some(context.protocol.clone().into()));
-                let mut buff = BytesMut::new();
-                if codec.encode_data(context.wrap.clone(), &mut buff).is_err() {
-                    return;
-                }
-
-                let _ = context
-                    .connection_manager
-                    .write_websocket_frame(
-                        context.connection.connect_id,
-                        RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
-                        Message::Binary(buff.to_vec()),
-                    )
-                    .await;
-            }
-
-            let _ = disconnect_connection(
-                &context.connection.client_id,
-                context.connect_id,
-                &context.cache_manager,
-                &context.client_pool,
-                &context.connection_manager,
-                &context.subscribe_manager,
-                true,
-            )
-            .await;
-            record_mqtt_connection_expired();
-            debug!(
-                "Heartbeat timeout, active disconnection {} successful",
-                context.connect_id
-            );
-        });
     }
 
     async fn get_expire_connection(&self) -> Vec<u64> {
@@ -200,6 +164,51 @@ impl ClientKeepAlive {
         }
         expire_connection
     }
+}
+
+async fn try_send_distinct_packet(
+    context: &TrySendDistinctPacketContext,
+) -> Result<(), MqttBrokerError> {
+    if context.network.is_tcp() {
+        context
+            .connection_manager
+            .write_tcp_frame(
+                context.connection.connect_id,
+                RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
+            )
+            .await?;
+    } else if context.network.is_quic() {
+        context
+            .connection_manager
+            .write_quic_frame(
+                context.connection.connect_id,
+                RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
+            )
+            .await?;
+    } else {
+        let mut codec = MqttCodec::new(Some(context.protocol.clone().into()));
+        let mut buff = BytesMut::new();
+        codec.encode_data(context.wrap.clone(), &mut buff)?;
+        context
+            .connection_manager
+            .write_websocket_frame(
+                context.connection.connect_id,
+                RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
+                Message::Binary(buff.to_vec()),
+            )
+            .await?
+    }
+    let context = build_server_disconnect_conn_context(
+        &context.cache_manager,
+        &context.client_pool,
+        &context.connection_manager,
+        &context.subscribe_manager,
+        context.connect_id,
+        &context.protocol,
+    )?;
+    disconnect_connection(context).await?;
+    record_mqtt_connection_expired();
+    Ok(())
 }
 
 pub async fn keep_live_time(cache_manager: &Arc<MQTTCacheManager>, keep_alive: u16) -> u16 {

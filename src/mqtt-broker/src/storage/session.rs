@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::mqtt::call::{
     placement_create_session, placement_delete_session, placement_get_last_will_message,
-    placement_list_session, placement_save_last_will_message, placement_update_session,
+    placement_list_session, placement_save_last_will_message,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::meta::meta_service_mqtt::{
     CreateSessionRequest, DeleteSessionRequest, GetLastWillMessageRequest, ListSessionRequest,
-    SaveLastWillMessageRequest, UpdateSessionRequest,
+    SaveLastWillMessageRequest,
 };
+use std::sync::Arc;
 
 pub struct SessionStorage {
     client_pool: Arc<ClientPool>,
@@ -50,28 +49,6 @@ impl SessionStorage {
         };
 
         placement_create_session(&self.client_pool, &config.get_meta_service_addr(), request)
-            .await?;
-        Ok(())
-    }
-
-    pub async fn update_session(
-        &self,
-        client_id: String,
-        connection_id: u64,
-        broker_id: u64,
-        reconnect_time: u64,
-        distinct_time: u64,
-    ) -> Result<(), CommonError> {
-        let config = broker_config();
-        let request = UpdateSessionRequest {
-            client_id,
-            connection_id,
-            broker_id,
-            reconnect_time,
-            distinct_time,
-        };
-
-        placement_update_session(&self.client_pool, &config.get_meta_service_addr(), request)
             .await?;
         Ok(())
     }

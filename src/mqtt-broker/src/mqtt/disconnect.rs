@@ -14,10 +14,8 @@
 
 // NOTE: kept for backward compat; use disconnect.rs.
 use super::MqttService;
-
-use crate::core::connection::{disconnect_connection, is_delete_session};
+use crate::core::connection::{disconnect_connection, DisconnectConnectionContext};
 use crate::system_topic::event::{st_report_disconnected_event, StReportDisconnectedEventContext};
-
 use protocol::mqtt::common::{Disconnect, DisconnectProperties, MqttPacket};
 use tracing::warn;
 
@@ -34,35 +32,34 @@ impl MqttService {
             return None;
         };
 
-        if let Some(session) = self.cache_manager.get_session_info(&connection.client_id) {
-            st_report_disconnected_event(StReportDisconnectedEventContext {
-                storage_driver_manager: self.storage_driver_manager.clone(),
-                metadata_cache: self.cache_manager.clone(),
-                client_pool: self.client_pool.clone(),
-                session: session.clone(),
-                connection: connection.clone(),
-                connect_id,
-                connection_manager: self.connection_manager.clone(),
-                reason: disconnect.reason_code,
-            })
-            .await;
-        }
+        let session =
+            if let Some(session) = self.cache_manager.get_session_info(&connection.client_id) {
+                st_report_disconnected_event(StReportDisconnectedEventContext {
+                    storage_driver_manager: self.storage_driver_manager.clone(),
+                    metadata_cache: self.cache_manager.clone(),
+                    client_pool: self.client_pool.clone(),
+                    session: session.clone(),
+                    connection: connection.clone(),
+                    connect_id,
+                    connection_manager: self.connection_manager.clone(),
+                    reason: disconnect.reason_code,
+                })
+                .await;
+                session
+            } else {
+                return None;
+            };
 
-        let delete_session = if let Some(properties) = disconnect_properties {
-            is_delete_session(&properties.user_properties)
-        } else {
-            false
-        };
-
-        if let Err(e) = disconnect_connection(
-            &connection.client_id,
-            connect_id,
-            &self.cache_manager,
-            &self.client_pool,
-            &self.connection_manager,
-            &self.subscribe_manager,
-            delete_session,
-        )
+        if let Err(e) = disconnect_connection(DisconnectConnectionContext {
+            cache_manager: self.cache_manager.clone(),
+            client_pool: self.client_pool.clone(),
+            connection_manager: self.connection_manager.clone(),
+            subscribe_manager: self.subscribe_manager.clone(),
+            disconnect_properties: disconnect_properties.clone(),
+            connection: connection.clone(),
+            session: session.clone(),
+            protocol: self.protocol.clone(),
+        })
         .await
         {
             warn!("disconnect connection failed, {}", e.to_string());

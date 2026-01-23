@@ -34,7 +34,7 @@ use protocol::meta::meta_service_mqtt::{
     SaveLastWillMessageReply, SaveLastWillMessageRequest, SetAutoSubscribeRuleReply,
     SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
     SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateConnectorReply,
-    UpdateConnectorRequest, UpdateSessionReply, UpdateSessionRequest,
+    UpdateConnectorRequest,
 };
 use tonic::transport::Channel;
 use tonic::Streaming;
@@ -202,17 +202,6 @@ impl_retriable_request!(
     list_session,
     "MqttService",
     "ListSession",
-    true
-);
-
-impl_retriable_request!(
-    UpdateSessionRequest,
-    MqttServiceClient<Channel>,
-    UpdateSessionReply,
-    meta_service_mqtt_services_client,
-    update_session,
-    "MqttService",
-    "UpdateSession",
     true
 );
 

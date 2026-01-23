@@ -165,7 +165,7 @@ impl MQTTCacheManager {
 
     pub fn update_session_connect_id(&self, client_id: &str, connect_id: Option<u64>) {
         if let Some(mut session) = self.session_info.get_mut(client_id) {
-            session.update_connnction_id(connect_id);
+            session.update_connection_id(connect_id);
             if connect_id.is_none() {
                 session.update_distinct_time()
             }

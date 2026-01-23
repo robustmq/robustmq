@@ -88,7 +88,7 @@ mod tests {
     fn create_session(client_id: &str) -> MqttSession {
         MqttSession {
             client_id: client_id.to_string(),
-            session_expiry: 3600,
+            session_expiry_interval: 3600,
             ..Default::default()
         }
     }
@@ -138,12 +138,12 @@ mod tests {
 
         // Overwrite with new session
         let mut session2 = create_session("client1");
-        session2.session_expiry = 7200;
+        session2.session_expiry_interval = 7200;
         storage.save("client1", session2).unwrap();
 
         // Verify overwrite
         let retrieved = storage.get("client1").unwrap().unwrap();
-        assert_eq!(retrieved.session_expiry, 7200);
+        assert_eq!(retrieved.session_expiry_interval, 7200);
 
         // Should still have only one session
         let all_sessions = storage.list_all().unwrap();
