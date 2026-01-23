@@ -62,6 +62,10 @@ pub fn ws_by_type(network_type: &str) -> bool {
     net == "ws" || net == "wss"
 }
 
+pub fn test_client_id() -> String {
+    format!("{}_{}", unique_id(), now_nanos())
+}
+
 pub fn ssl_by_type(network_type: &str) -> bool {
     let net = network_type.to_string();
     net == "ssl" || net == "wss"
@@ -366,35 +370,7 @@ pub fn build_create_conn_pros(client_id: &str, addr: &str) -> CreateOptions {
 }
 
 pub fn distinct_conn(cli: Client) {
-    let mut props = Properties::new();
-
-    props
-        .push_string_pair(
-            PropertyCode::UserProperty,
-            "DISCONNECT_FLAG_NOT_DELETE_SESSION",
-            "true",
-        )
-        .unwrap();
-
-    let disconnect_opts = DisconnectOptionsBuilder::new()
-        .reason_code(ReasonCode::DisconnectWithWillMessage)
-        .properties(props)
-        .finalize();
-    let res = cli.disconnect(disconnect_opts);
-    assert!(res.is_ok());
-}
-
-pub fn distinct_conn_close(cli: Client) {
-    let mut props = Properties::new();
-
-    props
-        .push_string_pair(
-            PropertyCode::UserProperty,
-            "DISCONNECT_FLAG_NOT_DELETE_SESSION",
-            "false",
-        )
-        .unwrap();
-
+    let props = Properties::new();
     let disconnect_opts = DisconnectOptionsBuilder::new()
         .reason_code(ReasonCode::DisconnectWithWillMessage)
         .properties(props)

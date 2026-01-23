@@ -315,6 +315,7 @@ mod test {
             request_problem_info: 100,
             keep_alive,
             source_ip_addr: addr,
+            clean_session: false,
         };
         let connection = MQTTConnection::new(config);
         cache_manager.add_connection(connect_id, connection);

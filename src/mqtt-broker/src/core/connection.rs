@@ -111,6 +111,7 @@ pub async fn build_connection(
         request_problem_info,
         keep_alive,
         source_ip_addr: addr.to_string(),
+        clean_session: connect.clean_session,
     };
     MQTTConnection::new(config)
 }
@@ -191,11 +192,12 @@ pub async fn disconnect_connection(context: DisconnectConnectionContext) -> Resu
     let session_storage = SessionStorage::new(context.client_pool.clone());
     let session_expiry_interval =
         get_session_expiry_interval(&context.session, &context.disconnect_properties);
-    if is_delete_session(
+    let delete = is_delete_session(
         &context.connection,
         &context.protocol,
         session_expiry_interval,
-    ) {
+    );
+    if delete {
         session_storage
             .delete_session(context.connection.client_id.clone())
             .await?;

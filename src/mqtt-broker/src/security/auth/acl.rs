@@ -27,12 +27,9 @@ pub fn is_acl_deny(
     topic_name: &str,
     action: MqttAclAction,
 ) -> bool {
+    let user = connection.login_user.clone().unwrap_or_default();
     // check user acl
-    if let Some(acl_list) = cache_manager
-        .acl_metadata
-        .acl_user
-        .get(&connection.login_user)
-    {
+    if let Some(acl_list) = cache_manager.acl_metadata.acl_user.get(&user) {
         return check_for_deny(&acl_list, &action, topic_name, &connection.source_ip_addr);
     }
 
@@ -109,6 +106,7 @@ mod test {
             request_problem_info: 1,
             keep_alive: 2,
             source_ip_addr: local_hostname(),
+            clean_session: true,
         };
         let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());

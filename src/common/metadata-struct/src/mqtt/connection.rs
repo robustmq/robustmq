@@ -33,7 +33,7 @@ pub struct MQTTConnection {
     pub clean_session: bool,
 
     // The user name of the client that initiated the connection
-    pub login_user: String,
+    pub login_user: Option<String>,
     // When the client does not report a heartbeat, the maximum survival time of the connection,
     pub keep_alive: u16,
     // Records the Topic alias information for the connection dimension
@@ -65,6 +65,7 @@ pub struct ConnectionConfig {
     pub request_problem_info: u8,
     pub keep_alive: u16,
     pub source_ip_addr: String,
+    pub clean_session: bool,
 }
 
 impl MQTTConnection {
@@ -83,13 +84,14 @@ impl MQTTConnection {
             sender_qos_message: Arc::new(AtomicIsize::new(0)),
             create_time: now_second(),
             source_ip_addr: config.source_ip_addr,
-            ..Default::default()
+            clean_session: config.clean_session,
+            login_user: None,
         }
     }
 
     pub fn login_success(&mut self, user_name: String) {
         self.is_login = true;
-        self.login_user = user_name;
+        self.login_user = Some(user_name);
     }
 
     pub fn is_response_problem_info(&self) -> bool {

@@ -28,13 +28,10 @@ pub fn is_blacklist(
 ) -> Result<bool, MqttBrokerError> {
     // todo: I believe this code can be refactored using the Chain of Responsibility pattern.
     // check user blacklist
-    if let Some(data) = cache_manager
-        .acl_metadata
-        .blacklist_user
-        .get(&connection.login_user)
-    {
+    let user = connection.login_user.clone().unwrap_or_default();
+    if let Some(data) = cache_manager.acl_metadata.blacklist_user.get(&user) {
         if data.end_time > now_second() {
-            info!("user blacklist banned,user:{}", &connection.login_user);
+            info!("user blacklist banned,user:{}", user);
             return Ok(true);
         }
     }
@@ -42,11 +39,8 @@ pub fn is_blacklist(
     if let Some(data) = cache_manager.acl_metadata.get_blacklist_user_match() {
         for raw in data {
             let re = Regex::new(&format!("^{}$", raw.resource_name))?;
-            if re.is_match(&connection.login_user) && raw.end_time > now_second() {
-                info!(
-                    "user blacklist banned by match,user:{}",
-                    &connection.login_user
-                );
+            if re.is_match(&user) && raw.end_time > now_second() {
+                info!("user blacklist banned by match,user:{}", user);
                 return Ok(true);
             }
         }
@@ -152,6 +146,7 @@ mod test {
             request_problem_info: 1,
             keep_alive: 2,
             source_ip_addr: local_hostname(),
+            clean_session: false,
         };
         let mut connection = MQTTConnection::new(config);
         connection.login_success(user.username.clone());
