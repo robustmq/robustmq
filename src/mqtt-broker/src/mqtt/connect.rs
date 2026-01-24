@@ -93,7 +93,7 @@ fn response_packet_mqtt_connect_success(
 pub fn response_packet_mqtt_connect_fail(
     protocol: &MqttProtocol,
     code: ConnectReturnCode,
-    _connect_properties: &Option<ConnectProperties>,
+    connect_properties: &Option<ConnectProperties>,
     error_reason: Option<String>,
 ) -> MqttPacket {
     debug!("{code:?},{error_reason:?}");
@@ -115,10 +115,22 @@ pub fn response_packet_mqtt_connect_fail(
             None,
         );
     }
-    let properties = ConnAckProperties::default();
-    // if is_request_problem_info(connect_properties) {
-    //     properties.reason_string = error_reason;
-    // }
+
+    let mut properties = ConnAckProperties::default();
+    let is_request_problem_info = if let Some(pros) = connect_properties {
+        if let Some(problem) = pros.request_problem_info {
+            problem == 1
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    if is_request_problem_info {
+        properties.reason_string = error_reason;
+    }
+
     MqttPacket::ConnAck(
         ConnAck {
             session_present: false,
@@ -149,6 +161,7 @@ impl MqttService {
             &self.protocol,
             context.connect.clean_session,
             &context.connect.client_id,
+            &context.connect_properties,
         );
 
         if let Some(pkt) = resp {
@@ -198,7 +211,7 @@ impl MqttService {
                 &self.protocol,
                 ConnectReturnCode::Banned,
                 &context.connect_properties,
-                None,
+                Some("client is banned".to_string()),
             );
         }
 
@@ -220,7 +233,7 @@ impl MqttService {
                         &self.protocol,
                         ConnectReturnCode::NotAuthorized,
                         &context.connect_properties,
-                        None,
+                        Some("login not authorized".to_string()),
                     );
                 }
                 record_mqtt_auth_success();

@@ -127,6 +127,7 @@ pub fn get_client_id(
     protocol: &MqttProtocol,
     clean_session: bool,
     client_id: &str,
+    connect_properties: &Option<ConnectProperties>,
 ) -> (Option<(String, bool)>, Option<MqttPacket>) {
     match protocol {
         MqttProtocol::Mqtt3 => {
@@ -136,7 +137,7 @@ pub fn get_client_id(
                     Some(response_packet_mqtt_connect_fail(
                         protocol,
                         ConnectReturnCode::IdentifierRejected,
-                        &None,
+                        connect_properties,
                         None,
                     )),
                 );
@@ -153,7 +154,7 @@ pub fn get_client_id(
                     Some(response_packet_mqtt_connect_fail(
                         protocol,
                         ConnectReturnCode::IdentifierRejected,
-                        &None,
+                        connect_properties,
                         None,
                     )),
                 );
@@ -457,25 +458,41 @@ mod test {
 
     #[tokio::test]
     pub async fn get_client_id_test() {
-        let (data, resp) =
-            super::get_client_id(&protocol::mqtt::common::MqttProtocol::Mqtt3, true, "");
+        let (data, resp) = super::get_client_id(
+            &protocol::mqtt::common::MqttProtocol::Mqtt3,
+            true,
+            "",
+            &None,
+        );
         assert!(data.is_none());
         assert!(resp.is_some());
 
-        let (data, resp) =
-            super::get_client_id(&protocol::mqtt::common::MqttProtocol::Mqtt4, false, "");
+        let (data, resp) = super::get_client_id(
+            &protocol::mqtt::common::MqttProtocol::Mqtt4,
+            false,
+            "",
+            &None,
+        );
         assert!(data.is_none());
         assert!(resp.is_some());
 
-        let (data, resp) =
-            super::get_client_id(&protocol::mqtt::common::MqttProtocol::Mqtt4, true, "");
+        let (data, resp) = super::get_client_id(
+            &protocol::mqtt::common::MqttProtocol::Mqtt4,
+            true,
+            "",
+            &None,
+        );
         assert!(resp.is_none());
         let (cid, auto) = data.unwrap();
         assert!(!cid.is_empty());
         assert!(auto);
 
-        let (data, resp) =
-            super::get_client_id(&protocol::mqtt::common::MqttProtocol::Mqtt5, true, "");
+        let (data, resp) = super::get_client_id(
+            &protocol::mqtt::common::MqttProtocol::Mqtt5,
+            true,
+            "",
+            &None,
+        );
         assert!(resp.is_none());
         let (cid, auto) = data.unwrap();
         assert!(!cid.is_empty());

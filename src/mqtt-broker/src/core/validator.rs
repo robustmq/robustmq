@@ -63,7 +63,7 @@ pub fn connect_validator(
             protocol,
             ConnectReturnCode::ClientIdentifierNotValid,
             connect_properties,
-            None,
+            Some("invalid client_id".to_string()),
         ));
     }
 
@@ -73,7 +73,7 @@ pub fn connect_validator(
                 protocol,
                 ConnectReturnCode::BadUserNamePassword,
                 connect_properties,
-                None,
+                Some("invalid username or password format".to_string()),
             ));
         }
     }
@@ -84,7 +84,7 @@ pub fn connect_validator(
                 protocol,
                 ConnectReturnCode::TopicNameInvalid,
                 connect_properties,
-                None,
+                Some("will topic is empty".to_string()),
             ));
         }
 
@@ -117,7 +117,7 @@ pub fn connect_validator(
                 protocol,
                 ConnectReturnCode::PayloadFormatInvalid,
                 connect_properties,
-                None,
+                Some("will message is empty".to_string()),
             ));
         }
 
@@ -126,7 +126,7 @@ pub fn connect_validator(
                 protocol,
                 ConnectReturnCode::PayloadFormatInvalid,
                 connect_properties,
-                None,
+                Some("will payload format invalid".to_string()),
             ));
         }
 
@@ -136,7 +136,7 @@ pub fn connect_validator(
                 protocol,
                 ConnectReturnCode::PacketTooLarge,
                 connect_properties,
-                None,
+                Some("will payload exceeds max packet size".to_string()),
             ));
         }
 
@@ -149,7 +149,7 @@ pub fn connect_validator(
                         protocol,
                         ConnectReturnCode::PayloadFormatInvalid,
                         connect_properties,
-                        None,
+                        Some("will payload is not valid UTF-8".to_string()),
                     ));
                 }
             }
