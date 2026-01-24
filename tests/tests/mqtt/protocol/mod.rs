@@ -33,10 +33,11 @@ pub struct ClientTestProperties {
 pub mod clean_session_test;
 pub mod client_id_test;
 pub mod connect_test;
+pub mod keep_alive_test;
 pub mod login_test;
 pub mod protocol_version_test;
-pub mod keep_alive_test;
-// mod session_test;
+pub mod session_expire_test;
+pub mod user_test;
 
 pub mod acl_test;
 pub mod blacklist_test;
@@ -61,4 +62,3 @@ pub mod sub_wildcards_test;
 pub mod topic_alias_test;
 mod topic_rewrite_test;
 pub mod user_properties_test;
-pub mod user_test;

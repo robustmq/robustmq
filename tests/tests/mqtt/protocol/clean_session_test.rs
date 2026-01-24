@@ -15,77 +15,14 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt::protocol::common::{
-        broker_addr_by_type, create_test_env, distinct_conn, password, test_client_id, username,
+        broker_addr_by_type, connect_mqtt34, connect_mqtt5, distinct_conn, session_count_by_admin,
+        session_list_by_admin, test_client_id,
     };
-    use admin_server::{
-        mqtt::session::{SessionListReq, SessionListRow},
-        tool::PageReplyData,
-    };
+    use admin_server::tool::PageReplyData;
     use common_base::tools::unique_id;
-    use paho_mqtt::{
-        Client, ConnectOptionsBuilder, CreateOptionsBuilder, DisconnectOptionsBuilder, Properties,
-        PropertyCode, ReasonCode,
-    };
+    use paho_mqtt::{DisconnectOptionsBuilder, Properties, PropertyCode, ReasonCode};
     use std::time::Duration;
     use tokio::time::sleep;
-
-    async fn session_count_by_admin(client_id: &str) -> usize {
-        let admin_client = create_test_env().await;
-        let request = SessionListReq {
-            client_id: Some(client_id.to_string()),
-            ..Default::default()
-        };
-        let data: PageReplyData<Vec<SessionListRow>> =
-            admin_client.get_session_list(&request).await.unwrap();
-        data.total_count
-    }
-
-    fn new_client(addr: &str, client_id: &str) -> Client {
-        let create_opts = CreateOptionsBuilder::new()
-            .server_uri(addr)
-            .client_id(client_id)
-            .finalize();
-        Client::new(create_opts).unwrap()
-    }
-
-    fn connect_mqtt34(addr: &str, client_id: &str, clean_session: bool) -> (Client, bool) {
-        let cli = new_client(addr, client_id);
-        let mut conn_opts = ConnectOptionsBuilder::with_mqtt_version(3);
-        conn_opts
-            .user_name(username())
-            .password(password())
-            .clean_session(clean_session);
-        let result = cli.connect(conn_opts.finalize()).unwrap();
-        assert_eq!(result.reason_code(), ReasonCode::Success);
-        let session_present = result.connect_response().unwrap().session_present;
-        (cli, session_present)
-    }
-
-    fn connect_mqtt5(
-        addr: &str,
-        client_id: &str,
-        clean_start: bool,
-        expiry: u32,
-    ) -> (Client, bool) {
-        let cli = new_client(addr, client_id);
-        let mut conn_opts = ConnectOptionsBuilder::new_v5();
-
-        let mut props = Properties::new();
-        props
-            .push_u32(PropertyCode::SessionExpiryInterval, expiry)
-            .unwrap();
-
-        conn_opts
-            .user_name(username())
-            .password(password())
-            .properties(props)
-            .clean_start(clean_start);
-
-        let result = cli.connect(conn_opts.finalize()).unwrap();
-        assert_eq!(result.reason_code(), ReasonCode::Success);
-        let session_present = result.connect_response().unwrap().session_present;
-        (cli, session_present)
-    }
 
     // mqtt 3/4. clean_session true/false
     #[tokio::test]
@@ -173,13 +110,8 @@ mod tests {
         assert!(!session_present);
 
         // session expire = 30
-        let admin_client = create_test_env().await;
-        let request = SessionListReq {
-            client_id: Some(client_id.to_string()),
-            ..Default::default()
-        };
-        let data: PageReplyData<Vec<SessionListRow>> =
-            admin_client.get_session_list(&request).await.unwrap();
+        let data: PageReplyData<Vec<admin_server::mqtt::session::SessionListRow>> =
+            session_list_by_admin(&client_id).await;
         let raw = data.data.first().unwrap();
         assert_eq!(raw.session_expiry, 30);
 
@@ -198,12 +130,7 @@ mod tests {
         sleep(Duration::from_secs(1)).await;
 
         // session expire = 30
-        let request = SessionListReq {
-            client_id: Some(client_id.to_string()),
-            ..Default::default()
-        };
-        let data: PageReplyData<Vec<SessionListRow>> =
-            admin_client.get_session_list(&request).await.unwrap();
+        let data = session_list_by_admin(&client_id).await;
         assert_eq!(session_count_by_admin(&client_id).await, 1);
         let raw = data.data.first().unwrap();
         assert_eq!(raw.session_expiry, 60);

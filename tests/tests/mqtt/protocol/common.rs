@@ -16,12 +16,17 @@ use std::time::Duration;
 
 use crate::mqtt::protocol::ClientTestProperties;
 use admin_server::client::AdminHttpClient;
+use admin_server::{
+    mqtt::session::{SessionListReq, SessionListRow},
+    tool::PageReplyData,
+};
 use common_base::tools::{now_nanos, unique_id};
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder,
     DisconnectOptionsBuilder, Message, Properties, PropertyCode, ReasonCode, SslOptionsBuilder,
     SubscribeOptions,
 };
+use tokio::time::{sleep, Instant};
 
 pub fn qos_list() -> Vec<i32> {
     vec![0, 1, 2]
@@ -33,6 +38,39 @@ pub fn protocol_versions() -> Vec<u32> {
 
 pub async fn create_test_env() -> AdminHttpClient {
     AdminHttpClient::new("http://127.0.0.1:8080")
+}
+
+pub async fn session_list_by_admin(client_id: &str) -> PageReplyData<Vec<SessionListRow>> {
+    let admin_client = create_test_env().await;
+    let request = SessionListReq {
+        client_id: Some(client_id.to_string()),
+        ..Default::default()
+    };
+    admin_client.get_session_list(&request).await.unwrap()
+}
+
+pub async fn session_count_by_admin(client_id: &str) -> usize {
+    session_list_by_admin(client_id).await.total_count
+}
+
+pub async fn wait_for_session_count_by_admin(
+    client_id: &str,
+    expected: usize,
+    max_wait: Duration,
+) -> Duration {
+    let start = Instant::now();
+    loop {
+        let count = session_count_by_admin(client_id).await;
+        if count == expected {
+            return start.elapsed();
+        }
+        if start.elapsed() >= max_wait {
+            panic!(
+                "wait_for_session_count_by_admin timeout: client_id={client_id}, expected={expected}, last_count={count}"
+            );
+        }
+        sleep(Duration::from_secs(1)).await;
+    }
 }
 
 pub fn network_types() -> Vec<String> {
@@ -103,23 +141,62 @@ pub fn build_conn_pros(
 
 pub fn connect_server(client_properties: &ClientTestProperties) -> Client {
     let create_opts = build_create_conn_pros(&client_properties.client_id, &client_properties.addr);
-    let cli_res = Client::new(create_opts);
-    if let Err(e) = cli_res {
-        panic!("{e:?}");
-    } else {
-        let cli = cli_res.unwrap();
-        let conn_opts = build_conn_pros(client_properties.clone(), client_properties.err_pwd);
-        let result = cli.connect(conn_opts);
-        if result.is_err() {
-            print!("result:{result:?}");
-        }
-        if client_properties.conn_is_err {
-            assert!(result.is_err());
-        } else {
-            assert!(result.is_ok());
-        }
-        cli
+    let cli = Client::new(create_opts).unwrap();
+    let conn_opts = build_conn_pros(client_properties.clone(), client_properties.err_pwd);
+    let result = cli.connect(conn_opts);
+    if result.is_err() {
+        println!("result:{result:?}");
     }
+    if client_properties.conn_is_err {
+        assert!(result.is_err());
+    } else {
+        assert!(result.is_ok());
+    }
+    cli
+}
+
+pub fn new_client(addr: &str, client_id: &str) -> Client {
+    let create_opts = build_create_conn_pros(client_id, addr);
+    Client::new(create_opts).unwrap()
+}
+
+pub fn connect_mqtt34(addr: &str, client_id: &str, clean_session: bool) -> (Client, bool) {
+    let cli = new_client(addr, client_id);
+    let mut conn_opts = ConnectOptionsBuilder::with_mqtt_version(3);
+    conn_opts
+        .user_name(username())
+        .password(password())
+        .clean_session(clean_session);
+    let result = cli.connect(conn_opts.finalize()).unwrap();
+    assert_eq!(result.reason_code(), ReasonCode::Success);
+    let session_present = result.connect_response().unwrap().session_present;
+    (cli, session_present)
+}
+
+pub fn connect_mqtt5(
+    addr: &str,
+    client_id: &str,
+    clean_start: bool,
+    expiry: u32,
+) -> (Client, bool) {
+    let cli = new_client(addr, client_id);
+    let mut conn_opts = ConnectOptionsBuilder::new_v5();
+
+    let mut props = Properties::new();
+    props
+        .push_u32(PropertyCode::SessionExpiryInterval, expiry)
+        .unwrap();
+
+    conn_opts
+        .user_name(username())
+        .password(password())
+        .properties(props)
+        .clean_start(clean_start);
+
+    let result = cli.connect(conn_opts.finalize()).unwrap();
+    assert_eq!(result.reason_code(), ReasonCode::Success);
+    let session_present = result.connect_response().unwrap().session_present;
+    (cli, session_present)
 }
 
 pub fn publish_data(cli: &Client, message: Message, is_err: bool) {

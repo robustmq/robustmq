@@ -149,7 +149,7 @@ impl ClientKeepAlive {
                 let max_timeout = keep_live_time(&self.cache_manager, time.keep_live).await as u64;
                 let now = now_second();
                 if (now - time.heartbeat) >= max_timeout {
-                    info!("{},client_id:{},now:{},heartbeat:{}","Connection was closed by the server because the heartbeat timeout was not reported.",connection.client_id,now,time.heartbeat);
+                    debug!("{},client_id:{},now:{},heartbeat:{}","Connection was closed by the server because the heartbeat timeout was not reported.",connection.client_id,now,time.heartbeat);
                     expire_connection.push(connect_id);
                 }
             } else {
