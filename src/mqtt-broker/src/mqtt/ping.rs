@@ -15,12 +15,14 @@
 use super::MqttService;
 
 use crate::core::cache::ConnectionLiveTime;
-use crate::core::response::{
-    response_packet_mqtt_distinct_by_reason, response_packet_mqtt_ping_resp,
-};
+use crate::mqtt::disconnect::response_packet_mqtt_distinct_by_reason;
 
 use common_base::tools::now_second;
-use protocol::mqtt::common::{DisconnectReasonCode, MqttPacket, PingReq};
+use protocol::mqtt::common::{DisconnectReasonCode, MqttPacket, PingReq, PingResp};
+
+pub fn response_packet_mqtt_ping_resp() -> MqttPacket {
+    MqttPacket::PingResp(PingResp {})
+}
 
 impl MqttService {
     pub async fn ping(&self, connect_id: u64, _: &PingReq) -> MqttPacket {

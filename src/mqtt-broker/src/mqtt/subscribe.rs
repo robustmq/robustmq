@@ -14,14 +14,11 @@
 
 use super::MqttService;
 
-use crate::core::response::{
-    response_packet_mqtt_distinct_by_reason, response_packet_mqtt_suback,
-    response_packet_mqtt_unsuback,
-};
 use crate::core::retain::{is_new_sub, try_send_retain_message, TrySendRetainMessageContext};
 use crate::core::subscribe::remove_subscribe;
 use crate::core::subscribe::{save_subscribe, SaveSubscribeContext};
 use crate::core::validator::{subscribe_validator, un_subscribe_validator};
+use crate::mqtt::disconnect::response_packet_mqtt_distinct_by_reason;
 use crate::subscribe::common::min_qos;
 use crate::system_topic::event::{
     st_report_subscribed_event, st_report_unsubscribed_event, StReportSubscribedEventContext,
@@ -29,9 +26,47 @@ use crate::system_topic::event::{
 };
 
 use protocol::mqtt::common::{
-    qos, DisconnectReasonCode, MqttPacket, Subscribe, SubscribeProperties, SubscribeReasonCode,
-    UnsubAckReason, Unsubscribe, UnsubscribeProperties,
+    qos, DisconnectReasonCode, MqttPacket, SubAck, SubAckProperties, Subscribe,
+    SubscribeProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
+    Unsubscribe, UnsubscribeProperties,
 };
+use tracing::debug;
+
+pub fn response_packet_mqtt_suback(
+    protocol: &protocol::mqtt::common::MqttProtocol,
+    connection: &metadata_struct::mqtt::connection::MQTTConnection,
+    pkid: u16,
+    return_codes: Vec<SubscribeReasonCode>,
+    reason_string: Option<String>,
+) -> MqttPacket {
+    if !protocol.is_mqtt5() {
+        return MqttPacket::SubAck(SubAck { pkid, return_codes }, None);
+    }
+
+    let sub_ack = SubAck { pkid, return_codes };
+    let mut properties = SubAckProperties::default();
+    if connection.is_response_problem_info() {
+        properties.reason_string = reason_string;
+    }
+    MqttPacket::SubAck(sub_ack, Some(properties))
+}
+
+pub fn response_packet_mqtt_unsuback(
+    connection: &metadata_struct::mqtt::connection::MQTTConnection,
+    pkid: u16,
+    reasons: Vec<UnsubAckReason>,
+    reason_string: Option<String>,
+) -> MqttPacket {
+    if reason_string.is_some() {
+        debug!("{reasons:?},{reason_string:?}");
+    }
+    let unsub_ack = UnsubAck { pkid, reasons };
+    let mut properties = UnsubAckProperties::default();
+    if connection.is_response_problem_info() {
+        properties.reason_string = reason_string;
+    }
+    MqttPacket::UnsubAck(unsub_ack, None)
+}
 
 impl MqttService {
     pub async fn subscribe(

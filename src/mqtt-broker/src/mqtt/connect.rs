@@ -17,17 +17,116 @@ use crate::core::cache::ConnectionLiveTime;
 use crate::core::connection::{build_connection, get_client_id};
 use crate::core::flapping_detect::check_flapping_detect;
 use crate::core::last_will::save_last_will_message;
-use crate::core::response::{
-    response_packet_mqtt_connect_fail, response_packet_mqtt_connect_success,
-    ResponsePacketMqttConnectSuccessContext,
-};
 use crate::core::session::{session_process, BuildSessionContext};
 use crate::core::sub_auto::try_auto_subscribe;
 use crate::core::validator::connect_validator;
 use crate::system_topic::event::{st_report_connected_event, StReportConnectedEventContext};
 use common_base::tools::now_second;
+use common_config::config::BrokerConfig;
 use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
-use protocol::mqtt::common::{ConnectReturnCode, MqttPacket};
+use protocol::mqtt::common::{
+    ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, MqttPacket, MqttProtocol,
+};
+use tracing::debug;
+
+use crate::core::connection::response_information;
+
+#[derive(Clone)]
+pub struct ResponsePacketMqttConnectSuccessContext {
+    pub protocol: MqttProtocol,
+    pub cluster: BrokerConfig,
+    pub client_id: String,
+    pub auto_client_id: bool,
+    pub session_expiry_interval: u32,
+    pub session_present: bool,
+    pub keep_alive: u16,
+    pub connect_properties: Option<ConnectProperties>,
+}
+
+fn response_packet_mqtt_connect_success(
+    context: ResponsePacketMqttConnectSuccessContext,
+) -> MqttPacket {
+    if !context.protocol.is_mqtt5() {
+        return MqttPacket::ConnAck(
+            ConnAck {
+                session_present: context.session_present,
+                code: ConnectReturnCode::Success,
+            },
+            None,
+        );
+    }
+
+    let assigned_client_identifier = if context.auto_client_id {
+        Some(context.client_id)
+    } else {
+        None
+    };
+
+    let properties = ConnAckProperties {
+        session_expiry_interval: Some(context.session_expiry_interval),
+        receive_max: Some(context.cluster.mqtt_protocol_config.receive_max),
+        max_qos: Some(context.cluster.mqtt_protocol_config.max_qos),
+        retain_available: Some(1),
+        max_packet_size: Some(context.cluster.mqtt_protocol_config.max_packet_size),
+        assigned_client_identifier,
+        topic_alias_max: Some(context.cluster.mqtt_protocol_config.topic_alias_max),
+        reason_string: None,
+        user_properties: Vec::new(),
+        wildcard_subscription_available: Some(1),
+        subscription_identifiers_available: Some(1),
+        shared_subscription_available: Some(1),
+        server_keep_alive: Some(context.keep_alive),
+        response_information: response_information(&context.connect_properties),
+        server_reference: None,
+        authentication_method: None,
+        authentication_data: None,
+    };
+    MqttPacket::ConnAck(
+        ConnAck {
+            session_present: context.session_present,
+            code: ConnectReturnCode::Success,
+        },
+        Some(properties),
+    )
+}
+
+pub fn response_packet_mqtt_connect_fail(
+    protocol: &MqttProtocol,
+    code: ConnectReturnCode,
+    _connect_properties: &Option<ConnectProperties>,
+    error_reason: Option<String>,
+) -> MqttPacket {
+    debug!("{code:?},{error_reason:?}");
+    if !protocol.is_mqtt5() {
+        let new_code = if code == ConnectReturnCode::ClientIdentifierNotValid {
+            ConnectReturnCode::IdentifierRejected
+        } else if code == ConnectReturnCode::ProtocolError {
+            ConnectReturnCode::UnacceptableProtocolVersion
+        } else if code == ConnectReturnCode::Success || code == ConnectReturnCode::NotAuthorized {
+            code
+        } else {
+            ConnectReturnCode::ServiceUnavailable
+        };
+        return MqttPacket::ConnAck(
+            ConnAck {
+                session_present: false,
+                code: new_code,
+            },
+            None,
+        );
+    }
+    let properties = ConnAckProperties::default();
+    // if is_request_problem_info(connect_properties) {
+    //     properties.reason_string = error_reason;
+    // }
+    MqttPacket::ConnAck(
+        ConnAck {
+            session_present: false,
+            code,
+        },
+        Some(properties),
+    )
+}
 
 impl MqttService {
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {

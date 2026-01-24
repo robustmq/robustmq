@@ -15,17 +15,157 @@
 use super::MqttService;
 
 use crate::core::cache::{QosAckPackageData, QosAckPackageType};
-use crate::core::response::{
-    response_packet_mqtt_distinct_by_reason, response_packet_mqtt_pubcomp_fail,
-    response_packet_mqtt_pubcomp_success,
-};
+use crate::mqtt::disconnect::response_packet_mqtt_distinct_by_reason;
 
 use common_base::tools::now_millis;
+use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
-    DisconnectReasonCode, MqttPacket, PubAck, PubAckProperties, PubComp, PubCompProperties,
-    PubCompReason, PubRec, PubRecProperties, PubRel, PubRelProperties,
+    DisconnectReasonCode, MqttPacket, MqttProtocol, PubAck, PubAckProperties, PubAckReason,
+    PubComp, PubCompProperties, PubCompReason, PubRec, PubRecProperties, PubRecReason, PubRel,
+    PubRelProperties, PubRelReason,
 };
-use tracing::debug;
+use tracing::{debug, info};
+
+pub fn build_pub_ack_fail(
+    protocol: &MqttProtocol,
+    connection: &MQTTConnection,
+    pkid: u16,
+    reason_string: Option<String>,
+    is_pub_ack: bool,
+) -> MqttPacket {
+    if is_pub_ack {
+        return build_puback(
+            protocol,
+            connection,
+            pkid,
+            PubAckReason::UnspecifiedError,
+            reason_string,
+            Vec::new(),
+        );
+    }
+
+    build_pubrec(
+        protocol,
+        connection,
+        pkid,
+        PubRecReason::UnspecifiedError,
+        reason_string,
+        Vec::new(),
+    )
+}
+
+pub fn build_puback(
+    protocol: &MqttProtocol,
+    connection: &MQTTConnection,
+    pkid: u16,
+    reason: PubAckReason,
+    reason_string: Option<String>,
+    user_properties: Vec<(String, String)>,
+) -> MqttPacket {
+    if reason != PubAckReason::Success {
+        debug!(
+            "client_id:{},reason:{reason:?}, reason string: {reason_string:?}",
+            connection.client_id
+        );
+    }
+
+    if protocol.is_mqtt3() || protocol.is_mqtt4() {
+        let pub_ack = PubAck { pkid, reason: None };
+        return MqttPacket::PubAck(pub_ack, None);
+    }
+
+    let pub_ack = PubAck {
+        pkid,
+        reason: Some(reason),
+    };
+    let mut properties = PubAckProperties::default();
+    if connection.is_response_problem_info() {
+        properties.reason_string = reason_string;
+    }
+    properties.user_properties = user_properties;
+    MqttPacket::PubAck(pub_ack, Some(properties))
+}
+
+pub fn build_pubrec(
+    protocol: &MqttProtocol,
+    connection: &MQTTConnection,
+    pkid: u16,
+    reason: PubRecReason,
+    reason_string: Option<String>,
+    user_properties: Vec<(String, String)>,
+) -> MqttPacket {
+    if reason != PubRecReason::Success {
+        info!(
+            "client_id:{},reason:{reason:?}, reason string: {reason_string:?}",
+            connection.client_id
+        );
+    }
+
+    if protocol.is_mqtt3() || protocol.is_mqtt4() {
+        return MqttPacket::PubRec(PubRec { pkid, reason: None }, None);
+    }
+
+    let pub_ack = PubRec {
+        pkid,
+        reason: Some(reason),
+    };
+    let mut properties = PubRecProperties::default();
+    if connection.is_response_problem_info() {
+        properties.reason_string = reason_string;
+    }
+    properties.user_properties = user_properties;
+    MqttPacket::PubRec(pub_ack, Some(properties))
+}
+
+pub fn response_packet_mqtt_pubrel_success(
+    protocol: &MqttProtocol,
+    pkid: u16,
+    reason: PubRelReason,
+) -> MqttPacket {
+    if !protocol.is_mqtt5() {
+        return MqttPacket::PubRel(PubRel { pkid, reason: None }, None);
+    }
+    let rel = PubRel {
+        pkid,
+        reason: Some(reason),
+    };
+    let properties = Some(PubRelProperties::default());
+    MqttPacket::PubRel(rel, properties)
+}
+
+pub fn response_packet_mqtt_pubcomp_success(protocol: &MqttProtocol, pkid: u16) -> MqttPacket {
+    if !protocol.is_mqtt5() {
+        return MqttPacket::PubComp(PubComp { pkid, reason: None }, None);
+    }
+
+    let rec = PubComp {
+        pkid,
+        reason: Some(PubCompReason::Success),
+    };
+    let properties = Some(PubCompProperties::default());
+    MqttPacket::PubComp(rec, properties)
+}
+
+pub fn response_packet_mqtt_pubcomp_fail(
+    protocol: &MqttProtocol,
+    connection: &MQTTConnection,
+    pkid: u16,
+    reason: PubCompReason,
+    reason_string: Option<String>,
+) -> MqttPacket {
+    if !protocol.is_mqtt5() {
+        return MqttPacket::PubComp(PubComp { pkid, reason: None }, None);
+    }
+    let pub_ack = PubComp {
+        pkid,
+        reason: Some(reason),
+    };
+    let mut properties = PubCompProperties::default();
+    if connection.is_response_problem_info() {
+        properties.reason_string = reason_string;
+    }
+    MqttPacket::PubComp(pub_ack, Some(properties))
+}
 
 impl MqttService {
     pub async fn publish_ack(
