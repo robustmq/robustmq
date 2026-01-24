@@ -265,8 +265,7 @@ pub async fn publish_validator(
 
     if let Some(properties) = publish_properties {
         if let Some(alias) = properties.topic_alias {
-            let cluster = cache_manager.broker_cache.get_cluster_config().await;
-            if alias > cluster.mqtt_protocol_config.topic_alias_max {
+            if alias > connection.topic_alias_max {
                 if is_puback {
                     return Some(build_puback(
                         protocol,

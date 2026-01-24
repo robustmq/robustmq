@@ -41,7 +41,7 @@ use tokio::net::TcpStream;
 use tokio_util::codec::FramedWrite;
 use tracing::{error, warn};
 
-pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
+pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/$sys/request_response";
 
 #[derive(Clone)]
 pub struct DisconnectConnectionContext {
@@ -74,13 +74,21 @@ pub async fn build_connection(
             };
 
             let max_packet_size = if let Some(value) = properties.max_packet_size {
-                std::cmp::min(value, config.mqtt_protocol_config.max_packet_size)
+                if value > 0 {
+                    std::cmp::min(value, config.mqtt_protocol_config.max_packet_size)
+                } else {
+                    config.mqtt_protocol_config.max_packet_size
+                }
             } else {
                 config.mqtt_protocol_config.max_packet_size
             };
 
             let topic_alias_max = if let Some(value) = properties.topic_alias_max {
-                std::cmp::min(value, config.mqtt_protocol_config.topic_alias_max)
+                if value > 0 {
+                    std::cmp::min(value, config.mqtt_protocol_config.topic_alias_max)
+                } else {
+                    config.mqtt_protocol_config.topic_alias_max
+                }
             } else {
                 config.mqtt_protocol_config.topic_alias_max
             };
