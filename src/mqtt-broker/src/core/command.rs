@@ -16,8 +16,8 @@ use super::flow_control::is_qos_message;
 use crate::core::cache::MQTTCacheManager;
 use crate::core::connection::{build_server_disconnect_conn_context, disconnect_connection};
 use crate::core::error::MqttBrokerError;
-use crate::mqtt::connect::response_packet_mqtt_connect_fail;
-use crate::mqtt::disconnect::response_packet_mqtt_distinct_by_reason;
+use crate::mqtt::connect::build_connect_ack_fail_packet;
+use crate::mqtt::disconnect::build_distinct_packet;
 use crate::mqtt::{MqttService, MqttServiceConnectContext, MqttServiceContext};
 use crate::security::AuthDriver;
 use crate::subscribe::common::is_error_by_suback;
@@ -95,7 +95,7 @@ impl Command for MQTTHandlerCommand {
         if !is_connect_pkg && !self.check_login_status(tcp_connection.connection_id).await {
             return Some(ResponsePackage::build(
                 tcp_connection.connection_id,
-                RobustMQPacket::MQTT(response_packet_mqtt_distinct_by_reason(
+                RobustMQPacket::MQTT(build_distinct_packet(
                     &MqttProtocol::Mqtt4,
                     Some(DisconnectReasonCode::NotAuthorized),
                     None,
@@ -170,7 +170,7 @@ impl Command for MQTTHandlerCommand {
             _ => {
                 return Some(ResponsePackage::build(
                     tcp_connection.connection_id,
-                    RobustMQPacket::MQTT(response_packet_mqtt_connect_fail(
+                    RobustMQPacket::MQTT(build_connect_ack_fail_packet(
                         &MqttProtocol::Mqtt5,
                         ConnectReturnCode::MalformedPacket,
                         &None,
@@ -280,7 +280,7 @@ impl MQTTHandlerCommand {
         } else {
             return Some(ResponsePackage::build(
                 tcp_connection.connection_id,
-                RobustMQPacket::MQTT(response_packet_mqtt_connect_fail(
+                RobustMQPacket::MQTT(build_connect_ack_fail_packet(
                     &MqttProtocol::Mqtt5,
                     ConnectReturnCode::UnsupportedProtocolVersion,
                     &None,
@@ -326,7 +326,7 @@ impl MQTTHandlerCommand {
         } else {
             return Some(ResponsePackage::build(
                 tcp_connection.connection_id,
-                RobustMQPacket::MQTT(response_packet_mqtt_distinct_by_reason(
+                RobustMQPacket::MQTT(build_distinct_packet(
                     &tcp_connection.get_protocol(),
                     Some(DisconnectReasonCode::MaximumConnectTime),
                     None,

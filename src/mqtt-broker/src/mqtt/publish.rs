@@ -13,17 +13,24 @@
 // limitations under the License.
 
 use super::MqttService;
+use crate::core::cache::MQTTCacheManager;
+use crate::core::content_type::payload_format_indicator_check_by_publish;
 use crate::core::delay_message::{decode_delay_topic, is_delay_topic};
+use crate::core::error::MqttBrokerError;
+use crate::core::flow_control::is_qos_message;
 use crate::core::metrics::record_publish_receive_metrics;
 use crate::core::offline_message::{save_message, SaveMessageContext};
 use crate::core::topic::{get_topic_name, try_init_topic};
-use crate::core::validator::publish_validator;
-use crate::mqtt::disconnect::response_packet_mqtt_distinct_by_reason;
+use crate::mqtt::disconnect::build_distinct_packet;
 use crate::mqtt::qos_ack::{build_pub_ack_fail, build_puback, build_pubrec};
 use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
+use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
-    DisconnectReasonCode, MqttPacket, PubAckReason, PubRecReason, Publish, PublishProperties, QoS,
+    DisconnectReasonCode, MqttPacket, MqttProtocol, PubAckReason, PubRecReason, Publish,
+    PublishProperties, QoS,
 };
+use std::cmp::min;
+use std::sync::Arc;
 
 impl MqttService {
     pub async fn publish(
@@ -35,7 +42,7 @@ impl MqttService {
         let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se.clone()
         } else {
-            return Some(response_packet_mqtt_distinct_by_reason(
+            return Some(build_distinct_packet(
                 &self.protocol,
                 Some(DisconnectReasonCode::MaximumConnectTime),
                 None,
@@ -234,4 +241,138 @@ impl MqttService {
             }
         }
     }
+}
+
+pub async fn publish_validator(
+    protocol: &MqttProtocol,
+    cache_manager: &Arc<MQTTCacheManager>,
+    connection: &MQTTConnection,
+    publish: &Publish,
+    publish_properties: &Option<PublishProperties>,
+) -> Option<MqttPacket> {
+    let is_puback = publish.qos != QoS::ExactlyOnce;
+
+    if publish.qos == QoS::ExactlyOnce
+        && cache_manager
+            .pkid_metadata
+            .get_client_pkid(&connection.client_id, publish.p_kid)
+            .is_some()
+    {
+        return Some(build_pubrec(
+            protocol,
+            connection,
+            publish.p_kid,
+            PubRecReason::PacketIdentifierInUse,
+            None,
+            Vec::new(),
+        ));
+    }
+
+    let cluster = cache_manager.broker_cache.get_cluster_config().await;
+
+    let max_packet_size = min(
+        cluster.mqtt_protocol_config.max_packet_size,
+        connection.max_packet_size,
+    ) as usize;
+    if publish.payload.len() > max_packet_size {
+        if is_puback {
+            return Some(build_puback(
+                protocol,
+                connection,
+                publish.p_kid,
+                PubAckReason::PayloadFormatInvalid,
+                Some(
+                    MqttBrokerError::PacketLengthError(max_packet_size, publish.payload.len())
+                        .to_string(),
+                ),
+                Vec::new(),
+            ));
+        } else {
+            return Some(build_pubrec(
+                protocol,
+                connection,
+                publish.p_kid,
+                PubRecReason::PayloadFormatInvalid,
+                Some(
+                    MqttBrokerError::PacketLengthError(max_packet_size, publish.payload.len())
+                        .to_string(),
+                ),
+                Vec::new(),
+            ));
+        }
+    }
+
+    if is_qos_message(publish.qos)
+        && connection.get_recv_qos_message() >= cluster.mqtt_protocol_config.receive_max as isize
+    {
+        if is_puback {
+            return Some(build_puback(
+                protocol,
+                connection,
+                publish.p_kid,
+                PubAckReason::QuotaExceeded,
+                None,
+                Vec::new(),
+            ));
+        } else {
+            return Some(build_pubrec(
+                protocol,
+                connection,
+                publish.p_kid,
+                PubRecReason::QuotaExceeded,
+                None,
+                Vec::new(),
+            ));
+        }
+    }
+
+    if !payload_format_indicator_check_by_publish(publish, publish_properties) {
+        if is_puback {
+            return Some(build_puback(
+                protocol,
+                connection,
+                publish.p_kid,
+                PubAckReason::PayloadFormatInvalid,
+                Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
+                Vec::new(),
+            ));
+        } else {
+            return Some(build_pubrec(
+                protocol,
+                connection,
+                publish.p_kid,
+                PubRecReason::PayloadFormatInvalid,
+                Some(MqttBrokerError::PayloadFormatInvalid.to_string()),
+                Vec::new(),
+            ));
+        }
+    }
+
+    if let Some(properties) = publish_properties {
+        if let Some(alias) = properties.topic_alias {
+            if alias > connection.topic_alias_max {
+                if is_puback {
+                    return Some(build_puback(
+                        protocol,
+                        connection,
+                        publish.p_kid,
+                        PubAckReason::UnspecifiedError,
+                        Some(MqttBrokerError::TopicAliasTooLong(alias).to_string()),
+                        Vec::new(),
+                    ));
+                } else {
+                    return Some(build_pubrec(
+                        protocol,
+                        connection,
+                        publish.p_kid,
+                        PubRecReason::UnspecifiedError,
+                        Some(MqttBrokerError::TopicAliasTooLong(alias).to_string()),
+                        Vec::new(),
+                    ));
+                }
+            }
+        }
+    }
+
+    None
 }

@@ -16,30 +16,12 @@
 use super::MqttService;
 use crate::core::connection::{disconnect_connection, DisconnectConnectionContext};
 use crate::system_topic::event::{st_report_disconnected_event, StReportDisconnectedEventContext};
-use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
     Disconnect, DisconnectProperties, DisconnectReasonCode, MqttPacket, MqttProtocol,
 };
 use tracing::warn;
 
-pub fn response_packet_mqtt_distinct(
-    protocol: &MqttProtocol,
-    code: Option<DisconnectReasonCode>,
-    connection: &MQTTConnection,
-    reason_string: Option<String>,
-) -> MqttPacket {
-    if !protocol.is_mqtt5() {
-        return MqttPacket::Disconnect(Disconnect { reason_code: None }, None);
-    }
-    let mut properties = DisconnectProperties::default();
-    if connection.is_response_problem_info() {
-        properties.reason_string = reason_string;
-    }
-
-    MqttPacket::Disconnect(Disconnect { reason_code: code }, None)
-}
-
-pub fn response_packet_mqtt_distinct_by_reason(
+pub fn build_distinct_packet(
     protocol: &MqttProtocol,
     code: Option<DisconnectReasonCode>,
     server_reference: Option<String>,

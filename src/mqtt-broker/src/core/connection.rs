@@ -18,8 +18,8 @@ use crate::core::error::MqttBrokerError;
 use crate::core::flow_control::is_connection_rate_exceeded;
 use crate::core::session::delete_session_by_local;
 use crate::core::tool::ResultMqttBrokerError;
-use crate::mqtt::connect::response_packet_mqtt_connect_fail;
-use crate::mqtt::disconnect::response_packet_mqtt_distinct_by_reason;
+use crate::mqtt::connect::build_connect_ack_fail_packet;
+use crate::mqtt::disconnect::build_distinct_packet;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::{now_second, unique_id};
@@ -134,11 +134,11 @@ pub fn get_client_id(
             if client_id.is_empty() {
                 return (
                     None,
-                    Some(response_packet_mqtt_connect_fail(
+                    Some(build_connect_ack_fail_packet(
                         protocol,
                         ConnectReturnCode::IdentifierRejected,
                         connect_properties,
-                        None,
+                        Some("client_id is required for MQTT 3.x".to_string()),
                     )),
                 );
             }
@@ -151,11 +151,11 @@ pub fn get_client_id(
             if client_id.is_empty() && !clean_session {
                 return (
                     None,
-                    Some(response_packet_mqtt_connect_fail(
+                    Some(build_connect_ack_fail_packet(
                         protocol,
                         ConnectReturnCode::IdentifierRejected,
                         connect_properties,
-                        None,
+                        Some("client_id is required when clean_session is false".to_string()),
                     )),
                 );
             }
@@ -359,7 +359,7 @@ where
     if connection_manager.get_tcp_connect_num_check() > 5000 {
         let packet_wrapper = MqttPacketWrapper {
             protocol_version: MqttProtocol::Mqtt5.into(),
-            packet: response_packet_mqtt_distinct_by_reason(
+            packet: build_distinct_packet(
                 &MqttProtocol::Mqtt5,
                 Some(DisconnectReasonCode::QuotaExceeded),
                 None,
@@ -384,7 +384,7 @@ where
     if is_connection_rate_exceeded() {
         let packet_wrapper = MqttPacketWrapper {
             protocol_version: MqttProtocol::Mqtt5.into(),
-            packet: response_packet_mqtt_distinct_by_reason(
+            packet: build_distinct_packet(
                 &MqttProtocol::Mqtt5,
                 Some(DisconnectReasonCode::ConnectionRateExceeded),
                 None,

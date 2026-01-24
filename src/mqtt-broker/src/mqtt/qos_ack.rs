@@ -15,7 +15,7 @@
 use super::MqttService;
 
 use crate::core::cache::{QosAckPackageData, QosAckPackageType};
-use crate::mqtt::disconnect::response_packet_mqtt_distinct_by_reason;
+use crate::mqtt::disconnect::build_distinct_packet;
 
 use common_base::tools::now_millis;
 use metadata_struct::mqtt::connection::MQTTConnection;
@@ -281,7 +281,7 @@ impl MqttService {
         let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
             se
         } else {
-            return response_packet_mqtt_distinct_by_reason(
+            return build_distinct_packet(
                 &self.protocol,
                 Some(DisconnectReasonCode::MaximumConnectTime),
                 None,

@@ -44,4 +44,3 @@ pub mod system_alarm;
 pub mod tool;
 pub mod topic;
 pub mod topic_rewrite;
-pub mod validator;

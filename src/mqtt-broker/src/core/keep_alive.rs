@@ -16,7 +16,7 @@ use super::cache::{ConnectionLiveTime, MQTTCacheManager};
 use super::connection::disconnect_connection;
 use crate::core::connection::build_server_disconnect_conn_context;
 use crate::core::error::MqttBrokerError;
-use crate::mqtt::disconnect::response_packet_mqtt_distinct_by_reason;
+use crate::mqtt::disconnect::build_distinct_packet;
 use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
@@ -92,7 +92,7 @@ impl ClientKeepAlive {
             if let Some(connection) = self.cache_manager.get_connection(connect_id) {
                 if let Some(network) = self.connection_manager.get_connect(connect_id) {
                     let protocol = network.protocol.clone().unwrap();
-                    let resp = response_packet_mqtt_distinct_by_reason(
+                    let resp = build_distinct_packet(
                         &protocol.to_mqtt(),
                         Some(DisconnectReasonCode::NormalDisconnection),
                         None,
