@@ -276,6 +276,13 @@ pub fn build_server_disconnect_conn_context(
     })
 }
 
+pub fn is_request_problem_info(cache_manager: &Arc<MQTTCacheManager>, connect_id: u64) -> bool {
+    if let Some(connection) = cache_manager.get_connection(connect_id) {
+        return connection.is_response_problem_info();
+    }
+    false
+}
+
 fn is_delete_session(
     connection: &MQTTConnection,
     protocol: &MqttProtocol,

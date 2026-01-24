@@ -38,6 +38,7 @@ pub mod login_test;
 pub mod packet_size_test;
 pub mod protocol_version_test;
 pub mod req_resp_test;
+pub mod request_problem_info_test;
 pub mod session_expire_test;
 pub mod topic_alias_test;
 pub mod user_test;

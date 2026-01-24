@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::connection::response_information;
 use common_config::config::BrokerConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
@@ -22,9 +23,6 @@ use protocol::mqtt::common::{
     SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
 use tracing::{debug, info};
-
-use super::connection::response_information;
-use super::validator::is_request_problem_info;
 
 pub fn build_pub_ack_fail(
     protocol: &MqttProtocol,
@@ -139,9 +137,9 @@ pub fn response_packet_mqtt_connect_fail(
         );
     }
     let mut properties = ConnAckProperties::default();
-    if is_request_problem_info(connect_properties) {
-        properties.reason_string = error_reason;
-    }
+    // if is_request_problem_info(connect_properties) {
+    //     properties.reason_string = error_reason;
+    // }
     MqttPacket::ConnAck(
         ConnAck {
             session_present: false,

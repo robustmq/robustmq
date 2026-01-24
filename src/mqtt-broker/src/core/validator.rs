@@ -422,15 +422,6 @@ pub async fn un_subscribe_validator(
     None
 }
 
-pub fn is_request_problem_info(connect_properties: &Option<ConnectProperties>) -> bool {
-    if let Some(properties) = connect_properties {
-        if let Some(problem_info) = properties.request_problem_info {
-            return problem_info == 1;
-        }
-    }
-    false
-}
-
 pub fn connection_max_packet_size(
     connect_properties: &Option<ConnectProperties>,
     cluster: &BrokerConfig,
