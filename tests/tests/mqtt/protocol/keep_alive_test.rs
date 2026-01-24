@@ -29,7 +29,7 @@ mod tests {
     use crate::mqtt::protocol::common::{build_client_id, password};
 
     #[tokio::test]
-    async fn mqtt4_keep_alive_test() {
+    async fn keep_alive_test() {
         let socket = TcpStream::connect("127.0.0.1:1883")
             .timeout(Duration::from_secs(3))
             .await
