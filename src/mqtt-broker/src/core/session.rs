@@ -171,18 +171,15 @@ async fn session_expiry_interval(
 
     let connection_session_expiry_interval = if let Some(properties) = connect_properties {
         if let Some(ck) = properties.session_expiry_interval {
-            ck
+            std::cmp::min(max_session_expiry_interval, ck)
         } else {
             default_session_expiry_interval
         }
     } else {
         default_session_expiry_interval
     };
-    let expiry = std::cmp::min(
-        max_session_expiry_interval,
-        connection_session_expiry_interval,
-    );
-    expiry as u64
+
+    connection_session_expiry_interval as u64
 }
 
 #[cfg(test)]

@@ -22,8 +22,8 @@ mod tests {
 
     use crate::mqtt::protocol::{
         common::{
-            broker_addr_by_type, build_client_id, connect_server, distinct_conn,
-            distinct_conn_close, ssl_by_type, subscribe_data_by_qos, ws_by_type,
+            broker_addr_by_type, build_client_id, connect_server, distinct_conn, ssl_by_type,
+            subscribe_data_by_qos, ws_by_type,
         },
         ClientTestProperties,
     };
@@ -59,7 +59,7 @@ mod tests {
         };
         let cli = connect_server(&client_properties);
         sleep(Duration::from_secs(3)).await;
-        distinct_conn_close(cli);
+        distinct_conn(cli);
 
         // subscribe
         let client_id =

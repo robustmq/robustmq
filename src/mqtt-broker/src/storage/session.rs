@@ -56,7 +56,6 @@ impl SessionStorage {
     pub async fn delete_session(&self, client_id: String) -> Result<(), CommonError> {
         let config = broker_config();
         let request = DeleteSessionRequest { client_id };
-
         placement_delete_session(&self.client_pool, &config.get_meta_service_addr(), request)
             .await?;
         Ok(())

@@ -91,7 +91,7 @@ pub async fn report_heartbeat(
     loop_select_ticket(ac_fn, 3000, &stop_send).await;
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 struct MetaServiceStatus {
     pub current_leader: u32,
 }

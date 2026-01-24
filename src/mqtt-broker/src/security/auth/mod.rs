@@ -34,8 +34,9 @@ pub fn is_allow_acl(
     retain: bool,
     _: QoS,
 ) -> bool {
+    let user = connection.login_user.clone().unwrap_or_default();
     // check super user
-    if is_super_user(cache_manager, &connection.login_user) {
+    if is_super_user(cache_manager, &user) {
         return true;
     }
 
