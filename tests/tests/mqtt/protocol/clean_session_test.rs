@@ -25,13 +25,14 @@ mod tests {
     use paho_mqtt::{
         Client, ConnectOptionsBuilder, CreateOptionsBuilder, Properties, PropertyCode, ReasonCode,
     };
+    use std::time::Duration;
+    use tokio::time::sleep;
 
     #[tokio::test]
     async fn mqtt34_clean_session_true_test() {
         let addr = broker_addr_by_type("tcp");
         let client_id = test_client_id();
-        println!("client_id:{}", client_id);
-        for _ in 0..3 {
+        for i in 0..3 {
             let create_opts = CreateOptionsBuilder::new()
                 .server_uri(addr.clone())
                 .client_id(client_id.clone())
@@ -50,6 +51,7 @@ mod tests {
             let conn_resp = result.connect_response().unwrap();
             assert!(!conn_resp.session_present);
             distinct_conn(cli);
+            sleep(Duration::from_secs(1)).await;
 
             let admin_client = create_test_env().await;
             let request = SessionListReq {
@@ -58,7 +60,7 @@ mod tests {
             };
             let data: PageReplyData<Vec<SessionListRow>> =
                 admin_client.get_session_list(&request).await.unwrap();
-            println!("data:{:?}", data);
+            println!("{},{},{:?}", i, client_id, data);
             assert_eq!(data.total_count, 0);
         }
     }
@@ -66,7 +68,7 @@ mod tests {
     #[tokio::test]
     async fn mqtt34_clean_session_false_test() {
         let addr = broker_addr_by_type("tcp");
-        let client_id = unique_id();
+        let client_id = test_client_id();
         for i in 0..3 {
             let create_opts = CreateOptionsBuilder::new()
                 .server_uri(addr.clone())
@@ -87,6 +89,7 @@ mod tests {
                 let conn_resp = result.connect_response().unwrap();
                 assert!(!conn_resp.session_present);
                 distinct_conn(cli);
+                sleep(Duration::from_secs(1)).await;
 
                 let admin_client = create_test_env().await;
                 let request = SessionListReq {
@@ -100,6 +103,7 @@ mod tests {
                 let conn_resp = result.connect_response().unwrap();
                 assert!(conn_resp.session_present);
                 distinct_conn(cli);
+                sleep(Duration::from_secs(1)).await;
 
                 let admin_client = create_test_env().await;
 
@@ -143,6 +147,7 @@ mod tests {
             assert!(!conn_resp.session_present);
             distinct_conn(cli);
 
+            sleep(Duration::from_secs(1)).await;
             let admin_client = create_test_env().await;
             let request = SessionListReq {
                 client_id: Some(client_id.clone()),
@@ -183,6 +188,7 @@ mod tests {
             assert!(!conn_resp.session_present);
             distinct_conn(cli);
 
+            sleep(Duration::from_secs(1)).await;
             let admin_client = create_test_env().await;
             let request = SessionListReq {
                 client_id: Some(client_id.clone()),
@@ -223,6 +229,7 @@ mod tests {
             assert!(!conn_resp.session_present);
             distinct_conn(cli);
 
+            sleep(Duration::from_secs(1)).await;
             let admin_client = create_test_env().await;
             let request = SessionListReq {
                 client_id: Some(client_id.clone()),
@@ -264,6 +271,7 @@ mod tests {
                 assert!(!conn_resp.session_present);
                 distinct_conn(cli);
 
+                sleep(Duration::from_secs(1)).await;
                 let admin_client = create_test_env().await;
                 let request = SessionListReq {
                     client_id: Some(client_id.clone()),
@@ -276,6 +284,7 @@ mod tests {
                 assert!(conn_resp.session_present);
                 distinct_conn(cli);
 
+                sleep(Duration::from_secs(1)).await;
                 let admin_client = create_test_env().await;
                 let request = SessionListReq {
                     client_id: Some(client_id.clone()),
