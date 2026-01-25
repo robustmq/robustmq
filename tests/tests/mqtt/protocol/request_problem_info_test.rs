@@ -51,7 +51,7 @@ mod tests {
             .finalize();
 
         if let Err(e) = cli.publish(msg) {
-            println!("{}", e.to_string());
+            println!("{}", e);
         }
 
         distinct_conn(cli);
