@@ -14,46 +14,103 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::mqtt::protocol::{
-        common::{
-            broker_addr_by_type, build_client_id, connect_server, distinct_conn, ssl_by_type,
-            ws_by_type,
-        },
-        ClientTestProperties,
-    };
-    use common_base::tools::unique_id;
-    use paho_mqtt::{MessageBuilder, QOS_1};
+    use crate::mqtt::protocol::common::{build_client_id, err_password};
+    use bytes::Bytes;
+    use common_base::tools::now_second;
+    use futures::{SinkExt, StreamExt};
+    use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, Login, MqttPacket};
+    use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
+    use std::time::Duration;
+    use tokio::net::TcpStream;
+    use tokio::time::{sleep, timeout};
+    use tokio_util::codec::Framed;
+    use tokio_util::time::FutureExt;
 
     #[tokio::test]
-    async fn problem_info_test() {
-        let network = "tcp";
-        let topic = format!("/problem_info_test/{}/{}", unique_id(), network);
+    async fn mqtt3_problem_info_test() {}
 
-        let client_id = build_client_id(format!("problem_info_test_{network}").as_str());
-        let client_properties = ClientTestProperties {
-            mqtt_version: 5,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
-            packet_size: Some(128),
+    #[tokio::test]
+    async fn mqtt5_problem_info_1_test() {
+        let socket = TcpStream::connect("127.0.0.1:1883")
+            .timeout(Duration::from_secs(3))
+            .await
+            .unwrap()
+            .unwrap();
+        let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
+
+        // send connect package
+        let packet = build_mqtt5_pg_connect(0);
+        stream.send(packet).await.unwrap();
+        let wait_res = timeout(Duration::from_secs(15), async {
+            loop {
+                let Some(data) = stream.next().await else {
+                    sleep(Duration::from_secs(1)).await;
+                    continue;
+                };
+
+                match data {
+                    Ok(pkt) => match pkt {
+                        MqttPacket::ConnAck(ack, properties) => {
+                            println!("{:?}", ack);
+                            println!("{:?}", properties);
+                            return Ok(());
+                        }
+                        _ => {
+                            sleep(Duration::from_secs(1)).await;
+                            continue;
+                        }
+                    },
+
+                    Err(e) => {
+                        // When the peer closes the connection, the decoder might see an incomplete frame.
+                        // Treat that as non-fatal and keep waiting for a proper DISCONNECT.
+                        if !e.to_string().contains("Insufficient number") {
+                            return Err(format!(
+                                "decode error before DISCONNECT (ts={}): {}",
+                                now_second(),
+                                e
+                            ));
+                        }
+                    }
+                }
+            }
+        })
+        .await;
+
+        match wait_res {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => panic!("{e}"),
+            Err(_) => panic!("timeout waiting for DISCONNECT from broker"),
+        }
+    }
+
+    #[tokio::test]
+    async fn mqtt5_problem_info_0_test() {}
+
+    fn build_mqtt5_pg_connect(request_problem_info: u8) -> MqttPacket {
+        let client_id = build_client_id("mqtt5_keep_alive_test");
+        let login = Some(Login {
+            username: "admin".to_string(),
+            password: err_password(),
+        });
+        let lastwill = Some(LastWill {
+            topic: Bytes::from("topic1"),
+            message: Bytes::from("connection content"),
+            qos: protocol::mqtt::common::QoS::AtLeastOnce,
+            retain: true,
+        });
+
+        let connect: Connect = Connect {
+            keep_alive: 30,
+            client_id,
+            clean_session: true,
+        };
+
+        let properties = ConnectProperties {
+            request_problem_info: Some(request_problem_info),
             ..Default::default()
         };
-        let cli = connect_server(&client_properties);
 
-        let packet_size: usize = 128;
-
-        // len = packet_size + 1
-        let msg = MessageBuilder::new()
-            .topic(topic.to_owned())
-            .payload("a".repeat(packet_size + 1))
-            .qos(QOS_1)
-            .finalize();
-
-        if let Err(e) = cli.publish(msg) {
-            println!("{}", e);
-        }
-
-        distinct_conn(cli);
+        MqttPacket::Connect(5, connect, Some(properties), lastwill, None, login)
     }
 }
