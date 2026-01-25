@@ -33,6 +33,7 @@ use common_metrics::mqtt::time::record_packet_process_duration;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
+use metadata_struct::mqtt::connection::MQTTConnection;
 use network_server::command::Command;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
@@ -92,13 +93,35 @@ impl Command for MQTTHandlerCommand {
             is_connect_pkg = true;
         }
 
+        let connection = if let Some(se) = self
+            .cache_manager
+            .get_connection(tcp_connection.connection_id)
+        {
+            se.clone()
+        } else {
+            return Some(ResponsePackage::build(
+                tcp_connection.connection_id,
+                RobustMQPacket::MQTT(build_distinct_packet(
+                    &self.cache_manager,
+                    tcp_connection.connection_id,
+                    &tcp_connection.get_protocol(),
+                    Some(DisconnectReasonCode::UnspecifiedError),
+                    None,
+                    Some("connection not found".to_string()),
+                )),
+            ));
+        };
+
         if !is_connect_pkg && !self.check_login_status(tcp_connection.connection_id).await {
             return Some(ResponsePackage::build(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(build_distinct_packet(
-                    &MqttProtocol::Mqtt4,
+                    &self.cache_manager,
+                    tcp_connection.connection_id,
+                    &tcp_connection.get_protocol(),
                     Some(DisconnectReasonCode::NotAuthorized),
                     None,
+                    Some("client not authenticated".to_string()),
                 )),
             ));
         }
@@ -126,45 +149,62 @@ impl Command for MQTTHandlerCommand {
             }
 
             MqttPacket::Publish(publish, publish_properties) => {
-                self.process_publish(tcp_connection, publish, publish_properties)
+                self.process_publish(tcp_connection, &connection, publish, publish_properties)
                     .await
             }
 
             MqttPacket::PubRec(pub_rec, pub_rec_properties) => {
-                self.process_pubrec(tcp_connection, &pub_rec, &pub_rec_properties)
+                self.process_pubrec(tcp_connection, &connection, &pub_rec, &pub_rec_properties)
                     .await
             }
 
             MqttPacket::PubComp(pub_comp, pub_comp_properties) => {
-                self.process_pubcomp(tcp_connection, &pub_comp, &pub_comp_properties)
+                self.process_pubcomp(tcp_connection, &connection, &pub_comp, &pub_comp_properties)
                     .await
             }
 
             MqttPacket::PubRel(pub_rel, pub_rel_properties) => {
-                self.process_pubrel(tcp_connection, &pub_rel, &pub_rel_properties)
+                self.process_pubrel(tcp_connection, &connection, &pub_rel, &pub_rel_properties)
                     .await
             }
 
             MqttPacket::PubAck(pub_ack, pub_ack_properties) => {
-                self.process_puback(tcp_connection, &pub_ack, &pub_ack_properties)
+                self.process_puback(tcp_connection, &connection, &pub_ack, &pub_ack_properties)
                     .await
             }
 
             MqttPacket::Subscribe(subscribe, subscribe_properties) => {
-                self.process_subscribe(tcp_connection, &subscribe, &subscribe_properties)
-                    .await
+                self.process_subscribe(
+                    tcp_connection,
+                    &connection,
+                    &subscribe,
+                    &subscribe_properties,
+                )
+                .await
             }
 
-            MqttPacket::PingReq(ping) => self.process_ping(tcp_connection, &ping).await,
+            MqttPacket::PingReq(ping) => {
+                self.process_ping(tcp_connection, &connection, &ping).await
+            }
 
             MqttPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => {
-                self.process_unsubscribe(tcp_connection, &unsubscribe, &unsubscribe_properties)
-                    .await
+                self.process_unsubscribe(
+                    tcp_connection,
+                    &connection,
+                    &unsubscribe,
+                    &unsubscribe_properties,
+                )
+                .await
             }
 
             MqttPacket::Disconnect(disconnect, disconnect_properties) => {
-                self.process_disconnect(tcp_connection, &disconnect, &disconnect_properties)
-                    .await
+                self.process_disconnect(
+                    tcp_connection,
+                    &connection,
+                    &disconnect,
+                    &disconnect_properties,
+                )
+                .await
             }
 
             _ => {
@@ -295,7 +335,7 @@ impl MQTTHandlerCommand {
                 let username = if let Some(user) = login {
                     user.username
                 } else {
-                    "".to_string()
+                    "anonymous".to_string()
                 };
                 self.cache_manager
                     .login_success(tcp_connection.connection_id, username);
@@ -314,41 +354,25 @@ impl MQTTHandlerCommand {
     pub async fn process_publish(
         &self,
         tcp_connection: &NetworkConnection,
+        connection: &MQTTConnection,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
     ) -> Option<ResponsePackage> {
-        let connection = if let Some(se) = self
-            .cache_manager
-            .connection_info
-            .get(&tcp_connection.connection_id)
-        {
-            se.clone()
-        } else {
-            return Some(ResponsePackage::build(
-                tcp_connection.connection_id,
-                RobustMQPacket::MQTT(build_distinct_packet(
-                    &tcp_connection.get_protocol(),
-                    Some(DisconnectReasonCode::MaximumConnectTime),
-                    None,
-                )),
-            ));
-        };
-
         if is_qos_message(publish.qos) {
             connection.recv_qos_message_incr();
         }
 
         let resp = if tcp_connection.is_mqtt3() {
             self.mqtt3_service
-                .publish(tcp_connection.connection_id, &publish, &publish_properties)
+                .publish(connection, &publish, &publish_properties)
                 .await
         } else if tcp_connection.is_mqtt4() {
             self.mqtt4_service
-                .publish(tcp_connection.connection_id, &publish, &publish_properties)
+                .publish(connection, &publish, &publish_properties)
                 .await
         } else if tcp_connection.is_mqtt5() {
             self.mqtt5_service
-                .publish(tcp_connection.connection_id, &publish, &publish_properties)
+                .publish(connection, &publish, &publish_properties)
                 .await
         } else {
             None
@@ -373,20 +397,21 @@ impl MQTTHandlerCommand {
     pub async fn process_pubrec(
         &self,
         tcp_connection: &NetworkConnection,
+        connection: &MQTTConnection,
         pub_rec: &PubRec,
         pub_rec_properties: &Option<PubRecProperties>,
     ) -> Option<ResponsePackage> {
         let resp = if tcp_connection.is_mqtt3() {
             self.mqtt3_service
-                .publish_rec(tcp_connection.connection_id, pub_rec, pub_rec_properties)
+                .publish_rec(connection, pub_rec, pub_rec_properties)
                 .await
         } else if tcp_connection.is_mqtt4() {
             self.mqtt4_service
-                .publish_rec(tcp_connection.connection_id, pub_rec, pub_rec_properties)
+                .publish_rec(connection, pub_rec, pub_rec_properties)
                 .await
         } else if tcp_connection.is_mqtt5() {
             self.mqtt5_service
-                .publish_rec(tcp_connection.connection_id, pub_rec, pub_rec_properties)
+                .publish_rec(connection, pub_rec, pub_rec_properties)
                 .await
         } else {
             None
@@ -403,20 +428,21 @@ impl MQTTHandlerCommand {
     pub async fn process_pubcomp(
         &self,
         tcp_connection: &NetworkConnection,
+        connection: &MQTTConnection,
         pub_comp: &PubComp,
         pub_comp_properties: &Option<PubCompProperties>,
     ) -> Option<ResponsePackage> {
         let resp = if tcp_connection.is_mqtt3() {
             self.mqtt3_service
-                .publish_comp(tcp_connection.connection_id, pub_comp, pub_comp_properties)
+                .publish_comp(connection, pub_comp, pub_comp_properties)
                 .await
         } else if tcp_connection.is_mqtt4() {
             self.mqtt4_service
-                .publish_comp(tcp_connection.connection_id, pub_comp, pub_comp_properties)
+                .publish_comp(connection, pub_comp, pub_comp_properties)
                 .await
         } else if tcp_connection.is_mqtt5() {
             self.mqtt5_service
-                .publish_comp(tcp_connection.connection_id, pub_comp, pub_comp_properties)
+                .publish_comp(connection, pub_comp, pub_comp_properties)
                 .await
         } else {
             None
@@ -434,25 +460,26 @@ impl MQTTHandlerCommand {
     pub async fn process_pubrel(
         &self,
         tcp_connection: &NetworkConnection,
+        connection: &MQTTConnection,
         pub_rel: &PubRel,
         pub_rel_properties: &Option<PubRelProperties>,
     ) -> Option<ResponsePackage> {
         let resp = if tcp_connection.is_mqtt3() {
             Some(
                 self.mqtt3_service
-                    .publish_rel(tcp_connection.connection_id, pub_rel, pub_rel_properties)
+                    .publish_rel(connection, pub_rel, pub_rel_properties)
                     .await,
             )
         } else if tcp_connection.is_mqtt4() {
             Some(
                 self.mqtt4_service
-                    .publish_rel(tcp_connection.connection_id, pub_rel, pub_rel_properties)
+                    .publish_rel(connection, pub_rel, pub_rel_properties)
                     .await,
             )
         } else if tcp_connection.is_mqtt5() {
             Some(
                 self.mqtt5_service
-                    .publish_rel(tcp_connection.connection_id, pub_rel, pub_rel_properties)
+                    .publish_rel(connection, pub_rel, pub_rel_properties)
                     .await,
             )
         } else {
@@ -471,20 +498,21 @@ impl MQTTHandlerCommand {
     pub async fn process_puback(
         &self,
         tcp_connection: &NetworkConnection,
+        connection: &MQTTConnection,
         pub_ack: &PubAck,
         pub_ack_properties: &Option<PubAckProperties>,
     ) -> Option<ResponsePackage> {
         let resp = if tcp_connection.is_mqtt3() {
             self.mqtt3_service
-                .publish_ack(tcp_connection.connection_id, pub_ack, pub_ack_properties)
+                .publish_ack(connection, pub_ack, pub_ack_properties)
                 .await
         } else if tcp_connection.is_mqtt4() {
             self.mqtt4_service
-                .publish_ack(tcp_connection.connection_id, pub_ack, pub_ack_properties)
+                .publish_ack(connection, pub_ack, pub_ack_properties)
                 .await
         } else if tcp_connection.is_mqtt5() {
             self.mqtt5_service
-                .publish_ack(tcp_connection.connection_id, pub_ack, pub_ack_properties)
+                .publish_ack(connection, pub_ack, pub_ack_properties)
                 .await
         } else {
             None
@@ -501,37 +529,26 @@ impl MQTTHandlerCommand {
     pub async fn process_subscribe(
         &self,
         tcp_connection: &NetworkConnection,
+        connection: &MQTTConnection,
         subscribe: &Subscribe,
         subscribe_properties: &Option<SubscribeProperties>,
     ) -> Option<ResponsePackage> {
         let resp = if tcp_connection.is_mqtt3() {
             Some(
                 self.mqtt3_service
-                    .subscribe(
-                        tcp_connection.connection_id,
-                        subscribe,
-                        subscribe_properties,
-                    )
+                    .subscribe(connection, subscribe, subscribe_properties)
                     .await,
             )
         } else if tcp_connection.is_mqtt4() {
             Some(
                 self.mqtt4_service
-                    .subscribe(
-                        tcp_connection.connection_id,
-                        subscribe,
-                        subscribe_properties,
-                    )
+                    .subscribe(connection, subscribe, subscribe_properties)
                     .await,
             )
         } else if tcp_connection.is_mqtt5() {
             Some(
                 self.mqtt5_service
-                    .subscribe(
-                        tcp_connection.connection_id,
-                        subscribe,
-                        subscribe_properties,
-                    )
+                    .subscribe(connection, subscribe, subscribe_properties)
                     .await,
             )
         } else {
@@ -556,32 +573,21 @@ impl MQTTHandlerCommand {
     pub async fn process_ping(
         &self,
         tcp_connection: &NetworkConnection,
+        connection: &MQTTConnection,
         ping: &PingReq,
     ) -> Option<ResponsePackage> {
         let resp = if tcp_connection.is_mqtt3() {
-            Some(
-                self.mqtt3_service
-                    .ping(tcp_connection.connection_id, ping)
-                    .await,
-            )
+            Some(self.mqtt3_service.ping(connection, ping).await)
         } else if tcp_connection.is_mqtt4() {
-            Some(
-                self.mqtt4_service
-                    .ping(tcp_connection.connection_id, ping)
-                    .await,
-            )
+            Some(self.mqtt4_service.ping(connection, ping).await)
         } else if tcp_connection.is_mqtt5() {
-            Some(
-                self.mqtt5_service
-                    .ping(tcp_connection.connection_id, ping)
-                    .await,
-            )
+            Some(self.mqtt5_service.ping(connection, ping).await)
         } else {
             None
         };
         if let Some(pkg) = resp {
             return Some(ResponsePackage::build(
-                tcp_connection.connection_id,
+                connection.connect_id,
                 RobustMQPacket::MQTT(pkg),
             ));
         }
@@ -591,37 +597,26 @@ impl MQTTHandlerCommand {
     pub async fn process_unsubscribe(
         &self,
         tcp_connection: &NetworkConnection,
+        connection: &MQTTConnection,
         unsubscribe: &Unsubscribe,
         unsubscribe_properties: &Option<UnsubscribeProperties>,
     ) -> Option<ResponsePackage> {
         let resp = if tcp_connection.is_mqtt3() {
             Some(
                 self.mqtt3_service
-                    .un_subscribe(
-                        tcp_connection.connection_id,
-                        unsubscribe,
-                        unsubscribe_properties,
-                    )
+                    .un_subscribe(connection, unsubscribe, unsubscribe_properties)
                     .await,
             )
         } else if tcp_connection.is_mqtt4() {
             Some(
                 self.mqtt4_service
-                    .un_subscribe(
-                        tcp_connection.connection_id,
-                        unsubscribe,
-                        unsubscribe_properties,
-                    )
+                    .un_subscribe(connection, unsubscribe, unsubscribe_properties)
                     .await,
             )
         } else if tcp_connection.is_mqtt5() {
             Some(
                 self.mqtt5_service
-                    .un_subscribe(
-                        tcp_connection.connection_id,
-                        unsubscribe,
-                        unsubscribe_properties,
-                    )
+                    .un_subscribe(connection, unsubscribe, unsubscribe_properties)
                     .await,
             )
         } else {
@@ -641,32 +636,21 @@ impl MQTTHandlerCommand {
     pub async fn process_disconnect(
         &self,
         tcp_connection: &NetworkConnection,
+        connection: &MQTTConnection,
         disconnect: &Disconnect,
         disconnect_properties: &Option<DisconnectProperties>,
     ) -> Option<ResponsePackage> {
         let resp = if tcp_connection.is_mqtt3() {
             self.mqtt3_service
-                .disconnect(
-                    tcp_connection.connection_id,
-                    disconnect,
-                    disconnect_properties,
-                )
+                .disconnect(connection, disconnect, disconnect_properties)
                 .await
         } else if tcp_connection.is_mqtt4() {
             self.mqtt4_service
-                .disconnect(
-                    tcp_connection.connection_id,
-                    disconnect,
-                    disconnect_properties,
-                )
+                .disconnect(connection, disconnect, disconnect_properties)
                 .await
         } else if tcp_connection.is_mqtt5() {
             self.mqtt5_service
-                .disconnect(
-                    tcp_connection.connection_id,
-                    disconnect,
-                    disconnect_properties,
-                )
+                .disconnect(connection, disconnect, disconnect_properties)
                 .await
         } else {
             None

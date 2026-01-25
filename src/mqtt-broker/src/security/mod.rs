@@ -203,7 +203,7 @@ impl AuthDriver {
         topic_name: &str,
         retain: bool,
         qos: QoS,
-    ) -> bool {
+    ) -> Result<(), MqttBrokerError> {
         if !is_allow_acl(
             &self.cache_manager,
             connection,
@@ -213,7 +213,7 @@ impl AuthDriver {
             qos,
         ) {
             record_mqtt_acl_failed();
-            return false;
+            return Err(MqttBrokerError::NotAclAuth(topic_name.to_string()));
         }
         record_mqtt_acl_success();
 
@@ -221,10 +221,10 @@ impl AuthDriver {
         // default true if blacklist check fails
         if is_blacklist(&self.cache_manager, connection).unwrap_or(true) {
             record_mqtt_blacklist_blocked();
-            return false;
+            return Err(MqttBrokerError::NotBlacklistAuth);
         }
 
-        true
+        Ok(())
     }
 
     pub async fn auth_subscribe_check(

@@ -15,30 +15,21 @@
 use super::cache::MQTTCacheManager;
 use super::keep_alive::client_keep_live_time;
 use crate::core::error::MqttBrokerError;
-use crate::core::flow_control::is_connection_rate_exceeded;
 use crate::core::session::delete_session_by_local;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::mqtt::connect::build_connect_ack_fail_packet;
-use crate::mqtt::disconnect::build_distinct_packet;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::{now_second, unique_id};
-use futures_util::SinkExt;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
 use metadata_struct::mqtt::session::MqttSession;
 use network_server::common::connection_manager::ConnectionManager;
-use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{
-    Connect, ConnectProperties, ConnectReturnCode, DisconnectProperties, DisconnectReasonCode,
-    MqttPacket, MqttProtocol,
+    Connect, ConnectProperties, ConnectReturnCode, DisconnectProperties, MqttPacket, MqttProtocol,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
-use tokio::net::TcpStream;
-use tokio_util::codec::FramedWrite;
-use tracing::{error, warn};
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/$sys/request_response";
 
@@ -308,96 +299,6 @@ fn get_session_expiry_interval(
         }
     }
     session.session_expiry_interval as u32
-}
-
-pub async fn tcp_establish_connection_check(
-    addr: &SocketAddr,
-    connection_manager: &Arc<ConnectionManager>,
-    write_frame_stream: &mut FramedWrite<WriteHalf<TcpStream>, MqttCodec>,
-) -> bool {
-    if let Some(value) =
-        handle_tpc_connection_overflow(addr, connection_manager, write_frame_stream).await
-    {
-        return value;
-    }
-
-    if let Some(value) = handle_connection_rate_exceeded(addr, write_frame_stream).await {
-        return value;
-    }
-    true
-}
-
-pub async fn tcp_tls_establish_connection_check(
-    addr: &SocketAddr,
-    connection_manager: &Arc<ConnectionManager>,
-    write_frame_stream: &mut FramedWrite<
-        WriteHalf<tokio_rustls::server::TlsStream<TcpStream>>,
-        MqttCodec,
-    >,
-) -> bool {
-    if let Some(value) =
-        handle_tpc_connection_overflow(addr, connection_manager, write_frame_stream).await
-    {
-        return value;
-    }
-
-    if let Some(value) = handle_connection_rate_exceeded(addr, write_frame_stream).await {
-        return value;
-    }
-
-    true
-}
-
-async fn handle_tpc_connection_overflow<T>(
-    addr: &SocketAddr,
-    connection_manager: &Arc<ConnectionManager>,
-    write_frame_stream: &mut FramedWrite<WriteHalf<T>, MqttCodec>,
-) -> Option<bool>
-where
-    T: AsyncWriteExt + AsyncWrite,
-{
-    if connection_manager.get_tcp_connect_num_check() > 5000 {
-        let packet_wrapper = MqttPacketWrapper {
-            protocol_version: MqttProtocol::Mqtt5.into(),
-            packet: build_distinct_packet(
-                &MqttProtocol::Mqtt5,
-                Some(DisconnectReasonCode::QuotaExceeded),
-                None,
-            ),
-        };
-        if let Err(e) = write_frame_stream.send(packet_wrapper).await {
-            error!("{}", e)
-        }
-        warn!("Total number of tcp connections at a node exceeds the limit, and the connection is closed. Source IP{:?}",addr);
-        return Some(false);
-    }
-    None
-}
-
-async fn handle_connection_rate_exceeded<T>(
-    addr: &SocketAddr,
-    write_frame_stream: &mut FramedWrite<WriteHalf<T>, MqttCodec>,
-) -> Option<bool>
-where
-    T: AsyncWriteExt + AsyncWrite,
-{
-    if is_connection_rate_exceeded() {
-        let packet_wrapper = MqttPacketWrapper {
-            protocol_version: MqttProtocol::Mqtt5.into(),
-            packet: build_distinct_packet(
-                &MqttProtocol::Mqtt5,
-                Some(DisconnectReasonCode::ConnectionRateExceeded),
-                None,
-            ),
-        };
-
-        if let Err(e) = write_frame_stream.send(packet_wrapper).await {
-            error!("{}", e);
-        }
-        warn!("Total number of tcp connections at a node exceeds the limit, and the connection is closed. Source IP{:?}",addr);
-        return Some(false);
-    }
-    None
 }
 
 #[cfg(test)]

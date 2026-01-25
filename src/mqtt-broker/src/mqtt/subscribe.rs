@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use super::MqttService;
-
+use crate::core::cache::MQTTCacheManager;
+use crate::core::connection::is_request_problem_info;
 use crate::core::error::MqttBrokerError;
 use crate::core::flow_control::is_subscribe_rate_exceeded;
 use crate::core::retain::{is_new_sub, try_send_retain_message, TrySendRetainMessageContext};
@@ -25,13 +26,11 @@ use crate::core::subscribe::{save_subscribe, SaveSubscribeContext};
 use crate::mqtt::disconnect::build_distinct_packet;
 use crate::security::AuthDriver;
 use crate::subscribe::common::min_qos;
+use crate::subscribe::manager::SubscribeManager;
 use crate::system_topic::event::{
     st_report_subscribed_event, st_report_unsubscribed_event, StReportSubscribedEventContext,
     StReportUnsubscribedEventContext,
 };
-
-use crate::subscribe::manager::SubscribeManager;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
     qos, DisconnectReasonCode, MqttPacket, MqttProtocol, SubAck, SubAckProperties, Subscribe,
@@ -39,202 +38,58 @@ use protocol::mqtt::common::{
     Unsubscribe, UnsubscribeProperties,
 };
 use std::sync::Arc;
-use tracing::{debug, error};
-
-pub fn response_packet_mqtt_suback(
-    protocol: &protocol::mqtt::common::MqttProtocol,
-    connection: &metadata_struct::mqtt::connection::MQTTConnection,
-    pkid: u16,
-    return_codes: Vec<SubscribeReasonCode>,
-    reason_string: Option<String>,
-) -> MqttPacket {
-    if !protocol.is_mqtt5() {
-        return MqttPacket::SubAck(SubAck { pkid, return_codes }, None);
-    }
-
-    let sub_ack = SubAck { pkid, return_codes };
-    let mut properties = SubAckProperties::default();
-    if connection.is_response_problem_info() {
-        properties.reason_string = reason_string;
-    }
-    MqttPacket::SubAck(sub_ack, Some(properties))
-}
-
-pub fn response_packet_mqtt_unsuback(
-    connection: &metadata_struct::mqtt::connection::MQTTConnection,
-    pkid: u16,
-    reasons: Vec<UnsubAckReason>,
-    reason_string: Option<String>,
-) -> MqttPacket {
-    if reason_string.is_some() {
-        debug!("{reasons:?},{reason_string:?}");
-    }
-    let unsub_ack = UnsubAck { pkid, reasons };
-    let mut properties = UnsubAckProperties::default();
-    if connection.is_response_problem_info() {
-        properties.reason_string = reason_string;
-    }
-    MqttPacket::UnsubAck(unsub_ack, None)
-}
-
-pub async fn subscribe_validator(
-    protocol: &MqttProtocol,
-    auth_driver: &Arc<AuthDriver>,
-    client_pool: &Arc<ClientPool>,
-    subscribe_manager: &Arc<SubscribeManager>,
-    connection: &MQTTConnection,
-    subscribe: &Subscribe,
-) -> Option<MqttPacket> {
-    let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
-
-    for filter in subscribe.filters.clone() {
-        if sub_path_validator(&filter.path).is_err() {
-            return_codes.push(SubscribeReasonCode::TopicFilterInvalid);
-            continue;
-        }
-    }
-
-    if !return_codes.is_empty() {
-        return Some(response_packet_mqtt_suback(
-            protocol,
-            connection,
-            subscribe.packet_identifier,
-            return_codes,
-            None,
-        ));
-    }
-
-    if is_subscribe_rate_exceeded() {
-        return Some(response_packet_mqtt_suback(
-            protocol,
-            connection,
-            subscribe.packet_identifier,
-            vec![SubscribeReasonCode::QuotaExceeded],
-            None,
-        ));
-    }
-
-    if !allow_exclusive_subscribe(subscribe) {
-        return Some(response_packet_mqtt_suback(
-            protocol,
-            connection,
-            subscribe.packet_identifier,
-            vec![SubscribeReasonCode::ExclusiveSubscriptionDisabled],
-            None,
-        ));
-    }
-
-    if already_exclusive_subscribe(subscribe_manager, &connection.client_id, subscribe) {
-        return Some(response_packet_mqtt_suback(
-            protocol,
-            connection,
-            subscribe.packet_identifier,
-            vec![SubscribeReasonCode::TopicSubscribed],
-            None,
-        ));
-    }
-
-    if !auth_driver
-        .auth_subscribe_check(connection, subscribe)
-        .await
-    {
-        return Some(response_packet_mqtt_suback(
-            protocol,
-            connection,
-            subscribe.packet_identifier,
-            vec![SubscribeReasonCode::NotAuthorized],
-            None,
-        ));
-    }
-
-    match group_leader_validator(client_pool, &subscribe.filters).await {
-        Ok(Some(addr)) => {
-            return Some(build_distinct_packet(
-                protocol,
-                Some(DisconnectReasonCode::UseAnotherServer),
-                Some(addr),
-            ));
-        }
-        Ok(None) => {}
-        Err(e) => {
-            error!("{}", e);
-            return Some(response_packet_mqtt_suback(
-                protocol,
-                connection,
-                subscribe.packet_identifier,
-                vec![SubscribeReasonCode::Unspecified],
-                None,
-            ));
-        }
-    }
-
-    None
-}
-
-pub async fn un_subscribe_validator(
-    client_id: &str,
-    subscribe_manager: &Arc<SubscribeManager>,
-    connection: &MQTTConnection,
-    un_subscribe: &Unsubscribe,
-) -> Option<MqttPacket> {
-    let mut return_codes: Vec<UnsubAckReason> = Vec::new();
-    for path in un_subscribe.filters.clone() {
-        if sub_path_validator(&path).is_err() {
-            return_codes.push(UnsubAckReason::TopicFilterInvalid);
-            continue;
-        }
-    }
-    if !return_codes.is_empty() {
-        return Some(response_packet_mqtt_unsuback(
-            connection,
-            un_subscribe.pkid,
-            return_codes,
-            None,
-        ));
-    }
-
-    for path in un_subscribe.filters.clone() {
-        if subscribe_manager.get_subscribe(client_id, &path).is_none() {
-            return Some(response_packet_mqtt_unsuback(
-                connection,
-                un_subscribe.pkid,
-                vec![UnsubAckReason::NoSubscriptionExisted],
-                Some(MqttBrokerError::SubscriptionPathNotExists(path).to_string()),
-            ));
-        }
-    }
-
-    None
-}
 
 impl MqttService {
     pub async fn subscribe(
         &self,
-        connect_id: u64,
+        connection: &MQTTConnection,
         subscribe: &Subscribe,
         subscribe_properties: &Option<SubscribeProperties>,
     ) -> MqttPacket {
-        let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
-            se.clone()
-        } else {
-            return build_distinct_packet(
-                &self.protocol,
-                Some(DisconnectReasonCode::MaximumConnectTime),
-                None,
-            );
-        };
-
-        if let Some(packet) = subscribe_validator(
-            &self.protocol,
+        let (reason_codes, reason) = subscribe_validator(
             &self.auth_driver,
-            &self.client_pool,
             &self.subscribe_manager,
-            &connection,
+            connection,
             subscribe,
         )
-        .await
-        {
-            return packet;
+        .await;
+
+        if !reason_codes.is_empty() {
+            return response_packet_mqtt_sub_ack(
+                &self.cache_manager,
+                connection.connect_id,
+                &self.protocol,
+                subscribe.packet_identifier,
+                reason_codes,
+                Some(reason),
+            );
+        }
+
+        match group_leader_validator(&self.client_pool, &subscribe.filters).await {
+            Ok(Some(addr)) => {
+                return build_distinct_packet(
+                    &self.cache_manager,
+                    connection.connect_id,
+                    &self.protocol,
+                    Some(DisconnectReasonCode::UseAnotherServer),
+                    Some(addr),
+                    Some(
+                        "group leader assigned; please reconnect to the provided server"
+                            .to_string(),
+                    ),
+                );
+            }
+            Ok(None) => {}
+            Err(e) => {
+                return response_packet_mqtt_sub_ack(
+                    &self.cache_manager,
+                    connection.connect_id,
+                    &self.protocol,
+                    subscribe.packet_identifier,
+                    vec![SubscribeReasonCode::Unspecified],
+                    Some(e.to_string()),
+                );
+            }
         }
 
         let new_subs = is_new_sub(&connection.client_id, subscribe, &self.subscribe_manager).await;
@@ -250,9 +105,10 @@ impl MqttService {
         })
         .await
         {
-            return response_packet_mqtt_suback(
+            return response_packet_mqtt_sub_ack(
+                &self.cache_manager,
+                connection.connect_id,
                 &self.protocol,
-                &connection,
                 subscribe.packet_identifier,
                 vec![SubscribeReasonCode::Unspecified],
                 Some(e.to_string()),
@@ -264,7 +120,7 @@ impl MqttService {
             metadata_cache: self.cache_manager.clone(),
             client_pool: self.client_pool.clone(),
             connection: connection.clone(),
-            connect_id,
+            connect_id: connection.connect_id,
             connection_manager: self.connection_manager.clone(),
             subscribe: subscribe.clone(),
         })
@@ -303,9 +159,10 @@ impl MqttService {
                 }
             }
         }
-        response_packet_mqtt_suback(
+        response_packet_mqtt_sub_ack(
+            &self.cache_manager,
+            connection.connect_id,
             &self.protocol,
-            &connection,
             subscribe.packet_identifier,
             return_codes,
             None,
@@ -314,36 +171,32 @@ impl MqttService {
 
     pub async fn un_subscribe(
         &self,
-        connect_id: u64,
+        connection: &MQTTConnection,
         un_subscribe: &Unsubscribe,
         _: &Option<UnsubscribeProperties>,
     ) -> MqttPacket {
-        let connection = if let Some(se) = self.cache_manager.get_connection(connect_id) {
-            se.clone()
-        } else {
-            return build_distinct_packet(
-                &self.protocol,
-                Some(DisconnectReasonCode::MaximumConnectTime),
-                None,
-            );
-        };
+        let (reason_codes, reason) =
+            un_subscribe_validator(&connection.client_id, &self.subscribe_manager, un_subscribe)
+                .await;
 
-        if let Some(packet) = un_subscribe_validator(
-            &connection.client_id,
-            &self.subscribe_manager,
-            &connection,
-            un_subscribe,
-        )
-        .await
-        {
-            return packet;
+        if !reason_codes.is_empty() {
+            return response_packet_mqtt_unsub_ack(
+                &self.cache_manager,
+                connection.connect_id,
+                &self.protocol,
+                un_subscribe.pkid,
+                reason_codes,
+                Some(reason),
+            );
         }
 
         if let Err(e) =
             remove_subscribe(&connection.client_id, un_subscribe, &self.client_pool).await
         {
-            return response_packet_mqtt_unsuback(
-                &connection,
+            return response_packet_mqtt_unsub_ack(
+                &self.cache_manager,
+                connection.connect_id,
+                &self.protocol,
                 un_subscribe.pkid,
                 vec![UnsubAckReason::UnspecifiedError],
                 Some(e.to_string()),
@@ -355,17 +208,155 @@ impl MqttService {
             metadata_cache: self.cache_manager.clone(),
             client_pool: self.client_pool.clone(),
             connection: connection.clone(),
-            connect_id,
+            connect_id: connection.connect_id,
             connection_manager: self.connection_manager.clone(),
             un_subscribe: un_subscribe.clone(),
         })
         .await;
 
-        response_packet_mqtt_unsuback(
-            &connection,
+        response_packet_mqtt_unsub_ack(
+            &self.cache_manager,
+            connection.connect_id,
+            &self.protocol,
             un_subscribe.pkid,
             vec![UnsubAckReason::Success],
             None,
         )
     }
+}
+
+fn response_packet_mqtt_sub_ack(
+    cache_manager: &Arc<MQTTCacheManager>,
+    connect_id: u64,
+    protocol: &MqttProtocol,
+    pkid: u16,
+    return_codes: Vec<SubscribeReasonCode>,
+    reason_string: Option<String>,
+) -> MqttPacket {
+    let sub_ack = SubAck { pkid, return_codes };
+    if !protocol.is_mqtt5() {
+        return MqttPacket::SubAck(sub_ack, None);
+    }
+
+    let mut properties = SubAckProperties::default();
+    if is_request_problem_info(cache_manager, connect_id) {
+        properties.reason_string = reason_string;
+    }
+
+    MqttPacket::SubAck(sub_ack, Some(properties))
+}
+
+fn response_packet_mqtt_unsub_ack(
+    cache_manager: &Arc<MQTTCacheManager>,
+    connect_id: u64,
+    protocol: &MqttProtocol,
+    pkid: u16,
+    reasons: Vec<UnsubAckReason>,
+    reason_string: Option<String>,
+) -> MqttPacket {
+    let unsub_ack = UnsubAck { pkid, reasons };
+    if !protocol.is_mqtt5() {
+        return MqttPacket::UnsubAck(unsub_ack, None);
+    }
+
+    let mut properties = UnsubAckProperties::default();
+    if is_request_problem_info(cache_manager, connect_id) {
+        properties.reason_string = reason_string;
+    }
+    MqttPacket::UnsubAck(unsub_ack, None)
+}
+
+async fn subscribe_validator(
+    auth_driver: &Arc<AuthDriver>,
+    subscribe_manager: &Arc<SubscribeManager>,
+    connection: &MQTTConnection,
+    subscribe: &Subscribe,
+) -> (Vec<SubscribeReasonCode>, String) {
+    let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
+    let mut invalid_paths = Vec::new();
+
+    for filter in subscribe.filters.clone() {
+        if sub_path_validator(&filter.path).is_err() {
+            return_codes.push(SubscribeReasonCode::TopicFilterInvalid);
+            invalid_paths.push(filter.path.clone());
+            continue;
+        }
+    }
+
+    if !return_codes.is_empty() {
+        let error_msg = if invalid_paths.len() == 1 {
+            MqttBrokerError::InvalidSubPath(invalid_paths[0].clone()).to_string()
+        } else {
+            format!("Invalid topic filter(s): {}", invalid_paths.join(", "))
+        };
+        return (return_codes, error_msg);
+    }
+
+    if is_subscribe_rate_exceeded() {
+        return (
+            vec![SubscribeReasonCode::QuotaExceeded],
+            "Subscribe rate limit exceeded".to_string(),
+        );
+    }
+
+    if !allow_exclusive_subscribe(subscribe) {
+        return (
+            vec![SubscribeReasonCode::ExclusiveSubscriptionDisabled],
+            "Exclusive subscription is disabled".to_string(),
+        );
+    }
+
+    if already_exclusive_subscribe(subscribe_manager, &connection.client_id, subscribe) {
+        return (
+            vec![SubscribeReasonCode::TopicSubscribed],
+            "Topic already has an exclusive subscription".to_string(),
+        );
+    }
+
+    if !auth_driver
+        .auth_subscribe_check(connection, subscribe)
+        .await
+    {
+        return (
+            vec![SubscribeReasonCode::NotAuthorized],
+            "Subscription not authorized".to_string(),
+        );
+    }
+
+    (Vec::new(), "".to_string())
+}
+
+async fn un_subscribe_validator(
+    client_id: &str,
+    subscribe_manager: &Arc<SubscribeManager>,
+    un_subscribe: &Unsubscribe,
+) -> (Vec<UnsubAckReason>, String) {
+    let mut return_codes: Vec<UnsubAckReason> = Vec::new();
+    let mut invalid_paths = Vec::new();
+    for path in un_subscribe.filters.clone() {
+        if sub_path_validator(&path).is_err() {
+            return_codes.push(UnsubAckReason::TopicFilterInvalid);
+            invalid_paths.push(path.clone());
+            continue;
+        }
+    }
+    if !return_codes.is_empty() {
+        let error_msg = if invalid_paths.len() == 1 {
+            MqttBrokerError::InvalidSubPath(invalid_paths[0].clone()).to_string()
+        } else {
+            format!("Invalid topic filter(s): {}", invalid_paths.join(", "))
+        };
+        return (return_codes, error_msg);
+    }
+
+    for path in un_subscribe.filters.clone() {
+        if subscribe_manager.get_subscribe(client_id, &path).is_none() {
+            return (
+                vec![UnsubAckReason::NoSubscriptionExisted],
+                MqttBrokerError::SubscriptionPathNotExists(path).to_string(),
+            );
+        }
+    }
+
+    (Vec::new(), "".to_string())
 }

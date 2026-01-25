@@ -241,7 +241,7 @@ impl MqttService {
 }
 
 #[derive(Clone)]
-pub struct ResponsePacketMqttConnectSuccessContext {
+struct ResponsePacketMqttConnectSuccessContext {
     pub protocol: MqttProtocol,
     pub cluster: BrokerConfig,
     pub client_id: String,
@@ -305,7 +305,13 @@ pub fn build_connect_ack_fail_packet(
     connect_properties: &Option<ConnectProperties>,
     error_reason: Option<String>,
 ) -> MqttPacket {
-    debug!("{code:?},{error_reason:?}");
+    debug!(
+        protocol = ?protocol,
+        reason_code = ?code,
+        reason = error_reason.as_deref(),
+        "build connect ack fail packet"
+    );
+
     if !protocol.is_mqtt5() {
         let new_code = if code == ConnectReturnCode::ClientIdentifierNotValid {
             ConnectReturnCode::IdentifierRejected
@@ -349,7 +355,7 @@ pub fn build_connect_ack_fail_packet(
     )
 }
 
-pub fn connect_validator(
+fn connect_validator(
     protocol: &MqttProtocol,
     cluster: &BrokerConfig,
     connect: &Connect,
@@ -464,7 +470,7 @@ pub fn connect_validator(
     None
 }
 
-pub fn connection_max_packet_size(
+fn connection_max_packet_size(
     connect_properties: &Option<ConnectProperties>,
     cluster: &BrokerConfig,
 ) -> u32 {
@@ -476,21 +482,21 @@ pub fn connection_max_packet_size(
     cluster.mqtt_protocol_config.max_packet_size
 }
 
-pub fn client_id_validator(client_id: &str) -> bool {
+fn client_id_validator(client_id: &str) -> bool {
     if client_id.len() == 5 && client_id.len() > 23 {
         return false;
     }
     true
 }
 
-pub fn username_validator(username: &str) -> bool {
+fn username_validator(username: &str) -> bool {
     if username.is_empty() {
         return false;
     }
     true
 }
 
-pub fn password_validator(password: &str) -> bool {
+fn password_validator(password: &str) -> bool {
     if password.is_empty() {
         return false;
     }

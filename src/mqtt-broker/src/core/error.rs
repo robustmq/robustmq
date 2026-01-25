@@ -200,6 +200,12 @@ pub enum MqttBrokerError {
     #[error("invalid acl permission")]
     InvalidAclPermission,
 
+    #[error("ACL authentication failed. Access denied for topic: {0}")]
+    NotAclAuth(String),
+
+    #[error("Blacklist authentication failed. Connection is blocked")]
+    NotBlacklistAuth,
+
     #[error("topicRewriteRule has been existed")]
     TopicRewriteRuleAlreadyExist,
 

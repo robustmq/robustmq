@@ -12,47 +12,56 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// NOTE: kept for backward compat; use disconnect.rs.
 use super::MqttService;
-use crate::core::connection::{disconnect_connection, DisconnectConnectionContext};
+use crate::core::cache::MQTTCacheManager;
+use crate::core::connection::{
+    disconnect_connection, is_request_problem_info, DisconnectConnectionContext,
+};
 use crate::system_topic::event::{st_report_disconnected_event, StReportDisconnectedEventContext};
+use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
     Disconnect, DisconnectProperties, DisconnectReasonCode, MqttPacket, MqttProtocol,
 };
-use tracing::warn;
+use std::sync::Arc;
+use tracing::{debug, warn};
 
 pub fn build_distinct_packet(
+    cache_manager: &Arc<MQTTCacheManager>,
+    connect_id: u64,
     protocol: &MqttProtocol,
     code: Option<DisconnectReasonCode>,
     server_reference: Option<String>,
+    reason: Option<String>,
 ) -> MqttPacket {
+    debug!(
+        connect_id,
+        protocol = ?protocol,
+        reason_code = ?code,
+        server_reference = server_reference.as_deref(),
+        reason = reason.as_deref(),
+        "build disconnect packet"
+    );
     if !protocol.is_mqtt5() {
-        return MqttPacket::Disconnect(Disconnect { reason_code: None }, None);
+        return MqttPacket::Disconnect(Disconnect { reason_code: code }, None);
     }
 
-    MqttPacket::Disconnect(
-        Disconnect { reason_code: code },
-        Some(DisconnectProperties {
-            reason_string: Some("".to_string()),
-            server_reference,
-            ..Default::default()
-        }),
-    )
+    let mut pros = DisconnectProperties {
+        server_reference,
+        ..Default::default()
+    };
+    if is_request_problem_info(cache_manager, connect_id) {
+        pros.reason_string = reason;
+    }
+    MqttPacket::Disconnect(Disconnect { reason_code: code }, Some(pros))
 }
 
 impl MqttService {
     pub async fn disconnect(
         &self,
-        connect_id: u64,
+        connection: &MQTTConnection,
         disconnect: &Disconnect,
         disconnect_properties: &Option<DisconnectProperties>,
     ) -> Option<MqttPacket> {
-        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
-            se.clone()
-        } else {
-            return None;
-        };
-
         let session =
             if let Some(session) = self.cache_manager.get_session_info(&connection.client_id) {
                 st_report_disconnected_event(StReportDisconnectedEventContext {
@@ -61,7 +70,7 @@ impl MqttService {
                     client_pool: self.client_pool.clone(),
                     session: session.clone(),
                     connection: connection.clone(),
-                    connect_id,
+                    connect_id: connection.connect_id,
                     connection_manager: self.connection_manager.clone(),
                     reason: disconnect.reason_code,
                 })

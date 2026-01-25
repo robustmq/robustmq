@@ -93,9 +93,12 @@ impl ClientKeepAlive {
                 if let Some(network) = self.connection_manager.get_connect(connect_id) {
                     let protocol = network.protocol.clone().unwrap();
                     let resp = build_distinct_packet(
+                        &self.cache_manager,
+                        connect_id,
                         &protocol.to_mqtt(),
                         Some(DisconnectReasonCode::NormalDisconnection),
                         None,
+                        Some("keep alive timeout".to_string()),
                     );
 
                     let wrap = MqttPacketWrapper {
