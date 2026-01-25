@@ -99,17 +99,21 @@ impl Command for MQTTHandlerCommand {
         {
             se.clone()
         } else {
-            return Some(ResponsePackage::build(
-                tcp_connection.connection_id,
-                RobustMQPacket::MQTT(build_distinct_packet(
-                    &self.cache_manager,
+            if is_connect_pkg {
+                MQTTConnection::default()
+            } else {
+                return Some(ResponsePackage::build(
                     tcp_connection.connection_id,
-                    &tcp_connection.get_protocol(),
-                    Some(DisconnectReasonCode::UnspecifiedError),
-                    None,
-                    Some("connection not found".to_string()),
-                )),
-            ));
+                    RobustMQPacket::MQTT(build_distinct_packet(
+                        &self.cache_manager,
+                        tcp_connection.connection_id,
+                        &tcp_connection.get_protocol(),
+                        Some(DisconnectReasonCode::UnspecifiedError),
+                        None,
+                        Some("connection not found".to_string()),
+                    )),
+                ));
+            }
         };
 
         if !is_connect_pkg && !self.check_login_status(tcp_connection.connection_id).await {
@@ -328,7 +332,7 @@ impl MQTTHandlerCommand {
                 )),
             ));
         };
-
+        println!("resp_pkg:{:?}", resp_pkg);
         let ack_pkg = resp_pkg.unwrap();
         if let MqttPacket::ConnAck(conn_ack, _) = ack_pkg.clone() {
             if conn_ack.code == ConnectReturnCode::Success {
