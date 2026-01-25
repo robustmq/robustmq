@@ -14,9 +14,9 @@
 
 use super::cache::{ConnectionLiveTime, MQTTCacheManager};
 use super::connection::disconnect_connection;
-use super::response::response_packet_mqtt_distinct_by_reason;
 use crate::core::connection::build_server_disconnect_conn_context;
 use crate::core::error::MqttBrokerError;
+use crate::mqtt::disconnect::build_distinct_packet;
 use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
@@ -92,10 +92,13 @@ impl ClientKeepAlive {
             if let Some(connection) = self.cache_manager.get_connection(connect_id) {
                 if let Some(network) = self.connection_manager.get_connect(connect_id) {
                     let protocol = network.protocol.clone().unwrap();
-                    let resp = response_packet_mqtt_distinct_by_reason(
+                    let resp = build_distinct_packet(
+                        &self.cache_manager,
+                        connect_id,
                         &protocol.to_mqtt(),
                         Some(DisconnectReasonCode::NormalDisconnection),
                         None,
+                        Some("keep alive timeout".to_string()),
                     );
 
                     let wrap = MqttPacketWrapper {
@@ -149,7 +152,7 @@ impl ClientKeepAlive {
                 let max_timeout = keep_live_time(&self.cache_manager, time.keep_live).await as u64;
                 let now = now_second();
                 if (now - time.heartbeat) >= max_timeout {
-                    info!("{},client_id:{},now:{},heartbeat:{}","Connection was closed by the server because the heartbeat timeout was not reported.",connection.client_id,now,time.heartbeat);
+                    debug!("{},client_id:{},now:{},heartbeat:{}","Connection was closed by the server because the heartbeat timeout was not reported.",connection.client_id,now,time.heartbeat);
                     expire_connection.push(connect_id);
                 }
             } else {

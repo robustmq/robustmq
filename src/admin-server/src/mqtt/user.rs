@@ -24,7 +24,7 @@ use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct UserListReq {
     pub user_name: Option<String>,
     pub limit: Option<u32>,
@@ -72,14 +72,40 @@ pub async fn user_list(
     State(state): State<Arc<HttpState>>,
     Json(params): Json<UserListReq>,
 ) -> String {
+    // Backward-compatible shortcut:
+    // If `user_name` is provided, treat it as an exact filter on `username`
+    // unless caller already provided explicit filter_field/filter_values.
+    let (filter_field, filter_values, exact_match) =
+        if let Some(user_name) = params.user_name.clone() {
+            if params.filter_field.is_none() && params.filter_values.is_none() {
+                (
+                    Some("username".to_string()),
+                    Some(vec![user_name]),
+                    Some("exact".to_string()),
+                )
+            } else {
+                (
+                    params.filter_field.clone(),
+                    params.filter_values.clone(),
+                    params.exact_match.clone(),
+                )
+            }
+        } else {
+            (
+                params.filter_field.clone(),
+                params.filter_values.clone(),
+                params.exact_match.clone(),
+            )
+        };
+
     let options = build_query_params(
         params.page,
         params.limit,
         params.sort_field,
         params.sort_by,
-        params.filter_field,
-        params.filter_values,
-        params.exact_match,
+        filter_field,
+        filter_values,
+        exact_match,
     );
 
     let auth_driver = AuthDriver::new(

@@ -14,20 +14,25 @@
 
 use super::{MqttService, MqttServiceConnectContext};
 use crate::core::cache::ConnectionLiveTime;
+use crate::core::connection::response_information;
 use crate::core::connection::{build_connection, get_client_id};
+use crate::core::content_type::payload_format_indicator_check_by_lastwill;
+use crate::core::error::MqttBrokerError;
 use crate::core::flapping_detect::check_flapping_detect;
 use crate::core::last_will::save_last_will_message;
-use crate::core::response::{
-    response_packet_mqtt_connect_fail, response_packet_mqtt_connect_success,
-    ResponsePacketMqttConnectSuccessContext,
-};
 use crate::core::session::{session_process, BuildSessionContext};
 use crate::core::sub_auto::try_auto_subscribe;
-use crate::core::validator::connect_validator;
+use crate::core::topic::topic_name_validator;
 use crate::system_topic::event::{st_report_connected_event, StReportConnectedEventContext};
 use common_base::tools::now_second;
+use common_config::config::BrokerConfig;
 use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
-use protocol::mqtt::common::{ConnectReturnCode, MqttPacket};
+use protocol::mqtt::common::{
+    ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill,
+    LastWillProperties, Login, MqttPacket, MqttProtocol,
+};
+use std::cmp::min;
+use tracing::debug;
 
 impl MqttService {
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
@@ -50,6 +55,7 @@ impl MqttService {
             &self.protocol,
             context.connect.clean_session,
             &context.connect.client_id,
+            &context.connect_properties,
         );
 
         if let Some(pkt) = resp {
@@ -57,7 +63,7 @@ impl MqttService {
         }
 
         let Some((client_id, new_client_id)) = data else {
-            return response_packet_mqtt_connect_fail(
+            return build_connect_ack_fail_packet(
                 &self.protocol,
                 ConnectReturnCode::UnspecifiedError,
                 &context.connect_properties,
@@ -84,7 +90,7 @@ impl MqttService {
             )
             .await
             {
-                return response_packet_mqtt_connect_fail(
+                return build_connect_ack_fail_packet(
                     &self.protocol,
                     ConnectReturnCode::UnspecifiedError,
                     &context.connect_properties,
@@ -95,11 +101,11 @@ impl MqttService {
 
         // auth check
         if self.auth_driver.auth_connect_check(&connection).await {
-            return response_packet_mqtt_connect_fail(
+            return build_connect_ack_fail_packet(
                 &self.protocol,
                 ConnectReturnCode::Banned,
                 &context.connect_properties,
-                None,
+                Some("client is banned".to_string()),
             );
         }
 
@@ -117,17 +123,17 @@ impl MqttService {
             Ok(flag) => {
                 if !flag {
                     record_mqtt_auth_failed();
-                    return response_packet_mqtt_connect_fail(
+                    return build_connect_ack_fail_packet(
                         &self.protocol,
                         ConnectReturnCode::NotAuthorized,
                         &context.connect_properties,
-                        None,
+                        Some("login not authorized".to_string()),
                     );
                 }
                 record_mqtt_auth_success();
             }
             Err(e) => {
-                return response_packet_mqtt_connect_fail(
+                return build_connect_ack_fail_packet(
                     &self.protocol,
                     ConnectReturnCode::UnspecifiedError,
                     &context.connect_properties,
@@ -155,7 +161,7 @@ impl MqttService {
         {
             Ok((session, new_session)) => (session, new_session),
             Err(e) => {
-                return response_packet_mqtt_connect_fail(
+                return build_connect_ack_fail_packet(
                     &self.protocol,
                     ConnectReturnCode::MalformedPacket,
                     &context.connect_properties,
@@ -172,7 +178,7 @@ impl MqttService {
         )
         .await
         {
-            return response_packet_mqtt_connect_fail(
+            return build_connect_ack_fail_packet(
                 &self.protocol,
                 ConnectReturnCode::UnspecifiedError,
                 &context.connect_properties,
@@ -190,7 +196,7 @@ impl MqttService {
         )
         .await
         {
-            return response_packet_mqtt_connect_fail(
+            return build_connect_ack_fail_packet(
                 &self.protocol,
                 ConnectReturnCode::UnspecifiedError,
                 &context.connect_properties,
@@ -221,7 +227,7 @@ impl MqttService {
         })
         .await;
 
-        response_packet_mqtt_connect_success(ResponsePacketMqttConnectSuccessContext {
+        build_connect_ack_success_packet(ResponsePacketMqttConnectSuccessContext {
             protocol: self.protocol.clone(),
             cluster: cluster.clone(),
             client_id: client_id.clone(),
@@ -232,4 +238,267 @@ impl MqttService {
             connect_properties: context.connect_properties.clone(),
         })
     }
+}
+
+#[derive(Clone)]
+struct ResponsePacketMqttConnectSuccessContext {
+    pub protocol: MqttProtocol,
+    pub cluster: BrokerConfig,
+    pub client_id: String,
+    pub auto_client_id: bool,
+    pub session_expiry_interval: u32,
+    pub session_present: bool,
+    pub keep_alive: u16,
+    pub connect_properties: Option<ConnectProperties>,
+}
+
+fn build_connect_ack_success_packet(
+    context: ResponsePacketMqttConnectSuccessContext,
+) -> MqttPacket {
+    if !context.protocol.is_mqtt5() {
+        return MqttPacket::ConnAck(
+            ConnAck {
+                session_present: context.session_present,
+                code: ConnectReturnCode::Success,
+            },
+            None,
+        );
+    }
+
+    let assigned_client_identifier = if context.auto_client_id {
+        Some(context.client_id)
+    } else {
+        None
+    };
+
+    let properties = ConnAckProperties {
+        session_expiry_interval: Some(context.session_expiry_interval),
+        receive_max: Some(context.cluster.mqtt_protocol_config.receive_max),
+        max_qos: Some(context.cluster.mqtt_protocol_config.max_qos),
+        retain_available: Some(1),
+        max_packet_size: Some(context.cluster.mqtt_protocol_config.max_packet_size),
+        assigned_client_identifier,
+        topic_alias_max: Some(context.cluster.mqtt_protocol_config.topic_alias_max),
+        reason_string: None,
+        user_properties: Vec::new(),
+        wildcard_subscription_available: Some(1),
+        subscription_identifiers_available: Some(1),
+        shared_subscription_available: Some(1),
+        server_keep_alive: Some(context.keep_alive),
+        response_information: response_information(&context.connect_properties),
+        server_reference: None,
+        authentication_method: None,
+        authentication_data: None,
+    };
+    MqttPacket::ConnAck(
+        ConnAck {
+            session_present: context.session_present,
+            code: ConnectReturnCode::Success,
+        },
+        Some(properties),
+    )
+}
+
+pub fn build_connect_ack_fail_packet(
+    protocol: &MqttProtocol,
+    code: ConnectReturnCode,
+    connect_properties: &Option<ConnectProperties>,
+    error_reason: Option<String>,
+) -> MqttPacket {
+    debug!(
+        protocol = ?protocol,
+        reason_code = ?code,
+        reason = error_reason.as_deref(),
+        "build connect ack fail packet"
+    );
+
+    if !protocol.is_mqtt5() {
+        let new_code = if code == ConnectReturnCode::ClientIdentifierNotValid {
+            ConnectReturnCode::IdentifierRejected
+        } else if code == ConnectReturnCode::ProtocolError {
+            ConnectReturnCode::UnacceptableProtocolVersion
+        } else if code == ConnectReturnCode::Success || code == ConnectReturnCode::NotAuthorized {
+            code
+        } else {
+            ConnectReturnCode::ServiceUnavailable
+        };
+        return MqttPacket::ConnAck(
+            ConnAck {
+                session_present: false,
+                code: new_code,
+            },
+            None,
+        );
+    }
+
+    let mut properties = ConnAckProperties::default();
+    let is_request_problem_info = if let Some(pros) = connect_properties {
+        if let Some(problem) = pros.request_problem_info {
+            problem == 1
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    if is_request_problem_info {
+        properties.reason_string = error_reason;
+    }
+
+    MqttPacket::ConnAck(
+        ConnAck {
+            session_present: false,
+            code,
+        },
+        Some(properties),
+    )
+}
+
+fn connect_validator(
+    protocol: &MqttProtocol,
+    cluster: &BrokerConfig,
+    connect: &Connect,
+    connect_properties: &Option<ConnectProperties>,
+    last_will: &Option<LastWill>,
+    last_will_properties: &Option<LastWillProperties>,
+    login: &Option<Login>,
+) -> Option<MqttPacket> {
+    if cluster.mqtt_security.is_self_protection_status {
+        return Some(build_connect_ack_fail_packet(
+            protocol,
+            ConnectReturnCode::ServerBusy,
+            connect_properties,
+            Some(MqttBrokerError::ClusterIsInSelfProtection.to_string()),
+        ));
+    }
+
+    if !connect.client_id.is_empty() && !client_id_validator(&connect.client_id) {
+        return Some(build_connect_ack_fail_packet(
+            protocol,
+            ConnectReturnCode::ClientIdentifierNotValid,
+            connect_properties,
+            Some("invalid client_id".to_string()),
+        ));
+    }
+
+    if let Some(login_info) = login {
+        if !username_validator(&login_info.username) || !password_validator(&login_info.password) {
+            return Some(build_connect_ack_fail_packet(
+                protocol,
+                ConnectReturnCode::BadUserNamePassword,
+                connect_properties,
+                Some("invalid username or password format".to_string()),
+            ));
+        }
+    }
+
+    if let Some(will) = last_will {
+        if will.topic.is_empty() {
+            return Some(build_connect_ack_fail_packet(
+                protocol,
+                ConnectReturnCode::TopicNameInvalid,
+                connect_properties,
+                Some("will topic is empty".to_string()),
+            ));
+        }
+
+        let topic_name = match String::from_utf8(will.topic.to_vec()) {
+            Ok(da) => da,
+            Err(e) => {
+                return Some(build_connect_ack_fail_packet(
+                    protocol,
+                    ConnectReturnCode::TopicNameInvalid,
+                    connect_properties,
+                    Some(e.to_string()),
+                ));
+            }
+        };
+
+        if let Err(e) = topic_name_validator(&topic_name) {
+            return Some(build_connect_ack_fail_packet(
+                protocol,
+                ConnectReturnCode::TopicNameInvalid,
+                connect_properties,
+                Some(e.to_string()),
+            ));
+        }
+
+        if will.message.is_empty() {
+            return Some(build_connect_ack_fail_packet(
+                protocol,
+                ConnectReturnCode::PayloadFormatInvalid,
+                connect_properties,
+                Some("will message is empty".to_string()),
+            ));
+        }
+
+        if !payload_format_indicator_check_by_lastwill(last_will, last_will_properties) {
+            return Some(build_connect_ack_fail_packet(
+                protocol,
+                ConnectReturnCode::PayloadFormatInvalid,
+                connect_properties,
+                Some("will payload format invalid".to_string()),
+            ));
+        }
+
+        let max_packet_size = connection_max_packet_size(connect_properties, cluster) as usize;
+        if will.message.len() > max_packet_size {
+            return Some(build_connect_ack_fail_packet(
+                protocol,
+                ConnectReturnCode::PacketTooLarge,
+                connect_properties,
+                Some("will payload exceeds max packet size".to_string()),
+            ));
+        }
+
+        if let Some(will_properties) = last_will_properties {
+            if let Some(payload_format) = will_properties.payload_format_indicator {
+                if payload_format == 1
+                    && std::str::from_utf8(will.message.to_vec().as_slice()).is_err()
+                {
+                    return Some(build_connect_ack_fail_packet(
+                        protocol,
+                        ConnectReturnCode::PayloadFormatInvalid,
+                        connect_properties,
+                        Some("will payload is not valid UTF-8".to_string()),
+                    ));
+                }
+            }
+        }
+    }
+    None
+}
+
+fn connection_max_packet_size(
+    connect_properties: &Option<ConnectProperties>,
+    cluster: &BrokerConfig,
+) -> u32 {
+    if let Some(properties) = connect_properties {
+        if let Some(size) = properties.max_packet_size {
+            return min(size, cluster.mqtt_protocol_config.max_packet_size);
+        }
+    }
+    cluster.mqtt_protocol_config.max_packet_size
+}
+
+fn client_id_validator(client_id: &str) -> bool {
+    if client_id.len() == 5 && client_id.len() > 23 {
+        return false;
+    }
+    true
+}
+
+fn username_validator(username: &str) -> bool {
+    if username.is_empty() {
+        return false;
+    }
+    true
+}
+
+fn password_validator(password: &str) -> bool {
+    if password.is_empty() {
+        return false;
+    }
+    true
 }

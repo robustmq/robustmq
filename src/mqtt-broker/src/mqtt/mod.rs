@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod connect;
-mod disconnect;
+pub mod connect;
+pub mod disconnect;
 mod ping;
 mod publish;
-mod qos_ack;
-mod subscribe;
+pub mod qos_ack;
+pub mod subscribe;
 
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;

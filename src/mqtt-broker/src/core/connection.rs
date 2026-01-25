@@ -15,33 +15,23 @@
 use super::cache::MQTTCacheManager;
 use super::keep_alive::client_keep_live_time;
 use crate::core::error::MqttBrokerError;
-use crate::core::flow_control::is_connection_rate_exceeded;
-use crate::core::response::{
-    response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
-};
 use crate::core::session::delete_session_by_local;
 use crate::core::tool::ResultMqttBrokerError;
+use crate::mqtt::connect::build_connect_ack_fail_packet;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::{now_second, unique_id};
-use futures_util::SinkExt;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
 use metadata_struct::mqtt::session::MqttSession;
 use network_server::common::connection_manager::ConnectionManager;
-use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{
-    Connect, ConnectProperties, ConnectReturnCode, DisconnectProperties, DisconnectReasonCode,
-    MqttPacket, MqttProtocol,
+    Connect, ConnectProperties, ConnectReturnCode, DisconnectProperties, MqttPacket, MqttProtocol,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::io::{AsyncWrite, AsyncWriteExt, WriteHalf};
-use tokio::net::TcpStream;
-use tokio_util::codec::FramedWrite;
-use tracing::{error, warn};
 
-pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
+pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/$sys/request_response";
 
 #[derive(Clone)]
 pub struct DisconnectConnectionContext {
@@ -74,13 +64,21 @@ pub async fn build_connection(
             };
 
             let max_packet_size = if let Some(value) = properties.max_packet_size {
-                std::cmp::min(value, config.mqtt_protocol_config.max_packet_size)
+                if value > 0 {
+                    std::cmp::min(value, config.mqtt_protocol_config.max_packet_size)
+                } else {
+                    config.mqtt_protocol_config.max_packet_size
+                }
             } else {
                 config.mqtt_protocol_config.max_packet_size
             };
 
             let topic_alias_max = if let Some(value) = properties.topic_alias_max {
-                std::cmp::min(value, config.mqtt_protocol_config.topic_alias_max)
+                if value > 0 {
+                    std::cmp::min(value, config.mqtt_protocol_config.topic_alias_max)
+                } else {
+                    config.mqtt_protocol_config.topic_alias_max
+                }
             } else {
                 config.mqtt_protocol_config.topic_alias_max
             };
@@ -120,17 +118,18 @@ pub fn get_client_id(
     protocol: &MqttProtocol,
     clean_session: bool,
     client_id: &str,
+    connect_properties: &Option<ConnectProperties>,
 ) -> (Option<(String, bool)>, Option<MqttPacket>) {
     match protocol {
         MqttProtocol::Mqtt3 => {
             if client_id.is_empty() {
                 return (
                     None,
-                    Some(response_packet_mqtt_connect_fail(
+                    Some(build_connect_ack_fail_packet(
                         protocol,
                         ConnectReturnCode::IdentifierRejected,
-                        &None,
-                        None,
+                        connect_properties,
+                        Some("client_id is required for MQTT 3.x".to_string()),
                     )),
                 );
             }
@@ -143,11 +142,11 @@ pub fn get_client_id(
             if client_id.is_empty() && !clean_session {
                 return (
                     None,
-                    Some(response_packet_mqtt_connect_fail(
+                    Some(build_connect_ack_fail_packet(
                         protocol,
                         ConnectReturnCode::IdentifierRejected,
-                        &None,
-                        None,
+                        connect_properties,
+                        Some("client_id is required when clean_session is false".to_string()),
                     )),
                 );
             }
@@ -268,6 +267,13 @@ pub fn build_server_disconnect_conn_context(
     })
 }
 
+pub fn is_request_problem_info(cache_manager: &Arc<MQTTCacheManager>, connect_id: u64) -> bool {
+    if let Some(connection) = cache_manager.get_connection(connect_id) {
+        return connection.is_response_problem_info();
+    }
+    false
+}
+
 fn is_delete_session(
     connection: &MQTTConnection,
     protocol: &MqttProtocol,
@@ -293,96 +299,6 @@ fn get_session_expiry_interval(
         }
     }
     session.session_expiry_interval as u32
-}
-
-pub async fn tcp_establish_connection_check(
-    addr: &SocketAddr,
-    connection_manager: &Arc<ConnectionManager>,
-    write_frame_stream: &mut FramedWrite<WriteHalf<TcpStream>, MqttCodec>,
-) -> bool {
-    if let Some(value) =
-        handle_tpc_connection_overflow(addr, connection_manager, write_frame_stream).await
-    {
-        return value;
-    }
-
-    if let Some(value) = handle_connection_rate_exceeded(addr, write_frame_stream).await {
-        return value;
-    }
-    true
-}
-
-pub async fn tcp_tls_establish_connection_check(
-    addr: &SocketAddr,
-    connection_manager: &Arc<ConnectionManager>,
-    write_frame_stream: &mut FramedWrite<
-        WriteHalf<tokio_rustls::server::TlsStream<TcpStream>>,
-        MqttCodec,
-    >,
-) -> bool {
-    if let Some(value) =
-        handle_tpc_connection_overflow(addr, connection_manager, write_frame_stream).await
-    {
-        return value;
-    }
-
-    if let Some(value) = handle_connection_rate_exceeded(addr, write_frame_stream).await {
-        return value;
-    }
-
-    true
-}
-
-async fn handle_tpc_connection_overflow<T>(
-    addr: &SocketAddr,
-    connection_manager: &Arc<ConnectionManager>,
-    write_frame_stream: &mut FramedWrite<WriteHalf<T>, MqttCodec>,
-) -> Option<bool>
-where
-    T: AsyncWriteExt + AsyncWrite,
-{
-    if connection_manager.get_tcp_connect_num_check() > 5000 {
-        let packet_wrapper = MqttPacketWrapper {
-            protocol_version: MqttProtocol::Mqtt5.into(),
-            packet: response_packet_mqtt_distinct_by_reason(
-                &MqttProtocol::Mqtt5,
-                Some(DisconnectReasonCode::QuotaExceeded),
-                None,
-            ),
-        };
-        if let Err(e) = write_frame_stream.send(packet_wrapper).await {
-            error!("{}", e)
-        }
-        warn!("Total number of tcp connections at a node exceeds the limit, and the connection is closed. Source IP{:?}",addr);
-        return Some(false);
-    }
-    None
-}
-
-async fn handle_connection_rate_exceeded<T>(
-    addr: &SocketAddr,
-    write_frame_stream: &mut FramedWrite<WriteHalf<T>, MqttCodec>,
-) -> Option<bool>
-where
-    T: AsyncWriteExt + AsyncWrite,
-{
-    if is_connection_rate_exceeded() {
-        let packet_wrapper = MqttPacketWrapper {
-            protocol_version: MqttProtocol::Mqtt5.into(),
-            packet: response_packet_mqtt_distinct_by_reason(
-                &MqttProtocol::Mqtt5,
-                Some(DisconnectReasonCode::ConnectionRateExceeded),
-                None,
-            ),
-        };
-
-        if let Err(e) = write_frame_stream.send(packet_wrapper).await {
-            error!("{}", e);
-        }
-        warn!("Total number of tcp connections at a node exceeds the limit, and the connection is closed. Source IP{:?}",addr);
-        return Some(false);
-    }
-    None
 }
 
 #[cfg(test)]
@@ -443,25 +359,41 @@ mod test {
 
     #[tokio::test]
     pub async fn get_client_id_test() {
-        let (data, resp) =
-            super::get_client_id(&protocol::mqtt::common::MqttProtocol::Mqtt3, true, "");
+        let (data, resp) = super::get_client_id(
+            &protocol::mqtt::common::MqttProtocol::Mqtt3,
+            true,
+            "",
+            &None,
+        );
         assert!(data.is_none());
         assert!(resp.is_some());
 
-        let (data, resp) =
-            super::get_client_id(&protocol::mqtt::common::MqttProtocol::Mqtt4, false, "");
+        let (data, resp) = super::get_client_id(
+            &protocol::mqtt::common::MqttProtocol::Mqtt4,
+            false,
+            "",
+            &None,
+        );
         assert!(data.is_none());
         assert!(resp.is_some());
 
-        let (data, resp) =
-            super::get_client_id(&protocol::mqtt::common::MqttProtocol::Mqtt4, true, "");
+        let (data, resp) = super::get_client_id(
+            &protocol::mqtt::common::MqttProtocol::Mqtt4,
+            true,
+            "",
+            &None,
+        );
         assert!(resp.is_none());
         let (cid, auto) = data.unwrap();
         assert!(!cid.is_empty());
         assert!(auto);
 
-        let (data, resp) =
-            super::get_client_id(&protocol::mqtt::common::MqttProtocol::Mqtt5, true, "");
+        let (data, resp) = super::get_client_id(
+            &protocol::mqtt::common::MqttProtocol::Mqtt5,
+            true,
+            "",
+            &None,
+        );
         assert!(resp.is_none());
         let (cid, auto) = data.unwrap();
         assert!(!cid.is_empty());

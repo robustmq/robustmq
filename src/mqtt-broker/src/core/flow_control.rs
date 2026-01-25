@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use protocol::mqtt::common::QoS;
-
 pub fn is_qos_message(qos: QoS) -> bool {
     qos == QoS::AtLeastOnce || qos == QoS::ExactlyOnce
 }

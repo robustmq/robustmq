@@ -14,22 +14,20 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
+    use crate::mqtt::protocol::common::{build_client_id, password};
     use bytes::Bytes;
     use common_base::tools::now_second;
     use futures::{SinkExt, StreamExt};
     use protocol::mqtt::common::{Connect, LastWill, Login, MqttPacket};
     use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
+    use std::time::Duration;
     use tokio::net::TcpStream;
-    use tokio::time::{sleep, Instant};
+    use tokio::time::{sleep, timeout, Instant};
     use tokio_util::codec::Framed;
     use tokio_util::time::FutureExt;
 
-    use crate::mqtt::protocol::common::{build_client_id, password};
-
     #[tokio::test]
-    async fn mqtt4_keep_alive_test() {
+    async fn keep_alive_test() {
         let socket = TcpStream::connect("127.0.0.1:1883")
             .timeout(Duration::from_secs(3))
             .await
@@ -39,37 +37,53 @@ mod tests {
 
         // send connect package
         let packet = build_mqtt5_pg_connect();
-        let _ = stream.send(packet).await;
-        let now = Instant::now();
-        loop {
-            if let Some(data) = stream.next().await {
-                println!("{},response:{data:?}", now_second());
+        stream.send(packet).await.unwrap();
+
+        let start = Instant::now();
+        // Expect broker to disconnect within ~keep_alive * default_timeout seconds.
+        let wait_res = timeout(Duration::from_secs(15), async {
+            loop {
+                let Some(data) = stream.next().await else {
+                    sleep(Duration::from_secs(1)).await;
+                    continue;
+                };
+
                 match data {
-                    Ok(da) => {
-                        println!("success:{da:?}");
-                        if matches!(da, MqttPacket::Disconnect(_, _)) {
-                            break;
+                    Ok(pkt) => {
+                        // Keep the log line lightweight; it helps diagnosing flaky CI.
+                        if matches!(pkt, MqttPacket::Disconnect(_, _)) {
+                            return Ok(());
                         }
                     }
                     Err(e) => {
-                        println!("error :{e}");
+                        // When the peer closes the connection, the decoder might see an incomplete frame.
+                        // Treat that as non-fatal and keep waiting for a proper DISCONNECT.
                         if !e.to_string().contains("Insufficient number") {
-                            break;
+                            return Err(format!(
+                                "decode error before DISCONNECT (ts={}): {}",
+                                now_second(),
+                                e
+                            ));
                         }
                     }
                 }
             }
-            sleep(Duration::from_millis(10)).await;
+        })
+        .await;
+
+        match wait_res {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => panic!("{e}"),
+            Err(_) => panic!("timeout waiting for DISCONNECT from broker"),
         }
-        let ts = now.elapsed().as_secs();
-        println!("ms: {ts}");
-        // assert!((14..=17).contains(&ts));
+
+        let ts = start.elapsed().as_secs();
         assert!((9..=11).contains(&ts));
     }
 
-    /// Build the connect content package for the mqtt4 protocol
+    /// Build the CONNECT packet for MQTT 5.0 keep-alive test.
     fn build_mqtt5_pg_connect() -> MqttPacket {
-        let client_id = build_client_id("mqtt4_keep_alive_test");
+        let client_id = build_client_id("mqtt5_keep_alive_test");
         let login = Some(Login {
             username: "admin".to_string(),
             password: password(),
