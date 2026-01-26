@@ -14,12 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
-    use common_base::tools::unique_id;
-    use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode, QOS_0};
-    use tokio::time::sleep;
-
     use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, ssl_by_type,
@@ -27,6 +21,10 @@ mod tests {
         },
         ClientTestProperties,
     };
+    use common_base::tools::unique_id;
+    use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode, QOS_0};
+    use std::time::Duration;
+    use tokio::time::sleep;
 
     #[tokio::test]
     async fn last_will_message_test() {
