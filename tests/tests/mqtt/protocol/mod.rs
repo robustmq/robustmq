@@ -36,6 +36,7 @@ pub mod connect_test;
 pub mod keep_alive_test;
 pub mod login_test;
 pub mod packet_size_test;
+pub mod properties_test;
 pub mod protocol_version_test;
 pub mod req_resp_test;
 pub mod request_problem_info_test;
