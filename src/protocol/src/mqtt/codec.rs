@@ -232,7 +232,7 @@ impl MqttCodec {
                 MqttPacket::Connect(_,connect, None, last_will, None, login) => {
                     crate::mqtt::mqttv4::connect::write(&connect, &login, &last_will, buffer)?
                 }
-                MqttPacket::ConnAck(connack, _) => crate::mqtt::mqttv4::connack::write(&connack, buffer)?,
+                MqttPacket::ConnAck(connack, None) => crate::mqtt::mqttv4::connack::write(&connack, buffer)?,
                 MqttPacket::Publish(publish, None) => crate::mqtt::mqttv4::publish::write(&publish, buffer)?,
                 MqttPacket::PubAck(puback, None) => crate::mqtt::mqttv4::puback::write(&puback, buffer)?,
                 MqttPacket::PubRec(pubrec, None) => crate::mqtt::mqttv4::pubrec::write(&pubrec, buffer)?,
@@ -357,7 +357,7 @@ pub fn calc_mqtt_packet_len(packet_wrapper: MqttPacketWrapper) -> Result<usize, 
             MqttPacket::Connect(_,connect, None, last_will, None, login) => {
                 crate::mqtt::mqttv4::connect::write(&connect, &login, &last_will, &mut buffer)?
             }
-            MqttPacket::ConnAck(connack, _) => crate::mqtt::mqttv4::connack::write(&connack, &mut buffer)?,
+            MqttPacket::ConnAck(connack, None) => crate::mqtt::mqttv4::connack::write(&connack, &mut buffer)?,
             MqttPacket::Publish(publish, None) => crate::mqtt::mqttv4::publish::write(&publish, &mut buffer)?,
             MqttPacket::PubAck(puback, None) => crate::mqtt::mqttv4::puback::write(&puback, &mut buffer)?,
             MqttPacket::PubRec(pubrec, None) => crate::mqtt::mqttv4::pubrec::write(&pubrec, &mut buffer)?,

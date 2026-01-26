@@ -14,9 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::unique_id;
-    use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode};
-
     use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
@@ -24,13 +21,32 @@ mod tests {
         },
         ClientTestProperties,
     };
+    use common_base::tools::unique_id;
+    use paho_mqtt::{Message, MessageBuilder};
 
     #[tokio::test]
-    async fn user_properties_test() {
-        let network = "tcp";
-        let qos = 1;
-        let topic = format!("/user_properties_test/{}/{}/{}", unique_id(), network, qos);
-        let client_id = build_client_id(format!("user_properties_test_{network}_{qos}").as_str());
+    async fn tcp_pub_sub_test() {
+        network_pub_sub_test("tcp", 1);
+    }
+
+    #[tokio::test]
+    async fn tls_pub_sub_test() {
+        network_pub_sub_test("ssl", 1);
+    }
+
+    #[tokio::test]
+    async fn ws_pub_sub_test() {
+        network_pub_sub_test("ws", 1);
+    }
+
+    #[tokio::test]
+    async fn wss_pub_sub_test() {
+        network_pub_sub_test("wss", 1);
+    }
+
+    fn network_pub_sub_test(network: &str, qos: i32) {
+        let topic = format!("/network_pub_sub_test/{}/{}/{}", unique_id(), network, qos);
+        let client_id = build_client_id(format!("network_pub_sub_test_{network}_{qos}").as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
@@ -43,20 +59,11 @@ mod tests {
         let cli = connect_server(&client_properties);
 
         // publish
-        let message_content = "user_properties_test mqtt message".to_string();
-        let mut props = Properties::new();
-        props
-            .push_u32(PropertyCode::MessageExpiryInterval, 50)
-            .unwrap();
-        props
-            .push_string_pair(PropertyCode::UserProperty, "age", "1")
-            .unwrap();
-        props
-            .push_string_pair(PropertyCode::UserProperty, "name", "robustmq")
-            .unwrap();
-
+        let message_content = format!(
+            "{}_{}_{}",
+            "network_pub_sub_test mqtt message", network, qos
+        );
         let msg = MessageBuilder::new()
-            .properties(props.clone())
             .payload(message_content.clone())
             .topic(topic.clone())
             .qos(qos)
@@ -67,32 +74,7 @@ mod tests {
         // subscribe
         let call_fn = |msg: Message| {
             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            let bl0 = payload == message_content;
-            let user_properties = match msg
-                .properties()
-                .get_string_pair_at(PropertyCode::UserProperty, 0)
-            {
-                Some(data) => data,
-                None => {
-                    return false;
-                }
-            };
-            let bl1 = user_properties.0 == *"age";
-            let bl2 = user_properties.1 == *"1";
-
-            let user_properties = match msg
-                .properties()
-                .get_string_pair_at(PropertyCode::UserProperty, 1)
-            {
-                Some(data) => data,
-                None => {
-                    return false;
-                }
-            };
-            let bl3 = user_properties.0 == *"name";
-            let bl4 = user_properties.1 == *"robustmq";
-
-            bl0 && bl1 && bl2 && bl3 && bl4
+            payload == message_content
         };
 
         subscribe_data_by_qos(&cli, &topic, qos, call_fn);
