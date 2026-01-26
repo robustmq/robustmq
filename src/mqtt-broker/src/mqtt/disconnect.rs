@@ -25,36 +25,6 @@ use protocol::mqtt::common::{
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-pub fn build_distinct_packet(
-    cache_manager: &Arc<MQTTCacheManager>,
-    connect_id: u64,
-    protocol: &MqttProtocol,
-    code: Option<DisconnectReasonCode>,
-    server_reference: Option<String>,
-    reason: Option<String>,
-) -> MqttPacket {
-    debug!(
-        connect_id,
-        protocol = ?protocol,
-        reason_code = ?code,
-        server_reference = server_reference.as_deref(),
-        reason = reason.as_deref(),
-        "build disconnect packet"
-    );
-    if !protocol.is_mqtt5() {
-        return MqttPacket::Disconnect(Disconnect { reason_code: code }, None);
-    }
-
-    let mut pros = DisconnectProperties {
-        server_reference,
-        ..Default::default()
-    };
-    if is_request_problem_info(cache_manager, connect_id) {
-        pros.reason_string = reason;
-    }
-    MqttPacket::Disconnect(Disconnect { reason_code: code }, Some(pros))
-}
-
 impl MqttService {
     pub async fn disconnect(
         &self,
@@ -97,4 +67,34 @@ impl MqttService {
 
         None
     }
+}
+
+pub fn build_distinct_packet(
+    cache_manager: &Arc<MQTTCacheManager>,
+    connect_id: u64,
+    protocol: &MqttProtocol,
+    code: Option<DisconnectReasonCode>,
+    server_reference: Option<String>,
+    reason: Option<String>,
+) -> MqttPacket {
+    debug!(
+        connect_id,
+        protocol = ?protocol,
+        reason_code = ?code,
+        server_reference = server_reference.as_deref(),
+        reason = reason.as_deref(),
+        "build disconnect packet"
+    );
+    if !protocol.is_mqtt5() {
+        return MqttPacket::Disconnect(Disconnect { reason_code: code }, None);
+    }
+
+    let mut pros = DisconnectProperties {
+        server_reference,
+        ..Default::default()
+    };
+    if is_request_problem_info(cache_manager, connect_id) {
+        pros.reason_string = reason;
+    }
+    MqttPacket::Disconnect(Disconnect { reason_code: code }, Some(pros))
 }
