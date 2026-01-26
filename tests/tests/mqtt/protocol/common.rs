@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::mqtt::protocol::ClientTestProperties;
 use admin_server::client::AdminHttpClient;
@@ -26,7 +26,7 @@ use paho_mqtt::{
     DisconnectOptionsBuilder, Message, Properties, PropertyCode, ReasonCode, SslOptionsBuilder,
     SubscribeOptions,
 };
-use tokio::time::{sleep, Instant};
+use tokio::time::sleep;
 
 pub fn qos_list() -> Vec<i32> {
     vec![0, 1, 2]
@@ -213,11 +213,30 @@ pub fn subscribe_data_by_qos<T>(cli: &Client, sub_topic: &str, sub_qos: i32, cal
 where
     T: Fn(Message) -> bool,
 {
+    subscribe_data_by_qos_with_timeout(cli, sub_topic, sub_qos, Duration::from_secs(60), call_fn)
+}
+
+pub fn subscribe_data_by_qos_with_timeout<T>(
+    cli: &Client,
+    sub_topic: &str,
+    sub_qos: i32,
+    timeout: Duration,
+    call_fn: T,
+) where
+    T: Fn(Message) -> bool,
+{
     let rx = cli.start_consuming();
     let res = cli.subscribe(sub_topic, sub_qos);
     assert!(res.is_ok());
 
+    let start = Instant::now();
     loop {
+        if start.elapsed() >= timeout {
+            panic!(
+                "subscribe_data_by_qos timeout: sub_topic={sub_topic}, sub_qos={sub_qos}, timeout={timeout:?}"
+            );
+        }
+
         let res = rx.recv_timeout(Duration::from_secs(10));
         if let Ok(msg_opt) = res {
             assert!(msg_opt.is_some());
