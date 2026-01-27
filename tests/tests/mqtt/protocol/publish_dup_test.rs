@@ -14,6 +14,12 @@
 
 #[cfg(test)]
 mod tests {
+
+    #[tokio::test]
+    async fn publish_qos1_dup_false_test() {}
+
+    #[tokio::test]
+    async fn publish_qos1_dup_true_test() {}
     #[tokio::test]
     async fn publish_qos2_dup_false_test() {}
 
