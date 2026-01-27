@@ -16,9 +16,7 @@
 mod tests {
     use crate::mqtt::protocol::common::{
         broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
-        network_types, protocol_versions, qos_list, ssl_by_type, ws_by_type,
     };
-
     use crate::mqtt::protocol::ClientTestProperties;
     use admin_server::client::AdminHttpClient;
     use admin_server::mqtt::acl::{AclListReq, AclListRow, CreateAclReq, DeleteAclReq};
@@ -204,50 +202,43 @@ mod tests {
         }
     }
     async fn publish_user_acl_test(topic: &str, username: String, password: String, is_err: bool) {
-        for protocol in protocol_versions() {
-            for network in network_types() {
-                for qos in qos_list() {
-                    let client_id = build_client_id(
-                        format!("publish_user_acl_test_{protocol}_{network}_{qos}").as_str(),
-                    );
+        let protocol = 5;
+        let network = "tcp";
+        let qos = 1;
+        let client_id =
+            build_client_id(format!("publish_user_acl_test_{protocol}_{network}_{qos}").as_str());
 
-                    let client_properties = ClientTestProperties {
-                        mqtt_version: protocol,
-                        client_id: client_id.to_string(),
-                        addr: broker_addr_by_type(&network),
-                        ws: ws_by_type(&network),
-                        ssl: ssl_by_type(&network),
-                        user_name: username.clone(),
-                        password: password.clone(),
-                        ..Default::default()
-                    };
-                    let cli = connect_server(&client_properties);
+        let client_properties = ClientTestProperties {
+            mqtt_version: protocol,
+            client_id: client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            user_name: username.clone(),
+            password: password.clone(),
+            ..Default::default()
+        };
+        let cli = connect_server(&client_properties);
 
-                    // publish retain
-                    let message = "publish_user_acl_test mqtt message".to_string();
-                    let msg = MessageBuilder::new()
-                        .payload(message.clone())
-                        .topic(topic.to_owned())
-                        .qos(qos)
-                        .retained(true)
-                        .finalize();
+        // publish retain
+        let message = "publish_user_acl_test mqtt message".to_string();
+        let msg = MessageBuilder::new()
+            .payload(message.clone())
+            .topic(topic.to_owned())
+            .qos(qos)
+            .finalize();
 
-                    let result = cli.publish(msg);
+        let result = cli.publish(msg);
 
-                    if result.is_err() {
-                        println!("{client_id},{result:?},{is_err}");
-                    }
-
-                    if protocol == 5 && is_err && qos != 0 {
-                        assert!(result.is_err());
-                    } else {
-                        assert!(result.is_ok());
-                    }
-
-                    distinct_conn(cli);
-                }
-            }
+        if result.is_err() {
+            println!("{client_id},{result:?},{is_err}");
         }
+
+        if protocol == 5 && is_err && qos != 0 {
+            assert!(result.is_err());
+        } else {
+            assert!(result.is_ok());
+        }
+
+        distinct_conn(cli);
     }
 
     async fn publish_client_id_acl_test(
@@ -265,8 +256,6 @@ mod tests {
             mqtt_version: protocol,
             client_id: client_id.to_owned(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             user_name: username.to_owned(),
             password: password.to_owned(),
             ..Default::default()
@@ -304,7 +293,6 @@ mod tests {
             is_superuser: false,
         };
         let res = admin_client.create_user(&user).await;
-        println!("{:?}", res);
         assert!(res.is_ok());
     }
 

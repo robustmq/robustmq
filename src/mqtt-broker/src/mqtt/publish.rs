@@ -35,6 +35,8 @@ use std::cmp::min;
 use std::sync::Arc;
 use tracing::debug;
 
+const PUBLISH_QOS_DUMP: &str = "PUBLISH_QOS_DUMP";
+
 impl MqttService {
     pub async fn publish(
         &self,
@@ -103,15 +105,20 @@ impl MqttService {
 
         match publish.qos {
             QoS::AtMostOnce => None,
-            QoS::AtLeastOnce => Some(build_pub_ack(
-                &self.cache_manager,
-                connection.connect_id,
-                &self.protocol,
-                publish.p_kid,
-                PubAckReason::Success,
-                None,
-                user_properties,
-            )),
+            QoS::AtLeastOnce => {
+                self.cache_manager
+                    .qos_data
+                    .remove_receive_publish_pkid_data(&connection.client_id, publish.p_kid);
+                Some(build_pub_ack(
+                    &self.cache_manager,
+                    connection.connect_id,
+                    &self.protocol,
+                    publish.p_kid,
+                    PubAckReason::Success,
+                    None,
+                    user_properties,
+                ))
+            }
             QoS::ExactlyOnce => Some(build_pub_rec(
                 &self.cache_manager,
                 connection.connect_id,
@@ -229,7 +236,7 @@ impl MqttService {
                     publish.p_kid,
                     PubAckReason::Success,
                     None,
-                    Vec::new(),
+                    vec![(PUBLISH_QOS_DUMP.to_string(), "true".to_string())],
                 ));
             }
 
@@ -242,7 +249,7 @@ impl MqttService {
                         publish.p_kid,
                         PubRecReason::Success,
                         None,
-                        Vec::new(),
+                        vec![(PUBLISH_QOS_DUMP.to_string(), "true".to_string())],
                     ));
                 }
 
@@ -254,7 +261,7 @@ impl MqttService {
                         publish.p_kid,
                         PubCompReason::Success,
                         None,
-                        Vec::new(),
+                        vec![(PUBLISH_QOS_DUMP.to_string(), "true".to_string())],
                     ));
                 }
             }
@@ -303,7 +310,7 @@ impl MqttService {
                 &self.protocol,
                 pub_rel.pkid,
                 PubCompReason::PacketIdentifierNotFound,
-                Some("".to_string()),
+                Some("packet identifier not found".to_string()),
                 Vec::new(),
             );
         }
