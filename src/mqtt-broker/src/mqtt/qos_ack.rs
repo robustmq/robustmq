@@ -12,18 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use super::MqttService;
-use crate::core::{
-    cache::{MQTTCacheManager, QosAckPackageData, QosAckPackageType},
-    connection::is_request_problem_info,
-};
+use crate::core::cache::{QosAckPackageData, QosAckPackageType};
 use common_base::tools::now_millis;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
-    MqttPacket, MqttProtocol, PubAck, PubAckProperties, PubComp, PubCompProperties, PubCompReason,
-    PubRec, PubRecProperties, PubRel, PubRelProperties,
+    MqttPacket, PubAck, PubAckProperties, PubComp, PubCompProperties, PubRec, PubRecProperties,
 };
 use tracing::debug;
 
@@ -37,8 +31,8 @@ impl MqttService {
         let pkid = pub_ack.pkid;
         if let Some(data) = self
             .cache_manager
-            .pkid_metadata
-            .get_ack_packet(&connection.client_id, pkid)
+            .qos_data
+            .get_publish_to_client_qos_ack_data(&connection.client_id, pkid)
         {
             if let Err(e) = data.sx.send(QosAckPackageData {
                 ack_type: QosAckPackageType::PubAck,
@@ -69,8 +63,8 @@ impl MqttService {
         let pkid = pub_rec.pkid;
         if let Some(data) = self
             .cache_manager
-            .pkid_metadata
-            .get_ack_packet(&connection.client_id, pkid)
+            .qos_data
+            .get_publish_to_client_qos_ack_data(&connection.client_id, pkid)
         {
             if let Err(e) = data.sx.send(QosAckPackageData {
                 ack_type: QosAckPackageType::PubRec,
@@ -101,8 +95,8 @@ impl MqttService {
         let pkid = pub_comp.pkid;
         if let Some(data) = self
             .cache_manager
-            .pkid_metadata
-            .get_ack_packet(&connection.client_id, pkid)
+            .qos_data
+            .get_publish_to_client_qos_ack_data(&connection.client_id, pkid)
         {
             if let Err(e) = data.sx.send(QosAckPackageData {
                 ack_type: QosAckPackageType::PubComp,
@@ -123,80 +117,4 @@ impl MqttService {
 
         None
     }
-
-    pub async fn publish_rel(
-        &self,
-        connection: &MQTTConnection,
-        pub_rel: &PubRel,
-        _: &Option<PubRelProperties>,
-    ) -> MqttPacket {
-        let client_id = connection.client_id.clone();
-        if self
-            .cache_manager
-            .pkid_metadata
-            .get_client_pkid(&client_id, pub_rel.pkid)
-            .is_none()
-        {
-            return response_packet_mqtt_pub_comp_fail(
-                &self.cache_manager,
-                connection.connect_id,
-                &self.protocol,
-                pub_rel.pkid,
-                PubCompReason::PacketIdentifierNotFound,
-                Some("".to_string()),
-            );
-        }
-
-        self.cache_manager
-            .pkid_metadata
-            .delete_client_pkid(&client_id, pub_rel.pkid);
-        connection.recv_qos_message_decr();
-        response_packet_mqtt_pub_comp_success(&self.protocol, pub_rel.pkid)
-    }
-}
-
-fn response_packet_mqtt_pub_comp_success(protocol: &MqttProtocol, pkid: u16) -> MqttPacket {
-    let comp = PubComp {
-        pkid,
-        reason: Some(PubCompReason::Success),
-    };
-
-    if !protocol.is_mqtt5() {
-        return MqttPacket::PubComp(comp, None);
-    }
-
-    MqttPacket::PubComp(comp, Some(PubCompProperties::default()))
-}
-
-fn response_packet_mqtt_pub_comp_fail(
-    cache_manager: &Arc<MQTTCacheManager>,
-    connect_id: u64,
-    protocol: &MqttProtocol,
-    pkid: u16,
-    reason: PubCompReason,
-    reason_string: Option<String>,
-) -> MqttPacket {
-    debug!(
-        connect_id = connect_id,
-        pkid = pkid,
-        protocol = ?protocol,
-        reason = ?reason,
-        reason_string = ?reason_string,
-        "Building publish complete failure packet"
-    );
-
-    let pub_comp = PubComp {
-        pkid,
-        reason: Some(reason),
-    };
-
-    if !protocol.is_mqtt5() {
-        return MqttPacket::PubComp(pub_comp, None);
-    }
-
-    let mut properties = PubCompProperties::default();
-    if is_request_problem_info(cache_manager, connect_id) {
-        properties.reason_string = reason_string;
-    }
-    MqttPacket::PubComp(pub_comp, Some(properties))
 }

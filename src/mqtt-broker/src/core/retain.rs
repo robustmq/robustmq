@@ -188,7 +188,7 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
 
             let retain = get_retain_flag_by_retain_as_published(filter.preserve_retain, msg.retain);
             let qos = min_qos(
-                qos(cluster.mqtt_protocol_config.max_qos).unwrap(),
+                qos(cluster.mqtt_protocol_config.max_qos_flight_message).unwrap(),
                 filter.qos,
             );
 
@@ -211,8 +211,8 @@ async fn send_retain_message(context: SendRetainMessageContext) -> ResultMqttBro
 
             let p_kid = context
                 .cache_manager
-                .pkid_metadata
-                .generate_pkid(&context.client_id, &qos)
+                .qos_data
+                .generate_publish_to_client_pkid(&context.client_id, &qos)
                 .await;
 
             let publish = Publish {

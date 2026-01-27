@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::flow_control::is_qos_message;
 use crate::core::cache::MQTTCacheManager;
 use crate::core::connection::{build_server_disconnect_conn_context, disconnect_connection};
 use crate::core::error::MqttBrokerError;
@@ -360,10 +359,6 @@ impl MQTTHandlerCommand {
         publish: Publish,
         publish_properties: Option<PublishProperties>,
     ) -> Option<ResponsePackage> {
-        if is_qos_message(publish.qos) {
-            connection.recv_qos_message_incr();
-        }
-
         let resp = if tcp_connection.is_mqtt3() {
             self.mqtt3_service
                 .publish(connection, &publish, &publish_properties)
@@ -380,13 +375,6 @@ impl MQTTHandlerCommand {
             None
         };
 
-        if let Some(pack) = resp.clone() {
-            if let MqttPacket::PubRec(_, _) = pack {
-                // todo
-            } else if is_qos_message(publish.qos) {
-                connection.recv_qos_message_decr();
-            }
-        }
         if let Some(pkg) = resp {
             return Some(ResponsePackage::build(
                 tcp_connection.connection_id,
