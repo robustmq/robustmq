@@ -75,7 +75,7 @@ impl PkidManager {
         let inner = self
             .receive_qos_pkid_data
             .entry(client_id.to_string())
-            .or_insert_with(DashMap::new);
+            .or_default();
         inner.insert(data.pkid as u64, data);
     }
 
@@ -135,7 +135,7 @@ impl PkidManager {
                 let inner = self
                     .publish_to_client_pkid_cache
                     .entry(client_id.to_string())
-                    .or_insert_with(DashMap::new);
+                    .or_default();
                 if inner.contains_key(&pkid_key) {
                     true
                 } else {

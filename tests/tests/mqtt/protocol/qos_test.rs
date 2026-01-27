@@ -39,7 +39,7 @@ mod tests {
                 let client_properties = ClientTestProperties {
                     mqtt_version: protocol,
                     client_id: client_id.to_string(),
-                    addr: broker_addr_by_type(&network),
+                    addr: broker_addr_by_type(network),
                     ..Default::default()
                 };
                 let cli = connect_server(&client_properties);

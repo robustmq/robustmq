@@ -282,8 +282,6 @@ impl MqttService {
             );
         }
 
-        if publish.qos == QoS::ExactlyOnce {}
-
         None
     }
 

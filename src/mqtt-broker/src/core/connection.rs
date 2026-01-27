@@ -303,12 +303,8 @@ fn get_session_expiry_interval(
 
 #[cfg(test)]
 mod test {
-
+    use super::{build_connection, response_information, REQUEST_RESPONSE_PREFIX_NAME};
     use crate::core::tool::test_build_mqtt_cache_manager;
-
-    use super::{
-        build_connection, response_information, MQTTConnection, REQUEST_RESPONSE_PREFIX_NAME,
-    };
     use common_config::broker::default_broker_config;
     use protocol::mqtt::common::{Connect, ConnectProperties};
 
