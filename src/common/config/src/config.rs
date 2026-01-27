@@ -261,7 +261,7 @@ pub struct MqttProtocolConfig {
     pub max_session_expiry_interval: u32,
     pub default_session_expiry_interval: u32,
     pub topic_alias_max: u16,
-    pub max_qos: u8,
+    pub max_qos_flight_message: u8,
     pub max_packet_size: u32,
     pub receive_max: u16,
     pub max_message_expiry_interval: u64,

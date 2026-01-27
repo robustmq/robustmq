@@ -168,7 +168,7 @@ pub fn default_mqtt_protocol_config() -> MqttProtocolConfig {
         max_session_expiry_interval: 1800,
         default_session_expiry_interval: 30,
         topic_alias_max: 65535,
-        max_qos: 2,
+        max_qos_flight_message: 2,
         max_packet_size: 1024 * 1024 * 10,
         receive_max: 65535,
         client_pkid_persistent: false,

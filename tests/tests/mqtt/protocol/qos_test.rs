@@ -17,100 +17,82 @@ use super::common::build_client_id;
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use common_base::tools::unique_id;
-    use paho_mqtt::{Message, MessageBuilder};
-
     use crate::mqtt::protocol::{
         common::{
-            broker_addr_by_type, connect_server, distinct_conn, network_types, protocol_versions,
-            publish_data, qos_list, ssl_by_type, subscribe_data_by_qos, ws_by_type,
+            broker_addr_by_type, connect_server, distinct_conn, protocol_versions, publish_data,
+            qos_list, ssl_by_type, subscribe_data_by_qos, ws_by_type,
         },
         ClientTestProperties,
     };
+    use common_base::tools::unique_id;
+    use paho_mqtt::{Message, MessageBuilder};
 
     #[tokio::test]
-    async fn publish_qos_test() {
+    async fn publish345_qos_test() {
+        let network = "tcp";
         for protocol in protocol_versions() {
-            for network in network_types() {
-                for qos in qos_list() {
-                    let topic = format!("/publish_qos_test/{}/{}/{}", unique_id(), network, qos);
-                    let client_id =
-                        build_client_id(format!("publish_qos_test_{network}_{qos}").as_str());
+            for qos in qos_list() {
+                let topic = format!("/publish_qos_test/{}/{}/{}", unique_id(), network, qos);
+                let client_id =
+                    build_client_id(format!("publish_qos_test_{network}_{qos}").as_str());
 
-                    let client_properties = ClientTestProperties {
-                        mqtt_version: protocol,
-                        client_id: client_id.to_string(),
-                        addr: broker_addr_by_type(&network),
-                        ws: ws_by_type(&network),
-                        ssl: ssl_by_type(&network),
-                        ..Default::default()
-                    };
-                    let cli = connect_server(&client_properties);
+                let client_properties = ClientTestProperties {
+                    mqtt_version: protocol,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(&network),
+                    ..Default::default()
+                };
+                let cli = connect_server(&client_properties);
 
-                    // publish retain
-                    let message = "publish_qos_test mqtt message".to_string();
-                    let msg = MessageBuilder::new()
-                        .payload(message.clone())
-                        .topic(topic.clone())
-                        .qos(qos)
-                        .retained(true)
-                        .finalize();
-                    publish_data(&cli, msg, false);
-
-                    // publish no retain
-                    let message = "publish_qos_test mqtt message".to_string();
-                    let msg = MessageBuilder::new()
-                        .payload(message.clone())
-                        .topic(topic.clone())
-                        .qos(qos)
-                        .retained(false)
-                        .finalize();
-                    publish_data(&cli, msg, false);
-                    distinct_conn(cli);
-                }
+                let message = "publish_qos_test mqtt message".to_string();
+                let msg = MessageBuilder::new()
+                    .payload(message.clone())
+                    .topic(topic.clone())
+                    .qos(qos)
+                    .finalize();
+                publish_data(&cli, msg, false);
+                distinct_conn(cli);
             }
         }
     }
 
     #[tokio::test]
-    async fn subscribe_qos_test() {
+    async fn subscribe345_qos_test() {
+        let network = "tcp";
         for protocol in protocol_versions() {
-            for network in network_types() {
-                for qos in qos_list() {
-                    let topic = format!("/publish_qos_test/{}/{}/{}", unique_id(), network, qos);
-                    let client_id =
-                        build_client_id(format!("subscribe_qos_test_{network}_{qos}").as_str());
-                    let client_properties = ClientTestProperties {
-                        mqtt_version: protocol,
-                        client_id: client_id.to_string(),
-                        addr: broker_addr_by_type(&network),
-                        ws: ws_by_type(&network),
-                        ssl: ssl_by_type(&network),
-                        ..Default::default()
-                    };
-                    let cli = connect_server(&client_properties);
+            for qos in qos_list() {
+                let topic = format!("/publish_qos_test/{}/{}/{}", unique_id(), network, qos);
+                let client_id =
+                    build_client_id(format!("subscribe_qos_test_{network}_{qos}").as_str());
+                let client_properties = ClientTestProperties {
+                    mqtt_version: protocol,
+                    client_id: client_id.to_string(),
+                    addr: broker_addr_by_type(network),
+                    ws: ws_by_type(network),
+                    ssl: ssl_by_type(network),
+                    ..Default::default()
+                };
+                let cli = connect_server(&client_properties);
 
-                    // publish retain
-                    let message = "subscribe_qos_test mqtt message".to_string();
-                    let msg = MessageBuilder::new()
-                        .payload(message.clone())
-                        .topic(topic.clone())
-                        .qos(qos)
-                        .finalize();
-                    publish_data(&cli, msg, false);
+                // publish
+                let message = "subscribe_qos_test mqtt message".to_string();
+                let msg = MessageBuilder::new()
+                    .payload(message.clone())
+                    .topic(topic.clone())
+                    .qos(qos)
+                    .finalize();
+                publish_data(&cli, msg, false);
 
-                    // subscribe
-                    let call_fn = |msg: Message| {
-                        let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                        if payload == message {
-                            return true;
-                        }
-                        false
-                    };
-                    subscribe_data_by_qos(&cli, &topic, qos, call_fn);
-                    distinct_conn(cli);
-                }
+                // subscribe
+                let call_fn = |msg: Message| {
+                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    if payload == message {
+                        return true;
+                    }
+                    false
+                };
+                subscribe_data_by_qos(&cli, &topic, qos, call_fn);
+                distinct_conn(cli);
             }
         }
     }

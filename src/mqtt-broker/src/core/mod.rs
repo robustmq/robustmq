@@ -31,6 +31,7 @@ pub mod metrics;
 pub mod metrics_cache;
 pub mod offline_message;
 pub mod pkid_manager;
+pub mod qos;
 pub mod retain;
 pub mod session;
 pub mod sub_auto;

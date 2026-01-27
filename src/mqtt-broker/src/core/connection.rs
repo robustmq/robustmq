@@ -419,24 +419,4 @@ mod test {
         let res = response_information(&Some(connect_properties));
         assert!(res.is_none());
     }
-
-    #[tokio::test]
-    pub async fn recv_qos_message_num_test() {
-        let conn = MQTTConnection::default();
-        assert_eq!(conn.get_recv_qos_message(), 0);
-        conn.recv_qos_message_incr();
-        assert_eq!(conn.get_recv_qos_message(), 1);
-        conn.recv_qos_message_decr();
-        assert_eq!(conn.get_recv_qos_message(), 0);
-    }
-
-    #[tokio::test]
-    pub async fn send_qos_message_num_test() {
-        let conn = MQTTConnection::default();
-        assert_eq!(conn.get_send_qos_message(), 0);
-        conn.send_qos_message_incr();
-        assert_eq!(conn.get_send_qos_message(), 1);
-        conn.send_qos_message_decr();
-        assert_eq!(conn.get_send_qos_message(), 0);
-    }
 }

@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::QosAckPacketInfo;
+use common_base::tools::now_second;
+use dashmap::DashMap;
+use protocol::mqtt::common::QoS;
 use std::{
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -19,26 +23,35 @@ use std::{
     },
     time::Duration,
 };
-
-use common_base::tools::now_second;
-use dashmap::DashMap;
-use protocol::mqtt::common::QoS;
 use tokio::time::sleep;
 
-use crate::core::cache::{ClientPkidData, QosAckPacketInfo};
+#[derive(Clone, PartialEq, PartialOrd)]
+pub enum QosAckEnum {
+    PubAck,
+    PubRec,
+    PubComp,
+}
+
+#[derive(Clone)]
+pub struct ReceiveQosPkidData {
+    pub ack_enum: QosAckEnum,
+    pub pkid: u16,
+    pub create_time: u64,
+}
 
 #[derive(Clone)]
 pub struct PkidManager {
-    //(client_id_pkid, u64)
-    pub pkid_cache: DashMap<String, u64>,
+    // (client_id, (pkid, now_second()))
+    pub receive_qos_pkid_data: DashMap<String, DashMap<u64, ReceiveQosPkidData>>,
+
+    // publish to client pkid generate
+    pub publish_to_client_pkid_generate: Arc<AtomicU64>,
+
+    //(client_id, now_second())
+    pub publish_to_client_pkid_cache: DashMap<String, DashMap<String, u64>>,
 
     //(client_id_pkid, AckPacketInfo)
-    pub qos_ack_packet: DashMap<String, QosAckPacketInfo>,
-
-    // (client_id_pkid, QosPkidData)
-    pub client_pkid_data: DashMap<String, ClientPkidData>,
-
-    pub pkid_atomic: Arc<AtomicU64>,
+    pub publish_to_client_qos_ack_data: DashMap<String, QosAckPacketInfo>,
 }
 
 impl Default for PkidManager {
@@ -50,35 +63,66 @@ impl Default for PkidManager {
 impl PkidManager {
     pub fn new() -> Self {
         PkidManager {
-            pkid_cache: DashMap::with_capacity(8),
-            qos_ack_packet: DashMap::with_capacity(8),
-            client_pkid_data: DashMap::with_capacity(8),
-            pkid_atomic: Arc::new(AtomicU64::new(1)),
+            receive_qos_pkid_data: DashMap::with_capacity(8),
+
+            publish_to_client_pkid_generate: Arc::new(AtomicU64::new(1)),
+            publish_to_client_pkid_cache: DashMap::with_capacity(8),
+            publish_to_client_qos_ack_data: DashMap::with_capacity(8),
+        }
+    }
+    // receive publish pkid data
+    pub fn add_receive_publish_pkid_data(&self, client_id: &str, data: ReceiveQosPkidData) {
+        let inner = self
+            .receive_qos_pkid_data
+            .entry(client_id.to_string())
+            .or_insert_with(DashMap::new);
+        inner.insert(data.pkid as u64, data);
+    }
+
+    pub fn remove_receive_publish_pkid_data(&self, client_id: &str, pkid: u16) {
+        let pkid_key = pkid as u64;
+        let mut remove_outer = false;
+        if let Some(inner) = self.receive_qos_pkid_data.get(client_id) {
+            inner.remove(&pkid_key);
+            if inner.is_empty() {
+                remove_outer = true;
+            }
+        }
+        if remove_outer {
+            self.receive_qos_pkid_data.remove(client_id);
         }
     }
 
-    pub fn remove_by_client_id(&self, client_id: &str) {
-        for (key, _) in self.qos_ack_packet.clone() {
-            if key.starts_with(client_id) {
-                self.qos_ack_packet.remove(&key);
+    pub fn get_receive_publish_pkid_data(
+        &self,
+        client_id: &str,
+        pkid: u16,
+    ) -> Option<ReceiveQosPkidData> {
+        if let Some(inner) = self.receive_qos_pkid_data.get(client_id) {
+            if let Some(da) = inner.get(&(pkid as u64)) {
+                return Some(da.clone());
             }
         }
-
-        for (key, _) in self.client_pkid_data.clone() {
-            if key.starts_with(client_id) {
-                self.qos_ack_packet.remove(&key);
-            }
-        }
+        None
     }
 
-    // sub => pub push pkid generate
-    pub async fn generate_pkid(&self, client_id: &str, qos: &QoS) -> u16 {
+    pub fn get_receive_publish_pkid_data_len_by_client_ids(&self, client_id: &str) -> usize {
+        if let Some(inner) = self.receive_qos_pkid_data.get(client_id) {
+            return inner.len();
+        }
+        0
+    }
+
+    // publish to client pkid
+    pub async fn generate_publish_to_client_pkid(&self, client_id: &str, qos: &QoS) -> u16 {
         if *qos == QoS::AtMostOnce {
             return 1;
         }
 
         loop {
-            let seq = self.pkid_atomic.fetch_add(1, Ordering::SeqCst);
+            let seq = self
+                .publish_to_client_pkid_generate
+                .fetch_add(1, Ordering::SeqCst);
 
             let id = (seq % 65535) as u16;
             if id == 0 {
@@ -86,60 +130,74 @@ impl PkidManager {
                 continue;
             }
 
-            let key = self.key(client_id, id);
-            if self.pkid_cache.contains_key(&key) {
+            let pkid_key = id.to_string();
+            let should_retry = {
+                let inner = self
+                    .publish_to_client_pkid_cache
+                    .entry(client_id.to_string())
+                    .or_insert_with(DashMap::new);
+                if inner.contains_key(&pkid_key) {
+                    true
+                } else {
+                    inner.insert(pkid_key, now_second());
+                    false
+                }
+            };
+            if should_retry {
                 sleep(Duration::from_millis(1)).await;
                 continue;
             }
-            self.pkid_cache.insert(key, now_second());
+
             return id;
         }
     }
 
-    // ack packet
-    pub fn remove_ack_packet(&self, client_id: &str, pkid: u16) {
-        let key = self.key(client_id, pkid);
-        self.qos_ack_packet.remove(&key);
-        self.pkid_cache.remove(&key);
+    pub fn remove_publish_to_client_pkid(&self, client_id: &str, pkid: u16) {
+        let pkid_key = pkid.to_string();
+        let mut remove_outer = false;
+        if let Some(inner) = self.publish_to_client_pkid_cache.get(client_id) {
+            inner.remove(&pkid_key);
+            if inner.is_empty() {
+                remove_outer = true;
+            }
+        }
+        if remove_outer {
+            self.publish_to_client_pkid_cache.remove(client_id);
+        }
+
+        self.remove_publish_to_client_qos_ack_data(client_id, pkid);
     }
 
-    pub fn add_ack_packet(&self, client_id: &str, pkid: u16, packet: QosAckPacketInfo) {
+    // publish to client qos ack data
+    pub fn add_publish_to_client_qos_ack_data(
+        &self,
+        client_id: &str,
+        pkid: u16,
+        packet: QosAckPacketInfo,
+    ) {
         let key = self.key(client_id, pkid);
-        self.qos_ack_packet.insert(key, packet);
+        self.publish_to_client_qos_ack_data.insert(key, packet);
     }
 
-    pub fn get_ack_packet(&self, client_id: &str, pkid: u16) -> Option<QosAckPacketInfo> {
+    pub fn get_publish_to_client_qos_ack_data(
+        &self,
+        client_id: &str,
+        pkid: u16,
+    ) -> Option<QosAckPacketInfo> {
         let key = self.key(client_id, pkid);
-        if let Some(data) = self.qos_ack_packet.get(&key) {
+        if let Some(data) = self.publish_to_client_qos_ack_data.get(&key) {
             return Some(data.clone());
         }
         None
     }
 
-    // client pkid
-    pub fn add_client_pkid(&self, client_id: &str, pkid: u16) {
+    pub fn remove_publish_to_client_qos_ack_data(&self, client_id: &str, pkid: u16) {
         let key = self.key(client_id, pkid);
-        self.client_pkid_data.insert(
-            key,
-            ClientPkidData {
-                client_id: client_id.to_owned(),
-                create_time: now_second(),
-            },
-        );
+        self.publish_to_client_qos_ack_data.remove(&key);
     }
 
-    pub fn delete_client_pkid(&self, client_id: &str, pkid: u16) {
-        let key = self.key(client_id, pkid);
-        self.client_pkid_data.remove(&key);
-    }
-
-    pub fn get_client_pkid(&self, client_id: &str, pkid: u16) -> Option<ClientPkidData> {
-        let key = self.key(client_id, pkid);
-        if let Some(data) = self.client_pkid_data.get(&key) {
-            return Some(data.clone());
-        }
-        None
-    }
+    //
+    pub fn remove_by_client_id(&self, _client_id: &str) {}
 
     fn key(&self, client_id: &str, pkid: u16) -> String {
         format!("{client_id}_{pkid}")
