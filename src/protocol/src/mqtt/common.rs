@@ -809,7 +809,7 @@ impl fmt::Display for PubRecProperties {
 //--------------------------- PubRel packet -------------------------------
 
 /// Publish release in response to PubRec packet as QoS 2
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PubRel {
     pub pkid: u16,
     pub reason: Option<PubRelReason>,

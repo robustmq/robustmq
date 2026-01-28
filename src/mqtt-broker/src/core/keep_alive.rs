@@ -172,35 +172,50 @@ impl ClientKeepAlive {
 async fn try_send_distinct_packet(
     context: &TrySendDistinctPacketContext,
 ) -> Result<(), MqttBrokerError> {
-    if context.network.is_tcp() {
-        context
-            .connection_manager
-            .write_tcp_frame(
-                context.connection.connect_id,
-                RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
-            )
-            .await?;
-    } else if context.network.is_quic() {
-        context
-            .connection_manager
-            .write_quic_frame(
-                context.connection.connect_id,
-                RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
-            )
-            .await?;
-    } else {
-        let mut codec = MqttCodec::new(Some(context.protocol.clone().into()));
-        let mut buff = BytesMut::new();
-        codec.encode_data(context.wrap.clone(), &mut buff)?;
-        context
-            .connection_manager
-            .write_websocket_frame(
-                context.connection.connect_id,
-                RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
-                Message::Binary(buff.to_vec()),
-            )
-            .await?
+    let close_conn_fn = async move || -> Result<(), MqttBrokerError> {
+        if context.network.is_tcp() {
+            context
+                .connection_manager
+                .write_tcp_frame(
+                    context.connection.connect_id,
+                    RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
+                )
+                .await?;
+        } else if context.network.is_quic() {
+            context
+                .connection_manager
+                .write_quic_frame(
+                    context.connection.connect_id,
+                    RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
+                )
+                .await?;
+        } else {
+            let mut codec = MqttCodec::new(Some(context.protocol.clone().into()));
+            let mut buff = BytesMut::new();
+            codec.encode_data(context.wrap.clone(), &mut buff)?;
+            context
+                .connection_manager
+                .write_websocket_frame(
+                    context.connection.connect_id,
+                    RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
+                    Message::Binary(buff.to_vec()),
+                )
+                .await?
+        }
+        Ok(())
+    };
+
+    if let Err(e) = close_conn_fn().await {
+        warn!(
+            connect_id = context.connect_id,
+            client_id = %context.connection.client_id,
+            protocol = ?context.protocol,
+            network = ?context.network,
+            error = %e,
+            "Failed to send keep-alive disconnect packet"
+        );
     }
+
     let context = build_server_disconnect_conn_context(
         &context.cache_manager,
         &context.client_pool,

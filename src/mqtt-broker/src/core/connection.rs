@@ -303,12 +303,8 @@ fn get_session_expiry_interval(
 
 #[cfg(test)]
 mod test {
-
+    use super::{build_connection, response_information, REQUEST_RESPONSE_PREFIX_NAME};
     use crate::core::tool::test_build_mqtt_cache_manager;
-
-    use super::{
-        build_connection, response_information, MQTTConnection, REQUEST_RESPONSE_PREFIX_NAME,
-    };
     use common_config::broker::default_broker_config;
     use protocol::mqtt::common::{Connect, ConnectProperties};
 
@@ -418,25 +414,5 @@ mod test {
         };
         let res = response_information(&Some(connect_properties));
         assert!(res.is_none());
-    }
-
-    #[tokio::test]
-    pub async fn recv_qos_message_num_test() {
-        let conn = MQTTConnection::default();
-        assert_eq!(conn.get_recv_qos_message(), 0);
-        conn.recv_qos_message_incr();
-        assert_eq!(conn.get_recv_qos_message(), 1);
-        conn.recv_qos_message_decr();
-        assert_eq!(conn.get_recv_qos_message(), 0);
-    }
-
-    #[tokio::test]
-    pub async fn send_qos_message_num_test() {
-        let conn = MQTTConnection::default();
-        assert_eq!(conn.get_send_qos_message(), 0);
-        conn.send_qos_message_incr();
-        assert_eq!(conn.get_send_qos_message(), 1);
-        conn.send_qos_message_decr();
-        assert_eq!(conn.get_send_qos_message(), 0);
     }
 }

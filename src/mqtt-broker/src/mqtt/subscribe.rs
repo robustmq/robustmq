@@ -147,7 +147,7 @@ impl MqttService {
             .get_cluster_config()
             .await
             .mqtt_protocol_config
-            .max_qos;
+            .max_qos_flight_message;
         for filter in subscribe.filters.clone() {
             match min_qos(qos(cluster_qos).unwrap(), filter.qos) {
                 protocol::mqtt::common::QoS::AtMostOnce => {

@@ -108,7 +108,7 @@ pub struct MQTTCacheManager {
     pub acl_metadata: AclMetadata,
 
     // pkid manager
-    pub pkid_metadata: PkidManager,
+    pub qos_data: PkidManager,
 
     // All topic rewrite rule
     pub topic_rewrite_rule: DashMap<String, MqttTopicRewriteRule>,
@@ -134,7 +134,7 @@ impl MQTTCacheManager {
             connection_info: DashMap::with_capacity(8),
             heartbeat_data: DashMap::with_capacity(8),
             acl_metadata: AclMetadata::new(),
-            pkid_metadata: PkidManager::new(),
+            qos_data: PkidManager::new(),
             topic_rewrite_rule: DashMap::with_capacity(8),
             auto_subscribe_rule: DashMap::with_capacity(8),
             topic_is_validator: DashMap::with_capacity(8),
@@ -175,7 +175,7 @@ impl MQTTCacheManager {
     pub fn remove_session(&self, client_id: &str) {
         self.session_info.remove(client_id);
         self.heartbeat_data.remove(client_id);
-        self.pkid_metadata.remove_by_client_id(client_id);
+        self.qos_data.remove_by_client_id(client_id);
     }
 
     // user
