@@ -74,7 +74,7 @@ mod tests {
             MqttMessage::build_message(&client_id, &publish, &Some(publish_properties), 600);
 
         topic_storage
-            .set_retain_message(topic.topic_name.clone(), &retain_message, 1000)
+            .set_retain_message(&topic.topic_name, &retain_message, 1000)
             .await
             .unwrap();
 
@@ -92,7 +92,7 @@ mod tests {
         assert_eq!(payload, content);
 
         topic_storage
-            .delete_retain_message(topic_name.clone())
+            .delete_retain_message(&topic_name)
             .await
             .unwrap();
 

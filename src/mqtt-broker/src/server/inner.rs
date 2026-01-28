@@ -14,6 +14,7 @@
 
 use crate::core::cache::MQTTCacheManager;
 use crate::core::inner::{delete_session_by_req, send_last_will_message_by_req};
+use crate::core::retain::RetainMessageManager;
 use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
 use protocol::broker::broker_mqtt::broker_mqtt_service_server::BrokerMqttService;
@@ -29,6 +30,7 @@ pub struct GrpcInnerServices {
     subscribe_manager: Arc<SubscribeManager>,
     client_pool: Arc<ClientPool>,
     storage_driver_manager: Arc<StorageDriverManager>,
+    retain_message_manager: Arc<RetainMessageManager>,
 }
 
 impl GrpcInnerServices {
@@ -37,12 +39,14 @@ impl GrpcInnerServices {
         subscribe_manager: Arc<SubscribeManager>,
         client_pool: Arc<ClientPool>,
         storage_driver_manager: Arc<StorageDriverManager>,
+        retain_message_manager: Arc<RetainMessageManager>,
     ) -> Self {
         GrpcInnerServices {
             cache_manager,
             subscribe_manager,
             client_pool,
             storage_driver_manager,
+            retain_message_manager,
         }
     }
 }
@@ -68,6 +72,7 @@ impl BrokerMqttService for GrpcInnerServices {
         send_last_will_message_by_req(
             &self.cache_manager,
             &self.client_pool,
+            &self.retain_message_manager,
             &self.storage_driver_manager,
             &req,
         )

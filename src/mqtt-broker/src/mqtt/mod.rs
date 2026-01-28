@@ -31,6 +31,7 @@ use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
 use crate::core::cache::MQTTCacheManager;
+use crate::core::retain::RetainMessageManager;
 use crate::security::AuthDriver;
 use crate::subscribe::manager::SubscribeManager;
 
@@ -48,6 +49,7 @@ pub struct MqttService {
     client_pool: Arc<ClientPool>,
     auth_driver: Arc<AuthDriver>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    retain_message_manager: Arc<RetainMessageManager>,
 }
 
 #[derive(Clone)]
@@ -62,6 +64,7 @@ pub struct MqttServiceContext {
     pub client_pool: Arc<ClientPool>,
     pub auth_driver: Arc<AuthDriver>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
+    pub retain_message_manager: Arc<RetainMessageManager>,
 }
 
 #[derive(Clone)]
@@ -88,6 +91,7 @@ impl MqttService {
             auth_driver: context.auth_driver,
             schema_manager: context.schema_manager,
             rocksdb_engine_handler: context.rocksdb_engine_handler,
+            retain_message_manager: context.retain_message_manager,
         }
     }
 }
