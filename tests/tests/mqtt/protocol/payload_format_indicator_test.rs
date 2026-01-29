@@ -22,99 +22,72 @@ mod tests {
         ClientTestProperties,
     };
     use common_base::tools::unique_id;
-    use paho_mqtt::{MessageBuilder, Properties, PropertyCode};
+    use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode};
+
+    /// Build properties with payload format indicator
+    fn build_payload_format_properties(format_indicator: u8) -> Properties {
+        let mut props = Properties::new();
+        props
+            .push_int(
+                PropertyCode::PayloadFormatIndicator,
+                format_indicator as i32,
+            )
+            .unwrap();
+        props
+    }
+
+    /// Build a will message for testing
+    fn build_will_message(payload: &[u8], qos: i32, format_indicator: Option<u8>) -> Message {
+        let topic = format!("/payload_format_indicator_connect_test/{}", unique_id());
+        let mut builder = MessageBuilder::new().payload(payload).topic(topic).qos(qos);
+
+        if let Some(indicator) = format_indicator {
+            builder = builder.properties(build_payload_format_properties(indicator));
+        }
+
+        builder.finalize()
+    }
+
+    /// Test connection with specified will message and expected result
+    fn test_connect_with_will(network: &str, will: Message, should_succeed: bool) {
+        let client_id = build_client_id(&format!(
+            "payload_format_indicator_test_{}_{}",
+            network,
+            unique_id()
+        ));
+
+        let client_properties = ClientTestProperties {
+            mqtt_version: 5,
+            client_id,
+            addr: broker_addr_by_type(network),
+            will: Some(will),
+            conn_is_err: !should_succeed,
+            ..Default::default()
+        };
+
+        let _ = connect_server(&client_properties);
+    }
 
     #[tokio::test]
     async fn payload_format_indicator_connect_test() {
         let network = "tcp";
         let qos = 1;
-        let client_id =
-            build_client_id(format!("payload_format_indicator_test_{network}_{qos}").as_str());
 
-        // payload_format_indicator = 0 => success
-        let will_message_content = "Hello, world".as_bytes();
-        let will_topic = format!("/payload_format_indicator_connect_test/{}", unique_id());
-        let will = MessageBuilder::new()
-            .payload(will_message_content)
-            .topic(will_topic.clone())
-            .qos(qos)
-            .finalize();
+        // Test 1: payload_format_indicator = 0 (default), payload = UTF-8 text => success
+        let will = build_will_message("Hello, world".as_bytes(), qos, None);
+        test_connect_with_will(network, will, true);
 
-        let client_properties = ClientTestProperties {
-            mqtt_version: 5,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(network),
-            will: Some(will),
-            conn_is_err: false,
-            ..Default::default()
-        };
-        let _ = connect_server(&client_properties);
+        // Test 2: payload_format_indicator = 0 (default), payload = binary => success
+        let will = build_will_message(&[0xff, 0xfe, 0xfd], qos, None);
+        test_connect_with_will(network, will, true);
 
-        // payload_format_indicator = 0 => success
-        let client_id =
-            build_client_id(format!("payload_format_indicator_test_{network}_{qos}").as_str());
+        // Test 3: payload_format_indicator = 1 (UTF-8), payload = valid UTF-8 => success
+        let will = build_will_message("Hello, world".as_bytes(), qos, Some(1));
+        test_connect_with_will(network, will, true);
 
-        let will_message_content = &[0xff, 0xfe, 0xfd];
-        let will_topic = format!("/payload_format_indicator_connect_test/{}", unique_id());
-        let will = MessageBuilder::new()
-            .payload(will_message_content)
-            .topic(will_topic.clone())
-            .qos(qos)
-            .finalize();
-        let client_properties = ClientTestProperties {
-            mqtt_version: 5,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(network),
-            will: Some(will),
-            conn_is_err: false,
-            ..Default::default()
-        };
-        let _ = connect_server(&client_properties);
-
-        // payload_format_indicator = 1 => success
-        let mut props = Properties::new();
-        props
-            .push_int(PropertyCode::PayloadFormatIndicator, 1)
-            .unwrap();
-        let will_message_content = "Hello, world".as_bytes();
-        let will_topic = format!("/payload_format_indicator_connect_test/{}", unique_id());
-        let will = MessageBuilder::new()
-            .properties(props.clone())
-            .payload(will_message_content)
-            .topic(will_topic.clone())
-            .qos(qos)
-            .finalize();
-        let client_properties = ClientTestProperties {
-            mqtt_version: 5,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(network),
-            will: Some(will),
-            conn_is_err: false,
-            ..Default::default()
-        };
-        let _ = connect_server(&client_properties);
-
-        // payload_format_indicator = 1 => false
-        let client_id =
-            build_client_id(format!("payload_format_indicator_test_{network}_{qos}").as_str());
-
-        let will_message_content = &[0xff, 0xfe, 0xfd];
-        let will_topic = format!("/payload_format_indicator_connect_test/{}", unique_id());
-        let will = MessageBuilder::new()
-            .properties(props)
-            .payload(will_message_content)
-            .topic(will_topic.clone())
-            .qos(qos)
-            .finalize();
-        let client_properties = ClientTestProperties {
-            mqtt_version: 5,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(network),
-            will: Some(will),
-            conn_is_err: true,
-            ..Default::default()
-        };
-        let _ = connect_server(&client_properties);
+        // Test 4: payload_format_indicator = 1 (UTF-8), payload = invalid UTF-8 => failure
+        let will = build_will_message(&[0xff, 0xfe, 0xfd], qos, Some(1));
+        test_connect_with_will(network, will, false);
     }
 
     #[tokio::test]
@@ -122,64 +95,58 @@ mod tests {
         let network = "tcp";
         let qos = 1;
         let topic = format!(
-            "/payload_format_indicator_connect_test/{}/{}/{}",
+            "/payload_format_indicator_publish_test/{}/{}/{}",
             unique_id(),
             network,
             qos
         );
-        let client_id = build_client_id(
-            format!("payload_format_indicator_publish_test_{network}_{qos}").as_str(),
-        );
+
+        // Connect client for testing
+        let client_id = build_client_id(&format!(
+            "payload_format_indicator_publish_test_{}_{}",
+            network,
+            unique_id()
+        ));
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
-            client_id: client_id.to_string(),
+            client_id,
             addr: broker_addr_by_type(network),
             ws: ws_by_type(network),
             ssl: ssl_by_type(network),
             ..Default::default()
         };
-
-        // payload_format_indicator = 0 => success
         let cli = connect_server(&client_properties);
-        let message_content = "Hello, world".as_bytes();
+
+        // Test 1: payload_format_indicator = 0 (default), payload = UTF-8 text => success
         let msg = MessageBuilder::new()
-            .payload(message_content)
+            .payload("Hello, world".as_bytes())
             .topic(topic.clone())
             .qos(qos)
             .retained(false)
             .finalize();
         publish_data(&cli, msg, false);
 
-        // payload_format_indicator = 0 => success
-        let message_content = &[0xff, 0xfe, 0xfd];
+        // Test 2: payload_format_indicator = 0 (default), payload = binary => success
         let msg = MessageBuilder::new()
-            .payload(message_content)
+            .payload([0xff, 0xfe, 0xfd])
             .topic(topic.clone())
             .qos(qos)
             .finalize();
         publish_data(&cli, msg, false);
 
-        let mut props = Properties::new();
-        props
-            .push_int(PropertyCode::PayloadFormatIndicator, 1)
-            .unwrap();
-
-        // payload_format_indicator = 0 => success
-        let cli = connect_server(&client_properties);
-        let message_content = "Hello, world".as_bytes();
+        // Test 3: payload_format_indicator = 1 (UTF-8), payload = valid UTF-8 => success
         let msg = MessageBuilder::new()
-            .properties(props.clone())
-            .payload(message_content)
+            .properties(build_payload_format_properties(1))
+            .payload("Hello, world".as_bytes())
             .topic(topic.clone())
             .qos(qos)
             .finalize();
         publish_data(&cli, msg, false);
 
-        // payload_format_indicator = 0 => success
-        let message_content = &[0xff, 0xfe, 0xfd];
+        // Test 4: payload_format_indicator = 1 (UTF-8), payload = invalid UTF-8 => failure
         let msg = MessageBuilder::new()
-            .properties(props.clone())
-            .payload(message_content)
+            .properties(build_payload_format_properties(1))
+            .payload([0xff, 0xfe, 0xfd])
             .topic(topic.clone())
             .qos(qos)
             .retained(false)
