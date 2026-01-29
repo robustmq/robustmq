@@ -40,7 +40,7 @@ pub mod lastwill_message_test;
 pub mod login_test;
 pub mod network_test;
 pub mod packet_size_test;
-pub mod payload_format_indicator_test;
+pub mod payload_format_test;
 pub mod properties_test;
 pub mod protocol_version_test;
 pub mod qos_test;
