@@ -128,13 +128,10 @@ impl MqttService {
 
         self.retain_message_manager
             .try_send_retain_message(TrySendRetainMessageContext {
-                protocol: self.protocol.clone(),
                 client_id: connection.client_id.clone(),
                 subscribe: subscribe.clone(),
                 subscribe_properties: subscribe_properties.clone(),
-                client_pool: self.client_pool.clone(),
                 cache_manager: self.cache_manager.clone(),
-                connection_manager: self.connection_manager.clone(),
                 is_new_subs: new_subs,
             })
             .await
