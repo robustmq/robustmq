@@ -22,7 +22,6 @@ use crate::core::sub_option::{
 };
 use crate::core::tool::ResultMqttBrokerError;
 use crate::storage::topic::TopicStorage;
-use crate::subscribe::common::min_qos;
 use crate::subscribe::common::SubPublishParam;
 use crate::subscribe::common::{client_unavailable_error, get_sub_topic_name_list};
 use crate::subscribe::manager::SubscribeManager;
@@ -36,7 +35,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{
-    qos, MqttPacket, MqttProtocol, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties,
+    MqttPacket, MqttProtocol, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties,
 };
 use std::sync::Arc;
 use tokio::select;
@@ -80,7 +79,7 @@ impl RetainMessageManager {
         client_pool: Arc<ClientPool>,
         connection_manager: Arc<ConnectionManager>,
     ) -> Self {
-        let (send_retain_message_queue, _) = broadcast::channel::<SendRetainData>(100);
+        let (send_retain_message_queue, _) = broadcast::channel::<SendRetainData>(3000);
 
         RetainMessageManager {
             cache_manager,
@@ -104,15 +103,24 @@ impl RetainMessageManager {
         }
 
         let topic_storage = TopicStorage::new(self.client_pool.clone());
+        let had_retain = self.contain_retain(topic_name).await?;
 
-        if self.contain_retain(topic_name).await? && publish.payload.is_empty() {
+        if had_retain && publish.payload.is_empty() {
+            // Delete retain message
             topic_storage.delete_retain_message(topic_name).await?;
             record_mqtt_retained_dec();
+            // Update local cache
+            self.topic_retain_data.insert(topic_name.to_string(), None);
+            self.last_update_time
+                .insert(topic_name.to_string(), now_second());
         }
 
         if !publish.payload.is_empty() {
             record_retain_recv_metrics(publish.qos);
-            record_mqtt_retained_inc();
+            // Only increment counter if this is a new retain message, not an update
+            if !had_retain {
+                record_mqtt_retained_inc();
+            }
             let message_expire =
                 build_message_expire(&self.cache_manager, publish_properties).await;
             let retain_message =
@@ -120,6 +128,13 @@ impl RetainMessageManager {
             topic_storage
                 .set_retain_message(topic_name, &retain_message, message_expire)
                 .await?;
+            // Update local cache with new message
+            self.topic_retain_data.insert(
+                topic_name.to_string(),
+                Some((retain_message, message_expire)),
+            );
+            self.last_update_time
+                .insert(topic_name.to_string(), now_second());
         }
 
         Ok(())
@@ -129,6 +144,14 @@ impl RetainMessageManager {
         &self,
         context: TrySendRetainMessageContext,
     ) -> Result<(), MqttBrokerError> {
+        // Extract subscription identifier once to avoid repeated cloning
+        let sub_ids = context
+            .subscribe_properties
+            .as_ref()
+            .and_then(|props| props.subscription_identifier)
+            .map(|id| vec![id])
+            .unwrap_or_default();
+
         for filter in context.subscribe.filters.iter() {
             if !is_send_retain_msg_by_retain_handling(
                 &filter.path,
@@ -150,27 +173,13 @@ impl RetainMessageManager {
                     continue;
                 }
 
-                if !is_send_retain_msg_by_retain_handling(
-                    &filter.path,
-                    &filter.retain_handling,
-                    &context.is_new_subs,
-                ) {
-                    continue;
-                }
-
-                let mut sub_ids = Vec::new();
-                if let Some(properties) = context.subscribe_properties.clone() {
-                    if let Some(id) = properties.subscription_identifier {
-                        sub_ids.push(id);
-                    }
-                }
                 let data = SendRetainData {
                     client_id: context.client_id.clone(),
                     no_local: filter.nolocal,
                     preserve_retain: filter.preserve_retain,
                     qos: filter.qos,
-                    sub_ids,
-                    topic_name: topic_name.to_string(),
+                    sub_ids: sub_ids.clone(),
+                    topic_name,
                 };
                 if let Err(e) = self.send_retain_message_queue.send(data) {
                     return Err(MqttBrokerError::CommonError(e.to_string()));
@@ -184,30 +193,13 @@ impl RetainMessageManager {
         let last_update_time = if let Some(update_time) = self.last_update_time.get(topic) {
             *update_time
         } else {
-            let topic_storage = TopicStorage::new(self.client_pool.clone());
-            let (message, message_at) = topic_storage.get_retain_message(topic).await?;
-            self.last_update_time
-                .insert(topic.to_string(), now_second());
-            if let Some(msg) = message {
-                if let Some(msg_at) = message_at {
-                    self.topic_retain_data
-                        .insert(topic.to_string(), Some((msg, msg_at)));
-                }
-            }
+            self.load_retain_from_storage(topic).await?;
             now_second()
         };
 
+        // Refresh cache if data is stale (older than 5 seconds)
         if now_second() - last_update_time >= 5 {
-            let topic_storage = TopicStorage::new(self.client_pool.clone());
-            let (message, message_at) = topic_storage.get_retain_message(topic).await?;
-            self.last_update_time
-                .insert(topic.to_string(), now_second());
-            if let Some(msg) = message {
-                if let Some(msg_at) = message_at {
-                    self.topic_retain_data
-                        .insert(topic.to_string(), Some((msg, msg_at)));
-                }
-            }
+            self.load_retain_from_storage(topic).await?;
         }
 
         let contain = if let Some(data) = self.topic_retain_data.get(topic) {
@@ -218,74 +210,114 @@ impl RetainMessageManager {
         Ok(contain)
     }
 
+    async fn load_retain_from_storage(&self, topic: &str) -> Result<(), MqttBrokerError> {
+        let topic_storage = TopicStorage::new(self.client_pool.clone());
+        let (message, message_at) = topic_storage.get_retain_message(topic).await?;
+
+        let current_time = now_second();
+        self.last_update_time
+            .insert(topic.to_string(), current_time);
+
+        let retain_data = match (message, message_at) {
+            (Some(msg), Some(msg_at)) => Some((msg, msg_at)),
+            _ => None,
+        };
+        self.topic_retain_data
+            .insert(topic.to_string(), retain_data);
+
+        Ok(())
+    }
+
     async fn send_retain_message(
         &self,
         data: &SendRetainData,
         stop_sx: &broadcast::Sender<bool>,
     ) -> ResultMqttBrokerError {
-        let cluster = self.cache_manager.broker_cache.get_cluster_config().await;
-
-        let msg = if let Some(data) = self.topic_retain_data.get(&data.topic_name) {
-            if let Some((message, message_at)) = data.clone() {
-                if message_at <= now_second() {
-                    message
+        // Check if message exists and is not expired
+        let (
+            msg_client_id,
+            retain_flag,
+            payload,
+            format_indicator,
+            expiry_interval,
+            response_topic,
+            correlation_data,
+            user_properties_opt,
+            content_type,
+        ) = {
+            let cache_entry = self.topic_retain_data.get(&data.topic_name);
+            if let Some(entry) = cache_entry {
+                if let Some((message, message_at)) = entry.as_ref() {
+                    if now_second() >= *message_at {
+                        // Message has expired
+                        return Ok(());
+                    }
+                    // Extract needed fields without cloning the entire message
+                    (
+                        message.client_id.clone(),
+                        message.retain,
+                        message.payload.clone(),
+                        message.format_indicator,
+                        message.expiry_interval,
+                        message.response_topic.clone(),
+                        message.correlation_data.clone(),
+                        message.user_properties.clone(),
+                        message.content_type.clone(),
+                    )
                 } else {
                     return Ok(());
                 }
             } else {
                 return Ok(());
             }
-        } else {
-            return Ok(());
         };
 
-        if !is_send_msg_by_bo_local(data.no_local, &data.client_id, &msg.client_id) {
+        if !is_send_msg_by_bo_local(data.no_local, &data.client_id, &msg_client_id) {
             return Ok(());
         }
 
-        let retain = get_retain_flag_by_retain_as_published(data.preserve_retain, msg.retain);
-        let qos = min_qos(qos(cluster.mqtt_protocol_config.max_qos).unwrap(), data.qos);
+        let retain = get_retain_flag_by_retain_as_published(data.preserve_retain, retain_flag);
 
-        let mut user_properties = msg.user_properties.unwrap_or_default();
+        let mut user_properties = user_properties_opt.unwrap_or_default();
         user_properties.push((
             SUB_RETAIN_MESSAGE_PUSH_FLAG.to_string(),
             SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE.to_string(),
         ));
 
         let properties = PublishProperties {
-            payload_format_indicator: msg.format_indicator,
-            message_expiry_interval: Some(msg.expiry_interval as u32),
+            payload_format_indicator: format_indicator,
+            message_expiry_interval: Some(expiry_interval as u32),
             topic_alias: None,
-            response_topic: msg.response_topic,
-            correlation_data: msg.correlation_data,
+            response_topic,
+            correlation_data,
             user_properties,
             subscription_identifiers: data.sub_ids.clone(),
-            content_type: msg.content_type,
+            content_type,
         };
 
         let p_kid = self
             .cache_manager
-            .pkid_metadata
-            .generate_pkid(&data.client_id, &qos)
+            .qos_data
+            .generate_publish_to_client_pkid(&data.client_id, &data.qos)
             .await;
 
         let publish = Publish {
             dup: false,
-            qos,
+            qos: data.qos,
             p_kid,
             retain,
             topic: Bytes::copy_from_slice(data.topic_name.as_bytes()),
-            payload: msg.payload,
+            payload,
         };
 
-        let packet = MqttPacket::Publish(publish.clone(), Some(properties));
+        let packet = MqttPacket::Publish(publish, Some(properties));
 
         let sub_pub_param = SubPublishParam {
             packet,
             create_time: now_second(),
             client_id: data.client_id.clone(),
             p_kid,
-            qos,
+            qos: data.qos,
         };
 
         send_publish_packet_to_client(
@@ -296,11 +328,11 @@ impl RetainMessageManager {
         )
         .await?;
         debug!(
-            "retain the successful message sending: client_id: {}, topi_id: {}",
+            "retain message sent successfully: client_id: {}, topic_id: {}",
             data.client_id, data.topic_name
         );
 
-        record_retain_sent_metrics(qos);
+        record_retain_sent_metrics(data.qos);
 
         Ok(())
     }
@@ -311,12 +343,12 @@ pub async fn is_new_sub(
     subscribe: &Subscribe,
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> DashMap<String, bool> {
-    let results = DashMap::with_capacity(2);
+    let results = DashMap::with_capacity(subscribe.filters.len());
     for filter in subscribe.filters.iter() {
-        let bool = subscribe_manager
+        let is_new = subscribe_manager
             .get_subscribe(client_id, &filter.path)
             .is_none();
-        results.insert(filter.path.to_owned(), bool);
+        results.insert(filter.path.to_owned(), is_new);
     }
     results
 }
