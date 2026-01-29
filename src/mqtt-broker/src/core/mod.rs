@@ -34,6 +34,7 @@ pub mod pkid_manager;
 pub mod qos;
 pub mod retain;
 pub mod session;
+pub mod string_validator;
 pub mod sub_auto;
 pub mod sub_exclusive;
 pub mod sub_option;

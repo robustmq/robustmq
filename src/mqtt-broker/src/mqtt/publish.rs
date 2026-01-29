@@ -483,6 +483,43 @@ async fn publish_validator(
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
 ) -> Option<(PubRecReason, PubAckReason, String)> {
+    // MQTT 5.0: QoS 0 MUST NOT have packet identifier
+    if publish.qos == QoS::AtMostOnce && publish.p_kid != 0 {
+        return Some((
+            PubRecReason::UnspecifiedError,
+            PubAckReason::UnspecifiedError,
+            "QoS 0 PUBLISH must not contain packet identifier".to_string(),
+        ));
+    }
+
+    // MQTT 5.0: QoS > 0 MUST have non-zero packet identifier
+    if publish.qos != QoS::AtMostOnce && publish.p_kid == 0 {
+        return Some((
+            PubRecReason::UnspecifiedError,
+            PubAckReason::UnspecifiedError,
+            "QoS > 0 PUBLISH must have non-zero packet identifier".to_string(),
+        ));
+    }
+
+    // Topic name validation
+    if publish.topic.is_empty() {
+        if let Some(properties) = publish_properties {
+            if properties.topic_alias.is_none() {
+                return Some((
+                    PubRecReason::TopicNameInvalid,
+                    PubAckReason::TopicNameInvalid,
+                    "Topic name is empty and no topic alias provided".to_string(),
+                ));
+            }
+        } else {
+            return Some((
+                PubRecReason::TopicNameInvalid,
+                PubAckReason::TopicNameInvalid,
+                "Topic name is empty and no topic alias provided".to_string(),
+            ));
+        }
+    }
+
     let cluster = cache_manager.broker_cache.get_cluster_config().await;
 
     let max_packet_size = min(
@@ -507,6 +544,14 @@ async fn publish_validator(
 
     if let Some(properties) = publish_properties {
         if let Some(alias) = properties.topic_alias {
+            if alias == 0 {
+                return Some((
+                    PubRecReason::UnspecifiedError,
+                    PubAckReason::UnspecifiedError,
+                    "Topic alias must not be 0".to_string(),
+                ));
+            }
+
             if alias > connection.topic_alias_max {
                 return Some((
                     PubRecReason::UnspecifiedError,
@@ -518,4 +563,140 @@ async fn publish_validator(
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::tool::test_build_mqtt_cache_manager;
+    use bytes::Bytes;
+    use common_base::tools::now_second;
+    use dashmap::DashMap;
+    use metadata_struct::mqtt::connection::MQTTConnection;
+
+    fn build_test_connection(topic_alias_max: u16, max_packet_size: u32) -> MQTTConnection {
+        MQTTConnection {
+            connect_id: 1,
+            client_id: "test_client".to_string(),
+            is_login: true,
+            source_ip_addr: "127.0.0.1".to_string(),
+            clean_session: true,
+            login_user: None,
+            keep_alive: 60,
+            topic_alias: DashMap::new(),
+            client_max_receive_maximum: 100,
+            max_packet_size,
+            topic_alias_max,
+            request_problem_info: 1,
+            create_time: now_second(),
+        }
+    }
+
+    fn build_test_publish(topic: &str, qos: QoS, p_kid: u16, payload_size: usize) -> Publish {
+        Publish {
+            dup: false,
+            qos,
+            retain: false,
+            topic: Bytes::from(topic.to_string()),
+            p_kid,
+            payload: Bytes::from(vec![0u8; payload_size]),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_qos0_with_packet_identifier() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let connection = build_test_connection(10, 1024 * 1024);
+        let publish = build_test_publish("test/topic", QoS::AtMostOnce, 1, 100);
+
+        let result = publish_validator(&cache_manager, &connection, &publish, &None).await;
+        assert!(result.is_some());
+        assert!(result.unwrap().2.contains("QoS 0"));
+    }
+
+    #[tokio::test]
+    async fn test_qos1_without_packet_identifier() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let connection = build_test_connection(10, 1024 * 1024);
+        let publish = build_test_publish("test/topic", QoS::AtLeastOnce, 0, 100);
+
+        let result = publish_validator(&cache_manager, &connection, &publish, &None).await;
+        assert!(result.is_some());
+        assert!(result.unwrap().2.contains("non-zero"));
+    }
+
+    #[tokio::test]
+    async fn test_empty_topic_without_alias() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let connection = build_test_connection(10, 1024 * 1024);
+        let publish = build_test_publish("", QoS::AtLeastOnce, 1, 100);
+
+        let result = publish_validator(&cache_manager, &connection, &publish, &None).await;
+        assert!(result.is_some());
+        let (reason_rec, reason_ack, _) = result.unwrap();
+        assert_eq!(reason_rec, PubRecReason::TopicNameInvalid);
+        assert_eq!(reason_ack, PubAckReason::TopicNameInvalid);
+    }
+
+    #[tokio::test]
+    async fn test_topic_alias_zero() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let connection = build_test_connection(10, 1024 * 1024);
+        let publish = build_test_publish("test/topic", QoS::AtLeastOnce, 1, 100);
+        let properties = Some(PublishProperties {
+            topic_alias: Some(0),
+            ..Default::default()
+        });
+
+        let result = publish_validator(&cache_manager, &connection, &publish, &properties).await;
+        assert!(result.is_some());
+        assert!(result.unwrap().2.contains("must not be 0"));
+    }
+
+    #[tokio::test]
+    async fn test_topic_alias_exceeds_max() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let connection = build_test_connection(10, 1024 * 1024);
+        let publish = build_test_publish("test/topic", QoS::AtLeastOnce, 1, 100);
+        let properties = Some(PublishProperties {
+            topic_alias: Some(20),
+            ..Default::default()
+        });
+
+        let result = publish_validator(&cache_manager, &connection, &publish, &properties).await;
+        assert!(result.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_payload_too_large() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let connection = build_test_connection(10, 1000);
+        let publish = build_test_publish("test/topic", QoS::AtLeastOnce, 1, 2000);
+
+        let result = publish_validator(&cache_manager, &connection, &publish, &None).await;
+        assert!(result.is_some());
+        let (reason_rec, reason_ack, _) = result.unwrap();
+        assert_eq!(reason_rec, PubRecReason::PayloadFormatInvalid);
+        assert_eq!(reason_ack, PubAckReason::PayloadFormatInvalid);
+    }
+
+    #[tokio::test]
+    async fn test_empty_payload_is_valid() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let connection = build_test_connection(10, 1024 * 1024);
+        let publish = build_test_publish("test/topic", QoS::AtLeastOnce, 1, 0);
+
+        let result = publish_validator(&cache_manager, &connection, &publish, &None).await;
+        assert!(result.is_none(), "Empty payload should be valid for clearing retained messages");
+    }
+
+    #[tokio::test]
+    async fn test_valid_publish() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let connection = build_test_connection(10, 1024 * 1024);
+        let publish = build_test_publish("test/topic", QoS::AtLeastOnce, 1, 100);
+
+        let result = publish_validator(&cache_manager, &connection, &publish, &None).await;
+        assert!(result.is_none());
+    }
 }
