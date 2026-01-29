@@ -63,7 +63,7 @@ pub fn read(
         filters.push(Filter {
             path,
             qos: qos(requested_qos).ok_or(MQTTProtocolError::InvalidQoS(requested_qos))?,
-            nolocal,
+            no_local: nolocal,
             preserve_retain,
             retain_handling: retain_forward_rule,
         });
@@ -122,7 +122,7 @@ mod filter {
         let mut options = 0;
         options |= filter.qos as u8;
 
-        if filter.nolocal {
+        if filter.no_local {
             options |= 0b0000_0100;
         }
 

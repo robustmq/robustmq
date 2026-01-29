@@ -52,12 +52,14 @@ pub mod topic_alias_test;
 pub mod user_properties_test;
 pub mod user_test;
 
+// todo
 pub mod acl_test;
 pub mod blacklist_test;
 pub mod connect_authentication_test;
 pub mod connector_test;
 pub mod delay_publish_test;
 mod flapping_detect_test;
+pub mod message_expire_test;
 mod quic_server;
 pub mod schema_test;
 pub mod share_sub_test;

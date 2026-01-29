@@ -235,7 +235,7 @@ mod tests {
             filter: Filter {
                 path: path.to_string(),
                 qos: QoS::AtLeastOnce,
-                nolocal: true,
+                no_local: true,
                 preserve_retain: true,
                 retain_handling: RetainHandling::Never,
             },

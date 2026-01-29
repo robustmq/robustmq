@@ -234,7 +234,7 @@ fn create_subscriber(
         topic_name,
         group_name,
         qos: filter.qos,
-        no_local: filter.nolocal,
+        no_local: filter.no_local,
         preserve_retain: filter.preserve_retain,
         retain_forward_rule: filter.retain_handling.clone(),
         subscription_identifier: sub_identifier,
@@ -365,7 +365,7 @@ mod tests {
         Filter {
             path: path.to_string(),
             qos: QoS::AtMostOnce,
-            nolocal: false,
+            no_local: false,
             preserve_retain: true,
             retain_handling: RetainHandling::OnEverySubscribe,
         }

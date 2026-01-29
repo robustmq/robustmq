@@ -192,7 +192,7 @@ pub async fn subscribe_list(
             broker_id: sub.broker_id,
             client_id: sub.client_id.clone(),
             create_time: timestamp_to_local_datetime(sub.create_time as i64),
-            no_local: if sub.filter.nolocal { 1 } else { 0 },
+            no_local: if sub.filter.no_local { 1 } else { 0 },
             path: sub.path.clone(),
             pk_id: sub.pkid as u32,
             preserve_retain: if sub.filter.preserve_retain { 1 } else { 0 },

@@ -907,7 +907,7 @@ pub struct Filter {
     pub qos: QoS,
 
     // the following options are only valid in mqtt v5
-    pub nolocal: bool,
+    pub no_local: bool,
     pub preserve_retain: bool,
     pub retain_handling: RetainHandling,
 }

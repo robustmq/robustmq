@@ -230,7 +230,7 @@ pub async fn st_report_subscribed_event(context: StReportSubscribedEventContext)
                 rh: if filter.preserve_retain { 1 } else { 0 },
                 rap: filter.retain_handling.into(),
                 qos: filter.qos.into(),
-                nl: if filter.nolocal { 1 } else { 0 },
+                nl: if filter.no_local { 1 } else { 0 },
                 is_new: true,
             };
             let event_data = SystemTopicSubscribedEventMessage {

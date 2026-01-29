@@ -175,7 +175,7 @@ impl RetainMessageManager {
 
                 let data = SendRetainData {
                     client_id: context.client_id.clone(),
-                    no_local: filter.nolocal,
+                    no_local: filter.no_local,
                     preserve_retain: filter.preserve_retain,
                     qos: filter.qos,
                     sub_ids: sub_ids.clone(),
