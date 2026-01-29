@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /// Common UTF-8 string validation for MQTT protocol
-/// 
+///
 /// MQTT 5.0 UTF-8 String Requirements:
 /// - Must be valid UTF-8
 /// - Must NOT contain null character (U+0000)
@@ -46,18 +46,12 @@ pub fn validate_utf8_string(
     }
 
     if value.contains('\0') {
-        return Err(format!(
-            "{} contains null character (U+0000)",
-            field_name
-        ));
+        return Err(format!("{} contains null character (U+0000)", field_name));
     }
 
     for c in value.chars() {
         if c.is_control() && c != '\t' && c != '\n' && c != '\r' {
-            return Err(format!(
-                "{} contains invalid control character",
-                field_name
-            ));
+            return Err(format!("{} contains invalid control character", field_name));
         }
     }
 
@@ -65,7 +59,7 @@ pub fn validate_utf8_string(
 }
 
 /// Validates MQTT Client Identifier
-/// 
+///
 /// MQTT 3.1.1: 1-23 characters
 /// MQTT 5.0: 1-65535 characters
 pub fn validate_client_id(client_id: &str, is_mqtt5: bool) -> Result<(), String> {
@@ -116,7 +110,7 @@ mod tests {
         assert!(validate_utf8_string("test\ttab", "field", 1, 100).is_ok());
         assert!(validate_utf8_string("test\nnewline", "field", 1, 100).is_ok());
         assert!(validate_utf8_string("test\rcarriage", "field", 1, 100).is_ok());
-        
+
         let with_control = "test\x01value";
         assert!(validate_utf8_string(with_control, "field", 1, 100).is_err());
     }

@@ -687,7 +687,10 @@ mod tests {
         let publish = build_test_publish("test/topic", QoS::AtLeastOnce, 1, 0);
 
         let result = publish_validator(&cache_manager, &connection, &publish, &None).await;
-        assert!(result.is_none(), "Empty payload should be valid for clearing retained messages");
+        assert!(
+            result.is_none(),
+            "Empty payload should be valid for clearing retained messages"
+        );
     }
 
     #[tokio::test]

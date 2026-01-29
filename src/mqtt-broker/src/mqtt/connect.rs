@@ -519,7 +519,7 @@ fn connection_max_packet_size(
 mod tests {
     use super::*;
     use bytes::Bytes;
-    use protocol::mqtt::common::{QoS, MqttProtocol};
+    use protocol::mqtt::common::{MqttProtocol, QoS};
 
     fn build_test_connect(client_id: &str) -> Connect {
         Connect {
@@ -632,7 +632,15 @@ mod tests {
         let connect = build_test_connect("test_client");
         let properties = Some(build_test_properties(Some(0), None, None, None));
 
-        let result = connect_validator(&protocol, &cluster, &connect, &properties, &None, &None, &None);
+        let result = connect_validator(
+            &protocol,
+            &cluster,
+            &connect,
+            &properties,
+            &None,
+            &None,
+            &None,
+        );
         assert!(result.is_some());
     }
 
@@ -643,7 +651,15 @@ mod tests {
         let connect = build_test_connect("test_client");
         let properties = Some(build_test_properties(None, Some(0), None, None));
 
-        let result = connect_validator(&protocol, &cluster, &connect, &properties, &None, &None, &None);
+        let result = connect_validator(
+            &protocol,
+            &cluster,
+            &connect,
+            &properties,
+            &None,
+            &None,
+            &None,
+        );
         assert!(result.is_some());
     }
 
@@ -654,7 +670,15 @@ mod tests {
         let connect = build_test_connect("test_client");
         let properties = Some(build_test_properties(None, None, Some(2), None));
 
-        let result = connect_validator(&protocol, &cluster, &connect, &properties, &None, &None, &None);
+        let result = connect_validator(
+            &protocol,
+            &cluster,
+            &connect,
+            &properties,
+            &None,
+            &None,
+            &None,
+        );
         assert!(result.is_some());
     }
 
@@ -665,7 +689,15 @@ mod tests {
         let connect = build_test_connect("test_client");
         let properties = Some(build_test_properties(None, None, None, Some(2)));
 
-        let result = connect_validator(&protocol, &cluster, &connect, &properties, &None, &None, &None);
+        let result = connect_validator(
+            &protocol,
+            &cluster,
+            &connect,
+            &properties,
+            &None,
+            &None,
+            &None,
+        );
         assert!(result.is_some());
     }
 
@@ -696,9 +728,22 @@ mod tests {
         let protocol = MqttProtocol::Mqtt5;
         let cluster = common_config::broker::default_broker_config();
         let connect = build_test_connect("test_client");
-        let properties = Some(build_test_properties(Some(100), Some(1024), Some(1), Some(1)));
+        let properties = Some(build_test_properties(
+            Some(100),
+            Some(1024),
+            Some(1),
+            Some(1),
+        ));
 
-        let result = connect_validator(&protocol, &cluster, &connect, &properties, &None, &None, &None);
+        let result = connect_validator(
+            &protocol,
+            &cluster,
+            &connect,
+            &properties,
+            &None,
+            &None,
+            &None,
+        );
         assert!(result.is_none());
     }
 }
