@@ -41,7 +41,7 @@ use meta_service::{
 use mqtt_broker::{
     bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},
-    core::cache::MQTTCacheManager as MqttCacheManager,
+    core::{cache::MQTTCacheManager as MqttCacheManager, retain::RetainMessageManager},
     security::AuthDriver,
     subscribe::manager::SubscribeManager,
 };
@@ -229,6 +229,7 @@ impl BrokerServer {
                 metrics_manager: self.mqtt_params.metrics_cache_manager.clone(),
                 connector_manager: self.mqtt_params.connector_manager.clone(),
                 schema_manager: self.mqtt_params.schema_manager.clone(),
+                retain_message_manager: self.mqtt_params.retain_message_manager.clone(),
             },
             engine_context: StorageEngineContext {
                 engine_adapter_handler: self.engine_params.storage_engine_handler.clone(),
@@ -398,6 +399,11 @@ impl BrokerServer {
         );
         let metrics_cache_manager = Arc::new(MQTTMetricsCache::new(rocksdb_engine_handler.clone()));
         let schema_manager = Arc::new(SchemaRegisterManager::new());
+        let retain_message_manager = Arc::new(RetainMessageManager::new(
+            cache_manager.clone(),
+            client_pool.clone(),
+            connection_manager.clone(),
+        ));
 
         Ok(MqttBrokerServerParams {
             cache_manager,
@@ -413,6 +419,7 @@ impl BrokerServer {
             rocksdb_engine_handler,
             broker_cache,
             offset_manager,
+            retain_message_manager,
         })
     }
 

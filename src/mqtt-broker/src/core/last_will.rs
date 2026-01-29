@@ -15,9 +15,8 @@
 use super::cache::MQTTCacheManager;
 use super::error::MqttBrokerError;
 use super::message::build_message_expire;
-use super::retain::save_retain_message;
 use super::topic::try_init_topic;
-use crate::core::tool::ResultMqttBrokerError;
+use crate::core::{retain::RetainMessageManager, tool::ResultMqttBrokerError};
 use crate::storage::message::MessageStorage;
 use crate::storage::session::SessionStorage;
 use bytes::Bytes;
@@ -29,6 +28,7 @@ use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
 pub async fn send_last_will_message(
+    retain_message_manager: &Arc<RetainMessageManager>,
     client_id: &str,
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
@@ -54,15 +54,9 @@ pub async fn send_last_will_message(
     )
     .await?;
 
-    save_retain_message(
-        cache_manager,
-        client_pool,
-        topic_name,
-        client_id,
-        &publish,
-        &publish_properties,
-    )
-    .await?;
+    retain_message_manager
+        .save_retain_message(&topic_name, client_id, &publish, &publish_properties)
+        .await?;
 
     // Persisting stores message data
     let message_storage = MessageStorage::new(storage_driver_manager.clone());

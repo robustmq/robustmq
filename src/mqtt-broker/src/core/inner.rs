@@ -14,6 +14,7 @@
 
 use crate::core::error::MqttBrokerError;
 use crate::core::last_will::send_last_will_message;
+use crate::core::retain::RetainMessageManager;
 use crate::core::{cache::MQTTCacheManager, session::delete_session_by_local};
 use crate::subscribe::manager::SubscribeManager;
 use broker_core::tool::wait_cluster_running;
@@ -52,6 +53,7 @@ pub async fn delete_session_by_req(
 pub async fn send_last_will_message_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
+    retain_message_manager: &Arc<RetainMessageManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     req: &SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, MqttBrokerError> {
@@ -68,6 +70,7 @@ pub async fn send_last_will_message_by_req(
         req.client_id, data.client_id
     );
     if let Err(e) = send_last_will_message(
+        retain_message_manager,
         req.client_id.as_str(),
         cache_manager,
         client_pool,

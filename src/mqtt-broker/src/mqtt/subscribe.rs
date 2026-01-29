@@ -17,7 +17,7 @@ use crate::core::cache::MQTTCacheManager;
 use crate::core::connection::is_request_problem_info;
 use crate::core::error::MqttBrokerError;
 use crate::core::flow_control::is_subscribe_rate_exceeded;
-use crate::core::retain::{is_new_sub, try_send_retain_message, TrySendRetainMessageContext};
+use crate::core::retain::{is_new_sub, TrySendRetainMessageContext};
 use crate::core::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use crate::core::sub_share::group_leader_validator;
 use crate::core::sub_wildcards::sub_path_validator;
@@ -126,17 +126,16 @@ impl MqttService {
         })
         .await;
 
-        try_send_retain_message(TrySendRetainMessageContext {
-            protocol: self.protocol.clone(),
-            client_id: connection.client_id.clone(),
-            subscribe: subscribe.clone(),
-            subscribe_properties: subscribe_properties.clone(),
-            client_pool: self.client_pool.clone(),
-            cache_manager: self.cache_manager.clone(),
-            connection_manager: self.connection_manager.clone(),
-            is_new_subs: new_subs,
-        })
-        .await;
+        self.retain_message_manager
+            .try_send_retain_message(TrySendRetainMessageContext {
+                client_id: connection.client_id.clone(),
+                subscribe: subscribe.clone(),
+                subscribe_properties: subscribe_properties.clone(),
+                cache_manager: self.cache_manager.clone(),
+                is_new_subs: new_subs,
+            })
+            .await
+            .unwrap();
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
         let cluster_qos = self

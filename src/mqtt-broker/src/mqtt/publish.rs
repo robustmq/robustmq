@@ -184,6 +184,7 @@ impl MqttService {
             delay_message_manager: self.delay_message_manager.clone(),
             cache_manager: self.cache_manager.clone(),
             client_pool: self.client_pool.clone(),
+            retain_message_manager: self.retain_message_manager.clone(),
             publish: publish.clone(),
             publish_properties: publish_properties.clone(),
             subscribe_manager: self.subscribe_manager.clone(),

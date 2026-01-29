@@ -20,6 +20,7 @@ use crate::core::dynamic_cache::load_metadata_cache;
 use crate::core::flapping_detect::clean_flapping_detect;
 use crate::core::keep_alive::ClientKeepAlive;
 use crate::core::metrics_cache::metrics_record_thread;
+use crate::core::retain::{start_send_retain_thread, RetainMessageManager};
 use crate::core::system_alarm::SystemAlarm;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::core::topic_rewrite::start_topic_rewrite_convert_thread;
@@ -61,6 +62,7 @@ pub struct MqttBrokerServerParams {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub broker_cache: Arc<BrokerCacheManager>,
     pub offset_manager: Arc<OffsetManager>,
+    pub retain_message_manager: Arc<RetainMessageManager>,
 }
 
 pub struct MqttBrokerServer {
@@ -76,6 +78,7 @@ pub struct MqttBrokerServer {
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     offset_manager: Arc<OffsetManager>,
+    retain_message_manager: Arc<RetainMessageManager>,
     server: Arc<Server>,
     main_stop: broadcast::Sender<bool>,
     inner_stop: broadcast::Sender<bool>,
@@ -96,6 +99,7 @@ impl MqttBrokerServer {
             auth_driver: params.auth_driver.clone(),
             rocksdb_engine_handler: params.rocksdb_engine_handler.clone(),
             broker_cache: params.broker_cache.clone(),
+            retain_message_manager: params.retain_message_manager.clone(),
         }));
 
         MqttBrokerServer {
@@ -114,6 +118,7 @@ impl MqttBrokerServer {
             metrics_cache_manager: params.metrics_cache_manager,
             rocksdb_engine_handler: params.rocksdb_engine_handler,
             offset_manager: params.offset_manager,
+            retain_message_manager: params.retain_message_manager,
         }
     }
 
@@ -203,6 +208,13 @@ impl MqttBrokerServer {
             if let Err(e) = system_alarm.start().await {
                 error!("Failed to start system alarm monitoring: {}", e);
             }
+        });
+
+        // retain message
+        let retain_message_manager = self.retain_message_manager.clone();
+        let stop_sx = self.inner_stop.clone();
+        tokio::spawn(async move {
+            start_send_retain_thread(retain_message_manager, stop_sx);
         });
     }
 

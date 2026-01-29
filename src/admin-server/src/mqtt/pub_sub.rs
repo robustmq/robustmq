@@ -62,10 +62,7 @@ use common_base::{
 };
 use common_config::broker::broker_config;
 use metadata_struct::mqtt::message::MqttMessage;
-use mqtt_broker::{
-    core::{retain::save_retain_message, topic::try_init_topic},
-    storage::message::MessageStorage,
-};
+use mqtt_broker::{core::topic::try_init_topic, storage::message::MessageStorage};
 use protocol::mqtt::common::{Publish, PublishProperties};
 use std::{collections::HashMap, sync::Arc};
 
@@ -107,15 +104,11 @@ async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64
     let publish_properties = Some(PublishProperties::default());
 
     if params.retain {
-        if let Err(e) = save_retain_message(
-            &state.mqtt_context.cache_manager,
-            &state.client_pool,
-            params.topic.clone(),
-            &client_id,
-            &publish,
-            &publish_properties,
-        )
-        .await
+        if let Err(e) = state
+            .mqtt_context
+            .retain_message_manager
+            .save_retain_message(&params.topic, &client_id, &publish, &publish_properties)
+            .await
         {
             return Err(CommonError::CommonError(e.to_string()));
         }

@@ -21,9 +21,11 @@ use super::{
     },
     error::MqttBrokerError,
     message::build_message_expire,
-    retain::save_retain_message,
 };
-use crate::{storage::message::MessageStorage, subscribe::manager::SubscribeManager};
+use crate::{
+    core::retain::RetainMessageManager, storage::message::MessageStorage,
+    subscribe::manager::SubscribeManager,
+};
 use common_base::tools::now_second;
 use common_metrics::mqtt::publish::record_messages_dropped_no_subscribers_incr;
 use delay_message::manager::DelayMessageManager;
@@ -45,6 +47,7 @@ pub struct SaveMessageContext {
     pub publish: Publish,
     pub publish_properties: Option<PublishProperties>,
     pub subscribe_manager: Arc<SubscribeManager>,
+    pub retain_message_manager: Arc<RetainMessageManager>,
     pub client_id: String,
     pub topic: Topic,
     pub delay_info: Option<DelayPublishTopic>,
@@ -53,15 +56,15 @@ pub struct SaveMessageContext {
 pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>, MqttBrokerError> {
     // Whether or not offline messages are enabled
     // persistent storage must be used to retain the messages.
-    save_retain_message(
-        &context.cache_manager,
-        &context.client_pool,
-        context.topic.topic_name.clone(),
-        &context.client_id,
-        &context.publish,
-        &context.publish_properties,
-    )
-    .await?;
+    context
+        .retain_message_manager
+        .save_retain_message(
+            &context.topic.topic_name,
+            &context.client_id,
+            &context.publish,
+            &context.publish_properties,
+        )
+        .await?;
 
     let offline_message_disabled = !context
         .cache_manager

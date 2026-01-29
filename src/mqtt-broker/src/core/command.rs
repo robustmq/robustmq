@@ -15,6 +15,7 @@
 use crate::core::cache::MQTTCacheManager;
 use crate::core::connection::{build_server_disconnect_conn_context, disconnect_connection};
 use crate::core::error::MqttBrokerError;
+use crate::core::retain::RetainMessageManager;
 use crate::mqtt::connect::build_connect_ack_fail_packet;
 use crate::mqtt::disconnect::build_distinct_packet;
 use crate::mqtt::{MqttService, MqttServiceConnectContext, MqttServiceContext};
@@ -75,6 +76,7 @@ pub struct CommandContext {
     pub auth_driver: Arc<AuthDriver>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub broker_cache: Arc<BrokerCacheManager>,
+    pub retain_message_manager: Arc<RetainMessageManager>,
 }
 
 #[async_trait]
@@ -669,6 +671,7 @@ impl MQTTHandlerCommand {
             client_pool: context.client_pool.clone(),
             auth_driver: context.auth_driver.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
+            retain_message_manager: context.retain_message_manager.clone(),
         };
         let mqtt3_service = MqttService::new(mqtt3_context);
         let mqtt4_context = MqttServiceContext {
@@ -682,6 +685,7 @@ impl MQTTHandlerCommand {
             client_pool: context.client_pool.clone(),
             auth_driver: context.auth_driver.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
+            retain_message_manager: context.retain_message_manager.clone(),
         };
         let mqtt4_service = MqttService::new(mqtt4_context);
         let mqtt5_context = MqttServiceContext {
@@ -695,6 +699,7 @@ impl MQTTHandlerCommand {
             client_pool: context.client_pool.clone(),
             auth_driver: context.auth_driver.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
+            retain_message_manager: context.retain_message_manager.clone(),
         };
         let mqtt5_service = MqttService::new(mqtt5_context);
         MQTTHandlerCommand {

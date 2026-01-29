@@ -32,6 +32,7 @@ pub struct ClientTestProperties {
 
 pub mod clean_session_test;
 pub mod client_id_test;
+pub mod common;
 pub mod connect_test;
 pub mod keep_alive_test;
 pub mod lastwill_message_test;
@@ -40,10 +41,10 @@ pub mod network_test;
 pub mod packet_size_test;
 pub mod properties_test;
 pub mod protocol_version_test;
-pub mod publish_dup_test;
 pub mod qos_test;
 pub mod req_resp_test;
 pub mod request_problem_info_test;
+pub mod retain_message_test;
 pub mod session_expire_test;
 pub mod topic_alias_test;
 pub mod user_properties_test;
@@ -51,14 +52,12 @@ pub mod user_test;
 
 pub mod acl_test;
 pub mod blacklist_test;
-pub mod common;
 pub mod connect_authentication_test;
 pub mod connector_test;
 pub mod content_type_test;
 pub mod delay_publish_test;
 mod flapping_detect_test;
 mod quic_server;
-pub mod retain_message_test;
 pub mod schema_test;
 pub mod share_sub_test;
 pub mod sub_auto;

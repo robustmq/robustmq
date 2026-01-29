@@ -16,6 +16,9 @@ pub const SUB_RETAIN_MESSAGE_PUSH_FLAG: &str = "retain_push_flag";
 pub const SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE: &str = "true";
 pub const WILDCARD_RESOURCE: &str = "*";
 
+// Maximum concurrent tasks for sending retain messages
+pub const MAX_RETAIN_MESSAGE_SEND_CONCURRENCY: usize = 10;
+
 pub const METRICS_KEY_PROTOCOL_NAME: &str = "protocol";
 pub const METRICS_KEY_NETWORK_TYPE: &str = "network";
 pub const METRICS_KEY_LABEL_NAME: &str = "label";
