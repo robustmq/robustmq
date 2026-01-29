@@ -34,7 +34,7 @@ mod tests {
             network,
             qos
         );
-        let client_id = build_client_id(format!("ucontent_type_test_{network}_{qos}").as_str());
+        let client_id = build_client_id(format!("content_type_test_{network}_{qos}").as_str());
 
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
@@ -71,7 +71,6 @@ mod tests {
                 .properties()
                 .get_string(PropertyCode::ContentType)
                 .unwrap();
-            println!("content type:{ct}");
             bl0 && ct == content_type
         };
 
