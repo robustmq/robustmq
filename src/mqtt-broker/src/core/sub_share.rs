@@ -15,10 +15,7 @@
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use grpc_clients::{meta::mqtt::call::placement_get_share_sub_leader, pool::ClientPool};
-use protocol::{
-    meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest},
-    mqtt::common::Filter,
-};
+use protocol::meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
 use std::sync::Arc;
 
 pub const SHARE_SUB_PREFIX: &str = "$share";

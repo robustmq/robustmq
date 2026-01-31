@@ -23,6 +23,7 @@ use crate::core::sub_option::{
     get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local,
     is_send_retain_msg_by_retain_handling,
 };
+use crate::core::subscribe::is_new_sub;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::common::SubPublishParam;
@@ -44,15 +45,6 @@ use std::sync::Arc;
 use tokio::select;
 use tokio::sync::{broadcast, Semaphore};
 use tracing::{debug, error, warn};
-
-#[derive(Clone)]
-pub struct TrySendRetainMessageContext {
-    pub client_id: String,
-    pub subscribe: Subscribe,
-    pub subscribe_properties: Option<SubscribeProperties>,
-    pub cache_manager: Arc<MQTTCacheManager>,
-    pub is_new_subs: DashMap<String, bool>,
-}
 
 #[derive(Clone)]
 struct SendRetainData {
@@ -142,28 +134,31 @@ impl RetainMessageManager {
 
     pub async fn try_send_retain_message(
         &self,
-        context: TrySendRetainMessageContext,
+        client_id: &str,
+        subscribe: &Subscribe,
+        subscribe_properties: &Option<SubscribeProperties>,
+        cache_manager: &Arc<MQTTCacheManager>,
+        subscribe_manager: &Arc<SubscribeManager>,
     ) -> Result<(), MqttBrokerError> {
         // Extract subscription identifier once to avoid repeated cloning
-        let sub_ids = context
-            .subscribe_properties
+        let sub_ids = subscribe_properties
             .as_ref()
             .and_then(|props| props.subscription_identifier)
             .map(|id| vec![id])
             .unwrap_or_default();
 
-        for filter in context.subscribe.filters.iter() {
+        let is_new_subs = is_new_sub(client_id, subscribe, subscribe_manager);
+        for filter in subscribe.filters.iter() {
             if !is_send_retain_msg_by_retain_handling(
                 &filter.path,
                 &filter.retain_handling,
-                &context.is_new_subs,
+                &is_new_subs,
             ) {
-                debug!("retain messages: Determine whether to send retained messages based on the retain handling strategy. Client ID: {}", context.client_id);
+                debug!("retain messages: Determine whether to send retained messages based on the retain handling strategy. Client ID: {}", client_id);
                 continue;
             }
 
-            let topic_name_list =
-                get_sub_topic_name_list(&context.cache_manager, &filter.path).await;
+            let topic_name_list = get_sub_topic_name_list(cache_manager, &filter.path).await;
             if topic_name_list.is_empty() {
                 continue;
             }
@@ -174,7 +169,7 @@ impl RetainMessageManager {
                 }
 
                 let data = SendRetainData {
-                    client_id: context.client_id.clone(),
+                    client_id: client_id.to_string(),
                     no_local: filter.no_local,
                     preserve_retain: filter.preserve_retain,
                     qos: filter.qos,

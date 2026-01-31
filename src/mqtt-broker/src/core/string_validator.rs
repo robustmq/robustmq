@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Common UTF-8 string validation for MQTT protocol
+/// Validates a UTF-8 string according to MQTT 5.0 specification.
 ///
 /// MQTT 5.0 UTF-8 String Requirements:
 /// - Must be valid UTF-8
 /// - Must NOT contain null character (U+0000)
 /// - Must NOT contain control characters (except tab, newline, carriage return)
 /// - Length must not exceed 65535 bytes
-
-/// Validates a UTF-8 string according to MQTT 5.0 specification
 pub fn validate_utf8_string(
     value: &str,
     field_name: &str,
