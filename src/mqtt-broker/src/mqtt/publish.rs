@@ -20,7 +20,7 @@ use crate::core::delay_message::{decode_delay_topic, is_delay_topic};
 use crate::core::error::MqttBrokerError;
 use crate::core::metrics::record_publish_receive_metrics;
 use crate::core::offline_message::{save_message, SaveMessageContext};
-use crate::core::pkid_manager::{QosAckEnum, ReceiveQosPkidData};
+use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
 use crate::core::qos::check_max_qos_flight_message;
 use crate::core::topic::{get_topic_name, try_init_topic};
 use common_base::tools::now_second;
@@ -107,7 +107,7 @@ impl MqttService {
             QoS::AtMostOnce => None,
             QoS::AtLeastOnce => {
                 self.cache_manager
-                    .qos_data
+                    .pkid_data
                     .remove_receive_publish_pkid_data(&connection.client_id, publish.p_kid);
                 Some(build_pub_ack(
                     &self.cache_manager,
@@ -226,7 +226,7 @@ impl MqttService {
 
         if let Some(data) = self
             .cache_manager
-            .qos_data
+            .pkid_data
             .get_receive_publish_pkid_data(&connection.client_id, publish.p_kid)
         {
             if publish.qos == QoS::AtLeastOnce {
@@ -242,7 +242,7 @@ impl MqttService {
             }
 
             if publish.qos == QoS::ExactlyOnce {
-                if data.ack_enum == QosAckEnum::PubRec {
+                if data.ack_enum == PkidAckEnum::PubRec {
                     return Some(build_pub_rec(
                         &self.cache_manager,
                         connection.connect_id,
@@ -254,7 +254,7 @@ impl MqttService {
                     ));
                 }
 
-                if data.ack_enum == QosAckEnum::PubComp {
+                if data.ack_enum == PkidAckEnum::PubComp {
                     return Some(build_pub_comp(
                         &self.cache_manager,
                         connection.connect_id,
@@ -269,10 +269,10 @@ impl MqttService {
         }
 
         if publish.qos == QoS::AtLeastOnce {
-            self.cache_manager.qos_data.add_receive_publish_pkid_data(
+            self.cache_manager.pkid_data.add_receive_publish_pkid_data(
                 &connection.client_id,
                 ReceiveQosPkidData {
-                    ack_enum: QosAckEnum::PubAck,
+                    ack_enum: PkidAckEnum::PubAck,
                     pkid: publish.p_kid,
                     create_time: now_second(),
                 },
@@ -280,10 +280,10 @@ impl MqttService {
         }
 
         if publish.qos == QoS::ExactlyOnce {
-            self.cache_manager.qos_data.add_receive_publish_pkid_data(
+            self.cache_manager.pkid_data.add_receive_publish_pkid_data(
                 &connection.client_id,
                 ReceiveQosPkidData {
-                    ack_enum: QosAckEnum::PubRec,
+                    ack_enum: PkidAckEnum::PubRec,
                     pkid: publish.p_kid,
                     create_time: now_second(),
                 },
@@ -301,7 +301,7 @@ impl MqttService {
     ) -> MqttPacket {
         if self
             .cache_manager
-            .qos_data
+            .pkid_data
             .get_receive_publish_pkid_data(&connection.client_id, pub_rel.pkid)
             .is_none()
         {
@@ -317,7 +317,7 @@ impl MqttService {
         }
 
         self.cache_manager
-            .qos_data
+            .pkid_data
             .remove_receive_publish_pkid_data(&connection.client_id, pub_rel.pkid);
 
         build_pub_comp(

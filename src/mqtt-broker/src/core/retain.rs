@@ -300,7 +300,7 @@ impl RetainMessageManager {
 
         let p_kid = self
             .cache_manager
-            .qos_data
+            .pkid_data
             .generate_publish_to_client_pkid(&data.client_id, &data.qos)
             .await;
 
@@ -339,21 +339,6 @@ impl RetainMessageManager {
 
         Ok(())
     }
-}
-
-pub async fn is_new_sub(
-    client_id: &str,
-    subscribe: &Subscribe,
-    subscribe_manager: &Arc<SubscribeManager>,
-) -> DashMap<String, bool> {
-    let results = DashMap::with_capacity(subscribe.filters.len());
-    for filter in subscribe.filters.iter() {
-        let is_new = subscribe_manager
-            .get_subscribe(client_id, &filter.path)
-            .is_none();
-        results.insert(filter.path.to_owned(), is_new);
-    }
-    results
 }
 
 pub fn start_send_retain_thread(

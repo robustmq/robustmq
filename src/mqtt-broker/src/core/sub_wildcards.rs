@@ -13,34 +13,132 @@
 // limitations under the License.
 
 use crate::{core::error::MqttBrokerError, core::tool::ResultMqttBrokerError};
-use regex::Regex;
 
-const SUBSCRIBE_WILDCARDS_1: &str = "+";
-const SUBSCRIBE_WILDCARDS_2: &str = "#";
-const SUBSCRIBE_SPLIT_DELIMITER: &str = "/";
-const SUBSCRIBE_NAME_REGEX: &str = r"^[\$a-zA-Z0-9_#+/]+$";
+const SINGLE_LEVEL_WILDCARD: &str = "+";
+const MULTI_LEVEL_WILDCARD: &str = "#";
+const TOPIC_LEVEL_SEPARATOR: &str = "/";
+const MAX_TOPIC_LENGTH: usize = 65535;
 
 pub fn sub_path_validator(sub_path: &str) -> ResultMqttBrokerError {
-    let regex = Regex::new(SUBSCRIBE_NAME_REGEX)?;
-
-    if !regex.is_match(sub_path) {
-        return Err(MqttBrokerError::InvalidSubPath(sub_path.to_owned()));
+    if sub_path.is_empty() {
+        return Err(MqttBrokerError::InvalidSubPath(
+            "topic filter cannot be empty".to_string(),
+        ));
     }
 
-    for path in sub_path.split(SUBSCRIBE_SPLIT_DELIMITER) {
-        if path.contains(SUBSCRIBE_WILDCARDS_1) && path != SUBSCRIBE_WILDCARDS_1 {
-            return Err(MqttBrokerError::InvalidSubPath(sub_path.to_owned()));
+    if sub_path.len() > MAX_TOPIC_LENGTH {
+        return Err(MqttBrokerError::InvalidSubPath(
+            "topic filter exceeds maximum length".to_string(),
+        ));
+    }
+
+    if sub_path.contains('\0') {
+        return Err(MqttBrokerError::InvalidSubPath(
+            "topic filter cannot contain null character".to_string(),
+        ));
+    }
+
+    let levels: Vec<&str> = sub_path.split(TOPIC_LEVEL_SEPARATOR).collect();
+    let mut multi_level_wildcard_count = 0;
+
+    for (index, level) in levels.iter().enumerate() {
+        if level.contains(SINGLE_LEVEL_WILDCARD) && *level != SINGLE_LEVEL_WILDCARD {
+            return Err(MqttBrokerError::InvalidSubPath(format!(
+                "single-level wildcard '+' must occupy entire level: {}",
+                sub_path
+            )));
         }
-        if path.contains(SUBSCRIBE_WILDCARDS_2) && path != SUBSCRIBE_WILDCARDS_2 {
-            return Err(MqttBrokerError::InvalidSubPath(sub_path.to_owned()));
+
+        if level.contains(MULTI_LEVEL_WILDCARD) {
+            multi_level_wildcard_count += 1;
+
+            if *level != MULTI_LEVEL_WILDCARD {
+                return Err(MqttBrokerError::InvalidSubPath(format!(
+                    "multi-level wildcard '#' must occupy entire level: {}",
+                    sub_path
+                )));
+            }
+
+            if index != levels.len() - 1 {
+                return Err(MqttBrokerError::InvalidSubPath(format!(
+                    "multi-level wildcard '#' must be the last character: {}",
+                    sub_path
+                )));
+            }
         }
+    }
+
+    if multi_level_wildcard_count > 1 {
+        return Err(MqttBrokerError::InvalidSubPath(format!(
+            "multi-level wildcard '#' can only appear once: {}",
+            sub_path
+        )));
     }
 
     Ok(())
 }
 
 pub fn is_wildcards(sub_path: &str) -> bool {
-    sub_path.contains(SUBSCRIBE_WILDCARDS_1) || sub_path.contains(SUBSCRIBE_WILDCARDS_2)
+    sub_path.contains(SINGLE_LEVEL_WILDCARD) || sub_path.contains(MULTI_LEVEL_WILDCARD)
 }
 
-mod tests {}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sub_path_validator() {
+        assert!(sub_path_validator("sensor/temperature").is_ok());
+        assert!(sub_path_validator("sensor/+/temperature").is_ok());
+        assert!(sub_path_validator("+/temperature").is_ok());
+        assert!(sub_path_validator("sensor/+").is_ok());
+        assert!(sub_path_validator("+").is_ok());
+        assert!(sub_path_validator("sensor/#").is_ok());
+        assert!(sub_path_validator("#").is_ok());
+        assert!(sub_path_validator("sensor/+/+/temperature").is_ok());
+        assert!(sub_path_validator("$SYS/broker/clients").is_ok());
+        assert!(sub_path_validator("sport/tennis/player1/#").is_ok());
+        assert!(sub_path_validator("/sensor/temperature").is_ok());
+        assert!(sub_path_validator("sensor//temperature").is_ok());
+        assert!(sub_path_validator("sensor/temperature/").is_ok());
+        assert!(sub_path_validator("a/b/c/d/e/f/g").is_ok());
+        assert!(sub_path_validator("/").is_ok());
+        assert!(sub_path_validator("//").is_ok());
+        assert!(sub_path_validator("+/+/+").is_ok());
+        assert!(sub_path_validator("/+").is_ok());
+        assert!(sub_path_validator("+/").is_ok());
+        assert!(sub_path_validator("/#").is_ok());
+        assert!(sub_path_validator("$SYS/#").is_ok());
+        assert!(sub_path_validator("$SYS/broker/+/clients").is_ok());
+        assert!(sub_path_validator("$share/group/topic").is_ok());
+
+        assert!(sub_path_validator("").is_err());
+        assert!(sub_path_validator("sensor+").is_err());
+        assert!(sub_path_validator("+sensor").is_err());
+        assert!(sub_path_validator("sen+sor").is_err());
+        assert!(sub_path_validator("sensor/temp+").is_err());
+        assert!(sub_path_validator("sensor/+temp/data").is_err());
+        assert!(sub_path_validator("sensor/#/temperature").is_err());
+        assert!(sub_path_validator("#/temperature").is_err());
+        assert!(sub_path_validator("sensor/#/+").is_err());
+        assert!(sub_path_validator("sensor#").is_err());
+        assert!(sub_path_validator("#sensor").is_err());
+        assert!(sub_path_validator("sensor/temp#").is_err());
+        assert!(sub_path_validator("sensor/#data").is_err());
+        assert!(sub_path_validator("#/#").is_err());
+        assert!(sub_path_validator("sensor/#/other/#").is_err());
+        assert!(sub_path_validator("sensor\0temperature").is_err());
+        assert!(sub_path_validator("sensor/\0/temperature").is_err());
+        assert!(sub_path_validator(&"a".repeat(MAX_TOPIC_LENGTH)).is_ok());
+        assert!(sub_path_validator(&"a".repeat(MAX_TOPIC_LENGTH + 1)).is_err());
+
+        assert!(is_wildcards("sensor/+/temperature"));
+        assert!(is_wildcards("sensor/#"));
+        assert!(is_wildcards("+"));
+        assert!(is_wildcards("#"));
+        assert!(is_wildcards("sensor/+/+"));
+        assert!(!is_wildcards("sensor/temperature"));
+        assert!(!is_wildcards("sensor"));
+        assert!(!is_wildcards(""));
+    }
+}

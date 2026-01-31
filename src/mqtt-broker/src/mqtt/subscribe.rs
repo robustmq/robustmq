@@ -17,9 +17,9 @@ use crate::core::cache::MQTTCacheManager;
 use crate::core::connection::is_request_problem_info;
 use crate::core::error::MqttBrokerError;
 use crate::core::flow_control::is_subscribe_rate_exceeded;
-use crate::core::retain::{is_new_sub, TrySendRetainMessageContext};
+use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
+use crate::core::retain::TrySendRetainMessageContext;
 use crate::core::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
-use crate::core::sub_share::group_leader_validator;
 use crate::core::sub_wildcards::sub_path_validator;
 use crate::core::subscribe::remove_subscribe;
 use crate::core::subscribe::{save_subscribe, SaveSubscribeContext};
@@ -31,6 +31,7 @@ use crate::system_topic::event::{
     st_report_subscribed_event, st_report_unsubscribed_event, StReportSubscribedEventContext,
     StReportUnsubscribedEventContext,
 };
+use common_base::tools::now_second;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
     qos, DisconnectReasonCode, MqttPacket, MqttProtocol, SubAck, SubAckProperties, Subscribe,
@@ -47,10 +48,13 @@ impl MqttService {
         subscribe_properties: &Option<SubscribeProperties>,
     ) -> MqttPacket {
         let (reason_codes, reason) = subscribe_validator(
+            &self.cache_manager,
             &self.auth_driver,
             &self.subscribe_manager,
             connection,
             subscribe,
+            subscribe_properties,
+            &self.protocol,
         )
         .await;
 
@@ -65,32 +69,14 @@ impl MqttService {
             );
         }
 
-        match group_leader_validator(&self.client_pool, &subscribe.filters).await {
-            Ok(Some(addr)) => {
-                return build_distinct_packet(
-                    &self.cache_manager,
-                    connection.connect_id,
-                    &self.protocol,
-                    Some(DisconnectReasonCode::UseAnotherServer),
-                    Some(addr),
-                    Some(
-                        "group leader assigned; please reconnect to the provided server"
-                            .to_string(),
-                    ),
-                );
-            }
-            Ok(None) => {}
-            Err(e) => {
-                return response_packet_mqtt_sub_ack(
-                    &self.cache_manager,
-                    connection.connect_id,
-                    &self.protocol,
-                    subscribe.packet_identifier,
-                    vec![SubscribeReasonCode::Unspecified],
-                    Some(e.to_string()),
-                );
-            }
-        }
+        self.cache_manager.pkid_data.add_receive_publish_pkid_data(
+            &connection.client_id,
+            ReceiveQosPkidData {
+                ack_enum: PkidAckEnum::SubAck,
+                pkid: subscribe.packet_identifier,
+                create_time: now_second(),
+            },
+        );
 
         let new_subs = is_new_sub(&connection.client_id, subscribe, &self.subscribe_manager).await;
 
@@ -158,6 +144,10 @@ impl MqttService {
                 }
             }
         }
+
+        self.cache_manager
+            .pkid_data
+            .remove_receive_publish_pkid_data(&connection.client_id, subscribe.packet_identifier);
         response_packet_mqtt_sub_ack(
             &self.cache_manager,
             connection.connect_id,
@@ -266,11 +256,60 @@ fn response_packet_mqtt_unsub_ack(
 }
 
 async fn subscribe_validator(
+    cache_manager: &Arc<MQTTCacheManager>,
     auth_driver: &Arc<AuthDriver>,
     subscribe_manager: &Arc<SubscribeManager>,
     connection: &MQTTConnection,
     subscribe: &Subscribe,
+    subscribe_properties: &Option<SubscribeProperties>,
+    protocol: &MqttProtocol,
 ) -> (Vec<SubscribeReasonCode>, String) {
+    if subscribe.packet_identifier == 0 {
+        return (
+            vec![SubscribeReasonCode::PkidInUse],
+            "Packet identifier must be non-zero".to_string(),
+        );
+    }
+
+    if subscribe.filters.is_empty() {
+        return (
+            vec![SubscribeReasonCode::TopicFilterInvalid],
+            "Subscription must contain at least one topic filter".to_string(),
+        );
+    }
+
+    if let Some(properties) = subscribe_properties {
+        if let Some(sub_id) = properties.subscription_identifier {
+            if protocol.is_mqtt5() {
+                if sub_id == 0 || sub_id > 268_435_455 {
+                    return (
+                        vec![SubscribeReasonCode::SubscriptionIdNotSupported],
+                        format!(
+                            "Subscription identifier must be in range 1-268435455, got {}",
+                            sub_id
+                        ),
+                    );
+                }
+            } else if sub_id != 0 {
+                return (
+                    vec![SubscribeReasonCode::SubscriptionIdNotSupported],
+                    "Subscription identifier not supported in MQTT 3.1.1/4".to_string(),
+                );
+            }
+        }
+    }
+
+    if cache_manager
+        .pkid_data
+        .get_receive_publish_pkid_data(&connection.client_id, subscribe.packet_identifier)
+        .is_some()
+    {
+        return (
+            vec![SubscribeReasonCode::PkidInUse],
+            "Packet identifier already in use".to_string(),
+        );
+    }
+
     let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
     let mut invalid_paths = Vec::new();
 

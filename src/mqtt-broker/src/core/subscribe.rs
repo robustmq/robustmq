@@ -40,6 +40,21 @@ pub struct SaveSubscribeContext {
     pub subscribe_properties: Option<SubscribeProperties>,
 }
 
+pub async fn is_new_sub(
+    client_id: &str,
+    subscribe: &Subscribe,
+    subscribe_manager: &Arc<SubscribeManager>,
+) -> DashMap<String, bool> {
+    let results = DashMap::with_capacity(subscribe.filters.len());
+    for filter in subscribe.filters.iter() {
+        let is_new = subscribe_manager
+            .get_subscribe(client_id, &filter.path)
+            .is_none();
+        results.insert(filter.path.to_owned(), is_new);
+    }
+    results
+}
+
 pub async fn save_subscribe(context: SaveSubscribeContext) -> ResultMqttBrokerError {
     let conf = broker_config();
     let filters = &context.subscribe.filters;
