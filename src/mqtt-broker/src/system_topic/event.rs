@@ -98,14 +98,14 @@ pub struct SystemTopicDisConnectedEventMessage {
 pub struct SystemTopicSubscribedEventMessage {
     pub username: String,
     pub ts: u128,
-    pub subopts: SystemTopicSubscribedEventMessageSUbopts,
+    pub subopts: SystemTopicSubscribedEventMessageSupports,
     pub topic: String,
     pub protocol: String,
     pub client_id: String,
 }
 
 #[derive(Default, Serialize, Deserialize)]
-pub struct SystemTopicSubscribedEventMessageSUbopts {
+pub struct SystemTopicSubscribedEventMessageSupports {
     pub sub_props: HashMap<String, String>,
     pub rh: u16,
     pub rap: u8,
@@ -225,12 +225,12 @@ pub async fn st_report_subscribed_event(context: StReportSubscribedEventContext)
     let username = context.connection.login_user.unwrap_or_default();
     if let Some(network_connection) = context.connection_manager.get_connect(context.connect_id) {
         for filter in context.subscribe.filters.clone() {
-            let subopts = SystemTopicSubscribedEventMessageSUbopts {
+            let subopts = SystemTopicSubscribedEventMessageSupports {
                 sub_props: HashMap::new(),
                 rh: if filter.preserve_retain { 1 } else { 0 },
                 rap: filter.retain_handling.into(),
                 qos: filter.qos.into(),
-                nl: if filter.nolocal { 1 } else { 0 },
+                nl: if filter.no_local { 1 } else { 0 },
                 is_new: true,
             };
             let event_data = SystemTopicSubscribedEventMessage {

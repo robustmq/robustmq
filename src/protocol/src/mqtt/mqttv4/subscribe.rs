@@ -77,7 +77,7 @@ mod filter {
                 path,
                 qos: qos(requested_qos).ok_or(MQTTProtocolError::InvalidQoS(requested_qos))?,
                 // the following options only valid in mqtt v5 and will be ignored in mqtt v4
-                nolocal: false,
+                no_local: false,
                 preserve_retain: false,
                 retain_handling: RetainHandling::OnEverySubscribe,
             });
@@ -106,7 +106,7 @@ mod tests {
         let topic_filter = Filter {
             path: "test_sub_topic".to_string(),
             qos: QoS::AtLeastOnce,
-            nolocal: false, // invalid in mqtt v4, ignore here with default value
+            no_local: false, // invalid in mqtt v4, ignore here with default value
             preserve_retain: false, // invalid in mqtt v4, ignore here with default value
             retain_handling: RetainHandling::OnEverySubscribe, // invalid in mqtt v4, ignore here with default value
         };
@@ -132,7 +132,7 @@ mod tests {
         let topic_filter = Filter {
             path: "test_sub_topic".to_string(),
             qos: QoS::AtLeastOnce,
-            nolocal: false, // invalid in mqtt v4, ignore here with default value
+            no_local: false, // invalid in mqtt v4, ignore here with default value
             preserve_retain: false, // invalid in mqtt v4, ignore here with default value
             retain_handling: RetainHandling::OnEverySubscribe, // invalid in mqtt v4, ignore here with default value
         };

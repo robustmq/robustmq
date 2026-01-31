@@ -54,7 +54,7 @@ pub async fn try_auto_subscribe(
         filters.push(Filter {
             path,
             qos: auto_subscribe_rule.qos,
-            nolocal: auto_subscribe_rule.no_local,
+            no_local: auto_subscribe_rule.no_local,
             preserve_retain: auto_subscribe_rule.retain_as_published,
             retain_handling: auto_subscribe_rule.retained_handling,
         });

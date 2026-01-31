@@ -15,7 +15,10 @@
 
 
 # Script to create GitHub issues using GitHub API
-# Usage: ./scripts/create-issue.sh
+# Usage: 
+#   ./scripts/create-issue.sh --title "Issue Title" --body-file issue.md --labels "bug,mqtt"
+#   ./scripts/create-issue.sh -t "Issue Title" -b "Issue body text" -l "enhancement"
+#   ./scripts/create-issue.sh --interactive
 
 set -e
 
@@ -23,228 +26,175 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# Default values
+REPO="robustmq/robustmq"
+TITLE=""
+BODY=""
+BODY_FILE=""
+LABELS=""
+INTERACTIVE=false
+
+# Help function
+show_help() {
+    cat << EOF
+${BLUE}GitHub Issue Creation Script${NC}
+
+${YELLOW}Usage:${NC}
+  $0 [OPTIONS]
+
+${YELLOW}Options:${NC}
+  -t, --title TITLE           Issue title (required unless --interactive)
+  -b, --body TEXT             Issue body text
+  -f, --body-file FILE        Read issue body from markdown file
+  -l, --labels LABELS         Comma-separated labels (e.g., "bug,mqtt,priority:high")
+  -r, --repo OWNER/REPO       Repository (default: robustmq/robustmq)
+  -i, --interactive           Interactive mode - prompt for all inputs
+  -h, --help                  Show this help message
+
+${YELLOW}Environment Variables:${NC}
+  GITHUB_TOKEN               GitHub Personal Access Token (required)
+
+${YELLOW}Examples:${NC}
+  # Create issue with inline body
+  $0 -t "Fix memory leak" -b "Description here" -l "bug,mqtt"
+
+  # Create issue from markdown file
+  $0 -t "Feature: Multi-tenant" -f docs/multi-tenant.md -l "enhancement"
+
+  # Interactive mode
+  $0 --interactive
+
+  # Use custom repository
+  $0 -t "Issue title" -b "Body" -r "myorg/myrepo"
+
+${YELLOW}Note:${NC}
+  Get your GitHub token at: https://github.com/settings/tokens
+  Required permission: repo (Full control of private repositories)
+EOF
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -t|--title)
+            TITLE="$2"
+            shift 2
+            ;;
+        -b|--body)
+            BODY="$2"
+            shift 2
+            ;;
+        -f|--body-file)
+            BODY_FILE="$2"
+            shift 2
+            ;;
+        -l|--labels)
+            LABELS="$2"
+            shift 2
+            ;;
+        -r|--repo)
+            REPO="$2"
+            shift 2
+            ;;
+        -i|--interactive)
+            INTERACTIVE=true
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}"
+            show_help
+            exit 1
+            ;;
+    esac
+done
 
 # Check if GITHUB_TOKEN is set
 if [ -z "$GITHUB_TOKEN" ]; then
     echo -e "${RED}Error: GITHUB_TOKEN environment variable is not set${NC}"
     echo "Please set it with: export GITHUB_TOKEN=your_github_token"
+    echo "Get your token at: https://github.com/settings/tokens"
     exit 1
 fi
 
-REPO="robustmq/robustmq"
-
-# Issue details
-TITLE="[BUG] Memory Leak in Retain Message Cache - Expired Messages Not Cleaned Up"
-
-read -r -d '' BODY << 'EOFBODY' || true
-## 📋 Summary
-
-The \`RetainMessageManager\` in \`src/mqtt-broker/src/core/retain.rs\` has a memory leak issue where expired retain messages are detected but not removed from the cache, causing memory to grow indefinitely over time.
-
-## 🔍 Current Behavior
-
-When sending a retain message, the code checks if the message has expired:
-
-\`\`\`rust
-// In send_retain_message() - line 251-253
-if now_second() >= *message_at {
-    // Message has expired
-    return Ok(());
-}
-\`\`\`
-
-**When a message expires:**
-1. The code detects expiration and skips sending
-2. Error/warning is NOT logged
-3. Message remains in \`topic_retain_data\` cache indefinitely
-4. Message remains in \`last_update_time\` cache indefinitely
-5. No cleanup, no metrics update
-6. ⚠️ **Memory keeps growing with each expired message**
-
-**Common scenarios:**
-- Messages with short expiry times (e.g., 10-60 seconds)
-- High-volume retain message publishing
-- Long-running broker instances
-- Messages with \`message_expiry_interval\` property
-
-## ✨ Expected Behavior
-
-When a retain message expires, the system should:
-
-1. Remove it from \`topic_retain_data\` cache
-2. Remove it from \`last_update_time\` cache
-3. Delete it from persistent storage
-4. Update metrics (\`record_mqtt_retained_dec()\`)
-5. Log the cleanup action
-
-## 🐛 Root Cause
-
-**Location:** \`src/mqtt-broker/src/core/retain.rs\`, line 251-253
-
-The \`send_retain_message()\` method detects expired messages but only returns early without cleanup:
-
-\`\`\`rust
-if now_second() >= *message_at {
-    // Message has expired
-    return Ok(());  // ❌ Just returns, no cleanup!
-}
-\`\`\`
-
-## 💡 Proposed Solution
-
-Add cleanup logic when an expired message is detected:
-
-\`\`\`rust
-if now_second() >= *message_at {
-    // Message has expired - clean it up
-    drop(cache_entry); // Release the lock first
+# Interactive mode
+if [ "$INTERACTIVE" = true ]; then
+    echo -e "${BLUE}=== Interactive Issue Creation ===${NC}"
+    echo ""
     
-    // Remove from caches
-    self.topic_retain_data.remove(&data.topic_name);
-    self.last_update_time.remove(&data.topic_name);
+    read -p "$(echo -e ${YELLOW}Repository [robustmq/robustmq]:${NC} )" input_repo
+    if [ -n "$input_repo" ]; then
+        REPO="$input_repo"
+    fi
     
-    // Remove from storage and update metrics
-    let topic_storage = TopicStorage::new(self.client_pool.clone());
-    if let Ok(_) = topic_storage.delete_retain_message(&data.topic_name).await {
-        record_mqtt_retained_dec();
-        debug!(
-            "Expired retain message cleaned up: topic={}",
-            data.topic_name
-        );
-    }
+    read -p "$(echo -e ${YELLOW}Issue Title:${NC} )" TITLE
     
-    return Ok(());
-}
-\`\`\`
+    echo -e "${YELLOW}Issue Body (press Ctrl+D when done, or provide file path):${NC}"
+    read -p "Body file path (leave empty to type inline): " input_file
+    
+    if [ -n "$input_file" ]; then
+        BODY_FILE="$input_file"
+    else
+        echo "Type issue body (press Ctrl+D when done):"
+        BODY=$(cat)
+    fi
+    
+    read -p "$(echo -e ${YELLOW}Labels (comma-separated):${NC} )" LABELS
+    echo ""
+fi
 
-### Alternative: Background Cleanup Task
+# Validate required parameters
+if [ -z "$TITLE" ]; then
+    echo -e "${RED}Error: Issue title is required${NC}"
+    echo "Use --title or --interactive mode"
+    exit 1
+fi
 
-For proactive cleanup, consider adding a periodic task:
+# Read body from file if specified
+if [ -n "$BODY_FILE" ]; then
+    if [ ! -f "$BODY_FILE" ]; then
+        echo -e "${RED}Error: Body file not found: $BODY_FILE${NC}"
+        exit 1
+    fi
+    BODY=$(cat "$BODY_FILE")
+fi
 
-\`\`\`rust
-pub fn start_cleanup_expired_retain_messages(
-    retain_message_manager: Arc<RetainMessageManager>,
-    cleanup_interval_secs: u64,
-) {
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(
-            Duration::from_secs(cleanup_interval_secs)
-        );
-        
-        loop {
-            interval.tick().await;
-            
-            let now = now_second();
-            let mut expired_topics = Vec::new();
-            
-            // Find expired messages
-            for entry in retain_message_manager.topic_retain_data.iter() {
-                if let Some((_, expiry_time)) = entry.value() {
-                    if now >= *expiry_time {
-                        expired_topics.push(entry.key().clone());
-                    }
-                }
-            }
-            
-            // Clean up expired messages
-            for topic in expired_topics {
-                // Remove from caches and storage
-                // Update metrics
-            }
-        }
-    });
-}
-\`\`\`
+# Validate body
+if [ -z "$BODY" ]; then
+    echo -e "${RED}Error: Issue body is required${NC}"
+    echo "Use --body, --body-file, or --interactive mode"
+    exit 1
+fi
 
-## 📍 Location
-
-- **File**: \`src/mqtt-broker/src/core/retain.rs\`
-- **Method**: \`send_retain_message()\` (line 231-338)
-- **Problem Line**: 251-253
-
-## 📊 Impact
-
-**Severity:** Medium to High
-
-**Affected Scenarios:**
-- Brokers handling retain messages with expiry
-- Long-running production deployments
-- High-volume message publishing
-
-**Memory Growth:**
-- Linear growth: +1 entry per expired message
-- Each entry: \`MqttMessage\` object + metadata (can be KB to MB per message)
-- No automatic cleanup = unbounded growth
-
-**Side Effects:**
-1. **Memory bloat**: Accumulation of expired messages
-2. **Performance degradation**: Slower cache lookups with more entries
-3. **Inaccurate metrics**: \`contain_retain()\` returns true for expired messages
-4. **Potential OOM**: In extreme cases, could lead to out-of-memory errors
-
-## 🧪 Test Scenario
-
-**Reproduce Steps:**
-1. Start MQTT broker
-2. Publish retain messages with short expiry (e.g., 10 seconds):
-   \`\`\`
-   PUBLISH topic="test/retain" retain=true message_expiry_interval=10
-   \`\`\`
-3. Wait for messages to expire (>10 seconds)
-4. Monitor memory usage with \`ps\`, \`top\`, or Prometheus metrics
-5. Repeat steps 2-4 multiple times
-
-**Expected:** Memory usage should decrease after expiry
-**Actual:** Memory continuously grows
-
-## 🔗 Related Code
-
-- \`save_retain_message()\`: Sets retain messages and updates cache
-- \`contain_retain()\`: Checks message existence (doesn't filter expired)
-- \`load_retain_from_storage()\`: Loads messages into cache
-- \`start_send_retain_thread()\`: Background worker that calls \`send_retain_message()\`
-
-## ✅ Acceptance Criteria
-
-- [ ] Add cleanup logic in \`send_retain_message()\` when message expires
-- [ ] Remove expired message from \`topic_retain_data\` cache
-- [ ] Remove expired message from \`last_update_time\` cache
-- [ ] Delete expired message from persistent storage
-- [ ] Update metrics (\`record_mqtt_retained_dec()\`)
-- [ ] Add debug log for cleanup actions
-- [ ] (Optional) Implement background cleanup task for proactive cleanup
-- [ ] Add configuration for cleanup interval
-- [ ] Add unit tests for expiry cleanup
-- [ ] Add integration test with expired messages
-- [ ] Update documentation
-
-## 🔧 Additional Considerations
-
-1. **Concurrency**: Ensure cleanup is thread-safe with DashMap operations
-2. **Storage sync**: Verify storage deletion doesn't fail silently
-3. **Metrics accuracy**: Ensure counter doesn't go negative
-4. **Config**: Consider making cleanup behavior configurable
-5. **Logging**: Use appropriate log levels (debug for normal cleanup, warn for errors)
-
-## 🎯 Priority
-
-**High** - Causes memory leak in production environments with message expiry
-
-## 📦 Environment
-
-- **Component**: MQTT Broker
-- **Module**: Retain Message Manager
-- **File**: \`src/mqtt-broker/src/core/retain.rs\`
-EOFBODY
-
-LABELS='["kind:bug", "mqtt", "priority:high", "memory-leak"]'
+# Convert comma-separated labels to JSON array
+if [ -n "$LABELS" ]; then
+    # Split labels by comma and create JSON array
+    IFS=',' read -ra LABEL_ARRAY <<< "$LABELS"
+    LABELS_JSON="["
+    for i in "${!LABEL_ARRAY[@]}"; do
+        # Trim whitespace
+        label=$(echo "${LABEL_ARRAY[$i]}" | xargs)
+        LABELS_JSON+="\"$label\""
+        if [ $i -lt $((${#LABEL_ARRAY[@]} - 1)) ]; then
+            LABELS_JSON+=","
+        fi
+    done
+    LABELS_JSON+="]"
+else
+    LABELS_JSON="[]"
+fi
 
 # Create JSON payload
 JSON_PAYLOAD=$(jq -n \
     --arg title "$TITLE" \
     --arg body "$BODY" \
-    --argjson labels "$LABELS" \
+    --argjson labels "$LABELS_JSON" \
     '{title: $title, body: $body, labels: $labels}')
 
 echo -e "${YELLOW}Creating GitHub issue...${NC}"
