@@ -156,7 +156,7 @@ mod tests {
     };
     use broker_core::cache::BrokerCacheManager;
     use bytes::Bytes;
-    use common_base::tools::{now_second, unique_id};
+    use common_base::{tools::now_second, uuid::unique_id};
     use common_config::config::BrokerConfig;
     use metadata_struct::storage::{
         adapter_read_config::AdapterReadConfig, adapter_record::AdapterWriteRecord,

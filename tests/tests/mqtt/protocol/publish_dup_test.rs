@@ -16,7 +16,7 @@
 mod tests {
     use crate::mqtt::protocol::common::{build_client_id, password};
     use bytes::Bytes;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use futures::{SinkExt, StreamExt};
     use protocol::mqtt::common::{
         Connect, Login, MqttPacket, PubCompReason, PubRel, PubRelReason, Publish, QoS,

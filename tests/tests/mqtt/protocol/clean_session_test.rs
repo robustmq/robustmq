@@ -19,7 +19,7 @@ mod tests {
         session_list_by_admin, test_client_id,
     };
     use admin_server::tool::PageReplyData;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use paho_mqtt::{DisconnectOptionsBuilder, Properties, PropertyCode, ReasonCode};
     use std::time::Duration;
     use tokio::time::sleep;

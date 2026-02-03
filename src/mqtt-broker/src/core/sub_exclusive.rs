@@ -60,7 +60,7 @@ pub fn already_exclusive_subscribe(
 #[cfg(test)]
 mod tests {
 
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use protocol::mqtt::common::{Filter, Subscribe};
     use std::sync::Arc;
 

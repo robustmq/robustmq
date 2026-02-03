@@ -16,7 +16,7 @@
 mod test {
     use std::sync::Arc;
 
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use grpc_clients::{
         meta::mqtt::call::{
             placement_create_connector, placement_delete_connector, placement_list_connector,

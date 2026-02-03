@@ -12,19 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-pub mod enum_type;
-pub mod error;
-pub mod http_error;
-pub mod http_response;
-pub mod inner_topic;
-pub mod logging;
-pub mod network;
-pub mod node_status;
-pub mod role;
-pub mod runtime;
-pub mod telemetry;
-pub mod tools;
-pub mod utils;
-pub mod uuid;
-pub mod version;
+/// Generate a distributed unique ID (XID)
+///
+/// Returns a 20-character globally unique, sortable ID compatible with MongoDB ObjectId.
+/// Structure: timestamp + machine ID + process ID + counter
+pub fn unique_id() -> String {
+    xid::new().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_unique_id() {
+        let id = unique_id();
+        assert_eq!(id.len(), 32);
+        assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_ne!(unique_id(), unique_id());
+    }
+}

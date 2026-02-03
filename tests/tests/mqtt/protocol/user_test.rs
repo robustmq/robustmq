@@ -22,7 +22,7 @@ mod tests {
     use admin_server::client::AdminHttpClient;
     use admin_server::mqtt::user::{CreateUserReq, DeleteUserReq, UserListReq, UserListRow};
     use admin_server::tool::PageReplyData;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
 
     #[tokio::test]
     async fn login_auth_test() {

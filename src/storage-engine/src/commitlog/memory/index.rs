@@ -54,7 +54,7 @@ impl MemoryStorageEngine {
 mod tests {
     use super::*;
     use crate::core::test_tool::test_build_memory_engine;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
 
     #[tokio::test]
     async fn test_index_operations() {

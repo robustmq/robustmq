@@ -19,6 +19,7 @@
 /// - Must NOT contain null character (U+0000)
 /// - Must NOT contain control characters (except tab, newline, carriage return)
 /// - Length must not exceed 65535 bytes
+///
 pub fn validate_utf8_string(
     value: &str,
     field_name: &str,

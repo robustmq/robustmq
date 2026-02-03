@@ -22,7 +22,7 @@ mod tests {
         },
         ClientTestProperties,
     };
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use mqtt_broker::core::connection::REQUEST_RESPONSE_PREFIX_NAME;
     use paho_mqtt::{
         Client, ConnectOptionsBuilder, CreateOptionsBuilder, Message, MessageBuilder, Properties,

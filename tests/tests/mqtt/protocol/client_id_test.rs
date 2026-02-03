@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt::protocol::common::{broker_addr_by_type, distinct_conn, password, username};
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use paho_mqtt::{
         Client, ConnectOptionsBuilder, CreateOptionsBuilder, Properties, PropertyCode, ReasonCode,
     };

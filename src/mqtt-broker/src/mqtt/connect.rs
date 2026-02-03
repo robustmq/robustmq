@@ -33,7 +33,7 @@ use protocol::mqtt::common::{
     LastWillProperties, Login, MqttPacket, MqttProtocol,
 };
 use std::cmp::min;
-use tracing::debug;
+use tracing::warn;
 
 impl MqttService {
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
@@ -306,7 +306,7 @@ pub fn build_connect_ack_fail_packet(
     connect_properties: &Option<ConnectProperties>,
     error_reason: Option<String>,
 ) -> MqttPacket {
-    debug!(
+    warn!(
         protocol = ?protocol,
         reason_code = ?code,
         reason = error_reason.as_deref(),

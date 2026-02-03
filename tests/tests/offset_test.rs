@@ -14,7 +14,7 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use grpc_clients::pool::ClientPool;
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::{collections::HashMap, sync::Arc, time::Duration};

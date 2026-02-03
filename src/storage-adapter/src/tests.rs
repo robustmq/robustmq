@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::driver::ArcStorageAdapter;
-use common_base::tools::unique_id;
+use common_base::uuid::unique_id;
 use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;

@@ -261,7 +261,9 @@ mod test {
     use crate::core::keep_alive::{client_keep_live_time, ClientKeepAlive};
     use crate::core::tool::test_build_mqtt_cache_manager;
     use crate::subscribe::manager::SubscribeManager;
-    use common_base::tools::{local_hostname, now_second, unique_id};
+    use common_base::tools::{local_hostname, now_second};
+
+    use common_base::uuid::unique_id;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::session::MqttSession;

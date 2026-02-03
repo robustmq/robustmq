@@ -20,7 +20,7 @@ mod tests {
         },
         ClientTestProperties,
     };
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use paho_mqtt::{MessageBuilder, Properties, PropertyCode, QOS_1};
 
     #[tokio::test]

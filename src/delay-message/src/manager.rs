@@ -18,10 +18,8 @@ use crate::{
     pop::spawn_delay_message_pop_threads,
 };
 use broker_core::cache::BrokerCacheManager;
-use common_base::{
-    error::common::CommonError,
-    tools::{now_second, unique_id},
-};
+use common_base::uuid::unique_id;
+use common_base::{error::common::CommonError, tools::now_second};
 use common_metrics::mqtt::statistics::{
     record_mqtt_delay_queue_remaining_capacity_set, record_mqtt_delay_queue_total_capacity_set,
     record_mqtt_delay_queue_used_capacity_set,
@@ -173,7 +171,8 @@ impl DelayMessageManager {
 mod test {
     // use super::*;
     // use crate::delay::DELAY_QUEUE_INFO_SHARD_NAME;
-    // use common_base::tools::{now_second, unique_id};
+    //     use common_base::tools::now_second;
+    // use common_base::uuid::unique_id;
     // use metadata_struct::storage::adapter_offset::AdapterShardInfo;
     // use storage_adapter::storage::test_build_memory_storage_driver;
 

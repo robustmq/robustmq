@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::tools::unique_id;
+use common_base::uuid::unique_id;
 
 #[allow(dead_code)]
 pub fn pc_addr() -> String {

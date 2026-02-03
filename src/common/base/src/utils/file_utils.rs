@@ -17,7 +17,7 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::{env, io};
 
-use crate::tools::unique_id;
+use crate::uuid::unique_id;
 
 /// Get the project root (relative to closest Cargo.lock file)
 pub fn get_project_root() -> io::Result<PathBuf> {

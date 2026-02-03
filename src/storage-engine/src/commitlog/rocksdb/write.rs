@@ -206,7 +206,7 @@ mod tests {
     use crate::core::test_tool::test_build_rocksdb_engine;
     use broker_core::cache::BrokerCacheManager;
     use bytes::Bytes;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
     use metadata_struct::storage::adapter_record::AdapterWriteRecord;

@@ -18,7 +18,7 @@ mod tests {
         mqtt::client::{ClientListReq, ClientListRow},
         tool::PageReplyData,
     };
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use paho_mqtt::{Client, ConnectOptionsBuilder, CreateOptionsBuilder, ReasonCode};
     use protocol::robust::RobustMQProtocol;
 

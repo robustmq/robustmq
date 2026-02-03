@@ -21,7 +21,7 @@ mod tests {
         ssl_by_type, subscribe_data_with_options, ws_by_type, SubscribeTestData,
     };
     use crate::mqtt::protocol::ClientTestProperties;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use mqtt_broker::core::constant::{
         SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE,
     };

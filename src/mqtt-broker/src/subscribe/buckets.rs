@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::subscribe::common::Subscriber;
-use common_base::tools::unique_id;
+use common_base::uuid::unique_id;
 use dashmap::DashMap;
 use serde::Serialize;
 use std::collections::HashSet;

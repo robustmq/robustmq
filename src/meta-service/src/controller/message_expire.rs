@@ -158,8 +158,9 @@ impl MessageExpire {
 #[cfg(test)]
 mod tests {
     use axum::body::Bytes;
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
     use common_base::utils::file_utils::test_temp_dir;
+    use common_base::uuid::unique_id;
     use metadata_struct::mqtt::lastwill::MqttLastWillData;
     use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
     use metadata_struct::mqtt::session::MqttSession;

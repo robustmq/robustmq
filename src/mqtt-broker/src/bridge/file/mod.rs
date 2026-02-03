@@ -259,7 +259,8 @@ pub fn start_local_file_connector(
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
+    use common_base::uuid::unique_id;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::{
         mqtt::bridge::{

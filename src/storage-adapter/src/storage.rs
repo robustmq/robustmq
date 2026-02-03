@@ -16,7 +16,7 @@ use crate::driver::StorageDriverManager;
 use axum::async_trait;
 use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
-use common_base::tools::unique_id;
+use common_base::uuid::unique_id;
 use common_config::config::BrokerConfig;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use common_config::storage::StorageType;

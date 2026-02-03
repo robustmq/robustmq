@@ -98,7 +98,7 @@ impl MessageStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
 
     use metadata_struct::storage::adapter_record::AdapterWriteRecord;
     use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};

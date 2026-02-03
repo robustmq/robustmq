@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod tests {
     use crate::common::get_placement_addr;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use grpc_clients::meta::mqtt::call::{
         placement_create_session, placement_delete_session, placement_list_session,
     };

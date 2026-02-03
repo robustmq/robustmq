@@ -24,7 +24,7 @@ mod tests {
     use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use metadata_struct::acl::mqtt_acl::MqttAcl;
     use paho_mqtt::MessageBuilder;
 

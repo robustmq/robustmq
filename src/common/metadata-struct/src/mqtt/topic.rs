@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use common_base::{
-    error::common::CommonError,
-    tools::{now_second, unique_id},
-    utils::serialize,
+    error::common::CommonError, tools::now_second, utils::serialize, uuid::unique_id,
 };
 use common_config::storage::StorageType;
 use serde::{Deserialize, Serialize};

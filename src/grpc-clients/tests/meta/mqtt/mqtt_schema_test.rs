@@ -16,7 +16,7 @@
 mod test {
     use std::sync::Arc;
 
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use grpc_clients::{
         meta::common::call::{create_schema, delete_schema, list_schema, update_schema},
         pool::ClientPool,

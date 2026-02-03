@@ -16,7 +16,7 @@
 mod tests {
     use std::time::Duration;
 
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use mqtt_broker::core::constant::{
         SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE,
     };
