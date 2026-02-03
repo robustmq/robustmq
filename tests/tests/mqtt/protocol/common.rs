@@ -290,8 +290,9 @@ pub fn subscribe_data_with_options<S, T, P, F>(
     }
 }
 
-pub fn build_client_id(name: &str) -> String {
-    format!("{}_{}_{}", name, unique_id(), now_nanos())
+pub fn build_client_id(_name: &str) -> String {
+    // format!("{}_{}_{}", name, unique_id(), now_nanos())
+    unique_id()
 }
 
 pub fn broker_addr() -> String {

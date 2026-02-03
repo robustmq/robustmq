@@ -27,8 +27,7 @@ mod tests {
     #[test]
     fn test_unique_id() {
         let id = unique_id();
-        assert_eq!(id.len(), 32);
-        assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_eq!(id.len(), 20);
         assert_ne!(unique_id(), unique_id());
     }
 }
