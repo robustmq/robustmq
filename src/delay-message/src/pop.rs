@@ -198,7 +198,7 @@ mod test {
     //     delay::{save_delay_index_info, save_delay_message},
     //     pop::{delay_message_process, send_delay_message_to_shard},
     // };
-    // use common_base::tools::unique_id;
+    // use common_base::uuid::unique_id;
     // use metadata_struct::{
     //     delay_info::DelayMessageIndexInfo,
     //     storage::{adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord},

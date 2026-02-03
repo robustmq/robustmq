@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod tests {
 
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use paho_mqtt::{Message, SubscribeOptions, QOS_1};
 
     use crate::mqtt::protocol::{

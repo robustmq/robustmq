@@ -19,7 +19,7 @@ mod tests {
         CreateSchemaBindReq, CreateSchemaReq, DeleteSchemaBindReq, DeleteSchemaReq,
     };
     use apache_avro::{Schema, Writer};
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use paho_mqtt::{Message, QOS_1};
     use serde::{Deserialize, Serialize};
     use serde_json::json;

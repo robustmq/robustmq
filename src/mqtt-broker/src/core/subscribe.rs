@@ -17,6 +17,7 @@ use crate::core::tool::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
+use dashmap::DashMap;
 use grpc_clients::meta::mqtt::call::placement_delete_subscribe;
 use grpc_clients::{meta::mqtt::call::placement_set_subscribe, pool::ClientPool};
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
@@ -27,7 +28,6 @@ use protocol::{
     mqtt::common::{MqttProtocol, Subscribe, SubscribeProperties},
 };
 use std::sync::Arc;
-use tracing::error;
 
 #[derive(Clone)]
 pub struct SaveSubscribeContext {
@@ -38,6 +38,21 @@ pub struct SaveSubscribeContext {
     pub subscribe_manager: Arc<SubscribeManager>,
     pub subscribe: Subscribe,
     pub subscribe_properties: Option<SubscribeProperties>,
+}
+
+pub fn is_new_sub(
+    client_id: &str,
+    subscribe: &Subscribe,
+    subscribe_manager: &Arc<SubscribeManager>,
+) -> DashMap<String, bool> {
+    let results = DashMap::with_capacity(subscribe.filters.len());
+    for filter in subscribe.filters.iter() {
+        let is_new = subscribe_manager
+            .get_subscribe(client_id, &filter.path)
+            .is_none();
+        results.insert(filter.path.to_owned(), is_new);
+    }
+    results
 }
 
 pub async fn save_subscribe(context: SaveSubscribeContext) -> ResultMqttBrokerError {
@@ -65,10 +80,6 @@ pub async fn save_subscribe(context: SaveSubscribeContext) -> ResultMqttBrokerEr
             placement_set_subscribe(&context.client_pool, &conf.get_meta_service_addr(), request)
                 .await
         {
-            error!(
-                "Failed to set subscribe to meta service, error message: {}",
-                e
-            );
             return Err(MqttBrokerError::CommonError(e.to_string()));
         }
     }

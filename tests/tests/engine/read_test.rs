@@ -18,8 +18,9 @@ mod tests {
     use admin_server::engine::shard::ShardCreateReq;
     use broker_core::cache::BrokerCacheManager;
     use bytes::Bytes;
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
     use common_base::utils::serialize::{self, deserialize};
+    use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
     use metadata_struct::meta::node::BrokerNode;
     use metadata_struct::storage::adapter_record::AdapterWriteRecord;

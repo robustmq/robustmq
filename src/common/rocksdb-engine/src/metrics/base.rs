@@ -298,7 +298,7 @@ macro_rules! define_dimensional_metric_4d {
 mod tests {
     use std::time::Duration;
 
-    use common_base::tools::{now_second, unique_id};
+    use common_base::{tools::now_second, uuid::unique_id};
     use tokio::time::sleep;
 
     use crate::{

@@ -21,6 +21,7 @@ use crate::core::error::MqttBrokerError;
 use crate::core::flapping_detect::check_flapping_detect;
 use crate::core::last_will::save_last_will_message;
 use crate::core::session::{session_process, BuildSessionContext};
+use crate::core::string_validator::{validate_client_id, validate_password, validate_username};
 use crate::core::sub_auto::try_auto_subscribe;
 use crate::core::topic::topic_name_validator;
 use crate::system_topic::event::{st_report_connected_event, StReportConnectedEventContext};
@@ -32,7 +33,7 @@ use protocol::mqtt::common::{
     LastWillProperties, Login, MqttPacket, MqttProtocol,
 };
 use std::cmp::min;
-use tracing::debug;
+use tracing::warn;
 
 impl MqttService {
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
@@ -305,7 +306,7 @@ pub fn build_connect_ack_fail_packet(
     connect_properties: &Option<ConnectProperties>,
     error_reason: Option<String>,
 ) -> MqttPacket {
-    debug!(
+    warn!(
         protocol = ?protocol,
         reason_code = ?code,
         reason = error_reason.as_deref(),
@@ -373,23 +374,79 @@ fn connect_validator(
         ));
     }
 
-    if !connect.client_id.is_empty() && !client_id_validator(&connect.client_id) {
-        return Some(build_connect_ack_fail_packet(
-            protocol,
-            ConnectReturnCode::ClientIdentifierNotValid,
-            connect_properties,
-            Some("invalid client_id".to_string()),
-        ));
+    if !connect.client_id.is_empty() {
+        if let Err(e) = validate_client_id(&connect.client_id, protocol.is_mqtt5()) {
+            return Some(build_connect_ack_fail_packet(
+                protocol,
+                ConnectReturnCode::ClientIdentifierNotValid,
+                connect_properties,
+                Some(e),
+            ));
+        }
     }
 
     if let Some(login_info) = login {
-        if !username_validator(&login_info.username) || !password_validator(&login_info.password) {
+        if let Err(e) = validate_username(&login_info.username) {
             return Some(build_connect_ack_fail_packet(
                 protocol,
                 ConnectReturnCode::BadUserNamePassword,
                 connect_properties,
-                Some("invalid username or password format".to_string()),
+                Some(e),
             ));
+        }
+        if let Err(e) = validate_password(&login_info.password) {
+            return Some(build_connect_ack_fail_packet(
+                protocol,
+                ConnectReturnCode::BadUserNamePassword,
+                connect_properties,
+                Some(e),
+            ));
+        }
+    }
+
+    if let Some(properties) = connect_properties {
+        if let Some(receive_max) = properties.receive_maximum {
+            if receive_max == 0 {
+                return Some(build_connect_ack_fail_packet(
+                    protocol,
+                    ConnectReturnCode::ProtocolError,
+                    connect_properties,
+                    Some("receive_maximum must not be 0".to_string()),
+                ));
+            }
+        }
+
+        if let Some(max_packet_size) = properties.max_packet_size {
+            if max_packet_size == 0 {
+                return Some(build_connect_ack_fail_packet(
+                    protocol,
+                    ConnectReturnCode::ProtocolError,
+                    connect_properties,
+                    Some("max_packet_size must not be 0".to_string()),
+                ));
+            }
+        }
+
+        if let Some(request_response_info) = properties.request_response_info {
+            if request_response_info > 1 {
+                return Some(build_connect_ack_fail_packet(
+                    protocol,
+                    ConnectReturnCode::ProtocolError,
+                    connect_properties,
+                    Some("request_response_info must be 0 or 1".to_string()),
+                ));
+            }
+        }
+
+        if let Some(request_problem_info) = properties.request_problem_info {
+            if request_problem_info > 1 {
+                return Some(build_connect_ack_fail_packet(
+                    protocol,
+                    ConnectReturnCode::ProtocolError,
+                    connect_properties,
+                    Some("request_problem_info must be 0 or 1".to_string()),
+                ));
+            }
         }
     }
 
@@ -424,15 +481,6 @@ fn connect_validator(
             ));
         }
 
-        if will.message.is_empty() {
-            return Some(build_connect_ack_fail_packet(
-                protocol,
-                ConnectReturnCode::PayloadFormatInvalid,
-                connect_properties,
-                Some("will message is empty".to_string()),
-            ));
-        }
-
         if !payload_format_indicator_check_by_lastwill(last_will, last_will_properties) {
             return Some(build_connect_ack_fail_packet(
                 protocol,
@@ -451,21 +499,6 @@ fn connect_validator(
                 Some("will payload exceeds max packet size".to_string()),
             ));
         }
-
-        if let Some(will_properties) = last_will_properties {
-            if let Some(payload_format) = will_properties.payload_format_indicator {
-                if payload_format == 1
-                    && std::str::from_utf8(will.message.to_vec().as_slice()).is_err()
-                {
-                    return Some(build_connect_ack_fail_packet(
-                        protocol,
-                        ConnectReturnCode::PayloadFormatInvalid,
-                        connect_properties,
-                        Some("will payload is not valid UTF-8".to_string()),
-                    ));
-                }
-            }
-        }
     }
     None
 }
@@ -482,23 +515,235 @@ fn connection_max_packet_size(
     cluster.mqtt_protocol_config.max_packet_size
 }
 
-fn client_id_validator(client_id: &str) -> bool {
-    if client_id.len() == 5 && client_id.len() > 23 {
-        return false;
-    }
-    true
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytes::Bytes;
+    use protocol::mqtt::common::{MqttProtocol, QoS};
 
-fn username_validator(username: &str) -> bool {
-    if username.is_empty() {
-        return false;
+    fn build_test_connect(client_id: &str) -> Connect {
+        Connect {
+            keep_alive: 60,
+            client_id: client_id.to_string(),
+            clean_session: true,
+        }
     }
-    true
-}
 
-fn password_validator(password: &str) -> bool {
-    if password.is_empty() {
-        return false;
+    fn build_test_properties(
+        receive_maximum: Option<u16>,
+        max_packet_size: Option<u32>,
+        request_response_info: Option<u8>,
+        request_problem_info: Option<u8>,
+    ) -> ConnectProperties {
+        ConnectProperties {
+            receive_maximum,
+            max_packet_size,
+            request_response_info,
+            request_problem_info,
+            ..Default::default()
+        }
     }
-    true
+
+    fn build_test_last_will(topic: &str, message: &[u8]) -> LastWill {
+        LastWill {
+            topic: Bytes::from(topic.to_string()),
+            message: Bytes::from(message.to_vec()),
+            qos: QoS::AtMostOnce,
+            retain: false,
+        }
+    }
+
+    fn build_test_login(username: &str, password: &str) -> Login {
+        Login {
+            username: username.to_string(),
+            password: password.to_string(),
+        }
+    }
+
+    #[test]
+    fn test_client_id_mqtt3_too_long() {
+        let protocol = MqttProtocol::Mqtt3;
+        let cluster = common_config::broker::default_broker_config();
+        let long_id = "a".repeat(24);
+        let connect = build_test_connect(&long_id);
+
+        let result = connect_validator(&protocol, &cluster, &connect, &None, &None, &None, &None);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_client_id_mqtt5_long_valid() {
+        let protocol = MqttProtocol::Mqtt5;
+        let cluster = common_config::broker::default_broker_config();
+        let long_id = "a".repeat(100);
+        let connect = build_test_connect(&long_id);
+
+        let result = connect_validator(&protocol, &cluster, &connect, &None, &None, &None, &None);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_client_id_with_null_char() {
+        let protocol = MqttProtocol::Mqtt5;
+        let cluster = common_config::broker::default_broker_config();
+        let connect = build_test_connect("client\0id");
+
+        let result = connect_validator(&protocol, &cluster, &connect, &None, &None, &None, &None);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_username_empty() {
+        let protocol = MqttProtocol::Mqtt5;
+        let cluster = common_config::broker::default_broker_config();
+        let connect = build_test_connect("test_client");
+        let login = Some(build_test_login("", "password"));
+
+        let result = connect_validator(&protocol, &cluster, &connect, &None, &None, &None, &login);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_password_empty() {
+        let protocol = MqttProtocol::Mqtt5;
+        let cluster = common_config::broker::default_broker_config();
+        let connect = build_test_connect("test_client");
+        let login = Some(build_test_login("username", ""));
+
+        let result = connect_validator(&protocol, &cluster, &connect, &None, &None, &None, &login);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_username_with_null_char() {
+        let protocol = MqttProtocol::Mqtt5;
+        let cluster = common_config::broker::default_broker_config();
+        let connect = build_test_connect("test_client");
+        let login = Some(build_test_login("user\0name", "password"));
+
+        let result = connect_validator(&protocol, &cluster, &connect, &None, &None, &None, &login);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_receive_maximum_zero() {
+        let protocol = MqttProtocol::Mqtt5;
+        let cluster = common_config::broker::default_broker_config();
+        let connect = build_test_connect("test_client");
+        let properties = Some(build_test_properties(Some(0), None, None, None));
+
+        let result = connect_validator(
+            &protocol,
+            &cluster,
+            &connect,
+            &properties,
+            &None,
+            &None,
+            &None,
+        );
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_max_packet_size_zero() {
+        let protocol = MqttProtocol::Mqtt5;
+        let cluster = common_config::broker::default_broker_config();
+        let connect = build_test_connect("test_client");
+        let properties = Some(build_test_properties(None, Some(0), None, None));
+
+        let result = connect_validator(
+            &protocol,
+            &cluster,
+            &connect,
+            &properties,
+            &None,
+            &None,
+            &None,
+        );
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_request_response_info_invalid() {
+        let protocol = MqttProtocol::Mqtt5;
+        let cluster = common_config::broker::default_broker_config();
+        let connect = build_test_connect("test_client");
+        let properties = Some(build_test_properties(None, None, Some(2), None));
+
+        let result = connect_validator(
+            &protocol,
+            &cluster,
+            &connect,
+            &properties,
+            &None,
+            &None,
+            &None,
+        );
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_request_problem_info_invalid() {
+        let protocol = MqttProtocol::Mqtt5;
+        let cluster = common_config::broker::default_broker_config();
+        let connect = build_test_connect("test_client");
+        let properties = Some(build_test_properties(None, None, None, Some(2)));
+
+        let result = connect_validator(
+            &protocol,
+            &cluster,
+            &connect,
+            &properties,
+            &None,
+            &None,
+            &None,
+        );
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_will_topic_empty() {
+        let protocol = MqttProtocol::Mqtt5;
+        let cluster = common_config::broker::default_broker_config();
+        let connect = build_test_connect("test_client");
+        let will = Some(build_test_last_will("", b"test message"));
+
+        let result = connect_validator(&protocol, &cluster, &connect, &None, &will, &None, &None);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_will_message_empty_is_valid() {
+        let protocol = MqttProtocol::Mqtt5;
+        let cluster = common_config::broker::default_broker_config();
+        let connect = build_test_connect("test_client");
+        let will = Some(build_test_last_will("test/topic", b""));
+
+        let result = connect_validator(&protocol, &cluster, &connect, &None, &will, &None, &None);
+        assert!(result.is_none(), "Empty will message should be valid");
+    }
+
+    #[test]
+    fn test_valid_connect() {
+        let protocol = MqttProtocol::Mqtt5;
+        let cluster = common_config::broker::default_broker_config();
+        let connect = build_test_connect("test_client");
+        let properties = Some(build_test_properties(
+            Some(100),
+            Some(1024),
+            Some(1),
+            Some(1),
+        ));
+
+        let result = connect_validator(
+            &protocol,
+            &cluster,
+            &connect,
+            &properties,
+            &None,
+            &None,
+            &None,
+        );
+        assert!(result.is_none());
+    }
 }

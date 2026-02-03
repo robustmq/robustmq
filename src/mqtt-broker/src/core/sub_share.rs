@@ -15,34 +15,10 @@
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use grpc_clients::{meta::mqtt::call::placement_get_share_sub_leader, pool::ClientPool};
-use protocol::{
-    meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest},
-    mqtt::common::Filter,
-};
+use protocol::meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
 use std::sync::Arc;
 
 pub const SHARE_SUB_PREFIX: &str = "$share";
-
-pub async fn group_leader_validator(
-    client_pool: &Arc<ClientPool>,
-    filters: &[Filter],
-) -> Result<Option<String>, CommonError> {
-    for filter in filters.iter() {
-        if !is_mqtt_share_subscribe(&filter.path) {
-            continue;
-        }
-
-        let (group_name, sub_name) = decode_share_info(&filter.path);
-        let group_name_full = full_group_name(&group_name, &sub_name);
-
-        let reply = get_share_sub_leader(client_pool, &group_name_full).await?;
-        let conf = broker_config();
-        if reply.broker_id != conf.broker_id {
-            return Ok(Some(reply.broker_addr));
-        }
-    }
-    Ok(None)
-}
 
 pub fn is_mqtt_share_subscribe(path: &str) -> bool {
     path.starts_with(SHARE_SUB_PREFIX)

@@ -20,7 +20,8 @@ use admin_server::{
     mqtt::session::{SessionListReq, SessionListRow},
     tool::PageReplyData,
 };
-use common_base::tools::{now_nanos, unique_id};
+use common_base::tools::now_nanos;
+use common_base::uuid::unique_id;
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder,
     DisconnectOptionsBuilder, Message, Properties, PropertyCode, ReasonCode, SslOptionsBuilder,
@@ -101,7 +102,7 @@ pub fn ws_by_type(network_type: &str) -> bool {
 }
 
 pub fn test_client_id() -> String {
-    format!("{}_{}", unique_id(), now_nanos())
+    unique_id()
 }
 
 pub fn ssl_by_type(network_type: &str) -> bool {
@@ -289,8 +290,9 @@ pub fn subscribe_data_with_options<S, T, P, F>(
     }
 }
 
-pub fn build_client_id(name: &str) -> String {
-    format!("{}_{}_{}", name, unique_id(), now_nanos())
+pub fn build_client_id(_name: &str) -> String {
+    // format!("{}_{}_{}", name, unique_id(), now_nanos())
+    unique_id()
 }
 
 pub fn broker_addr() -> String {

@@ -16,7 +16,8 @@
 mod tests {
     use std::sync::Arc;
 
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
+    use common_base::uuid::unique_id;
     use grpc_clients::meta::mqtt::call::{
         placement_create_user, placement_delete_user, placement_list_user,
     };

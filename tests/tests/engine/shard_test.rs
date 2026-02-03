@@ -21,7 +21,7 @@ mod tests {
     use admin_server::engine::shard::{
         SegmentListReq, SegmentListResp, ShardCreateReq, ShardDeleteReq, ShardListReq, ShardListRow,
     };
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use common_base::{http_response::AdminServerResponse, tools::now_second};
     use common_config::storage::StorageType;
     use grpc_clients::meta::storage::call::{

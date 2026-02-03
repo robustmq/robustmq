@@ -17,13 +17,11 @@ use crate::core::cache::MQTTCacheManager;
 use crate::core::connection::is_request_problem_info;
 use crate::core::error::MqttBrokerError;
 use crate::core::flow_control::is_subscribe_rate_exceeded;
-use crate::core::retain::{is_new_sub, TrySendRetainMessageContext};
+use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
 use crate::core::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
-use crate::core::sub_share::group_leader_validator;
 use crate::core::sub_wildcards::sub_path_validator;
 use crate::core::subscribe::remove_subscribe;
 use crate::core::subscribe::{save_subscribe, SaveSubscribeContext};
-use crate::mqtt::disconnect::build_distinct_packet;
 use crate::security::AuthDriver;
 use crate::subscribe::common::min_qos;
 use crate::subscribe::manager::SubscribeManager;
@@ -31,11 +29,12 @@ use crate::system_topic::event::{
     st_report_subscribed_event, st_report_unsubscribed_event, StReportSubscribedEventContext,
     StReportUnsubscribedEventContext,
 };
+use common_base::tools::now_second;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
-    qos, DisconnectReasonCode, MqttPacket, MqttProtocol, SubAck, SubAckProperties, Subscribe,
-    SubscribeProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
-    Unsubscribe, UnsubscribeProperties,
+    qos, MqttPacket, MqttProtocol, SubAck, SubAckProperties, Subscribe, SubscribeProperties,
+    SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason, Unsubscribe,
+    UnsubscribeProperties,
 };
 use std::sync::Arc;
 
@@ -47,10 +46,13 @@ impl MqttService {
         subscribe_properties: &Option<SubscribeProperties>,
     ) -> MqttPacket {
         let (reason_codes, reason) = subscribe_validator(
+            &self.cache_manager,
             &self.auth_driver,
             &self.subscribe_manager,
             connection,
             subscribe,
+            subscribe_properties,
+            &self.protocol,
         )
         .await;
 
@@ -65,34 +67,14 @@ impl MqttService {
             );
         }
 
-        match group_leader_validator(&self.client_pool, &subscribe.filters).await {
-            Ok(Some(addr)) => {
-                return build_distinct_packet(
-                    &self.cache_manager,
-                    connection.connect_id,
-                    &self.protocol,
-                    Some(DisconnectReasonCode::UseAnotherServer),
-                    Some(addr),
-                    Some(
-                        "group leader assigned; please reconnect to the provided server"
-                            .to_string(),
-                    ),
-                );
-            }
-            Ok(None) => {}
-            Err(e) => {
-                return response_packet_mqtt_sub_ack(
-                    &self.cache_manager,
-                    connection.connect_id,
-                    &self.protocol,
-                    subscribe.packet_identifier,
-                    vec![SubscribeReasonCode::Unspecified],
-                    Some(e.to_string()),
-                );
-            }
-        }
-
-        let new_subs = is_new_sub(&connection.client_id, subscribe, &self.subscribe_manager).await;
+        self.cache_manager.pkid_data.add_receive_publish_pkid_data(
+            &connection.client_id,
+            ReceiveQosPkidData {
+                ack_enum: PkidAckEnum::SubAck,
+                pkid: subscribe.packet_identifier,
+                create_time: now_second(),
+            },
+        );
 
         if let Err(e) = save_subscribe(SaveSubscribeContext {
             client_id: connection.client_id.clone(),
@@ -115,27 +97,26 @@ impl MqttService {
             );
         }
 
-        st_report_subscribed_event(StReportSubscribedEventContext {
-            storage_driver_manager: self.storage_driver_manager.clone(),
-            metadata_cache: self.cache_manager.clone(),
-            client_pool: self.client_pool.clone(),
-            connection: connection.clone(),
-            connect_id: connection.connect_id,
-            connection_manager: self.connection_manager.clone(),
-            subscribe: subscribe.clone(),
-        })
-        .await;
-
-        self.retain_message_manager
-            .try_send_retain_message(TrySendRetainMessageContext {
-                client_id: connection.client_id.clone(),
-                subscribe: subscribe.clone(),
-                subscribe_properties: subscribe_properties.clone(),
-                cache_manager: self.cache_manager.clone(),
-                is_new_subs: new_subs,
-            })
+        if let Err(e) = self
+            .retain_message_manager
+            .try_send_retain_message(
+                &connection.client_id,
+                subscribe,
+                subscribe_properties,
+                &self.cache_manager,
+                &self.subscribe_manager,
+            )
             .await
-            .unwrap();
+        {
+            return response_packet_mqtt_sub_ack(
+                &self.cache_manager,
+                connection.connect_id,
+                &self.protocol,
+                subscribe.packet_identifier,
+                vec![SubscribeReasonCode::Unspecified],
+                Some(e.to_string()),
+            );
+        }
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
         let cluster_qos = self
@@ -145,7 +126,7 @@ impl MqttService {
             .await
             .mqtt_protocol_config
             .max_qos_flight_message;
-        for filter in subscribe.filters.clone() {
+        for filter in &subscribe.filters {
             match min_qos(qos(cluster_qos).unwrap(), filter.qos) {
                 protocol::mqtt::common::QoS::AtMostOnce => {
                     return_codes.push(SubscribeReasonCode::QoS0);
@@ -158,6 +139,21 @@ impl MqttService {
                 }
             }
         }
+
+        self.cache_manager
+            .pkid_data
+            .remove_receive_publish_pkid_data(&connection.client_id, subscribe.packet_identifier);
+        st_report_subscribed_event(StReportSubscribedEventContext {
+            storage_driver_manager: self.storage_driver_manager.clone(),
+            metadata_cache: self.cache_manager.clone(),
+            client_pool: self.client_pool.clone(),
+            connection: connection.clone(),
+            connect_id: connection.connect_id,
+            connection_manager: self.connection_manager.clone(),
+            subscribe: subscribe.clone(),
+        })
+        .await;
+
         response_packet_mqtt_sub_ack(
             &self.cache_manager,
             connection.connect_id,
@@ -175,10 +171,13 @@ impl MqttService {
         _: &Option<UnsubscribeProperties>,
     ) -> MqttPacket {
         let (reason_codes, reason) =
-            un_subscribe_validator(&connection.client_id, &self.subscribe_manager, un_subscribe)
-                .await;
+            un_subscribe_validator(&connection.client_id, &self.subscribe_manager, un_subscribe);
 
-        if !reason_codes.is_empty() {
+        // Check if all validations passed
+        let all_success = reason_codes.iter().all(|r| *r == UnsubAckReason::Success);
+
+        if !all_success {
+            // Validation failed for one or more filters
             return response_packet_mqtt_unsub_ack(
                 &self.cache_manager,
                 connection.connect_id,
@@ -188,6 +187,15 @@ impl MqttService {
                 Some(reason),
             );
         }
+
+        self.cache_manager.pkid_data.add_receive_publish_pkid_data(
+            &connection.client_id,
+            ReceiveQosPkidData {
+                ack_enum: PkidAckEnum::SubAck,
+                pkid: un_subscribe.pkid,
+                create_time: now_second(),
+            },
+        );
 
         if let Err(e) =
             remove_subscribe(&connection.client_id, un_subscribe, &self.client_pool).await
@@ -201,6 +209,10 @@ impl MqttService {
                 Some(e.to_string()),
             );
         }
+
+        self.cache_manager
+            .pkid_data
+            .remove_receive_publish_pkid_data(&connection.client_id, un_subscribe.pkid);
 
         st_report_unsubscribed_event(StReportUnsubscribedEventContext {
             storage_driver_manager: self.storage_driver_manager.clone(),
@@ -266,15 +278,64 @@ fn response_packet_mqtt_unsub_ack(
 }
 
 async fn subscribe_validator(
+    cache_manager: &Arc<MQTTCacheManager>,
     auth_driver: &Arc<AuthDriver>,
     subscribe_manager: &Arc<SubscribeManager>,
     connection: &MQTTConnection,
     subscribe: &Subscribe,
+    subscribe_properties: &Option<SubscribeProperties>,
+    protocol: &MqttProtocol,
 ) -> (Vec<SubscribeReasonCode>, String) {
+    if subscribe.packet_identifier == 0 {
+        return (
+            vec![SubscribeReasonCode::PkidInUse],
+            "Packet identifier must be non-zero".to_string(),
+        );
+    }
+
+    if subscribe.filters.is_empty() {
+        return (
+            vec![SubscribeReasonCode::TopicFilterInvalid],
+            "Subscription must contain at least one topic filter".to_string(),
+        );
+    }
+
+    if let Some(properties) = subscribe_properties {
+        if let Some(sub_id) = properties.subscription_identifier {
+            if protocol.is_mqtt5() {
+                if sub_id == 0 || sub_id > 268_435_455 {
+                    return (
+                        vec![SubscribeReasonCode::SubscriptionIdNotSupported],
+                        format!(
+                            "Subscription identifier must be in range 1-268435455, got {}",
+                            sub_id
+                        ),
+                    );
+                }
+            } else if sub_id != 0 {
+                return (
+                    vec![SubscribeReasonCode::SubscriptionIdNotSupported],
+                    "Subscription identifier not supported in MQTT 3.1.1/4".to_string(),
+                );
+            }
+        }
+    }
+
+    if cache_manager
+        .pkid_data
+        .get_receive_publish_pkid_data(&connection.client_id, subscribe.packet_identifier)
+        .is_some()
+    {
+        return (
+            vec![SubscribeReasonCode::PkidInUse],
+            "Packet identifier already in use".to_string(),
+        );
+    }
+
     let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
     let mut invalid_paths = Vec::new();
 
-    for filter in subscribe.filters.clone() {
+    for filter in &subscribe.filters {
         if sub_path_validator(&filter.path).is_err() {
             return_codes.push(SubscribeReasonCode::TopicFilterInvalid);
             invalid_paths.push(filter.path.clone());
@@ -325,37 +386,79 @@ async fn subscribe_validator(
     (Vec::new(), "".to_string())
 }
 
-async fn un_subscribe_validator(
+/// Validates an UNSUBSCRIBE packet according to MQTT protocol requirements.
+///
+/// This function checks:
+/// 1. Packet identifier must be non-zero
+/// 2. Must contain at least one topic filter
+/// 3. Each topic filter must have valid format
+/// 4. Each topic filter must correspond to an existing subscription
+///
+/// According to MQTT 5.0 specification, the validator returns a reason code
+/// for each topic filter in the UNSUBSCRIBE packet, allowing partial success.
+///
+/// # Arguments
+/// * `client_id` - The client identifier
+/// * `subscribe_manager` - Manager containing active subscriptions
+/// * `un_subscribe` - The UNSUBSCRIBE packet to validate
+///
+/// # Returns
+/// A tuple of (Vec<UnsubAckReason>, String):
+/// - Vec<UnsubAckReason>: One reason code per topic filter
+/// - String: Error message if any validation failed (empty on success)
+fn un_subscribe_validator(
     client_id: &str,
     subscribe_manager: &Arc<SubscribeManager>,
     un_subscribe: &Unsubscribe,
 ) -> (Vec<UnsubAckReason>, String) {
-    let mut return_codes: Vec<UnsubAckReason> = Vec::new();
-    let mut invalid_paths = Vec::new();
-    for path in un_subscribe.filters.clone() {
-        if sub_path_validator(&path).is_err() {
+    // Validate packet identifier (MQTT protocol requirement)
+    if un_subscribe.pkid == 0 {
+        // Return error reason code for all filters
+        return (
+            vec![UnsubAckReason::UnspecifiedError; un_subscribe.filters.len()],
+            "Packet identifier must be non-zero".to_string(),
+        );
+    }
+
+    // Validate that at least one topic filter is present
+    if un_subscribe.filters.is_empty() {
+        return (
+            vec![],
+            "UNSUBSCRIBE must contain at least one topic filter".to_string(),
+        );
+    }
+
+    let mut return_codes: Vec<UnsubAckReason> = Vec::with_capacity(un_subscribe.filters.len());
+    let mut has_error = false;
+    let mut error_details: Vec<String> = Vec::new();
+
+    // Validate each topic filter individually
+    for path in &un_subscribe.filters {
+        // Check topic filter format validity
+        if sub_path_validator(path).is_err() {
             return_codes.push(UnsubAckReason::TopicFilterInvalid);
-            invalid_paths.push(path.clone());
+            error_details.push(format!("Invalid topic filter: {}", path));
+            has_error = true;
             continue;
         }
-    }
-    if !return_codes.is_empty() {
-        let error_msg = if invalid_paths.len() == 1 {
-            MqttBrokerError::InvalidSubPath(invalid_paths[0].clone()).to_string()
-        } else {
-            format!("Invalid topic filter(s): {}", invalid_paths.join(", "))
-        };
-        return (return_codes, error_msg);
-    }
 
-    for path in un_subscribe.filters.clone() {
-        if subscribe_manager.get_subscribe(client_id, &path).is_none() {
-            return (
-                vec![UnsubAckReason::NoSubscriptionExisted],
-                MqttBrokerError::SubscriptionPathNotExists(path).to_string(),
-            );
+        // Check if subscription exists
+        if subscribe_manager.get_subscribe(client_id, path).is_none() {
+            return_codes.push(UnsubAckReason::NoSubscriptionExisted);
+            error_details.push(format!("Subscription not found: {}", path));
+            has_error = true;
+            continue;
         }
+
+        // Validation passed for this filter
+        return_codes.push(UnsubAckReason::Success);
     }
 
-    (Vec::new(), "".to_string())
+    let error_msg = if has_error {
+        error_details.join("; ")
+    } else {
+        String::new()
+    };
+
+    (return_codes, error_msg)
 }

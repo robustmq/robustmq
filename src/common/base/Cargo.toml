@@ -27,6 +27,7 @@ serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true
 uuid.workspace = true
+xid.workspace = true
 local-ip-address = { workspace = true }
 tonic.workspace = true
 prost.workspace = true

@@ -22,7 +22,6 @@ use tokio::select;
 use tokio::sync::broadcast;
 use tonic::Status;
 use tracing::{debug, warn};
-use uuid::Uuid;
 
 use crate::enum_type::time_unit_enum::TimeUnit;
 use crate::error::common::CommonError;
@@ -67,11 +66,6 @@ pub fn now_second() -> u64 {
         .duration_since(UNIX_EPOCH)
         .expect("System time before UNIX epoch")
         .as_secs()
-}
-
-/// Generate a unique UUID v4 without hyphens
-pub fn unique_id() -> String {
-    Uuid::new_v4().simple().to_string()
 }
 
 pub fn convert_seconds(number: u64, unit: TimeUnit) -> u64 {
@@ -275,7 +269,7 @@ mod tests {
     use std::net::SocketAddr;
 
     use crate::enum_type::time_unit_enum::TimeUnit;
-    use crate::tools::{convert_seconds, get_local_ip, unique_id};
+    use crate::tools::{convert_seconds, get_local_ip};
 
     use super::get_addr_by_local_hostname;
 
@@ -284,16 +278,6 @@ mod tests {
         let ip_string = get_local_ip();
         let parse_ip: std::net::IpAddr = ip_string.parse().unwrap();
         assert!(parse_ip.is_ipv4() || parse_ip.is_ipv6());
-    }
-
-    #[test]
-    fn test_unique_id() {
-        let id = unique_id();
-        assert_eq!(id.len(), 32);
-        assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
-
-        let id2 = unique_id();
-        assert_ne!(id, id2);
     }
 
     #[test]

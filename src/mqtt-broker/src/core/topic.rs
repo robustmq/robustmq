@@ -16,62 +16,72 @@ use super::error::MqttBrokerError;
 use crate::core::cache::MQTTCacheManager;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
-use bytes::Bytes;
-use common_base::tools::{now_second, unique_id};
+use common_base::tools::now_second;
+use common_base::uuid::unique_id;
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::Topic;
 
 use metadata_struct::storage::shard::EngineShardConfig;
 use protocol::mqtt::common::{Publish, PublishProperties};
-use regex::Regex;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::{driver::StorageDriverManager, topic::create_topic_full};
 use tokio::time::sleep;
 
-pub fn payload_format_validator(
-    payload: &Bytes,
-    payload_format_indicator: u8,
-    max_packet_size: usize,
-) -> bool {
-    if payload.is_empty() || payload.len() > max_packet_size {
-        return false;
-    }
-
-    if payload_format_indicator == 1 {
-        return std::str::from_utf8(payload.to_vec().as_slice()).is_ok();
-    }
-
-    false
-}
-
+/// Validates MQTT topic name according to MQTT 5.0 specification
+///
+/// Rules:
+/// - Must not be empty
+/// - Must be valid UTF-8
+/// - Must not contain null character (U+0000)
+/// - Must not contain wildcard characters (+ or #) - only allowed in subscriptions
+/// - Length must not exceed 65535 bytes
+/// - Can contain empty levels (e.g., "a//b" or "/a/b" are valid)
+/// - Topics starting with "$" are system topics
 pub fn topic_name_validator(topic_name: &str) -> ResultMqttBrokerError {
     if topic_name.is_empty() {
         return Err(MqttBrokerError::TopicNameIsEmpty);
     }
 
-    let topic_slice: Vec<&str> = topic_name.split("/").collect();
-    if topic_slice.first().unwrap() == &"/" {
-        return Err(MqttBrokerError::TopicNameIncorrectlyFormatted(
-            topic_name.to_owned(),
-        ));
+    if topic_name.len() > 65535 {
+        return Err(MqttBrokerError::TopicNameIncorrectlyFormatted(format!(
+            "Topic name exceeds maximum length of 65535 bytes: {}",
+            topic_name
+        )));
     }
 
-    if topic_slice.last().unwrap() == &"/" {
-        return Err(MqttBrokerError::TopicNameIncorrectlyFormatted(
-            topic_name.to_owned(),
-        ));
+    if topic_name.contains('\0') {
+        return Err(MqttBrokerError::TopicNameIncorrectlyFormatted(format!(
+            "Topic name contains null character: {}",
+            topic_name
+        )));
     }
 
-    let format_str = "^[A-Za-z0-9_+#$/\\-]+$";
-    let re = Regex::new(format_str).unwrap();
-    if !re.is_match(topic_name) {
-        return Err(MqttBrokerError::TopicNameIncorrectlyFormatted(
-            topic_name.to_owned(),
-        ));
+    if topic_name.contains('+') {
+        return Err(MqttBrokerError::TopicNameIncorrectlyFormatted(format!(
+            "Topic name contains wildcard '+': {}",
+            topic_name
+        )));
     }
+
+    if topic_name.contains('#') {
+        return Err(MqttBrokerError::TopicNameIncorrectlyFormatted(format!(
+            "Topic name contains wildcard '#': {}",
+            topic_name
+        )));
+    }
+
+    for c in topic_name.chars() {
+        if c.is_control() && c != '\t' && c != '\n' && c != '\r' {
+            return Err(MqttBrokerError::TopicNameIncorrectlyFormatted(format!(
+                "Topic name contains invalid control character: {}",
+                topic_name
+            )));
+        }
+    }
+
     Ok(())
 }
 
@@ -195,35 +205,24 @@ pub async fn delete_topic(
 #[cfg(test)]
 mod test {
     use super::topic_name_validator;
-    use crate::core::error::MqttBrokerError;
 
     #[test]
     pub fn topic_name_validator_test() {
-        let topic_name = "".to_string();
-        if let Err(e) = topic_name_validator(&topic_name) {
-            // assert!(e.to_string() == MqttBrokerError::TopicNameIsEmpty.to_string())
-            assert_eq!(e.to_string(), MqttBrokerError::TopicNameIsEmpty.to_string());
-        }
-
-        let topic_name = "/test/test".to_string();
-        topic_name_validator(&topic_name).unwrap();
-
-        let topic_name = "test/test/".to_string();
-        topic_name_validator(&topic_name).unwrap();
-
-        let topic_name = "test/$1".to_string();
-        if let Err(err) = topic_name_validator(&topic_name) {
-            println!("{err:?}");
-        }
-
-        let topic_name = "test/1".to_string();
-        topic_name_validator(&topic_name).unwrap();
-
-        let topic_name =
-            "/sys/request_response/response/1eb1f833e0de4169908acedec8eb62f7".to_string();
-        topic_name_validator(&topic_name).unwrap();
+        assert!(topic_name_validator("").is_err());
+        assert!(topic_name_validator("/test/test").is_ok());
+        assert!(topic_name_validator("test/test/").is_ok());
+        assert!(topic_name_validator("$SYS/broker/clients").is_ok());
+        assert!(topic_name_validator("test/1").is_ok());
+        assert!(topic_name_validator(
+            "/sys/request_response/response/1eb1f833e0de4169908acedec8eb62f7"
+        )
+        .is_ok());
+        assert!(topic_name_validator("a//b").is_ok());
+        assert!(topic_name_validator("sensor/+/temperature").is_err());
+        assert!(topic_name_validator("sensor/#").is_err());
+        assert!(topic_name_validator("test\0topic").is_err());
+        assert!(topic_name_validator("device/123/sensor-data_2024").is_ok());
+        assert!(topic_name_validator("传感器/温度").is_ok());
+        assert!(topic_name_validator(&"a/".repeat(40000)).is_err());
     }
-
-    #[test]
-    pub fn gen_rewrite_topic_test() {}
 }

@@ -295,7 +295,8 @@ mod tests {
     use crate::controller::is_send_last_will;
     use crate::core::cache::CacheManager;
     use crate::storage::mqtt::session::MqttSessionStorage;
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
+    use common_base::uuid::unique_id;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use rocksdb_engine::test::test_rocksdb_instance;

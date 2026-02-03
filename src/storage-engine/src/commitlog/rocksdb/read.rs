@@ -302,7 +302,7 @@ mod tests {
     use crate::core::cache::StorageCacheManager;
     use crate::core::test_tool::test_build_rocksdb_engine;
     use broker_core::cache::BrokerCacheManager;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
     use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
     use metadata_struct::storage::adapter_record::AdapterWriteRecord;

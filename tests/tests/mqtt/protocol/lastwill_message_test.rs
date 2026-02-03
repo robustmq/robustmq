@@ -21,7 +21,7 @@ mod tests {
         },
         ClientTestProperties,
     };
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode, QOS_0};
     use std::time::Duration;
     use tokio::time::sleep;
@@ -35,6 +35,11 @@ mod tests {
         // create will message
         let mut props = Properties::new();
         props.push_u32(PropertyCode::WillDelayInterval, 10).unwrap();
+        let content_type = "lobo_json";
+        props
+            .push_string(PropertyCode::ContentType, content_type)
+            .unwrap();
+
         let will_message_content = "will message content".to_string();
         let will_topic = format!("/last_will_message_test/{}", unique_id());
         let will = MessageBuilder::new()
@@ -74,8 +79,12 @@ mod tests {
 
         let call_fn = |msg: Message| {
             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            println!("retain message:{}", payload.clone());
-            payload == will_message_content
+            let bl0 = payload == will_message_content;
+            let ct: String = msg
+                .properties()
+                .get_string(PropertyCode::ContentType)
+                .unwrap();
+            bl0 && ct == content_type
         };
 
         subscribe_data_by_qos(&cli, &will_topic, qos, call_fn);

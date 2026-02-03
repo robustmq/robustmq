@@ -19,7 +19,7 @@ mod tests {
     };
     use crate::mqtt::protocol::ClientTestProperties;
     use admin_server::cluster::ClusterConfigSetReq;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
     use paho_mqtt::Client;
     use std::process;

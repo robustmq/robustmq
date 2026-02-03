@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod tests {
     use bytes::Bytes;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;

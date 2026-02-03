@@ -211,7 +211,7 @@ pub fn get_high_water_offset(
 mod tests {
     use super::*;
     use broker_core::cache::BrokerCacheManager;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
     use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
     use rocksdb_engine::test::test_rocksdb_instance;

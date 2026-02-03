@@ -19,7 +19,8 @@ mod tests {
         BlackListListReq, BlackListListRow, CreateBlackListReq, DeleteBlackListReq,
     };
     use admin_server::mqtt::user::{CreateUserReq, DeleteUserReq};
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
+    use common_base::uuid::unique_id;
 
     use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
     use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;

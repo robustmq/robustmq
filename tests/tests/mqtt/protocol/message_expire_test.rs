@@ -11,20 +11,3 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#![allow(clippy::result_large_err)]
-pub mod enum_type;
-pub mod error;
-pub mod http_error;
-pub mod http_response;
-pub mod inner_topic;
-pub mod logging;
-pub mod network;
-pub mod node_status;
-pub mod role;
-pub mod runtime;
-pub mod telemetry;
-pub mod tools;
-pub mod utils;
-pub mod uuid;
-pub mod version;

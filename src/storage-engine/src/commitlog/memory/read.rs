@@ -200,7 +200,7 @@ mod tests {
         core::{cache::StorageCacheManager, test_tool::test_build_memory_engine},
     };
     use broker_core::cache::BrokerCacheManager;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
     use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 

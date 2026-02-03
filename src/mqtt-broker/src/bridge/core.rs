@@ -539,7 +539,8 @@ fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
 mod tests {
     use super::*;
     use crate::bridge::manager::ConnectorManager;
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
+    use common_base::uuid::unique_id;
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
     use metadata_struct::mqtt::bridge::connector::FailureHandlingStrategy;
     use metadata_struct::mqtt::bridge::{

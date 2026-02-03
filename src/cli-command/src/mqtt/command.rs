@@ -16,7 +16,7 @@ use crate::mqtt::pub_sub::{connect_server5, error_info};
 use crate::mqtt::pub_sub::{PublishArgsRequest, SubscribeArgsRequest};
 use admin_server::client::AdminHttpClient;
 use admin_server::mqtt::session::SessionListRow;
-use common_base::tools::unique_id;
+use common_base::uuid::unique_id;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 

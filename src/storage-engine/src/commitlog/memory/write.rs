@@ -164,7 +164,7 @@ mod tests {
     };
     use broker_core::cache::BrokerCacheManager;
     use bytes::Bytes;
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 

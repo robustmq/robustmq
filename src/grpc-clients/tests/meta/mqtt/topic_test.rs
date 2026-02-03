@@ -15,7 +15,8 @@
 #[cfg(test)]
 mod tests {
     use crate::common::get_placement_addr;
-    use common_base::tools::{now_second, unique_id};
+    use common_base::tools::now_second;
+    use common_base::uuid::unique_id;
     use grpc_clients::meta::mqtt::call::{
         placement_create_topic, placement_delete_topic, placement_list_topic,
     };

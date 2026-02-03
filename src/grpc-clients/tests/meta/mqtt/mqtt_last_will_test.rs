@@ -16,7 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use grpc_clients::meta::mqtt::call::placement_save_last_will_message;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::lastwill::MqttLastWillData;

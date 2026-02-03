@@ -331,7 +331,7 @@ impl MQTTHandlerCommand {
                 )),
             ));
         };
-        println!("resp_pkg:{:?}", resp_pkg);
+
         let ack_pkg = resp_pkg.unwrap();
         if let MqttPacket::ConnAck(conn_ack, _) = ack_pkg.clone() {
             if conn_ack.code == ConnectReturnCode::Success {

@@ -20,7 +20,7 @@ mod tests {
         ConnectorDetailReq, ConnectorDetailResp, ConnectorListReq, ConnectorListRow,
         CreateConnectorReq, FailureStrategy,
     };
-    use common_base::tools::unique_id;
+    use common_base::uuid::unique_id;
     use metadata_struct::mqtt::bridge::config_local_file::{
         LocalFileConnectorConfig, RotationStrategy,
     };
