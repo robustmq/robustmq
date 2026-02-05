@@ -55,7 +55,7 @@ mod tests {
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-        let sub_topic = format!("/sub_wildcards_test/+");
+        let sub_topic = "/sub_wildcards_test/+".to_string();
         let call_fn = |msg: Message| {
             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
             payload == message_content
