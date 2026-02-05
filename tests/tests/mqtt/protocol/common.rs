@@ -279,7 +279,7 @@ where
         subscribe_test_data.subscribe_options.into(),
         subscribe_test_data.subscribe_properties.into(),
     );
-    
+
     if let Err(e) = res {
         return Err(format!("Failed to subscribe: {:?}", e));
     }

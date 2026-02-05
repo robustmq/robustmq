@@ -16,6 +16,8 @@
 // I didn't know why
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crate::mqtt::protocol::common::{
         broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
         ssl_by_type, subscribe_data_with_options, ws_by_type, SubscribeTestData,
@@ -26,9 +28,9 @@ mod tests {
         SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE,
     };
     use paho_mqtt::{Message, PropertyCode, RetainHandling, SubscribeOptions};
+    use tokio::time::sleep;
 
     #[tokio::test]
-    #[ignore]
     async fn retain_handling_0() {
         let subscribe_options =
             SubscribeOptions::new(false, false, RetainHandling::SendRetainedOnSubscribe);
@@ -43,12 +45,10 @@ mod tests {
             mqtt_version: 5,
             client_id: client_id.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-        let message_content = "retain message".to_string();
+        let message_content = "retain_handling_is_0 retain message".to_string();
         let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
         publish_data(&cli, msg, false);
         distinct_conn(cli);
@@ -59,8 +59,6 @@ mod tests {
             mqtt_version: 5,
             client_id: sub_cli.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         });
 
@@ -112,7 +110,6 @@ mod tests {
         distinct_conn(sub_cli);
     }
 
-    #[ignore = "reason"]
     #[tokio::test]
     async fn handling_is_1() {
         let subscribe_options =
@@ -128,12 +125,10 @@ mod tests {
             mqtt_version: 5,
             client_id: client_id.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-        let message_content = "retain message".to_string();
+        let message_content = "handling_is_1 retain message".to_string();
         let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
         publish_data(&cli, msg, false);
         distinct_conn(cli);
@@ -144,8 +139,6 @@ mod tests {
             mqtt_version: 5,
             client_id: sub_cli.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         });
 
@@ -182,19 +175,8 @@ mod tests {
         let res = subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn).await;
         assert!(res.is_ok(), "subscribe_data_with_options failed: {:?}", res);
 
+        sleep(Duration::from_secs(3)).await;
         // sub old
-        assert!(sub_cli.unsubscribe(&topic).is_ok());
-
-        let call_fn = |msg: Message| {
-            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            if payload != message_content {
-                return false;
-            }
-            msg.properties()
-                .get_string_pair_at(PropertyCode::UserProperty, 0)
-                .is_none()
-        };
-
         let subscribe_test_data = SubscribeTestData {
             sub_topic: topic.clone(),
             sub_qos: qos,
@@ -203,11 +185,14 @@ mod tests {
         };
 
         let res = subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn).await;
-        assert!(res.is_ok(), "subscribe_data_with_options failed: {:?}", res);
+        assert!(
+            res.is_err(),
+            "subscribe_data_with_options  1 failed: {:?}",
+            res
+        );
         distinct_conn(sub_cli);
     }
 
-    #[ignore = "reason"]
     #[tokio::test]
     async fn handling_is_2() {
         let subscribe_options =
@@ -223,12 +208,10 @@ mod tests {
             mqtt_version: 5,
             client_id: client_id.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-        let message_content = "retain message".to_string();
+        let message_content = "handling_is_2 retain message".to_string();
         let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
         publish_data(&cli, msg, false);
         distinct_conn(cli);
