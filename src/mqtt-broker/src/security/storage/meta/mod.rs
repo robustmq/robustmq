@@ -26,18 +26,18 @@ use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
 use std::sync::Arc;
 
-pub struct PlacementAuthStorageAdapter {
+pub struct MetaServiceAuthStorageAdapter {
     client_pool: Arc<ClientPool>,
 }
 
-impl PlacementAuthStorageAdapter {
-    pub fn new(client_pool: Arc<ClientPool>) -> PlacementAuthStorageAdapter {
-        PlacementAuthStorageAdapter { client_pool }
+impl MetaServiceAuthStorageAdapter {
+    pub fn new(client_pool: Arc<ClientPool>) -> MetaServiceAuthStorageAdapter {
+        MetaServiceAuthStorageAdapter { client_pool }
     }
 }
 
 #[async_trait]
-impl AuthStorageAdapter for PlacementAuthStorageAdapter {
+impl AuthStorageAdapter for MetaServiceAuthStorageAdapter {
     async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
         let user_storage = UserStorage::new(self.client_pool.clone());
         return user_storage.user_list().await;

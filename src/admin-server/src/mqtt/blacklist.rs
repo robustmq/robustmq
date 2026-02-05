@@ -61,7 +61,7 @@ pub struct CreateBlackListReq {
 
 fn validate_blacklist_type(blacklist_type: &str) -> Result<(), validator::ValidationError> {
     match blacklist_type {
-        "ClientId" | "User" | "Ip" => Ok(()),
+        "ClientId" | "User" | "Ip" | "ClientIdMatch" | "UserMatch" | "IPCIDR" => Ok(()),
         _ => {
             let mut err = validator::ValidationError::new("invalid_blacklist_type");
             err.message = Some(std::borrow::Cow::from(

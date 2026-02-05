@@ -16,6 +16,7 @@
 mod tests {
     use crate::mqtt::protocol::common::{
         broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
+        publish_data,
     };
     use crate::mqtt::protocol::ClientTestProperties;
     use admin_server::client::AdminHttpClient;
@@ -27,6 +28,39 @@ mod tests {
     use common_base::uuid::unique_id;
     use metadata_struct::acl::mqtt_acl::MqttAcl;
     use paho_mqtt::MessageBuilder;
+
+    #[tokio::test]
+    async fn acl_storage_test() {
+        let admin_client = create_test_env().await;
+        let acl = create_test_acl(
+            MqttAclResourceType::User,
+            "acl_storage_test".to_string(),
+            "tp-1".to_string(),
+            MqttAclAction::Publish,
+            MqttAclPermission::Deny,
+        );
+        create_acl(&admin_client, acl.clone()).await;
+
+        check_acl_in_list(&admin_client, &acl, true).await;
+
+        delete_acl(&admin_client, acl.clone()).await;
+
+        check_acl_in_list(&admin_client, &acl, false).await;
+    }
+
+    #[tokio::test]
+    async fn user_publish_authorization_test() {
+        let topic = format!("{}/{}", "/user_publish_authorization_test", unique_id());
+
+        run_authorization_test(MqttAclResourceType::User, topic).await;
+    }
+
+    #[tokio::test]
+    async fn client_publish_authorization_test() {
+        let topic = format!("{}/{}", "/client_publish_authorization_test", unique_id());
+
+        run_authorization_test(MqttAclResourceType::ClientId, topic).await;
+    }
 
     async fn run_authorization_test(resource_type: MqttAclResourceType, topic: String) {
         let admin_client = create_test_env().await;
@@ -92,47 +126,6 @@ mod tests {
 
         // Clean up test user
         delete_user(&admin_client, username.clone()).await;
-    }
-
-    #[tokio::test]
-    async fn acl_storage_test() {
-        let admin_client = create_test_env().await;
-        let acl = create_test_acl(
-            MqttAclResourceType::User,
-            "acl_storage_test".to_string(),
-            "tp-1".to_string(),
-            MqttAclAction::Publish,
-            MqttAclPermission::Deny,
-        );
-        create_acl(&admin_client, acl.clone()).await;
-
-        check_acl_in_list(&admin_client, &acl, true).await;
-
-        delete_acl(&admin_client, acl.clone()).await;
-
-        check_acl_in_list(&admin_client, &acl, false).await;
-    }
-
-    #[tokio::test]
-    async fn user_publish_authorization_test() {
-        let topic = format!(
-            "{}/{}",
-            "/user_publish_authorization_test/user_publish_authorization_test",
-            unique_id()
-        );
-
-        run_authorization_test(MqttAclResourceType::User, topic).await;
-    }
-
-    #[tokio::test]
-    async fn client_publish_authorization_test() {
-        let topic = format!(
-            "{}/{}",
-            "/client_publish_authorization_test/client_publish_authorization_test",
-            unique_id()
-        );
-
-        run_authorization_test(MqttAclResourceType::ClientId, topic).await;
     }
 
     fn create_test_acl(
@@ -218,26 +211,14 @@ mod tests {
         };
         let cli = connect_server(&client_properties);
 
-        // publish retain
+        // publish
         let message = "publish_user_acl_test mqtt message".to_string();
         let msg = MessageBuilder::new()
             .payload(message.clone())
             .topic(topic.to_owned())
             .qos(qos)
             .finalize();
-
-        let result = cli.publish(msg);
-
-        if result.is_err() {
-            println!("{client_id},{result:?},{is_err}");
-        }
-
-        if protocol == 5 && is_err && qos != 0 {
-            assert!(result.is_err());
-        } else {
-            assert!(result.is_ok());
-        }
-
+        publish_data(&cli, msg, is_err);
         distinct_conn(cli);
     }
 
@@ -262,7 +243,7 @@ mod tests {
         };
         let cli = connect_server(&client_properties);
 
-        // publish retain
+        // publish
         let message = "publish_client_id_acl_test mqtt message".to_string();
         let msg = MessageBuilder::new()
             .payload(message.clone())
@@ -271,18 +252,7 @@ mod tests {
             .retained(true)
             .finalize();
 
-        let result = cli.publish(msg);
-
-        if result.is_err() {
-            println!("{client_id},{result:?},{is_err}");
-        }
-
-        if is_err {
-            assert!(result.is_err());
-        } else {
-            assert!(result.is_ok());
-        }
-
+        publish_data(&cli, msg, is_err);
         distinct_conn(cli);
     }
 
@@ -313,7 +283,6 @@ mod tests {
         };
 
         let res = admin_client.create_acl(&create_request).await;
-        println!("{:?}", res);
         assert!(res.is_ok());
     }
 

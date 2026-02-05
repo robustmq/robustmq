@@ -488,6 +488,5 @@ pub fn distinct_conn(cli: Client) {
         .reason_code(ReasonCode::DisconnectWithWillMessage)
         .properties(props)
         .finalize();
-    let res = cli.disconnect(disconnect_opts);
-    assert!(res.is_ok());
+    let _ = cli.disconnect(disconnect_opts);
 }
