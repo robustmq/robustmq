@@ -29,130 +29,128 @@ mod tests {
     use tokio::time::sleep;
 
     #[tokio::test]
-    #[ignore = "reason"]
     async fn pub_sub_rewrite_test() {
         let admin_client = create_test_env().await;
 
-        let action: String = "All".to_string();
-
-        let prefix = format!("{}{}", "pub_sub_rewrite_test", unique_id());
-        let client_id = build_client_id(&prefix);
+        let prefix = format!("pub_sub_rewrite_test_{}", unique_id());
+        let source_topic = format!("{prefix}_y/a/z/b");
+        let rewrite_topic = format!("{prefix}_y/z/b");
 
         let req = CreateTopicRewriteReq {
-            action: action.clone(),
-            source_topic: format!("{prefix}y/+/z/#"),
-            dest_topic: format!("{prefix}y/z/$2"),
-            regex: format!("^{prefix}y/(.+)/z/(.+)$"),
+            action: "All".to_string(),
+            source_topic: format!("{prefix}_y/+/z/#"),
+            dest_topic: format!("{prefix}_y/z/$2"),
+            regex: format!("^{prefix}_y/(.+)/z/(.+)$"),
         };
-        let res = admin_client.create_topic_rewrite(&req).await;
-        assert!(res.is_ok());
+        admin_client.create_topic_rewrite(&req).await.unwrap();
 
-        sleep(Duration::from_secs(30)).await;
-        let source_topic = format!("{prefix}y/a/z/b");
-        let rewrite_topic = format!("{prefix}y/z/b");
+        sleep(Duration::from_secs(2)).await;
 
         let network = "tcp";
         let protocol = 5;
         let qos = 1;
+        let message = "pub_sub_rewrite_test mqtt message".to_string();
 
-        // publish 1
-        let client_properties = ClientTestProperties {
+        // Test 1: Publish to source, receive on rewritten topic
+        let sub_client_id = build_client_id(&format!("{prefix}_sub1"));
+        let sub_properties = ClientTestProperties {
             mqtt_version: protocol,
-            client_id: client_id.to_string(),
+            client_id: sub_client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            ..Default::default()
+        };
+        let sub_cli = connect_server(&sub_properties);
+
+        let call_fn = |msg: Message| {
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+            payload == message
+        };
+
+        sub_cli.subscribe(&rewrite_topic, qos).unwrap();
+        sleep(Duration::from_secs(1)).await;
+
+        let pub_client_id = build_client_id(&format!("{prefix}_pub"));
+        let pub_properties = ClientTestProperties {
+            mqtt_version: protocol,
+            client_id: pub_client_id.to_string(),
             addr: broker_addr_by_type(network),
             ws: ws_by_type(network),
             ssl: ssl_by_type(network),
             ..Default::default()
         };
-        let cli = connect_server(&client_properties);
-        let message = "pub_sub_rewrite_test mqtt message".to_string();
+        let pub_cli = connect_server(&pub_properties);
+
         let msg = MessageBuilder::new()
             .payload(message.clone())
             .topic(source_topic.clone())
             .qos(qos)
             .finalize();
-        publish_data(&cli, msg, false);
+        publish_data(&pub_cli, msg, false);
+        distinct_conn(pub_cli);
 
-        sleep(Duration::from_secs(30)).await;
+        subscribe_data_by_qos(&sub_cli, &rewrite_topic, qos, call_fn);
+        distinct_conn(sub_cli);
 
-        // publish 2
-        let client_properties = ClientTestProperties {
+        // Test 2: Subscribe to source, publish to rewritten topic
+        let sub2_client_id = build_client_id(&format!("{prefix}_sub2"));
+        let sub2_properties = ClientTestProperties {
             mqtt_version: protocol,
-            client_id: client_id.to_string(),
+            client_id: sub2_client_id.to_string(),
             addr: broker_addr_by_type(network),
             ws: ws_by_type(network),
             ssl: ssl_by_type(network),
             ..Default::default()
         };
-        let cli = connect_server(&client_properties);
-        let message = "pub_sub_rewrite_test mqtt message".to_string();
-        let msg = MessageBuilder::new()
+        let sub2_cli = connect_server(&sub2_properties);
+
+        let pub2_client_id = build_client_id(&format!("{prefix}_pub2"));
+        let pub2_properties = ClientTestProperties {
+            mqtt_version: protocol,
+            client_id: pub2_client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+        let pub2_cli = connect_server(&pub2_properties);
+
+        let msg2 = MessageBuilder::new()
             .payload(message.clone())
-            .topic(source_topic.clone())
+            .topic(rewrite_topic.clone())
             .qos(qos)
             .finalize();
-        publish_data(&cli, msg, false);
+        publish_data(&pub2_cli, msg2, false);
+        distinct_conn(pub2_cli);
 
-        // sub data by rewrite_topic
-        let call_fn = |msg: Message| {
+        let call_fn2 = |msg: Message| {
             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            if payload == message {
-                return true;
-            }
-            false
+            payload == message
         };
-        subscribe_data_by_qos(&cli, &rewrite_topic, qos, call_fn);
-        distinct_conn(cli);
-
-        // sub data by rewrite_topic
-        let prefix = format!("{}{}", "pub_sub_rewrite_test", unique_id());
-        let client_id = build_client_id(&prefix);
-        let client_properties = ClientTestProperties {
-            mqtt_version: protocol,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
-            ..Default::default()
-        };
-        let cli = connect_server(&client_properties);
-        // sub data by rewrite_topic
-        let call_fn = |msg: Message| {
-            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            if payload == message {
-                return true;
-            }
-            false
-        };
-        subscribe_data_by_qos(&cli, &source_topic, qos, call_fn);
-        distinct_conn(cli);
+        subscribe_data_by_qos(&sub2_cli, &source_topic, qos, call_fn2);
+        distinct_conn(sub2_cli);
     }
 
     #[tokio::test]
     async fn un_sub_rewrite_test() {
         let admin_client = create_test_env().await;
 
-        let action: String = "All".to_string();
-
-        let prefix = format!("{}{}", "pub_sub_rewrite_test", unique_id());
+        let prefix = format!("unsub_rewrite_test_{}", unique_id());
+        let source_topic = format!("{prefix}_y/a/z/b");
 
         let req = CreateTopicRewriteReq {
-            action: action.clone(),
-            source_topic: format!("{prefix}y/+/z/#"),
-            dest_topic: format!("{prefix}y/z/$2"),
-            regex: format!("^{prefix}y/(.+)/z/(.+)$"),
+            action: "All".to_string(),
+            source_topic: format!("{prefix}_y/+/z/#"),
+            dest_topic: format!("{prefix}_y/z/$2"),
+            regex: format!("^{prefix}_y/(.+)/z/(.+)$"),
         };
-        let res = admin_client.create_topic_rewrite(&req).await;
-        assert!(res.is_ok());
+        admin_client.create_topic_rewrite(&req).await.unwrap();
 
-        sleep(Duration::from_secs(10)).await;
-        let source_topic = format!("{prefix}y/a/z/b");
+        sleep(Duration::from_secs(5)).await;
 
         let network = "tcp";
         let protocol = 5;
         let qos = 1;
 
-        let prefix = format!("{}{}", "topic_rewrite_rule_test", unique_id());
         let client_id = build_client_id(&prefix);
         let client_properties = ClientTestProperties {
             mqtt_version: protocol,
@@ -163,10 +161,169 @@ mod tests {
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-        let res = cli.subscribe(&source_topic, qos);
-        assert!(res.is_ok());
-        let res = cli.unsubscribe(&source_topic);
-        assert!(res.is_ok());
+
+        cli.subscribe(&source_topic, qos).unwrap();
+        sleep(Duration::from_secs(1)).await;
+        cli.unsubscribe(&source_topic).unwrap();
+
         distinct_conn(cli);
+    }
+
+    /// EMQX documentation example: multiple rules with priority
+    #[tokio::test]
+    #[ignore = "needs integration environment"]
+    async fn emqx_example_test() {
+        let admin_client = create_test_env().await;
+        let prefix = format!("emqx_example_{}", unique_id());
+
+        let req1 = CreateTopicRewriteReq {
+            action: "All".to_string(),
+            source_topic: format!("{prefix}_y/+/z/#"),
+            dest_topic: format!("{prefix}_y/z/$2"),
+            regex: format!("^{prefix}_y/(.+)/z/(.+)$"),
+        };
+        admin_client.create_topic_rewrite(&req1).await.unwrap();
+        sleep(Duration::from_millis(100)).await;
+
+        let req2 = CreateTopicRewriteReq {
+            action: "All".to_string(),
+            source_topic: format!("{prefix}_x/#"),
+            dest_topic: format!("{prefix}_z/y/x/$1"),
+            regex: format!("^{prefix}_x/y/(.+)$"),
+        };
+        admin_client.create_topic_rewrite(&req2).await.unwrap();
+        sleep(Duration::from_millis(100)).await;
+
+        let req3 = CreateTopicRewriteReq {
+            action: "All".to_string(),
+            source_topic: format!("{prefix}_x/y/+"),
+            dest_topic: format!("{prefix}_z/y/$1"),
+            regex: format!("^{prefix}_x/y/(\\d+)$"),
+        };
+        admin_client.create_topic_rewrite(&req3).await.unwrap();
+        sleep(Duration::from_secs(5)).await;
+
+        let network = "tcp";
+        let protocol = 5;
+        let qos = 1;
+
+        test_topic_rewrite(
+            &prefix,
+            &format!("{prefix}_y/a/z/b"),
+            &format!("{prefix}_y/z/b"),
+            network,
+            protocol,
+            qos,
+        )
+        .await;
+        test_topic_rewrite(
+            &prefix,
+            &format!("{prefix}_y/def"),
+            &format!("{prefix}_y/def"),
+            network,
+            protocol,
+            qos,
+        )
+        .await;
+        test_topic_rewrite(
+            &prefix,
+            &format!("{prefix}_x/1/2"),
+            &format!("{prefix}_x/1/2"),
+            network,
+            protocol,
+            qos,
+        )
+        .await;
+        test_topic_rewrite(
+            &prefix,
+            &format!("{prefix}_x/y/2"),
+            &format!("{prefix}_z/y/2"),
+            network,
+            protocol,
+            qos,
+        )
+        .await;
+        test_topic_rewrite(
+            &prefix,
+            &format!("{prefix}_x/y/z"),
+            &format!("{prefix}_x/y/z"),
+            network,
+            protocol,
+            qos,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[ignore = "needs integration environment"]
+    async fn action_publish_only_test() {
+        let admin_client = create_test_env().await;
+
+        let prefix = format!("action_publish_{}", unique_id());
+        let source_topic = format!("{prefix}_test/topic");
+        let rewrite_topic = format!("{prefix}_rewritten/topic");
+
+        let req = CreateTopicRewriteReq {
+            action: "Publish".to_string(),
+            source_topic: format!("{prefix}_test/#"),
+            dest_topic: format!("{prefix}_rewritten/$1"),
+            regex: format!("^{prefix}_test/(.+)$"),
+        };
+        admin_client.create_topic_rewrite(&req).await.unwrap();
+        sleep(Duration::from_secs(5)).await;
+
+        test_topic_rewrite(&prefix, &source_topic, &rewrite_topic, "tcp", 5, 1).await;
+    }
+
+    async fn test_topic_rewrite(
+        prefix: &str,
+        source_topic: &str,
+        expected_topic: &str,
+        network: &str,
+        protocol: u32,
+        qos: i32,
+    ) {
+        let message = format!("test message for {}", source_topic);
+
+        let pub_client_id = build_client_id(&format!("{}_pub", prefix));
+        let pub_properties = ClientTestProperties {
+            mqtt_version: protocol,
+            client_id: pub_client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+        let pub_cli = connect_server(&pub_properties);
+
+        let sub_client_id = build_client_id(&format!("{}_sub", prefix));
+        let sub_properties = ClientTestProperties {
+            mqtt_version: protocol,
+            client_id: sub_client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+        let sub_cli = connect_server(&sub_properties);
+
+        let call_fn = |msg: Message| {
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+            payload == message
+        };
+        sub_cli.subscribe(expected_topic, qos).unwrap();
+        sleep(Duration::from_secs(1)).await;
+
+        let msg = MessageBuilder::new()
+            .payload(message.clone())
+            .topic(source_topic)
+            .qos(qos)
+            .finalize();
+        publish_data(&pub_cli, msg, false);
+
+        subscribe_data_by_qos(&sub_cli, expected_topic, qos, call_fn);
+
+        distinct_conn(pub_cli);
+        distinct_conn(sub_cli);
     }
 }

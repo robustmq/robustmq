@@ -14,8 +14,13 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
+    use crate::mqtt::protocol::{
+        common::{
+            broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
+            publish_data,
+        },
+        ClientTestProperties,
+    };
     use admin_server::mqtt::connector::{
         ConnectorDetailReq, ConnectorDetailResp, ConnectorListReq, ConnectorListRow,
         CreateConnectorReq, FailureStrategy,
@@ -25,15 +30,8 @@ mod tests {
         LocalFileConnectorConfig, RotationStrategy,
     };
     use paho_mqtt::MessageBuilder;
+    use std::time::Duration;
     use tokio::time::sleep;
-
-    use crate::mqtt::protocol::{
-        common::{
-            broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
-            publish_data, ssl_by_type, ws_by_type,
-        },
-        ClientTestProperties,
-    };
 
     #[tokio::test]
     async fn file_connector_test() {
@@ -49,8 +47,6 @@ mod tests {
             mqtt_version: 5,
             client_id: client_id.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
@@ -65,7 +61,7 @@ mod tests {
         publish_data(&cli, msg, false);
         distinct_conn(cli);
 
-        sleep(Duration::from_secs(5)).await;
+        sleep(Duration::from_secs(3)).await;
 
         // create connector
         let connector_name = unique_id();
@@ -88,7 +84,7 @@ mod tests {
         let res = admin_client.create_connector(&connector).await;
         assert!(res.is_ok());
 
-        sleep(Duration::from_secs(10)).await;
+        sleep(Duration::from_secs(3)).await;
 
         let request = ConnectorListReq {
             connector_name: Some(connector_name.clone()),
@@ -111,7 +107,6 @@ mod tests {
             .get_connector_detail::<ConnectorDetailReq, ConnectorDetailResp>(&request)
             .await
             .unwrap();
-        println!("{:?}", results);
         assert!(results.send_success_total >= 1);
     }
 }

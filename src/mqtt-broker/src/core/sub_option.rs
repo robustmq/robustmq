@@ -42,9 +42,6 @@ pub fn is_send_retain_msg_by_retain_handling(
     retain_handling: &RetainHandling,
     is_new_subs: &DashMap<String, bool>,
 ) -> bool {
-    println!("is_new_subs:{:?}", is_new_subs);
-    println!("retain_handling:{:?}", retain_handling);
-
     if *retain_handling == RetainHandling::OnEverySubscribe {
         return true;
     }

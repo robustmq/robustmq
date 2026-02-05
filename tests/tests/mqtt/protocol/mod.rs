@@ -36,7 +36,9 @@ pub mod clean_session_test;
 pub mod client_id_test;
 pub mod common;
 pub mod connect_test;
+pub mod connector_test;
 pub mod content_type_test;
+pub mod delay_publish_test;
 pub mod keep_alive_test;
 pub mod lastwill_message_test;
 pub mod login_test;
@@ -65,8 +67,6 @@ pub mod user_test;
 
 // todo
 pub mod connect_authentication_test;
-pub mod connector_test;
-pub mod delay_publish_test;
 mod flapping_detect_test;
 pub mod message_expire_test;
 mod quic_server;
