@@ -14,38 +14,32 @@
 
 #[cfg(test)]
 mod tests {
-
-    use common_base::uuid::unique_id;
-    use paho_mqtt::{Message, SubscribeOptions, QOS_1};
-
     use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
-            ssl_by_type, subscribe_data_with_options, ws_by_type, SubscribeTestData,
+            subscribe_data_with_options, SubscribeTestData,
         },
         ClientTestProperties,
     };
+    use common_base::uuid::unique_id;
+    use paho_mqtt::{Message, SubscribeOptions, QOS_1};
 
     #[tokio::test]
     async fn sub_wildcards_test() {
         let network = "tcp";
         let qos = 1;
         let uniq = unique_id();
-        let topic = format!("/sub_wildcards_test/v1/v2/{uniq}");
+        let topic = format!("/sub_wildcards_test/{uniq}");
 
         // publish
         let client_id = build_client_id(format!("sub_wildcards_test_{network}_{qos}").as_str());
-
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
             client_id: client_id.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-
         let message_content = "sub_wildcards_test mqtt message".to_string();
         let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
         publish_data(&cli, msg, false);
@@ -54,23 +48,18 @@ mod tests {
         // subscribe with + wildcard
         let client_id: String =
             build_client_id(format!("sub_wildcards_test_+_{network}_{qos}").as_str());
-
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
             client_id: client_id.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-
-        let sub_topic = format!("/sub_wildcards_test/v1/+/{uniq}");
+        let sub_topic = format!("/sub_wildcards_test/+");
         let call_fn = |msg: Message| {
             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
             payload == message_content
         };
-
         let subscribe_test_data = SubscribeTestData {
             sub_topic: sub_topic.clone(),
             sub_qos: qos,
@@ -88,19 +77,12 @@ mod tests {
             mqtt_version: 5,
             client_id: client_id.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-
-        // Fix: /sub_wildcards_test/# matches /sub_wildcards_test/v1/v2/{uniq}
         let sub_topic = "/sub_wildcards_test/#".to_string();
         let call_fn = |msg: Message| {
-            let payload = match String::from_utf8(msg.payload().to_vec()) {
-                Ok(payload) => payload,
-                Err(_) => return false,
-            };
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
             payload == message_content
         };
 
