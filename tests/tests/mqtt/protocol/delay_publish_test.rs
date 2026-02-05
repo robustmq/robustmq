@@ -122,7 +122,8 @@ mod tests {
                 subscribe_properties: None,
             };
 
-            subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
+            let res = subscribe_data_with_options(&cli, subscribe_test_data, call_fn).await;
+            assert!(res.is_ok(), "subscribe_data_with_options failed: {:?}", res);
             distinct_conn(cli);
         }
     }

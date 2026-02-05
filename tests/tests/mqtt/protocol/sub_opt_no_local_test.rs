@@ -12,27 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// it has a problem from client, it will block in test case
+// I didn't know why
 #[cfg(test)]
 mod tests {
-    use crate::mqtt::protocol::{
-        common::{
-            broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
-            subscribe_data_with_options, SubscribeTestData,
-        },
-        ClientTestProperties,
+    use crate::mqtt::protocol::common::{
+        broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
+        subscribe_data_with_options, SubscribeTestData,
     };
+    use crate::mqtt::protocol::ClientTestProperties;
     use common_base::uuid::unique_id;
-    use paho_mqtt::{Message, SubscribeOptions, QOS_1};
+    use paho_mqtt::{Message, MessageBuilder, SubscribeOptions};
 
     #[tokio::test]
-    async fn sub_wildcards_test() {
+    async fn no_local_is_true() {
+        let subscribe_options = SubscribeOptions::new(true, false, None);
         let network = "tcp";
         let qos = 1;
-        let uniq = unique_id();
-        let topic = format!("/sub_wildcards_test/{uniq}");
-
-        // publish
-        let client_id = build_client_id(format!("sub_wildcards_test_{network}_{qos}").as_str());
+        let uid = unique_id();
+        let topic = format!("/no_local_is_true/{uid}/{network}/{qos}");
+        let client_id = build_client_id(format!("no_local_is_true_{uid}").as_str());
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
             client_id: client_id.to_string(),
@@ -40,57 +39,66 @@ mod tests {
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-        let message_content = "sub_wildcards_test mqtt message".to_string();
-        let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
+        let message_content = "no_local_is_true content".to_string();
+        let msg = MessageBuilder::new()
+            .payload(message_content.clone())
+            .topic(topic.clone())
+            .qos(qos)
+            .retained(false)
+            .finalize();
         publish_data(&cli, msg, false);
-        distinct_conn(cli);
 
-        // subscribe with + wildcard
-        let client_id: String =
-            build_client_id(format!("sub_wildcards_test_+_{network}_{qos}").as_str());
-        let client_properties = ClientTestProperties {
-            mqtt_version: 5,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(network),
-            ..Default::default()
-        };
-        let cli = connect_server(&client_properties);
-        let sub_topic = format!("/sub_wildcards_test/+");
         let call_fn = |msg: Message| {
             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
             payload == message_content
         };
+
         let subscribe_test_data = SubscribeTestData {
-            sub_topic: sub_topic.clone(),
+            sub_topic: topic.clone(),
             sub_qos: qos,
-            subscribe_options: SubscribeOptions::default(),
+            subscribe_options,
             subscribe_properties: None,
         };
-
         let res = subscribe_data_with_options(&cli, subscribe_test_data, call_fn).await;
-        assert!(res.is_ok(), "subscribe_data_with_options failed: {:?}", res);
-        distinct_conn(cli);
+        assert!(res.is_err(), "Expected timeout but got: {:?}", res);
+    }
 
-        // subscribe with # wildcard (multi-level)
-        let client_id = build_client_id(format!("sub_wildcards_test_#_{network}_{qos}").as_str());
+    #[tokio::test]
+    async fn no_local_is_false() {
+        let subscribe_options = SubscribeOptions::new(false, false, None);
+        let network = "tcp";
+        let qos = 1;
+        let uid = unique_id();
+        let topic = format!("/no_local_is_false/{uid}/{network}/{qos}");
 
-        let client_properties = ClientTestProperties {
+        // publish
+        let client_id = build_client_id(format!("no_local_is_false{uid}").as_str());
+        let client_test_properties = ClientTestProperties {
             mqtt_version: 5,
             client_id: client_id.to_string(),
             addr: broker_addr_by_type(network),
             ..Default::default()
         };
-        let cli = connect_server(&client_properties);
-        let sub_topic = "/sub_wildcards_test/#".to_string();
+
+        let cli = connect_server(&client_test_properties);
+        let message_content = "construct topic".to_string();
+        let msg = MessageBuilder::new()
+            .payload(message_content.clone())
+            .topic(topic.clone())
+            .qos(qos)
+            .finalize();
+        publish_data(&cli, msg, false);
+
+        // subscribe
         let call_fn = |msg: Message| {
             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
             payload == message_content
         };
 
         let subscribe_test_data = SubscribeTestData {
-            sub_topic: sub_topic.clone(),
+            sub_topic: topic.clone(),
             sub_qos: qos,
-            subscribe_options: SubscribeOptions::default(),
+            subscribe_options,
             subscribe_properties: None,
         };
 

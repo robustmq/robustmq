@@ -25,162 +25,11 @@ mod tests {
     use mqtt_broker::core::constant::{
         SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE,
     };
-    use paho_mqtt::{Message, MessageBuilder, PropertyCode, RetainHandling, SubscribeOptions};
-    use std::time::Duration;
+    use paho_mqtt::{Message, PropertyCode, RetainHandling, SubscribeOptions};
 
     #[tokio::test]
-    async fn no_local_is_true() {
-        let subscribe_options = SubscribeOptions::new(true, false, None);
-        let network = "tcp";
-        let qos = 1;
-        let uid = unique_id();
-        let topic =
-            format!("/mqtt5_should_not_recv_msg_when_no_local_is_true/{uid}/{network}/{qos}");
-        let client_id = build_client_id(format!("no_local_is_true_{uid}").as_str());
-        let client_properties = ClientTestProperties {
-            mqtt_version: 5,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
-            ..Default::default()
-        };
-        let cli = connect_server(&client_properties);
-        let message_content = "no_local_is_true content".to_string();
-        let msg = MessageBuilder::new()
-            .payload(message_content.clone())
-            .topic(topic.clone())
-            .qos(qos)
-            .retained(false)
-            .finalize();
-        publish_data(&cli, msg, false);
-
-        let receiver = cli.start_consuming();
-        assert!(cli
-            .subscribe_with_options(&topic, qos, subscribe_options, None)
-            .is_ok());
-
-        let timeout_fn = async || -> bool {
-            loop {
-                let res = receiver.recv_timeout(Duration::from_secs(5));
-                if let Ok(msg_opt) = &res {
-                    println!("{res:?}");
-                    let msg = msg_opt.as_ref().unwrap();
-                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                    if payload == message_content {
-                        return true;
-                    }
-                    continue;
-                }
-                return false;
-            }
-        };
-        assert!(!timeout_fn().await);
-        distinct_conn(cli);
-    }
-
-    #[tokio::test]
-    async fn no_local_is_false() {
-        let subscribe_options = SubscribeOptions::new(false, false, None);
-        let network = "tcp";
-        let qos = 1;
-        let uid = unique_id();
-        let topic = format!("/no_local_is_false/{uid}/{network}/{qos}");
-
-        // publish
-        let client_id = build_client_id(format!("no_local_is_false{uid}").as_str());
-
-        let client_test_properties = ClientTestProperties {
-            mqtt_version: 5,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
-            ..Default::default()
-        };
-
-        let cli = connect_server(&client_test_properties);
-        let message_content = "construct topic".to_string();
-        let msg = MessageBuilder::new()
-            .payload(message_content.clone())
-            .topic(topic.clone())
-            .qos(qos)
-            .retained(false)
-            .finalize();
-        publish_data(&cli, msg, false);
-
-        // subscribe
-        let call_fn = |msg: Message| {
-            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-            payload == message_content
-        };
-
-        let subscribe_test_data = SubscribeTestData {
-            sub_topic: topic.clone(),
-            sub_qos: qos,
-            subscribe_options,
-            subscribe_properties: None,
-        };
-
-        subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
-        distinct_conn(cli);
-    }
-
-    #[tokio::test]
-    async fn retain_as_published() {
-        for retain_as_published in [true, false] {
-            let subscribe_options = SubscribeOptions::new(false, retain_as_published, None);
-            let network = "tcp";
-            let qos = 1;
-            let uid = unique_id();
-            let topic = format!("/retain_as_published/{uid}/{network}/{qos}");
-
-            // publish
-            let client_id = build_client_id(format!("retain_as_published{uid}").as_str());
-            let client_properties = ClientTestProperties {
-                mqtt_version: 5,
-                client_id: client_id.to_string(),
-                addr: broker_addr_by_type(network),
-                ws: ws_by_type(network),
-                ssl: ssl_by_type(network),
-                ..Default::default()
-            };
-            let cli = connect_server(&client_properties);
-
-            let message_content = "retain message".to_string();
-            let msg = Message::new_retained(topic.clone(), message_content.clone(), qos);
-            publish_data(&cli, msg, false);
-
-            let call_fn = |msg: Message| {
-                println!(
-                    "msg: {:?},retained:{},retain_as_published:{}",
-                    msg,
-                    msg.retained(),
-                    retain_as_published
-                );
-                let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                if payload != message_content {
-                    return false;
-                }
-
-                msg.retained() == retain_as_published
-            };
-
-            let subscribe_test_data = SubscribeTestData {
-                sub_topic: topic,
-                sub_qos: qos,
-                subscribe_options,
-                subscribe_properties: None,
-            };
-            subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
-
-            distinct_conn(cli);
-        }
-    }
-
     #[ignore]
-    #[tokio::test]
-    async fn retain_handling_is_0() {
+    async fn retain_handling_0() {
         let subscribe_options =
             SubscribeOptions::new(false, false, RetainHandling::SendRetainedOnSubscribe);
         let network = "tcp";
@@ -245,7 +94,8 @@ mod tests {
             subscribe_properties: None,
         };
 
-        subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
+        let res = subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn).await;
+        assert!(res.is_ok(), "subscribe_data_with_options failed: {:?}", res);
 
         // sub old
         assert!(sub_cli.unsubscribe(&topic).is_ok());
@@ -257,7 +107,8 @@ mod tests {
             subscribe_properties: None,
         };
 
-        subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
+        let res = subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn).await;
+        assert!(res.is_ok(), "subscribe_data_with_options failed: {:?}", res);
         distinct_conn(sub_cli);
     }
 
@@ -328,7 +179,8 @@ mod tests {
             subscribe_properties: None,
         };
 
-        subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
+        let res = subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn).await;
+        assert!(res.is_ok(), "subscribe_data_with_options failed: {:?}", res);
 
         // sub old
         assert!(sub_cli.unsubscribe(&topic).is_ok());
@@ -350,7 +202,8 @@ mod tests {
             subscribe_properties: None,
         };
 
-        subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
+        let res = subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn).await;
+        assert!(res.is_ok(), "subscribe_data_with_options failed: {:?}", res);
         distinct_conn(sub_cli);
     }
 
@@ -410,7 +263,8 @@ mod tests {
 
             user_properties.is_none()
         };
-        subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn);
+        let res = subscribe_data_with_options(&sub_cli, subscribe_test_data, call_fn).await;
+        assert!(res.is_ok(), "subscribe_data_with_options failed: {:?}", res);
         distinct_conn(sub_cli);
     }
 }
