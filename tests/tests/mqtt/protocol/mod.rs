@@ -31,6 +31,7 @@ pub struct ClientTestProperties {
 }
 
 pub mod acl_test;
+pub mod blacklist_test;
 pub mod clean_session_test;
 pub mod client_id_test;
 pub mod common;
@@ -63,7 +64,6 @@ pub mod user_properties_test;
 pub mod user_test;
 
 // todo
-pub mod blacklist_test;
 pub mod connect_authentication_test;
 pub mod connector_test;
 pub mod delay_publish_test;
