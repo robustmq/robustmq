@@ -429,7 +429,7 @@ mod tests {
     fn test_add_directly_push_with_wildcard() {
         let manager = Arc::new(SubscribeManager::new());
         let filter = create_test_filter("test/#");
-        let topic = "topic".to_string();
+        let topic = "test/topic".to_string();
         let context = AddDirectlyPushContext {
             subscribe_manager: manager.clone(),
             topic,
