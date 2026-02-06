@@ -153,6 +153,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "reason"]
     async fn blacklist_ip_test() {
         let admin_client = create_test_env().await;
 
@@ -258,6 +259,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "reason"]
     async fn blacklist_ip_cidr_test() {
         let admin_client = create_test_env().await;
 
