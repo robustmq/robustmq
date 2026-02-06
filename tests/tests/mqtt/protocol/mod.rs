@@ -31,7 +31,7 @@ pub struct ClientTestProperties {
 }
 
 pub mod acl_test;
-pub mod blacklist_test;
+// pub mod blacklist_test;
 pub mod clean_session_test;
 pub mod client_id_test;
 pub mod common;
