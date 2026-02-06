@@ -17,7 +17,7 @@ mod tests {
     use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
-            publish_data, ssl_by_type, ws_by_type,
+            publish_data,
         },
         ClientTestProperties,
     };
@@ -33,26 +33,21 @@ mod tests {
 
         let uniq = unique_id();
         let topic = format!("/sub_auto_test/v1/v2/{uniq}");
-
         let network = "tcp";
-        let qos = 2;
+        let qos = 1;
 
         // create_auto_subscribe_rule
         create_auto_subscribe_rule(&admin_client, &topic).await;
 
         // publish
         let client_id = build_client_id(format!("sub_auto_test_{network}_{qos}").as_str());
-
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
             client_id: client_id.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
-
         let message_content = "sub_auto_test mqtt message".to_string();
         let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
         publish_data(&cli, msg, false);

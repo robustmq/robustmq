@@ -14,9 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::now_second;
-    use paho_mqtt::{Message, PropertyCode, SubscribeOptions, QOS_1};
-
     use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
@@ -24,6 +21,8 @@ mod tests {
         },
         ClientTestProperties,
     };
+    use common_base::tools::now_second;
+    use paho_mqtt::{Message, PropertyCode, SubscribeOptions, QOS_1};
 
     #[tokio::test]
     async fn delay_publish_test() {
@@ -40,13 +39,11 @@ mod tests {
                 mqtt_version: 5,
                 client_id: client_id.to_string(),
                 addr: broker_addr_by_type(network),
-                ws: ws_by_type(network),
-                ssl: ssl_by_type(network),
                 ..Default::default()
             };
             let cli = connect_server(&client_properties);
 
-            let message_content = format!("delay_publish_test mqtt message,{uniq_tp}");
+            let message_content = format!("delay_publish_test mqtt message,{uniq_tp},{t}");
             let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
             publish_data(&cli, msg, false);
             distinct_conn(cli);
@@ -75,6 +72,10 @@ mod tests {
                     return false;
                 }
 
+                if payload != message_content {
+                    return false;
+                }
+
                 assert_eq!(msg.properties().len(), 4);
                 let flag = msg
                     .properties()
@@ -99,7 +100,7 @@ mod tests {
                 let diff = target_ms2 - recv_ms1;
                 assert_eq!(diff, t as i64);
 
-                let actual_delay = now_second() - target_ms2 as u64;
+                let actual_delay = now_second() - recv_ms1 as u64;
                 println!(
                     "t:{},now:{},target_ms2:{},actual_delay:{}s",
                     t,
@@ -107,12 +108,7 @@ mod tests {
                     target_ms2,
                     actual_delay
                 );
-                assert!(
-                    actual_delay < 20,
-                    "Delay message arrived {}s late (tolerance: 10s)",
-                    actual_delay
-                );
-                payload == message_content
+                actual_delay - t <= 3
             };
 
             let subscribe_test_data = SubscribeTestData {
@@ -122,7 +118,8 @@ mod tests {
                 subscribe_properties: None,
             };
 
-            subscribe_data_with_options(&cli, subscribe_test_data, call_fn);
+            let res = subscribe_data_with_options(&cli, subscribe_test_data, call_fn).await;
+            assert!(res.is_ok(), "subscribe_data_with_options failed: {:?}", res);
             distinct_conn(cli);
         }
     }

@@ -24,6 +24,7 @@ use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use regex::Regex;
 use std::sync::Arc;
 use tokio::sync::broadcast;
+use tracing::warn;
 
 pub async fn start_topic_rewrite_convert_thread(
     cache_manager: Arc<MQTTCacheManager>,
@@ -35,7 +36,7 @@ pub async fn start_topic_rewrite_convert_thread(
         }
         Ok(())
     };
-    loop_select_ticket(ac_fn, 3000, &stop_send).await;
+    loop_select_ticket(ac_fn, 1000, &stop_send).await;
 }
 
 async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMqttBrokerError {
@@ -44,26 +45,44 @@ async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMq
     }
     let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
     rules.sort_by_key(|rule| rule.timestamp);
+
     for topic in cache_manager.broker_cache.topic_list.iter() {
         let topic_name = topic.topic_name.clone();
-        let mut new_topic_name = "".to_string();
+
         for rule in rules.iter() {
-            let allow = rule.action != TopicRewriteActionEnum::All.to_string()
-                || rule.action != TopicRewriteActionEnum::Publish.to_string();
+            let allow = rule.action == TopicRewriteActionEnum::All.to_string()
+                || rule.action == TopicRewriteActionEnum::Publish.to_string();
 
             if !allow {
                 continue;
             }
 
             if is_match_sub_and_topic(&rule.source_topic, &topic_name).is_ok() {
-                new_topic_name =
-                    gen_rewrite_topic(topic_name.to_string(), &rule.regex, &rule.dest_topic)?;
+                match gen_rewrite_topic(topic_name.clone(), &rule.regex, &rule.dest_topic) {
+                    Ok(new_topic_name) => {
+                        if new_topic_name != topic_name {
+                            tracing::info!(
+                                "Topic rewritten: {} -> {}, rule: {}",
+                                topic_name,
+                                new_topic_name,
+                                rule.source_topic
+                            );
+                            cache_manager.add_new_rewrite_name(&topic_name, &new_topic_name);
+                        }
+                        break;
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to compile regex for rule, topic:{}, pattern:{}, error:{}",
+                            topic_name, rule.regex, e
+                        );
+                        continue;
+                    }
+                }
             }
         }
-        if !new_topic_name.is_empty() {
-            cache_manager.add_new_rewrite_name(&topic_name, &new_topic_name);
-        }
     }
+
     cache_manager.set_re_calc_topic_rewrite(false).await;
     Ok(())
 }
@@ -73,19 +92,22 @@ fn gen_rewrite_topic(
     pattern: &str,
     template: &str,
 ) -> Result<String, MqttBrokerError> {
-    let prefix = String::new();
     let topic = decode_sub_path(&input);
     let re = Regex::new(pattern)?;
-    let mut rewrite_topic = template.to_string();
+
     if let Some(captures) = re.captures(topic.as_str()) {
+        let mut rewrite_topic = template.to_string();
+
         for (i, capture) in captures.iter().skip(1).enumerate() {
-            let prefix = format!("${}", (i + 1)).to_string();
-            rewrite_topic = rewrite_topic
-                .replace(&prefix, capture.unwrap().as_str())
-                .clone();
+            if let Some(matched_str) = capture {
+                let placeholder = format!("${}", i + 1);
+                rewrite_topic = rewrite_topic.replace(&placeholder, matched_str.as_str());
+            }
         }
-        return Ok(format!("{prefix}{rewrite_topic}"));
+
+        return Ok(rewrite_topic);
     }
+
     Ok(input)
 }
 
@@ -99,52 +121,6 @@ mod tests {
     use common_base::tools::now_millis;
     use tokio::time::sleep;
 
-    /// * Assume that the following topic rewrite rules have been added to the conf file:
-    ///  ```bash
-    ///  rewrite = [
-    ///    {
-    ///      action:       "all"
-    ///      source_topic: "y/+/z/#"
-    ///      dest_topic:   "y/z/$2"
-    ///      re:           "^y/(.+)/z/(.+)$"
-    ///    }
-    ///    {
-    ///      action:       "all"
-    ///      source_topic: "x/#"
-    ///      dest_topic:   "z/y/x/$1"
-    ///      re:           "^x/y/(.+)$"
-    ///    }
-    ///    {
-    ///      action:       "all"
-    ///      source_topic: "x/y/+"
-    ///      dest_topic:   "z/y/$1"
-    ///      re:           "^x/y/(\d+)$"
-    ///    }
-    ///  ]
-    ///  ```
-    ///  * At this time we subscribe to five topics: `y/a/z/b`, `y/def`, `x/1/2`, `x/y/2`, and `x/y/z`:
-    ///
-    ///  * `y/def` does not match any of the topic filters, so it does not perform topic rewriting,
-    ///    and just subscribes to `y/def` topics.
-    ///
-    ///  * `y/a/z/b` matches t   1he `y/+/z/#` topic filter, executes the first rule, and matches
-    ///    the element \[a、b\] through a regular expression, brings the matched second element
-    ///    into `y/z/$2`, and actually subscribes to the topic `y/z/b`.
-    ///
-    ///  * `x/1/2` matches `x/#` topic filter, executes the second rule. It does not match
-    ///    elements through regular expressions, does not perform topic rewrite, and actually
-    ///    subscribes to the topic of `x/1/2`.
-    ///
-    ///  * `x/y/2` matches two topic filters of `x/#` and `x/y/`+ at the same time, reads the
-    ///    configuration in reverse order, so it matches the third preferentially. Through
-    ///    regular replacement, it actually subscribed to the `z/y/2` topic.
-    ///
-    ///  * `x/y/z` matches two topic filters of `x/#` and `x/y/+` at the same time, reads the
-    ///    configuration in reverse order, so it matches the third preferentially. The element is
-    ///    not matched through the regular expression, the topic rewrite is not performed, and it
-    ///    actually subscribes to the `x/y/z` topic. It should be noted that even if the regular
-    ///    expression matching of the third fails, it will not match the rules of the second again.
-    ///
     const SRC_TOPICS: [&str; 5] = ["y/a/z/b", "y/def", "x/1/2", "x/y/2", "x/y/z"];
     const DST_TOPICS: [&str; 5] = ["y/z/b", "y/def", "x/1/2", "z/y/2", "x/y/z"];
 

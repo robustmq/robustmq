@@ -95,7 +95,7 @@ mod tests {
             bl0 && bl1 && bl2 && bl3 && bl4
         };
 
-        subscribe_data_by_qos(&cli, &topic, qos, call_fn);
+        subscribe_data_by_qos(&cli, &topic, qos, call_fn).unwrap();
         distinct_conn(cli);
     }
 }

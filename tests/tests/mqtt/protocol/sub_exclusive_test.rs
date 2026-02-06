@@ -17,7 +17,6 @@ mod tests {
     use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
-            ssl_by_type, ws_by_type,
         },
         ClientTestProperties,
     };
@@ -39,8 +38,6 @@ mod tests {
             mqtt_version: 5,
             client_id: client_id.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
@@ -57,8 +54,6 @@ mod tests {
             mqtt_version: 5,
             client_id: client_id1.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli1 = connect_server(&client_properties);
@@ -72,8 +67,6 @@ mod tests {
             mqtt_version: 5,
             client_id: client_id2.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli2 = connect_server(&client_properties);
@@ -88,8 +81,6 @@ mod tests {
             mqtt_version: 5,
             client_id: client_id3.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli3 = connect_server(&client_properties);

@@ -78,7 +78,7 @@ mod tests {
                 false
             };
 
-            subscribe_data_by_qos(&cli, &topic, qos, call_fn);
+            subscribe_data_by_qos(&cli, &topic, qos, call_fn).unwrap();
             distinct_conn(cli);
         }
     }

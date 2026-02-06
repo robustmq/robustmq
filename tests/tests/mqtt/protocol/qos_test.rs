@@ -91,7 +91,8 @@ mod tests {
                     }
                     false
                 };
-                subscribe_data_by_qos(&cli, &topic, qos, call_fn);
+                let res = subscribe_data_by_qos(&cli, &topic, qos, call_fn);
+                assert!(res.is_ok());
                 distinct_conn(cli);
             }
         }

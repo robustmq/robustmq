@@ -66,7 +66,7 @@ pub async fn try_auto_subscribe(
             filters: filters.clone(),
         };
 
-        match save_subscribe(SaveSubscribeContext {
+        save_subscribe(SaveSubscribeContext {
             client_id: client_id.clone(),
             protocol: protocol.clone(),
             client_pool: client_pool.clone(),
@@ -75,15 +75,7 @@ pub async fn try_auto_subscribe(
             subscribe: subscribe.clone(),
             subscribe_properties: None,
         })
-        .await
-        {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        .await?;
     }
     Ok(())
 }

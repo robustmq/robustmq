@@ -17,8 +17,8 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 pub mod http;
+pub mod meta;
 pub mod mysql;
-pub mod placement;
 pub mod postgresql;
 pub mod redis;
 pub mod storage_trait;

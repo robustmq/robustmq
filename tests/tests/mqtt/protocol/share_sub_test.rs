@@ -14,19 +14,18 @@
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-    use std::sync::mpsc::channel;
-    use std::time::Duration;
-
     use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
-            ssl_by_type, subscribe_data_by_qos, ws_by_type,
+            subscribe_data_by_qos,
         },
         ClientTestProperties,
     };
     use common_base::uuid::unique_id;
     use paho_mqtt::{Message, MessageBuilder};
+    use std::collections::HashSet;
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
     use tokio::time::sleep;
 
     #[tokio::test]
@@ -58,8 +57,6 @@ mod tests {
             mqtt_version: 5,
             client_id: client_id.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
@@ -69,7 +66,6 @@ mod tests {
             .payload(message_content.clone())
             .topic(pub_topic.clone())
             .qos(qos)
-            .retained(false)
             .finalize();
         publish_data(&cli, msg, false);
         distinct_conn(cli);
@@ -79,8 +75,6 @@ mod tests {
             mqtt_version: 5,
             client_id: client_id.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
@@ -89,7 +83,7 @@ mod tests {
             payload == message_content
         };
 
-        subscribe_data_by_qos(&cli, &sub_topic, qos, call_fn);
+        subscribe_data_by_qos(&cli, &sub_topic, qos, call_fn).unwrap();
         distinct_conn(cli);
     }
 
@@ -111,8 +105,6 @@ mod tests {
                 mqtt_version: 5,
                 client_id: client_id.to_string(),
                 addr: broker_addr_by_type(network),
-                ws: ws_by_type(network),
-                ssl: ssl_by_type(network),
                 ..Default::default()
             };
             let cli1 = connect_server(&client_properties);
@@ -122,7 +114,7 @@ mod tests {
                 payload.contains(&r1_message_content)
             };
 
-            subscribe_data_by_qos(&cli1, &r1_sub_topic, qos, call_fn);
+            subscribe_data_by_qos(&cli1, &r1_sub_topic, qos, call_fn).unwrap();
             distinct_conn(cli1);
         });
 
@@ -136,8 +128,6 @@ mod tests {
                 mqtt_version: 5,
                 client_id: client_id.to_string(),
                 addr: broker_addr_by_type(network),
-                ws: ws_by_type(network),
-                ssl: ssl_by_type(network),
                 ..Default::default()
             };
             let cli2 = connect_server(&client_properties);
@@ -147,7 +137,7 @@ mod tests {
                 payload.contains(&r2_message_content)
             };
 
-            subscribe_data_by_qos(&cli2, &r2_sub_topic, qos, call_fn);
+            subscribe_data_by_qos(&cli2, &r2_sub_topic, qos, call_fn).unwrap();
             distinct_conn(cli2);
         });
 
@@ -161,8 +151,6 @@ mod tests {
                 mqtt_version: 5,
                 client_id: client_id.to_string(),
                 addr: broker_addr_by_type(network),
-                ws: ws_by_type(network),
-                ssl: ssl_by_type(network),
                 ..Default::default()
             };
             let cli3 = connect_server(&client_properties);
@@ -172,7 +160,7 @@ mod tests {
                 payload.contains(&r3_message_content)
             };
 
-            subscribe_data_by_qos(&cli3, &r3_sub_topic, qos, call_fn);
+            subscribe_data_by_qos(&cli3, &r3_sub_topic, qos, call_fn).unwrap();
             distinct_conn(cli3);
         });
 
@@ -183,8 +171,6 @@ mod tests {
             mqtt_version: 5,
             client_id: client_id.to_string(),
             addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
             ..Default::default()
         };
         let cli = connect_server(&client_properties);
@@ -194,7 +180,6 @@ mod tests {
                 .payload(format!("{},{}", message_content, i))
                 .topic(pub_topic.clone())
                 .qos(qos)
-                .retained(false)
                 .finalize();
             publish_data(&cli, msg, false);
         }
