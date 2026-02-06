@@ -36,7 +36,7 @@ pub async fn start_topic_rewrite_convert_thread(
         }
         Ok(())
     };
-    loop_select_ticket(ac_fn, 3000, &stop_send).await;
+    loop_select_ticket(ac_fn, 1000, &stop_send).await;
 }
 
 async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMqttBrokerError {
@@ -45,10 +45,10 @@ async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMq
     }
     let mut rules: Vec<MqttTopicRewriteRule> = cache_manager.get_all_topic_rewrite_rule();
     rules.sort_by_key(|rule| rule.timestamp);
-    
+
     for topic in cache_manager.broker_cache.topic_list.iter() {
         let topic_name = topic.topic_name.clone();
-        
+
         for rule in rules.iter() {
             let allow = rule.action == TopicRewriteActionEnum::All.to_string()
                 || rule.action == TopicRewriteActionEnum::Publish.to_string();
@@ -61,6 +61,12 @@ async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMq
                 match gen_rewrite_topic(topic_name.clone(), &rule.regex, &rule.dest_topic) {
                     Ok(new_topic_name) => {
                         if new_topic_name != topic_name {
+                            tracing::info!(
+                                "Topic rewritten: {} -> {}, rule: {}",
+                                topic_name,
+                                new_topic_name,
+                                rule.source_topic
+                            );
                             cache_manager.add_new_rewrite_name(&topic_name, &new_topic_name);
                         }
                         break;
@@ -76,7 +82,7 @@ async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMq
             }
         }
     }
-    
+
     cache_manager.set_re_calc_topic_rewrite(false).await;
     Ok(())
 }
@@ -88,20 +94,20 @@ fn gen_rewrite_topic(
 ) -> Result<String, MqttBrokerError> {
     let topic = decode_sub_path(&input);
     let re = Regex::new(pattern)?;
-    
+
     if let Some(captures) = re.captures(topic.as_str()) {
         let mut rewrite_topic = template.to_string();
-        
+
         for (i, capture) in captures.iter().skip(1).enumerate() {
             if let Some(matched_str) = capture {
                 let placeholder = format!("${}", i + 1);
                 rewrite_topic = rewrite_topic.replace(&placeholder, matched_str.as_str());
             }
         }
-        
+
         return Ok(rewrite_topic);
     }
-    
+
     Ok(input)
 }
 

@@ -204,7 +204,7 @@ mod tests {
             distinct_conn(cli);
             true
         };
-        subscribe_data_by_qos(&cli, &request_topic, qos, call_fn);
+        subscribe_data_by_qos(&cli, &request_topic, qos, call_fn).unwrap();
         distinct_conn(cli);
 
         // subscribe request topic
@@ -239,7 +239,8 @@ mod tests {
             &format!("{}{}", response_topic_prefix, response_topic),
             qos,
             call_fn,
-        );
+        )
+        .unwrap();
         distinct_conn(cli);
     }
 }

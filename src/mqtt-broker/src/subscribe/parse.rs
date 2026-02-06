@@ -59,7 +59,7 @@ pub struct ParseSubscribeContext {
 #[derive(Clone)]
 struct AddDirectlyPushContext {
     pub subscribe_manager: Arc<SubscribeManager>,
-    pub topic: Topic,
+    pub topic: String,
     pub client_id: String,
     pub protocol: MqttProtocol,
     pub sub_identifier: Option<usize>,
@@ -161,17 +161,20 @@ pub async fn parse_subscribe_by_new_subscribe(
 
     for row in cache_manager.broker_cache.topic_list.iter() {
         let topic = row.value();
-        parse_subscribe(ParseSubscribeContext {
-            client_pool: client_pool.clone(),
-            subscribe_manager: subscribe_manager.clone(),
-            client_id: subscribe.client_id.clone(),
-            topic: topic.clone(),
-            protocol: subscribe.protocol.clone(),
-            pkid: subscribe.pkid,
-            filter: subscribe.filter.clone(),
-            subscribe_properties: subscribe.subscribe_properties.clone(),
-            rewrite_sub_path: rewrite_sub_path.clone(),
-        })
+        parse_subscribe(
+            cache_manager,
+            ParseSubscribeContext {
+                client_pool: client_pool.clone(),
+                subscribe_manager: subscribe_manager.clone(),
+                client_id: subscribe.client_id.clone(),
+                topic: topic.clone(),
+                protocol: subscribe.protocol.clone(),
+                pkid: subscribe.pkid,
+                filter: subscribe.filter.clone(),
+                subscribe_properties: subscribe.subscribe_properties.clone(),
+                rewrite_sub_path: rewrite_sub_path.clone(),
+            },
+        )
         .await?;
     }
     Ok(())
@@ -200,17 +203,20 @@ pub async fn parse_subscribe_by_new_topic(
         }
         let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.path);
 
-        parse_subscribe(ParseSubscribeContext {
-            client_pool: client_pool.clone(),
-            subscribe_manager: subscribe_manager.clone(),
-            client_id: subscribe.client_id.clone(),
-            topic: topic.clone(),
-            protocol: subscribe.protocol.clone(),
-            pkid: subscribe.pkid,
-            filter: subscribe.filter.clone(),
-            subscribe_properties: subscribe.subscribe_properties.clone(),
-            rewrite_sub_path: rewrite_sub_path.clone(),
-        })
+        parse_subscribe(
+            cache_manager,
+            ParseSubscribeContext {
+                client_pool: client_pool.clone(),
+                subscribe_manager: subscribe_manager.clone(),
+                client_id: subscribe.client_id.clone(),
+                topic: topic.clone(),
+                protocol: subscribe.protocol.clone(),
+                pkid: subscribe.pkid,
+                filter: subscribe.filter.clone(),
+                subscribe_properties: subscribe.subscribe_properties.clone(),
+                rewrite_sub_path: rewrite_sub_path.clone(),
+            },
+        )
         .await?;
     }
     Ok(())
@@ -246,19 +252,29 @@ fn create_subscriber(
 
 /// Matches a subscription with a topic and adds it to the appropriate push manager.
 /// Used both when a new subscription is created and when a new topic is created.
-async fn parse_subscribe(context: ParseSubscribeContext) -> ResultMqttBrokerError {
+async fn parse_subscribe(
+    cache_manager: &Arc<MQTTCacheManager>,
+    context: ParseSubscribeContext,
+) -> ResultMqttBrokerError {
     let sub_identifier = if let Some(properties) = context.subscribe_properties.clone() {
         properties.subscription_identifier
     } else {
         None
     };
 
+    let new_topic_name =
+        if let Some(topic) = cache_manager.get_new_rewrite_name(&context.topic.topic_name) {
+            topic
+        } else {
+            context.topic.topic_name.clone()
+        };
+
     if is_mqtt_share_subscribe(&context.filter.path) {
         add_share_push(
             &context.subscribe_manager,
             &context.client_pool,
             &AddSharePushContext {
-                topic_name: context.topic.topic_name.to_owned(),
+                topic_name: new_topic_name,
                 client_id: context.client_id.to_owned(),
                 protocol: context.protocol.clone(),
                 sub_identifier,
@@ -270,7 +286,7 @@ async fn parse_subscribe(context: ParseSubscribeContext) -> ResultMqttBrokerErro
     } else {
         add_directly_push(AddDirectlyPushContext {
             subscribe_manager: context.subscribe_manager.clone(),
-            topic: context.topic.clone(),
+            topic: new_topic_name,
             client_id: context.client_id.clone(),
             protocol: context.protocol.clone(),
             sub_identifier,
@@ -325,22 +341,19 @@ fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerError {
 
     let new_path = context.rewrite_sub_path.as_deref().unwrap_or(path);
 
-    if is_match_sub_and_topic(new_path, &context.topic.topic_name).is_ok() {
+    if is_match_sub_and_topic(new_path, &context.topic).is_ok() {
         debug!(
             "Adding direct subscription: client='{}', path='{}', topic='{}'",
-            context.client_id, context.filter.path, context.topic.topic_name
+            context.client_id, context.filter.path, context.topic
         );
 
-        let group_name = directly_group_name(
-            &context.client_id,
-            &context.filter.path,
-            &context.topic.topic_name,
-        );
+        let group_name =
+            directly_group_name(&context.client_id, &context.filter.path, &context.topic);
 
         let sub = create_subscriber(
             context.protocol,
             context.client_id,
-            context.topic.topic_name.clone(),
+            context.topic.clone(),
             group_name,
             &context.filter,
             context.sub_identifier,
@@ -350,7 +363,7 @@ fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerError {
 
         context
             .subscribe_manager
-            .add_directly_sub(&context.topic.topic_name, &sub);
+            .add_directly_sub(&context.topic, &sub);
     }
     Ok(())
 }
@@ -358,7 +371,6 @@ fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metadata_struct::mqtt::topic::Topic;
     use protocol::mqtt::common::{QoS, RetainHandling};
 
     fn create_test_filter(path: &str) -> Filter {
@@ -397,11 +409,7 @@ mod tests {
     fn test_add_directly_push() {
         let manager = Arc::new(SubscribeManager::new());
         let filter = create_test_filter("topic");
-        let topic = Topic {
-            topic_name: "topic".to_string(),
-            create_time: now_second(),
-            ..Default::default()
-        };
+        let topic = "topic".to_string();
         let context = AddDirectlyPushContext {
             subscribe_manager: manager.clone(),
             topic,
@@ -421,11 +429,7 @@ mod tests {
     fn test_add_directly_push_with_wildcard() {
         let manager = Arc::new(SubscribeManager::new());
         let filter = create_test_filter("test/#");
-        let topic = Topic {
-            topic_name: "test/topic".to_string(),
-            create_time: now_second(),
-            ..Default::default()
-        };
+        let topic = "topic".to_string();
         let context = AddDirectlyPushContext {
             subscribe_manager: manager.clone(),
             topic,

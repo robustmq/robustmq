@@ -62,6 +62,7 @@ pub mod sub_opt_retain_as_publish_test;
 pub mod sub_opt_retain_handling_test;
 pub mod sub_wildcards_test;
 pub mod topic_alias_test;
+pub mod topic_rewrite_test;
 pub mod user_properties_test;
 pub mod user_test;
 
@@ -70,4 +71,3 @@ pub mod connect_authentication_test;
 mod flapping_detect_test;
 pub mod message_expire_test;
 mod quic_server;
-pub mod topic_rewrite_test;

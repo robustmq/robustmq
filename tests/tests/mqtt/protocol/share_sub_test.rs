@@ -83,7 +83,7 @@ mod tests {
             payload == message_content
         };
 
-        subscribe_data_by_qos(&cli, &sub_topic, qos, call_fn);
+        subscribe_data_by_qos(&cli, &sub_topic, qos, call_fn).unwrap();
         distinct_conn(cli);
     }
 
@@ -114,7 +114,7 @@ mod tests {
                 payload.contains(&r1_message_content)
             };
 
-            subscribe_data_by_qos(&cli1, &r1_sub_topic, qos, call_fn);
+            subscribe_data_by_qos(&cli1, &r1_sub_topic, qos, call_fn).unwrap();
             distinct_conn(cli1);
         });
 
@@ -137,7 +137,7 @@ mod tests {
                 payload.contains(&r2_message_content)
             };
 
-            subscribe_data_by_qos(&cli2, &r2_sub_topic, qos, call_fn);
+            subscribe_data_by_qos(&cli2, &r2_sub_topic, qos, call_fn).unwrap();
             distinct_conn(cli2);
         });
 
@@ -160,7 +160,7 @@ mod tests {
                 payload.contains(&r3_message_content)
             };
 
-            subscribe_data_by_qos(&cli3, &r3_sub_topic, qos, call_fn);
+            subscribe_data_by_qos(&cli3, &r3_sub_topic, qos, call_fn).unwrap();
             distinct_conn(cli3);
         });
 

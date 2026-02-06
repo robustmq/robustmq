@@ -210,7 +210,12 @@ pub fn publish_data(cli: &Client, message: Message, is_err: bool) {
     }
 }
 
-pub fn subscribe_data_by_qos<T>(cli: &Client, sub_topic: &str, sub_qos: i32, call_fn: T)
+pub fn subscribe_data_by_qos<T>(
+    cli: &Client,
+    sub_topic: &str,
+    sub_qos: i32,
+    call_fn: T,
+) -> Result<(), String>
 where
     T: Fn(Message) -> bool,
 {
@@ -223,7 +228,8 @@ pub fn subscribe_data_by_qos_with_timeout<T>(
     sub_qos: i32,
     timeout: Duration,
     call_fn: T,
-) where
+) -> Result<(), String>
+where
     T: Fn(Message) -> bool,
 {
     let rx = cli.start_consuming();
@@ -233,9 +239,10 @@ pub fn subscribe_data_by_qos_with_timeout<T>(
     let start = Instant::now();
     loop {
         if start.elapsed() >= timeout {
-            panic!(
-                "subscribe_data_by_qos timeout: sub_topic={sub_topic}, sub_qos={sub_qos}, timeout={timeout:?}"
-            );
+            return Err(format!(
+                "subscribe_data_with_options timeout after {} seconds",
+                timeout.as_secs()
+            ));
         }
 
         let res = rx.recv_timeout(Duration::from_secs(10));
@@ -243,7 +250,7 @@ pub fn subscribe_data_by_qos_with_timeout<T>(
             assert!(msg_opt.is_some());
             let msg = msg_opt.unwrap();
             if call_fn(msg) {
-                break;
+                return Ok(());
             }
         }
     }

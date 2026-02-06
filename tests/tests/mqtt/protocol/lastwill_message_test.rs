@@ -87,7 +87,8 @@ mod tests {
             bl0 && ct == content_type
         };
 
-        subscribe_data_by_qos(&cli, &will_topic, qos, call_fn);
+        let res = subscribe_data_by_qos(&cli, &will_topic, qos, call_fn);
+        assert!(res.is_ok());
         distinct_conn(cli);
     }
 }
