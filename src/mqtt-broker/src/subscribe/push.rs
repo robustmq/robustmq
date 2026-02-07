@@ -365,7 +365,11 @@ pub async fn send_message_to_client(
                 return Err(MqttBrokerError::WebsocketEncodePacketFailed(e.to_string()));
             }
             connection_manager
-                .write_websocket_frame(resp.connection_id, response, Message::Binary(buff.to_vec()))
+                .write_websocket_frame(
+                    resp.connection_id,
+                    response,
+                    Message::Binary(buff.to_vec().into()),
+                )
                 .await?;
         }
         (false, true) => {

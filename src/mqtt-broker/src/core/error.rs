@@ -218,6 +218,15 @@ pub enum MqttBrokerError {
     #[error("Publish message was delayed, the target Topic failed to resolve, Topic name {0}")]
     DelayPublishDecodeTopicNameFail(String),
 
+    #[error("Delay interval {0} exceeds maximum allowed value (42949669 seconds)")]
+    DelayIntervalTooLarge(u64),
+
+    #[error("Missing target shard name for delay message")]
+    MissingTargetShardName,
+
+    #[error("Empty topic name in delay message")]
+    EmptyDelayTopicName,
+
     #[error("Invalid schema type {0}")]
     InvalidSchemaType(String),
 

@@ -125,6 +125,7 @@ allow = [
     "CDDL-1.0",
     "CDLA-Permissive-2.0",
     "MPL-2.0",
+    "OpenSSL"
 ]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the

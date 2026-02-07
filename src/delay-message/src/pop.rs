@@ -13,12 +13,13 @@
 // limitations under the License.
 
 use crate::delay::{delete_delay_index_info, delete_delay_message, DELAY_QUEUE_MESSAGE_TOPIC};
-use crate::manager::DelayMessageManager;
+use crate::manager::{DelayMessageManager, DELAY_MESSAGE_SAVE_MS};
 use common_base::error::common::CommonError;
+use common_base::tools::now_second;
 use futures::StreamExt;
-use metadata_struct::{
-    delay_info::DelayMessageIndexInfo, storage::convert::convert_engine_record_to_adapter,
-};
+use metadata_struct::delay_info::DelayMessageIndexInfo;
+use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
@@ -80,12 +81,15 @@ pub async fn pop_delay_queue(
             // Drop the lock before spawning to avoid holding it
             drop(delay_queue);
 
+            println!("delay_message:{:?}", delay_message);
+
             // Spawn task to send delay message to avoid blocking the pop loop
             let raw_delay_message_manager = delay_message_manager.clone();
             tokio::spawn(async move {
                 if let Err(e) = delay_message_process(
                     &raw_delay_message_manager.storage_driver_manager,
                     &delay_message,
+                    now_second(),
                 )
                 .await
                 {
@@ -100,7 +104,7 @@ pub async fn pop_delay_queue(
                 "Delay queue shard {} returned None from next() - queue may be empty or in unexpected state",
                 shard_no
             );
-            sleep(Duration::from_millis(100)).await;
+            sleep(Duration::from_millis(10)).await;
         }
         return Ok(());
     }
@@ -112,12 +116,23 @@ pub async fn pop_delay_queue(
 pub async fn delay_message_process(
     storage_driver_manager: &Arc<StorageDriverManager>,
     delay_info: &DelayMessageIndexInfo,
+    trigger_time: u64,
 ) -> Result<(), CommonError> {
-    match send_delay_message_to_shard(storage_driver_manager, delay_info).await {
+    let pop_time = now_second();
+
+    match send_delay_message_to_shard(storage_driver_manager, delay_info, trigger_time).await {
         Ok(offset) => {
+            let send_success_time = now_second();
+            let processing_duration = send_success_time - pop_time;
+
             info!(
-                "Delay message processed successfully, target topic:{} offset: {}",
-                delay_info.target_topic_name, offset
+                "Delay message processed successfully. unique_id={}, target_topic={}, offset={}, pop_time={}, send_success_time={}, processing_duration={}s",
+                delay_info.unique_id,
+                delay_info.target_topic_name,
+                offset,
+                pop_time,
+                send_success_time,
+                processing_duration
             );
         }
         Err(e) => {
@@ -136,6 +151,7 @@ pub async fn delay_message_process(
 async fn send_delay_message_to_shard(
     storage_driver_manager: &Arc<StorageDriverManager>,
     delay_message: &DelayMessageIndexInfo,
+    trigger_time: u64,
 ) -> Result<u64, CommonError> {
     // read data
     let results = storage_driver_manager
@@ -166,7 +182,16 @@ async fn send_delay_message_to_shard(
         )));
     };
 
-    let send_record = convert_engine_record_to_adapter(record);
+    let mut msg = MqttMessage::decode(&record.data)?;
+    let user_properties = if let Some(mut properties) = msg.user_properties.clone() {
+        properties.push((DELAY_MESSAGE_SAVE_MS.to_string(), trigger_time.to_string()));
+        properties
+    } else {
+        return Err(CommonError::CommonError("".to_string()));
+    };
+    msg.user_properties = Some(user_properties);
+
+    let send_record = AdapterWriteRecord::from_bytes(msg.encode()?);
 
     // send to target topic
     let resp = storage_driver_manager

@@ -27,6 +27,7 @@ tonic.workspace = true
 tower-http = { workspace = true, features = ["cors"] }
 tonic-web.workspace = true
 tokio.workspace = true
+rustls.workspace = true
 common-base.workspace = true
 tower.workspace = true
 protocol.workspace = true

@@ -15,7 +15,7 @@
 use crate::core::error::MqttBrokerError;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::security::AuthStorageAdapter;
-use axum::async_trait;
+use async_trait::async_trait;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};

@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use axum::async_trait;
+use async_trait::async_trait;
 use elasticsearch::{
     auth::Credentials,
     http::{

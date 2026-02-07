@@ -18,7 +18,7 @@ use crate::security::AuthStorageAdapter;
 use crate::storage::acl::AclStorage;
 use crate::storage::blacklist::BlackListStorage;
 use crate::storage::user::UserStorage;
-use axum::async_trait;
+use async_trait::async_trait;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;

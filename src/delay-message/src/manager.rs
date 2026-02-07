@@ -36,7 +36,12 @@ use std::{
 use storage_adapter::driver::StorageDriverManager;
 use tokio::{sync::broadcast, time::Instant};
 use tokio_util::time::DelayQueue;
-use tracing::{debug, error};
+use tracing::{error, info};
+
+pub const DELAY_MESSAGE_FLAG: &str = "delay_message_flag";
+pub const DELAY_MESSAGE_RECV_MS: &str = "delay_message_recv_ms";
+pub const DELAY_MESSAGE_TARGET_MS: &str = "delay_message_target_ms";
+pub const DELAY_MESSAGE_SAVE_MS: &str = "delay_message_save_ms";
 
 pub async fn start_delay_message_manager_thread(
     delay_message_manager: &Arc<DelayMessageManager>,
@@ -86,9 +91,10 @@ impl DelayMessageManager {
     pub async fn send(
         &self,
         target_topic: &str,
-        delay_seconds: u64,
+        target_timestamp: u64,
         data: AdapterWriteRecord,
     ) -> Result<String, CommonError> {
+        info!("0");
         let delay_message_id = unique_id();
         let offset =
             save_delay_message(&self.storage_driver_manager, &delay_message_id, data).await?;
@@ -97,7 +103,7 @@ impl DelayMessageManager {
             unique_id: delay_message_id.clone(),
             target_topic_name: target_topic.to_string(),
             offset,
-            delay_timestamp: now_second() + delay_seconds,
+            target_timestamp,
         };
 
         save_delay_index_info(&self.storage_driver_manager, &delay_index_info).await?;
@@ -126,22 +132,28 @@ impl DelayMessageManager {
             % self.delay_queue_num;
 
         if let Some(mut delay_queue) = self.delay_queue_list.get_mut(&shard_no) {
-            let now = now_second();
-            let delay_duration = if delay_info.delay_timestamp > now {
-                Duration::from_secs(delay_info.delay_timestamp - now)
+            let current_time = now_second();
+            let delay_duration = if delay_info.target_timestamp > current_time {
+                Duration::from_secs(delay_info.target_timestamp - current_time)
             } else {
                 Duration::from_secs(0)
             };
+            let target_instant = Instant::now() + delay_duration;
+            let expected_trigger_time = current_time + delay_duration.as_secs();
 
-            debug!(
-                "Adding message to delay queue: shard_no={}, target={}, delay={}s, will_expire_at={}",
-                shard_no,
+            info!(
+                "Insert delay message to queue. unique_id={}, target_topic={}, shard_no={}, target_timestamp={}, current_time={}, delay_duration={}s, expected_trigger_time={}, time_match={}",
+                delay_info.unique_id,
                 delay_info.target_topic_name,
+                shard_no,
+                delay_info.target_timestamp,
+                current_time,
                 delay_duration.as_secs(),
-                delay_info.delay_timestamp
+                expected_trigger_time,
+                expected_trigger_time == delay_info.target_timestamp
             );
 
-            delay_queue.insert_at(delay_info.clone(), Instant::now() + delay_duration);
+            delay_queue.insert_at(delay_info.clone(), target_instant);
 
             let capacity = delay_queue.capacity() as i64;
             let used = delay_queue.len() as i64;
@@ -157,7 +169,7 @@ impl DelayMessageManager {
                 shard_no,
                 delay_info.target_topic_name,
                 delay_info.offset,
-                delay_info.delay_timestamp
+                delay_info.target_timestamp
             );
         }
     }
@@ -168,77 +180,4 @@ impl DelayMessageManager {
 }
 
 #[cfg(test)]
-mod test {
-    // use super::*;
-    // use crate::delay::DELAY_QUEUE_INFO_SHARD_NAME;
-    //     use common_base::tools::now_second;
-    // use common_base::uuid::unique_id;
-    // use metadata_struct::storage::adapter_offset::AdapterShardInfo;
-    // use storage_adapter::storage::test_build_memory_storage_driver;
-
-    // #[tokio::test]
-    // async fn manager_core_test() {
-    //     let manager = Arc::new(DelayMessageManager::new_for_test(
-    //         test_build_memory_storage_driver(),
-    //         3,
-    //     ));
-    //     manager.start();
-
-    //     assert_eq!(manager.delay_queue_list.len(), 3);
-    //     assert_eq!(
-    //         (0..9)
-    //             .map(|_| manager.get_target_shard_no())
-    //             .collect::<Vec<_>>(),
-    //         vec![0, 1, 2, 0, 1, 2, 0, 1, 2]
-    //     );
-
-    //     let delay_info = DelayMessageIndexInfo {
-    //         unique_id: unique_id(),
-    //         delay_shard_name: "test".to_string(),
-    //         target_topic_name: "target".to_string(),
-    //         offset: 0,
-    //         delay_timestamp: now_second() + 10,
-    //         shard_no: 0,
-    //     };
-    //     manager.send_to_delay_queue(0, &delay_info);
-    //     assert_eq!(manager.delay_queue_list.get(&0).unwrap().len(), 1);
-    // }
-
-    // #[tokio::test]
-    // async fn send_test() {
-    //     let manager = Arc::new(DelayMessageManager::new_for_test(
-    //         test_build_memory_storage_driver(),
-    //         2,
-    //     ));
-    //     manager.start();
-
-    //     for i in 0..2 {
-    //         manager
-    //             .message_storage_adapter
-    //             .create_shard(&AdapterShardInfo {
-    //                 shard_name: crate::delay::get_delay_message_topic_name(i),
-    //                 ..Default::default()
-    //             })
-    //             .await
-    //             .unwrap();
-    //     }
-    //     manager
-    //         .message_storage_adapter
-    //         .create_shard(&AdapterShardInfo {
-    //             shard_name: DELAY_QUEUE_INFO_SHARD_NAME.to_string(),
-    //             ..Default::default()
-    //         })
-    //         .await
-    //         .unwrap();
-
-    //     manager
-    //         .send(
-    //             &unique_id(),
-    //             10,
-    //             AdapterWriteRecord::from_string("test".to_string()),
-    //         )
-    //         .await
-    //         .unwrap();
-    //     assert_eq!(manager.delay_queue_list.get(&0).unwrap().len(), 1);
-    // }
-}
+mod test {}

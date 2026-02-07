@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::storage::StorageAdapter;
-use axum::async_trait;
+use async_trait::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::storage::adapter_offset::{
     AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,

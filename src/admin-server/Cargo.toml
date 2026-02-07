@@ -20,6 +20,7 @@ license.workspace = true
 
 [dependencies]
 axum.workspace = true
+async-trait.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 serde_json.workspace = true

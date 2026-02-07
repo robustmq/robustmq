@@ -19,5 +19,5 @@ pub struct DelayMessageIndexInfo {
     pub unique_id: String,
     pub target_topic_name: String,
     pub offset: u64,
-    pub delay_timestamp: u64,
+    pub target_timestamp: u64,
 }

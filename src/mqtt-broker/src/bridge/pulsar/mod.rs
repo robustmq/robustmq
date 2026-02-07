@@ -21,7 +21,7 @@ use crate::{
     },
     core::tool::ResultMqttBrokerError,
 };
-use axum::async_trait;
+use async_trait::async_trait;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     mqtt::bridge::config_pulsar::PulsarConnectorConfig, mqtt::bridge::connector::MQTTConnector,

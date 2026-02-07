@@ -30,6 +30,9 @@ struct ArgsParams {
 }
 
 fn main() {
+    // Initialize rustls crypto provider before any TLS operations
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     let args = ArgsParams::parse();
     init_broker_conf_by_path(&args.conf);
     #[allow(unused_variables)]

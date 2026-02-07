@@ -14,9 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use mqtt_broker::core::connection::REQUEST_RESPONSE_PREFIX_NAME;
-    use paho_mqtt::{Client, PropertyCode, ReasonCode};
-
     use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, build_conn_pros, build_create_conn_pros,
@@ -25,6 +22,8 @@ mod tests {
         },
         ClientTestProperties,
     };
+    use mqtt_broker::core::connection::REQUEST_RESPONSE_PREFIX_NAME;
+    use paho_mqtt::{Client, PropertyCode, ReasonCode};
     #[tokio::test]
     async fn response_properties_check_test() {
         for network in network_types() {

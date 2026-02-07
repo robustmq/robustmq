@@ -15,7 +15,7 @@
 use crate::core::error::MqttBrokerError;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::security::AuthStorageAdapter;
-use axum::async_trait;
+use async_trait::async_trait;
 use common_base::tools::now_second;
 use common_config::security::HttpConfig;
 use dashmap::DashMap;

@@ -22,7 +22,7 @@ use crate::mqtt::{MqttService, MqttServiceConnectContext, MqttServiceContext};
 use crate::security::AuthDriver;
 use crate::subscribe::common::is_error_by_suback;
 use crate::subscribe::manager::SubscribeManager;
-use axum::async_trait;
+use async_trait::async_trait;
 use broker_core::cache::BrokerCacheManager;
 use common_base::tools::now_millis;
 use common_metrics::mqtt::event::{

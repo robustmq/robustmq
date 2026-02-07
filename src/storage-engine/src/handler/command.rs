@@ -19,7 +19,7 @@ use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
 use crate::filesegment::write::WriteManager;
 use crate::handler::data::{read_data_req, write_data_req};
-use axum::async_trait;
+use async_trait::async_trait;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
 use network_server::common::connection_manager::ConnectionManager;

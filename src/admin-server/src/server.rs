@@ -44,8 +44,6 @@ use crate::{
     path::*,
     state::HttpState,
 };
-use axum::response::Html;
-use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::{
     extract::{ConnectInfo, Request},
@@ -56,11 +54,12 @@ use axum::{
     Router,
 };
 use common_metrics::http::record_http_request;
-use reqwest::StatusCode;
 use std::path::PathBuf;
 use std::{net::SocketAddr, sync::Arc, time::Instant};
-use tokio::fs;
-use tower_http::{cors::CorsLayer, services::ServeDir};
+use tower_http::{
+    cors::CorsLayer,
+    services::{ServeDir, ServeFile},
+};
 use tracing::{debug, info, warn};
 
 pub struct AdminServer {}
@@ -100,9 +99,9 @@ impl AdminServer {
     fn static_route(&self) -> Router<Arc<HttpState>> {
         let static_dir = PathBuf::from("./dist");
 
-        Router::new()
-            .nest_service("/", ServeDir::new(static_dir))
-            .fallback(serve_spa_fallback)
+        Router::new().fallback_service(
+            ServeDir::new(static_dir).not_found_service(ServeFile::new("./dist/index.html")),
+        )
     }
 
     fn api_route(&self) -> Router<Arc<HttpState>> {
@@ -209,19 +208,6 @@ impl AdminServer {
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
-    }
-}
-
-async fn serve_spa_fallback() -> impl IntoResponse {
-    let index_path = PathBuf::from("index.html");
-
-    match fs::read_to_string(&index_path).await {
-        Ok(content) => Html(content).into_response(),
-        Err(_) => (
-            StatusCode::NOT_FOUND,
-            "404 - Page not found. Missing the admin dashboard page",
-        )
-            .into_response(),
     }
 }
 

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::driver::StorageDriverManager;
-use axum::async_trait;
+use async_trait::async_trait;
 use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
 use common_base::uuid::unique_id;
