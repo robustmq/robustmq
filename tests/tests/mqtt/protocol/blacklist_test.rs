@@ -153,6 +153,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "127.0.0.1 whitelist affects other test cases"]
     async fn blacklist_ip_test() {
         let admin_client = create_test_env().await;
 
@@ -258,7 +259,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "reason"]
+    #[ignore = "127.0.0.1 whitelist affects other test cases"]
     async fn blacklist_ip_cidr_test() {
         let admin_client = create_test_env().await;
 
