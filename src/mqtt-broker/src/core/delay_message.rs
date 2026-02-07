@@ -155,10 +155,10 @@ mod test {
     fn decode_delay_message_test() {
         let msg = decode_delay_topic("$delayed/60/a/b").unwrap();
         assert_eq!(msg.target_topic_name, "/a/b");
-        assert_eq!(msg.delay_timestamp, now_second() + 60);
+        assert_eq!(msg.delay_timestamp, 60);
 
         let msg = decode_delay_topic("$delayed/0/topic").unwrap();
-        assert_eq!(msg.delay_timestamp, now_second());
+        assert_eq!(msg.delay_timestamp, 0);
     }
 
     #[test]
