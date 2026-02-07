@@ -36,24 +36,26 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Broker
-    tonic_build::configure().build_server(true).compile_protos(
-        &[
-            proto_root.join("src/broker/mqtt.proto").to_str().unwrap(),
-            proto_root
-                .join("src/broker/storage.proto")
-                .to_str()
-                .unwrap(),
-            proto_root.join("src/broker/common.proto").to_str().unwrap(),
-        ],
-        &[proto_root.join("src/").to_str().unwrap()],
-    )?;
+    tonic_prost_build::configure()
+        .build_server(true)
+        .compile_protos(
+            &[
+                proto_root.join("src/broker/mqtt.proto").to_str().unwrap(),
+                proto_root
+                    .join("src/broker/storage.proto")
+                    .to_str()
+                    .unwrap(),
+                proto_root.join("src/broker/common.proto").to_str().unwrap(),
+            ],
+            &[proto_root.join("src/").to_str().unwrap()],
+        )?;
 
     // meta service
     let config = {
         let mut c = prost_build::Config::new();
         c.type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]");
         c.protoc_arg("--experimental_allow_proto3_optional");
-        c.service_generator(tonic_build::configure().service_generator());
+        c.service_generator(tonic_prost_build::configure().service_generator());
         c
     };
     prost_validate_build::Builder::new().compile_protos_with_config(

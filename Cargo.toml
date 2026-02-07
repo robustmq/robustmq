@@ -87,7 +87,8 @@ tower-http = { version = "0.6.8", features = ["fs", "cors"] }
 # gRPC & Protocol Buffers
 # ====================
 tonic = "0.14.3"
-tonic-build = "0.14.3"
+tonic-prost = "0.14"
+tonic-prost-build = "0.14"
 tonic-web = "0.14.3"
 prost = "0.14.3"
 prost-build = "0.14.3"

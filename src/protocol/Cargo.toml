@@ -22,6 +22,7 @@ build = "build.rs"
 [dependencies]
 bytes.workspace = true
 tonic.workspace = true
+tonic-prost.workspace = true
 thiserror.workspace = true
 prost.workspace = true
 tokio-util.workspace = true
@@ -39,4 +40,4 @@ robustmq-test.workspace = true
 [build-dependencies]
 prost-build.workspace = true
 prost-validate-build.workspace = true
-tonic-build.workspace = true
+tonic-prost-build.workspace = true
