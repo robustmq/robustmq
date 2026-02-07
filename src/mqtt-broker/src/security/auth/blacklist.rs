@@ -79,13 +79,15 @@ pub fn is_blacklist(
 ) -> Result<bool, MqttBrokerError> {
     // todo: I believe this code can be refactored using the Chain of Responsibility pattern.
     let now = now_second();
-    let user = connection.login_user.as_deref().unwrap_or("");
-    // check user blacklist
-    if !user.is_empty() {
-        if let Some(data) = cache_manager.acl_metadata.blacklist_user.get(user) {
-            if data.end_time > now {
-                info!("user blacklist banned,user:{}", user);
-                return Ok(true);
+    if let Some(log) = login {
+        let login_user = log.username.to_string();
+        // check user blacklist
+        if !login_user.is_empty() {
+            if let Some(data) = cache_manager.acl_metadata.blacklist_user.get(&login_user) {
+                if data.end_time > now {
+                    info!("user blacklist banned,user:{}", login_user);
+                    return Ok(true);
+                }
             }
         }
 
@@ -172,7 +174,7 @@ pub fn is_blacklist(
 
     // check ip blacklist
     // Extract IP from "IP:Port" format (e.g., "127.0.0.1:53836" -> "127.0.0.1")
-    let source_ip = extract_ip_from_addr(&connection.source_ip_addr);
+    let source_ip = extract_ip_from_addr(source_ip_addr);
 
     // Check exact IP match
     if let Some(data) = cache_manager.acl_metadata.blacklist_ip.get(&source_ip) {
