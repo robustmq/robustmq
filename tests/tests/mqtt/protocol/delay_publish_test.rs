@@ -43,11 +43,7 @@ mod tests {
         distinct_conn(cli);
     }
 
-    fn verify_delay_message(
-        msg: &Message,
-        expected_content: &str,
-        expected_delay: u64,
-    ) -> bool {
+    fn verify_delay_message(msg: &Message, expected_content: &str, expected_delay: u64) -> bool {
         let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
         if msg.properties().len() != 5 {
             println!("properties:{:?}", msg.properties());
@@ -119,9 +115,8 @@ mod tests {
         };
         let cli = connect_server(&client_properties);
 
-        let call_fn = move |msg: Message| {
-            verify_delay_message(&msg, message_content, expected_delay)
-        };
+        let call_fn =
+            move |msg: Message| verify_delay_message(&msg, message_content, expected_delay);
 
         let subscribe_test_data = SubscribeTestData {
             sub_topic: sub_topic.to_string(),
@@ -140,7 +135,7 @@ mod tests {
         let network = "tcp";
         let qos = 1;
 
-        for t in [2, 4, 6] {
+        for t in [10, 20, 30] {
             let uniq_tp = uniq_topic();
             let topic = format!("$delayed/{}/{}", t, &uniq_tp[1..]);
 
