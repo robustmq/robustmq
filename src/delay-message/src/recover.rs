@@ -131,7 +131,7 @@ async fn process_delay_index_record(
     };
 
     let now = now_second();
-    if delay_info.delay_timestamp < now {
+    if delay_info.target_timestamp < now {
         handle_expired_delay_message(delay_message_manager, delay_info, now).await;
         return false;
     }
@@ -151,12 +151,14 @@ async fn handle_expired_delay_message(
          offset: {}, target: {}, expired by: {}s",
         delay_info.offset,
         delay_info.target_topic_name,
-        now - delay_info.delay_timestamp
+        now - delay_info.target_timestamp
     );
 
     let manager = delay_message_manager.clone();
     tokio::spawn(async move {
-        if let Err(e) = delay_message_process(&manager.storage_driver_manager, &delay_info).await {
+        if let Err(e) =
+            delay_message_process(&manager.storage_driver_manager, &delay_info, now_second()).await
+        {
             error!(
                 "Failed to send expired delay message (offset: {}): {:?}",
                 delay_info.offset, e

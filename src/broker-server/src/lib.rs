@@ -394,7 +394,7 @@ impl BrokerServer {
         let connector_manager = Arc::new(ConnectorManager::new());
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
         let delay_message_manager = Arc::new(
-            DelayMessageManager::new(client_pool.clone(), storage_driver_manager.clone(), 1)
+            DelayMessageManager::new(client_pool.clone(), storage_driver_manager.clone(), 5)
                 .await?,
         );
         let metrics_cache_manager = Arc::new(MQTTMetricsCache::new(rocksdb_engine_handler.clone()));
