@@ -1398,6 +1398,7 @@ checksum = "c3e64b0cc0439b12df2fa678eae89a1c56a529fd067a9115f7827f1fffd22b32"
 name = "cli-bench"
 version = "0.2.13"
 dependencies = [
+ "async-trait",
  "axum 0.8.8",
  "clap",
  "clap-cargo",

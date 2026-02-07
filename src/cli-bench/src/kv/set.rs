@@ -56,7 +56,7 @@ pub struct KvSetBenchArgs {
     pub pc_addrs: Vec<String>,
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 impl BenchMark for KvSetBenchArgs {
     fn validate(&self) -> Result<(), BenchMarkError> {
         Ok(())

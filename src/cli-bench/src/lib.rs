@@ -48,7 +48,7 @@ pub enum RobustMQBenchCommand {
     Rocksdb(RocksdbBenchArgs),
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 pub trait BenchMark {
     fn validate(&self) -> Result<(), BenchMarkError>;
     async fn do_bench(&self) -> Result<(), BenchMarkError>;
