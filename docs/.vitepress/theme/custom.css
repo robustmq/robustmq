@@ -209,3 +209,80 @@ html body * .text[data-v-4f9c455b] {
 @media (max-width: 960px) {
   /* 中等屏幕响应式调整 */
 }
+
+/* 学习MQTT按钮下拉菜单样式 - 单列显示 */
+/* 针对最后一个导航菜单（即"学习MQTT"菜单） */
+.VPNavBarMenuGroup:last-of-type .VPMenu .items {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  padding: 10px !important;
+  min-width: 280px !important;
+  max-width: 280px !important;
+}
+
+/* 菜单项样式 */
+.VPNavBarMenuGroup:last-of-type .VPMenu .items .VPMenuLink {
+  padding: 10px 14px !important;
+  border-radius: 8px !important;
+  transition: all 0.25s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  background: transparent !important;
+  white-space: nowrap !important;
+  text-decoration: none !important;
+}
+
+.VPNavBarMenuGroup:last-of-type .VPMenu .items .VPMenuLink:hover {
+  background: rgba(147, 51, 234, 0.1) !important;
+  transform: translateX(4px) !important;
+}
+
+.VPNavBarMenuGroup:last-of-type .VPMenu .items .VPMenuLink .link {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: var(--vp-c-text-1) !important;
+  line-height: 1.5 !important;
+}
+
+.VPNavBarMenuGroup:last-of-type .VPMenu .items .VPMenuLink:hover .link {
+  color: rgb(147, 51, 234) !important;
+}
+
+/* 菜单容器样式 - 右对齐 */
+.VPNavBarMenuGroup:last-of-type .VPMenu {
+  border-radius: 10px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid var(--vp-c-divider) !important;
+  background: var(--vp-c-bg-elv) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+/* 强制下拉菜单显示在右边 */
+.VPNavBarMenuGroup:last-of-type .VPFlyout {
+  right: 0 !important;
+  left: auto !important;
+}
+
+.VPNavBarMenuGroup:last-of-type .VPMenu {
+  right: 0 !important;
+  left: auto !important;
+  transform-origin: top right !important;
+}
+
+/* 移动端样式优化 */
+@media (max-width: 768px) {
+  .VPNavBarMenuGroup:last-of-type .VPMenu .items {
+    min-width: 260px !important;
+    max-width: 260px !important;
+    padding: 8px !important;
+  }
+  
+  .VPNavBarMenuGroup:last-of-type .VPMenu .items .VPMenuLink {
+    padding: 8px 12px !important;
+  }
+  
+  .VPNavBarMenuGroup:last-of-type .VPMenu .items .VPMenuLink:hover {
+    transform: translateX(2px) !important;
+  }
+}
