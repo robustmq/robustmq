@@ -78,7 +78,6 @@ pub fn is_blacklist(
     // todo: I believe this code can be refactored using the Chain of Responsibility pattern.
     let now = now_second();
     let user = connection.login_user.as_deref().unwrap_or("");
-    println!("connection:{:?}", connection);
     // check user blacklist
     if !user.is_empty() {
         if let Some(data) = cache_manager.acl_metadata.blacklist_user.get(user) {
@@ -175,7 +174,6 @@ pub fn is_blacklist(
     // check ip blacklist
     // Extract IP from "IP:Port" format (e.g., "127.0.0.1:53836" -> "127.0.0.1")
     let source_ip = extract_ip_from_addr(&connection.source_ip_addr);
-    println!("source_ip:{}", source_ip);
 
     // Check exact IP match
     if let Some(data) = cache_manager.acl_metadata.blacklist_ip.get(&source_ip) {
