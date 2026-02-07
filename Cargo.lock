@@ -1096,6 +1096,7 @@ dependencies = [
  "protocol",
  "rate-limit",
  "rocksdb-engine",
+ "rustls 0.23.36",
  "schema-register",
  "serde_json",
  "storage-adapter",
@@ -1453,6 +1454,7 @@ dependencies = [
  "common-base",
  "common-config",
  "mockall",
+ "rustls 0.23.36",
  "tokio",
 ]
 

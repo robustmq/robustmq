@@ -99,7 +99,7 @@ protofish = "0.5.3"
 # ====================
 # TLS & Security
 # ====================
-rustls = { version = "0.23.23", default-features = false }
+rustls = { version = "0.23.23", default-features = false, features = ["ring"] }
 rustls-pemfile = "2.2.0"
 rustls-pki-types = "1.11.0"
 tokio-rustls = { version = "0.26", default-features = false, features = [

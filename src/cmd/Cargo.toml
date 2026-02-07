@@ -36,6 +36,7 @@ clap.workspace = true
 common-base.workspace = true
 common-config.workspace = true
 tokio.workspace = true
+rustls.workspace = true
 cli-command.workspace = true
 cli-bench.workspace = true
 broker-server.workspace = true
