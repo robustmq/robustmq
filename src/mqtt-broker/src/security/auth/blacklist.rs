@@ -83,10 +83,6 @@ pub fn is_blacklist(
         let login_user = log.username.to_string();
         // check user blacklist
         if !login_user.is_empty() {
-            println!(
-                "blacklist_user:{:?}",
-                cache_manager.acl_metadata.blacklist_user.clone()
-            );
             if let Some(data) = cache_manager.acl_metadata.blacklist_user.get(&login_user) {
                 if data.end_time > now {
                     info!("user blacklist banned,user:{}", login_user);

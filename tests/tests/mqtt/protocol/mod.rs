@@ -42,6 +42,7 @@ pub mod delay_publish_test;
 pub mod keep_alive_test;
 pub mod lastwill_message_test;
 pub mod login_test;
+pub mod message_expire_test;
 pub mod network_test;
 pub mod packet_size_test;
 pub mod payload_format_test;
@@ -70,5 +71,4 @@ pub mod user_test;
 // todo
 pub mod connect_authentication_test;
 mod flapping_detect_test;
-pub mod message_expire_test;
 mod quic_server;

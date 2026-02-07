@@ -86,10 +86,7 @@ mod tests {
                 // subscribe
                 let call_fn = |msg: Message| {
                     let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                    if payload == message {
-                        return true;
-                    }
-                    false
+                    payload == message
                 };
                 let res = subscribe_data_by_qos(&cli, &topic, qos, call_fn);
                 assert!(res.is_ok());

@@ -219,7 +219,7 @@ pub fn subscribe_data_by_qos<T>(
 where
     T: Fn(Message) -> bool,
 {
-    subscribe_data_by_qos_with_timeout(cli, sub_topic, sub_qos, Duration::from_secs(60), call_fn)
+    subscribe_data_by_qos_with_timeout(cli, sub_topic, sub_qos, Duration::from_secs(30), call_fn)
 }
 
 pub fn subscribe_data_by_qos_with_timeout<T>(
