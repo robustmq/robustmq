@@ -131,12 +131,19 @@ async fn build_new_session(context: &BuildSessionContext) -> MqttSession {
         session_expiry,
         is_contain_last_will,
         last_will_delay_interval,
+        is_persist_session(&context.client_id),
     );
     let conf = broker_config();
     session.update_connection_id(Some(context.connect_id));
     session.update_broker_id(Some(conf.broker_id));
     session.update_reconnect_time();
     session
+}
+
+fn is_persist_session(_client_id: &str) -> bool {
+    // todo
+    let conf = broker_config();
+    conf.mqtt_runtime.durable_sessions_enable
 }
 
 async fn save_session(
@@ -193,7 +200,7 @@ mod test {
     #[tokio::test]
     pub async fn build_session_test() {
         let client_id = "client_id_test-**".to_string();
-        let session = MqttSession::new(client_id.clone(), 10, false, None);
+        let session = MqttSession::new(client_id.clone(), 10, false, None, true);
         assert_eq!(client_id, session.client_id);
         assert_eq!(10, session.session_expiry_interval);
         assert!(!session.is_contain_last_will);

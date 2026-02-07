@@ -153,7 +153,9 @@ impl DataRouteMqtt {
         let req = CreateSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
         let session = MqttSession::decode(&req.session)?;
-        storage.save(&req.client_id, session)?;
+        if session.is_persist_session {
+            storage.save(&req.client_id, session)?;
+        }
         Ok(())
     }
 

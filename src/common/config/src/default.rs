@@ -135,6 +135,7 @@ pub fn default_mqtt_runtime() -> MqttRuntime {
         default_user: "admin".to_string(),
         default_password: "robustmq".to_string(),
         max_connection_num: 1000000,
+        durable_sessions_enable: false, // Default: transient sessions (better performance)
     }
 }
 
