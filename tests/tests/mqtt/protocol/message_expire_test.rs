@@ -11,3 +11,107 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use common_base::uuid::unique_id;
+    use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode};
+    use tokio::time::sleep;
+
+    use crate::mqtt::protocol::{
+        common::{
+            broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
+            subscribe_data_by_qos,
+        },
+        ClientTestProperties,
+    };
+
+    #[tokio::test]
+    async fn message_not_expire_test() {
+        let network = "tcp";
+        let qos = 1;
+        let topic = format!(
+            "/message_not_expire_test/{}/{}/{}",
+            unique_id(),
+            network,
+            qos
+        );
+        let client_id =
+            build_client_id(format!("message_not_expire_test_{network}_{qos}").as_str());
+
+        let client_properties = ClientTestProperties {
+            mqtt_version: 5,
+            client_id: client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            ..Default::default()
+        };
+        let cli = connect_server(&client_properties);
+
+        let mut props = Properties::new();
+        props
+            .push_val(PropertyCode::MessageExpiryInterval, 30)
+            .unwrap();
+        let message = "message_not_expire_test mqtt message".to_string();
+        let msg = MessageBuilder::new()
+            .payload(message.clone())
+            .topic(topic.clone())
+            .qos(qos)
+            .properties(props)
+            .finalize();
+        publish_data(&cli, msg, false);
+
+        let call_fn = |msg: Message| {
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+            payload == message
+        };
+        let res = subscribe_data_by_qos(&cli, &topic, qos, call_fn);
+        assert!(res.is_ok());
+        distinct_conn(cli);
+    }
+
+    #[tokio::test]
+    async fn message_expire_test() {
+        let network = "tcp";
+        let qos = 1;
+        let topic = format!(
+            "/message_not_expire_test/{}/{}/{}",
+            unique_id(),
+            network,
+            qos
+        );
+        let client_id =
+            build_client_id(format!("message_not_expire_test_{network}_{qos}").as_str());
+
+        let client_properties = ClientTestProperties {
+            mqtt_version: 5,
+            client_id: client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            ..Default::default()
+        };
+        let cli = connect_server(&client_properties);
+
+        let mut props = Properties::new();
+        props
+            .push_val(PropertyCode::MessageExpiryInterval, 30)
+            .unwrap();
+        let message = "message_not_expire_test mqtt message".to_string();
+        let msg = MessageBuilder::new()
+            .payload(message.clone())
+            .topic(topic.clone())
+            .qos(qos)
+            .properties(props)
+            .finalize();
+        publish_data(&cli, msg, false);
+
+        sleep(Duration::from_secs(40)).await;
+        let call_fn = |msg: Message| {
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+            payload == message
+        };
+        let res = subscribe_data_by_qos(&cli, &topic, qos, call_fn);
+        assert!(res.is_err());
+        distinct_conn(cli);
+    }
+}

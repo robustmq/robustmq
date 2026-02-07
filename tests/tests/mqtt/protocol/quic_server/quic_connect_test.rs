@@ -14,7 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::mqtt::protocol::quic_server::common::build_client_endpoint;
     use network_server::quic::stream::{QuicFramedReadStream, QuicFramedWriteStream};
     use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
     use protocol::mqtt::codec::MqttCodec;
@@ -23,6 +22,8 @@ mod tests {
     use robustmq_test::mqtt::protocol::build_connect::build_test_mqtt4_connect_packet_wrapper;
     use std::time::Duration;
     use tokio::time::timeout;
+
+    use crate::mqtt::protocol::quic_server::build_client_endpoint;
 
     #[tokio::test]
     async fn quic_client_connect_test() {

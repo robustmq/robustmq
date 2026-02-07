@@ -101,7 +101,15 @@ impl MqttService {
         }
 
         // auth check
-        if self.auth_driver.auth_connect_check(&connection).await {
+        if self
+            .auth_driver
+            .auth_connect_check(
+                &connection.client_id,
+                &context.addr.to_string(),
+                &context.login,
+            )
+            .await
+        {
             return build_connect_ack_fail_packet(
                 &self.protocol,
                 ConnectReturnCode::Banned,
