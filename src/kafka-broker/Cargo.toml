@@ -20,3 +20,5 @@ license.workspace = true
 
 
 [dependencies]
+async-trait.workspace = true
+network-server.workspace = true

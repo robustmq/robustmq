@@ -198,7 +198,7 @@ async fn try_send_distinct_packet(
                 .write_websocket_frame(
                     context.connection.connect_id,
                     RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
-                    Message::Binary(buff.to_vec()),
+                    Message::Binary(buff.to_vec().into()),
                 )
                 .await?
         }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use axum::async_trait;
+use async_trait::async_trait;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;

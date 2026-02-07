@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::error::MqttBrokerError;
-use axum::async_trait;
+use async_trait::async_trait;
 
 pub mod http;
 pub mod jwt;

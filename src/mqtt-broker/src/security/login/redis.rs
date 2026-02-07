@@ -16,7 +16,7 @@ use super::Authentication;
 use crate::core::cache::MQTTCacheManager;
 use crate::core::error::MqttBrokerError;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
-use axum::async_trait;
+use async_trait::async_trait;
 use bcrypt;
 use common_config::security::PasswordConfig;
 use hex;

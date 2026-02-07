@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use axum::async_trait;
+use async_trait::async_trait;
 use metadata_struct::connection::NetworkConnection;
 use network_server::{command::Command, common::packet::ResponsePackage};
 use protocol::robust::RobustMQPacket;

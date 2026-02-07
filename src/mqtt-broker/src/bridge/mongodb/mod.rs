@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::async_trait;
+use async_trait::async_trait;
 use bson::Document;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{

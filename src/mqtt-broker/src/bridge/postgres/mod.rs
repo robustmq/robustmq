@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use axum::async_trait;
+use async_trait::async_trait;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     mqtt::bridge::config_postgres::PostgresConnectorConfig, mqtt::bridge::connector::MQTTConnector,

@@ -226,11 +226,11 @@ async fn process_socket_packet_by_binary(
     codec: &mut RobustMQCodec,
     command: ArcCommandAdapter,
     addr: &SocketAddr,
-    data: &Vec<u8>,
+    data: &[u8],
 ) -> ResultCommonError {
     let receive_ms = now_millis();
     let mut buf = BytesMut::with_capacity(data.len());
-    buf.put(data.as_slice());
+    buf.put(data);
     if let Some(packet) = codec.decode_data(&mut buf)? {
         info!("recv websocket packet:{packet:?}");
 
@@ -290,7 +290,7 @@ async fn process_socket_packet_by_binary(
                 .write_websocket_frame(
                     tcp_connection.connection_id,
                     resp_wrapper,
-                    Message::Binary(response_buff.to_vec()),
+                    Message::Binary(response_buff.to_vec().into()),
                 )
                 .await
             {

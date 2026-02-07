@@ -17,7 +17,7 @@ use crate::{
     core::{error::MqttBrokerError, tool::ResultMqttBrokerError},
     storage::connector::ConnectorStorage,
 };
-use axum::async_trait;
+use async_trait::async_trait;
 
 use common_base::{
     error::ResultCommonError,

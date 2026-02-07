@@ -22,6 +22,7 @@ license.workspace = true
 [dependencies]
 tracing.workspace = true
 axum.workspace = true
+async-trait.workspace = true
 common-base.workspace = true
 grpc-clients.workspace = true
 broker-core.workspace = true

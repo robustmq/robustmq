@@ -21,6 +21,7 @@ license.workspace = true
 [dependencies]
 tokio.workspace = true
 axum.workspace = true
+async-trait.workspace = true
 thiserror.workspace = true
 bytes.workspace = true
 protocol.workspace = true

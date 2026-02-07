@@ -25,6 +25,7 @@ common-base.workspace = true
 tracing.workspace = true
 dashmap.workspace = true
 axum.workspace = true
+async-trait.workspace = true
 futures.workspace = true
 tokio-util.workspace = true
 tokio-rustls.workspace = true

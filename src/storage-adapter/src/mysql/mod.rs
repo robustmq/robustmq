@@ -14,7 +14,7 @@
 
 use crate::expire::MessageExpireConfig;
 use crate::storage::{ShardInfo, ShardOffset, StorageAdapter};
-use axum::async_trait;
+use async_trait::async_trait;
 use common_base::{error::common::CommonError, utils::crc::calc_crc32};
 use common_config::storage::mysql::StorageDriverMySQLConfig;
 use protocol::storage::storage_adapter_record::{Header as AdapterHeader, StorageAdapterRecord};

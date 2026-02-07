@@ -17,7 +17,7 @@ use crate::core::cache::MQTTCacheManager;
 use crate::core::error::MqttBrokerError;
 use crate::security::storage::http::HttpAuthStorageAdapter;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
-use axum::async_trait;
+use async_trait::async_trait;
 use common_config::security::HttpConfig;
 use std::sync::Arc;
 

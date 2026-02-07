@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use axum::{
-    async_trait,
     extract::{FromRequest, Request},
     http::StatusCode,
     Json,
@@ -24,7 +23,6 @@ use validator::Validate;
 
 pub struct ValidatedJson<T>(pub T);
 
-#[async_trait]
 impl<T, S> FromRequest<S> for ValidatedJson<T>
 where
     T: DeserializeOwned + Validate,

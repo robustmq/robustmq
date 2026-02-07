@@ -162,7 +162,7 @@ paho-mqtt = { version = "0.13.3", default-features = false, features = [
 # ====================
 # Distributed Systems
 # ====================
-openraft = { git = "https://github.com/databendlabs/openraft.git", features = [
+openraft = { git = "https://github.com/databendlabs/openraft.git", rev = "852a38afe53aed9037ac8969a6a15a2c44981aaa", features = [
     "serde",
     "type-alias",
 ] }

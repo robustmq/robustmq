@@ -37,6 +37,7 @@ checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 name = "admin-server"
 version = "0.2.13"
 dependencies = [
+ "async-trait",
  "axum 0.8.8",
  "broker-core",
  "bytes",
@@ -1656,15 +1657,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
-name = "convert_case"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "633458d4ef8c78b72454de2d54fd6ab2e60f9e02be22f3c6104cdc8a4e0fceb9"
-dependencies = [
- "unicode-segmentation",
-]
-
-[[package]]
 name = "cookie-factory"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2151,7 +2143,7 @@ version = "0.99.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6edb4b64a43d977b8e99788fe3a04d483834fba1215a7e02caa415b626497f7f"
 dependencies = [
- "convert_case 0.4.0",
+ "convert_case",
  "proc-macro2",
  "quote",
  "rustc_version 0.4.1",
@@ -2160,23 +2152,21 @@ dependencies = [
 
 [[package]]
 name = "derive_more"
-version = "2.1.1"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d751e9e49156b02b44f9c1815bcb94b984cdcc4396ecc32521c739452808b134"
+checksum = "4a9b99b9cbbe49445b21764dc0625032a89b145a2642e67603e1c936f5458d05"
 dependencies = [
  "derive_more-impl",
 ]
 
 [[package]]
 name = "derive_more-impl"
-version = "2.1.1"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "799a97264921d8623a957f6c3b9011f3b5492f557bbb7a5a19b7fa6d06ba8dcb"
+checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
 dependencies = [
- "convert_case 0.10.0",
  "proc-macro2",
  "quote",
- "rustc_version 0.4.1",
  "syn 2.0.114",
  "unicode-xid",
 ]
@@ -3845,6 +3835,10 @@ dependencies = [
 [[package]]
 name = "kafka-broker"
 version = "0.2.13"
+dependencies = [
+ "async-trait",
+ "network-server",
+]
 
 [[package]]
 name = "kafka-protocol"
@@ -4390,6 +4384,7 @@ dependencies = [
 name = "mqtt-broker"
 version = "0.2.13"
 dependencies = [
+ "async-trait",
  "axum 0.8.8",
  "base64 0.22.1",
  "bcrypt",
@@ -4627,6 +4622,7 @@ dependencies = [
 name = "network-server"
 version = "0.2.13"
 dependencies = [
+ "async-trait",
  "axum 0.8.8",
  "axum-extra",
  "axum-server",
@@ -5074,57 +5070,35 @@ dependencies = [
 [[package]]
 name = "openraft"
 version = "0.10.0"
-source = "git+https://github.com/databendlabs/openraft.git#548a4496a0a2201548dbd36b95049147c793bf4d"
+source = "git+https://github.com/databendlabs/openraft.git?rev=852a38afe53aed9037ac8969a6a15a2c44981aaa#852a38afe53aed9037ac8969a6a15a2c44981aaa"
 dependencies = [
  "anyerror",
  "byte-unit",
  "chrono",
  "clap",
- "derive_more 2.1.1",
- "futures-util",
+ "derive_more 1.0.0",
+ "futures",
  "maplit",
  "openraft-macros",
- "openraft-rt",
- "openraft-rt-tokio",
  "rand 0.9.2",
  "serde",
- "thiserror 2.0.18",
+ "thiserror 1.0.69",
+ "tokio",
  "tracing",
+ "tracing-futures",
  "validit",
 ]
 
 [[package]]
 name = "openraft-macros"
 version = "0.10.0"
-source = "git+https://github.com/databendlabs/openraft.git#548a4496a0a2201548dbd36b95049147c793bf4d"
+source = "git+https://github.com/databendlabs/openraft.git?rev=852a38afe53aed9037ac8969a6a15a2c44981aaa#852a38afe53aed9037ac8969a6a15a2c44981aaa"
 dependencies = [
  "chrono",
  "proc-macro2",
  "quote",
  "semver 1.0.27",
  "syn 2.0.114",
-]
-
-[[package]]
-name = "openraft-rt"
-version = "0.10.0"
-source = "git+https://github.com/databendlabs/openraft.git#548a4496a0a2201548dbd36b95049147c793bf4d"
-dependencies = [
- "futures-channel",
- "futures-util",
- "openraft-macros",
- "rand 0.9.2",
-]
-
-[[package]]
-name = "openraft-rt-tokio"
-version = "0.10.0"
-source = "git+https://github.com/databendlabs/openraft.git#548a4496a0a2201548dbd36b95049147c793bf4d"
-dependencies = [
- "futures-util",
- "openraft-rt",
- "rand 0.9.2",
- "tokio",
 ]
 
 [[package]]
@@ -8025,6 +7999,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "storage-adapter"
 version = "0.2.13"
 dependencies = [
+ "async-trait",
  "axum 0.8.8",
  "broker-core",
  "bytes",
@@ -8052,6 +8027,7 @@ dependencies = [
 name = "storage-engine"
 version = "0.2.13"
 dependencies = [
+ "async-trait",
  "axum 0.8.8",
  "broker-core",
  "bytes",
@@ -8950,6 +8926,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracing-futures"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97d095ae15e245a057c8e8451bab9b3ee1e1f68e9ba2b4fbc18d0ac5237835f2"
+dependencies = [
+ "pin-project",
+ "tracing",
+]
+
+[[package]]
 name = "tracing-log"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9169,12 +9155,6 @@ name = "unicode-properties"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7df058c713841ad818f1dc5d3fd88063241cc61f49f5fbea4b951e8cf5a8d71d"
-
-[[package]]
-name = "unicode-segmentation"
-version = "1.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
 
 [[package]]
 name = "unicode-width"
