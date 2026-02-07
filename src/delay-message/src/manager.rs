@@ -140,7 +140,7 @@ impl DelayMessageManager {
             };
             let target_instant = Instant::now() + delay_duration;
             let expected_trigger_time = current_time + delay_duration.as_secs();
-            
+
             info!(
                 "Insert delay message to queue. unique_id={}, target_topic={}, shard_no={}, target_timestamp={}, current_time={}, delay_duration={}s, expected_trigger_time={}, time_match={}",
                 delay_info.unique_id,
@@ -152,11 +152,8 @@ impl DelayMessageManager {
                 expected_trigger_time,
                 expected_trigger_time == delay_info.target_timestamp
             );
-            
-            delay_queue.insert_at(
-                delay_info.clone(),
-                target_instant,
-            );
+
+            delay_queue.insert_at(delay_info.clone(), target_instant);
 
             let capacity = delay_queue.capacity() as i64;
             let used = delay_queue.len() as i64;

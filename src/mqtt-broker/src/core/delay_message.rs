@@ -131,7 +131,7 @@ pub async fn save_delay_message(
         .target_shard_name
         .as_ref()
         .ok_or(MqttBrokerError::MissingTargetShardName)?;
-    
+
     delay_message_manager
         .send(target_shard_name, trigger_time, record)
         .await?;
@@ -158,7 +158,7 @@ mod test {
         assert_eq!(msg.delay_timestamp, now_second() + 60);
 
         let msg = decode_delay_topic("$delayed/0/topic").unwrap();
-        assert_eq!(msg.delay_timestamp, now_second() + 0);
+        assert_eq!(msg.delay_timestamp, now_second());
     }
 
     #[test]

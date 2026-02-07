@@ -182,7 +182,7 @@ async fn send_delay_message_to_shard(
         )));
     };
 
-    let mut msg = MqttMessage::decode(&record.data.to_vec())?;
+    let mut msg = MqttMessage::decode(&record.data)?;
     let user_properties = if let Some(mut properties) = msg.user_properties.clone() {
         properties.push((DELAY_MESSAGE_SAVE_MS.to_string(), trigger_time.to_string()));
         properties
