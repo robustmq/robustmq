@@ -22,6 +22,7 @@ pub struct MqttSession {
     pub is_contain_last_will: bool,
     pub last_will_delay_interval: Option<u64>,
     pub create_time: u64,
+    pub is_persist_session: bool,
 
     pub connection_id: Option<u64>,
     pub broker_id: Option<u64>,
@@ -35,6 +36,7 @@ impl MqttSession {
         session_expiry: u64,
         is_contain_last_will: bool,
         last_will_delay_interval: Option<u64>,
+        is_persist_session: bool,
     ) -> MqttSession {
         MqttSession {
             client_id,
@@ -42,7 +44,11 @@ impl MqttSession {
             is_contain_last_will,
             last_will_delay_interval,
             create_time: now_second(),
-            ..Default::default()
+            is_persist_session,
+            connection_id: None,
+            broker_id: None,
+            reconnect_time: None,
+            distinct_time: None,
         }
     }
 

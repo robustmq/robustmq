@@ -208,6 +208,8 @@ pub struct MqttRuntime {
     pub default_password: String,
 
     pub max_connection_num: usize,
+
+    pub durable_sessions_enable: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

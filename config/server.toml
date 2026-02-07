@@ -73,3 +73,12 @@ io_thread_num = 4
 runtime_worker_threads = 16
 tls_cert = "./config/certs/cert.pem"
 tls_key = "./config/certs/key.pem"
+
+[mqtt_runtime]
+default_user = "admin"
+default_password = "robustmq"
+max_connection_num = 1000000
+# Enable durable sessions (persistent sessions stored in RocksDB + Raft)
+# - false (default): Transient sessions (memory-only, higher performance)
+# - true: Durable sessions (disk-persisted, survive node restarts)
+durable_sessions_enable = false

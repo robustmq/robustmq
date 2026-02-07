@@ -42,6 +42,7 @@ mod tests {
             session_expiry,
             true,
             Some(last_will_delay_interval),
+            true,
         );
         mqtt_session.update_broker_id(Some(broker_id));
         mqtt_session.update_connection_id(Some(connection_id));

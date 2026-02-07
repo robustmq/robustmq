@@ -321,7 +321,7 @@ mod test {
         let client_id = unique_id();
         let connect_id = 1;
 
-        let session = MqttSession::new(client_id.clone(), 60, false, None);
+        let session = MqttSession::new(client_id.clone(), 60, false, None, true);
         cache_manager.add_session(&client_id, &session);
 
         let keep_alive = 2;
