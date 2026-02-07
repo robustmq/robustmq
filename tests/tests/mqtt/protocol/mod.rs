@@ -31,7 +31,7 @@ pub struct ClientTestProperties {
 }
 
 pub mod acl_test;
-// pub mod blacklist_test;
+pub mod blacklist_test;
 pub mod clean_session_test;
 pub mod client_id_test;
 pub mod common;
@@ -42,6 +42,7 @@ pub mod delay_publish_test;
 pub mod keep_alive_test;
 pub mod lastwill_message_test;
 pub mod login_test;
+pub mod message_expire_test;
 pub mod network_test;
 pub mod packet_size_test;
 pub mod payload_format_test;
@@ -62,6 +63,7 @@ pub mod sub_opt_retain_as_publish_test;
 pub mod sub_opt_retain_handling_test;
 pub mod sub_wildcards_test;
 pub mod topic_alias_test;
+pub mod topic_rewrite_emqx_examples_test;
 pub mod topic_rewrite_test;
 pub mod user_properties_test;
 pub mod user_test;
@@ -69,5 +71,4 @@ pub mod user_test;
 // todo
 pub mod connect_authentication_test;
 mod flapping_detect_test;
-pub mod message_expire_test;
 mod quic_server;

@@ -30,9 +30,7 @@ use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_config::broker::broker_config;
 use common_config::security::{AuthnConfig, StorageConfig};
-use common_metrics::mqtt::auth::{
-    record_mqtt_acl_failed, record_mqtt_acl_success, record_mqtt_blacklist_blocked,
-};
+use common_metrics::mqtt::auth::{record_mqtt_acl_failed, record_mqtt_acl_success};
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -192,9 +190,14 @@ impl AuthDriver {
         }
     }
 
-    pub async fn auth_connect_check(&self, connection: &MQTTConnection) -> bool {
+    pub async fn auth_connect_check(
+        &self,
+        client_id: &str,
+        source_ip_addr: &str,
+        login: &Option<Login>,
+    ) -> bool {
         // default true if blacklist check fails
-        is_blacklist(&self.cache_manager, connection).unwrap_or(true)
+        is_blacklist(&self.cache_manager, client_id, source_ip_addr, login).unwrap_or(true)
     }
 
     pub async fn auth_publish_check(
@@ -216,13 +219,6 @@ impl AuthDriver {
             return Err(MqttBrokerError::NotAclAuth(topic_name.to_string()));
         }
         record_mqtt_acl_success();
-
-        // check blacklist
-        // default true if blacklist check fails
-        if is_blacklist(&self.cache_manager, connection).unwrap_or(true) {
-            record_mqtt_blacklist_blocked();
-            return Err(MqttBrokerError::NotBlacklistAuth);
-        }
 
         Ok(())
     }
