@@ -42,11 +42,10 @@
     "quic_connection_num": 100,
     "subscribe_num": 2000,
     "exclusive_subscribe_num": 1500,
-    "share_subscribe_leader_num": 300,
-    "share_subscribe_resub_num": 200,
     "exclusive_subscribe_thread_num": 8,
-    "share_subscribe_leader_thread_num": 4,
-    "share_subscribe_follower_thread_num": 4,
+    "share_subscribe_group_num": 50,
+    "share_subscribe_num": 500,
+    "share_subscribe_thread_num": 50,
     "connector_num": 5,
     "connector_thread_num": 3
   }
@@ -55,10 +54,15 @@
 
 **字段说明**：
 - `node_list`: 集群节点列表
+  - `node_id`: 节点ID
+  - `node_ip`: 节点IP地址
+  - `node_inner_addr`: 节点内部通信地址
+  - `extend_info`: 扩展信息（JSON字符串）
+  - `create_time`: 节点创建时间戳
 - `cluster_name`: 集群名称
 - `message_in_rate`: 消息接收速率（消息/秒）
 - `message_out_rate`: 消息发送速率（消息/秒）
-- `connection_num`: 总连接数
+- `connection_num`: 总连接数（所有类型连接的总和）
 - `session_num`: 会话总数
 - `topic_num`: 主题总数
 - `placement_status`: Placement Center 状态（Leader/Follower）
@@ -66,13 +70,12 @@
 - `tls_connection_num`: TLS 连接数
 - `websocket_connection_num`: WebSocket 连接数
 - `quic_connection_num`: QUIC 连接数
-- `subscribe_num`: 订阅总数
-- `exclusive_subscribe_num`: 独占订阅数
-- `share_subscribe_leader_num`: 共享订阅 Leader 数
-- `share_subscribe_resub_num`: 共享订阅 Resub 数
-- `exclusive_subscribe_thread_num`: 独占订阅线程数
-- `share_subscribe_leader_thread_num`: 共享订阅 Leader 线程数
-- `share_subscribe_follower_thread_num`: 共享订阅 Follower 线程数
+- `subscribe_num`: 订阅总数（所有订阅列表的总和）
+- `exclusive_subscribe_num`: 独占订阅总数
+- `exclusive_subscribe_thread_num`: 独占订阅推送线程数
+- `share_subscribe_group_num`: 共享订阅组数量
+- `share_subscribe_num`: 共享订阅总数
+- `share_subscribe_thread_num`: 共享订阅推送线程数
 - `connector_num`: 连接器总数
 - `connector_thread_num`: 活跃连接器线程数
 

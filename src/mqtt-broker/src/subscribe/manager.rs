@@ -216,6 +216,14 @@ impl SubscribeManager {
             .unwrap_or(false)
     }
 
+    pub fn share_sub_len(&self) -> u64 {
+        let mut len = 0;
+        for raw in self.share_push.iter() {
+            len += raw.value().sub_len();
+        }
+        len
+    }
+
     fn subscribe_key(&self, client_id: &str, path: &str) -> String {
         format!("{client_id}#{path}")
     }

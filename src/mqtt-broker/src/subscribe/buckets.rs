@@ -211,6 +211,14 @@ impl BucketsManager {
         }
     }
 
+    pub fn sub_len(&self) -> u64 {
+        let mut len = 0;
+        for row in self.buckets_data_list.iter() {
+            len += row.value().len();
+        }
+        len as u64
+    }
+
     fn client_sub_path_key(&self, client_id: &str, sub_path: &str) -> String {
         format!("{client_id}_{sub_path}")
     }

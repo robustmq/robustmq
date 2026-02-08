@@ -62,6 +62,20 @@ register_gauge_metric!(
 );
 
 register_gauge_metric!(
+    MQTT_SUBSCRIPTIONS_SHARED_GROUP_COUNT,
+    "mqtt_subscriptions_shared_group_count",
+    "Current number of MQTT shared group",
+    StatLabel
+);
+
+register_gauge_metric!(
+    MQTT_SUBSCRIPTIONS_EXCLUSIVE_COUNT,
+    "mqtt_subscriptions_exclusive_count",
+    "Current number of MQTT exclusive subscriptions",
+    StatLabel
+);
+
+register_gauge_metric!(
     MQTT_RETAINED_COUNT,
     "mqtt_retained_count",
     "Current number of MQTT retained messages",
@@ -130,6 +144,18 @@ pub fn record_mqtt_subscribers_set(count: i64) {
     gauge_metric_set!(MQTT_SUBSCRIBERS_COUNT, label, count);
 }
 
+pub fn record_mqtt_subscriptions_exclusive_set(count: i64) {
+    let label = StatLabel {};
+    gauge_metric_set!(MQTT_SUBSCRIPTIONS_EXCLUSIVE_COUNT, label, count);
+}
+
+pub fn record_mqtt_subscriptions_exclusive_get() -> i64 {
+    let label = StatLabel {};
+    let mut result = 0i64;
+    gauge_metric_get!(MQTT_SUBSCRIPTIONS_EXCLUSIVE_COUNT, label, result);
+    result
+}
+
 pub fn record_mqtt_subscriptions_shared_set(count: i64) {
     let label = StatLabel {};
     gauge_metric_set!(MQTT_SUBSCRIPTIONS_SHARED_COUNT, label, count);
@@ -139,6 +165,18 @@ pub fn record_mqtt_subscriptions_shared_get() -> i64 {
     let label = StatLabel {};
     let mut result = 0i64;
     gauge_metric_get!(MQTT_SUBSCRIPTIONS_SHARED_COUNT, label, result);
+    result
+}
+
+pub fn record_mqtt_subscriptions_shared_group_set(count: i64) {
+    let label = StatLabel {};
+    gauge_metric_set!(MQTT_SUBSCRIPTIONS_SHARED_GROUP_COUNT, label, count);
+}
+
+pub fn record_mqtt_subscriptions_shared_group_get() -> i64 {
+    let label = StatLabel {};
+    let mut result = 0i64;
+    gauge_metric_get!(MQTT_SUBSCRIPTIONS_SHARED_GROUP_COUNT, label, result);
     result
 }
 
