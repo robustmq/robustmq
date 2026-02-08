@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::state::HttpState;
@@ -35,8 +36,9 @@ pub struct ClusterInfoResp {
     pub start_time: u64,
     pub broker_node_list: Vec<BrokerNode>,
     pub meta: MetaStatus,
+    pub nodes: HashSet<String>,
 }
-use broker_core::cluster::ClusterStorage;
+use broker_core::{cache::BrokerCacheManager, cluster::ClusterStorage};
 use common_base::{
     enum_type::feature_type::FeatureType,
     http_response::{error_response, success_response},
@@ -112,7 +114,26 @@ pub async fn cluster_info(State(state): State<Arc<HttpState>>) -> String {
         cluster_name: state.broker_cache.cluster_name.clone(),
         start_time: state.broker_cache.get_start_time(),
         broker_node_list: state.broker_cache.node_list(),
-        meta: data,
+        meta: data.clone(),
+        nodes: calc_node_num(&state.broker_cache, &data),
     };
     success_response(cluster_info)
+}
+
+fn calc_node_num(broker_cache: &Arc<BrokerCacheManager>, meta: &MetaStatus) -> HashSet<String> {
+    let mut node_list = HashSet::new();
+
+    for node in broker_cache.node_lists.iter() {
+        if let Some(ip) = node.grpc_addr.split(':').next() {
+            node_list.insert(ip.to_string());
+        }
+    }
+
+    for (_, node_info) in meta.membership_config.membership.nodes.iter() {
+        if let Some(ip) = node_info.rpc_addr.split(':').next() {
+            node_list.insert(ip.to_string());
+        }
+    }
+
+    node_list
 }

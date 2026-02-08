@@ -181,7 +181,7 @@ pub fn get_share_sub_leader_by_req(
         Some(node) => Ok(GetShareSubLeaderReply {
             broker_id: node.node_id,
             broker_addr: node.node_ip,
-            extend_info: node.extend,
+            extend_info: node.extend.encode()?,
         }),
         None => Err(MetaServiceError::NoAvailableBrokerNode),
     }

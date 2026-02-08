@@ -22,11 +22,15 @@
   "data": {
     "node_list": [
       {
+        "roles": ["mqtt-broker"],
+        "extend": [],
         "node_id": 1,
         "node_ip": "192.168.1.100",
-        "node_inner_addr": "192.168.1.100:9981",
-        "extend_info": "{}",
-        "create_time": 1640995200
+        "grpc_addr": "192.168.1.100:9981",
+        "engine_addr": "192.168.1.100:9982",
+        "start_time": 1640995200,
+        "register_time": 1640995200,
+        "storage_fold": []
       }
     ],
     "cluster_name": "robustmq-cluster",
@@ -42,11 +46,10 @@
     "quic_connection_num": 100,
     "subscribe_num": 2000,
     "exclusive_subscribe_num": 1500,
-    "share_subscribe_leader_num": 300,
-    "share_subscribe_resub_num": 200,
     "exclusive_subscribe_thread_num": 8,
-    "share_subscribe_leader_thread_num": 4,
-    "share_subscribe_follower_thread_num": 4,
+    "share_subscribe_group_num": 50,
+    "share_subscribe_num": 500,
+    "share_subscribe_thread_num": 50,
     "connector_num": 5,
     "connector_thread_num": 3
   }
@@ -55,10 +58,19 @@
 
 **Field Descriptions**:
 - `node_list`: Cluster node list
+  - `roles`: Node role list
+  - `extend`: Extended information (byte array)
+  - `node_id`: Node ID
+  - `node_ip`: Node IP address
+  - `grpc_addr`: gRPC communication address
+  - `engine_addr`: Storage engine address
+  - `start_time`: Node start timestamp
+  - `register_time`: Node registration timestamp
+  - `storage_fold`: Storage directory list
 - `cluster_name`: Cluster name
 - `message_in_rate`: Message receive rate (messages/second)
 - `message_out_rate`: Message send rate (messages/second)
-- `connection_num`: Total number of connections
+- `connection_num`: Total number of connections (sum of all connection types)
 - `session_num`: Total number of sessions
 - `topic_num`: Total number of topics
 - `placement_status`: Placement Center status (Leader/Follower)
@@ -66,13 +78,12 @@
 - `tls_connection_num`: Number of TLS connections
 - `websocket_connection_num`: Number of WebSocket connections
 - `quic_connection_num`: Number of QUIC connections
-- `subscribe_num`: Total number of subscriptions
+- `subscribe_num`: Total number of subscriptions (sum of all subscription lists)
 - `exclusive_subscribe_num`: Number of exclusive subscriptions
-- `share_subscribe_leader_num`: Number of shared subscription leaders
-- `share_subscribe_resub_num`: Number of shared subscription resubs
-- `exclusive_subscribe_thread_num`: Number of exclusive subscription threads
-- `share_subscribe_leader_thread_num`: Number of shared subscription leader threads
-- `share_subscribe_follower_thread_num`: Number of shared subscription follower threads
+- `exclusive_subscribe_thread_num`: Number of exclusive subscription push threads
+- `share_subscribe_group_num`: Number of shared subscription groups
+- `share_subscribe_num`: Number of shared subscriptions
+- `share_subscribe_thread_num`: Number of shared subscription push threads
 - `connector_num`: Total number of connectors
 - `connector_thread_num`: Number of active connector threads
 

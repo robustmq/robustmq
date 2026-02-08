@@ -93,8 +93,13 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 
 ### 集群状态查询
 - **接口**: `POST /api/status`
-- **描述**: 获取集群状态、版本和节点信息
-- **请求参数**: `{}`（空对象）
+- **描述**: 获取集群完整状态信息，包括 RobustMQ 版本、集群名称、启动时间、Broker 节点列表以及 Meta 集群的 Raft 状态
+- **请求参数**: 
+```json
+{}
+```
+（空对象）
+
 - **响应示例**:
 ```json
 {
@@ -105,16 +110,18 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
     "start_time": 1760828141,
     "broker_node_list": [
       {
-        "cluster_name": "broker-server",
-        "roles": ["meta", "broker"],
-        "extend": "{\"mqtt\":{\"grpc_addr\":\"192.168.100.100:1228\",\"mqtt_addr\":\"192.168.100.100:1883\",\"mqtts_addr\":\"192.168.100.100:1885\",\"websocket_addr\":\"192.168.100.100:8083\",\"websockets_addr\":\"192.168.100.100:8085\",\"quic_addr\":\"192.168.100.100:9083\"}}",
+        "roles": ["mqtt-broker"],
+        "extend": [],
         "node_id": 1,
         "node_ip": "192.168.100.100",
-        "node_inner_addr": "192.168.100.100:1228",
+        "grpc_addr": "192.168.100.100:1228",
+        "engine_addr": "192.168.100.100:1229",
         "start_time": 1760828141,
-        "register_time": 1760828142
+        "register_time": 1760828142,
+        "storage_fold": []
       }
     ],
+    "nodes": ["192.168.100.100", "127.0.0.1"],
     "meta": {
       "running_state": {
         "Ok": null
@@ -185,68 +192,61 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 | `cluster_name` | `string` | 集群名称 |
 | `start_time` | `u64` | 服务启动时间（Unix时间戳，秒） |
 | `broker_node_list` | `array` | Broker 节点列表 |
+| `nodes` | `array` | 集群中所有唯一节点的 IP 地址列表（去重后） |
 | `meta` | `object` | Meta 集群 Raft 状态信息（结构化对象） |
 
 **Broker 节点字段说明**:
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
+| `roles` | `array` | 节点角色列表（如 `["mqtt-broker"]`） |
+| `extend` | `array` | 扩展信息（字节数组） |
 | `node_id` | `u64` | 节点 ID |
 | `node_ip` | `string` | 节点 IP 地址 |
-| `node_inner_addr` | `string` | 节点内部通信地址（gRPC地址） |
-| `cluster_name` | `string` | 所属集群名称 |
-| `roles` | `array` | 节点角色列表（如 `["meta", "broker"]`） |
-| `extend` | `string` | 扩展信息（JSON字符串），包含各协议的监听地址 |
+| `grpc_addr` | `string` | gRPC 通信地址 |
+| `engine_addr` | `string` | 存储引擎地址 |
 | `start_time` | `u64` | 节点启动时间（Unix时间戳，秒） |
 | `register_time` | `u64` | 节点注册时间（Unix时间戳，秒） |
+| `storage_fold` | `array` | 存储目录列表 |
 
-**扩展信息（extend）字段说明**:
-
-`extend` 字段是一个 JSON 字符串，包含以下 MQTT 协议相关的地址信息：
-
-```json
-{
-  "mqtt": {
-    "grpc_addr": "192.168.100.100:1228",
-    "mqtt_addr": "192.168.100.100:1883",
-    "mqtts_addr": "192.168.100.100:1885",
-    "websocket_addr": "192.168.100.100:8083",
-    "websockets_addr": "192.168.100.100:8085",
-    "quic_addr": "192.168.100.100:9083"
-  }
-}
-```
-
-| 字段 | 说明 |
-|------|------|
-| `grpc_addr` | gRPC 服务地址 |
-| `mqtt_addr` | MQTT 协议监听地址 |
-| `mqtts_addr` | MQTT over TLS 监听地址 |
-| `websocket_addr` | WebSocket 协议监听地址 |
-| `websockets_addr` | WebSocket over TLS 监听地址 |
-| `quic_addr` | QUIC 协议监听地址 |
+---
 
 **Meta 集群状态（meta）字段说明**:
 
-`meta` 字段是一个结构化对象，包含 Meta 集群的 Raft 状态信息：
+`meta` 字段包含 Meta 集群的 Raft 共识状态信息，用于监控集群的分布式一致性状态：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `id` | `u64` | 节点 ID |
-| `state` | `string` | 当前节点状态（Leader/Follower/Candidate） |
-| `current_leader` | `u64` | 当前 Leader 节点 ID |
-| `current_term` | `u64` | 当前任期号 |
-| `last_log_index` | `u64` | 最后一条日志索引 |
-| `running_state` | `object` | 运行状态（通常为 `{"Ok": null}` 表示正常） |
-| `vote` | `object` | 投票信息，包含 `leader_id` 和 `committed` |
+| `running_state` | `object` | 运行状态，`{"Ok": null}` 表示正常运行 |
+| `id` | `u64` | 当前节点 ID |
+| `current_term` | `u64` | Raft 当前任期号 |
+| `vote` | `object` | 投票信息 |
+| `vote.leader_id` | `object` | Leader 标识，包含 `term` 和 `node_id` |
+| `vote.committed` | `boolean` | 投票是否已提交 |
+| `last_log_index` | `u64` | 最后一条日志的索引 |
 | `last_applied` | `object` | 最后应用的日志信息 |
-| `snapshot` | `object/null` | 快照信息 |
-| `purged` | `object/null` | 清理信息 |
-| `millis_since_quorum_ack` | `u64` | 距离法定人数确认的毫秒数 |
-| `last_quorum_acked` | `u128` | 最后法定人数确认的时间戳（纳秒） |
+| `last_applied.leader_id` | `object` | Leader 标识 |
+| `last_applied.index` | `u64` | 已应用的日志索引 |
+| `snapshot` | `object/null` | 快照信息（如果存在） |
+| `purged` | `object/null` | 已清理的日志信息（如果存在） |
+| `state` | `string` | 当前节点 Raft 状态：`Leader`、`Follower` 或 `Candidate` |
+| `current_leader` | `u64` | 当前 Leader 节点的 ID |
+| `millis_since_quorum_ack` | `u64` | 自上次获得法定人数确认以来的毫秒数 |
+| `last_quorum_acked` | `u128` | 最后一次法定人数确认的时间戳（纳秒精度） |
 | `membership_config` | `object` | 集群成员配置信息 |
-| `heartbeat` | `object` | 心跳信息（节点ID到时间戳的映射） |
-| `replication` | `object` | 复制状态信息 |
+| `membership_config.log_id` | `object` | 配置对应的日志 ID |
+| `membership_config.membership` | `object` | 成员信息 |
+| `membership_config.membership.configs` | `array` | 配置数组，如 `[[1]]` 表示节点 1 |
+| `membership_config.membership.nodes` | `object` | 节点映射，键为节点 ID 字符串，值为节点信息 |
+| `heartbeat` | `object` | 心跳映射，键为节点 ID，值为心跳时间戳（纳秒） |
+| `replication` | `object` | 复制状态映射，键为节点 ID，值包含 `leader_id` 和 `index` |
+
+**使用场景说明**:
+- 通过 `state` 字段判断节点是否为 Leader
+- 通过 `current_leader` 字段找到当前集群的 Leader 节点
+- 通过 `last_log_index` 和 `last_applied.index` 检查日志同步状态
+- 通过 `heartbeat` 监控集群节点的活跃状态
+- 通过 `membership_config` 了解集群成员配置
 
 ---
 

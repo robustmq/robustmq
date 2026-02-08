@@ -23,6 +23,7 @@ mod tests {
     use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::meta::node::BrokerNode;
+    use metadata_struct::mqtt::node_extend::NodeExtend;
     use protocol::meta::meta_service_common::RegisterNodeRequest;
     use protocol::meta::meta_service_mqtt::GetShareSubLeaderRequest;
 
@@ -44,7 +45,7 @@ mod tests {
             node_ip: node_ip.clone(),
             node_id,
             grpc_addr: "127.0.0.1:1228".to_string(),
-            extend: Vec::new(),
+            extend: NodeExtend::default(),
             register_time: now_second(),
             start_time: now_second(),
             storage_fold: vec!["./data/broker/engine".to_string()],

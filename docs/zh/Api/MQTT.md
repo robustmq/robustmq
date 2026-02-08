@@ -22,11 +22,15 @@
   "data": {
     "node_list": [
       {
+        "roles": ["mqtt-broker"],
+        "extend": [],
         "node_id": 1,
         "node_ip": "192.168.1.100",
-        "node_inner_addr": "192.168.1.100:9981",
-        "extend_info": "{}",
-        "create_time": 1640995200
+        "grpc_addr": "192.168.1.100:9981",
+        "engine_addr": "192.168.1.100:9982",
+        "start_time": 1640995200,
+        "register_time": 1640995200,
+        "storage_fold": []
       }
     ],
     "cluster_name": "robustmq-cluster",
@@ -54,11 +58,15 @@
 
 **字段说明**：
 - `node_list`: 集群节点列表
+  - `roles`: 节点角色列表
+  - `extend`: 扩展信息（字节数组）
   - `node_id`: 节点ID
   - `node_ip`: 节点IP地址
-  - `node_inner_addr`: 节点内部通信地址
-  - `extend_info`: 扩展信息（JSON字符串）
-  - `create_time`: 节点创建时间戳
+  - `grpc_addr`: gRPC通信地址
+  - `engine_addr`: 存储引擎地址
+  - `start_time`: 节点启动时间戳
+  - `register_time`: 节点注册时间戳
+  - `storage_fold`: 存储目录列表
 - `cluster_name`: 集群名称
 - `message_in_rate`: 消息接收速率（消息/秒）
 - `message_out_rate`: 消息发送速率（消息/秒）

@@ -395,7 +395,7 @@ pub async fn broker_call_thread_manager(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metadata_struct::meta::node::BrokerNode;
+    use metadata_struct::{meta::node::BrokerNode, mqtt::node_extend::NodeExtend};
     use protocol::broker::broker_common::{
         BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType,
     };
@@ -403,7 +403,7 @@ mod tests {
     fn create_test_node(node_id: u64) -> BrokerNode {
         BrokerNode {
             roles: vec!["broker".to_string()],
-            extend: vec![],
+            extend: NodeExtend::default(),
             node_id,
             node_ip: "127.0.0.1".to_string(),
             grpc_addr: format!("127.0.0.1:{}", 9000 + node_id),
