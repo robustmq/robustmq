@@ -197,7 +197,6 @@ pub async fn disconnect_connection(context: DisconnectConnectionContext) -> Resu
         &context.protocol,
         session_expiry_interval,
     );
-    println!("delete:{}", delete);
     if delete {
         session_storage
             .delete_session(context.connection.client_id.clone())

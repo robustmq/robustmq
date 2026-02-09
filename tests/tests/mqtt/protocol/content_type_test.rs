@@ -67,10 +67,12 @@ mod tests {
         let call_fn = |msg: Message| {
             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
             let bl0 = payload == message_content;
-            let ct: String = msg
-                .properties()
-                .get_string(PropertyCode::ContentType)
-                .unwrap();
+            let ct: String =
+                if let Some(data) = msg.properties().get_string(PropertyCode::ContentType) {
+                    data
+                } else {
+                    return false;
+                };
             bl0 && ct == content_type
         };
 
