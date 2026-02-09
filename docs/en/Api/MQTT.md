@@ -436,9 +436,12 @@ Query message count for a specific topic:
   "data": {
     "data": [
       {
-        "topic_name": "topic_001",
+        "topic_id": "01J9K5FHQP8NWXYZ1234567890",
         "topic_name": "sensor/temperature",
-        "is_contain_retain_message": true,
+        "storage_type": "Memory",
+        "partition": 1,
+        "replication": 1,
+        "storage_name_list": [],
         "create_time": 1640995200
       }
     ],
@@ -448,10 +451,13 @@ Query message count for a specific topic:
 ```
 
 **Response Field Description**:
-- `topic_name`: Topic ID
+- `topic_id`: Topic unique identifier
 - `topic_name`: Topic name
-- `is_contain_retain_message`: Whether contains retained message
-- `create_time`: Topic creation timestamp
+- `storage_type`: Storage type (e.g., Memory, RocksDB, etc.)
+- `partition`: Number of partitions
+- `replication`: Number of replicas
+- `storage_name_list`: List of storage names
+- `create_time`: Topic creation time (Unix timestamp in seconds)
 
 #### 4.2 Topic Detail Query
 - **Endpoint**: `POST /api/mqtt/topic/detail`
@@ -668,39 +674,73 @@ Query message count for a specific topic:
   "code": 0,
   "message": "success",
   "data": {
-    "share_sub": false,        // Whether this is a shared subscription
-    "group_leader_info": null, // Shared subscription group leader info (only for shared subscriptions)
-    "topic_list": [            // List of matched topics
-      {
-        "client_id": "client001",
-        "path": "sensor/temperature",
-        "topic_name": "sensor/temperature",
-        "exclusive_push_data": {  // Exclusive subscription push data (null for shared subscriptions)
-          "protocol": "MQTTv5",
+    "share_sub": false,
+    "group_leader_info": null,
+    "sub_data": {
+      "client_id": "client001",
+      "path": "sensor/temperature",
+      "push_subscribe": {
+        "sensor/temperature": {
           "client_id": "client001",
           "sub_path": "sensor/temperature",
           "rewrite_sub_path": null,
           "topic_name": "sensor/temperature",
-          "group_name": null,
+          "group_name": "",
+          "protocol": "MQTTv5",
           "qos": "AtLeastOnce",
-          "nolocal": false,
+          "no_local": false,
           "preserve_retain": true,
           "retain_forward_rule": "SendAtSubscribe",
           "subscription_identifier": null,
-          "create_time": 1704067200000
-        },
-        "share_push_data": null,  // Shared subscription push data (null for exclusive subscriptions)
-        "push_thread": {          // Push thread statistics (optional)
-          "push_success_record_num": 1520,  // Successful push count
-          "push_error_record_num": 3,       // Failed push count
-          "last_push_time": 1704067800000,  // Last push time (millisecond timestamp)
-          "last_run_time": 1704067810000,   // Last run time (millisecond timestamp)
-          "create_time": 1704067200000      // Create time (millisecond timestamp)
+          "create_time": 1704067200
         }
-      }
-    ]
+      },
+      "push_thread": {
+        "sensor/temperature": {
+          "push_success_record_num": 1520,
+          "push_error_record_num": 3,
+          "last_push_time": 1704067800,
+          "last_run_time": 1704067810,
+          "create_time": 1704067200,
+          "bucket_id": "bucket_0"
+        }
+      },
+      "leader_id": null
+    }
   }
 }
+```
+
+**Field Descriptions**:
+- `share_sub`: Whether this is a shared subscription
+- `group_leader_info`: Shared subscription group leader information (only for shared subscriptions)
+  - `broker_id`: Broker node ID
+  - `broker_addr`: Broker address
+  - `extend_info`: Extended information
+- `sub_data`: Subscription data details
+  - `client_id`: Client ID
+  - `path`: Subscription path
+  - `push_subscribe`: Mapping of topics to subscribers (HashMap<topic_name, Subscriber>)
+    - `client_id`: Client ID
+    - `sub_path`: Subscription path
+    - `rewrite_sub_path`: Rewritten subscription path (optional)
+    - `topic_name`: Topic name
+    - `group_name`: Group name (for shared subscriptions)
+    - `protocol`: MQTT protocol version
+    - `qos`: QoS level
+    - `no_local`: Whether to exclude local messages
+    - `preserve_retain`: Whether to preserve retain flag
+    - `retain_forward_rule`: Retain message forwarding rule
+    - `subscription_identifier`: Subscription identifier (optional)
+    - `create_time`: Creation time (Unix timestamp in seconds)
+  - `push_thread`: Mapping of topics to push thread data (HashMap<topic_name, thread_data>)
+    - `push_success_record_num`: Successful push count
+    - `push_error_record_num`: Failed push count
+    - `last_push_time`: Last push time (Unix timestamp in seconds)
+    - `last_run_time`: Last run time (Unix timestamp in seconds)
+    - `create_time`: Creation time (Unix timestamp in seconds)
+    - `bucket_id`: Bucket ID
+  - `leader_id`: Leader node ID (for shared subscriptions)
 ```
 
 **Shared Subscription Response Example**:

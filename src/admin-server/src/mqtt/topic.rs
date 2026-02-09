@@ -124,12 +124,6 @@ pub struct DeleteTopicRewriteReq {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct TopicListRow {
-    pub topic_name: String,
-    pub create_time: u64,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
 pub struct TopicDetailResp {
     pub topic_info: Topic,
     pub retain_message: Option<MqttMessage>,
@@ -168,10 +162,7 @@ pub async fn topic_list(
             .broker_cache
             .get_topic_by_name(&tp)
         {
-            topics.push(TopicListRow {
-                topic_name: topic.topic_name.clone(),
-                create_time: topic.create_time,
-            });
+            topics.push(topic.clone());
         }
     } else {
         let topic_type = params.topic_type.as_deref().unwrap_or("all");
@@ -195,10 +186,7 @@ pub async fn topic_list(
                 continue;
             }
 
-            topics.push(TopicListRow {
-                topic_name: topic.topic_name.clone(),
-                create_time: topic.create_time,
-            });
+            topics.push(topic.clone());
         }
     }
 
@@ -212,7 +200,7 @@ pub async fn topic_list(
     })
 }
 
-impl Queryable for TopicListRow {
+impl Queryable for Topic {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
             "topic_name" => Some(self.topic_name.clone()),

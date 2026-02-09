@@ -436,9 +436,12 @@
   "data": {
     "data": [
       {
-        "topic_name": "topic_001",
+        "topic_id": "01J9K5FHQP8NWXYZ1234567890",
         "topic_name": "sensor/temperature",
-        "is_contain_retain_message": true,
+        "storage_type": "Memory",
+        "partition": 1,
+        "replication": 1,
+        "storage_name_list": [],
         "create_time": 1640995200
       }
     ],
@@ -448,10 +451,13 @@
 ```
 
 **响应字段说明**：
-- `topic_name`: 主题ID
+- `topic_id`: 主题唯一标识符
 - `topic_name`: 主题名称
-- `is_contain_retain_message`: 是否包含保留消息
-- `create_time`: 主题创建时间戳
+- `storage_type`: 存储类型（如 Memory、RocksDB 等）
+- `partition`: 分区数
+- `replication`: 副本数
+- `storage_name_list`: 存储名称列表
+- `create_time`: 主题创建时间（Unix时间戳，秒）
 
 #### 4.2 主题详情查询
 - **接口**: `POST /api/mqtt/topic/detail`
@@ -668,39 +674,73 @@
   "code": 0,
   "message": "success",
   "data": {
-    "share_sub": false,        // 是否为共享订阅
-    "group_leader_info": null, // 共享订阅组Leader信息（仅共享订阅有值）
-    "topic_list": [            // 匹配的主题列表
-      {
-        "client_id": "client001",
-        "path": "sensor/temperature",
-        "topic_name": "sensor/temperature",
-        "exclusive_push_data": {  // 独占订阅推送数据（共享订阅为null）
-          "protocol": "MQTTv5",
+    "share_sub": false,
+    "group_leader_info": null,
+    "sub_data": {
+      "client_id": "client001",
+      "path": "sensor/temperature",
+      "push_subscribe": {
+        "sensor/temperature": {
           "client_id": "client001",
           "sub_path": "sensor/temperature",
           "rewrite_sub_path": null,
           "topic_name": "sensor/temperature",
-          "group_name": null,
+          "group_name": "",
+          "protocol": "MQTTv5",
           "qos": "AtLeastOnce",
-          "nolocal": false,
+          "no_local": false,
           "preserve_retain": true,
           "retain_forward_rule": "SendAtSubscribe",
           "subscription_identifier": null,
-          "create_time": 1704067200000
-        },
-        "share_push_data": null,  // 共享订阅推送数据（独占订阅为null）
-        "push_thread": {          // 推送线程统计信息（可选）
-          "push_success_record_num": 1520,  // 推送成功次数
-          "push_error_record_num": 3,       // 推送失败次数
-          "last_push_time": 1704067800000,  // 最后推送时间（毫秒时间戳）
-          "last_run_time": 1704067810000,   // 最后运行时间（毫秒时间戳）
-          "create_time": 1704067200000      // 创建时间（毫秒时间戳）
+          "create_time": 1704067200
         }
-      }
-    ]
+      },
+      "push_thread": {
+        "sensor/temperature": {
+          "push_success_record_num": 1520,
+          "push_error_record_num": 3,
+          "last_push_time": 1704067800,
+          "last_run_time": 1704067810,
+          "create_time": 1704067200,
+          "bucket_id": "bucket_0"
+        }
+      },
+      "leader_id": null
+    }
   }
 }
+```
+
+**字段说明**：
+- `share_sub`: 是否为共享订阅
+- `group_leader_info`: 共享订阅组 Leader 信息（仅共享订阅时有值）
+  - `broker_id`: Broker 节点 ID
+  - `broker_addr`: Broker 地址
+  - `extend_info`: 扩展信息
+- `sub_data`: 订阅数据详情
+  - `client_id`: 客户端 ID
+  - `path`: 订阅路径
+  - `push_subscribe`: 主题到订阅者的映射（HashMap<主题名, Subscriber>）
+    - `client_id`: 客户端 ID
+    - `sub_path`: 订阅路径
+    - `rewrite_sub_path`: 重写后的订阅路径（可选）
+    - `topic_name`: 主题名称
+    - `group_name`: 组名（共享订阅时有值）
+    - `protocol`: MQTT 协议版本
+    - `qos`: QoS 级别
+    - `no_local`: 是否不接收本地消息
+    - `preserve_retain`: 是否保留 retain 标志
+    - `retain_forward_rule`: Retain 消息转发规则
+    - `subscription_identifier`: 订阅标识符（可选）
+    - `create_time`: 创建时间（Unix时间戳，秒）
+  - `push_thread`: 主题到推送线程数据的映射（HashMap<主题名, 线程数据>）
+    - `push_success_record_num`: 推送成功次数
+    - `push_error_record_num`: 推送失败次数
+    - `last_push_time`: 最后推送时间（Unix时间戳，秒）
+    - `last_run_time`: 最后运行时间（Unix时间戳，秒）
+    - `create_time`: 创建时间（Unix时间戳，秒）
+    - `bucket_id`: Bucket ID
+  - `leader_id`: Leader 节点 ID（共享订阅时有值）
 ```
 
 **共享订阅响应示例**:
