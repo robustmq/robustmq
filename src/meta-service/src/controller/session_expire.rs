@@ -59,7 +59,8 @@ impl SessionExpire {
     }
 
     pub async fn session_expire(&self) {
-        let sessions = self.get_expire_session_list().await;
+        let mut sessions = self.get_persist_expire_session_list().await;
+        sessions.extend(self.get_not_persist_expire_session_list());
         delete_sessions(
             &self.cache_manager,
             &self.rocksdb_engine_handler,
@@ -74,7 +75,17 @@ impl SessionExpire {
         self.send_expire_lastwill_message(lastwill_list).await;
     }
 
-    async fn get_expire_session_list(&self) -> Vec<MqttSession> {
+    fn get_not_persist_expire_session_list(&self) -> Vec<MqttSession> {
+        let mut sessions = Vec::new();
+        for session in self.cache_manager.session_list.iter() {
+            if self.is_session_expire(&session) {
+                sessions.push(session.clone());
+            }
+        }
+        sessions
+    }
+
+    async fn get_persist_expire_session_list(&self) -> Vec<MqttSession> {
         let search_key = storage_key_mqtt_session_prefix();
         let cf = if let Some(cf) = self
             .rocksdb_engine_handler
@@ -239,6 +250,7 @@ pub async fn delete_sessions(
                         ms.client_id, e
                     ),
                 }
+                cache_manager.delete_session(&ms.client_id);
             }
         }
     }
@@ -351,7 +363,7 @@ mod tests {
 
         let start = now_second();
         loop {
-            let expire_list = session_expire.get_expire_session_list().await;
+            let expire_list = session_expire.get_persist_expire_session_list().await;
 
             if !expire_list.is_empty() {
                 let mut flag = false;

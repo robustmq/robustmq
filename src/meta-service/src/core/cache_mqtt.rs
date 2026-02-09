@@ -16,10 +16,26 @@ use crate::controller::session_expire::ExpireLastWill;
 use crate::core::cache::CacheManager;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::user::MqttUser;
 
 impl CacheManager {
+    pub fn add_session(&self, session: MqttSession) {
+        self.session_list.insert(session.client_id.clone(), session);
+    }
+
+    pub fn delete_session(&self, client_id: &str) {
+        self.session_list.remove(client_id);
+    }
+
+    pub fn get_session(&self, client_id: &str) -> Option<MqttSession> {
+        if let Some(session) = self.session_list.get(client_id) {
+            return Some(session.clone());
+        }
+        None
+    }
+
     pub fn add_topic(&self, topic: Topic) {
         self.topic_list.insert(topic.topic_name.clone(), topic);
     }

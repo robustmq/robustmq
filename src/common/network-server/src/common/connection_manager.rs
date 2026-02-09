@@ -28,7 +28,7 @@ use protocol::robust::{RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol};
 use std::time::Duration;
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
-use tracing::debug;
+use tracing::{debug, info};
 
 pub struct ConnectionManager {
     pub connections: DashMap<u64, NetworkConnection>,
@@ -188,7 +188,7 @@ impl ConnectionManager {
         packet_wrapper: RobustMQPacketWrapper,
     ) -> ResultCommonError {
         if !is_ignore_print(&packet_wrapper.packet) {
-            debug!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
+            info!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
         if packet_wrapper.protocol.is_mqtt() {

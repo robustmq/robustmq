@@ -168,7 +168,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        list_session_by_req(&self.rocksdb_engine_handler, &req)
+        list_session_by_req(&self.cache_manager, &self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
     }
