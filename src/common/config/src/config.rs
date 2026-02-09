@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core::str;
-
 use super::default::{
     default_broker_id, default_broker_ip, default_cluster_name, default_engine_runtime,
     default_flapping_detect, default_grpc_port, default_http_port, default_message_storage,

@@ -188,10 +188,7 @@ export const sidebar = [
     text: "配置说明",
     collapsed: true,
     items: [
-      { text: "通用配置", link: "/zh/Configuration/COMMON" },
-      { text: "MQTT 配置", link: "/zh/Configuration/MQTT" },
-      { text: "Meta 配置", link: "/zh/Configuration/META" },
-      { text: "Journal 配置", link: "/zh/Configuration/JOURNAL" },
+      { text: "Broker 配置", link: "/zh/Configuration/BROKER" },
       { text: "日志配置", link: "/zh/Configuration/Logging" },
     ],
   },

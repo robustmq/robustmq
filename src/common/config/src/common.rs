@@ -111,8 +111,9 @@ pub fn override_default_by_env(toml_content: String, env_prefix: &str) -> String
     let mut lines: Vec<String> = toml_content.lines().map(|line| line.to_string()).collect();
     for (env_key, line_num) in &env_map {
         if let Ok(env_value) = env::var(env_key) {
-            let key = lines[*line_num].split("=").collect::<Vec<&str>>()[0];
-            lines[*line_num] = key.to_string() + "=" + &env_value;
+            let line = &lines[*line_num];
+            let (key, _) = line.split_once('=').unwrap_or((line.as_str(), ""));
+            lines[*line_num] = format!("{}={}", key.trim(), env_value);
         }
     }
 
@@ -124,28 +125,28 @@ pub fn find_exist_env_for_config(toml_content: &str, env_prefix: &str) -> HashMa
     let mut env_map = HashMap::new();
 
     for (line_num, line) in toml_content.lines().enumerate() {
-        let trimmed = line.trim().replace(" ", "");
+        let trimmed = line.trim().replace(' ', "");
         if trimmed.is_empty() || trimmed.starts_with('#') {
             continue;
         }
         if trimmed.starts_with('[') {
-            sub_key = trimmed[1..trimmed.len() - 1].to_string();
+            sub_key = trimmed
+                .strip_suffix(']')
+                .map(|s| s[1..].to_string())
+                .unwrap_or_else(|| trimmed[1..].to_string());
             continue;
         }
-        if sub_key.is_empty() {
-            let (key, _) = trimmed.split_once('=').unwrap();
-            let env_key = format!("{}_{}", env_prefix, key.to_uppercase().replace('.', "_"));
-            env_map.insert(env_key, line_num);
+        let Some((key, _)) = trimmed.split_once('=') else {
+            continue;
+        };
+        let key_upper = key.trim().to_uppercase().replace('.', "_");
+        let env_key = if sub_key.is_empty() {
+            format!("{}_{}", env_prefix, key_upper)
         } else {
-            let (key, _) = trimmed.split_once('=').unwrap();
-            let env_key = format!(
-                "{}_{}_{}",
-                env_prefix,
-                sub_key.to_uppercase(),
-                key.to_uppercase().replace('.', "_")
-            );
-            env_map.insert(env_key, line_num);
-        }
+            let section_upper = sub_key.to_uppercase().replace('.', "_");
+            format!("{}_{}_{}", env_prefix, section_upper, key_upper)
+        };
+        env_map.insert(env_key, line_num);
     }
 
     env_map
