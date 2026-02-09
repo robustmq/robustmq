@@ -49,6 +49,7 @@ pub struct MQTTContext {
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub retain_message_manager: Arc<RetainMessageManager>,
     pub push_manager: Arc<PushManager>,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
 }
 
 #[derive(Clone)]

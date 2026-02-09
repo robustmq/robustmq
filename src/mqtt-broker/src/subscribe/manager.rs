@@ -44,6 +44,7 @@ pub struct SubscribeManager {
     // (group_name, Vec<TopicName>)
     pub share_group_topics: DashMap<String, HashSet<String>>,
 
+    // (topic, Vec<TopicSubscribeInfo>)
     pub topic_subscribes: DashMap<String, HashSet<TopicSubscribeInfo>>,
 
     //(client_id, TemporaryNotPushClient)

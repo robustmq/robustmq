@@ -23,7 +23,7 @@ use metadata_struct::{
         adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo},
         adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow},
         adapter_record::AdapterWriteRecord,
-        shard::EngineShardConfig,
+        shard::{EngineShard, EngineShardConfig},
         storage_record::StorageRecord,
     },
 };
@@ -63,10 +63,10 @@ impl StorageDriverManager {
         config: &EngineShardConfig,
     ) -> Result<(), CommonError> {
         let (topic, driver) = self.build_driver(topic_name).await?;
-        for partition in topic.storage_name_list {
+        for (_, shard_name) in topic.storage_name_list.iter() {
             driver
                 .create_shard(&AdapterShardInfo {
-                    shard_name: partition,
+                    shard_name: shard_name.to_string(),
                     config: config.clone(),
                 })
                 .await?;
@@ -77,13 +77,13 @@ impl StorageDriverManager {
     pub async fn list_storage_resource(
         &self,
         topic_name: &str,
-    ) -> Result<Vec<String>, CommonError> {
+    ) -> Result<HashMap<u32, EngineShard>, CommonError> {
         let (topic, driver) = self.build_driver(topic_name).await?;
-        let mut results = Vec::new();
-        for partition in topic.storage_name_list {
-            let resp = driver.list_shard(Some(partition)).await?;
+        let mut results = HashMap::new();
+        for (partition, shard_name) in topic.storage_name_list {
+            let resp = driver.list_shard(Some(shard_name)).await?;
             for raw in resp {
-                results.push(serde_json::to_string(&raw)?);
+                results.insert(partition, raw);
             }
         }
         Ok(results)
@@ -91,8 +91,8 @@ impl StorageDriverManager {
 
     pub async fn delete_storage_resource(&self, topic_name: &str) -> Result<(), CommonError> {
         let (topic, driver) = self.build_driver(topic_name).await?;
-        for partition in topic.storage_name_list {
-            driver.delete_shard(&partition).await?;
+        for (_, shard_name) in topic.storage_name_list {
+            driver.delete_shard(&shard_name).await?;
         }
         Ok(())
     }
@@ -121,14 +121,14 @@ impl StorageDriverManager {
     ) -> Result<Vec<StorageRecord>, CommonError> {
         let (topic, driver) = self.build_driver(topic_name).await?;
         let mut results = Vec::new();
-        for partition in topic.storage_name_list {
-            let offset = if let Some(offset) = offsets.get(&partition) {
+        for (_, shard_name) in topic.storage_name_list {
+            let offset = if let Some(offset) = offsets.get(&shard_name) {
                 *offset
             } else {
                 0
             };
             let resp = driver
-                .read_by_offset(&partition, offset, read_config)
+                .read_by_offset(&shard_name, offset, read_config)
                 .await?;
             results.extend(resp);
         }
@@ -144,9 +144,9 @@ impl StorageDriverManager {
     ) -> Result<Vec<StorageRecord>, CommonError> {
         let (topic, driver) = self.build_driver(topic_name).await?;
         let mut results = Vec::new();
-        for partition in topic.storage_name_list {
+        for (_, shard_name) in topic.storage_name_list {
             let resp = driver
-                .read_by_tag(&partition, tag, start_offset, read_config)
+                .read_by_tag(&shard_name, tag, start_offset, read_config)
                 .await?;
             results.extend(resp);
         }
@@ -160,8 +160,8 @@ impl StorageDriverManager {
     ) -> Result<Vec<StorageRecord>, CommonError> {
         let (topic, driver) = self.build_driver(topic_name).await?;
         let mut results = Vec::new();
-        for partition in topic.storage_name_list {
-            let resp = driver.read_by_key(&partition, key).await?;
+        for (_, shard_name) in topic.storage_name_list {
+            let resp = driver.read_by_key(&shard_name, key).await?;
             results.extend(resp);
         }
         Ok(results)
@@ -169,16 +169,16 @@ impl StorageDriverManager {
 
     pub async fn delete_by_key(&self, topic_name: &str, key: &str) -> Result<(), CommonError> {
         let (topic, driver) = self.build_driver(topic_name).await?;
-        for partition in topic.storage_name_list {
-            driver.delete_by_key(&partition, key).await?
+        for (_, shard_name) in topic.storage_name_list {
+            driver.delete_by_key(&shard_name, key).await?
         }
         Ok(())
     }
 
     pub async fn delete_by_offset(&self, topic_name: &str, offset: u64) -> Result<(), CommonError> {
         let (topic, driver) = self.build_driver(topic_name).await?;
-        for partition in topic.storage_name_list {
-            driver.delete_by_offset(&partition, offset).await?
+        for (_, shard_name) in topic.storage_name_list {
+            driver.delete_by_offset(&shard_name, offset).await?
         }
         Ok(())
     }
@@ -191,9 +191,9 @@ impl StorageDriverManager {
     ) -> Result<u64, CommonError> {
         let (topic, driver) = self.build_driver(topic_name).await?;
         let mut results = Vec::new();
-        for partition in topic.storage_name_list {
+        for (_, shard_name) in topic.storage_name_list {
             let offset = driver
-                .get_offset_by_timestamp(&partition, timestamp, strategy.clone())
+                .get_offset_by_timestamp(&shard_name, timestamp, strategy.clone())
                 .await?;
             results.push(offset);
         }

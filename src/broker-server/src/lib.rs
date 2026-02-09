@@ -231,6 +231,7 @@ impl BrokerServer {
                 schema_manager: self.mqtt_params.schema_manager.clone(),
                 retain_message_manager: self.mqtt_params.retain_message_manager.clone(),
                 push_manager: self.mqtt_params.push_manager.clone(),
+                storage_driver_manager: self.mqtt_params.storage_driver_manager.clone(),
             },
             engine_context: StorageEngineContext {
                 engine_adapter_handler: self.engine_params.storage_engine_handler.clone(),
