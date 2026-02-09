@@ -113,12 +113,7 @@ curl -X POST http://localhost:8080/api/mqtt/user/create \
   }'
 
 # Query user list
-curl -X POST http://localhost:8080/api/mqtt/user/list \
-  -H "Content-Type: application/json" \
-  -d '{
-    "limit": 10,
-    "page": 1
-  }'
+curl "http://localhost:8080/api/mqtt/user/list?limit=10&page=1"
 
 # Delete user
 curl -X POST http://localhost:8080/api/mqtt/user/delete \

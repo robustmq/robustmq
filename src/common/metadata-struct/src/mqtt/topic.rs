@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-
 use common_base::{
     error::common::CommonError, tools::now_second, utils::serialize, uuid::unique_id,
 };
 use common_config::storage::StorageType;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Topic {

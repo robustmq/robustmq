@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use axum::{extract::State, Json};
+use axum::extract::{Query, State};
 use common_base::http_response::{error_response, success_response};
 use metadata_struct::schema::{SchemaData, SchemaResourceBind, SchemaType};
 use mqtt_broker::{core::error::MqttBrokerError, storage::schema::SchemaStorage};
@@ -146,7 +146,7 @@ pub struct SchemaBindListRow {
 
 pub async fn schema_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<SchemaListReq>,
+    Query(params): Query<SchemaListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -240,7 +240,7 @@ pub async fn schema_delete(
 
 pub async fn schema_bind_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<SchemaBindListReq>,
+    Query(params): Query<SchemaBindListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

@@ -152,51 +152,51 @@ impl AdminServer {
             // session
             .route(MQTT_SESSION_LIST_PATH, get(session_list))
             // topic
-            .route(MQTT_TOPIC_LIST_PATH, post(topic_list))
-            .route(MQTT_TOPIC_DETAIL_PATH, post(topic_detail))
+            .route(MQTT_TOPIC_LIST_PATH, get(topic_list))
+            .route(MQTT_TOPIC_DETAIL_PATH, get(topic_detail))
             .route(MQTT_TOPIC_DELETE_PATH, post(topic_delete))
             // topic-rewrite
-            .route(MQTT_TOPIC_REWRITE_LIST_PATH, post(topic_rewrite_list))
+            .route(MQTT_TOPIC_REWRITE_LIST_PATH, get(topic_rewrite_list))
             .route(MQTT_TOPIC_REWRITE_CREATE_PATH, post(topic_rewrite_create))
             .route(MQTT_TOPIC_REWRITE_DELETE_PATH, post(topic_rewrite_delete))
             // subscribe
-            .route(MQTT_SUBSCRIBE_LIST_PATH, post(subscribe_list))
-            .route(MQTT_SUBSCRIBE_DETAIL_PATH, post(subscribe_detail))
+            .route(MQTT_SUBSCRIBE_LIST_PATH, get(subscribe_list))
+            .route(MQTT_SUBSCRIBE_DETAIL_PATH, get(subscribe_detail))
             // auto subscribe
-            .route(MQTT_AUTO_SUBSCRIBE_LIST_PATH, post(auto_subscribe_list))
+            .route(MQTT_AUTO_SUBSCRIBE_LIST_PATH, get(auto_subscribe_list))
             .route(MQTT_AUTO_SUBSCRIBE_CREATE_PATH, post(auto_subscribe_create))
             .route(MQTT_AUTO_SUBSCRIBE_DELETE_PATH, post(auto_subscribe_delete))
             // slow subscribe
-            .route(MQTT_SLOW_SUBSCRIBE_LIST_PATH, post(slow_subscribe_list))
+            .route(MQTT_SLOW_SUBSCRIBE_LIST_PATH, get(slow_subscribe_list))
             // user
-            .route(MQTT_USER_LIST_PATH, post(user_list))
+            .route(MQTT_USER_LIST_PATH, get(user_list))
             .route(MQTT_USER_CREATE_PATH, post(user_create))
             .route(MQTT_USER_DELETE_PATH, post(user_delete))
             // acl
-            .route(MQTT_ACL_LIST_PATH, post(acl_list))
+            .route(MQTT_ACL_LIST_PATH, get(acl_list))
             .route(MQTT_ACL_CREATE_PATH, post(acl_create))
             .route(MQTT_ACL_DELETE_PATH, post(acl_delete))
             // blacklist
-            .route(MQTT_BLACKLIST_LIST_PATH, post(blacklist_list))
+            .route(MQTT_BLACKLIST_LIST_PATH, get(blacklist_list))
             .route(MQTT_BLACKLIST_CREATE_PATH, post(blacklist_create))
             .route(MQTT_BLACKLIST_DELETE_PATH, post(blacklist_delete))
             // flapping_detect
-            .route(MQTT_FLAPPING_DETECT_LIST_PATH, post(flapping_detect_list))
+            .route(MQTT_FLAPPING_DETECT_LIST_PATH, get(flapping_detect_list))
             // connector
-            .route(MQTT_CONNECTOR_LIST_PATH, post(connector_list))
+            .route(MQTT_CONNECTOR_LIST_PATH, get(connector_list))
             .route(MQTT_CONNECTOR_CREATE_PATH, post(connector_create))
-            .route(MQTT_CONNECTOR_DETAIL_PATH, post(connector_detail))
+            .route(MQTT_CONNECTOR_DETAIL_PATH, get(connector_detail))
             .route(MQTT_CONNECTOR_DELETE_PATH, post(connector_delete))
             // schema
-            .route(MQTT_SCHEMA_LIST_PATH, post(schema_list))
+            .route(MQTT_SCHEMA_LIST_PATH, get(schema_list))
             .route(MQTT_SCHEMA_CREATE_PATH, post(schema_create))
             .route(MQTT_SCHEMA_DELETE_PATH, post(schema_delete))
-            .route(MQTT_SCHEMA_BIND_LIST_PATH, post(schema_bind_list))
+            .route(MQTT_SCHEMA_BIND_LIST_PATH, get(schema_bind_list))
             .route(MQTT_SCHEMA_BIND_CREATE_PATH, post(schema_bind_create))
             .route(MQTT_SCHEMA_BIND_DELETE_PATH, post(schema_bind_delete))
             // system alarm
-            .route(MQTT_SYSTEM_ALARM_LIST_PATH, post(system_alarm_list))
-            .route(MQTT_BAN_LOG_LIST_PATH, post(ban_log_list))
+            .route(MQTT_SYSTEM_ALARM_LIST_PATH, get(system_alarm_list))
+            .route(MQTT_BAN_LOG_LIST_PATH, get(ban_log_list))
             // message
             .route(MQTT_MESSAGE_SEND_PATH, post(send))
             .route(MQTT_MESSAGE_READ_PATH, post(read))

@@ -134,23 +134,10 @@ curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
 
 ```bash
 # Query all blacklists
-curl -X POST http://localhost:8080/api/mqtt/blacklist/list \
-  -H "Content-Type: application/json" \
-  -d '{
-    "limit": 10,
-    "page": 1
-  }'
+curl "http://localhost:8080/api/mqtt/blacklist/list?limit=10&page=1"
 
 # Query specific type blacklist (using filter parameters)
-curl -X POST http://localhost:8080/api/mqtt/blacklist/list \
-  -H "Content-Type: application/json" \
-  -d '{
-    "limit": 10,
-    "page": 1,
-    "filter_field": "blacklist_type",
-    "filter_values": ["User"],
-    "exact_match": "true"
-  }'
+curl "http://localhost:8080/api/mqtt/blacklist/list?limit=10&page=1&filter_field=blacklist_type&filter_values=User&exact_match=true"
 ```
 
 #### Delete Blacklist

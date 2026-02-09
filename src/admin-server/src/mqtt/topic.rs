@@ -20,7 +20,7 @@ use crate::{
         PageReplyData,
     },
 };
-use axum::{extract::State, Json};
+use axum::extract::{Query, State};
 use common_base::{
     http_response::{error_response, success_response},
     tools::now_millis,
@@ -147,7 +147,7 @@ pub struct TopicRewriteListRow {
 
 pub async fn topic_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<TopicListReq>,
+    Query(params): Query<TopicListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -159,8 +159,7 @@ pub async fn topic_list(
         params.exact_match,
     );
 
-    let mut topics = Vec::new();
-
+    let mut topics: Vec<Topic> = Vec::new();
     if let Some(tp) = params.topic_name.clone() {
         if let Some(topic) = state
             .mqtt_context
@@ -217,7 +216,7 @@ impl Queryable for Topic {
 
 pub async fn topic_detail(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<TopicDetailReq>,
+    Query(params): Query<TopicDetailReq>,
 ) -> String {
     let result = match read_topic_detail(&state, &params).await {
         Ok(data) => data,
@@ -287,7 +286,7 @@ pub async fn topic_delete(
 
 pub async fn topic_rewrite_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<TopicRewriteReq>,
+    Query(params): Query<TopicRewriteReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

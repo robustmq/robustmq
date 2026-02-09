@@ -19,7 +19,7 @@ use crate::{
         PageReplyData,
     },
 };
-use axum::{extract::State, Json};
+use axum::extract::{Query, State};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -65,7 +65,7 @@ use std::sync::Arc;
 
 pub async fn system_alarm_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<SystemAlarmListReq>,
+    Query(params): Query<SystemAlarmListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -116,7 +116,7 @@ impl Queryable for SystemAlarmListRow {
 
 pub async fn flapping_detect_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<SystemAlarmListReq>,
+    Query(params): Query<SystemAlarmListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -165,7 +165,7 @@ impl Queryable for FlappingDetectListRaw {
 
 pub async fn ban_log_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<SystemAlarmListReq>,
+    Query(params): Query<SystemAlarmListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

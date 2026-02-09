@@ -7,7 +7,7 @@
 ### 1. 集群概览
 
 #### 1.1 集群概览信息
-- **接口**: `POST /api/mqtt/overview`
+- **接口**: `GET /api/mqtt/overview`
 - **描述**: 获取 MQTT 集群概览信息
 - **请求参数**: 空 JSON 对象
 ```json
@@ -88,7 +88,7 @@
 - `connector_thread_num`: 活跃连接器线程数
 
 #### 1.2 监控数据查询
-- **接口**: `POST /api/mqtt/monitor/data`
+- **接口**: `GET /api/mqtt/monitor/data`
 - **描述**: 获取指定类型的监控数据时间序列
 - **请求参数**:
 ```json
@@ -193,7 +193,7 @@
 ### 2. 客户端管理
 
 #### 2.1 客户端列表查询
-- **接口**: `POST /api/mqtt/client/list`
+- **接口**: `GET /api/mqtt/client/list`
 - **描述**: 查询连接到集群的客户端列表
 - **请求参数**:
 ```json
@@ -314,7 +314,7 @@
 ### 3. 会话管理
 
 #### 3.1 会话列表查询
-- **接口**: `POST /api/mqtt/session/list`
+- **接口**: `GET /api/mqtt/session/list`
 - **描述**: 查询 MQTT 会话列表
 - **请求参数**:
 ```json
@@ -405,7 +405,7 @@
 ### 4. 主题管理
 
 #### 4.1 主题列表查询
-- **接口**: `POST /api/mqtt/topic/list`
+- **接口**: `GET /api/mqtt/topic/list`
 - **描述**: 查询 MQTT 主题列表
 - **请求参数**:
 ```json
@@ -460,7 +460,7 @@
 - `create_time`: 主题创建时间（Unix时间戳，秒）
 
 #### 4.2 主题详情查询
-- **接口**: `POST /api/mqtt/topic/detail`
+- **接口**: `GET /api/mqtt/topic/detail`
 - **描述**: 查询指定主题的详细信息，包括主题基本信息、保留消息和订阅列表
 - **请求参数**:
 ```json
@@ -476,11 +476,31 @@
   "message": "success",
   "data": {
     "topic_info": {
-      "cluster_name": "robustmq-cluster",
+      "topic_id": "01J9K5FHQP8NWXYZ1234567890",
       "topic_name": "sensor/temperature",
+      "storage_type": "Memory",
+      "partition": 1,
+      "replication": 1,
+      "storage_name_list": [],
       "create_time": 1640995200
     },
-    "retain_message": "eyJ0ZW1wZXJhdHVyZSI6MjUuNX0=",
+    "retain_message": {
+      "client_id": "client001",
+      "dup": false,
+      "qos": "AtLeastOnce",
+      "pkid": 1,
+      "retain": true,
+      "topic": "sensor/temperature",
+      "payload": "eyJ0ZW1wZXJhdHVyZSI6MjUuNX0=",
+      "format_indicator": null,
+      "expiry_interval": 0,
+      "response_topic": null,
+      "correlation_data": null,
+      "user_properties": null,
+      "subscription_identifiers": null,
+      "content_type": null,
+      "create_time": 1640995300
+    },
     "retain_message_at": 1640995300,
     "sub_list": [
       {
@@ -491,38 +511,86 @@
         "client_id": "client002",
         "path": "sensor/+"
       }
-    ]
+    ],
+    "storage_list": {
+      "0": {
+        "shard_uid": "shard_01J9K5FHQP8NWXYZ",
+        "shard_name": "sensor_temperature_p0",
+        "start_segment_seq": 0,
+        "active_segment_seq": 1,
+        "last_segment_seq": 1,
+        "status": "Run",
+        "config": {
+          "replica_num": 1,
+          "storage_type": "Memory",
+          "max_segment_size": 104857600,
+          "retention_sec": 86400
+        },
+        "create_time": 1640995200
+      }
+    }
   }
 }
 ```
 
 **响应字段说明**：
 
-- **topic_info**: 主题基本信息
-  - `cluster_name`: 集群名称
+- **topic_info**: 主题完整信息（Topic 对象）
+  - `topic_id`: 主题唯一标识符
   - `topic_name`: 主题名称
-  - `create_time`: 主题创建时间戳（秒）
+  - `storage_type`: 存储类型（如 Memory、RocksDB 等）
+  - `partition`: 分区数
+  - `replication`: 副本数
+  - `storage_name_list`: 存储名称列表
+  - `create_time`: 主题创建时间（Unix时间戳，秒）
 
-- **retain_message**: 保留消息内容
-  - 类型：`String` 或 `null`
-  - Base64 编码的消息内容
-  - 如果主题没有保留消息，则为 `null`
+- **retain_message**: 保留消息完整对象（MqttMessage 或 null）
+  - `client_id`: 发送消息的客户端 ID
+  - `dup`: 是否为重复消息
+  - `qos`: QoS 级别
+  - `pkid`: 消息包标识符
+  - `retain`: 是否为保留消息
+  - `topic`: 消息主题
+  - `payload`: 消息内容（Base64 编码）
+  - `format_indicator`: 格式指示符（可选）
+  - `expiry_interval`: 过期间隔（秒）
+  - `response_topic`: 响应主题（可选）
+  - `correlation_data`: 相关数据（可选）
+  - `user_properties`: 用户属性（可选）
+  - `subscription_identifiers`: 订阅标识符列表（可选）
+  - `content_type`: 内容类型（可选）
+  - `create_time`: 消息创建时间（Unix时间戳，秒）
 
-- **retain_message_at**: 保留消息的时间戳
+- **retain_message_at**: 保留消息时间戳
   - 类型：`u64` 或 `null`
-  - Unix 时间戳（毫秒）
-  - 表示保留消息的创建或更新时间
+  - Unix 时间戳（秒）
   - 如果没有保留消息，则为 `null`
 
-- **sub_list**: 订阅该主题的客户端列表
-  - `client_id`: 订阅客户端ID
+- **sub_list**: 订阅该主题的客户端列表（HashSet）
+  - `client_id`: 订阅客户端 ID
   - `path`: 订阅路径（可能包含通配符如 `+` 或 `#`）
 
+- **storage_list**: 存储分片映射（HashMap<分区号, EngineShard>）
+  - 键：分区号（u32）
+  - 值：EngineShard 对象
+    - `shard_uid`: 分片唯一标识符
+    - `shard_name`: 分片名称
+    - `start_segment_seq`: 起始段序号
+    - `active_segment_seq`: 活跃段序号
+    - `last_segment_seq`: 最后段序号
+    - `status`: 分片状态（Run、PrepareDelete、Deleting）
+    - `config`: 分片配置
+      - `replica_num`: 副本数
+      - `storage_type`: 存储类型
+      - `max_segment_size`: 最大段大小（字节）
+      - `retention_sec`: 保留时间（秒）
+    - `create_time`: 分片创建时间（Unix时间戳，秒）
+
 **注意事项**：
-- 如果主题不存在，将返回错误响应：`{"code": 1, "message": "Topic does not exist."}`
+- 如果主题不存在，将返回错误响应
 - `sub_list` 显示所有匹配该主题的订阅，包括通配符订阅
-- 保留消息内容使用 Base64 编码，客户端需要解码后使用
-- `retain_message_at` 使用毫秒级时间戳，而 `create_time` 使用秒级时间戳
+- `storage_list` 提供每个分区的存储引擎分片详细信息
+- 保留消息的 `payload` 字段使用 Base64 编码
 
 #### 4.3 删除主题
 - **接口**: `POST /api/mqtt/topic/delete`
@@ -553,7 +621,7 @@
 - 删除主题不会自动取消该主题的订阅，订阅仍会保留
 
 #### 4.4 主题重写规则列表
-- **接口**: `POST /api/mqtt/topic-rewrite/list`
+- **接口**: `GET /api/mqtt/topic-rewrite/list`
 - **描述**: 查询主题重写规则列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -614,7 +682,7 @@
 ### 5. 订阅管理
 
 #### 5.1 订阅列表查询
-- **接口**: `POST /api/mqtt/subscribe/list`
+- **接口**: `GET /api/mqtt/subscribe/list`
 - **描述**: 查询订阅列表
 - **请求参数**:
 ```json
@@ -658,7 +726,7 @@
 ```
 
 #### 5.2 订阅详情查询
-- **接口**: `POST /api/mqtt/subscribe/detail`
+- **接口**: `GET /api/mqtt/subscribe/detail`
 - **描述**: 查询订阅详情，支持查询独占订阅和共享订阅的详细信息
 - **请求参数**:
 ```json
@@ -819,7 +887,7 @@
 #### 5.3 自动订阅规则管理
 
 ##### 5.3.1 自动订阅列表
-- **接口**: `POST /api/mqtt/auto-subscribe/list`
+- **接口**: `GET /api/mqtt/auto-subscribe/list`
 - **描述**: 查询自动订阅规则列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -880,7 +948,7 @@
 #### 5.4 慢订阅监控
 
 ##### 5.4.1 慢订阅列表
-- **接口**: `POST /api/mqtt/slow-subscribe/list`
+- **接口**: `GET /api/mqtt/slow-subscribe/list`
 - **描述**: 查询慢订阅列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -909,7 +977,7 @@
 ### 6. 用户管理
 
 #### 6.1 用户列表查询
-- **接口**: `POST /api/mqtt/user/list`
+- **接口**: `GET /api/mqtt/user/list`
 - **描述**: 查询 MQTT 用户列表
 - **请求参数**:
 ```json
@@ -984,7 +1052,7 @@
 ### 7. ACL 管理
 
 #### 7.1 ACL 列表查询
-- **接口**: `POST /api/mqtt/acl/list`
+- **接口**: `GET /api/mqtt/acl/list`
 - **描述**: 查询访问控制列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -1055,7 +1123,7 @@
 ### 8. 黑名单管理
 
 #### 8.1 黑名单列表查询
-- **接口**: `POST /api/mqtt/blacklist/list`
+- **接口**: `GET /api/mqtt/blacklist/list`
 - **描述**: 查询黑名单列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -1116,7 +1184,7 @@
 ### 9. 连接器管理
 
 #### 9.1 连接器列表查询
-- **接口**: `POST /api/mqtt/connector/list`
+- **接口**: `GET /api/mqtt/connector/list`
 - **描述**: 查询连接器列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -1143,7 +1211,7 @@
 ```
 
 #### 9.2 连接器详情查询
-- **接口**: `POST /api/mqtt/connector/detail`
+- **接口**: `GET /api/mqtt/connector/detail`
 - **描述**: 查询指定连接器的详细运行状态
 - **请求参数**:
 ```json
@@ -2203,7 +2271,7 @@
 ### 10. Schema 管理
 
 #### 10.1 Schema 列表查询
-- **接口**: `POST /api/mqtt/schema/list`
+- **接口**: `GET /api/mqtt/schema/list`
 - **描述**: 查询 Schema 列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -2279,7 +2347,7 @@
 #### 10.4 Schema 绑定管理
 
 ##### 10.4.1 Schema 绑定列表查询
-- **接口**: `POST /api/mqtt/schema-bind/list`
+- **接口**: `GET /api/mqtt/schema-bind/list`
 - **描述**: 查询 Schema 绑定关系列表
 - **请求参数**:
 ```json
@@ -2441,7 +2509,7 @@
 ### 12. 系统监控
 
 #### 12.1 系统告警列表
-- **接口**: `POST /api/mqtt/system-alarm/list`
+- **接口**: `GET /api/mqtt/system-alarm/list`
 - **描述**: 查询系统告警列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -2464,7 +2532,7 @@
 ```
 
 #### 12.2 连接抖动检测列表
-- **接口**: `POST /api/mqtt/flapping_detect/list`
+- **接口**: `GET /api/mqtt/flapping_detect/list`
 - **描述**: 查询连接抖动检测列表
 - **请求参数**: 支持通用分页和过滤参数
 - **响应数据结构**:
@@ -2540,104 +2608,45 @@
 
 ### 查询集群概览
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/overview \
-  -H "Content-Type: application/json" \
-  -d '{}'
+curl -X GET http://localhost:8080/api/mqtt/overview
 ```
 
 ### 查询监控数据
 ```bash
 # 查询连接数监控数据
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "connection_num"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connection_num"
 
 # 查询指定主题的消息接收数
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "topic_in_num",
-    "topic_name": "sensor/temperature"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=topic_in_num&topic_name=sensor/temperature"
 
 # 查询订阅发送成功数
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "subscribe_send_success_num",
-    "client_id": "client001",
-    "path": "sensor/+"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=subscribe_send_success_num&client_id=client001&path=sensor/%2B"
 
 # 查询订阅主题发送失败数
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "subscribe_topic_send_failure_num",
-    "client_id": "client001",
-    "path": "sensor/+",
-    "topic_name": "sensor/temperature"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=subscribe_topic_send_failure_num&client_id=client001&path=sensor/%2B&topic_name=sensor/temperature"
 
 # 查询会话接收消息数
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "session_in_num",
-    "client_id": "client001"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=session_in_num&client_id=client001"
 
 # 查询会话发送消息数
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "session_out_num",
-    "client_id": "client001"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=session_out_num&client_id=client001"
 
 # 查询所有连接器发送成功消息总数
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "connector_send_success_total"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_success_total"
 
 # 查询所有连接器发送失败消息总数
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "connector_send_failure_total"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_failure_total"
 
 # 查询指定连接器发送成功消息数
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "connector_send_success",
-    "connector_name": "kafka_connector_01"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_success&connector_name=kafka_connector_01"
 
 # 查询指定连接器发送失败消息数
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "connector_send_failure",
-    "connector_name": "kafka_connector_01"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_failure&connector_name=kafka_connector_01"
 ```
 
 ### 查询客户端列表
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/client/list \
-  -H "Content-Type: application/json" \
-  -d '{
-    "limit": 10,
-    "page": 1,
-    "sort_field": "connection_id",
-    "sort_by": "desc"
-  }'
+curl "http://localhost:8080/api/mqtt/client/list?limit=10&page=1&sort_field=connection_id&sort_by=desc"
 ```
 
 ### 删除主题
@@ -2676,11 +2685,7 @@ curl -X POST http://localhost:8080/api/mqtt/acl/create \
 
 ### 查询连接器详情
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/detail \
-  -H "Content-Type: application/json" \
-  -d '{
-    "connector_name": "kafka_bridge"
-  }'
+curl "http://localhost:8080/api/mqtt/connector/detail?connector_name=kafka_bridge"
 ```
 
 ### 创建连接器

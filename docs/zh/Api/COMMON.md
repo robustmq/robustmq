@@ -92,7 +92,7 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 ```
 
 ### 集群状态查询
-- **接口**: `POST /api/status`
+- **接口**: `GET /api/status`
 - **描述**: 获取集群完整状态信息，包括 RobustMQ 版本、集群名称、启动时间、Broker 节点列表以及 Meta 集群的 Raft 状态
 - **请求参数**: 
 ```json
@@ -271,19 +271,10 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 curl -X GET http://localhost:8080/
 
 # 获取集群状态
-curl -X POST http://localhost:8080/api/status \
-  -H "Content-Type: application/json" \
-  -d '{}'
+curl -X GET http://localhost:8080/api/status
 
 # 带分页的列表查询
-curl -X POST http://localhost:8080/api/mqtt/user/list \
-  -H "Content-Type: application/json" \
-  -d '{
-    "limit": 10,
-    "page": 1,
-    "sort_field": "username",
-    "sort_by": "asc"
-  }'
+curl "http://localhost:8080/api/mqtt/user/list?limit=10&page=1&sort_field=username&sort_by=asc"
 ```
 
 ### 错误处理示例

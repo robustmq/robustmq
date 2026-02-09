@@ -20,7 +20,7 @@ use crate::{
         PageReplyData,
     },
 };
-use axum::{extract::State, Json};
+use axum::extract::{Query, State};
 use common_config::broker::broker_config;
 use mqtt_broker::{
     core::sub_share::{decode_share_info, get_share_sub_leader, is_mqtt_share_subscribe},
@@ -168,7 +168,7 @@ use std::{collections::HashMap, sync::Arc};
 
 pub async fn subscribe_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<SubscribeListReq>,
+    Query(params): Query<SubscribeListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -219,7 +219,7 @@ impl Queryable for SubscribeListRow {
 
 pub async fn subscribe_detail(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<SubscribeDetailReq>,
+    Query(params): Query<SubscribeDetailReq>,
 ) -> String {
     let leader_id = if is_mqtt_share_subscribe(&params.path) {
         let (group, _) = decode_share_info(&params.path);
@@ -289,7 +289,7 @@ pub async fn subscribe_detail(
 
 pub async fn auto_subscribe_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<AutoSubscribeListReq>,
+    Query(params): Query<AutoSubscribeListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -392,7 +392,7 @@ pub async fn auto_subscribe_delete(
 
 pub async fn slow_subscribe_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<AutoSubscribeListReq>,
+    Query(params): Query<AutoSubscribeListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

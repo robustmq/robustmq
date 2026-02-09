@@ -6,7 +6,7 @@
 
 ### 1. 获取集群配置
 
-- **接口**: `POST /api/cluster/config/get`
+- **接口**: `GET /api/cluster/config/get`
 - **描述**: 获取当前集群的配置信息
 - **请求参数**:
 ```json
@@ -90,9 +90,7 @@
 
 ### 获取集群配置
 ```bash
-curl -X POST http://localhost:8080/api/cluster/config/get \
-  -H "Content-Type: application/json" \
-  -d '{}'
+curl -X GET http://localhost:8080/api/cluster/config/get
 ```
 
 ### 设置集群配置

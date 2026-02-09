@@ -92,7 +92,7 @@ Most list query interfaces support the following common parameters:
 ```
 
 ### Cluster Status Query
-- **Endpoint**: `POST /api/status`
+- **Endpoint**: `GET /api/status`
 - **Description**: Get complete cluster status information, including RobustMQ version, cluster name, start time, broker node list, and Meta cluster Raft state
 - **Request Parameters**: 
 ```json
@@ -271,19 +271,10 @@ The `meta` field contains the Raft consensus state information of the Meta clust
 curl -X GET http://localhost:8080/
 
 # Get cluster status
-curl -X POST http://localhost:8080/api/status \
-  -H "Content-Type: application/json" \
-  -d '{}'
+curl -X GET http://localhost:8080/api/status
 
 # List query with pagination
-curl -X POST http://localhost:8080/api/mqtt/user/list \
-  -H "Content-Type: application/json" \
-  -d '{
-    "limit": 10,
-    "page": 1,
-    "sort_field": "username",
-    "sort_by": "asc"
-  }'
+curl "http://localhost:8080/api/mqtt/user/list?limit=10&page=1&sort_field=username&sort_by=asc"
 ```
 
 ### Error Handling Example
