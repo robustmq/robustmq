@@ -16,7 +16,7 @@ use crate::subscribe::common::Subscriber;
 use common_base::uuid::unique_id;
 use dashmap::DashMap;
 use serde::Serialize;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
@@ -39,8 +39,12 @@ pub struct BucketsManager {
 
     // (client_id, (seq))
     client_id_sub: DashMap<String, HashSet<u64>>,
+
     // (client_id_sub_path, (seq))
+    // 1. If it is an exclusive subscription, there is only one seq
+    // 2. If it is a shared subscription, there will be multiple SEQs because one Path will subscribe to multiple topics
     client_id_sub_path_sub: DashMap<String, HashSet<u64>>,
+
     // (topic, (seq))
     topic_sub: DashMap<String, HashSet<u64>>,
 
@@ -105,6 +109,32 @@ impl BucketsManager {
         for seq in seqs {
             self.remove_data_list_by_seq(&seq);
         }
+    }
+
+    pub fn get_subscribe_data_by_sub(
+        &self,
+        client_id: &str,
+        sub_path: &str,
+    ) -> HashMap<String, (String, Subscriber)> {
+        let mut result = HashMap::new();
+        let key = self.client_sub_path_key(client_id, sub_path);
+        if let Some(data) = self.client_id_sub_path_sub.get(&key) {
+            for seq in data.iter() {
+                if let Some((bucket_id, sub)) = self.get_bucket_id_by_seq(seq) {
+                    result.insert(sub.topic_name.clone(), (bucket_id, sub));
+                }
+            }
+        }
+        result
+    }
+
+    fn get_bucket_id_by_seq(&self, seq: &u64) -> Option<(String, Subscriber)> {
+        for raw in self.buckets_data_list.iter() {
+            if let Some(sub) = raw.value().get(seq) {
+                return Some((raw.key().clone(), sub.clone()));
+            }
+        }
+        None
     }
 
     pub fn remove_by_sub(&self, client_id: &str, sub_path: &str) {

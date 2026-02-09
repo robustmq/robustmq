@@ -21,8 +21,9 @@ use crate::{
     },
 };
 use axum::{extract::State, Json};
+use common_config::broker::broker_config;
 use mqtt_broker::{
-    core::sub_share::{decode_share_info, is_mqtt_share_subscribe, is_share_sub_leader},
+    core::sub_share::{decode_share_info, get_share_sub_leader, is_mqtt_share_subscribe},
     subscribe::common::Subscriber,
 };
 use serde::{Deserialize, Serialize};
@@ -46,26 +47,23 @@ pub struct SubscribeDetailReq {
     pub path: String,
 }
 
-#[derive(Deserialize, Debug)]
-pub struct ShareSubscribeDetailReq {
-    pub client_id: String,
-    pub group_name: String,
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SubscribeDetailRep {
     pub share_sub: bool,
     pub group_leader_info: Option<SubGroupLeaderRaw>,
-    pub topic_list: Vec<SubTopicRaw>,
+    pub sub_data: SubDataRaw,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SubTopicRaw {
+pub struct SubDataRaw {
     pub client_id: String,
     pub path: String,
-    pub topic_name: String,
-    pub exclusive_push_data: Option<Subscriber>,
-    pub push_thread: Option<SubPushThreadDataRaw>,
+    // (topic, Subscriber)
+    pub push_subscribe: HashMap<String, Subscriber>,
+    // (topic, SubPushThreadDataRaw)
+    pub push_thread: HashMap<String, SubPushThreadDataRaw>,
+
+    pub leader_id: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -82,6 +80,7 @@ pub struct SubPushThreadDataRaw {
     pub last_push_time: u64,
     pub last_run_time: u64,
     pub create_time: u64,
+    pub bucket_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -159,17 +158,13 @@ pub struct SlowSubscribeListRow {
 }
 
 use common_base::{
-    error::common::CommonError,
     http_response::{error_response, success_response},
     utils::time_util::timestamp_to_local_datetime,
 };
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
-use mqtt_broker::{
-    core::error::MqttBrokerError,
-    storage::{auto_subscribe::AutoSubscribeStorage, local::LocalStorage},
-};
+use mqtt_broker::storage::{auto_subscribe::AutoSubscribeStorage, local::LocalStorage};
 use protocol::mqtt::common::{qos, retain_forward_rule};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 pub async fn subscribe_list(
     State(state): State<Arc<HttpState>>,
@@ -226,169 +221,70 @@ pub async fn subscribe_detail(
     State(state): State<Arc<HttpState>>,
     Json(params): Json<SubscribeDetailReq>,
 ) -> String {
-    if is_mqtt_share_subscribe(&params.path) {
+    let leader_id = if is_mqtt_share_subscribe(&params.path) {
         let (group, _) = decode_share_info(&params.path);
-        let leader = match is_share_sub_leader(&state.client_pool, &group).await {
+        let leader = match get_share_sub_leader(&state.client_pool, &group).await {
             Ok(data) => data,
             Err(e) => {
                 return error_response(e.to_string());
             }
         };
 
+        let conf = broker_config();
         // Forward the request to the leader of the group
-        if leader {
-            //
-            return "".to_string();
+        if leader == conf.broker_id {
+            Some(leader)
+        } else {
+            None
         }
+    } else {
+        None
+    };
 
-        // current node is leader
-        let (topic_list, group_leader_info) = match share_sub_detail(&state, &params).await {
-            Ok(data) => data,
-            Err(e) => {
-                return error_response(e.to_string());
-            }
-        };
-        return success_response(SubscribeDetailRep {
-            share_sub: true,
-            topic_list,
-            group_leader_info: Some(group_leader_info),
-        });
+    let data = state
+        .mqtt_context
+        .subscribe_manager
+        .directly_push
+        .get_subscribe_data_by_sub(&params.client_id, &params.path);
+
+    let mut push_subscribe = HashMap::new();
+    let mut push_thread = HashMap::new();
+    for (topic, (bucket_id, sub)) in data.iter() {
+        push_subscribe.insert(topic.to_string(), sub.clone());
+        if let Some(thread_data) = state
+            .mqtt_context
+            .push_manager
+            .directly_buckets_push_thread
+            .get(bucket_id)
+        {
+            let val = thread_data.value();
+            push_thread.insert(
+                topic.to_string(),
+                SubPushThreadDataRaw {
+                    bucket_id: bucket_id.to_string(),
+                    push_error_record_num: val.push_error_record_num,
+                    push_success_record_num: val.push_success_record_num,
+                    last_push_time: val.last_push_time,
+                    last_run_time: val.last_run_time,
+                    create_time: val.create_time,
+                },
+            );
+        }
     }
 
-    let topic_list = match exclusive_sub_detail(&state, &params).await {
-        Ok(data) => data,
-        Err(e) => {
-            return error_response(e.to_string());
-        }
+    let sub_data = SubDataRaw {
+        client_id: params.client_id.clone(),
+        path: params.path.clone(),
+        push_subscribe,
+        push_thread,
+        leader_id,
     };
+
     success_response(SubscribeDetailRep {
         share_sub: false,
-        topic_list,
+        sub_data,
         group_leader_info: None,
     })
-}
-
-pub async fn share_subscribe_detail(
-    State(_state): State<Arc<HttpState>>,
-    Json(_params): Json<ShareSubscribeDetailReq>,
-) -> String {
-    success_response("".to_string())
-}
-
-async fn exclusive_sub_detail(
-    _state: &Arc<HttpState>,
-    _params: &SubscribeDetailReq,
-) -> Result<Vec<SubTopicRaw>, MqttBrokerError> {
-    let topic_list: Vec<SubTopicRaw> = Vec::new();
-    // for topic_name in state
-    //     .mqtt_context
-    //     .subscribe_manager
-    //     .get_subscribe_topics_by_client_id_path(&params.client_id, &params.path)
-    // {
-    //     let key = state.mqtt_context.subscribe_manager.exclusive_key(
-    //         &params.client_id,
-    //         &params.path,
-    //         &topic_name,
-    //     );
-
-    //     let push_data = state.mqtt_context.subscribe_manager.get_directly_push(&key);
-
-    //     let push_thread = if let Some(data) = state
-    //         .mqtt_context
-    //         .subscribe_manager
-    //         .get_directly_push_thread(&key)
-    //     {
-    //         Some(SubPushThreadDataRaw {
-    //             push_error_record_num: data.push_error_record_num,
-    //             push_success_record_num: data.push_success_record_num,
-    //             last_push_time: data.last_push_time,
-    //             last_run_time: data.last_run_time,
-    //             create_time: data.create_time,
-    //         })
-    //     } else {
-    //         None
-    //     };
-
-    //     topic_list.push(SubTopicRaw {
-    //         client_id: params.client_id.clone(),
-    //         path: params.path.clone(),
-    //         topic_name,
-    //         exclusive_push_data: push_data,
-    //         share_push_data: None,
-    //         push_thread,
-    //     });
-    // }
-
-    Ok(topic_list)
-}
-
-async fn share_sub_detail(
-    _state: &Arc<HttpState>,
-    _params: &SubscribeDetailReq,
-) -> Result<(Vec<SubTopicRaw>, SubGroupLeaderRaw), CommonError> {
-    Err(CommonError::ClusterNoAvailableNode)
-    // let (group, sub_name) = decode_share_group_and_path(&params.path);
-    // let mut topic_list = Vec::new();
-
-    // // topic list
-    // for topic_name in state
-    //     .mqtt_context
-    //     .subscribe_manager
-    //     .get_subscribe_topics_by_client_id_path(&params.client_id, &params.path)
-    // {
-    //     let key =
-    //         state
-    //             .mqtt_context
-    //             .subscribe_manager
-    //             .share_leader_key(&group, &sub_name, &topic_name);
-
-    //     let push_thread = if let Some(data) = state
-    //         .mqtt_context
-    //         .subscribe_manager
-    //         .get_leader_push_thread(&key)
-    //     {
-    //         Some(SubPushThreadDataRaw {
-    //             push_error_record_num: data.push_error_record_num,
-    //             push_success_record_num: data.push_success_record_num,
-    //             last_push_time: data.last_push_time,
-    //             last_run_time: data.last_run_time,
-    //             create_time: data.create_time,
-    //         })
-    //     } else {
-    //         None
-    //     };
-
-    //     let leader_push_data = state.mqtt_context.subscribe_manager.get_share_push(&key);
-
-    //     topic_list.push(SubTopicRaw {
-    //         client_id: params.client_id.clone(),
-    //         path: params.path.clone(),
-    //         topic_name,
-    //         exclusive_push_data: None,
-    //         share_push_data: leader_push_data,
-    //         push_thread,
-    //     });
-    // }
-
-    // // group info
-    // let (group, _) = decode_share_group_and_path(&params.path);
-    // let reply = get_share_sub_leader(&state.client_pool, &group).await?;
-    // use metadata_struct::mqtt::node_extend::MqttNodeExtend;
-
-    // let extend_info_str = if !reply.extend_info.is_empty() {
-    //     let extend: MqttNodeExtend = serialize::deserialize(&reply.extend_info)?;
-    //     serde_json::to_string(&extend).unwrap_or_default()
-    // } else {
-    //     String::new()
-    // };
-
-    // let group_leader_info: SubGroupLeaderRaw = SubGroupLeaderRaw {
-    //     broker_addr: reply.broker_addr.clone(),
-    //     broker_id: reply.broker_id,
-    //     extend_info: extend_info_str,
-    // };
-
-    // Ok((topic_list, group_leader_info))
 }
 
 pub async fn auto_subscribe_list(

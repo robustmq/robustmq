@@ -52,8 +52,9 @@ pub async fn is_share_sub_leader(
 pub async fn get_share_sub_leader(
     client_pool: &Arc<ClientPool>,
     group_name: &str,
-) -> Result<GetShareSubLeaderReply, CommonError> {
-    fetch_share_sub_leader(client_pool, group_name).await
+) -> Result<u64, CommonError> {
+    let reply = fetch_share_sub_leader(client_pool, group_name).await?;
+    Ok(reply.broker_id)
 }
 
 async fn fetch_share_sub_leader(

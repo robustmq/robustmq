@@ -63,6 +63,7 @@ pub struct MqttBrokerServerParams {
     pub broker_cache: Arc<BrokerCacheManager>,
     pub offset_manager: Arc<OffsetManager>,
     pub retain_message_manager: Arc<RetainMessageManager>,
+    pub push_manager: Arc<PushManager>,
 }
 
 pub struct MqttBrokerServer {
@@ -79,6 +80,7 @@ pub struct MqttBrokerServer {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     offset_manager: Arc<OffsetManager>,
     retain_message_manager: Arc<RetainMessageManager>,
+    push_manager: Arc<PushManager>,
     server: Arc<Server>,
     main_stop: broadcast::Sender<bool>,
     inner_stop: broadcast::Sender<bool>,
@@ -119,6 +121,7 @@ impl MqttBrokerServer {
             rocksdb_engine_handler: params.rocksdb_engine_handler,
             offset_manager: params.offset_manager,
             retain_message_manager: params.retain_message_manager,
+            push_manager: params.push_manager,
         }
     }
 
@@ -242,13 +245,7 @@ impl MqttBrokerServer {
     async fn start_subscribe_push(&self) {
         // start push manager
         let stop_send = self.inner_stop.clone();
-        let push_manager = PushManager::new(
-            self.cache_manager.clone(),
-            self.storage_driver_manager.clone(),
-            self.connection_manager.clone(),
-            self.rocksdb_engine_handler.clone(),
-            self.subscribe_manager.clone(),
-        );
+        let push_manager = self.push_manager.clone();
 
         tokio::spawn(async move {
             push_manager.start(&stop_send).await;

@@ -34,7 +34,9 @@ use std::sync::Arc;
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Subscriber {
     pub client_id: String,
+    // Source Filter Path
     pub sub_path: String,
+    // Rewrite sub path
     pub rewrite_sub_path: Option<String>,
     pub topic_name: String,
     pub group_name: String,

@@ -34,8 +34,8 @@ use crate::{
         },
         session::session_list,
         subscribe::{
-            auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list,
-            share_subscribe_detail, slow_subscribe_list, subscribe_detail, subscribe_list,
+            auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list, slow_subscribe_list,
+            subscribe_detail, subscribe_list,
         },
         system::{ban_log_list, flapping_detect_list, system_alarm_list},
         topic::{topic_detail, topic_list, topic_rewrite_create, topic_rewrite_list},
@@ -162,10 +162,6 @@ impl AdminServer {
             // subscribe
             .route(MQTT_SUBSCRIBE_LIST_PATH, post(subscribe_list))
             .route(MQTT_SUBSCRIBE_DETAIL_PATH, post(subscribe_detail))
-            .route(
-                MQTT_SHARE_SUBSCRIBE_DETAIL_PATH,
-                post(share_subscribe_detail),
-            )
             // auto subscribe
             .route(MQTT_AUTO_SUBSCRIBE_LIST_PATH, post(auto_subscribe_list))
             .route(MQTT_AUTO_SUBSCRIBE_CREATE_PATH, post(auto_subscribe_create))

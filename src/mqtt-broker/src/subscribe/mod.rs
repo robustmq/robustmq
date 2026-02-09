@@ -41,14 +41,18 @@ pub mod push;
 pub mod push_model;
 pub mod share_push;
 
+#[derive(Clone)]
 pub struct PushManager {
     cache_manager: Arc<MQTTCacheManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     connection_manager: Arc<ConnectionManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     subscribe_manager: Arc<SubscribeManager>,
-    directly_buckets_push_thread: DashMap<String, SubPushThreadData>,
-    share_buckets_push_thread: DashMap<String, SubPushThreadData>,
+    // Each Bucket has one push thread
+    //(bucket_id,SubPushThreadData)
+    pub directly_buckets_push_thread: DashMap<String, SubPushThreadData>,
+    //(bucket_id,SubPushThreadData)
+    pub share_buckets_push_thread: DashMap<String, SubPushThreadData>,
 }
 
 impl PushManager {

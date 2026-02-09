@@ -19,7 +19,7 @@ use grpc_clients::pool::ClientPool;
 use mqtt_broker::{
     bridge::manager::ConnectorManager,
     core::{cache::MQTTCacheManager, retain::RetainMessageManager},
-    subscribe::manager::SubscribeManager,
+    subscribe::{manager::SubscribeManager, PushManager},
 };
 use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::RateLimiterManager;
@@ -48,6 +48,7 @@ pub struct MQTTContext {
     pub connector_manager: Arc<ConnectorManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub retain_message_manager: Arc<RetainMessageManager>,
+    pub push_manager: Arc<PushManager>,
 }
 
 #[derive(Clone)]
