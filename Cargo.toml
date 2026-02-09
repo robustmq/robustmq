@@ -216,7 +216,7 @@ grep = "0.3.2"
 byteorder = "1.5.0"
 crc32fast = "1.4.2"
 ipnet = "2.3.0"
-reqwest = { version = "0.12.23", features = ["json"] }
+reqwest = { version = "0.13.2", features = ["json"] }
 tempfile = "3.9.0"
 chrono = "0.4.41"
 bson = "2.9"
