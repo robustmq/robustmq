@@ -26,17 +26,29 @@ pub enum AvailableFlag {
 }
 
 // Prometheus
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Prometheus {
     pub enable: bool,
     pub port: u32,
 }
 
+impl Default for Prometheus {
+    fn default() -> Self {
+        default_prometheus()
+    }
+}
+
 // Log
-#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct Log {
     pub log_config: String,
     pub log_path: String,
+}
+
+impl Default for Log {
+    fn default() -> Self {
+        default_log()
+    }
 }
 
 // Telemetry

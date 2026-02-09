@@ -39,8 +39,8 @@ export const sidebar = [
                 text: "Configuration",
                 collapsed: true,
                 items: [
-                    {text: "Meta Service", link: "/zh/Configuration/META"},
-                    {text: "MQTT Broker", link: "/zh/Configuration/MQTT"},
+                    {text: "Broker 配置", link: "/zh/Configuration/BROKER"},
+                    {text: "日志配置", link: "/zh/Configuration/Logging"},
                 ],
             },
         ],
@@ -74,8 +74,8 @@ export const sidebar = [
                 text: "Configuration",
                 collapsed: true,
                 items: [
-                    {text: "Meta Service", link: "/zh/Configuration/META"},
-                    {text: "MQTT Broker", link: "/zh/Configuration/MQTT"},
+                    {text: "Broker 配置", link: "/zh/Configuration/BROKER"},
+                    {text: "日志配置", link: "/zh/Configuration/Logging"},
                 ],
             },
         ],

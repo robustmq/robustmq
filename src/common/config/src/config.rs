@@ -14,13 +14,12 @@
 
 use super::default::{
     default_broker_id, default_broker_ip, default_cluster_name, default_engine_runtime,
-    default_flapping_detect, default_grpc_port, default_http_port, default_message_storage,
-    default_meta_addrs, default_mqtt_auth_config, default_mqtt_keep_alive,
-    default_mqtt_offline_message, default_mqtt_protocol_config, default_mqtt_runtime,
-    default_mqtt_schema, default_mqtt_security, default_mqtt_server,
+    default_grpc_port, default_http_port, default_message_storage, default_meta_addrs,
+    default_meta_runtime, default_mqtt_auth_config, default_mqtt_flapping_detect,
+    default_mqtt_keep_alive, default_mqtt_offline_message, default_mqtt_protocol_config,
+    default_mqtt_runtime, default_mqtt_schema, default_mqtt_security, default_mqtt_server,
     default_mqtt_slow_subscribe_config, default_mqtt_system_monitor, default_network,
-    default_place_runtime, default_raft_write_timeout_sec, default_rocksdb, default_roles,
-    default_runtime, default_storage_offset,
+    default_rocksdb, default_roles, default_runtime, default_storage_offset,
 };
 use super::security::{AuthnConfig, AuthzConfig};
 use crate::common::Log;
@@ -31,7 +30,7 @@ use common_base::enum_type::delay_type::DelayType;
 use serde::{Deserialize, Serialize};
 use toml::Table;
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct BrokerConfig {
     // Base
     #[serde(default = "default_cluster_name")]
@@ -74,7 +73,7 @@ pub struct BrokerConfig {
     pub message_storage: StorageAdapterConfig,
 
     // meta
-    #[serde(default = "default_place_runtime")]
+    #[serde(default = "default_meta_runtime")]
     pub meta_runtime: MetaRuntime,
 
     #[serde(default = "default_rocksdb")]
@@ -102,7 +101,7 @@ pub struct BrokerConfig {
     #[serde(default = "default_mqtt_slow_subscribe_config")]
     pub mqtt_slow_subscribe_config: MqttSlowSubscribeConfig,
 
-    #[serde(default = "default_flapping_detect")]
+    #[serde(default = "default_mqtt_flapping_detect")]
     pub mqtt_flapping_detect: MqttFlappingDetect,
 
     #[serde(default = "default_mqtt_protocol_config")]
@@ -119,6 +118,41 @@ pub struct BrokerConfig {
 
     #[serde(default = "default_storage_offset")]
     pub storage_offset: StorageOffset,
+}
+
+impl Default for BrokerConfig {
+    fn default() -> Self {
+        Self {
+            cluster_name: default_cluster_name(),
+            broker_id: default_broker_id(),
+            broker_ip: default_broker_ip(),
+            roles: default_roles(),
+            grpc_port: default_grpc_port(),
+            http_port: default_http_port(),
+            meta_addrs: default_meta_addrs(),
+            prometheus: default_prometheus(),
+            log: default_log(),
+            runtime: default_runtime(),
+            network: default_network(),
+            p_prof: default_pprof(),
+            message_storage: default_message_storage(),
+            meta_runtime: default_meta_runtime(),
+            rocksdb: default_rocksdb(),
+            storage_runtime: default_engine_runtime(),
+            mqtt_server: default_mqtt_server(),
+            mqtt_keep_alive: default_mqtt_keep_alive(),
+            mqtt_auth_config: default_mqtt_auth_config(),
+            mqtt_runtime: default_mqtt_runtime(),
+            mqtt_offline_message: default_mqtt_offline_message(),
+            mqtt_slow_subscribe_config: default_mqtt_slow_subscribe_config(),
+            mqtt_flapping_detect: default_mqtt_flapping_detect(),
+            mqtt_protocol_config: default_mqtt_protocol_config(),
+            mqtt_security: default_mqtt_security(),
+            mqtt_schema: default_mqtt_schema(),
+            mqtt_system_monitor: default_mqtt_system_monitor(),
+            storage_offset: default_storage_offset(),
+        }
+    }
 }
 
 impl BrokerConfig {
@@ -138,7 +172,7 @@ impl BrokerConfig {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Runtime {
     pub runtime_worker_threads: usize,
 
@@ -147,7 +181,13 @@ pub struct Runtime {
     pub tls_key: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+impl Default for Runtime {
+    fn default() -> Self {
+        default_runtime()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Network {
     pub accept_thread_num: usize,
 
@@ -162,21 +202,38 @@ pub struct Network {
     pub lock_try_mut_sleep_time_ms: u64,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+impl Default for Network {
+    fn default() -> Self {
+        default_network()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Rocksdb {
     pub data_path: String,
     pub max_open_files: i32,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+impl Default for Rocksdb {
+    fn default() -> Self {
+        default_rocksdb()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MetaRuntime {
     pub heartbeat_timeout_ms: u64,
     pub heartbeat_check_time_ms: u64,
-    #[serde(default = "default_raft_write_timeout_sec")]
     pub raft_write_timeout_sec: u64,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+impl Default for MetaRuntime {
+    fn default() -> Self {
+        default_meta_runtime()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MqttServer {
     pub tcp_port: u32,
     pub tls_port: u32,
@@ -185,13 +242,25 @@ pub struct MqttServer {
     pub quic_port: u32,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+impl Default for MqttServer {
+    fn default() -> Self {
+        default_mqtt_server()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MqttAuthConfig {
     pub authn_config: AuthnConfig,
     pub authz_config: AuthzConfig,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+impl Default for MqttAuthConfig {
+    fn default() -> Self {
+        default_mqtt_auth_config()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MqttKeepAlive {
     pub enable: bool,
     pub default_time: u16,
@@ -199,7 +268,13 @@ pub struct MqttKeepAlive {
     pub default_timeout: u16,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+impl Default for MqttKeepAlive {
+    fn default() -> Self {
+        default_mqtt_keep_alive()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MqttRuntime {
     pub default_user: String,
 
@@ -210,7 +285,13 @@ pub struct MqttRuntime {
     pub durable_sessions_enable: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+impl Default for MqttRuntime {
+    fn default() -> Self {
+        default_mqtt_runtime()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MqttSystemMonitor {
     pub enable: bool,
 
@@ -219,12 +300,24 @@ pub struct MqttSystemMonitor {
     pub os_memory_high_watermark: f32,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+impl Default for MqttSystemMonitor {
+    fn default() -> Self {
+        default_mqtt_system_monitor()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StorageOffset {
     pub enable_cache: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+impl Default for StorageOffset {
+    fn default() -> Self {
+        default_storage_offset()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MqttOfflineMessage {
     pub enable: bool,
 
@@ -233,13 +326,19 @@ pub struct MqttOfflineMessage {
     pub max_messages_num: u32,
 }
 
-impl MqttOfflineMessage {
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
+impl Default for MqttOfflineMessage {
+    fn default() -> Self {
+        default_mqtt_offline_message()
     }
 }
 
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+impl MqttOfflineMessage {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).expect("Failed to serialize MqttOfflineMessage")
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MqttSchema {
     pub enable: bool,
     pub strategy: SchemaStrategy,
@@ -248,15 +347,33 @@ pub struct MqttSchema {
     pub log_level: String,
 }
 
+impl Default for MqttSchema {
+    fn default() -> Self {
+        default_mqtt_schema()
+    }
+}
+
+impl MqttSchema {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).expect("Failed to serialize MqttSchema")
+    }
+}
+
 // MQTT cluster security related dynamic configuration
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MqttSecurity {
     pub is_self_protection_status: bool,
     pub secret_free_login: bool,
 }
 
+impl Default for MqttSecurity {
+    fn default() -> Self {
+        default_mqtt_security()
+    }
+}
+
 // MQTT cluster protocol related dynamic configuration
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MqttProtocolConfig {
     pub max_session_expiry_interval: u32,
     pub default_session_expiry_interval: u32,
@@ -268,13 +385,19 @@ pub struct MqttProtocolConfig {
     pub client_pkid_persistent: bool,
 }
 
-impl MqttProtocolConfig {
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
+impl Default for MqttProtocolConfig {
+    fn default() -> Self {
+        default_mqtt_protocol_config()
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+impl MqttProtocolConfig {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).expect("Failed to serialize MqttProtocolConfig")
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MqttFlappingDetect {
     pub enable: bool,
     pub window_time: u32,
@@ -282,30 +405,48 @@ pub struct MqttFlappingDetect {
     pub ban_time: u32,
 }
 
-impl MqttFlappingDetect {
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
+impl Default for MqttFlappingDetect {
+    fn default() -> Self {
+        default_mqtt_flapping_detect()
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+impl MqttFlappingDetect {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).expect("Failed to serialize MqttFlappingDetect")
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MqttSlowSubscribeConfig {
     pub enable: bool,
     pub record_time: u64,
     pub delay_type: DelayType,
 }
 
-impl MqttSlowSubscribeConfig {
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
+impl Default for MqttSlowSubscribeConfig {
+    fn default() -> Self {
+        default_mqtt_slow_subscribe_config()
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+impl MqttSlowSubscribeConfig {
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).expect("Failed to serialize MqttSlowSubscribeConfig")
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PProf {
     pub enable: bool,
     pub port: u16,
     pub frequency: i32,
+}
+
+impl Default for PProf {
+    fn default() -> Self {
+        default_pprof()
+    }
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
@@ -323,16 +464,16 @@ pub enum SchemaFailedOperation {
     Ignore,
 }
 
-impl MqttSchema {
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
-    }
-}
-
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct StorageRuntime {
     pub tcp_port: u32,
     pub max_segment_size: u32,
     pub io_thread_num: u32,
     pub data_path: Vec<String>,
+}
+
+impl Default for StorageRuntime {
+    fn default() -> Self {
+        default_engine_runtime()
+    }
 }
