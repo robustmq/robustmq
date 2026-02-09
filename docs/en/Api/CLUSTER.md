@@ -6,7 +6,7 @@
 
 ### 1. Get Cluster Configuration
 
-- **Endpoint**: `POST /api/cluster/config/get`
+- **Endpoint**: `GET /api/cluster/config/get`
 - **Description**: Get current cluster configuration information
 - **Request Parameters**:
 ```json
@@ -90,9 +90,7 @@
 
 ### Get Cluster Configuration
 ```bash
-curl -X POST http://localhost:8080/api/cluster/config/get \
-  -H "Content-Type: application/json" \
-  -d '{}'
+curl -X GET http://localhost:8080/api/cluster/config/get
 ```
 
 ### Set Cluster Configuration

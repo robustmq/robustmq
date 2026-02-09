@@ -92,9 +92,14 @@ Most list query interfaces support the following common parameters:
 ```
 
 ### Cluster Status Query
-- **Endpoint**: `POST /api/status`
-- **Description**: Get cluster status, version, and node information
-- **Request Parameters**: `{}`（empty object）
+- **Endpoint**: `GET /api/status`
+- **Description**: Get complete cluster status information, including RobustMQ version, cluster name, start time, broker node list, and Meta cluster Raft state
+- **Request Parameters**: 
+```json
+{}
+```
+(empty object)
+
 - **Response Example**:
 ```json
 {
@@ -105,16 +110,18 @@ Most list query interfaces support the following common parameters:
     "start_time": 1760828141,
     "broker_node_list": [
       {
-        "cluster_name": "broker-server",
-        "roles": ["meta", "broker"],
-        "extend": "{\"mqtt\":{\"grpc_addr\":\"192.168.100.100:1228\",\"mqtt_addr\":\"192.168.100.100:1883\",\"mqtts_addr\":\"192.168.100.100:1885\",\"websocket_addr\":\"192.168.100.100:8083\",\"websockets_addr\":\"192.168.100.100:8085\",\"quic_addr\":\"192.168.100.100:9083\"}}",
+        "roles": ["mqtt-broker"],
+        "extend": [],
         "node_id": 1,
         "node_ip": "192.168.100.100",
-        "node_inner_addr": "192.168.100.100:1228",
+        "grpc_addr": "192.168.100.100:1228",
+        "engine_addr": "192.168.100.100:1229",
         "start_time": 1760828141,
-        "register_time": 1760828142
+        "register_time": 1760828142,
+        "storage_fold": []
       }
     ],
+    "nodes": ["192.168.100.100", "127.0.0.1"],
     "meta": {
       "running_state": {
         "Ok": null
@@ -185,68 +192,61 @@ Most list query interfaces support the following common parameters:
 | `cluster_name` | `string` | Cluster name |
 | `start_time` | `u64` | Service start time (Unix timestamp in seconds) |
 | `broker_node_list` | `array` | List of broker nodes |
+| `nodes` | `array` | List of unique node IP addresses in the cluster (deduplicated) |
 | `meta` | `object` | Meta cluster Raft state information (structured object) |
 
 **Broker Node Fields**:
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `roles` | `array` | Node role list (e.g., `["mqtt-broker"]`) |
+| `extend` | `array` | Extended information (byte array) |
 | `node_id` | `u64` | Node ID |
 | `node_ip` | `string` | Node IP address |
-| `node_inner_addr` | `string` | Node internal communication address (gRPC address) |
-| `cluster_name` | `string` | Cluster name |
-| `roles` | `array` | Node role list (e.g., `["meta", "broker"]`) |
-| `extend` | `string` | Extended information (JSON string), containing protocol listening addresses |
+| `grpc_addr` | `string` | gRPC communication address |
+| `engine_addr` | `string` | Storage engine address |
 | `start_time` | `u64` | Node start time (Unix timestamp in seconds) |
 | `register_time` | `u64` | Node registration time (Unix timestamp in seconds) |
+| `storage_fold` | `array` | Storage directory list |
 
-**Extended Information (extend) Fields**:
-
-The `extend` field is a JSON string containing MQTT protocol-related address information:
-
-```json
-{
-  "mqtt": {
-    "grpc_addr": "192.168.100.100:1228",
-    "mqtt_addr": "192.168.100.100:1883",
-    "mqtts_addr": "192.168.100.100:1885",
-    "websocket_addr": "192.168.100.100:8083",
-    "websockets_addr": "192.168.100.100:8085",
-    "quic_addr": "192.168.100.100:9083"
-  }
-}
-```
-
-| Field | Description |
-|-------|-------------|
-| `grpc_addr` | gRPC service address |
-| `mqtt_addr` | MQTT protocol listening address |
-| `mqtts_addr` | MQTT over TLS listening address |
-| `websocket_addr` | WebSocket protocol listening address |
-| `websockets_addr` | WebSocket over TLS listening address |
-| `quic_addr` | QUIC protocol listening address |
+---
 
 **Meta Cluster State (meta) Fields**:
 
-The `meta` field is a structured object containing Meta cluster Raft state information:
+The `meta` field contains the Raft consensus state information of the Meta cluster, used to monitor the distributed consistency state:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | `u64` | Node ID |
-| `state` | `string` | Current node state (Leader/Follower/Candidate) |
-| `current_leader` | `u64` | Current leader node ID |
-| `current_term` | `u64` | Current term number |
-| `last_log_index` | `u64` | Last log index |
-| `running_state` | `object` | Running state (typically `{"Ok": null}` for healthy) |
-| `vote` | `object` | Vote information, including `leader_id` and `committed` |
+| `running_state` | `object` | Running state, `{"Ok": null}` indicates healthy |
+| `id` | `u64` | Current node ID |
+| `current_term` | `u64` | Raft current term number |
+| `vote` | `object` | Vote information |
+| `vote.leader_id` | `object` | Leader identifier, containing `term` and `node_id` |
+| `vote.committed` | `boolean` | Whether the vote has been committed |
+| `last_log_index` | `u64` | Index of the last log entry |
 | `last_applied` | `object` | Last applied log information |
-| `snapshot` | `object/null` | Snapshot information |
-| `purged` | `object/null` | Purge information |
-| `millis_since_quorum_ack` | `u64` | Milliseconds since quorum acknowledgment |
-| `last_quorum_acked` | `u128` | Last quorum acknowledged timestamp (nanoseconds) |
+| `last_applied.leader_id` | `object` | Leader identifier |
+| `last_applied.index` | `u64` | Index of applied log |
+| `snapshot` | `object/null` | Snapshot information (if exists) |
+| `purged` | `object/null` | Purged log information (if exists) |
+| `state` | `string` | Current node Raft state: `Leader`, `Follower`, or `Candidate` |
+| `current_leader` | `u64` | Current leader node ID |
+| `millis_since_quorum_ack` | `u64` | Milliseconds since last quorum acknowledgment |
+| `last_quorum_acked` | `u128` | Last quorum acknowledged timestamp (nanosecond precision) |
 | `membership_config` | `object` | Cluster membership configuration |
-| `heartbeat` | `object` | Heartbeat information (node ID to timestamp mapping) |
-| `replication` | `object` | Replication state information |
+| `membership_config.log_id` | `object` | Log ID corresponding to the configuration |
+| `membership_config.membership` | `object` | Membership information |
+| `membership_config.membership.configs` | `array` | Configuration array, e.g., `[[1]]` represents node 1 |
+| `membership_config.membership.nodes` | `object` | Node mapping, key is node ID string, value is node info |
+| `heartbeat` | `object` | Heartbeat mapping, key is node ID, value is heartbeat timestamp (nanoseconds) |
+| `replication` | `object` | Replication state mapping, key is node ID, value contains `leader_id` and `index` |
+
+**Use Cases**:
+- Check if node is Leader using the `state` field
+- Find the current cluster Leader through `current_leader` field
+- Monitor log synchronization status via `last_log_index` and `last_applied.index`
+- Monitor cluster node activity through `heartbeat`
+- Understand cluster membership configuration via `membership_config`
 
 ---
 
@@ -271,19 +271,10 @@ The `meta` field is a structured object containing Meta cluster Raft state infor
 curl -X GET http://localhost:8080/
 
 # Get cluster status
-curl -X POST http://localhost:8080/api/status \
-  -H "Content-Type: application/json" \
-  -d '{}'
+curl -X GET http://localhost:8080/api/status
 
 # List query with pagination
-curl -X POST http://localhost:8080/api/mqtt/user/list \
-  -H "Content-Type: application/json" \
-  -d '{
-    "limit": 10,
-    "page": 1,
-    "sort_field": "username",
-    "sort_by": "asc"
-  }'
+curl "http://localhost:8080/api/mqtt/user/list?limit=10&page=1&sort_field=username&sort_by=asc"
 ```
 
 ### Error Handling Example

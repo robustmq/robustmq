@@ -40,14 +40,47 @@ use std::sync::Arc;
 
 // Session Operations
 pub fn list_session_by_req(
+    cache_manager: &Arc<CacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSessionRequest,
 ) -> Result<ListSessionReply, MetaServiceError> {
+    let mut not_persist_session_list = read_not_persist_session(cache_manager, &req.client_id)?;
+    let persist_session_list = read_persist_session(rocksdb_engine_handler, &req.client_id)?;
+    not_persist_session_list.extend(persist_session_list);
+    Ok(ListSessionReply {
+        sessions: not_persist_session_list,
+    })
+}
+
+fn read_not_persist_session(
+    cache_manager: &Arc<CacheManager>,
+    client_id: &str,
+) -> Result<Vec<Vec<u8>>, MetaServiceError> {
+    let mut sessions = Vec::new();
+    if !client_id.is_empty() {
+        if let Some(session) = cache_manager.get_session(client_id) {
+            sessions.push(session.encode()?);
+        }
+    } else {
+        sessions = cache_manager
+            .session_list
+            .clone()
+            .into_iter()
+            .map(|(_, raw)| raw.encode())
+            .collect::<Result<Vec<_>, _>>()?;
+    }
+    Ok(sessions)
+}
+
+fn read_persist_session(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    client_id: &str,
+) -> Result<Vec<Vec<u8>>, MetaServiceError> {
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     let mut sessions = Vec::new();
 
-    if !req.client_id.is_empty() {
-        if let Some(data) = storage.get(&req.client_id)? {
+    if !client_id.is_empty() {
+        if let Some(data) = storage.get(client_id)? {
             sessions.push(data.encode()?);
         }
     } else {
@@ -57,8 +90,7 @@ pub fn list_session_by_req(
             .map(|raw| raw.encode())
             .collect::<Result<Vec<_>, _>>()?;
     }
-
-    Ok(ListSessionReply { sessions })
+    Ok(sessions)
 }
 
 pub async fn create_session_by_req(
@@ -86,6 +118,8 @@ pub async fn delete_session_by_req(
 ) -> Result<DeleteSessionReply, MetaServiceError> {
     let session_storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     let session = if let Some(session) = session_storage.get(&req.client_id)? {
+        session
+    } else if let Some(session) = cache_manager.get_session(&req.client_id) {
         session
     } else {
         return Ok(DeleteSessionReply::default());

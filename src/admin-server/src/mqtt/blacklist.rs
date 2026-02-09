@@ -20,7 +20,7 @@ use crate::{
         PageReplyData,
     },
 };
-use axum::{extract::State, Json};
+use axum::extract::{Query, State};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -109,7 +109,7 @@ use std::sync::Arc;
 
 pub async fn blacklist_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<BlackListListReq>,
+    Query(params): Query<BlackListListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

@@ -15,10 +15,12 @@
 use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
+use crate::mqtt::node_extend::NodeExtend;
+
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct BrokerNode {
     pub roles: Vec<String>,
-    pub extend: Vec<u8>,
+    pub extend: NodeExtend,
     pub node_id: u64,
     pub node_ip: String,
     pub grpc_addr: String,

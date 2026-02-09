@@ -23,11 +23,11 @@ mod tests {
     use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::meta::node::BrokerNode;
+    use metadata_struct::mqtt::node_extend::NodeExtend;
     use protocol::meta::meta_service_common::RegisterNodeRequest;
     use protocol::meta::meta_service_mqtt::GetShareSubLeaderRequest;
 
     #[tokio::test]
-
     async fn mqtt_share_sub_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
@@ -44,7 +44,7 @@ mod tests {
             node_ip: node_ip.clone(),
             node_id,
             grpc_addr: "127.0.0.1:1228".to_string(),
-            extend: Vec::new(),
+            extend: NodeExtend::default(),
             register_time: now_second(),
             start_time: now_second(),
             storage_fold: vec!["./data/broker/engine".to_string()],
@@ -53,31 +53,19 @@ mod tests {
         let request = RegisterNodeRequest {
             node: node.encode().unwrap(),
         };
-        match register_node(&client_pool, &addrs, request).await {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        };
+        register_node(&client_pool, &addrs, request).await.unwrap();
 
         let request = GetShareSubLeaderRequest {
             group_name: group_name.clone(),
         };
-        match placement_get_share_sub_leader(&client_pool, &addrs, request).await {
-            Ok(data) => {
-                let mut flag = false;
-                if data.broker_id == node_id
-                    && data.broker_addr == node_ip
-                    && data.extend_info.is_empty()
-                {
-                    flag = true;
-                }
-                assert!(flag);
-            }
-            Err(e) => {
-                panic!("{e:?}");
-            }
+        let data = placement_get_share_sub_leader(&client_pool, &addrs, request)
+            .await
+            .unwrap();
+        let mut flag = false;
+        if data.broker_id == node_id && data.broker_addr == node_ip {
+            flag = true;
         }
+        assert!(flag);
 
         // Test with empty group_name - should fail validation
         let request = GetShareSubLeaderRequest {

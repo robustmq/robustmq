@@ -17,6 +17,7 @@ use crate::mqtt::pub_sub::{PublishArgsRequest, SubscribeArgsRequest};
 use admin_server::client::AdminHttpClient;
 use admin_server::mqtt::session::SessionListRow;
 use common_base::uuid::unique_id;
+use metadata_struct::mqtt::topic::Topic;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
 
@@ -864,10 +865,8 @@ impl MqttBrokerCommand {
     }
 
     async fn list_topic(&self, params: MqttCliCommandParam) {
-        // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
-        // Create request for topic list
         let request = admin_server::mqtt::topic::TopicListReq {
             topic_name: None,
             topic_type: None,
@@ -881,26 +880,36 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_topic_list::<admin_server::mqtt::topic::TopicListReq, Vec<admin_server::mqtt::topic::TopicListRow>>(
-                &request,
-            )
+            .get_topic_list::<admin_server::mqtt::topic::TopicListReq, Vec<Topic>>(&request)
             .await
         {
             Ok(page_data) => {
-                println!("topic list result:");
-                // format table
+                println!("\n📋 Topic List (Total: {})", page_data.total_count);
                 let mut table = Table::new();
                 table.set_titles(row![
-                    "topic_name",
-                    "create_time",
+                    "Topic Name",
+                    "Storage Type",
+                    "Partition",
+                    "Replication",
+                    "Create Time"
                 ]);
+
+                use chrono::{Local, TimeZone};
                 for topic in page_data.data {
+                    let create_time_str = Local
+                        .timestamp_opt(topic.create_time as i64, 0)
+                        .single()
+                        .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                        .unwrap_or_else(|| topic.create_time.to_string());
+
                     table.add_row(row![
                         topic.topic_name,
-                        topic.create_time
+                        format!("{:?}", topic.storage_type),
+                        topic.partition,
+                        topic.replication,
+                        create_time_str
                     ]);
                 }
-                // output cmd
                 table.printstd()
             }
             Err(e) => {

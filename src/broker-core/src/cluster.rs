@@ -85,7 +85,7 @@ impl ClusterStorage {
             node_id: config.broker_id,
             grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
             engine_addr: format!("{}:{}", local_ip, config.storage_runtime.tcp_port),
-            extend: extend.encode()?,
+            extend,
             start_time: cache_manager.get_start_time(),
             register_time: now_second(),
             storage_fold: config.storage_runtime.data_path.clone(),

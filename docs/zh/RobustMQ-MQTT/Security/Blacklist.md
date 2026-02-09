@@ -134,23 +134,10 @@ curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
 
 ```bash
 # 查询所有黑名单
-curl -X POST http://localhost:8080/api/mqtt/blacklist/list \
-  -H "Content-Type: application/json" \
-  -d '{
-    "limit": 10,
-    "page": 1
-  }'
+curl "http://localhost:8080/api/mqtt/blacklist/list?limit=10&page=1"
 
 # 查询特定类型黑名单（使用过滤参数）
-curl -X POST http://localhost:8080/api/mqtt/blacklist/list \
-  -H "Content-Type: application/json" \
-  -d '{
-    "limit": 10,
-    "page": 1,
-    "filter_field": "blacklist_type",
-    "filter_values": ["User"],
-    "exact_match": "true"
-  }'
+curl "http://localhost:8080/api/mqtt/blacklist/list?limit=10&page=1&filter_field=blacklist_type&filter_values=User&exact_match=true"
 ```
 
 #### 删除黑名单

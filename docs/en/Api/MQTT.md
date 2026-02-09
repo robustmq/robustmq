@@ -7,7 +7,7 @@
 ### 1. Cluster Overview
 
 #### 1.1 Cluster Overview Information
-- **Endpoint**: `POST /api/mqtt/overview`
+- **Endpoint**: `GET /api/mqtt/overview`
 - **Description**: Get MQTT cluster overview information
 - **Request Parameters**: Empty JSON object
 ```json
@@ -22,11 +22,15 @@
   "data": {
     "node_list": [
       {
+        "roles": ["mqtt-broker"],
+        "extend": [],
         "node_id": 1,
         "node_ip": "192.168.1.100",
-        "node_inner_addr": "192.168.1.100:9981",
-        "extend_info": "{}",
-        "create_time": 1640995200
+        "grpc_addr": "192.168.1.100:9981",
+        "engine_addr": "192.168.1.100:9982",
+        "start_time": 1640995200,
+        "register_time": 1640995200,
+        "storage_fold": []
       }
     ],
     "cluster_name": "robustmq-cluster",
@@ -42,11 +46,10 @@
     "quic_connection_num": 100,
     "subscribe_num": 2000,
     "exclusive_subscribe_num": 1500,
-    "share_subscribe_leader_num": 300,
-    "share_subscribe_resub_num": 200,
     "exclusive_subscribe_thread_num": 8,
-    "share_subscribe_leader_thread_num": 4,
-    "share_subscribe_follower_thread_num": 4,
+    "share_subscribe_group_num": 50,
+    "share_subscribe_num": 500,
+    "share_subscribe_thread_num": 50,
     "connector_num": 5,
     "connector_thread_num": 3
   }
@@ -55,10 +58,19 @@
 
 **Field Descriptions**:
 - `node_list`: Cluster node list
+  - `roles`: Node role list
+  - `extend`: Extended information (byte array)
+  - `node_id`: Node ID
+  - `node_ip`: Node IP address
+  - `grpc_addr`: gRPC communication address
+  - `engine_addr`: Storage engine address
+  - `start_time`: Node start timestamp
+  - `register_time`: Node registration timestamp
+  - `storage_fold`: Storage directory list
 - `cluster_name`: Cluster name
 - `message_in_rate`: Message receive rate (messages/second)
 - `message_out_rate`: Message send rate (messages/second)
-- `connection_num`: Total number of connections
+- `connection_num`: Total number of connections (sum of all connection types)
 - `session_num`: Total number of sessions
 - `topic_num`: Total number of topics
 - `placement_status`: Placement Center status (Leader/Follower)
@@ -66,18 +78,17 @@
 - `tls_connection_num`: Number of TLS connections
 - `websocket_connection_num`: Number of WebSocket connections
 - `quic_connection_num`: Number of QUIC connections
-- `subscribe_num`: Total number of subscriptions
+- `subscribe_num`: Total number of subscriptions (sum of all subscription lists)
 - `exclusive_subscribe_num`: Number of exclusive subscriptions
-- `share_subscribe_leader_num`: Number of shared subscription leaders
-- `share_subscribe_resub_num`: Number of shared subscription resubs
-- `exclusive_subscribe_thread_num`: Number of exclusive subscription threads
-- `share_subscribe_leader_thread_num`: Number of shared subscription leader threads
-- `share_subscribe_follower_thread_num`: Number of shared subscription follower threads
+- `exclusive_subscribe_thread_num`: Number of exclusive subscription push threads
+- `share_subscribe_group_num`: Number of shared subscription groups
+- `share_subscribe_num`: Number of shared subscriptions
+- `share_subscribe_thread_num`: Number of shared subscription push threads
 - `connector_num`: Total number of connectors
 - `connector_thread_num`: Number of active connector threads
 
 #### 1.2 Monitor Data Query
-- **Endpoint**: `POST /api/mqtt/monitor/data`
+- **Endpoint**: `GET /api/mqtt/monitor/data`
 - **Description**: Get time series monitoring data for a specified metric type
 - **Request Parameters**:
 ```json
@@ -182,7 +193,7 @@ Query message count for a specific topic:
 ### 2. Client Management
 
 #### 2.1 Client List Query
-- **Endpoint**: `POST /api/mqtt/client/list`
+- **Endpoint**: `GET /api/mqtt/client/list`
 - **Description**: Query list of clients connected to the cluster
 - **Request Parameters**:
 ```json
@@ -303,7 +314,7 @@ Query message count for a specific topic:
 ### 3. Session Management
 
 #### 3.1 Session List Query
-- **Endpoint**: `POST /api/mqtt/session/list`
+- **Endpoint**: `GET /api/mqtt/session/list`
 - **Description**: Query MQTT session list
 - **Request Parameters**:
 ```json
@@ -394,7 +405,7 @@ Query message count for a specific topic:
 ### 4. Topic Management
 
 #### 4.1 Topic List Query
-- **Endpoint**: `POST /api/mqtt/topic/list`
+- **Endpoint**: `GET /api/mqtt/topic/list`
 - **Description**: Query MQTT topic list
 - **Request Parameters**:
 ```json
@@ -425,9 +436,12 @@ Query message count for a specific topic:
   "data": {
     "data": [
       {
-        "topic_name": "topic_001",
+        "topic_id": "01J9K5FHQP8NWXYZ1234567890",
         "topic_name": "sensor/temperature",
-        "is_contain_retain_message": true,
+        "storage_type": "Memory",
+        "partition": 1,
+        "replication": 1,
+        "storage_name_list": [],
         "create_time": 1640995200
       }
     ],
@@ -437,13 +451,16 @@ Query message count for a specific topic:
 ```
 
 **Response Field Description**:
-- `topic_name`: Topic ID
+- `topic_id`: Topic unique identifier
 - `topic_name`: Topic name
-- `is_contain_retain_message`: Whether contains retained message
-- `create_time`: Topic creation timestamp
+- `storage_type`: Storage type (e.g., Memory, RocksDB, etc.)
+- `partition`: Number of partitions
+- `replication`: Number of replicas
+- `storage_name_list`: List of storage names
+- `create_time`: Topic creation time (Unix timestamp in seconds)
 
 #### 4.2 Topic Detail Query
-- **Endpoint**: `POST /api/mqtt/topic/detail`
+- **Endpoint**: `GET /api/mqtt/topic/detail`
 - **Description**: Query detailed information for a specific topic, including basic info, retained message, and subscriber list
 - **Request Parameters**:
 ```json
@@ -459,11 +476,31 @@ Query message count for a specific topic:
   "message": "success",
   "data": {
     "topic_info": {
-      "cluster_name": "robustmq-cluster",
+      "topic_id": "01J9K5FHQP8NWXYZ1234567890",
       "topic_name": "sensor/temperature",
+      "storage_type": "Memory",
+      "partition": 1,
+      "replication": 1,
+      "storage_name_list": [],
       "create_time": 1640995200
     },
-    "retain_message": "eyJ0ZW1wZXJhdHVyZSI6MjUuNX0=",
+    "retain_message": {
+      "client_id": "client001",
+      "dup": false,
+      "qos": "AtLeastOnce",
+      "pkid": 1,
+      "retain": true,
+      "topic": "sensor/temperature",
+      "payload": "eyJ0ZW1wZXJhdHVyZSI6MjUuNX0=",
+      "format_indicator": null,
+      "expiry_interval": 0,
+      "response_topic": null,
+      "correlation_data": null,
+      "user_properties": null,
+      "subscription_identifiers": null,
+      "content_type": null,
+      "create_time": 1640995300
+    },
     "retain_message_at": 1640995300,
     "sub_list": [
       {
@@ -474,38 +511,86 @@ Query message count for a specific topic:
         "client_id": "client002",
         "path": "sensor/+"
       }
-    ]
+    ],
+    "storage_list": {
+      "0": {
+        "shard_uid": "shard_01J9K5FHQP8NWXYZ",
+        "shard_name": "sensor_temperature_p0",
+        "start_segment_seq": 0,
+        "active_segment_seq": 1,
+        "last_segment_seq": 1,
+        "status": "Run",
+        "config": {
+          "replica_num": 1,
+          "storage_type": "Memory",
+          "max_segment_size": 104857600,
+          "retention_sec": 86400
+        },
+        "create_time": 1640995200
+      }
+    }
   }
 }
 ```
 
 **Response Field Description**:
 
-- **topic_info**: Topic basic information
-  - `cluster_name`: Cluster name
+- **topic_info**: Complete topic information (Topic object)
+  - `topic_id`: Topic unique identifier
   - `topic_name`: Topic name
-  - `create_time`: Topic creation timestamp (seconds)
+  - `storage_type`: Storage type (e.g., Memory, RocksDB, etc.)
+  - `partition`: Number of partitions
+  - `replication`: Number of replicas
+  - `storage_name_list`: List of storage names
+  - `create_time`: Topic creation time (Unix timestamp in seconds)
 
-- **retain_message**: Retained message content
-  - Type: `String` or `null`
-  - Base64 encoded message content
-  - Returns `null` if the topic has no retained message
+- **retain_message**: Complete retained message object (MqttMessage or null)
+  - `client_id`: Client ID that sent the message
+  - `dup`: Whether this is a duplicate message
+  - `qos`: QoS level
+  - `pkid`: Packet identifier
+  - `retain`: Whether this is a retained message
+  - `topic`: Message topic
+  - `payload`: Message content (Base64 encoded)
+  - `format_indicator`: Format indicator (optional)
+  - `expiry_interval`: Expiry interval in seconds
+  - `response_topic`: Response topic (optional)
+  - `correlation_data`: Correlation data (optional)
+  - `user_properties`: User properties (optional)
+  - `subscription_identifiers`: List of subscription identifiers (optional)
+  - `content_type`: Content type (optional)
+  - `create_time`: Message creation time (Unix timestamp in seconds)
 
 - **retain_message_at**: Retained message timestamp
   - Type: `u64` or `null`
-  - Unix timestamp in milliseconds
-  - Indicates when the retained message was created or updated
+  - Unix timestamp in seconds
   - Returns `null` if there is no retained message
 
-- **sub_list**: List of clients subscribed to this topic
+- **sub_list**: List of clients subscribed to this topic (HashSet)
   - `client_id`: Subscriber client ID
   - `path`: Subscription path (may include wildcards like `+` or `#`)
 
+- **storage_list**: Storage shard mapping (HashMap<partition_number, EngineShard>)
+  - Key: Partition number (u32)
+  - Value: EngineShard object
+    - `shard_uid`: Shard unique identifier
+    - `shard_name`: Shard name
+    - `start_segment_seq`: Start segment sequence number
+    - `active_segment_seq`: Active segment sequence number
+    - `last_segment_seq`: Last segment sequence number
+    - `status`: Shard status (Run, PrepareDelete, Deleting)
+    - `config`: Shard configuration
+      - `replica_num`: Number of replicas
+      - `storage_type`: Storage type
+      - `max_segment_size`: Maximum segment size in bytes
+      - `retention_sec`: Retention time in seconds
+    - `create_time`: Shard creation time (Unix timestamp in seconds)
+
 **Notes**:
-- Returns an error response if the topic does not exist: `{"code": 1, "message": "Topic does not exist."}`
+- Returns an error response if the topic does not exist
 - `sub_list` shows all subscriptions matching this topic, including wildcard subscriptions
-- Retained message content is Base64 encoded and needs to be decoded by clients
-- `retain_message_at` uses millisecond timestamps while `create_time` uses second timestamps
+- `storage_list` provides detailed storage engine shard information for each partition
+- The `payload` field in retained message is Base64 encoded
 
 #### 4.3 Delete Topic
 - **Endpoint**: `POST /api/mqtt/topic/delete`
@@ -536,7 +621,7 @@ Query message count for a specific topic:
 - Deleting a topic does not automatically unsubscribe from it; subscriptions will remain
 
 #### 4.4 Topic Rewrite Rules List
-- **Endpoint**: `POST /api/mqtt/topic-rewrite/list`
+- **Endpoint**: `GET /api/mqtt/topic-rewrite/list`
 - **Description**: Query topic rewrite rules list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -597,7 +682,7 @@ Query message count for a specific topic:
 ### 5. Subscription Management
 
 #### 5.1 Subscription List Query
-- **Endpoint**: `POST /api/mqtt/subscribe/list`
+- **Endpoint**: `GET /api/mqtt/subscribe/list`
 - **Description**: Query subscription list
 - **Request Parameters**:
 ```json
@@ -641,7 +726,7 @@ Query message count for a specific topic:
 ```
 
 #### 5.2 Subscription Detail Query
-- **Endpoint**: `POST /api/mqtt/subscribe/detail`
+- **Endpoint**: `GET /api/mqtt/subscribe/detail`
 - **Description**: Query subscription details, supports both exclusive and shared subscription details
 - **Request Parameters**:
 ```json
@@ -657,39 +742,73 @@ Query message count for a specific topic:
   "code": 0,
   "message": "success",
   "data": {
-    "share_sub": false,        // Whether this is a shared subscription
-    "group_leader_info": null, // Shared subscription group leader info (only for shared subscriptions)
-    "topic_list": [            // List of matched topics
-      {
-        "client_id": "client001",
-        "path": "sensor/temperature",
-        "topic_name": "sensor/temperature",
-        "exclusive_push_data": {  // Exclusive subscription push data (null for shared subscriptions)
-          "protocol": "MQTTv5",
+    "share_sub": false,
+    "group_leader_info": null,
+    "sub_data": {
+      "client_id": "client001",
+      "path": "sensor/temperature",
+      "push_subscribe": {
+        "sensor/temperature": {
           "client_id": "client001",
           "sub_path": "sensor/temperature",
           "rewrite_sub_path": null,
           "topic_name": "sensor/temperature",
-          "group_name": null,
+          "group_name": "",
+          "protocol": "MQTTv5",
           "qos": "AtLeastOnce",
-          "nolocal": false,
+          "no_local": false,
           "preserve_retain": true,
           "retain_forward_rule": "SendAtSubscribe",
           "subscription_identifier": null,
-          "create_time": 1704067200000
-        },
-        "share_push_data": null,  // Shared subscription push data (null for exclusive subscriptions)
-        "push_thread": {          // Push thread statistics (optional)
-          "push_success_record_num": 1520,  // Successful push count
-          "push_error_record_num": 3,       // Failed push count
-          "last_push_time": 1704067800000,  // Last push time (millisecond timestamp)
-          "last_run_time": 1704067810000,   // Last run time (millisecond timestamp)
-          "create_time": 1704067200000      // Create time (millisecond timestamp)
+          "create_time": 1704067200
         }
-      }
-    ]
+      },
+      "push_thread": {
+        "sensor/temperature": {
+          "push_success_record_num": 1520,
+          "push_error_record_num": 3,
+          "last_push_time": 1704067800,
+          "last_run_time": 1704067810,
+          "create_time": 1704067200,
+          "bucket_id": "bucket_0"
+        }
+      },
+      "leader_id": null
+    }
   }
 }
+```
+
+**Field Descriptions**:
+- `share_sub`: Whether this is a shared subscription
+- `group_leader_info`: Shared subscription group leader information (only for shared subscriptions)
+  - `broker_id`: Broker node ID
+  - `broker_addr`: Broker address
+  - `extend_info`: Extended information
+- `sub_data`: Subscription data details
+  - `client_id`: Client ID
+  - `path`: Subscription path
+  - `push_subscribe`: Mapping of topics to subscribers (HashMap<topic_name, Subscriber>)
+    - `client_id`: Client ID
+    - `sub_path`: Subscription path
+    - `rewrite_sub_path`: Rewritten subscription path (optional)
+    - `topic_name`: Topic name
+    - `group_name`: Group name (for shared subscriptions)
+    - `protocol`: MQTT protocol version
+    - `qos`: QoS level
+    - `no_local`: Whether to exclude local messages
+    - `preserve_retain`: Whether to preserve retain flag
+    - `retain_forward_rule`: Retain message forwarding rule
+    - `subscription_identifier`: Subscription identifier (optional)
+    - `create_time`: Creation time (Unix timestamp in seconds)
+  - `push_thread`: Mapping of topics to push thread data (HashMap<topic_name, thread_data>)
+    - `push_success_record_num`: Successful push count
+    - `push_error_record_num`: Failed push count
+    - `last_push_time`: Last push time (Unix timestamp in seconds)
+    - `last_run_time`: Last run time (Unix timestamp in seconds)
+    - `create_time`: Creation time (Unix timestamp in seconds)
+    - `bucket_id`: Bucket ID
+  - `leader_id`: Leader node ID (for shared subscriptions)
 ```
 
 **Shared Subscription Response Example**:
@@ -768,7 +887,7 @@ Query message count for a specific topic:
 #### 5.3 Auto Subscribe Rule Management
 
 ##### 5.3.1 Auto Subscribe List
-- **Endpoint**: `POST /api/mqtt/auto-subscribe/list`
+- **Endpoint**: `GET /api/mqtt/auto-subscribe/list`
 - **Description**: Query auto subscribe rules list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -829,7 +948,7 @@ Query message count for a specific topic:
 #### 5.4 Slow Subscribe Monitoring
 
 ##### 5.4.1 Slow Subscribe List
-- **Endpoint**: `POST /api/mqtt/slow-subscribe/list`
+- **Endpoint**: `GET /api/mqtt/slow-subscribe/list`
 - **Description**: Query slow subscribe list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -858,7 +977,7 @@ Query message count for a specific topic:
 ### 6. User Management
 
 #### 6.1 User List Query
-- **Endpoint**: `POST /api/mqtt/user/list`
+- **Endpoint**: `GET /api/mqtt/user/list`
 - **Description**: Query MQTT user list
 - **Request Parameters**:
 ```json
@@ -933,7 +1052,7 @@ Query message count for a specific topic:
 ### 7. ACL Management
 
 #### 7.1 ACL List Query
-- **Endpoint**: `POST /api/mqtt/acl/list`
+- **Endpoint**: `GET /api/mqtt/acl/list`
 - **Description**: Query access control list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -1004,7 +1123,7 @@ Query message count for a specific topic:
 ### 8. Blacklist Management
 
 #### 8.1 Blacklist List Query
-- **Endpoint**: `POST /api/mqtt/blacklist/list`
+- **Endpoint**: `GET /api/mqtt/blacklist/list`
 - **Description**: Query blacklist
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -1065,7 +1184,7 @@ Query message count for a specific topic:
 ### 9. Connector Management
 
 #### 9.1 Connector List Query
-- **Endpoint**: `POST /api/mqtt/connector/list`
+- **Endpoint**: `GET /api/mqtt/connector/list`
 - **Description**: Query connector list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -1092,7 +1211,7 @@ Query message count for a specific topic:
 ```
 
 #### 9.2 Connector Detail Query
-- **Endpoint**: `POST /api/mqtt/connector/detail`
+- **Endpoint**: `GET /api/mqtt/connector/detail`
 - **Description**: Query detailed runtime status of a specific connector
 - **Request Parameters**:
 ```json
@@ -2152,7 +2271,7 @@ The `failure_strategy` parameter defines how the connector handles message deliv
 ### 10. Schema Management
 
 #### 10.1 Schema List Query
-- **Endpoint**: `POST /api/mqtt/schema/list`
+- **Endpoint**: `GET /api/mqtt/schema/list`
 - **Description**: Query Schema list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -2228,7 +2347,7 @@ The `failure_strategy` parameter defines how the connector handles message deliv
 #### 10.4 Schema Binding Management
 
 ##### 10.4.1 Schema Binding List Query
-- **Endpoint**: `POST /api/mqtt/schema-bind/list`
+- **Endpoint**: `GET /api/mqtt/schema-bind/list`
 - **Description**: Query Schema binding relationship list
 - **Request Parameters**:
 ```json
@@ -2390,7 +2509,7 @@ The `failure_strategy` parameter defines how the connector handles message deliv
 ### 12. System Monitoring
 
 #### 12.1 System Alarm List
-- **Endpoint**: `POST /api/mqtt/system-alarm/list`
+- **Endpoint**: `GET /api/mqtt/system-alarm/list`
 - **Description**: Query system alarm list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -2413,7 +2532,7 @@ The `failure_strategy` parameter defines how the connector handles message deliv
 ```
 
 #### 12.2 Flapping Detection List
-- **Endpoint**: `POST /api/mqtt/flapping_detect/list`
+- **Endpoint**: `GET /api/mqtt/flapping_detect/list`
 - **Description**: Query flapping detection list
 - **Request Parameters**: Supports common pagination and filtering parameters
 - **Response Data Structure**:
@@ -2489,104 +2608,45 @@ The `failure_strategy` parameter defines how the connector handles message deliv
 
 ### Query Cluster Overview
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/overview \
-  -H "Content-Type: application/json" \
-  -d '{}'
+curl -X GET http://localhost:8080/api/mqtt/overview
 ```
 
 ### Query Monitor Data
 ```bash
 # Query connection count monitoring data
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "connection_num"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connection_num"
 
 # Query message received count for a specific topic
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "topic_in_num",
-    "topic_name": "sensor/temperature"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=topic_in_num&topic_name=sensor/temperature"
 
 # Query subscription send success count
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "subscribe_send_success_num",
-    "client_id": "client001",
-    "path": "sensor/+"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=subscribe_send_success_num&client_id=client001&path=sensor/%2B"
 
 # Query subscription topic send failure count
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "subscribe_topic_send_failure_num",
-    "client_id": "client001",
-    "path": "sensor/+",
-    "topic_name": "sensor/temperature"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=subscribe_topic_send_failure_num&client_id=client001&path=sensor/%2B&topic_name=sensor/temperature"
 
 # Query session received message count
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "session_in_num",
-    "client_id": "client001"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=session_in_num&client_id=client001"
 
 # Query session sent message count
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "session_out_num",
-    "client_id": "client001"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=session_out_num&client_id=client001"
 
 # Query total successful messages sent by all connectors
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "connector_send_success_total"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_success_total"
 
 # Query total failed messages sent by all connectors
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "connector_send_failure_total"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_failure_total"
 
 # Query successful messages sent by a specific connector
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "connector_send_success",
-    "connector_name": "kafka_connector_01"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_success&connector_name=kafka_connector_01"
 
 # Query failed messages sent by a specific connector
-curl -X POST http://localhost:8080/api/mqtt/monitor/data \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data_type": "connector_send_failure",
-    "connector_name": "kafka_connector_01"
-  }'
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_failure&connector_name=kafka_connector_01"
 ```
 
 ### Query Client List
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/client/list \
-  -H "Content-Type: application/json" \
-  -d '{
-    "limit": 10,
-    "page": 1,
-    "sort_field": "connection_id",
-    "sort_by": "desc"
-  }'
+curl "http://localhost:8080/api/mqtt/client/list?limit=10&page=1&sort_field=connection_id&sort_by=desc"
 ```
 
 ### Delete Topic
@@ -2625,11 +2685,7 @@ curl -X POST http://localhost:8080/api/mqtt/acl/create \
 
 ### Query Connector Detail
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/detail \
-  -H "Content-Type: application/json" \
-  -d '{
-    "connector_name": "kafka_bridge"
-  }'
+curl "http://localhost:8080/api/mqtt/connector/detail?connector_name=kafka_bridge"
 ```
 
 ### Create Connector

@@ -20,7 +20,7 @@ use crate::{
         PageReplyData,
     },
 };
-use axum::{extract::State, Json};
+use axum::extract::{Query, State};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -70,7 +70,7 @@ use std::sync::Arc;
 
 pub async fn user_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<UserListReq>,
+    Query(params): Query<UserListReq>,
 ) -> String {
     // Backward-compatible shortcut:
     // If `user_name` is provided, treat it as an exact filter on `username`

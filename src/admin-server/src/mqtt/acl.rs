@@ -20,7 +20,7 @@ use crate::{
         PageReplyData,
     },
 };
-use axum::{extract::State, Json};
+use axum::extract::{Query, State};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -160,7 +160,7 @@ use std::{str::FromStr, sync::Arc};
 
 pub async fn acl_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<AclListReq>,
+    Query(params): Query<AclListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

@@ -55,6 +55,7 @@ mod tests {
                 sleep(Duration::from_secs(1)).await;
                 assert_eq!(session_count_by_admin(&client_id).await, 1);
             }
+            sleep(Duration::from_secs(1)).await;
         }
     }
 

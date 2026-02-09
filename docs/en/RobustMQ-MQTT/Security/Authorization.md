@@ -130,23 +130,10 @@ curl -X POST http://localhost:8080/api/mqtt/acl/create \
 
 ```bash
 # Query all ACL rules
-curl -X POST http://localhost:8080/api/mqtt/acl/list \
-  -H "Content-Type: application/json" \
-  -d '{
-    "limit": 10,
-    "page": 1
-  }'
+curl "http://localhost:8080/api/mqtt/acl/list?limit=10&page=1"
 
 # Query ACL rules for specific user (using filter parameters)
-curl -X POST http://localhost:8080/api/mqtt/acl/list \
-  -H "Content-Type: application/json" \
-  -d '{
-    "limit": 10,
-    "page": 1,
-    "filter_field": "resource_name",
-    "filter_values": ["testuser"],
-    "exact_match": "true"
-  }'
+curl "http://localhost:8080/api/mqtt/acl/list?limit=10&page=1&filter_field=resource_name&filter_values=testuser&exact_match=true"
 ```
 
 #### Delete ACL Rules

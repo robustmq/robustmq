@@ -155,6 +155,8 @@ impl DataRouteMqtt {
         let session = MqttSession::decode(&req.session)?;
         if session.is_persist_session {
             storage.save(&req.client_id, session)?;
+        } else {
+            self.cache_manager.add_session(session);
         }
         Ok(())
     }
@@ -163,6 +165,7 @@ impl DataRouteMqtt {
         let req = DeleteSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.client_id)?;
+        self.cache_manager.delete_session(&req.client_id);
         Ok(())
     }
 

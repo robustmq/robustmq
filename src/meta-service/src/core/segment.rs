@@ -280,7 +280,7 @@ fn calc_node_fold(
 mod tests {
     use crate::core::{cache::CacheManager, segment::calc_node_fold};
     use common_base::tools::now_second;
-    use metadata_struct::meta::node::BrokerNode;
+    use metadata_struct::{meta::node::BrokerNode, mqtt::node_extend::NodeExtend};
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
 
@@ -297,7 +297,7 @@ mod tests {
             grpc_addr: "".to_string(),
             node_ip: "".to_string(),
             storage_fold: vec!["../data/d1".to_string(), "../data/d2".to_string()],
-            extend: Vec::new(),
+            extend: NodeExtend::default(),
             ..Default::default()
         };
         cache_manager.add_broker_node(node);

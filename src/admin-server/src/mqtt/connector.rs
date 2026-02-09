@@ -44,7 +44,7 @@ use crate::{
         PageReplyData,
     },
 };
-use axum::{extract::State, Json};
+use axum::extract::{Query, State};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -152,7 +152,7 @@ pub struct ConnectorListRow {
 
 pub async fn connector_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<ConnectorListReq>,
+    Query(params): Query<ConnectorListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -354,7 +354,7 @@ fn parse_failure_strategy(strategy: FailureStrategy) -> FailureHandlingStrategy 
 
 pub async fn connector_detail(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<ConnectorDetailReq>,
+    Query(params): Query<ConnectorDetailReq>,
 ) -> String {
     if state
         .mqtt_context

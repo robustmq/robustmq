@@ -43,7 +43,7 @@ use mqtt_broker::{
     broker::{MqttBrokerServer, MqttBrokerServerParams},
     core::{cache::MQTTCacheManager as MqttCacheManager, retain::RetainMessageManager},
     security::AuthDriver,
-    subscribe::manager::SubscribeManager,
+    subscribe::{manager::SubscribeManager, PushManager},
 };
 use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
@@ -230,6 +230,8 @@ impl BrokerServer {
                 connector_manager: self.mqtt_params.connector_manager.clone(),
                 schema_manager: self.mqtt_params.schema_manager.clone(),
                 retain_message_manager: self.mqtt_params.retain_message_manager.clone(),
+                push_manager: self.mqtt_params.push_manager.clone(),
+                storage_driver_manager: self.mqtt_params.storage_driver_manager.clone(),
             },
             engine_context: StorageEngineContext {
                 engine_adapter_handler: self.engine_params.storage_engine_handler.clone(),
@@ -404,6 +406,13 @@ impl BrokerServer {
             client_pool.clone(),
             connection_manager.clone(),
         ));
+        let push_manager = Arc::new(PushManager::new(
+            cache_manager.clone(),
+            storage_driver_manager.clone(),
+            connection_manager.clone(),
+            rocksdb_engine_handler.clone(),
+            subscribe_manager.clone(),
+        ));
 
         Ok(MqttBrokerServerParams {
             cache_manager,
@@ -420,6 +429,7 @@ impl BrokerServer {
             broker_cache,
             offset_manager,
             retain_message_manager,
+            push_manager,
         })
     }
 

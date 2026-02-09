@@ -20,17 +20,22 @@ use crate::{
         PageReplyData,
     },
 };
-use axum::{extract::State, Json};
+use axum::extract::{Query, State};
 use common_base::{
     http_response::{error_response, success_response},
     tools::now_millis,
 };
-use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::{message::MqttMessage, topic::Topic};
-use mqtt_broker::storage::topic::TopicStorage;
+use metadata_struct::{
+    mqtt::topic_rewrite_rule::MqttTopicRewriteRule, storage::shard::EngineShard,
+};
 use mqtt_broker::subscribe::manager::TopicSubscribeInfo;
+use mqtt_broker::{core::error::MqttBrokerError, storage::topic::TopicStorage};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -124,17 +129,12 @@ pub struct DeleteTopicRewriteReq {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct TopicListRow {
-    pub topic_name: String,
-    pub create_time: u64,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
 pub struct TopicDetailResp {
     pub topic_info: Topic,
     pub retain_message: Option<MqttMessage>,
     pub retain_message_at: Option<u64>,
-    pub sub_list: Vec<TopicSubscribeInfo>,
+    pub sub_list: HashSet<TopicSubscribeInfo>,
+    pub storage_list: HashMap<u32, EngineShard>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -147,7 +147,7 @@ pub struct TopicRewriteListRow {
 
 pub async fn topic_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<TopicListReq>,
+    Query(params): Query<TopicListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -159,8 +159,7 @@ pub async fn topic_list(
         params.exact_match,
     );
 
-    let mut topics = Vec::new();
-
+    let mut topics: Vec<Topic> = Vec::new();
     if let Some(tp) = params.topic_name.clone() {
         if let Some(topic) = state
             .mqtt_context
@@ -168,10 +167,7 @@ pub async fn topic_list(
             .broker_cache
             .get_topic_by_name(&tp)
         {
-            topics.push(TopicListRow {
-                topic_name: topic.topic_name.clone(),
-                create_time: topic.create_time,
-            });
+            topics.push(topic.clone());
         }
     } else {
         let topic_type = params.topic_type.as_deref().unwrap_or("all");
@@ -195,10 +191,7 @@ pub async fn topic_list(
                 continue;
             }
 
-            topics.push(TopicListRow {
-                topic_name: topic.topic_name.clone(),
-                create_time: topic.create_time,
-            });
+            topics.push(topic.clone());
         }
     }
 
@@ -212,7 +205,7 @@ pub async fn topic_list(
     })
 }
 
-impl Queryable for TopicListRow {
+impl Queryable for Topic {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
             "topic_name" => Some(self.topic_name.clone()),
@@ -223,8 +216,22 @@ impl Queryable for TopicListRow {
 
 pub async fn topic_detail(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<TopicDetailReq>,
+    Query(params): Query<TopicDetailReq>,
 ) -> String {
+    let result = match read_topic_detail(&state, &params).await {
+        Ok(data) => data,
+        Err(e) => {
+            return error_response(e.to_string());
+        }
+    };
+
+    success_response(result)
+}
+
+async fn read_topic_detail(
+    state: &Arc<HttpState>,
+    params: &TopicDetailReq,
+) -> Result<TopicDetailResp, MqttBrokerError> {
     let topic = if let Some(topic) = state
         .mqtt_context
         .cache_manager
@@ -233,29 +240,36 @@ pub async fn topic_detail(
     {
         topic
     } else {
-        return error_response("Topic does not exist.".to_string());
+        return Err(MqttBrokerError::TopicDoesNotExist(
+            params.topic_name.clone(),
+        ));
     };
 
-    let sub_list = Vec::new();
-    //  state
-    //     .mqtt_context
-    //     .subscribe_manager
-    //     .get_topic_subscribe_list(&topic.topic_name);
+    let storage_list = state
+        .mqtt_context
+        .storage_driver_manager
+        .list_storage_resource(&topic.topic_name)
+        .await?;
 
+    let sub_list = if let Some(list) = state
+        .mqtt_context
+        .subscribe_manager
+        .topic_subscribes
+        .get(&topic.topic_name)
+    {
+        list.clone()
+    } else {
+        HashSet::new()
+    };
     let storage = TopicStorage::new(state.client_pool.clone());
-    let (retain_message, retain_message_at) =
-        match storage.get_retain_message(&topic.topic_name).await {
-            Ok((retain_message, retain_message_at)) => (retain_message, retain_message_at),
-            Err(e) => {
-                return error_response(e.to_string());
-            }
-        };
+    let (retain_message, retain_message_at) = storage.get_retain_message(&topic.topic_name).await?;
 
-    success_response(TopicDetailResp {
+    Ok(TopicDetailResp {
         topic_info: topic,
         retain_message,
         retain_message_at,
         sub_list,
+        storage_list,
     })
 }
 
@@ -272,7 +286,7 @@ pub async fn topic_delete(
 
 pub async fn topic_rewrite_list(
     State(state): State<Arc<HttpState>>,
-    Json(params): Json<TopicRewriteReq>,
+    Query(params): Query<TopicRewriteReq>,
 ) -> String {
     let options = build_query_params(
         params.page,

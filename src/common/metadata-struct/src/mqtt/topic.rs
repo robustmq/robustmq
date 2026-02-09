@@ -17,6 +17,7 @@ use common_base::{
 };
 use common_config::storage::StorageType;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Topic {
@@ -25,7 +26,7 @@ pub struct Topic {
     pub storage_type: StorageType,
     pub partition: u32,
     pub replication: u32,
-    pub storage_name_list: Vec<String>,
+    pub storage_name_list: HashMap<u32, String>,
     pub create_time: u64,
 }
 
@@ -43,10 +44,10 @@ impl Topic {
         }
     }
 
-    pub fn create_partition_name(topic_id: &str, partition: u32) -> Vec<String> {
-        let mut results = Vec::new();
+    pub fn create_partition_name(topic_id: &str, partition: u32) -> HashMap<u32, String> {
+        let mut results = HashMap::new();
         for i in 0..partition {
-            results.push(Topic::build_storage_name(topic_id, i));
+            results.insert(i, Topic::build_storage_name(topic_id, i));
         }
         results
     }
@@ -76,7 +77,7 @@ mod tests {
             storage_type: StorageType::EngineMemory,
             partition: 3,
             replication: 2,
-            storage_name_list: vec!["test-id-0".to_string(), "test-id-1".to_string()],
+            storage_name_list: HashMap::new(),
             create_time: 1234567890,
         };
 

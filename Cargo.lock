@@ -1427,6 +1427,7 @@ dependencies = [
  "clap-cargo",
  "common-base",
  "common-config",
+ "metadata-struct",
  "paho-mqtt",
  "prettytable-rs",
  "serde",

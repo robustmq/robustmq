@@ -44,6 +44,7 @@ pub struct SubscribeManager {
     // (group_name, Vec<TopicName>)
     pub share_group_topics: DashMap<String, HashSet<String>>,
 
+    // (topic, Vec<TopicSubscribeInfo>)
     pub topic_subscribes: DashMap<String, HashSet<TopicSubscribeInfo>>,
 
     //(client_id, TemporaryNotPushClient)
@@ -214,6 +215,14 @@ impl SubscribeManager {
                     .any(|raw| is_exclusive_sub(&raw.path) && raw.client_id != *client_id)
             })
             .unwrap_or(false)
+    }
+
+    pub fn share_sub_len(&self) -> u64 {
+        let mut len = 0;
+        for raw in self.share_push.iter() {
+            len += raw.value().sub_len();
+        }
+        len
     }
 
     fn subscribe_key(&self, client_id: &str, path: &str) -> String {

@@ -355,6 +355,7 @@ mod tests {
     use metadata_struct::mqtt::bridge::connector::{FailureHandlingStrategy, MQTTConnector};
     use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
     use metadata_struct::mqtt::bridge::status::MQTTStatus;
+    use metadata_struct::mqtt::node_extend::NodeExtend;
     use rocksdb_engine::test::test_rocksdb_instance;
 
     /// Setup test cluster with specified brokers and connector distribution
@@ -371,7 +372,7 @@ mod tests {
                 node_id: i as u64,
                 node_ip: format!("127.0.0.{}", i),
                 grpc_addr: format!("127.0.0.{}:9000", i),
-                extend: Vec::new(),
+                extend: NodeExtend::default(),
                 roles: Vec::new(),
                 start_time: now_second(),
                 register_time: now_second(),

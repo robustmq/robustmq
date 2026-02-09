@@ -326,7 +326,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_TOPIC_LIST_PATH), request).await
+        self.get_with_params(&api_path(MQTT_TOPIC_LIST_PATH), request)
+            .await
     }
 
     /// Get topic detail
@@ -335,7 +336,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_TOPIC_DETAIL_PATH), request).await
+        self.get_with_params(&api_path(MQTT_TOPIC_DETAIL_PATH), request)
+            .await
     }
 
     /// Get subscription list
@@ -347,7 +349,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_SUBSCRIBE_LIST_PATH), request)
+        self.get_with_params(&api_path(MQTT_SUBSCRIBE_LIST_PATH), request)
             .await
     }
 
@@ -360,7 +362,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_USER_LIST_PATH), request).await
+        self.get_with_params(&api_path(MQTT_USER_LIST_PATH), request)
+            .await
     }
 
     /// Create user
@@ -387,7 +390,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_ACL_LIST_PATH), request).await
+        self.get_with_params(&api_path(MQTT_ACL_LIST_PATH), request)
+            .await
     }
 
     /// Create ACL rule
@@ -417,7 +421,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_BLACKLIST_LIST_PATH), request)
+        self.get_with_params(&api_path(MQTT_BLACKLIST_LIST_PATH), request)
             .await
     }
 
@@ -448,7 +452,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_CONNECTOR_LIST_PATH), request)
+        self.get_with_params(&api_path(MQTT_CONNECTOR_LIST_PATH), request)
             .await
     }
 
@@ -458,7 +462,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_CONNECTOR_DETAIL_PATH), request)
+        self.get_with_params(&api_path(MQTT_CONNECTOR_DETAIL_PATH), request)
             .await
     }
 
@@ -489,7 +493,8 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_SCHEMA_LIST_PATH), request).await
+        self.get_with_params(&api_path(MQTT_SCHEMA_LIST_PATH), request)
+            .await
     }
 
     /// Create schema
@@ -519,7 +524,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_SCHEMA_BIND_LIST_PATH), request)
+        self.get_with_params(&api_path(MQTT_SCHEMA_BIND_LIST_PATH), request)
             .await
     }
 
@@ -550,7 +555,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_SYSTEM_ALARM_LIST_PATH), request)
+        self.get_with_params(&api_path(MQTT_SYSTEM_ALARM_LIST_PATH), request)
             .await
     }
 
@@ -577,7 +582,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_FLAPPING_DETECT_LIST_PATH), request)
+        self.get_with_params(&api_path(MQTT_FLAPPING_DETECT_LIST_PATH), request)
             .await
     }
 
@@ -590,7 +595,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_TOPIC_REWRITE_LIST_PATH), request)
+        self.get_with_params(&api_path(MQTT_TOPIC_REWRITE_LIST_PATH), request)
             .await
     }
 
@@ -621,7 +626,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_AUTO_SUBSCRIBE_LIST_PATH), request)
+        self.get_with_params(&api_path(MQTT_AUTO_SUBSCRIBE_LIST_PATH), request)
             .await
     }
 
@@ -652,16 +657,17 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(MQTT_SLOW_SUBSCRIBE_LIST_PATH), request)
+        self.get_with_params(&api_path(MQTT_SLOW_SUBSCRIBE_LIST_PATH), request)
             .await
     }
 
     /// Get subscribe detail
-    pub async fn get_subscribe_detail<T>(&self, request: &T) -> Result<String, HttpClientError>
+    pub async fn get_subscribe_detail<T, R>(&self, request: &T) -> Result<R, HttpClientError>
     where
         T: Serialize,
+        R: for<'de> Deserialize<'de>,
     {
-        self.post_raw(&api_path(MQTT_SUBSCRIBE_DETAIL_PATH), request)
+        self.get_with_params(&api_path(MQTT_SUBSCRIBE_DETAIL_PATH), request)
             .await
     }
 
