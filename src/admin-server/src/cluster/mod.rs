@@ -51,37 +51,173 @@ pub async fn index(State(_state): State<Arc<HttpState>>) -> String {
 }
 
 pub async fn cluster_config_set(
-    State(_state): State<Arc<HttpState>>,
+    State(state): State<Arc<HttpState>>,
     Json(params): Json<ClusterConfigSetReq>,
 ) -> String {
+    let cache_manager = &state.mqtt_context.cache_manager;
+    let client_pool = &state.client_pool;
+
     match FeatureType::from_str(params.config_type.as_str()) {
         Ok(FeatureType::SlowSubscribe) => {
-            // let mut config = cache_manager.get_slow_sub_config();
-            // config.enable = request.is_enable;
-            // cache_manager.update_slow_sub_config(config.clone());
-            // save_cluster_dynamic_config(
-            //     client_pool,
-            //     ClusterDynamicConfig::MqttFlappingDetect,
-            //     config.encode(),
-            // )
-            // .await?;
+            match serde_json::from_str::<common_config::config::MqttSlowSubscribeConfig>(
+                params.config.as_str(),
+            ) {
+                Ok(config) => {
+                    cache_manager.update_slow_sub_config(config.clone()).await;
+                    if let Err(e) = mqtt_broker::core::dynamic_config::save_cluster_dynamic_config(
+                        client_pool,
+                        mqtt_broker::core::dynamic_config::ClusterDynamicConfig::MqttSlowSubscribeConfig,
+                        serde_json::to_vec(&config).unwrap(),
+                    )
+                    .await
+                    {
+                        return error_response(format!("Failed to persist config: {e}"));
+                    }
+                }
+                Err(e) => {
+                    return error_response(format!("Failed to parse config: {e}"));
+                }
+            }
         }
 
         Ok(FeatureType::OfflineMessage) => {
-            // let mut config = cache_manager.get_offline_message_config();
-            // config.enable = request.is_enable;
-            // cache_manager.update_offline_message_config(config.clone());
-            // save_cluster_dynamic_config(
-            //     client_pool,
-            //     ClusterDynamicConfig::MqttOfflineMessage,
-            //     config.encode(),
-            // )
-            // .await?;
+            match serde_json::from_str::<common_config::config::MqttOfflineMessage>(
+                params.config.as_str(),
+            ) {
+                Ok(config) => {
+                    cache_manager
+                        .update_offline_message_config(config.clone())
+                        .await;
+                    if let Err(e) = mqtt_broker::core::dynamic_config::save_cluster_dynamic_config(
+                        client_pool,
+                        mqtt_broker::core::dynamic_config::ClusterDynamicConfig::MqttOfflineMessage,
+                        serde_json::to_vec(&config).unwrap(),
+                    )
+                    .await
+                    {
+                        return error_response(format!("Failed to persist config: {e}"));
+                    }
+                }
+                Err(e) => {
+                    return error_response(format!("Failed to parse config: {e}"));
+                }
+            }
         }
 
-        Ok(FeatureType::SystemAlarm) => {}
+        Ok(FeatureType::SystemAlarm) => {
+            match serde_json::from_str::<common_config::config::MqttSystemMonitor>(
+                params.config.as_str(),
+            ) {
+                Ok(config) => {
+                    cache_manager
+                        .update_system_monitor_config(config.clone())
+                        .await;
+                    if let Err(e) = mqtt_broker::core::dynamic_config::save_cluster_dynamic_config(
+                        client_pool,
+                        mqtt_broker::core::dynamic_config::ClusterDynamicConfig::MqttSystemMonitor,
+                        serde_json::to_vec(&config).unwrap(),
+                    )
+                    .await
+                    {
+                        return error_response(format!("Failed to persist config: {e}"));
+                    }
+                }
+                Err(e) => {
+                    return error_response(format!("Failed to parse config: {e}"));
+                }
+            }
+        }
 
-        Ok(FeatureType::FlappingDetect) => {}
+        Ok(FeatureType::FlappingDetect) => {
+            match serde_json::from_str::<common_config::config::MqttFlappingDetect>(
+                params.config.as_str(),
+            ) {
+                Ok(config) => {
+                    cache_manager
+                        .update_flapping_detect_config(config.clone())
+                        .await;
+                    if let Err(e) = mqtt_broker::core::dynamic_config::save_cluster_dynamic_config(
+                        client_pool,
+                        mqtt_broker::core::dynamic_config::ClusterDynamicConfig::MqttFlappingDetect,
+                        serde_json::to_vec(&config).unwrap(),
+                    )
+                    .await
+                    {
+                        return error_response(format!("Failed to persist config: {e}"));
+                    }
+                }
+                Err(e) => {
+                    return error_response(format!("Failed to parse config: {e}"));
+                }
+            }
+        }
+
+        Ok(FeatureType::MqttProtocol) => {
+            match serde_json::from_str::<common_config::config::MqttProtocolConfig>(
+                params.config.as_str(),
+            ) {
+                Ok(config) => {
+                    cache_manager
+                        .update_mqtt_protocol_config(config.clone())
+                        .await;
+                    if let Err(e) = mqtt_broker::core::dynamic_config::save_cluster_dynamic_config(
+                        client_pool,
+                        mqtt_broker::core::dynamic_config::ClusterDynamicConfig::MqttProtocol,
+                        serde_json::to_vec(&config).unwrap(),
+                    )
+                    .await
+                    {
+                        return error_response(format!("Failed to persist config: {e}"));
+                    }
+                }
+                Err(e) => {
+                    return error_response(format!("Failed to parse config: {e}"));
+                }
+            }
+        }
+
+        Ok(FeatureType::MqttSecurity) => {
+            match serde_json::from_str::<common_config::config::MqttSecurity>(
+                params.config.as_str(),
+            ) {
+                Ok(config) => {
+                    cache_manager.update_security_config(config.clone()).await;
+                    if let Err(e) = mqtt_broker::core::dynamic_config::save_cluster_dynamic_config(
+                        client_pool,
+                        mqtt_broker::core::dynamic_config::ClusterDynamicConfig::MqttSecurity,
+                        serde_json::to_vec(&config).unwrap(),
+                    )
+                    .await
+                    {
+                        return error_response(format!("Failed to persist config: {e}"));
+                    }
+                }
+                Err(e) => {
+                    return error_response(format!("Failed to parse config: {e}"));
+                }
+            }
+        }
+
+        Ok(FeatureType::MqttSchema) => {
+            match serde_json::from_str::<common_config::config::MqttSchema>(params.config.as_str())
+            {
+                Ok(config) => {
+                    cache_manager.update_schema_config(config.clone()).await;
+                    if let Err(e) = mqtt_broker::core::dynamic_config::save_cluster_dynamic_config(
+                        client_pool,
+                        mqtt_broker::core::dynamic_config::ClusterDynamicConfig::MqttSchema,
+                        serde_json::to_vec(&config).unwrap(),
+                    )
+                    .await
+                    {
+                        return error_response(format!("Failed to persist config: {e}"));
+                    }
+                }
+                Err(e) => {
+                    return error_response(format!("Failed to parse config: {e}"));
+                }
+            }
+        }
 
         Err(e) => {
             return error_response(format!("Failed to parse feature type: {e}"));

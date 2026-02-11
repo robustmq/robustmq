@@ -24,6 +24,9 @@ pub enum FeatureType {
     OfflineMessage,
     SystemAlarm,
     FlappingDetect,
+    MqttProtocol,
+    MqttSecurity,
+    MqttSchema,
 }
 
 impl FromStr for FeatureType {
@@ -52,8 +55,11 @@ impl ValueEnum for FeatureType {
         &[
             Self::SlowSubscribe,
             Self::OfflineMessage,
-            Self::SlowSubscribe,
+            Self::SystemAlarm,
             Self::FlappingDetect,
+            Self::MqttProtocol,
+            Self::MqttSecurity,
+            Self::MqttSchema,
         ]
     }
 
@@ -63,6 +69,9 @@ impl ValueEnum for FeatureType {
             FeatureType::OfflineMessage => PossibleValue::new("OfflineMessage"),
             FeatureType::SystemAlarm => PossibleValue::new("SystemAlarm"),
             FeatureType::FlappingDetect => PossibleValue::new("FlappingDetect"),
+            FeatureType::MqttProtocol => PossibleValue::new("MqttProtocol"),
+            FeatureType::MqttSecurity => PossibleValue::new("MqttSecurity"),
+            FeatureType::MqttSchema => PossibleValue::new("MqttSchema"),
         })
     }
 }
