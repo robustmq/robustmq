@@ -48,15 +48,6 @@ max_log_files = 50
 # kind = "tokio_console"
 # bind = "127.0.0.1:5674"
 
-[journal]
-kind = "rolling_file"
-targets = [{ path = "journal_server", level = "info" }]
-rotation = "daily"
-directory = "./data/broker/logs"
-prefix = "journal"
-suffix = "log"
-max_log_files = 50
-
 [meta]
 kind = "rolling_file"
 targets = [{ path = "meta_service", level = "info" }]

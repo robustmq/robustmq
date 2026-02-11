@@ -34,8 +34,8 @@ For the content supported by Markdown, you can refer to the [VitePress Writing G
                    text: "Configuration",
                    collapsed: true,
                    items: [
-                       {text: "Meta Service", link: "/en/Configuration/META"},
-                       {text: "MQTT Broker", link: "/en/Configuration/MQTT"},
+                       {text: "Broker Configuration", link: "/en/Configuration/BROKER"},
+                       {text: "Logging Configuration", link: "/en/Configuration/Logging"},
                    ],
                },
            ],
@@ -68,8 +68,8 @@ For the content supported by Markdown, you can refer to the [VitePress Writing G
                    text: "Configuration",
                    collapsed: true,
                    items: [
-                       {text: "Meta Service", link: "/en/Configuration/META"},
-                       {text: "MQTT Broker", link: "/en/Configuration/MQTT"},
+                       {text: "Broker Configuration", link: "/en/Configuration/BROKER"},
+                       {text: "Logging Configuration", link: "/en/Configuration/Logging"},
                    ],
                },
            ],

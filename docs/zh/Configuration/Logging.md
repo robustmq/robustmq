@@ -159,13 +159,6 @@ targets = [{ path = "openraft", level = "info" }]
 directory = "./data/broker/logs"
 prefix = "raft"
 
-# Journal 服务日志
-[journal]
-kind = "rolling_file"
-targets = [{ path = "journal_server", level = "info" }]
-directory = "./data/broker/logs"
-prefix = "journal"
-
 # Meta 服务日志
 [meta]
 kind = "rolling_file"

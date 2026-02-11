@@ -85,16 +85,12 @@ pub fn default_rocksdb() -> Rocksdb {
     }
 }
 
-pub fn default_place_runtime() -> MetaRuntime {
+pub fn default_meta_runtime() -> MetaRuntime {
     MetaRuntime {
         heartbeat_check_time_ms: 1000,
         heartbeat_timeout_ms: 30000,
         raft_write_timeout_sec: 30,
     }
-}
-
-pub fn default_raft_write_timeout_sec() -> u64 {
-    30
 }
 
 pub fn default_mqtt_server() -> MqttServer {
@@ -155,7 +151,7 @@ pub fn default_mqtt_slow_subscribe_config() -> MqttSlowSubscribeConfig {
     }
 }
 
-pub fn default_flapping_detect() -> MqttFlappingDetect {
+pub fn default_mqtt_flapping_detect() -> MqttFlappingDetect {
     MqttFlappingDetect {
         enable: false,
         window_time: 1,
