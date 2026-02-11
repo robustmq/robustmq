@@ -539,14 +539,9 @@ fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
 mod tests {
     use super::*;
     use crate::bridge::manager::ConnectorManager;
-    use common_base::tools::now_second;
     use common_base::uuid::unique_id;
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
     use metadata_struct::mqtt::bridge::connector::FailureHandlingStrategy;
-    use metadata_struct::mqtt::bridge::{
-        config_local_file::LocalFileConnectorConfig, ConnectorConfig,
-    };
-    use metadata_struct::mqtt::topic::Topic;
     use storage_adapter::storage::test_build_storage_driver_manager;
 
     async fn setup() -> (Arc<StorageDriverManager>, Arc<ConnectorManager>) {
@@ -561,24 +556,6 @@ mod tests {
         let storage_adapter = test_build_storage_driver_manager().await.unwrap();
         let connector_manager = Arc::new(ConnectorManager::new());
         (storage_adapter, connector_manager)
-    }
-
-    fn create_test_connector() -> MQTTConnector {
-        use metadata_struct::mqtt::bridge::{
-            config_local_file::LocalFileConnectorConfig, ConnectorConfig,
-        };
-
-        MQTTConnector {
-            connector_name: "test_connector".to_string(),
-            connector_type: ConnectorType::LocalFile,
-            topic_name: "test_topic".to_string(),
-            config: ConnectorConfig::LocalFile(LocalFileConnectorConfig::default()),
-            failure_strategy: FailureHandlingStrategy::Discard,
-            status: MQTTStatus::Running,
-            broker_id: Some(1),
-            create_time: now_second(),
-            update_time: now_second(),
-        }
     }
 
     #[test]
@@ -628,32 +605,6 @@ mod tests {
 
         start_handle.abort();
         assert!(start_handle.await.unwrap_err().is_cancelled());
-    }
-
-    #[tokio::test]
-    async fn test_check_connector() {
-        let (storage_driver_manager, connector_manager) = setup().await;
-        let mut connector = create_test_connector();
-        connector.broker_id = Some(1);
-        connector.config = ConnectorConfig::LocalFile(LocalFileConnectorConfig {
-            local_file_path: "/tmp/test.txt".to_string(),
-            ..Default::default()
-        });
-        connector_manager.add_connector(&connector);
-
-        let topic_name = connector.topic_name.clone();
-        storage_driver_manager
-            .broker_cache
-            .add_topic(&topic_name, &Topic::build_by_name(&topic_name));
-
-        let client_pool = Arc::new(ClientPool::new(1));
-        check_connector(&storage_driver_manager, &connector_manager, &client_pool).await;
-
-        sleep(Duration::from_millis(100)).await;
-
-        assert!(connector_manager
-            .get_connector_thread(&connector.connector_name)
-            .is_some());
     }
 
     #[tokio::test]

@@ -125,7 +125,7 @@ pub fn override_default_by_env(toml_content: String, env_prefix: &str) -> String
         if let Ok(env_value) = env::var(env_key) {
             let line = &lines[*line_num];
             let (key, _) = line.split_once('=').unwrap_or((line.as_str(), ""));
-            lines[*line_num] = format!("{}={}", key.trim(), env_value);
+            lines[*line_num] = format!("{}={}", key, env_value);
         }
     }
 
