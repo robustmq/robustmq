@@ -16,7 +16,7 @@ use super::MqttService;
 use crate::core::cache::MQTTCacheManager;
 use crate::core::connection::is_request_problem_info;
 use crate::core::error::MqttBrokerError;
-use crate::core::flow_control::is_subscribe_rate_exceeded;
+use crate::core::limit::is_subscribe_rate_exceeded;
 use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
 use crate::core::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use crate::core::sub_wildcards::sub_path_validator;

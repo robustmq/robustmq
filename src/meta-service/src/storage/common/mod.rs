@@ -14,6 +14,7 @@
 
 pub mod config;
 pub mod kv;
+pub mod lock;
 pub mod node;
 pub mod offset;
 pub mod schema;

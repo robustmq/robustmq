@@ -126,8 +126,13 @@ pub fn storage_key_mqtt_last_will_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_node_sub_group_leader() -> String {
-    format!("{}mqtt/sub_group_leader", PREFIX_META)
+pub fn storage_key_mqtt_group_leader(group_name: &str) -> String {
+    format!("{}mqtt/sub_group_leader/{}", PREFIX_META, group_name)
+}
+
+#[inline]
+pub fn storage_key_mqtt_group_leader_prefix() -> String {
+    format!("{}mqtt/sub_group_leader/", PREFIX_META)
 }
 
 #[inline]

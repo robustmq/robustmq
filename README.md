@@ -19,7 +19,7 @@
 </p>
 
 <h3 align="center">
-    New generation of cloud-native and AI-native messaging infrastructure
+    Unified messaging infrastructure for next-gen AI, IoT, and big data
 </h3>
 
 <p align="center">

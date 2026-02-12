@@ -16,6 +16,7 @@ use crate::controller::session_expire::ExpireLastWill;
 use crate::core::cache::CacheManager;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::user::MqttUser;
@@ -34,6 +35,15 @@ impl CacheManager {
             return Some(session.clone());
         }
         None
+    }
+
+    pub fn add_group_leader(&self, group_info: MqttGroupLeader) {
+        self.group_leader
+            .insert(group_info.group_name.clone(), group_info);
+    }
+
+    pub fn remove_group_leader(&self, group_name: &str) {
+        self.group_leader.remove(group_name);
     }
 
     pub fn add_topic(&self, topic: Topic) {
