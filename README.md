@@ -19,7 +19,7 @@
 </p>
 
 <h3 align="center">
-    Unified communication infrastructure for next-gen AI, IoT, and big data
+    Next-generation unified communication infrastructure for AI, IoT, and big data
 </h3>
 
 <p align="center">
@@ -38,48 +38,41 @@
 > **⚠️ Development Status**
 > RobustMQ is in early development and **not production-ready**. We are currently in **Phase 1** focusing on building a solid architectural foundation. See [Roadmap](#%EF%B8%8F-robustmq-development-roadmap) for detailed development plan and timeline.
 
-## 🚀 Introduction & Vision
-
-RobustMQ is a next-generation unified messaging platform built with Rust, specifically designed for AI, IoT, and big data scenarios. With dual-protocol support (MQTT and Kafka), million-level topic scalability, file storage data sources (S3/MinIO, etc.), multi-mode storage engines (memory/hybrid/persistent/tiered), and intelligent data caching, it provides high-performance, cost-effective, and stable communication infrastructure for AI training, Agent communication, IoT devices (edge/cloud), and big data processing.
-
-## 🗺️ RobustMQ Development Roadmap
-
-**Long-term Vision**: Minimalist architecture with multi-protocol support, pluggable storage, and minimal deployment footprint.
-
-### Roadmap
-
-**Phase 1: Foundation (Current)** - Building a scalable technical architecture with solid, streamlined, and abstraction-friendly code implementation. Establishing a robust foundation for multi-protocol adaptation, pluggable storage, extensibility, and elasticity. *We are investing significant time here to avoid frequent refactoring in the long term.*
-
-**Phase 2: MQTT Broker** - Deliver a stable, high-performance MQTT Broker with complete protocol support (MQTT 3.x/5.0/SN) and optimized for edge deployment with package size under 20MB.
-
-**Phase 3: Kafka Protocol** - Start Kafka protocol adaptation work after achieving Phase 1 and 2 goals.
-
-## ✨ Features
-
-- **🚀 High Performance**: Rust-powered zero-cost abstractions with microsecond latency and zero GC pauses
-- **🏗️ Compute-Storage Separation**: Stateless broker nodes enable second-level elastic scaling and Serverless deployment
-- **🔌 Multi-Protocol Unified**: Native support for MQTT 3.1/3.1.1/5.0, Kafka, and AMQP with protocol isolation
-- **💾 Intelligent Storage Tiering**: Memory/SSD/Object storage with Topic-level engine selection for cost optimization
-- **☁️ Cloud-Native Ready**: Kubernetes-native with auto-scaling, service discovery, and container-friendly deployment
-- **🛠️ Zero-Operations**: Single binary deployment with built-in Raft consensus and comprehensive management tools
-- **🔐 Enterprise Security**: Multi-auth support, fine-grained permissions, and end-to-end encryption
-- **📊 Full Observability**: Prometheus metrics, OpenTelemetry tracing, and Grafana dashboards
-
-
-## 🏗️ Architecture
+## 🚀 Introduction
+RobustMQ is a next-generation unified messaging platform built with Rust, designed for AI, IoT, and big data workloads. Fully compatible with Kafka and MQTT 3.1/3.1.1/5.0 protocols, existing applications can seamlessly connect using standard Kafka SDKs with zero migration cost to unlock the full power of RobustMQ.
 
 ![RobustMQ Architecture](docs/images/robustmq-architecture.jpg)
 
-### Architecture Overview
+For AI workloads, RobustMQ serves as an intelligent data scheduling and caching layer. Direct object storage (S3/MinIO) integration with three-tier intelligent caching eliminates the need for data pre-import, removes I/O bottlenecks, and dramatically improves GPU utilization. A single cluster supports millions of lightweight topics, providing each AI Agent with an independent communication channel with fine-grained isolation and monitoring. Shared subscription mode enables GPU training nodes to scale elastically without being constrained by partition count.
 
-- **Broker Server**: Stateless protocol processing layer supporting MQTT, Kafka, and AMQP with million-level concurrent connections
-- **Meta Service**: Raft-based distributed metadata management and cluster coordination with automatic failover
-- **Journal Server**: High-performance persistent storage engine with WAL guarantees and pluggable storage backends
-- **Storage Adapter**: Unified storage abstraction layer supporting memory, SSD, and object storage with intelligent tiering
-- **One Binary Deployment**: Single executable with zero external dependencies for simplified operations
-- **Protocol Isolation**: Dedicated ports per protocol (MQTT: 1883/1885/8083/8085, Kafka: 9092, AMQP: 5672, gRPC: 1228)
-- **Compute-Storage Separation**: Stateless brokers enable independent scaling and Serverless deployment without data migration
-- **Topic-Level Storage**: Flexible storage engine selection supporting memory, local, and cloud storage backends
+For IoT workloads, a unified storage layer enables MQTT in / Kafka out — data ingested from IoT devices via MQTT can be consumed directly by AI and big data systems using the Kafka protocol, replacing dual MQTT + Kafka broker architectures with a single system. Minimal memory footprint supports edge deployment, with offline caching and automatic sync covering the full pipeline from edge gateways to cloud clusters.
+
+For big data workloads, RobustMQ enhances the Kafka protocol with an intelligent storage engine offering four modes — memory, hybrid, persistent, and tiered. Each topic can be independently configured, with hot data served at maximum speed and cold data automatically tiered to S3, balancing performance and cost.
+
+
+## 🗺️ RobustMQ Development Roadmap
+
+**🚀 Long-term Vision**
+
+Enable data to flow freely across AI training clusters, millions of Agents, IoT devices, and the cloud — via the optimal path, at the lowest latency, and with minimal cost.
+
+**✨ Roadmap**
+- **Phase 1**: Foundation (Completed) — Built a scalable technical architecture with solid, streamlined, and abstraction-friendly code implementation. Established a robust foundation for multi-protocol adaptation, pluggable storage, extensibility, and elasticity.
+
+- **Phase 2**: MQTT Broker (Initial Release) — Delivered a stable, high-performance MQTT Broker with MQTT 3.x/5.0 protocol support, optimized for edge deployment with package size under 20MB. Core protocol capabilities are in place and will continue to evolve in future releases.
+
+- **Phase 3**: Kafka Protocol & AI Capabilities (Starting) — With the MQTT Broker initially complete, now launching Kafka protocol adaptation and AI capability development. Prioritizing validation of AI training data caching acceleration and million-level lightweight topic feasibility, using AI workloads to drive Kafka protocol implementation; progressively building out full standard Kafka protocol compatibility on this foundation.
+
+## ✨ Features
+
+- 🚀 **Extreme Performance**: Built with Rust, microsecond latency, zero GC pauses, million-level QPS per node, minimal memory footprint for edge deployment
+- 🔌 **Dual Protocol Unification**: Fully compatible with MQTT 3.1/3.1.1/5.0 and Kafka protocols, unified storage layer enables MQTT in / Kafka out, one system replaces two
+- 🎯 **AI Training Acceleration**: Direct object storage (S3/MinIO) integration, three-tier intelligent caching (memory/SSD/S3), no data pre-import required, eliminates I/O bottlenecks, dramatically improves GPU utilization
+- 🤖 **Agent Communication**: Millions of lightweight topics per cluster, independent channel per Agent, fine-grained isolation and monitoring, per-Agent cost attribution
+- 🔄 **Elastic Consumption**: Shared subscription mode breaks Kafka's "concurrency = partition count" constraint, GPU training nodes scale freely without topic reconfiguration
+- 💾 **Intelligent Storage Engine**: Four modes — memory, hybrid, persistent, tiered — independently configurable per topic, hot data at full speed, cold data auto-tiered to S3, balancing performance and cost
+- 🌐 **Edge to Cloud**: Minimal memory footprint, unified deployment from edge gateways to cloud clusters, offline caching + automatic sync covering the full IoT pipeline
+- 🛠️ **Minimal Deployment**: Single binary, zero external dependencies, built-in Raft consensus, ready out of the box with minimal operational overhead
 
 ## 🚀 Quick Start
 
