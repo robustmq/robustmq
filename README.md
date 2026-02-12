@@ -19,7 +19,7 @@
 </p>
 
 <h3 align="center">
-    Unified messaging infrastructure for next-gen AI, IoT, and big data
+    Unified communication infrastructure for next-gen AI, IoT, and big data
 </h3>
 
 <p align="center">
@@ -40,23 +40,7 @@
 
 ## 🚀 Introduction & Vision
 
-**RobustMQ** is a next-generation, high-performance message queue built in Rust, designed for modern cloud-native and AI systems. It unifies MQTT, Kafka, and AMQP protocols with compute-storage separation architecture, enabling microsecond latency and elastic scaling.
-
-### Why RobustMQ?
-
-Traditional message queues face critical challenges in the AI era: **protocol fragmentation** requiring multiple systems, **latency jitter** failing real-time AI needs, **compute-storage coupling** preventing Serverless deployment, and **high costs** lacking elastic scaling.
-
-RobustMQ provides a **unified messaging platform** with flexible architecture that supports all scenarios, eliminating the need to maintain multiple message queue systems.
-
-### Our Vision
-
-RobustMQ is exploring to become an **ALL-IN-ONE next-generation messaging platform**. Our core philosophy: **Simplicity** and **Slow is Fast**.
-
-This is a **long-term journey**. We prioritize building a rock-solid foundation over rushing features. We believe in avoiding the chaos of frequent refactoring by investing time upfront in thoughtful design and architecture.
-
-As a **community-driven project** (not a commercial venture), we embrace being slow and deliberate. We're committed to quality over speed, depth over breadth. **The journey is as important as the destination** — and we're here for the long run.
-
-*Target: Become the next-generation cloud-native and AI-native messaging infrastructure, aspiring to Apache top-level project status.*
+RobustMQ is a next-generation unified messaging platform built with Rust, specifically designed for AI, IoT, and big data scenarios. With dual-protocol support (MQTT and Kafka), million-level topic scalability, file storage data sources (S3/MinIO, etc.), multi-mode storage engines (memory/hybrid/persistent/tiered), and intelligent data caching, it provides high-performance, cost-effective, and stable communication infrastructure for AI training, Agent communication, IoT devices (edge/cloud), and big data processing.
 
 ## 🗺️ RobustMQ Development Roadmap
 
@@ -69,8 +53,6 @@ As a **community-driven project** (not a commercial venture), we embrace being s
 **Phase 2: MQTT Broker** - Deliver a stable, high-performance MQTT Broker with complete protocol support (MQTT 3.x/5.0/SN) and optimized for edge deployment with package size under 20MB.
 
 **Phase 3: Kafka Protocol** - Start Kafka protocol adaptation work after achieving Phase 1 and 2 goals.
-
-
 
 ## ✨ Features
 
