@@ -49,3 +49,4 @@ network-server.workspace = true
 storage-adapter.workspace = true
 rocksdb-engine.workspace = true
 storage-engine.workspace = true
+reqwest.workspace = true

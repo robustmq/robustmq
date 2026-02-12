@@ -6935,6 +6935,7 @@ dependencies = [
  "paho-mqtt",
  "protocol",
  "quinn",
+ "reqwest",
  "rocksdb-engine",
  "rustls 0.23.36",
  "rustls-pemfile 2.2.0",
