@@ -153,6 +153,6 @@ RobustMQ MQTT 支持 `robust-ctl mqtt` 命令行工具，提供完整的 MQTT �
 ## 快速开始
 
 1. **安装部署**：参考 [安装部署指南](../InstallationDeployment/Docker-Deployment)
-2. **配置管理**：参考 [配置文档](../Configuration/COMMON)
+2. **配置管理**：参考 [配置文档](../Configuration/BROKER)
 3. **客户端连接**：参考 [客户端 SDK](SDK/c-sdk)
 4. **功能使用**：参考各功能模块的详细文档

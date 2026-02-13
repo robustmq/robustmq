@@ -47,8 +47,8 @@ impl SchemaRegisterManager {
     }
 
     pub fn validate(&self, resource: &str, data: &[u8]) -> Result<bool, CommonError> {
-        if let Some(schemc_list) = self.resource_schema_list.get(resource) {
-            for schema_name in schemc_list.iter() {
+        if let Some(schema_list) = self.resource_schema_list.get(resource) {
+            for schema_name in schema_list.iter() {
                 if let Some(schema) = self.schema_list.get(schema_name) {
                     match schema.schema_type {
                         SchemaType::JSON => {

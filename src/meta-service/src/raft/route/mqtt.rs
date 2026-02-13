@@ -17,6 +17,7 @@ use crate::core::error::MetaServiceError;
 use crate::storage::mqtt::acl::AclStorage;
 use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::storage::mqtt::connector::MqttConnectorStorage;
+use crate::storage::mqtt::group_leader::MqttGroupLeaderStorage;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
@@ -29,6 +30,7 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::session::MqttSession;
@@ -260,6 +262,23 @@ impl DataRouteMqtt {
         let req = DeleteBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
         blacklist_storage.delete(&req.blacklist_type, &req.resource_name)?;
+        Ok(())
+    }
+
+    // Group Leader
+    pub fn create_group_leader(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let leader = MqttGroupLeader::decode(&value)?;
+        let storage = MqttGroupLeaderStorage::new(self.rocksdb_engine_handler.clone());
+        storage.save(&leader.group_name, leader.broker_id)?;
+        self.cache_manager.add_group_leader(leader);
+        Ok(())
+    }
+
+    pub fn delete_group_leader(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let leader = MqttGroupLeader::decode(&value)?;
+        let storage = MqttGroupLeaderStorage::new(self.rocksdb_engine_handler.clone());
+        storage.delete(&leader.group_name)?;
+        self.cache_manager.remove_group_leader(&leader.group_name);
         Ok(())
     }
 

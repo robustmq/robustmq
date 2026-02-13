@@ -27,6 +27,7 @@ use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::user::MqttUser;
@@ -64,6 +65,9 @@ pub struct CacheManager {
     // (client_id, MqttSession)
     pub session_list: DashMap<String, MqttSession>,
 
+    // (group_name, broker_id)
+    pub group_leader: DashMap<String, MqttGroupLeader>,
+
     // Storage Engine
     //（shard_name, JournalShard）
     pub shard_list: DashMap<String, EngineShard>,
@@ -97,6 +101,7 @@ impl CacheManager {
             wait_delete_shard_list: DashMap::with_capacity(8),
             wait_delete_segment_list: DashMap::with_capacity(8),
             session_list: DashMap::with_capacity(8),
+            group_leader: DashMap::with_capacity(8),
         };
         cache.load_cache(rocksdb_engine_handler);
         cache

@@ -1,24 +1,92 @@
 # Logging Configuration
 
-RobustMQ uses a modern logging system based on `tracing` that supports multiple output methods and flexible filtering configurations.
+RobustMQ uses a logging system based on `tracing` and `tracing-subscriber`, supporting multiple output appenders and flexible filtering. Each appender is defined as a TOML section in the tracing configuration file.
 
-## Configuration File
+## Configuration Files
 
-Logging configuration file: `config/server-tracing.toml`
+Logging involves two configuration layers:
 
-## Basic Configuration
+1. **`config/server.toml`** — specifies the path to the tracing config and the log output directory:
 
-### Console Output
+```toml
+[log]
+log_config = "./config/server-tracing.toml"
+log_path = "./logs"
+```
+
+2. **`config/server-tracing.toml`** — defines all log appenders (console, file, tokio-console).
+
+---
+
+## Appender Types
+
+Each TOML section in `server-tracing.toml` defines one appender. The section name is arbitrary (e.g. `[stdout]`, `[server]`, `[raft]`). The `kind` field determines the appender type.
+
+| `kind` | Description |
+|--------|-------------|
+| `console` | Writes to stdout |
+| `rolling_file` | Writes to rotating log files |
+| `tokio_console` | Enables [tokio-console](https://github.com/tokio-rs/console) debugging |
+
+---
+
+## Filtering
+
+Each appender must specify exactly **one** of the following filter modes:
+
+### Level filter
+
+Applies a global log level to all modules.
+
+```toml
+level = "info"
+```
+
+### Target filter
+
+Filters logs from a single module path.
+
+```toml
+target = { path = "openraft", level = "info" }
+```
+
+### Targets filter
+
+Filters logs from multiple module paths with independent levels. Useful for including one module while excluding a sub-module.
+
+```toml
+targets = [
+    { path = "openraft", level = "info" },
+    { path = "openraft::engine", level = "off" },
+]
+```
+
+**Available log levels:** `off`, `error`, `warn`, `info`, `debug`, `trace`
+
+---
+
+## Console Appender
+
+Writes log output to stdout.
 
 ```toml
 [stdout]
 kind = "console"
 level = "info"
-ansi = true
-formatter = "pretty"
 ```
 
-### File Output
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `kind` | string | yes | — | Must be `"console"` |
+| `level` / `target` / `targets` | — | yes | — | Filter mode (choose one) |
+| `ansi` | bool | no | `true` | Enable ANSI color output |
+| `formatter` | string | no | default format | Output format: `compact`, `pretty`, `json` |
+
+---
+
+## Rolling File Appender
+
+Writes logs to files with time-based rotation and automatic cleanup.
 
 ```toml
 [server]
@@ -31,32 +99,64 @@ suffix = "log"
 max_log_files = 50
 ```
 
-## Configuration Parameters
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `kind` | string | yes | — | Must be `"rolling_file"` |
+| `level` / `target` / `targets` | — | yes | — | Filter mode (choose one) |
+| `rotation` | string | yes | — | Rotation strategy: `minutely`, `hourly`, `daily`, `never` |
+| `directory` | string | yes | — | Log file output directory |
+| `prefix` | string | no | none | Log filename prefix |
+| `suffix` | string | no | none | Log filename suffix |
+| `max_log_files` | number | no | unlimited | Maximum number of rotated log files to keep |
+| `ansi` | bool | no | `true` | Enable ANSI color in file output (usually set `false` for files) |
+| `formatter` | string | no | default format | Output format: `compact`, `pretty`, `json` |
 
-### Common Parameters
+**Log file naming:** `{prefix}.{date}.{suffix}` — for example, with `prefix = "server"`, `suffix = "log"`, `rotation = "daily"`, the file is named like `server.2025-02-06.log`.
 
-| Parameter | Type | Description | Options |
-|-----------|------|-------------|---------|
-| `kind` | String | Appender type | `console`, `rolling_file`, `TokioConsole` |
-| `level` | String | Log level | `off`, `error`, `warn`, `info`, `debug`, `trace` |
-| `ansi` | Boolean | Enable color output | `true`, `false` |
-| `formatter` | String | Output format | `compact`, `pretty`, `json` |
+---
 
-### File Output Parameters
+## Tokio Console Appender
 
-| Parameter | Type | Description | Options |
-|-----------|------|-------------|---------|
-| `rotation` | String | Rotation strategy | `minutely`, `hourly`, `daily`, `never` |
-| `directory` | String | Log directory | File path |
-| `prefix` | String | File prefix | Any string |
-| `suffix` | String | File suffix | Any string |
-| `max_log_files` | Number | Maximum file count | Positive integer |
-
-## Advanced Configuration
-
-### Module Filtering
+Enables the [tokio-console](https://github.com/tokio-rs/console) subscriber for debugging async runtime behavior.
 
 ```toml
+[tokio_console]
+kind = "tokio_console"
+bind = "127.0.0.1:5674"
+grpc_web = true
+```
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `kind` | string | yes | — | Must be `"tokio_console"` |
+| `bind` | string | no | `127.0.0.1:6669` | gRPC server bind address |
+| `grpc_web` | bool | no | `false` | Enable gRPC-Web support |
+
+> Note: This appender does not support `level`, `ansi`, or `formatter` parameters.
+
+---
+
+## Default Configuration
+
+The default `config/server-tracing.toml` ships with the following appenders:
+
+```toml
+# Console output
+[stdout]
+kind = "console"
+level = "info"
+
+# Main server logs
+[server]
+kind = "rolling_file"
+level = "info"
+rotation = "daily"
+directory = "./data/broker/logs"
+prefix = "server"
+suffix = "log"
+max_log_files = 50
+
+# HTTP API request logs
 [http_request]
 kind = "rolling_file"
 targets = [{ path = "admin_server::server", level = "info" }]
@@ -65,11 +165,28 @@ directory = "./data/broker/logs"
 prefix = "http_request"
 suffix = "log"
 max_log_files = 50
-```
 
-### Multi-target Filtering
+# Raft consensus logs
+[raft]
+kind = "rolling_file"
+targets = [{ path = "openraft", level = "info" }]
+rotation = "daily"
+directory = "./data/broker/logs"
+prefix = "raft"
+suffix = "log"
+max_log_files = 50
 
-```toml
+# Meta service logs
+[meta]
+kind = "rolling_file"
+targets = [{ path = "meta_service", level = "info" }]
+rotation = "daily"
+directory = "./data/broker/logs"
+prefix = "meta"
+suffix = "log"
+max_log_files = 50
+
+# Openraft logs excluding engine module
 [openraft_except_engine]
 kind = "rolling_file"
 targets = [
@@ -77,22 +194,15 @@ targets = [
     { path = "openraft::engine", level = "off" },
 ]
 rotation = "daily"
-directory = "./data/meta-service/logs"
+directory = "./data/broker/logs"
 prefix = "openraft-except-engine"
 suffix = "log"
 max_log_files = 10
 ```
 
-### Tokio Debugging
+---
 
-```toml
-[tokio_console]
-kind = "TokioConsole"
-bind = "127.0.0.1:5675"
-grpc_web = true
-```
-
-## Preset Configurations
+## Preset Examples
 
 ### Development Environment
 
@@ -101,7 +211,6 @@ grpc_web = true
 kind = "console"
 level = "debug"
 formatter = "pretty"
-ansi = true
 
 [server]
 kind = "rolling_file"
@@ -139,39 +248,3 @@ prefix = "error"
 suffix = "log"
 max_log_files = 90
 ```
-
-## Modular Logging
-
-RobustMQ supports module-based log separation:
-
-```toml
-# HTTP request logs
-[http_request]
-kind = "rolling_file"
-targets = [{ path = "admin_server::server", level = "info" }]
-directory = "./data/broker/logs"
-prefix = "http_request"
-
-# Raft consensus logs
-[raft]
-kind = "rolling_file"
-targets = [{ path = "openraft", level = "info" }]
-directory = "./data/broker/logs"
-prefix = "raft"
-
-# Journal service logs
-[journal]
-kind = "rolling_file"
-targets = [{ path = "journal_server", level = "info" }]
-directory = "./data/broker/logs"
-prefix = "journal"
-
-# Meta service logs
-[meta]
-kind = "rolling_file"
-targets = [{ path = "meta_service", level = "info" }]
-directory = "./data/broker/logs"
-prefix = "meta"
-```
-
-Through proper logging configuration, you can effectively improve RobustMQ's observability and operational efficiency.

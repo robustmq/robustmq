@@ -298,9 +298,15 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        get_share_sub_leader_by_req(&self.cache_manager, &self.rocksdb_engine_handler, &req)
-            .map_err(Self::to_status)
-            .map(Response::new)
+        get_share_sub_leader_by_req(
+            &self.cache_manager,
+            &self.raft_manager,
+            &self.rocksdb_engine_handler,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     // Last Will

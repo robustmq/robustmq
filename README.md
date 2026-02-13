@@ -19,7 +19,7 @@
 </p>
 
 <h3 align="center">
-    New generation of cloud-native and AI-native messaging infrastructure
+    Next-generation unified communication infrastructure for AI, IoT, and big data
 </h3>
 
 <p align="center">
@@ -38,66 +38,49 @@
 > **⚠️ Development Status**
 > RobustMQ is in early development and **not production-ready**. We are currently in **Phase 1** focusing on building a solid architectural foundation. See [Roadmap](#%EF%B8%8F-robustmq-development-roadmap) for detailed development plan and timeline.
 
-## 🚀 Introduction & Vision
-
-**RobustMQ** is a next-generation, high-performance message queue built in Rust, designed for modern cloud-native and AI systems. It unifies MQTT, Kafka, and AMQP protocols with compute-storage separation architecture, enabling microsecond latency and elastic scaling.
-
-### Why RobustMQ?
-
-Traditional message queues face critical challenges in the AI era: **protocol fragmentation** requiring multiple systems, **latency jitter** failing real-time AI needs, **compute-storage coupling** preventing Serverless deployment, and **high costs** lacking elastic scaling.
-
-RobustMQ provides a **unified messaging platform** with flexible architecture that supports all scenarios, eliminating the need to maintain multiple message queue systems.
-
-### Our Vision
-
-RobustMQ is exploring to become an **ALL-IN-ONE next-generation messaging platform**. Our core philosophy: **Simplicity** and **Slow is Fast**.
-
-This is a **long-term journey**. We prioritize building a rock-solid foundation over rushing features. We believe in avoiding the chaos of frequent refactoring by investing time upfront in thoughtful design and architecture.
-
-As a **community-driven project** (not a commercial venture), we embrace being slow and deliberate. We're committed to quality over speed, depth over breadth. **The journey is as important as the destination** — and we're here for the long run.
-
-*Target: Become the next-generation cloud-native and AI-native messaging infrastructure, aspiring to Apache top-level project status.*
-
-## 🗺️ RobustMQ Development Roadmap
-
-**Long-term Vision**: Minimalist architecture with multi-protocol support, pluggable storage, and minimal deployment footprint.
-
-### Roadmap
-
-**Phase 1: Foundation (Current)** - Building a scalable technical architecture with solid, streamlined, and abstraction-friendly code implementation. Establishing a robust foundation for multi-protocol adaptation, pluggable storage, extensibility, and elasticity. *We are investing significant time here to avoid frequent refactoring in the long term.*
-
-**Phase 2: MQTT Broker** - Deliver a stable, high-performance MQTT Broker with complete protocol support (MQTT 3.x/5.0/SN) and optimized for edge deployment with package size under 20MB.
-
-**Phase 3: Kafka Protocol** - Start Kafka protocol adaptation work after achieving Phase 1 and 2 goals.
-
-
-
-## ✨ Features
-
-- **🚀 High Performance**: Rust-powered zero-cost abstractions with microsecond latency and zero GC pauses
-- **🏗️ Compute-Storage Separation**: Stateless broker nodes enable second-level elastic scaling and Serverless deployment
-- **🔌 Multi-Protocol Unified**: Native support for MQTT 3.1/3.1.1/5.0, Kafka, and AMQP with protocol isolation
-- **💾 Intelligent Storage Tiering**: Memory/SSD/Object storage with Topic-level engine selection for cost optimization
-- **☁️ Cloud-Native Ready**: Kubernetes-native with auto-scaling, service discovery, and container-friendly deployment
-- **🛠️ Zero-Operations**: Single binary deployment with built-in Raft consensus and comprehensive management tools
-- **🔐 Enterprise Security**: Multi-auth support, fine-grained permissions, and end-to-end encryption
-- **📊 Full Observability**: Prometheus metrics, OpenTelemetry tracing, and Grafana dashboards
-
-
-## 🏗️ Architecture
+## 🌟 Introduction & Vision
+RobustMQ is a next-generation unified messaging infrastructure built with Rust for AI, IoT, and data-intensive systems. It is designed to deliver high throughput, predictable latency, and low operational complexity from edge devices to cloud clusters.
 
 ![RobustMQ Architecture](docs/images/robustmq-architecture.jpg)
 
-### Architecture Overview
+### 🎯 Why RobustMQ
+- ⚡ **High-performance core**: Rust-native implementation with low latency and low memory overhead.
+- 🔁 **Unified protocol access**: MQTT + Kafka compatibility in one system, reducing architecture duplication.
+- 🧠 **AI-ready data path**: Object storage integration and multi-tier cache to reduce data loading bottlenecks.
+- 🌍 **Edge-to-cloud consistency**: One architecture for edge gateways, regional clusters, and central cloud.
 
-- **Broker Server**: Stateless protocol processing layer supporting MQTT, Kafka, and AMQP with million-level concurrent connections
-- **Meta Service**: Raft-based distributed metadata management and cluster coordination with automatic failover
-- **Journal Server**: High-performance persistent storage engine with WAL guarantees and pluggable storage backends
-- **Storage Adapter**: Unified storage abstraction layer supporting memory, SSD, and object storage with intelligent tiering
-- **One Binary Deployment**: Single executable with zero external dependencies for simplified operations
-- **Protocol Isolation**: Dedicated ports per protocol (MQTT: 1883/1885/8083/8085, Kafka: 9092, AMQP: 5672, gRPC: 1228)
-- **Compute-Storage Separation**: Stateless brokers enable independent scaling and Serverless deployment without data migration
-- **Topic-Level Storage**: Flexible storage engine selection supporting memory, local, and cloud storage backends
+### 🧭 Vision
+Enable data to move freely and efficiently across AI agents, training clusters, IoT devices, and analytics platforms through one unified messaging layer.
+
+### 🏗️ Workload Fit
+- 🤖 **AI workloads**: Lightweight topics for agent communication, shared subscription for elastic training consumers.
+- 📡 **IoT workloads**: MQTT ingestion with Kafka consumption on the same data plane (MQTT in / Kafka out).
+- 📊 **Data workloads**: Flexible storage modes for balancing throughput, durability, and cost.
+
+
+## 🗺️ RobustMQ Development Roadmap
+
+**🚀 Long-term Vision**
+
+Enable data to flow freely across AI training clusters, millions of Agents, IoT devices, and the cloud — via the optimal path, at the lowest latency, and with minimal cost.
+
+**✨ Roadmap**
+- **Phase 1**: Foundation (Completed) — Built a scalable technical architecture with solid, streamlined, and abstraction-friendly code implementation. Established a robust foundation for multi-protocol adaptation, pluggable storage, extensibility, and elasticity.
+
+- **Phase 2**: MQTT Broker (Initial Release) — Delivered a stable, high-performance MQTT Broker with MQTT 3.x/5.0 protocol support, optimized for edge deployment with package size under 20MB. Core protocol capabilities are in place and will continue to evolve in future releases.
+
+- **Phase 3**: Kafka Protocol & AI Capabilities (Starting) — With the MQTT Broker initially complete, now launching Kafka protocol adaptation and AI capability development. Prioritizing validation of AI training data caching acceleration and million-level lightweight topic feasibility, using AI workloads to drive Kafka protocol implementation; progressively building out full standard Kafka protocol compatibility on this foundation.
+
+## ✨ Features
+
+- ⚙️ **Unified Messaging Layer**: MQTT 3.1/3.1.1/5.0 + Kafka compatibility, enabling MQTT in / Kafka out in one platform.
+- 🚀 **Performance by Design**: Rust implementation, low memory usage, low latency, and no GC pause behavior.
+- 🧠 **AI Data Acceleration**: S3/MinIO integration with multi-tier caching (memory/SSD/object storage) to improve data path efficiency.
+- 🤖 **Agent-scale Topics**: Support for massive lightweight topic counts with isolation and observability per workload.
+- 🔄 **Elastic Consumption Model**: Shared subscription to scale consumers beyond rigid partition-concurrency coupling.
+- 💾 **Flexible Storage Modes**: Memory, hybrid, persistent, and tiered storage strategies configurable per topic.
+- 🌐 **Edge-to-Cloud Deployment**: Consistent runtime model for edge nodes and cloud clusters, with offline buffering + sync.
+- 🛡️ **Ops-friendly Architecture**: Single-binary deployment, built-in Raft consensus, and simplified operations.
 
 ## 🚀 Quick Start
 

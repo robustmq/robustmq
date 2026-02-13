@@ -208,7 +208,7 @@ A: Confirm the management port (default 8080) is running properly.
 After installation, you can:
 
 1. **Experience MQTT features**: Check out [MQTT Experience Guide](Experience-MQTT.md)
-2. **Learn configuration options**: Check out [Configuration Documentation](../Configuration/COMMON.md)
+2. **Learn configuration options**: Check out [Configuration Documentation](../Configuration/BROKER.md)
 3. **Explore advanced features**: Check out [Complete Documentation](../OverView/What-is-RobustMQ.md)
 
 ## Get Help

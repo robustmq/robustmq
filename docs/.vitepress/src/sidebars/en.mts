@@ -177,10 +177,7 @@ export const sidebar = [
     text: "Configuration",
     collapsed: true,
     items: [
-      { text: "Common Configuration", link: "/en/Configuration/COMMON" },
-      { text: "MQTT Configuration", link: "/en/Configuration/MQTT" },
-      { text: "Meta Configuration", link: "/en/Configuration/META" },
-      { text: "Journal Configuration", link: "/en/Configuration/JOURNAL" },
+      { text: "Broker Configuration", link: "/en/Configuration/BROKER" },
       { text: "Logging Configuration", link: "/en/Configuration/Logging" },
     ],
   },

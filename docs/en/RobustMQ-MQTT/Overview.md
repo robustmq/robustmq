@@ -153,6 +153,6 @@ For detailed documentation, please refer to: [robustmq-ctl mqtt](../RobustMQ-Com
 ## Quick Start
 
 1. **Installation & Deployment**: Refer to [Installation & Deployment Guide](../InstallationDeployment/Docker-Deployment)
-2. **Configuration Management**: Refer to [Configuration Documentation](../Configuration/COMMON)
+2. **Configuration Management**: Refer to [Configuration Documentation](../Configuration/BROKER)
 3. **Client Connection**: Refer to [Client SDKs](SDK/c-sdk)
 4. **Feature Usage**: Refer to detailed documentation for each feature module
