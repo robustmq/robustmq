@@ -12,31 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::channel::RequestChannel;
+use crate::common::connection_manager::ConnectionManager;
+use crate::common::tool::read_packet;
 use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_config::broker::broker_config;
-use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
-use protocol::robust::RobustMQPacket;
-// Copyright 2023 RobustMQ Team
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-use crate::common::channel::RequestChannel;
-use crate::common::connection_manager::ConnectionManager;
-use crate::common::tool::read_packet;
 use common_metrics::mqtt::packets::record_received_error_metrics;
 use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
+use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
+use protocol::robust::RobustMQPacket;
 use rustls_pemfile::{certs, private_key};
 use std::fs::File;
 use std::io::{self, BufReader};

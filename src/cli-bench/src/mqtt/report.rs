@@ -16,6 +16,7 @@ use crate::mqtt::stats::StatsSnapshot;
 use prettytable::{row, Table};
 use serde::Serialize;
 use std::collections::BTreeMap;
+use std::io::{self, Write};
 use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize)]
@@ -105,7 +106,7 @@ impl BenchReport {
     }
 
     pub fn print_table(&self) {
-        println!("=== Benchmark Summary ===");
+        println!("\n=== Benchmark Summary ===");
         let mut table = Table::new();
         table.set_titles(row!["metric", "value"]);
         table.add_row(row!["name", self.name.as_str()]);
@@ -153,7 +154,7 @@ impl BenchReport {
         table.printstd();
 
         if !self.extras.is_empty() {
-            println!("=== Scenario Parameters ===");
+            println!("\n=== Scenario Parameters ===");
             let mut ext = Table::new();
             ext.set_titles(row!["param", "value"]);
             for (k, v) in &self.extras {
@@ -163,7 +164,7 @@ impl BenchReport {
         }
 
         if !self.series.is_empty() {
-            println!("=== Throughput Timeline (per second) ===");
+            println!("\n=== Throughput Timeline (per second) ===");
             let mut timeline = Table::new();
             timeline.set_titles(row![
                 "sec",
@@ -189,7 +190,7 @@ impl BenchReport {
         }
 
         if !self.snapshot.errors.is_empty() {
-            println!("=== Error Distribution ===");
+            println!("\n=== Error Distribution ===");
             let mut err = Table::new();
             err.set_titles(row!["error_type", "count"]);
             for (k, v) in &self.snapshot.errors {
@@ -215,7 +216,7 @@ pub fn print_realtime_line(
     snapshot: &StatsSnapshot,
 ) {
     println!(
-        "[{}] sec={} ops/s={} total_ops={} success={} failed={} timeout={} recv={} p95={:.3}ms p99={:.3}ms",
+        "[{}] sec={} | ops/s={} | total={} | success={} | failed={} | timeout={} | recv={} | p95={:.3}ms p99={:.3}ms",
         stage,
         elapsed.as_secs(),
         delta_ops,
@@ -227,4 +228,37 @@ pub fn print_realtime_line(
         snapshot.latency_ms_p95,
         snapshot.latency_ms_p99
     );
+}
+
+pub fn print_conn_progress_line(
+    elapsed: Duration,
+    total: u64,
+    success: u64,
+    failed: u64,
+    done: bool,
+) {
+    let completed = success + failed;
+    let pending = total.saturating_sub(completed);
+    let progress = if total == 0 {
+        100.0
+    } else {
+        completed as f64 * 100.0 / total as f64
+    };
+
+    let line = format!(
+        "[conn-progress] sec={} | total={} | success={} | failed={} | pending={} | progress={:.2}%",
+        elapsed.as_secs(),
+        total,
+        success,
+        failed,
+        pending,
+        progress
+    );
+
+    if done {
+        print!("\r{line}    \n");
+    } else {
+        print!("\r{line}    ");
+    }
+    let _ = io::stdout().flush();
 }

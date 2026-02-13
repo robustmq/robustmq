@@ -27,7 +27,7 @@ robust-bench mqtt sub ...
 
 ```bash
 robust-bench mqtt conn \
-  --host 10.0.0.10 \
+  --host 127.0.0.1 \
   --port 1883 \
   --username admin \
   --password robustmq \
@@ -54,7 +54,7 @@ robust-bench mqtt conn \
 
 ```bash
 robust-bench mqtt pub \
-  --host 10.0.0.10 \
+  --host 127.0.0.1 \
   --port 1883 \
   --username admin \
   --password robustmq \
@@ -82,7 +82,7 @@ robust-bench mqtt pub \
 
 ```bash
 robust-bench mqtt sub \
-  --host 10.0.0.10 \
+  --host 127.0.0.1 \
   --port 1883 \
   --username admin \
   --password robustmq \

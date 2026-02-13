@@ -20,7 +20,7 @@ use crate::mqtt::disconnect::build_distinct_packet;
 use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
-use common_base::error::ResultCommonError;
+use common_base::error::{client_unavailable_error_by_str, ResultCommonError};
 use common_base::tools::{loop_select_ticket, now_second};
 use common_metrics::mqtt::event::record_mqtt_connection_expired;
 use grpc_clients::pool::ClientPool;
@@ -206,14 +206,16 @@ async fn try_send_distinct_packet(
     };
 
     if let Err(e) = close_conn_fn().await {
-        warn!(
-            connect_id = context.connect_id,
-            client_id = %context.connection.client_id,
-            protocol = ?context.protocol,
-            network = ?context.network,
-            error = %e,
-            "Failed to send keep-alive disconnect packet"
-        );
+        if !client_unavailable_error_by_str(&e.to_string()) {
+            warn!(
+                connect_id = context.connect_id,
+                client_id = %context.connection.client_id,
+                protocol = ?context.protocol,
+                network = ?context.network,
+                error = %e,
+                "Failed to send keep-alive disconnect packet"
+            );
+        }
     }
 
     let context = build_server_disconnect_conn_context(

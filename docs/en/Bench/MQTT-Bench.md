@@ -25,7 +25,7 @@ Measure connection establishment capability and stable connection scale.
 
 ```bash
 robust-bench mqtt conn \
-  --host 10.0.0.10 \
+  --host 127.0.0.1 \
   --port 1883 \
   --count 50000 \
   --interval-ms 1 \
@@ -49,7 +49,7 @@ Measure publish throughput, success rate, and publish latency.
 
 ```bash
 robust-bench mqtt pub \
-  --host 10.0.0.10 \
+  --host 127.0.0.1 \
   --port 1883 \
   --count 2000 \
   --topic load/%i \
@@ -69,7 +69,7 @@ Measure receive throughput, stability, and subscriber-side timeout behavior.
 
 ```bash
 robust-bench mqtt sub \
-  --host 10.0.0.10 \
+  --host 127.0.0.1 \
   --port 1883 \
   --count 5000 \
   --topic "load/#" \

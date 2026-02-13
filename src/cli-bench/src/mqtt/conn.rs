@@ -14,7 +14,9 @@
 
 use crate::error::BenchMarkError;
 use crate::mqtt::common::{build_client, wait_connack};
-use crate::mqtt::report::{print_realtime_line, BenchReport, BenchReportInput, ThroughputSample};
+use crate::mqtt::report::{
+    print_conn_progress_line, print_realtime_line, BenchReport, BenchReportInput, ThroughputSample,
+};
 use crate::mqtt::stats::SharedStats;
 use crate::mqtt::{ConnBenchArgs, ConnMode, OutputFormat};
 use std::collections::BTreeMap;
@@ -27,6 +29,26 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
     let hold_duration = Duration::from_secs(args.hold_secs);
     let stats = SharedStats::new();
     let mut handles: Vec<JoinHandle<()>> = Vec::with_capacity(args.common.count);
+    let total_connections = args.common.count as u64;
+
+    let progress_stats = stats.clone();
+    let progress_handle = tokio::spawn(async move {
+        loop {
+            let snapshot = progress_stats.snapshot();
+            let done = snapshot.success + snapshot.failed >= total_connections;
+            print_conn_progress_line(
+                bench_start.elapsed(),
+                total_connections,
+                snapshot.success,
+                snapshot.failed,
+                done,
+            );
+            if done {
+                break;
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    });
 
     for i in 0..args.common.count {
         if args.common.interval_ms > 0 {
@@ -74,6 +96,7 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
     for handle in handles {
         let _ = handle.await;
     }
+    let _ = progress_handle.await;
     let snapshot = stats.snapshot();
     let elapsed = bench_start.elapsed();
     let total_ops = snapshot.success;
