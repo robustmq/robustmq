@@ -87,10 +87,18 @@ impl PushManager {
             self.stop_directly_push_thread();
 
             // share
+            self.cleanup_empty_share_groups();
             let group_info_list = self.get_group_leader_list().await?;
             self.start_share_push_thread(&group_info_list);
             self.stop_share_push_thread(&group_info_list);
             Ok(())
+        };
+        let ac_fn = async || -> ResultCommonError {
+            let res = ac_fn().await;
+            if let Err(e) = &res {
+                warn!("PushManager tick failed: {}", e);
+            }
+            res
         };
         loop_select_ticket(ac_fn, 1000, stop_sx).await;
         info!("PushManager stopped");
@@ -191,8 +199,7 @@ impl PushManager {
         }
     }
 
-    pub fn start_share_push_thread(&self, group_info_list: &HashMap<String, SubLeaderInfo>) {
-        // Collect empty share groups to remove
+    fn cleanup_empty_share_groups(&self) {
         let empty_groups: Vec<String> = self
             .subscribe_manager
             .share_push
@@ -201,7 +208,6 @@ impl PushManager {
             .map(|row| row.key().clone())
             .collect();
 
-        // Stop threads for empty share groups first
         for group_name in &empty_groups {
             if let Some((_, thread_data)) = self.share_buckets_push_thread.remove(group_name) {
                 debug!("Stopping thread for empty share group: {}", group_name);
@@ -214,7 +220,6 @@ impl PushManager {
             }
         }
 
-        // Then remove empty share groups data
         for group_name in empty_groups {
             self.subscribe_manager.share_push.remove(&group_name);
             self.subscribe_manager
@@ -222,7 +227,9 @@ impl PushManager {
                 .remove(&group_name);
             debug!("Removed empty share group: {}", group_name);
         }
+    }
 
+    pub fn start_share_push_thread(&self, group_info_list: &HashMap<String, SubLeaderInfo>) {
         let conf = broker_config();
         // Start threads for new share groups
         for row in self.subscribe_manager.share_push.iter() {
@@ -279,7 +286,7 @@ impl PushManager {
                     false
                 };
 
-                !is_leader && !self.subscribe_manager.share_push.contains_key(row.key())
+                !is_leader || !self.subscribe_manager.share_push.contains_key(row.key())
             })
             .map(|row| row.key().clone())
             .collect();
