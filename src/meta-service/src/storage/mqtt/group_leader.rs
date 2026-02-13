@@ -1,3 +1,17 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use std::{collections::HashMap, sync::Arc};
 
 use common_base::{
@@ -39,7 +53,7 @@ impl MqttGroupLeaderStorage {
         engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)
     }
 
-    pub fn get_leader_num_by_node(&self) -> Result<HashMap<String, MqttGroupLeader>, CommonError> {
+    pub fn list(&self) -> Result<HashMap<String, MqttGroupLeader>, CommonError> {
         let prefix_key_name = storage_key_mqtt_group_leader_prefix();
         let result = engine_prefix_list_by_meta_data::<MqttGroupLeader>(
             &self.rocksdb_engine_handler,
@@ -51,18 +65,5 @@ impl MqttGroupLeaderStorage {
         }
 
         Ok(results)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use rocksdb_engine::test::test_rocksdb_instance;
-
-    fn setup_storage() -> MqttGroupLeaderStorage {
-        let config = default_broker_config();
-        init_broker_conf_by_config(config.clone());
-        MqttGroupLeaderStorage::new(test_rocksdb_instance())
     }
 }

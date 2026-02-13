@@ -38,16 +38,24 @@
 > **⚠️ Development Status**
 > RobustMQ is in early development and **not production-ready**. We are currently in **Phase 1** focusing on building a solid architectural foundation. See [Roadmap](#%EF%B8%8F-robustmq-development-roadmap) for detailed development plan and timeline.
 
-## 🚀 Introduction
-RobustMQ is a next-generation unified messaging platform built with Rust, designed for AI, IoT, and big data workloads. Fully compatible with Kafka and MQTT 3.1/3.1.1/5.0 protocols, existing applications can seamlessly connect using standard Kafka SDKs with zero migration cost to unlock the full power of RobustMQ.
+## 🌟 Introduction & Vision
+RobustMQ is a next-generation unified messaging infrastructure built with Rust for AI, IoT, and data-intensive systems. It is designed to deliver high throughput, predictable latency, and low operational complexity from edge devices to cloud clusters.
 
 ![RobustMQ Architecture](docs/images/robustmq-architecture.jpg)
 
-For AI workloads, RobustMQ serves as an intelligent data scheduling and caching layer. Direct object storage (S3/MinIO) integration with three-tier intelligent caching eliminates the need for data pre-import, removes I/O bottlenecks, and dramatically improves GPU utilization. A single cluster supports millions of lightweight topics, providing each AI Agent with an independent communication channel with fine-grained isolation and monitoring. Shared subscription mode enables GPU training nodes to scale elastically without being constrained by partition count.
+### 🎯 Why RobustMQ
+- ⚡ **High-performance core**: Rust-native implementation with low latency and low memory overhead.
+- 🔁 **Unified protocol access**: MQTT + Kafka compatibility in one system, reducing architecture duplication.
+- 🧠 **AI-ready data path**: Object storage integration and multi-tier cache to reduce data loading bottlenecks.
+- 🌍 **Edge-to-cloud consistency**: One architecture for edge gateways, regional clusters, and central cloud.
 
-For IoT workloads, a unified storage layer enables MQTT in / Kafka out — data ingested from IoT devices via MQTT can be consumed directly by AI and big data systems using the Kafka protocol, replacing dual MQTT + Kafka broker architectures with a single system. Minimal memory footprint supports edge deployment, with offline caching and automatic sync covering the full pipeline from edge gateways to cloud clusters.
+### 🧭 Vision
+Enable data to move freely and efficiently across AI agents, training clusters, IoT devices, and analytics platforms through one unified messaging layer.
 
-For big data workloads, RobustMQ enhances the Kafka protocol with an intelligent storage engine offering four modes — memory, hybrid, persistent, and tiered. Each topic can be independently configured, with hot data served at maximum speed and cold data automatically tiered to S3, balancing performance and cost.
+### 🏗️ Workload Fit
+- 🤖 **AI workloads**: Lightweight topics for agent communication, shared subscription for elastic training consumers.
+- 📡 **IoT workloads**: MQTT ingestion with Kafka consumption on the same data plane (MQTT in / Kafka out).
+- 📊 **Data workloads**: Flexible storage modes for balancing throughput, durability, and cost.
 
 
 ## 🗺️ RobustMQ Development Roadmap
@@ -65,14 +73,14 @@ Enable data to flow freely across AI training clusters, millions of Agents, IoT 
 
 ## ✨ Features
 
-- 🚀 **Extreme Performance**: Built with Rust, microsecond latency, zero GC pauses, million-level QPS per node, minimal memory footprint for edge deployment
-- 🔌 **Dual Protocol Unification**: Fully compatible with MQTT 3.1/3.1.1/5.0 and Kafka protocols, unified storage layer enables MQTT in / Kafka out, one system replaces two
-- 🎯 **AI Training Acceleration**: Direct object storage (S3/MinIO) integration, three-tier intelligent caching (memory/SSD/S3), no data pre-import required, eliminates I/O bottlenecks, dramatically improves GPU utilization
-- 🤖 **Agent Communication**: Millions of lightweight topics per cluster, independent channel per Agent, fine-grained isolation and monitoring, per-Agent cost attribution
-- 🔄 **Elastic Consumption**: Shared subscription mode breaks Kafka's "concurrency = partition count" constraint, GPU training nodes scale freely without topic reconfiguration
-- 💾 **Intelligent Storage Engine**: Four modes — memory, hybrid, persistent, tiered — independently configurable per topic, hot data at full speed, cold data auto-tiered to S3, balancing performance and cost
-- 🌐 **Edge to Cloud**: Minimal memory footprint, unified deployment from edge gateways to cloud clusters, offline caching + automatic sync covering the full IoT pipeline
-- 🛠️ **Minimal Deployment**: Single binary, zero external dependencies, built-in Raft consensus, ready out of the box with minimal operational overhead
+- ⚙️ **Unified Messaging Layer**: MQTT 3.1/3.1.1/5.0 + Kafka compatibility, enabling MQTT in / Kafka out in one platform.
+- 🚀 **Performance by Design**: Rust implementation, low memory usage, low latency, and no GC pause behavior.
+- 🧠 **AI Data Acceleration**: S3/MinIO integration with multi-tier caching (memory/SSD/object storage) to improve data path efficiency.
+- 🤖 **Agent-scale Topics**: Support for massive lightweight topic counts with isolation and observability per workload.
+- 🔄 **Elastic Consumption Model**: Shared subscription to scale consumers beyond rigid partition-concurrency coupling.
+- 💾 **Flexible Storage Modes**: Memory, hybrid, persistent, and tiered storage strategies configurable per topic.
+- 🌐 **Edge-to-Cloud Deployment**: Consistent runtime model for edge nodes and cloud clusters, with offline buffering + sync.
+- 🛡️ **Ops-friendly Architecture**: Single-binary deployment, built-in Raft consensus, and simplified operations.
 
 ## 🚀 Quick Start
 

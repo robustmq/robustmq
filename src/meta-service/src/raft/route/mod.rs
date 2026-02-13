@@ -129,7 +129,7 @@ impl DataRoute {
                 Ok(None)
             }
 
-            // Journal Engine
+            // Storage Engine
             StorageDataType::StorageEngineSetShard => Ok(Some(
                 self.route_journal
                     .set_shard(storage_data.value.clone())
@@ -250,6 +250,16 @@ impl DataRoute {
             StorageDataType::MqttDeleteConnector => {
                 self.route_mqtt
                     .delete_connector(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::MqttSetGroupLeader => {
+                self.route_mqtt
+                    .create_group_leader(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::MqttDeleteGroupLeader => {
+                self.route_mqtt
+                    .delete_group_leader(storage_data.value.clone())?;
                 Ok(None)
             }
 
