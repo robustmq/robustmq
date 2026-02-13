@@ -85,6 +85,8 @@ pub enum StorageDataType {
     MqttDeleteConnector,
     MqttSetAutoSubscribeRule,
     MqttDeleteAutoSubscribeRule,
+    MqttSetGroupLeader,
+    MqttDeleteGroupLeader,
 }
 
 impl fmt::Display for StorageDataType {
@@ -138,6 +140,12 @@ impl fmt::Display for StorageDataType {
             StorageDataType::MqttSetAutoSubscribeRule => write!(f, "MqttSetAutoSubscribeRule"),
             StorageDataType::MqttDeleteAutoSubscribeRule => {
                 write!(f, "MqttDeleteAutoSubscribeRule")
+            }
+            StorageDataType::MqttSetGroupLeader => {
+                write!(f, "MqttSetGroupLeader")
+            }
+            StorageDataType::MqttDeleteGroupLeader => {
+                write!(f, "MqttDeleteGroupLeader")
             }
         }
     }

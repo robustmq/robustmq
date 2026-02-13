@@ -12,171 +12,107 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
 use crate::core::error::MetaServiceError;
-use crate::storage::common::kv::KvStorage;
-use common_base::error::common::CommonError;
+use crate::raft::manager::MultiRaftManager;
+use crate::raft::route::data::{StorageData, StorageDataType};
+use crate::{core::cache::CacheManager, storage::mqtt::group_leader::MqttGroupLeaderStorage};
+use bytes::Bytes;
+use common_base::tools::now_second;
+use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use protocol::meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
-use rocksdb_engine::keys::meta::storage_key_mqtt_node_sub_group_leader;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
-pub struct ShareSubLeader {
-    cache_manager: Arc<CacheManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-}
-
-impl ShareSubLeader {
-    pub fn new(
-        cache_manager: Arc<CacheManager>,
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
-    ) -> Self {
-        ShareSubLeader {
-            cache_manager,
-            rocksdb_engine_handler,
-        }
-    }
-
-    pub fn get_leader_node(&self, group_name: &str) -> Result<u64, CommonError> {
-        let mut broker_ids: Vec<u64> = self
-            .cache_manager
-            .node_list
-            .iter()
-            .map(|node| node.node_id)
-            .collect();
-
-        broker_ids.sort();
-
-        let node_sub_info = self.read_node_sub_info()?;
-
-        for (broker_id, group_list) in node_sub_info.clone() {
-            if group_list.iter().any(|g| g == group_name) && broker_ids.contains(&broker_id) {
-                return Ok(broker_id);
-            }
-        }
-
-        let mut target_broker_id = 0;
-        let mut cur_len = 0;
-        for broker_id in broker_ids {
-            let size = if let Some(list) = node_sub_info.get(&broker_id) {
-                list.len()
-            } else {
-                0
-            };
-
-            if target_broker_id == 0 {
-                target_broker_id = broker_id;
-                cur_len = size;
-                continue;
-            }
-
-            if size < cur_len {
-                target_broker_id = broker_id;
-                cur_len = size;
-            }
-        }
-
-        if target_broker_id == 0 {
-            return Err(CommonError::ClusterNoAvailableNode);
-        }
-
-        self.save_node_sub_info(target_broker_id, group_name)?;
-        Ok(target_broker_id)
-    }
-
-    #[allow(dead_code)]
-    pub fn remove_group_by_node(&self, group_name: &str) -> Result<(), CommonError> {
-        let mut node_sub_info = self.read_node_sub_info()?;
-        let mut modified = false;
-
-        for (broker_id, group_list) in node_sub_info.clone() {
-            if group_list.iter().any(|g| g == group_name) {
-                let updated_list: Vec<String> = group_list
-                    .into_iter()
-                    .filter(|x| x.as_str() != group_name)
-                    .collect();
-                node_sub_info.insert(broker_id, updated_list);
-                modified = true;
-                break;
-            }
-        }
-
-        if modified {
-            let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
-            let key = storage_key_mqtt_node_sub_group_leader();
-            let value = serde_json::to_string(&node_sub_info)
-                .map_err(|e| CommonError::CommonError(e.to_string()))?;
-            kv_storage.set(key, value)?;
-        }
-
-        Ok(())
-    }
-
-    #[allow(dead_code)]
-    pub fn delete_node(&self, broker_id: u64) -> Result<(), CommonError> {
-        let mut node_sub_info = self.read_node_sub_info()?;
-
-        if !node_sub_info.contains_key(&broker_id) {
-            return Ok(());
-        }
-
-        node_sub_info.remove(&broker_id);
-
-        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
-        let key = storage_key_mqtt_node_sub_group_leader();
-        let value = serde_json::to_string(&node_sub_info)
-            .map_err(|e| CommonError::CommonError(e.to_string()))?;
-        kv_storage.set(key, value)?;
-
-        Ok(())
-    }
-
-    fn save_node_sub_info(&self, broker_id: u64, group_name: &str) -> Result<(), CommonError> {
-        let mut node_sub_info = self.read_node_sub_info()?;
-
-        // Add group to broker's list
-        node_sub_info
-            .entry(broker_id)
-            .or_insert_with(Vec::new)
-            .push(group_name.to_owned());
-
-        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
-        let key = storage_key_mqtt_node_sub_group_leader();
-        let value = serde_json::to_string(&node_sub_info)
-            .map_err(|e| CommonError::CommonError(e.to_string()))?;
-
-        kv_storage.set(key, value)?;
-
-        Ok(())
-    }
-
-    fn read_node_sub_info(&self) -> Result<HashMap<u64, Vec<String>>, CommonError> {
-        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
-        let key = storage_key_mqtt_node_sub_group_leader();
-
-        let data = match kv_storage.get(key)? {
-            Some(data) => data,
-            None => return Ok(HashMap::new()),
-        };
-
-        serde_json::from_str(&data).map_err(|e| CommonError::CommonError(e.to_string()))
-    }
-}
-
-pub fn get_share_sub_leader_by_req(
+pub async fn get_group_leader(
+    raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<CacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    group_name: &str,
+) -> Result<u64, MetaServiceError> {
+    if let Some(leader) = cache_manager.group_leader.get(group_name) {
+        if cache_manager.node_list.contains_key(&leader.broker_id) {
+            return Ok(leader.broker_id);
+        }
+    }
+
+    let storage = MqttGroupLeaderStorage::new(rocksdb_engine_handler.clone());
+    let list = storage.list()?;
+    if let Some(leader) = list.get(group_name) {
+        if cache_manager.node_list.contains_key(&leader.broker_id) {
+            return Ok(leader.broker_id);
+        }
+    }
+
+    let target_broker_id = generate_group_leader(cache_manager, rocksdb_engine_handler).await?;
+    let leader_info = MqttGroupLeader {
+        group_name: group_name.to_string(),
+        broker_id: target_broker_id,
+        create_time: now_second(),
+    };
+    let data = StorageData::new(
+        StorageDataType::MqttSetGroupLeader,
+        Bytes::copy_from_slice(&leader_info.encode()?),
+    );
+    raft_manager.write_mqtt(data).await?;
+    storage.save(group_name, target_broker_id)?;
+
+    Ok(target_broker_id)
+}
+
+pub async fn generate_group_leader(
+    cache_manager: &Arc<CacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+) -> Result<u64, MetaServiceError> {
+    let storage = MqttGroupLeaderStorage::new(rocksdb_engine_handler.clone());
+    let list = storage.list()?;
+    let mut broker_ids: Vec<u64> = cache_manager
+        .node_list
+        .iter()
+        .map(|node| node.node_id)
+        .collect();
+    broker_ids.sort_unstable();
+
+    if broker_ids.is_empty() {
+        return Err(MetaServiceError::NoAvailableBrokerNode);
+    }
+
+    let mut leader_count_by_broker = HashMap::new();
+    for broker_id in &broker_ids {
+        leader_count_by_broker.insert(*broker_id, 0_u64);
+    }
+
+    for leader in list.values() {
+        if let Some(count) = leader_count_by_broker.get_mut(&leader.broker_id) {
+            *count += 1;
+        }
+    }
+
+    let target_broker_id = broker_ids
+        .iter()
+        .min_by_key(|broker_id| {
+            let count = leader_count_by_broker.get(broker_id).copied().unwrap_or(0);
+            (count, **broker_id)
+        })
+        .copied()
+        .ok_or(MetaServiceError::NoAvailableBrokerNode)?;
+
+    Ok(target_broker_id)
+}
+
+pub async fn get_share_sub_leader_by_req(
+    cache_manager: &Arc<CacheManager>,
+    raft_manager: &Arc<MultiRaftManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &GetShareSubLeaderRequest,
 ) -> Result<GetShareSubLeaderReply, MetaServiceError> {
-    let share_sub = ShareSubLeader::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+    let leader_broker = get_group_leader(
+        raft_manager,
+        cache_manager,
+        rocksdb_engine_handler,
+        &req.group_name,
+    )
+    .await?;
 
-    // Get leader broker ID for the shared subscription group
-    let leader_broker = share_sub
-        .get_leader_node(&req.group_name)
-        .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
-
-    // Get broker node details from cache
     match cache_manager.get_broker_node(leader_broker) {
         Some(node) => Ok(GetShareSubLeaderReply {
             broker_id: node.node_id,
@@ -189,113 +125,43 @@ pub fn get_share_sub_leader_by_req(
 
 #[cfg(test)]
 mod tests {
-    use super::ShareSubLeader;
-    use crate::core::cache::CacheManager;
-    use common_base::utils::file_utils::test_temp_dir;
+    use super::*;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::meta::node::BrokerNode;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-    use rocksdb_engine::storage::family::column_family_list;
-    use std::sync::Arc;
+    use rocksdb_engine::test::test_rocksdb_instance;
 
-    #[test]
-    fn node_leader_info_test() {
+    fn setup() -> (Arc<CacheManager>, Arc<RocksDBEngine>) {
         let config = default_broker_config();
-        init_broker_conf_by_config(config.clone());
-
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &test_temp_dir(),
-            config.rocksdb.max_open_files,
-            column_family_list(),
-        ));
-        let cluster_cache = Arc::new(CacheManager::new(rocksdb_engine_handler.clone()));
-        let share_sub = ShareSubLeader::new(cluster_cache, rocksdb_engine_handler.clone());
-        let broker_id = 1;
-        let group_name = "group1".to_string();
-        share_sub
-            .save_node_sub_info(broker_id, &group_name)
-            .unwrap();
-        let result = share_sub.read_node_sub_info().unwrap();
-        assert!(result.contains_key(&broker_id));
-        assert!(result.get(&broker_id).unwrap().contains(&group_name));
-
-        let group_name2 = "group2".to_string();
-        share_sub
-            .save_node_sub_info(broker_id, &group_name2)
-            .unwrap();
-        let result = share_sub.read_node_sub_info().unwrap();
-        assert!(result.contains_key(&broker_id));
-        assert!(result.get(&broker_id).unwrap().contains(&group_name2));
-        assert!(result.get(&broker_id).unwrap().contains(&group_name));
-
-        let broker_id = 2;
-        let group_name3 = "test".to_string();
-        share_sub
-            .save_node_sub_info(broker_id, &group_name3)
-            .unwrap();
-        let result = share_sub.read_node_sub_info().unwrap();
-        assert!(result.contains_key(&broker_id));
-        assert!(result.get(&broker_id).unwrap().contains(&group_name3));
-
-        share_sub.remove_group_by_node(&group_name3).unwrap();
-        let result = share_sub.read_node_sub_info().unwrap();
-        assert!(!result.get(&broker_id).unwrap().contains(&group_name3));
-
-        share_sub.delete_node(broker_id).unwrap();
-        let result = share_sub.read_node_sub_info().unwrap();
-        assert!(!result.contains_key(&broker_id));
+        init_broker_conf_by_config(config);
+        let db = test_rocksdb_instance();
+        let cache_manager = Arc::new(CacheManager::new(db.clone()));
+        (cache_manager, db)
     }
 
-    #[test]
-    fn get_leader_node_test() {
-        let config = default_broker_config();
-        init_broker_conf_by_config(config.clone());
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &test_temp_dir(),
-            config.rocksdb.max_open_files,
-            column_family_list(),
-        ));
-        let cluster_cache = Arc::new(CacheManager::new(rocksdb_engine_handler.clone()));
-        cluster_cache.add_broker_node(BrokerNode {
+    #[tokio::test]
+    async fn test_generate_group_leader_choose_least_loaded_broker() {
+        let (cache_manager, rocksdb_engine_handler) = setup();
+        cache_manager.add_broker_node(BrokerNode {
             node_id: 1,
             ..Default::default()
         });
-        cluster_cache.add_broker_node(BrokerNode {
+        cache_manager.add_broker_node(BrokerNode {
             node_id: 2,
             ..Default::default()
         });
-        cluster_cache.add_broker_node(BrokerNode {
+        cache_manager.add_broker_node(BrokerNode {
             node_id: 3,
             ..Default::default()
         });
 
-        let share_sub = ShareSubLeader::new(cluster_cache, rocksdb_engine_handler.clone());
+        let storage = MqttGroupLeaderStorage::new(rocksdb_engine_handler.clone());
+        storage.save("g1", 1).unwrap();
+        storage.save("g2", 1).unwrap();
+        storage.save("g3", 2).unwrap();
 
-        let group_name = "group1".to_string();
-        let node = share_sub.get_leader_node(&group_name).unwrap();
-        assert_eq!(node, 1);
-
-        let node = share_sub.get_leader_node(&group_name).unwrap();
-        assert_eq!(node, 1);
-
-        let group_name = "group2".to_string();
-        let node = share_sub.get_leader_node(&group_name).unwrap();
-        assert_eq!(node, 2);
-
-        let group_name = "group3".to_string();
-        let node = share_sub.get_leader_node(&group_name).unwrap();
-        assert_eq!(node, 3);
-
-        let group_name = "group3".to_string();
-        let node = share_sub.get_leader_node(&group_name).unwrap();
-        assert_eq!(node, 3);
-
-        let group_name = "group4".to_string();
-        let node = share_sub.get_leader_node(&group_name).unwrap();
-        assert_eq!(node, 1);
-
-        let group_name = "group4".to_string();
-        let node = share_sub.get_leader_node(&group_name).unwrap();
-        assert_eq!(node, 1);
+        let target = generate_group_leader(&cache_manager, &rocksdb_engine_handler)
+            .await
+            .unwrap();
+        assert_eq!(target, 3);
     }
 }
