@@ -56,25 +56,23 @@ mod tests {
         register_node(&client_pool, &addrs, request).await.unwrap();
 
         let request = GetShareSubLeaderRequest {
-            group_name: group_name.clone(),
+            group_list: vec![group_name.clone()],
         };
         let data = placement_get_share_sub_leader(&client_pool, &addrs, request)
             .await
             .unwrap();
-        let mut flag = false;
-        if data.broker_id == node_id && data.broker_addr == node_ip {
-            flag = true;
-        }
-        assert!(flag);
+        assert_eq!(data.leader.len(), 1);
+        let leader = data.leader.first().unwrap();
+        assert_eq!(leader.group_name, group_name);
+        assert_eq!(leader.broker_id, node_id);
+        assert_eq!(leader.broker_addr, node_ip);
 
-        // Test with empty group_name - should fail validation
         let request = GetShareSubLeaderRequest {
-            group_name: "".to_string(),
+            group_list: Vec::new(),
         };
-        assert!(
-            placement_get_share_sub_leader(&client_pool, &addrs, request)
-                .await
-                .is_err()
-        );
+        let data = placement_get_share_sub_leader(&client_pool, &addrs, request)
+            .await
+            .unwrap();
+        assert!(data.leader.is_empty());
     }
 }

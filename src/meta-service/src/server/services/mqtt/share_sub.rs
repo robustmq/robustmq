@@ -19,7 +19,9 @@ use crate::{core::cache::CacheManager, storage::mqtt::group_leader::MqttGroupLea
 use bytes::Bytes;
 use common_base::tools::now_second;
 use metadata_struct::mqtt::group_leader::MqttGroupLeader;
-use protocol::meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
+use protocol::meta::meta_service_mqtt::{
+    GetShareSubLeaderReply, GetShareSubLeaderRequest, SubLeaderInfo,
+};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 
@@ -105,22 +107,28 @@ pub async fn get_share_sub_leader_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &GetShareSubLeaderRequest,
 ) -> Result<GetShareSubLeaderReply, MetaServiceError> {
-    let leader_broker = get_group_leader(
-        raft_manager,
-        cache_manager,
-        rocksdb_engine_handler,
-        &req.group_name,
-    )
-    .await?;
+    let mut results = Vec::new();
+    for group_name in req.group_list.iter() {
+        let leader_broker = get_group_leader(
+            raft_manager,
+            cache_manager,
+            rocksdb_engine_handler,
+            group_name,
+        )
+        .await?;
 
-    match cache_manager.get_broker_node(leader_broker) {
-        Some(node) => Ok(GetShareSubLeaderReply {
-            broker_id: node.node_id,
-            broker_addr: node.node_ip,
-            extend_info: node.extend.encode()?,
-        }),
-        None => Err(MetaServiceError::NoAvailableBrokerNode),
+        let leader = match cache_manager.get_broker_node(leader_broker) {
+            Some(node) => SubLeaderInfo {
+                group_name: group_name.clone(),
+                broker_id: node.node_id,
+                broker_addr: node.node_ip,
+                extend_info: node.extend.encode()?,
+            },
+            None => return Err(MetaServiceError::NoAvailableBrokerNode),
+        };
+        results.push(leader);
     }
+    Ok(GetShareSubLeaderReply { leader: results })
 }
 
 #[cfg(test)]

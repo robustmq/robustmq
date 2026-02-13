@@ -12,25 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::{
-    error::ResultCommonError,
-    tools::{loop_select_ticket, now_second},
-};
-use dashmap::DashMap;
-use network_server::common::connection_manager::ConnectionManager;
-use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::sync::Arc;
-use storage_adapter::driver::StorageDriverManager;
-use tokio::sync::broadcast;
-use tracing::{debug, info, warn};
-
 use crate::{
-    core::cache::MQTTCacheManager,
+    core::{cache::MQTTCacheManager, sub_share::fetch_share_sub_leader},
     subscribe::{
         buckets::SubPushThreadData, directly_push::DirectlyPushManager, manager::SubscribeManager,
         share_push::SharePushManager,
     },
 };
+use common_base::{
+    error::{common::CommonError, ResultCommonError},
+    tools::{loop_select_ticket, now_second},
+};
+use common_config::broker::broker_config;
+use dashmap::DashMap;
+use grpc_clients::pool::ClientPool;
+use network_server::common::connection_manager::ConnectionManager;
+use protocol::meta::meta_service_mqtt::SubLeaderInfo;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::{collections::HashMap, sync::Arc};
+use storage_adapter::driver::StorageDriverManager;
+use tokio::sync::broadcast;
+use tracing::{debug, info, warn};
 
 pub mod buckets;
 pub mod common;
@@ -48,6 +50,7 @@ pub struct PushManager {
     connection_manager: Arc<ConnectionManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     subscribe_manager: Arc<SubscribeManager>,
+    client_pool: Arc<ClientPool>,
     // Each Bucket has one push thread
     //(bucket_id,SubPushThreadData)
     pub directly_buckets_push_thread: DashMap<String, SubPushThreadData>,
@@ -62,6 +65,7 @@ impl PushManager {
         connection_manager: Arc<ConnectionManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         subscribe_manager: Arc<SubscribeManager>,
+        client_pool: Arc<ClientPool>,
     ) -> Self {
         PushManager {
             cache_manager,
@@ -69,6 +73,7 @@ impl PushManager {
             connection_manager,
             rocksdb_engine_handler,
             subscribe_manager,
+            client_pool,
             directly_buckets_push_thread: DashMap::new(),
             share_buckets_push_thread: DashMap::new(),
         }
@@ -82,8 +87,9 @@ impl PushManager {
             self.stop_directly_push_thread();
 
             // share
-            self.start_share_push_thread();
-            self.stop_share_push_thread();
+            let group_info_list = self.get_group_leader_list().await?;
+            self.start_share_push_thread(&group_info_list);
+            self.stop_share_push_thread(&group_info_list);
             Ok(())
         };
         loop_select_ticket(ac_fn, 1000, stop_sx).await;
@@ -185,7 +191,7 @@ impl PushManager {
         }
     }
 
-    pub fn start_share_push_thread(&self) {
+    pub fn start_share_push_thread(&self, group_info_list: &HashMap<String, SubLeaderInfo>) {
         // Collect empty share groups to remove
         let empty_groups: Vec<String> = self
             .subscribe_manager
@@ -217,10 +223,18 @@ impl PushManager {
             debug!("Removed empty share group: {}", group_name);
         }
 
+        let conf = broker_config();
         // Start threads for new share groups
         for row in self.subscribe_manager.share_push.iter() {
             let group_name = row.key().clone();
-            if !self.share_buckets_push_thread.contains_key(&group_name) {
+
+            let is_leader = if let Some(group) = group_info_list.get(&group_name) {
+                group.broker_id == conf.broker_id
+            } else {
+                false
+            };
+
+            if is_leader && !self.share_buckets_push_thread.contains_key(&group_name) {
                 info!("Starting share push thread for group: {}", group_name);
 
                 let (sub_thread_stop_sx, _) = broadcast::channel(1);
@@ -253,11 +267,20 @@ impl PushManager {
         }
     }
 
-    pub fn stop_share_push_thread(&self) {
+    pub fn stop_share_push_thread(&self, group_info_list: &HashMap<String, SubLeaderInfo>) {
+        let conf = broker_config();
         let threads_to_stop: Vec<String> = self
             .share_buckets_push_thread
             .iter()
-            .filter(|row| !self.subscribe_manager.share_push.contains_key(row.key()))
+            .filter(|row| {
+                let is_leader = if let Some(group) = group_info_list.get(row.key()) {
+                    group.broker_id == conf.broker_id
+                } else {
+                    false
+                };
+
+                !is_leader && !self.subscribe_manager.share_push.contains_key(row.key())
+            })
             .map(|row| row.key().clone())
             .collect();
 
@@ -272,5 +295,14 @@ impl PushManager {
                 }
             }
         }
+    }
+
+    async fn get_group_leader_list(&self) -> Result<HashMap<String, SubLeaderInfo>, CommonError> {
+        let mut group_list = Vec::new();
+        for raw in self.subscribe_manager.share_push.iter() {
+            group_list.push(raw.key().clone());
+        }
+
+        fetch_share_sub_leader(&self.client_pool, group_list).await
     }
 }
