@@ -241,8 +241,8 @@ pub async fn handle_cluster(args: ClusterArgs) {
     ClusterCommand::new().start(params).await;
 }
 
-// TODO: implement journal engine
-pub async fn handle_journal(args: EngineArgs) {
+// TODO: implement storage engine
+pub async fn handle_engine(args: EngineArgs) {
     println!("{args:?}");
 }
 

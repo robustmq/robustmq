@@ -273,6 +273,11 @@ impl AdminHttpClient {
         self.get_raw(&api_path(STATUS_PATH)).await
     }
 
+    /// Get cluster healthy status
+    pub async fn get_cluster_healthy(&self) -> Result<bool, HttpClientError> {
+        self.get(&api_path(CLUSTER_HEALTHY_PATH)).await
+    }
+
     /// Get cluster overview
     pub async fn get_cluster_overview<R>(&self) -> Result<R, HttpClientError>
     where

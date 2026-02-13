@@ -19,7 +19,7 @@ use crate::engine::shard::{
 };
 use crate::mqtt::topic::{topic_delete, topic_rewrite_delete};
 use crate::{
-    cluster::{cluster_config_get, cluster_config_set, cluster_info},
+    cluster::{cluster_config_get, cluster_config_set, cluster_info, healthy},
     mqtt::{
         acl::{acl_create, acl_delete, acl_list},
         blacklist::{blacklist_create, blacklist_delete, blacklist_list},
@@ -115,6 +115,7 @@ impl AdminServer {
     fn common_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
             .route(STATUS_PATH, get(cluster_info))
+            .route(CLUSTER_HEALTHY_PATH, get(healthy))
             // config
             .route(CLUSTER_CONFIG_SET_PATH, post(cluster_config_set))
             .route(CLUSTER_CONFIG_GET_PATH, get(cluster_config_get))
