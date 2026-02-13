@@ -412,6 +412,7 @@ impl BrokerServer {
             connection_manager.clone(),
             rocksdb_engine_handler.clone(),
             subscribe_manager.clone(),
+            client_pool.clone(),
         ));
 
         Ok(MqttBrokerServerParams {

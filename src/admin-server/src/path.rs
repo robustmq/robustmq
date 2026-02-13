@@ -24,6 +24,7 @@ pub const STATUS_PATH: &str = "/status";
 // Cluster API paths
 pub const CLUSTER_CONFIG_SET_PATH: &str = "/cluster/config/set";
 pub const CLUSTER_CONFIG_GET_PATH: &str = "/cluster/config/get";
+pub const CLUSTER_HEALTHY_PATH: &str = "/cluster/healthy";
 
 // Storage Engine API paths
 pub const STORAGE_ENGINE_SHARD_LIST_PATH: &str = "/storage-engine/shard/list";

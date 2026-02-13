@@ -237,15 +237,19 @@ where
     assert!(res.is_ok());
 
     let start = Instant::now();
+    let poll_interval = Duration::from_secs(1);
     loop {
-        if start.elapsed() >= timeout {
+        let elapsed = start.elapsed();
+        if elapsed >= timeout {
             return Err(format!(
-                "subscribe_data_with_options timeout after {} seconds",
+                "subscribe_data_by_qos timeout after {} seconds",
                 timeout.as_secs()
             ));
         }
 
-        let res = rx.recv_timeout(Duration::from_secs(10));
+        let remaining = timeout.saturating_sub(elapsed);
+        let wait_for = remaining.min(poll_interval);
+        let res = rx.recv_timeout(wait_for);
         if let Ok(msg_opt) = res {
             assert!(msg_opt.is_some());
             let msg = msg_opt.unwrap();
@@ -293,17 +297,20 @@ where
 
     let start_time = Instant::now();
     let timeout_duration = Duration::from_secs(30);
+    let poll_interval = Duration::from_secs(1);
 
     loop {
-        // Check if timeout exceeded
-        if start_time.elapsed() >= timeout_duration {
+        let elapsed = start_time.elapsed();
+        if elapsed >= timeout_duration {
             return Err(format!(
                 "subscribe_data_with_options timeout after {} seconds",
                 timeout_duration.as_secs()
             ));
         }
 
-        let res = rx.recv_timeout(Duration::from_secs(10));
+        let remaining = timeout_duration.saturating_sub(elapsed);
+        let wait_for = remaining.min(poll_interval);
+        let res = rx.recv_timeout(wait_for);
         if let Ok(Some(msg)) = res {
             if call_fn(msg) {
                 return Ok(());

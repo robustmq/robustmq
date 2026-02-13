@@ -12,27 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[package]
-name = "cli-bench"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+cluster_name = "robustmq-cluster"
+broker_id = 1
+broker_ip = "127.0.0.1"
+roles = ["meta", "broker", "engine"]
+grpc_port = 1228
+http_port = 8080
+meta_addrs = { 1 = "127.0.0.1:1228" }
 
-[dependencies]
-common-base.workspace = true
-thiserror.workspace = true
-grpc-clients.workspace = true
-axum.workspace = true
-async-trait.workspace = true
-futures.workspace = true
-serde_json.workspace = true
-serde.workspace = true
-rand.workspace = true
-clap.workspace = true
-clap-cargo.workspace = true
-protocol.workspace = true
-tokio.workspace = true
-dashmap.workspace = true
-prettytable-rs.workspace = true
-rumqttc = "0.24.0"
-hdrhistogram = "7.5.4"
+[rocksdb]
+data_path = "./data/broker/data"
+max_open_files = 10000
+
+[log]
+log_config = "./config/logger.toml"
+log_path = "./data/broker/logs"
+
+[storage_runtime]
+tcp_port = 1778
+max_segment_size = 1073741824
+data_path = ["./data/broker/engine"]
+io_thread_num = 4

@@ -62,13 +62,18 @@ service MqttService {
 }
 
 message GetShareSubLeaderRequest {
-  string group_name = 1 [(validate.rules).string.min_len = 1];
+  repeated string group_list = 1;
 }
 
 message GetShareSubLeaderReply {
-  uint64 broker_id = 1;
-  string broker_addr = 2;
-  bytes extend_info = 3;
+  repeated SubLeaderInfo leader = 1;
+}
+
+message SubLeaderInfo{
+  string group_name = 1;
+  uint64 broker_id = 2;
+  string broker_addr = 3;
+  bytes extend_info = 4;
 }
 
 message ListUserRequest {

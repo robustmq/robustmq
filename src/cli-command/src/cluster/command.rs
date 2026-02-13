@@ -13,17 +13,23 @@
 // limitations under the License.
 
 use crate::mqtt::pub_sub::error_info;
+use crate::output::OutputFormat;
 use admin_server::{client::AdminHttpClient, cluster::ClusterConfigSetReq};
 use common_config::config::BrokerConfig;
+use prettytable::{row, Table};
+use serde::Serialize;
 
 #[derive(Clone)]
 pub struct ClusterCliCommandParam {
     pub server: String,
+    pub output: OutputFormat,
     pub action: ClusterActionType,
 }
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum ClusterActionType {
+    Status,
+    Healthy,
     GetConfig,
     SetConfig(ClusterConfigSetReq),
 }
@@ -42,12 +48,25 @@ impl ClusterCommand {
     }
     pub async fn start(&self, params: ClusterCliCommandParam) {
         match params.action.clone() {
+            ClusterActionType::Status => {
+                self.status(params).await;
+            }
+            ClusterActionType::Healthy => {
+                self.healthy(params).await;
+            }
             ClusterActionType::GetConfig => {
                 self.get_cluster_config(params).await;
             }
             ClusterActionType::SetConfig(request) => {
                 self.set_cluster_config(params, request.clone()).await;
             }
+        }
+    }
+
+    fn print_json<T: Serialize>(&self, data: &T) {
+        match serde_json::to_string_pretty(data) {
+            Ok(raw) => println!("{raw}"),
+            Err(e) => error_info(e.to_string()),
         }
     }
 
@@ -99,6 +118,34 @@ impl ClusterCommand {
                 println!("MQTT broker cluster normal exception");
                 error_info(e.to_string());
             }
+        }
+    }
+
+    async fn healthy(&self, params: ClusterCliCommandParam) {
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
+        match admin_client.get_cluster_healthy().await {
+            Ok(healthy) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&healthy);
+                } else {
+                    let mut table = Table::new();
+                    table.set_titles(row!["healthy"]);
+                    table.add_row(row![healthy]);
+                    table.printstd();
+                }
+            }
+            Err(e) => error_info(e.to_string()),
+        }
+    }
+
+    async fn status(&self, params: ClusterCliCommandParam) {
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
+        match admin_client.get_status().await {
+            Ok(raw) => {
+                let _ = params.output;
+                println!("{raw}");
+            }
+            Err(e) => error_info(e.to_string()),
         }
     }
 }

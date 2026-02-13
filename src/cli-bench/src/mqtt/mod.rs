@@ -12,10 +12,101 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod common;
+pub mod conn;
 pub mod publish;
+pub mod report;
+pub mod stats;
 pub mod subscribe;
 
-use clap::Parser;
+use crate::error::BenchMarkError;
+use clap::{Parser, Subcommand, ValueEnum};
+use std::time::Duration;
 
 #[derive(Debug, Parser)]
-pub struct MqttBenchArgs {}
+pub struct MqttBenchArgs {
+    #[command(subcommand)]
+    pub command: MqttBenchCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum MqttBenchCommand {
+    Conn(ConnBenchArgs),
+    Pub(PublishBenchArgs),
+    Sub(SubscribeBenchArgs),
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum OutputFormat {
+    Table,
+    Json,
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct CommonMqttBenchArgs {
+    #[arg(long, default_value_t = String::from("127.0.0.1"))]
+    pub host: String,
+    #[arg(long, default_value_t = 1883)]
+    pub port: u16,
+    #[arg(long, default_value_t = 1000)]
+    pub count: usize,
+    #[arg(long, default_value_t = 0)]
+    pub interval_ms: u64,
+    #[arg(long, default_value_t = 60)]
+    pub duration_secs: u64,
+    #[arg(long, default_value_t = 0)]
+    pub qos: u8,
+    #[arg(long)]
+    pub username: Option<String>,
+    #[arg(long)]
+    pub password: Option<String>,
+    #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+    pub output: OutputFormat,
+}
+
+impl CommonMqttBenchArgs {
+    pub fn duration(&self) -> Duration {
+        Duration::from_secs(self.duration_secs)
+    }
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct ConnBenchArgs {
+    #[command(flatten)]
+    pub common: CommonMqttBenchArgs,
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct PublishBenchArgs {
+    #[command(flatten)]
+    pub common: CommonMqttBenchArgs,
+    #[arg(long, default_value_t = String::from("bench/%i"))]
+    pub topic: String,
+    #[arg(long, default_value_t = 256)]
+    pub payload_size: usize,
+    #[arg(long, default_value_t = 1000)]
+    pub message_interval_ms: u64,
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct SubscribeBenchArgs {
+    #[command(flatten)]
+    pub common: CommonMqttBenchArgs,
+    #[arg(long, default_value_t = String::from("bench/#"))]
+    pub topic: String,
+}
+
+pub fn handle_mqtt_bench(args: MqttBenchArgs) -> Result<(), BenchMarkError> {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .map_err(BenchMarkError::IoError)?;
+
+    runtime.block_on(async move {
+        match args.command {
+            MqttBenchCommand::Conn(args) => conn::run_conn_bench(args).await,
+            MqttBenchCommand::Pub(args) => publish::run_publish_bench(args).await,
+            MqttBenchCommand::Sub(args) => subscribe::run_subscribe_bench(args).await,
+        }
+    })
+}

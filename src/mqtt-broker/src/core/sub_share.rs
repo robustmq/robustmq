@@ -15,8 +15,8 @@
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use grpc_clients::{meta::mqtt::call::placement_get_share_sub_leader, pool::ClientPool};
-use protocol::meta::meta_service_mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest};
-use std::sync::Arc;
+use protocol::meta::meta_service_mqtt::{GetShareSubLeaderRequest, SubLeaderInfo};
+use std::{collections::HashMap, sync::Arc, vec};
 
 pub const SHARE_SUB_PREFIX: &str = "$share";
 
@@ -44,28 +44,44 @@ pub async fn is_share_sub_leader(
     client_pool: &Arc<ClientPool>,
     group_name: &str,
 ) -> Result<bool, CommonError> {
-    let reply = fetch_share_sub_leader(client_pool, group_name).await?;
+    let reply = fetch_share_sub_leader(client_pool, vec![group_name.to_string()]).await?;
     let conf = broker_config();
-    Ok(reply.broker_id == conf.broker_id)
+    if let Some(raw) = reply.get(group_name) {
+        return Ok(raw.broker_id == conf.broker_id);
+    }
+    Err(CommonError::CommonError(format!(
+        "share subscription leader not found for group: {group_name}"
+    )))
 }
 
 pub async fn get_share_sub_leader(
     client_pool: &Arc<ClientPool>,
     group_name: &str,
 ) -> Result<u64, CommonError> {
-    let reply = fetch_share_sub_leader(client_pool, group_name).await?;
-    Ok(reply.broker_id)
+    let reply = fetch_share_sub_leader(client_pool, vec![group_name.to_string()]).await?;
+    if let Some(raw) = reply.get(group_name) {
+        return Ok(raw.broker_id);
+    }
+    Err(CommonError::CommonError(format!(
+        "share subscription leader not found for group: {group_name}"
+    )))
 }
 
-async fn fetch_share_sub_leader(
+pub async fn fetch_share_sub_leader(
     client_pool: &Arc<ClientPool>,
-    group_name: &str,
-) -> Result<GetShareSubLeaderReply, CommonError> {
+    group_name: Vec<String>,
+) -> Result<HashMap<String, SubLeaderInfo>, CommonError> {
     let conf = broker_config();
     let req = GetShareSubLeaderRequest {
-        group_name: group_name.to_owned(),
+        group_list: group_name.to_owned(),
     };
-    placement_get_share_sub_leader(client_pool, &conf.get_meta_service_addr(), req).await
+    let reply =
+        placement_get_share_sub_leader(client_pool, &conf.get_meta_service_addr(), req).await?;
+    let mut results = HashMap::new();
+    for raw in reply.leader.iter() {
+        results.insert(raw.group_name.clone(), raw.clone());
+    }
+    Ok(results)
 }
 
 #[cfg(test)]

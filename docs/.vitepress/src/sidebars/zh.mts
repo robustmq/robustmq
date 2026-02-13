@@ -162,7 +162,7 @@ export const sidebar = [
       { text: "概览", link: "/zh/RobustMQ-Command/CLI_COMMON" },
       { text: "集群管理", link: "/zh/RobustMQ-Command/CLI_CLUSTER" },
       { text: "MQTT 管理", link: "/zh/RobustMQ-Command/CLI_MQTT" },
-      { text: "Journal 管理", link: "/zh/RobustMQ-Command/CLI_JOURNAL" },
+      { text: "Engine 管理", link: "/zh/RobustMQ-Command/CLI_ENGINE" },
     ],
   },
   {
@@ -196,8 +196,8 @@ export const sidebar = [
     text: "性能指标",
     collapsed: true,
     items: [
-      { text: "RobustMQ MQTT", link: "" },
-      { text: "RobustMQ Kafka", link: "" },
+      { text: "Bench CLI 使用文档", link: "/zh/Bench/Bench-CLI" },
+      { text: "MQTT Bench 使用文档", link: "/zh/Bench/MQTT-Bench" },
     ],
   },
   {

@@ -12,7 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clap::Parser;
+use clap::ValueEnum;
 
-#[derive(Debug, Parser)]
-pub struct RocksdbBenchArgs {}
+#[derive(Clone, Debug, ValueEnum, PartialEq, Eq)]
+pub enum OutputFormat {
+    Table,
+    Json,
+}
+
+impl Default for OutputFormat {
+    fn default() -> Self {
+        Self::Table
+    }
+}

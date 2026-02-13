@@ -151,7 +151,7 @@ export const sidebar = [
       { text: "Overview", link: "/en/RobustMQ-Command/CLI_COMMON" },
       { text: "Cluster Manager", link: "/en/RobustMQ-Command/CLI_CLUSTER" },
       { text: "MQTT Manager", link: "/en/RobustMQ-Command/CLI_MQTT" },
-      { text: "Journal Manager", link: "/en/RobustMQ-Command/CLI_JOURNAL" },
+      { text: "Engine Manager", link: "/en/RobustMQ-Command/CLI_ENGINE" },
     ],
   },
   {
@@ -179,6 +179,14 @@ export const sidebar = [
     items: [
       { text: "Broker Configuration", link: "/en/Configuration/BROKER" },
       { text: "Logging Configuration", link: "/en/Configuration/Logging" },
+    ],
+  },
+  {
+    text: "Performance Metrics",
+    collapsed: true,
+    items: [
+      { text: "Bench CLI Guide", link: "/en/Bench/Bench-CLI" },
+      { text: "MQTT Bench Guide", link: "/en/Bench/MQTT-Bench" },
     ],
   },
   {

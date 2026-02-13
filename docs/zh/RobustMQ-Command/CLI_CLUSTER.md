@@ -1,54 +1,92 @@
-# 集群管理命令
+# Cluster 命令
 
-## 集群管理 (`cluster`)
+## 1. 命令结构
 
-集群配置管理。
-
-### 基本语法
 ```bash
-robust-ctl cluster [选项] <操作>
+robust-ctl cluster [--server <addr>] [--output table|json] <subcommand>
 ```
 
-### 选项
-- `--server, -s <服务器>`: 服务器地址 (默认: 127.0.0.1:8080)
+## 2. 子命令总览
 
-### 配置管理 (`config`)
+- `status`：查看集群状态
+- `healthy`：查看健康状态
+- `config get`：获取集群配置
+- `config set`：设置动态配置
+
+## 3. 详细命令
+
+### 3.1 status
+
+语法：
 
 ```bash
-# 获取集群配置
+robust-ctl cluster status
+```
+
+示例：
+
+```bash
+robust-ctl cluster status
+robust-ctl cluster --output json status
+robust-ctl cluster --server 192.168.10.15:8080 status
+```
+
+### 3.2 healthy
+
+语法：
+
+```bash
+robust-ctl cluster healthy
+```
+
+示例：
+
+```bash
+robust-ctl cluster healthy
+robust-ctl cluster --output json healthy
+```
+
+### 3.3 config get
+
+语法：
+
+```bash
 robust-ctl cluster config get
 ```
 
----
-
-## 使用示例
+示例：
 
 ```bash
-# 查看集群配置帮助
-robust-ctl cluster --help
-robust-ctl cluster config --help
-
-# 连接到指定服务器获取配置
-robust-ctl cluster --server 192.168.1.100:8080 config get
-
-# 获取本地集群配置
 robust-ctl cluster config get
+robust-ctl cluster --output json config get
 ```
 
----
+### 3.4 config set
 
-## 功能说明
+语法：
 
-集群管理模块主要用于：
+```bash
+robust-ctl cluster config set --config-type <TYPE> --config <JSON_STRING>
+```
 
-1. **配置查看**: 获取当前集群的配置信息
-2. **集群状态**: 了解集群的运行状态
-3. **配置管理**: 查看和管理集群级别的配置参数
+参数：
 
----
+- `--config-type`：配置类型（示例：`FlappingDetect`）
+- `--config`：配置 JSON 字符串
 
-## 注意事项
+示例：
 
-- 集群配置操作通常需要管理员权限
-- 确保网络连接到正确的集群管理服务
-- 配置信息以 JSON 格式返回，便于解析和处理
+```bash
+robust-ctl cluster config set \
+  --config-type FlappingDetect \
+  --config '{"enable":true}'
+
+robust-ctl cluster config set \
+  --config-type SlowSubscribe \
+  --config '{"enable":false}'
+```
+
+## 4. 说明
+
+- `config set` 当前为透传模型，具体字段由服务端按 `config-type` 解析。
+- 推荐对自动化脚本统一使用 `--output json`。

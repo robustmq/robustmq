@@ -541,34 +541,59 @@ impl fmt::Display for LastWillProperties {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectReturnCode {
     // MQTT 3/4/5 Common
+    /// 0x00: CONNECT accepted.
     Success,
+    /// 0x87: Client failed authorization checks.
     NotAuthorized,
 
     // MQTT 5
+    /// 0x80: Generic refusal when no specific reason is exposed.
     UnspecifiedError,
+    /// 0x81: CONNECT packet cannot be parsed as a valid MQTT packet.
     MalformedPacket,
+    /// 0x82: CONNECT is well-formed but violates protocol rules/state.
     ProtocolError,
+    /// 0x83: Server-specific validation/policy failure.
     ImplementationSpecificError,
+    /// 0x84: Requested MQTT protocol version is not supported.
     UnsupportedProtocolVersion,
+    /// 0x85: ClientID format/value is not accepted by server policy.
     ClientIdentifierNotValid,
+    /// 0x86: Username/password authentication failed.
     BadUserNamePassword,
+    /// 0x88: Server cannot accept connections currently (service unavailable).
     ServerUnavailable,
+    /// 0x89: Server is overloaded/busy; client should retry later.
     ServerBusy,
+    /// 0x8A: Client is administratively banned.
     Banned,
+    /// 0x8C: Enhanced authentication method is unsupported/mismatched.
     BadAuthenticationMethod,
+    /// 0x90: Will Topic name is valid UTF-8 but rejected by server policy.
     TopicNameInvalid,
+    /// 0x95: CONNECT packet exceeds configured maximum packet size.
     PacketTooLarge,
+    /// 0x97: Administrative/implementation quota limit exceeded.
     QuotaExceeded,
+    /// 0x99: Will payload does not match declared payload format indicator.
     PayloadFormatInvalid,
+    /// 0x9A: Server does not support retained messages but Will Retain is set.
     RetainNotSupported,
+    /// 0x9B: Server does not support requested Will QoS.
     QoSNotSupported,
+    /// 0x9C: Temporary redirect; client should use another server now.
     UseAnotherServer,
+    /// 0x9D: Permanent redirect; client should move to another server.
     ServerMoved,
+    /// 0x9F: Connection establishment rate limit exceeded.
     ConnectionRateExceeded,
 
     // MQTT 3/4
+    /// MQTT 3/4: protocol level is not accepted.
     UnacceptableProtocolVersion,
+    /// MQTT 3/4: client identifier is rejected.
     IdentifierRejected,
+    /// MQTT 3/4: server is unavailable for new connections.
     ServiceUnavailable,
 }
 
@@ -730,14 +755,23 @@ pub struct PubAck {
 /// Return code in puback
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PubAckReason {
+    /// 0x00: QoS1 publish accepted successfully.
     Success,
+    /// 0x10: Publish accepted but no current matching subscribers (server->publisher hint).
     NoMatchingSubscribers,
+    /// 0x80: Generic failure without exposing a specific reason.
     UnspecifiedError,
+    /// 0x83: Valid publish rejected by implementation-specific policy.
     ImplementationSpecificError,
+    /// 0x87: Publish is not authorized.
     NotAuthorized,
+    /// 0x90: Topic Name is valid format but rejected by receiver policy.
     TopicNameInvalid,
+    /// 0x91: Packet Identifier is already in use in current session state.
     PacketIdentifierInUse,
+    /// 0x97: Administrative or implementation quota is exceeded.
     QuotaExceeded,
+    /// 0x99: Payload does not match declared payload format indicator.
     PayloadFormatInvalid,
 }
 
@@ -773,14 +807,23 @@ pub struct PubRec {
 /// Return code in pubrec packet
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PubRecReason {
+    /// 0x00: QoS2 publish accepted; continue QoS2 handshake.
     Success,
+    /// 0x10: Publish accepted but no current matching subscribers (server->publisher hint).
     NoMatchingSubscribers,
+    /// 0x80: Generic failure without exposing a specific reason.
     UnspecifiedError,
+    /// 0x83: Valid publish rejected by implementation-specific policy.
     ImplementationSpecificError,
+    /// 0x87: Publish is not authorized.
     NotAuthorized,
+    /// 0x90: Topic Name is valid format but rejected by receiver policy.
     TopicNameInvalid,
+    /// 0x91: Packet Identifier is already in use in current session state.
     PacketIdentifierInUse,
+    /// 0x97: Administrative or implementation quota is exceeded.
     QuotaExceeded,
+    /// 0x99: Payload does not match declared payload format indicator.
     PayloadFormatInvalid,
 }
 
@@ -818,7 +861,9 @@ pub struct PubRel {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PubRelReason {
+    /// 0x00: QoS2 flow continues normally.
     Success,
+    /// 0x92: Receiver cannot find state for this Packet Identifier.
     PacketIdentifierNotFound,
 }
 
@@ -860,7 +905,9 @@ pub struct PubComp {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PubCompReason {
+    /// 0x00: QoS2 flow is completed successfully.
     Success,
+    /// 0x92: Receiver cannot find state for this Packet Identifier.
     PacketIdentifierNotFound,
 }
 
@@ -965,22 +1012,43 @@ impl SubAck {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SubscribeReasonCode {
+    // MQTT 3/4/5 Common
+    /// 0x00: Granted QoS 0 for this subscription.
     QoS0,
+    /// 0x01: Granted QoS 1 for this subscription.
     QoS1,
+    /// 0x02: Granted QoS 2 for this subscription.
     QoS2,
+    /// MQTT 3/4: success form used by legacy encoder/decoder.
+    /// MQTT 5: equivalent to QoS0/QoS1/QoS2 based on inner QoS.
     Success(QoS),
+    /// 0x80: Subscription failed.
     Failure,
-    // the following codes only valid in mqtt v5
+
+    // MQTT 5
+    /// 0x80: Generic refusal when no specific reason is exposed.
     Unspecified,
+    /// 0x83: Rejected by implementation-specific policy.
     ImplementationSpecific,
+    /// 0x87: Client is not authorized to subscribe to this filter.
     NotAuthorized,
+    /// 0x8F: Topic Filter is malformed or rejected by policy.
     TopicFilterInvalid,
+    /// 0x91: Packet Identifier is already in use.
     PkidInUse,
+    /// 0x97: Quota limit was exceeded.
     QuotaExceeded,
+    /// 0x9E: Shared subscriptions are not supported.
     SharedSubscriptionsNotSupported,
+    /// 0xA1: Subscription Identifier feature is not supported.
     SubscriptionIdNotSupported,
+    /// 0xA2: Wildcard subscriptions are not supported.
     WildcardSubscriptionsNotSupported,
+
+    // Non-standard extension in this codebase
+    /// Extension mapped to 0x8F in encoder; not an MQTT standard reason code.
     ExclusiveSubscriptionDisabled,
+    /// Extension mapped to 0x97 in encoder; not an MQTT standard reason code.
     TopicSubscribed,
 }
 
@@ -1016,12 +1084,19 @@ pub struct UnsubAck {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum UnsubAckReason {
+    /// 0x00: Unsubscribe succeeded.
     Success,
+    /// 0x11: No matching subscription existed, but request is processed.
     NoSubscriptionExisted,
+    /// 0x80: Generic failure when no specific reason is exposed.
     UnspecifiedError,
+    /// 0x83: Rejected by implementation-specific policy.
     ImplementationSpecificError,
+    /// 0x87: Client is not authorized to unsubscribe this filter.
     NotAuthorized,
+    /// 0x8F: Topic Filter is malformed or rejected by policy.
     TopicFilterInvalid,
+    /// 0x91: Packet Identifier is already in use.
     PacketIdentifierInUse,
 }
 
@@ -1042,34 +1117,63 @@ pub struct Disconnect {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum DisconnectReasonCode {
+    /// 0x00: Close connection normally and do not publish Will.
     NormalDisconnection,
+    /// 0x04: Client requests disconnect but asks server to publish Will.
     DisconnectWithWillMessage,
+    /// 0x80: Generic failure without exposing a specific reason.
     UnspecifiedError,
+    /// 0x81: Received packet is malformed and cannot be parsed.
     MalformedPacket,
+    /// 0x82: Received packet/order violates protocol rules.
     ProtocolError,
+    /// 0x83: Valid packet rejected by server/client implementation policy.
     ImplementationSpecificError,
+    /// 0x87: Operation is not authorized for this client.
     NotAuthorized,
+    /// 0x89: Server is busy and cannot continue this connection.
     ServerBusy,
+    /// 0x8B: Server is shutting down.
     ServerShuttingDown,
+    /// 0x8D: No packet received within keep-alive timeout window.
     KeepAliveTimeout,
+    /// 0x8E: Another connection with same ClientID took over session.
     SessionTakenOver,
+    /// 0x8F: Topic Filter is syntactically valid but rejected by policy.
     TopicFilterInvalid,
+    /// 0x90: Topic Name is syntactically valid but rejected by policy.
     TopicNameInvalid,
+    /// 0x93: Peer exceeded negotiated Receive Maximum in-flight limit.
     ReceiveMaximumExceeded,
+    /// 0x94: Topic Alias value is invalid for this connection.
     TopicAliasInvalid,
+    /// 0x95: Incoming packet exceeds negotiated Maximum Packet Size.
     PacketTooLarge,
+    /// 0x96: Message rate is too high.
     MessageRateTooHigh,
+    /// 0x97: Administrative or implementation quota has been exceeded.
     QuotaExceeded,
+    /// 0x98: Connection closed due to administrative action.
     AdministrativeAction,
+    /// 0x99: Payload format does not match payload format indicator.
     PayloadFormatInvalid,
+    /// 0x9A: Retained messages are not supported by server.
     RetainNotSupported,
+    /// 0x9B: QoS level is not supported by server constraints.
     QoSNotSupported,
+    /// 0x9C: Temporary redirect; client should use another server.
     UseAnotherServer,
+    /// 0x9D: Permanent redirect; client should move to another server.
     ServerMoved,
+    /// 0x9E: Shared subscriptions are not supported.
     SharedSubscriptionNotSupported,
+    /// 0x9F: Connection establishment rate limit is exceeded.
     ConnectionRateExceeded,
+    /// 0xA0: Maximum allowed connect time has been exceeded.
     MaximumConnectTime,
+    /// 0xA1: Subscription Identifiers feature is not supported.
     SubscriptionIdentifiersNotSupported,
+    /// 0xA2: Wildcard subscriptions feature is not supported.
     WildcardSubscriptionsNotSupported,
 }
 
