@@ -29,12 +29,10 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::select;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::{broadcast, mpsc};
-use tokio::time::sleep;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
@@ -117,7 +115,7 @@ pub async fn acceptor_tls_process(
                                 connection_manager.add_connection(connection.clone());
                                 connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
 
-                                read_tls_frame_process(row_broker_cache.clone(), read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone());
+                                read_tls_frame_process(row_broker_cache.clone(), connection_manager.clone(),read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone());
                             }
                             Err(e) => {
                                 error!("{} accept failed to create connection with error message :{:?}", network_type, e);
@@ -132,8 +130,10 @@ pub async fn acceptor_tls_process(
 }
 
 // spawn connection read thread
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn read_tls_frame_process(
     broker_cache: Arc<BrokerCacheManager>,
+    connection_manager: Arc<ConnectionManager>,
     mut read_frame_stream: FramedRead<
         tokio::io::ReadHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
         RobustMQCodec,
@@ -179,11 +179,15 @@ pub(crate) fn read_tls_frame_process(
                                 debug!(
                                     "{} connection parsing packet format error message :{:?}",
                                     network_type, e
-                                )
+                                );
+                                connection_manager.close_connect(connection.connection_id).await;
+                                break;
                             }
                         }
                      }else{
-                        sleep(Duration::from_millis(100)).await;
+                        debug!("Tls client disconnected (EOF): connection_id={}", connection.connection_id);
+                        connection_manager.close_connect(connection.connection_id).await;
+                        break;
                      }
                 }
             }

@@ -22,11 +22,9 @@ use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::robust::RobustMQPacket;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver};
-use tokio::time::sleep;
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, error};
@@ -176,11 +174,15 @@ fn read_frame_process(
                                 debug!(
                                     "{} connection parsing packet format error message :{:?}",
                                     network_type, e
-                                )
+                                );
+                                connection_manager.close_connect(connection_id).await;
+                                break;
                             }
                         }
                      }else{
-                        sleep(Duration::from_millis(100)).await;
+                        debug!("Tcp client disconnected (EOF): connection_id={}", connection_id);
+                        connection_manager.close_connect(connection_id).await;
+                        break;
                      }
                 }
             }

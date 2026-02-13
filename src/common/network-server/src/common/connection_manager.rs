@@ -161,7 +161,7 @@ impl ConnectionManager {
 
     pub async fn connection_gc(&self) {
         for conn in self.connections.iter() {
-            if now_second() - conn.last_heartbeat_time > 1800 {
+            if now_second() - conn.last_heartbeat_time > 60 {
                 self.close_connect(conn.connection_id).await;
             }
         }
@@ -301,6 +301,7 @@ impl ConnectionManager {
                                 return Err(CommonError::CommonError(e.to_string()));
                             }
                             if times > self.lock_max_try_mut_times {
+                                self.close_connect(connection_id).await;
                                 return Err(CommonError::FailedToWriteClient(
                                     "websocket".to_string(),
                                     e.to_string(),
@@ -312,6 +313,7 @@ impl ConnectionManager {
 
                 dashmap::try_result::TryResult::Absent => {
                     if times > self.lock_max_try_mut_times {
+                        self.close_connect(connection_id).await;
                         return Err(CommonError::NotObtainAvailableConnection(
                             "websocket".to_string(),
                             connection_id,
@@ -352,6 +354,7 @@ impl ConnectionManager {
                             }
 
                             if times > self.lock_max_try_mut_times {
+                                self.close_connect(connection_id).await;
                                 return Err(CommonError::FailedToWriteClient(
                                     "tcp".to_string(),
                                     e.to_string(),
@@ -362,6 +365,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > self.lock_max_try_mut_times {
+                        self.close_connect(connection_id).await;
                         return Err(CommonError::NotObtainAvailableConnection(
                             "tcp".to_string(),
                             connection_id,
@@ -391,6 +395,7 @@ impl ConnectionManager {
                         }
                         Err(e) => {
                             if times > self.lock_max_try_mut_times {
+                                self.close_connect(connection_id).await;
                                 return Err(CommonError::FailedToWriteClient(
                                     "tls".to_string(),
                                     e.to_string(),
@@ -401,6 +406,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > self.lock_max_try_mut_times {
+                        self.close_connect(connection_id).await;
                         return Err(CommonError::NotObtainAvailableConnection(
                             "tcp".to_string(),
                             connection_id,
@@ -430,6 +436,7 @@ impl ConnectionManager {
                         }
                         Err(e) => {
                             if times > self.lock_max_try_mut_times {
+                                self.close_connect(connection_id).await;
                                 return Err(CommonError::FailedToWriteClient(
                                     "quic".to_string(),
                                     e.to_string(),
@@ -440,6 +447,7 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > self.lock_max_try_mut_times {
+                        self.close_connect(connection_id).await;
                         return Err(CommonError::NotObtainAvailableConnection(
                             "quic".to_string(),
                             connection_id,
