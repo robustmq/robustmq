@@ -16,6 +16,11 @@ robust-bench mqtt sub ...
 
 Measure connection establishment capability and stable connection scale.
 
+`--mode` semantics:
+
+- `create`: stop once connection creation completes
+- `hold`: keep connected for `--hold-secs`
+
 ### Example
 
 ```bash

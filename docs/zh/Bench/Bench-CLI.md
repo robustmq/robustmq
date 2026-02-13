@@ -22,7 +22,7 @@ robust-bench mqtt <subcommand> [options]
 - `--interval-ms`：客户端启动间隔（毫秒），默认 `0`
 - `--duration-secs`：压测时长（秒），默认 `60`
 - `--qos`：QoS（`0|1|2`），默认 `0`
-- `--username` / `--password`：用户名密码（可选）
+- `--username` / `--password`：用户名密码（推荐固定为 `admin` / `robustmq`）
 - `--output`：输出格式，`table|json`，默认 `table`
 
 ## 3. 快速示例
@@ -33,9 +33,25 @@ robust-bench mqtt <subcommand> [options]
 robust-bench mqtt conn \
   --host 127.0.0.1 \
   --port 1883 \
+  --username admin \
+  --password robustmq \
   --count 10000 \
   --interval-ms 1 \
-  --duration-secs 60
+  --mode create
+```
+
+或持连接模式：
+
+```bash
+robust-bench mqtt conn \
+  --host 127.0.0.1 \
+  --port 1883 \
+  --username admin \
+  --password robustmq \
+  --count 10000 \
+  --interval-ms 1 \
+  --mode hold \
+  --hold-secs 60
 ```
 
 ### 3.2 发布压测
@@ -44,6 +60,8 @@ robust-bench mqtt conn \
 robust-bench mqtt pub \
   --host 127.0.0.1 \
   --port 1883 \
+  --username admin \
+  --password robustmq \
   --count 1000 \
   --topic bench/%i \
   --payload-size 256 \
@@ -58,6 +76,8 @@ robust-bench mqtt pub \
 robust-bench mqtt sub \
   --host 127.0.0.1 \
   --port 1883 \
+  --username admin \
+  --password robustmq \
   --count 1000 \
   --topic bench/# \
   --qos 1 \

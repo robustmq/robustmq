@@ -22,7 +22,7 @@ use std::time::{Duration, Instant};
 use tokio::task::JoinHandle;
 
 pub async fn run_publish_bench(args: PublishBenchArgs) -> Result<(), BenchMarkError> {
-    let duration = args.common.duration();
+    let duration = Duration::from_secs(args.duration_secs);
     let deadline = tokio::time::Instant::now() + duration;
     let qos = qos_from_u8(args.common.qos);
     let payload = vec![b'x'; args.payload_size];

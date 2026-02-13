@@ -36,7 +36,19 @@ robust-bench mqtt conn \
   --port 1883 \
   --count 10000 \
   --interval-ms 1 \
-  --duration-secs 60
+  --mode create
+```
+
+Or hold mode:
+
+```bash
+robust-bench mqtt conn \
+  --host 127.0.0.1 \
+  --port 1883 \
+  --count 10000 \
+  --interval-ms 1 \
+  --mode hold \
+  --hold-secs 60
 ```
 
 ### 3.2 Publish benchmark

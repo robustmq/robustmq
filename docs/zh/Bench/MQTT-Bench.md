@@ -20,7 +20,8 @@ robust-bench mqtt sub ...
 
 - `--count`：连接客户端总数
 - `--interval-ms`：连接创建间隔
-- `--duration-secs`：维持时长
+- `--mode`：`create|hold`
+- `--hold-secs`：仅 `hold` 模式有效，表示持连接时长（秒）
 
 ### 示例
 
@@ -28,9 +29,12 @@ robust-bench mqtt sub ...
 robust-bench mqtt conn \
   --host 10.0.0.10 \
   --port 1883 \
+  --username admin \
+  --password robustmq \
   --count 50000 \
   --interval-ms 1 \
-  --duration-secs 90
+  --mode hold \
+  --hold-secs 90
 ```
 
 ## 3. pub：发布压测
@@ -52,6 +56,8 @@ robust-bench mqtt conn \
 robust-bench mqtt pub \
   --host 10.0.0.10 \
   --port 1883 \
+  --username admin \
+  --password robustmq \
   --count 2000 \
   --topic load/%i \
   --payload-size 512 \
@@ -78,6 +84,8 @@ robust-bench mqtt pub \
 robust-bench mqtt sub \
   --host 10.0.0.10 \
   --port 1883 \
+  --username admin \
+  --password robustmq \
   --count 5000 \
   --topic "load/#" \
   --qos 1 \

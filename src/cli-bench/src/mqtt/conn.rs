@@ -16,14 +16,15 @@ use crate::error::BenchMarkError;
 use crate::mqtt::common::{build_client, wait_connack};
 use crate::mqtt::report::{print_realtime_line, BenchReport, BenchReportInput, ThroughputSample};
 use crate::mqtt::stats::SharedStats;
-use crate::mqtt::{ConnBenchArgs, OutputFormat};
+use crate::mqtt::{ConnBenchArgs, ConnMode, OutputFormat};
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 use tokio::task::JoinHandle;
 
 pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
-    let duration = args.common.duration();
-    let deadline = tokio::time::Instant::now() + duration;
+    let bench_start = Instant::now();
+    let mode = args.mode.clone();
+    let hold_duration = Duration::from_secs(args.hold_secs);
     let stats = SharedStats::new();
     let mut handles: Vec<JoinHandle<()>> = Vec::with_capacity(args.common.count);
 
@@ -37,6 +38,8 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
         let username = args.common.username.clone();
         let password = args.common.password.clone();
         let local_stats = stats.clone();
+        let mode = mode.clone();
+        let hold_duration_each = hold_duration;
 
         handles.push(tokio::spawn(async move {
             let start = Instant::now();
@@ -53,58 +56,44 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
                     return;
                 }
             }
-            while tokio::time::Instant::now() < deadline {
-                if tokio::time::timeout(Duration::from_millis(100), event_loop.poll())
-                    .await
-                    .is_err()
-                {
-                    continue;
+            if matches!(mode, ConnMode::Hold) {
+                let hold_deadline = tokio::time::Instant::now() + hold_duration_each;
+                while tokio::time::Instant::now() < hold_deadline {
+                    if tokio::time::timeout(Duration::from_millis(100), event_loop.poll())
+                        .await
+                        .is_err()
+                    {
+                        continue;
+                    }
                 }
             }
             let _ = client.disconnect().await;
         }));
     }
 
-    let monitor_stats = stats.clone();
-    let monitor = tokio::spawn(async move {
-        let mut series = Vec::new();
-        let mut prev_ok = 0;
-        let begin = Instant::now();
-        while tokio::time::Instant::now() < deadline {
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            let current = monitor_stats
-                .counters
-                .success
-                .load(std::sync::atomic::Ordering::Relaxed);
-            let delta = current.saturating_sub(prev_ok);
-            let snapshot = monitor_stats.snapshot();
-            print_realtime_line("conn", begin.elapsed(), delta, current, &snapshot);
-            series.push(ThroughputSample {
-                second: begin.elapsed().as_secs(),
-                ops_per_sec: delta,
-                total_ops: current,
-                success: snapshot.success,
-                failed: snapshot.failed,
-                timeout: snapshot.timeout,
-                received: snapshot.received,
-            });
-            prev_ok = current;
-        }
-        series
-    });
-
     for handle in handles {
         let _ = handle.await;
     }
-    let series = monitor.await.unwrap_or_default();
     let snapshot = stats.snapshot();
+    let elapsed = bench_start.elapsed();
     let total_ops = snapshot.success;
+    print_realtime_line("conn", elapsed, total_ops, total_ops, &snapshot);
+    let series = vec![ThroughputSample {
+        second: elapsed.as_secs(),
+        ops_per_sec: total_ops,
+        total_ops,
+        success: snapshot.success,
+        failed: snapshot.failed,
+        timeout: snapshot.timeout,
+        received: snapshot.received,
+    }];
     let mut extras = BTreeMap::new();
-    extras.insert("mode".to_string(), "tcp-conn".to_string());
+    extras.insert("mode".to_string(), format!("tcp-conn:{:?}", args.mode));
     extras.insert(
         "interval_ms".to_string(),
         args.common.interval_ms.to_string(),
     );
+    extras.insert("hold_secs".to_string(), args.hold_secs.to_string());
     extras.insert("qos".to_string(), args.common.qos.to_string());
 
     let report = BenchReport::from_input(
@@ -112,7 +101,7 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
             name: "mqtt-conn".to_string(),
             host: args.common.host,
             port: args.common.port,
-            duration_secs: duration.as_secs(),
+            duration_secs: elapsed.as_secs(),
             clients: args.common.count,
             op_label: "conn_ack".to_string(),
             total_ops,
