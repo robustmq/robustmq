@@ -81,7 +81,7 @@ pub async fn fetch_share_sub_leader(
     for raw in reply.leader.iter() {
         results.insert(raw.group_name.clone(), raw.clone());
     }
-    return Ok(results);
+    Ok(results)
 }
 
 #[cfg(test)]
