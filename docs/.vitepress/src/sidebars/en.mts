@@ -182,6 +182,14 @@ export const sidebar = [
     ],
   },
   {
+    text: "Performance Metrics",
+    collapsed: true,
+    items: [
+      { text: "Bench CLI Guide", link: "/en/Bench/Bench-CLI" },
+      { text: "MQTT Bench Guide", link: "/en/Bench/MQTT-Bench" },
+    ],
+  },
+  {
     text: "ContributionGuide",
     collapsed: true,
     items: [

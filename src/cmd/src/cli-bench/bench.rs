@@ -13,26 +13,12 @@
 // limitations under the License.
 
 use clap::Parser;
-use cli_bench::{kv::handle_kv_bench, BenchMarkError, RobustMQBench, RobustMQBenchCommand};
+use cli_bench::{mqtt::handle_mqtt_bench, BenchMarkError, RobustMQBench, RobustMQBenchCommand};
 
 fn main() -> Result<(), BenchMarkError> {
     let args = RobustMQBench::parse();
     match args.command {
-        RobustMQBenchCommand::Kafka(_) => {
-            unimplemented!();
-        }
-        RobustMQBenchCommand::Mqtt(_) => {
-            unimplemented!();
-        }
-        RobustMQBenchCommand::Kv(kv_args) => {
-            handle_kv_bench(kv_args)?;
-        }
-        RobustMQBenchCommand::Raft(_) => {
-            unimplemented!();
-        }
-        RobustMQBenchCommand::Rocksdb(_) => {
-            unimplemented!();
-        }
+        RobustMQBenchCommand::Mqtt(mqtt_args) => handle_mqtt_bench(mqtt_args)?,
     }
 
     Ok(())

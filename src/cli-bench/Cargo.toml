@@ -34,3 +34,5 @@ protocol.workspace = true
 tokio.workspace = true
 dashmap.workspace = true
 prettytable-rs.workspace = true
+rumqttc = "0.24.0"
+hdrhistogram = "7.5.4"

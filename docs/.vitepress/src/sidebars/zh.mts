@@ -196,8 +196,8 @@ export const sidebar = [
     text: "性能指标",
     collapsed: true,
     items: [
-      { text: "RobustMQ MQTT", link: "" },
-      { text: "RobustMQ Kafka", link: "" },
+      { text: "Bench CLI 使用文档", link: "/zh/Bench/Bench-CLI" },
+      { text: "MQTT Bench 使用文档", link: "/zh/Bench/MQTT-Bench" },
     ],
   },
   {
