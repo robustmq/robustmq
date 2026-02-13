@@ -77,7 +77,7 @@ rkyv = { version = "0.8.13" }
 # Web Framework (Axum)
 # ====================
 axum = { version = "0.8.8", features = ["ws", "http1", "http2"] }
-axum-server = { version = "0.8.0", features = ["tls-rustls"] }
+axum-server = { version = "0.8.0", features = ["tls-rustls-no-provider"] }
 axum-extra = { version = "0.12.5", features = ["typed-header"] }
 hyper = { version = "1.8.1", features = ["server", "http1"] }
 tower = "0.5.3"

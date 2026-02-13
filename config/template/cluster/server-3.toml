@@ -1,0 +1,42 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+cluster_name = "robustmq-cluster"
+broker_id = 3
+broker_ip = "127.0.0.1"
+roles = ["meta", "broker", "engine"]
+grpc_port = 1328
+http_port = 8083
+meta_addrs = { 1 = "127.0.0.1:1128",2 = "127.0.0.1:1228",3 = "127.0.0.1:1328" }
+
+[mqtt_server]
+tcp_port = 3883
+tls_port = 3885
+websocket_port = 8383
+websockets_port = 8385
+quic_port = 9383
+
+[rocksdb]
+data_path = "./data/broker-3/data"
+max_open_files = 10000
+
+[log]
+log_config = "./config/logger.toml"
+log_path = "./data/broker-3/logs"
+
+[storage_runtime]
+tcp_port = 1378
+max_segment_size = 1073741824
+data_path = ["./data/broker-3/engine"]
+io_thread_num = 4

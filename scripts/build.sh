@@ -375,10 +375,19 @@ create_package() {
         return 1
     fi
 
-    # Copy configuration files from source config directory
-    if [ -d "$PROJECT_ROOT/config" ]; then
-        cp -r "$PROJECT_ROOT/config"/* "$package_dir/config/" 2>/dev/null || true
-        log_info "Copied source config directory"
+    # Copy only selected configuration directories
+    if [ -d "$PROJECT_ROOT/config/certs" ]; then
+        cp -r "$PROJECT_ROOT/config/certs" "$package_dir/config/" 2>/dev/null || true
+        log_info "Copied config/certs directory"
+    else
+        log_warning "config/certs directory not found"
+    fi
+
+    if [ -d "$PROJECT_ROOT/config/template" ]; then
+        cp -r "$PROJECT_ROOT/config/template"/. "$package_dir/config/" 2>/dev/null || true
+        log_info "Copied files from config/template to config/"
+    else
+        log_warning "config/template directory not found"
     fi
 
     # Copy LICENSE to root directory

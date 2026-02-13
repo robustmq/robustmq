@@ -100,7 +100,7 @@ pub fn default_pprof_frequency() -> i32 {
 pub fn default_log() -> Log {
     Log {
         log_path: "./logs".to_string(),
-        log_config: "./config/broker-tracing.toml".to_string(),
+        log_config: "./config/logger.toml".to_string(),
     }
 }
 
