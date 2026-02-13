@@ -14,22 +14,24 @@
 
 use crate::mqtt::pub_sub::{connect_server5, error_info};
 use crate::mqtt::pub_sub::{PublishArgsRequest, SubscribeArgsRequest};
+use crate::output::OutputFormat;
 use admin_server::client::AdminHttpClient;
 use admin_server::mqtt::session::SessionListRow;
 use common_base::uuid::unique_id;
 use metadata_struct::mqtt::topic::Topic;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
 use prettytable::{row, Table};
+use serde::Serialize;
 
-// Default pagination constants
-const DEFAULT_PAGE_SIZE: u32 = 10000;
-const DEFAULT_PAGE_NUM: u32 = 1;
 use tokio::io::{self, AsyncBufReadExt, BufReader};
 use tokio::{select, signal};
 
 #[derive(Clone)]
 pub struct MqttCliCommandParam {
     pub server: String,
+    pub output: OutputFormat,
+    pub page: u32,
+    pub limit: u32,
     pub action: MqttActionType,
 }
 
@@ -115,6 +117,13 @@ impl Default for MqttBrokerCommand {
 impl MqttBrokerCommand {
     pub fn new() -> Self {
         MqttBrokerCommand {}
+    }
+
+    fn print_json<T: Serialize>(&self, value: &T) {
+        match serde_json::to_string_pretty(value) {
+            Ok(raw) => println!("{raw}"),
+            Err(e) => error_info(e.to_string()),
+        }
     }
 
     pub async fn start(&self, params: MqttCliCommandParam) {
@@ -402,8 +411,8 @@ impl MqttBrokerCommand {
         // Create request for session list
         let request = admin_server::mqtt::session::SessionListReq {
             client_id: None,
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -418,6 +427,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 let mut table = Table::new();
                 table.set_titles(row![
                     "client_id",
@@ -499,8 +512,8 @@ impl MqttBrokerCommand {
         // Create request for user list
         let request = admin_server::mqtt::user::UserListReq {
             user_name: None,
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -515,6 +528,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 println!("user list result:");
                 // format table
                 let mut table = Table::new();
@@ -577,8 +594,8 @@ impl MqttBrokerCommand {
 
         // Create request for acl list
         let request = admin_server::mqtt::acl::AclListReq {
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -593,6 +610,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 println!("acl list result:");
                 // format table
                 let mut table = Table::new();
@@ -669,8 +690,8 @@ impl MqttBrokerCommand {
 
         // Create request for blacklist list
         let request = admin_server::mqtt::blacklist::BlackListListReq {
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -685,6 +706,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 println!("blacklist list result:");
                 // format table
                 let mut table = Table::new();
@@ -721,8 +746,8 @@ impl MqttBrokerCommand {
         let request = admin_server::mqtt::client::ClientListReq {
             source_ip: None,
             connection_id: None,
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             ..Default::default()
         };
 
@@ -733,6 +758,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 let mut table = Table::new();
 
                 println!("connection list:");
@@ -769,8 +798,8 @@ impl MqttBrokerCommand {
 
         // Create request for flapping detect list
         let request = admin_server::mqtt::system::SystemAlarmListReq {
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -785,6 +814,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 println!("flapping detect list result:");
                 let mut table = Table::new();
                 table.set_titles(row![
@@ -819,8 +852,8 @@ impl MqttBrokerCommand {
 
         // Create request for slow subscribe list
         let request = admin_server::mqtt::subscribe::AutoSubscribeListReq {
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -835,6 +868,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 println!("slow subscribe list result:");
                 // format table
                 let mut table = Table::new();
@@ -870,8 +907,8 @@ impl MqttBrokerCommand {
         let request = admin_server::mqtt::topic::TopicListReq {
             topic_name: None,
             topic_type: None,
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -884,6 +921,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 println!("\n📋 Topic List (Total: {})", page_data.total_count);
                 let mut table = Table::new();
                 table.set_titles(row![
@@ -926,8 +967,8 @@ impl MqttBrokerCommand {
 
         // Create request for system alarm list
         let request = admin_server::mqtt::system::SystemAlarmListReq {
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -942,6 +983,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 println!("system alarm list result:");
                 let mut table = Table::new();
                 table.set_titles(row!["name", "message", "create_time"]);
@@ -970,8 +1015,8 @@ impl MqttBrokerCommand {
         // Create request for subscribe list
         let request = admin_server::mqtt::subscribe::SubscribeListReq {
             client_id: None,
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -986,6 +1031,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 println!("subscribe list result:");
                 // format table
                 let mut table = Table::new();
@@ -1037,8 +1086,8 @@ impl MqttBrokerCommand {
         // Create request for connector list
         let request = admin_server::mqtt::connector::ConnectorListReq {
             connector_name: None,
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -1053,6 +1102,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 println!("connector list result:");
                 let mut table = Table::new();
 
@@ -1135,8 +1188,8 @@ impl MqttBrokerCommand {
 
         // Create request for topic rewrite rule list
         let request = admin_server::mqtt::topic::TopicRewriteReq {
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -1151,6 +1204,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 println!("topic rewrite rule list result:");
                 // format table
                 let mut table = Table::new();
@@ -1223,8 +1280,8 @@ impl MqttBrokerCommand {
 
         // Create request for schema list
         let request = admin_server::mqtt::schema::SchemaListReq {
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -1239,6 +1296,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 println!("schema list result:");
                 for schema in page_data.data {
                     println!(
@@ -1346,8 +1407,8 @@ impl MqttBrokerCommand {
         let request = admin_server::mqtt::schema::SchemaBindListReq {
             resource_name: None,
             schema_name: None,
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -1362,6 +1423,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 println!("bind schema list result:");
                 for bind in page_data.data {
                     println!("data type: {}", bind.data_type);
@@ -1422,8 +1487,8 @@ impl MqttBrokerCommand {
 
         // Create request for auto subscribe rule list
         let request = admin_server::mqtt::subscribe::AutoSubscribeListReq {
-            limit: Some(DEFAULT_PAGE_SIZE),
-            page: Some(DEFAULT_PAGE_NUM),
+            limit: Some(params.limit),
+            page: Some(params.page),
             sort_field: None,
             sort_by: None,
             filter_field: None,
@@ -1438,6 +1503,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
                 println!("auto subscribe rule list result:");
                 // format table
                 let mut table = Table::new();
@@ -1474,6 +1543,10 @@ impl MqttBrokerCommand {
             .await
         {
             Ok(data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&data);
+                    return;
+                }
                 println!("\n📊 Cluster Overview");
                 println!("{:<30} {}", "Cluster Name", data.cluster_name);
                 println!("{:<30} {}", "Placement Status", data.placement_status);

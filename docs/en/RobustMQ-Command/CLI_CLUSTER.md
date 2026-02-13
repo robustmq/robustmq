@@ -1,54 +1,45 @@
-# Cluster Management Commands
+# Cluster Commands
 
-## Cluster Management (`cluster`)
+## Command Shape
 
-Cluster configuration management.
-
-### Basic Syntax
 ```bash
-robust-ctl cluster [OPTIONS] <ACTION>
+robust-ctl cluster [--server <addr>] [--output table|json] <subcommand>
 ```
 
-### Options
-- `--server, -s <SERVER>`: Server address (default: 127.0.0.1:8080)
+## Subcommands
 
-### Configuration Management (`config`)
+### 1) status
+
+Check cluster status.
 
 ```bash
-# Get cluster configuration
+robust-ctl cluster status
+robust-ctl cluster --output json status
+```
+
+### 2) healthy
+
+Check cluster healthy result.
+
+```bash
+robust-ctl cluster healthy
+robust-ctl cluster --output json healthy
+```
+
+### 3) config
+
+#### get
+
+```bash
 robust-ctl cluster config get
 ```
 
----
-
-## Usage Examples
+#### set
 
 ```bash
-# View cluster configuration help
-robust-ctl cluster --help
-robust-ctl cluster config --help
-
-# Connect to specified server to get configuration
-robust-ctl cluster --server 192.168.1.100:8080 config get
-
-# Get local cluster configuration
-robust-ctl cluster config get
+robust-ctl cluster config set \
+  --config-type FlappingDetect \
+  --config '{"enable":true}'
 ```
 
----
-
-## Functionality
-
-The cluster management module is mainly used for:
-
-1. **Configuration Viewing**: Get current cluster configuration information
-2. **Cluster Status**: Understand the cluster's running status
-3. **Configuration Management**: View and manage cluster-level configuration parameters
-
----
-
-## Notes
-
-- Cluster configuration operations usually require administrator privileges
-- Ensure network connection to the correct cluster management service
-- Configuration information is returned in JSON format for easy parsing and processing
+`config` is passed through to server-side config API as-is.

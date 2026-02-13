@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::cluster::command::{ClusterActionType, ClusterCliCommandParam, ClusterCommand};
+use crate::engine::command::{EngineActionType, EngineCliCommandParam, EngineCommand};
 use crate::mqtt::command::{MqttBrokerCommand, MqttCliCommandParam};
 use crate::mqtt::params::{
     process_acl_args, process_auto_subscribe_args, process_blacklist_args, process_connection_args,
@@ -20,14 +21,15 @@ use crate::mqtt::params::{
     process_schema_args, process_session_args, process_slow_sub_args, process_subscribe_args,
     process_subscribes_args, process_system_alarm_args, process_topic_args,
     process_topic_rewrite_args, process_user_args, AclArgs, AutoSubscribeRuleCommand,
-    BlacklistArgs, ClientsArgs, ClusterConfigActionType, ClusterConfigArgs, ConnectorArgs,
-    FlappingDetectArgs, PubSubArgs, SchemaArgs, SessionArgs, SlowSubscribeArgs, SubscribesArgs,
-    SystemAlarmArgs, TopicArgs, TopicRewriteArgs, UserArgs,
+    BlacklistArgs, ClientsArgs, ConnectorArgs, FlappingDetectArgs, PubSubArgs, SchemaArgs,
+    SessionArgs, SlowSubscribeArgs, SubscribesArgs, SystemAlarmArgs, TopicArgs, TopicRewriteArgs,
+    UserArgs,
 };
+use crate::output::OutputFormat;
 use clap::{Parser, Subcommand};
-use serde::Deserialize;
+use std::collections::HashMap;
 
-#[derive(Parser)] // requires `derive` feature
+#[derive(Parser)]
 #[command(name = "robust-ctl")]
 #[command(bin_name = "robust-ctl")]
 #[command(styles = CLAP_STYLING)]
@@ -43,7 +45,6 @@ pub enum RobustMQCliCommand {
     Mqtt(MqttArgs),
     Cluster(ClusterArgs),
     Engine(EngineArgs),
-    Status(StatusArgs),
 }
 
 pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()
@@ -56,139 +57,181 @@ pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling:
     .invalid(clap_cargo::style::INVALID);
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="Command line tool for mqtt broker", long_about = None)]
+#[command(author="RobustMQ", about="MQTT management commands", long_about = None)]
 #[command(next_line_help = true)]
 pub struct MqttArgs {
-    #[arg(short, long,default_value_t =String::from("127.0.0.1:8080"))]
+    #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
     server: String,
-
+    #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+    output: OutputFormat,
+    #[arg(long, default_value_t = 1)]
+    page: u32,
+    #[arg(long, default_value_t = 100)]
+    limit: u32,
     #[clap(subcommand)]
     action: MQTTAction,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum MQTTAction {
-    // Overview
-    #[command(about = "Show the overview of the MQTT broker cluster")]
     Overview,
-    // session admin
     Session(SessionArgs),
-    // session admin
     Subscribes(SubscribesArgs),
-    // user admin
     User(UserArgs),
-    // access control list admin
     Acl(AclArgs),
-    // blacklist admin
     Blacklist(BlacklistArgs),
-    // Clients
     Client(ClientsArgs),
-    // #### observability ####
-    // ---- flapping detect ----
     FlappingDetect(FlappingDetectArgs),
-    // ---- slow subscription ----
     SlowSubscribe(SlowSubscribeArgs),
-    // ---- system alarm ----
     SystemAlarm(SystemAlarmArgs),
-
-    // list topic
     Topic(TopicArgs),
-
-    // topic rewrite
     TopicRewrite(TopicRewriteArgs),
-
-    // connector
     Connector(ConnectorArgs),
-
-    // schema
     Schema(SchemaArgs),
-
-    //auto subscribe
     AutoSubscribe(AutoSubscribeRuleCommand),
-
-    // pub/sub
     Publish(PubSubArgs),
     Subscribe(PubSubArgs),
 }
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ",  about="Command line tool for meta service", long_about = None)]
+#[command(author="RobustMQ", about="Cluster management commands", long_about = None)]
 #[command(next_line_help = true)]
 pub struct ClusterArgs {
     #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
     server: String,
-
+    #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+    output: OutputFormat,
     #[clap(subcommand)]
     action: ClusterAction,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum ClusterAction {
+    Status,
+    Healthy,
     Config(ClusterConfigArgs),
 }
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="Command line tool for journal engine", long_about = None)]
-#[command(next_line_help = true)]
-pub struct EngineArgs {
-    #[arg(short, long,default_value_t =String::from("127.0.0.1:8080"))]
-    server: String,
+pub struct ClusterConfigArgs {
+    #[command(subcommand)]
+    pub action: ClusterConfigActionType,
+}
 
-    #[arg(short, long,default_value_t =String::from("status"))]
-    action: String,
+#[derive(Debug, clap::Subcommand)]
+pub enum ClusterConfigActionType {
+    Get,
+    Set(ClusterConfigSetArgs),
 }
 
 #[derive(clap::Args, Debug)]
-#[command(author="RobustMQ", about="Show RobustMQ status and version information", long_about = None)]
+pub struct ClusterConfigSetArgs {
+    #[arg(long, required = true)]
+    pub config_type: String,
+    #[arg(long, required = true)]
+    pub config: String,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="Storage engine management commands", long_about = None)]
 #[command(next_line_help = true)]
-pub struct StatusArgs {
+pub struct EngineArgs {
     #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
     server: String,
+    #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+    output: OutputFormat,
+    #[arg(long, default_value_t = 1)]
+    page: u32,
+    #[arg(long, default_value_t = 100)]
+    limit: u32,
+    #[command(subcommand)]
+    action: EngineAction,
 }
 
-#[derive(Debug, Deserialize)]
-struct StatusResponse {
-    data: ClusterInfo,
+#[derive(Debug, Subcommand)]
+pub enum EngineAction {
+    Shard(EngineShardArgs),
+    Segment(EngineSegmentArgs),
+    Offset(EngineOffsetArgs),
 }
 
-#[derive(Debug, Deserialize)]
-struct ClusterInfo {
-    version: String,
-    cluster_name: String,
-    start_time: u64,
-    broker_node_list: Vec<BrokerNode>,
-    meta: MetaInfo,
+#[derive(clap::Args, Debug)]
+pub struct EngineShardArgs {
+    #[command(subcommand)]
+    action: EngineShardAction,
 }
 
-#[derive(Debug, Deserialize)]
-struct BrokerNode {
-    node_id: u64,
-    node_ip: String,
-    node_inner_addr: String,
-    roles: Vec<String>,
+#[derive(Debug, Subcommand)]
+pub enum EngineShardAction {
+    List {
+        #[arg(long)]
+        shard_name: Option<String>,
+    },
+    Create {
+        #[arg(long, required = true)]
+        shard_name: String,
+        #[arg(long, required = true)]
+        config: String,
+    },
+    Delete {
+        #[arg(long, required = true)]
+        shard_name: String,
+    },
 }
 
-#[derive(Debug, Deserialize)]
-struct MetaInfo {
-    state: String,
-    current_leader: u64,
-    current_term: u64,
-    last_log_index: u64,
+#[derive(clap::Args, Debug)]
+pub struct EngineSegmentArgs {
+    #[command(subcommand)]
+    action: EngineSegmentAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum EngineSegmentAction {
+    List {
+        #[arg(long, required = true)]
+        shard_name: String,
+    },
+}
+
+#[derive(clap::Args, Debug)]
+pub struct EngineOffsetArgs {
+    #[command(subcommand)]
+    action: EngineOffsetAction,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum EngineOffsetAction {
+    ByTimestamp {
+        #[arg(long, required = true)]
+        shard_name: String,
+        #[arg(long, required = true)]
+        timestamp: u64,
+        #[arg(long, required = true)]
+        strategy: String,
+    },
+    ByGroup {
+        #[arg(long, required = true)]
+        group_name: String,
+    },
+    Commit {
+        #[arg(long, required = true)]
+        group_name: String,
+        #[arg(long, required = true)]
+        offsets_json: String,
+    },
 }
 
 pub async fn handle_mqtt(args: MqttArgs) {
     let params = MqttCliCommandParam {
         server: args.server,
+        output: args.output,
+        page: args.page,
+        limit: args.limit,
         action: match args.action {
-            // Overview
             MQTTAction::Overview => process_overview(),
-            // session list
             MQTTAction::Session(args) => process_session_args(args),
-            // subscribe list
             MQTTAction::Subscribes(args) => process_subscribes_args(args),
-            // user admin
             MQTTAction::User(args) => process_user_args(args),
-            // access control list admin
             MQTTAction::Acl(args) => match process_acl_args(args) {
                 Ok(action) => action,
                 Err(e) => {
@@ -196,7 +239,6 @@ pub async fn handle_mqtt(args: MqttArgs) {
                     return;
                 }
             },
-            // blacklist admin
             MQTTAction::Blacklist(args) => match process_blacklist_args(args) {
                 Ok(action) => action,
                 Err(e) => {
@@ -204,25 +246,16 @@ pub async fn handle_mqtt(args: MqttArgs) {
                     return;
                 }
             },
-            // flapping detect
             MQTTAction::FlappingDetect(args) => process_flapping_detect_args(args),
-            // system alarm
             MQTTAction::SystemAlarm(args) => process_system_alarm_args(args),
-            // Connections
             MQTTAction::Client(args) => process_connection_args(args),
-            // connector
             MQTTAction::Connector(args) => process_connector_args(args),
-            // list topic
             MQTTAction::Topic(args) => process_topic_args(args),
-            // topic rewrite rule
             MQTTAction::TopicRewrite(args) => process_topic_rewrite_args(args),
             MQTTAction::SlowSubscribe(args) => process_slow_sub_args(args),
-            // pub/sub
             MQTTAction::Publish(args) => process_publish_args(args),
             MQTTAction::Subscribe(args) => process_subscribe_args(args),
-            // schema
             MQTTAction::Schema(args) => process_schema_args(args),
-            // auto subscribe rule
             MQTTAction::AutoSubscribe(args) => process_auto_subscribe_args(args),
         },
     };
@@ -230,94 +263,84 @@ pub async fn handle_mqtt(args: MqttArgs) {
 }
 
 pub async fn handle_cluster(args: ClusterArgs) {
+    let action = match args.action {
+        ClusterAction::Status => ClusterActionType::Status,
+        ClusterAction::Healthy => ClusterActionType::Healthy,
+        ClusterAction::Config(config_args) => match config_args.action {
+            ClusterConfigActionType::Get => ClusterActionType::GetConfig,
+            ClusterConfigActionType::Set(set_args) => {
+                ClusterActionType::SetConfig(admin_server::cluster::ClusterConfigSetReq {
+                    config_type: set_args.config_type,
+                    config: set_args.config,
+                })
+            }
+        },
+    };
+
     let params = ClusterCliCommandParam {
         server: args.server,
-        action: match args.action {
-            ClusterAction::Config(config_args) => match config_args.action {
-                ClusterConfigActionType::Get => ClusterActionType::GetConfig,
-            },
-        },
+        output: args.output,
+        action,
     };
     ClusterCommand::new().start(params).await;
 }
 
-// TODO: implement storage engine
 pub async fn handle_engine(args: EngineArgs) {
-    println!("{args:?}");
-}
-
-pub async fn handle_status(args: StatusArgs) {
-    use crate::mqtt::pub_sub::error_info;
-    use admin_server::client::AdminHttpClient;
-
-    // Create admin HTTP client
-    let admin_client = AdminHttpClient::new(format!("http://{}", args.server));
-
-    println!("🚀 Checking RobustMQ status...");
-
-    match admin_client.get_version().await {
-        Ok(version_info) => {
-            println!("✅ RobustMQ Status: Online");
-            println!("📋 Version: {version_info}");
-            println!("🌐 Server: {}", args.server);
-        }
-        Err(e) => {
-            println!("❌ RobustMQ Status: Offline or unreachable");
-            println!("🌐 Server: {}", args.server);
-            error_info(format!("Connection error: {e}"));
-            return;
-        }
-    }
-
-    match admin_client.get_status().await {
-        Ok(status_info) => match serde_json::from_str::<StatusResponse>(&status_info) {
-            Ok(response) => {
-                let ClusterInfo {
-                    version,
-                    cluster_name,
-                    start_time,
-                    broker_node_list,
-                    meta,
-                } = response.data;
-
-                println!("\n📊 Cluster Summary");
-                println!("{:<20} {}", "Version", version);
-                println!("{:<20} {}", "Cluster", cluster_name);
-                use chrono::{Local, TimeZone};
-
-                let start_time_local = Local
-                    .timestamp_opt(start_time as i64, 0)
-                    .single()
-                    .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
-                    .unwrap_or_else(|| start_time.to_string());
-                println!("{:<20} {}", "Start Time", start_time_local);
-
-                println!("\n🧩 Broker Nodes");
-                println!("{:<5} {:<15} {:<20} Roles", "ID", "IP", "Inner Addr");
-                for node in broker_node_list {
-                    println!(
-                        "{:<5} {:<15} {:<20} {:?}",
-                        node.node_id, node.node_ip, node.node_inner_addr, node.roles
-                    );
-                }
-
-                println!("\n🗳️ Meta Status");
-                println!("{:<20} {}", "State", meta.state);
-                println!("{:<20} {}", "Current Leader", meta.current_leader);
-                println!("{:<20} {}", "Current Term", meta.current_term);
-                println!("{:<20} {}", "Last Log Index", meta.last_log_index);
+    let action = match args.action {
+        EngineAction::Shard(shard_args) => match shard_args.action {
+            EngineShardAction::List { shard_name } => EngineActionType::ShardList { shard_name },
+            EngineShardAction::Create { shard_name, config } => {
+                EngineActionType::ShardCreate { shard_name, config }
             }
-            Err(e) => {
-                println!("❌ RobustMQ Status: Invalid payload");
-                println!("🌐 Server: {}", args.server);
-                error_info(format!("Failed to parse status payload: {e}"));
-                println!("Raw payload: {status_info}");
+            EngineShardAction::Delete { shard_name } => {
+                EngineActionType::ShardDelete { shard_name }
             }
         },
-        Err(e) => {
-            println!("❌ RobustMQ Status: Offline or unreachable");
-            println!("🌐 Server: {}", args.server);
-            error_info(format!("Connection error: {e}"));
-        }
-    }
+        EngineAction::Segment(segment_args) => match segment_args.action {
+            EngineSegmentAction::List { shard_name } => {
+                EngineActionType::SegmentList { shard_name }
+            }
+        },
+        EngineAction::Offset(offset_args) => match offset_args.action {
+            EngineOffsetAction::ByTimestamp {
+                shard_name,
+                timestamp,
+                strategy,
+            } => EngineActionType::OffsetByTimestamp {
+                shard_name,
+                timestamp,
+                strategy,
+            },
+            EngineOffsetAction::ByGroup { group_name } => {
+                EngineActionType::OffsetByGroup { group_name }
+            }
+            EngineOffsetAction::Commit {
+                group_name,
+                offsets_json,
+            } => {
+                let offsets: HashMap<String, u64> = match serde_json::from_str(&offsets_json) {
+                    Ok(data) => data,
+                    Err(e) => {
+                        eprintln!(
+                            "Invalid offsets_json, expected object like {{\"shard-a\":1}}: {e}"
+                        );
+                        return;
+                    }
+                };
+                EngineActionType::CommitOffset {
+                    group_name,
+                    offsets,
+                }
+            }
+        },
+    };
+
+    let params = EngineCliCommandParam {
+        server: args.server,
+        output: args.output,
+        page: args.page,
+        limit: args.limit,
+        action,
+    };
+    EngineCommand::new().start(params).await;
 }

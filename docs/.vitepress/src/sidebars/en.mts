@@ -151,7 +151,7 @@ export const sidebar = [
       { text: "Overview", link: "/en/RobustMQ-Command/CLI_COMMON" },
       { text: "Cluster Manager", link: "/en/RobustMQ-Command/CLI_CLUSTER" },
       { text: "MQTT Manager", link: "/en/RobustMQ-Command/CLI_MQTT" },
-      { text: "Journal Manager", link: "/en/RobustMQ-Command/CLI_JOURNAL" },
+      { text: "Engine Manager", link: "/en/RobustMQ-Command/CLI_ENGINE" },
     ],
   },
   {
