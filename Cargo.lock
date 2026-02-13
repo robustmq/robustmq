@@ -1014,6 +1014,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "btoi"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b5ab9db53bcda568284df0fd39f6eac24ad6f7ba7ff1168b9e76eba6576b976"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "bufstream"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3827,6 +3836,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "lru"
+version = "0.16.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1dc47f592c06f33f8e3aea9591776ec7c9f9e4124778ff8a3c3b87159f7e593"
+
+[[package]]
 name = "lru-cache"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4184,7 +4199,7 @@ dependencies = [
  "md5 0.8.0",
  "metadata-struct",
  "mongodb",
- "mysql",
+ "mysql 27.0.0",
  "network-server",
  "os_info",
  "pbkdf2 0.12.2",
@@ -4267,8 +4282,8 @@ dependencies = [
  "flate2",
  "io-enum",
  "libc",
- "lru",
- "mysql_common",
+ "lru 0.12.5",
+ "mysql_common 0.32.4",
  "named_pipe",
  "native-tls",
  "pem",
@@ -4277,6 +4292,29 @@ dependencies = [
  "serde_json",
  "socket2 0.5.10",
  "twox-hash 1.6.3",
+ "url",
+]
+
+[[package]]
+name = "mysql"
+version = "27.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "090068bc0a24762663338da78414148333d1ee246a7293c10a517ddf1548b291"
+dependencies = [
+ "bufstream",
+ "bytes",
+ "crossbeam-queue",
+ "crossbeam-utils",
+ "flate2",
+ "io-enum",
+ "libc",
+ "lru 0.16.3",
+ "mysql_common 0.36.2",
+ "named_pipe",
+ "pem",
+ "percent-encoding",
+ "socket2 0.6.2",
+ "twox-hash 2.1.2",
  "url",
 ]
 
@@ -4309,7 +4347,7 @@ dependencies = [
  "bindgen 0.72.1",
  "bitflags 2.10.0",
  "bitvec",
- "btoi",
+ "btoi 0.4.3",
  "byteorder",
  "bytes",
  "cc",
@@ -4335,6 +4373,32 @@ dependencies = [
  "time",
  "uuid",
  "zstd",
+]
+
+[[package]]
+name = "mysql_common"
+version = "0.36.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20e7f6a15265801679ddf1ddb38fd74b4555a677a78378d4561fbe5f0b1d4d72"
+dependencies = [
+ "base64 0.22.1",
+ "bitflags 2.10.0",
+ "btoi 0.5.0",
+ "byteorder",
+ "bytes",
+ "crc32fast",
+ "flate2",
+ "getrandom 0.3.4",
+ "num-bigint",
+ "num-traits",
+ "regex",
+ "saturating",
+ "serde",
+ "serde_json",
+ "sha1",
+ "sha2",
+ "thiserror 2.0.18",
+ "uuid",
 ]
 
 [[package]]
@@ -6174,7 +6238,7 @@ version = "25.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93963fe09ca35b0311d089439e944e42a6cb39bf8ea323782ddb31240ba2ae87"
 dependencies = [
- "mysql",
+ "mysql 25.0.1",
  "r2d2",
 ]
 
@@ -7745,7 +7809,7 @@ dependencies = [
  "futures",
  "grpc-clients",
  "metadata-struct",
- "mysql",
+ "mysql 27.0.0",
  "opendal",
  "protocol",
  "r2d2_mysql",
@@ -8025,7 +8089,7 @@ name = "third-driver"
 version = "0.2.13"
 dependencies = [
  "common-base",
- "mysql",
+ "mysql 27.0.0",
  "r2d2",
  "r2d2_mysql",
  "r2d2_postgres",
