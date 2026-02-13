@@ -42,7 +42,7 @@ pub struct RobustMQCli {
 pub enum RobustMQCliCommand {
     Mqtt(MqttArgs),
     Cluster(ClusterArgs),
-    Journal(JournalArgs),
+    Engine(EngineArgs),
     Status(StatusArgs),
 }
 
@@ -130,7 +130,7 @@ pub enum ClusterAction {
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ", about="Command line tool for journal engine", long_about = None)]
 #[command(next_line_help = true)]
-pub struct JournalArgs {
+pub struct EngineArgs {
     #[arg(short, long,default_value_t =String::from("127.0.0.1:8080"))]
     server: String,
 
@@ -242,7 +242,7 @@ pub async fn handle_cluster(args: ClusterArgs) {
 }
 
 // TODO: implement journal engine
-pub async fn handle_journal(args: JournalArgs) {
+pub async fn handle_journal(args: EngineArgs) {
     println!("{args:?}");
 }
 
