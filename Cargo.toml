@@ -56,8 +56,27 @@ license = "Apache-2.0"
 # ====================
 # Async Runtime & Utilities
 # ====================
-tokio = { version = "1.49.0", features = ["full"] }
-tokio-util = { version = "0.7.18", features = ["full"] }
+tokio = { version = "1.49.0", default-features = false, features = [
+    "macros",
+    "rt-multi-thread",
+    "sync",
+    "time",
+    "net",
+    "io-util",
+    "io-std",
+    "fs",
+    "signal",
+    "process",
+    "parking_lot",
+] }
+tokio-util = { version = "0.7.18", default-features = false, features = [
+    "codec",
+    "compat",
+    "io-util",
+    "net",
+    "rt",
+    "time",
+] }
 futures = "0.3.31"
 futures-util = "0.3.31"
 async-trait = "0.1.88"
@@ -76,17 +95,30 @@ rkyv = { version = "0.8.13" }
 # ====================
 # Web Framework (Axum)
 # ====================
-axum = { version = "0.8.8", features = ["ws", "http1", "http2"] }
-axum-server = { version = "0.8.0", features = ["tls-rustls-no-provider"] }
-axum-extra = { version = "0.12.5", features = ["typed-header"] }
-hyper = { version = "1.8.1", features = ["server", "http1"] }
-tower = "0.5.3"
-tower-http = { version = "0.6.8", features = ["fs", "cors"] }
+axum = { version = "0.8.8", default-features = false, features = [
+    "ws",
+    "http1",
+    "http2",
+    "json",
+    "query",
+    "form",
+    "matched-path",
+    "tokio",
+] }
+axum-server = { version = "0.8.0", default-features = false, features = ["tls-rustls-no-provider"] }
+axum-extra = { version = "0.12.5", default-features = false, features = ["typed-header"] }
+hyper = { version = "1.8.1", default-features = false, features = ["server", "http1"] }
+tower = { version = "0.5.3", default-features = false }
+tower-http = { version = "0.6.8", default-features = false, features = ["fs", "cors"] }
 
 # ====================
 # gRPC & Protocol Buffers
 # ====================
-tonic = "0.14.3"
+tonic = { version = "0.14.3", default-features = false, features = [
+    "transport",
+    "codegen",
+    "router",
+] }
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
 tonic-web = "0.14.3"
@@ -111,7 +143,10 @@ tokio-rustls = { version = "0.26", default-features = false, features = [
 # ====================
 # QUIC Protocol
 # ====================
-quinn = "0.11.6"
+quinn = { version = "0.11.6", default-features = false, features = [
+    "runtime-tokio",
+    "rustls-ring",
+] }
 
 # ====================
 # Cryptography & Hashing
@@ -132,17 +167,20 @@ jsonwebtoken = { version = "10.0.0", default-features = false, features = [
 # ====================
 # Database & Storage
 # ====================
-rocksdb = { version = "0.22.0", features = ["multi-threaded-cf"] }
-mysql = "25.0.0"
-redis = { version = "0.32.6", features = ["r2d2", "tokio-comp", "connection-manager"] }
-mongodb = { version = "2.8", features = ["tokio-runtime"] }
+rocksdb = { version = "0.22.0", default-features = false, features = ["multi-threaded-cf", "lz4", "zstd"] }
+mysql = { version = "25.0.0", default-features = false }
+redis = { version = "0.32.6", default-features = false, features = ["r2d2", "tokio-comp", "connection-manager"] }
+mongodb = { version = "2.8", default-features = false, features = ["tokio-runtime"] }
 sqlx = { version = "0.8", default-features = false }
 r2d2 = "0.8.10"
-r2d2_mysql = "25.0.0"
-r2d2_postgres = "0.18.2"
-mobc = "0.9.0"
-opendal = { version = "0.51", features = ["services-s3"] }
-zstd = "0.13"
+r2d2_mysql = { version = "25.0.0", default-features = false }
+r2d2_postgres = { version = "0.18.2", default-features = false }
+mobc = { version = "0.9.0", default-features = false, features = ["tokio"] }
+opendal = { version = "0.51", default-features = false, features = [
+    "services-s3",
+    "executors-tokio",
+] }
+zstd = { version = "0.13", default-features = false }
 twox-hash = "2.1.2"
 memmap2 = "0.9.9"
 
@@ -151,9 +189,12 @@ memmap2 = "0.9.9"
 # ====================
 rdkafka = "0.37.0"
 kafka-protocol = "0.15.1"
-pulsar = "6.3.1"
-lapin = "2.5.0"
-elasticsearch = "8.19.0-alpha.1"
+pulsar = { version = "6.3.1", default-features = false, features = [
+    "tokio-runtime",
+    "auth-oauth2",
+] }
+lapin = { version = "2.5.0", default-features = false, features = ["rustls"] }
+elasticsearch = { version = "8.19.0-alpha.1", default-features = false }
 paho-mqtt = { version = "0.13.3", default-features = false, features = [
     "bundled",
     "ssl",
@@ -162,16 +203,23 @@ paho-mqtt = { version = "0.13.3", default-features = false, features = [
 # ====================
 # Distributed Systems
 # ====================
-openraft = { git = "https://github.com/databendlabs/openraft.git", rev = "852a38afe53aed9037ac8969a6a15a2c44981aaa", features = [
+openraft = { git = "https://github.com/databendlabs/openraft.git", rev = "852a38afe53aed9037ac8969a6a15a2c44981aaa", default-features = false, features = [
     "serde",
     "type-alias",
+    "tokio-rt",
+    "adapt-network-v1",
 ] }
 
 # ====================
 # Observability & Logging
 # ====================
 tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.0", features = ["env-filter", "json"] }
+tracing-subscriber = { version = "0.3.0", default-features = false, features = [
+    "std",
+    "fmt",
+    "env-filter",
+    "json",
+] }
 tracing-appender = "0.2.0"
 prometheus = "0.14.0"
 prometheus-client = "0.23.1"
@@ -190,14 +238,14 @@ pprof = { version = "0.14.0", features = ["flamegraph"] }
 # ====================
 # CLI & Command Line Tools
 # ====================
-clap = { version = "4.4.7", features = ["derive"] }
+clap = { version = "4.4.7", default-features = false, features = ["std", "derive"] }
 clap-cargo = "0.14.1"
 prettytable-rs = "0.10"
 
 # ====================
 # Data Validation & Schema
 # ====================
-validator = { version = "0.19", features = ["derive"] }
+validator = { version = "0.19", default-features = false, features = ["derive"] }
 valico = "4.0.0"
 apache-avro = "0.17.0"
 
@@ -207,18 +255,22 @@ apache-avro = "0.17.0"
 anyhow = "1.0.98"
 thiserror = "1.0"
 bytes = { version = "1", features = ["serde"] }
-uuid = { version = "1.7.0", features = ["v4"] }
+uuid = { version = "1.7.0", default-features = false, features = ["v4"] }
 xid = "1.1"
-dashmap = { version = "6.1.0", features = ["serde"] }
+dashmap = { version = "6.1.0", default-features = false, features = ["serde"] }
 rand = "0.8.5"
 regex = "1.10.4"
 grep = "0.3.2"
 byteorder = "1.5.0"
 crc32fast = "1.4.2"
 ipnet = "2.3.0"
-reqwest = { version = "0.12.23", features = ["json"] }
+reqwest = { version = "0.12.23", default-features = false, features = [
+    "json",
+    "rustls-tls",
+    "http2",
+] }
 tempfile = "3.9.0"
-chrono = "0.4.41"
+chrono = { version = "0.4.41", default-features = false, features = ["std", "clock"] }
 bson = "2.9"
 strum = "0.26"
 strum_macros = "0.26"
