@@ -16,7 +16,7 @@ use crate::broker::common::BrokerCommonServiceManager;
 use crate::broker::storage::BrokerStorageServiceManager;
 use crate::meta::mqtt::MqttServiceManager;
 use crate::meta::storage::StorageEngineServiceManager;
-use crate::{broker::mqtt::BrokerMqttServiceManager, meta::common::PlacementServiceManager};
+use crate::{broker::mqtt::BrokerMqttServiceManager, meta::common::MetaServiceManager};
 use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
@@ -93,7 +93,7 @@ pub struct ClientPool {
     max_open_connection: u64,
     connection_timeout: Duration,
     // modules: meta service
-    meta_service_inner_pools: DashMap<String, Pool<PlacementServiceManager>>,
+    meta_service_inner_pools: DashMap<String, Pool<MetaServiceManager>>,
     meta_service_journal_service_pools: DashMap<String, Pool<StorageEngineServiceManager>>,
     meta_service_mqtt_service_pools: DashMap<String, Pool<MqttServiceManager>>,
     // modules: meta service service: leader cache
@@ -135,7 +135,7 @@ impl ClientPool {
     define_client_method!(
         meta_service_inner_services_client,
         meta_service_inner_pools,
-        PlacementServiceManager,
+        MetaServiceManager,
         "PlacementServiceManager"
     );
 

@@ -39,6 +39,8 @@ pub struct BenchReport {
     pub clients: usize,
     pub op_label: String,
     pub total_ops: u64,
+    pub connect_phase_secs: Option<f64>,
+    pub connect_qps: Option<f64>,
     pub avg_ops_per_sec: f64,
     pub peak_ops_per_sec: u64,
     pub success_rate: f64,
@@ -58,6 +60,8 @@ pub struct BenchReportInput {
     pub clients: usize,
     pub op_label: String,
     pub total_ops: u64,
+    pub connect_phase_secs: Option<f64>,
+    pub connect_qps: Option<f64>,
     pub extras: BTreeMap<String, String>,
     pub series: Vec<ThroughputSample>,
 }
@@ -94,6 +98,8 @@ impl BenchReport {
             clients: input.clients,
             op_label: input.op_label,
             total_ops: input.total_ops,
+            connect_phase_secs: input.connect_phase_secs,
+            connect_qps: input.connect_qps,
             avg_ops_per_sec,
             peak_ops_per_sec,
             success_rate,
@@ -115,6 +121,12 @@ impl BenchReport {
         table.add_row(row!["clients", self.clients]);
         table.add_row(row!["op_label", self.op_label.as_str()]);
         table.add_row(row!["total_ops", self.total_ops]);
+        if let Some(secs) = self.connect_phase_secs {
+            table.add_row(row!["connect_phase_secs", format!("{secs:.3}")]);
+        }
+        if let Some(qps) = self.connect_qps {
+            table.add_row(row!["connect_qps", format!("{qps:.2}")]);
+        }
         table.add_row(row![
             "avg_ops_per_sec",
             format!("{:.2}", self.avg_ops_per_sec)

@@ -20,6 +20,7 @@ Measure connection establishment capability and stable connection scale.
 
 - `create`: stop once connection creation completes
 - `hold`: keep connected for `--hold-secs`
+- `--concurrency`: number of in-flight connection creation tasks
 
 ### Example
 
@@ -28,8 +29,9 @@ robust-bench mqtt conn \
   --host 127.0.0.1 \
   --port 1883 \
   --count 50000 \
-  --interval-ms 1 \
-  --duration-secs 90
+  --concurrency 1000 \
+  --mode hold \
+  --hold-secs 90
 ```
 
 ## 3. `pub`: Publish Benchmark

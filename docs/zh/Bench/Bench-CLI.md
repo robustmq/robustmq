@@ -19,8 +19,8 @@ robust-bench mqtt <subcommand> [options]
 - `--host`：Broker 地址，默认 `127.0.0.1`
 - `--port`：Broker 端口，默认 `1883`
 - `--count`：客户端数量，默认 `1000`
-- `--interval-ms`：客户端启动间隔（毫秒），默认 `0`
-- `--duration-secs`：压测时长（秒），默认 `60`
+- `--interval-ms`：客户端启动间隔（毫秒），主要用于 `pub/sub`，默认 `0`
+- `--duration-secs`：压测时长（秒），用于 `pub/sub`，默认 `60`
 - `--qos`：QoS（`0|1|2`），默认 `0`
 - `--username` / `--password`：用户名密码（推荐固定为 `admin` / `robustmq`）
 - `--output`：输出格式，`table|json`，默认 `table`
@@ -36,7 +36,7 @@ robust-bench mqtt conn \
   --username admin \
   --password robustmq \
   --count 10000 \
-  --interval-ms 1 \
+  --concurrency 1000 \
   --mode create
 ```
 
@@ -49,7 +49,7 @@ robust-bench mqtt conn \
   --username admin \
   --password robustmq \
   --count 10000 \
-  --interval-ms 1 \
+  --concurrency 1000 \
   --mode hold \
   --hold-secs 60
 ```
@@ -104,4 +104,4 @@ robust-bench mqtt sub \
 
 - 首次压测先用较小 `count` 验证连通性，再逐步拉高。
 - 发布压测建议至少同时启动一个订阅端验证链路完整性。
-- 回归对比时建议固定 `count`、`interval-ms`、`duration-secs` 和 `topic` 模板。
+- 回归对比时建议固定 `count`、`concurrency`（conn）/`interval-ms`（pub/sub）、`duration-secs` 和 `topic` 模板。

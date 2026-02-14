@@ -71,6 +71,8 @@ pub enum ConnMode {
 pub struct ConnBenchArgs {
     #[command(flatten)]
     pub common: CommonMqttBenchArgs,
+    #[arg(long, default_value_t = 1000)]
+    pub concurrency: usize,
     #[arg(long, value_enum, default_value_t = ConnMode::Create)]
     pub mode: ConnMode,
     #[arg(long, default_value_t = 60)]

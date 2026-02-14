@@ -19,7 +19,7 @@ robust-bench mqtt sub ...
 ### 常用参数
 
 - `--count`：连接客户端总数
-- `--interval-ms`：连接创建间隔
+- `--concurrency`：并发建连数（同时进行中的连接创建任务数）
 - `--mode`：`create|hold`
 - `--hold-secs`：仅 `hold` 模式有效，表示持连接时长（秒）
 
@@ -32,7 +32,7 @@ robust-bench mqtt conn \
   --username admin \
   --password robustmq \
   --count 50000 \
-  --interval-ms 1 \
+  --concurrency 1000 \
   --mode hold \
   --hold-secs 90
 ```

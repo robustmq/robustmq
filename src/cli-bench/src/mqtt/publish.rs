@@ -141,6 +141,8 @@ pub async fn run_publish_bench(args: PublishBenchArgs) -> Result<(), BenchMarkEr
             clients: args.common.count,
             op_label: "publish_success".to_string(),
             total_ops,
+            connect_phase_secs: None,
+            connect_qps: None,
             extras,
             series,
         },

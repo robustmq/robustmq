@@ -19,7 +19,7 @@ use common_base::error::common::CommonError;
 use common_metrics::meta::raft::{
     record_rpc_duration, record_rpc_failure, record_rpc_request, record_rpc_success,
 };
-use grpc_clients::meta::common::PlacementServiceManager;
+use grpc_clients::meta::common::MetaServiceManager;
 use grpc_clients::pool::ClientPool;
 use mobc::Connection;
 use openraft::error::{InstallSnapshotError, RPCError, RaftError};
@@ -52,7 +52,7 @@ impl NetworkConnection {
         }
     }
 
-    async fn c(&mut self) -> Result<Connection<PlacementServiceManager>, CommonError> {
+    async fn c(&mut self) -> Result<Connection<MetaServiceManager>, CommonError> {
         self.client_pool
             .meta_service_inner_services_client(&self.addr)
             .await

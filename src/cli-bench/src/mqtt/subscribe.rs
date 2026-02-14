@@ -127,6 +127,8 @@ pub async fn run_subscribe_bench(args: SubscribeBenchArgs) -> Result<(), BenchMa
             clients: args.common.count,
             op_label: "received_messages".to_string(),
             total_ops,
+            connect_phase_secs: None,
+            connect_qps: None,
             extras,
             series,
         },

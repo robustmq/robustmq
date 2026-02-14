@@ -20,8 +20,8 @@ Supported `<subcommand>`:
 - `--host`: broker host, default `127.0.0.1`
 - `--port`: broker port, default `1883`
 - `--count`: number of clients, default `1000`
-- `--interval-ms`: startup interval in milliseconds, default `0`
-- `--duration-secs`: benchmark duration in seconds, default `60`
+- `--interval-ms`: startup interval in milliseconds, mainly for `pub/sub`, default `0`
+- `--duration-secs`: benchmark duration in seconds for `pub/sub`, default `60`
 - `--qos`: QoS (`0|1|2`), default `0`
 - `--username` / `--password`: optional credentials
 - `--output`: `table|json`, default `table`
@@ -35,7 +35,7 @@ robust-bench mqtt conn \
   --host 127.0.0.1 \
   --port 1883 \
   --count 10000 \
-  --interval-ms 1 \
+  --concurrency 1000 \
   --mode create
 ```
 
@@ -46,7 +46,7 @@ robust-bench mqtt conn \
   --host 127.0.0.1 \
   --port 1883 \
   --count 10000 \
-  --interval-ms 1 \
+  --concurrency 1000 \
   --mode hold \
   --hold-secs 60
 ```

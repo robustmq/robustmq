@@ -20,16 +20,26 @@ use crate::mqtt::report::{
 use crate::mqtt::stats::SharedStats;
 use crate::mqtt::{ConnBenchArgs, ConnMode, OutputFormat};
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::task::JoinHandle;
+use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
 
 pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
+    if args.concurrency == 0 {
+        return Err(BenchMarkError::InvalidConfiguration(
+            "concurrency must be greater than 0".to_string(),
+        ));
+    }
+
     let bench_start = Instant::now();
     let mode = args.mode.clone();
     let hold_duration = Duration::from_secs(args.hold_secs);
     let stats = SharedStats::new();
-    let mut handles: Vec<JoinHandle<()>> = Vec::with_capacity(args.common.count);
     let total_connections = args.common.count as u64;
+    let effective_concurrency = args.concurrency.min(args.common.count.max(1));
+    let semaphore = Arc::new(Semaphore::new(effective_concurrency));
+    let mut join_set = JoinSet::new();
 
     let progress_stats = stats.clone();
     let progress_handle = tokio::spawn(async move {
@@ -44,16 +54,18 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
                 done,
             );
             if done {
-                break;
+                return bench_start.elapsed();
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
     });
 
     for i in 0..args.common.count {
-        if args.common.interval_ms > 0 {
-            tokio::time::sleep(Duration::from_millis(args.common.interval_ms)).await;
-        }
+        let permit = semaphore
+            .clone()
+            .acquire_owned()
+            .await
+            .map_err(|e| BenchMarkError::ExecutionError(format!("semaphore closed: {e}")))?;
         let client_id = format!("robust-bench-conn-{i}");
         let host = args.common.host.clone();
         let port = args.common.port;
@@ -63,7 +75,8 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
         let mode = mode.clone();
         let hold_duration_each = hold_duration;
 
-        handles.push(tokio::spawn(async move {
+        join_set.spawn(async move {
+            let _permit = permit;
             let start = Instant::now();
             let (client, mut event_loop) =
                 build_client(&client_id, &host, port, &username, &password);
@@ -88,22 +101,29 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
                         continue;
                     }
                 }
+                let _ = client.disconnect().await;
             }
-            let _ = client.disconnect().await;
-        }));
+        });
     }
 
-    for handle in handles {
-        let _ = handle.await;
-    }
-    let _ = progress_handle.await;
+    while join_set.join_next().await.is_some() {}
+    let connect_phase_elapsed = progress_handle
+        .await
+        .map_err(|e| BenchMarkError::ExecutionError(format!("progress task failed: {e}")))?;
     let snapshot = stats.snapshot();
     let elapsed = bench_start.elapsed();
     let total_ops = snapshot.success;
+    let bench_duration_secs = elapsed.as_secs().max(1);
+    let connect_phase_secs = connect_phase_elapsed.as_secs_f64().max(0.001);
+    let connect_qps = snapshot.success as f64 / connect_phase_secs;
     print_realtime_line("conn", elapsed, total_ops, total_ops, &snapshot);
+    println!(
+        "[conn-core] connect_phase_secs={:.3} connect_qps={:.2}",
+        connect_phase_secs, connect_qps
+    );
     let series = vec![ThroughputSample {
-        second: elapsed.as_secs(),
-        ops_per_sec: total_ops,
+        second: bench_duration_secs,
+        ops_per_sec: total_ops / bench_duration_secs,
         total_ops,
         success: snapshot.success,
         failed: snapshot.failed,
@@ -112,10 +132,7 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
     }];
     let mut extras = BTreeMap::new();
     extras.insert("mode".to_string(), format!("tcp-conn:{:?}", args.mode));
-    extras.insert(
-        "interval_ms".to_string(),
-        args.common.interval_ms.to_string(),
-    );
+    extras.insert("concurrency".to_string(), effective_concurrency.to_string());
     extras.insert("hold_secs".to_string(), args.hold_secs.to_string());
     extras.insert("qos".to_string(), args.common.qos.to_string());
 
@@ -124,10 +141,12 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
             name: "mqtt-conn".to_string(),
             host: args.common.host,
             port: args.common.port,
-            duration_secs: elapsed.as_secs(),
+            duration_secs: bench_duration_secs,
             clients: args.common.count,
             op_label: "conn_ack".to_string(),
             total_ops,
+            connect_phase_secs: Some(connect_phase_secs),
+            connect_qps: Some(connect_qps),
             extras,
             series,
         },
