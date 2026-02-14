@@ -150,21 +150,21 @@ impl ClientPool {
         meta_service_inner_services_client,
         meta_service_inner_pools,
         MetaServiceManager,
-        "PlacementServiceManager"
+        "MetaInnerServiceManager"
     );
 
     define_client_method!(
         meta_service_journal_services_client,
         meta_service_engine_service_pools,
         StorageEngineServiceManager,
-        "StorageEngineServiceManager"
+        "MetaStorageEngineServiceManager"
     );
 
     define_client_method!(
         meta_service_mqtt_services_client,
         meta_service_mqtt_service_pools,
         MqttServiceManager,
-        "MqttServiceManager"
+        "MetaMqttServiceManager"
     );
 
     // ----------modules: mqtt broker -------------

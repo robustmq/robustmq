@@ -1263,6 +1263,7 @@ dependencies = [
  "futures",
  "grpc-clients",
  "hdrhistogram",
+ "metadata-struct",
  "prettytable-rs",
  "protocol",
  "rand 0.8.5",

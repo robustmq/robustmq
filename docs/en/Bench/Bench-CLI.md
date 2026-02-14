@@ -1,12 +1,13 @@
 # RobustMQ Bench CLI Guide
 
 `robust-bench` is the benchmark CLI for RobustMQ.  
-At this stage, it focuses on MQTT benchmark workloads: connection, publish, and subscribe.
+At this stage, it supports MQTT and Meta API benchmark workloads.
 
 ## 1. Command Shape
 
 ```bash
 robust-bench mqtt <subcommand> [options]
+robust-bench meta <subcommand> [options]
 ```
 
 Supported `<subcommand>`:
@@ -14,6 +15,7 @@ Supported `<subcommand>`:
 - `conn`: connection benchmark
 - `pub`: publish benchmark
 - `sub`: subscribe benchmark
+- `meta placement-create-session`: benchmark Meta `CreateSession`
 
 ## 2. Common Options
 
@@ -75,6 +77,18 @@ robust-bench mqtt sub \
   --topic bench/# \
   --qos 1 \
   --duration-secs 120
+```
+
+### 3.4 Meta API benchmark
+
+```bash
+robust-bench meta placement-create-session \
+  --host 127.0.0.1 \
+  --port 1228 \
+  --count 100000 \
+  --concurrency 1000 \
+  --timeout-ms 3000 \
+  --output table
 ```
 
 ## 4. Output Details

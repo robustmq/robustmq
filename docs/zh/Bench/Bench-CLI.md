@@ -1,11 +1,12 @@
 # RobustMQ Bench CLI 使用文档
 
-`robust-bench` 是 RobustMQ 的压测命令行工具，当前支持 MQTT 协议的连接、发布、订阅压测。
+`robust-bench` 是 RobustMQ 的压测命令行工具，当前支持 MQTT 与 Meta 接口压测。
 
 ## 1. 命令结构
 
 ```bash
 robust-bench mqtt <subcommand> [options]
+robust-bench meta <subcommand> [options]
 ```
 
 其中 `<subcommand>` 支持：
@@ -13,6 +14,7 @@ robust-bench mqtt <subcommand> [options]
 - `conn`：连接压测
 - `pub`：发布压测
 - `sub`：订阅压测
+- `meta placement-create-session`：Meta `CreateSession` 接口压测
 
 ## 2. 通用参数
 
@@ -82,6 +84,18 @@ robust-bench mqtt sub \
   --topic bench/# \
   --qos 1 \
   --duration-secs 120
+```
+
+### 3.4 Meta 接口压测
+
+```bash
+robust-bench meta placement-create-session \
+  --host 127.0.0.1 \
+  --port 1228 \
+  --count 100000 \
+  --concurrency 1000 \
+  --timeout-ms 3000 \
+  --output table
 ```
 
 ## 4. 输出说明

@@ -31,6 +31,7 @@ rand.workspace = true
 clap.workspace = true
 clap-cargo.workspace = true
 protocol.workspace = true
+metadata-struct.workspace = true
 tokio.workspace = true
 dashmap.workspace = true
 prettytable-rs.workspace = true
