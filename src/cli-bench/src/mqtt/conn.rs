@@ -54,7 +54,7 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
                 done,
             );
             if done {
-                return bench_start.elapsed();
+                return (bench_start.elapsed(), snapshot);
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
@@ -76,7 +76,7 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
         let hold_duration_each = hold_duration;
 
         join_set.spawn(async move {
-            let _permit = permit;
+            let permit = permit;
             let start = Instant::now();
             let (client, mut event_loop) =
                 build_client(&client_id, &host, port, &username, &password);
@@ -91,6 +91,7 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
                     return;
                 }
             }
+            drop(permit);
             if matches!(mode, ConnMode::Hold) {
                 let hold_deadline = tokio::time::Instant::now() + hold_duration_each;
                 while tokio::time::Instant::now() < hold_deadline {
@@ -106,24 +107,27 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
         });
     }
 
-    while join_set.join_next().await.is_some() {}
-    let connect_phase_elapsed = progress_handle
+    let (connect_phase_elapsed, snapshot) = progress_handle
         .await
         .map_err(|e| BenchMarkError::ExecutionError(format!("progress task failed: {e}")))?;
-    let snapshot = stats.snapshot();
-    let elapsed = bench_start.elapsed();
     let total_ops = snapshot.success;
-    let bench_duration_secs = elapsed.as_secs().max(1);
     let connect_phase_secs = connect_phase_elapsed.as_secs_f64().max(0.001);
     let connect_qps = snapshot.success as f64 / connect_phase_secs;
-    print_realtime_line("conn", elapsed, total_ops, total_ops, &snapshot);
+    let report_duration_secs = connect_phase_elapsed.as_secs().max(1);
+    print_realtime_line(
+        "conn",
+        connect_phase_elapsed,
+        total_ops,
+        total_ops,
+        &snapshot,
+    );
     println!(
         "[conn-core] connect_phase_secs={:.3} connect_qps={:.2}",
         connect_phase_secs, connect_qps
     );
     let series = vec![ThroughputSample {
-        second: bench_duration_secs,
-        ops_per_sec: total_ops / bench_duration_secs,
+        second: report_duration_secs,
+        ops_per_sec: total_ops / report_duration_secs,
         total_ops,
         success: snapshot.success,
         failed: snapshot.failed,
@@ -141,7 +145,7 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
             name: "mqtt-conn".to_string(),
             host: args.common.host,
             port: args.common.port,
-            duration_secs: bench_duration_secs,
+            duration_secs: report_duration_secs,
             clients: args.common.count,
             op_label: "conn_ack".to_string(),
             total_ops,
@@ -156,5 +160,8 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
         OutputFormat::Table => report.print_table(),
         OutputFormat::Json => report.print_json(),
     }
+
+    // Keep hold mode semantics: keep connections alive until all tasks finish.
+    while join_set.join_next().await.is_some() {}
     Ok(())
 }

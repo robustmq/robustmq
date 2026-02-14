@@ -21,11 +21,22 @@ use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
 use mobc::{Connection, Pool};
+use std::error::Error;
 use std::time::Duration;
 use tracing::{debug, info, warn};
 
 // Increased default timeout to handle network latency better
 const DEFAULT_CONNECTION_TIMEOUT_SECS: u64 = 10;
+
+fn format_error_chain(err: &(dyn Error + 'static)) -> String {
+    let mut chain = vec![err.to_string()];
+    let mut source = err.source();
+    while let Some(cause) = source {
+        chain.push(cause.to_string());
+        source = cause.source();
+    }
+    chain.join(" -> caused by: ")
+}
 
 macro_rules! define_client_method {
     (
@@ -59,11 +70,14 @@ macro_rules! define_client_method {
                     }
                     Err(e) => {
                         let pool_state_after = pool.state().await;
+                        let error_chain = format_error_chain(&e);
                         warn!(
-                            "{} connection pool at {} has no connection available. Error: {}, State before: {:?}, State after: {:?}",
+                            "{} connection pool at {} has no connection available. Error(display): {}, Error(debug): {:?}, Error chain: {}, State before: {:?}, State after: {:?}",
                             $service_name,
                             addr,
                             e,
+                            e,
+                            error_chain,
                             pool_state_before,
                             pool_state_after
                         );
