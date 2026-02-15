@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-use crate::controller::call_broker::call::{broker_call_thread_manager, BrokerCallManager};
+use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::connector::scheduler::start_connector_scheduler;
 use crate::core::cache::{load_cache, CacheManager};
 use crate::core::controller::ClusterController;
@@ -118,13 +118,6 @@ impl MetaServiceServer {
     }
 
     fn start_controller(&self) {
-        let broker_call_manager = self.broker_call_manager.clone();
-        let client_pool = self.client_pool.clone();
-        let stop_send = self.inner_stop.clone();
-        tokio::spawn(async move {
-            broker_call_thread_manager(&broker_call_manager, &client_pool, stop_send).await;
-        });
-
         // start mqtt connector scheduler thread
         let call_manager = self.broker_call_manager.clone();
         let client_pool = self.client_pool.clone();

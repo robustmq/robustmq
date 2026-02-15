@@ -52,8 +52,8 @@ pub async fn un_register_node_by_req(
 ) -> Result<UnRegisterNodeReply, MetaServiceError> {
     if let Some(node) = cluster_cache.get_broker_node(req.node_id) {
         sync_delete_node(raft_manager, &req).await?;
-        update_cache_by_delete_node(mqtt_call_manager, client_pool, node.clone()).await?;
         mqtt_call_manager.remove_node(req.node_id).await;
+        update_cache_by_delete_node(mqtt_call_manager, client_pool, node.clone()).await?;
     }
     Ok(UnRegisterNodeReply::default())
 }
@@ -75,7 +75,7 @@ async fn sync_save_node(
     Err(MetaServiceError::ExecutionResultIsEmpty)
 }
 
-pub async fn sync_delete_node(
+async fn sync_delete_node(
     raft_manager: &Arc<MultiRaftManager>,
     req: &UnRegisterNodeRequest,
 ) -> Result<(), MetaServiceError> {

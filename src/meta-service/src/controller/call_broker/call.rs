@@ -14,8 +14,6 @@
 
 use crate::core::error::MetaServiceError;
 use broker_core::cache::BrokerCacheManager;
-use common_base::error::ResultCommonError;
-use common_base::tools::loop_select_ticket;
 use common_base::utils::serialize;
 use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
@@ -27,12 +25,12 @@ use protocol::broker::broker_common::UpdateCacheRequest;
 use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::broadcast::{self, Sender};
+use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tracing::{error, info, warn};
 
-const BROKER_CALL_CHANNEL_SIZE: usize = 1000;
+const BROKER_CALL_CHANNEL_SIZE: usize = 5000;
 const BATCH_SIZE: usize = 100;
 const BATCH_CHECK_INTERVAL_MS: u64 = 10;
 
@@ -40,93 +38,74 @@ pub async fn start_call_thread(
     node: BrokerNode,
     call_manager: Arc<BrokerCallManager>,
     client_pool: Arc<ClientPool>,
-    stop_send: broadcast::Sender<bool>,
+    mut data_recv: mpsc::Receiver<BrokerCallMessage>,
+    mut stop_recv: mpsc::Receiver<bool>,
     ready_tx: oneshot::Sender<()>,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
-        if let Some(node_send) = call_manager.get_node_sender(node.node_id) {
-            let mut stop_recv = stop_send.subscribe();
-            let mut data_recv = node_send.sender.subscribe();
+        if ready_tx.send(()).is_err() {
+            warn!("Failed to notify thread ready for node {}", node.node_id);
+        }
 
-            if ready_tx.send(()).is_err() {
-                warn!("Failed to notify thread ready for node {}", node.node_id);
-            }
+        info!(
+            "Started inner communication thread between Meta Service and Broker node {}",
+            node.node_id
+        );
 
-            info!(
-                "Started inner communication thread between Meta Service and Broker node {}",
-                node.node_id
-            );
-
-            loop {
-                match stop_recv.try_recv() {
-                    Ok(flag) => {
-                        if flag {
-                            info!(
-                                "Stopped inner communication thread for Broker node {}",
-                                node.node_id
-                            );
-                            break;
-                        }
-                    }
-                    Err(tokio::sync::broadcast::error::TryRecvError::Closed) => {
-                        error!("Stop channel closed for node {}", node.node_id);
+        loop {
+            match stop_recv.try_recv() {
+                Ok(flag) => {
+                    if flag {
+                        info!(
+                            "Stopped inner communication thread for Broker node {}",
+                            node.node_id
+                        );
                         break;
                     }
-                    Err(_) => {}
                 }
+                Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
+                    error!("Stop channel closed for node {}", node.node_id);
+                    break;
+                }
+                Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {}
+            }
 
-                let mut batch = Vec::new();
-                loop {
-                    match data_recv.try_recv() {
-                        Ok(msg) => {
-                            batch.push(msg);
-                            if batch.len() >= BATCH_SIZE {
-                                break;
-                            }
-                        }
-                        Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
-                        Err(tokio::sync::broadcast::error::TryRecvError::Lagged(skipped)) => {
-                            warn!(
-                                "Communication thread for node {} lagged, skipped {} messages",
-                                node.node_id, skipped
-                            );
-                        }
-                        Err(tokio::sync::broadcast::error::TryRecvError::Closed) => {
-                            info!(
-                                "Data channel closed for node {}, stopping thread",
-                                node.node_id
-                            );
+            let mut batch = Vec::new();
+            loop {
+                match data_recv.try_recv() {
+                    Ok(msg) => {
+                        batch.push(msg);
+                        if batch.len() >= BATCH_SIZE {
                             break;
                         }
                     }
-                }
-
-                if batch.is_empty() {
-                    tokio::time::sleep(Duration::from_millis(BATCH_CHECK_INTERVAL_MS)).await;
-                    continue;
-                }
-
-                let filtered: Vec<BrokerCallMessage> = batch
-                    .into_iter()
-                    .filter(|msg| !is_ignore_push(&node, msg))
-                    .collect();
-
-                if !filtered.is_empty() {
-                    call_mqtt_update_cache(
-                        &client_pool,
-                        &call_manager.broker_cache,
-                        &node.grpc_addr,
-                        &filtered,
-                    )
-                    .await;
+                    Err(tokio::sync::mpsc::error::TryRecvError::Empty) => break,
+                    Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
+                        info!("");
+                        return;
+                    }
                 }
             }
-        } else {
-            let _ = ready_tx.send(());
-            warn!(
-                "Failed to start communication thread for Broker node {}: sender not found",
-                node.node_id
-            );
+
+            if batch.is_empty() {
+                tokio::time::sleep(Duration::from_millis(BATCH_CHECK_INTERVAL_MS)).await;
+                continue;
+            }
+
+            let filtered: Vec<BrokerCallMessage> = batch
+                .into_iter()
+                .filter(|msg| !is_ignore_push(&node, msg))
+                .collect();
+
+            if !filtered.is_empty() {
+                call_mqtt_update_cache(
+                    &client_pool,
+                    &call_manager.broker_cache,
+                    &node.grpc_addr,
+                    &filtered,
+                )
+                .await;
+            }
         }
     })
 }
@@ -199,37 +178,37 @@ pub async fn add_call_message(
     for raw in call_manager.broker_cache.node_list().iter() {
         match call_manager.node_sender.entry(raw.node_id) {
             Entry::Occupied(entry) => {
-                entry.get().sender.send(message.clone()).map_err(|e| {
-                    MetaServiceError::CommonError(format!(
-                        "Failed to send message to Broker node {}: {}",
-                        raw.node_id, e
-                    ))
-                })?;
+                entry
+                    .get()
+                    .sender
+                    .send(message.clone())
+                    .await
+                    .map_err(|e| {
+                        MetaServiceError::CommonError(format!(
+                            "Failed to send message to Broker node {}: {}",
+                            raw.node_id, e
+                        ))
+                    })?;
             }
             Entry::Vacant(entry) => {
-                let (sx, _) = broadcast::channel::<BrokerCallMessage>(BROKER_CALL_CHANNEL_SIZE);
-                let node_sender = BrokerCallNodeSender {
-                    sender: sx.clone(),
-                    node: raw.clone(),
-                };
-                entry.insert(node_sender);
-
-                let (stop_send, _) = broadcast::channel(2);
-                call_manager.add_node_stop_sender(raw.node_id, stop_send.clone());
-
+                // create node push thread task
+                let (data_sx, data_rx) =
+                    mpsc::channel::<BrokerCallMessage>(BROKER_CALL_CHANNEL_SIZE);
+                let (stop_send, stop_recv) = mpsc::channel::<bool>(5);
                 let (ready_tx, ready_rx) = oneshot::channel();
+
                 let handle = start_call_thread(
                     raw.clone(),
                     call_manager.clone(),
                     client_pool.clone(),
-                    stop_send,
+                    data_rx,
+                    stop_recv,
                     ready_tx,
                 )
                 .await;
 
-                call_manager.node_thread_handle.insert(raw.node_id, handle);
-
-                tokio::time::timeout(Duration::from_secs(1), ready_rx)
+                // wait ready
+                tokio::time::timeout(Duration::from_secs(5), ready_rx)
                     .await
                     .map_err(|_| {
                         MetaServiceError::CommonError(format!(
@@ -244,7 +223,17 @@ pub async fn add_call_message(
                         ))
                     })?;
 
-                sx.send(message.clone()).map_err(|e| {
+                // add node push thread task
+                call_manager.node_thread_handle.insert(raw.node_id, handle);
+                call_manager.add_node_stop_sender(raw.node_id, stop_send.clone());
+                let node_sender = BrokerCallNodeSender {
+                    sender: data_sx.clone(),
+                    node: raw.clone(),
+                };
+                entry.insert(node_sender);
+
+                // send message
+                data_sx.send(message.clone()).await.map_err(|e| {
                     MetaServiceError::CommonError(format!(
                         "Failed to send message to Broker node {}: {}",
                         raw.node_id, e
@@ -304,7 +293,7 @@ impl BrokerCallManager {
         self.node_sender.remove(&node_id);
 
         if let Some((_, send)) = self.node_stop_sender.remove(&node_id) {
-            if let Err(e) = send.send(true) {
+            if let Err(e) = send.send(true).await {
                 warn!(
                     "Failed to send stop signal to Broker node {}: {}",
                     node_id, e
@@ -325,71 +314,6 @@ impl BrokerCallManager {
     pub fn add_node_stop_sender(&self, node_id: u64, sender: Sender<bool>) {
         self.node_stop_sender.insert(node_id, sender);
     }
-}
-
-pub async fn broker_call_thread_manager(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
-    stop: broadcast::Sender<bool>,
-) {
-    let ac_fn = async || -> ResultCommonError {
-        let nodes_need_thread: Vec<(u64, BrokerNode)> = call_manager
-            .node_sender
-            .iter()
-            .filter_map(|entry| {
-                let node_id = *entry.key();
-                if !call_manager.node_stop_sender.contains_key(&node_id) {
-                    Some((node_id, entry.value().node.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        for (node_id, node) in nodes_need_thread {
-            if let Entry::Vacant(entry) = call_manager.node_stop_sender.entry(node_id) {
-                let (stop_send, _) = broadcast::channel(2);
-                entry.insert(stop_send.clone());
-
-                warn!(
-                    "Detected orphaned sender for node {}, starting recovery thread",
-                    node_id
-                );
-
-                let (ready_tx, _) = oneshot::channel();
-                let handle = start_call_thread(
-                    node,
-                    call_manager.clone(),
-                    client_pool.clone(),
-                    stop_send,
-                    ready_tx,
-                )
-                .await;
-
-                call_manager.node_thread_handle.insert(node_id, handle);
-            }
-        }
-
-        let stop_node_ids: Vec<(u64, broadcast::Sender<bool>)> = call_manager
-            .node_stop_sender
-            .iter()
-            .filter(|entry| !call_manager.node_sender.contains_key(entry.key()))
-            .map(|entry| (*entry.key(), entry.value().clone()))
-            .collect();
-
-        for (node_id, sx) in stop_node_ids {
-            if let Err(e) = sx.send(true) {
-                error!(
-                    "Failed to send stop signal to orphaned thread for node {}: {}",
-                    node_id, e
-                );
-            }
-            call_manager.node_stop_sender.remove(&node_id);
-            call_manager.node_thread_handle.remove(&node_id);
-        }
-        Ok(())
-    };
-    loop_select_ticket(ac_fn, 1000, &stop).await;
 }
 
 #[cfg(test)]
@@ -473,7 +397,7 @@ mod tests {
         let manager = BrokerCallManager::new(broker_cache);
 
         let node = create_test_node(1);
-        let (sx, _) = broadcast::channel::<BrokerCallMessage>(100);
+        let (sx, _) = mpsc::channel::<BrokerCallMessage>(100);
         let node_sender = BrokerCallNodeSender {
             sender: sx,
             node: node.clone(),
@@ -487,7 +411,7 @@ mod tests {
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().node.node_id, 1);
 
-        let (stop_sx, _) = broadcast::channel(2);
+        let (stop_sx, _) = mpsc::channel(2);
         manager.add_node_stop_sender(1, stop_sx);
         assert!(manager.node_stop_sender.contains_key(&1));
     }
@@ -501,18 +425,18 @@ mod tests {
         let client_pool = Arc::new(ClientPool::new(1));
 
         let node = create_test_node(1);
-        let (sx, _) = broadcast::channel::<BrokerCallMessage>(100);
+        let (sx, rx) = mpsc::channel::<BrokerCallMessage>(100);
         let node_sender = BrokerCallNodeSender {
             sender: sx.clone(),
             node: node.clone(),
         };
         manager.add_node_sender(1, node_sender);
 
-        let (stop_send, _) = broadcast::channel(2);
+        let (_, stop_recv) = mpsc::channel(2);
         let (ready_tx, ready_rx) = oneshot::channel();
 
         let _handle =
-            start_call_thread(node, manager.clone(), client_pool, stop_send, ready_tx).await;
+            start_call_thread(node, manager.clone(), client_pool, rx, stop_recv, ready_tx).await;
 
         let result = tokio::time::timeout(Duration::from_secs(1), ready_rx).await;
         assert!(result.is_ok(), "Thread should send ready signal");
@@ -528,28 +452,22 @@ mod tests {
         let client_pool = Arc::new(ClientPool::new(1));
 
         let node = create_test_node(1);
-        let (sx, _) = broadcast::channel::<BrokerCallMessage>(100);
+        let (sx, rx) = mpsc::channel::<BrokerCallMessage>(100);
         let node_sender = BrokerCallNodeSender {
             sender: sx,
             node: node.clone(),
         };
         manager.add_node_sender(1, node_sender);
 
-        let (stop_send, _) = broadcast::channel(2);
+        let (stop_send, stop_recv) = mpsc::channel(2);
         let (ready_tx, ready_rx) = oneshot::channel();
 
-        let handle = start_call_thread(
-            node,
-            manager.clone(),
-            client_pool,
-            stop_send.clone(),
-            ready_tx,
-        )
-        .await;
+        let handle =
+            start_call_thread(node, manager.clone(), client_pool, rx, stop_recv, ready_tx).await;
 
         ready_rx.await.unwrap();
 
-        stop_send.send(true).unwrap();
+        stop_send.send(true).await.unwrap();
 
         let result = tokio::time::timeout(Duration::from_secs(2), handle).await;
         assert!(result.is_ok(), "Thread should stop within timeout");
