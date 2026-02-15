@@ -43,7 +43,7 @@ use protocol::mqtt::common::{
 };
 use std::sync::Arc;
 use tokio::select;
-use tokio::sync::{broadcast, Semaphore};
+use tokio::sync::{broadcast, mpsc, Semaphore};
 use tracing::{debug, error, warn};
 
 #[derive(Clone)]
@@ -62,7 +62,7 @@ pub struct RetainMessageManager {
     connection_manager: Arc<ConnectionManager>,
     topic_retain_data: DashMap<String, Option<(MqttMessage, u64)>>,
     last_update_time: DashMap<String, u64>,
-    send_retain_message_queue: broadcast::Sender<SendRetainData>,
+    send_retain_message_queue: mpsc::Sender<SendRetainData>,
 }
 
 impl RetainMessageManager {
@@ -70,17 +70,19 @@ impl RetainMessageManager {
         cache_manager: Arc<MQTTCacheManager>,
         client_pool: Arc<ClientPool>,
         connection_manager: Arc<ConnectionManager>,
-    ) -> Self {
-        let (send_retain_message_queue, _) = broadcast::channel::<SendRetainData>(3000);
-
-        RetainMessageManager {
+        stop_sx: broadcast::Sender<bool>,
+    ) -> Arc<RetainMessageManager> {
+        let (send_retain_message_queue, rx) = mpsc::channel::<SendRetainData>(3000);
+        let manager = Arc::new(RetainMessageManager {
             cache_manager,
             client_pool,
             connection_manager,
             topic_retain_data: DashMap::new(),
             last_update_time: DashMap::new(),
             send_retain_message_queue,
-        }
+        });
+        start_send_retain_thread(manager.clone(), rx, stop_sx);
+        manager
     }
 
     pub async fn save_retain_message(
@@ -120,6 +122,7 @@ impl RetainMessageManager {
             topic_storage
                 .set_retain_message(topic_name, &retain_message, message_expire)
                 .await?;
+
             // Update local cache with new message
             self.topic_retain_data.insert(
                 topic_name.to_string(),
@@ -176,7 +179,7 @@ impl RetainMessageManager {
                     sub_ids: sub_ids.clone(),
                     topic_name,
                 };
-                if let Err(e) = self.send_retain_message_queue.send(data) {
+                if let Err(e) = self.send_retain_message_queue.send(data).await {
                     return Err(MqttBrokerError::CommonError(e.to_string()));
                 }
             }
@@ -230,7 +233,6 @@ impl RetainMessageManager {
         data: &SendRetainData,
         stop_sx: &broadcast::Sender<bool>,
     ) -> ResultMqttBrokerError {
-        println!("11111");
         // Check if message exists and is not expired
         let (
             msg_client_id,
@@ -336,13 +338,13 @@ impl RetainMessageManager {
     }
 }
 
-pub fn start_send_retain_thread(
+fn start_send_retain_thread(
     retain_message_manager: Arc<RetainMessageManager>,
+    mut retain_message_rx: mpsc::Receiver<SendRetainData>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     tokio::spawn(async move {
         let mut stop_recv = stop_sx.subscribe();
-        let mut retain_message_rx = retain_message_manager.send_retain_message_queue.subscribe();
 
         // Semaphore to limit concurrent retain message sending tasks
         let semaphore = Arc::new(Semaphore::new(MAX_RETAIN_MESSAGE_SEND_CONCURRENCY));
@@ -361,57 +363,40 @@ pub fn start_send_retain_thread(
                     }
                 }
                 res = retain_message_rx.recv()  => {
-                    match res{
-                        Ok(data) => {
-                            let raw_retain_message_manager = retain_message_manager.clone();
-                            let raw_stop_sx = stop_sx.clone();
-                            let semaphore_clone = semaphore.clone();
-
-                            tokio::spawn(async move{
-                                // Acquire permit before processing (max concurrent: 10)
-                                let _permit = match semaphore_clone.acquire().await {
-                                    Ok(permit) => permit,
-                                    Err(e) => {
-                                        error!(
-                                            "Failed to acquire semaphore permit for sending retain message, \
-                                             semaphore may be closed. client_id={}, topic={}, qos={:?}, error={}",
-                                            data.client_id, data.topic_name, data.qos, e
-                                        );
-                                        return;
-                                    }
-                                };
-
-                                debug!(
-                                    "Processing retain message: client_id={}, topic={}, qos={:?}",
-                                    data.client_id, data.topic_name, data.qos
-                                );
-
-                                if let Err(e) = raw_retain_message_manager.send_retain_message(&data, &raw_stop_sx).await{
-                                    if !client_unavailable_error(&e) {
-                                        warn!(
-                                            "Sending retain message failed: client_id={}, topic={}, qos={:?}, error={}",
-                                            data.client_id, data.topic_name, data.qos, e
-                                        );
-                                    }
+                    if let Some(data) = res{
+                        let raw_retain_message_manager = retain_message_manager.clone();
+                        let raw_stop_sx = stop_sx.clone();
+                        let semaphore_clone = semaphore.clone();
+                        tokio::spawn(async move{
+                            // Acquire permit before processing (max concurrent: 10)
+                            let _permit = match semaphore_clone.acquire().await {
+                                Ok(permit) => permit,
+                                Err(e) => {
+                                    error!(
+                                        "Failed to acquire semaphore permit for sending retain message, \
+                                        semaphore may be closed. client_id={}, topic={}, qos={:?}, error={}",
+                                        data.client_id, data.topic_name, data.qos, e
+                                    );
+                                    return;
                                 }
-                                // Permit is automatically released when _permit goes out of scope
-                            });
-                        }
-                        Err(broadcast::error::RecvError::Closed) => {
-                            error!(
-                                "Retain message broadcast channel closed, all senders dropped. \
-                                 This should not happen during normal operation. Exiting thread."
+                            };
+
+                            debug!(
+                                "Processing retain message: client_id={}, topic={}, qos={:?}",
+                                data.client_id, data.topic_name, data.qos
                             );
-                            break;
-                        }
-                        Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                            warn!(
-                                "Retain message receiver lagged behind, {} messages were skipped. \
-                                 Consider increasing channel capacity or optimizing processing speed.",
-                                skipped
-                            );
-                        }
+
+                            if let Err(e) = raw_retain_message_manager.send_retain_message(&data, &raw_stop_sx).await{
+                                if !client_unavailable_error(&e) {
+                                    warn!(
+                                        "Sending retain message failed: client_id={}, topic={}, qos={:?}, error={}",
+                                        data.client_id, data.topic_name, data.qos, e
+                                    );
+                                }
+                            }
+                        });
                     }
+
                 }
             }
         }

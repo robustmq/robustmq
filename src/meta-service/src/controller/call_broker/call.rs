@@ -15,6 +15,7 @@
 use crate::core::error::MetaServiceError;
 use broker_core::cache::BrokerCacheManager;
 use common_base::utils::serialize;
+use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
 use grpc_clients::broker::common::call::broker_common_update_cache;
 use grpc_clients::pool::ClientPool;
@@ -188,7 +189,27 @@ where
         resource_type,
         data,
     };
-    add_call_message(call_manager, client_pool, message).await
+    for attempt in 1..=UPDATE_CACHE_MAX_RETRIES {
+        match add_call_message(call_manager, client_pool, message.clone()).await {
+            Ok(()) => return Ok(()),
+            Err(MetaServiceError::RetryableNodeThreadRace(node_ids)) => {
+                if attempt >= UPDATE_CACHE_MAX_RETRIES {
+                    return Err(MetaServiceError::RetryableNodeThreadRace(node_ids));
+                }
+                warn!(
+                    "Retryable node thread race on attempt {}/{} for node(s) [{}], retrying",
+                    attempt, UPDATE_CACHE_MAX_RETRIES, node_ids
+                );
+                let backoff = UPDATE_CACHE_RETRY_BASE_MS.saturating_mul(1_u64 << (attempt - 1));
+                tokio::time::sleep(Duration::from_millis(backoff)).await;
+            }
+            Err(e) => return Err(e),
+        }
+    }
+
+    Err(MetaServiceError::CommonError(
+        "send_cache_update retry loop exited unexpectedly".to_string(),
+    ))
 }
 
 pub async fn add_call_message(
@@ -197,11 +218,13 @@ pub async fn add_call_message(
     message: BrokerCallMessage,
 ) -> Result<(), MetaServiceError> {
     let mut errors = Vec::new();
+    let mut retryable_race_nodes = Vec::new();
     for raw in call_manager.broker_cache.node_list().iter() {
         if let Some(existing) = call_manager.node_sender.get(&raw.node_id) {
             let sender = existing.sender.clone();
             drop(existing);
             if let Err(e) = sender.send(message.clone()).await {
+                warn!("Node {} sender send failed: {}", raw.node_id, e);
                 errors.push(format!(
                     "Failed to send message to Broker node {}: {}",
                     raw.node_id, e
@@ -252,25 +275,32 @@ pub async fn add_call_message(
         }
 
         // insert sender in short critical section
-        if call_manager.node_sender.contains_key(&raw.node_id) {
-            if let Some((_, old_stop_send)) = call_manager.node_stop_sender.remove(&raw.node_id) {
-                let _ = old_stop_send.send(true).await;
+        let inserted = match call_manager.node_sender.entry(raw.node_id) {
+            Entry::Vacant(vacant) => {
+                let node_sender = BrokerCallNodeSender {
+                    sender: data_sx.clone(),
+                    node: raw.clone(),
+                };
+                vacant.insert(node_sender);
+                true
             }
-            if let Some((_, old_handle)) = call_manager.node_thread_handle.remove(&raw.node_id) {
-                let _ = tokio::time::timeout(Duration::from_secs(1), old_handle).await;
-            }
+            Entry::Occupied(_) => false,
+        };
+
+        if !inserted {
+            // Another task won the race and has installed a sender/thread.
+            let _ = stop_send.send(true).await;
+            let _ = tokio::time::timeout(Duration::from_secs(1), handle).await;
+            retryable_race_nodes.push(raw.node_id);
+            continue;
         }
 
         call_manager.node_thread_handle.insert(raw.node_id, handle);
         call_manager.add_node_stop_sender(raw.node_id, stop_send.clone());
-        let node_sender = BrokerCallNodeSender {
-            sender: data_sx.clone(),
-            node: raw.clone(),
-        };
-        call_manager.node_sender.insert(raw.node_id, node_sender);
 
         // send message
         if let Err(e) = data_sx.send(message.clone()).await {
+            warn!("Node {} sender failed after insertion: {}", raw.node_id, e);
             errors.push(format!(
                 "Failed to send message to Broker node {}: {}",
                 raw.node_id, e
@@ -279,6 +309,14 @@ pub async fn add_call_message(
     }
     if !errors.is_empty() {
         return Err(MetaServiceError::CommonError(errors.join("; ")));
+    }
+    if !retryable_race_nodes.is_empty() {
+        let nodes = retryable_race_nodes
+            .iter()
+            .map(|id| id.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        return Err(MetaServiceError::RetryableNodeThreadRace(nodes));
     }
     Ok(())
 }
