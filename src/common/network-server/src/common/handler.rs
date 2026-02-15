@@ -28,7 +28,7 @@ use std::sync::Arc;
 use tokio::select;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::{broadcast, Semaphore};
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 pub fn handler_process(
     handler_process_num: usize,
@@ -85,6 +85,14 @@ pub fn handler_process(
                                     } else {
                                         debug!("{}","No backpacking is required for this request");
                                     }
+                                } else {
+                                    warn!(
+                                        "Skip request handling because connection is missing. handler_index={}, connection_id={}, addr={}, network_type={:?}",
+                                        index,
+                                        packet.connection_id,
+                                        packet.addr,
+                                        permit_raw_network_type
+                                    );
                                 }
                                 drop(permit);
                             });

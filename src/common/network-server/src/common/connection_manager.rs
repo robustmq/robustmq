@@ -28,7 +28,7 @@ use protocol::robust::{RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol};
 use std::time::Duration;
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
-use tracing::debug;
+use tracing::{debug, info};
 
 pub struct ConnectionManager {
     pub connections: DashMap<u64, NetworkConnection>,
@@ -82,9 +82,10 @@ impl ConnectionManager {
     }
 
     pub async fn close_connect(&self, connection_id: u64) {
-        if let Some((_, connection)) = self.connections.remove(&connection_id) {
-            connection.stop_connection().await;
-        }
+        // sleep(Duration::from_secs(3)).await;
+        // if let Some((_, connection)) = self.connections.remove(&connection_id) {
+        //     // connection.stop_connection().await;
+        // }
 
         if let Some((id, mut stream)) = self.tcp_write_list.remove(&connection_id) {
             if stream.close().await.is_ok() {
@@ -188,7 +189,7 @@ impl ConnectionManager {
         packet_wrapper: RobustMQPacketWrapper,
     ) -> ResultCommonError {
         if !is_ignore_print(&packet_wrapper.packet) {
-            debug!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
+            info!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
         if packet_wrapper.protocol.is_mqtt() {
