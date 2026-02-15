@@ -90,12 +90,12 @@ impl MetaServiceServer {
         let ctrl = ClusterController::new(
             self.cache_manager.clone(),
             self.raft_manager.clone(),
-            self.inner_stop.clone(),
             self.client_pool.clone(),
             self.broker_call_manager.clone(),
         );
+        let raw_stop_send = self.inner_stop.clone();
         tokio::spawn(Box::pin(async move {
-            ctrl.start_node_heartbeat_check().await;
+            ctrl.start_node_heartbeat_check(&raw_stop_send).await;
         }));
     }
 
@@ -130,7 +130,7 @@ impl MetaServiceServer {
                 &raft_manager,
                 &call_manager,
                 &client_pool,
-                stop_send,
+                &stop_send,
             )
             .await;
         }));

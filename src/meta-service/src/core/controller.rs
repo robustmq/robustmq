@@ -26,7 +26,6 @@ use tokio::sync::broadcast;
 pub struct ClusterController {
     cluster_cache: Arc<CacheManager>,
     raft_manager: Arc<MultiRaftManager>,
-    stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
     mqtt_call_manager: Arc<BrokerCallManager>,
 }
@@ -35,20 +34,18 @@ impl ClusterController {
     pub fn new(
         cluster_cache: Arc<CacheManager>,
         raft_manager: Arc<MultiRaftManager>,
-        stop_send: broadcast::Sender<bool>,
         client_pool: Arc<ClientPool>,
         mqtt_call_manager: Arc<BrokerCallManager>,
     ) -> ClusterController {
         ClusterController {
             cluster_cache,
             raft_manager,
-            stop_send,
             client_pool,
             mqtt_call_manager,
         }
     }
 
-    pub async fn start_node_heartbeat_check(&self) {
+    pub async fn start_node_heartbeat_check(&self, stop_send: &broadcast::Sender<bool>) {
         let config = broker_config();
         let heartbeat = BrokerHeartbeat::new(
             config.meta_runtime.heartbeat_timeout_ms,
@@ -66,7 +63,7 @@ impl ClusterController {
         loop_select_ticket(
             ac_fn,
             config.meta_runtime.heartbeat_check_time_ms,
-            &self.stop_send,
+            stop_send,
         )
         .await;
     }

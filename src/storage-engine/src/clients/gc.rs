@@ -16,7 +16,7 @@ use crate::clients::manager::ClientConnectionManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use std::sync::Arc;
-use tokio::sync::broadcast::Sender;
+use tokio::sync::broadcast;
 use tracing::debug;
 
 pub const CONNECTION_IDLE_TIMEOUT_SECS: u64 = 600;
@@ -24,7 +24,7 @@ const GC_INTERVAL_MILLIS: u64 = 10000;
 
 pub fn start_conn_gc_thread(
     connection_manager: Arc<ClientConnectionManager>,
-    stop_send: Sender<bool>,
+    stop_send: broadcast::Sender<bool>,
 ) {
     tokio::spawn(async move {
         let ac_fn = async || -> ResultCommonError {

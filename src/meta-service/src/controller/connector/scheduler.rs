@@ -57,14 +57,14 @@ impl ConnectorScheduler {
         }
     }
 
-    pub async fn run(&self, stop_send: broadcast::Sender<bool>) {
+    pub async fn run(&self, stop_send: &broadcast::Sender<bool>) {
         let scheduler = self;
         let ac_fn = async move || -> ResultCommonError {
             scheduler.scheduler_cycle().await;
             Ok(())
         };
 
-        loop_select_ticket(ac_fn, 1000, &stop_send).await;
+        loop_select_ticket(ac_fn, 1000, stop_send).await;
     }
 }
 
@@ -73,7 +73,7 @@ pub async fn start_connector_scheduler(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    stop_send: broadcast::Sender<bool>,
+    stop_send: &broadcast::Sender<bool>,
 ) {
     let scheduler = ConnectorScheduler::new(
         raft_manager.clone(),

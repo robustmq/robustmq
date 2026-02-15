@@ -34,7 +34,7 @@ use std::hash::Hasher;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::error::TryRecvError;
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::{broadcast, oneshot};
 use tokio::time::{sleep, timeout};
 use tracing::{error, info};
@@ -189,7 +189,7 @@ pub fn create_io_thread(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<StorageCacheManager>,
     client_pool: Arc<ClientPool>,
-    mut data_recv: Receiver<WriteChannelData>,
+    mut data_recv: mpsc::Receiver<WriteChannelData>,
     stop_send: broadcast::Sender<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
