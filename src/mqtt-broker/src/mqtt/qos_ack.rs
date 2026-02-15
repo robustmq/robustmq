@@ -34,10 +34,14 @@ impl MqttService {
             .pkid_data
             .get_publish_to_client_qos_ack_data(&connection.client_id, pkid)
         {
-            if let Err(e) = data.sx.send(QosAckPackageData {
-                ack_type: QosAckPackageType::PubAck,
-                pkid: pub_ack.pkid,
-            }) {
+            if let Err(e) = data
+                .sx
+                .send(QosAckPackageData {
+                    ack_type: QosAckPackageType::PubAck,
+                    pkid: pub_ack.pkid,
+                })
+                .await
+            {
                 debug!(
                         "send puback to channel fail, error message:{}, send data time: {}, recv ack time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
                         e,
@@ -66,10 +70,14 @@ impl MqttService {
             .pkid_data
             .get_publish_to_client_qos_ack_data(&connection.client_id, pkid)
         {
-            if let Err(e) = data.sx.send(QosAckPackageData {
-                ack_type: QosAckPackageType::PubRec,
-                pkid: pub_rec.pkid,
-            }) {
+            if let Err(e) = data
+                .sx
+                .send(QosAckPackageData {
+                    ack_type: QosAckPackageType::PubRec,
+                    pkid: pub_rec.pkid,
+                })
+                .await
+            {
                 debug!(
                         "send pubrec to channel fail, error message:{}, send data time: {}, recv rec time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
                         e,
@@ -98,10 +106,14 @@ impl MqttService {
             .pkid_data
             .get_publish_to_client_qos_ack_data(&connection.client_id, pkid)
         {
-            if let Err(e) = data.sx.send(QosAckPackageData {
-                ack_type: QosAckPackageType::PubComp,
-                pkid: pub_comp.pkid,
-            }) {
+            if let Err(e) = data
+                .sx
+                .send(QosAckPackageData {
+                    ack_type: QosAckPackageType::PubComp,
+                    pkid: pub_comp.pkid,
+                })
+                .await
+            {
                 debug!(
                         "send pubcomp to channel fail, error message:{}, send data time: {}, recv comp time:{}, client_id: {}, pkid: {}, connect_id:{}, diff:{}ms",
                         e,

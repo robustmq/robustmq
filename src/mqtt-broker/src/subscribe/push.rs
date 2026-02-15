@@ -42,7 +42,8 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
-use tokio::sync::broadcast::{self, Sender};
+use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 use tokio::time::{sleep, timeout};
 use tracing::warn;
 
@@ -155,7 +156,7 @@ pub async fn send_publish_packet_to_client(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<MQTTCacheManager>,
     sub_pub_param: &SubPublishParam,
-    stop_sx: &Sender<bool>,
+    stop_sx: &broadcast::Sender<bool>,
 ) -> ResultMqttBrokerError {
     match sub_pub_param.qos {
         QoS::AtMostOnce => {
@@ -163,7 +164,7 @@ pub async fn send_publish_packet_to_client(
         }
 
         QoS::AtLeastOnce => {
-            let (wait_puback_sx, _) = broadcast::channel(1);
+            let (wait_puback_sx, wait_ack_rx) = mpsc::channel(1);
             let pkid = sub_pub_param.p_kid;
             cache_manager.pkid_data.add_publish_to_client_qos_ack_data(
                 &sub_pub_param.client_id,
@@ -179,7 +180,7 @@ pub async fn send_publish_packet_to_client(
                 connection_manager,
                 sub_pub_param,
                 stop_sx,
-                &wait_puback_sx,
+                wait_ack_rx,
             )
             .await;
 
@@ -191,7 +192,7 @@ pub async fn send_publish_packet_to_client(
         }
 
         QoS::ExactlyOnce => {
-            let (wait_ack_sx, _) = broadcast::channel(1);
+            let (wait_ack_sx, wait_ack_rx) = mpsc::channel(1);
             let pkid = sub_pub_param.p_kid;
             cache_manager.pkid_data.add_publish_to_client_qos_ack_data(
                 &sub_pub_param.client_id,
@@ -207,7 +208,7 @@ pub async fn send_publish_packet_to_client(
                 connection_manager,
                 sub_pub_param,
                 stop_sx,
-                &wait_ack_sx,
+                wait_ack_rx,
             )
             .await;
 
@@ -276,7 +277,7 @@ pub async fn exclusive_publish_message_qos1(
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
-    wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
+    wait_puback_rx: mpsc::Receiver<QosAckPackageData>,
 ) -> ResultMqttBrokerError {
     // 1. send Publish to Client
     push_packet_to_client(metadata_cache, connection_manager, sub_pub_param, stop_sx).await?;
@@ -287,7 +288,7 @@ pub async fn exclusive_publish_message_qos1(
         connection_manager,
         sub_pub_param,
         stop_sx,
-        wait_puback_sx,
+        wait_puback_rx,
     )
     .await?;
 
@@ -303,18 +304,18 @@ pub async fn exclusive_publish_message_qos2(
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
-    wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
+    wait_ack_rx: mpsc::Receiver<QosAckPackageData>,
 ) -> ResultMqttBrokerError {
     // 1. send Publish to Client
     push_packet_to_client(metadata_cache, connection_manager, sub_pub_param, stop_sx).await?;
 
     // 2. wait PubRec ack
-    wait_pub_rec(
+    let new_wait_ack_rx = wait_pub_rec(
         metadata_cache,
         connection_manager,
         sub_pub_param,
         stop_sx,
-        wait_ack_sx,
+        wait_ack_rx,
     )
     .await?;
 
@@ -327,7 +328,7 @@ pub async fn exclusive_publish_message_qos2(
         connection_manager,
         sub_pub_param,
         stop_sx,
-        wait_ack_sx,
+        new_wait_ack_rx,
     )
     .await?;
     Ok(())
@@ -413,15 +414,16 @@ pub async fn wait_pub_ack(
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
-    wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
+    wait_ack_rx: mpsc::Receiver<QosAckPackageData>,
 ) -> ResultMqttBrokerError {
     let wait_pub_ack_fn = async || -> ResultMqttBrokerError {
-        let mut wait_ack_rx = wait_ack_sx.subscribe();
         loop {
-            let package = wait_ack_rx.recv().await?;
-            if package.ack_type == QosAckPackageType::PubAck && package.pkid == sub_pub_param.p_kid
-            {
-                return Ok(());
+            if let Some(package) = wait_ack_rx.recv().await {
+                if package.ack_type == QosAckPackageType::PubAck
+                    && package.pkid == sub_pub_param.p_kid
+                {
+                    return Ok(());
+                }
             }
         }
     };
@@ -452,15 +454,16 @@ pub async fn wait_pub_rec(
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
-    wait_rec_sx: &broadcast::Sender<QosAckPackageData>,
-) -> ResultMqttBrokerError {
+    wait_ack_rx: mpsc::Receiver<QosAckPackageData>,
+) -> Result<mpsc::Receiver<QosAckPackageData>, MqttBrokerError> {
     let wait_pub_rec_fn = async || -> ResultMqttBrokerError {
-        let mut wait_ack_rx = wait_rec_sx.subscribe();
         loop {
-            let package = wait_ack_rx.recv().await?;
-            if package.ack_type == QosAckPackageType::PubRec && package.pkid == sub_pub_param.p_kid
-            {
-                return Ok(());
+            if let Some(package) = wait_ack_rx.recv().await {
+                if package.ack_type == QosAckPackageType::PubRec
+                    && package.pkid == sub_pub_param.p_kid
+                {
+                    return Ok(());
+                }
             }
         }
     };
@@ -483,7 +486,8 @@ pub async fn wait_pub_rec(
         Ok(())
     };
 
-    retry_tool_fn_timeout(ac_fn, stop_sx, "wait_pub_rec").await
+    retry_tool_fn_timeout(ac_fn, stop_sx, "wait_pub_rec").await;
+    Ok(wait_ack_rx)
 }
 
 pub async fn wait_pub_comp(
@@ -491,15 +495,16 @@ pub async fn wait_pub_comp(
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
-    wait_comp_sx: &broadcast::Sender<QosAckPackageData>,
+    wait_ack_rx: mpsc::Receiver<QosAckPackageData>,
 ) -> ResultMqttBrokerError {
     let wait_pub_comp_fn = async || -> ResultMqttBrokerError {
-        let mut wait_ack_rx = wait_comp_sx.subscribe();
         loop {
-            let package = wait_ack_rx.recv().await?;
-            if package.ack_type == QosAckPackageType::PubComp && package.pkid == sub_pub_param.p_kid
-            {
-                return Ok(());
+            if let Some(package) = wait_ack_rx.recv().await {
+                if package.ack_type == QosAckPackageType::PubComp
+                    && package.pkid == sub_pub_param.p_kid
+                {
+                    return Ok(());
+                }
             }
         }
     };

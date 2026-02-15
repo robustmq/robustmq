@@ -128,7 +128,7 @@ mod tests {
     use metadata_struct::mqtt::bridge::{
         connector::FailureHandlingStrategy, connector_type::ConnectorType, status::MQTTStatus,
     };
-    use tokio::sync::broadcast;
+    use tokio::sync::mpsc;
 
     fn create_test_connector() -> MQTTConnector {
         use metadata_struct::mqtt::bridge::{
@@ -149,7 +149,7 @@ mod tests {
     }
 
     fn create_test_thread() -> BridgePluginThread {
-        let (stop_send, _) = broadcast::channel::<bool>(1);
+        let (stop_send, _) = mpsc::channel::<bool>(1);
         BridgePluginThread {
             connector_name: "test_connector".to_string(),
             last_send_time: 0,

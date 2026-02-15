@@ -18,7 +18,6 @@ use crate::{
     storage::connector::ConnectorStorage,
 };
 use async_trait::async_trait;
-
 use common_base::{
     error::ResultCommonError,
     tools::{loop_select_ticket, now_millis, now_second},
@@ -35,7 +34,14 @@ use metadata_struct::{
 };
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use storage_adapter::driver::StorageDriverManager;
-use tokio::{select, sync::broadcast, time::sleep};
+use tokio::{
+    select,
+    sync::{
+        broadcast,
+        mpsc::{self, Receiver},
+    },
+    time::sleep,
+};
 use tracing::{debug, error, info, warn};
 
 use super::{
@@ -67,7 +73,7 @@ pub struct BridgePluginThread {
     pub last_send_time: u64,
     pub send_success_total: u64,
     pub send_fail_total: u64,
-    pub stop_send: broadcast::Sender<bool>,
+    pub stop_send: mpsc::Sender<bool>,
     pub last_msg: Option<String>,
 }
 
@@ -102,7 +108,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     storage_driver_manager: Arc<StorageDriverManager>,
     connector_name: String,
     config: BridgePluginReadConfig,
-    mut stop_recv: broadcast::Receiver<bool>,
+    mut stop_recv: mpsc::Receiver<bool>,
 ) -> ResultMqttBrokerError {
     sink.validate().await?;
 
@@ -114,7 +120,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
         let mut offsets = message_storage.get_group_offset(&group_name).await?;
         select! {
             val = stop_recv.recv() => {
-                if let Ok(flag) = val {
+                if let Some(flag) = val {
                     if flag {
                         sink.cleanup_sink(resource).await?;
                         break;
@@ -318,7 +324,7 @@ async fn check_connector(
             raw.connector_name, raw.connector_type, raw.topic_name, current_broker_id
         );
 
-        let (stop_send, _) = broadcast::channel::<bool>(1);
+        let (stop_send, stop_rx) = mpsc::channel::<bool>(1);
         let thread = BridgePluginThread {
             connector_name: raw.connector_name.clone(),
             last_send_time: 0,
@@ -334,6 +340,7 @@ async fn check_connector(
             storage_driver_manager.clone(),
             raw.clone(),
             thread,
+            stop_rx,
         );
         started_count += 1;
     }
@@ -370,7 +377,7 @@ async fn check_connector(
                 raw.connector_name, stop_reason
             );
 
-            match stop_thread(raw.clone()) {
+            match stop_thread(raw.clone()).await {
                 Ok(_) => {
                     info!(
                         "Successfully sent stop signal to connector '{}'",
@@ -423,6 +430,7 @@ fn start_thread(
     storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
     thread: BridgePluginThread,
+    stop_rx: Receiver<bool>,
 ) {
     let connector_name = connector.connector_name.clone();
     let connector_type = connector.connector_type.clone();
@@ -440,6 +448,7 @@ fn start_thread(
                 storage_driver_manager,
                 connector,
                 thread,
+                stop_rx,
             );
         }
         ConnectorType::Kafka => {
@@ -449,6 +458,7 @@ fn start_thread(
                 storage_driver_manager,
                 connector,
                 thread,
+                stop_rx,
             );
         }
         ConnectorType::GreptimeDB => {
@@ -458,6 +468,7 @@ fn start_thread(
                 storage_driver_manager,
                 connector,
                 thread,
+                stop_rx,
             );
         }
         ConnectorType::Pulsar => {
@@ -467,6 +478,7 @@ fn start_thread(
                 storage_driver_manager,
                 connector,
                 thread,
+                stop_rx,
             );
         }
         ConnectorType::Postgres => {
@@ -476,6 +488,7 @@ fn start_thread(
                 storage_driver_manager,
                 connector,
                 thread,
+                stop_rx,
             );
         }
         ConnectorType::MongoDB => {
@@ -485,6 +498,7 @@ fn start_thread(
                 storage_driver_manager,
                 connector,
                 thread,
+                stop_rx,
             );
         }
         ConnectorType::RabbitMQ => {
@@ -494,6 +508,7 @@ fn start_thread(
                 storage_driver_manager,
                 connector,
                 thread,
+                stop_rx,
             );
         }
         ConnectorType::MySQL => {
@@ -503,6 +518,7 @@ fn start_thread(
                 storage_driver_manager,
                 connector,
                 thread,
+                stop_rx,
             );
         }
         ConnectorType::Elasticsearch => {
@@ -512,6 +528,7 @@ fn start_thread(
                 storage_driver_manager,
                 connector,
                 thread,
+                stop_rx,
             );
         }
         ConnectorType::Redis => {
@@ -521,17 +538,18 @@ fn start_thread(
                 storage_driver_manager,
                 connector,
                 thread,
+                stop_rx,
             );
         }
     }
 }
 
-fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
+async fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
     debug!(
         "Sending stop signal to connector '{}' thread",
         thread.connector_name
     );
-    thread.stop_send.send(true)?;
+    thread.stop_send.send(true).await?;
     Ok(())
 }
 
@@ -572,7 +590,7 @@ mod tests {
 
     #[test]
     fn test_bridge_plugin_thread_creation() {
-        let (stop_send, _) = broadcast::channel::<bool>(1);
+        let (stop_send, _) = mpsc::channel::<bool>(1);
         let thread = BridgePluginThread {
             connector_name: "test_connector".to_string(),
             last_send_time: 0,
@@ -609,7 +627,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_stop_thread() {
-        let (stop_send, mut stop_recv) = broadcast::channel::<bool>(1);
+        let (stop_send, mut stop_recv) = mpsc::channel::<bool>(1);
         let thread = BridgePluginThread {
             connector_name: "test_connector".to_string(),
             last_send_time: 0,
@@ -619,7 +637,7 @@ mod tests {
             last_msg: None,
         };
 
-        assert!(stop_thread(thread).is_ok());
+        assert!(stop_thread(thread).await.is_ok());
         assert!(stop_recv.recv().await.unwrap());
     }
 }

@@ -61,6 +61,9 @@ pub enum MqttBrokerError {
     TokioTimeErrorElapsed(#[from] tokio::time::error::Elapsed),
 
     #[error("{0}")]
+    TokioMpscSendError(#[from] tokio::sync::mpsc::error::SendError<bool>),
+
+    #[error("{0}")]
     TokioBroadcastSendError(#[from] tokio::sync::broadcast::error::SendError<bool>),
 
     #[error("{0}")]
