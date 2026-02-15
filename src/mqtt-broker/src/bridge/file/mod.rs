@@ -31,6 +31,7 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::fs::File;
 use tokio::fs::OpenOptions;
 use tokio::io::{AsyncWriteExt, BufWriter};
+use tokio::sync::mpsc::Receiver;
 use tracing::{error, info};
 
 pub struct FileWriter {
@@ -218,6 +219,7 @@ pub fn start_local_file_connector(
     storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
     thread: BridgePluginThread,
+    stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
         let local_file_config = match &connector.config {
@@ -230,7 +232,6 @@ pub fn start_local_file_connector(
 
         let bridge = FileBridgePlugin::new(local_file_config);
 
-        let stop_recv = thread.stop_send.subscribe();
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(
@@ -273,7 +274,7 @@ mod tests {
     };
     use std::{fs, path::PathBuf, sync::Arc, time::Duration};
     use storage_adapter::storage::test_build_storage_driver_manager;
-    use tokio::{fs::File, io::AsyncReadExt, sync::broadcast, time::sleep};
+    use tokio::{fs::File, io::AsyncReadExt, time::sleep};
 
     use crate::bridge::{
         core::{run_connector_loop, BridgePluginReadConfig},
@@ -339,7 +340,7 @@ mod tests {
         fs::create_dir_all(dir_path).unwrap();
         File::create(config.local_file_path.clone()).await.unwrap();
 
-        let (stop_send, _) = broadcast::channel(1);
+        let (stop_send, stop_recv) = tokio::sync::mpsc::channel(1);
 
         let file_bridge_plugin = FileBridgePlugin::new(config.clone());
 
@@ -352,7 +353,6 @@ mod tests {
         let record_config_clone = read_config.clone();
         let connector_manager_clone = connector_manager.clone();
         let connector_name_clone = connector_name.clone();
-        let stop_recv = stop_send.subscribe();
 
         let handle = tokio::spawn(async move {
             run_connector_loop(
@@ -371,7 +371,7 @@ mod tests {
         // wait for a while
         sleep(Duration::from_secs(2)).await;
 
-        stop_send.send(true).unwrap();
+        stop_send.send(true).await.unwrap();
 
         handle.await.unwrap();
 

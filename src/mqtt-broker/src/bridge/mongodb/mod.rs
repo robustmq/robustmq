@@ -27,6 +27,7 @@ use mongodb::{
     Client, Collection,
 };
 use storage_adapter::driver::StorageDriverManager;
+use tokio::sync::mpsc::Receiver;
 use tracing::{debug, error, info, warn};
 
 use crate::core::error::MqttBrokerError;
@@ -237,6 +238,7 @@ pub fn start_mongodb_connector(
     storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
     thread: BridgePluginThread,
+    stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
         let mongodb_config = match &connector.config {
@@ -250,7 +252,6 @@ pub fn start_mongodb_connector(
         let batch_size = mongodb_config.batch_size as u64;
         let bridge = MongoDBBridgePlugin::new(mongodb_config);
 
-        let stop_recv = thread.stop_send.subscribe();
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(

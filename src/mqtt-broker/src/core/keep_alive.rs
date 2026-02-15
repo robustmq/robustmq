@@ -20,7 +20,7 @@ use crate::mqtt::disconnect::build_distinct_packet;
 use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
-use common_base::error::ResultCommonError;
+use common_base::error::{client_unavailable_error_by_str, ResultCommonError};
 use common_base::tools::{loop_select_ticket, now_second};
 use common_metrics::mqtt::event::record_mqtt_connection_expired;
 use grpc_clients::pool::ClientPool;
@@ -51,7 +51,6 @@ pub struct TrySendDistinctPacketContext {
 #[derive(Clone)]
 pub struct ClientKeepAlive {
     cache_manager: Arc<MQTTCacheManager>,
-    stop_send: broadcast::Sender<bool>,
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
     subscribe_manager: Arc<SubscribeManager>,
@@ -63,20 +62,18 @@ impl ClientKeepAlive {
         connection_manager: Arc<ConnectionManager>,
         subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<MQTTCacheManager>,
-        stop_send: broadcast::Sender<bool>,
     ) -> Self {
         ClientKeepAlive {
             client_pool,
             connection_manager,
             subscribe_manager,
             cache_manager,
-            stop_send,
         }
     }
 
-    pub async fn start_heartbeat_check(&self) {
+    pub async fn start_heartbeat_check(&self, stop_send: &broadcast::Sender<bool>) {
         let ac_fn = async || -> ResultCommonError { self.keep_alive().await };
-        loop_select_ticket(ac_fn, 1000, &self.stop_send).await;
+        loop_select_ticket(ac_fn, 1000, stop_send).await;
         info!("Heartbeat check thread stopped successfully.");
     }
 
@@ -117,22 +114,21 @@ impl ClientKeepAlive {
                         protocol: protocol.to_mqtt(),
                         connect_id,
                     };
-                    tokio::spawn(async move {
-                        if let Err(e) = try_send_distinct_packet(&context).await {
-                            warn!(
-                                connect_id = context.connect_id,
-                                client_id = %context.connection.client_id,
-                                protocol = ?context.protocol,
-                                error = %e,
-                                "Heartbeat timeout: failed to actively disconnect connection"
-                            );
-                        } else {
-                            debug!(
-                                "Heartbeat timeout, active disconnection {} successful",
-                                context.connect_id
-                            );
-                        }
-                    });
+
+                    if let Err(e) = try_send_distinct_packet(&context).await {
+                        warn!(
+                            connect_id = context.connect_id,
+                            client_id = %context.connection.client_id,
+                            protocol = ?context.protocol,
+                            error = %e,
+                            "Heartbeat timeout: failed to actively disconnect connection"
+                        );
+                    } else {
+                        debug!(
+                            "Heartbeat timeout, active disconnection {} successful",
+                            context.connect_id
+                        );
+                    }
                 }
             }
         }
@@ -206,14 +202,16 @@ async fn try_send_distinct_packet(
     };
 
     if let Err(e) = close_conn_fn().await {
-        warn!(
-            connect_id = context.connect_id,
-            client_id = %context.connection.client_id,
-            protocol = ?context.protocol,
-            network = ?context.network,
-            error = %e,
-            "Failed to send keep-alive disconnect packet"
-        );
+        if !client_unavailable_error_by_str(&e.to_string()) {
+            warn!(
+                connect_id = context.connect_id,
+                client_id = %context.connection.client_id,
+                protocol = ?context.protocol,
+                network = ?context.network,
+                error = %e,
+                "Failed to send keep-alive disconnect packet"
+            );
+        }
     }
 
     let context = build_server_disconnect_conn_context(
@@ -270,7 +268,6 @@ mod test {
     use network_server::common::connection_manager::ConnectionManager;
     use std::sync::Arc;
     use std::time::Duration;
-    use tokio::sync::broadcast;
     use tokio::time::sleep;
 
     #[tokio::test]
@@ -306,7 +303,6 @@ mod test {
     #[tokio::test]
     pub async fn get_expire_connection_test() {
         let client_pool = Arc::new(ClientPool::new(100));
-        let (stop_send, _) = broadcast::channel::<bool>(2);
         let cache_manager = test_build_mqtt_cache_manager().await;
         let connection_manager = Arc::new(ConnectionManager::new(3, 1000));
         let subscribe_manager = Arc::new(SubscribeManager::new());
@@ -315,7 +311,6 @@ mod test {
             connection_manager,
             subscribe_manager,
             cache_manager.clone(),
-            stop_send,
         );
 
         let client_id = unique_id();

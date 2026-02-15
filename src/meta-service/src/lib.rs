@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-use crate::controller::call_broker::call::{broker_call_thread_manager, BrokerCallManager};
+use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::connector::scheduler::start_connector_scheduler;
 use crate::core::cache::{load_cache, CacheManager};
 use crate::core::controller::ClusterController;
@@ -90,12 +90,12 @@ impl MetaServiceServer {
         let ctrl = ClusterController::new(
             self.cache_manager.clone(),
             self.raft_manager.clone(),
-            self.inner_stop.clone(),
             self.client_pool.clone(),
             self.broker_call_manager.clone(),
         );
+        let raw_stop_send = self.inner_stop.clone();
         tokio::spawn(Box::pin(async move {
-            ctrl.start_node_heartbeat_check().await;
+            ctrl.start_node_heartbeat_check(&raw_stop_send).await;
         }));
     }
 
@@ -118,13 +118,6 @@ impl MetaServiceServer {
     }
 
     fn start_controller(&self) {
-        let broker_call_manager = self.broker_call_manager.clone();
-        let client_pool = self.client_pool.clone();
-        let stop_send = self.inner_stop.clone();
-        tokio::spawn(async move {
-            broker_call_thread_manager(&broker_call_manager, &client_pool, stop_send).await;
-        });
-
         // start mqtt connector scheduler thread
         let call_manager = self.broker_call_manager.clone();
         let client_pool = self.client_pool.clone();
@@ -137,7 +130,7 @@ impl MetaServiceServer {
                 &raft_manager,
                 &call_manager,
                 &client_pool,
-                stop_send,
+                &stop_send,
             )
             .await;
         }));

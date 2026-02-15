@@ -212,8 +212,14 @@ async fn handle_socket(
                         }
                         Err(e) => {
                             warn!("websocket server parsing request packet error, error message :{e:?}");
+                            connection_manager.close_connect(tcp_connection.connection_id).await;
+                            break;
                         },
                     }
+                }else {
+                    debug!("WebSocket connection closed (EOF): connection_id={}", tcp_connection.connection_id);
+                    connection_manager.close_connect(tcp_connection.connection_id).await;
+                    break;
                 }
             }
         }

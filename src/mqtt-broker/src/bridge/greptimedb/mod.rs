@@ -22,6 +22,7 @@ use metadata_struct::{
 };
 
 use storage_adapter::driver::StorageDriverManager;
+use tokio::sync::mpsc::Receiver;
 use tracing::error;
 
 use crate::{
@@ -71,6 +72,7 @@ pub fn start_greptimedb_connector(
     storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
     thread: BridgePluginThread,
+    stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
         let greptimedb_config = match &connector.config {
@@ -82,8 +84,6 @@ pub fn start_greptimedb_connector(
         };
 
         let bridge = GreptimeDBBridgePlugin::new(greptimedb_config);
-
-        let stop_recv = thread.stop_send.subscribe();
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(

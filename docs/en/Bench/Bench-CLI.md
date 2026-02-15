@@ -1,12 +1,13 @@
 # RobustMQ Bench CLI Guide
 
 `robust-bench` is the benchmark CLI for RobustMQ.  
-At this stage, it focuses on MQTT benchmark workloads: connection, publish, and subscribe.
+At this stage, it supports MQTT and Meta API benchmark workloads.
 
 ## 1. Command Shape
 
 ```bash
 robust-bench mqtt <subcommand> [options]
+robust-bench meta <subcommand> [options]
 ```
 
 Supported `<subcommand>`:
@@ -14,14 +15,15 @@ Supported `<subcommand>`:
 - `conn`: connection benchmark
 - `pub`: publish benchmark
 - `sub`: subscribe benchmark
+- `meta placement-create-session`: benchmark Meta `CreateSession`
 
 ## 2. Common Options
 
 - `--host`: broker host, default `127.0.0.1`
 - `--port`: broker port, default `1883`
 - `--count`: number of clients, default `1000`
-- `--interval-ms`: startup interval in milliseconds, default `0`
-- `--duration-secs`: benchmark duration in seconds, default `60`
+- `--interval-ms`: startup interval in milliseconds, mainly for `pub/sub`, default `0`
+- `--duration-secs`: benchmark duration in seconds for `pub/sub`, default `60`
 - `--qos`: QoS (`0|1|2`), default `0`
 - `--username` / `--password`: optional credentials
 - `--output`: `table|json`, default `table`
@@ -35,8 +37,20 @@ robust-bench mqtt conn \
   --host 127.0.0.1 \
   --port 1883 \
   --count 10000 \
-  --interval-ms 1 \
-  --duration-secs 60
+  --concurrency 1000 \
+  --mode create
+```
+
+Or hold mode:
+
+```bash
+robust-bench mqtt conn \
+  --host 127.0.0.1 \
+  --port 1883 \
+  --count 10000 \
+  --concurrency 1000 \
+  --mode hold \
+  --hold-secs 60
 ```
 
 ### 3.2 Publish benchmark
@@ -63,6 +77,18 @@ robust-bench mqtt sub \
   --topic bench/# \
   --qos 1 \
   --duration-secs 120
+```
+
+### 3.4 Meta API benchmark
+
+```bash
+robust-bench meta placement-create-session \
+  --host 127.0.0.1 \
+  --port 1228 \
+  --count 100000 \
+  --concurrency 1000 \
+  --timeout-ms 3000 \
+  --output table
 ```
 
 ## 4. Output Details

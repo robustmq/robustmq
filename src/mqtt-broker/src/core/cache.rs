@@ -28,7 +28,7 @@ use protocol::mqtt::common::{MqttProtocol, PublishProperties};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
-use tokio::sync::broadcast::Sender;
+use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -60,7 +60,7 @@ pub struct ConnectionLiveTime {
 
 #[derive(Clone)]
 pub struct QosAckPacketInfo {
-    pub sx: Sender<QosAckPackageData>,
+    pub sx: mpsc::Sender<QosAckPackageData>,
     pub create_time: u128,
 }
 

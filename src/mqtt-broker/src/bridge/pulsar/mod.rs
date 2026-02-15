@@ -28,6 +28,7 @@ use metadata_struct::{
     storage::adapter_record::AdapterWriteRecord,
 };
 use storage_adapter::driver::StorageDriverManager;
+use tokio::sync::mpsc::Receiver;
 use tracing::error;
 mod pulsar_producer;
 
@@ -74,6 +75,7 @@ pub fn start_pulsar_connector(
     storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
     thread: BridgePluginThread,
+    stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
         let pulsar_config = match &connector.config {
@@ -85,8 +87,6 @@ pub fn start_pulsar_connector(
         };
 
         let bridge = PulsarBridgePlugin::new(pulsar_config);
-
-        let stop_recv = thread.stop_send.subscribe();
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(

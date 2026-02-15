@@ -198,6 +198,7 @@ export const sidebar = [
     items: [
       { text: "Bench CLI 使用文档", link: "/zh/Bench/Bench-CLI" },
       { text: "MQTT Bench 使用文档", link: "/zh/Bench/MQTT-Bench" },
+      { text: "Meta Bench 使用文档", link: "/zh/Bench/Meta-Bench" },
     ],
   },
   {

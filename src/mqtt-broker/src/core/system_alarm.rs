@@ -58,7 +58,6 @@ pub struct SystemAlarm {
     metadata_cache: Arc<MQTTCacheManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    stop_send: broadcast::Sender<bool>,
 }
 
 impl SystemAlarm {
@@ -67,18 +66,16 @@ impl SystemAlarm {
         metadata_cache: Arc<MQTTCacheManager>,
         storage_driver_manager: Arc<StorageDriverManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        stop_send: broadcast::Sender<bool>,
     ) -> Self {
         SystemAlarm {
             client_pool,
             metadata_cache,
             storage_driver_manager,
             rocksdb_engine_handler,
-            stop_send,
         }
     }
 
-    pub async fn start(&self) -> ResultMqttBrokerError {
+    pub async fn start(&self, stop_send: broadcast::Sender<bool>) -> ResultMqttBrokerError {
         let config = broker_config();
         if !config.mqtt_system_monitor.enable {
             return Ok(());
@@ -106,7 +103,7 @@ impl SystemAlarm {
         };
 
         info!("System alarm thread start successfully");
-        loop_select_ticket(record_func, 60000, &self.stop_send).await;
+        loop_select_ticket(record_func, 60000, &stop_send).await;
         Ok(())
     }
 

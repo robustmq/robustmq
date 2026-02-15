@@ -22,6 +22,7 @@ use metadata_struct::{
 };
 use sqlx::{mysql::MySqlPoolOptions, MySql, Pool};
 use storage_adapter::driver::StorageDriverManager;
+use tokio::sync::mpsc::Receiver;
 use tracing::{error, warn};
 
 use crate::core::tool::ResultMqttBrokerError;
@@ -176,6 +177,7 @@ pub fn start_mysql_connector(
     storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
     thread: BridgePluginThread,
+    stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
         let mysql_config = match &connector.config {
@@ -187,8 +189,6 @@ pub fn start_mysql_connector(
         };
 
         let bridge = MySQLBridgePlugin::new(mysql_config);
-
-        let stop_recv = thread.stop_send.subscribe();
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(

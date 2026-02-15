@@ -16,15 +16,22 @@ robust-bench mqtt sub ...
 
 Measure connection establishment capability and stable connection scale.
 
+`--mode` semantics:
+
+- `create`: stop once connection creation completes
+- `hold`: keep connected for `--hold-secs`
+- `--concurrency`: number of in-flight connection creation tasks
+
 ### Example
 
 ```bash
 robust-bench mqtt conn \
-  --host 10.0.0.10 \
+  --host 127.0.0.1 \
   --port 1883 \
   --count 50000 \
-  --interval-ms 1 \
-  --duration-secs 90
+  --concurrency 1000 \
+  --mode hold \
+  --hold-secs 90
 ```
 
 ## 3. `pub`: Publish Benchmark
@@ -44,7 +51,7 @@ Measure publish throughput, success rate, and publish latency.
 
 ```bash
 robust-bench mqtt pub \
-  --host 10.0.0.10 \
+  --host 127.0.0.1 \
   --port 1883 \
   --count 2000 \
   --topic load/%i \
@@ -64,7 +71,7 @@ Measure receive throughput, stability, and subscriber-side timeout behavior.
 
 ```bash
 robust-bench mqtt sub \
-  --host 10.0.0.10 \
+  --host 127.0.0.1 \
   --port 1883 \
   --count 5000 \
   --topic "load/#" \

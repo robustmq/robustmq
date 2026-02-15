@@ -19,18 +19,22 @@ robust-bench mqtt sub ...
 ### 常用参数
 
 - `--count`：连接客户端总数
-- `--interval-ms`：连接创建间隔
-- `--duration-secs`：维持时长
+- `--concurrency`：并发建连数（同时进行中的连接创建任务数）
+- `--mode`：`create|hold`
+- `--hold-secs`：仅 `hold` 模式有效，表示持连接时长（秒）
 
 ### 示例
 
 ```bash
 robust-bench mqtt conn \
-  --host 10.0.0.10 \
+  --host 127.0.0.1 \
   --port 1883 \
+  --username admin \
+  --password robustmq \
   --count 50000 \
-  --interval-ms 1 \
-  --duration-secs 90
+  --concurrency 1000 \
+  --mode hold \
+  --hold-secs 90
 ```
 
 ## 3. pub：发布压测
@@ -50,8 +54,10 @@ robust-bench mqtt conn \
 
 ```bash
 robust-bench mqtt pub \
-  --host 10.0.0.10 \
+  --host 127.0.0.1 \
   --port 1883 \
+  --username admin \
+  --password robustmq \
   --count 2000 \
   --topic load/%i \
   --payload-size 512 \
@@ -76,8 +82,10 @@ robust-bench mqtt pub \
 
 ```bash
 robust-bench mqtt sub \
-  --host 10.0.0.10 \
+  --host 127.0.0.1 \
   --port 1883 \
+  --username admin \
+  --password robustmq \
   --count 5000 \
   --topic "load/#" \
   --qos 1 \

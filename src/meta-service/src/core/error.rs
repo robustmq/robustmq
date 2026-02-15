@@ -67,6 +67,9 @@ pub enum MetaServiceError {
     #[error("{0}")]
     CommonError(String),
 
+    #[error("Retryable node thread race: {0}")]
+    RetryableNodeThreadRace(String),
+
     #[error("Cluster {0} does not exist")]
     ClusterDoesNotExist(String),
 

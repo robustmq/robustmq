@@ -16,16 +16,27 @@ use crate::broker::common::BrokerCommonServiceManager;
 use crate::broker::storage::BrokerStorageServiceManager;
 use crate::meta::mqtt::MqttServiceManager;
 use crate::meta::storage::StorageEngineServiceManager;
-use crate::{broker::mqtt::BrokerMqttServiceManager, meta::common::PlacementServiceManager};
+use crate::{broker::mqtt::BrokerMqttServiceManager, meta::common::MetaServiceManager};
 use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
 use mobc::{Connection, Pool};
+use std::error::Error;
 use std::time::Duration;
 use tracing::{debug, info, warn};
 
 // Increased default timeout to handle network latency better
 const DEFAULT_CONNECTION_TIMEOUT_SECS: u64 = 10;
+
+fn format_error_chain(err: &(dyn Error + 'static)) -> String {
+    let mut chain = vec![err.to_string()];
+    let mut source = err.source();
+    while let Some(cause) = source {
+        chain.push(cause.to_string());
+        source = cause.source();
+    }
+    chain.join(" -> caused by: ")
+}
 
 macro_rules! define_client_method {
     (
@@ -59,11 +70,14 @@ macro_rules! define_client_method {
                     }
                     Err(e) => {
                         let pool_state_after = pool.state().await;
+                        let error_chain = format_error_chain(&e);
                         warn!(
-                            "{} connection pool at {} has no connection available. Error: {}, State before: {:?}, State after: {:?}",
+                            "{} connection pool at {} has no connection available. Error(display): {}, Error(debug): {:?}, Error chain: {}, State before: {:?}, State after: {:?}",
                             $service_name,
                             addr,
                             e,
+                            e,
+                            error_chain,
                             pool_state_before,
                             pool_state_after
                         );
@@ -93,8 +107,8 @@ pub struct ClientPool {
     max_open_connection: u64,
     connection_timeout: Duration,
     // modules: meta service
-    meta_service_inner_pools: DashMap<String, Pool<PlacementServiceManager>>,
-    meta_service_journal_service_pools: DashMap<String, Pool<StorageEngineServiceManager>>,
+    meta_service_inner_pools: DashMap<String, Pool<MetaServiceManager>>,
+    meta_service_engine_service_pools: DashMap<String, Pool<StorageEngineServiceManager>>,
     meta_service_mqtt_service_pools: DashMap<String, Pool<MqttServiceManager>>,
     // modules: meta service service: leader cache
     meta_service_leader_addr_caches: DashMap<String, String>,
@@ -121,7 +135,7 @@ impl ClientPool {
             connection_timeout,
             // modules: meta_service
             meta_service_inner_pools: DashMap::with_capacity(2),
-            meta_service_journal_service_pools: DashMap::with_capacity(2),
+            meta_service_engine_service_pools: DashMap::with_capacity(2),
             meta_service_mqtt_service_pools: DashMap::with_capacity(2),
             meta_service_leader_addr_caches: DashMap::with_capacity(2),
             // modules: mqtt_broker
@@ -135,22 +149,22 @@ impl ClientPool {
     define_client_method!(
         meta_service_inner_services_client,
         meta_service_inner_pools,
-        PlacementServiceManager,
-        "PlacementServiceManager"
+        MetaServiceManager,
+        "MetaInnerServiceManager"
     );
 
     define_client_method!(
         meta_service_journal_services_client,
-        meta_service_journal_service_pools,
+        meta_service_engine_service_pools,
         StorageEngineServiceManager,
-        "StorageEngineServiceManager"
+        "MetaStorageEngineServiceManager"
     );
 
     define_client_method!(
         meta_service_mqtt_services_client,
         meta_service_mqtt_service_pools,
         MqttServiceManager,
-        "MqttServiceManager"
+        "MetaMqttServiceManager"
     );
 
     // ----------modules: mqtt broker -------------
@@ -198,7 +212,7 @@ impl ClientPool {
     // ----------pool statistics -------------
     pub fn get_pool_count(&self) -> usize {
         self.meta_service_inner_pools.len()
-            + self.meta_service_journal_service_pools.len()
+            + self.meta_service_engine_service_pools.len()
             + self.meta_service_mqtt_service_pools.len()
             + self.broker_mqtt_grpc_pools.len()
     }

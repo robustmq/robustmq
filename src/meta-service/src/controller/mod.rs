@@ -45,7 +45,6 @@ pub struct BrokerController {
     raft_manager: Arc<MultiRaftManager>,
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
-    stop_send: broadcast::Sender<bool>,
 }
 
 impl BrokerController {
@@ -55,7 +54,6 @@ impl BrokerController {
         cache_manager: Arc<CacheManager>,
         call_manager: Arc<BrokerCallManager>,
         client_pool: Arc<ClientPool>,
-        stop_send: broadcast::Sender<bool>,
     ) -> BrokerController {
         BrokerController {
             rocksdb_engine_handler,
@@ -63,24 +61,23 @@ impl BrokerController {
             call_manager,
             raft_manager,
             client_pool,
-            stop_send,
         }
     }
 
-    pub async fn start(&self) {
+    pub async fn start(&self, stop_send: &broadcast::Sender<bool>) {
         // Periodically check if the session has expired
         let session = SessionExpire::new(
             self.rocksdb_engine_handler.clone(),
             self.cache_manager.clone(),
             self.client_pool.clone(),
         );
-        let stop_send = self.stop_send.clone();
+        let raw_stop_send = stop_send.clone();
         tokio::spawn(Box::pin(async move {
             let ac_fn = async || -> ResultCommonError {
                 session.session_expire().await;
                 Ok(())
             };
-            loop_select_ticket(ac_fn, 1000, &stop_send).await;
+            loop_select_ticket(ac_fn, 1000, &raw_stop_send).await;
         }));
 
         // Periodically check if the session has expired
@@ -90,35 +87,35 @@ impl BrokerController {
             self.client_pool.clone(),
         );
 
-        let stop_send = self.stop_send.clone();
+        let raw_stop_send = stop_send.clone();
         tokio::spawn(Box::pin(async move {
             let ac_fn = async || -> ResultCommonError {
                 session.last_will_expire_send().await;
                 Ok(())
             };
-            loop_select_ticket(ac_fn, 1000, &stop_send).await;
+            loop_select_ticket(ac_fn, 1000, &raw_stop_send).await;
         }));
 
         // Whether the timed message expires
         let message = MessageExpire::new(self.rocksdb_engine_handler.clone());
-        let stop_send = self.stop_send.clone();
+        let raw_stop_send = stop_send.clone();
         tokio::spawn(Box::pin(async move {
             let ac_fn = async || -> ResultCommonError {
                 message.retain_message_expire().await;
                 Ok(())
             };
-            loop_select_ticket(ac_fn, 1000, &stop_send).await;
+            loop_select_ticket(ac_fn, 1000, &raw_stop_send).await;
         }));
 
         // Periodically detects whether a will message is sent
         let message = MessageExpire::new(self.rocksdb_engine_handler.clone());
-        let stop_send = self.stop_send.clone();
+        let raw_stop_send = stop_send.clone();
         tokio::spawn(Box::pin(async move {
             let ac_fn = async || -> ResultCommonError {
                 message.last_will_message_expire().await;
                 Ok(())
             };
-            loop_select_ticket(ac_fn, 1000, &stop_send).await;
+            loop_select_ticket(ac_fn, 1000, &raw_stop_send).await;
         }));
 
         // storage engine gc
@@ -126,14 +123,14 @@ impl BrokerController {
         let cache_manager = self.cache_manager.clone();
         let call_manager = self.call_manager.clone();
         let client_pool = self.client_pool.clone();
-        let stop_send = self.stop_send.clone();
+        let raw_stop_send = stop_send.clone();
         tokio::spawn(Box::pin(async move {
             start_engine_delete_gc_thread(
                 raft_manager,
                 cache_manager,
                 call_manager,
                 client_pool,
-                stop_send,
+                raw_stop_send,
             )
             .await;
         }));

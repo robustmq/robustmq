@@ -13,8 +13,10 @@
 // limitations under the License.
 
 pub mod error;
+pub mod grpc;
 pub mod mqtt;
 
+use crate::grpc::MetaBenchArgs;
 use crate::mqtt::MqttBenchArgs;
 use clap::{Parser, Subcommand};
 pub use error::BenchMarkError;
@@ -31,6 +33,7 @@ pub struct RobustMQBench {
 
 #[derive(Debug, Subcommand)]
 pub enum RobustMQBenchCommand {
+    Meta(MetaBenchArgs),
     Mqtt(MqttBenchArgs),
 }
 

@@ -114,6 +114,8 @@ impl BrokerServer {
             config.network.lock_try_mut_sleep_time_ms,
         ));
 
+        let (main_stop_send, _) = broadcast::channel(2);
+
         // meta params
         let meta_params = main_runtime.block_on(Box::pin(async {
             BrokerServer::build_meta_service(
@@ -172,6 +174,7 @@ impl BrokerServer {
                 raw_connection_manager.clone(),
                 raw_storage_driver_manager,
                 raw_offset_manager.clone(),
+                main_stop_send.clone(),
             )
             .await
             {
@@ -387,6 +390,7 @@ impl BrokerServer {
         connection_manager: Arc<NetworkConnectionManager>,
         storage_driver_manager: Arc<StorageDriverManager>,
         offset_manager: Arc<OffsetManager>,
+        stop_sx: broadcast::Sender<bool>,
     ) -> Result<MqttBrokerServerParams, CommonError> {
         let cache_manager = Arc::new(MqttCacheManager::new(
             client_pool.clone(),
@@ -401,11 +405,12 @@ impl BrokerServer {
         );
         let metrics_cache_manager = Arc::new(MQTTMetricsCache::new(rocksdb_engine_handler.clone()));
         let schema_manager = Arc::new(SchemaRegisterManager::new());
-        let retain_message_manager = Arc::new(RetainMessageManager::new(
+        let retain_message_manager = RetainMessageManager::new(
             cache_manager.clone(),
             client_pool.clone(),
             connection_manager.clone(),
-        ));
+            stop_sx,
+        );
         let push_manager = Arc::new(PushManager::new(
             cache_manager.clone(),
             storage_driver_manager.clone(),
@@ -490,7 +495,7 @@ impl BrokerServer {
 
     pub fn awaiting_stop(
         &self,
-        place_stop: Option<broadcast::Sender<bool>>,
+        meta_stop: Option<broadcast::Sender<bool>>,
         mqtt_stop: Option<broadcast::Sender<bool>>,
         engine_stop: Option<broadcast::Sender<bool>>,
     ) {
@@ -530,7 +535,7 @@ impl BrokerServer {
                 sleep(Duration::from_secs(3));
             }
 
-            if let Some(sx) = place_stop {
+            if let Some(sx) = meta_stop {
                 if let Err(e) = sx.send(true) {
                     error!("place stop signal, error message{}", e);
                 }
