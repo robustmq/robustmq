@@ -233,7 +233,6 @@ pub async fn add_call_message(
             continue;
         }
 
-        // create node push thread task outside map guard
         let (data_sx, data_rx) = mpsc::channel::<BrokerCallMessage>(BROKER_CALL_CHANNEL_SIZE);
         let (stop_send, stop_recv) = mpsc::channel::<bool>(5);
         let (ready_tx, ready_rx) = oneshot::channel();
@@ -248,7 +247,6 @@ pub async fn add_call_message(
         )
         .await;
 
-        // wait ready
         if tokio::time::timeout(Duration::from_secs(5), ready_rx)
             .await
             .map_err(|_| {
@@ -274,7 +272,6 @@ pub async fn add_call_message(
             continue;
         }
 
-        // insert sender in short critical section
         let inserted = match call_manager.node_sender.entry(raw.node_id) {
             Entry::Vacant(vacant) => {
                 let node_sender = BrokerCallNodeSender {
@@ -288,7 +285,6 @@ pub async fn add_call_message(
         };
 
         if !inserted {
-            // Another task won the race and has installed a sender/thread.
             let _ = stop_send.send(true).await;
             let _ = tokio::time::timeout(Duration::from_secs(1), handle).await;
             retryable_race_nodes.push(raw.node_id);
@@ -298,7 +294,6 @@ pub async fn add_call_message(
         call_manager.node_thread_handle.insert(raw.node_id, handle);
         call_manager.add_node_stop_sender(raw.node_id, stop_send.clone());
 
-        // send message
         if let Err(e) = data_sx.send(message.clone()).await {
             warn!("Node {} sender failed after insertion: {}", raw.node_id, e);
             errors.push(format!(
