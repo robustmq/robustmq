@@ -15,7 +15,6 @@
 use crate::core::error::MetaServiceError;
 use broker_core::cache::BrokerCacheManager;
 use common_base::utils::serialize;
-use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
 use grpc_clients::broker::common::call::broker_common_update_cache;
 use grpc_clients::pool::ClientPool;
@@ -33,6 +32,8 @@ use tracing::{error, info, warn};
 const BROKER_CALL_CHANNEL_SIZE: usize = 5000;
 const BATCH_SIZE: usize = 100;
 const BATCH_CHECK_INTERVAL_MS: u64 = 10;
+const UPDATE_CACHE_MAX_RETRIES: usize = 3;
+const UPDATE_CACHE_RETRY_BASE_MS: u64 = 50;
 
 pub async fn start_call_thread(
     node: BrokerNode,
@@ -81,7 +82,10 @@ pub async fn start_call_thread(
                     }
                     Err(tokio::sync::mpsc::error::TryRecvError::Empty) => break,
                     Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
-                        info!("");
+                        info!(
+                            "Data channel closed for node {}, stopping communication thread",
+                            node.node_id
+                        );
                         return;
                     }
                 }
@@ -143,12 +147,29 @@ async fn call_mqtt_update_cache(
         .collect();
 
     let request = UpdateCacheRequest { records };
-    if let Err(e) = broker_common_update_cache(client_pool, &[addr], request.clone()).await {
-        if broker_cache.is_stop().await {
-            return;
+    for attempt in 1..=UPDATE_CACHE_MAX_RETRIES {
+        match broker_common_update_cache(client_pool, &[addr], request.clone()).await {
+            Ok(_) => return,
+            Err(e) => {
+                if broker_cache.is_stop().await {
+                    return;
+                }
+                if attempt >= UPDATE_CACHE_MAX_RETRIES {
+                    error!(
+                        "Failed to update cache on Broker {} after {} attempts: {}",
+                        addr, attempt, e
+                    );
+                    return;
+                }
+                warn!(
+                    "Failed to update cache on Broker {} (attempt {}/{}): {}, retrying",
+                    addr, attempt, UPDATE_CACHE_MAX_RETRIES, e
+                );
+                let backoff = UPDATE_CACHE_RETRY_BASE_MS.saturating_mul(1_u64 << (attempt - 1));
+                tokio::time::sleep(Duration::from_millis(backoff)).await;
+            }
         }
-        error!("Failed to update cache on Broker {},: {}", addr, e);
-    };
+    }
 }
 
 pub async fn send_cache_update<F>(
@@ -175,72 +196,89 @@ pub async fn add_call_message(
     client_pool: &Arc<ClientPool>,
     message: BrokerCallMessage,
 ) -> Result<(), MetaServiceError> {
+    let mut errors = Vec::new();
     for raw in call_manager.broker_cache.node_list().iter() {
-        match call_manager.node_sender.entry(raw.node_id) {
-            Entry::Occupied(entry) => {
-                entry
-                    .get()
-                    .sender
-                    .send(message.clone())
-                    .await
-                    .map_err(|e| {
-                        MetaServiceError::CommonError(format!(
-                            "Failed to send message to Broker node {}: {}",
-                            raw.node_id, e
-                        ))
-                    })?;
+        if let Some(existing) = call_manager.node_sender.get(&raw.node_id) {
+            let sender = existing.sender.clone();
+            drop(existing);
+            if let Err(e) = sender.send(message.clone()).await {
+                errors.push(format!(
+                    "Failed to send message to Broker node {}: {}",
+                    raw.node_id, e
+                ));
             }
-            Entry::Vacant(entry) => {
-                // create node push thread task
-                let (data_sx, data_rx) =
-                    mpsc::channel::<BrokerCallMessage>(BROKER_CALL_CHANNEL_SIZE);
-                let (stop_send, stop_recv) = mpsc::channel::<bool>(5);
-                let (ready_tx, ready_rx) = oneshot::channel();
+            continue;
+        }
 
-                let handle = start_call_thread(
-                    raw.clone(),
-                    call_manager.clone(),
-                    client_pool.clone(),
-                    data_rx,
-                    stop_recv,
-                    ready_tx,
-                )
-                .await;
+        // create node push thread task outside map guard
+        let (data_sx, data_rx) = mpsc::channel::<BrokerCallMessage>(BROKER_CALL_CHANNEL_SIZE);
+        let (stop_send, stop_recv) = mpsc::channel::<bool>(5);
+        let (ready_tx, ready_rx) = oneshot::channel();
 
-                // wait ready
-                tokio::time::timeout(Duration::from_secs(5), ready_rx)
-                    .await
-                    .map_err(|_| {
-                        MetaServiceError::CommonError(format!(
-                            "Timeout waiting for thread to be ready for node {}",
-                            raw.node_id
-                        ))
-                    })?
-                    .map_err(|_| {
-                        MetaServiceError::CommonError(format!(
-                            "Failed to receive ready signal from thread for node {}",
-                            raw.node_id
-                        ))
-                    })?;
+        let handle = start_call_thread(
+            raw.clone(),
+            call_manager.clone(),
+            client_pool.clone(),
+            data_rx,
+            stop_recv,
+            ready_tx,
+        )
+        .await;
 
-                // add node push thread task
-                call_manager.node_thread_handle.insert(raw.node_id, handle);
-                call_manager.add_node_stop_sender(raw.node_id, stop_send.clone());
-                let node_sender = BrokerCallNodeSender {
-                    sender: data_sx.clone(),
-                    node: raw.clone(),
-                };
-                entry.insert(node_sender);
-
-                // send message
-                data_sx.send(message.clone()).await.map_err(|e| {
+        // wait ready
+        if tokio::time::timeout(Duration::from_secs(5), ready_rx)
+            .await
+            .map_err(|_| {
+                MetaServiceError::CommonError(format!(
+                    "Timeout waiting for thread to be ready for node {}",
+                    raw.node_id
+                ))
+            })
+            .and_then(|v| {
+                v.map_err(|_| {
                     MetaServiceError::CommonError(format!(
-                        "Failed to send message to Broker node {}: {}",
-                        raw.node_id, e
+                        "Failed to receive ready signal from thread for node {}",
+                        raw.node_id
                     ))
-                })?;
+                })
+            })
+            .is_err()
+        {
+            errors.push(format!(
+                "Failed to initialize communication thread for Broker node {}",
+                raw.node_id
+            ));
+            continue;
+        }
+
+        // insert sender in short critical section
+        if call_manager.node_sender.contains_key(&raw.node_id) {
+            if let Some((_, old_stop_send)) = call_manager.node_stop_sender.remove(&raw.node_id) {
+                let _ = old_stop_send.send(true).await;
+            }
+            if let Some((_, old_handle)) = call_manager.node_thread_handle.remove(&raw.node_id) {
+                let _ = tokio::time::timeout(Duration::from_secs(1), old_handle).await;
             }
         }
+
+        call_manager.node_thread_handle.insert(raw.node_id, handle);
+        call_manager.add_node_stop_sender(raw.node_id, stop_send.clone());
+        let node_sender = BrokerCallNodeSender {
+            sender: data_sx.clone(),
+            node: raw.clone(),
+        };
+        call_manager.node_sender.insert(raw.node_id, node_sender);
+
+        // send message
+        if let Err(e) = data_sx.send(message.clone()).await {
+            errors.push(format!(
+                "Failed to send message to Broker node {}: {}",
+                raw.node_id, e
+            ));
+        }
+    }
+    if !errors.is_empty() {
+        return Err(MetaServiceError::CommonError(errors.join("; ")));
     }
     Ok(())
 }
