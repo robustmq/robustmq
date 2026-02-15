@@ -147,10 +147,9 @@ impl MqttBrokerServer {
             self.connection_manager.clone(),
             self.subscribe_manager.clone(),
             self.cache_manager.clone(),
-            raw_stop_send,
         );
         tokio::spawn(Box::pin(async move {
-            keep_alive.start_heartbeat_check().await;
+            keep_alive.start_heartbeat_check(&raw_stop_send).await;
         }));
 
         // sync auth info
@@ -203,10 +202,10 @@ impl MqttBrokerServer {
             self.cache_manager.clone(),
             self.storage_driver_manager.clone(),
             self.rocksdb_engine_handler.clone(),
-            self.inner_stop.clone(),
         );
+        let raw_stop_send = self.inner_stop.clone();
         tokio::spawn(async move {
-            if let Err(e) = system_alarm.start().await {
+            if let Err(e) = system_alarm.start(raw_stop_send).await {
                 error!("Failed to start system alarm monitoring: {}", e);
             }
         });
