@@ -33,11 +33,14 @@ use protocol::meta::meta_service_journal::engine_service_server::EngineServiceSe
 use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttServiceServer;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::time::Duration;
 use storage_engine::server::inner::GrpcBrokerStorageServerService;
 use storage_engine::StorageEngineParams;
 use tonic::transport::Server;
 use tower::{Layer, Service};
-use tracing::info;
+use tracing::{info, warn};
+
+const SLOW_GRPC_WARN_THRESHOLD_MS: f64 = 2000.0;
 
 pub async fn start_grpc_server(
     place_params: MetaServiceServerParams,
@@ -55,6 +58,9 @@ pub async fn start_grpc_server(
     info!("Broker Grpc Server start success. addr:{}", ip);
     let mut route = Server::builder()
         .accept_http1(true)
+        .http2_keepalive_interval(Some(Duration::from_secs(15)))
+        .http2_keepalive_timeout(Some(Duration::from_secs(10)))
+        .timeout(Duration::from_secs(60))
         .layer(cors_layer)
         .layer(tonic_web::GrpcWebLayer::new())
         .layer(layer)
@@ -207,6 +213,14 @@ where
                         .and_then(|h| h.to_str().ok())
                         .and_then(|s| s.parse::<f64>().ok());
                     let status_code = extract_grpc_status_code(resp.headers());
+
+                    if duration_ms > SLOW_GRPC_WARN_THRESHOLD_MS {
+                        warn!(
+                            "Slow gRPC request. service={}, method={}, status={}, duration_ms={:.2}, req_size={:?}, resp_size={:?}",
+                            service, method, status_code, duration_ms, request_size, response_size
+                        );
+                    }
+
                     record_grpc_request(
                         service,
                         method,
@@ -219,6 +233,11 @@ where
                     Ok(resp)
                 }
                 Err(err) => {
+                    warn!(
+                        "gRPC request failed. service={}, method={}, duration_ms={:.2}",
+                        service, method, duration_ms
+                    );
+
                     record_grpc_request(
                         service,
                         method,

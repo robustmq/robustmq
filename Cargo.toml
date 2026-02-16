@@ -203,7 +203,7 @@ paho-mqtt = { version = "0.13.3", default-features = false, features = [
 # ====================
 # Distributed Systems
 # ====================
-openraft = "0.9.21"
+openraft = { version = "0.9.21", features = ["serde", "storage-v2", "loosen-follower-log-revert"] }
 
 # ====================
 # Observability & Logging

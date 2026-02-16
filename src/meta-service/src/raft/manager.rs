@@ -124,6 +124,18 @@ impl MultiRaftManager {
         })
     }
 
+    pub fn get_raft_node(&self, machine: &str) -> Result<&Raft<TypeConfig>, MetaServiceError> {
+        match machine {
+            "metadata" => Ok(&self.metadata_raft_node),
+            "offset" => Ok(&self.offset_raft_node),
+            "mqtt" => Ok(&self.mqtt_raft_node),
+            _ => Err(MetaServiceError::CommonError(format!(
+                "Unknown raft machine: {}",
+                machine
+            ))),
+        }
+    }
+
     pub async fn start(&self) -> Result<(), CommonError> {
         info!("Starting Multi-Raft cluster...");
 
@@ -390,7 +402,6 @@ impl MultiRaftManager {
         let config = Config {
             heartbeat_interval: 250,
             election_timeout_min: 299,
-            allow_log_reversion: Some(true),
             ..Default::default()
         };
 

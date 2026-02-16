@@ -39,7 +39,7 @@ pub async fn cluster_status_by_req(
     raft_manager: &Arc<MultiRaftManager>,
 ) -> Result<ClusterStatusReply, MetaServiceError> {
     let status = raft_manager.metadata_raft_node.metrics().borrow().clone();
-    let data = raft_manager
+    let _data = raft_manager
         .metadata_raft_node
         .data_metrics()
         .borrow()

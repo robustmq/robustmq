@@ -27,6 +27,9 @@ use tracing::{debug, info, warn};
 
 // Increased default timeout to handle network latency better
 const DEFAULT_CONNECTION_TIMEOUT_SECS: u64 = 10;
+const DEFAULT_MAX_IDLE_CONNECTIONS: u64 = 16;
+const DEFAULT_MAX_LIFETIME_SECS: u64 = 300;
+const DEFAULT_MAX_IDLE_LIFETIME_SECS: u64 = 60;
 
 fn format_error_chain(err: &(dyn Error + 'static)) -> String {
     let mut chain = vec![err.to_string()];
@@ -52,10 +55,16 @@ macro_rules! define_client_method {
                 let manager = <$manager>::new(addr.to_owned());
                 let pool = Pool::builder()
                     .max_open(self.max_open_connection)
+                    .max_idle(self.max_idle_connection)
+                    .max_lifetime(Some(self.max_lifetime))
+                    .max_idle_lifetime(Some(self.max_idle_lifetime))
                     .build(manager);
                 self.$pool_field.insert(addr.to_owned(), pool);
-                info!("Connection pool for {} at {} initialized (max_open: {}, timeout: {:?})",
-                    $service_name, addr, self.max_open_connection, self.connection_timeout);
+                info!(
+                    "Connection pool for {} at {} initialized (max_open: {}, max_idle: {}, max_lifetime: {:?}, max_idle_lifetime: {:?}, timeout: {:?})",
+                    $service_name, addr, self.max_open_connection, self.max_idle_connection,
+                    self.max_lifetime, self.max_idle_lifetime, self.connection_timeout
+                );
             }
 
             if let Some(pool) = self.$pool_field.get(addr) {
@@ -105,6 +114,9 @@ macro_rules! define_client_method {
 #[derive(Clone)]
 pub struct ClientPool {
     max_open_connection: u64,
+    max_idle_connection: u64,
+    max_lifetime: Duration,
+    max_idle_lifetime: Duration,
     connection_timeout: Duration,
     // modules: meta service
     meta_service_inner_pools: DashMap<String, Pool<MetaServiceManager>>,
@@ -130,8 +142,12 @@ impl ClientPool {
     }
 
     pub fn new_with_timeout(max_open_connection: u64, connection_timeout: Duration) -> Self {
+        let max_idle = DEFAULT_MAX_IDLE_CONNECTIONS.min(max_open_connection);
         Self {
             max_open_connection,
+            max_idle_connection: max_idle,
+            max_lifetime: Duration::from_secs(DEFAULT_MAX_LIFETIME_SECS),
+            max_idle_lifetime: Duration::from_secs(DEFAULT_MAX_IDLE_LIFETIME_SECS),
             connection_timeout,
             // modules: meta_service
             meta_service_inner_pools: DashMap::with_capacity(2),
