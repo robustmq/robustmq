@@ -70,7 +70,7 @@ data_path = ["./data/broker/engine"]
 io_thread_num = 4
 
 [runtime]
-runtime_worker_threads = 4
+runtime_worker_threads = 32
 tls_cert = "./config/certs/cert.pem"
 tls_key = "./config/certs/key.pem"
 

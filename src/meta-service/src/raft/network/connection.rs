@@ -33,6 +33,9 @@ use protocol::meta::meta_service_common::{AppendRequest, SnapshotRequest};
 use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
 use std::time::Instant;
+use tracing::warn;
+
+const SLOW_RPC_WARN_THRESHOLD_MS: f64 = 1000.0;
 
 pub struct NetworkConnection {
     addr: String,
@@ -206,6 +209,12 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_rpc_duration(&self.machine, "append_entries", duration_ms);
+        if duration_ms > SLOW_RPC_WARN_THRESHOLD_MS {
+            warn!(
+                "Raft RPC is slow. machine={}, op=append_entries, target={}, duration_ms={:.2}",
+                self.machine, self.addr, duration_ms
+            );
+        }
 
         match result {
             Ok(response) => {
@@ -234,6 +243,12 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_rpc_duration(&self.machine, "install_snapshot", duration_ms);
+        if duration_ms > SLOW_RPC_WARN_THRESHOLD_MS {
+            warn!(
+                "Raft RPC is slow. machine={}, op=install_snapshot, target={}, duration_ms={:.2}",
+                self.machine, self.addr, duration_ms
+            );
+        }
 
         match result {
             Ok(response) => {
@@ -259,6 +274,12 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_rpc_duration(&self.machine, "vote", duration_ms);
+        if duration_ms > SLOW_RPC_WARN_THRESHOLD_MS {
+            warn!(
+                "Raft RPC is slow. machine={}, op=vote, target={}, duration_ms={:.2}",
+                self.machine, self.addr, duration_ms
+            );
+        }
 
         match result {
             Ok(response) => {

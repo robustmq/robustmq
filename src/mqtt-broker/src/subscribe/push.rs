@@ -422,8 +422,11 @@ pub async fn wait_pub_ack(
     loop {
         select! {
             val = stop_recv.recv() => {
-                if let Ok(true) = val {
-                    return Ok(());
+                match val {
+                    Ok(true) | Err(broadcast::error::RecvError::Closed) => {
+                        return Ok(());
+                    }
+                    _ => {}
                 }
             }
             recv_res = timeout(Duration::from_secs(ACK_WAIT_TIMEOUT_SECS), wait_ack_rx.recv()) => {
@@ -495,8 +498,11 @@ pub async fn wait_pub_rec(
     loop {
         select! {
             val = stop_recv.recv() => {
-                if let Ok(true) = val {
-                    break;
+                match val {
+                    Ok(true) | Err(broadcast::error::RecvError::Closed) => {
+                        break;
+                    }
+                    _ => {}
                 }
             }
             recv_res = timeout(Duration::from_secs(ACK_WAIT_TIMEOUT_SECS), wait_ack_rx.recv()) => {
@@ -544,8 +550,11 @@ pub async fn wait_pub_comp(
     loop {
         select! {
             val = stop_recv.recv() => {
-                if let Ok(true) = val {
-                    return Ok(());
+                match val {
+                    Ok(true) | Err(broadcast::error::RecvError::Closed) => {
+                        return Ok(());
+                    }
+                    _ => {}
                 }
             }
             recv_res = timeout(Duration::from_secs(ACK_WAIT_TIMEOUT_SECS), wait_ack_rx.recv()) => {
@@ -629,10 +638,11 @@ where
     loop {
         select! {
             val = stop_recv.recv() => {
-                if let Ok(flag) = val {
-                    if flag {
+                match val {
+                    Ok(true) | Err(broadcast::error::RecvError::Closed) => {
                         return Ok(());
                     }
+                    _ => {}
                 }
             }
             val = ac_fn() => {
@@ -666,8 +676,11 @@ async fn interruptible_sleep(
     for _ in 0..iterations {
         select! {
             val = stop_recv.recv() => {
-                if let Ok(true) = val {
-                    return Err(());
+                match val {
+                    Ok(true) | Err(broadcast::error::RecvError::Closed) => {
+                        return Err(());
+                    }
+                    _ => {}
                 }
             }
             _ = sleep(Duration::from_millis(RETRY_SLEEP_INTERVAL_MS)) => {}

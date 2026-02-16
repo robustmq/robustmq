@@ -38,8 +38,12 @@ use tracing::debug;
 pub async fn cluster_status_by_req(
     raft_manager: &Arc<MultiRaftManager>,
 ) -> Result<ClusterStatusReply, MetaServiceError> {
-    let status: openraft::RaftMetrics<crate::raft::type_config::TypeConfig> =
-        raft_manager.metadata_raft_node.metrics().borrow().clone();
+    let status = raft_manager.metadata_raft_node.metrics().borrow().clone();
+    let data = raft_manager
+        .metadata_raft_node
+        .data_metrics()
+        .borrow()
+        .clone();
 
     let content = serde_json::to_string(&status).map_err(MetaServiceError::SerdeJsonError)?;
 

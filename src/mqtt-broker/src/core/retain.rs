@@ -372,49 +372,62 @@ fn start_send_retain_thread(
             select! {
                 val = stop_recv.recv() =>{
                     match val {
-                        Ok(flag) if flag => {
+                        Ok(true) => {
+                            debug!("Retain message send thread stopped by stop signal.");
                             break;
                         }
-                        Err(_) => {
+                        Ok(false) => {}
+                        Err(broadcast::error::RecvError::Closed) => {
+                            debug!("Retain message send thread stop channel closed, exiting.");
                             break;
                         }
-                        _ => {}
+                        Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                            debug!(
+                                "Retain message send thread stop channel lagged, skipped {} messages.",
+                                skipped
+                            );
+                        }
                     }
                 }
                 res = retain_message_rx.recv()  => {
-                    if let Some(data) = res{
-                        let raw_retain_message_manager = retain_message_manager.clone();
-                        let raw_stop_sx = stop_sx.clone();
-                        let semaphore_clone = semaphore.clone();
-                        let permit = match semaphore_clone.acquire_owned().await {
-                            Ok(permit) => permit,
-                            Err(e) => {
-                                error!(
-                                    "Failed to acquire semaphore permit for sending retain message, \
-                                    semaphore may be closed. client_id={}, topic={}, qos={:?}, error={}",
-                                    data.client_id, data.topic_name, data.qos, e
-                                );
-                                continue;
-                            }
-                        };
-                        tokio::spawn(async move{
-                            let _permit = permit;
-                            debug!(
-                                "Processing retain message: client_id={}, topic={}, qos={:?}",
-                                data.client_id, data.topic_name, data.qos
-                            );
-
-                            if let Err(e) = raw_retain_message_manager.send_retain_message(&data, &raw_stop_sx).await{
-                                if !client_unavailable_error(&e) {
-                                    warn!(
-                                        "Sending retain message failed: client_id={}, topic={}, qos={:?}, error={}",
+                    match res {
+                        Some(data) => {
+                            let raw_retain_message_manager = retain_message_manager.clone();
+                            let raw_stop_sx = stop_sx.clone();
+                            let semaphore_clone = semaphore.clone();
+                            let permit = match semaphore_clone.acquire_owned().await {
+                                Ok(permit) => permit,
+                                Err(e) => {
+                                    error!(
+                                        "Failed to acquire semaphore permit for sending retain message, \
+                                        semaphore may be closed. client_id={}, topic={}, qos={:?}, error={}",
                                         data.client_id, data.topic_name, data.qos, e
                                     );
+                                    continue;
                                 }
-                            }
-                        });
-                    }
+                            };
+                            tokio::spawn(async move{
+                                let _permit = permit;
+                                debug!(
+                                    "Processing retain message: client_id={}, topic={}, qos={:?}",
+                                    data.client_id, data.topic_name, data.qos
+                                );
 
+                                if let Err(e) = raw_retain_message_manager.send_retain_message(&data, &raw_stop_sx).await{
+                                    if !client_unavailable_error(&e) {
+                                        warn!(
+                                            "Sending retain message failed: client_id={}, topic={}, qos={:?}, error={}",
+                                            data.client_id, data.topic_name, data.qos, e
+                                        );
+                                    }
+                                }
+                            });
+                        }
+                        None => {
+                            debug!("Retain message send thread channel closed, exiting.");
+                            break;
+                        }
+                    }
                 }
             }
         }
