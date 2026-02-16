@@ -32,9 +32,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tokio::time::timeout;
-use tracing::info;
+use tracing::{info, warn};
 
 const DEFAULT_RAFT_WRITE_TIMEOUT_SEC: u64 = 30;
+const SLOW_RAFT_WRITE_WARN_THRESHOLD_MS: f64 = 1000.0;
 
 #[derive(Clone, Debug)]
 pub enum RaftStateMachineName {
@@ -174,6 +175,12 @@ impl MultiRaftManager {
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_write_duration(machine, duration_ms);
+        if duration_ms > SLOW_RAFT_WRITE_WARN_THRESHOLD_MS {
+            warn!(
+                "Raft write is slow. machine={}, duration_ms={:.2}",
+                machine, duration_ms
+            );
+        }
 
         match result {
             Ok(Ok(response)) => {
@@ -216,6 +223,12 @@ impl MultiRaftManager {
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_write_duration(machine, duration_ms);
+        if duration_ms > SLOW_RAFT_WRITE_WARN_THRESHOLD_MS {
+            warn!(
+                "Raft write is slow. machine={}, duration_ms={:.2}",
+                machine, duration_ms
+            );
+        }
 
         match result {
             Ok(Ok(response)) => {
@@ -258,6 +271,12 @@ impl MultiRaftManager {
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_write_duration(machine, duration_ms);
+        if duration_ms > SLOW_RAFT_WRITE_WARN_THRESHOLD_MS {
+            warn!(
+                "Raft write is slow. machine={}, duration_ms={:.2}",
+                machine, duration_ms
+            );
+        }
 
         match result {
             Ok(Ok(response)) => {

@@ -69,10 +69,24 @@ pub async fn acceptor_process(
             loop {
                 select! {
                     val = stop_rx.recv() => {
-                        if let Ok(flag) = val {
-                            if flag {
+                        match val {
+                            Ok(true) => {
                                 debug!("{} Server acceptor thread {} stopped successfully.", network_type, index);
                                 break;
+                            }
+                            Ok(false) => {}
+                            Err(broadcast::error::RecvError::Closed) => {
+                                debug!(
+                                    "{} Server acceptor thread {} stop channel closed, exiting.",
+                                    network_type, index
+                                );
+                                break;
+                            }
+                            Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                                debug!(
+                                    "{} Server acceptor thread {} lagged on stop channel, skipped {} messages.",
+                                    network_type, index, skipped
+                                );
                             }
                         }
                     }
@@ -134,9 +148,17 @@ fn read_frame_process(
         loop {
             select! {
                 val = connection_stop_rx.recv() =>{
-                    if let Some(flag) = val{
-                        if flag {
+                    match val {
+                        Some(true) => {
                             debug!("{} connection 【{}】 acceptor thread stopped successfully.", network_type, connection_id);
+                            break;
+                        }
+                        Some(false) => {}
+                        None => {
+                            debug!(
+                                "{} connection 【{}】 stop channel closed, exiting read loop.",
+                                network_type, connection_id
+                            );
                             break;
                         }
                     }

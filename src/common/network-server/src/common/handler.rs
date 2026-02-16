@@ -55,47 +55,70 @@ pub fn handler_process(
             loop {
                 select! {
                     val = raw_stop_rx.recv() =>{
-                        if let Ok(flag) = val {
-                            if flag {
+                        match val {
+                            Ok(true) => {
                                 debug!("Server handler process thread {} stopped successfully.",index);
                                 break;
+                            }
+                            Ok(false) => {}
+                            Err(broadcast::error::RecvError::Closed) => {
+                                debug!(
+                                    "Server handler process thread {} stop channel closed, exiting.",
+                                    index
+                                );
+                                break;
+                            }
+                            Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                                debug!(
+                                    "Server handler process thread {} lagged on stop channel, skipped {} messages.",
+                                    index, skipped
+                                );
                             }
                         }
                     },
                     val = child_process_rx.recv()=>{
                         let out_queue_time = now_millis();
                         record_request_channel_metrics(&child_process_rx,index,request_channel.channel_size);
-                        if let Some(packet) = val{
-                            let permit = semaphore.clone().acquire_owned().await.unwrap();
-                            let permit_raw_connect_manager = raw_connect_manager.clone();
-                            let permit_raw_command = raw_command.clone();
-                            let permit_raw_network_type = raw_network_type.clone();
-                            tokio::spawn(async move{
-                                if let Some(connect) = permit_raw_connect_manager.get_connect(packet.connection_id) {
-                                    let response_data = permit_raw_command
-                                        .apply(&connect, &packet.addr, &packet.packet)
-                                        .await;
+                        match val {
+                            Some(packet) => {
+                                let permit = semaphore.clone().acquire_owned().await.unwrap();
+                                let permit_raw_connect_manager = raw_connect_manager.clone();
+                                let permit_raw_command = raw_command.clone();
+                                let permit_raw_network_type = raw_network_type.clone();
+                                tokio::spawn(async move{
+                                    if let Some(connect) = permit_raw_connect_manager.get_connect(packet.connection_id) {
+                                        let response_data = permit_raw_command
+                                            .apply(&connect, &packet.addr, &packet.packet)
+                                            .await;
 
-                                    if let Some(mut resp) = response_data {
-                                        resp.out_queue_ms = out_queue_time;
-                                        resp.receive_ms = packet.receive_ms;
-                                        resp.end_handler_ms = now_millis();
-                                        // permit_request_channel.send_response_packet_to_handler(&permit_raw_network_type, resp).await;
-                                        process_response(&permit_raw_connect_manager, &permit_raw_network_type, &resp).await;
+                                        if let Some(mut resp) = response_data {
+                                            resp.out_queue_ms = out_queue_time;
+                                            resp.receive_ms = packet.receive_ms;
+                                            resp.end_handler_ms = now_millis();
+                                            // permit_request_channel.send_response_packet_to_handler(&permit_raw_network_type, resp).await;
+                                            process_response(&permit_raw_connect_manager, &permit_raw_network_type, &resp).await;
+                                        } else {
+                                            debug!("{}","No backpacking is required for this request");
+                                        }
                                     } else {
-                                        debug!("{}","No backpacking is required for this request");
+                                        warn!(
+                                            "Skip request handling because connection is missing. handler_index={}, connection_id={}, addr={}, network_type={:?}",
+                                            index,
+                                            packet.connection_id,
+                                            packet.addr,
+                                            permit_raw_network_type
+                                        );
                                     }
-                                } else {
-                                    warn!(
-                                        "Skip request handling because connection is missing. handler_index={}, connection_id={}, addr={}, network_type={:?}",
-                                        index,
-                                        packet.connection_id,
-                                        packet.addr,
-                                        permit_raw_network_type
-                                    );
-                                }
-                                drop(permit);
-                            });
+                                    drop(permit);
+                                });
+                            }
+                            None => {
+                                debug!(
+                                    "Server handler process thread {} request channel closed, exiting.",
+                                    index
+                                );
+                                break;
+                            }
                         }
                     }
                 }
