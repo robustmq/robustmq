@@ -43,12 +43,8 @@ pub async fn read_packet(
             network_type, pack, connection.connection_id
         );
     }
-    match pack.clone() {
-        RobustMQPacket::KAFKA(_) => {}
-        RobustMQPacket::StorageEngine(_) => {}
-        RobustMQPacket::MQTT(pack) => {
-            record_packet_received_metrics(connection, &pack, network_type);
-        }
+    if let RobustMQPacket::MQTT(mqtt_pack) = &pack {
+        record_packet_received_metrics(connection, mqtt_pack, network_type);
     }
 
     let package = RequestPackage::new(connection.connection_id, connection.addr, pack);

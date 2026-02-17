@@ -45,51 +45,14 @@ impl RequestPackage {
 pub struct ResponsePackage {
     pub connection_id: u64,
     pub packet: RobustMQPacket,
-
-    // This field is obtained from [`RequestPackage`] and records the time when the packet is received,
-    // the field related to internal record indicators do not need to be exported
-    pub receive_ms: u128,
-    pub out_queue_ms: u128,
-    pub end_handler_ms: u128,
-    pub request_packet: String,
 }
 
 impl ResponsePackage {
-    pub fn new(
-        connection_id: u64,
-        packet: RobustMQPacket,
-        receive_ms: u128,
-        out_queue_ms: u128,
-        end_handler_ms: u128,
-        request_packet: String,
-    ) -> Self {
+    pub fn new(connection_id: u64, packet: RobustMQPacket) -> Self {
         Self {
             connection_id,
             packet,
-            receive_ms,
-            out_queue_ms,
-            end_handler_ms,
-            request_packet,
         }
-    }
-
-    pub fn build(connection_id: u64, packet: RobustMQPacket) -> Self {
-        Self {
-            connection_id,
-            packet,
-            receive_ms: 0,
-            out_queue_ms: 0,
-            end_handler_ms: 0,
-            request_packet: "".to_string(),
-        }
-    }
-
-    pub fn set_receive_ms(&mut self, receive_ms: u128) {
-        self.receive_ms = receive_ms;
-    }
-
-    pub fn get_receive_ms(&self) -> u128 {
-        self.receive_ms
     }
 }
 
