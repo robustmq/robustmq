@@ -179,7 +179,7 @@ impl ConnectionManager {
 
     pub async fn connection_gc(&self) {
         for conn in self.connections.iter() {
-            if now_second() - conn.last_heartbeat_time > 60 {
+            if now_second() - conn.last_heartbeat_time > 1800 {
                 self.close_connect(conn.connection_id).await;
             }
         }
@@ -334,9 +334,9 @@ impl ConnectionManager {
                 }
             }
             None => {
-                warn!(
-                    "Write to websocket failed: connection {} not found",
-                    connection_id
+                debug!(
+                    "Write to websocket failed: connection {} not found, message: {:?}",
+                    connection_id, resp
                 );
                 Err(CommonError::NotObtainAvailableConnection(
                     "websocket".to_string(),
@@ -381,8 +381,8 @@ impl ConnectionManager {
             }
             None => {
                 warn!(
-                    "Write to tcp failed: connection {} not found",
-                    connection_id
+                    "Write to tcp failed: connection {} not found, packet: {}",
+                    connection_id, resp
                 );
                 Err(CommonError::NotObtainAvailableConnection(
                     "tcp".to_string(),
@@ -418,8 +418,8 @@ impl ConnectionManager {
             }
             None => {
                 warn!(
-                    "Write to tls failed: connection {} not found",
-                    connection_id
+                    "Write to tls failed: connection {} not found, packet: {}",
+                    connection_id, resp
                 );
                 Err(CommonError::NotObtainAvailableConnection(
                     "tls".to_string(),
@@ -455,8 +455,8 @@ impl ConnectionManager {
             }
             None => {
                 warn!(
-                    "Write to quic failed: connection {} not found",
-                    connection_id
+                    "Write to quic failed: connection {} not found, packet: {}",
+                    connection_id, resp
                 );
                 Err(CommonError::NotObtainAvailableConnection(
                     "quic".to_string(),

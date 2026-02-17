@@ -14,12 +14,16 @@
 
 use crate::{
     kafka::{codec::KafkaCodec, packet::KafkaPacketWrapper},
-    mqtt::codec::{MqttCodec, MqttPacketWrapper},
+    mqtt::{
+        codec::{MqttCodec, MqttPacketWrapper},
+        common::mqtt_packet_to_string,
+    },
     robust::RobustMQProtocol,
     storage::codec::{StorageEngineCodec, StorageEnginePacket},
 };
 use bytes::BytesMut;
 use common_base::error::common::CommonError;
+use std::fmt;
 use tokio_util::codec::{Decoder, Encoder};
 
 #[derive(Debug, Clone)]
@@ -27,6 +31,27 @@ pub enum RobustMQCodecWrapper {
     StorageEngine(StorageEnginePacket),
     KAFKA(KafkaPacketWrapper),
     MQTT(MqttPacketWrapper),
+}
+
+impl fmt::Display for RobustMQCodecWrapper {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RobustMQCodecWrapper::MQTT(wrapper) => {
+                write!(
+                    f,
+                    "MQTT(v{}, {})",
+                    wrapper.protocol_version,
+                    mqtt_packet_to_string(&wrapper.packet)
+                )
+            }
+            RobustMQCodecWrapper::KAFKA(wrapper) => {
+                write!(f, "KAFKA(api_version={})", wrapper.api_version)
+            }
+            RobustMQCodecWrapper::StorageEngine(packet) => {
+                write!(f, "StorageEngine({})", packet)
+            }
+        }
+    }
 }
 
 pub enum RobustMQCodecEnum {

@@ -188,6 +188,7 @@ export const sidebar = [
       { text: "Bench CLI Guide", link: "/en/Bench/Bench-CLI" },
       { text: "MQTT Bench Guide", link: "/en/Bench/MQTT-Bench" },
       { text: "Meta Bench Guide", link: "/en/Bench/Meta-Bench" },
+      { text: "Benchmark Report", link: "/en/Bench/Bench-Report" },
     ],
   },
   {

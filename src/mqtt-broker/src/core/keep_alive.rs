@@ -116,13 +116,15 @@ impl ClientKeepAlive {
                     };
 
                     if let Err(e) = try_send_distinct_packet(&context).await {
-                        warn!(
-                            connect_id = context.connect_id,
-                            client_id = %context.connection.client_id,
-                            protocol = ?context.protocol,
-                            error = %e,
-                            "Heartbeat timeout: failed to actively disconnect connection"
-                        );
+                        if !matches!(e, MqttBrokerError::SessionDoesNotExist) {
+                            warn!(
+                                connect_id = context.connect_id,
+                                client_id = %context.connection.client_id,
+                                protocol = ?context.protocol,
+                                error = %e,
+                                "Heartbeat timeout: failed to actively disconnect connection"
+                            );
+                        }
                     } else {
                         debug!(
                             "Heartbeat timeout, active disconnection {} successful",
