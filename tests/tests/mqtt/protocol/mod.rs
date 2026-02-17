@@ -38,7 +38,7 @@ pub mod common;
 pub mod connect_test;
 pub mod connector_test;
 pub mod content_type_test;
-// pub mod delay_publish_test;
+pub mod delay_publish_test;
 pub mod keep_alive_test;
 pub mod lastwill_message_test;
 pub mod login_test;

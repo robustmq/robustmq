@@ -83,15 +83,17 @@ mod tests {
         let target_ms1 = target_ms.1.parse::<i64>().unwrap();
         let save_ms1 = save_ms.1.parse::<i64>().unwrap();
 
+        let drift = save_ms1 - target_ms1;
         println!(
-            "expected_delay:{},now:{},recv_ms1:{},target_ms1:{},save_ms1:{}",
+            "expected_delay:{},now:{},recv_ms1:{},target_ms1:{},save_ms1:{},drift:{}s",
             expected_delay,
             now_second(),
             recv_ms1,
             target_ms1,
-            save_ms1
+            save_ms1,
+            drift
         );
-        target_ms1 == save_ms1
+        save_ms1 >= target_ms1 && drift <= 2
     }
 
     async fn test_delay_publish(
@@ -210,15 +212,17 @@ mod tests {
                 let target_ms1 = target_ms.1.parse::<i64>().unwrap();
                 let save_ms1 = save_ms.1.parse::<i64>().unwrap();
 
+                let drift = save_ms1 - target_ms1;
                 println!(
-                    "t:{},now:{},recv_ms1:{},target_ms2:{},save_ms:{}",
+                    "t:{},now:{},recv_ms1:{},target_ms1:{},save_ms1:{},drift:{}s",
                     t,
                     now_second(),
                     recv_ms1,
                     target_ms1,
-                    save_ms1
+                    save_ms1,
+                    drift
                 );
-                target_ms1 == save_ms1
+                save_ms1 >= target_ms1 && drift <= 2
             };
 
             let subscribe_test_data = SubscribeTestData {

@@ -136,7 +136,7 @@ async fn process_delay_index_record(
         return false;
     }
 
-    delay_message_manager.send_to_delay_queue(&delay_info);
+    delay_message_manager.send_to_delay_queue(&delay_info).await;
     *total_num += 1;
     true
 }

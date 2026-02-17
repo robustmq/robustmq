@@ -17,7 +17,7 @@ use common_base::node_status::NodeStatus;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
-use tracing::warn;
+use tracing::{debug, warn};
 
 const WAIT_CLUSTER_WARN_THRESHOLD: Duration = Duration::from_secs(1);
 const WAIT_CLUSTER_MAX_TIMEOUT: Duration = Duration::from_secs(60);
@@ -51,7 +51,7 @@ pub async fn wait_cluster_running(cache_manager: &Arc<BrokerCacheManager>) -> Re
 
         if elapsed >= WAIT_CLUSTER_WARN_THRESHOLD {
             warned = true;
-            warn!(
+            debug!(
                 "Waiting for cluster to be running... elapsed={:.2}s, max_timeout={}s",
                 elapsed.as_secs_f64(),
                 WAIT_CLUSTER_MAX_TIMEOUT.as_secs()
