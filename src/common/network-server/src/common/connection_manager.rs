@@ -28,7 +28,7 @@ use protocol::robust::{RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_util::codec::FramedWrite;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 type TcpWriter =
     Arc<Mutex<FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, RobustMQCodec>>>;
@@ -380,8 +380,8 @@ impl ConnectionManager {
                 }
             }
             None => {
-                warn!(
-                    "Write to tcp failed: connection {} not found, packet: {}",
+                debug!(
+                    "Write to tcp skipped: connection {} not found, packet: {}",
                     connection_id, resp
                 );
                 Err(CommonError::NotObtainAvailableConnection(
@@ -417,8 +417,8 @@ impl ConnectionManager {
                 }
             }
             None => {
-                warn!(
-                    "Write to tls failed: connection {} not found, packet: {}",
+                debug!(
+                    "Write to tls skipped: connection {} not found, packet: {}",
                     connection_id, resp
                 );
                 Err(CommonError::NotObtainAvailableConnection(
@@ -454,8 +454,8 @@ impl ConnectionManager {
                 }
             }
             None => {
-                warn!(
-                    "Write to quic failed: connection {} not found, packet: {}",
+                debug!(
+                    "Write to quic skipped: connection {} not found, packet: {}",
                     connection_id, resp
                 );
                 Err(CommonError::NotObtainAvailableConnection(
