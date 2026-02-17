@@ -250,7 +250,7 @@ apache-avro = "0.17.0"
 # Utilities
 # ====================
 anyhow = "1.0.98"
-thiserror = "1.0"
+thiserror = "2.0"
 bytes = { version = "1", features = ["serde"] }
 uuid = { version = "1.7.0", default-features = false, features = ["v4"] }
 xid = "1.1"
