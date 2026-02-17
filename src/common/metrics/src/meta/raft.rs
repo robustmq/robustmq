@@ -174,6 +174,31 @@ mod tests {
     }
 
     #[test]
+    fn test_raft_metrics_encode() {
+        use crate::core::server::dump_metrics;
+
+        record_write_request("metadata");
+        record_write_request("offset");
+        record_write_success("metadata");
+        record_write_duration("metadata", 10.0);
+
+        let output = dump_metrics();
+        println!("=== Prometheus Output ===");
+        for line in output.lines() {
+            if line.contains("raft_write") {
+                println!("{}", line);
+            }
+        }
+        println!("=== End ===");
+
+        assert!(
+            output.contains("raft_write_requests"),
+            "Counter metric raft_write_requests not found in output! Full output:\n{}",
+            output
+        );
+    }
+
+    #[test]
     fn test_raft_rpc_label_equality() {
         let label1 = RaftRpcLabel {
             machine: "metadata".to_string(),
