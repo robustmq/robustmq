@@ -181,11 +181,7 @@ impl MultiRaftManager {
         let start = Instant::now();
         let write_timeout = self.get_raft_write_timeout();
 
-        let result = timeout(
-            write_timeout,
-            self.metadata_raft_node.client_write(data),
-        )
-        .await;
+        let result = timeout(write_timeout, self.metadata_raft_node.client_write(data)).await;
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_write_duration(machine, duration_ms);
@@ -241,11 +237,7 @@ impl MultiRaftManager {
         let start = Instant::now();
         let write_timeout = self.get_raft_write_timeout();
 
-        let result = timeout(
-            write_timeout,
-            self.offset_raft_node.client_write(data),
-        )
-        .await;
+        let result = timeout(write_timeout, self.offset_raft_node.client_write(data)).await;
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_write_duration(machine, duration_ms);
@@ -301,11 +293,7 @@ impl MultiRaftManager {
         let start = Instant::now();
         let write_timeout = self.get_raft_write_timeout();
 
-        let result = timeout(
-            write_timeout,
-            self.mqtt_raft_node.client_write(data),
-        )
-        .await;
+        let result = timeout(write_timeout, self.mqtt_raft_node.client_write(data)).await;
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_write_duration(machine, duration_ms);
