@@ -47,7 +47,7 @@ pub async fn run_placement_create_session_bench(
     let effective_concurrency = args.concurrency.min(args.count);
     let semaphore = Arc::new(Semaphore::new(effective_concurrency));
     let stats = SharedStats::new();
-    let client_pool = Arc::new(ClientPool::new(effective_concurrency.max(100) as u64));
+    let client_pool = Arc::new(ClientPool::new(effective_concurrency.min(8)));
     let addrs = vec![format!("{}:{}", args.host, args.port)];
     let timeout = Duration::from_millis(args.timeout_ms.max(1));
 

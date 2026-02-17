@@ -58,8 +58,8 @@ pub async fn start_grpc_server(
     info!("Broker Grpc Server start success. addr:{}", ip);
     let mut route = Server::builder()
         .accept_http1(true)
-        .http2_keepalive_interval(Some(Duration::from_secs(15)))
-        .http2_keepalive_timeout(Some(Duration::from_secs(10)))
+        .http2_keepalive_interval(Some(Duration::from_secs(30)))
+        .http2_keepalive_timeout(Some(Duration::from_secs(60)))
         .timeout(Duration::from_secs(60))
         .layer(cors_layer)
         .layer(tonic_web::GrpcWebLayer::new())

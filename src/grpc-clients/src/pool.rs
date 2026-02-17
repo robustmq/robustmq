@@ -12,200 +12,105 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::broker::common::BrokerCommonServiceManager;
-use crate::broker::storage::BrokerStorageServiceManager;
-use crate::meta::mqtt::MqttServiceManager;
-use crate::meta::storage::StorageEngineServiceManager;
-use crate::{broker::mqtt::BrokerMqttServiceManager, meta::common::MetaServiceManager};
-use common_base::error::common::CommonError;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
-use mobc::{Connection, Pool};
-use std::error::Error;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
-use tracing::{debug, info, warn};
+use tonic::transport::Channel;
+use tracing::info;
 
-// Increased default timeout to handle network latency better
-const DEFAULT_CONNECTION_TIMEOUT_SECS: u64 = 10;
-const DEFAULT_MAX_IDLE_CONNECTIONS: u64 = 16;
-const DEFAULT_MAX_LIFETIME_SECS: u64 = 300;
-const DEFAULT_MAX_IDLE_LIFETIME_SECS: u64 = 60;
+const DEFAULT_CHANNELS_PER_ADDRESS: usize = 16;
 
-fn format_error_chain(err: &(dyn Error + 'static)) -> String {
-    let mut chain = vec![err.to_string()];
-    let mut source = err.source();
-    while let Some(cause) = source {
-        chain.push(cause.to_string());
-        source = cause.source();
-    }
-    chain.join(" -> caused by: ")
+/// A pool of HTTP/2 channels to a single address.
+/// Each channel is a separate TCP connection that supports HTTP/2 multiplexing
+/// (up to ~200 concurrent streams per connection).
+/// Round-robin distributes requests across channels.
+struct ChannelPool {
+    channels: Vec<Channel>,
+    next: AtomicUsize,
 }
 
-macro_rules! define_client_method {
-    (
-        $method_name:ident,
-        $pool_field:ident,
-        $manager:ty,
-        $service_name:expr
-    ) => {
-        pub async fn $method_name(&self, addr: &str) -> Result<Connection<$manager>, CommonError> {
-            // Initialize pool if not exists
-            if !self.$pool_field.contains_key(addr) {
-                debug!("Creating new connection pool for {} at {}", $service_name, addr);
-                let manager = <$manager>::new(addr.to_owned());
-                let pool = Pool::builder()
-                    .max_open(self.max_open_connection)
-                    .max_idle(self.max_idle_connection)
-                    .max_lifetime(Some(self.max_lifetime))
-                    .max_idle_lifetime(Some(self.max_idle_lifetime))
-                    .build(manager);
-                self.$pool_field.insert(addr.to_owned(), pool);
-                info!(
-                    "Connection pool for {} at {} initialized (max_open: {}, max_idle: {}, max_lifetime: {:?}, max_idle_lifetime: {:?}, timeout: {:?})",
-                    $service_name, addr, self.max_open_connection, self.max_idle_connection,
-                    self.max_lifetime, self.max_idle_lifetime, self.connection_timeout
-                );
-            }
-
-            if let Some(pool) = self.$pool_field.get(addr) {
-                let pool_state_before = pool.state().await;
-                debug!("Attempting to get connection from {} pool at {} (state: {:?})",
-                    $service_name, addr, pool_state_before);
-
-                match pool.get_timeout(self.connection_timeout).await {
-                    Ok(conn) => {
-                        debug!("Successfully obtained connection from {} pool at {}", $service_name, addr);
-                        return Ok(conn);
-                    }
-                    Err(e) => {
-                        let pool_state_after = pool.state().await;
-                        let error_chain = format_error_chain(&e);
-                        warn!(
-                            "{} connection pool at {} has no connection available. Error(display): {}, Error(debug): {:?}, Error chain: {}, State before: {:?}, State after: {:?}",
-                            $service_name,
-                            addr,
-                            e,
-                            e,
-                            error_chain,
-                            pool_state_before,
-                            pool_state_after
-                        );
-                        return Err(CommonError::NoAvailableGrpcConnection(
-                            $service_name.to_string(),
-                            format!(
-                                "get {} client failed, err: {}, state: {:?}",
-                                $service_name,
-                                e,
-                                pool_state_after
-                            ),
-                        ));
-                    }
-                }
-            }
-
-            Err(CommonError::NoAvailableGrpcConnection(
-                $service_name.to_string(),
-                "connection pool is not initialized".to_string(),
-            ))
+impl ChannelPool {
+    fn new(addr: &str, num_channels: usize) -> Self {
+        let channels: Vec<Channel> = (0..num_channels)
+            .map(|_| Self::create_channel(addr))
+            .collect();
+        info!(
+            "Channel pool created for {} with {} channels (lazy connect)",
+            addr, num_channels
+        );
+        ChannelPool {
+            channels,
+            next: AtomicUsize::new(0),
         }
-    };
+    }
+
+    fn create_channel(addr: &str) -> Channel {
+        Channel::from_shared(format!("http://{}", addr))
+            .expect("Invalid gRPC URI")
+            .connect_timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(60))
+            .tcp_nodelay(true)
+            .tcp_keepalive(Some(Duration::from_secs(60)))
+            .http2_adaptive_window(true)
+            .http2_keep_alive_interval(Duration::from_secs(30))
+            .keep_alive_timeout(Duration::from_secs(60))
+            .keep_alive_while_idle(true)
+            .connect_lazy()
+    }
+
+    fn get(&self) -> Channel {
+        let idx = self.next.fetch_add(1, Ordering::Relaxed) % self.channels.len();
+        self.channels[idx].clone()
+    }
 }
 
+/// gRPC client pool using HTTP/2 channel multiplexing.
+///
+/// Instead of creating one TCP connection per request (like a traditional connection pool),
+/// this uses a small fixed number of HTTP/2 channels per address. Each channel supports
+/// hundreds of concurrent requests via HTTP/2 multiplexing.
+///
+/// Usage:
+/// ```ignore
+/// let pool = ClientPool::new(4); // 4 channels per address
+/// let channel = pool.get_channel("127.0.0.1:1228");
+/// let client = MetaServiceServiceClient::new(channel);
+/// ```
 #[derive(Clone)]
 pub struct ClientPool {
-    max_open_connection: u64,
-    max_idle_connection: u64,
-    max_lifetime: Duration,
-    max_idle_lifetime: Duration,
-    connection_timeout: Duration,
-    // modules: meta service
-    meta_service_inner_pools: DashMap<String, Pool<MetaServiceManager>>,
-    meta_service_engine_service_pools: DashMap<String, Pool<StorageEngineServiceManager>>,
-    meta_service_mqtt_service_pools: DashMap<String, Pool<MqttServiceManager>>,
-    // modules: meta service service: leader cache
-    meta_service_leader_addr_caches: DashMap<String, String>,
-
-    // modules: broker mqtt
-    broker_mqtt_grpc_pools: DashMap<String, Pool<BrokerMqttServiceManager>>,
-    // modules: broker storage engine
-    broker_storage_grpc_pools: DashMap<String, Pool<BrokerStorageServiceManager>>,
-    // modules: broker common
-    broker_common_grpc_pools: DashMap<String, Pool<BrokerCommonServiceManager>>,
+    channels_per_address: usize,
+    channel_pools: Arc<DashMap<String, Arc<ChannelPool>>>,
+    // leader cache for write requests (Raft leader routing)
+    meta_service_leader_addr_caches: Arc<DashMap<String, String>>,
 }
 
 impl ClientPool {
-    pub fn new(max_open_connection: u64) -> Self {
-        Self::new_with_timeout(
-            max_open_connection,
-            Duration::from_secs(DEFAULT_CONNECTION_TIMEOUT_SECS),
-        )
-    }
-
-    pub fn new_with_timeout(max_open_connection: u64, connection_timeout: Duration) -> Self {
-        let max_idle = DEFAULT_MAX_IDLE_CONNECTIONS.min(max_open_connection);
+    pub fn new(channels_per_address: usize) -> Self {
+        let channels_per_address = if channels_per_address == 0 {
+            DEFAULT_CHANNELS_PER_ADDRESS
+        } else {
+            channels_per_address
+        };
         Self {
-            max_open_connection,
-            max_idle_connection: max_idle,
-            max_lifetime: Duration::from_secs(DEFAULT_MAX_LIFETIME_SECS),
-            max_idle_lifetime: Duration::from_secs(DEFAULT_MAX_IDLE_LIFETIME_SECS),
-            connection_timeout,
-            // modules: meta_service
-            meta_service_inner_pools: DashMap::with_capacity(2),
-            meta_service_engine_service_pools: DashMap::with_capacity(2),
-            meta_service_mqtt_service_pools: DashMap::with_capacity(2),
-            meta_service_leader_addr_caches: DashMap::with_capacity(2),
-            // modules: mqtt_broker
-            broker_mqtt_grpc_pools: DashMap::with_capacity(2),
-            broker_storage_grpc_pools: DashMap::with_capacity(2),
-            broker_common_grpc_pools: DashMap::with_capacity(2),
+            channels_per_address,
+            channel_pools: Arc::new(DashMap::with_capacity(8)),
+            meta_service_leader_addr_caches: Arc::new(DashMap::with_capacity(2)),
         }
     }
 
-    // ----------modules: meta service -------------
-    define_client_method!(
-        meta_service_inner_services_client,
-        meta_service_inner_pools,
-        MetaServiceManager,
-        "MetaInnerServiceManager"
-    );
-
-    define_client_method!(
-        meta_service_journal_services_client,
-        meta_service_engine_service_pools,
-        StorageEngineServiceManager,
-        "MetaStorageEngineServiceManager"
-    );
-
-    define_client_method!(
-        meta_service_mqtt_services_client,
-        meta_service_mqtt_service_pools,
-        MqttServiceManager,
-        "MetaMqttServiceManager"
-    );
-
-    // ----------modules: mqtt broker -------------
-    define_client_method!(
-        mqtt_broker_mqtt_services_client,
-        broker_mqtt_grpc_pools,
-        BrokerMqttServiceManager,
-        "BrokerMQTTServiceManager"
-    );
-
-    // ----------modules: storage broker -------------
-    define_client_method!(
-        broker_storage_services_client,
-        broker_storage_grpc_pools,
-        BrokerStorageServiceManager,
-        "BrokerStorageServiceManager"
-    );
-
-    // ----------modules: common broker -------------
-    define_client_method!(
-        broker_common_services_client,
-        broker_common_grpc_pools,
-        BrokerCommonServiceManager,
-        "BrokerCommonServiceManager"
-    );
+    /// Get an HTTP/2 channel for the given address.
+    /// Creates a new channel pool if one doesn't exist for this address.
+    /// Channels are lazy-connected: the TCP connection is established on first use.
+    pub fn get_channel(&self, addr: &str) -> Channel {
+        if let Some(pool) = self.channel_pools.get(addr) {
+            return pool.get();
+        }
+        let pool = Arc::new(ChannelPool::new(addr, self.channels_per_address));
+        self.channel_pools.insert(addr.to_string(), pool.clone());
+        pool.get()
+    }
 
     // ----------leader cache management -------------
     pub fn get_leader_addr(&self, method: &str) -> Option<Ref<'_, String, String>> {
@@ -224,115 +129,4 @@ impl ClientPool {
     pub fn clear_leader_cache(&self) {
         self.meta_service_leader_addr_caches.clear();
     }
-
-    // ----------pool statistics -------------
-    pub fn get_pool_count(&self) -> usize {
-        self.meta_service_inner_pools.len()
-            + self.meta_service_engine_service_pools.len()
-            + self.meta_service_mqtt_service_pools.len()
-            + self.broker_mqtt_grpc_pools.len()
-    }
-
-    // ----------connection pool warming -------------
-    /// Warm up the MQTT Broker connection pool by pre-establishing connections
-    /// This helps avoid timeout issues when the first request comes in
-    pub async fn warmup_mqtt_broker_pool(&self, addr: &str) -> Result<(), CommonError> {
-        info!("Warming up MQTT Broker connection pool for {}", addr);
-
-        // Try to get and immediately return a connection to initialize the pool
-        match self.mqtt_broker_mqtt_services_client(addr).await {
-            Ok(conn) => {
-                info!(
-                    "Successfully warmed up MQTT Broker connection pool for {}",
-                    addr
-                );
-                drop(conn); // Return connection to pool
-                Ok(())
-            }
-            Err(e) => {
-                warn!(
-                    "Failed to warm up MQTT Broker connection pool for {}: {}",
-                    addr, e
-                );
-                Err(e)
-            }
-        }
-    }
-
-    /// Warm up multiple MQTT Broker connection pools concurrently
-    pub async fn warmup_mqtt_broker_pools(
-        &self,
-        addrs: &[String],
-    ) -> Vec<(String, Result<(), CommonError>)> {
-        let mut results = Vec::new();
-
-        for addr in addrs {
-            let result = self.warmup_mqtt_broker_pool(addr).await;
-            results.push((addr.clone(), result));
-        }
-
-        results
-    }
-
-    // ----------pool health monitoring -------------
-    /// Get health status of MQTT Broker connection pool
-    pub async fn get_mqtt_broker_pool_health(&self, addr: &str) -> Option<PoolHealthStatus> {
-        if let Some(pool) = self.broker_mqtt_grpc_pools.get(addr) {
-            let state = pool.state().await;
-            Some(PoolHealthStatus {
-                addr: addr.to_string(),
-                max_open: state.max_open,
-                connections: state.connections,
-                in_use: state.in_use,
-                idle: state.idle,
-                is_healthy: state.connections > 0 && state.idle > 0,
-            })
-        } else {
-            None
-        }
-    }
-
-    /// Get health status of all MQTT Broker connection pools
-    pub async fn get_all_mqtt_broker_pool_health(&self) -> Vec<PoolHealthStatus> {
-        let mut statuses = Vec::new();
-
-        for entry in self.broker_mqtt_grpc_pools.iter() {
-            let addr = entry.key().clone();
-            let pool = entry.value();
-            let state = pool.state().await;
-
-            statuses.push(PoolHealthStatus {
-                addr,
-                max_open: state.max_open,
-                connections: state.connections,
-                in_use: state.in_use,
-                idle: state.idle,
-                is_healthy: state.connections > 0,
-            });
-        }
-
-        statuses
-    }
-
-    /// Clear unhealthy connections from MQTT Broker pool
-    pub fn clear_mqtt_broker_pool(&self, addr: &str) -> bool {
-        if self.broker_mqtt_grpc_pools.contains_key(addr) {
-            self.broker_mqtt_grpc_pools.remove(addr);
-            info!("Cleared MQTT Broker connection pool for {}", addr);
-            true
-        } else {
-            false
-        }
-    }
-}
-
-/// Health status information for a connection pool
-#[derive(Debug, Clone)]
-pub struct PoolHealthStatus {
-    pub addr: String,
-    pub max_open: u64,
-    pub connections: u64,
-    pub in_use: u64,
-    pub idle: u64,
-    pub is_healthy: bool,
 }

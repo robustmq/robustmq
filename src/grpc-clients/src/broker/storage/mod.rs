@@ -12,44 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
-use mobc::Manager;
-use protocol::broker::broker_storage::broker_storage_service_client::BrokerStorageServiceClient;
-use tonic::transport::Channel;
-
 pub mod call;
-
-#[derive(Clone)]
-pub struct BrokerStorageServiceManager {
-    pub addr: String,
-}
-
-impl BrokerStorageServiceManager {
-    pub fn new(addr: String) -> Self {
-        Self { addr }
-    }
-}
-#[tonic::async_trait]
-impl Manager for BrokerStorageServiceManager {
-    type Connection = BrokerStorageServiceClient<Channel>;
-    type Error = CommonError;
-
-    async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        match BrokerStorageServiceClient::connect(format!("http://{}", self.addr.clone())).await {
-            Ok(client) => {
-                return Ok(client);
-            }
-            Err(err) => {
-                return Err(CommonError::CommonError(format!(
-                    "{},{}",
-                    err,
-                    self.addr.clone()
-                )))
-            }
-        };
-    }
-
-    async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
-        Ok(conn)
-    }
-}

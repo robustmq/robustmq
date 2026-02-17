@@ -100,7 +100,7 @@ impl Default for BrokerServer {
 impl BrokerServer {
     pub fn new() -> Self {
         let config = broker_config();
-        let client_pool = Arc::new(ClientPool::new(100));
+        let client_pool = Arc::new(ClientPool::new(0));
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.rocksdb.data_path),
             config.rocksdb.max_open_files,
