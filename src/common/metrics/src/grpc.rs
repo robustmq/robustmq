@@ -37,7 +37,7 @@ pub struct GrpcErrorLabel {
 
 register_counter_metric!(
     GRPC_REQUESTS_TOTAL,
-    "grpc_requests_total",
+    "grpc_requests",
     "Total number of gRPC requests by service and method",
     GrpcMethodLabel
 );
@@ -51,7 +51,7 @@ register_histogram_metric_ms_with_default_buckets!(
 
 register_counter_metric!(
     GRPC_ERRORS_TOTAL,
-    "grpc_errors_total",
+    "grpc_errors",
     "Total number of gRPC errors by service, method and status code",
     GrpcErrorLabel
 );

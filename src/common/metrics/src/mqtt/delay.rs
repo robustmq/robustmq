@@ -27,7 +27,7 @@ pub struct DelayLabel {}
 
 register_counter_metric!(
     DELAY_MSG_ENQUEUE_TOTAL,
-    "delay_msg_enqueue_total",
+    "delay_msg_enqueue",
     "Total number of messages enqueued into the delay queue",
     DelayLabel
 );
@@ -41,14 +41,14 @@ register_histogram_metric_ms_with_default_buckets!(
 
 register_counter_metric!(
     DELAY_MSG_DELIVER_TOTAL,
-    "delay_msg_deliver_total",
+    "delay_msg_deliver",
     "Total number of delay messages delivered to target topic",
     DelayLabel
 );
 
 register_counter_metric!(
     DELAY_MSG_DELIVER_FAIL_TOTAL,
-    "delay_msg_deliver_fail_total",
+    "delay_msg_deliver_fail",
     "Total number of delay message delivery failures",
     DelayLabel
 );
@@ -62,14 +62,14 @@ register_histogram_metric_ms_with_default_buckets!(
 
 register_counter_metric!(
     DELAY_MSG_RECOVER_TOTAL,
-    "delay_msg_recover_total",
+    "delay_msg_recover",
     "Total number of delay messages recovered from persistent storage on startup",
     DelayLabel
 );
 
 register_counter_metric!(
     DELAY_MSG_RECOVER_EXPIRED_TOTAL,
-    "delay_msg_recover_expired_total",
+    "delay_msg_recover_expired",
     "Total number of already-expired delay messages found during recovery",
     DelayLabel
 );

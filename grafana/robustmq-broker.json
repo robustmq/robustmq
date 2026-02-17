@@ -617,7 +617,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "MQTT 订阅事件统计 - 订阅成功、失败、取消订阅等",
+      "description": "MQTT subscription event statistics - subscribe success, failure, unsubscribe, etc.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -627,7 +627,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "次数",
+            "axisLabel": "Count",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
@@ -673,7 +673,7 @@
           {
             "matcher": {
               "id": "byRegexp",
-              "options": ".*成功.*"
+              "options": ".*Success.*"
             },
             "properties": [
               {
@@ -688,7 +688,7 @@
           {
             "matcher": {
               "id": "byRegexp",
-              "options": ".*失败.*"
+              "options": ".*Failed.*"
             },
             "properties": [
               {
@@ -703,7 +703,7 @@
           {
             "matcher": {
               "id": "byRegexp",
-              "options": ".*取消.*"
+              "options": ".*Unsubscribe.*"
             },
             "properties": [
               {
@@ -749,7 +749,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "expr": "mqtt_subscribe_success",
-          "legendFormat": "订阅成功",
+          "legendFormat": "Subscribe Success",
           "refId": "A"
         },
         {
@@ -758,7 +758,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "expr": "mqtt_subscribe_failed",
-          "legendFormat": "订阅失败",
+          "legendFormat": "Subscribe Failed",
           "refId": "B"
         },
         {
@@ -767,11 +767,11 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "expr": "mqtt_unsubscribe_success",
-          "legendFormat": "取消订阅成功",
+          "legendFormat": "Unsubscribe Success",
           "refId": "C"
         }
       ],
-      "title": "订阅统计",
+      "title": "Subscription Statistics",
       "type": "timeseries"
     },
     {
@@ -779,7 +779,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "MQTT 订阅事件统计 - 订阅成功、失败、取消订阅等",
+      "description": "MQTT subscription event statistics - subscribe success, failure, unsubscribe, etc.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -789,7 +789,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "次数",
+            "axisLabel": "Count",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
@@ -835,7 +835,7 @@
           {
             "matcher": {
               "id": "byRegexp",
-              "options": ".*成功.*"
+              "options": ".*Success.*"
             },
             "properties": [
               {
@@ -850,7 +850,7 @@
           {
             "matcher": {
               "id": "byRegexp",
-              "options": ".*失败.*"
+              "options": ".*Failed.*"
             },
             "properties": [
               {
@@ -865,7 +865,7 @@
           {
             "matcher": {
               "id": "byRegexp",
-              "options": ".*取消.*"
+              "options": ".*Unsubscribe.*"
             },
             "properties": [
               {
@@ -911,7 +911,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "expr": "mqtt_subscribe_success",
-          "legendFormat": "订阅成功",
+          "legendFormat": "Subscribe Success",
           "refId": "A"
         },
         {
@@ -920,7 +920,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "expr": "mqtt_subscribe_failed",
-          "legendFormat": "订阅失败",
+          "legendFormat": "Subscribe Failed",
           "refId": "B"
         },
         {
@@ -929,11 +929,11 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "expr": "mqtt_unsubscribe_success",
-          "legendFormat": "取消订阅成功",
+          "legendFormat": "Unsubscribe Success",
           "refId": "C"
         }
       ],
-      "title": "订阅统计",
+      "title": "Subscription Statistics",
       "type": "timeseries"
     },
     {
@@ -946,7 +946,7 @@
       },
       "id": 300,
       "panels": [],
-      "title": "🌐 网络层指标 (Network)",
+      "title": "🌐 Network Layer Metrics",
       "type": "row"
     },
     {
@@ -954,7 +954,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Handler 处理的请求总数",
+      "description": "Handler requests per second",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -967,7 +967,7 @@
               { "color": "green", "value": 0 }
             ]
           },
-          "unit": "short"
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -989,13 +989,13 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "handler_requests_total",
-          "legendFormat": "{{network}}",
+          "expr": "sum(rate(handler_requests_total[1m]))",
+          "legendFormat": "req/s",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "请求处理总数 (Requests Total)",
+      "title": "Requests Rate (req/s)",
       "type": "stat"
     },
     {
@@ -1003,7 +1003,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Handler 处理的慢请求总数（>1s）",
+      "description": "Total slow requests processed by handler (>1s)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1046,7 +1046,7 @@
           "refId": "A"
         }
       ],
-      "title": "慢请求总数 (Slow Requests >1s)",
+      "title": "Slow Requests Total (>1s)",
       "type": "stat"
     },
     {
@@ -1054,7 +1054,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Handler 队列当前大小与剩余容量",
+      "description": "Handler queue current size and remaining capacity",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -1076,11 +1076,11 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byRegexp", "options": ".*已用.*" },
+            "matcher": { "id": "byRegexp", "options": ".*Used.*" },
             "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
           },
           {
-            "matcher": { "id": "byRegexp", "options": ".*剩余.*" },
+            "matcher": { "id": "byRegexp", "options": ".*Remaining.*" },
             "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
           }
         ]
@@ -1097,7 +1097,7 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
           "expr": "handler_queue_size",
-          "legendFormat": "已用 ({{label}})",
+          "legendFormat": "Used ({{label}})",
           "range": true,
           "refId": "A"
         },
@@ -1105,12 +1105,12 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
           "expr": "handler_queue_remaining",
-          "legendFormat": "剩余 ({{label}})",
+          "legendFormat": "Remaining ({{label}})",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "Handler 队列大小 (Queue Size)",
+      "title": "Handler Queue Size",
       "type": "timeseries"
     },
     {
@@ -1118,7 +1118,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "请求从接收到完成的端到端耗时分布",
+      "description": "End-to-end latency distribution from request receipt to completion",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -1181,7 +1181,7 @@
           "refId": "D"
         }
       ],
-      "title": "Handler 总耗时 (Total Latency)",
+      "title": "Handler Total Latency",
       "type": "timeseries"
     },
     {
@@ -1189,7 +1189,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "请求在 Handler 队列中的等待耗时分布",
+      "description": "Latency distribution of requests waiting in handler queue",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -1252,7 +1252,7 @@
           "refId": "D"
         }
       ],
-      "title": "队列等待耗时 (Queue Wait Latency)",
+      "title": "Queue Wait Latency",
       "type": "timeseries"
     },
     {
@@ -1260,7 +1260,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "command.apply() 业务处理耗时分布",
+      "description": "Latency distribution of command.apply() business processing",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -1323,7 +1323,7 @@
           "refId": "D"
         }
       ],
-      "title": "业务处理耗时 (Apply Latency)",
+      "title": "Apply Latency",
       "type": "timeseries"
     },
     {
@@ -1331,7 +1331,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "响应写回客户端的耗时分布",
+      "description": "Latency distribution of writing response back to client",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -1394,12 +1394,12 @@
           "refId": "D"
         }
       ],
-      "title": "响应写入耗时 (Write Latency)",
+      "title": "Response Write Latency",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Handler 处理请求的 QPS (每秒请求数)",
+      "description": "Handler QPS (requests per second)",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -1446,7 +1446,7 @@
           "refId": "B"
         }
       ],
-      "title": "Handler QPS (请求/秒)",
+      "title": "Handler QPS (req/s)",
       "type": "timeseries"
     },
     {
@@ -1459,7 +1459,7 @@
       },
       "id": 200,
       "panels": [],
-      "title": "📈 MQTT 统计指标",
+      "title": "📈 MQTT Statistics",
       "type": "row"
     },
     {
@@ -1467,7 +1467,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "MQTT 总接收数据包速率 (QPS)",
+      "description": "MQTT total received packet rate (QPS)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1477,7 +1477,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "包/秒",
+            "axisLabel": "packets/s",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
@@ -1554,12 +1554,12 @@
           },
           "editorMode": "code",
           "expr": "rate(mqtt_packets_received_total[1m])",
-          "legendFormat": "总接收数 ({{network}})",
+          "legendFormat": "Total Received ({{network}})",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "MQTT 总接收数据包速率 (QPS)",
+      "title": "MQTT Total Received Packet Rate (QPS)",
       "type": "timeseries"
     },
     {
@@ -1567,7 +1567,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "MQTT 接收数据包速率统计 - 按包类型分类展示 (QPS)",
+      "description": "MQTT received packet rate by packet type (QPS)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1577,7 +1577,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "包/秒",
+            "axisLabel": "packets/s",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
@@ -1780,7 +1780,7 @@
           "refId": "M"
         }
       ],
-      "title": "MQTT 接收数据包速率统计 (QPS)",
+      "title": "MQTT Received Packet Rate by Type (QPS)",
       "type": "timeseries"
     },
     {
@@ -1788,7 +1788,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "MQTT 总发送数据包速率 (QPS)",
+      "description": "MQTT total sent packet rate (QPS)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1798,7 +1798,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "包/秒",
+            "axisLabel": "packets/s",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
@@ -1875,12 +1875,12 @@
           },
           "editorMode": "code",
           "expr": "rate(mqtt_packets_sent_total[1m])",
-          "legendFormat": "总发送数 ({{network}}, QoS={{qos}})",
+          "legendFormat": "Total Sent ({{network}}, QoS={{qos}})",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "MQTT 总发送数据包速率 (QPS)",
+      "title": "MQTT Total Sent Packet Rate (QPS)",
       "type": "timeseries"
     },
     {
@@ -1888,7 +1888,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "MQTT 发送数据包速率统计 - 按包类型和QoS分类展示 (QPS)",
+      "description": "MQTT sent packet rate by packet type and QoS (QPS)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1898,7 +1898,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "包/秒",
+            "axisLabel": "packets/s",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
@@ -2079,7 +2079,7 @@
           "refId": "K"
         }
       ],
-      "title": "MQTT 发送数据包速率统计 (QPS)",
+      "title": "MQTT Sent Packet Rate by Type (QPS)",
       "type": "timeseries"
     },
     {
@@ -2087,7 +2087,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 69 },
       "id": 215,
       "panels": [],
-      "title": "Delay Message Queue",
+      "title": "⏱ Delay Message Queue",
       "type": "row"
     },
     {
@@ -2538,12 +2538,12 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 78 },
       "id": 400,
       "panels": [],
-      "title": "🔗 gRPC 监控指标",
+      "title": "🔗 gRPC Monitoring Metrics",
       "type": "row"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "gRPC 请求总数（所有 service / method 汇总）",
+      "description": "gRPC total requests (all services/methods combined)",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -2567,17 +2567,17 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
           "expr": "sum(grpc_requests_total)",
-          "legendFormat": "总请求数",
+          "legendFormat": "Total Requests",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "gRPC 总请求数",
+      "title": "gRPC Total Requests",
       "type": "stat"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "gRPC 错误总数（所有非 OK 状态）",
+      "description": "gRPC total errors (all non-OK statuses)",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -2608,17 +2608,17 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
           "expr": "sum(grpc_errors_total)",
-          "legendFormat": "总错误数",
+          "legendFormat": "Total Errors",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "gRPC 总错误数",
+      "title": "gRPC Total Errors",
       "type": "stat"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "gRPC 错误率 = errors / requests * 100%",
+      "description": "gRPC error rate = errors / requests * 100%",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -2649,17 +2649,17 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
           "expr": "sum(rate(grpc_errors_total[1m])) / sum(rate(grpc_requests_total[1m])) * 100",
-          "legendFormat": "错误率",
+          "legendFormat": "Error Rate",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "gRPC 错误率 (%)",
+      "title": "gRPC Error Rate (%)",
       "type": "stat"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "gRPC QPS：总 QPS 和按 service/method 分组的 QPS",
+      "description": "gRPC QPS: total QPS and QPS grouped by service/method",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -2681,7 +2681,7 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "总 QPS" },
+            "matcher": { "id": "byName", "options": "Total QPS" },
             "properties": [
               { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } },
               { "id": "custom.lineWidth", "value": 3 }
@@ -2701,7 +2701,7 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
           "expr": "sum(rate(grpc_requests_total[1m]))",
-          "legendFormat": "总 QPS",
+          "legendFormat": "Total QPS",
           "range": true,
           "refId": "A"
         },
@@ -2714,12 +2714,12 @@
           "refId": "B"
         }
       ],
-      "title": "gRPC QPS (请求/秒)",
+      "title": "gRPC QPS (req/s)",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "gRPC 错误 QPS，按 service/method/status_code 分组",
+      "description": "gRPC error QPS grouped by service/method/status_code",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -2753,7 +2753,7 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
           "expr": "sum(rate(grpc_errors_total[1m]))",
-          "legendFormat": "总错误 QPS",
+          "legendFormat": "Total Error QPS",
           "range": true,
           "refId": "A"
         },
@@ -2766,12 +2766,12 @@
           "refId": "B"
         }
       ],
-      "title": "gRPC 错误 QPS",
+      "title": "gRPC Error QPS",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "gRPC 总耗时分位数 P50/P95/P99/P999（所有 method 汇总）",
+      "description": "gRPC overall latency percentiles P50/P95/P99/P999 (all methods combined)",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -2851,12 +2851,12 @@
           "refId": "D"
         }
       ],
-      "title": "gRPC 总耗时分位数 (Latency Percentiles)",
+      "title": "gRPC Latency Percentiles",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "gRPC 按 Method 的 P99 耗时，便于定位慢接口",
+      "description": "gRPC P99 latency by method, useful for identifying slow endpoints",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -2895,7 +2895,7 @@
           "refId": "A"
         }
       ],
-      "title": "gRPC 按 Method P99 耗时",
+      "title": "gRPC P99 Latency by Method",
       "type": "timeseries"
     },
     {
@@ -2903,12 +2903,12 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 101 },
       "id": 500,
       "panels": [],
-      "title": "🌍 HTTP Admin 监控指标",
+      "title": "🌍 HTTP Admin Monitoring Metrics",
       "type": "row"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "HTTP Admin 请求总数（所有接口汇总）",
+      "description": "HTTP Admin total requests (all endpoints combined)",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -2932,17 +2932,17 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
           "expr": "sum(http_requests_total)",
-          "legendFormat": "总请求数",
+          "legendFormat": "Total Requests",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "HTTP Admin 总请求数",
+      "title": "HTTP Admin Total Requests",
       "type": "stat"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "HTTP Admin 错误总数（4xx + 5xx）",
+      "description": "HTTP Admin total errors (4xx + 5xx)",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -2973,17 +2973,17 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
           "expr": "sum(http_errors_total)",
-          "legendFormat": "总错误数",
+          "legendFormat": "Total Errors",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "HTTP Admin 总错误数",
+      "title": "HTTP Admin Total Errors",
       "type": "stat"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "HTTP Admin 错误率 = errors / requests * 100%",
+      "description": "HTTP Admin error rate = errors / requests * 100%",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -3014,17 +3014,17 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
           "expr": "sum(rate(http_errors_total[1m])) / sum(rate(http_requests_total[1m])) * 100",
-          "legendFormat": "错误率",
+          "legendFormat": "Error Rate",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "HTTP Admin 错误率 (%)",
+      "title": "HTTP Admin Error Rate (%)",
       "type": "stat"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "HTTP Admin QPS：总 QPS 和按接口分组的 QPS",
+      "description": "HTTP Admin QPS: total QPS and QPS grouped by endpoint",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -3046,7 +3046,7 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "总 QPS" },
+            "matcher": { "id": "byName", "options": "Total QPS" },
             "properties": [
               { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } },
               { "id": "custom.lineWidth", "value": 3 }
@@ -3066,7 +3066,7 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
           "expr": "sum(rate(http_requests_total[1m]))",
-          "legendFormat": "总 QPS",
+          "legendFormat": "Total QPS",
           "range": true,
           "refId": "A"
         },
@@ -3079,12 +3079,12 @@
           "refId": "B"
         }
       ],
-      "title": "HTTP Admin QPS (请求/秒)",
+      "title": "HTTP Admin QPS (req/s)",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "HTTP Admin 错误 QPS，按接口和状态码分组",
+      "description": "HTTP Admin error QPS grouped by endpoint and status code",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -3118,7 +3118,7 @@
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
           "expr": "sum(rate(http_errors_total[1m]))",
-          "legendFormat": "总错误 QPS",
+          "legendFormat": "Total Error QPS",
           "range": true,
           "refId": "A"
         },
@@ -3131,12 +3131,12 @@
           "refId": "B"
         }
       ],
-      "title": "HTTP Admin 错误 QPS",
+      "title": "HTTP Admin Error QPS",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "HTTP Admin 总耗时分位数 P50/P95/P99/P999（所有接口汇总）",
+      "description": "HTTP Admin overall latency percentiles P50/P95/P99/P999 (all endpoints combined)",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -3216,12 +3216,12 @@
           "refId": "D"
         }
       ],
-      "title": "HTTP Admin 总耗时分位数 (Latency Percentiles)",
+      "title": "HTTP Admin Latency Percentiles",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "HTTP Admin 按接口的 P99 耗时，便于定位慢接口",
+      "description": "HTTP Admin P99 latency by endpoint, useful for identifying slow endpoints",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -3260,7 +3260,7 @@
           "refId": "A"
         }
       ],
-      "title": "HTTP Admin 按接口 P99 耗时",
+      "title": "HTTP Admin P99 Latency by Endpoint",
       "type": "timeseries"
     },
     {
@@ -3268,18 +3268,18 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 124 },
       "id": 600,
       "panels": [],
-      "title": "📦 Raft 监控指标",
+      "title": "📦 Raft Monitoring Metrics",
       "type": "row"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Raft 各 machine 写入请求总数",
+      "description": "Raft write requests per second by machine",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [],
           "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }] },
-          "unit": "short"
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -3296,24 +3296,24 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "raft_write_requests_total",
+          "expr": "sum(rate(raft_write_requests_total[5m])) by (machine)",
           "legendFormat": "{{machine}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Raft 写入请求总数",
+      "title": "Raft Write Rate (req/s)",
       "type": "stat"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Raft 各 machine 写入成功总数",
+      "description": "Raft write success per second by machine",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [],
           "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }] },
-          "unit": "short"
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -3330,18 +3330,18 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "raft_write_success_total",
+          "expr": "sum(rate(raft_write_success_total[5m])) by (machine)",
           "legendFormat": "{{machine}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Raft 写入成功总数",
+      "title": "Raft Write Success Rate (req/s)",
       "type": "stat"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Raft 各 machine 写入失败总数",
+      "description": "Raft write failures per second by machine",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -3350,11 +3350,11 @@
             "mode": "absolute",
             "steps": [
               { "color": "green", "value": 0 },
-              { "color": "yellow", "value": 10 },
-              { "color": "red", "value": 100 }
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
             ]
           },
-          "unit": "short"
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -3371,24 +3371,24 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "raft_write_failures_total",
+          "expr": "sum(rate(raft_write_failures_total[5m])) by (machine)",
           "legendFormat": "{{machine}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Raft 写入失败总数",
+      "title": "Raft Write Failure Rate (/s)",
       "type": "stat"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Raft 各 machine RPC 请求总数",
+      "description": "Raft RPC requests per second by machine",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [],
           "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }] },
-          "unit": "short"
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -3405,18 +3405,18 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "sum(raft_rpc_requests_total) by (machine)",
+          "expr": "sum(rate(raft_rpc_requests_total[5m])) by (machine)",
           "legendFormat": "{{machine}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Raft RPC 请求总数",
+      "title": "Raft RPC Rate (req/s)",
       "type": "stat"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Raft 写入 QPS，按 machine 分组（metadata / offset / mqtt）",
+      "description": "Raft write QPS grouped by machine (metadata / offset / mqtt)",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -3449,34 +3449,34 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "rate(raft_write_requests_total[1m])",
-          "legendFormat": "{{machine}} 请求",
+          "expr": "sum(rate(raft_write_requests_total[5m])) by (machine)",
+          "legendFormat": "{{machine}} Requests",
           "range": true,
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "rate(raft_write_success_total[1m])",
-          "legendFormat": "{{machine}} 成功",
+          "expr": "sum(rate(raft_write_success_total[5m])) by (machine)",
+          "legendFormat": "{{machine}} Success",
           "range": true,
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "rate(raft_write_failures_total[1m])",
-          "legendFormat": "{{machine}} 失败",
+          "expr": "sum(rate(raft_write_failures_total[5m])) by (machine)",
+          "legendFormat": "{{machine}} Failures",
           "range": true,
           "refId": "C"
         }
       ],
-      "title": "Raft 写入 QPS (按 Machine)",
+      "title": "Raft Write QPS (by Machine)",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Raft 写入耗时分位数，按 machine 分组",
+      "description": "Raft write latency percentiles grouped by machine",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -3539,12 +3539,12 @@
           "refId": "D"
         }
       ],
-      "title": "Raft 写入耗时 (按 Machine)",
+      "title": "Raft Write Latency (by Machine)",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Raft RPC QPS，按 machine 和 rpc_type 分组",
+      "description": "Raft RPC QPS grouped by machine and rpc_type",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -3577,26 +3577,26 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "rate(raft_rpc_requests_total[1m])",
-          "legendFormat": "{{machine}}/{{rpc_type}} 请求",
+          "expr": "sum(rate(raft_rpc_requests_total[5m])) by (machine, rpc_type)",
+          "legendFormat": "{{machine}}/{{rpc_type}} Requests",
           "range": true,
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "rate(raft_rpc_failures_total[1m])",
-          "legendFormat": "{{machine}}/{{rpc_type}} 失败",
+          "expr": "sum(rate(raft_rpc_failures_total[5m])) by (machine, rpc_type)",
+          "legendFormat": "{{machine}}/{{rpc_type}} Failures",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "Raft RPC QPS (按 Machine / RPC Type)",
+      "title": "Raft RPC QPS (by Machine / RPC Type)",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "description": "Raft RPC 耗时分位数，按 machine 和 rpc_type 分组",
+      "description": "Raft RPC latency percentiles grouped by machine and rpc_type",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -3651,7 +3651,7 @@
           "refId": "C"
         }
       ],
-      "title": "Raft RPC 耗时 (按 Machine / RPC Type)",
+      "title": "Raft RPC Latency (by Machine / RPC Type)",
       "type": "timeseries"
     },
     {
@@ -3697,7 +3697,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "sum(rate(rocksdb_operation_count[1m])) by (operation)",
+          "expr": "sum(rate(rocksdb_operation_count_total[1m])) by (operation)",
           "legendFormat": "{{operation}}",
           "range": true,
           "refId": "A"
@@ -3741,7 +3741,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "sum(rate(rocksdb_operation_count[1m])) by (source)",
+          "expr": "sum(rate(rocksdb_operation_count_total[1m])) by (source)",
           "legendFormat": "{{source}}",
           "range": true,
           "refId": "A"

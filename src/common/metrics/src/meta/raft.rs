@@ -31,21 +31,21 @@ pub struct RaftRpcLabel {
 
 register_counter_metric!(
     RAFT_WRITE_REQUESTS_TOTAL,
-    "raft_write_requests_total",
+    "raft_write_requests",
     "Total number of write requests",
     RaftLabel
 );
 
 register_counter_metric!(
     RAFT_WRITE_SUCCESS_TOTAL,
-    "raft_write_success_total",
+    "raft_write_success",
     "Total number of successful writes",
     RaftLabel
 );
 
 register_counter_metric!(
     RAFT_WRITE_FAILURES_TOTAL,
-    "raft_write_failures_total",
+    "raft_write_failures",
     "Total number of failed writes",
     RaftLabel
 );
@@ -59,21 +59,21 @@ register_histogram_metric_ms_with_default_buckets!(
 
 register_counter_metric!(
     RAFT_RPC_REQUESTS_TOTAL,
-    "raft_rpc_requests_total",
+    "raft_rpc_requests",
     "Total number of RPC requests",
     RaftRpcLabel
 );
 
 register_counter_metric!(
     RAFT_RPC_SUCCESS_TOTAL,
-    "raft_rpc_success_total",
+    "raft_rpc_success",
     "Total number of successful RPC requests",
     RaftRpcLabel
 );
 
 register_counter_metric!(
     RAFT_RPC_FAILURES_TOTAL,
-    "raft_rpc_failures_total",
+    "raft_rpc_failures",
     "Total number of failed RPC requests",
     RaftRpcLabel
 );

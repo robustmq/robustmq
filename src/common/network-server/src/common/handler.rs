@@ -20,6 +20,7 @@ use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::error::client_unavailable_error_by_str;
 use common_base::tools::now_millis;
+use common_metrics::mqtt::packets::record_packet_send_metrics;
 use common_metrics::network::{
     metrics_handler_apply_ms, metrics_handler_queue_state, metrics_handler_queue_wait_ms,
     metrics_handler_request_count, metrics_handler_slow_request_count, metrics_handler_total_ms,
@@ -157,7 +158,14 @@ async fn write_response(
     if let Some(protocol) = connection_manager.get_connect_protocol(response_package.connection_id)
     {
         let packet_wrapper = match response_package.packet.clone() {
-            RobustMQPacket::MQTT(packet) => build_mqtt_packet_wrapper(protocol.clone(), packet),
+            RobustMQPacket::MQTT(packet) => {
+                let mqtt_wrapper = MqttPacketWrapper {
+                    protocol_version: protocol.to_u8(),
+                    packet: packet.clone(),
+                };
+                record_packet_send_metrics(&mqtt_wrapper, network_type.to_string());
+                build_mqtt_packet_wrapper(protocol.clone(), packet)
+            }
             RobustMQPacket::KAFKA(_packet) => {
                 return;
             }

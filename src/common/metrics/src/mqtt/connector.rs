@@ -57,21 +57,21 @@ register_histogram_metric_ms_with_default_buckets!(
 
 register_counter_metric!(
     MQTT_CONNECTOR_MESSAGES_SENT_SUCCESS_TOTAL,
-    "mqtt_connector_messages_sent_success_total",
+    "mqtt_connector_messages_sent_success_agg",
     "Total number of messages successfully sent by all connectors",
     MessageLabel
 );
 
 register_counter_metric!(
     MQTT_CONNECTOR_MESSAGES_SENT_FAILURE_TOTAL,
-    "mqtt_connector_messages_sent_failure_total",
+    "mqtt_connector_messages_sent_failure_agg",
     "Total number of messages failed to send by all connectors",
     MessageLabel
 );
 
 register_histogram_metric_ms_with_default_buckets!(
     MQTT_CONNECTOR_SEND_DURATION_MS_TOTAL,
-    "mqtt_connector_send_duration_ms_total",
+    "mqtt_connector_send_duration_ms_agg",
     "Total duration of sending messages by all connectors in milliseconds",
     MessageLabel
 );

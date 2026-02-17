@@ -37,7 +37,7 @@ pub struct HttpErrorLabel {
 
 register_counter_metric!(
     HTTP_REQUESTS_TOTAL,
-    "http_requests_total",
+    "http_requests",
     "Total number of HTTP requests by method and uri",
     HttpMethodLabel
 );
@@ -51,7 +51,7 @@ register_histogram_metric_ms_with_default_buckets!(
 
 register_counter_metric!(
     HTTP_ERRORS_TOTAL,
-    "http_errors_total",
+    "http_errors",
     "Total number of HTTP errors by method, uri and status code",
     HttpErrorLabel
 );
