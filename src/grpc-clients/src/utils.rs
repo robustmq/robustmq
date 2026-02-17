@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::collections::HashSet;
-use std::ops::DerefMut;
 use std::time::Duration;
 
 use common_base::error::common::CommonError;
@@ -32,10 +31,7 @@ pub(crate) trait RetriableRequest: Clone {
 
     fn method_name() -> &'static str;
 
-    async fn get_client<'a>(
-        pool: &'a ClientPool,
-        addr: &str,
-    ) -> Result<impl DerefMut<Target = Self::Client> + 'a, Self::Error>;
+    fn get_client(pool: &ClientPool, addr: &str) -> Self::Client;
 
     async fn call_once(
         client: &mut Self::Client,
@@ -80,11 +76,9 @@ where
             continue;
         }
 
-        let mut client = Req::get_client(client_pool, &target_addr)
-            .await
-            .map_err(Into::into)?;
+        let mut client = Req::get_client(client_pool, &target_addr);
 
-        match Req::call_once(client.deref_mut(), request.clone()).await {
+        match Req::call_once(&mut client, request.clone()).await {
             Ok(data) => return Ok(data),
             Err(e) => {
                 let err: CommonError = e.into();
@@ -96,16 +90,9 @@ where
                         client_pool.set_leader_addr(method.to_string(), leader_addr.clone());
 
                         if !tried_addrs.contains(&leader_addr) {
-                            let mut leader_client =
-                                match Req::get_client(client_pool, &leader_addr).await {
-                                    Ok(client) => client,
-                                    Err(_) => {
-                                        tried_addrs.insert(leader_addr);
-                                        continue;
-                                    }
-                                };
+                            let mut leader_client = Req::get_client(client_pool, &leader_addr);
 
-                            match Req::call_once(leader_client.deref_mut(), request.clone()).await {
+                            match Req::call_once(&mut leader_client, request.clone()).await {
                                 Ok(data) => return Ok(data),
                                 Err(_) => {
                                     tried_addrs.insert(leader_addr);

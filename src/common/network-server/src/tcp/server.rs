@@ -123,25 +123,18 @@ impl TcpServer {
             );
         }
 
-        // Determine whether the channel for request processing is empty. If it is empty,
-        // it indicates that the request packet has been processed and subsequent stop logic can be carried out.
+        // Wait for the shared request channel to drain before stopping handler threads.
         loop {
-            sleep(Duration::from_secs(1)).await;
-            let mut flag = false;
-
-            // request channel
-            for (index, send) in self.request_channel.handler_channels.clone() {
-                let cap = send.capacity();
-                if self.proc_config.channel_size > send.capacity() {
-                    info!("Request child queue {} is not empty, current length {}, waiting for request packet processing to complete....", index, self.proc_config.channel_size - cap);
-                    flag = true;
-                }
-            }
-
-            if !flag {
+            if self.request_channel.is_empty() {
                 info!("[{}] All the request packets have been processed. Start to stop the request processing thread.", self.network_type);
                 break;
             }
+            let pending = self.request_channel.len();
+            info!(
+                "Request queue is not empty, current length {}, waiting for request packet processing to complete....",
+                pending
+            );
+            sleep(Duration::from_secs(1)).await;
         }
     }
 
@@ -154,7 +147,6 @@ impl TcpServer {
             (
                 self.proc_config.accept_thread_num,
                 self.proc_config.handler_process_num,
-                self.proc_config.response_process_num,
             ),
         );
     }

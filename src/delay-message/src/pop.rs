@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::delay::{delete_delay_index_info, delete_delay_message, DELAY_QUEUE_MESSAGE_TOPIC};
-use crate::manager::{DelayMessageManager, DELAY_MESSAGE_SAVE_MS};
+use crate::manager::{DelayMessageManager, SharedDelayQueue, DELAY_MESSAGE_SAVE_MS};
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use futures::StreamExt;
@@ -26,6 +26,8 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::time::sleep;
 use tokio::{select, sync::broadcast};
 use tracing::{debug, error, info, warn};
+
+const POP_LOCK_TIMEOUT_MS: u64 = 100;
 
 pub(crate) fn spawn_delay_message_pop_threads(
     delay_message_manager: &Arc<DelayMessageManager>,
@@ -75,13 +77,28 @@ pub async fn pop_delay_queue(
     delay_message_manager: &Arc<DelayMessageManager>,
     shard_no: u32,
 ) -> Result<(), CommonError> {
-    if let Some(mut delay_queue) = delay_message_manager.delay_queue_list.get_mut(&shard_no) {
-        if let Some(expired) = delay_queue.next().await {
+    let queue_arc: SharedDelayQueue =
+        if let Some(q) = delay_message_manager.delay_queue_list.get(&shard_no) {
+            q.clone()
+        } else {
+            return Err(CommonError::CommonError(format!(
+                "Delay queue shard {} not found",
+                shard_no
+            )));
+        };
+
+    let mut delay_queue = queue_arc.lock().await;
+
+    match tokio::time::timeout(
+        Duration::from_millis(POP_LOCK_TIMEOUT_MS),
+        delay_queue.next(),
+    )
+    .await
+    {
+        Ok(Some(expired)) => {
             let delay_message = expired.into_inner();
-            // Drop the lock before spawning to avoid holding it
             drop(delay_queue);
 
-            // Spawn task to send delay message to avoid blocking the pop loop
             let raw_delay_message_manager = delay_message_manager.clone();
             tokio::spawn(async move {
                 if let Err(e) = delay_message_process(
@@ -97,18 +114,21 @@ pub async fn pop_delay_queue(
                     );
                 }
             });
-        } else {
+        }
+        Ok(None) => {
             debug!(
-                "Delay queue shard {} returned None from next() - queue may be empty or in unexpected state",
+                "Delay queue shard {} returned None from next() - queue may be empty or closed",
                 shard_no
             );
+            drop(delay_queue);
             sleep(Duration::from_millis(10)).await;
         }
-        return Ok(());
+        Err(_) => {
+            drop(delay_queue);
+        }
     }
 
-    Err(CommonError::CommonError(
-        format!("Failed to acquire lock on delay queue shard {} - lock is held by another operation (possible contention)",shard_no)))
+    Ok(())
 }
 
 pub async fn delay_message_process(

@@ -39,7 +39,6 @@ openraft.workspace = true
 rand.workspace = true
 prost.workspace = true
 tracing.workspace = true
-mobc.workspace = true
 rocksdb.workspace = true
 prost-validate = { workspace = true, features = ["derive"] }
 tracing-appender.workspace = true

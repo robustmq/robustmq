@@ -116,13 +116,15 @@ impl ClientKeepAlive {
                     };
 
                     if let Err(e) = try_send_distinct_packet(&context).await {
-                        warn!(
-                            connect_id = context.connect_id,
-                            client_id = %context.connection.client_id,
-                            protocol = ?context.protocol,
-                            error = %e,
-                            "Heartbeat timeout: failed to actively disconnect connection"
-                        );
+                        if !matches!(e, MqttBrokerError::SessionDoesNotExist) {
+                            warn!(
+                                connect_id = context.connect_id,
+                                client_id = %context.connection.client_id,
+                                protocol = ?context.protocol,
+                                error = %e,
+                                "Heartbeat timeout: failed to actively disconnect connection"
+                            );
+                        }
                     } else {
                         debug!(
                             "Heartbeat timeout, active disconnection {} successful",
@@ -304,7 +306,7 @@ mod test {
     pub async fn get_expire_connection_test() {
         let client_pool = Arc::new(ClientPool::new(100));
         let cache_manager = test_build_mqtt_cache_manager().await;
-        let connection_manager = Arc::new(ConnectionManager::new(3, 1000));
+        let connection_manager = Arc::new(ConnectionManager::new());
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let alive = ClientKeepAlive::new(
             client_pool,

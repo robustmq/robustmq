@@ -24,7 +24,7 @@ use broker_core::{
 use common_base::{
     error::common::CommonError,
     role::{is_broker_node, is_engine_node, is_meta_node},
-    runtime::create_runtime,
+    runtime::{calc_runtime_worker_threads, create_runtime},
 };
 use common_config::{
     broker::broker_config, config::BrokerConfig, storage::memory::StorageDriverMemoryConfig,
@@ -78,7 +78,7 @@ mod connection;
 mod grpc;
 
 pub struct BrokerServer {
-    main_runtime: Runtime,
+    server_runtime: Runtime,
     place_params: MetaServiceServerParams,
     mqtt_params: MqttBrokerServerParams,
     engine_params: StorageEngineParams,
@@ -100,19 +100,17 @@ impl Default for BrokerServer {
 impl BrokerServer {
     pub fn new() -> Self {
         let config = broker_config();
-        let client_pool = Arc::new(ClientPool::new(100));
+        let client_pool = Arc::new(ClientPool::new(0));
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.rocksdb.data_path),
             config.rocksdb.max_open_files,
             column_family_list(),
         ));
         let rate_limiter_manager = Arc::new(RateLimiterManager::new());
-        let main_runtime = create_runtime("init_runtime", config.runtime.runtime_worker_threads);
+        let worker_threads = calc_runtime_worker_threads(config.runtime.runtime_worker_threads);
+        let server_runtime = create_runtime("server-runtime", worker_threads);
         let broker_cache = Arc::new(BrokerCacheManager::new(config.clone()));
-        let connection_manager = Arc::new(NetworkConnectionManager::new(
-            config.network.lock_max_try_mut_times as i32,
-            config.network.lock_try_mut_sleep_time_ms,
-        ));
+        let connection_manager = Arc::new(NetworkConnectionManager::new());
 
         let (main_stop_send, _) = broadcast::channel(2);
 
@@ -142,7 +140,7 @@ impl BrokerServer {
         let mqtt_cm = connection_manager.clone();
         let mqtt_stop = main_stop_send.clone();
 
-        let (meta_params, mqtt_params) = main_runtime.block_on(async {
+        let (meta_params, mqtt_params) = server_runtime.block_on(async {
             tokio::join!(
                 BrokerServer::build_meta_service(
                     client_pool.clone(),
@@ -182,7 +180,7 @@ impl BrokerServer {
 
         BrokerServer {
             broker_cache,
-            main_runtime,
+            server_runtime,
             place_params: meta_params,
             engine_params,
             config: config.clone(),
@@ -196,18 +194,19 @@ impl BrokerServer {
     }
 
     pub fn start(&self) {
+        let worker_threads =
+            calc_runtime_worker_threads(self.config.runtime.runtime_worker_threads);
+
         // start grpc server
         let place_params = self.place_params.clone();
         let mqtt_params = self.mqtt_params.clone();
         let engine_params = self.engine_params.clone();
         let broker_cache = self.broker_cache.clone();
-        let server_runtime =
-            create_runtime("server-runtime", self.config.runtime.runtime_worker_threads);
         let grpc_port = self.config.grpc_port;
 
         let grpc_ready = Arc::new(AtomicBool::new(false));
         let grpc_ready_check = grpc_ready.clone();
-        server_runtime.spawn(Box::pin(async move {
+        self.server_runtime.spawn(Box::pin(async move {
             if let Err(e) =
                 start_grpc_server(place_params, mqtt_params, engine_params, grpc_port).await
             {
@@ -241,7 +240,7 @@ impl BrokerServer {
         });
 
         let http_port = self.config.http_port;
-        server_runtime.spawn(async move {
+        self.server_runtime.spawn(async move {
             let admin_server = AdminServer::new();
             admin_server.start(http_port, state).await;
         });
@@ -250,7 +249,7 @@ impl BrokerServer {
         self.check_grpc_server_ready(grpc_port, grpc_ready_check);
 
         // start pprof server
-        server_runtime.spawn(async move {
+        self.server_runtime.spawn(async move {
             let conf = broker_config();
             if conf.p_prof.enable {
                 start_pprof_monitor(conf.p_prof.port, conf.p_prof.frequency).await;
@@ -260,33 +259,33 @@ impl BrokerServer {
         // start prometheus
         let prometheus_port = self.config.prometheus.port;
         if self.config.prometheus.enable {
-            server_runtime.spawn(async move {
+            self.server_runtime.spawn(async move {
                 register_prometheus_export(prometheus_port).await;
             });
         }
 
         self.wait_for_grpc_ready(&grpc_ready);
 
-        let mut place_stop_send = None;
+        let mut meta_stop_send = None;
         let mut mqtt_stop_send = None;
         let mut engine_stop_send = None;
 
         let config = broker_config();
+
         // start meta service
         let (stop_send, _) = broadcast::channel(2);
-        let place_runtime =
-            create_runtime("place-runtime", self.config.runtime.runtime_worker_threads);
+        let meta_runtime = create_runtime("meta-runtime", worker_threads);
         let place_params = self.place_params.clone();
         if is_meta_node(&config.roles) {
-            place_stop_send = Some(stop_send.clone());
-            place_runtime.spawn(Box::pin(async move {
+            meta_stop_send = Some(stop_send.clone());
+            meta_runtime.spawn(Box::pin(async move {
                 let mut pc = MetaServiceServer::new(place_params, stop_send.clone());
                 pc.start().await;
             }));
         }
 
-        // check placement ready
-        self.main_runtime.block_on(async {
+        // check meta service ready
+        self.server_runtime.block_on(async {
             check_meta_service_status(self.client_pool.clone()).await;
         });
 
@@ -294,31 +293,27 @@ impl BrokerServer {
 
         // register node
         let raw_stop_send = stop_send.clone();
-        server_runtime.block_on(async move {
+        self.server_runtime.block_on(async move {
             self.register_node(raw_stop_send.clone()).await;
         });
 
-        // start storage engine server
-        let engine_runtime =
-            create_runtime("engine-runtime", self.config.runtime.runtime_worker_threads);
+        // start storage engine server + mqtt server on shared broker-runtime
+        let broker_runtime = create_runtime("broker-runtime", worker_threads);
 
         if is_engine_node(&config.roles) {
             engine_stop_send = Some(stop_send.clone());
             let server = StorageEngineServer::new(self.engine_params.clone(), stop_send);
-            engine_runtime.spawn(Box::pin(async move {
+            broker_runtime.spawn(Box::pin(async move {
                 server.start().await;
             }));
             self.wait_for_engine_ready();
         }
 
-        // start mqtt server
         let (stop_send, _) = broadcast::channel(2);
-        let mqtt_runtime =
-            create_runtime("mqtt-runtime", self.config.runtime.runtime_worker_threads);
         if is_broker_node(&config.roles) {
             mqtt_stop_send = Some(stop_send.clone());
             let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop_send.clone());
-            mqtt_runtime.spawn(Box::pin(async move {
+            broker_runtime.spawn(Box::pin(async move {
                 server.start().await;
             }));
         }
@@ -326,18 +321,18 @@ impl BrokerServer {
         // connection gc
         let connection_manager = self.connection_manager.clone();
         let raw_stop_send = stop_send.clone();
-        server_runtime
+        self.server_runtime
             .spawn(async move { network_connection_gc(connection_manager, raw_stop_send).await });
 
         // offset flush thread
         let offset_cache = self.offset_manager.clone();
         let raw_stop_send = stop_send;
-        server_runtime.spawn(Box::pin(async move {
+        self.server_runtime.spawn(Box::pin(async move {
             offset_cache.offset_save_thread(raw_stop_send).await;
         }));
 
         // awaiting stop
-        self.awaiting_stop(place_stop_send, mqtt_stop_send, engine_stop_send);
+        self.awaiting_stop(meta_stop_send, mqtt_stop_send, engine_stop_send);
     }
 
     async fn build_meta_service(
@@ -493,11 +488,10 @@ impl BrokerServer {
         mqtt_stop: Option<broadcast::Sender<bool>>,
         engine_stop: Option<broadcast::Sender<bool>>,
     ) {
-        self.main_runtime.block_on(Box::pin(async {
+        self.server_runtime.block_on(Box::pin(async {
             self.broker_cache
                 .set_status(common_base::node_status::NodeStatus::Running)
                 .await;
-            // Wait for all the request packets in the TCP Channel to be processed completely before starting to stop other processing threads.
             signal::ctrl_c().await.expect("failed to listen for event");
             info!(
                 "{}",
@@ -531,7 +525,7 @@ impl BrokerServer {
 
             if let Some(sx) = meta_stop {
                 if let Err(e) = sx.send(true) {
-                    error!("place stop signal, error message{}", e);
+                    error!("meta stop signal, error message{}", e);
                 }
             }
             sleep(Duration::from_secs(3));

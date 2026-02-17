@@ -14,7 +14,8 @@ robust-bench meta <subcommand> [options]
 - `conn`：连接压测
 - `pub`：发布压测
 - `sub`：订阅压测
-- `meta placement-create-session`：Meta `CreateSession` 接口压测
+- `meta placement-create-session`：Meta `CreateSession` 写入压测
+- `meta placement-list-session`：Meta `ListSession` 读取压测
 
 ## 2. 通用参数
 
@@ -86,10 +87,22 @@ robust-bench mqtt sub \
   --duration-secs 120
 ```
 
-### 3.4 Meta 接口压测
+### 3.4 Meta 写入压测
 
 ```bash
 robust-bench meta placement-create-session \
+  --host 127.0.0.1 \
+  --port 1228 \
+  --count 100000 \
+  --concurrency 1000 \
+  --timeout-ms 3000 \
+  --output table
+```
+
+### 3.5 Meta 读取压测
+
+```bash
+robust-bench meta placement-list-session \
   --host 127.0.0.1 \
   --port 1228 \
   --count 100000 \

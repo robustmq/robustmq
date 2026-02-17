@@ -25,30 +25,41 @@ use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::robust::{RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol};
-use std::time::Duration;
-use tokio::time::sleep;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use tokio_util::codec::FramedWrite;
 use tracing::{debug, info};
 
-pub struct ConnectionManager {
-    pub connections: DashMap<u64, NetworkConnection>,
-    pub lock_max_try_mut_times: i32,
-    pub lock_try_mut_sleep_time_ms: u64,
-    pub tcp_write_list:
-        DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, RobustMQCodec>>,
-    pub tcp_tls_write_list: DashMap<
-        u64,
+type TcpWriter =
+    Arc<Mutex<FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, RobustMQCodec>>>;
+type TcpTlsWriter = Arc<
+    Mutex<
         FramedWrite<
             tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
             RobustMQCodec,
         >,
     >,
-    pub websocket_write_list: DashMap<u64, SplitSink<WebSocket, Message>>,
-    pub quic_write_list: DashMap<u64, QuicFramedWriteStream>,
+>;
+type WebSocketWriter = Arc<Mutex<SplitSink<WebSocket, Message>>>;
+type QuicWriter = Arc<Mutex<QuicFramedWriteStream>>;
+
+#[derive(Clone)]
+pub struct ConnectionManager {
+    pub connections: DashMap<u64, NetworkConnection>,
+    pub tcp_write_list: DashMap<u64, TcpWriter>,
+    pub tcp_tls_write_list: DashMap<u64, TcpTlsWriter>,
+    pub websocket_write_list: DashMap<u64, WebSocketWriter>,
+    pub quic_write_list: DashMap<u64, QuicWriter>,
+}
+
+impl Default for ConnectionManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ConnectionManager {
-    pub fn new(lock_max_try_mut_times: i32, lock_try_mut_sleep_time_ms: u64) -> ConnectionManager {
+    pub fn new() -> ConnectionManager {
         let connections = DashMap::with_capacity(64);
         let tcp_write_list = DashMap::with_capacity(64);
         let tcp_tls_write_list = DashMap::with_capacity(64);
@@ -60,8 +71,6 @@ impl ConnectionManager {
             tcp_tls_write_list,
             websocket_write_list,
             quic_write_list,
-            lock_max_try_mut_times,
-            lock_try_mut_sleep_time_ms,
         }
     }
 
@@ -82,12 +91,11 @@ impl ConnectionManager {
     }
 
     pub async fn close_connect(&self, connection_id: u64) {
-        // sleep(Duration::from_secs(3)).await;
-        // if let Some((_, connection)) = self.connections.remove(&connection_id) {
-        //     // connection.stop_connection().await;
-        // }
+        // todo
+        // self.connections.remove(&connection_id);
 
-        if let Some((id, mut stream)) = self.tcp_write_list.remove(&connection_id) {
+        if let Some((id, writer)) = self.tcp_write_list.remove(&connection_id) {
+            let mut stream = writer.lock().await;
             if stream.close().await.is_ok() {
                 debug!(
                     "server closes the tcp connection actively, connection id [{}]",
@@ -96,22 +104,31 @@ impl ConnectionManager {
             }
         }
 
-        if let Some((id, mut stream)) = self.tcp_tls_write_list.remove(&connection_id) {
+        if let Some((id, writer)) = self.tcp_tls_write_list.remove(&connection_id) {
+            let mut stream = writer.lock().await;
             if stream.close().await.is_ok() {
                 debug!(
-                    "server closes the tcp connection actively, connection id [{}]",
+                    "server closes the tls connection actively, connection id [{}]",
                     id
                 );
             }
         }
 
-        if let Some((id, mut stream)) = self.websocket_write_list.remove(&connection_id) {
+        if let Some((id, writer)) = self.websocket_write_list.remove(&connection_id) {
+            let mut stream = writer.lock().await;
             if stream.close().await.is_ok() {
                 debug!(
                     "server closes the websocket connection actively, connection id [{}]",
                     id
                 );
             }
+        }
+
+        if let Some((id, _writer)) = self.quic_write_list.remove(&connection_id) {
+            debug!(
+                "server closes the quic connection actively, connection id [{}]",
+                id
+            );
         }
     }
 
@@ -162,7 +179,7 @@ impl ConnectionManager {
 
     pub async fn connection_gc(&self) {
         for conn in self.connections.iter() {
-            if now_second() - conn.last_heartbeat_time > 60 {
+            if now_second() - conn.last_heartbeat_time > 1800 {
                 self.close_connect(conn.connection_id).await;
             }
         }
@@ -261,7 +278,8 @@ impl ConnectionManager {
         connection_id: u64,
         write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, RobustMQCodec>,
     ) {
-        self.tcp_write_list.insert(connection_id, write);
+        self.tcp_write_list
+            .insert(connection_id, Arc::new(Mutex::new(write)));
     }
 
     pub fn add_tcp_tls_write(
@@ -272,11 +290,13 @@ impl ConnectionManager {
             RobustMQCodec,
         >,
     ) {
-        self.tcp_tls_write_list.insert(connection_id, write);
+        self.tcp_tls_write_list
+            .insert(connection_id, Arc::new(Mutex::new(write)));
     }
 
     pub fn add_websocket_write(&self, connection_id: u64, write: SplitSink<WebSocket, Message>) {
-        self.websocket_write_list.insert(connection_id, write);
+        self.websocket_write_list
+            .insert(connection_id, Arc::new(Mutex::new(write)));
     }
 
     pub fn add_mqtt_quic_write(
@@ -284,50 +304,46 @@ impl ConnectionManager {
         connection_id: u64,
         quic_framed_write_stream: QuicFramedWriteStream,
     ) {
-        self.quic_write_list
-            .insert(connection_id, quic_framed_write_stream);
+        self.quic_write_list.insert(
+            connection_id,
+            Arc::new(Mutex::new(quic_framed_write_stream)),
+        );
     }
 
     async fn write_websocket_frame0(&self, connection_id: u64, resp: Message) -> ResultCommonError {
-        let mut times = 0;
-        loop {
-            match self.websocket_write_list.try_get_mut(&connection_id) {
-                dashmap::try_result::TryResult::Present(mut da) => {
-                    match da.send(resp.clone()).await {
-                        Ok(_) => {
-                            break;
-                        }
-                        Err(e) => {
-                            if broker_not_available(&e.to_string()) {
-                                return Err(CommonError::CommonError(e.to_string()));
-                            }
-                            if times > self.lock_max_try_mut_times {
-                                self.close_connect(connection_id).await;
-                                return Err(CommonError::FailedToWriteClient(
-                                    "websocket".to_string(),
-                                    e.to_string(),
-                                ));
-                            }
-                        }
-                    }
-                }
+        let writer = self
+            .websocket_write_list
+            .get(&connection_id)
+            .map(|entry| entry.value().clone());
 
-                dashmap::try_result::TryResult::Absent => {
-                    if times > self.lock_max_try_mut_times {
+        match writer {
+            Some(writer) => {
+                let mut stream = writer.lock().await;
+                match stream.send(resp).await {
+                    Ok(_) => Ok(()),
+                    Err(e) => {
+                        if broker_not_available(&e.to_string()) {
+                            return Err(CommonError::CommonError(e.to_string()));
+                        }
                         self.close_connect(connection_id).await;
-                        return Err(CommonError::NotObtainAvailableConnection(
+                        Err(CommonError::FailedToWriteClient(
                             "websocket".to_string(),
-                            connection_id,
-                        ));
+                            e.to_string(),
+                        ))
                     }
                 }
-
-                dashmap::try_result::TryResult::Locked => {}
             }
-            times += 1;
-            sleep(Duration::from_millis(self.lock_try_mut_sleep_time_ms)).await
+            None => {
+                debug!(
+                    "Write to websocket failed: connection {} not found, message: {:?}",
+                    connection_id, resp
+                );
+                Err(CommonError::NotObtainAvailableConnection(
+                    "websocket".to_string(),
+                    connection_id,
+                ))
+            }
         }
-        Ok(())
     }
 
     async fn write_tcp_frame0(
@@ -341,44 +357,39 @@ impl ConnectionManager {
             }
         }
 
-        let mut times = 0;
-        loop {
-            match self.tcp_write_list.try_get_mut(&connection_id) {
-                dashmap::try_result::TryResult::Present(mut da) => {
-                    match da.send(resp.clone()).await {
-                        Ok(_) => {
-                            break;
-                        }
-                        Err(e) => {
-                            if broker_not_available(&e.to_string()) {
-                                return Err(CommonError::CommonError(e.to_string()));
-                            }
+        let writer = self
+            .tcp_write_list
+            .get(&connection_id)
+            .map(|entry| entry.value().clone());
 
-                            if times > self.lock_max_try_mut_times {
-                                self.close_connect(connection_id).await;
-                                return Err(CommonError::FailedToWriteClient(
-                                    "tcp".to_string(),
-                                    e.to_string(),
-                                ));
-                            }
+        match writer {
+            Some(writer) => {
+                let mut stream = writer.lock().await;
+                match stream.send(resp).await {
+                    Ok(_) => Ok(()),
+                    Err(e) => {
+                        if broker_not_available(&e.to_string()) {
+                            return Err(CommonError::CommonError(e.to_string()));
                         }
-                    }
-                }
-                dashmap::try_result::TryResult::Absent => {
-                    if times > self.lock_max_try_mut_times {
                         self.close_connect(connection_id).await;
-                        return Err(CommonError::NotObtainAvailableConnection(
+                        Err(CommonError::FailedToWriteClient(
                             "tcp".to_string(),
-                            connection_id,
-                        ));
+                            e.to_string(),
+                        ))
                     }
                 }
-                dashmap::try_result::TryResult::Locked => {}
             }
-            times += 1;
-            sleep(Duration::from_millis(self.lock_try_mut_sleep_time_ms)).await
+            None => {
+                debug!(
+                    "Write to tcp skipped: connection {} not found, packet: {}",
+                    connection_id, resp
+                );
+                Err(CommonError::NotObtainAvailableConnection(
+                    "tcp".to_string(),
+                    connection_id,
+                ))
+            }
         }
-        Ok(())
     }
 
     async fn write_tcp_tls_frame(
@@ -386,40 +397,36 @@ impl ConnectionManager {
         connection_id: u64,
         resp: RobustMQCodecWrapper,
     ) -> ResultCommonError {
-        let mut times = 0;
-        loop {
-            match self.tcp_tls_write_list.try_get_mut(&connection_id) {
-                dashmap::try_result::TryResult::Present(mut da) => {
-                    match da.send(resp.clone()).await {
-                        Ok(_) => {
-                            break;
-                        }
-                        Err(e) => {
-                            if times > self.lock_max_try_mut_times {
-                                self.close_connect(connection_id).await;
-                                return Err(CommonError::FailedToWriteClient(
-                                    "tls".to_string(),
-                                    e.to_string(),
-                                ));
-                            }
-                        }
-                    }
-                }
-                dashmap::try_result::TryResult::Absent => {
-                    if times > self.lock_max_try_mut_times {
+        let writer = self
+            .tcp_tls_write_list
+            .get(&connection_id)
+            .map(|entry| entry.value().clone());
+
+        match writer {
+            Some(writer) => {
+                let mut stream = writer.lock().await;
+                match stream.send(resp).await {
+                    Ok(_) => Ok(()),
+                    Err(e) => {
                         self.close_connect(connection_id).await;
-                        return Err(CommonError::NotObtainAvailableConnection(
-                            "tcp".to_string(),
-                            connection_id,
-                        ));
+                        Err(CommonError::FailedToWriteClient(
+                            "tls".to_string(),
+                            e.to_string(),
+                        ))
                     }
                 }
-                dashmap::try_result::TryResult::Locked => {}
             }
-            times += 1;
-            sleep(Duration::from_millis(self.lock_try_mut_sleep_time_ms)).await
+            None => {
+                debug!(
+                    "Write to tls skipped: connection {} not found, packet: {}",
+                    connection_id, resp
+                );
+                Err(CommonError::NotObtainAvailableConnection(
+                    "tls".to_string(),
+                    connection_id,
+                ))
+            }
         }
-        Ok(())
     }
 
     async fn write_quic_frame0(
@@ -427,40 +434,36 @@ impl ConnectionManager {
         connection_id: u64,
         resp: RobustMQCodecWrapper,
     ) -> ResultCommonError {
-        let mut times = 0;
-        loop {
-            match self.quic_write_list.try_get_mut(&connection_id) {
-                dashmap::try_result::TryResult::Present(mut da) => {
-                    match da.send(resp.clone()).await {
-                        Ok(_) => {
-                            break;
-                        }
-                        Err(e) => {
-                            if times > self.lock_max_try_mut_times {
-                                self.close_connect(connection_id).await;
-                                return Err(CommonError::FailedToWriteClient(
-                                    "quic".to_string(),
-                                    e.to_string(),
-                                ));
-                            }
-                        }
-                    }
-                }
-                dashmap::try_result::TryResult::Absent => {
-                    if times > self.lock_max_try_mut_times {
+        let writer = self
+            .quic_write_list
+            .get(&connection_id)
+            .map(|entry| entry.value().clone());
+
+        match writer {
+            Some(writer) => {
+                let mut stream = writer.lock().await;
+                match stream.send(resp).await {
+                    Ok(_) => Ok(()),
+                    Err(e) => {
                         self.close_connect(connection_id).await;
-                        return Err(CommonError::NotObtainAvailableConnection(
+                        Err(CommonError::FailedToWriteClient(
                             "quic".to_string(),
-                            connection_id,
-                        ));
+                            e.to_string(),
+                        ))
                     }
                 }
-                dashmap::try_result::TryResult::Locked => {}
             }
-            times += 1;
-            sleep(Duration::from_millis(self.lock_try_mut_sleep_time_ms)).await
+            None => {
+                debug!(
+                    "Write to quic skipped: connection {} not found, packet: {}",
+                    connection_id, resp
+                );
+                Err(CommonError::NotObtainAvailableConnection(
+                    "quic".to_string(),
+                    connection_id,
+                ))
+            }
         }
-        Ok(())
     }
 
     pub fn set_mqtt_connect_protocol(&self, connect_id: u64, protocol: u8) {

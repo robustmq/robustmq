@@ -24,7 +24,6 @@ protocol.workspace = true
 common-base.workspace = true
 tonic.workspace = true
 tokio.workspace = true
-mobc.workspace = true
 dashmap.workspace = true
 tracing.workspace = true
 regex.workspace = true

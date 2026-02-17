@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::raft::error::{to_bincode_error, to_error, to_grpc_error, to_rpc_error};
+use crate::raft::error::{to_bincode_error, to_grpc_error, to_rpc_error};
 use crate::raft::type_config::{Node, NodeId, TypeConfig};
 use bincode::{deserialize, serialize_into};
-use common_base::error::common::CommonError;
 use common_metrics::meta::raft::{
     record_rpc_duration, record_rpc_failure, record_rpc_request, record_rpc_success,
 };
-use grpc_clients::meta::common::MetaServiceManager;
 use grpc_clients::pool::ClientPool;
-use mobc::Connection;
 use openraft::error::{InstallSnapshotError, RPCError, RaftError};
 use openraft::network::RPCOption;
 use openraft::raft::{
@@ -29,11 +26,13 @@ use openraft::raft::{
     VoteRequest, VoteResponse,
 };
 use openraft::RaftNetwork;
+use protocol::meta::meta_service_common::meta_service_service_client::MetaServiceServiceClient;
 use protocol::meta::meta_service_common::{AppendRequest, SnapshotRequest};
 use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::time::timeout;
+use tonic::transport::Channel;
 use tracing::warn;
 
 const SLOW_RPC_WARN_THRESHOLD_MS: f64 = 1000.0;
@@ -55,10 +54,8 @@ impl NetworkConnection {
         }
     }
 
-    async fn c(&mut self) -> Result<Connection<MetaServiceManager>, CommonError> {
-        self.client_pool
-            .meta_service_inner_services_client(&self.addr)
-            .await
+    fn c(&self) -> MetaServiceServiceClient<Channel> {
+        MetaServiceServiceClient::new(self.client_pool.get_channel(&self.addr))
     }
 
     fn serialize_to_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>, bincode::Error> {
@@ -75,10 +72,7 @@ impl NetworkConnection {
         &mut self,
         req: AppendEntriesRequest<TypeConfig>,
     ) -> Result<AppendEntriesResponse<NodeId>, RPCError<NodeId, Node, RaftError<NodeId>>> {
-        let mut c = match self.c().await {
-            Ok(conn) => conn,
-            Err(e) => return Err(to_error(e)),
-        };
+        let mut c = self.c();
 
         let value = match Self::serialize_to_bytes(&req) {
             Ok(data) => data,
@@ -133,10 +127,7 @@ impl NetworkConnection {
         InstallSnapshotResponse<NodeId>,
         RPCError<NodeId, Node, RaftError<NodeId, InstallSnapshotError>>,
     > {
-        let mut c = match self.c().await {
-            Ok(conn) => conn,
-            Err(e) => return Err(to_error(e)),
-        };
+        let mut c = self.c();
 
         let value = match Self::serialize_to_bytes(&req) {
             Ok(data) => data,
@@ -187,10 +178,7 @@ impl NetworkConnection {
         &mut self,
         req: VoteRequest<NodeId>,
     ) -> Result<VoteResponse<NodeId>, RPCError<NodeId, Node, RaftError<NodeId>>> {
-        let mut c = match self.c().await {
-            Ok(conn) => conn,
-            Err(e) => return Err(to_error(e)),
-        };
+        let mut c = self.c();
 
         let value = match Self::serialize_to_bytes(&req) {
             Ok(data) => data,

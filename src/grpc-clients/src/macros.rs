@@ -13,23 +13,15 @@
 // limitations under the License.
 
 /// Helper macro to implement the `RetriableRequest` trait for a given request type.
-/// This macro is used to reduce boilerplate code when implementing the `RetriableRequest` trait.
 ///
 /// # Example
 ///
-/// Generate the implementation with service/method names and default `IS_WRITE_REQUEST` value (false):
-///
 /// ```rust,ignore
-/// impl_retriable_request!(Request, Client, Response, get_client, op, "Service", "Method");
-/// ```
-///
-/// Generate the implementation with service/method names and custom `IS_WRITE_REQUEST` value:
-///
-/// ```rust,ignore
-/// impl_retriable_request!(Request, Client, Response, get_client, op, "Service", "Method", true);
+/// impl_retriable_request!(Request, Client, Response, op, "Service", "Method");
+/// impl_retriable_request!(Request, Client, Response, op, "Service", "Method", true);
 /// ```
 macro_rules! impl_retriable_request {
-    ($req:ty, $client:ty, $res:ty, $getter:ident, $op:ident, $service:expr, $method:expr) => {
+    ($req:ty, $client:ty, $res:ty, $op:ident, $service:expr, $method:expr) => {
         impl $crate::utils::RetriableRequest for $req {
             type Client = $client;
             type Response = $res;
@@ -39,11 +31,8 @@ macro_rules! impl_retriable_request {
                 concat!($service, "/", $method)
             }
 
-            async fn get_client<'a>(
-                pool: &'a $crate::pool::ClientPool,
-                addr: &str,
-            ) -> Result<impl std::ops::DerefMut<Target = Self::Client> + 'a, Self::Error> {
-                pool.$getter(addr).await
+            fn get_client(pool: &$crate::pool::ClientPool, addr: &str) -> Self::Client {
+                <$client>::new(pool.get_channel(addr))
             }
 
             async fn call_once(
@@ -59,7 +48,7 @@ macro_rules! impl_retriable_request {
         }
     };
 
-    ($req:ty, $client:ty, $res:ty, $getter:ident, $op:ident, $service:expr, $method:expr, $is_write_request:expr) => {
+    ($req:ty, $client:ty, $res:ty, $op:ident, $service:expr, $method:expr, $is_write_request:expr) => {
         impl $crate::utils::RetriableRequest for $req {
             type Client = $client;
             type Response = $res;
@@ -71,11 +60,8 @@ macro_rules! impl_retriable_request {
                 concat!($service, "/", $method)
             }
 
-            async fn get_client<'a>(
-                pool: &'a $crate::pool::ClientPool,
-                addr: &str,
-            ) -> Result<impl std::ops::DerefMut<Target = Self::Client> + 'a, Self::Error> {
-                pool.$getter(addr).await
+            fn get_client(pool: &$crate::pool::ClientPool, addr: &str) -> Self::Client {
+                <$client>::new(pool.get_channel(addr))
             }
 
             async fn call_once(

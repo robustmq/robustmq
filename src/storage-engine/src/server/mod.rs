@@ -67,7 +67,6 @@ impl Server {
         let proc_config = ProcessorConfig {
             accept_thread_num: conf.network.accept_thread_num,
             handler_process_num: conf.network.handler_thread_num,
-            response_process_num: conf.network.response_thread_num,
             channel_size: conf.network.queue_size,
         };
 

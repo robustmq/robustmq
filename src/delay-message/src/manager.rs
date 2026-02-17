@@ -38,6 +38,8 @@ use tokio::{sync::broadcast, time::Instant};
 use tokio_util::time::DelayQueue;
 use tracing::{error, info};
 
+pub type SharedDelayQueue = Arc<tokio::sync::Mutex<DelayQueue<DelayMessageIndexInfo>>>;
+
 pub const DELAY_MESSAGE_FLAG: &str = "delay_message_flag";
 pub const DELAY_MESSAGE_RECV_MS: &str = "delay_message_recv_ms";
 pub const DELAY_MESSAGE_TARGET_MS: &str = "delay_message_target_ms";
@@ -59,7 +61,7 @@ pub async fn start_delay_message_manager_thread(
 pub struct DelayMessageManager {
     pub client_pool: Arc<ClientPool>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
-    pub delay_queue_list: DashMap<u32, DelayQueue<DelayMessageIndexInfo>>,
+    pub delay_queue_list: DashMap<u32, SharedDelayQueue>,
     pub delay_queue_pop_thread: DashMap<u32, broadcast::Sender<bool>>,
     pub delay_queue_num: u32,
     pub incr_no: AtomicU32,
@@ -84,7 +86,10 @@ impl DelayMessageManager {
 
     pub fn start(&self) {
         for shard_no in 0..self.delay_queue_num {
-            self.delay_queue_list.insert(shard_no, DelayQueue::new());
+            self.delay_queue_list.insert(
+                shard_no,
+                Arc::new(tokio::sync::Mutex::new(DelayQueue::new())),
+            );
         }
     }
 
@@ -107,7 +112,7 @@ impl DelayMessageManager {
 
         save_delay_index_info(&self.storage_driver_manager, &delay_index_info).await?;
 
-        self.send_to_delay_queue(&delay_index_info);
+        self.send_to_delay_queue(&delay_index_info).await;
 
         Ok(delay_message_id)
     }
@@ -124,43 +129,14 @@ impl DelayMessageManager {
         Ok(())
     }
 
-    pub fn send_to_delay_queue(&self, delay_info: &DelayMessageIndexInfo) {
+    pub async fn send_to_delay_queue(&self, delay_info: &DelayMessageIndexInfo) {
         let shard_no = self
             .incr_no
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
             % self.delay_queue_num;
 
-        if let Some(mut delay_queue) = self.delay_queue_list.get_mut(&shard_no) {
-            let current_time = now_second();
-            let delay_duration = if delay_info.target_timestamp > current_time {
-                Duration::from_secs(delay_info.target_timestamp - current_time)
-            } else {
-                Duration::from_secs(0)
-            };
-            let target_instant = Instant::now() + delay_duration;
-            let expected_trigger_time = current_time + delay_duration.as_secs();
-
-            info!(
-                "Insert delay message to queue. unique_id={}, target_topic={}, shard_no={}, target_timestamp={}, current_time={}, delay_duration={}s, expected_trigger_time={}, time_match={}",
-                delay_info.unique_id,
-                delay_info.target_topic_name,
-                shard_no,
-                delay_info.target_timestamp,
-                current_time,
-                delay_duration.as_secs(),
-                expected_trigger_time,
-                expected_trigger_time == delay_info.target_timestamp
-            );
-
-            delay_queue.insert_at(delay_info.clone(), target_instant);
-
-            let capacity = delay_queue.capacity() as i64;
-            let used = delay_queue.len() as i64;
-            drop(delay_queue);
-
-            record_mqtt_delay_queue_total_capacity_set(shard_no, capacity);
-            record_mqtt_delay_queue_used_capacity_set(shard_no, used);
-            record_mqtt_delay_queue_remaining_capacity_set(shard_no, capacity - used);
+        let queue_arc = if let Some(q) = self.delay_queue_list.get(&shard_no) {
+            q.clone()
         } else {
             error!(
                 "Failed to send to delay queue: shard {} not found, message will be lost: \
@@ -170,7 +146,40 @@ impl DelayMessageManager {
                 delay_info.offset,
                 delay_info.target_timestamp
             );
-        }
+            return;
+        };
+
+        let current_time = now_second();
+        let delay_duration = if delay_info.target_timestamp > current_time {
+            Duration::from_secs(delay_info.target_timestamp - current_time)
+        } else {
+            Duration::from_secs(0)
+        };
+        let target_instant = Instant::now() + delay_duration;
+        let expected_trigger_time = current_time + delay_duration.as_secs();
+
+        info!(
+            "Insert delay message to queue. unique_id={}, target_topic={}, shard_no={}, target_timestamp={}, current_time={}, delay_duration={}s, expected_trigger_time={}, time_match={}",
+            delay_info.unique_id,
+            delay_info.target_topic_name,
+            shard_no,
+            delay_info.target_timestamp,
+            current_time,
+            delay_duration.as_secs(),
+            expected_trigger_time,
+            expected_trigger_time == delay_info.target_timestamp
+        );
+
+        let mut delay_queue = queue_arc.lock().await;
+        delay_queue.insert_at(delay_info.clone(), target_instant);
+
+        let capacity = delay_queue.capacity() as i64;
+        let used = delay_queue.len() as i64;
+        drop(delay_queue);
+
+        record_mqtt_delay_queue_total_capacity_set(shard_no, capacity);
+        record_mqtt_delay_queue_used_capacity_set(shard_no, used);
+        record_mqtt_delay_queue_remaining_capacity_set(shard_no, capacity - used);
     }
 
     pub fn add_delay_queue_pop_thread(&self, shard_no: u32, stop_send: broadcast::Sender<bool>) {

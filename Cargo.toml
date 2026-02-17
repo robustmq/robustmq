@@ -81,6 +81,7 @@ futures = "0.3.31"
 futures-util = "0.3.31"
 async-trait = "0.1.88"
 async-stream = "0.3.6"
+async-channel = "2.3"
 
 # ====================
 # Serialization
@@ -212,6 +213,7 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.0", default-features = false, features = [
     "std",
     "fmt",
+    "ansi",
     "env-filter",
     "json",
 ] }

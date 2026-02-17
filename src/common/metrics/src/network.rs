@@ -242,7 +242,7 @@ pub fn record_ws_request_duration(receive_ms: u128, response_ms: u128) {
 
 pub fn record_broker_thread_num(
     network_connection: &NetworkConnectionType,
-    (accept, handler, response): (usize, usize, usize),
+    (accept, handler): (usize, usize),
 ) {
     let accept_label = BrokerThreadLabel {
         network: network_connection.to_string(),
@@ -250,15 +250,9 @@ pub fn record_broker_thread_num(
     };
     gauge_metric_inc_by!(BROKER_ACTIVE_THREAD_NUM, accept_label, accept as i64);
 
-    let accept_label = BrokerThreadLabel {
+    let handler_label = BrokerThreadLabel {
         network: network_connection.to_string(),
         thread_type: "handler".to_string(),
     };
-    gauge_metric_inc_by!(BROKER_ACTIVE_THREAD_NUM, accept_label, handler as i64);
-
-    let accept_label = BrokerThreadLabel {
-        network: network_connection.to_string(),
-        thread_type: "response".to_string(),
-    };
-    gauge_metric_inc_by!(BROKER_ACTIVE_THREAD_NUM, accept_label, response as i64);
+    gauge_metric_inc_by!(BROKER_ACTIVE_THREAD_NUM, handler_label, handler as i64);
 }

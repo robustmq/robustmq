@@ -67,6 +67,10 @@ impl SharedStats {
         self.counters.received.fetch_add(1, Ordering::Relaxed);
     }
 
+    pub fn add_received(&self, n: u64) {
+        self.counters.received.fetch_add(n, Ordering::Relaxed);
+    }
+
     pub fn record_error(&self, key: &str) {
         if let Ok(mut map) = self.errors.lock() {
             *map.entry(key.to_string()).or_insert(0) += 1;

@@ -13,7 +13,11 @@
 // limitations under the License.
 
 use crate::command::ArcCommandAdapter;
+use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
+use crate::common::handler::handler_process;
+use crate::common::packet::RequestPackage;
+use crate::context::ProcessorConfig;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
 use axum::response::Response;
@@ -23,26 +27,17 @@ use axum_extra::headers::UserAgent;
 use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
 use bytes::{BufMut, BytesMut};
-use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
-use common_base::tools::now_millis;
 use common_config::broker::broker_config;
-use common_metrics::network::record_ws_request_duration;
 use futures_util::stream::StreamExt;
-use kafka_protocol::messages::ResponseHeader;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
-use protocol::kafka::packet::{KafkaHeader, KafkaPacketWrapper};
-use protocol::mqtt::codec::MqttPacketWrapper;
-use protocol::robust::{
-    KafkaWrapperExtend, MqttWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol,
-    RobustMQWrapperExtend, StorageEngineWrapperExtend,
-};
+use protocol::robust::RobustMQPacket;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::select;
-use tokio::sync::broadcast::{self};
+use tokio::sync::broadcast;
 use tracing::{debug, error, info, warn};
 
 pub const ROUTE_ROOT: &str = "/mqtt";
@@ -54,6 +49,8 @@ pub struct WebSocketServerState {
     pub command: ArcCommandAdapter,
     pub connection_manager: Arc<ConnectionManager>,
     pub stop_sx: broadcast::Sender<bool>,
+    pub request_channel: Arc<RequestChannel>,
+    pub proc_config: ProcessorConfig,
 }
 
 impl WebSocketServerState {
@@ -63,16 +60,21 @@ impl WebSocketServerState {
         command: ArcCommandAdapter,
         connection_manager: Arc<ConnectionManager>,
         stop_sx: broadcast::Sender<bool>,
+        proc_config: ProcessorConfig,
     ) -> Self {
+        let request_channel = Arc::new(RequestChannel::new(proc_config.channel_size));
         Self {
             ws_port,
             wss_port,
             command,
             connection_manager,
             stop_sx,
+            request_channel,
+            proc_config,
         }
     }
 }
+
 #[derive(Clone)]
 pub struct WebSocketServer {
     name: String,
@@ -85,6 +87,8 @@ impl WebSocketServer {
     }
 
     pub async fn start_ws(&self) -> ResultCommonError {
+        self.start_handlers();
+
         let ip: SocketAddr = format!("0.0.0.0:{}", self.state.ws_port).parse()?;
         let app = routes_v1(self.state.clone());
 
@@ -96,6 +100,8 @@ impl WebSocketServer {
     }
 
     pub async fn start_wss(&self) -> ResultCommonError {
+        self.start_handlers();
+
         let ip: SocketAddr = format!("0.0.0.0:{}", self.state.wss_port).parse()?;
         let app = routes_v1(self.state.clone());
 
@@ -114,6 +120,17 @@ impl WebSocketServer {
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .await?;
         Ok(())
+    }
+
+    fn start_handlers(&self) {
+        handler_process(
+            self.state.proc_config.handler_process_num,
+            self.state.connection_manager.clone(),
+            self.state.command.clone(),
+            self.state.request_channel.clone(),
+            NetworkConnectionType::WebSocket,
+            self.state.stop_sx.clone(),
+        );
     }
 }
 
@@ -136,15 +153,13 @@ async fn ws_handler(
     };
 
     debug!("websocket `{user_agent}` at {addr} connected.");
-    let codec = RobustMQCodec::new();
     ws.protocols(["mqtt", "mqttv3.1"])
         .on_upgrade(move |socket| {
             handle_socket(
                 socket,
                 addr,
-                state.command,
-                codec,
                 state.connection_manager.clone(),
+                state.request_channel.clone(),
                 state.stop_sx.clone(),
             )
         })
@@ -153,163 +168,77 @@ async fn ws_handler(
 async fn handle_socket(
     socket: WebSocket,
     addr: SocketAddr,
-    command: ArcCommandAdapter,
-    mut codec: RobustMQCodec,
     connection_manager: Arc<ConnectionManager>,
+    request_channel: Arc<RequestChannel>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let (sender, mut receiver) = socket.split();
-    let tcp_connection = NetworkConnection::new(NetworkConnectionType::WebSocket, addr, None);
-    connection_manager.add_websocket_write(tcp_connection.connection_id, sender);
-    connection_manager.add_connection(tcp_connection.clone());
+    let connection = NetworkConnection::new(NetworkConnectionType::WebSocket, addr, None);
+    let connection_id = connection.connection_id;
+    connection_manager.add_websocket_write(connection_id, sender);
+    connection_manager.add_connection(connection);
     let mut stop_rx = stop_sx.subscribe();
+    let mut codec = RobustMQCodec::new();
 
     loop {
         select! {
-            val = stop_rx.recv() =>{
-                if let Ok(flag) = val {
-                    if flag {
-                        break;
-                    }
+            val = stop_rx.recv() => {
+                if let Ok(true) = val {
+                    break;
                 }
             },
-            val = receiver.next()=>{
-                if let Some(msg) = val{
+            val = receiver.next() => {
+                if let Some(msg) = val {
                     match msg {
                         Ok(Message::Binary(data)) => {
-                            if let Err(e) = process_socket_packet_by_binary(tcp_connection.connection_id(), &connection_manager,&mut codec, command.clone(), &addr,&data).await{
-                                error!("Websocket failed to process protocol packet with error message :{e:?}");
+                            let mut buf = BytesMut::with_capacity(data.len());
+                            buf.put(data.as_ref());
+                            match codec.decode_data(&mut buf) {
+                                Ok(Some(packet)) => {
+                                    let robust_packet = match packet {
+                                        RobustMQCodecWrapper::MQTT(pkg) => RobustMQPacket::MQTT(pkg.packet),
+                                        RobustMQCodecWrapper::KAFKA(pkg) => RobustMQPacket::KAFKA(pkg.packet),
+                                        RobustMQCodecWrapper::StorageEngine(pkg) => RobustMQPacket::StorageEngine(pkg),
+                                    };
+                                    let package = RequestPackage::new(connection_id, addr, robust_packet);
+                                    request_channel.send(package).await;
+                                }
+                                Ok(None) => {}
+                                Err(e) => {
+                                    error!("WebSocket decode error: {:?}", e);
+                                }
                             }
                         }
                         Ok(Message::Text(data)) => {
-                            warn!(
-                                "websocket server receives a TEXT message with the following content: {data}"
-                            );
+                            warn!("websocket server receives a TEXT message: {data}");
                         }
                         Ok(Message::Ping(data)) => {
-                            info!(
-                                "websocket server receives a Ping message with the following content: {data:?}"
-                            );
+                            debug!("websocket server receives a Ping message: {data:?}");
                         }
                         Ok(Message::Pong(data)) => {
-                            info!(
-                                "websocket server receives a Pong message with the following content: {data:?}"
-                            );
+                            debug!("websocket server receives a Pong message: {data:?}");
                         }
                         Ok(Message::Close(data)) => {
                             if let Some(cf) = data {
-                                info!(
-                                    ">>> {} sent close with code {} and reason `{}`",
-                                    addr, cf.code, cf.reason
-                                );
+                                info!(">>> {} sent close with code {} and reason `{}`", addr, cf.code, cf.reason);
                             } else {
-                                info!(
-                                    ">>> {addr} somehow sent close message without CloseFrame"
-                                );
+                                info!(">>> {addr} sent close without CloseFrame");
                             }
-                              connection_manager.close_connect(tcp_connection.connection_id).await;
+                            connection_manager.close_connect(connection_id).await;
                             break;
                         }
                         Err(e) => {
-                            warn!("websocket server parsing request packet error, error message :{e:?}");
-                            connection_manager.close_connect(tcp_connection.connection_id).await;
+                            warn!("websocket server parsing request packet error: {e:?}");
+                            connection_manager.close_connect(connection_id).await;
                             break;
                         },
                     }
-                }else {
-                    debug!("WebSocket connection closed (EOF): connection_id={}", tcp_connection.connection_id);
-                    connection_manager.close_connect(tcp_connection.connection_id).await;
+                } else {
+                    debug!("WebSocket connection closed (EOF): connection_id={}", connection_id);
+                    connection_manager.close_connect(connection_id).await;
                     break;
                 }
             }
         }
     }
-}
-
-async fn process_socket_packet_by_binary(
-    connection_id: u64,
-    connection_manager: &Arc<ConnectionManager>,
-    codec: &mut RobustMQCodec,
-    command: ArcCommandAdapter,
-    addr: &SocketAddr,
-    data: &[u8],
-) -> ResultCommonError {
-    let receive_ms = now_millis();
-    let mut buf = BytesMut::with_capacity(data.len());
-    buf.put(data);
-    if let Some(packet) = codec.decode_data(&mut buf)? {
-        info!("recv websocket packet:{packet:?}");
-
-        let tcp_connection = if let Some(conn) = connection_manager.get_connect(connection_id) {
-            conn
-        } else {
-            return Err(CommonError::NotFoundConnectionInCache(connection_id));
-        };
-
-        let robust_packet = match packet {
-            RobustMQCodecWrapper::KAFKA(pkg) => RobustMQPacket::KAFKA(pkg.packet),
-            RobustMQCodecWrapper::MQTT(pkg) => RobustMQPacket::MQTT(pkg.packet),
-            RobustMQCodecWrapper::StorageEngine(pkg) => RobustMQPacket::StorageEngine(pkg),
-        };
-
-        if let Some(resp_pkg) = command.apply(&tcp_connection, addr, &robust_packet).await {
-            // encode resp packet
-            let mut response_buff = BytesMut::new();
-            let resp_codec_wrapper = match resp_pkg.packet.clone() {
-                RobustMQPacket::MQTT(pkg) => RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
-                    protocol_version: codec.mqtt_codec.protocol_version.unwrap(),
-                    packet: pkg,
-                }),
-                RobustMQPacket::KAFKA(pkg) => RobustMQCodecWrapper::KAFKA(KafkaPacketWrapper {
-                    api_version: 1,
-                    header: KafkaHeader::Response(ResponseHeader::default()),
-                    packet: pkg,
-                }),
-                RobustMQPacket::StorageEngine(pkg) => RobustMQCodecWrapper::StorageEngine(pkg),
-            };
-            codec.encode_data(resp_codec_wrapper, &mut response_buff)?;
-
-            // build resp wrapper
-            let resp_wrapper = match resp_pkg.packet.clone() {
-                RobustMQPacket::MQTT(pkg) => RobustMQPacketWrapper {
-                    protocol: RobustMQProtocol::MQTT3,
-                    extend: RobustMQWrapperExtend::MQTT(MqttWrapperExtend::default()),
-                    packet: RobustMQPacket::MQTT(pkg),
-                },
-                RobustMQPacket::KAFKA(pkg) => RobustMQPacketWrapper {
-                    protocol: RobustMQProtocol::KAFKA,
-                    extend: RobustMQWrapperExtend::KAFKA(KafkaWrapperExtend::default()),
-                    packet: RobustMQPacket::KAFKA(pkg),
-                },
-                RobustMQPacket::StorageEngine(pkg) => RobustMQPacketWrapper {
-                    protocol: RobustMQProtocol::StorageEngine,
-                    extend: RobustMQWrapperExtend::StorageEngine(
-                        StorageEngineWrapperExtend::default(),
-                    ),
-                    packet: RobustMQPacket::StorageEngine(pkg),
-                },
-            };
-
-            // write to client
-            let response_ms = now_millis();
-            if let Err(e) = connection_manager
-                .write_websocket_frame(
-                    tcp_connection.connection_id,
-                    resp_wrapper,
-                    Message::Binary(response_buff.to_vec().into()),
-                )
-                .await
-            {
-                error!("websocket returns failure to write the packet to the client with error message {e:?}");
-                connection_manager
-                    .close_connect(tcp_connection.connection_id)
-                    .await;
-            }
-            record_ws_request_duration(receive_ms, response_ms);
-        } else {
-            debug!("{}", "No backpacking is required for this request");
-        }
-    }
-
-    Ok(())
 }

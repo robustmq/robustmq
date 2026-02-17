@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
-use mobc::Manager;
 use protocol::meta::meta_service_journal::engine_service_client::EngineServiceClient;
 use protocol::meta::meta_service_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
@@ -28,41 +26,10 @@ use crate::macros::impl_retriable_request;
 
 pub mod call;
 
-#[derive(Clone)]
-pub struct StorageEngineServiceManager {
-    pub addr: String,
-}
-
-impl StorageEngineServiceManager {
-    pub fn new(addr: String) -> Self {
-        Self { addr }
-    }
-}
-
-#[tonic::async_trait]
-impl Manager for StorageEngineServiceManager {
-    type Connection = EngineServiceClient<Channel>;
-    type Error = CommonError;
-
-    async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        match EngineServiceClient::connect(format!("http://{}", self.addr)).await {
-            Ok(client) => {
-                return Ok(client);
-            }
-            Err(err) => return Err(CommonError::CommonError(format!("{},{}", err, self.addr))),
-        };
-    }
-
-    async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
-        Ok(conn)
-    }
-}
-
 impl_retriable_request!(
     ListShardRequest,
     EngineServiceClient<Channel>,
     ListShardReply,
-    meta_service_journal_services_client,
     list_shard,
     "EngineService",
     "ListShard",
@@ -73,7 +40,6 @@ impl_retriable_request!(
     CreateShardRequest,
     EngineServiceClient<Channel>,
     CreateShardReply,
-    meta_service_journal_services_client,
     create_shard,
     "EngineService",
     "CreateShard",
@@ -84,7 +50,6 @@ impl_retriable_request!(
     DeleteShardRequest,
     EngineServiceClient<Channel>,
     DeleteShardReply,
-    meta_service_journal_services_client,
     delete_shard,
     "EngineService",
     "DeleteShard",
@@ -95,7 +60,6 @@ impl_retriable_request!(
     ListSegmentRequest,
     EngineServiceClient<Channel>,
     ListSegmentReply,
-    meta_service_journal_services_client,
     list_segment,
     "EngineService",
     "ListSegment",
@@ -106,7 +70,6 @@ impl_retriable_request!(
     CreateNextSegmentRequest,
     EngineServiceClient<Channel>,
     CreateNextSegmentReply,
-    meta_service_journal_services_client,
     create_next_segment,
     "EngineService",
     "CreateNextSegment",
@@ -117,7 +80,6 @@ impl_retriable_request!(
     DeleteSegmentRequest,
     EngineServiceClient<Channel>,
     DeleteSegmentReply,
-    meta_service_journal_services_client,
     delete_segment,
     "EngineService",
     "DeleteSegment",
@@ -128,7 +90,6 @@ impl_retriable_request!(
     SealUpSegmentRequest,
     EngineServiceClient<Channel>,
     SealUpSegmentReply,
-    meta_service_journal_services_client,
     seal_up_segment,
     "EngineService",
     "SealUpSegmentRequest",
@@ -139,7 +100,6 @@ impl_retriable_request!(
     ListSegmentMetaRequest,
     EngineServiceClient<Channel>,
     ListSegmentMetaReply,
-    meta_service_journal_services_client,
     list_segment_meta,
     "EngineService",
     "ListSegmentMeta",
@@ -150,7 +110,6 @@ impl_retriable_request!(
     UpdateStartTimeBySegmentMetaRequest,
     EngineServiceClient<Channel>,
     UpdateStartTimeBySegmentMetaReply,
-    meta_service_journal_services_client,
     update_start_time_by_segment_meta,
     "EngineService",
     "UpdateStartTimeBySegmentMeta",
