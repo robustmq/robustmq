@@ -304,7 +304,7 @@ mod test {
     pub async fn get_expire_connection_test() {
         let client_pool = Arc::new(ClientPool::new(100));
         let cache_manager = test_build_mqtt_cache_manager().await;
-        let connection_manager = Arc::new(ConnectionManager::new(3, 1000));
+        let connection_manager = Arc::new(ConnectionManager::new());
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let alive = ClientKeepAlive::new(
             client_pool,

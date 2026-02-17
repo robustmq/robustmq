@@ -99,6 +99,7 @@ impl TcpServer {
 
         handler_process(
             self.proc_config.handler_process_num,
+            self.proc_config.handler_max_concurrency,
             self.connection_manager.clone(),
             self.command.clone(),
             self.request_channel.clone(),
@@ -154,7 +155,6 @@ impl TcpServer {
             (
                 self.proc_config.accept_thread_num,
                 self.proc_config.handler_process_num,
-                self.proc_config.response_process_num,
             ),
         );
     }

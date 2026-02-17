@@ -32,6 +32,7 @@ use tracing::{debug, error, warn};
 
 pub fn handler_process(
     handler_process_num: usize,
+    handler_max_concurrency: usize,
     connection_manager: Arc<ConnectionManager>,
     command: ArcCommandAdapter,
     request_channel: Arc<RequestChannel>,
@@ -46,7 +47,7 @@ pub fn handler_process(
         let mut raw_stop_rx = stop_sx.subscribe();
         let raw_network_type = network_type.clone();
 
-        let semaphore = Arc::new(Semaphore::new(5));
+        let semaphore = Arc::new(Semaphore::new(handler_max_concurrency));
         tokio::spawn(Box::pin(async move {
             debug!(
                 "Server handler process thread {} start successfully.",

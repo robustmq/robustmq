@@ -109,10 +109,7 @@ impl BrokerServer {
         let rate_limiter_manager = Arc::new(RateLimiterManager::new());
         let main_runtime = create_runtime("init_runtime", config.runtime.runtime_worker_threads);
         let broker_cache = Arc::new(BrokerCacheManager::new(config.clone()));
-        let connection_manager = Arc::new(NetworkConnectionManager::new(
-            config.network.lock_max_try_mut_times as i32,
-            config.network.lock_try_mut_sleep_time_ms,
-        ));
+        let connection_manager = Arc::new(NetworkConnectionManager::new());
 
         let (main_stop_send, _) = broadcast::channel(2);
 

@@ -15,17 +15,11 @@
 use crate::common::packet::RequestPackage;
 use dashmap::DashMap;
 use metadata_struct::connection::NetworkConnectionType;
-use std::{
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
-    time::Duration,
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
 };
-use tokio::{
-    sync::mpsc::{self, Receiver, Sender},
-    time::sleep,
-};
+use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::error;
 
 #[derive(Clone)]
@@ -60,25 +54,14 @@ impl RequestChannel {
         network_type: &NetworkConnectionType,
         packet: RequestPackage,
     ) {
-        let mut sleep_ms = 0;
-        loop {
-            let index = self.calc_req_channel_index();
-            let key = self.key_name(network_type, index);
-            if let Some(handler_sx) = self.handler_channels.get(&key) {
-                if handler_sx.try_send(packet.clone()).is_ok() {
-                    break;
-                }
-            } else {
-                // In exceptional cases, if no available child handler can be found, the request packet is dropped.
-                // If the client does not receive a return packet, it will retry the request.
-                // Rely on repeated requests from the client to ensure that the request will eventually be processed successfully.
-                error!(
-                    "{}",
-                    "Handler child thread, no request packet processing thread available"
-                );
+        let index = self.calc_req_channel_index();
+        let key = self.key_name(network_type, index);
+        if let Some(handler_sx) = self.handler_channels.get(&key) {
+            if let Err(e) = handler_sx.send(packet).await {
+                error!("Failed to send packet to handler {}: {}", key, e);
             }
-            sleep_ms += 2;
-            sleep(Duration::from_millis(sleep_ms)).await;
+        } else {
+            error!("No handler channel available for {}", key);
         }
     }
 
