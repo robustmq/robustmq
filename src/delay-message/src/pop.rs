@@ -16,12 +16,15 @@ use crate::delay::{delete_delay_index_info, delete_delay_message, DELAY_QUEUE_ME
 use crate::manager::{DelayMessageManager, SharedDelayQueue, DELAY_MESSAGE_SAVE_MS};
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
+use common_metrics::mqtt::delay::{
+    record_delay_msg_deliver, record_delay_msg_deliver_duration, record_delay_msg_deliver_fail,
+};
 use futures::StreamExt;
 use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use storage_adapter::driver::StorageDriverManager;
 use tokio::time::sleep;
 use tokio::{select, sync::broadcast};
@@ -136,24 +139,25 @@ pub async fn delay_message_process(
     delay_info: &DelayMessageIndexInfo,
     trigger_time: u64,
 ) -> Result<(), CommonError> {
-    let pop_time = now_second();
+    let start = Instant::now();
 
     match send_delay_message_to_shard(storage_driver_manager, delay_info, trigger_time).await {
         Ok(offset) => {
-            let send_success_time = now_second();
-            let processing_duration = send_success_time - pop_time;
+            let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+            record_delay_msg_deliver();
+            record_delay_msg_deliver_duration(duration_ms);
 
             info!(
-                "Delay message processed successfully. unique_id={}, target_topic={}, offset={}, pop_time={}, send_success_time={}, processing_duration={}s",
+                "Delay message processed successfully. unique_id={}, target_topic={}, offset={}, duration_ms={:.2}",
                 delay_info.unique_id,
                 delay_info.target_topic_name,
                 offset,
-                pop_time,
-                send_success_time,
-                processing_duration
+                duration_ms
             );
         }
         Err(e) => {
+            record_delay_msg_deliver_fail();
+
             error!(
                 "Failed to send delay message to target shard. unique_id={}, target_topic={}, offset={}, error={}",
                 delay_info.unique_id, delay_info.target_topic_name, delay_info.offset, e

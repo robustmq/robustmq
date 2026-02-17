@@ -17,6 +17,7 @@ use crate::manager::DelayMessageManager;
 use crate::pop::delay_message_process;
 use common_base::tools::now_second;
 use common_base::utils::serialize::{self};
+use common_metrics::mqtt::delay::{record_delay_msg_recover, record_delay_msg_recover_expired};
 use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use std::collections::HashMap;
@@ -137,6 +138,7 @@ async fn process_delay_index_record(
     }
 
     delay_message_manager.send_to_delay_queue(&delay_info).await;
+    record_delay_msg_recover();
     *total_num += 1;
     true
 }
@@ -146,6 +148,7 @@ async fn handle_expired_delay_message(
     delay_info: DelayMessageIndexInfo,
     now: u64,
 ) {
+    record_delay_msg_recover_expired();
     warn!(
         "Delay message expired during recovery, sending immediately. \
          offset: {}, target: {}, expired by: {}s",

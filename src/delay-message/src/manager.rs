@@ -20,6 +20,7 @@ use crate::{
 use broker_core::cache::BrokerCacheManager;
 use common_base::uuid::unique_id;
 use common_base::{error::common::CommonError, tools::now_second};
+use common_metrics::mqtt::delay::{record_delay_msg_enqueue, record_delay_msg_enqueue_duration};
 use common_metrics::mqtt::statistics::{
     record_mqtt_delay_queue_remaining_capacity_set, record_mqtt_delay_queue_total_capacity_set,
     record_mqtt_delay_queue_used_capacity_set,
@@ -99,6 +100,8 @@ impl DelayMessageManager {
         target_timestamp: u64,
         data: AdapterWriteRecord,
     ) -> Result<String, CommonError> {
+        let start = std::time::Instant::now();
+
         let delay_message_id = unique_id();
         let offset =
             save_delay_message(&self.storage_driver_manager, &delay_message_id, data).await?;
@@ -113,6 +116,9 @@ impl DelayMessageManager {
         save_delay_index_info(&self.storage_driver_manager, &delay_index_info).await?;
 
         self.send_to_delay_queue(&delay_index_info).await;
+
+        record_delay_msg_enqueue();
+        record_delay_msg_enqueue_duration(start.elapsed().as_secs_f64() * 1000.0);
 
         Ok(delay_message_id)
     }

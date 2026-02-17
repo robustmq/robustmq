@@ -14,6 +14,7 @@
 
 pub mod auth;
 pub mod connector;
+pub mod delay;
 pub mod event;
 pub mod packets;
 pub mod publish;
