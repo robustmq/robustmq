@@ -36,8 +36,7 @@ data:
 
     [tcp_thread]
     accept_thread_num = 1
-    handler_thread_num = 10
-    handler_max_concurrency = 100
+    handler_thread_num = 1000
     max_connection_num = 1000
     request_queue_size = 2000
     response_queue_size = 2000

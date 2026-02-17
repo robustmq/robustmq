@@ -52,6 +52,12 @@ pub struct ConnectionManager {
     pub quic_write_list: DashMap<u64, QuicWriter>,
 }
 
+impl Default for ConnectionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConnectionManager {
     pub fn new() -> ConnectionManager {
         let connections = DashMap::with_capacity(64);
@@ -85,7 +91,8 @@ impl ConnectionManager {
     }
 
     pub async fn close_connect(&self, connection_id: u64) {
-        self.connections.remove(&connection_id);
+        // todo
+        // self.connections.remove(&connection_id);
 
         if let Some((id, writer)) = self.tcp_write_list.remove(&connection_id) {
             let mut stream = writer.lock().await;

@@ -22,9 +22,13 @@ use crate::config::{
 use crate::storage::{StorageAdapterConfig, StorageType};
 use common_base::enum_type::delay_type::DelayType;
 use common_base::role::{ROLE_BROKER, ROLE_META};
-use common_base::runtime::get_runtime_worker_threads;
+use common_base::runtime::get_default_runtime_worker_threads;
 use common_base::tools::get_local_ip;
 use toml::Table;
+
+pub fn default_runtime_worker_threads() -> usize {
+    get_default_runtime_worker_threads()
+}
 
 pub fn default_roles() -> Vec<String> {
     vec![ROLE_BROKER.to_string(), ROLE_META.to_string()]
@@ -61,22 +65,17 @@ pub fn default_meta_addrs() -> Table {
 
 pub fn default_runtime() -> Runtime {
     Runtime {
-        runtime_worker_threads: get_runtime_worker_threads(),
+        runtime_worker_threads: get_default_runtime_worker_threads(),
         tls_cert: "./config/certs/cert.pem".to_string(),
         tls_key: "./config/certs/key.pem".to_string(),
     }
 }
 
-pub fn default_handler_max_concurrency() -> usize {
-    100
-}
-
 pub fn default_network() -> Network {
     Network {
-        accept_thread_num: 8,
-        handler_thread_num: 32,
-        handler_max_concurrency: 100,
-        queue_size: 1000,
+        accept_thread_num: 1,
+        handler_thread_num: 1000,
+        queue_size: 5000,
     }
 }
 

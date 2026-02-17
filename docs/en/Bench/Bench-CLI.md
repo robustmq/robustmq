@@ -15,7 +15,8 @@ Supported `<subcommand>`:
 - `conn`: connection benchmark
 - `pub`: publish benchmark
 - `sub`: subscribe benchmark
-- `meta placement-create-session`: benchmark Meta `CreateSession`
+- `meta placement-create-session`: benchmark Meta `CreateSession` (write)
+- `meta placement-list-session`: benchmark Meta `ListSession` (read)
 
 ## 2. Common Options
 
@@ -79,10 +80,22 @@ robust-bench mqtt sub \
   --duration-secs 120
 ```
 
-### 3.4 Meta API benchmark
+### 3.4 Meta write benchmark
 
 ```bash
 robust-bench meta placement-create-session \
+  --host 127.0.0.1 \
+  --port 1228 \
+  --count 100000 \
+  --concurrency 1000 \
+  --timeout-ms 3000 \
+  --output table
+```
+
+### 3.5 Meta read benchmark
+
+```bash
+robust-bench meta placement-list-session \
   --host 127.0.0.1 \
   --port 1228 \
   --count 100000 \

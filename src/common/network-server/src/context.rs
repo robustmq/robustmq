@@ -23,7 +23,6 @@ use tokio::sync::broadcast;
 pub struct ProcessorConfig {
     pub accept_thread_num: usize,
     pub handler_process_num: usize,
-    pub handler_max_concurrency: usize,
     pub channel_size: usize,
 }
 

@@ -83,7 +83,6 @@ impl Server {
         let proc_config = ProcessorConfig {
             accept_thread_num: conf.network.accept_thread_num,
             handler_process_num: conf.network.handler_thread_num,
-            handler_max_concurrency: conf.network.handler_max_concurrency,
             channel_size: conf.network.queue_size,
         };
 
@@ -108,13 +107,14 @@ impl Server {
         // Websocket Server
         let ws_server = WebSocketServer::new(
             name.clone(),
-            WebSocketServerState {
-                ws_port: conf.mqtt_server.websocket_port,
-                wss_port: conf.mqtt_server.websockets_port,
-                command: command.clone(),
-                connection_manager: context.connection_manager.clone(),
-                stop_sx: context.stop_sx.clone(),
-            },
+            WebSocketServerState::new(
+                conf.mqtt_server.websocket_port,
+                conf.mqtt_server.websockets_port,
+                command.clone(),
+                context.connection_manager.clone(),
+                context.stop_sx.clone(),
+                proc_config,
+            ),
         );
 
         // QuicServer

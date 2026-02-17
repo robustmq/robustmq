@@ -14,12 +14,13 @@
 
 use super::default::{
     default_broker_id, default_broker_ip, default_cluster_name, default_engine_runtime,
-    default_grpc_port, default_handler_max_concurrency, default_http_port, default_message_storage,
-    default_meta_addrs, default_meta_runtime, default_mqtt_auth_config,
-    default_mqtt_flapping_detect, default_mqtt_keep_alive, default_mqtt_offline_message,
-    default_mqtt_protocol_config, default_mqtt_runtime, default_mqtt_schema, default_mqtt_security,
-    default_mqtt_server, default_mqtt_slow_subscribe_config, default_mqtt_system_monitor,
-    default_network, default_rocksdb, default_roles, default_runtime, default_storage_offset,
+    default_grpc_port, default_http_port, default_message_storage, default_meta_addrs,
+    default_meta_runtime, default_mqtt_auth_config, default_mqtt_flapping_detect,
+    default_mqtt_keep_alive, default_mqtt_offline_message, default_mqtt_protocol_config,
+    default_mqtt_runtime, default_mqtt_schema, default_mqtt_security, default_mqtt_server,
+    default_mqtt_slow_subscribe_config, default_mqtt_system_monitor, default_network,
+    default_rocksdb, default_roles, default_runtime, default_runtime_worker_threads,
+    default_storage_offset,
 };
 use super::security::{AuthnConfig, AuthzConfig};
 use crate::common::Log;
@@ -174,6 +175,7 @@ impl BrokerConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Runtime {
+    #[serde(default = "default_runtime_worker_threads")]
     pub runtime_worker_threads: usize,
 
     pub tls_cert: String,
@@ -192,9 +194,6 @@ pub struct Network {
     pub accept_thread_num: usize,
 
     pub handler_thread_num: usize,
-
-    #[serde(default = "default_handler_max_concurrency")]
-    pub handler_max_concurrency: usize,
 
     pub queue_size: usize,
 }

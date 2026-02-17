@@ -34,9 +34,8 @@ log_path = "example/mqtt-cluster/data/broker/logs"
 
 [network]
 accept_thread_num = 1
-handler_thread_num = 1
-handler_max_concurrency = 100
-queue_size = 2000
+handler_thread_num = 1000
+queue_size = 5000
 keep_alive_enable = false
 
 [mqtt_keep_alive]

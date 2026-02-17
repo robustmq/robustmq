@@ -60,7 +60,6 @@ impl QuicServer {
 
         handler_process(
             self.context.proc_config.handler_process_num,
-            self.context.proc_config.handler_max_concurrency,
             self.context.connection_manager.clone(),
             self.context.command.clone(),
             request_channel.clone(),

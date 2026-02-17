@@ -4366,6 +4366,7 @@ dependencies = [
 name = "network-server"
 version = "0.2.13"
 dependencies = [
+ "async-channel 2.5.0",
  "async-trait",
  "axum 0.8.8",
  "axum-extra",

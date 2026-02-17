@@ -27,6 +27,7 @@ pub struct MetaBenchArgs {
 #[derive(Debug, Subcommand)]
 pub enum MetaBenchCommand {
     PlacementCreateSession(PlacementCreateSessionArgs),
+    PlacementListSession(PlacementListSessionArgs),
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -49,6 +50,24 @@ pub struct PlacementCreateSessionArgs {
     pub output: OutputFormat,
 }
 
+#[derive(Debug, Clone, Parser)]
+pub struct PlacementListSessionArgs {
+    #[arg(long, default_value_t = String::from("127.0.0.1"))]
+    pub host: String,
+    #[arg(long, default_value_t = 1228)]
+    pub port: u16,
+    #[arg(long, default_value_t = 10000)]
+    pub count: usize,
+    #[arg(long, default_value_t = 1000)]
+    pub concurrency: usize,
+    #[arg(long, default_value_t = 3000)]
+    pub timeout_ms: u64,
+    #[arg(long, default_value_t = String::from("bench-meta-session"))]
+    pub client_id_prefix: String,
+    #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+    pub output: OutputFormat,
+}
+
 pub fn handle_meta_bench(args: MetaBenchArgs) -> Result<(), BenchMarkError> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -59,6 +78,9 @@ pub fn handle_meta_bench(args: MetaBenchArgs) -> Result<(), BenchMarkError> {
         match args.command {
             MetaBenchCommand::PlacementCreateSession(params) => {
                 meta::run_placement_create_session_bench(params).await
+            }
+            MetaBenchCommand::PlacementListSession(params) => {
+                meta::run_placement_list_session_bench(params).await
             }
         }
     })
