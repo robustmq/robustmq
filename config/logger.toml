@@ -14,7 +14,7 @@
 
 [stdout]
 kind = "console"
-level = "info"
+level = "warn"
 
 [server]
 kind = "rolling_file"
@@ -43,10 +43,10 @@ prefix = "raft"
 suffix = "log"
 max_log_files = 50
 
-[tokio_console]
-grpc_web = true
-kind = "tokio_console"
-bind = "127.0.0.1:5674"
+# [tokio_console]
+# grpc_web = true
+# kind = "tokio_console"
+# bind = "127.0.0.1:5674"
 
 [meta]
 kind = "rolling_file"
