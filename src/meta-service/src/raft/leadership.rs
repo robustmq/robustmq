@@ -41,6 +41,7 @@ pub fn monitoring_leader_transition(
         let mut last_leader: Option<u64> = None;
         let mut stop_recv = stop_send.subscribe();
         let (controller_stop_recv, _) = broadcast::channel::<bool>(2);
+
         loop {
             select! {
             val = stop_recv.recv() => {
@@ -102,10 +103,9 @@ pub fn start_controller(
         cache_manager.clone(),
         call_manager.clone(),
         client_pool.clone(),
-        stop_send.clone(),
     );
     tokio::spawn(async move {
-        mqtt_controller.start().await;
+        mqtt_controller.start(&stop_send).await;
     });
 }
 

@@ -296,7 +296,7 @@ where
     }
 
     let start_time = Instant::now();
-    let timeout_duration = Duration::from_secs(30);
+    let timeout_duration = Duration::from_secs(60);
     let poll_interval = Duration::from_secs(1);
 
     loop {

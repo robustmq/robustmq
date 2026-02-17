@@ -21,7 +21,7 @@ use common_base::error::common::CommonError;
 use openraft::error::{ClientWriteError, RaftError};
 use thiserror::Error;
 
-use crate::raft::type_config::TypeConfig;
+use crate::raft::type_config::{Node, NodeId};
 
 #[derive(Error, Debug)]
 pub enum MetaServiceError {
@@ -59,13 +59,16 @@ pub enum MetaServiceError {
     TokioTimeErrorElapsed(#[from] tokio::time::error::Elapsed),
 
     #[error("{0}")]
-    OpenRaftError(#[from] RaftError<TypeConfig, ClientWriteError<TypeConfig>>),
+    OpenRaftError(#[from] RaftError<NodeId, ClientWriteError<NodeId, Node>>),
 
     #[error("Description The interface {0} submitted logs to the commit log")]
     RaftLogCommitTimeout(String),
 
     #[error("{0}")]
     CommonError(String),
+
+    #[error("Retryable node thread race: {0}")]
+    RetryableNodeThreadRace(String),
 
     #[error("Cluster {0} does not exist")]
     ClusterDoesNotExist(String),

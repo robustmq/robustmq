@@ -37,7 +37,9 @@ pub async fn delete_session_by_req(
         "Received request from Meta service to delete expired Session. clientId count: {:?}",
         req.client_id.len()
     );
-    wait_cluster_running(&cache_manager.broker_cache).await;
+    wait_cluster_running(&cache_manager.broker_cache)
+        .await
+        .map_err(MqttBrokerError::CommonError)?;
 
     if req.client_id.is_empty() {
         return Err(MqttBrokerError::ClientIDIsEmpty);
@@ -64,7 +66,9 @@ pub async fn send_last_will_message_by_req(
         }
     };
 
-    wait_cluster_running(&cache_manager.broker_cache).await;
+    wait_cluster_running(&cache_manager.broker_cache)
+        .await
+        .map_err(MqttBrokerError::CommonError)?;
     debug!(
         "Received will message from meta service, source client id: {},data:{:?}",
         req.client_id, data.client_id

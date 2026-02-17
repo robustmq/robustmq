@@ -22,11 +22,9 @@ use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::robust::RobustMQPacket;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver};
-use tokio::time::sleep;
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, error, info};
@@ -71,10 +69,24 @@ pub async fn acceptor_process(
             loop {
                 select! {
                     val = stop_rx.recv() => {
-                        if let Ok(flag) = val {
-                            if flag {
+                        match val {
+                            Ok(true) => {
                                 debug!("{} Server acceptor thread {} stopped successfully.", network_type, index);
                                 break;
+                            }
+                            Ok(false) => {}
+                            Err(broadcast::error::RecvError::Closed) => {
+                                debug!(
+                                    "{} Server acceptor thread {} stop channel closed, exiting.",
+                                    network_type, index
+                                );
+                                break;
+                            }
+                            Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                                debug!(
+                                    "{} Server acceptor thread {} lagged on stop channel, skipped {} messages.",
+                                    network_type, index, skipped
+                                );
                             }
                         }
                     }
@@ -136,9 +148,17 @@ fn read_frame_process(
         loop {
             select! {
                 val = connection_stop_rx.recv() =>{
-                    if let Some(flag) = val{
-                        if flag {
+                    match val {
+                        Some(true) => {
                             debug!("{} connection 【{}】 acceptor thread stopped successfully.", network_type, connection_id);
+                            break;
+                        }
+                        Some(false) => {}
+                        None => {
+                            debug!(
+                                "{} connection 【{}】 stop channel closed, exiting read loop.",
+                                network_type, connection_id
+                            );
                             break;
                         }
                     }
@@ -176,11 +196,15 @@ fn read_frame_process(
                                 debug!(
                                     "{} connection parsing packet format error message :{:?}",
                                     network_type, e
-                                )
+                                );
+                                connection_manager.close_connect(connection_id).await;
+                                break;
                             }
                         }
                      }else{
-                        sleep(Duration::from_millis(100)).await;
+                        debug!("Tcp client disconnected (EOF): connection_id={}", connection_id);
+                        connection_manager.close_connect(connection_id).await;
+                        break;
                      }
                 }
             }

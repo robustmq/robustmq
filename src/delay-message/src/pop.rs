@@ -81,8 +81,6 @@ pub async fn pop_delay_queue(
             // Drop the lock before spawning to avoid holding it
             drop(delay_queue);
 
-            println!("delay_message:{:?}", delay_message);
-
             // Spawn task to send delay message to avoid blocking the pop loop
             let raw_delay_message_manager = delay_message_manager.clone();
             tokio::spawn(async move {

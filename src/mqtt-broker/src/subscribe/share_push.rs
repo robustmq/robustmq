@@ -38,7 +38,7 @@ use std::collections::HashMap;
 use std::sync::atomic::AtomicU64;
 use std::{sync::Arc, time::Duration};
 use storage_adapter::driver::StorageDriverManager;
-use tokio::{select, sync::broadcast::Sender, time::sleep};
+use tokio::{select, sync::broadcast, sync::broadcast::Sender, time::sleep};
 use tracing::{debug, error, info};
 
 const BATCH_SIZE: u64 = 500;
@@ -86,10 +86,21 @@ impl SharePushManager {
         loop {
             select! {
                 val = stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
+                    match val {
+                        Ok(true) => {
                             info!("SharePushManager[{}] stopped", self.group_name);
                             break;
+                        }
+                        Ok(false) => {}
+                        Err(broadcast::error::RecvError::Closed) => {
+                            info!("SharePushManager[{}] stop channel closed, exiting.", self.group_name);
+                            break;
+                        }
+                        Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                            debug!(
+                                "SharePushManager[{}] stop channel lagged, skipped {} messages.",
+                                self.group_name, skipped
+                            );
                         }
                     }
                 }

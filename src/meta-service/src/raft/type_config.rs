@@ -48,4 +48,4 @@ impl Display for Node {
     }
 }
 
-pub type StorageResult<T> = Result<T, StorageError<TypeConfig>>;
+pub type StorageResult<T> = Result<T, StorageError<NodeId>>;

@@ -308,6 +308,7 @@ message AddLearnerRequest {
   uint64 node_id = 1 [(validate.rules).uint64.gte = 0];
   Node node = 2 [(validate.rules).message.required = true];
   bool blocking = 3;
+  string machine = 4 [(validate.rules).string.min_len = 1];
 }
 
 message Node {

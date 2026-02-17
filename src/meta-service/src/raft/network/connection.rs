@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::raft::error::{to_bincode_error, to_error, to_grpc_error};
-use crate::raft::type_config::TypeConfig;
+use crate::raft::error::{to_bincode_error, to_error, to_grpc_error, to_rpc_error};
+use crate::raft::type_config::{Node, NodeId, TypeConfig};
 use bincode::{deserialize, serialize_into};
 use common_base::error::common::CommonError;
 use common_metrics::meta::raft::{
     record_rpc_duration, record_rpc_failure, record_rpc_request, record_rpc_success,
 };
-use grpc_clients::meta::common::PlacementServiceManager;
+use grpc_clients::meta::common::MetaServiceManager;
 use grpc_clients::pool::ClientPool;
 use mobc::Connection;
 use openraft::error::{InstallSnapshotError, RPCError, RaftError};
@@ -32,14 +32,18 @@ use openraft::RaftNetwork;
 use protocol::meta::meta_service_common::{AppendRequest, SnapshotRequest};
 use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+use tokio::time::timeout;
+use tracing::warn;
+
+const SLOW_RPC_WARN_THRESHOLD_MS: f64 = 1000.0;
+const RPC_TIMEOUT: Duration = Duration::from_secs(10);
+const SNAPSHOT_RPC_TIMEOUT: Duration = Duration::from_secs(60);
 
 pub struct NetworkConnection {
     addr: String,
     machine: String,
     client_pool: Arc<ClientPool>,
-    // Reusable serialization buffer to avoid per-call allocations
-    serialize_buf: Vec<u8>,
 }
 
 impl NetworkConnection {
@@ -48,24 +52,21 @@ impl NetworkConnection {
             addr,
             client_pool,
             machine,
-            serialize_buf: Vec::with_capacity(4096),
         }
     }
 
-    async fn c(&mut self) -> Result<Connection<PlacementServiceManager>, CommonError> {
+    async fn c(&mut self) -> Result<Connection<MetaServiceManager>, CommonError> {
         self.client_pool
             .meta_service_inner_services_client(&self.addr)
             .await
     }
 
-    // Serialize to reusable buffer to reduce allocations
-    fn serialize_to_bytes<T: Serialize>(&mut self, value: &T) -> Result<Vec<u8>, bincode::Error> {
-        self.serialize_buf.clear();
-        serialize_into(&mut self.serialize_buf, value)?;
-        Ok(self.serialize_buf.clone())
+    fn serialize_to_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>, bincode::Error> {
+        let mut buf = Vec::with_capacity(4096);
+        serialize_into(&mut buf, value)?;
+        Ok(buf)
     }
 
-    // Deserialize directly from slice to avoid unnecessary copies
     fn deserialize_from_bytes<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, bincode::Error> {
         deserialize(bytes)
     }
@@ -73,14 +74,13 @@ impl NetworkConnection {
     async fn append_entries_internal(
         &mut self,
         req: AppendEntriesRequest<TypeConfig>,
-    ) -> Result<AppendEntriesResponse<TypeConfig>, RPCError<TypeConfig, RaftError<TypeConfig>>>
-    {
+    ) -> Result<AppendEntriesResponse<NodeId>, RPCError<NodeId, Node, RaftError<NodeId>>> {
         let mut c = match self.c().await {
             Ok(conn) => conn,
             Err(e) => return Err(to_error(e)),
         };
 
-        let value = match self.serialize_to_bytes(&req) {
+        let value = match Self::serialize_to_bytes(&req) {
             Ok(data) => data,
             Err(e) => {
                 return Err(to_bincode_error(
@@ -95,9 +95,22 @@ impl NetworkConnection {
             value,
         };
 
-        let reply = match c.append(request).await {
-            Ok(reply) => reply.into_inner(),
-            Err(e) => return Err(to_grpc_error(e, "Failed to send AppendEntries RPC")),
+        let reply = match timeout(RPC_TIMEOUT, c.append(request)).await {
+            Ok(Ok(reply)) => reply.into_inner(),
+            Ok(Err(e)) => return Err(to_grpc_error(e, "Failed to send AppendEntries RPC")),
+            Err(_) => {
+                warn!(
+                    "Raft RPC timed out. machine={}, op=append_entries, target={}, timeout={}s",
+                    self.machine,
+                    self.addr,
+                    RPC_TIMEOUT.as_secs()
+                );
+                return Err(to_rpc_error(format!(
+                    "AppendEntries RPC to {} timed out after {}s",
+                    self.addr,
+                    RPC_TIMEOUT.as_secs()
+                )));
+            }
         };
 
         let result = match Self::deserialize_from_bytes(&reply.value) {
@@ -117,15 +130,15 @@ impl NetworkConnection {
         &mut self,
         req: InstallSnapshotRequest<TypeConfig>,
     ) -> Result<
-        InstallSnapshotResponse<TypeConfig>,
-        RPCError<TypeConfig, RaftError<TypeConfig, InstallSnapshotError>>,
+        InstallSnapshotResponse<NodeId>,
+        RPCError<NodeId, Node, RaftError<NodeId, InstallSnapshotError>>,
     > {
         let mut c = match self.c().await {
             Ok(conn) => conn,
             Err(e) => return Err(to_error(e)),
         };
 
-        let value = match self.serialize_to_bytes(&req) {
+        let value = match Self::serialize_to_bytes(&req) {
             Ok(data) => data,
             Err(e) => {
                 return Err(to_bincode_error(
@@ -140,10 +153,22 @@ impl NetworkConnection {
             value,
         };
 
-        let reply = match c.snapshot(request).await {
-            Ok(reply) => reply.into_inner(),
-            Err(e) => return Err(to_grpc_error(e, "Failed to send InstallSnapshot RPC")),
-        };
+        let reply =
+            match timeout(SNAPSHOT_RPC_TIMEOUT, c.snapshot(request)).await {
+                Ok(Ok(reply)) => reply.into_inner(),
+                Ok(Err(e)) => return Err(to_grpc_error(e, "Failed to send InstallSnapshot RPC")),
+                Err(_) => {
+                    warn!(
+                    "Raft RPC timed out. machine={}, op=install_snapshot, target={}, timeout={}s",
+                    self.machine, self.addr, SNAPSHOT_RPC_TIMEOUT.as_secs()
+                );
+                    return Err(to_rpc_error(format!(
+                        "InstallSnapshot RPC to {} timed out after {}s",
+                        self.addr,
+                        SNAPSHOT_RPC_TIMEOUT.as_secs()
+                    )));
+                }
+            };
 
         let result = match Self::deserialize_from_bytes(&reply.value) {
             Ok(data) => data,
@@ -160,14 +185,14 @@ impl NetworkConnection {
 
     async fn vote_internal(
         &mut self,
-        req: VoteRequest<TypeConfig>,
-    ) -> Result<VoteResponse<TypeConfig>, RPCError<TypeConfig, RaftError<TypeConfig>>> {
+        req: VoteRequest<NodeId>,
+    ) -> Result<VoteResponse<NodeId>, RPCError<NodeId, Node, RaftError<NodeId>>> {
         let mut c = match self.c().await {
             Ok(conn) => conn,
             Err(e) => return Err(to_error(e)),
         };
 
-        let value = match self.serialize_to_bytes(&req) {
+        let value = match Self::serialize_to_bytes(&req) {
             Ok(data) => data,
             Err(e) => return Err(to_bincode_error(e, "Failed to serialize VoteRequest")),
         };
@@ -177,9 +202,22 @@ impl NetworkConnection {
             value,
         };
 
-        let reply = match c.vote(request).await {
-            Ok(reply) => reply.into_inner(),
-            Err(e) => return Err(to_grpc_error(e, "Failed to send Vote RPC")),
+        let reply = match timeout(RPC_TIMEOUT, c.vote(request)).await {
+            Ok(Ok(reply)) => reply.into_inner(),
+            Ok(Err(e)) => return Err(to_grpc_error(e, "Failed to send Vote RPC")),
+            Err(_) => {
+                warn!(
+                    "Raft RPC timed out. machine={}, op=vote, target={}, timeout={}s",
+                    self.machine,
+                    self.addr,
+                    RPC_TIMEOUT.as_secs()
+                );
+                return Err(to_rpc_error(format!(
+                    "Vote RPC to {} timed out after {}s",
+                    self.addr,
+                    RPC_TIMEOUT.as_secs()
+                )));
+            }
         };
 
         let result = match Self::deserialize_from_bytes(&reply.value) {
@@ -197,8 +235,7 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
         &mut self,
         req: AppendEntriesRequest<TypeConfig>,
         _option: RPCOption,
-    ) -> Result<AppendEntriesResponse<TypeConfig>, RPCError<TypeConfig, RaftError<TypeConfig>>>
-    {
+    ) -> Result<AppendEntriesResponse<NodeId>, RPCError<NodeId, Node, RaftError<NodeId>>> {
         record_rpc_request(&self.machine, "append_entries");
         let start = Instant::now();
 
@@ -206,6 +243,12 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_rpc_duration(&self.machine, "append_entries", duration_ms);
+        if duration_ms > SLOW_RPC_WARN_THRESHOLD_MS {
+            warn!(
+                "Raft RPC is slow. machine={}, op=append_entries, target={}, duration_ms={:.2}",
+                self.machine, self.addr, duration_ms
+            );
+        }
 
         match result {
             Ok(response) => {
@@ -224,8 +267,8 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
         req: InstallSnapshotRequest<TypeConfig>,
         _option: RPCOption,
     ) -> Result<
-        InstallSnapshotResponse<TypeConfig>,
-        RPCError<TypeConfig, RaftError<TypeConfig, InstallSnapshotError>>,
+        InstallSnapshotResponse<NodeId>,
+        RPCError<NodeId, Node, RaftError<NodeId, InstallSnapshotError>>,
     > {
         record_rpc_request(&self.machine, "install_snapshot");
         let start = Instant::now();
@@ -234,6 +277,12 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_rpc_duration(&self.machine, "install_snapshot", duration_ms);
+        if duration_ms > SLOW_RPC_WARN_THRESHOLD_MS {
+            warn!(
+                "Raft RPC is slow. machine={}, op=install_snapshot, target={}, duration_ms={:.2}",
+                self.machine, self.addr, duration_ms
+            );
+        }
 
         match result {
             Ok(response) => {
@@ -249,9 +298,9 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
 
     async fn vote(
         &mut self,
-        req: VoteRequest<TypeConfig>,
+        req: VoteRequest<NodeId>,
         _option: RPCOption,
-    ) -> Result<VoteResponse<TypeConfig>, RPCError<TypeConfig, RaftError<TypeConfig>>> {
+    ) -> Result<VoteResponse<NodeId>, RPCError<NodeId, Node, RaftError<NodeId>>> {
         record_rpc_request(&self.machine, "vote");
         let start = Instant::now();
 
@@ -259,6 +308,12 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_rpc_duration(&self.machine, "vote", duration_ms);
+        if duration_ms > SLOW_RPC_WARN_THRESHOLD_MS {
+            warn!(
+                "Raft RPC is slow. machine={}, op=vote, target={}, duration_ms={:.2}",
+                self.machine, self.addr, duration_ms
+            );
+        }
 
         match result {
             Ok(response) => {

@@ -35,18 +35,18 @@ use crate::macros::impl_retriable_request;
 
 pub mod call;
 
-pub struct PlacementServiceManager {
+pub struct MetaServiceManager {
     pub addr: String,
 }
 
-impl PlacementServiceManager {
+impl MetaServiceManager {
     pub fn new(addr: String) -> Self {
         Self { addr }
     }
 }
 
 #[tonic::async_trait]
-impl Manager for PlacementServiceManager {
+impl Manager for MetaServiceManager {
     type Connection = MetaServiceServiceClient<Channel>;
     type Error = CommonError;
 

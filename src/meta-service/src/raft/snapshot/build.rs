@@ -15,10 +15,10 @@
 use super::{save_last_snapshot_id, save_snapshot_meta, snapshot_name};
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::RaftStateMachineName;
-use crate::raft::type_config::{StorageResult, TypeConfig};
+use crate::raft::type_config::{Node, NodeId, StorageResult, TypeConfig};
 use common_base::tools::now_nanos;
 use common_config::broker::broker_config;
-use openraft::{LogId, Snapshot, SnapshotMeta, StorageError, StoredMembership};
+use openraft::{LogId, Snapshot, SnapshotMeta, StorageError, StorageIOError, StoredMembership};
 use rocksdb::{IteratorMode, DB};
 use rocksdb_engine::storage::family::{
     storage_raft_snapshot_fold, DB_COLUMN_FAMILY_META_DATA, DB_COLUMN_FAMILY_META_METADATA,
@@ -28,11 +28,15 @@ use std::sync::Arc;
 use tokio::fs::File;
 use tracing::{error, info};
 
+fn sto_read(e: &(impl std::error::Error + 'static)) -> StorageError<NodeId> {
+    StorageIOError::<NodeId>::read(e).into()
+}
+
 pub async fn build_snapshot(
     machine: &RaftStateMachineName,
     db: &Arc<DB>,
-    last_applied_log_id: &Option<LogId<TypeConfig>>,
-    last_membership: &StoredMembership<TypeConfig>,
+    last_applied_log_id: &Option<LogId<NodeId>>,
+    last_membership: &StoredMembership<NodeId, Node>,
 ) -> StorageResult<Snapshot<TypeConfig>> {
     let snapshot_id = format!("{}-{}", machine, now_nanos());
     info!(
@@ -65,7 +69,7 @@ pub async fn build_snapshot(
             "[{}] Failed to build snapshot data for snapshot_id={}: {}",
             machine, snapshot_id, e
         );
-        return Err(StorageError::read(&std::io::Error::other(format!(
+        return Err(sto_read(&std::io::Error::other(format!(
             "Failed to build snapshot data: {}",
             e
         ))));
@@ -76,7 +80,7 @@ pub async fn build_snapshot(
             "[{}] Failed to save snapshot metadata for snapshot_id={}: {}",
             machine, snapshot_id, e
         );
-        return Err(StorageError::read(&e));
+        return Err(sto_read(&e));
     }
 
     if let Err(e) = save_last_snapshot_id(machine.as_str(), &snapshot_id).await {
@@ -84,12 +88,12 @@ pub async fn build_snapshot(
             "[{}] Failed to save last snapshot id for snapshot_id={}: {}",
             machine, snapshot_id, e
         );
-        return Err(StorageError::read(&e));
+        return Err(sto_read(&e));
     }
 
     let res = File::open(&snapshot_name(&snapshot_id))
         .await
-        .map_err(|e| StorageError::read(&e))?;
+        .map_err(|e| sto_read(&e))?;
 
     let row_machine = machine.as_str().to_string();
     tokio::spawn(async move {
@@ -105,7 +109,7 @@ pub async fn build_snapshot(
 
     Ok(Snapshot {
         meta,
-        snapshot: res,
+        snapshot: Box::new(res),
     })
 }
 
@@ -313,9 +317,9 @@ pub fn cleanup_old_snapshots(machine: &str) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::super::{save_last_snapshot_id_to_path, save_snapshot_meta_to_path};
-    use crate::raft::type_config::{Node, TypeConfig};
+    use crate::raft::type_config::{Node, NodeId};
     use common_base::utils::file_utils::test_temp_dir;
-    use openraft::vote::leader_id_adv::LeaderId;
+    use openraft::LeaderId;
     use openraft::{LogId, Membership, SnapshotMeta, StoredMembership};
     use std::collections::{BTreeMap, BTreeSet};
     use std::fs::create_dir_all;
@@ -354,10 +358,10 @@ mod tests {
             },
         );
 
-        let membership = Membership::new(vec![nodes], node_map).unwrap();
+        let membership = Membership::new(vec![nodes], node_map);
         let stored_membership = StoredMembership::new(Some(log_id), membership);
 
-        let meta = SnapshotMeta::<TypeConfig> {
+        let meta = SnapshotMeta::<NodeId, Node> {
             last_log_id: Some(log_id),
             last_membership: stored_membership.clone(),
             snapshot_id: snapshot_id.clone(),

@@ -23,7 +23,7 @@ use std::time::{Duration, Instant};
 use tokio::task::JoinHandle;
 
 pub async fn run_subscribe_bench(args: SubscribeBenchArgs) -> Result<(), BenchMarkError> {
-    let duration = args.common.duration();
+    let duration = Duration::from_secs(args.duration_secs);
     let deadline = tokio::time::Instant::now() + duration;
     let qos = qos_from_u8(args.common.qos);
     let stats = SharedStats::new();
@@ -127,6 +127,8 @@ pub async fn run_subscribe_bench(args: SubscribeBenchArgs) -> Result<(), BenchMa
             clients: args.common.count,
             op_label: "received_messages".to_string(),
             total_ops,
+            connect_phase_secs: None,
+            connect_qps: None,
             extras,
             series,
         },

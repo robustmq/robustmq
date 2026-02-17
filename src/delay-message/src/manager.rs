@@ -94,7 +94,6 @@ impl DelayMessageManager {
         target_timestamp: u64,
         data: AdapterWriteRecord,
     ) -> Result<String, CommonError> {
-        info!("0");
         let delay_message_id = unique_id();
         let offset =
             save_delay_message(&self.storage_driver_manager, &delay_message_id, data).await?;

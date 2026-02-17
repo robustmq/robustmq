@@ -15,15 +15,46 @@
 use crate::raft::store::keys::{
     key_committed, key_last_purged_log_id, key_raft_log, key_vote, raft_log_key_to_id,
 };
-use crate::raft::type_config::{StorageResult, TypeConfig};
+use crate::raft::type_config::{NodeId, StorageResult, TypeConfig};
 use bincode::{deserialize, serialize};
-use openraft::storage::{IOFlushed, RaftLogStorage};
-use openraft::{Entry, LogId, LogState, OptionalSend, RaftLogReader, StorageError, Vote};
+use openraft::storage::{LogFlushed, RaftLogStorage};
+use openraft::{
+    AnyError, Entry, LogId, LogState, OptionalSend, RaftLogReader, StorageError, StorageIOError,
+    Vote,
+};
 use rocksdb::{BoundColumnFamily, Direction, IteratorMode, WriteBatch, DB};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::fmt::Debug;
 use std::ops::RangeBounds;
 use std::sync::Arc;
+
+fn sto_read(e: &(impl std::error::Error + 'static)) -> StorageError<NodeId> {
+    StorageIOError::<NodeId>::read(e).into()
+}
+
+fn sto_write(e: &(impl std::error::Error + 'static)) -> StorageError<NodeId> {
+    StorageIOError::<NodeId>::write(e).into()
+}
+
+fn sto_read_logs(e: &(impl std::error::Error + 'static)) -> StorageError<NodeId> {
+    StorageIOError::<NodeId>::read_logs(e).into()
+}
+
+fn sto_write_logs(e: &(impl std::error::Error + 'static)) -> StorageError<NodeId> {
+    StorageIOError::<NodeId>::write_logs(e).into()
+}
+
+fn sto_read_vote(e: &(impl std::error::Error + 'static)) -> StorageError<NodeId> {
+    StorageIOError::<NodeId>::read_vote(e).into()
+}
+
+fn sto_write_vote(e: &(impl std::error::Error + 'static)) -> StorageError<NodeId> {
+    StorageIOError::<NodeId>::write_vote(e).into()
+}
+
+fn sto_read_msg(msg: String) -> StorageError<NodeId> {
+    StorageIOError::<NodeId>::read(AnyError::error(msg)).into()
+}
 
 #[derive(Debug, Clone)]
 pub struct LogStore {
@@ -37,86 +68,77 @@ impl LogStore {
         self.db.cf_handle(DB_COLUMN_FAMILY_META_RAFT).unwrap()
     }
 
-    fn get_last_purged_(&self) -> StorageResult<Option<LogId<TypeConfig>>> {
+    fn get_last_purged_(&self) -> StorageResult<Option<LogId<NodeId>>> {
         match self
             .db
             .get_cf(&self.store(), key_last_purged_log_id(&self.machine))
         {
             Ok(Some(v)) => {
                 let log_id = deserialize(&v).map_err(|e| {
-                    use openraft::AnyError;
-                    StorageError::read(AnyError::error(format!(
-                        "Failed to deserialize last_purged: {}",
-                        e
-                    )))
+                    sto_read_msg(format!("Failed to deserialize last_purged: {}", e))
                 })?;
                 Ok(Some(log_id))
             }
             Ok(None) => Ok(None),
-            Err(e) => Err(StorageError::read(&e)),
+            Err(e) => Err(sto_read(&e)),
         }
     }
 
-    fn set_last_purged_(&self, log_id: LogId<TypeConfig>) -> StorageResult<()> {
-        let data = serialize(&log_id).map_err(|e| StorageError::write(&e))?;
+    fn set_last_purged_(&self, log_id: LogId<NodeId>) -> StorageResult<()> {
+        let data = serialize(&log_id).map_err(|e| sto_write(&*e))?;
         self.db
             .put_cf(&self.store(), key_last_purged_log_id(&self.machine), data)
-            .map_err(|e| StorageError::write(&e))
+            .map_err(|e| sto_write(&e))?;
+        Ok(())
     }
 
-    fn set_committed_(&self, committed: &Option<LogId<TypeConfig>>) -> StorageResult<()> {
+    fn set_committed_(&self, committed: &Option<LogId<NodeId>>) -> StorageResult<()> {
         match committed {
             Some(log_id) => {
-                let data = serialize(log_id).map_err(|e| StorageError::write(&e))?;
+                let data = serialize(log_id).map_err(|e| sto_write(&*e))?;
                 self.db
                     .put_cf(&self.store(), key_committed(&self.machine), data)
-                    .map_err(|e| StorageError::write(&e))
+                    .map_err(|e| sto_write(&e))?;
+                Ok(())
             }
-            None => self
-                .db
-                .delete_cf(&self.store(), key_committed(&self.machine))
-                .map_err(|e| StorageError::write(&e)),
+            None => {
+                self.db
+                    .delete_cf(&self.store(), key_committed(&self.machine))
+                    .map_err(|e| sto_write(&e))?;
+                Ok(())
+            }
         }
     }
 
-    fn get_committed_(&self) -> StorageResult<Option<LogId<TypeConfig>>> {
+    fn get_committed_(&self) -> StorageResult<Option<LogId<NodeId>>> {
         match self.db.get_cf(&self.store(), key_committed(&self.machine)) {
             Ok(Some(v)) => {
-                let log_id = deserialize(&v).map_err(|e| {
-                    use openraft::AnyError;
-                    StorageError::read(AnyError::error(format!(
-                        "Failed to deserialize committed: {}",
-                        e
-                    )))
-                })?;
+                let log_id = deserialize(&v)
+                    .map_err(|e| sto_read_msg(format!("Failed to deserialize committed: {}", e)))?;
                 Ok(Some(log_id))
             }
             Ok(None) => Ok(None),
-            Err(e) => Err(StorageError::read(&e)),
+            Err(e) => Err(sto_read(&e)),
         }
     }
 
-    fn set_vote_(&self, vote: &Vote<TypeConfig>) -> StorageResult<()> {
-        let data = serialize(vote).map_err(|e| StorageError::write_vote(&e))?;
+    fn set_vote_(&self, vote: &Vote<NodeId>) -> StorageResult<()> {
+        let data = serialize(vote).map_err(|e| sto_write_vote(&*e))?;
         self.db
             .put_cf(&self.store(), key_vote(&self.machine), data)
-            .map_err(|e| StorageError::write_vote(&e))
+            .map_err(|e| sto_write_vote(&e))?;
+        Ok(())
     }
 
-    fn get_vote_(&self) -> StorageResult<Option<Vote<TypeConfig>>> {
+    fn get_vote_(&self) -> StorageResult<Option<Vote<NodeId>>> {
         match self.db.get_cf(&self.store(), key_vote(&self.machine)) {
             Ok(Some(v)) => {
-                let vote = deserialize(&v).map_err(|e| {
-                    use openraft::AnyError;
-                    StorageError::read_vote(AnyError::error(format!(
-                        "Failed to deserialize vote: {}",
-                        e
-                    )))
-                })?;
+                let vote = deserialize(&v)
+                    .map_err(|e| sto_read_msg(format!("Failed to deserialize vote: {}", e)))?;
                 Ok(Some(vote))
             }
             Ok(None) => Ok(None),
-            Err(e) => Err(StorageError::read_vote(&e)),
+            Err(e) => Err(sto_read_vote(&e)),
         }
     }
 }
@@ -138,7 +160,7 @@ impl RaftLogReader<TypeConfig> for LogStore {
             &self.store(),
             IteratorMode::From(&start, Direction::Forward),
         ) {
-            let (key, val) = item.map_err(|e| StorageError::read_logs(&e))?;
+            let (key, val) = item.map_err(|e| sto_read_logs(&e))?;
 
             let id = match raft_log_key_to_id(&self.machine, &key) {
                 Ok(id) => id,
@@ -149,17 +171,12 @@ impl RaftLogReader<TypeConfig> for LogStore {
                 break;
             }
 
-            let entry: Entry<TypeConfig> =
-                deserialize(&val).map_err(|e| StorageError::read_logs(&e))?;
+            let entry: Entry<TypeConfig> = deserialize(&val).map_err(|e| sto_read_logs(&*e))?;
 
             entries.push(entry);
         }
 
         Ok(entries)
-    }
-
-    async fn read_vote(&mut self) -> Result<Option<Vote<TypeConfig>>, StorageError<TypeConfig>> {
-        self.get_vote_()
     }
 }
 
@@ -167,8 +184,6 @@ impl RaftLogStorage<TypeConfig> for LogStore {
     type LogReader = Self;
 
     async fn get_log_state(&mut self) -> StorageResult<LogState<TypeConfig>> {
-        // Get the last log entry for this specific machine
-        // Need to iterate backwards from the machine's max key and find the first valid entry
         let start_key = key_raft_log(&self.machine, u64::MAX);
 
         let last = self
@@ -179,7 +194,6 @@ impl RaftLogStorage<TypeConfig> for LogStore {
             )
             .find_map(|res| {
                 let (key, val) = res.ok()?;
-                // Verify the key belongs to this machine
                 let _ = raft_log_key_to_id(&self.machine, &key).ok()?;
                 deserialize::<Entry<TypeConfig>>(&val)
                     .ok()
@@ -196,22 +210,24 @@ impl RaftLogStorage<TypeConfig> for LogStore {
 
     async fn save_committed(
         &mut self,
-        committed: Option<LogId<TypeConfig>>,
-    ) -> Result<(), StorageError<TypeConfig>> {
+        committed: Option<LogId<NodeId>>,
+    ) -> Result<(), StorageError<NodeId>> {
         self.set_committed_(&committed)
     }
 
-    async fn read_committed(
-        &mut self,
-    ) -> Result<Option<LogId<TypeConfig>>, StorageError<TypeConfig>> {
+    async fn read_committed(&mut self) -> Result<Option<LogId<NodeId>>, StorageError<NodeId>> {
         self.get_committed_()
     }
 
-    async fn save_vote(&mut self, vote: &Vote<TypeConfig>) -> Result<(), StorageError<TypeConfig>> {
+    async fn save_vote(&mut self, vote: &Vote<NodeId>) -> Result<(), StorageError<NodeId>> {
         self.set_vote_(vote)
     }
 
-    async fn append<I>(&mut self, entries: I, callback: IOFlushed<TypeConfig>) -> StorageResult<()>
+    async fn read_vote(&mut self) -> Result<Option<Vote<NodeId>>, StorageError<NodeId>> {
+        self.get_vote_()
+    }
+
+    async fn append<I>(&mut self, entries: I, callback: LogFlushed<TypeConfig>) -> StorageResult<()>
     where
         I: IntoIterator<Item = Entry<TypeConfig>> + Send,
         I::IntoIter: Send,
@@ -221,41 +237,37 @@ impl RaftLogStorage<TypeConfig> for LogStore {
 
         for entry in entries {
             let id = key_raft_log(&self.machine, entry.log_id.index);
-            let serialized = serialize(&entry).map_err(|e| StorageError::write_logs(&e))?;
+            let serialized = serialize(&entry).map_err(|e| sto_write_logs(&*e))?;
 
             batch.put_cf(&self.store(), id, serialized);
             entry_count += 1;
         }
 
         if entry_count > 0 {
-            self.db
-                .write(batch)
-                .map_err(|e| StorageError::write_logs(&e))?;
+            self.db.write(batch).map_err(|e| sto_write_logs(&e))?;
         }
 
-        callback.io_completed(Ok(()));
+        callback.log_io_completed(Ok(()));
         Ok(())
     }
 
-    async fn truncate(&mut self, log_id: LogId<TypeConfig>) -> StorageResult<()> {
+    async fn truncate(&mut self, log_id: LogId<NodeId>) -> StorageResult<()> {
         let from = key_raft_log(&self.machine, log_id.index);
         let to = key_raft_log(&self.machine, u64::MAX);
         self.db
             .delete_range_cf(&self.store(), &from, &to)
-            .map_err(|e| StorageError::write_logs(&e))
+            .map_err(|e| sto_write_logs(&e))?;
+        Ok(())
     }
 
-    async fn purge(&mut self, log_id: LogId<TypeConfig>) -> Result<(), StorageError<TypeConfig>> {
-        // Delete logs first, then update last_purged marker
-        // This ensures consistency: if delete fails, last_purged is not updated
+    async fn purge(&mut self, log_id: LogId<NodeId>) -> Result<(), StorageError<NodeId>> {
         let from = key_raft_log(&self.machine, 0);
         let to = key_raft_log(&self.machine, log_id.index + 1);
 
         self.db
             .delete_range_cf(&self.store(), &from, &to)
-            .map_err(|e| StorageError::write_logs(&e))?;
+            .map_err(|e| sto_write_logs(&e))?;
 
-        // Update last_purged marker after successful deletion
         self.set_last_purged_(log_id)?;
 
         Ok(())
@@ -271,7 +283,7 @@ mod tests {
     use super::*;
     use crate::raft::route::data::{StorageData, StorageDataType};
     use bytes::Bytes;
-    use openraft::vote::leader_id_adv::LeaderId;
+    use openraft::LeaderId;
     use openraft::LogId;
     use rocksdb::{Options, DB};
     use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
@@ -290,7 +302,7 @@ mod tests {
         }
     }
 
-    fn create_log_id(term: u64, node_id: u64, index: u64) -> LogId<TypeConfig> {
+    fn create_log_id(term: u64, node_id: u64, index: u64) -> LogId<NodeId> {
         LogId {
             leader_id: LeaderId { term, node_id },
             index,
@@ -307,7 +319,6 @@ mod tests {
         }
     }
 
-    // Helper for testing: simplified append without callback complexity
     async fn append_entries(
         log_store: &mut LogStore,
         entries: Vec<Entry<TypeConfig>>,
@@ -315,13 +326,11 @@ mod tests {
         let mut batch = WriteBatch::default();
         for entry in entries {
             let id = key_raft_log(&log_store.machine, entry.log_id.index);
-            let serialized = serialize(&entry).map_err(|e| StorageError::write_logs(&e))?;
+            let serialized = serialize(&entry).map_err(|e| sto_write_logs(&*e))?;
             batch.put_cf(&log_store.store(), id, serialized);
         }
-        log_store
-            .db
-            .write(batch)
-            .map_err(|e| StorageError::write_logs(&e))
+        log_store.db.write(batch).map_err(|e| sto_write_logs(&e))?;
+        Ok(())
     }
 
     #[tokio::test]
@@ -398,16 +407,14 @@ mod tests {
 
         let log_id = create_log_id(1, 1, 100);
 
-        // Debug: test bincode serialization
         let serialized = serialize(&Some(log_id)).unwrap();
         println!("Serialized bytes: {:?}", serialized);
-        let deserialized: Option<LogId<TypeConfig>> = deserialize(&serialized).unwrap();
+        let deserialized: Option<LogId<NodeId>> = deserialize(&serialized).unwrap();
         println!("Original: {:?}", log_id);
         println!("Deserialized: {:?}", deserialized);
 
         log_store.set_committed_(&Some(log_id)).unwrap();
 
-        // Debug: check what's actually stored in DB
         let raw_bytes = log_store
             .db
             .get_cf(&log_store.store(), key_committed(&log_store.machine))

@@ -17,19 +17,9 @@ use crate::core::error::MqttBrokerError;
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::default_broker_config;
 use grpc_clients::pool::ClientPool;
-use protocol::mqtt::common::MqttPacket;
 use std::sync::Arc;
 
 pub type ResultMqttBrokerError = Result<(), MqttBrokerError>;
-pub fn is_ignore_print(packet: &MqttPacket) -> bool {
-    if let MqttPacket::PingResp(_) = packet {
-        return true;
-    }
-    if let MqttPacket::PingReq(_) = packet {
-        return true;
-    }
-    false
-}
 
 pub async fn test_build_mqtt_cache_manager() -> Arc<MQTTCacheManager> {
     let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));

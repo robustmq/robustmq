@@ -42,7 +42,8 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
-use tokio::sync::broadcast::{self, Sender};
+use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 use tokio::time::{sleep, timeout};
 use tracing::warn;
 
@@ -51,6 +52,7 @@ const ACK_WAIT_TIMEOUT_SECS: u64 = 5;
 const RETRY_OPERATION_TIMEOUT_SECS: u64 = 3;
 const RETRY_SLEEP_INTERVAL_MS: u64 = 200;
 const RETRY_SLEEP_ITERATIONS: usize = 5; // 5 * 200ms = 1000ms
+const QOS_ACK_RESEND_MAX_RETRIES: usize = 3;
 
 pub async fn send_message_validator(
     cache_manager: &Arc<MQTTCacheManager>,
@@ -155,7 +157,7 @@ pub async fn send_publish_packet_to_client(
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<MQTTCacheManager>,
     sub_pub_param: &SubPublishParam,
-    stop_sx: &Sender<bool>,
+    stop_sx: &broadcast::Sender<bool>,
 ) -> ResultMqttBrokerError {
     match sub_pub_param.qos {
         QoS::AtMostOnce => {
@@ -163,7 +165,7 @@ pub async fn send_publish_packet_to_client(
         }
 
         QoS::AtLeastOnce => {
-            let (wait_puback_sx, _) = broadcast::channel(1);
+            let (wait_puback_sx, wait_ack_rx) = mpsc::channel(1);
             let pkid = sub_pub_param.p_kid;
             cache_manager.pkid_data.add_publish_to_client_qos_ack_data(
                 &sub_pub_param.client_id,
@@ -179,7 +181,7 @@ pub async fn send_publish_packet_to_client(
                 connection_manager,
                 sub_pub_param,
                 stop_sx,
-                &wait_puback_sx,
+                wait_ack_rx,
             )
             .await;
 
@@ -191,7 +193,7 @@ pub async fn send_publish_packet_to_client(
         }
 
         QoS::ExactlyOnce => {
-            let (wait_ack_sx, _) = broadcast::channel(1);
+            let (wait_ack_sx, wait_ack_rx) = mpsc::channel(1);
             let pkid = sub_pub_param.p_kid;
             cache_manager.pkid_data.add_publish_to_client_qos_ack_data(
                 &sub_pub_param.client_id,
@@ -207,7 +209,7 @@ pub async fn send_publish_packet_to_client(
                 connection_manager,
                 sub_pub_param,
                 stop_sx,
-                &wait_ack_sx,
+                wait_ack_rx,
             )
             .await;
 
@@ -276,7 +278,7 @@ pub async fn exclusive_publish_message_qos1(
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
-    wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
+    wait_puback_rx: mpsc::Receiver<QosAckPackageData>,
 ) -> ResultMqttBrokerError {
     // 1. send Publish to Client
     push_packet_to_client(metadata_cache, connection_manager, sub_pub_param, stop_sx).await?;
@@ -287,7 +289,7 @@ pub async fn exclusive_publish_message_qos1(
         connection_manager,
         sub_pub_param,
         stop_sx,
-        wait_puback_sx,
+        wait_puback_rx,
     )
     .await?;
 
@@ -303,18 +305,18 @@ pub async fn exclusive_publish_message_qos2(
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
-    wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
+    wait_ack_rx: mpsc::Receiver<QosAckPackageData>,
 ) -> ResultMqttBrokerError {
     // 1. send Publish to Client
     push_packet_to_client(metadata_cache, connection_manager, sub_pub_param, stop_sx).await?;
 
     // 2. wait PubRec ack
-    wait_pub_rec(
+    let new_wait_ack_rx = wait_pub_rec(
         metadata_cache,
         connection_manager,
         sub_pub_param,
         stop_sx,
-        wait_ack_sx,
+        wait_ack_rx,
     )
     .await?;
 
@@ -327,7 +329,7 @@ pub async fn exclusive_publish_message_qos2(
         connection_manager,
         sub_pub_param,
         stop_sx,
-        wait_ack_sx,
+        new_wait_ack_rx,
     )
     .await?;
     Ok(())
@@ -413,38 +415,75 @@ pub async fn wait_pub_ack(
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
-    wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
+    mut wait_ack_rx: mpsc::Receiver<QosAckPackageData>,
 ) -> ResultMqttBrokerError {
-    let wait_pub_ack_fn = async || -> ResultMqttBrokerError {
-        let mut wait_ack_rx = wait_ack_sx.subscribe();
-        loop {
-            let package = wait_ack_rx.recv().await?;
-            if package.ack_type == QosAckPackageType::PubAck && package.pkid == sub_pub_param.p_kid
-            {
-                return Ok(());
+    let mut stop_recv = stop_sx.subscribe();
+    let mut resend_times = 0usize;
+    loop {
+        select! {
+            val = stop_recv.recv() => {
+                match val {
+                    Ok(true) | Err(broadcast::error::RecvError::Closed) => {
+                        return Ok(());
+                    }
+                    _ => {}
+                }
+            }
+            recv_res = timeout(Duration::from_secs(ACK_WAIT_TIMEOUT_SECS), wait_ack_rx.recv()) => {
+                match recv_res {
+                    Ok(Some(package)) => {
+                        if package.ack_type == QosAckPackageType::PubAck
+                            && package.pkid == sub_pub_param.p_kid
+                        {
+                            return Ok(());
+                        }
+                    }
+                    Ok(None) => {
+                        return Err(MqttBrokerError::CommonError(
+                            "wait_pub_ack channel closed before receiving PubAck".to_string(),
+                        ));
+                    }
+                    Err(_) => {
+                        if resend_times >= QOS_ACK_RESEND_MAX_RETRIES {
+                            return Err(MqttBrokerError::OperationTimeout(
+                                ACK_WAIT_TIMEOUT_SECS,
+                                "wait_pub_ack".to_string(),
+                            ));
+                        }
+                        resend_times += 1;
+                        let resend_param = build_dup_publish_param(sub_pub_param)?;
+                        push_packet_to_client(
+                            metadata_cache,
+                            connection_manager,
+                            &resend_param,
+                            stop_sx
+                        ).await?;
+                    }
+                }
             }
         }
-    };
+    }
+}
 
-    let ac_fn = async || -> ResultMqttBrokerError {
-        loop {
-            if timeout(
-                Duration::from_secs(ACK_WAIT_TIMEOUT_SECS),
-                wait_pub_ack_fn(),
-            )
-            .await
-            .is_err()
-            {
-                push_packet_to_client(metadata_cache, connection_manager, sub_pub_param, stop_sx)
-                    .await?;
-                continue;
-            }
-            break;
+fn build_dup_publish_param(
+    sub_pub_param: &SubPublishParam,
+) -> Result<SubPublishParam, MqttBrokerError> {
+    match &sub_pub_param.packet {
+        MqttPacket::Publish(publish, properties) => {
+            let mut resend_publish = publish.clone();
+            resend_publish.dup = true;
+            Ok(SubPublishParam {
+                packet: MqttPacket::Publish(resend_publish, properties.clone()),
+                create_time: sub_pub_param.create_time,
+                client_id: sub_pub_param.client_id.clone(),
+                p_kid: sub_pub_param.p_kid,
+                qos: sub_pub_param.qos,
+            })
         }
-        Ok(())
-    };
-
-    retry_tool_fn_timeout(ac_fn, stop_sx, "wait_pub_ack").await
+        _ => Err(MqttBrokerError::CommonError(
+            "wait_pub_ack expects Publish packet for QoS1 resend".to_string(),
+        )),
+    }
 }
 
 pub async fn wait_pub_rec(
@@ -452,38 +491,51 @@ pub async fn wait_pub_rec(
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
-    wait_rec_sx: &broadcast::Sender<QosAckPackageData>,
-) -> ResultMqttBrokerError {
-    let wait_pub_rec_fn = async || -> ResultMqttBrokerError {
-        let mut wait_ack_rx = wait_rec_sx.subscribe();
-        loop {
-            let package = wait_ack_rx.recv().await?;
-            if package.ack_type == QosAckPackageType::PubRec && package.pkid == sub_pub_param.p_kid
-            {
-                return Ok(());
+    mut wait_ack_rx: mpsc::Receiver<QosAckPackageData>,
+) -> Result<mpsc::Receiver<QosAckPackageData>, MqttBrokerError> {
+    let mut stop_recv = stop_sx.subscribe();
+    let mut resend_times = 0usize;
+    loop {
+        select! {
+            val = stop_recv.recv() => {
+                match val {
+                    Ok(true) | Err(broadcast::error::RecvError::Closed) => {
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            recv_res = timeout(Duration::from_secs(ACK_WAIT_TIMEOUT_SECS), wait_ack_rx.recv()) => {
+                match recv_res {
+                    Ok(Some(package)) => {
+                        if package.ack_type == QosAckPackageType::PubRec
+                            && package.pkid == sub_pub_param.p_kid
+                        {
+                            break;
+                        }
+                    }
+                    Ok(None) => {
+                        return Err(MqttBrokerError::CommonError(
+                            "wait_pub_rec channel closed before receiving PubRec".to_string(),
+                        ));
+                    }
+                    Err(_) => {
+                        if resend_times >= QOS_ACK_RESEND_MAX_RETRIES {
+                            return Err(MqttBrokerError::OperationTimeout(
+                                ACK_WAIT_TIMEOUT_SECS,
+                                "wait_pub_rec".to_string(),
+                            ));
+                        }
+                        resend_times += 1;
+                        let resend_param = build_dup_publish_param(sub_pub_param)?;
+                        push_packet_to_client(metadata_cache, connection_manager, &resend_param, stop_sx)
+                            .await?;
+                    }
+                }
             }
         }
-    };
-
-    let ac_fn = async || -> ResultMqttBrokerError {
-        loop {
-            if timeout(
-                Duration::from_secs(ACK_WAIT_TIMEOUT_SECS),
-                wait_pub_rec_fn(),
-            )
-            .await
-            .is_err()
-            {
-                push_packet_to_client(metadata_cache, connection_manager, sub_pub_param, stop_sx)
-                    .await?;
-                continue;
-            }
-            break;
-        }
-        Ok(())
-    };
-
-    retry_tool_fn_timeout(ac_fn, stop_sx, "wait_pub_rec").await
+    }
+    Ok(wait_ack_rx)
 }
 
 pub async fn wait_pub_comp(
@@ -491,38 +543,49 @@ pub async fn wait_pub_comp(
     connection_manager: &Arc<ConnectionManager>,
     sub_pub_param: &SubPublishParam,
     stop_sx: &broadcast::Sender<bool>,
-    wait_comp_sx: &broadcast::Sender<QosAckPackageData>,
+    mut wait_ack_rx: mpsc::Receiver<QosAckPackageData>,
 ) -> ResultMqttBrokerError {
-    let wait_pub_comp_fn = async || -> ResultMqttBrokerError {
-        let mut wait_ack_rx = wait_comp_sx.subscribe();
-        loop {
-            let package = wait_ack_rx.recv().await?;
-            if package.ack_type == QosAckPackageType::PubComp && package.pkid == sub_pub_param.p_kid
-            {
-                return Ok(());
+    let mut stop_recv = stop_sx.subscribe();
+    let mut resend_times = 0usize;
+    loop {
+        select! {
+            val = stop_recv.recv() => {
+                match val {
+                    Ok(true) | Err(broadcast::error::RecvError::Closed) => {
+                        return Ok(());
+                    }
+                    _ => {}
+                }
+            }
+            recv_res = timeout(Duration::from_secs(ACK_WAIT_TIMEOUT_SECS), wait_ack_rx.recv()) => {
+                match recv_res {
+                    Ok(Some(package)) => {
+                        if package.ack_type == QosAckPackageType::PubComp
+                            && package.pkid == sub_pub_param.p_kid
+                        {
+                            return Ok(());
+                        }
+                    }
+                    Ok(None) => {
+                        return Err(MqttBrokerError::CommonError(
+                            "wait_pub_comp channel closed before receiving PubComp".to_string(),
+                        ));
+                    }
+                    Err(_) => {
+                        if resend_times >= QOS_ACK_RESEND_MAX_RETRIES {
+                            return Err(MqttBrokerError::OperationTimeout(
+                                ACK_WAIT_TIMEOUT_SECS,
+                                "wait_pub_comp".to_string(),
+                            ));
+                        }
+                        resend_times += 1;
+                        qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx)
+                            .await?;
+                    }
+                }
             }
         }
-    };
-
-    let ac_fn = async || -> ResultMqttBrokerError {
-        loop {
-            if timeout(
-                Duration::from_secs(ACK_WAIT_TIMEOUT_SECS),
-                wait_pub_comp_fn(),
-            )
-            .await
-            .is_err()
-            {
-                qos2_send_pubrel(metadata_cache, sub_pub_param, connection_manager, stop_sx)
-                    .await?;
-                continue;
-            }
-            break;
-        }
-        Ok(())
-    };
-
-    retry_tool_fn_timeout(ac_fn, stop_sx, "wait_pub_comp").await
+    }
 }
 
 pub async fn qos2_send_pubrel(
@@ -575,10 +638,11 @@ where
     loop {
         select! {
             val = stop_recv.recv() => {
-                if let Ok(flag) = val {
-                    if flag {
+                match val {
+                    Ok(true) | Err(broadcast::error::RecvError::Closed) => {
                         return Ok(());
                     }
+                    _ => {}
                 }
             }
             val = ac_fn() => {
@@ -612,8 +676,11 @@ async fn interruptible_sleep(
     for _ in 0..iterations {
         select! {
             val = stop_recv.recv() => {
-                if let Ok(true) = val {
-                    return Err(());
+                match val {
+                    Ok(true) | Err(broadcast::error::RecvError::Closed) => {
+                        return Err(());
+                    }
+                    _ => {}
                 }
             }
             _ = sleep(Duration::from_millis(RETRY_SLEEP_INTERVAL_MS)) => {}

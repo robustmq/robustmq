@@ -14,14 +14,23 @@
 
 use super::{get_last_snapshot_id, get_snapshot_meta, snapshot_name};
 use crate::raft::manager::RaftStateMachineName;
+use crate::raft::type_config::NodeId;
 use crate::raft::type_config::{StorageResult, TypeConfig};
-use openraft::{Snapshot, StorageError};
+use openraft::{Snapshot, StorageError, StorageIOError};
 use rocksdb::DB;
 use rocksdb_engine::storage::family::{DB_COLUMN_FAMILY_META_DATA, DB_COLUMN_FAMILY_META_METADATA};
 use std::io::{ErrorKind, Read};
 use std::sync::Arc;
 use tokio::fs::File;
 use tracing::{error, info};
+
+fn sto_read(e: &(impl std::error::Error + 'static)) -> StorageError<NodeId> {
+    StorageIOError::<NodeId>::read(e).into()
+}
+
+fn sto_write(e: &(impl std::error::Error + 'static)) -> StorageError<NodeId> {
+    StorageIOError::<NodeId>::write(e).into()
+}
 
 pub async fn recover_snapshot(
     machine: &RaftStateMachineName,
@@ -63,19 +72,19 @@ async fn recover_snapshot_by_metadata(
     db: &Arc<DB>,
     snapshot: Snapshot<TypeConfig>,
 ) -> StorageResult<()> {
-    let snapshot_file = snapshot.snapshot.into_std().await;
+    let snapshot_file = (*snapshot.snapshot).into_std().await;
 
     let cf_handle = db
         .cf_handle(DB_COLUMN_FAMILY_META_METADATA)
         .ok_or_else(|| {
-            StorageError::read(&std::io::Error::new(
+            sto_read(&std::io::Error::new(
                 ErrorKind::NotFound,
                 format!("Column family {} not found", DB_COLUMN_FAMILY_META_METADATA),
             ))
         })?;
 
     let mut decoder = zstd::Decoder::new(snapshot_file)
-        .map_err(|e| StorageError::read(&std::io::Error::new(ErrorKind::InvalidData, e)))?;
+        .map_err(|e| sto_read(&std::io::Error::new(ErrorKind::InvalidData, e)))?;
 
     let mut batch = rocksdb::WriteBatch::default();
     let mut count = 0u64;
@@ -85,37 +94,31 @@ async fn recover_snapshot_by_metadata(
         match decoder.read_exact(&mut len_buf) {
             Ok(_) => {}
             Err(e) if e.kind() == ErrorKind::UnexpectedEof => break,
-            Err(e) => return Err(StorageError::read(&e)),
+            Err(e) => return Err(sto_read(&e)),
         }
         let key_len = u32::from_le_bytes(len_buf) as usize;
 
         let mut key = vec![0u8; key_len];
-        decoder
-            .read_exact(&mut key)
-            .map_err(|e| StorageError::read(&e))?;
+        decoder.read_exact(&mut key).map_err(|e| sto_read(&e))?;
 
-        decoder
-            .read_exact(&mut len_buf)
-            .map_err(|e| StorageError::read(&e))?;
+        decoder.read_exact(&mut len_buf).map_err(|e| sto_read(&e))?;
         let value_len = u32::from_le_bytes(len_buf) as usize;
 
         let mut value = vec![0u8; value_len];
-        decoder
-            .read_exact(&mut value)
-            .map_err(|e| StorageError::read(&e))?;
+        decoder.read_exact(&mut value).map_err(|e| sto_read(&e))?;
 
         batch.put_cf(&cf_handle, key, value);
         count += 1;
 
         if count.is_multiple_of(1000) {
-            db.write(batch).map_err(|e| StorageError::write(&e))?;
+            db.write(batch).map_err(|e| sto_write(&e))?;
             batch = rocksdb::WriteBatch::default();
             info!("[metadata] Recovered {} entries so far...", count);
         }
     }
 
     if !batch.is_empty() {
-        db.write(batch).map_err(|e| StorageError::write(&e))?;
+        db.write(batch).map_err(|e| sto_write(&e))?;
     }
 
     info!(
@@ -130,17 +133,17 @@ async fn recover_snapshot_by_mqtt(
     db: &Arc<DB>,
     snapshot: Snapshot<TypeConfig>,
 ) -> StorageResult<()> {
-    let snapshot_file = snapshot.snapshot.into_std().await;
+    let snapshot_file = (*snapshot.snapshot).into_std().await;
 
     let cf_handle = db.cf_handle(DB_COLUMN_FAMILY_META_DATA).ok_or_else(|| {
-        StorageError::read(&std::io::Error::new(
+        sto_read(&std::io::Error::new(
             ErrorKind::NotFound,
             format!("Column family {} not found", DB_COLUMN_FAMILY_META_DATA),
         ))
     })?;
 
     let mut decoder = zstd::Decoder::new(snapshot_file)
-        .map_err(|e| StorageError::read(&std::io::Error::new(ErrorKind::InvalidData, e)))?;
+        .map_err(|e| sto_read(&std::io::Error::new(ErrorKind::InvalidData, e)))?;
 
     let mut batch = rocksdb::WriteBatch::default();
     let mut count = 0u64;
@@ -150,37 +153,31 @@ async fn recover_snapshot_by_mqtt(
         match decoder.read_exact(&mut len_buf) {
             Ok(_) => {}
             Err(e) if e.kind() == ErrorKind::UnexpectedEof => break,
-            Err(e) => return Err(StorageError::read(&e)),
+            Err(e) => return Err(sto_read(&e)),
         }
         let key_len = u32::from_le_bytes(len_buf) as usize;
 
         let mut key = vec![0u8; key_len];
-        decoder
-            .read_exact(&mut key)
-            .map_err(|e| StorageError::read(&e))?;
+        decoder.read_exact(&mut key).map_err(|e| sto_read(&e))?;
 
-        decoder
-            .read_exact(&mut len_buf)
-            .map_err(|e| StorageError::read(&e))?;
+        decoder.read_exact(&mut len_buf).map_err(|e| sto_read(&e))?;
         let value_len = u32::from_le_bytes(len_buf) as usize;
 
         let mut value = vec![0u8; value_len];
-        decoder
-            .read_exact(&mut value)
-            .map_err(|e| StorageError::read(&e))?;
+        decoder.read_exact(&mut value).map_err(|e| sto_read(&e))?;
 
         batch.put_cf(&cf_handle, key, value);
         count += 1;
 
         if count.is_multiple_of(1000) {
-            db.write(batch).map_err(|e| StorageError::write(&e))?;
+            db.write(batch).map_err(|e| sto_write(&e))?;
             batch = rocksdb::WriteBatch::default();
             info!("[mqtt] Recovered {} entries so far...", count);
         }
     }
 
     if !batch.is_empty() {
-        db.write(batch).map_err(|e| StorageError::write(&e))?;
+        db.write(batch).map_err(|e| sto_write(&e))?;
     }
 
     info!(
@@ -195,17 +192,17 @@ async fn recover_snapshot_by_offset(
     db: &Arc<DB>,
     snapshot: Snapshot<TypeConfig>,
 ) -> StorageResult<()> {
-    let snapshot_file = snapshot.snapshot.into_std().await;
+    let snapshot_file = (*snapshot.snapshot).into_std().await;
 
     let cf_handle = db.cf_handle(DB_COLUMN_FAMILY_META_DATA).ok_or_else(|| {
-        StorageError::read(&std::io::Error::new(
+        sto_read(&std::io::Error::new(
             ErrorKind::NotFound,
             format!("Column family {} not found", DB_COLUMN_FAMILY_META_DATA),
         ))
     })?;
 
     let mut decoder = zstd::Decoder::new(snapshot_file)
-        .map_err(|e| StorageError::read(&std::io::Error::new(ErrorKind::InvalidData, e)))?;
+        .map_err(|e| sto_read(&std::io::Error::new(ErrorKind::InvalidData, e)))?;
 
     let mut batch = rocksdb::WriteBatch::default();
     let mut count = 0u64;
@@ -215,37 +212,31 @@ async fn recover_snapshot_by_offset(
         match decoder.read_exact(&mut len_buf) {
             Ok(_) => {}
             Err(e) if e.kind() == ErrorKind::UnexpectedEof => break,
-            Err(e) => return Err(StorageError::read(&e)),
+            Err(e) => return Err(sto_read(&e)),
         }
         let key_len = u32::from_le_bytes(len_buf) as usize;
 
         let mut key = vec![0u8; key_len];
-        decoder
-            .read_exact(&mut key)
-            .map_err(|e| StorageError::read(&e))?;
+        decoder.read_exact(&mut key).map_err(|e| sto_read(&e))?;
 
-        decoder
-            .read_exact(&mut len_buf)
-            .map_err(|e| StorageError::read(&e))?;
+        decoder.read_exact(&mut len_buf).map_err(|e| sto_read(&e))?;
         let value_len = u32::from_le_bytes(len_buf) as usize;
 
         let mut value = vec![0u8; value_len];
-        decoder
-            .read_exact(&mut value)
-            .map_err(|e| StorageError::read(&e))?;
+        decoder.read_exact(&mut value).map_err(|e| sto_read(&e))?;
 
         batch.put_cf(&cf_handle, key, value);
         count += 1;
 
         if count.is_multiple_of(1000) {
-            db.write(batch).map_err(|e| StorageError::write(&e))?;
+            db.write(batch).map_err(|e| sto_write(&e))?;
             batch = rocksdb::WriteBatch::default();
             info!("[offset] Recovered {} entries so far...", count);
         }
     }
 
     if !batch.is_empty() {
-        db.write(batch).map_err(|e| StorageError::write(&e))?;
+        db.write(batch).map_err(|e| sto_write(&e))?;
     }
 
     info!(
@@ -263,7 +254,7 @@ pub async fn get_current_snapshot(machine: &str) -> StorageResult<Option<Snapsho
             info!("[{}] No snapshot found, returning None", machine);
             return Ok(None);
         }
-        Err(e) => return Err(StorageError::read(&e)),
+        Err(e) => return Err(sto_read(&e)),
     };
 
     let snapshot_meta = match get_snapshot_meta(&snapshot_id).await {
@@ -275,7 +266,7 @@ pub async fn get_current_snapshot(machine: &str) -> StorageResult<Option<Snapsho
             );
             return Ok(None);
         }
-        Err(e) => return Err(StorageError::read(&e)),
+        Err(e) => return Err(sto_read(&e)),
     };
 
     let res = match File::open(&snapshot_name(&snapshot_id)).await {
@@ -287,21 +278,21 @@ pub async fn get_current_snapshot(machine: &str) -> StorageResult<Option<Snapsho
             );
             return Ok(None);
         }
-        Err(e) => return Err(StorageError::read(&e)),
+        Err(e) => return Err(sto_read(&e)),
     };
 
     Ok(Some(Snapshot {
         meta: snapshot_meta,
-        snapshot: res,
+        snapshot: Box::new(res),
     }))
 }
 
 #[cfg(test)]
 mod tests {
     use super::super::{get_last_snapshot_id_from_path, get_snapshot_meta_from_path};
-    use crate::raft::type_config::{Node, TypeConfig};
+    use crate::raft::type_config::{Node, NodeId};
     use common_base::utils::file_utils::test_temp_dir;
-    use openraft::vote::leader_id_adv::LeaderId;
+    use openraft::LeaderId;
     use openraft::{LogId, Membership, SnapshotMeta, StoredMembership};
     use std::collections::{BTreeMap, BTreeSet};
     use std::fs::create_dir_all;
@@ -340,10 +331,10 @@ mod tests {
             },
         );
 
-        let membership = Membership::new(vec![nodes], node_map).unwrap();
+        let membership = Membership::new(vec![nodes], node_map);
         let stored_membership = StoredMembership::new(Some(log_id), membership);
 
-        let _meta = SnapshotMeta::<TypeConfig> {
+        let _meta = SnapshotMeta::<NodeId, Node> {
             last_log_id: Some(log_id),
             last_membership: stored_membership.clone(),
             snapshot_id: snapshot_id.clone(),

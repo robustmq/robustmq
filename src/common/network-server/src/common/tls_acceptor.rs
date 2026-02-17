@@ -12,42 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::channel::RequestChannel;
+use crate::common::connection_manager::ConnectionManager;
+use crate::common::tool::read_packet;
 use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_config::broker::broker_config;
-use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
-use protocol::robust::RobustMQPacket;
-// Copyright 2023 RobustMQ Team
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-use crate::common::channel::RequestChannel;
-use crate::common::connection_manager::ConnectionManager;
-use crate::common::tool::read_packet;
 use common_metrics::mqtt::packets::record_received_error_metrics;
 use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
+use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
+use protocol::robust::RobustMQPacket;
 use rustls_pemfile::{certs, private_key};
 use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::select;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::{broadcast, mpsc};
-use tokio::time::sleep;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
@@ -94,10 +79,24 @@ pub async fn acceptor_tls_process(
             loop {
                 select! {
                     val = stop_rx.recv() =>{
-                        if let Ok(flag) = val {
-                            if flag {
+                        match val {
+                            Ok(true) => {
                                 debug!("{} Server acceptor thread {} stopped successfully.", network_type, index);
                                 break;
+                            }
+                            Ok(false) => {}
+                            Err(broadcast::error::RecvError::Closed) => {
+                                debug!(
+                                    "{} Server acceptor thread {} stop channel closed, exiting.",
+                                    network_type, index
+                                );
+                                break;
+                            }
+                            Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                                debug!(
+                                    "{} Server acceptor thread {} lagged on stop channel, skipped {} messages.",
+                                    network_type, index, skipped
+                                );
                             }
                         }
                     }
@@ -130,7 +129,7 @@ pub async fn acceptor_tls_process(
                                 connection_manager.add_connection(connection.clone());
                                 connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
 
-                                read_tls_frame_process(row_broker_cache.clone(), read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone());
+                                read_tls_frame_process(row_broker_cache.clone(), connection_manager.clone(),read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone());
                             }
                             Err(e) => {
                                 error!("{} accept failed to create connection with error message :{:?}", network_type, e);
@@ -145,8 +144,10 @@ pub async fn acceptor_tls_process(
 }
 
 // spawn connection read thread
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn read_tls_frame_process(
     broker_cache: Arc<BrokerCacheManager>,
+    connection_manager: Arc<ConnectionManager>,
     mut read_frame_stream: FramedRead<
         tokio::io::ReadHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
         RobustMQCodec,
@@ -160,9 +161,17 @@ pub(crate) fn read_tls_frame_process(
         loop {
             select! {
                 val = connection_stop_rx.recv() =>{
-                    if let Some(flag) = val{
-                        if flag {
+                    match val {
+                        Some(true) => {
                             debug!("{} connection 【{}】 acceptor thread stopped successfully.",network_type, connection.connection_id);
+                            break;
+                        }
+                        Some(false) => {}
+                        None => {
+                            debug!(
+                                "{} connection 【{}】 stop channel closed, exiting read loop.",
+                                network_type, connection.connection_id
+                            );
                             break;
                         }
                     }
@@ -192,11 +201,15 @@ pub(crate) fn read_tls_frame_process(
                                 debug!(
                                     "{} connection parsing packet format error message :{:?}",
                                     network_type, e
-                                )
+                                );
+                                connection_manager.close_connect(connection.connection_id).await;
+                                break;
                             }
                         }
                      }else{
-                        sleep(Duration::from_millis(100)).await;
+                        debug!("Tls client disconnected (EOF): connection_id={}", connection.connection_id);
+                        connection_manager.close_connect(connection.connection_id).await;
+                        break;
                      }
                 }
             }

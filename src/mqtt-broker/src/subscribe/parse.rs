@@ -98,16 +98,30 @@ pub async fn start_update_parse_thread(
     loop {
         select! {
             val = stop_recv.recv() => {
-                if let Ok(flag) = val {
-                    if flag {
+                match val {
+                    Ok(true) => {
                         info!("Subscribe parse thread stopping");
                         break;
+                    }
+                    Ok(false) => {}
+                    Err(broadcast::error::RecvError::Closed) => {
+                        info!("Subscribe parse thread stop channel closed, exiting.");
+                        break;
+                    }
+                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                        debug!(
+                            "Subscribe parse thread stop channel lagged, skipped {} messages.",
+                            skipped
+                        );
                     }
                 }
             }
 
             result = rx.recv() => {
-                let Some(data) = result else { continue };
+                let Some(data) = result else {
+                    info!("Subscribe parse thread request channel closed, exiting.");
+                    break;
+                };
 
                 match (data.resource_type, data.action_type) {
                     (BrokerUpdateCacheResourceType::Topic, BrokerUpdateCacheActionType::Create) => {

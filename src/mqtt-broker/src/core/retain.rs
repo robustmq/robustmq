@@ -43,7 +43,7 @@ use protocol::mqtt::common::{
 };
 use std::sync::Arc;
 use tokio::select;
-use tokio::sync::{broadcast, Semaphore};
+use tokio::sync::{broadcast, mpsc, Semaphore};
 use tracing::{debug, error, warn};
 
 #[derive(Clone)]
@@ -62,7 +62,7 @@ pub struct RetainMessageManager {
     connection_manager: Arc<ConnectionManager>,
     topic_retain_data: DashMap<String, Option<(MqttMessage, u64)>>,
     last_update_time: DashMap<String, u64>,
-    send_retain_message_queue: broadcast::Sender<SendRetainData>,
+    send_retain_message_queue: mpsc::Sender<SendRetainData>,
 }
 
 impl RetainMessageManager {
@@ -70,17 +70,19 @@ impl RetainMessageManager {
         cache_manager: Arc<MQTTCacheManager>,
         client_pool: Arc<ClientPool>,
         connection_manager: Arc<ConnectionManager>,
-    ) -> Self {
-        let (send_retain_message_queue, _) = broadcast::channel::<SendRetainData>(3000);
-
-        RetainMessageManager {
+        stop_sx: broadcast::Sender<bool>,
+    ) -> Arc<RetainMessageManager> {
+        let (send_retain_message_queue, rx) = mpsc::channel::<SendRetainData>(3000);
+        let manager = Arc::new(RetainMessageManager {
             cache_manager,
             client_pool,
             connection_manager,
             topic_retain_data: DashMap::new(),
             last_update_time: DashMap::new(),
             send_retain_message_queue,
-        }
+        });
+        start_send_retain_thread(manager.clone(), rx, stop_sx);
+        manager
     }
 
     pub async fn save_retain_message(
@@ -98,10 +100,8 @@ impl RetainMessageManager {
         let had_retain = self.contain_retain(topic_name).await?;
 
         if had_retain && publish.payload.is_empty() {
-            // Delete retain message
             topic_storage.delete_retain_message(topic_name).await?;
             record_mqtt_retained_dec();
-            // Update local cache
             self.topic_retain_data.insert(topic_name.to_string(), None);
             self.last_update_time
                 .insert(topic_name.to_string(), now_second());
@@ -109,7 +109,6 @@ impl RetainMessageManager {
 
         if !publish.payload.is_empty() {
             record_retain_recv_metrics(publish.qos);
-            // Only increment counter if this is a new retain message, not an update
             if !had_retain {
                 record_mqtt_retained_inc();
             }
@@ -120,7 +119,7 @@ impl RetainMessageManager {
             topic_storage
                 .set_retain_message(topic_name, &retain_message, message_expire)
                 .await?;
-            // Update local cache with new message
+
             self.topic_retain_data.insert(
                 topic_name.to_string(),
                 Some((retain_message, message_expire)),
@@ -140,7 +139,6 @@ impl RetainMessageManager {
         cache_manager: &Arc<MQTTCacheManager>,
         subscribe_manager: &Arc<SubscribeManager>,
     ) -> Result<(), MqttBrokerError> {
-        // Extract subscription identifier once to avoid repeated cloning
         let sub_ids = subscribe_properties
             .as_ref()
             .and_then(|props| props.subscription_identifier)
@@ -176,7 +174,7 @@ impl RetainMessageManager {
                     sub_ids: sub_ids.clone(),
                     topic_name,
                 };
-                if let Err(e) = self.send_retain_message_queue.send(data) {
+                if let Err(e) = self.send_retain_message_queue.send(data).await {
                     return Err(MqttBrokerError::CommonError(e.to_string()));
                 }
             }
@@ -194,13 +192,22 @@ impl RetainMessageManager {
             current_time
         };
 
-        // Refresh cache if data is stale (older than 5 seconds)
         if current_time - last_update_time >= 5 {
             self.load_retain_from_storage(topic).await?;
         }
 
         let contain = if let Some(data) = self.topic_retain_data.get(topic) {
-            data.is_some()
+            if let Some((_, expire_at)) = data.as_ref() {
+                if current_time >= *expire_at {
+                    drop(data);
+                    self.clear_local_retain_cache(topic, current_time);
+                    false
+                } else {
+                    true
+                }
+            } else {
+                false
+            }
         } else {
             false
         };
@@ -225,14 +232,52 @@ impl RetainMessageManager {
         Ok(())
     }
 
+    fn clear_local_retain_cache(&self, topic: &str, current_time: u64) {
+        self.topic_retain_data.insert(topic.to_string(), None);
+        self.last_update_time
+            .insert(topic.to_string(), current_time);
+    }
+
     async fn send_retain_message(
         &self,
         data: &SendRetainData,
         stop_sx: &broadcast::Sender<bool>,
     ) -> ResultMqttBrokerError {
-        println!("11111");
-        // Check if message exists and is not expired
-        let (
+        let mut is_expired = false;
+        let msg_data = {
+            let cache_entry = self.topic_retain_data.get(&data.topic_name);
+            if let Some(entry) = cache_entry {
+                if let Some((message, message_at)) = entry.as_ref() {
+                    if now_second() >= *message_at {
+                        is_expired = true;
+                        None
+                    } else {
+                        Some((
+                            message.client_id.clone(),
+                            message.retain,
+                            message.payload.clone(),
+                            message.format_indicator,
+                            message.expiry_interval,
+                            message.response_topic.clone(),
+                            message.correlation_data.clone(),
+                            message.user_properties.clone(),
+                            message.content_type.clone(),
+                        ))
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        if is_expired {
+            self.clear_local_retain_cache(&data.topic_name, now_second());
+            return Ok(());
+        }
+
+        let Some((
             msg_client_id,
             retain_flag,
             payload,
@@ -242,32 +287,9 @@ impl RetainMessageManager {
             correlation_data,
             user_properties_opt,
             content_type,
-        ) = {
-            let cache_entry = self.topic_retain_data.get(&data.topic_name);
-            if let Some(entry) = cache_entry {
-                if let Some((message, message_at)) = entry.as_ref() {
-                    if now_second() >= *message_at {
-                        // Message has expired
-                        return Ok(());
-                    }
-                    // Extract needed fields without cloning the entire message
-                    (
-                        message.client_id.clone(),
-                        message.retain,
-                        message.payload.clone(),
-                        message.format_indicator,
-                        message.expiry_interval,
-                        message.response_topic.clone(),
-                        message.correlation_data.clone(),
-                        message.user_properties.clone(),
-                        message.content_type.clone(),
-                    )
-                } else {
-                    return Ok(());
-                }
-            } else {
-                return Ok(());
-            }
+        )) = msg_data
+        else {
+            return Ok(());
         };
 
         if !is_send_msg_by_bo_local(data.no_local, &data.client_id, &msg_client_id) {
@@ -336,51 +358,56 @@ impl RetainMessageManager {
     }
 }
 
-pub fn start_send_retain_thread(
+fn start_send_retain_thread(
     retain_message_manager: Arc<RetainMessageManager>,
+    mut retain_message_rx: mpsc::Receiver<SendRetainData>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     tokio::spawn(async move {
         let mut stop_recv = stop_sx.subscribe();
-        let mut retain_message_rx = retain_message_manager.send_retain_message_queue.subscribe();
 
-        // Semaphore to limit concurrent retain message sending tasks
         let semaphore = Arc::new(Semaphore::new(MAX_RETAIN_MESSAGE_SEND_CONCURRENCY));
 
         loop {
             select! {
                 val = stop_recv.recv() =>{
                     match val {
-                        Ok(flag) if flag => {
+                        Ok(true) => {
+                            debug!("Retain message send thread stopped by stop signal.");
                             break;
                         }
-                        Err(_) => {
+                        Ok(false) => {}
+                        Err(broadcast::error::RecvError::Closed) => {
+                            debug!("Retain message send thread stop channel closed, exiting.");
                             break;
                         }
-                        _ => {}
+                        Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                            debug!(
+                                "Retain message send thread stop channel lagged, skipped {} messages.",
+                                skipped
+                            );
+                        }
                     }
                 }
                 res = retain_message_rx.recv()  => {
-                    match res{
-                        Ok(data) => {
+                    match res {
+                        Some(data) => {
                             let raw_retain_message_manager = retain_message_manager.clone();
                             let raw_stop_sx = stop_sx.clone();
                             let semaphore_clone = semaphore.clone();
-
+                            let permit = match semaphore_clone.acquire_owned().await {
+                                Ok(permit) => permit,
+                                Err(e) => {
+                                    error!(
+                                        "Failed to acquire semaphore permit for sending retain message, \
+                                        semaphore may be closed. client_id={}, topic={}, qos={:?}, error={}",
+                                        data.client_id, data.topic_name, data.qos, e
+                                    );
+                                    continue;
+                                }
+                            };
                             tokio::spawn(async move{
-                                // Acquire permit before processing (max concurrent: 10)
-                                let _permit = match semaphore_clone.acquire().await {
-                                    Ok(permit) => permit,
-                                    Err(e) => {
-                                        error!(
-                                            "Failed to acquire semaphore permit for sending retain message, \
-                                             semaphore may be closed. client_id={}, topic={}, qos={:?}, error={}",
-                                            data.client_id, data.topic_name, data.qos, e
-                                        );
-                                        return;
-                                    }
-                                };
-
+                                let _permit = permit;
                                 debug!(
                                     "Processing retain message: client_id={}, topic={}, qos={:?}",
                                     data.client_id, data.topic_name, data.qos
@@ -394,22 +421,11 @@ pub fn start_send_retain_thread(
                                         );
                                     }
                                 }
-                                // Permit is automatically released when _permit goes out of scope
                             });
                         }
-                        Err(broadcast::error::RecvError::Closed) => {
-                            error!(
-                                "Retain message broadcast channel closed, all senders dropped. \
-                                 This should not happen during normal operation. Exiting thread."
-                            );
+                        None => {
+                            debug!("Retain message send thread channel closed, exiting.");
                             break;
-                        }
-                        Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                            warn!(
-                                "Retain message receiver lagged behind, {} messages were skipped. \
-                                 Consider increasing channel capacity or optimizing processing speed.",
-                                skipped
-                            );
                         }
                     }
                 }

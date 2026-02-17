@@ -21,7 +21,6 @@ pub mod subscribe;
 
 use crate::error::BenchMarkError;
 use clap::{Parser, Subcommand, ValueEnum};
-use std::time::Duration;
 
 #[derive(Debug, Parser)]
 pub struct MqttBenchArgs {
@@ -52,8 +51,6 @@ pub struct CommonMqttBenchArgs {
     pub count: usize,
     #[arg(long, default_value_t = 0)]
     pub interval_ms: u64,
-    #[arg(long, default_value_t = 60)]
-    pub duration_secs: u64,
     #[arg(long, default_value_t = 0)]
     pub qos: u8,
     #[arg(long)]
@@ -64,16 +61,22 @@ pub struct CommonMqttBenchArgs {
     pub output: OutputFormat,
 }
 
-impl CommonMqttBenchArgs {
-    pub fn duration(&self) -> Duration {
-        Duration::from_secs(self.duration_secs)
-    }
+#[derive(Debug, Clone, ValueEnum)]
+pub enum ConnMode {
+    Create,
+    Hold,
 }
 
 #[derive(Debug, Clone, Parser)]
 pub struct ConnBenchArgs {
     #[command(flatten)]
     pub common: CommonMqttBenchArgs,
+    #[arg(long, default_value_t = 1000)]
+    pub concurrency: usize,
+    #[arg(long, value_enum, default_value_t = ConnMode::Create)]
+    pub mode: ConnMode,
+    #[arg(long, default_value_t = 60)]
+    pub hold_secs: u64,
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -86,6 +89,8 @@ pub struct PublishBenchArgs {
     pub payload_size: usize,
     #[arg(long, default_value_t = 1000)]
     pub message_interval_ms: u64,
+    #[arg(long, default_value_t = 60)]
+    pub duration_secs: u64,
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -94,6 +99,8 @@ pub struct SubscribeBenchArgs {
     pub common: CommonMqttBenchArgs,
     #[arg(long, default_value_t = String::from("bench/#"))]
     pub topic: String,
+    #[arg(long, default_value_t = 60)]
+    pub duration_secs: u64,
 }
 
 pub fn handle_mqtt_bench(args: MqttBenchArgs) -> Result<(), BenchMarkError> {

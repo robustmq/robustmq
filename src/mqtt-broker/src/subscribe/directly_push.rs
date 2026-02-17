@@ -36,7 +36,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::{sync::Arc, time::Duration};
 use storage_adapter::driver::StorageDriverManager;
-use tokio::{select, sync::broadcast::Sender, time::sleep};
+use tokio::{select, sync::broadcast, sync::broadcast::Sender, time::sleep};
 use tracing::{debug, error, info, warn};
 
 const BATCH_SIZE: u64 = 500;
@@ -80,10 +80,21 @@ impl DirectlyPushManager {
         loop {
             select! {
                 val = stop_rx.recv() =>{
-                    if let Ok(flag) = val {
-                        if flag {
+                    match val {
+                        Ok(true) => {
                             info!("DirectlyPushManager[{}] stopped", self.uuid);
                             break;
+                        }
+                        Ok(false) => {}
+                        Err(broadcast::error::RecvError::Closed) => {
+                            info!("DirectlyPushManager[{}] stop channel closed, exiting.", self.uuid);
+                            break;
+                        }
+                        Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                            debug!(
+                                "DirectlyPushManager[{}] stop channel lagged, skipped {} messages.",
+                                self.uuid, skipped
+                            );
                         }
                     }
                 }

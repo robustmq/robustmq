@@ -152,7 +152,7 @@ impl StorageEngineServer {
         if let Err(e) = load_metadata_cache(&self.cache_manager, &self.client_pool).await {
             error!("{}", e);
         }
-        info!("Journal Node was initialized successfully");
+        info!("Engine Node was initialized successfully");
     }
 
     async fn stop_server(_cache_manager: Arc<StorageCacheManager>, _client_pool: Arc<ClientPool>) {}

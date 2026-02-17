@@ -20,7 +20,7 @@ use crate::core::dynamic_cache::load_metadata_cache;
 use crate::core::flapping_detect::clean_flapping_detect;
 use crate::core::keep_alive::ClientKeepAlive;
 use crate::core::metrics_cache::metrics_record_thread;
-use crate::core::retain::{start_send_retain_thread, RetainMessageManager};
+use crate::core::retain::RetainMessageManager;
 use crate::core::system_alarm::SystemAlarm;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::core::topic_rewrite::start_topic_rewrite_convert_thread;
@@ -79,7 +79,6 @@ pub struct MqttBrokerServer {
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     offset_manager: Arc<OffsetManager>,
-    retain_message_manager: Arc<RetainMessageManager>,
     push_manager: Arc<PushManager>,
     server: Arc<Server>,
     main_stop: broadcast::Sender<bool>,
@@ -120,7 +119,6 @@ impl MqttBrokerServer {
             metrics_cache_manager: params.metrics_cache_manager,
             rocksdb_engine_handler: params.rocksdb_engine_handler,
             offset_manager: params.offset_manager,
-            retain_message_manager: params.retain_message_manager,
             push_manager: params.push_manager,
         }
     }
@@ -149,10 +147,9 @@ impl MqttBrokerServer {
             self.connection_manager.clone(),
             self.subscribe_manager.clone(),
             self.cache_manager.clone(),
-            raw_stop_send,
         );
         tokio::spawn(Box::pin(async move {
-            keep_alive.start_heartbeat_check().await;
+            keep_alive.start_heartbeat_check(&raw_stop_send).await;
         }));
 
         // sync auth info
@@ -205,19 +202,12 @@ impl MqttBrokerServer {
             self.cache_manager.clone(),
             self.storage_driver_manager.clone(),
             self.rocksdb_engine_handler.clone(),
-            self.inner_stop.clone(),
         );
+        let raw_stop_send = self.inner_stop.clone();
         tokio::spawn(async move {
-            if let Err(e) = system_alarm.start().await {
+            if let Err(e) = system_alarm.start(raw_stop_send).await {
                 error!("Failed to start system alarm monitoring: {}", e);
             }
-        });
-
-        // retain message
-        let retain_message_manager = self.retain_message_manager.clone();
-        let stop_sx = self.inner_stop.clone();
-        tokio::spawn(async move {
-            start_send_retain_thread(retain_message_manager, stop_sx);
         });
     }
 

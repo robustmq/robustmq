@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::raft::type_config::TypeConfig;
+use crate::raft::type_config::{Node, NodeId};
 use bincode::{deserialize, serialize};
 use common_config::broker::broker_config;
 use openraft::SnapshotMeta;
@@ -72,18 +72,18 @@ pub(crate) async fn get_last_snapshot_id_from_path(
     Ok(content)
 }
 
-pub(crate) async fn save_snapshot_meta(meta: SnapshotMeta<TypeConfig>) -> std::io::Result<()> {
+pub(crate) async fn save_snapshot_meta(meta: SnapshotMeta<NodeId, Node>) -> std::io::Result<()> {
     save_snapshot_meta_to_path(meta, None).await
 }
 
 pub(crate) async fn get_snapshot_meta(
     snapshot_id: &str,
-) -> std::io::Result<SnapshotMeta<TypeConfig>> {
+) -> std::io::Result<SnapshotMeta<NodeId, Node>> {
     get_snapshot_meta_from_path(snapshot_id, None).await
 }
 
 pub(crate) async fn save_snapshot_meta_to_path(
-    meta: SnapshotMeta<TypeConfig>,
+    meta: SnapshotMeta<NodeId, Node>,
     custom_path: Option<&str>,
 ) -> std::io::Result<()> {
     let file_path = if let Some(path) = custom_path {
@@ -109,7 +109,7 @@ pub(crate) async fn save_snapshot_meta_to_path(
 pub(crate) async fn get_snapshot_meta_from_path(
     snapshot_id: &str,
     custom_path: Option<&str>,
-) -> std::io::Result<SnapshotMeta<TypeConfig>> {
+) -> std::io::Result<SnapshotMeta<NodeId, Node>> {
     let file_path = if let Some(path) = custom_path {
         format!("{}/{}.meta", path, snapshot_id)
     } else {

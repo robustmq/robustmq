@@ -13,11 +13,15 @@
 // limitations under the License.
 
 use clap::Parser;
-use cli_bench::{mqtt::handle_mqtt_bench, BenchMarkError, RobustMQBench, RobustMQBenchCommand};
+use cli_bench::{
+    grpc::handle_meta_bench, mqtt::handle_mqtt_bench, BenchMarkError, RobustMQBench,
+    RobustMQBenchCommand,
+};
 
 fn main() -> Result<(), BenchMarkError> {
     let args = RobustMQBench::parse();
     match args.command {
+        RobustMQBenchCommand::Meta(meta_args) => handle_meta_bench(meta_args)?,
         RobustMQBenchCommand::Mqtt(mqtt_args) => handle_mqtt_bench(mqtt_args)?,
     }
 

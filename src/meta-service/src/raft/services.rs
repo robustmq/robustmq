@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::sync::Arc;
+use std::time::Instant;
 
 use crate::raft::manager::MultiRaftManager;
 use crate::{core::error::MetaServiceError, raft::type_config::Node};
@@ -21,8 +22,10 @@ use protocol::meta::meta_service_common::{
     AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, ChangeMembershipReply,
     ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
+use tracing::warn;
 
-// Deserialize directly from slice to avoid unnecessary copies
+const SLOW_RAFT_HANDLER_THRESHOLD_MS: f64 = 500.0;
+
 fn deserialize_from_slice<T: serde::de::DeserializeOwned>(
     bytes: &[u8],
 ) -> Result<T, MetaServiceError> {
@@ -33,9 +36,10 @@ pub async fn vote_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &VoteRequest,
 ) -> Result<VoteReply, MetaServiceError> {
+    let start = Instant::now();
     let vote_data = deserialize_from_slice(&req.value)?;
-    let raft_node = raft_manager.metadata_raft_node.clone();
-    raft_node
+    let raft_node = raft_manager.get_raft_node(&req.machine)?;
+    let result = raft_node
         .vote(vote_data)
         .await
         .map_err(|e| MetaServiceError::CommonError(e.to_string()))
@@ -43,16 +47,25 @@ pub async fn vote_by_req(
             serialize(&res)
                 .map_err(|e| MetaServiceError::CommonError(e.to_string()))
                 .map(|value| VoteReply { value })
-        })
+        });
+    let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+    if duration_ms > SLOW_RAFT_HANDLER_THRESHOLD_MS {
+        warn!(
+            "Raft server handler is slow. machine={}, op=vote, duration_ms={:.2}",
+            req.machine, duration_ms
+        );
+    }
+    result
 }
 
 pub async fn append_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &AppendRequest,
 ) -> Result<AppendReply, MetaServiceError> {
+    let start = Instant::now();
     let append_data = deserialize_from_slice(&req.value)?;
-    let raft_node = raft_manager.metadata_raft_node.clone();
-    raft_node
+    let raft_node = raft_manager.get_raft_node(&req.machine)?;
+    let result = raft_node
         .append_entries(append_data)
         .await
         .map_err(|e| MetaServiceError::CommonError(e.to_string()))
@@ -60,16 +73,25 @@ pub async fn append_by_req(
             serialize(&res)
                 .map_err(|e| MetaServiceError::CommonError(e.to_string()))
                 .map(|value| AppendReply { value })
-        })
+        });
+    let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+    if duration_ms > SLOW_RAFT_HANDLER_THRESHOLD_MS {
+        warn!(
+            "Raft server handler is slow. machine={}, op=append_entries, duration_ms={:.2}",
+            req.machine, duration_ms
+        );
+    }
+    result
 }
 
 pub async fn snapshot_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &SnapshotRequest,
 ) -> Result<SnapshotReply, MetaServiceError> {
+    let start = Instant::now();
     let snapshot_data = deserialize_from_slice(&req.value)?;
-    let raft_node = raft_manager.metadata_raft_node.clone();
-    raft_node
+    let raft_node = raft_manager.get_raft_node(&req.machine)?;
+    let result = raft_node
         .install_snapshot(snapshot_data)
         .await
         .map_err(|e| MetaServiceError::CommonError(e.to_string()))
@@ -77,7 +99,15 @@ pub async fn snapshot_by_req(
             serialize(&res)
                 .map_err(|e| MetaServiceError::CommonError(e.to_string()))
                 .map(|value| SnapshotReply { value })
-        })
+        });
+    let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+    if duration_ms > SLOW_RAFT_HANDLER_THRESHOLD_MS {
+        warn!(
+            "Raft server handler is slow. machine={}, op=install_snapshot, duration_ms={:.2}",
+            req.machine, duration_ms
+        );
+    }
+    result
 }
 
 pub async fn add_learner_by_req(
@@ -96,7 +126,7 @@ pub async fn add_learner_by_req(
     };
 
     let blocking = req.blocking;
-    let raft_node = raft_manager.metadata_raft_node.clone();
+    let raft_node = raft_manager.get_raft_node(&req.machine)?;
     let res = raft_node
         .add_learner(node_id, raft_node_data, blocking)
         .await?;
@@ -111,7 +141,7 @@ pub async fn change_membership_by_req(
 ) -> Result<ChangeMembershipReply, MetaServiceError> {
     let members = req.members.clone();
     let retain = req.retain;
-    let raft_node = raft_manager.metadata_raft_node.clone();
+    let raft_node = raft_manager.get_raft_node(&req.machine)?;
     let res = raft_node.change_membership(members, retain).await?;
     let value = serialize(&res)?;
 

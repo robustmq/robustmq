@@ -26,6 +26,7 @@ use metadata_struct::{
 use redis::aio::ConnectionManager;
 use redis::{Client, Cmd, RedisError};
 use storage_adapter::driver::StorageDriverManager;
+use tokio::sync::mpsc::Receiver;
 use tracing::{error, info, warn};
 
 use crate::core::error::MqttBrokerError;
@@ -291,6 +292,7 @@ pub fn start_redis_connector(
     storage_driver_manager: Arc<StorageDriverManager>,
     connector: MQTTConnector,
     thread: BridgePluginThread,
+    stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
         let redis_config = match &connector.config {
@@ -302,8 +304,6 @@ pub fn start_redis_connector(
         };
 
         let bridge = RedisBridgePlugin::new(redis_config);
-
-        let stop_recv = thread.stop_send.subscribe();
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(

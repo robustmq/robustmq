@@ -32,9 +32,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tokio::time::timeout;
-use tracing::info;
+use tracing::{info, warn};
 
 const DEFAULT_RAFT_WRITE_TIMEOUT_SEC: u64 = 30;
+const SLOW_RAFT_WRITE_WARN_THRESHOLD_MS: f64 = 1000.0;
 
 #[derive(Clone, Debug)]
 pub enum RaftStateMachineName {
@@ -123,6 +124,18 @@ impl MultiRaftManager {
         })
     }
 
+    pub fn get_raft_node(&self, machine: &str) -> Result<&Raft<TypeConfig>, MetaServiceError> {
+        match machine {
+            "metadata" => Ok(&self.metadata_raft_node),
+            "offset" => Ok(&self.offset_raft_node),
+            "mqtt" => Ok(&self.mqtt_raft_node),
+            _ => Err(MetaServiceError::CommonError(format!(
+                "Unknown raft machine: {}",
+                machine
+            ))),
+        }
+    }
+
     pub async fn start(&self) -> Result<(), CommonError> {
         info!("Starting Multi-Raft cluster...");
 
@@ -163,17 +176,21 @@ impl MultiRaftManager {
         }
 
         let machine = RaftStateMachineName::METADATA.as_str();
+        let data_type = data.data_type.to_string();
         record_write_request(machine);
         let start = Instant::now();
+        let write_timeout = self.get_raft_write_timeout();
 
-        let result = timeout(
-            self.get_raft_write_timeout(),
-            self.metadata_raft_node.client_write(data),
-        )
-        .await;
+        let result = timeout(write_timeout, self.metadata_raft_node.client_write(data)).await;
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_write_duration(machine, duration_ms);
+        if duration_ms > SLOW_RAFT_WRITE_WARN_THRESHOLD_MS {
+            warn!(
+                "Raft write is slow. machine={}, data_type={}, duration_ms={:.2}",
+                machine, data_type, duration_ms
+            );
+        }
 
         match result {
             Ok(Ok(response)) => {
@@ -182,13 +199,23 @@ impl MultiRaftManager {
             }
             Ok(Err(e)) => {
                 record_write_failure(machine);
+                warn!(
+                    "Raft write failed. machine={}, data_type={}, duration_ms={:.2}, error={}",
+                    machine, data_type, duration_ms, e
+                );
                 Err(e.into())
             }
             Err(_) => {
                 record_write_failure(machine);
-                Err(MetaServiceError::CommonError(
-                    "Write metadata timeout".to_string(),
-                ))
+                warn!(
+                    "Raft write timed out. machine={}, data_type={}, timeout={}s, duration_ms={:.2}",
+                    machine, data_type, write_timeout.as_secs(), duration_ms
+                );
+                Err(MetaServiceError::CommonError(format!(
+                    "Write metadata timeout after {}s, data_type={}",
+                    write_timeout.as_secs(),
+                    data_type
+                )))
             }
         }
     }
@@ -205,17 +232,21 @@ impl MultiRaftManager {
         }
 
         let machine = RaftStateMachineName::OFFSET.as_str();
+        let data_type = data.data_type.to_string();
         record_write_request(machine);
         let start = Instant::now();
+        let write_timeout = self.get_raft_write_timeout();
 
-        let result = timeout(
-            self.get_raft_write_timeout(),
-            self.offset_raft_node.client_write(data),
-        )
-        .await;
+        let result = timeout(write_timeout, self.offset_raft_node.client_write(data)).await;
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_write_duration(machine, duration_ms);
+        if duration_ms > SLOW_RAFT_WRITE_WARN_THRESHOLD_MS {
+            warn!(
+                "Raft write is slow. machine={}, data_type={}, duration_ms={:.2}",
+                machine, data_type, duration_ms
+            );
+        }
 
         match result {
             Ok(Ok(response)) => {
@@ -224,13 +255,23 @@ impl MultiRaftManager {
             }
             Ok(Err(e)) => {
                 record_write_failure(machine);
+                warn!(
+                    "Raft write failed. machine={}, data_type={}, duration_ms={:.2}, error={}",
+                    machine, data_type, duration_ms, e
+                );
                 Err(e.into())
             }
             Err(_) => {
                 record_write_failure(machine);
-                Err(MetaServiceError::CommonError(
-                    "Write offset timeout".to_string(),
-                ))
+                warn!(
+                    "Raft write timed out. machine={}, data_type={}, timeout={}s, duration_ms={:.2}",
+                    machine, data_type, write_timeout.as_secs(), duration_ms
+                );
+                Err(MetaServiceError::CommonError(format!(
+                    "Write offset timeout after {}s, data_type={}",
+                    write_timeout.as_secs(),
+                    data_type
+                )))
             }
         }
     }
@@ -247,17 +288,21 @@ impl MultiRaftManager {
         }
 
         let machine = RaftStateMachineName::MQTT.as_str();
+        let data_type = data.data_type.to_string();
         record_write_request(machine);
         let start = Instant::now();
+        let write_timeout = self.get_raft_write_timeout();
 
-        let result = timeout(
-            self.get_raft_write_timeout(),
-            self.mqtt_raft_node.client_write(data),
-        )
-        .await;
+        let result = timeout(write_timeout, self.mqtt_raft_node.client_write(data)).await;
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_write_duration(machine, duration_ms);
+        if duration_ms > SLOW_RAFT_WRITE_WARN_THRESHOLD_MS {
+            warn!(
+                "Raft write is slow. machine={}, data_type={}, duration_ms={:.2}",
+                machine, data_type, duration_ms
+            );
+        }
 
         match result {
             Ok(Ok(response)) => {
@@ -266,13 +311,23 @@ impl MultiRaftManager {
             }
             Ok(Err(e)) => {
                 record_write_failure(machine);
+                warn!(
+                    "Raft write failed. machine={}, data_type={}, duration_ms={:.2}, error={}",
+                    machine, data_type, duration_ms, e
+                );
                 Err(e.into())
             }
             Err(_) => {
                 record_write_failure(machine);
-                Err(MetaServiceError::CommonError(
-                    "Write mqtt timeout".to_string(),
-                ))
+                warn!(
+                    "Raft write timed out. machine={}, data_type={}, timeout={}s, duration_ms={:.2}",
+                    machine, data_type, write_timeout.as_secs(), duration_ms
+                );
+                Err(MetaServiceError::CommonError(format!(
+                    "Write mqtt timeout after {}s, data_type={}",
+                    write_timeout.as_secs(),
+                    data_type
+                )))
             }
         }
     }
@@ -371,7 +426,6 @@ impl MultiRaftManager {
         let config = Config {
             heartbeat_interval: 250,
             election_timeout_min: 299,
-            allow_log_reversion: Some(true),
             ..Default::default()
         };
 

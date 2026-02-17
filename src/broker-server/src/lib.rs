@@ -114,15 +114,7 @@ impl BrokerServer {
             config.network.lock_try_mut_sleep_time_ms,
         ));
 
-        // meta params
-        let meta_params = main_runtime.block_on(Box::pin(async {
-            BrokerServer::build_meta_service(
-                client_pool.clone(),
-                rocksdb_engine_handler.clone(),
-                broker_cache.clone(),
-            )
-            .await
-        }));
+        let (main_stop_send, _) = broadcast::channel(2);
 
         let offset_manager = Arc::new(OffsetManager::new(
             client_pool.clone(),
@@ -130,7 +122,7 @@ impl BrokerServer {
             config.storage_offset.enable_cache,
         ));
 
-        // storage adapter driver
+        // storage adapter driver (sync, no async needed)
         let engine_params = BrokerServer::build_storage_engine_params(
             client_pool.clone(),
             rocksdb_engine_handler.clone(),
@@ -139,48 +131,53 @@ impl BrokerServer {
             offset_manager.clone(),
         );
 
-        // build storage driver
-        let raw_storage_engine_handler = engine_params.storage_engine_handler.clone();
-        let raw_offset_manager = offset_manager.clone();
-        let storage_driver_manager = main_runtime.block_on(async move {
-            let storage = match StorageDriverManager::new(
-                raw_offset_manager.clone(),
-                raw_storage_engine_handler.clone(),
-            )
-            .await
-            {
-                Ok(storage) => storage,
-                Err(e) => {
-                    error!("Failed to build message storage driver: {}", e);
-                    std::process::exit(1);
-                }
-            };
-            Arc::new(storage)
-        });
+        // Build meta service and MQTT broker params concurrently in a single block_on.
+        // meta_params is independent; storage_driver + mqtt_params are chained but
+        // run in parallel with meta_params via tokio::join!.
+        let mqtt_seh = engine_params.storage_engine_handler.clone();
+        let mqtt_om = offset_manager.clone();
+        let mqtt_cp = client_pool.clone();
+        let mqtt_bc = broker_cache.clone();
+        let mqtt_re = rocksdb_engine_handler.clone();
+        let mqtt_cm = connection_manager.clone();
+        let mqtt_stop = main_stop_send.clone();
 
-        let raw_broker_cache = broker_cache.clone();
-        let raw_client_pool = client_pool.clone();
-        let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
-        let raw_connection_manager = connection_manager.clone();
-        let raw_storage_driver_manager = storage_driver_manager.clone();
-        let raw_offset_manager = offset_manager.clone();
-        let mqtt_params = main_runtime.block_on(async move {
-            match BrokerServer::build_broker_mqtt_params(
-                raw_client_pool.clone(),
-                raw_broker_cache.clone(),
-                raw_rocksdb_engine_handler.clone(),
-                raw_connection_manager.clone(),
-                raw_storage_driver_manager,
-                raw_offset_manager.clone(),
-            )
-            .await
-            {
-                Ok(params) => params,
-                Err(e) => {
-                    error!("Failed to build message storage driver: {}", e);
-                    std::process::exit(1);
+        let (meta_params, mqtt_params) = main_runtime.block_on(async {
+            tokio::join!(
+                BrokerServer::build_meta_service(
+                    client_pool.clone(),
+                    rocksdb_engine_handler.clone(),
+                    broker_cache.clone(),
+                ),
+                async move {
+                    let storage_driver_manager =
+                        match StorageDriverManager::new(mqtt_om.clone(), mqtt_seh).await {
+                            Ok(storage) => Arc::new(storage),
+                            Err(e) => {
+                                error!("Failed to build message storage driver: {}", e);
+                                std::process::exit(1);
+                            }
+                        };
+
+                    match BrokerServer::build_broker_mqtt_params(
+                        mqtt_cp,
+                        mqtt_bc,
+                        mqtt_re,
+                        mqtt_cm,
+                        storage_driver_manager,
+                        mqtt_om,
+                        mqtt_stop,
+                    )
+                    .await
+                    {
+                        Ok(params) => params,
+                        Err(e) => {
+                            error!("Failed to build MQTT broker params: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
                 }
-            }
+            )
         });
 
         BrokerServer {
@@ -387,6 +384,7 @@ impl BrokerServer {
         connection_manager: Arc<NetworkConnectionManager>,
         storage_driver_manager: Arc<StorageDriverManager>,
         offset_manager: Arc<OffsetManager>,
+        stop_sx: broadcast::Sender<bool>,
     ) -> Result<MqttBrokerServerParams, CommonError> {
         let cache_manager = Arc::new(MqttCacheManager::new(
             client_pool.clone(),
@@ -401,11 +399,12 @@ impl BrokerServer {
         );
         let metrics_cache_manager = Arc::new(MQTTMetricsCache::new(rocksdb_engine_handler.clone()));
         let schema_manager = Arc::new(SchemaRegisterManager::new());
-        let retain_message_manager = Arc::new(RetainMessageManager::new(
+        let retain_message_manager = RetainMessageManager::new(
             cache_manager.clone(),
             client_pool.clone(),
             connection_manager.clone(),
-        ));
+            stop_sx,
+        );
         let push_manager = Arc::new(PushManager::new(
             cache_manager.clone(),
             storage_driver_manager.clone(),
@@ -490,7 +489,7 @@ impl BrokerServer {
 
     pub fn awaiting_stop(
         &self,
-        place_stop: Option<broadcast::Sender<bool>>,
+        meta_stop: Option<broadcast::Sender<bool>>,
         mqtt_stop: Option<broadcast::Sender<bool>>,
         engine_stop: Option<broadcast::Sender<bool>>,
     ) {
@@ -530,7 +529,7 @@ impl BrokerServer {
                 sleep(Duration::from_secs(3));
             }
 
-            if let Some(sx) = place_stop {
+            if let Some(sx) = meta_stop {
                 if let Err(e) = sx.send(true) {
                     error!("place stop signal, error message{}", e);
                 }
