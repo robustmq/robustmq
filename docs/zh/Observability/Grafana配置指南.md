@@ -4,8 +4,8 @@
 
 ## 环境要求
 
-- Grafana 8.0+, Prometheus 2.30+, Docker 20.10+（可选）
-- 默认端口：RobustMQ(9091)、Prometheus(9090)、Grafana(3000)、Alertmanager(9093)
+- Grafana 8.0+、Prometheus 2.30+、Docker 20.10+（可选）
+- 默认端口：RobustMQ 指标端口(9091)、Prometheus(9090)、Grafana(3000)、Alertmanager(9093)
 
 ## 快速部署
 
@@ -16,14 +16,18 @@ cd grafana/
 docker-compose -f docker-compose.monitoring.yml up -d
 ```
 
-**访问地址：**
-- Grafana: `localhost:3000` (admin/admin)
-- Prometheus: `localhost:9090`
-- Alertmanager: `localhost:9093`
+该命令会启动以下服务：
+
+| 服务 | 地址 | 说明 |
+|------|------|------|
+| Grafana | `http://localhost:3000` | 默认账号 admin/admin |
+| Prometheus | `http://localhost:9090` | 指标采集与查询 |
+| Alertmanager | `http://localhost:9093` | 告警管理 |
+| Node Exporter | `http://localhost:9100` | 系统指标（可选） |
 
 ## RobustMQ 配置
 
-在 `config/server.toml` 中启用指标导出：
+在 `config/server.toml` 中启用 Prometheus 指标导出：
 
 ```toml
 [prometheus]
@@ -31,36 +35,61 @@ enable = true
 port = 9091
 ```
 
-验证指标：`curl http://localhost:9091/metrics`
+验证指标是否正常暴露：
+
+```bash
+curl http://localhost:9091/metrics
+```
 
 ## Prometheus 配置
+
+项目提供了示例配置 `grafana/prometheus-config-example.yml`，包含以下采集目标：
 
 ### 单机配置
 
 ```yaml
-# prometheus.yml
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
 
 rule_files:
   - "robustmq-alerts.yml"
 
 scrape_configs:
-  - job_name: 'robustmq-broker'
+  - job_name: 'robustmq-mqtt-broker'
     static_configs:
       - targets: ['localhost:9091']
+    metrics_path: /metrics
 ```
 
 ### 集群配置
 
 ```yaml
 scrape_configs:
-  - job_name: 'robustmq-cluster'
+  - job_name: 'robustmq-mqtt-broker-cluster'
     static_configs:
       - targets:
         - 'node1:9091'
         - 'node2:9091'
         - 'node3:9091'
+    metrics_path: /metrics
+```
+
+### 多服务配置
+
+如果同时运行 Meta Service 和 Journal Server，可以分别采集：
+
+```yaml
+scrape_configs:
+  - job_name: 'robustmq-meta-service'
+    static_configs:
+      - targets: ['localhost:9092']
+    metrics_path: /metrics
+
+  - job_name: 'robustmq-journal-server'
+    static_configs:
+      - targets: ['localhost:9093']
+    metrics_path: /metrics
 ```
 
 ## Grafana 配置
@@ -68,11 +97,11 @@ scrape_configs:
 ### 添加 Prometheus 数据源
 
 **Web 界面方式：**
-1. 登录 Grafana (`localhost:3000`)
+1. 登录 Grafana (`http://localhost:3000`)
 2. **Configuration** → **Data Sources** → **Add data source**
-3. 选择 **Prometheus**，URL: `http://localhost:9090`
+3. 选择 **Prometheus**，URL 填写 `http://localhost:9090`（Docker 环境下填 `http://prometheus:9090`）
 
-**配置文件方式：**
+**配置文件方式（Provisioning）：**
 
 ```yaml
 # /etc/grafana/provisioning/datasources/prometheus.yml
@@ -86,10 +115,13 @@ datasources:
 
 ### 导入仪表板
 
-**Web 界面：**
+RobustMQ 提供了预置仪表板文件 `grafana/robustmq-broker.json`。
+
+**Web 界面导入：**
 1. **Dashboards** → **Import**
-2. 上传 `robustmq-mqtt-broker-dashboard.json`
-3. 选择 Prometheus 数据源并导入
+2. 上传 `grafana/robustmq-broker.json`
+3. 在 `DS_PROMETHEUS` 下拉框中选择你的 Prometheus 数据源
+4. 点击 **Import**
 
 **API 导入：**
 
@@ -97,27 +129,113 @@ datasources:
 curl -X POST http://localhost:3000/api/dashboards/db \
   -H 'Authorization: Bearer YOUR_API_KEY' \
   -H 'Content-Type: application/json' \
-  -d @robustmq-mqtt-broker-dashboard.json
+  -d @grafana/robustmq-broker.json
 ```
 
-### 仪表板功能说明
+## 仪表板面板说明
 
-**📊 服务器概览**
-- 当前/最大连接数、活跃线程数
+`robustmq-broker.json` 包含以下区域：
 
-**🚀 性能指标**
-- 请求延迟 P95/P50、网络队列大小
+### Resource（资源概览）
 
-**📦 MQTT 数据包**
-- 收发数据包速率、网络流量统计
+顶部 Stat 面板展示系统当前状态：
 
-**🔌 客户端连接**
-- 连接速率、错误率统计
+| 面板 | 指标 | 说明 |
+|------|------|------|
+| Connections | `mqtt_connections_count` | 当前 MQTT 连接数 |
+| Sessions | `mqtt_sessions_count` | 当前会话数 |
+| Topics | `mqtt_topics_count` | 当前主题数 |
+| Subscribers | `mqtt_subscribers_count` | 当前订阅者总数 |
+| Shared Subscriptions | `mqtt_subscriptions_shared_count` | 当前共享订阅数 |
+| Retained Messages | `mqtt_retained_count` | 当前保留消息数 |
 
-**📝 消息处理**
-- 保留消息、丢弃消息统计
+下方 Timeseries 面板展示资源变化趋势，包括连接速率、会话创建/删除速率、主题消息读写速率、订阅成功/失败速率、共享订阅分类统计、保留消息收发速率。
+
+### 🌐 Network（网络层）
+
+| 面板 | 说明 |
+|------|------|
+| Handler Total Latency | 请求端到端处理耗时分位数（P50/P95/P99） |
+| Handler Queue Wait Latency | 请求在队列中等待的耗时分位数 |
+| Handler Apply Latency | command.apply() 执行耗时分位数 |
+| Response Write Latency | 响应写回客户端的耗时分位数 |
+
+### 📈 MQTT Protocol（MQTT 协议）
+
+| 面板 | 说明 |
+|------|------|
+| MQTT Received Packet Rate (QPS) | 各类型接收包的速率 |
+| MQTT Sent Packet Rate (QPS) | 各类型发送包的速率 |
+| MQTT Packet Process Latency Percentiles | 协议包处理耗时分位数 |
+| MQTT Packet Process P99 Latency by Type | 按包类型区分的 P99 处理延迟 |
+| MQTT Packet Process QPS by Type | 按包类型区分的处理速率 |
+| MQTT Packet Process Avg Latency by Type | 按包类型区分的平均处理延迟 |
+
+### 🔗 gRPC Server
+
+| 面板 | 说明 |
+|------|------|
+| gRPC Requests Rate | gRPC 请求速率（req/s） |
+| gRPC QPS by Method | 按方法区分的 gRPC 请求速率 |
+| gRPC P99 Latency by Method | 按方法区分的 P99 延迟 |
+
+### 🌍 HTTP Admin
+
+| 面板 | 说明 |
+|------|------|
+| HTTP Requests Rate | HTTP Admin 请求速率（req/s） |
+| HTTP QPS by Endpoint | 按端点区分的请求速率 |
+| HTTP Admin P99 Latency by Endpoint | 按端点区分的 P99 延迟 |
+
+### 📦 Raft Machine
+
+| 面板 | 说明 |
+|------|------|
+| Raft Write Rate / Success Rate / Failure Rate | Raft 写入请求/成功/失败速率 |
+| Raft RPC Rate | Raft RPC 请求速率 |
+| Raft Write QPS (by Machine) | 按状态机类型区分的写入 QPS |
+| Raft Write Latency (by Machine) | 按状态机类型区分的写入延迟 |
+| Raft RPC QPS (by Machine / RPC Type) | 按状态机和 RPC 类型区分的 QPS |
+| Raft RPC Latency (by Machine / RPC Type) | 按状态机和 RPC 类型区分的延迟 |
+
+> Raft RPC 指标仅在多节点集群部署时才会有数据。
+
+### 📖 RocksDB
+
+| 面板 | 说明 |
+|------|------|
+| RocksDB QPS by Operation | 按操作类型（save/get/delete/list）区分的 QPS |
+| RocksDB QPS by Source | 按数据源区分的 QPS |
+| RocksDB Write Latency | 写入操作延迟分位数 |
+| RocksDB Read (Get) Latency | 读取操作延迟分位数 |
+
+### ⏱ Delay Message（延迟消息队列）
+
+| 面板 | 说明 |
+|------|------|
+| Delay Message Enqueue / Deliver / Failure Rate | 入队/投递/失败速率 |
+| Enqueue Latency Percentiles | 入队耗时分位数 |
+| Deliver Latency Percentiles | 投递耗时分位数 |
+
+> 延迟消息指标仅在实际使用延迟发布功能时才有数据。
 
 ## 告警配置
+
+### 预置告警规则
+
+项目提供了 `grafana/robustmq-alerts.yml`，包含以下告警规则：
+
+| 告警 | 级别 | 条件 | 说明 |
+|------|------|------|------|
+| RobustMQBrokerDown | Critical | `up == 0` | Broker 实例不可达 |
+| RobustMQHighRequestLatency | Warning | P95 延迟 > 100ms 持续 10m | 请求处理延迟偏高 |
+| RobustMQCriticalRequestLatency | Critical | P95 延迟 > 500ms 持续 5m | 请求处理延迟严重 |
+| RobustMQAuthenticationFailures | Critical | 认证失败 > 10/s 持续 2m | 认证失败频繁 |
+| RobustMQConnectionErrors | Warning | 连接错误 > 5/s 持续 5m | 连接错误频繁 |
+| RobustMQHighQueueDepth | Warning | 队列积压 > 1000 持续 5m | 队列积压 |
+| RobustMQCriticalQueueDepth | Critical | 队列积压 > 5000 持续 2m | 队列严重积压 |
+| RobustMQHighMessageDrops | Warning | 消息丢弃 > 100/s 持续 5m | 无订阅者消息丢弃频繁 |
+| RobustMQHighThreadUtilization | Warning | 活跃线程 > 50 持续 10m | 线程数过高 |
 
 ### Alertmanager 配置
 
@@ -138,26 +256,30 @@ receivers:
       - to: 'admin@robustmq.com'
 ```
 
-### 预定义告警规则
-
-RobustMQ 提供的告警规则包括：
-
-- 🚨 **高优先级**：服务下线、认证失败、严重延迟、队列积压
-- ⚠️ **中优先级**：高连接数、连接错误、数据包错误、消息丢弃
-- ℹ️ **信息级**：低吞吐量、容量规划提醒
-
 ### 自定义告警
 
+在 `grafana/robustmq-alerts.yml` 中添加自定义规则：
+
 ```yaml
-# custom-alerts.yml
 groups:
   - name: robustmq.custom
     rules:
-      - alert: HighCPU
-        expr: cpu_usage_percent > 80
-        for: 5m
+      - alert: HighGrpcErrorRate
+        expr: rate(grpc_errors_total[5m]) / rate(grpc_requests_total[5m]) > 0.05
+        for: 1m
+        labels:
+          severity: critical
         annotations:
-          summary: "CPU usage high: {{ $value }}%"
+          summary: "gRPC 错误率超过 5%"
+          description: "当前错误率: {{ $value | humanizePercentage }}"
+
+      - alert: RocksDBSlowOperations
+        expr: histogram_quantile(0.95, rate(rocksdb_operation_ms_bucket[5m])) > 100
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RocksDB P95 操作耗时超过 100ms"
 ```
 
 ## 性能优化
@@ -165,28 +287,51 @@ groups:
 ### Prometheus 优化
 
 **存储配置：**
+
 ```bash
 # 启动参数
 --storage.tsdb.retention.time=30d
 --storage.tsdb.retention.size=50GB
 ```
 
-**记录规则：**
+**Recording 规则（预计算）：**
+
+对高频查询创建 Recording 规则以提升查询性能：
+
 ```yaml
-# recording-rules.yml
 groups:
-  - name: robustmq.performance
+  - name: robustmq.recording
     rules:
       - record: robustmq:request_latency_95th
-        expr: histogram_quantile(0.95, rate(request_total_ms_bucket[5m]))
+        expr: histogram_quantile(0.95, rate(handler_total_ms_bucket[5m]))
+
+      - record: robustmq:packet_rate_received
+        expr: rate(mqtt_packets_received_total[5m])
+
+      - record: robustmq:packet_rate_sent
+        expr: rate(mqtt_packets_sent_total[5m])
+
+      - record: robustmq:error_rate_total
+        expr: >
+          rate(mqtt_packets_received_error_total[5m])
+          + rate(mqtt_packets_connack_auth_error_total[5m])
+          + rate(mqtt_packets_connack_error_total[5m])
 ```
 
 ### Grafana 优化
 
-- 使用记录规则减少复杂查询
-- 合理设置刷新间隔（建议 30s-1m）
-- 避免高基数标签聚合
+- 使用 Recording 规则减少复杂的实时聚合查询
+- 合理设置面板刷新间隔（建议 15s - 1m）
+- 避免高基数标签（如 `client_id`、`connection_id`）的大范围聚合查询
+- 对历史数据查询使用较大的 `rate()` 窗口（如 `[5m]` 而非 `[1m]`）
 
----
+## 相关文件
 
-通过本指南，您可以快速配置 RobustMQ 的 Grafana 监控系统，实现全面的可观测性。更多详细信息请参考 [Prometheus 文档](https://prometheus.io/docs/) 和 [Grafana 文档](https://grafana.com/docs/)。
+| 文件 | 说明 |
+|------|------|
+| `grafana/robustmq-broker.json` | Grafana 仪表板定义 |
+| `grafana/prometheus-config-example.yml` | Prometheus 采集配置示例 |
+| `grafana/robustmq-alerts.yml` | 告警规则定义 |
+| `grafana/docker-compose.monitoring.yml` | Docker Compose 监控栈 |
+| `config/server.toml` | RobustMQ 服务配置（含 Prometheus 端口） |
+| `docs/zh/Observability/基础设施指标.md` | 完整指标参考文档 |

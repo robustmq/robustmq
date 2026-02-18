@@ -224,8 +224,7 @@ impl ConnectionManager {
                 // No heartbeat received for over 180s — treat as dead.
                 let heartbeat_timeout = now - conn.last_heartbeat_time > 180;
                 // Protocol handshake never completed within 30s — invalid connection.
-                let stale_no_protocol =
-                    conn.protocol.is_none() && (now - conn.create_time) > 30;
+                let stale_no_protocol = conn.protocol.is_none() && (now - conn.create_time) > 30;
                 if marked_and_expired || heartbeat_timeout || stale_no_protocol {
                     Some(conn.connection_id)
                 } else {
