@@ -179,6 +179,16 @@ curl -X POST http://localhost:3000/api/dashboards/db \
 | gRPC QPS by Method | 按方法区分的 gRPC 请求速率 |
 | gRPC P99 Latency by Method | 按方法区分的 P99 延迟 |
 
+### 📡 gRPC Client
+
+| 面板 | 说明 |
+|------|------|
+| gRPC Client Call P99 Latency by Method | 每个 gRPC 客户端调用接口的 P99 延迟 |
+| gRPC Client Call Latency Percentiles | 客户端调用整体延迟分位数（P50/P95/P99/P999） |
+| gRPC Client Call QPS by Method | 每个接口的客户端调用 QPS |
+
+> 此区域展示 Broker 作为 gRPC 客户端向 Meta Service 等发起调用的耗时统计，有助于定位连接建立等流程中的性能瓶颈。
+
 ### 🌍 HTTP Admin
 
 | 面板 | 说明 |

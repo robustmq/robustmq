@@ -43,7 +43,7 @@ RobustMQ provides comprehensive infrastructure monitoring metrics to help operat
 | `thread_type` | `accept`, `handler`, `response` | Thread type |
 | `label` | Custom string | Queue label identifying a specific queue instance |
 
-## gRPC Service Metrics
+## gRPC Server Metrics
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
@@ -51,10 +51,16 @@ RobustMQ provides comprehensive infrastructure monitoring metrics to help operat
 | `grpc_errors_total` | Counter | `service`, `method`, `status_code` | Total number of gRPC errors |
 | `grpc_request_duration_ms` | Histogram | `service`, `method` | gRPC request duration (ms) |
 
+## gRPC Client Metrics
+
+| Metric Name | Type | Labels | Description |
+|-------------|------|--------|-------------|
+| `grpc_client_call_duration_ms` | Histogram | `service`, `method` | gRPC client call duration (ms), includes retries and leader forwarding |
+
 **Label Descriptions:**
-- `service`: gRPC service name
-- `method`: gRPC method name
-- `status_code`: gRPC status code
+- `service`: gRPC service name (e.g., `MqttService`, `PlacementService`, `EngineService`)
+- `method`: gRPC method name (e.g., `CreateSession`, `ListUser`)
+- `status_code`: gRPC status code (server error metric only)
 
 ## HTTP Service Metrics
 

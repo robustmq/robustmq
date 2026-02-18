@@ -22,6 +22,7 @@ license.workspace = true
 [dependencies]
 protocol.workspace = true
 common-base.workspace = true
+common-metrics.workspace = true
 tonic.workspace = true
 tokio.workspace = true
 dashmap.workspace = true

@@ -33,7 +33,7 @@ use protocol::mqtt::common::{
     LastWillProperties, Login, MqttPacket, MqttProtocol,
 };
 use std::cmp::min;
-use tracing::warn;
+use tracing::{error, warn};
 
 impl MqttService {
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
@@ -179,41 +179,6 @@ impl MqttService {
             }
         };
 
-        if let Err(e) = save_last_will_message(
-            client_id.clone(),
-            &context.last_will,
-            &context.last_will_properties,
-            &self.client_pool,
-        )
-        .await
-        {
-            return build_connect_ack_fail_packet(
-                &self.protocol,
-                ConnectReturnCode::UnspecifiedError,
-                &context.connect_properties,
-                Some(e.to_string()),
-            );
-        }
-
-        if let Err(e) = try_auto_subscribe(
-            client_id.clone(),
-            &context.login,
-            context.addr.ip().to_string(),
-            &self.protocol,
-            &self.client_pool,
-            &self.cache_manager,
-            &self.subscribe_manager,
-        )
-        .await
-        {
-            return build_connect_ack_fail_packet(
-                &self.protocol,
-                ConnectReturnCode::UnspecifiedError,
-                &context.connect_properties,
-                Some(e.to_string()),
-            );
-        }
-
         let live_time = ConnectionLiveTime {
             protocol: self.protocol.clone(),
             keep_live: context.connect.keep_alive,
@@ -226,16 +191,70 @@ impl MqttService {
         self.cache_manager
             .add_connection(context.connect_id, connection.clone());
 
-        st_report_connected_event(StReportConnectedEventContext {
-            storage_driver_manager: self.storage_driver_manager.clone(),
-            metadata_cache: self.cache_manager.clone(),
-            client_pool: self.client_pool.clone(),
-            session: session.clone(),
-            connection: connection.clone(),
-            connect_id: context.connect_id,
-            connection_manager: self.connection_manager.clone(),
-        })
-        .await;
+        // Non-critical post-connect operations: run in background task to reduce
+        // CONNACK latency. Failures are logged but do not reject the connection.
+        {
+            let client_id = client_id.clone();
+            let last_will = context.last_will.clone();
+            let last_will_properties = context.last_will_properties.clone();
+            let login = context.login.clone();
+            let remote_addr = context.addr.ip().to_string();
+            let protocol = self.protocol.clone();
+            let client_pool = self.client_pool.clone();
+            let cache_manager = self.cache_manager.clone();
+            let subscribe_manager = self.subscribe_manager.clone();
+            let storage_driver_manager = self.storage_driver_manager.clone();
+            let connection_manager = self.connection_manager.clone();
+            let session = session.clone();
+            let connection = connection.clone();
+            let connect_id = context.connect_id;
+
+            tokio::spawn(async move {
+                if let Err(e) = save_last_will_message(
+                    client_id.clone(),
+                    &last_will,
+                    &last_will_properties,
+                    &client_pool,
+                )
+                .await
+                {
+                    error!(
+                        client_id = %client_id,
+                        error = %e,
+                        "Failed to save last will message in background task"
+                    );
+                }
+
+                if let Err(e) = try_auto_subscribe(
+                    client_id.clone(),
+                    &login,
+                    remote_addr,
+                    &protocol,
+                    &client_pool,
+                    &cache_manager,
+                    &subscribe_manager,
+                )
+                .await
+                {
+                    error!(
+                        client_id = %client_id,
+                        error = %e,
+                        "Failed to execute auto subscribe in background task"
+                    );
+                }
+
+                st_report_connected_event(StReportConnectedEventContext {
+                    storage_driver_manager,
+                    metadata_cache: cache_manager,
+                    client_pool,
+                    session,
+                    connection,
+                    connect_id,
+                    connection_manager,
+                })
+                .await;
+            });
+        }
 
         build_connect_ack_success_packet(ResponsePacketMqttConnectSuccessContext {
             protocol: self.protocol.clone(),

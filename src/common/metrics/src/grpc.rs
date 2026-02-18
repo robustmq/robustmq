@@ -33,7 +33,7 @@ pub struct GrpcErrorLabel {
     pub status_code: String,
 }
 
-// ── Metrics ─────────────────────────────────────────────────────────────────
+// ── Metrics (Server-side) ────────────────────────────────────────────────────
 
 register_counter_metric!(
     GRPC_REQUESTS_TOTAL,
@@ -56,7 +56,24 @@ register_counter_metric!(
     GrpcErrorLabel
 );
 
+// ── Metrics (Client-side) ───────────────────────────────────────────────────
+
+register_histogram_metric_ms_with_default_buckets!(
+    GRPC_CLIENT_CALL_DURATION_MS,
+    "grpc_client_call_duration_ms",
+    "gRPC client call duration in milliseconds by service and method",
+    GrpcMethodLabel
+);
+
 // ── Public API ──────────────────────────────────────────────────────────────
+
+pub fn record_grpc_client_call(service: &str, method: &str, duration_ms: f64) {
+    let label = GrpcMethodLabel {
+        service: service.to_string(),
+        method: method.to_string(),
+    };
+    histogram_metric_observe!(GRPC_CLIENT_CALL_DURATION_MS, duration_ms, label);
+}
 
 pub fn record_grpc_request(service: &str, method: &str, status_code: &str, duration_ms: f64) {
     let method_label = GrpcMethodLabel {

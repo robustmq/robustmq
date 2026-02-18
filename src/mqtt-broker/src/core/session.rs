@@ -63,9 +63,6 @@ pub async fn session_process(
     let session_storage = SessionStorage::new(context.client_pool.clone());
     if context.connect.clean_session {
         // Clean Session = 1
-        session_storage
-            .delete_session(context.client_id.clone())
-            .await?;
         delete_session_by_local(
             &context.cache_manager,
             &context.subscribe_manager,
@@ -79,6 +76,10 @@ pub async fn session_process(
                 &context.client_pool,
             )
             .await?;
+        } else {
+            session_storage
+                .delete_session(context.client_id.clone())
+                .await?;
         }
         return Ok((session, true));
     }
