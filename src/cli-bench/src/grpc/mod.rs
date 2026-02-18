@@ -28,6 +28,7 @@ pub struct MetaBenchArgs {
 pub enum MetaBenchCommand {
     PlacementCreateSession(PlacementCreateSessionArgs),
     PlacementListSession(PlacementListSessionArgs),
+    PlacementDeleteSession(PlacementDeleteSessionArgs),
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -68,6 +69,25 @@ pub struct PlacementListSessionArgs {
     pub output: OutputFormat,
 }
 
+#[derive(Debug, Clone, Parser)]
+pub struct PlacementDeleteSessionArgs {
+    #[arg(long, default_value_t = String::from("127.0.0.1"))]
+    pub host: String,
+    #[arg(long, default_value_t = 1228)]
+    pub port: u16,
+    #[arg(long, default_value_t = 10000)]
+    pub count: usize,
+    #[arg(long, default_value_t = 1000)]
+    pub concurrency: usize,
+    #[arg(long, default_value_t = 3000)]
+    pub timeout_ms: u64,
+    /// Fixed client_id used for all delete requests
+    #[arg(long, default_value_t = String::from("bench-delete-session-client"))]
+    pub client_id: String,
+    #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+    pub output: OutputFormat,
+}
+
 pub fn handle_meta_bench(args: MetaBenchArgs) -> Result<(), BenchMarkError> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -81,6 +101,9 @@ pub fn handle_meta_bench(args: MetaBenchArgs) -> Result<(), BenchMarkError> {
             }
             MetaBenchCommand::PlacementListSession(params) => {
                 meta::run_placement_list_session_bench(params).await
+            }
+            MetaBenchCommand::PlacementDeleteSession(params) => {
+                meta::run_placement_delete_session_bench(params).await
             }
         }
     })
