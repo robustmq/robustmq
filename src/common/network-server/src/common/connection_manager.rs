@@ -26,9 +26,10 @@ use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::robust::{RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio_util::codec::FramedWrite;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 type TcpWriter =
     Arc<Mutex<FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, RobustMQCodec>>>;
@@ -96,36 +97,65 @@ impl ConnectionManager {
         }
     }
 
+    const CLOSE_TIMEOUT: Duration = Duration::from_secs(1);
+
     pub async fn close_connect(&self, connection_id: u64) {
         self.connections.remove(&connection_id);
 
         if let Some((id, writer)) = self.tcp_write_list.remove(&connection_id) {
-            let mut stream = writer.lock().await;
-            if stream.close().await.is_ok() {
-                debug!(
+            match tokio::time::timeout(Self::CLOSE_TIMEOUT, async {
+                let mut stream = writer.lock().await;
+                stream.close().await
+            })
+            .await
+            {
+                Ok(Ok(())) => debug!(
                     "server closes the tcp connection actively, connection id [{}]",
                     id
-                );
+                ),
+                Ok(Err(e)) => debug!("tcp close error for connection id [{}]: {}", id, e),
+                Err(_) => warn!(
+                    "tcp close timed out for connection id [{}], forcing drop",
+                    id
+                ),
             }
         }
 
         if let Some((id, writer)) = self.tcp_tls_write_list.remove(&connection_id) {
-            let mut stream = writer.lock().await;
-            if stream.close().await.is_ok() {
-                debug!(
+            match tokio::time::timeout(Self::CLOSE_TIMEOUT, async {
+                let mut stream = writer.lock().await;
+                stream.close().await
+            })
+            .await
+            {
+                Ok(Ok(())) => debug!(
                     "server closes the tls connection actively, connection id [{}]",
                     id
-                );
+                ),
+                Ok(Err(e)) => debug!("tls close error for connection id [{}]: {}", id, e),
+                Err(_) => warn!(
+                    "tls close timed out for connection id [{}], forcing drop",
+                    id
+                ),
             }
         }
 
         if let Some((id, writer)) = self.websocket_write_list.remove(&connection_id) {
-            let mut stream = writer.lock().await;
-            if stream.close().await.is_ok() {
-                debug!(
+            match tokio::time::timeout(Self::CLOSE_TIMEOUT, async {
+                let mut stream = writer.lock().await;
+                stream.close().await
+            })
+            .await
+            {
+                Ok(Ok(())) => debug!(
                     "server closes the websocket connection actively, connection id [{}]",
                     id
-                );
+                ),
+                Ok(Err(e)) => debug!("websocket close error for connection id [{}]: {}", id, e),
+                Err(_) => warn!(
+                    "websocket close timed out for connection id [{}], forcing drop",
+                    id
+                ),
             }
         }
 
@@ -183,11 +213,28 @@ impl ConnectionManager {
     }
 
     pub async fn connection_gc(&self) {
-        for conn in self.connections.iter() {
-            if (now_second() - conn.mark_close) > 5 || now_second() - conn.last_heartbeat_time > 180
-            {
-                self.close_connect(conn.connection_id).await;
-            }
+        let now = now_second();
+        let gc_ids: Vec<u64> = self
+            .connections
+            .iter()
+            .filter_map(|entry| {
+                let conn = entry.value();
+                // Connection was explicitly marked for closure and the grace period (5s) has elapsed.
+                let marked_and_expired = conn.mark_close > 0 && (now - conn.mark_close) > 5;
+                // No heartbeat received for over 180s — treat as dead.
+                let heartbeat_timeout = now - conn.last_heartbeat_time > 180;
+                // Protocol handshake never completed within 30s — invalid connection.
+                let stale_no_protocol = conn.protocol.is_none() && (now - conn.create_time) > 30;
+                if marked_and_expired || heartbeat_timeout || stale_no_protocol {
+                    Some(conn.connection_id)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for id in gc_ids {
+            self.close_connect(id).await;
         }
     }
 }

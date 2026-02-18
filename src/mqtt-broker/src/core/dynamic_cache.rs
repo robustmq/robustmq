@@ -238,6 +238,9 @@ pub async fn update_mqtt_cache_metadata(
                 cache_manager
                     .broker_cache
                     .add_topic(&topic.topic_name, &topic);
+                if !cache_manager.topic_rewrite_rule.is_empty() {
+                    cache_manager.set_re_calc_topic_rewrite(true).await;
+                }
                 subscribe_manager
                     .add_wait_parse_data(ParseSubscribeData {
                         action_type: BrokerUpdateCacheActionType::Create,

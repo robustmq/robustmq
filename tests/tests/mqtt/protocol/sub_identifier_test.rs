@@ -23,7 +23,7 @@ mod tests {
     };
     use common_base::uuid::unique_id;
     use paho_mqtt::{MessageBuilder, Properties, PropertyCode, SubscribeOptions};
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
     #[tokio::test]
     async fn sub_identifier_test() {
@@ -100,9 +100,20 @@ mod tests {
         let mut r_two = false;
         let rx = cli.start_consuming();
 
-        let mut timeout_count = 0;
+        let timeout = Duration::from_secs(60);
+        let poll_interval = Duration::from_secs(1);
+        let start = Instant::now();
         loop {
-            let res_opt = rx.recv_timeout(Duration::from_secs(10));
+            let elapsed = start.elapsed();
+            if elapsed >= timeout {
+                panic!(
+                    "Timeout waiting for messages with sub_identifier after {} seconds (r_one={r_one}, r_two={r_two})",
+                    timeout.as_secs()
+                );
+            }
+            let remaining = timeout.saturating_sub(elapsed);
+            let wait_for = remaining.min(poll_interval);
+            let res_opt = rx.recv_timeout(wait_for);
             match res_opt {
                 Ok(Some(msg)) => {
                     println!("message: {msg:?}");
@@ -119,12 +130,7 @@ mod tests {
                     }
                 }
                 Ok(None) => continue,
-                Err(e) => {
-                    timeout_count += 1;
-                    if timeout_count > 3 {
-                        panic!("Timeout waiting for messages with sub_identifier: {:?}", e);
-                    }
-                }
+                Err(_) => continue,
             }
             println!("r_one: {r_one}, r_two: {r_two}");
             if r_one && r_two {
@@ -140,9 +146,20 @@ mod tests {
             .finalize();
         publish_data(&cli, msg, false);
 
-        let mut timeout_count = 0;
+        let timeout2 = Duration::from_secs(60);
+        let poll_interval2 = Duration::from_secs(1);
+        let start2 = Instant::now();
         loop {
-            let res_opt = rx.recv_timeout(Duration::from_secs(10));
+            let elapsed = start2.elapsed();
+            if elapsed >= timeout2 {
+                panic!(
+                    "Timeout waiting for message on topic3 after {} seconds",
+                    timeout2.as_secs()
+                );
+            }
+            let remaining = timeout2.saturating_sub(elapsed);
+            let wait_for = remaining.min(poll_interval2);
+            let res_opt = rx.recv_timeout(wait_for);
             match res_opt {
                 Ok(Some(msg)) => {
                     if let Some(id) = msg
@@ -155,13 +172,7 @@ mod tests {
                     }
                 }
                 Ok(None) => continue,
-                Err(e) => {
-                    timeout_count += 1;
-                    println!("Timeout {}/3: {e:?}", timeout_count);
-                    if timeout_count > 3 {
-                        panic!("Timeout waiting for message on topic3 after 3 attempts");
-                    }
-                }
+                Err(_) => continue,
             }
         }
 

@@ -283,6 +283,27 @@ where
     P: Into<Option<Properties>>,
     F: Fn(Message) -> bool,
 {
+    subscribe_data_with_options_with_timeout(
+        cli,
+        subscribe_test_data,
+        Duration::from_secs(60),
+        call_fn,
+    )
+    .await
+}
+
+pub async fn subscribe_data_with_options_with_timeout<S, T, P, F>(
+    cli: &Client,
+    subscribe_test_data: SubscribeTestData<S, T, P>,
+    timeout: Duration,
+    call_fn: F,
+) -> Result<(), String>
+where
+    S: Into<String>,
+    T: Into<SubscribeOptions>,
+    P: Into<Option<Properties>>,
+    F: Fn(Message) -> bool,
+{
     let rx = cli.start_consuming();
     let res = cli.subscribe_with_options(
         subscribe_test_data.sub_topic.into(),
@@ -296,19 +317,18 @@ where
     }
 
     let start_time = Instant::now();
-    let timeout_duration = Duration::from_secs(60);
     let poll_interval = Duration::from_secs(1);
 
     loop {
         let elapsed = start_time.elapsed();
-        if elapsed >= timeout_duration {
+        if elapsed >= timeout {
             return Err(format!(
                 "subscribe_data_with_options timeout after {} seconds",
-                timeout_duration.as_secs()
+                timeout.as_secs()
             ));
         }
 
-        let remaining = timeout_duration.saturating_sub(elapsed);
+        let remaining = timeout.saturating_sub(elapsed);
         let wait_for = remaining.min(poll_interval);
         let res = rx.recv_timeout(wait_for);
         if let Ok(Some(msg)) = res {
