@@ -102,7 +102,7 @@ impl Command for MQTTHandlerCommand {
         } else if is_connect_pkg {
             MQTTConnection::default()
         } else {
-            return Some(ResponsePackage::build(
+            return Some(ResponsePackage::new(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(build_distinct_packet(
                     &self.cache_manager,
@@ -116,7 +116,7 @@ impl Command for MQTTHandlerCommand {
         };
 
         if !is_connect_pkg && !self.check_login_status(tcp_connection.connection_id).await {
-            return Some(ResponsePackage::build(
+            return Some(ResponsePackage::new(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(build_distinct_packet(
                     &self.cache_manager,
@@ -129,7 +129,7 @@ impl Command for MQTTHandlerCommand {
             ));
         }
 
-        let mut resp_package = match packet.clone() {
+        let resp_package = match packet.clone() {
             MqttPacket::Connect(
                 protocol_version,
                 connect,
@@ -211,7 +211,7 @@ impl Command for MQTTHandlerCommand {
             }
 
             _ => {
-                return Some(ResponsePackage::build(
+                return Some(ResponsePackage::new(
                     tcp_connection.connection_id,
                     RobustMQPacket::MQTT(build_connect_ack_fail_packet(
                         &MqttProtocol::Mqtt5,
@@ -223,10 +223,7 @@ impl Command for MQTTHandlerCommand {
             }
         };
 
-        if let Some(mut pkg) = resp_package {
-            pkg.request_packet = mqtt_packet_to_string(&packet);
-            resp_package = Some(pkg);
-        }
+        // resp_package is ready as-is; no per-response timing fields needed
 
         if let Err(e) = self
             .try_process_distinct_packet(tcp_connection, &resp_package)
@@ -321,7 +318,7 @@ impl MQTTHandlerCommand {
             };
             Some(self.mqtt5_service.connect(connect_context).await)
         } else {
-            return Some(ResponsePackage::build(
+            return Some(ResponsePackage::new(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(build_connect_ack_fail_packet(
                     &MqttProtocol::Mqtt5,
@@ -348,7 +345,7 @@ impl MQTTHandlerCommand {
                 record_mqtt_connection_failed();
             }
         }
-        Some(ResponsePackage::build(
+        Some(ResponsePackage::new(
             tcp_connection.connection_id,
             RobustMQPacket::MQTT(ack_pkg),
         ))
@@ -378,7 +375,7 @@ impl MQTTHandlerCommand {
         };
 
         if let Some(pkg) = resp {
-            return Some(ResponsePackage::build(
+            return Some(ResponsePackage::new(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(pkg),
             ));
@@ -409,7 +406,7 @@ impl MQTTHandlerCommand {
             None
         };
         if let Some(pkg) = resp {
-            return Some(ResponsePackage::build(
+            return Some(ResponsePackage::new(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(pkg),
             ));
@@ -441,7 +438,7 @@ impl MQTTHandlerCommand {
         };
 
         if let Some(pkg) = resp {
-            return Some(ResponsePackage::build(
+            return Some(ResponsePackage::new(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(pkg),
             ));
@@ -479,7 +476,7 @@ impl MQTTHandlerCommand {
         };
 
         if let Some(pkg) = resp {
-            return Some(ResponsePackage::build(
+            return Some(ResponsePackage::new(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(pkg),
             ));
@@ -510,7 +507,7 @@ impl MQTTHandlerCommand {
             None
         };
         if let Some(pkg) = resp {
-            return Some(ResponsePackage::build(
+            return Some(ResponsePackage::new(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(pkg),
             ));
@@ -554,7 +551,7 @@ impl MQTTHandlerCommand {
                     record_mqtt_subscribe_success();
                 }
             }
-            return Some(ResponsePackage::build(
+            return Some(ResponsePackage::new(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(pkg),
             ));
@@ -578,7 +575,7 @@ impl MQTTHandlerCommand {
             None
         };
         if let Some(pkg) = resp {
-            return Some(ResponsePackage::build(
+            return Some(ResponsePackage::new(
                 connection.connect_id,
                 RobustMQPacket::MQTT(pkg),
             ));
@@ -617,7 +614,7 @@ impl MQTTHandlerCommand {
 
         if let Some(pkg) = resp {
             record_mqtt_unsubscribe_success();
-            return Some(ResponsePackage::build(
+            return Some(ResponsePackage::new(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(pkg),
             ));
@@ -649,7 +646,7 @@ impl MQTTHandlerCommand {
         };
 
         if let Some(pkg) = resp {
-            return Some(ResponsePackage::build(
+            return Some(ResponsePackage::new(
                 tcp_connection.connection_id,
                 RobustMQPacket::MQTT(pkg),
             ));

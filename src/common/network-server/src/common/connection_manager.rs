@@ -84,6 +84,12 @@ impl ConnectionManager {
         self.connections.clone()
     }
 
+    pub async fn mark_close_connect(&self, connection_id: u64) {
+        if let Some(mut conn) = self.connections.get_mut(&connection_id) {
+            conn.mark_close = now_second();
+        }
+    }
+
     pub async fn close_all_connect(&self) {
         for (connect_id, _) in self.connections.clone() {
             self.close_connect(connect_id).await;
@@ -91,8 +97,7 @@ impl ConnectionManager {
     }
 
     pub async fn close_connect(&self, connection_id: u64) {
-        // todo
-        // self.connections.remove(&connection_id);
+        self.connections.remove(&connection_id);
 
         if let Some((id, writer)) = self.tcp_write_list.remove(&connection_id) {
             let mut stream = writer.lock().await;
@@ -179,7 +184,8 @@ impl ConnectionManager {
 
     pub async fn connection_gc(&self) {
         for conn in self.connections.iter() {
-            if now_second() - conn.last_heartbeat_time > 1800 {
+            if (now_second() - conn.mark_close) > 5 || now_second() - conn.last_heartbeat_time > 180
+            {
                 self.close_connect(conn.connection_id).await;
             }
         }

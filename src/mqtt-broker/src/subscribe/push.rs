@@ -262,7 +262,7 @@ pub async fn push_packet_to_client(
             })?;
 
         let packet = RobustMQPacket::MQTT(sub_pub_param.packet.clone());
-        let resp = ResponsePackage::new(connect_id, packet, 0, 0, 0, "Subscribe".to_string());
+        let resp = ResponsePackage::new(connect_id, packet);
 
         send_message_to_client(resp, connection_manager, cache_manager).await
     };

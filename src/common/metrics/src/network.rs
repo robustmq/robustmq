@@ -16,109 +16,90 @@ use crate::{
     gauge_metric_inc_by, gauge_metric_set, histogram_metric_observe, register_gauge_metric,
     register_histogram_metric_ms_with_default_buckets,
 };
-use common_base::tools::now_millis;
 use metadata_struct::connection::NetworkConnectionType;
 use prometheus_client::encoding::EncodeLabelSet;
 
-#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
-struct LabelType {
-    label: String,
-}
-
-register_gauge_metric!(
-    BROKER_NETWORK_REQUEST_QUEUE_BLOCK_NUM,
-    "network_request_queue_block_num",
-    "broker request network queue blocked message num",
-    LabelType
-);
-
-register_gauge_metric!(
-    BROKER_NETWORK_REQUEST_QUEUE_REMAINING_NUM,
-    "network_request_queue_remaining_num",
-    "broker request network queue remaining capacity",
-    LabelType
-);
-
-register_gauge_metric!(
-    BROKER_NETWORK_REQUEST_QUEUE_USE_NUM,
-    "network_request_queue_use_num",
-    "broker request network queue used capacity",
-    LabelType
-);
-
-register_gauge_metric!(
-    BROKER_NETWORK_RESPONSE_QUEUE_BLOCK_NUM,
-    "network_response_queue_block_num",
-    "broker response network queue blocked message num",
-    LabelType
-);
-
-register_gauge_metric!(
-    BROKER_NETWORK_RESPONSE_QUEUE_REMAINING_NUM,
-    "network_response_queue_remaining_num",
-    "broker response network queue remaining capacity",
-    LabelType
-);
-
-register_gauge_metric!(
-    BROKER_NETWORK_RESPONSE_QUEUE_USE_NUM,
-    "network_response_queue_use_num",
-    "broker response network queue used capacity",
-    LabelType
-);
+// ── Labels ──────────────────────────────────────────────────────────────────
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 struct NetworkLabel {
     network: String,
 }
 
-register_histogram_metric_ms_with_default_buckets!(
-    REQUEST_TOTAL_MS,
-    "request_total_ms",
-    "The total duration of request packets processed in the broker",
-    NetworkLabel
-);
-
-register_histogram_metric_ms_with_default_buckets!(
-    REQUEST_NOT_RESPONSE_TOTAL_MS,
-    "request_not_response_total_ms",
-    "The not response total duration of request packets processed in the broker",
-    NetworkLabel
-);
-
-register_histogram_metric_ms_with_default_buckets!(
-    REQUEST_QUEUE_MS,
-    "request_queue_ms",
-    "The total duration of request packets in the broker queue",
-    NetworkLabel
-);
-
-register_histogram_metric_ms_with_default_buckets!(
-    REQUEST_HANDLER_MS,
-    "request_handler_ms",
-    "The total duration of request packets handle in the broker",
-    NetworkLabel
-);
-
-register_histogram_metric_ms_with_default_buckets!(
-    REQUEST_RESPONSE_MS,
-    "request_response_ms",
-    "The total duration of request packets response in the broker",
-    NetworkLabel
-);
-
-register_histogram_metric_ms_with_default_buckets!(
-    REQUEST_RESPONSE_QUEUE_MS,
-    "request_response_queue_ms",
-    "The total duration of request packets response queue in the broker",
-    NetworkLabel
-);
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
+struct QueueLabel {
+    label: String,
+}
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 pub struct BrokerThreadLabel {
     network: String,
     thread_type: String,
 }
+
+// ── Handler latency histograms ──────────────────────────────────────────────
+
+register_histogram_metric_ms_with_default_buckets!(
+    HANDLER_QUEUE_WAIT_MS,
+    "handler_queue_wait_ms",
+    "Time a request spent waiting in the handler queue before being picked up (ms)",
+    NetworkLabel
+);
+
+register_histogram_metric_ms_with_default_buckets!(
+    HANDLER_APPLY_MS,
+    "handler_apply_ms",
+    "Time spent in command.apply() processing the request (ms)",
+    NetworkLabel
+);
+
+register_histogram_metric_ms_with_default_buckets!(
+    HANDLER_WRITE_MS,
+    "handler_write_ms",
+    "Time spent writing the response back to the client (ms)",
+    NetworkLabel
+);
+
+register_histogram_metric_ms_with_default_buckets!(
+    HANDLER_TOTAL_MS,
+    "handler_total_ms",
+    "Total time from request received to response written (ms)",
+    NetworkLabel
+);
+
+// ── Handler queue gauges ────────────────────────────────────────────────────
+
+register_gauge_metric!(
+    HANDLER_QUEUE_SIZE,
+    "handler_queue_size",
+    "Current number of pending requests in the handler queue",
+    QueueLabel
+);
+
+register_gauge_metric!(
+    HANDLER_QUEUE_REMAINING,
+    "handler_queue_remaining",
+    "Remaining capacity in the handler queue",
+    QueueLabel
+);
+
+// ── Handler counters (gauge used as counter) ────────────────────────────────
+
+register_gauge_metric!(
+    HANDLER_REQUESTS_TOTAL,
+    "handler_requests_total",
+    "Total number of requests processed by handlers",
+    NetworkLabel
+);
+
+register_gauge_metric!(
+    HANDLER_SLOW_REQUESTS_TOTAL,
+    "handler_slow_requests_total",
+    "Total number of slow requests (exceeding threshold)",
+    NetworkLabel
+);
+
+// ── Thread gauge ────────────────────────────────────────────────────────────
 
 register_gauge_metric!(
     BROKER_ACTIVE_THREAD_NUM,
@@ -127,117 +108,63 @@ register_gauge_metric!(
     BrokerThreadLabel
 );
 
-pub fn metrics_request_total_ms(network_connection: &NetworkConnectionType, ms: f64) {
+// ── Public recording functions ──────────────────────────────────────────────
+
+pub fn metrics_handler_queue_wait_ms(network: &NetworkConnectionType, ms: f64) {
     let label = NetworkLabel {
-        network: network_connection.to_string(),
+        network: network.to_string(),
     };
-    histogram_metric_observe!(REQUEST_TOTAL_MS, ms, label);
+    histogram_metric_observe!(HANDLER_QUEUE_WAIT_MS, ms, label);
 }
 
-pub fn metrics_request_not_response_total_ms(network_connection: &NetworkConnectionType, ms: f64) {
+pub fn metrics_handler_apply_ms(network: &NetworkConnectionType, ms: f64) {
     let label = NetworkLabel {
-        network: network_connection.to_string(),
+        network: network.to_string(),
     };
-    histogram_metric_observe!(REQUEST_NOT_RESPONSE_TOTAL_MS, ms, label);
+    histogram_metric_observe!(HANDLER_APPLY_MS, ms, label);
 }
 
-pub fn metrics_request_queue_ms(network_connection: &NetworkConnectionType, ms: f64) {
+pub fn metrics_handler_write_ms(network: &NetworkConnectionType, ms: f64) {
     let label = NetworkLabel {
-        network: network_connection.to_string(),
+        network: network.to_string(),
     };
-    histogram_metric_observe!(REQUEST_QUEUE_MS, ms, label);
+    histogram_metric_observe!(HANDLER_WRITE_MS, ms, label);
 }
 
-pub fn metrics_request_handler_ms(network_connection: &NetworkConnectionType, ms: f64) {
+pub fn metrics_handler_total_ms(network: &NetworkConnectionType, ms: f64) {
     let label = NetworkLabel {
-        network: network_connection.to_string(),
+        network: network.to_string(),
     };
-    histogram_metric_observe!(REQUEST_HANDLER_MS, ms, label);
+    histogram_metric_observe!(HANDLER_TOTAL_MS, ms, label);
 }
 
-pub fn metrics_request_response_queue_ms(network_connection: &NetworkConnectionType, ms: f64) {
-    let label = NetworkLabel {
-        network: network_connection.to_string(),
+pub fn metrics_handler_queue_state(current_len: usize, capacity: usize) {
+    let label_size = QueueLabel {
+        label: "handler".to_string(),
     };
-    histogram_metric_observe!(REQUEST_RESPONSE_QUEUE_MS, ms, label);
-}
-
-pub fn metrics_request_response_ms(network_connection: &NetworkConnectionType, ms: f64) {
-    let label = NetworkLabel {
-        network: network_connection.to_string(),
+    let label_remaining = QueueLabel {
+        label: "handler".to_string(),
     };
-    histogram_metric_observe!(REQUEST_RESPONSE_MS, ms, label);
-}
-
-pub fn metrics_request_queue_size(
-    label: &str,
-    block_num: usize,
-    use_num: usize,
-    remaining_num: usize,
-) {
-    let label_type = LabelType {
-        label: label.to_string(),
-    };
-
-    let label_block = label_type.clone();
+    gauge_metric_set!(HANDLER_QUEUE_SIZE, label_size, current_len as i64);
     gauge_metric_set!(
-        BROKER_NETWORK_REQUEST_QUEUE_BLOCK_NUM,
-        label_block,
-        block_num as i64
-    );
-
-    let label_use = label_type.clone();
-    gauge_metric_set!(
-        BROKER_NETWORK_REQUEST_QUEUE_USE_NUM,
-        label_use,
-        use_num as i64
-    );
-
-    gauge_metric_set!(
-        BROKER_NETWORK_REQUEST_QUEUE_REMAINING_NUM,
-        label_type,
-        remaining_num as i64
+        HANDLER_QUEUE_REMAINING,
+        label_remaining,
+        capacity.saturating_sub(current_len) as i64
     );
 }
 
-pub fn metrics_response_queue_size(
-    label: &str,
-    block_num: usize,
-    use_num: usize,
-    remaining_num: usize,
-) {
-    let label_type = LabelType {
-        label: label.to_string(),
+pub fn metrics_handler_request_count(network: &NetworkConnectionType) {
+    let label = NetworkLabel {
+        network: network.to_string(),
     };
-
-    let label_block = label_type.clone();
-    gauge_metric_set!(
-        BROKER_NETWORK_RESPONSE_QUEUE_BLOCK_NUM,
-        label_block,
-        block_num as i64
-    );
-
-    let label_use = label_type.clone();
-    gauge_metric_set!(
-        BROKER_NETWORK_RESPONSE_QUEUE_USE_NUM,
-        label_use,
-        use_num as i64
-    );
-
-    gauge_metric_set!(
-        BROKER_NETWORK_RESPONSE_QUEUE_REMAINING_NUM,
-        label_type,
-        remaining_num as i64
-    );
+    gauge_metric_inc_by!(HANDLER_REQUESTS_TOTAL, label, 1);
 }
 
-pub fn record_ws_request_duration(receive_ms: u128, response_ms: u128) {
-    let now = now_millis();
-    let ws_type = NetworkConnectionType::WebSocket;
-
-    metrics_request_total_ms(&ws_type, (now - receive_ms) as f64);
-    metrics_request_handler_ms(&ws_type, (response_ms - receive_ms) as f64);
-    metrics_request_response_ms(&ws_type, (now - response_ms) as f64);
+pub fn metrics_handler_slow_request_count(network: &NetworkConnectionType) {
+    let label = NetworkLabel {
+        network: network.to_string(),
+    };
+    gauge_metric_inc_by!(HANDLER_SLOW_REQUESTS_TOTAL, label, 1);
 }
 
 pub fn record_broker_thread_num(

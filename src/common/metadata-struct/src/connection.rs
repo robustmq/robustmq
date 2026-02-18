@@ -56,6 +56,7 @@ pub struct NetworkConnection {
     pub addr: SocketAddr,
     pub last_heartbeat_time: u64,
     pub create_time: u64,
+    pub mark_close: u64,
     #[serde(skip_serializing, skip_deserializing)]
     pub connection_stop_sx: Option<mpsc::Sender<bool>>,
 }
@@ -75,6 +76,7 @@ impl NetworkConnection {
             last_heartbeat_time: now_second(),
             create_time: now_second(),
             connection_stop_sx,
+            mark_close: 0,
         }
     }
 

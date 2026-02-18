@@ -18,101 +18,62 @@ use crate::{
 };
 use prometheus_client::encoding::EncodeLabelSet;
 
-/// Enhanced HTTP label with comprehensive dimensions for better monitoring
+// ── Labels ──────────────────────────────────────────────────────────────────
+
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq, Default)]
-pub struct HttpLabel {
-    /// Request URI/endpoint
-    pub uri: String,
-    /// HTTP method (GET, POST, PUT, DELETE, etc.)
+pub struct HttpMethodLabel {
     pub method: String,
-    /// HTTP status code (200, 404, 500, etc.)
+    pub uri: String,
+}
+
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq, Default)]
+pub struct HttpErrorLabel {
+    pub method: String,
+    pub uri: String,
     pub status_code: String,
 }
 
-#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq, Default)]
-pub struct HttpBasicLabel {
-    pub uri: String,
-    pub method: String,
-}
+// ── Metrics ─────────────────────────────────────────────────────────────────
 
 register_counter_metric!(
-    HTTP_REQUEST_TOTAL,
-    "http_requests_total",
-    "Total number of HTTP requests by method, uri and status code",
-    HttpLabel
+    HTTP_REQUESTS_TOTAL,
+    "http_requests",
+    "Total number of HTTP requests by method and uri",
+    HttpMethodLabel
 );
 
 register_histogram_metric_ms_with_default_buckets!(
     HTTP_REQUEST_DURATION_MS,
-    "http_request_duration_milliseconds",
-    "HTTP request duration in milliseconds",
-    HttpBasicLabel
-);
-
-register_histogram_metric_ms_with_default_buckets!(
-    HTTP_REQUEST_SIZE_BYTES,
-    "http_request_size_bytes",
-    "HTTP request size in bytes",
-    HttpBasicLabel
-);
-
-register_histogram_metric_ms_with_default_buckets!(
-    HTTP_RESPONSE_SIZE_BYTES,
-    "http_response_size_bytes",
-    "HTTP response size in bytes",
-    HttpBasicLabel
+    "http_request_duration_ms",
+    "HTTP request duration in milliseconds by method and uri",
+    HttpMethodLabel
 );
 
 register_counter_metric!(
-    HTTP_REQUEST_ERRORS_TOTAL,
-    "http_request_errors_total",
-    "Total number of HTTP request errors by type",
-    HttpLabel
+    HTTP_ERRORS_TOTAL,
+    "http_errors",
+    "Total number of HTTP errors by method, uri and status code",
+    HttpErrorLabel
 );
 
-pub fn record_http_request(
-    method: String,
-    uri: String,
-    status_code: u16,
-    duration_ms: f64,
-    request_size_bytes: Option<f64>,
-    response_size_bytes: Option<f64>,
-) {
-    let status_str = status_code.to_string();
+// ── Public API ──────────────────────────────────────────────────────────────
 
-    // Record total requests
-    let full_label = HttpLabel {
-        method: method.clone(),
-        uri: uri.clone(),
-        status_code: status_str.clone(),
+pub fn record_http_request(method: &str, uri: &str, status_code: u16, duration_ms: f64) {
+    let method_label = HttpMethodLabel {
+        method: method.to_string(),
+        uri: uri.to_string(),
     };
-    gauge_metric_inc!(HTTP_REQUEST_TOTAL, full_label);
 
-    // Record duration
-    let basic_label = HttpBasicLabel {
-        method: method.clone(),
-        uri: uri.clone(),
-    };
-    histogram_metric_observe!(HTTP_REQUEST_DURATION_MS, duration_ms, basic_label);
+    gauge_metric_inc!(HTTP_REQUESTS_TOTAL, method_label);
+    histogram_metric_observe!(HTTP_REQUEST_DURATION_MS, duration_ms, method_label);
 
-    // Record request/response sizes if provided
-    if let Some(req_size) = request_size_bytes {
-        let req_label = basic_label.clone();
-        histogram_metric_observe!(HTTP_REQUEST_SIZE_BYTES, req_size, req_label);
-    }
-    if let Some(resp_size) = response_size_bytes {
-        let resp_label = basic_label.clone();
-        histogram_metric_observe!(HTTP_RESPONSE_SIZE_BYTES, resp_size, resp_label);
-    }
-
-    // Record errors for non-2xx status codes
     if status_code >= 400 {
-        let error_label = HttpLabel {
-            method,
-            uri,
-            status_code: status_str,
+        let error_label = HttpErrorLabel {
+            method: method.to_string(),
+            uri: uri.to_string(),
+            status_code: status_code.to_string(),
         };
-        gauge_metric_inc!(HTTP_REQUEST_ERRORS_TOTAL, error_label);
+        gauge_metric_inc!(HTTP_ERRORS_TOTAL, error_label);
     }
 }
 
@@ -122,22 +83,18 @@ mod tests {
 
     #[test]
     fn test_http_labels() {
-        let full_label = HttpLabel {
-            uri: "/api/users".to_string(),
-            method: "GET".to_string(),
-            status_code: "200".to_string(),
-        };
-
-        let basic_label = HttpBasicLabel {
+        let method_label = HttpMethodLabel {
             uri: "/api/users".to_string(),
             method: "GET".to_string(),
         };
+        assert_eq!(method_label.uri, "/api/users");
+        assert_eq!(method_label.method, "GET");
 
-        assert_eq!(full_label.uri, "/api/users");
-        assert_eq!(full_label.method, "GET");
-        assert_eq!(full_label.status_code, "200");
-
-        assert_eq!(basic_label.uri, "/api/users");
-        assert_eq!(basic_label.method, "GET");
+        let error_label = HttpErrorLabel {
+            uri: "/api/users".to_string(),
+            method: "GET".to_string(),
+            status_code: "500".to_string(),
+        };
+        assert_eq!(error_label.status_code, "500");
     }
 }

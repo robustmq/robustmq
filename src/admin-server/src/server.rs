@@ -228,32 +228,17 @@ async fn base_middleware(
         .and_then(|h| h.to_str().ok())
         .unwrap_or("-");
 
-    // Extract request size from Content-Length header
-    let request_size = headers
-        .get("content-length")
-        .and_then(|h| h.to_str().ok())
-        .and_then(|s| s.parse::<f64>().ok());
-
     // Process the request
     let response = next.run(request).await;
     let duration = start.elapsed();
     let status = response.status();
 
-    // Extract response size from Content-Length header
-    let response_size = response
-        .headers()
-        .get("content-length")
-        .and_then(|h| h.to_str().ok())
-        .and_then(|s| s.parse::<f64>().ok());
-
-    // Record comprehensive HTTP metrics with all dimensions
+    // Record HTTP metrics (request count + duration, per method/uri)
     record_http_request(
-        method.to_string(),
-        normalize_uri_path(uri.path()), // Normalize path to reduce cardinality
+        method.as_str(),
+        &normalize_uri_path(uri.path()),
         status.as_u16(),
         duration.as_millis() as f64,
-        request_size,
-        response_size,
     );
 
     // Structured logging with appropriate log levels
@@ -263,67 +248,63 @@ async fn base_middleware(
     match status.as_u16() {
         200..=299 => {
             if duration_ms > 1000 {
-                // Slow requests (>1s)
                 info!(
-                    "SLOW REQUEST: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
-                    method, uri, status.as_u16(), client_ip, user_agent, referer, duration_ms,
-                    format_size(request_size), format_size(response_size)
-                );
-            } else {
-                debug!(
-                    "SUCCESS: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
+                    "SLOW REQUEST: {} {} {} - {} - \"{}\" \"{}\" {}ms",
                     method,
                     uri,
                     status.as_u16(),
                     client_ip,
                     user_agent,
                     referer,
-                    duration_ms,
-                    format_size(request_size),
-                    format_size(response_size)
+                    duration_ms
+                );
+            } else {
+                debug!(
+                    "SUCCESS: {} {} {} - {} - \"{}\" \"{}\" {}ms",
+                    method,
+                    uri,
+                    status.as_u16(),
+                    client_ip,
+                    user_agent,
+                    referer,
+                    duration_ms
                 );
             }
         }
         400..=499 => {
             warn!(
-                "CLIENT_ERROR: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
+                "CLIENT_ERROR: {} {} {} - {} - \"{}\" \"{}\" {}ms",
                 method,
                 uri,
                 status.as_u16(),
                 client_ip,
                 user_agent,
                 referer,
-                duration_ms,
-                format_size(request_size),
-                format_size(response_size)
+                duration_ms
             );
         }
         500..=599 => {
             warn!(
-                "SERVER_ERROR: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
+                "SERVER_ERROR: {} {} {} - {} - \"{}\" \"{}\" {}ms",
                 method,
                 uri,
                 status.as_u16(),
                 client_ip,
                 user_agent,
                 referer,
-                duration_ms,
-                format_size(request_size),
-                format_size(response_size)
+                duration_ms
             );
         }
         _ => {
             debug!(
-                "OTHER: {} {} {} - {} - \"{}\" \"{}\" {}ms | req_size: {} | resp_size: {}",
+                "OTHER: {} {} {} - {} - \"{}\" \"{}\" {}ms",
                 method,
                 uri,
                 status.as_u16(),
                 client_ip,
                 user_agent,
                 referer,
-                duration_ms,
-                format_size(request_size),
-                format_size(response_size)
+                duration_ms
             );
         }
     }
@@ -357,17 +338,6 @@ fn normalize_uri_path(path: &str) -> String {
         format!("{}...", &normalized[..97])
     } else {
         normalized
-    }
-}
-
-/// Format size for logging (handles None values gracefully)
-fn format_size(size: Option<f64>) -> String {
-    match size {
-        Some(s) if s < 1024.0 => format!("{}B", s as u64),
-        Some(s) if s < 1024.0 * 1024.0 => format!("{:.1}KB", s / 1024.0),
-        Some(s) if s < 1024.0 * 1024.0 * 1024.0 => format!("{:.1}MB", s / (1024.0 * 1024.0)),
-        Some(s) => format!("{:.1}GB", s / (1024.0 * 1024.0 * 1024.0)),
-        None => "unknown".to_string(),
     }
 }
 
@@ -434,15 +404,6 @@ mod tests {
         if normalized.len() == 100 {
             assert!(normalized.ends_with("..."));
         }
-    }
-
-    #[test]
-    fn test_format_size() {
-        assert_eq!(format_size(None), "unknown");
-        assert_eq!(format_size(Some(512.0)), "512B");
-        assert_eq!(format_size(Some(1536.0)), "1.5KB");
-        assert_eq!(format_size(Some(2097152.0)), "2.0MB");
-        assert_eq!(format_size(Some(1073741824.0)), "1.0GB");
     }
 
     #[test]

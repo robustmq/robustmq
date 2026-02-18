@@ -190,12 +190,6 @@ where
         let (service, method) = parse_grpc_path(req.uri().path())
             .unwrap_or_else(|_| ("unknown".to_string(), "unknown".to_string()));
 
-        let request_size = req
-            .headers()
-            .get("content-length")
-            .and_then(|h| h.to_str().ok())
-            .and_then(|s| s.parse::<f64>().ok());
-
         // See: https://docs.rs/tower/latest/tower/trait.Service.html#be-careful-when-cloning-inner-services
         let clone = self.inner.clone();
         let mut inner = std::mem::replace(&mut self.inner, clone);
@@ -207,29 +201,16 @@ where
 
             match response {
                 Ok(resp) => {
-                    let response_size = resp
-                        .headers()
-                        .get("content-length")
-                        .and_then(|h| h.to_str().ok())
-                        .and_then(|s| s.parse::<f64>().ok());
                     let status_code = extract_grpc_status_code(resp.headers());
 
                     if duration_ms > SLOW_GRPC_WARN_THRESHOLD_MS {
                         warn!(
-                            "Slow gRPC request. service={}, method={}, status={}, duration_ms={:.2}, req_size={:?}, resp_size={:?}",
-                            service, method, status_code, duration_ms, request_size, response_size
+                            "Slow gRPC request. service={}, method={}, status={}, duration_ms={:.2}",
+                            service, method, status_code, duration_ms
                         );
                     }
 
-                    record_grpc_request(
-                        service,
-                        method,
-                        status_code,
-                        duration_ms,
-                        request_size,
-                        response_size,
-                    );
-
+                    record_grpc_request(&service, &method, &status_code, duration_ms);
                     Ok(resp)
                 }
                 Err(err) => {
@@ -238,15 +219,7 @@ where
                         service, method, duration_ms
                     );
 
-                    record_grpc_request(
-                        service,
-                        method,
-                        "INTERNAL".to_string(),
-                        duration_ms,
-                        request_size,
-                        None,
-                    );
-
+                    record_grpc_request(&service, &method, "INTERNAL", duration_ms);
                     Err(err)
                 }
             }

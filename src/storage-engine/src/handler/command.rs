@@ -119,7 +119,7 @@ impl Command for StorageEngineHandlerCommand {
                     body: resp_body,
                 };
 
-                let response = ResponsePackage::build(
+                let response = ResponsePackage::new(
                     tcp_connection.connection_id,
                     RobustMQPacket::StorageEngine(StorageEnginePacket::WriteResp(resp)),
                 );
@@ -156,7 +156,7 @@ impl Command for StorageEngineHandlerCommand {
                     body: resp_body,
                 };
 
-                let response = ResponsePackage::build(
+                let response = ResponsePackage::new(
                     tcp_connection.connection_id,
                     RobustMQPacket::StorageEngine(StorageEnginePacket::ReadResp(resp)),
                 );

@@ -13,14 +13,19 @@
 // limitations under the License.
 
 use crate::common::connection_manager::ConnectionManager;
-use crate::common::metric::record_packet_handler_info_by_response;
+use crate::common::metric::SLOW_REQUEST_THRESHOLD_MS;
 use crate::common::packet::{build_mqtt_packet_wrapper, ResponsePackage};
 use crate::{command::ArcCommandAdapter, common::channel::RequestChannel};
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::error::client_unavailable_error_by_str;
 use common_base::tools::now_millis;
-use common_metrics::network::metrics_request_queue_size;
+use common_metrics::mqtt::packets::record_packet_send_metrics;
+use common_metrics::network::{
+    metrics_handler_apply_ms, metrics_handler_queue_state, metrics_handler_queue_wait_ms,
+    metrics_handler_request_count, metrics_handler_slow_request_count, metrics_handler_total_ms,
+    metrics_handler_write_ms,
+};
 use metadata_struct::connection::NetworkConnectionType;
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::mqtt::codec::MqttPacketWrapper;
@@ -78,28 +83,53 @@ pub fn handler_process(
                         }
                     },
                     val = receiver.recv() =>{
-                        let out_queue_time = now_millis();
-                        record_shared_channel_metrics(index, &receiver, channel_size);
+                        let dequeue_ms = now_millis();
+
+                        metrics_handler_queue_state(receiver.len(), channel_size);
+
                         match val {
                             Ok(packet) => {
+                                let queue_wait_ms = dequeue_ms.saturating_sub(packet.receive_ms);
+                                metrics_handler_queue_wait_ms(&raw_network_type, queue_wait_ms as f64);
+
                                 if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
+                                    // apply
+                                    let apply_start = now_millis();
                                     let response_data = raw_command
                                         .apply(&connect, &packet.addr, &packet.packet)
                                         .await;
+                                    let apply_ms = now_millis().saturating_sub(apply_start);
+                                    metrics_handler_apply_ms(&raw_network_type, apply_ms as f64);
 
-                                    if let Some(mut resp) = response_data {
-                                        resp.out_queue_ms = out_queue_time;
-                                        resp.receive_ms = packet.receive_ms;
-                                        resp.end_handler_ms = now_millis();
-                                        process_response(&raw_connect_manager, &raw_network_type, &resp).await;
-                                    } else {
-                                        debug!("{}","No backpacking is required for this request");
+                                    // write response
+                                    if let Some(resp) = response_data {
+                                        let write_start = now_millis();
+                                        write_response(&raw_connect_manager, &raw_network_type, &resp).await;
+                                        let write_ms = now_millis().saturating_sub(write_start);
+                                        metrics_handler_write_ms(&raw_network_type, write_ms as f64);
+                                    }
+
+                                    // total
+                                    let total_ms = now_millis().saturating_sub(packet.receive_ms);
+                                    metrics_handler_total_ms(&raw_network_type, total_ms as f64);
+                                    metrics_handler_request_count(&raw_network_type);
+
+                                    if total_ms >= SLOW_REQUEST_THRESHOLD_MS {
+                                        warn!(
+                                            connection_id = packet.connection_id,
+                                            addr = %packet.addr,
+                                            total_ms = total_ms,
+                                            queue_wait_ms = queue_wait_ms,
+                                            apply_ms = apply_ms,
+                                            "Slow request detected"
+                                        );
+                                        metrics_handler_slow_request_count(&raw_network_type);
                                     }
                                 } else {
-                                    warn!(
-                                        "Skip request handling because connection is missing. handler_index={}, connection_id={}, addr={}, network_type={:?}",
-                                        index,
+                                    debug!(
+                                        "Skip request: connection {} already closed, handler={}, addr={}, network={:?}",
                                         packet.connection_id,
+                                        index,
                                         packet.addr,
                                         raw_network_type
                                     );
@@ -120,29 +150,23 @@ pub fn handler_process(
     }
 }
 
-fn record_shared_channel_metrics(
-    index: usize,
-    receiver: &async_channel::Receiver<crate::common::packet::RequestPackage>,
-    channel_size: usize,
-) {
-    let label = format!("handler-{index}");
-    let current_len = receiver.len();
-    let remaining = channel_size.saturating_sub(current_len);
-    metrics_request_queue_size(&label, current_len, current_len, remaining);
-}
-
-async fn process_response(
+async fn write_response(
     connection_manager: &Arc<ConnectionManager>,
     network_type: &NetworkConnectionType,
     response_package: &ResponsePackage,
 ) {
-    let out_response_queue_ms = now_millis();
     if let Some(protocol) = connection_manager.get_connect_protocol(response_package.connection_id)
     {
         let packet_wrapper = match response_package.packet.clone() {
-            RobustMQPacket::MQTT(packet) => build_mqtt_packet_wrapper(protocol.clone(), packet),
+            RobustMQPacket::MQTT(packet) => {
+                let mqtt_wrapper = MqttPacketWrapper {
+                    protocol_version: protocol.to_u8(),
+                    packet: packet.clone(),
+                };
+                record_packet_send_metrics(&mqtt_wrapper, network_type.to_string());
+                build_mqtt_packet_wrapper(protocol.clone(), packet)
+            }
             RobustMQPacket::KAFKA(_packet) => {
-                // todo
                 return;
             }
             RobustMQPacket::StorageEngine(packet) => RobustMQPacketWrapper {
@@ -191,11 +215,6 @@ async fn process_response(
                 };
             }
         }
-        record_packet_handler_info_by_response(
-            network_type,
-            response_package,
-            out_response_queue_ms,
-        );
     }
 }
 
