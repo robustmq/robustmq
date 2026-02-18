@@ -224,18 +224,18 @@ async fn handle_socket(
                             } else {
                                 info!(">>> {addr} sent close without CloseFrame");
                             }
-                            connection_manager.close_connect(connection_id).await;
+                            connection_manager.mark_close_connect(connection_id).await;
                             break;
                         }
                         Err(e) => {
                             warn!("websocket server parsing request packet error: {e:?}");
-                            connection_manager.close_connect(connection_id).await;
+                            connection_manager.mark_close_connect(connection_id).await;
                             break;
                         },
                     }
                 } else {
                     debug!("WebSocket connection closed (EOF): connection_id={}", connection_id);
-                    connection_manager.close_connect(connection_id).await;
+                    connection_manager.mark_close_connect(connection_id).await;
                     break;
                 }
             }

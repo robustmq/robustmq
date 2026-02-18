@@ -197,13 +197,13 @@ fn read_frame_process(
                                     "{} connection parsing packet format error message :{:?}",
                                     network_type, e
                                 );
-                                connection_manager.close_connect(connection_id).await;
+                                connection_manager.mark_close_connect(connection_id).await;
                                 break;
                             }
                         }
                      }else{
                         debug!("Tcp client disconnected (EOF): connection_id={}", connection_id);
-                        connection_manager.close_connect(connection_id).await;
+                        connection_manager.mark_close_connect(connection_id).await;
                         break;
                      }
                 }
