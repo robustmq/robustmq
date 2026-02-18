@@ -2931,6 +2931,7 @@ name = "grpc-clients"
 version = "0.2.14"
 dependencies = [
  "common-base",
+ "common-metrics",
  "dashmap",
  "metadata-struct",
  "protocol",

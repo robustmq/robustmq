@@ -13,9 +13,10 @@
 // limitations under the License.
 
 use std::collections::HashSet;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use common_base::error::common::CommonError;
+use common_metrics::grpc::record_grpc_client_call;
 use regex::Regex;
 use tokio::time::sleep;
 
@@ -40,6 +41,26 @@ pub(crate) trait RetriableRequest: Clone {
 }
 
 pub(crate) async fn retry_call<Req>(
+    client_pool: &ClientPool,
+    addrs: &[impl AsRef<str>],
+    request: Req,
+) -> Result<Req::Response, CommonError>
+where
+    Req: RetriableRequest,
+    Req::Error: Into<CommonError>,
+{
+    let start = Instant::now();
+    let method = Req::method_name();
+    let result = retry_call_inner::<Req>(client_pool, addrs, request).await;
+    let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+
+    let (service, method_name) = method.split_once('/').unwrap_or(("unknown", method));
+    record_grpc_client_call(service, method_name, duration_ms);
+
+    result
+}
+
+async fn retry_call_inner<Req>(
     client_pool: &ClientPool,
     addrs: &[impl AsRef<str>],
     request: Req,

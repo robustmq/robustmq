@@ -179,6 +179,16 @@ Below the stat panels, timeseries panels show resource trends including connecti
 | gRPC QPS by Method | Per-method gRPC request rate |
 | gRPC P99 Latency by Method | Per-method P99 latency |
 
+### 📡 gRPC Client
+
+| Panel | Description |
+|-------|-------------|
+| gRPC Client Call P99 Latency by Method | P99 latency of each outgoing gRPC client call |
+| gRPC Client Call Latency Percentiles | Overall client call latency percentiles (P50/P95/P99/P999) |
+| gRPC Client Call QPS by Method | QPS of each outgoing gRPC client call by method |
+
+> This section shows the latency of outgoing gRPC calls from the Broker to Meta Service etc., helping identify performance bottlenecks in flows like connection establishment.
+
 ### 🌍 HTTP Admin
 
 | Panel | Description |
