@@ -22,7 +22,7 @@ mod tests {
         Connect, Login, MqttPacket, PubCompReason, PubRel, PubRelReason, Publish, QoS,
     };
     use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
     use tokio::net::TcpStream;
     use tokio_util::codec::Framed;
     use tokio_util::time::FutureExt;
@@ -165,12 +165,19 @@ mod tests {
             None,
         );
         stream.send(pub_packet.clone()).await.unwrap();
+        let timeout = Duration::from_secs(60);
+        let start = Instant::now();
         loop {
+            if start.elapsed() >= timeout {
+                panic!(
+                    "publish_qos2_pub_rel_dup_test timeout waiting for PubRec after {} seconds",
+                    timeout.as_secs()
+                );
+            }
             if let Some(resp) = stream.next().await {
                 if resp.is_ok() {
                     let resp_packet = resp.unwrap();
                     if let MqttPacket::PubRec(_, _) = resp_packet {
-                        // publish pub rel data
                         let pub_rel_packet = MqttPacket::PubRel(
                             PubRel {
                                 pkid: 1,
@@ -189,9 +196,6 @@ mod tests {
                                 }
                                 let resp_packet = resp.unwrap();
                                 if let MqttPacket::PubComp(ack, ack_pros) = resp_packet {
-                                    // Because when the server receives the first pubrel and returns the pubcomp package,
-                                    // the pkid will be deleted. Therefore, when subsequent PUbreLs are sent,
-                                    // a PacketIdentifierNotFound will be received
                                     if ack.reason.unwrap()
                                         == PubCompReason::PacketIdentifierNotFound
                                     {
