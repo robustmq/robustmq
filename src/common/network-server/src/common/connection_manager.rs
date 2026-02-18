@@ -213,14 +213,25 @@ impl ConnectionManager {
     }
 
     pub async fn connection_gc(&self) {
-        for (_, conn) in self.connections.clone() {
-            let marked_and_expired = conn.mark_close > 0 && (now_second() - conn.mark_close) > 5;
-            let heartbeat_timeout = now_second() - conn.last_heartbeat_time > 180;
-            let stale_no_protocol =
-                conn.protocol.is_none() && (now_second() - conn.create_time) > 30;
-            if marked_and_expired || heartbeat_timeout || stale_no_protocol {
-                self.close_connect(conn.connection_id).await;
-            }
+        let now = now_second();
+        let gc_ids: Vec<u64> = self
+            .connections
+            .iter()
+            .filter_map(|entry| {
+                let conn = entry.value();
+                let marked_and_expired = conn.mark_close > 0 && (now - conn.mark_close) > 5;
+                let heartbeat_timeout = now - conn.last_heartbeat_time > 180;
+                let stale_no_protocol = conn.protocol.is_none() && (now - conn.create_time) > 30;
+                if marked_and_expired || heartbeat_timeout || stale_no_protocol {
+                    Some(conn.connection_id)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for id in gc_ids {
+            self.close_connect(id).await;
         }
     }
 }
