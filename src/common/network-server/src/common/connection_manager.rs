@@ -219,9 +219,13 @@ impl ConnectionManager {
             .iter()
             .filter_map(|entry| {
                 let conn = entry.value();
+                // Connection was explicitly marked for closure and the grace period (5s) has elapsed.
                 let marked_and_expired = conn.mark_close > 0 && (now - conn.mark_close) > 5;
+                // No heartbeat received for over 180s — treat as dead.
                 let heartbeat_timeout = now - conn.last_heartbeat_time > 180;
-                let stale_no_protocol = conn.protocol.is_none() && (now - conn.create_time) > 30;
+                // Protocol handshake never completed within 30s — invalid connection.
+                let stale_no_protocol =
+                    conn.protocol.is_none() && (now - conn.create_time) > 30;
                 if marked_and_expired || heartbeat_timeout || stale_no_protocol {
                     Some(conn.connection_id)
                 } else {

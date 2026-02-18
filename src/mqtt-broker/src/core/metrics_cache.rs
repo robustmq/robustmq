@@ -28,9 +28,9 @@ use common_metrics::mqtt::publish::{
 };
 use common_metrics::mqtt::session::{get_session_messages_in, get_session_messages_out};
 use common_metrics::mqtt::statistics::{
-    record_mqtt_connections_set, record_mqtt_sessions_set, record_mqtt_subscriptions_exclusive_set,
-    record_mqtt_subscriptions_shared_group_set, record_mqtt_subscriptions_shared_set,
-    record_mqtt_topics_set,
+    record_mqtt_connections_set, record_mqtt_sessions_set, record_mqtt_subscribers_set,
+    record_mqtt_subscriptions_exclusive_set, record_mqtt_subscriptions_shared_group_set,
+    record_mqtt_subscriptions_shared_set, record_mqtt_topics_set,
 };
 use common_metrics::mqtt::subscribe::{
     get_subscribe_messages_sent, get_subscribe_topic_messages_sent,
@@ -93,6 +93,7 @@ async fn record_basic_metrics(
     record_mqtt_sessions_set(cache_manager.session_info.len() as i64);
     record_mqtt_topics_set(cache_manager.broker_cache.topic_list.len() as i64);
 
+    record_mqtt_subscribers_set(subscribe_manager.subscribe_list.len() as i64);
     record_mqtt_subscriptions_exclusive_set(subscribe_manager.directly_push.sub_len() as i64);
 
     record_mqtt_subscriptions_shared_set(subscribe_manager.share_sub_len() as i64);
