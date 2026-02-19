@@ -99,6 +99,34 @@ register_gauge_metric!(
     NetworkLabel
 );
 
+register_gauge_metric!(
+    HANDLER_TIMEOUT_TOTAL,
+    "handler_timeout_total",
+    "Total number of handler apply timeouts (requests exceeding the hard deadline)",
+    NetworkLabel
+);
+
+// ── Per-handler-instance metrics ────────────────────────────────────────────
+
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
+struct HandlerIndexLabel {
+    handler: String,
+}
+
+register_gauge_metric!(
+    HANDLER_INSTANCE_REQUESTS_TOTAL,
+    "handler_instance_requests_total",
+    "Total requests processed by each individual handler thread",
+    HandlerIndexLabel
+);
+
+register_histogram_metric_ms_with_default_buckets!(
+    HANDLER_INSTANCE_APPLY_MS,
+    "handler_instance_apply_ms",
+    "command.apply() latency per individual handler thread (ms)",
+    HandlerIndexLabel
+);
+
 // ── Thread gauge ────────────────────────────────────────────────────────────
 
 register_gauge_metric!(
@@ -165,6 +193,27 @@ pub fn metrics_handler_slow_request_count(network: &NetworkConnectionType) {
         network: network.to_string(),
     };
     gauge_metric_inc_by!(HANDLER_SLOW_REQUESTS_TOTAL, label, 1);
+}
+
+pub fn metrics_handler_timeout_count(network: &NetworkConnectionType) {
+    let label = NetworkLabel {
+        network: network.to_string(),
+    };
+    gauge_metric_inc_by!(HANDLER_TIMEOUT_TOTAL, label, 1);
+}
+
+pub fn metrics_handler_instance_request_count(handler_index: usize) {
+    let label = HandlerIndexLabel {
+        handler: handler_index.to_string(),
+    };
+    gauge_metric_inc_by!(HANDLER_INSTANCE_REQUESTS_TOTAL, label, 1);
+}
+
+pub fn metrics_handler_instance_apply_ms(handler_index: usize, ms: f64) {
+    let label = HandlerIndexLabel {
+        handler: handler_index.to_string(),
+    };
+    histogram_metric_observe!(HANDLER_INSTANCE_APPLY_MS, ms, label);
 }
 
 pub fn record_broker_thread_num(

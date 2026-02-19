@@ -22,8 +22,10 @@ use common_base::error::client_unavailable_error_by_str;
 use common_base::tools::now_millis;
 use common_metrics::mqtt::packets::record_packet_send_metrics;
 use common_metrics::network::{
-    metrics_handler_apply_ms, metrics_handler_queue_state, metrics_handler_queue_wait_ms,
-    metrics_handler_request_count, metrics_handler_slow_request_count, metrics_handler_total_ms,
+    metrics_handler_apply_ms, metrics_handler_instance_apply_ms,
+    metrics_handler_instance_request_count, metrics_handler_queue_state,
+    metrics_handler_queue_wait_ms, metrics_handler_request_count,
+    metrics_handler_slow_request_count, metrics_handler_timeout_count, metrics_handler_total_ms,
     metrics_handler_write_ms,
 };
 use metadata_struct::connection::NetworkConnectionType;
@@ -110,6 +112,7 @@ pub fn handler_process(
                                 {
                                     Ok(()) => {}
                                     Err(_) => {
+                                        metrics_handler_timeout_count(&raw_network_type);
                                         error!(
                                             connection_id = packet.connection_id,
                                             addr = %packet.addr,
@@ -149,6 +152,7 @@ async fn handle_packet(
         let response_data = command.apply(&connect, &packet.addr, &packet.packet).await;
         let apply_ms = now_millis().saturating_sub(apply_start);
         metrics_handler_apply_ms(network_type, apply_ms as f64);
+        metrics_handler_instance_apply_ms(handler_index, apply_ms as f64);
 
         // write response
         if let Some(resp) = response_data {
@@ -162,6 +166,7 @@ async fn handle_packet(
         let total_ms = now_millis().saturating_sub(packet.receive_ms);
         metrics_handler_total_ms(network_type, total_ms as f64);
         metrics_handler_request_count(network_type);
+        metrics_handler_instance_request_count(handler_index);
 
         if total_ms >= SLOW_REQUEST_THRESHOLD_MS {
             warn!(
