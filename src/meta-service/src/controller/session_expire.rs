@@ -194,10 +194,7 @@ pub async fn delete_sessions(
     client_pool: &Arc<ClientPool>,
     sessions: &[MqttSession],
 ) {
-    let chunks: Vec<Vec<MqttSession>> = sessions
-        .chunks(100)
-        .map(|chunk| chunk.to_vec()) // 将切片转换为Vec
-        .collect();
+    let chunks: Vec<Vec<MqttSession>> = sessions.chunks(100).map(|chunk| chunk.to_vec()).collect();
 
     for raw in chunks {
         let client_ids: Vec<String> = raw.iter().map(|x| x.client_id.clone()).collect();

@@ -20,7 +20,6 @@ use crate::raft::manager::MultiRaftManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use grpc_clients::pool::ClientPool;
-use message_expire::MessageExpire;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use session_expire::SessionExpire;
 use std::sync::Arc;
@@ -29,7 +28,6 @@ use tokio::sync::broadcast;
 pub mod call_broker;
 pub mod connector;
 pub mod engine_gc;
-pub mod message_expire;
 pub mod session_expire;
 
 pub fn is_send_last_will(lastwill: &ExpireLastWill) -> bool {
@@ -91,28 +89,6 @@ impl BrokerController {
         tokio::spawn(Box::pin(async move {
             let ac_fn = async || -> ResultCommonError {
                 session.last_will_expire_send().await;
-                Ok(())
-            };
-            loop_select_ticket(ac_fn, 1000, &raw_stop_send).await;
-        }));
-
-        // Whether the timed message expires
-        let message = MessageExpire::new(self.rocksdb_engine_handler.clone());
-        let raw_stop_send = stop_send.clone();
-        tokio::spawn(Box::pin(async move {
-            let ac_fn = async || -> ResultCommonError {
-                message.retain_message_expire().await;
-                Ok(())
-            };
-            loop_select_ticket(ac_fn, 1000, &raw_stop_send).await;
-        }));
-
-        // Periodically detects whether a will message is sent
-        let message = MessageExpire::new(self.rocksdb_engine_handler.clone());
-        let raw_stop_send = stop_send.clone();
-        tokio::spawn(Box::pin(async move {
-            let ac_fn = async || -> ResultCommonError {
-                message.last_will_message_expire().await;
                 Ok(())
             };
             loop_select_ticket(ac_fn, 1000, &raw_stop_send).await;

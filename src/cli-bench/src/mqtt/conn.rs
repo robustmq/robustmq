@@ -45,7 +45,7 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
     let progress_handle = tokio::spawn(async move {
         loop {
             let snapshot = progress_stats.snapshot();
-            let done = snapshot.success + snapshot.failed >= total_connections;
+            let done = snapshot.success + snapshot.failed + snapshot.timeout >= total_connections;
             print_conn_progress_line(
                 bench_start.elapsed(),
                 total_connections,
@@ -86,22 +86,27 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
                     local_stats.record_latency(start.elapsed());
                 }
                 Err(e) => {
-                    local_stats.incr_failed();
+                    local_stats.record_latency(start.elapsed());
+                    if e.contains("connect timeout") {
+                        local_stats.incr_timeout();
+                    } else {
+                        local_stats.incr_failed();
+                    }
                     local_stats.record_error(&format!("connect:{e}"));
                     return;
                 }
             }
             drop(permit);
             if matches!(mode, ConnMode::Hold) {
-                let hold_deadline = tokio::time::Instant::now() + hold_duration_each;
-                while tokio::time::Instant::now() < hold_deadline {
-                    if tokio::time::timeout(Duration::from_millis(100), event_loop.poll())
-                        .await
-                        .is_err()
-                    {
-                        continue;
+                let _ = tokio::time::timeout(hold_duration_each, async {
+                    loop {
+                        match event_loop.poll().await {
+                            Ok(_) => {}
+                            Err(_) => return,
+                        }
                     }
-                }
+                })
+                .await;
                 let _ = client.disconnect().await;
             }
         });
