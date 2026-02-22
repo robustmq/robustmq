@@ -170,7 +170,7 @@ jsonwebtoken = { version = "10.0.0", default-features = false, features = [
 # ====================
 rocksdb = { version = "0.22.0", default-features = false, features = ["multi-threaded-cf", "lz4", "zstd"] }
 mysql = { version = "25.0.0", default-features = false }
-redis = { version = "0.32.6", default-features = false, features = ["r2d2", "tokio-comp", "connection-manager"] }
+redis = { version = "1.0.3", default-features = false, features = ["r2d2", "tokio-comp", "connection-manager"] }
 mongodb = { version = "2.8", default-features = false, features = ["tokio-runtime"] }
 sqlx = { version = "0.8", default-features = false }
 r2d2 = "0.8.10"
