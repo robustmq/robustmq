@@ -60,7 +60,7 @@ port = 6777
 frequency = 1000
 
 [log]
-log_config = "./config/server-tracing.toml"
+log_config = "./config/logger.toml"
 log_path = "./data/broker/logs"
 ```
 
@@ -87,7 +87,7 @@ port = 6777
 frequency = 1000
 
 [log]
-log_config = "./config/server-tracing.toml"
+log_config = "./config/logger.toml"
 log_path = "./data/broker/logs"
 ```
 
@@ -114,7 +114,7 @@ port = 6777
 frequency = 1000
 
 [log]
-log_config = "./config/server-tracing.toml"
+log_config = "./config/logger.toml"
 log_path = "./data/broker/logs"
 ```
 

@@ -238,7 +238,7 @@ interval = 10
 
 	// Add log configuration
 	config += `[log]
-log_config = "/robustmq/config/server-tracing.toml"
+log_config = "/robustmq/config/logger.toml"
 log_path = "/robustmq/logs"
 
 `

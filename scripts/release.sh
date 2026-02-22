@@ -300,7 +300,7 @@ This release includes pre-built binaries for multiple platforms:
 1. **Edit configuration files** in the \`config/\` directory according to your needs
 2. **Main configuration file**:
    - \`config/server.toml\` - Server configuration (supports multiple roles: meta, broker, journal)
-   - \`config/server-tracing.toml\` - Logging and tracing configuration
+   - \`config/logger.toml\` - Logging and tracing configuration
 
 ### 🎯 Quick Start
 
