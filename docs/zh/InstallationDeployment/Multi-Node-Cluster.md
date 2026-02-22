@@ -1,214 +1,107 @@
-# 多节点集群部署
+# 集群模式
 
-本指南介绍如何部署 RobustMQ 多节点集群，适用于生产环境。
+本指南介绍如何部署 RobustMQ 三节点集群，适用于高可用场景。
 
-## 准备工作
+## 安装
 
-### 系统要求
+参考 [快速安装](../QuickGuide/Quick-Install.md) 完成安装。安装包内已包含集群配置模板：
 
-- **节点数量**: 建议至少 3 个节点（奇数个节点）
-- **操作系统**: Linux (推荐 Ubuntu 20.04+ 或 CentOS 8+)
-- **内存**: 每个节点至少 4GB
-- **磁盘**: 每个节点至少 50GB 可用空间
-- **网络**: 节点间网络延迟 < 10ms
-
-### 下载二进制包
-
-在每个节点上执行：
-
-```bash
-# 下载最新版本
-wget https://github.com/robustmq/robustmq/releases/download/v1.0.0/robustmq-v1.0.0-linux-amd64.tar.gz
-
-# 解压
-tar -xzf robustmq-v1.0.0-linux-amd64.tar.gz
-cd robustmq-v1.0.0-linux-amd64
+```
+config/cluster/
+├── server-1.toml   # 节点 1（grpc: 1128，mqtt: 1883）
+├── server-2.toml   # 节点 2（grpc: 1228，mqtt: 2883）
+└── server-3.toml   # 节点 3（grpc: 1328，mqtt: 3883）
 ```
 
-## 集群配置
+---
 
-### 节点规划
+## 场景一：单机三节点（开发测试）
 
-假设部署 3 个节点的集群：
+三份配置文件默认均指向 `127.0.0.1`，直接启动即可：
 
-| 节点 | IP 地址 | 角色 | gRPC 端口 |
-|------|---------|------|-----------|
-| node1 | 192.168.1.10 | meta, broker | 1228 |
-| node2 | 192.168.1.11 | meta, broker | 1228 |
-| node3 | 192.168.1.12 | meta, broker | 1228 |
+```bash
+# 分别在三个终端中执行
+robust-server start config/cluster/server-1.toml
+robust-server start config/cluster/server-2.toml
+robust-server start config/cluster/server-3.toml
+```
 
-### 节点 1 配置 (config/node1.toml)
+---
+
+## 场景二：多机集群（生产部署）
+
+假设三台机器 IP 分别为 `10.0.0.1`、`10.0.0.2`、`10.0.0.3`，在每台机器上安装后，修改对应的配置文件中的 `broker_ip` 和 `meta_addrs`：
 
 ```toml
-cluster_name = "robustmq-cluster"
-broker_id = 1
-roles = ["meta", "broker"]
-grpc_port = 1228
-meta_addrs = { 
-    1 = "192.168.1.10:1228",
-    2 = "192.168.1.11:1228", 
-    3 = "192.168.1.12:1228"
-}
+# 节点 1（10.0.0.1）修改 config/cluster/server-1.toml 中：
+broker_ip = "10.0.0.1"
+meta_addrs = { 1 = "10.0.0.1:1128", 2 = "10.0.0.2:1228", 3 = "10.0.0.3:1328" }
 
-[rocksdb]
-data_path = "./data/broker/data"
-max_open_files = 10000
+# 节点 2（10.0.0.2）修改 config/cluster/server-2.toml 中：
+broker_ip = "10.0.0.2"
+meta_addrs = { 1 = "10.0.0.1:1128", 2 = "10.0.0.2:1228", 3 = "10.0.0.3:1328" }
 
-[p_prof]
-enable = false
-port = 6777
-frequency = 1000
-
-[log]
-log_config = "./config/logger.toml"
-log_path = "./data/broker/logs"
+# 节点 3（10.0.0.3）修改 config/cluster/server-3.toml 中：
+broker_ip = "10.0.0.3"
+meta_addrs = { 1 = "10.0.0.1:1128", 2 = "10.0.0.2:1228", 3 = "10.0.0.3:1328" }
 ```
 
-### 节点 2 配置 (config/node2.toml)
-
-```toml
-cluster_name = "robustmq-cluster"
-broker_id = 2
-roles = ["meta", "broker"]
-grpc_port = 1228
-meta_addrs = { 
-    1 = "192.168.1.10:1228",
-    2 = "192.168.1.11:1228", 
-    3 = "192.168.1.12:1228"
-}
-
-[rocksdb]
-data_path = "./data/broker/data"
-max_open_files = 10000
-
-[p_prof]
-enable = false
-port = 6777
-frequency = 1000
-
-[log]
-log_config = "./config/logger.toml"
-log_path = "./data/broker/logs"
-```
-
-### 节点 3 配置 (config/node3.toml)
-
-```toml
-cluster_name = "robustmq-cluster"
-broker_id = 3
-roles = ["meta", "broker"]
-grpc_port = 1228
-meta_addrs = { 
-    1 = "192.168.1.10:1228",
-    2 = "192.168.1.11:1228", 
-    3 = "192.168.1.12:1228"
-}
-
-[rocksdb]
-data_path = "./data/broker/data"
-max_open_files = 10000
-
-[p_prof]
-enable = false
-port = 6777
-frequency = 1000
-
-[log]
-log_config = "./config/logger.toml"
-log_path = "./data/broker/logs"
-```
-
-## 启动集群
-
-### 按顺序启动节点
-
-**重要**: 必须按顺序启动节点，先启动所有 meta 节点。
+然后在各节点上启动：
 
 ```bash
-# 在节点 1 上启动
-./bin/broker-server start config/node1.toml
+# 节点 1
+robust-server start config/cluster/server-1.toml
 
-# 在节点 2 上启动
-./bin/broker-server start config/node2.toml
+# 节点 2
+robust-server start config/cluster/server-2.toml
 
-# 在节点 3 上启动
-./bin/broker-server start config/node3.toml
+# 节点 3
+robust-server start config/cluster/server-3.toml
 ```
 
-### 后台启动
+---
+
+## 验证
+
+**查看集群状态**
 
 ```bash
-# 在节点 1 上后台启动
-nohup ./bin/broker-server start config/node1.toml > node1.log 2>&1 &
+# 查看集群状态（连接任意节点）
+robust-ctl cluster status --server 10.0.0.1:8080
 
-# 在节点 2 上后台启动
-nohup ./bin/broker-server start config/node2.toml > node2.log 2>&1 &
+# 查看集群健康状态
+robust-ctl cluster healthy --server 10.0.0.1:8080
 
-# 在节点 3 上后台启动
-nohup ./bin/broker-server start config/node3.toml > node3.log 2>&1 &
+# 查看 MQTT 概览
+robust-ctl mqtt overview --server 10.0.0.1:8080
 ```
 
-## 验证集群
-
-### 检查节点状态
-
-在每个节点上检查服务状态：
+**MQTT 跨节点收发测试**
 
 ```bash
-# 检查 gRPC 端口
-netstat -tlnp | grep 1228
+# 订阅（连接节点 1）
+mqttx sub -h 10.0.0.1 -p 1883 -t "test/cluster"
 
-# 检查进程
-ps aux | grep broker-server
+# 发布（连接节点 2）
+mqttx pub -h 10.0.0.2 -p 1883 -t "test/cluster" -m "Hello Cluster!"
 ```
 
-### 测试 MQTT 连接
+节点 1 收到消息即表示集群运行正常。
+
+---
+
+## 停止集群
 
 ```bash
-# 连接到任意节点发送消息
-mqttx pub -h 192.168.1.10 -p 1883 -t "test/cluster" -m "Message to cluster"
-
-# 在另一个节点订阅消息
-mqttx sub -h 192.168.1.11 -p 1883 -t "test/cluster"
+robust-server stop
 ```
 
-### 验证集群一致性
+---
 
-```bash
-# 在节点 1 发送消息
-mqttx pub -h 192.168.1.10 -p 1883 -t "test/consistency" -m "Test message"
+## 默认端口（各节点）
 
-# 在节点 2 和节点 3 都应该能收到消息
-mqttx sub -h 192.168.1.11 -p 1883 -t "test/consistency"
-mqttx sub -h 192.168.1.12 -p 1883 -t "test/consistency"
-```
-
-## 集群管理
-
-### 查看集群状态
-
-```bash
-# 查看集群配置
-./bin/robust-ctl cluster config get --server 192.168.1.10:8080
-```
-
-### 停止集群
-
-```bash
-# 停止所有节点
-pkill -f "broker-server"
-
-# 或者分别停止每个节点
-kill $(ps aux | grep "node1.toml" | grep -v grep | awk '{print $2}')
-kill $(ps aux | grep "node2.toml" | grep -v grep | awk '{print $2}')
-kill $(ps aux | grep "node3.toml" | grep -v grep | awk '{print $2}')
-```
-
-## 端口说明
-
-| 服务 | 端口 | 描述 |
-|------|------|------|
-| MQTT | 1883 | MQTT 协议端口 |
-| Admin | 8080 | 管理接口端口 |
-| gRPC | 1228 | 集群通信端口 |
-| pprof | 6777 | 性能分析端口 |
+| | 节点 1 | 节点 2 | 节点 3 |
+|-|--------|--------|--------|
+| **MQTT TCP** | 1883 | 2883 | 3883 |
+| **gRPC** | 1128 | 1228 | 1328 |
+| **HTTP API** | 8080 | 8082 | 8083 |

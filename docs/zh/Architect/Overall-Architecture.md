@@ -1,134 +1,135 @@
 # RobustMQ 整体架构概述
-## 架构概述
 
-RobustMQ 整体架构如下图所示：
+RobustMQ 是用 Rust 构建的下一代统一消息平台，专为 AI、IoT、大数据场景设计。架构目标是：**计算、存储、调度三层完全分离，各组件无状态、可独立扩展，支持多协议接入和插件化存储，同时保持零外部依赖。**
 
-![image](../../images/robustmq-architecture-overview.jpg)
+---
 
-如上图所示，RobustMQ 整体由 Meta Service、Broker Server、Storage Adapter、Journal Server、数据存储层五个核心模块组成：
+## 整体架构
 
-**1. Meta Service（元数据与调度层）**
+![architecture overview](../../images/robustmq-architecture-overview.jpg)
 
-负责集群的元数据存储与调度管理，主要职责包括：
+整体由三个核心组件构成：
 
-- Broker 和 Journal 集群相关元数据（Topic、Group、Queue、Partition 等）的存储与分发
-- Broker 和 Journal 集群的控制与调度，包括集群节点的上下线管理、配置存储与分发等
+| 组件 | 职责 |
+|------|------|
+| **Meta Service** | 集群元数据管理、节点协调、集群控制器 |
+| **Broker** | 多协议解析与消息逻辑处理（MQTT、Kafka 等） |
+| **Storage Engine** | 内置存储引擎，提供 Memory / RocksDB / File Segment 三种存储后端 |
 
-**2. Broker Server（消息队列逻辑处理层）**
+三个组件通过单一二进制文件交付，由 `roles` 配置决定启用哪些角色：
 
-负责不同消息队列协议的解析与逻辑处理，主要职责包括：
+```toml
+roles = ["meta", "broker", "engine"]
+```
 
-- 解析 MQTT、Kafka、AMQP、RocketMQ 等协议
-- 整合与抽象不同协议的通用逻辑，处理各协议的特定业务逻辑，实现对多种消息队列协议的兼容适配
+可按需组合部署，单机全启或分节点独立部署均支持。
 
-**3. Storage Adapter（存储适配层）**
+---
 
-将多种 MQ 协议中的 Topic/Queue/Partition 统一抽象为 Shard 概念，同时适配不同的底层存储引擎（如本地文件存储 Journal Server、远程 HDFS、对象存储、自研存储组件等），实现存储层的插件化与可插拔特性。Storage Adapter 根据配置将数据路由至相应的存储引擎。
+## 集群部署视图
 
-**4. Journal Server（持久化存储引擎）**
+![architecture](../../images/robustmq-architecture.jpg)
 
-RobustMQ 内置的持久化存储引擎，采用类似 Apache BookKeeper 的本地多副本、分段式持久化存储架构。其设计目标是构建高性能、高吞吐、高可靠的持久化存储引擎。从 Storage Adapter 的视角来看，Journal Server 是其支持的存储引擎之一。该组件的实现旨在满足 RobustMQ 高内聚、无外部依赖的架构特性。
+典型三节点集群中，每个 Node 包含以下四大模块：
 
-**5. 数据存储层（本地/远程存储）**
+### 1. 通用 Server 层
 
-指实际的数据存储介质，可以是本地内存，也可以是远程存储服务（如 HDFS、MinIO、AWS S3 等）。该层由 Storage Adapter 负责对接。
+为所有上层模块提供公共基础服务：
 
-## 详细架构
+| 组件 | 说明 |
+|------|------|
+| Inner gRPC Server | 节点间内部通信，供 Meta Service 和 Broker 使用 |
+| Admin HTTP Server | 对外暴露 REST 运维接口 |
+| Prometheus Server | 指标采集接口，供监控系统拉取 |
 
-RobustMQ 详细架构如下图所示：
+### 2. Meta Service
 
-![image](../../images/robustmq-architecture.jpg)
+集群元数据管理与控制器，技术核心为 **gRPC + Multi Raft + RocksDB**。
 
-如上图所示，这是一个由三个 RobustMQ Node 组成的集群。当选择使用内置的持久化存储引擎 Journal Server 时，无需依赖任何外部组件，可通过 `./bin/robust-server start` 命令一键启动节点。
+**职责：**
+- **集群协调**：节点发现、上下线管理、节点间数据分发
+- **元数据存储**：Broker 信息、Topic 配置、Connector 配置等集群元数据
+- **KV 型业务数据**：MQTT Session、保留消息、遗嘱消息等运行时数据
+- **控制器**：故障切换、Connector 任务调度等集群级调度
 
-从单节点视角来看，主要由通用 Server、Meta Service、Message Broker、存储层四大部分组成：
+**Multi Raft 设计：** Meta Service 运行多个独立的 Raft 状态机（Metadata / Offset / Data），多 Leader 并行处理，避免单 Raft 写入瓶颈。数据通过 RocksDB 持久化，严格控制内存使用，可支撑百万级 Topic、亿级 Session 的大规模场景。
 
-### 通用 Server
+> Meta Service 的定位类似于 ZooKeeper 之于 Kafka、NameServer 之于 RocketMQ，但同时承担了元数据协调、KV 存储和集群控制器三个角色，是 RobustMQ 零外部依赖架构的核心。
 
-由 Inner gRPC Server、Admin HTTP Server、Prometheus Server 三个组件构成，为 Meta Service、Message Broker、Journal Server 提供公共服务：
+### 3. Broker
 
-- **Inner gRPC Server**：用于多个 RobustMQ Node 之间的内部通信
-- **Admin HTTP Server**：提供统一的对外 HTTP 协议运维接口
-- **Prometheus Server**：对外暴露指标采集接口，用于监控数据的收集
+无状态协议处理层，采用分层架构设计：
 
-### Meta Service
+```
+┌─────────────────────────────────────┐
+│           网络层                     │  TCP / TLS / WebSocket / WSS / QUIC
+├─────────────────────────────────────┤
+│           协议层                     │  MQTT / Kafka / AMQP / RocketMQ
+├─────────────────────────────────────┤
+│         协议逻辑层                   │  mqtt-broker / kafka-broker / ...
+├─────────────────────────────────────┤
+│        消息通用逻辑层                 │  收发 / 过期 / 延迟 / 安全 / Schema / 监控
+├─────────────────────────────────────┤
+│         Storage Adapter              │  Shard 抽象 + 存储引擎路由
+└─────────────────────────────────────┘
+```
 
-节点内的元数据服务模块。当 Inner gRPC Server 启动成功后，Meta Service 读取配置中的 `meta_addrs` 参数获取所有 Meta Server Node 信息，通过 gRPC 协议与所有节点通信，基于 Raft 协议选举出 Meta Master 节点。选举完成后，Meta Service 即可对外提供服务。
+- **网络层**：支持 TCP、TLS、WebSocket、WebSockets、QUIC 五种接入方式
+- **协议层**：当前已支持 MQTT（完整），Kafka 开发中，AMQP/RocketMQ 长期规划
+- **协议逻辑层**：每种协议有独立的业务实现模块
+- **消息通用逻辑层**：消息收发、过期、延迟发布、安全认证、Schema 校验、监控指标等跨协议公共能力
+- **Storage Adapter**：将 MQTT Topic、Kafka Partition、AMQP Queue 统一抽象为 **Shard**，根据配置路由到对应存储后端
 
-### Message Broker
+### 4. Storage Engine
 
-节点中负责消息逻辑处理的核心模块，用于适配多种消息协议并完成相应的逻辑处理。该模块采用分层架构设计：
+内置存储引擎，提供三种存储类型，配置粒度为 **Topic 级别**：
 
-**1. 网络层**
+| 存储类型 | 配置值 | 延迟 | 特点 | 适用场景 |
+|---------|--------|------|------|---------|
+| Memory | `EngineMemory` | 微秒级 | 纯内存，重启数据丢失 | 实时数据、临时消息 |
+| RocksDB | `EngineRocksDB` | 毫秒级 | 本地 KV 持久化 | IoT 设备消息、离线消息 |
+| File Segment | `EngineSegment` | 毫秒级 | 分段式日志，高吞吐 | 大数据流处理、高吞吐写入 |
 
-支持 TCP、TLS、WebSocket、WebSockets、QUIC 五种网络协议的解析与处理。
+此外，Storage Adapter 同样支持对接外部存储（MinIO、S3、MySQL 等），由配置决定路由目标。
 
-**2. 协议层**
+---
 
-在网络层之上，负责解析不同协议的请求包内容。长期规划支持 MQTT、Kafka、AMQP、RocketMQ 等多种协议，当前已完成 MQTT、Kafka 协议的支持。
+## 启动流程
 
-**3. 协议逻辑层**
+节点启动时各模块按以下顺序初始化：
 
-由于不同协议具有各自的处理逻辑，该层为每个协议提供独立的实现，如 mqtt-broker、kafka-broker、amqp-broker 等，负责处理各协议的特定业务逻辑。
+```
+通用 Server → Meta Service → Storage Engine → Broker
+```
 
-**4. 消息通用逻辑层**
+1. **通用 Server**：最先启动，建立节点间通信通道
+2. **Meta Service**：通过 Raft 协议在多节点间完成选举，Leader 节点同时启动控制器线程
+3. **Storage Engine**：依赖 Meta Service 完成集群组建和元数据注册
+4. **Broker**：最后启动，依赖 Meta Service 做集群协调，依赖 Storage Engine 做数据写入
 
-消息队列作为垂直领域，其核心为 Pub/Sub 模型，不同协议间存在大量可复用的通用逻辑，如消息收发、消息过期、延时消息、监控、日志、安全、Schema 等。这些通用代码被抽离为独立模块，供各协议复用。基于这种设计，随着核心基础设施的完善，新增协议支持的开发成本将显著降低。
+---
 
-**5. 存储适配层**
+## 混合存储
 
-负责适配不同的存储引擎，主要完成两项工作：
+RobustMQ 支持在同一集群内混合使用多种存储，粒度为 Topic 级别：
 
-- 将 MQTT Topic、AMQP Queue、Kafka Partition 等概念统一抽象为 Shard
-- 对接不同的存储引擎，完成数据的持久化存储
+| 存储选择 | 适用场景 |
+|---------|---------|
+| Memory | 高吞吐、极低延迟，可容忍少量数据丢失 |
+| RocksDB | 低延迟持久化，不允许数据丢失 |
+| File Segment | 高吞吐持久化，大数据 / Kafka 场景 |
+| MinIO / S3 | 大数据量，成本敏感，对延迟要求不高 |
 
-### 存储层
+> 大多数场景只需配置单一存储类型。混合存储主要用于 AI 训练等需要分层缓存的高级场景。
 
-消息的实际存储层，由两部分组成：
+---
 
-- **内置存储引擎**：分段式分布式存储引擎 Journal Server
-- **第三方存储引擎**：支持对接外部分布式存储系统
+## 设计原则
 
-## 单机启动流程
-
-![image](../../images/04.jpg)
-
-在单机模式下，节点启动时各组件的启动顺序如下：通用 Server → Meta Service → Journal Server → Message Broker。具体流程说明：
-
-**1. 启动通用 Server 层**
-
-首先启动 Server 层，建立多节点间的通信能力。
-
-**2. 启动元数据协调服务**
-
-启动 Meta Service。在三节点集群场景下，多个 Node 间通过 Raft 协议进行选举，选出 Meta Service Master。选举完成后，集群元数据层即可对外提供服务。
-
-**3. 启动内置存储层**
-
-启动 Journal Server。Journal Server 采用集群架构，依赖 Meta Service 完成选举、集群构建、元数据存储等工作，因此必须等待 Meta Service 就绪后才能启动。
-
-**4. 启动消息代理层**
-
-启动 Message Broker。Message Broker 依托 Meta Service 完成集群构建、选举、协调等工作。若配置了内置存储，还需依赖 Journal Server 完成数据的持久化存储，因此必须最后启动。
-
-## 混合存储架构
-
-RobustMQ 支持混合存储架构，存储引擎的选择粒度为 Topic 级别而非集群级别。在集群启动或运行过程中，可以配置集群默认的存储引擎，也支持为不同 Topic 配置不同的存储引擎。根据业务特性可选择合适的存储方案：
-
-**1. 本地持久化存储引擎**
-
-适用于数据量小、对延迟敏感、不允许数据丢失的 Topic。
-
-**2. 内存存储引擎**
-
-适用于数据量大、对延迟敏感、极端情况下可容忍少量数据丢失的 Topic。
-
-**3. 远程存储引擎**
-
-适用于数据量大、对延迟不敏感、不允许数据丢失、对成本敏感的 Topic。
-
-**4. 内置 Journal Server**
-
-适用于数据量大、对延迟敏感、不允许数据丢失、对成本不敏感的 Topic。
-
-根据实际业务观察，大多数业务场景不需要混合存储架构，即使存在混合需求，通常也会在部署层面进行隔离。因此在实际部署过程中，通常只需配置单一存储引擎即可满足需求。
+| 原则 | 实现方式 |
+|------|---------|
+| **零外部依赖** | Meta Service 内置替代 ZooKeeper/etcd；Storage Engine 内置替代外部存储 |
+| **存算分离** | Broker 无状态，Storage Engine 独立扩展 |
+| **多协议扩展** | 协议层与存储层解耦，通用逻辑复用，新增协议只需实现协议逻辑层 |
+| **插件化存储** | Storage Adapter 统一 Shard 抽象，存储后端可按需切换 |
+| **Topic 级配置** | 存储类型、QoS、过期策略均可按 Topic 独立配置 |

@@ -104,4 +104,3 @@ MQTT scenarios are expected to be production-ready after v0.4.0 (May 2026). Kafk
 - [RobustMQ vs NATS](./Diff-nats.md)
 - [RobustMQ vs Redpanda](./Diff-redpanda.md)
 - [RobustMQ vs Iggy](./Diff-iggy.md)
-- [Comprehensive Comparison](./Diff-MQ.md)

@@ -20,8 +20,8 @@ services:
   # ==============================================================================
   robustmq:
     build:
-      context: ..
-      dockerfile: docker/Dockerfile
+      context: ../..
+      dockerfile: docker/robustmq/Dockerfile
       target: all-in-one
     container_name: robustmq
     ports:
@@ -55,66 +55,46 @@ services:
   # Microservices Deployment (for production cluster)
   # ==============================================================================
 
-  # Meta Service (meta service)
+  # Meta Service
   meta-service:
     build:
-      context: ..
-      dockerfile: docker/Dockerfile
+      context: ../..
+      dockerfile: docker/robustmq/Dockerfile
       target: meta-service
     container_name: robustmq-meta
     ports:
-      - "1228:1228"
+      - "1228:1228"   # gRPC
+      - "1227:1227"   # HTTP
     volumes:
       - meta_data:/robustmq/data
       - meta_logs:/robustmq/logs
       - ./config:/robustmq/config:ro
     environment:
-      - ROBUSTMQ_ROLES=meta
-      - ROBUSTMQ_CONFIG_PATH=/robustmq/config/meta-service.toml
+      - ROBUSTMQ_CONFIG_PATH=/robustmq/config/server.toml
+      - RUST_LOG=info
     restart: unless-stopped
     profiles: ["microservices"]
 
   # MQTT Broker
   mqtt-broker:
     build:
-      context: ..
-      dockerfile: docker/Dockerfile
+      context: ../..
+      dockerfile: docker/robustmq/Dockerfile
       target: mqtt-broker
     container_name: robustmq-mqtt
     ports:
-      - "1883:1883"
-      - "1885:1885"
-      - "8083:8083"
-      - "8085:8085"
-      - "8080:8080"
+      - "1883:1883"   # MQTT TCP
+      - "1885:1885"   # MQTT SSL
+      - "8083:8083"   # MQTT WebSocket
+      - "8085:8085"   # MQTT WebSocket SSL
+      - "8080:8080"   # HTTP API
     volumes:
       - mqtt_data:/robustmq/data
       - mqtt_logs:/robustmq/logs
       - ./config:/robustmq/config:ro
     environment:
-      - ROBUSTMQ_ROLES=broker
-      - ROBUSTMQ_CONFIG_PATH=/robustmq/config/mqtt-broker.toml
-    depends_on:
-      - meta-service
-    restart: unless-stopped
-    profiles: ["microservices"]
-
-  # Journal Service
-  journal-service:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      target: journal-service
-    container_name: robustmq-journal
-    ports:
-      - "1228:1228"
-    volumes:
-      - journal_data:/robustmq/data
-      - journal_logs:/robustmq/logs
-      - ./config:/robustmq/config:ro
-    environment:
-      - ROBUSTMQ_ROLES=journal
-      - ROBUSTMQ_CONFIG_PATH=/robustmq/config/journal-service.toml
+      - ROBUSTMQ_CONFIG_PATH=/robustmq/config/server.toml
+      - RUST_LOG=info
     depends_on:
       - meta-service
     restart: unless-stopped
@@ -188,10 +168,6 @@ volumes:
   mqtt_data:
     driver: local
   mqtt_logs:
-    driver: local
-  journal_data:
-    driver: local
-  journal_logs:
     driver: local
   prometheus_data:
     driver: local

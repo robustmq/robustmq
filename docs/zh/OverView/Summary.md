@@ -104,4 +104,3 @@ RobustMQ 的核心设计选择：
 - [RobustMQ vs NATS](./Diff-nats.md)
 - [RobustMQ vs Redpanda](./Diff-redpanda.md)
 - [RobustMQ vs Iggy](./Diff-iggy.md)
-- [综合对比](./Diff-MQ.md)

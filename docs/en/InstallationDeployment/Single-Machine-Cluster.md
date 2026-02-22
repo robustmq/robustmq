@@ -1,88 +1,73 @@
-# Single Machine RobustMQ
+# Standalone Mode
 
-This guide describes how to run RobustMQ on a single machine, suitable for development and testing environments.
+This guide covers running RobustMQ on a single machine using the binary package, suitable for development and testing.
 
-## Prerequisites
+## Install
 
-### Download Binary Package
+See [Quick Install](../QuickGuide/Quick-Install.md) for full instructions, or use the one-line installer:
 
 ```bash
-# Download the latest version
-wget https://github.com/robustmq/robustmq/releases/download/v1.0.0/robustmq-v1.0.0-linux-amd64.tar.gz
-
-# Extract
-tar -xzf robustmq-v1.0.0-linux-amd64.tar.gz
-cd robustmq-v1.0.0-linux-amd64
+curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
 ```
 
-## Starting RobustMQ
+After installation, `robust-server`, `robust-ctl`, and `robust-bench` are available in your PATH.
 
-### Start with Default Configuration
+## Start Services
 
 ```bash
-# Start RobustMQ
-./bin/broker-server start
+robust-server start
 ```
 
-### Start with Configuration File
+Defaults to `config/server.toml`. You can also specify the config explicitly:
 
 ```bash
-# Start with configuration file
-./bin/broker-server start config/server.toml
+robust-server start config/server.toml
 ```
 
-### Start in Background
+## Verify
+
+**Check cluster status**
 
 ```bash
-# Start in background
-nohup ./bin/broker-server start > robustmq.log 2>&1 &
+# Cluster status
+robust-ctl cluster status
+
+# Cluster health
+robust-ctl cluster healthy
+
+# MQTT overview (connections, subscriptions, etc.)
+robust-ctl mqtt overview
 ```
 
-## Verifying Running Status
-
-### Check Service Status
+`--server` defaults to `127.0.0.1:8080`. To target a different address:
 
 ```bash
-# Check MQTT port
-netstat -tlnp | grep 1883
-
-# Check admin port
-netstat -tlnp | grep 8080
+robust-ctl cluster status --server 192.168.1.10:8080
 ```
 
-### Test MQTT Connection
+**MQTT pub/sub test**
 
 ```bash
-# Send message
-mqttx pub -h 127.0.0.1 -p 1883 -t "test/topic" -m "Hello RobustMQ!"
-
-# Subscribe to messages
+# Subscribe (terminal 1)
 mqttx sub -h 127.0.0.1 -p 1883 -t "test/topic"
+
+# Publish (terminal 2)
+mqttx pub -h 127.0.0.1 -p 1883 -t "test/topic" -m "Hello RobustMQ!"
 ```
 
-## Stopping Service
+If the subscriber receives the message, the service is running correctly. Web console: `http://localhost:3000`
+
+## Stop Services
 
 ```bash
-# Stop RobustMQ
-pkill -f "broker-server"
-
-# Or find process ID and stop
-ps aux | grep broker-server
-kill <PID>
+robust-server stop
 ```
 
 ## Default Ports
 
-| Service | Port | Description |
-|---------|------|-------------|
-| MQTT | 1883 | MQTT protocol port |
-| Admin | 8080 | Admin interface port |
-| Cluster | 9090 | Cluster communication port |
-| Meta | 9091 | Metadata service port |
-
-## Important Notes
-
-1. **Port Usage**: Ensure default ports are not occupied
-2. **Firewall**: Ensure firewall allows communication on relevant ports
-3. **Resource Requirements**: Recommend at least 2GB memory
-4. **Data Directory**: RobustMQ will create data files in the current directory
+| Service | Port |
+|---------|------|
+| MQTT | 1883 |
+| HTTP API | 8083 |
+| Placement Center gRPC | 1228 |
+| Dashboard | 3000 |

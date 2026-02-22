@@ -14,7 +14,6 @@ export const sidebar = [
                     { text: "vs NATS", link: "/en/OverView/Diff-nats" },
                     { text: "vs Redpanda", link: "/en/OverView/Diff-redpanda" },
                     { text: "vs Iggy", link: "/en/OverView/Diff-iggy" },
-                    { text: "Comprehensive Comparison", link: "/en/OverView/Diff-MQ" },
                     { text: "RobustMQ vs Existing MQs", link: "/en/OverView/Summary" },
                 ],
             },
@@ -58,6 +57,8 @@ export const sidebar = [
         items: [
             { text: "Overview", link: "/en/Architect/Overall-Architecture" },
             { text: "Meta Service", link: "/en/Architect/MetaService-Architecture" },
+            { text: "Storage Adapter", link: "/en/Architect/StorageAdapter-Architecture" },
+            { text: "Storage Engine", link: "/en/Architect/StorageEngine-Architecture" },
         ],
     },
     {
@@ -246,6 +247,14 @@ export const sidebar = [
           },
         ],
       },
+    ],
+  },
+  {
+    text: "Release Notes",
+    collapsed: true,
+    items: [
+      { text: "0.3.0 RELEASE", link: "/en/VersionRecord/RobustMQ-0.3.0-RELEASE" },
+      { text: "0.2.0 RELEASE", link: "/en/VersionRecord/RobustMQ-0.2.0-RELEASE" },
     ],
   },
   {

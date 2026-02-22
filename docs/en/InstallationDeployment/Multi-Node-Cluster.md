@@ -1,214 +1,107 @@
-# Multi-Node Cluster Deployment
+# Cluster Mode
 
-This guide describes how to deploy a RobustMQ multi-node cluster, suitable for production environments.
+This guide covers deploying a three-node RobustMQ cluster for high availability.
 
-## Prerequisites
+## Install
 
-### System Requirements
+See [Quick Install](../QuickGuide/Quick-Install.md). The installation package already includes cluster config templates:
 
-- **Number of Nodes**: Recommend at least 3 nodes (odd number of nodes)
-- **Operating System**: Linux (recommend Ubuntu 20.04+ or CentOS 8+)
-- **Memory**: At least 4GB per node
-- **Disk**: At least 50GB available space per node
-- **Network**: Inter-node network latency < 10ms
-
-### Download Binary Package
-
-Execute on each node:
-
-```bash
-# Download the latest version
-wget https://github.com/robustmq/robustmq/releases/download/v1.0.0/robustmq-v1.0.0-linux-amd64.tar.gz
-
-# Extract
-tar -xzf robustmq-v1.0.0-linux-amd64.tar.gz
-cd robustmq-v1.0.0-linux-amd64
+```
+config/cluster/
+├── server-1.toml   # Node 1 (grpc: 1128, mqtt: 1883)
+├── server-2.toml   # Node 2 (grpc: 1228, mqtt: 2883)
+└── server-3.toml   # Node 3 (grpc: 1328, mqtt: 3883)
 ```
 
-## Cluster Configuration
+---
 
-### Node Planning
+## Option 1: Single-Machine Three-Node (Dev/Test)
 
-Assuming deployment of a 3-node cluster:
+All three config files default to `127.0.0.1`. Just start them directly:
 
-| Node | IP Address | Role | gRPC Port |
-|------|------------|------|-----------|
-| node1 | 192.168.1.10 | meta, broker | 1228 |
-| node2 | 192.168.1.11 | meta, broker | 1228 |
-| node3 | 192.168.1.12 | meta, broker | 1228 |
+```bash
+# Run each in a separate terminal
+robust-server start config/cluster/server-1.toml
+robust-server start config/cluster/server-2.toml
+robust-server start config/cluster/server-3.toml
+```
 
-### Node 1 Configuration (config/node1.toml)
+---
+
+## Option 2: Multi-Machine Cluster (Production)
+
+Assuming three machines with IPs `10.0.0.1`, `10.0.0.2`, `10.0.0.3` — after installing on each, update `broker_ip` and `meta_addrs` in the corresponding config file:
 
 ```toml
-cluster_name = "robustmq-cluster"
-broker_id = 1
-roles = ["meta", "broker"]
-grpc_port = 1228
-meta_addrs = { 
-    1 = "192.168.1.10:1228",
-    2 = "192.168.1.11:1228", 
-    3 = "192.168.1.12:1228"
-}
+# Node 1 (10.0.0.1) — edit config/cluster/server-1.toml:
+broker_ip = "10.0.0.1"
+meta_addrs = { 1 = "10.0.0.1:1128", 2 = "10.0.0.2:1228", 3 = "10.0.0.3:1328" }
 
-[rocksdb]
-data_path = "./data/broker/data"
-max_open_files = 10000
+# Node 2 (10.0.0.2) — edit config/cluster/server-2.toml:
+broker_ip = "10.0.0.2"
+meta_addrs = { 1 = "10.0.0.1:1128", 2 = "10.0.0.2:1228", 3 = "10.0.0.3:1328" }
 
-[p_prof]
-enable = false
-port = 6777
-frequency = 1000
-
-[log]
-log_config = "./config/logger.toml"
-log_path = "./data/broker/logs"
+# Node 3 (10.0.0.3) — edit config/cluster/server-3.toml:
+broker_ip = "10.0.0.3"
+meta_addrs = { 1 = "10.0.0.1:1128", 2 = "10.0.0.2:1228", 3 = "10.0.0.3:1328" }
 ```
 
-### Node 2 Configuration (config/node2.toml)
-
-```toml
-cluster_name = "robustmq-cluster"
-broker_id = 2
-roles = ["meta", "broker"]
-grpc_port = 1228
-meta_addrs = { 
-    1 = "192.168.1.10:1228",
-    2 = "192.168.1.11:1228", 
-    3 = "192.168.1.12:1228"
-}
-
-[rocksdb]
-data_path = "./data/broker/data"
-max_open_files = 10000
-
-[p_prof]
-enable = false
-port = 6777
-frequency = 1000
-
-[log]
-log_config = "./config/logger.toml"
-log_path = "./data/broker/logs"
-```
-
-### Node 3 Configuration (config/node3.toml)
-
-```toml
-cluster_name = "robustmq-cluster"
-broker_id = 3
-roles = ["meta", "broker"]
-grpc_port = 1228
-meta_addrs = { 
-    1 = "192.168.1.10:1228",
-    2 = "192.168.1.11:1228", 
-    3 = "192.168.1.12:1228"
-}
-
-[rocksdb]
-data_path = "./data/broker/data"
-max_open_files = 10000
-
-[p_prof]
-enable = false
-port = 6777
-frequency = 1000
-
-[log]
-log_config = "./config/logger.toml"
-log_path = "./data/broker/logs"
-```
-
-## Starting Cluster
-
-### Start Nodes in Order
-
-**Important**: Must start nodes in order, start all meta nodes first.
+Then start on each node:
 
 ```bash
-# Start on node 1
-./bin/broker-server start config/node1.toml
+# Node 1
+robust-server start config/cluster/server-1.toml
 
-# Start on node 2
-./bin/broker-server start config/node2.toml
+# Node 2
+robust-server start config/cluster/server-2.toml
 
-# Start on node 3
-./bin/broker-server start config/node3.toml
+# Node 3
+robust-server start config/cluster/server-3.toml
 ```
 
-### Start in Background
+---
+
+## Verify
+
+**Check cluster status**
 
 ```bash
-# Start in background on node 1
-nohup ./bin/broker-server start config/node1.toml > node1.log 2>&1 &
+# Cluster status (connect to any node)
+robust-ctl cluster status --server 10.0.0.1:8080
 
-# Start in background on node 2
-nohup ./bin/broker-server start config/node2.toml > node2.log 2>&1 &
+# Cluster health
+robust-ctl cluster healthy --server 10.0.0.1:8080
 
-# Start in background on node 3
-nohup ./bin/broker-server start config/node3.toml > node3.log 2>&1 &
+# MQTT overview
+robust-ctl mqtt overview --server 10.0.0.1:8080
 ```
 
-## Verifying Cluster
-
-### Check Node Status
-
-Check service status on each node:
+**Cross-node MQTT test**
 
 ```bash
-# Check gRPC port
-netstat -tlnp | grep 1228
+# Subscribe (connect to node 1)
+mqttx sub -h 10.0.0.1 -p 1883 -t "test/cluster"
 
-# Check process
-ps aux | grep broker-server
+# Publish (connect to node 2)
+mqttx pub -h 10.0.0.2 -p 1883 -t "test/cluster" -m "Hello Cluster!"
 ```
 
-### Test MQTT Connection
+If node 1 receives the message, the cluster is running correctly.
+
+---
+
+## Stop
 
 ```bash
-# Connect to any node to send message
-mqttx pub -h 192.168.1.10 -p 1883 -t "test/cluster" -m "Message to cluster"
-
-# Subscribe to messages on another node
-mqttx sub -h 192.168.1.11 -p 1883 -t "test/cluster"
+robust-server stop
 ```
 
-### Verify Cluster Consistency
+---
 
-```bash
-# Send message on node 1
-mqttx pub -h 192.168.1.10 -p 1883 -t "test/consistency" -m "Test message"
+## Default Ports (per node)
 
-# Both node 2 and node 3 should receive the message
-mqttx sub -h 192.168.1.11 -p 1883 -t "test/consistency"
-mqttx sub -h 192.168.1.12 -p 1883 -t "test/consistency"
-```
-
-## Cluster Management
-
-### View Cluster Status
-
-```bash
-# View cluster configuration
-./bin/robust-ctl cluster config get --server 192.168.1.10:8080
-```
-
-### Stop Cluster
-
-```bash
-# Stop all nodes
-pkill -f "broker-server"
-
-# Or stop each node separately
-kill $(ps aux | grep "node1.toml" | grep -v grep | awk '{print $2}')
-kill $(ps aux | grep "node2.toml" | grep -v grep | awk '{print $2}')
-kill $(ps aux | grep "node3.toml" | grep -v grep | awk '{print $2}')
-```
-
-## Port Description
-
-| Service | Port | Description |
-|---------|------|-------------|
-| MQTT | 1883 | MQTT protocol port |
-| Admin | 8080 | Admin interface port |
-| gRPC | 1228 | Cluster communication port |
-| pprof | 6777 | Performance analysis port |
+| | Node 1 | Node 2 | Node 3 |
+|-|--------|--------|--------|
+| **MQTT TCP** | 1883 | 2883 | 3883 |
+| **gRPC** | 1128 | 1228 | 1328 |
+| **HTTP API** | 8080 | 8082 | 8083 |

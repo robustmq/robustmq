@@ -170,54 +170,19 @@ ENTRYPOINT ["./libs/broker-server"]
 CMD ["--conf=/robustmq/config/server.toml"]
 
 # ==============================================================================
-# Alternative: Service-specific stages for microservice deployment
+# Named stages for docker-compose target selection
 # ==============================================================================
 
-# Meta Service (meta service)
+# Meta Service
 FROM runtime AS meta-service
-ENV ROBUSTMQ_ROLES="meta"
-EXPOSE 1228
+EXPOSE 1228 1227
 CMD ["--conf=/robustmq/config/server.toml"]
 
-# MQTT Broker Service
+# MQTT Broker
 FROM runtime AS mqtt-broker
-ENV ROBUSTMQ_ROLES="broker"
 EXPOSE 1883 1885 8083 8085 8080
-CMD ["--conf=/robustmq/config/server.toml"]
-
-# Journal Service
-FROM runtime AS journal-service
-ENV ROBUSTMQ_ROLES="journal"
-EXPOSE 1228
 CMD ["--conf=/robustmq/config/server.toml"]
 
 # All-in-one (default)
 FROM runtime AS all-in-one
-ENV ROBUSTMQ_ROLES="meta,broker,journal"
 CMD ["--conf=/robustmq/config/server.toml"]
-
-# ==============================================================================
-# Development Stage (for development and debugging)
-# ==============================================================================
-FROM builder AS development
-
-# Install additional development tools
-RUN apt-get update && apt-get install -y \
-    gdb \
-    strace \
-    valgrind \
-    && rm -rf /var/lib/apt/lists/*
-
-# Build debug version
-RUN cargo build
-
-# Copy configuration
-COPY config/ ./config/
-COPY bin/ ./bin/
-RUN chmod +x ./bin/*
-
-EXPOSE 1883 1885 8083 8085 9092 1228 5672 8080
-
-# Development entry point
-ENTRYPOINT ["cargo", "run", "--package", "cmd", "--bin", "broker-server", "--"]
-CMD ["--conf=./config/server.toml"]

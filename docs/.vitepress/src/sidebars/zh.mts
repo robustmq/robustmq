@@ -14,7 +14,6 @@ export const sidebar = [
                     { text: "和 NATS 对比", link: "/zh/OverView/Diff-nats" },
                     { text: "和 Redpanda 对比", link: "/zh/OverView/Diff-redpanda" },
                     { text: "和 Iggy 对比", link: "/zh/OverView/Diff-iggy" },
-                    { text: "综合对比", link: "/zh/OverView/Diff-MQ" },
                     { text: "RobustMQ 和现有MQ的对比", link: "/zh/OverView/Summary" },
                 ],
             },
@@ -46,8 +45,8 @@ export const sidebar = [
         collapsed: true,
         items: [
             { text: "编译打包", link: "/zh/QuickGuide/Build-and-Package" },
-            { text: "二进制运行[单机]", link: "/zh/InstallationDeployment/Docker-Deployment" },
-            { text: "二进制运行[集群]", link: "/zh/InstallationDeployment/Kubernetes-Operator" },
+            { text: "二进制运行[单机]", link: "/zh/InstallationDeployment/Single-Machine-Cluster" },
+            { text: "二进制运行[集群]", link: "/zh/InstallationDeployment/Multi-Node-Cluster" },
             { text: "Docker 模式", link: "/zh/InstallationDeployment/Docker-Deployment" },
             { text: "K8S 模式", link: "/zh/InstallationDeployment/Kubernetes-Operator" },
         ],
@@ -58,6 +57,8 @@ export const sidebar = [
         items: [
             { text: "架构概览", link: "/zh/Architect/Overall-Architecture" },
             { text: "Meta Service", link: "/zh/Architect/MetaService-Architecture" },
+            { text: "Storage Adapter", link: "/zh/Architect/StorageAdapter-Architecture" },
+            { text: "Storage Engine", link: "/zh/Architect/StorageEngine-Architecture" },
         ],
     },
     {
@@ -260,6 +261,14 @@ export const sidebar = [
           },
         ],
       },
+    ],
+  },
+  {
+    text: "版本记录",
+    collapsed: true,
+    items: [
+      { text: "0.3.0 RELEASE", link: "/zh/VersionRecord/RobustMQ-0.3.0-RELEASE" },
+      { text: "0.2.0 RELEASE", link: "/zh/VersionRecord/RobustMQ-0.2.0-RELEASE" },
     ],
   },
   {

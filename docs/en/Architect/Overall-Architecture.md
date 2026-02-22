@@ -1,135 +1,135 @@
-# RobustMQ Overall Architecture Overview
+# RobustMQ Overall Architecture
 
-## Architecture Overview
+RobustMQ is a next-generation unified messaging platform built with Rust, designed for AI, IoT, and Big Data scenarios. The architecture goal is: **full separation of compute, storage, and coordination — each component is stateless and independently scalable, supporting multi-protocol ingestion and pluggable storage with zero external dependencies.**
 
-The overall architecture of RobustMQ is shown in the following diagram:
+---
 
-![image](../../images/robustmq-architecture-overview.jpg)
+## High-Level Architecture
 
-As shown above, RobustMQ consists of five core modules: Meta Service, Broker Server, Storage Adapter, Journal Server, and Data Storage Layer:
+![architecture overview](../../images/robustmq-architecture-overview.jpg)
 
-**1. Meta Service (Metadata and Scheduling Layer)**
+The system is built around three core components:
 
-Responsible for cluster metadata storage and scheduling management, with primary responsibilities including:
+| Component | Responsibility |
+|-----------|---------------|
+| **Meta Service** | Cluster metadata management, node coordination, cluster controller |
+| **Broker** | Multi-protocol parsing and message processing (MQTT, Kafka, etc.) |
+| **Storage Engine** | Built-in storage engine with Memory / RocksDB / File Segment backends |
 
-- Storage and distribution of Broker and Journal cluster-related metadata (Topic, Group, Queue, Partition, etc.)
-- Control and scheduling of Broker and Journal clusters, including cluster node online/offline management, configuration storage and distribution, etc.
+All three components are delivered as a single binary. The `roles` configuration determines which are active:
 
-**2. Broker Server (Message Queue Logic Processing Layer)**
+```toml
+roles = ["meta", "broker", "engine"]
+```
 
-Responsible for parsing and logic processing of different message queue protocols, with primary responsibilities including:
+Any combination is supported — all-in-one on a single node, or each role on independent nodes.
 
-- Parsing MQTT, Kafka, AMQP, RocketMQ and other protocols
-- Integrating and abstracting common logic across different protocols, handling protocol-specific business logic, and implementing compatibility adaptation for multiple message queue protocols
+---
 
-**3. Storage Adapter (Storage Adaptation Layer)**
+## Cluster Deployment View
 
-Unifies Topic/Queue/Partition concepts from various MQ protocols into the Shard abstraction, while adapting to different underlying storage engines (such as local file storage Journal Server, remote HDFS, object storage, self-developed storage components, etc.), achieving pluggable storage layer characteristics. Storage Adapter routes data to appropriate storage engines based on configuration.
+![architecture](../../images/robustmq-architecture.jpg)
 
-**4. Journal Server (Persistent Storage Engine)**
+In a typical three-node cluster, each Node contains four modules:
 
-RobustMQ's built-in persistent storage engine, adopting a local multi-replica, segmented persistent storage architecture similar to Apache BookKeeper. Its design goal is to build a high-performance, high-throughput, highly reliable persistent storage engine. From the Storage Adapter's perspective, Journal Server is one of the supported storage engines. This component is designed to meet RobustMQ's high-cohesion, no-external-dependency architectural characteristics.
+### 1. Common Server Layer
 
-**5. Data Storage Layer (Local/Remote Storage)**
+Shared infrastructure for all upper-layer modules:
 
-Refers to the actual data storage medium, which can be local memory or remote storage services (such as HDFS, MinIO, AWS S3, etc.). This layer is interfaced through the Storage Adapter.
+| Component | Description |
+|-----------|-------------|
+| Inner gRPC Server | Inter-node communication for Meta Service and Broker |
+| Admin HTTP Server | Exposes REST management API |
+| Prometheus Server | Metrics endpoint for monitoring systems |
 
-## Detailed Architecture
+### 2. Meta Service
 
-The detailed architecture of RobustMQ is shown in the following diagram:
+Cluster metadata management and controller. Core technology: **gRPC + Multi Raft + RocksDB**.
 
-![image](../../images/robustmq-architecture.jpg)
+**Responsibilities:**
+- **Cluster coordination**: Node discovery, join/leave management, data distribution
+- **Metadata storage**: Broker info, Topic config, Connector config, and other cluster metadata
+- **KV business data**: MQTT Session, Retained Messages, Will Messages, and other runtime data
+- **Controller**: Failover, Connector task scheduling, and other cluster-level coordination
 
-As shown above, this is a cluster composed of three RobustMQ Nodes. When choosing to use the built-in persistent storage engine Journal Server, no external components are required, and nodes can be started with a single command: `./bin/robust-server start`.
+**Multi Raft Design:** Meta Service runs multiple independent Raft state machines (Metadata / Offset / Data), with multiple Leaders serving in parallel to avoid single-Raft write bottlenecks. Data is persisted via RocksDB with strict memory controls, supporting million-scale Topics and billion-scale Sessions.
 
-From a single-node perspective, it consists of four main parts: Common Server, Meta Service, Message Broker, and Storage Layer:
+> Meta Service plays a role similar to ZooKeeper for Kafka or NameServer for RocketMQ — but simultaneously serves as a metadata coordinator, KV store, and cluster controller. This is what enables RobustMQ's zero-external-dependency architecture.
 
-### Common Server
+### 3. Broker
 
-Composed of three components: Inner gRPC Server, Admin HTTP Server, and Prometheus Server, providing common services for Meta Service, Message Broker, and Journal Server:
+Stateless protocol processing layer with a layered architecture:
 
-- **Inner gRPC Server**: Used for internal communication between multiple RobustMQ Nodes
-- **Admin HTTP Server**: Provides unified external HTTP protocol operations interface
-- **Prometheus Server**: Exposes metrics collection interface for monitoring data collection
+```
+┌─────────────────────────────────────┐
+│           Network Layer              │  TCP / TLS / WebSocket / WSS / QUIC
+├─────────────────────────────────────┤
+│           Protocol Layer             │  MQTT / Kafka / AMQP / RocketMQ
+├─────────────────────────────────────┤
+│         Protocol Logic Layer         │  mqtt-broker / kafka-broker / ...
+├─────────────────────────────────────┤
+│        Common Message Logic Layer    │  pub/sub / expiry / delay / security / schema / metrics
+├─────────────────────────────────────┤
+│         Storage Adapter              │  Shard abstraction + storage engine routing
+└─────────────────────────────────────┘
+```
 
-### Meta Service
+- **Network Layer**: Accepts connections over TCP, TLS, WebSocket, WebSockets, and QUIC
+- **Protocol Layer**: MQTT is fully supported; Kafka is in progress; AMQP and RocketMQ are in long-term planning
+- **Protocol Logic Layer**: Each protocol has an independent module for its specific business logic
+- **Common Message Logic Layer**: Cross-protocol shared capabilities — pub/sub, expiry, delayed publish, authentication, Schema validation, metrics
+- **Storage Adapter**: Unifies MQTT Topic, Kafka Partition, and AMQP Queue into a single **Shard** abstraction, routing data to the configured storage backend
 
-The metadata service module within the node. After the Inner gRPC Server starts successfully, Meta Service reads the `meta_addrs` parameter from configuration to obtain all Meta Server Node information, communicates with all nodes through gRPC protocol, and elects the Meta Master node based on the Raft protocol. After election completion, Meta Service can provide services externally.
+### 4. Storage Engine
 
-### Message Broker
+Built-in storage engine with three storage types, configurable at **Topic level**:
 
-The core module in the node responsible for message logic processing, used to adapt multiple message protocols and complete corresponding logic processing. This module adopts a layered architecture design:
+| Type | Config Value | Latency | Characteristics | Use Case |
+|------|-------------|---------|-----------------|----------|
+| Memory | `EngineMemory` | Microseconds | Pure in-memory, lost on restart | Real-time data, ephemeral messages |
+| RocksDB | `EngineRocksDB` | Milliseconds | Local KV persistent | IoT device messages, offline messages |
+| File Segment | `EngineSegment` | Milliseconds | Segmented log, high throughput | Big data streams, high-throughput writes |
 
-**1. Network Layer**
+Storage Adapter also supports external backends (MinIO, S3, MySQL, etc.) — routing target is determined by configuration.
 
-Supports parsing and processing of five network protocols: TCP, TLS, WebSocket, WebSockets, and QUIC.
+---
 
-**2. Protocol Layer**
+## Startup Sequence
 
-Above the network layer, responsible for parsing request packet content of different protocols. Long-term plans support MQTT, Kafka, AMQP, RocketMQ and other protocols, with current completion of MQTT and Kafka protocol support.
+Modules initialize in the following order:
 
-**3. Protocol Logic Layer**
+```
+Common Server → Meta Service → Storage Engine → Broker
+```
 
-Since different protocols have their own processing logic, this layer provides independent implementations for each protocol, such as mqtt-broker, kafka-broker, amqp-broker, etc., responsible for handling protocol-specific business logic.
+1. **Common Server**: Starts first to establish inter-node communication
+2. **Meta Service**: Completes leader election via Raft; the leader also starts the controller thread
+3. **Storage Engine**: Depends on Meta Service for cluster formation and metadata registration
+4. **Broker**: Starts last; depends on Meta Service for coordination and Storage Engine for data writes
 
-**4. Message Common Logic Layer**
+---
 
-As a vertical domain, message queues are centered on the Pub/Sub model, with extensive reusable common logic across different protocols, such as message sending/receiving, message expiration, delayed messages, monitoring, logging, security, Schema, etc. These common codes are extracted as independent modules for protocol reuse. Based on this design, as core infrastructure improves, the development cost of adding new protocol support will be significantly reduced.
+## Mixed Storage
 
-**5. Storage Adaptation Layer**
+RobustMQ supports mixing multiple storage engines within the same cluster at Topic granularity:
 
-Responsible for adapting different storage engines, mainly completing two tasks:
+| Storage Choice | Use Case |
+|----------------|----------|
+| Memory | High throughput, ultra-low latency, tolerates minimal data loss |
+| RocksDB | Low-latency persistence, no data loss |
+| File Segment | High-throughput persistence, Big Data / Kafka scenarios |
+| MinIO / S3 | Large volume, cost-sensitive, latency-tolerant |
 
-- Unifying MQTT Topic, AMQP Queue, Kafka Partition and other concepts into Shard abstraction
-- Interfacing with different storage engines to complete data persistent storage
+> In practice, most deployments use a single storage type. Mixed storage is primarily used for advanced scenarios like AI training that require tiered caching.
 
-### Storage Layer
+---
 
-The actual storage layer for messages, composed of two parts:
+## Design Principles
 
-- **Built-in Storage Engine**: Segmented distributed storage engine Journal Server
-- **Third-party Storage Engine**: Supports interfacing with external distributed storage systems
-
-## Single Node Startup Process
-
-![image](../../images/04.jpg)
-
-In single-node mode, the component startup sequence when a node starts is: Common Server → Meta Service → Journal Server → Message Broker. Specific process description:
-
-**1. Start Common Server Layer**
-
-First start the Server layer to establish inter-node communication capabilities.
-
-**2. Start Metadata Coordination Service**
-
-Start Meta Service. In a three-node cluster scenario, multiple Nodes elect the Meta Service Master through the Raft protocol. After election completion, the cluster metadata layer can provide services externally.
-
-**3. Start Built-in Storage Layer**
-
-Start Journal Server. Journal Server adopts a cluster architecture and depends on Meta Service to complete election, cluster construction, metadata storage, etc., so it must wait for Meta Service to be ready before starting.
-
-**4. Start Message Broker Layer**
-
-Start Message Broker. Message Broker relies on Meta Service to complete cluster construction, election, coordination, etc. If built-in storage is configured, it also depends on Journal Server to complete data persistent storage, so it must start last.
-
-## Hybrid Storage Architecture
-
-RobustMQ supports hybrid storage architecture, with storage engine selection granularity at the Topic level rather than the cluster level. During cluster startup or operation, you can configure the cluster's default storage engine, and also support configuring different storage engines for different Topics. According to business characteristics, you can choose appropriate storage solutions:
-
-**1. Local Persistent Storage Engine**
-
-Suitable for Topics with small data volume, latency-sensitive, and no data loss tolerance.
-
-**2. Memory Storage Engine**
-
-Suitable for Topics with large data volume, latency-sensitive, and can tolerate small amounts of data loss in extreme cases.
-
-**3. Remote Storage Engine**
-
-Suitable for Topics with large data volume, not latency-sensitive, no data loss tolerance, and cost-sensitive.
-
-**4. Built-in Journal Server**
-
-Suitable for Topics with large data volume, latency-sensitive, no data loss tolerance, and not cost-sensitive.
-
-According to actual business observations, most business scenarios do not require hybrid storage architecture. Even when hybrid needs exist, isolation is typically performed at the deployment level. Therefore, in actual deployment processes, configuring a single storage engine usually meets requirements.
+| Principle | Implementation |
+|-----------|---------------|
+| **Zero external dependencies** | Meta Service built-in (replaces ZooKeeper/etcd); Storage Engine built-in |
+| **Compute-storage separation** | Stateless Broker; Storage Engine scales independently |
+| **Multi-protocol extensibility** | Protocol layer decoupled from storage; new protocol = implement protocol logic layer only |
+| **Pluggable storage** | Storage Adapter's Shard abstraction allows any backend to be added or swapped |
+| **Topic-level configuration** | Storage type, QoS, expiry policy — all independently configurable per Topic |
