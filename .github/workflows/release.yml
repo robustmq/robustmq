@@ -15,7 +15,7 @@
 # Auto Release Workflow
 #
 # Triggers when a PR with title starting with "release:" is merged into main.
-# Builds and uploads packages for linux-amd64 and linux-arm64.
+# Builds and uploads packages for linux-amd64, linux-arm64, darwin-amd64, darwin-arm64.
 #
 # PR title format: "release: v0.3.0"
 
@@ -46,6 +46,10 @@ jobs:
             runner: ubuntu-22.04
           - platform: linux-arm64
             runner: ubuntu-22.04-arm
+          - platform: darwin-amd64
+            runner: macos-13
+          - platform: darwin-arm64
+            runner: macos-14
 
     steps:
       - name: Checkout code
@@ -53,7 +57,8 @@ jobs:
         with:
           submodules: true
 
-      - name: Free disk space
+      - name: Free disk space (Linux only)
+        if: runner.os == 'Linux'
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           sudo docker image prune --all --force || true
@@ -63,10 +68,16 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install system dependencies
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler cmake
+
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install protobuf cmake
 
       - name: Setup Node.js (for frontend build)
         uses: actions/setup-node@v4
