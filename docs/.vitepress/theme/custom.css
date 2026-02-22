@@ -1,9 +1,124 @@
 /* Custom styles for RobustMQ documentation */
 
 :root {
-  --vp-c-brand-1: #646cff;
-  --vp-c-brand-2: #747bff;
-  --vp-c-brand-3: #9499ff;
+  --vp-c-brand-1: #a855f7;
+  --vp-c-brand-2: #9333ea;
+  --vp-c-brand-3: #c084fc;
+  --vp-c-brand-soft: rgba(168, 85, 247, 0.14);
+}
+
+/* ── Force dark — hide appearance toggle ── */
+.VPNavBarAppearance,
+.VPSwitchAppearance {
+  display: none !important;
+}
+
+/* ── Navigation Bar ── */
+
+/* Nav background: deep purple glass */
+.VPNavBar {
+  background: rgba(7, 3, 15, 0.72) !important;
+  backdrop-filter: blur(20px) saturate(1.6) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.6) !important;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.18) !important;
+  box-shadow: 0 1px 32px rgba(124, 58, 237, 0.12) !important;
+  transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
+}
+
+/* Inner content keeps original layout */
+.VPNavBar .container {
+  background: transparent !important;
+}
+
+/* Divider line in nav */
+.VPNavBarHamburger .top,
+.VPNavBarHamburger .middle,
+.VPNavBarHamburger .bottom {
+  background-color: #c084fc !important;
+}
+
+/* Nav menu items */
+.VPNavBarMenuLink.active,
+.VPNavBarMenuLink:hover {
+  color: #c084fc !important;
+}
+
+.VPNavBarMenuLink.active::after {
+  background-color: #a855f7 !important;
+}
+
+/* Active link indicator */
+.VPNavBarMenuLink {
+  transition: color 0.2s !important;
+}
+
+/* Dropdown menus on nav */
+.VPFlyout .VPMenu,
+.VPNavBarMenuGroup .VPMenu {
+  background: rgba(12, 6, 22, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(168, 85, 247, 0.2) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(168, 85, 247, 0.1) !important;
+}
+
+/* Logo text */
+.VPNavBarTitle .title {
+  background: linear-gradient(135deg, #e9d5ff 0%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em;
+}
+
+/* Search button */
+.VPNavBarSearch .DocSearch-Button {
+  background: rgba(168, 85, 247, 0.08) !important;
+  border: 1px solid rgba(168, 85, 247, 0.2) !important;
+  border-radius: 10px !important;
+  transition: all 0.2s !important;
+}
+
+.VPNavBarSearch .DocSearch-Button:hover {
+  background: rgba(168, 85, 247, 0.15) !important;
+  border-color: rgba(168, 85, 247, 0.4) !important;
+}
+
+/* On the homepage (layout: page): nav starts nearly transparent */
+.layout-page .VPNavBar {
+  background: rgba(7, 3, 15, 0.2) !important;
+  border-bottom-color: transparent !important;
+  box-shadow: none !important;
+  transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
+}
+
+/* After scrolling down, nav becomes glassy */
+.layout-page .VPNavBar.nav-scrolled {
+  background: rgba(7, 3, 15, 0.82) !important;
+  border-bottom-color: rgba(168, 85, 247, 0.2) !important;
+  box-shadow: 0 1px 32px rgba(124, 58, 237, 0.15) !important;
+}
+
+/* Mobile sidebar */
+.VPLocalNav {
+  background: rgba(7, 3, 15, 0.8) !important;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.15) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+/* Sidebar on doc pages */
+.VPSidebar {
+  background: rgba(7, 3, 15, 0.92) !important;
+  border-right: 1px solid rgba(168, 85, 247, 0.12) !important;
+}
+
+/* Active sidebar link */
+.VPSidebarItem.is-active > .item .link .text {
+  color: #a855f7 !important;
+}
+
+.VPSidebarItem.is-active > .item .indicator {
+  background-color: #a855f7 !important;
 }
 
 /* 主标题渐变动画 */
@@ -285,4 +400,371 @@ html body * .text[data-v-4f9c455b] {
   .VPNavBarMenuGroup:last-of-type .VPMenu .items .VPMenuLink:hover {
     transform: translateX(2px) !important;
   }
+}
+
+/* ════════════════════════════════════════
+   Doc Page — Content Typography & Layout
+   ════════════════════════════════════════ */
+
+/* ── Overall content background ── */
+.VPDoc .content-container {
+  max-width: 780px;
+}
+
+/* Subtle side glow for the content area in dark mode */
+.dark .VPDoc .content {
+  background: linear-gradient(180deg,
+    rgba(124, 58, 237, 0.03) 0%,
+    transparent 200px);
+}
+
+/* ── H1 ── */
+.vp-doc h1 {
+  font-size: clamp(22px, 3vw, 28px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.2) !important;
+  position: relative;
+}
+
+.vp-doc h1::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(90deg, #a855f7, transparent);
+  border-radius: 2px;
+}
+
+/* ── H2 ── */
+.vp-doc h2 {
+  font-size: clamp(16px, 1.8vw, 18px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  padding-left: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--vp-c-divider) !important;
+  border-top: none !important;
+  position: relative;
+}
+
+.vp-doc h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 14px;
+  width: 4px;
+  background: linear-gradient(180deg, #a855f7, #7c3aed);
+  border-radius: 4px;
+}
+
+/* Purple underline accent that extends on hover */
+.vp-doc h2::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 60px;
+  height: 2px;
+  background: #a855f7;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.vp-doc h2:hover::after { width: 140px; }
+
+/* ── H3 ── */
+.vp-doc h3 {
+  font-size: clamp(14px, 1.5vw, 15px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 32px;
+  margin-bottom: 12px;
+  padding-left: 12px;
+  position: relative;
+  color: var(--vp-c-text-1);
+}
+
+.vp-doc h3::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  background: rgba(168, 85, 247, 0.5);
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+
+.vp-doc h3:hover::before { background: #a855f7; }
+
+/* ── H4 ── */
+.vp-doc h4 {
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--vp-c-text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Base font size for doc content ── */
+.vp-doc {
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+/* ── Paragraphs ── */
+.vp-doc p {
+  line-height: 1.8;
+  color: var(--vp-c-text-1);
+}
+
+/* ── Blockquote ── */
+.vp-doc blockquote {
+  margin: 24px 0;
+  padding: 16px 20px;
+  border-left: 3px solid #a855f7 !important;
+  background: rgba(168, 85, 247, 0.06);
+  border-radius: 0 10px 10px 0;
+  color: var(--vp-c-text-2);
+}
+
+.dark .vp-doc blockquote {
+  background: rgba(168, 85, 247, 0.08);
+}
+
+.vp-doc blockquote p { margin: 0; line-height: 1.7; }
+
+/* ── Horizontal rule — hidden in doc content ── */
+.vp-doc hr {
+  display: none;
+}
+
+/* ── Lists ── */
+.vp-doc ul > li::marker { color: #a855f7; }
+.vp-doc ol > li::marker { color: #a855f7; font-weight: 700; }
+
+/* ── Inline code ── */
+.vp-doc code:not(pre code) {
+  background: rgba(168, 85, 247, 0.1) !important;
+  color: #c084fc !important;
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-size: 0.88em;
+}
+
+/* ── Code blocks ── */
+.vp-doc div[class*="language-"] {
+  border: 1px solid rgba(168, 85, 247, 0.15);
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.dark .vp-doc div[class*="language-"] {
+  border-color: rgba(168, 85, 247, 0.2);
+  background: rgba(10, 5, 20, 0.8) !important;
+}
+
+/* Code block language badge */
+.vp-doc div[class*="language-"] .lang {
+  color: rgba(168, 85, 247, 0.6) !important;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+/* ── Tables ── */
+.vp-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(168, 85, 247, 0.15);
+  margin: 24px 0;
+}
+
+.vp-doc thead tr {
+  background: linear-gradient(90deg,
+    rgba(124, 58, 237, 0.18) 0%,
+    rgba(168, 85, 247, 0.12) 100%) !important;
+}
+
+.dark .vp-doc thead tr {
+  background: linear-gradient(90deg,
+    rgba(124, 58, 237, 0.3) 0%,
+    rgba(168, 85, 247, 0.2) 100%) !important;
+}
+
+.vp-doc th {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #c084fc !important;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.2) !important;
+  border-right: 1px solid rgba(168, 85, 247, 0.1);
+}
+
+.vp-doc td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--vp-c-divider);
+  border-right: 1px solid rgba(168, 85, 247, 0.06);
+  font-size: 14px;
+}
+
+.vp-doc tbody tr:hover {
+  background: rgba(168, 85, 247, 0.04);
+}
+
+/* ── Links ── */
+.vp-doc a {
+  color: #a855f7;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.3);
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.vp-doc a:hover {
+  color: #c084fc;
+  border-bottom-color: #a855f7;
+  text-decoration: none !important;
+}
+
+/* ── Custom containers (tip/warning/danger) ── */
+.vp-doc .custom-block.tip {
+  border-color: rgba(168, 85, 247, 0.4) !important;
+  background: rgba(168, 85, 247, 0.06) !important;
+}
+
+.vp-doc .custom-block.tip .custom-block-title {
+  color: #a855f7 !important;
+}
+
+/* ── TOC (right aside) ── */
+
+/* Remove any default blue box / outline */
+.VPDocAsideOutline,
+.VPDocAsideOutline *,
+.VPDocOutlineItem a,
+.VPDocOutlineItem a:focus,
+.VPDocOutlineItem a:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.VPDocAside .VPDocAsideOutline {
+  padding-top: 4px;
+}
+
+/* TOC title */
+.outline-title {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  color: rgba(168, 85, 247, 0.5) !important;
+  margin-bottom: 10px !important;
+  padding-left: 10px !important;
+}
+
+/* TOC item container — left border track */
+.VPDocAsideOutline .outline-marker {
+  background: #a855f7 !important;
+  width: 2px !important;
+  border-radius: 2px !important;
+}
+
+/* All TOC links */
+.VPDocOutlineItem a {
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+  color: var(--vp-c-text-3) !important;
+  text-decoration: none !important;
+  display: block;
+  padding: 4px 10px !important;
+  border-radius: 6px !important;
+  transition: color 0.2s, background 0.2s !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Nested (H3) links */
+.VPDocOutlineItem .VPDocOutlineItem a {
+  font-size: 11.5px !important;
+  padding-left: 18px !important;
+  color: var(--vp-c-text-3) !important;
+}
+
+/* Hover */
+.VPDocOutlineItem a:hover {
+  color: #c084fc !important;
+  background: rgba(168, 85, 247, 0.07) !important;
+}
+
+/* Active — purple text + left glow bar */
+.VPDocOutlineItem a.active {
+  color: #a855f7 !important;
+  font-weight: 600 !important;
+  background: rgba(168, 85, 247, 0.08) !important;
+  box-shadow: inset 2px 0 0 #a855f7 !important;
+}
+
+/* ── Sidebar base font ── */
+.VPSidebar {
+  font-size: 13px !important;
+}
+
+.VPSidebarItem .item .text {
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+}
+
+/* ── Sidebar group titles ── */
+.VPSidebarItem.level-0 > .item > .text {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  color: rgba(168, 85, 247, 0.7) !important;
+}
+
+/* Sidebar hover and active */
+.VPSidebarItem .item a:hover .text {
+  color: #c084fc !important;
+}
+
+.VPSidebarItem.is-active > .item .indicator {
+  background: linear-gradient(180deg, #a855f7, #7c3aed) !important;
+}
+
+/* ── Doc footer prev/next ── */
+.VPDocFooter .pager-link {
+  border: 1px solid rgba(168, 85, 247, 0.2) !important;
+  border-radius: 12px !important;
+  transition: all 0.25s !important;
+}
+
+.VPDocFooter .pager-link:hover {
+  border-color: rgba(168, 85, 247, 0.5) !important;
+  background: rgba(168, 85, 247, 0.05) !important;
+  transform: translateY(-2px);
+}
+
+.VPDocFooter .pager-link .title {
+  color: #a855f7 !important;
 }

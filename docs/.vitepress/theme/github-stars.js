@@ -96,3 +96,5 @@ export async function initGitHubStars() {
     console.log('GitHub stats fetch failed:', err)
   }
 }
+
+export { fetchStats }
