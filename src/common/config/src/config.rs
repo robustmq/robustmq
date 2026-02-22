@@ -14,13 +14,13 @@
 
 use super::default::{
     default_broker_id, default_broker_ip, default_cluster_name, default_engine_runtime,
-    default_grpc_port, default_http_port, default_message_storage, default_meta_addrs,
-    default_meta_runtime, default_mqtt_auth_config, default_mqtt_flapping_detect,
-    default_mqtt_keep_alive, default_mqtt_offline_message, default_mqtt_protocol_config,
-    default_mqtt_runtime, default_mqtt_schema, default_mqtt_security, default_mqtt_server,
-    default_mqtt_slow_subscribe_config, default_mqtt_system_monitor, default_network,
-    default_rocksdb, default_roles, default_runtime, default_runtime_worker_threads,
-    default_storage_offset,
+    default_grpc_client, default_grpc_port, default_http_port, default_message_storage,
+    default_meta_addrs, default_meta_runtime, default_mqtt_auth_config,
+    default_mqtt_flapping_detect, default_mqtt_keep_alive, default_mqtt_offline_message,
+    default_mqtt_protocol_config, default_mqtt_runtime, default_mqtt_schema, default_mqtt_security,
+    default_mqtt_server, default_mqtt_slow_subscribe_config, default_mqtt_system_monitor,
+    default_network, default_rocksdb, default_roles, default_runtime,
+    default_runtime_worker_threads, default_storage_offset,
 };
 use super::security::{AuthnConfig, AuthzConfig};
 use crate::common::Log;
@@ -119,6 +119,9 @@ pub struct BrokerConfig {
 
     #[serde(default = "default_storage_offset")]
     pub storage_offset: StorageOffset,
+
+    #[serde(default = "default_grpc_client")]
+    pub grpc_client: GrpcClientConfig,
 }
 
 impl Default for BrokerConfig {
@@ -152,8 +155,28 @@ impl Default for BrokerConfig {
             mqtt_schema: default_mqtt_schema(),
             mqtt_system_monitor: default_mqtt_system_monitor(),
             storage_offset: default_storage_offset(),
+            grpc_client: default_grpc_client(),
         }
     }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct GrpcClientConfig {
+    /// Number of HTTP/2 channels (TCP connections) maintained per gRPC server address.
+    /// Each channel supports ~200 concurrent streams via HTTP/2 multiplexing.
+    /// Increase only under extreme concurrency; default of 4 handles ~800 concurrent RPCs.
+    #[serde(default = "default_grpc_channels_per_address")]
+    pub channels_per_address: usize,
+}
+
+impl Default for GrpcClientConfig {
+    fn default() -> Self {
+        default_grpc_client()
+    }
+}
+
+pub fn default_grpc_channels_per_address() -> usize {
+    4
 }
 
 impl BrokerConfig {

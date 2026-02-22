@@ -533,7 +533,41 @@ os_memory_high_watermark = 80.0
 
 ---
 
-## 20. 监控配置
+## 20. gRPC 客户端配置
+
+### [grpc_client]
+
+控制 Broker 内部 gRPC 客户端的连接池行为。RobustMQ 使用 HTTP/2 进行节点间通信，每个 Channel 是一条独立的 TCP 连接，支持多路复用。
+
+```toml
+[grpc_client]
+channels_per_address = 4
+```
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `channels_per_address` | `usize` | `4` | 每个 gRPC 服务地址维护的 HTTP/2 Channel 数量 |
+
+**调优说明：**
+
+每个 HTTP/2 Channel 支持约 200 个并发 Stream（即并发 RPC 请求），默认值 `4` 可支撑约 800 个并发 gRPC 请求，覆盖绝大多数生产场景。
+
+| 场景 | 建议值 |
+|------|--------|
+| 默认 / 常规生产 | `4` |
+| 高并发（万级 MQTT 连接） | `8` ~ `16` |
+| 极高并发压测 | `32` |
+
+> **注意：** 该值过大会导致系统打开的 TCP 文件描述符数量暴增（每个 Channel 占用一个 fd），在 `ulimit -n` 较小的环境下可能引发 `Too many open files` 错误。
+
+**环境变量：**
+```bash
+export ROBUST_MQ_SERVER_GRPC_CLIENT_CHANNELS_PER_ADDRESS=8
+```
+
+---
+
+## 21. 监控配置
 
 ### [prometheus]
 
@@ -709,6 +743,10 @@ port = 9090
 enable = false
 port = 6060
 frequency = 100
+
+# ========== gRPC 客户端 ==========
+[grpc_client]
+channels_per_address = 4
 
 # ========== 日志 ==========
 [log]

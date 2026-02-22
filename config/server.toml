@@ -78,3 +78,9 @@ max_connection_num = 1000000
 # - false (default): Transient sessions (memory-only, higher performance)
 # - true: Durable sessions (disk-persisted, survive node restarts)
 durable_sessions_enable = false
+
+[grpc_client]
+# Number of HTTP/2 channels (TCP connections) per gRPC server address.
+# Each channel supports ~200 concurrent RPCs via HTTP/2 multiplexing.
+# Default of 4 handles ~800 concurrent RPCs; increase only under extreme load.
+channels_per_address = 4

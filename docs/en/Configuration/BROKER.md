@@ -533,7 +533,41 @@ os_memory_high_watermark = 80.0
 
 ---
 
-## 20. Monitoring Configuration
+## 20. gRPC Client Configuration
+
+### [grpc_client]
+
+Controls the connection pool behavior of the Broker's internal gRPC client. RobustMQ uses HTTP/2 for inter-node communication. Each Channel is an independent TCP connection that supports multiplexing.
+
+```toml
+[grpc_client]
+channels_per_address = 4
+```
+
+| Configuration | Type | Default | Description |
+|---------------|------|---------|-------------|
+| `channels_per_address` | `usize` | `4` | Number of HTTP/2 Channels maintained per gRPC server address |
+
+**Tuning Guide:**
+
+Each HTTP/2 Channel supports approximately 200 concurrent Streams (concurrent RPC requests). The default value of `4` supports approximately 800 concurrent gRPC requests, which covers the vast majority of production scenarios.
+
+| Scenario | Recommended Value |
+|----------|-------------------|
+| Default / general production | `4` |
+| High concurrency (tens of thousands of MQTT connections) | `8` ~ `16` |
+| Extreme concurrency / stress testing | `32` |
+
+> **Note:** Setting this value too high will cause a surge in open TCP file descriptors (each Channel occupies one fd). In environments with a low `ulimit -n`, this may trigger a `Too many open files` error.
+
+**Environment variable:**
+```bash
+export ROBUST_MQ_SERVER_GRPC_CLIENT_CHANNELS_PER_ADDRESS=8
+```
+
+---
+
+## 21. Monitoring Configuration
 
 ### [prometheus]
 
@@ -709,6 +743,10 @@ port = 9090
 enable = false
 port = 6060
 frequency = 100
+
+# ========== gRPC Client ==========
+[grpc_client]
+channels_per_address = 4
 
 # ========== Logging ==========
 [log]
