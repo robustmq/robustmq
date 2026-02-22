@@ -2,6 +2,9 @@ import { createContentLoader } from 'vitepress'
 import fs from 'fs'
 import path from 'path'
 
+// Pinned post number (change to pin a different post)
+const PINNED_POST_NUMBER = 43
+
 interface BlogPost {
   title: string
   url: string
@@ -10,6 +13,7 @@ interface BlogPost {
   number: number
   tags?: string[]
   modifiedTime?: string
+  pinned?: boolean
 }
 
 // 关键字提取函数（从标题和内容提取）
@@ -74,7 +78,7 @@ export default {
     // 读取中文博客
     const zhBlogsDir = path.resolve(__dirname, '../../zh/Blogs')
     const zhFiles = fs.readdirSync(zhBlogsDir)
-      .filter(file => file.endsWith('.md'))
+      .filter(file => file.endsWith('.md') && file !== 'index.md')
       .sort((a, b) => {
         // 提取数字并倒序排列
         const numA = parseInt(a.replace('.md', ''))
@@ -145,7 +149,8 @@ export default {
         number,
         tags,
         date: modifiedTime,
-        modifiedTime
+        modifiedTime,
+        pinned: number === PINNED_POST_NUMBER
       })
     }
     
@@ -153,7 +158,7 @@ export default {
     const enBlogsDir = path.resolve(__dirname, '../../en/Blogs')
     const enFiles = fs.existsSync(enBlogsDir) 
       ? fs.readdirSync(enBlogsDir)
-          .filter(file => file.endsWith('.md'))
+          .filter(file => file.endsWith('.md') && file !== 'index.md')
           .sort((a, b) => {
             const numA = parseInt(a.replace('.md', ''))
             const numB = parseInt(b.replace('.md', ''))
@@ -222,7 +227,8 @@ export default {
         number,
         tags,
         date: modifiedTime,
-        modifiedTime
+        modifiedTime,
+        pinned: number === PINNED_POST_NUMBER
       })
     }
     

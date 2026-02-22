@@ -23,7 +23,7 @@ pub fn build_client(
     password: &Option<String>,
 ) -> (AsyncClient, EventLoop) {
     let mut opts = MqttOptions::new(client_id, host, port);
-    opts.set_keep_alive(Duration::from_secs(30));
+    opts.set_keep_alive(Duration::from_secs(60));
     if let (Some(u), Some(p)) = (username, password) {
         opts.set_credentials(u.clone(), p.clone());
     }

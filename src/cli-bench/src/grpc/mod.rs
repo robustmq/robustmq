@@ -41,7 +41,7 @@ pub struct PlacementCreateSessionArgs {
     pub count: usize,
     #[arg(long, default_value_t = 1000)]
     pub concurrency: usize,
-    #[arg(long, default_value_t = 3000)]
+    #[arg(long, default_value_t = 60000)]
     pub timeout_ms: u64,
     #[arg(long, default_value_t = 3600)]
     pub session_expiry_secs: u64,
@@ -61,7 +61,7 @@ pub struct PlacementListSessionArgs {
     pub count: usize,
     #[arg(long, default_value_t = 1000)]
     pub concurrency: usize,
-    #[arg(long, default_value_t = 3000)]
+    #[arg(long, default_value_t = 60000)]
     pub timeout_ms: u64,
     #[arg(long, default_value_t = String::from("bench-meta-session"))]
     pub client_id_prefix: String,
@@ -79,7 +79,7 @@ pub struct PlacementDeleteSessionArgs {
     pub count: usize,
     #[arg(long, default_value_t = 1000)]
     pub concurrency: usize,
-    #[arg(long, default_value_t = 3000)]
+    #[arg(long, default_value_t = 60000)]
     pub timeout_ms: u64,
     /// Fixed client_id used for all delete requests
     #[arg(long, default_value_t = String::from("bench-delete-session-client"))]

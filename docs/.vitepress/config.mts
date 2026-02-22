@@ -57,8 +57,8 @@ export default defineConfig({
         }
     },
     
-    // 保持主题切换功能
-    appearance: true,
+    // 强制暗色模式，禁用切换
+    appearance: 'force-dark',
     
     // 禁用可能导致布局问题的功能
     mpa: false,
@@ -90,5 +90,14 @@ export default defineConfig({
 
     /* 语言配置 */
 
+    // Auto-apply blog post layout to all Blogs/*.md pages
+    transformPageData(pageData) {
+        if (pageData.relativePath.match(/^(zh|en)\/Blogs\/(?!index)\d+\.md$/)) {
+            pageData.frontmatter.layout    = pageData.frontmatter.layout    ?? 'doc'
+            pageData.frontmatter.sidebar   = false
+            pageData.frontmatter.aside     = false
+            pageData.frontmatter.pageClass = 'blog-post-page'
+        }
+    },
 
 });
