@@ -3,9 +3,10 @@
 layout: home
 
 hero:
-  text: "新一代云原生和AI原生消息基础设施"
+  text: "下一代AI、IoT、大数据统一的通信基础设施"
   tagline: |
-    RobustMQ 是 100% 用 Rust 实现的新一代云原生消息队列，专为 AI 时代和云原生环境重新设计。通过多协议统一（MQTT/Kafka/AMQP）、存算分离架构和插件化存储，提供微秒级延迟、零 GC 停顿的高性能消息基础设施，支持 Serverless 弹性扩缩容。
+    让数据在AI训练集群、百万Agent、IoT设备和云端之间，以最优路径、最低延迟、最小成本自由流动。
+    RobustMQ 用 Rust 构建，完全兼容 Kafka 和 MQTT 协议，通过对象存储智能缓存、百万级轻量 Topic、共享订阅和多模式存储引擎，一套系统替代 MQTT + Kafka 双架构。
 
   actions:
     - theme: alt
@@ -18,39 +19,44 @@ hero:
       text: 📦 Version
       link: https://github.com/robustmq/robustmq/releases
     - theme: brand
-      text: 🚀 Get Started
+      text: 🚀 快速开始
       link: /zh/OverView/What-is-RobustMQ
   image:
     src: /logo-large.jpg
     alt: RobustMQ
 
 features:
-  - title: 🦀 Rust 高性能内核
-    details: 完全用 Rust 实现的消息队列内核，零 GC 停顿、内存安全、微秒级延迟，为 AI 应用提供极致性能保障。
-  - title: 🔌 多协议统一平台
-    details: 原生支持 MQTT、Kafka、AMQP 等主流协议，一次部署多协议可用，避免系统割裂，降低运维复杂度。
-  - title: ☁️ 存算分离架构
-    details: 采用 Broker、Journal、Meta Service 三层独立设计，无状态计算层支持 Serverless 弹性扩缩容，存储层独立扩展。
-  - title: 💾 插件化存储引擎
-    details: 支持内存、SSD、对象存储等多种后端，智能分层存储，根据业务场景灵活选择，大幅降低存储成本。
-  - title: 🚀 AI 原生优化
-    details: 专为 AI 时代设计，支持海量数据流处理、实时推理场景，微秒级延迟满足 AI 应用的严苛性能要求。
-  - title: 🌐 云原生友好
-    details: 单二进制部署、K8s Operator 支持、可视化管理界面，真正实现云原生时代的简化运维和快速部署。
+  - title: 🚀 极致性能
+    details: 基于 Rust 构建，微秒级延迟，无 GC 停顿，单节点百万级 QPS，极小内存占用支持边缘部署。
+  - title: 🔌 双协议统一
+    details: 完全兼容 MQTT 3.1/3.1.1/5.0 和 Kafka 协议，统一存储层实现 MQTT in / Kafka out，一套系统替代双架构，零迁移成本。
+  - title: 🎯 AI 训练加速
+    details: 对象存储（S3/MinIO）直连，三层智能缓存（内存/SSD/S3），训练数据无需预导入，消除 I/O 瓶颈，极大提升 GPU 利用率。
+  - title: 🤖 Agent 通信
+    details: 单集群支持百万级轻量 Topic，每个 Agent 独立通道，细粒度隔离与监控，成本按 Agent 可追溯。
+  - title: 🔄 弹性消费
+    details: 共享订阅模式突破 Kafka "并发度 = Partition 数量"的限制，GPU 训练节点随时扩缩容，无需修改 Topic 配置。
+  - title: 💾 智能存储引擎
+    details: 内存/混合/持久/分层四模式，Topic 级独立配置，热数据极速访问，冷数据自动分层到 S3，性能与成本兼顾。
+  - title: 🌐 边缘到云端
+    details: 极小内存占用，从边缘网关到云端集群统一部署，断网缓存 + 自动同步覆盖 IoT 全链路。
+  - title: 🛠️ 极简部署
+    details: 单二进制文件，零外部依赖，内置 Raft 共识，开箱即用，运维成本极低。
 
 ---
 
 <div class="architecture-section">
   <div class="architecture-header">
-    <h2>架构概览</h2>
+    <h2>系统架构</h2>
+    <p>Meta Service 管元数据，无状态 Broker 处理协议，插件化 Storage Engine 负责持久化。三组件固定架构，边界清晰，各自独立扩展。</p>
   </div>
   <div class="architecture-container">
     <div class="architecture-image-wrapper">
       <img src="/images/robustmq-architecture.jpg" alt="RobustMQ Architecture" />
       <div class="architecture-overlay">
         <div class="overlay-content">
-          <h3>云原生设计</h3>
-          <p>为规模、可靠性和性能而构建</p>
+          <h3>Meta Service · Broker · Storage Engine</h3>
+          <p>存算分离，无状态 Broker 水平扩展，存储层独立演进</p>
         </div>
       </div>
     </div>
@@ -59,15 +65,16 @@ features:
 
 <div class="console-section">
   <div class="console-header">
-    <h2>管理控制台</h2>
+    <h2>Web 管理控制台</h2>
+    <p>可视化管理连接、Topic、订阅、规则引擎和监控指标，内置 Grafana 集成，开箱即用。</p>
   </div>
   <div class="console-container">
     <div class="console-image-wrapper">
       <img src="/images/console-logo.png" alt="RobustMQ Console" />
       <div class="console-overlay">
         <div class="overlay-content">
-          <h3>Web 管理</h3>
-          <p>通过 Web 界面轻松监控和配置</p>
+          <h3>Dashboard</h3>
+          <p>实时连接、消息、存储全览</p>
         </div>
       </div>
     </div>
@@ -76,15 +83,15 @@ features:
 
 <div class="web-ui-section">
   <div class="web-ui-header">
-    <h2>Web 仪表板</h2>
+    <h2>实时监控</h2>
   </div>
   <div class="web-ui-container">
     <div class="web-ui-image-wrapper">
       <img src="/images/web-ui.jpg" alt="RobustMQ Web Dashboard" />
       <div class="web-ui-overlay">
         <div class="overlay-content">
-          <h3>实时监控</h3>
-          <p>全面的仪表板用于系统监控和管理</p>
+          <h3>Grafana + Prometheus</h3>
+          <p>连接数、吞吐、延迟、存储全维度可观测</p>
         </div>
       </div>
     </div>
@@ -92,7 +99,7 @@ features:
 </div>
 
 <div class="footer-message">
-  <p>很高兴有机会让你看到不一样的作品</p>
+  <p>技术信仰驱动，目标成为 Apache 顶级项目</p>
 </div>
 
 <div class="website-footer">

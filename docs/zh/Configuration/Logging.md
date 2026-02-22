@@ -4,7 +4,7 @@ RobustMQ 使用基于 `tracing` 的现代化日志系统，支持多种输出方
 
 ## 配置文件
 
-日志配置文件：`config/server-tracing.toml`
+日志配置文件：`config/logger.toml`
 
 ## 基本配置
 

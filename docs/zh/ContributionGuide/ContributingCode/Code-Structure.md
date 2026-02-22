@@ -196,7 +196,7 @@ robustmq/
 config/
 ├── server.toml              # 主配置文件
 ├── server.toml.template     # 配置模板
-├── server-tracing.toml      # 链路追踪配置
+├── logger.toml      # 链路追踪配置
 ├── version.ini              # 版本信息
 └── certs/                   # TLS 证书
 ```

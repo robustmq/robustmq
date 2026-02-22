@@ -15,13 +15,14 @@ export const sidebar = [
                     { text: "和 Redpanda 对比", link: "/zh/OverView/Diff-redpanda" },
                     { text: "和 Iggy 对比", link: "/zh/OverView/Diff-iggy" },
                     { text: "综合对比", link: "/zh/OverView/Diff-MQ" },
-                    { text: "对比总结与技术评估", link: "/zh/OverView/Summary" },
+                    { text: "RobustMQ 和现有MQ的对比", link: "/zh/OverView/Summary" },
                 ],
             },
             {
                 text: "版本计划",
                 collapsed: true,
                 items: [
+                    { text: "2026 年 RoadMap", link: "/zh/OverView/RoadMap-2026" },
                     { text: "2025 年 RoadMap", link: "/zh/OverView/RoadMap-2025" },
                     { text: "MQTT Release 计划", link: "/zh/OverView/MQTT-Release" },
                     { text: "Good First Issue", link: "/zh/OverView/Good-First-Issue" },
@@ -37,6 +38,7 @@ export const sidebar = [
             { text: "快速安装", link: "/zh/QuickGuide/Quick-Install" },
             { text: "公共Server", link: "/zh/QuickGuide/PublicMqttServer" },
             { text: "体验 RobustMQ MQTT", link: "/zh/QuickGuide/Experience-MQTT" },
+            { text: "SDK 接入", link: "/zh/QuickGuide/SDK-Integration" },
         ],
     },
     {

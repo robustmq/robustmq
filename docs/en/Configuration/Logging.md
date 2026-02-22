@@ -10,17 +10,17 @@ Logging involves two configuration layers:
 
 ```toml
 [log]
-log_config = "./config/server-tracing.toml"
+log_config = "./config/logger.toml"
 log_path = "./logs"
 ```
 
-2. **`config/server-tracing.toml`** — defines all log appenders (console, file, tokio-console).
+2. **`config/logger.toml`** — defines all log appenders (console, file, tokio-console).
 
 ---
 
 ## Appender Types
 
-Each TOML section in `server-tracing.toml` defines one appender. The section name is arbitrary (e.g. `[stdout]`, `[server]`, `[raft]`). The `kind` field determines the appender type.
+Each TOML section in `logger.toml` defines one appender. The section name is arbitrary (e.g. `[stdout]`, `[server]`, `[raft]`). The `kind` field determines the appender type.
 
 | `kind` | Description |
 |--------|-------------|
@@ -138,7 +138,7 @@ grpc_web = true
 
 ## Default Configuration
 
-The default `config/server-tracing.toml` ships with the following appenders:
+The default `config/logger.toml` ships with the following appenders:
 
 ```toml
 # Console output

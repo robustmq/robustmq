@@ -49,11 +49,11 @@ const (
 
 // Condition types
 const (
-	ConditionTypeReady             = "Ready"
-	ConditionTypeConfigMapReady    = "ConfigMapReady"
-	ConditionTypeServiceReady      = "ServiceReady"
-	ConditionTypeDeploymentReady   = "DeploymentReady"
-	ConditionTypeStatefulSetReady  = "StatefulSetReady"
+	ConditionTypeReady            = "Ready"
+	ConditionTypeConfigMapReady   = "ConfigMapReady"
+	ConditionTypeServiceReady     = "ServiceReady"
+	ConditionTypeDeploymentReady  = "DeploymentReady"
+	ConditionTypeStatefulSetReady = "StatefulSetReady"
 )
 
 //+kubebuilder:rbac:groups=robustmq.io,resources=robustmqs,verbs=get;list;watch;create;update;patch;delete
@@ -184,7 +184,7 @@ func (r *RobustMQReconciler) generateConfigData(robustmq *robustmqv1alpha1.Robus
 	}
 
 	// Add tracing configuration
-	config["server-tracing.toml"] = r.generateTracingConfig(robustmq)
+	config["logger.toml"] = r.generateTracingConfig(robustmq)
 
 	// Add any additional configuration from spec
 	for key, value := range robustmq.Spec.Config.Additional {
@@ -238,7 +238,7 @@ interval = 10
 
 	// Add log configuration
 	config += `[log]
-log_config = "/robustmq/config/server-tracing.toml"
+log_config = "/robustmq/config/logger.toml"
 log_path = "/robustmq/logs"
 
 `

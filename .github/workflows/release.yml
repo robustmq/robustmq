@@ -15,7 +15,8 @@
 # Auto Release Workflow
 #
 # Triggers when a PR with title starting with "release:" is merged into main.
-# Builds and uploads packages for linux-amd64, linux-arm64, darwin-amd64, darwin-arm64.
+# Builds and uploads packages for linux-amd64, linux-arm64 and darwin-arm64.
+# Also builds and pushes multi-arch Docker images to ghcr.io.
 #
 # PR title format: "release: v0.3.0"
 
@@ -28,6 +29,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   build-and-release:
@@ -46,8 +48,6 @@ jobs:
             runner: ubuntu-22.04
           - platform: linux-arm64
             runner: ubuntu-22.04-arm
-          - platform: darwin-amd64
-            runner: macos-13
           - platform: darwin-arm64
             runner: macos-14
 
@@ -108,3 +108,57 @@ jobs:
           echo "## 🚀 Release - ${{ matrix.platform }}" >> $GITHUB_STEP_SUMMARY
           echo "✅ Package built and uploaded successfully" >> $GITHUB_STEP_SUMMARY
           echo "📦 [View Releases](https://github.com/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY
+
+  docker-release:
+    name: Build & Push Docker Image
+    if: >
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.title, 'release:')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Extract version from Cargo.toml
+        id: version
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=v${VERSION}" >> $GITHUB_OUTPUT
+          echo "Detected version: v${VERSION}"
+
+      - name: Set up QEMU (for multi-arch builds)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push multi-arch Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/robustmq/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        run: |
+          echo "## 🐳 Docker Image" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Multi-arch image pushed (linux/amd64 + linux/arm64)" >> $GITHUB_STEP_SUMMARY
+          echo "📦 \`ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "📦 \`ghcr.io/${{ github.repository }}:latest\`" >> $GITHUB_STEP_SUMMARY

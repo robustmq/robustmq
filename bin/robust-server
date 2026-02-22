@@ -17,7 +17,7 @@
 usage() {
     echo "Usage: $0 <action> [config_file]"
     echo "  action: start | stop"
-    echo "  config_file: optional, default is config/<module>.toml"
+    echo "  config_file: optional, default is config/server.toml"
     echo "  example start: $0 start config/server.toml"
     echo "  example stop: $0 stop"
     exit 1

@@ -68,11 +68,17 @@ RUN apt-get update && apt-get install -y \
     lld \
     && rm -rf /var/lib/apt/lists/*
 
-# Install protoc (Protocol Buffers compiler)
+# Install protoc (Protocol Buffers compiler) - auto-detect architecture
 ARG PROTOC_VERSION=23.4
-RUN curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip" \
-    && unzip "protoc-${PROTOC_VERSION}-linux-x86_64.zip" -d /usr/local \
-    && rm "protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+RUN ARCH=$(uname -m) && \
+    case "$ARCH" in \
+        x86_64)  PROTOC_ARCH="linux-x86_64" ;; \
+        aarch64) PROTOC_ARCH="linux-aarch_64" ;; \
+        *) echo "Unsupported arch: $ARCH" && exit 1 ;; \
+    esac && \
+    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-${PROTOC_ARCH}.zip" \
+    && unzip "protoc-${PROTOC_VERSION}-${PROTOC_ARCH}.zip" -d /usr/local \
+    && rm "protoc-${PROTOC_VERSION}-${PROTOC_ARCH}.zip"
 
 # Install cargo-chef for dependency caching
 RUN cargo install cargo-chef --locked

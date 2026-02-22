@@ -1,120 +1,98 @@
 // GitHub Stats 动态更新脚本
-export function initGitHubStars() {
-  // 格式化数字为K格式
-  function formatCount(count) {
-    if (count >= 1000) {
-      return (count / 1000).toFixed(1) + 'K'
+// 带本地缓存（sessionStorage），避免重复请求触发 API 限流
+
+const CACHE_KEY = 'robustmq_github_stats'
+const CACHE_TTL = 5 * 60 * 1000 // 5 分钟
+
+function formatCount(count) {
+  if (count >= 1000) {
+    return (count / 1000).toFixed(1) + 'k'
+  }
+  return count.toString()
+}
+
+async function fetchStats() {
+  // 优先读缓存
+  try {
+    const cached = sessionStorage.getItem(CACHE_KEY)
+    if (cached) {
+      const { data, ts } = JSON.parse(cached)
+      if (Date.now() - ts < CACHE_TTL) return data
     }
-    return count.toString()
+  } catch (_) {}
+
+  const [repoRes, contribRes, releaseRes] = await Promise.allSettled([
+    fetch('https://api.github.com/repos/robustmq/robustmq'),
+    fetch('https://api.github.com/repos/robustmq/robustmq/contributors?per_page=1'),
+    fetch('https://api.github.com/repos/robustmq/robustmq/releases/latest'),
+  ])
+
+  let stars = null
+  let contributors = null
+  let version = null
+
+  if (repoRes.status === 'fulfilled' && repoRes.value.ok) {
+    const d = await repoRes.value.json()
+    stars = formatCount(d.stargazers_count)
   }
 
-  // 获取GitHub仓库信息
-  async function fetchRepoStats() {
-    try {
-      const response = await fetch('https://api.github.com/repos/robustmq/robustmq')
-      if (response.ok) {
-        const data = await response.json()
-        return {
-          stars: formatCount(data.stargazers_count),
-          contributors: null // 需要单独获取
-        }
+  if (contribRes.status === 'fulfilled' && contribRes.value.ok) {
+    const link = contribRes.value.headers.get('Link')
+    if (link) {
+      const m = link.match(/page=(\d+)>; rel="last"/)
+      if (m) contributors = formatCount(parseInt(m[1]))
+    }
+    if (!contributors) {
+      const arr = await contribRes.value.json()
+      contributors = formatCount(arr.length)
+    }
+  }
+
+  if (releaseRes.status === 'fulfilled' && releaseRes.value.ok) {
+    const d = await releaseRes.value.json()
+    version = d.tag_name || d.name || null
+  }
+
+  const data = { stars, contributors, version }
+
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }))
+  } catch (_) {}
+
+  return data
+}
+
+function applyStats({ stars, contributors, version }) {
+  if (stars) {
+    document.querySelectorAll('a[href="https://github.com/robustmq/robustmq"]').forEach(el => {
+      if ((el.textContent || '').includes('Stars')) {
+        el.textContent = `⭐ ${stars} Stars`
       }
-    } catch (error) {
-      console.log('Failed to fetch GitHub repo stats:', error)
-    }
-    return null
-  }
-
-  // 获取Contributors数量
-  async function fetchContributorsCount() {
-    try {
-      const response = await fetch('https://api.github.com/repos/robustmq/robustmq/contributors?per_page=1')
-      if (response.ok) {
-        // 从Link header获取总数
-        const linkHeader = response.headers.get('Link')
-        if (linkHeader) {
-          const match = linkHeader.match(/page=(\d+)>; rel="last"/)
-          if (match) {
-            return formatCount(parseInt(match[1]))
-          }
-        }
-        // 如果没有Link header，说明contributors少于100个，直接获取数组长度
-        const contributors = await response.json()
-        return formatCount(contributors.length)
-      }
-    } catch (error) {
-      console.log('Failed to fetch contributors count:', error)
-    }
-    return null
-  }
-
-  // 获取最新版本号
-  async function fetchLatestVersion() {
-    try {
-      const response = await fetch('https://api.github.com/repos/robustmq/robustmq/releases/latest')
-      if (response.ok) {
-        const data = await response.json()
-        return data.tag_name || data.name
-      }
-    } catch (error) {
-      console.log('Failed to fetch latest version:', error)
-    }
-    return null
-  }
-
-  // 更新所有GitHub按钮
-  async function updateGitHubButtons() {
-    const [repoStats, contributorsCount, latestVersion] = await Promise.all([
-      fetchRepoStats(),
-      fetchContributorsCount(),
-      fetchLatestVersion()
-    ])
-
-    // 更新Stars按钮
-    if (repoStats && repoStats.stars) {
-      const starButtons = document.querySelectorAll('a[href="https://github.com/robustmq/robustmq"]')
-      starButtons.forEach(button => {
-        const text = button.textContent || button.innerText
-        if (text.includes('GitHub Stars')) {
-          button.textContent = `⭐ GitHub Stars (${repoStats.stars})`
-        }
-      })
-    }
-
-    // 更新Contributors按钮
-    if (contributorsCount) {
-      const contributorButtons = document.querySelectorAll('a[href="https://github.com/robustmq/robustmq/graphs/contributors"]')
-      contributorButtons.forEach(button => {
-        const text = button.textContent || button.innerText
-        if (text.includes('Contributors')) {
-          button.textContent = `👥 Contributors (${contributorsCount})`
-        }
-      })
-    }
-
-    // 更新Version按钮
-    if (latestVersion) {
-      const versionButtons = document.querySelectorAll('a[href="https://github.com/robustmq/robustmq/releases"]')
-      versionButtons.forEach(button => {
-        const text = button.textContent || button.innerText
-        if (text.includes('Version')) {
-          button.textContent = `📦 Version (${latestVersion})`
-        }
-      })
-    }
-  }
-
-  // 页面加载完成后更新按钮
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', updateGitHubButtons)
-  } else {
-    updateGitHubButtons()
-  }
-
-  // 监听路由变化（VitePress SPA导航）
-  if (typeof window !== 'undefined') {
-    window.addEventListener('popstate', () => {
-      setTimeout(updateGitHubButtons, 100)
     })
+  }
+
+  if (contributors) {
+    document.querySelectorAll('a[href="https://github.com/robustmq/robustmq/graphs/contributors"]').forEach(el => {
+      if ((el.textContent || '').includes('Contributors')) {
+        el.textContent = `👥 ${contributors} Contributors`
+      }
+    })
+  }
+
+  if (version) {
+    document.querySelectorAll('a[href="https://github.com/robustmq/robustmq/releases"]').forEach(el => {
+      if ((el.textContent || '').includes('Version')) {
+        el.textContent = `📦 ${version}`
+      }
+    })
+  }
+}
+
+export async function initGitHubStars() {
+  try {
+    const stats = await fetchStats()
+    applyStats(stats)
+  } catch (err) {
+    console.log('GitHub stats fetch failed:', err)
   }
 }
