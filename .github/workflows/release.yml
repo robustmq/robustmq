@@ -22,7 +22,7 @@
 name: Release
 
 on:
-  pull_request:
+  pull_request_target:
     types: [closed]
     branches: [main]
 
@@ -55,6 +55,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
+          ref: main
           submodules: true
 
       - name: Free disk space (Linux only)
