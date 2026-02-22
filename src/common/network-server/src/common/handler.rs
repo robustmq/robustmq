@@ -22,8 +22,10 @@ use common_base::error::client_unavailable_error_by_str;
 use common_base::tools::now_millis;
 use common_metrics::mqtt::packets::record_packet_send_metrics;
 use common_metrics::network::{
-    metrics_handler_apply_ms, metrics_handler_queue_state, metrics_handler_queue_wait_ms,
-    metrics_handler_request_count, metrics_handler_slow_request_count, metrics_handler_total_ms,
+    metrics_handler_apply_ms, metrics_handler_instance_apply_ms,
+    metrics_handler_instance_request_count, metrics_handler_queue_state,
+    metrics_handler_queue_wait_ms, metrics_handler_request_count,
+    metrics_handler_slow_request_count, metrics_handler_timeout_count, metrics_handler_total_ms,
     metrics_handler_write_ms,
 };
 use metadata_struct::connection::NetworkConnectionType;
@@ -33,9 +35,12 @@ use protocol::robust::{
     RobustMQPacket, RobustMQPacketWrapper, RobustMQWrapperExtend, StorageEngineWrapperExtend,
 };
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::select;
 use tokio::sync::broadcast;
 use tracing::{debug, error, warn};
+
+const HANDLER_APPLY_TIMEOUT_SECS: u64 = 30;
 
 pub fn handler_process(
     handler_process_num: usize,
@@ -92,47 +97,30 @@ pub fn handler_process(
                                 let queue_wait_ms = dequeue_ms.saturating_sub(packet.receive_ms);
                                 metrics_handler_queue_wait_ms(&raw_network_type, queue_wait_ms as f64);
 
-                                if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
-                                    // apply
-                                    let apply_start = now_millis();
-                                    let response_data = raw_command
-                                        .apply(&connect, &packet.addr, &packet.packet)
-                                        .await;
-                                    let apply_ms = now_millis().saturating_sub(apply_start);
-                                    metrics_handler_apply_ms(&raw_network_type, apply_ms as f64);
-
-                                    // write response
-                                    if let Some(resp) = response_data {
-                                        let write_start = now_millis();
-                                        write_response(&raw_connect_manager, &raw_network_type, &resp).await;
-                                        let write_ms = now_millis().saturating_sub(write_start);
-                                        metrics_handler_write_ms(&raw_network_type, write_ms as f64);
-                                    }
-
-                                    // total
-                                    let total_ms = now_millis().saturating_sub(packet.receive_ms);
-                                    metrics_handler_total_ms(&raw_network_type, total_ms as f64);
-                                    metrics_handler_request_count(&raw_network_type);
-
-                                    if total_ms >= SLOW_REQUEST_THRESHOLD_MS {
-                                        warn!(
+                                match tokio::time::timeout(
+                                    Duration::from_secs(HANDLER_APPLY_TIMEOUT_SECS),
+                                    handle_packet(
+                                        &raw_connect_manager,
+                                        &raw_command,
+                                        &raw_network_type,
+                                        &packet,
+                                        queue_wait_ms,
+                                        index,
+                                    ),
+                                )
+                                .await
+                                {
+                                    Ok(()) => {}
+                                    Err(_) => {
+                                        metrics_handler_timeout_count(&raw_network_type);
+                                        error!(
                                             connection_id = packet.connection_id,
                                             addr = %packet.addr,
-                                            total_ms = total_ms,
-                                            queue_wait_ms = queue_wait_ms,
-                                            apply_ms = apply_ms,
-                                            "Slow request detected"
+                                            timeout_secs = HANDLER_APPLY_TIMEOUT_SECS,
+                                            "Handler apply timeout: packet processing exceeded deadline, \
+                                             connection may be stuck on a slow gRPC call"
                                         );
-                                        metrics_handler_slow_request_count(&raw_network_type);
                                     }
-                                } else {
-                                    debug!(
-                                        "Skip request: connection {} already closed, handler={}, addr={}, network={:?}",
-                                        packet.connection_id,
-                                        index,
-                                        packet.addr,
-                                        raw_network_type
-                                    );
                                 }
                             }
                             Err(_) => {
@@ -147,6 +135,55 @@ pub fn handler_process(
                 }
             }
         });
+    }
+}
+
+async fn handle_packet(
+    connection_manager: &Arc<ConnectionManager>,
+    command: &ArcCommandAdapter,
+    network_type: &NetworkConnectionType,
+    packet: &crate::common::packet::RequestPackage,
+    queue_wait_ms: u128,
+    handler_index: usize,
+) {
+    if let Some(connect) = connection_manager.get_connect(packet.connection_id) {
+        // apply
+        let apply_start = now_millis();
+        let response_data = command.apply(&connect, &packet.addr, &packet.packet).await;
+        let apply_ms = now_millis().saturating_sub(apply_start);
+        metrics_handler_apply_ms(network_type, apply_ms as f64);
+        metrics_handler_instance_apply_ms(handler_index, apply_ms as f64);
+
+        // write response
+        if let Some(resp) = response_data {
+            let write_start = now_millis();
+            write_response(connection_manager, network_type, &resp).await;
+            let write_ms = now_millis().saturating_sub(write_start);
+            metrics_handler_write_ms(network_type, write_ms as f64);
+        }
+
+        // total
+        let total_ms = now_millis().saturating_sub(packet.receive_ms);
+        metrics_handler_total_ms(network_type, total_ms as f64);
+        metrics_handler_request_count(network_type);
+        metrics_handler_instance_request_count(handler_index);
+
+        if total_ms >= SLOW_REQUEST_THRESHOLD_MS {
+            warn!(
+                connection_id = packet.connection_id,
+                addr = %packet.addr,
+                total_ms = total_ms,
+                queue_wait_ms = queue_wait_ms,
+                apply_ms = apply_ms,
+                "Slow request detected"
+            );
+            metrics_handler_slow_request_count(network_type);
+        }
+    } else {
+        debug!(
+            "Skip request: connection {} already closed, handler={}, addr={}, network={:?}",
+            packet.connection_id, handler_index, packet.addr, network_type
+        );
     }
 }
 
