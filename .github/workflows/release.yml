@@ -15,7 +15,7 @@
 # Auto Release Workflow
 #
 # Triggers when a PR with title starting with "release:" is merged into main.
-# Builds and uploads packages for linux-amd64, linux-arm64, darwin-amd64, darwin-arm64.
+# Builds and uploads packages for linux-amd64, linux-arm64 and darwin-arm64.
 #
 # PR title format: "release: v0.3.0"
 
@@ -46,8 +46,6 @@ jobs:
             runner: ubuntu-22.04
           - platform: linux-arm64
             runner: ubuntu-22.04-arm
-          - platform: darwin-amd64
-            runner: macos-13
           - platform: darwin-arm64
             runner: macos-14
 
