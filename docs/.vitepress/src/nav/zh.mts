@@ -7,7 +7,7 @@ export default function getNavs() {
         {text: "首页", link: "/zh/"},
         {text: "博客", link: "/zh/Blogs/"},
         {text: "文档", link: "/zh/OverView/What-is-RobustMQ"},
-        {text: "演示", link: "http://demo.robustmq.com"},
+        {text: "演示", link: "http://demo.robustmq.com:8080"},
         {
             text: "学习MQTT",
             items: [

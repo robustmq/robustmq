@@ -55,3 +55,9 @@ max_messages_num = 100000
 
 [storage_offset]
 enable_cache = true
+
+[grpc_client]
+# Number of HTTP/2 channels (TCP connections) per gRPC server address.
+# Each channel supports ~200 concurrent RPCs via HTTP/2 multiplexing.
+# Default of 4 handles ~800 concurrent RPCs; increase only under extreme load.
+channels_per_address = 4

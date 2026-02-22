@@ -6,7 +6,7 @@ export default function getNavs() {
     { text: "Home", link: "/en/" },
     { text: "Blog", link: "/en/Blogs/" },
     { text: "Docs", link: "/en/OverView/What-is-RobustMQ" },
-    { text: "Demo", link: "http://demo.robustmq.com" },
+    { text: "Demo", link: "http://demo.robustmq.com:8080" },
     {
       text: "Learn MQTT",
       items: [

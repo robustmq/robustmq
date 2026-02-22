@@ -14,10 +14,10 @@
 
 use super::security::{AuthnConfig, AuthzConfig};
 use crate::config::{
-    MetaRuntime, MqttAuthConfig, MqttFlappingDetect, MqttKeepAlive, MqttOfflineMessage,
-    MqttProtocolConfig, MqttRuntime, MqttSchema, MqttSecurity, MqttServer, MqttSlowSubscribeConfig,
-    MqttSystemMonitor, Network, Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
-    StorageOffset, StorageRuntime,
+    GrpcClientConfig, MetaRuntime, MqttAuthConfig, MqttFlappingDetect, MqttKeepAlive,
+    MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema, MqttSecurity, MqttServer,
+    MqttSlowSubscribeConfig, MqttSystemMonitor, Network, Rocksdb, Runtime, SchemaFailedOperation,
+    SchemaStrategy, StorageOffset, StorageRuntime,
 };
 use crate::storage::{StorageAdapterConfig, StorageType};
 use common_base::enum_type::delay_type::DelayType;
@@ -209,5 +209,11 @@ pub fn default_engine_runtime() -> StorageRuntime {
         max_segment_size: 1073741824,
         data_path: vec![],
         io_thread_num: 8,
+    }
+}
+
+pub fn default_grpc_client() -> GrpcClientConfig {
+    GrpcClientConfig {
+        channels_per_address: 4,
     }
 }

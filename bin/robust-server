@@ -48,6 +48,31 @@ start_service() {
   local bin_path="${workdir}/../libs/broker-server"
   [ ! -x "$bin_path" ] && echo "ERROR: $bin_path not found or not executable" && exit 1
   [ ! -f $conf ] && echo "Config file not found: $conf" && exit 1
+
+  # Raise the open file descriptor limit to handle large numbers of
+  # MQTT connections and gRPC channels without hitting "Too many open files".
+  # Only affects this process and its children; no root privilege required
+  # as long as the requested value does not exceed the system hard limit.
+  local fd_limit=20000000
+  if ulimit -n "${fd_limit}" 2>/dev/null; then
+    echo "📌 File descriptor limit set to ${fd_limit}"
+  else
+    # Requested value exceeds the hard limit; fall back to the hard limit.
+    local hard_limit
+    hard_limit=$(ulimit -Hn 2>/dev/null || echo "")
+    local fallback_limit=1000000
+    if [ -n "${hard_limit}" ] && [ "${hard_limit}" != "unlimited" ] && ulimit -n "${hard_limit}" 2>/dev/null; then
+      echo "📌 File descriptor limit set to hard limit: ${hard_limit}"
+      echo "   (To raise further, set in /etc/security/limits.conf and relogin:)"
+      echo "     * soft nofile ${fd_limit}"
+      echo "     * hard nofile ${fd_limit}"
+    elif ulimit -n "${fallback_limit}" 2>/dev/null; then
+      echo "📌 File descriptor limit set to fallback: ${fallback_limit}"
+    else
+      echo "⚠️  Could not adjust file descriptor limit (current: $(ulimit -n 2>/dev/null || echo unknown))."
+    fi
+  fi
+
   echo "Config: $conf"
   echo "Starting RobustMQ broker server..."
   nohup "${bin_path}" --conf="${conf}" >> "${log_file}" 2>&1 &

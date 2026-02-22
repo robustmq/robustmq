@@ -20,7 +20,7 @@ use std::time::Duration;
 use tonic::transport::Channel;
 use tracing::info;
 
-const DEFAULT_CHANNELS_PER_ADDRESS: usize = 2000;
+const DEFAULT_CHANNELS_PER_ADDRESS: usize = 4;
 
 /// A pool of HTTP/2 channels to a single address.
 /// Each channel is a separate TCP connection that supports HTTP/2 multiplexing
