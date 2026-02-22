@@ -194,7 +194,7 @@ pulsar = { version = "6.3.1", default-features = false, features = [
     "tokio-runtime",
     "auth-oauth2",
 ] }
-lapin = { version = "2.5.0", default-features = false, features = ["rustls"] }
+lapin = { version = "4.0.3", default-features = false, features = ["rustls"] }
 elasticsearch = { version = "8.19.0-alpha.1", default-features = false }
 paho-mqtt = { version = "0.13.3", default-features = false, features = [
     "bundled",
