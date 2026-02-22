@@ -205,26 +205,18 @@ determine_install_dir() {
         return
     fi
 
-    # Try to determine the best installation directory
-    if [ -w "/usr/local/bin" ]; then
-        INSTALL_DIR="/usr/local/bin"
-    elif [ -w "$HOME/.local/bin" ] || [ -d "$HOME/.local/bin" ]; then
-        INSTALL_DIR="$HOME/.local/bin"
-        # Ensure the directory exists (only if not in dry-run mode)
-        if [ "$DRY_RUN" != "true" ]; then
-            mkdir -p "$INSTALL_DIR"
-        fi
-    elif [ -w "$HOME/bin" ] || [ -d "$HOME/bin" ]; then
-        INSTALL_DIR="$HOME/bin"
-        if [ "$DRY_RUN" != "true" ]; then
-            mkdir -p "$INSTALL_DIR"
-        fi
-    else
-        INSTALL_DIR="$HOME/.robustmq/bin"
-        if [ "$DRY_RUN" != "true" ]; then
-            mkdir -p "$INSTALL_DIR"
-        fi
-        log_warning "Installing to $INSTALL_DIR (you may need to add this to your PATH)"
+    # Default: install to ~/robustmq-{VERSION}
+    # The version is not known yet at this point; it will be resolved later.
+    # We use a placeholder and replace it after get_latest_version runs.
+    # See apply_version_to_install_dir() below.
+    INSTALL_DIR="$HOME/robustmq-__VERSION__"
+}
+
+apply_version_to_install_dir() {
+    # Replace __VERSION__ placeholder with the resolved version (e.g. v0.3.0)
+    # Only applies when using the default path (not user-specified via --dir)
+    if [[ "$INSTALL_DIR" == *"__VERSION__"* ]]; then
+        INSTALL_DIR="${INSTALL_DIR/__VERSION__/${VERSION}}"
     fi
 }
 
@@ -335,30 +327,16 @@ install_robustmq() {
     temp_dir=$(mktemp -d)
     local temp_file="${temp_dir}/${archive_name}"
 
-    # Define binaries to install
-    local binaries_to_install=("broker-server" "cli-command" "cli-bench")
-
     # Check if already installed
-    local already_installed=true
-    for binary in "${binaries_to_install[@]}"; do
-        local final_path="${INSTALL_DIR}/${binary}"
-        if [ ! -f "$final_path" ] || [ "$FORCE" = "true" ]; then
-            already_installed=false
-            break
-        fi
-    done
-
-    if [ "$already_installed" = "true" ] && [ "$FORCE" != "true" ]; then
-        log_warning "RobustMQ is already installed"
+    if [ -d "${INSTALL_DIR}/bin" ] && [ -f "${INSTALL_DIR}/bin/robust-server" ] && [ "$FORCE" != "true" ]; then
+        log_warning "RobustMQ is already installed at ${INSTALL_DIR}"
         log_info "Use FORCE=true to overwrite the existing installation"
         return 0
     fi
 
     if [ "$DRY_RUN" = "true" ]; then
         log_info "[DRY RUN] Would install RobustMQ ${VERSION} to ${INSTALL_DIR}"
-        for binary in "${binaries_to_install[@]}"; do
-            log_info "[DRY RUN] Would install ${binary}"
-        done
+        log_info "[DRY RUN] Would add ${INSTALL_DIR}/bin to PATH"
         return 0
     fi
 
@@ -388,90 +366,84 @@ install_robustmq() {
         return 1
     fi
 
-    # Install each binary
-    local installed_count=0
-    for binary in "${binaries_to_install[@]}"; do
-        local final_path="${INSTALL_DIR}/${binary}"
-        
-        # Find the binary in the extracted files
-        # Based on build.sh logic, binaries are in libs/ directory
-        local extracted_binary=""
-        local search_paths=(
-            "libs/${binary}"
-            "bin/${binary}"
-            "${binary}"
-        )
-
-        # Try different possible locations for the binary
-        for search_path in "${search_paths[@]}"; do
-            local full_path=$(find "$temp_dir" -path "*/${search_path}" -type f | head -n1)
-            if [ -n "$full_path" ] && [ -f "$full_path" ]; then
-                extracted_binary="$full_path"
-                break
-            fi
-        done
-
-        # If not found in expected paths, try generic search
-        if [ -z "$extracted_binary" ]; then
-            extracted_binary=$(find "$temp_dir" -name "$binary" -type f | head -n1)
-        fi
-
-        if [ -z "$extracted_binary" ]; then
-            log_warning "Binary ${binary} not found in the archive, skipping..."
-            continue
-        fi
-
-        # Install the binary
-        log_info "Installing ${binary} to ${final_path}..."
-        if ! cp "$extracted_binary" "$final_path"; then
-            log_error "Failed to install ${binary} to ${final_path}"
-            continue
-        fi
-
-        # Make it executable
-        chmod +x "$final_path"
-        installed_count=$((installed_count + 1))
-        
-        # Verify installation
-        if "$final_path" --version >/dev/null 2>&1; then
-            log_success "${binary} installed successfully"
-        else
-            log_success "${binary} installed to ${final_path}"
-        fi
-    done
-
-    # Clean up
-    rm -rf "$temp_dir"
-
-    if [ $installed_count -eq 0 ]; then
-        log_error "No binaries were installed"
-        return 1
+    # Find the extracted root directory (the top-level folder inside the tar)
+    local extracted_root
+    extracted_root=$(find "$temp_dir" -mindepth 1 -maxdepth 1 -type d | head -n1)
+    if [ -z "$extracted_root" ]; then
+        extracted_root="$temp_dir"
     fi
 
-    log_success "RobustMQ ${VERSION} installed successfully ($installed_count binaries)"
+    # Install the full package into INSTALL_DIR, preserving the directory structure:
+    #   INSTALL_DIR/bin/robust-server   (wrapper scripts — added to PATH)
+    #   INSTALL_DIR/libs/broker-server  (actual binaries — not in PATH directly)
+    #   INSTALL_DIR/config/server.toml  (config files)
+    #   INSTALL_DIR/logs/               (created at runtime)
+    #
+    # The wrapper scripts resolve paths relative to their own location (bin/),
+    # so keeping the layout intact lets them find ../libs and ../config correctly.
+    if [ -d "$INSTALL_DIR" ] && [ "$FORCE" = "true" ]; then
+        log_info "Removing existing installation at ${INSTALL_DIR}..."
+        rm -rf "$INSTALL_DIR"
+    fi
+    mkdir -p "$INSTALL_DIR"
+    cp -r "$extracted_root"/. "$INSTALL_DIR/"
+
+    # Make binaries and scripts executable
+    if [ -d "${INSTALL_DIR}/libs" ]; then
+        chmod +x "${INSTALL_DIR}/libs/"*
+    fi
+    if [ -d "${INSTALL_DIR}/bin" ]; then
+        chmod +x "${INSTALL_DIR}/bin/"*
+    fi
+
+    # Clean up temp files
+    rm -rf "$temp_dir"
+
+    log_success "RobustMQ ${VERSION} installed to ${INSTALL_DIR}"
+    log_info "Executables are in: ${INSTALL_DIR}/bin"
+    log_info "Config files are in: ${INSTALL_DIR}/config"
+
+    # Create/update a stable symlink ~/robustmq -> ~/robustmq-{VERSION}
+    # This allows PATH to always reference ~/robustmq/bin regardless of version.
+    local link_dir
+    link_dir="$(dirname "$INSTALL_DIR")/robustmq"
+    if [ "$link_dir" != "$INSTALL_DIR" ]; then
+        ln -sfn "$INSTALL_DIR" "$link_dir"
+        log_success "Symlink updated: ${link_dir} -> ${INSTALL_DIR}"
+    fi
 }
 
 add_to_path() {
-    if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-        log_info "Adding $INSTALL_DIR to PATH..."
+    # Always use the stable symlink path (~/robustmq/bin) in PATH,
+    # not the versioned path. This way upgrading only updates the symlink
+    # and PATH stays valid across versions.
+    local link_dir
+    link_dir="$(dirname "$INSTALL_DIR")/robustmq"
+    local bin_dir="${link_dir}/bin"
 
-        # Determine the shell profile file
-        local profile_file=""
-        if [ -n "${BASH_VERSION:-}" ]; then
-            profile_file="$HOME/.bashrc"
-        elif [ -n "${ZSH_VERSION:-}" ]; then
-            profile_file="$HOME/.zshrc"
-        elif [ -f "$HOME/.profile" ]; then
-            profile_file="$HOME/.profile"
-        fi
+    if [[ ":$PATH:" == *":${bin_dir}:"* ]]; then
+        return
+    fi
 
-        if [ -n "$profile_file" ]; then
-            echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$profile_file"
-            log_info "Added $INSTALL_DIR to PATH in $profile_file"
-            log_warning "Please restart your shell or run: source $profile_file"
-        else
-            log_warning "Please add $INSTALL_DIR to your PATH manually"
-        fi
+    log_info "Adding ${bin_dir} to PATH..."
+
+    # Determine the shell profile file
+    local profile_file=""
+    if [ -n "${ZSH_VERSION:-}" ]; then
+        profile_file="$HOME/.zshrc"
+    elif [ -n "${BASH_VERSION:-}" ]; then
+        profile_file="$HOME/.bashrc"
+    elif [ -f "$HOME/.profile" ]; then
+        profile_file="$HOME/.profile"
+    fi
+
+    if [ -n "$profile_file" ]; then
+        echo "export PATH=\"${bin_dir}:\$PATH\"" >> "$profile_file"
+        log_success "Added ${bin_dir} to PATH in ${profile_file}"
+        log_warning "Please restart your shell or run: source ${profile_file}"
+    else
+        log_warning "Please add ${bin_dir} to your PATH manually:"
+        log_warning "  export PATH=\"${bin_dir}:\$PATH\""
     fi
 }
 
@@ -483,11 +455,16 @@ show_completion_message() {
     echo
     log_success "Installation completed successfully!"
     echo
+    local link_dir
+    link_dir="$(dirname "$INSTALL_DIR")/robustmq"
     echo -e "${BOLD}Next steps:${NC}"
-    echo "  1. Run '${INSTALL_DIR}/broker-server --help' to see available options"
-    echo "  2. Start the server: '${INSTALL_DIR}/broker-server start'"
-    echo "  3. Use CLI tools: '${INSTALL_DIR}/cli-command' and '${INSTALL_DIR}/cli-bench'"
-    echo "  4. Check the documentation: https://robustmq.com/docs"
+    echo "  1. Start the server:    robust-server start"
+    echo "  2. Use the CLI:         robust-ctl --help"
+    echo "  3. Run benchmarks:      robust-bench --help"
+    echo "  4. Install directory:   ${INSTALL_DIR}"
+    echo "  5. Stable symlink:      ${link_dir} -> ${INSTALL_DIR}"
+    echo "  6. Config file:         ${link_dir}/config/server.toml"
+    echo "  7. Documentation:       https://robustmq.com/docs"
 
     echo
     echo -e "${BLUE}Support:${NC}"
@@ -557,6 +534,9 @@ main() {
         get_latest_version
     fi
 
+    # Finalize install directory now that version is known
+    apply_version_to_install_dir
+
     log_info "Version: ${VERSION}"
 
     if [ "$DRY_RUN" = "true" ]; then
@@ -566,8 +546,10 @@ main() {
     # Install RobustMQ
     install_robustmq
 
-    # Add to PATH if needed
-    if [ "$DRY_RUN" != "true" ] && [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
+    # Add ~/robustmq/bin (stable symlink) to PATH if needed
+    local link_bin
+    link_bin="$(dirname "$INSTALL_DIR")/robustmq/bin"
+    if [ "$DRY_RUN" != "true" ] && [[ ":$PATH:" != *":${link_bin}:"* ]]; then
         add_to_path
     fi
 

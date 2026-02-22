@@ -20,7 +20,7 @@ log_path = "./logs"
 
 ## Appender Types
 
-Each TOML section in `server-tracing.toml` defines one appender. The section name is arbitrary (e.g. `[stdout]`, `[server]`, `[raft]`). The `kind` field determines the appender type.
+Each TOML section in `logger.toml` defines one appender. The section name is arbitrary (e.g. `[stdout]`, `[server]`, `[raft]`). The `kind` field determines the appender type.
 
 | `kind` | Description |
 |--------|-------------|

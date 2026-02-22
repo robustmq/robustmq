@@ -1,6 +1,6 @@
 # Quick Install Guide
 
-This guide will help you quickly install and start RobustMQ, including multiple installation methods and detailed verification steps.
+This guide helps you quickly install and start RobustMQ.
 
 ## Table of Contents
 
@@ -8,111 +8,145 @@ This guide will help you quickly install and start RobustMQ, including multiple 
 - [Verify Installation](#verify-installation)
 - [Troubleshooting](#troubleshooting)
 
+---
+
 ## Installation Methods
 
 ### Method 1: Automated Install Script (Recommended)
 
-#### One-Click Install Latest Version
+```bash
+# Install the latest version (installs to ~/robustmq-{version}, e.g. ~/robustmq-v0.3.0)
+curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
+```
+
+The script extracts the full package into a versioned directory (e.g. `~/robustmq-v0.3.0`) and adds its `bin/` subdirectory to your PATH. After installation, three commands are globally available:
+
+| Command | Description |
+|---------|-------------|
+| `robust-server` | Start and manage the RobustMQ service |
+| `robust-ctl` | CLI management tool (cluster status, Topic management, etc.) |
+| `robust-bench` | Benchmarking tool |
+
+#### Common Install Options
 
 ```bash
-# Install latest version automatically
-curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
+# Install a specific version
+VERSION=v0.3.0 curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
+
+# Install to a custom directory (the full package goes there; bin/ is added to PATH)
+INSTALL_DIR=/opt/robustmq curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
+
+# View all install options
+wget https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh
+chmod +x install.sh && ./install.sh --help
+```
+
+Installed directory layout:
+```
+~/robustmq-v0.3.0/    ← versioned install directory
+  bin/
+    robust-server
+    robust-ctl
+    robust-bench
+  libs/
+    broker-server     ← actual binaries (called by wrapper scripts, not in PATH directly)
+    cli-command
+    cli-bench
+  config/
+    server.toml       ← configuration file
+  logs/               ← runtime logs (created automatically)
+
+~/robustmq  ->  ~/robustmq-v0.3.0   ← stable symlink
+```
+
+`~/robustmq/bin` (the symlink path) is added to PATH — not the versioned path. Upgrading only updates the symlink; no PATH changes needed.
+
+**Script options:**
+
+| Option | Description |
+|--------|-------------|
+| `--version VERSION` | Install specific version (default: latest) |
+| `--dir DIRECTORY` | Installation directory (default: auto-detect) |
+| `--silent` | Silent installation |
+| `--force` | Force reinstall even if already installed |
+| `--dry-run` | Preview what would be installed without installing |
+
+---
+
+### Method 2: Manual Binary Download
+
+Visit [GitHub Releases](https://github.com/robustmq/robustmq/releases) and download the package for your platform:
+
+```bash
+# Linux x86_64 example — replace with your actual version and platform
+wget https://github.com/robustmq/robustmq/releases/latest/download/robustmq-v0.3.0-linux-amd64.tar.gz
+
+tar -xzf robustmq-v0.3.0-linux-amd64.tar.gz
+cd robustmq-v0.3.0-linux-amd64
 
 # Start the server
-broker-server start
-```
-
-#### Install Specific Version
-
-```bash
-# Install specific version
-VERSION=v0.1.35 curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
-
-# Install to custom directory
-INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
-```
-
-#### Installation Options
-
-```bash
-# Download script first to review all options
-wget https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh
-chmod +x install.sh
-./install.sh --help
-```
-
-**Available Options:**
-- `--version VERSION`: Install specific version (default: latest)
-- `--dir DIRECTORY`: Installation directory (default: auto-detect)
-- `--silent`: Silent installation
-- `--force`: Force installation even if already exists
-- `--dry-run`: Show what would be installed without actually installing
-
-### Method 2: Pre-built Binaries
-
-#### Manual Download
-
-Visit the [releases page](https://github.com/robustmq/robustmq/releases) and download the appropriate package for your platform:
-
-```bash
-# Linux x86_64 example (replace with your platform)
-wget https://github.com/robustmq/robustmq/releases/latest/download/robustmq-v0.1.35-linux-amd64.tar.gz
-
-# Extract the package
-tar -xzf robustmq-v0.1.35-linux-amd64.tar.gz
-cd robustmq-v0.1.35-linux-amd64
-
-# Run the server
 ./bin/robust-server start
 ```
 
-**Supported platforms:** `linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin-arm64`, `windows-amd64`
+**Supported platforms:**
 
-### Method 3: Build from Source
+| Platform | Description |
+|----------|-------------|
+| `linux-amd64` | Linux x86_64 |
+| `linux-arm64` | Linux ARM64 |
+| `darwin-arm64` | macOS Apple Silicon (M1/M2/M3) |
+
+---
+
+### Method 3: Docker
 
 ```bash
-# Clone the repository
+# Pull the latest image
+docker pull ghcr.io/robustmq/robustmq:latest
+
+# Start a container
+docker run -d \
+  -p 1883:1883 \
+  -p 8080:8080 \
+  --name robustmq \
+  ghcr.io/robustmq/robustmq:latest
+
+# Use a specific version
+docker pull ghcr.io/robustmq/robustmq:v0.3.0
+```
+
+Images support both `linux/amd64` and `linux/arm64` architectures and are hosted on [GitHub Container Registry](https://github.com/robustmq/robustmq/pkgs/container/robustmq).
+
+---
+
+### Method 4: Build from Source
+
+```bash
 git clone https://github.com/robustmq/robustmq.git
 cd robustmq
 
 # Build and run
-cargo run --package cmd --bin broker-server
+cargo run --package cmd --bin broker-server -- --conf config/server.toml
 ```
 
-### Method 4: Docker (Coming Soon)
-
-```bash
-# Docker run (coming soon)
-docker run -p 1883:1883 -p 9092:9092 robustmq/robustmq:latest
-```
+---
 
 ## Verify Installation
 
-### Check Binaries
+### Start the Server
 
 ```bash
-# Check if installation was successful
-broker-server --version
-cli-command --help
-cli-bench --help
+# Foreground
+robust-server start
+
+# Background
+robust-server start &
+
+# With a custom config file
+robust-server start /path/to/server.toml
 ```
 
-### Start Server
-
-```bash
-# Start the server
-broker-server start
-
-# Start in background
-nohup broker-server start > broker.log 2>&1 &
-
-# Start with config file
-broker-server start config/server.toml
-```
-
-### Verify Server Status
-
-After starting successfully, you should see output similar to:
+On successful startup you should see:
 
 ```
 [INFO] RobustMQ Broker starting...
@@ -124,96 +158,86 @@ After starting successfully, you should see output similar to:
 ### Check Cluster Status
 
 ```bash
-# Check cluster running status
-cli-command status
+robust-ctl status
 ```
 
-Expected output:
-```
-🚀 Checking RobustMQ status...
-✅ RobustMQ Status: Online
-📋 Version: RobustMQ 0.1.35
-🌐 Server: 127.0.0.1:8080
-```
-
-### Connection Testing
-
-#### Test with MQTT Client
+### Test MQTT Connectivity
 
 ```bash
-# Test connection with MQTTX
+# Publish a message
 mqttx pub -h localhost -p 1883 -t "test/topic" -m "Hello RobustMQ!"
 
 # Subscribe to messages
 mqttx sub -h localhost -p 1883 -t "test/topic"
 ```
 
-#### Use Web Console
+### Web Management Console
 
-Visit `http://localhost:8080` to access the Web management interface.
+Open `http://localhost:8080` in your browser.
+
+---
 
 ## Troubleshooting
 
-### Installation Issues
+**Q: The install script fails — what should I do?**
 
-**Q: What if the install script fails?**
-A: Check your network connection, or manually download pre-built packages.
+Check your network connection, or download the binary package manually (Method 2).
 
-**Q: What if I don't have sufficient permissions?**
-A: Use `sudo` or install to user directory:
+**Q: Insufficient permissions?**
+
 ```bash
+# Install to user directory, no sudo needed
 INSTALL_DIR=$HOME/.local/bin curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
 ```
 
-**Q: How to uninstall?**
-A: Remove the installed binaries:
+**Q: How do I uninstall?**
+
 ```bash
-rm -f /usr/local/bin/broker-server
-rm -f /usr/local/bin/cli-command
-rm -f /usr/local/bin/cli-bench
+# Remove the symlink and the versioned directory
+rm ~/robustmq
+rm -rf ~/robustmq-v0.3.0
+
+# Also remove the ~/robustmq/bin line from ~/.bashrc or ~/.zshrc
 ```
 
-### Startup Issues
+**Q: How do I upgrade to a new version?**
 
-**Q: What if ports are already in use?**
-A: Check port usage:
+Just run the install script again — it installs the new version and updates the `~/robustmq` symlink automatically:
+
 ```bash
-# Check port 1883
+curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
+```
+
+**Q: Port already in use?**
+
+```bash
+# Check port 1883 (MQTT)
 netstat -tlnp | grep 1883
 
-# Check port 8080
+# Check port 8080 (Admin)
 netstat -tlnp | grep 8080
 ```
 
-**Q: How to modify configuration?**
-A: Edit configuration file:
+**Q: How do I change the configuration?**
+
 ```bash
-# Edit default config
+# Edit the config file
 vim config/server.toml
 
-# Start with custom config
-broker-server start /path/to/your/config.toml
+# Start with a custom config
+robust-server start /path/to/server.toml
 ```
 
-### Connection Issues
-
-**Q: Can't connect to MQTT server?**
-A: Check firewall settings and port configuration.
-
-**Q: Can't access Web console?**
-A: Confirm the management port (default 8080) is running properly.
+---
 
 ## Next Steps
 
-After installation, you can:
-
-1. **Experience MQTT features**: Check out [MQTT Experience Guide](Experience-MQTT.md)
-2. **Learn configuration options**: Check out [Configuration Documentation](../Configuration/BROKER.md)
-3. **Explore advanced features**: Check out [Complete Documentation](../OverView/What-is-RobustMQ.md)
+- [Experience MQTT](Experience-MQTT.md)
+- [What is RobustMQ](../OverView/What-is-RobustMQ.md)
 
 ## Get Help
 
-- **📖 [Official Documentation](https://robustmq.com/)** - Complete guides and API references
-- **🐛 [GitHub Issues](https://github.com/robustmq/robustmq/issues)** - Bug reports
-- **💡 [GitHub Discussions](https://github.com/robustmq/robustmq/discussions)** - Discussions and suggestions
-- **🎮 [Discord](https://discord.gg/sygeGRh5)** - Real-time chat and support
+- **Documentation**: https://robustmq.com
+- **GitHub Issues**: https://github.com/robustmq/robustmq/issues
+- **GitHub Discussions**: https://github.com/robustmq/robustmq/discussions
+- **Discord**: https://discord.gg/sygeGRh5

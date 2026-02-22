@@ -15,13 +15,14 @@ export const sidebar = [
                     { text: "vs Redpanda", link: "/en/OverView/Diff-redpanda" },
                     { text: "vs Iggy", link: "/en/OverView/Diff-iggy" },
                     { text: "Comprehensive Comparison", link: "/en/OverView/Diff-MQ" },
-                    { text: "Summary & Assessment", link: "/en/OverView/Summary" },
+                    { text: "RobustMQ vs Existing MQs", link: "/en/OverView/Summary" },
                 ],
             },
             {
                 text: "Version planning",
                 collapsed: true,
                 items: [
+                    { text: "2026 RoadMap", link: "/en/OverView/RoadMap-2026" },
                     { text: "2025 RoadMap", link: "/en/OverView/RoadMap-2025" },
                     { text: "MQTT Release Planning", link: "/en/OverView/MQTT-Release" },
                     { text: "Good First Issue", link: "/en/OverView/Good-First-Issue" },
@@ -37,6 +38,7 @@ export const sidebar = [
             { text: "Quick Install", link: "/en/QuickGuide/Quick-Install" },
             { text: "Public Server", link: "/en/QuickGuide/PublicMqttServer" },
             { text: "Experience RobustMQ MQTT", link: "/en/QuickGuide/Experience-MQTT" },
+            { text: "SDK Integration", link: "/en/QuickGuide/SDK-Integration" },
         ],
     },
     {

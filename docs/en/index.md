@@ -3,9 +3,10 @@
 layout: home
 
 hero:
-  text: "New generation of cloud-native and AI-native messaging infrastructure"
+  text: "Next-Generation Unified Communication Infrastructure for AI, IoT, and Big Data"
   tagline: |
-    RobustMQ is a next-generation cloud-native message queue that is 100% implemented in Rust, specifically redesigned for the AI era and cloud-native environments. Through multi-protocol unification (MQTT/Kafka/AMQP), compute-storage separation architecture, and pluggable storage, it provides high-performance messaging infrastructure with microsecond-level latency and zero GC pauses, supporting Serverless elastic scaling.
+    Let data flow freely across AI training clusters, millions of Agents, IoT devices, and the cloud — at the optimal path, lowest latency, and minimum cost.
+    Built with Rust. Fully compatible with Kafka and MQTT. One system replaces the MQTT + Kafka dual-broker architecture.
 
   actions:
     - theme: alt
@@ -25,32 +26,37 @@ hero:
     alt: RobustMQ
 
 features:
-  - title: 🦀 Rust High-Performance Kernel
-    details: A message queue kernel implemented entirely in Rust, with zero GC pauses, memory safety, and microsecond-level latency, providing ultimate performance guarantee for AI applications.
-  - title: 🔌 Multi-Protocol Unified Platform
-    details: Native support for MQTT, Kafka, AMQP and other mainstream protocols. Deploy once, multiple protocols available, avoiding system fragmentation and reducing operational complexity.
-  - title: ☁️ Compute-Storage Separation Architecture
-    details: Three-tier independent design with Broker, Journal, and Meta Service. Stateless compute layer supports Serverless elastic scaling, with independent storage layer expansion.
-  - title: 💾 Pluggable Storage Engine
-    details: Supports multiple backends including memory, SSD, and object storage. Intelligent tiered storage allows flexible selection based on business scenarios, significantly reducing storage costs.
-  - title: 🚀 AI-Native Optimization
-    details: Specifically designed for the AI era, supporting massive data stream processing and real-time inference scenarios, with microsecond-level latency meeting stringent AI application performance requirements.
-  - title: 🌐 Cloud-Native Friendly
-    details: Single binary deployment, K8s Operator support, and visual management interface, truly achieving simplified operations and rapid deployment in the cloud-native era.
+  - title: 🚀 Extreme Performance
+    details: Built with Rust — microsecond latency, zero GC pauses, million-level QPS on a single node, with a tiny memory footprint for edge deployment.
+  - title: 🔌 Dual-Protocol Unification
+    details: Fully compatible with MQTT 3.1/3.1.1/5.0 and Kafka. Unified storage layer enables MQTT in / Kafka out. One system replaces the dual-broker architecture with zero migration cost.
+  - title: 🎯 AI Training Acceleration
+    details: Direct object storage (S3/MinIO) integration with three-tier intelligent caching (memory/SSD/S3). No data pre-import needed — eliminates I/O bottlenecks and dramatically improves GPU utilization.
+  - title: 🤖 Agent Communication
+    details: Million-scale lightweight Topics in a single cluster. Each Agent gets an independent channel with fine-grained isolation, monitoring, and per-Agent cost tracing.
+  - title: 🔄 Elastic Consumption
+    details: Shared subscriptions break the Kafka "concurrency = Partition count" limit. GPU training nodes scale freely at any time without changing Topic configurations.
+  - title: 💾 Intelligent Storage Engine
+    details: Four modes — memory / hybrid / persistent / tiered — configurable per Topic. Hot data served at full speed; cold data automatically tiered to S3. Balance performance and cost.
+  - title: 🌐 Edge to Cloud
+    details: Tiny memory footprint enables unified deployment from edge gateways to cloud clusters. Offline caching and auto-sync cover the full IoT data pipeline.
+  - title: 🛠️ Zero-Dependency Deployment
+    details: Single binary, no external dependencies, built-in Raft consensus. Ready to run out of the box with minimal operational overhead.
 
 ---
 
 <div class="architecture-section">
   <div class="architecture-header">
-    <h2>Architecture Overview</h2>
+    <h2>Architecture</h2>
+    <p>Meta Service manages metadata. The stateless Broker handles protocols. The pluggable Storage Engine handles persistence. Three components, fixed boundaries, each scales independently.</p>
   </div>
   <div class="architecture-container">
     <div class="architecture-image-wrapper">
       <img src="/images/robustmq-architecture.jpg" alt="RobustMQ Architecture" />
       <div class="architecture-overlay">
         <div class="overlay-content">
-          <h3>Cloud-Native Design</h3>
-          <p>Built for scale, reliability, and performance</p>
+          <h3>Meta Service · Broker · Storage Engine</h3>
+          <p>Compute-storage separation — stateless Broker scales horizontally, storage evolves independently</p>
         </div>
       </div>
     </div>
@@ -59,15 +65,16 @@ features:
 
 <div class="console-section">
   <div class="console-header">
-    <h2>Management Console</h2>
+    <h2>Web Management Console</h2>
+    <p>Visual management of connections, Topics, subscriptions, and rule engine. Built-in Grafana integration, ready out of the box.</p>
   </div>
   <div class="console-container">
     <div class="console-image-wrapper">
       <img src="/images/console-logo.png" alt="RobustMQ Console" />
       <div class="console-overlay">
         <div class="overlay-content">
-          <h3>Web Management</h3>
-          <p>Easy monitoring and configuration through web interface</p>
+          <h3>Dashboard</h3>
+          <p>Live overview of connections, messages, and storage</p>
         </div>
       </div>
     </div>
@@ -76,15 +83,15 @@ features:
 
 <div class="web-ui-section">
   <div class="web-ui-header">
-    <h2>Web Dashboard</h2>
+    <h2>Observability</h2>
   </div>
   <div class="web-ui-container">
     <div class="web-ui-image-wrapper">
       <img src="/images/web-ui.jpg" alt="RobustMQ Web Dashboard" />
       <div class="web-ui-overlay">
         <div class="overlay-content">
-          <h3>Real-time Monitoring</h3>
-          <p>Comprehensive dashboard for system monitoring and management</p>
+          <h3>Grafana + Prometheus</h3>
+          <p>Full visibility into connections, throughput, latency, and storage</p>
         </div>
       </div>
     </div>
@@ -92,7 +99,7 @@ features:
 </div>
 
 <div class="footer-message">
-  <p>Glad to have the opportunity to show you something different</p>
+  <p>Driven by technical conviction — building toward Apache Top-Level Project</p>
 </div>
 
 <div class="website-footer">

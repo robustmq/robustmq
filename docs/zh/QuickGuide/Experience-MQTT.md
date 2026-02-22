@@ -1,147 +1,77 @@
 # 体验 RobustMQ MQTT
 
-本指南将带您快速体验 RobustMQ 的 MQTT 功能，包括启动 Broker、查看集群状态、发送和消费 MQTT 消息。
+## 前提：启动 Broker
 
-## 目录
-
-- [运行 Broker](#运行-broker)
-- [发送 MQTT 消息](#发送-mqtt-消息)
-- [消费 MQTT 消息](#消费-mqtt-消息)
-- [高级功能](#高级功能)
-
-## 运行 Broker
-
-### 1. 自动安装 RobustMQ
-
-使用自动安装脚本快速安装 RobustMQ：
+参考 [快速安装](Quick-Install.md) 完成安装，然后启动服务：
 
 ```bash
-# 自动安装最新版本
-curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
-
-# 或者安装特定版本
-VERSION=v0.1.35 curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
-
-# 或者使用 Make 命令（如果已克隆仓库）
-make install
+robust-server start
 ```
 
-### 2. 启动 RobustMQ Broker
+启动成功后验证状态：
 
 ```bash
-# 启动 Broker（使用默认配置）
-broker-server start
-
-# 或者使用配置文件启动
-broker-server start config/server.toml
-
-# 后台启动
-nohup broker-server start > broker.log 2>&1 &
+robust-ctl status
 ```
 
-### 3. 验证 Broker 启动状态
+---
 
-Broker 启动成功后，您应该看到类似以下的输出：
+## 准备 MQTT 客户端
 
-```bash
-[INFO] RobustMQ Broker starting...
-[INFO] MQTT server listening on 0.0.0.0:1883
-[INFO] Admin server listening on 0.0.0.0:8080
-[INFO] Broker started successfully
-```
+选择以下任意一种方式测试 MQTT 收发消息。
 
-### 4. 查看集群状态
+### 方式一：MQTTX CLI
 
-RobustMQ 提供了强大的命令行管理工具 `cli-command`，让我们来查看集群运行状态：
+MQTTX CLI 是 EMQ 开源的 MQTT 命令行客户端，安装文档参考：[https://mqttx.app/zh/docs/cli](https://mqttx.app/zh/docs/cli)
 
-```bash
-# 查看集群运行状态
-$ cli-command status
+安装完成后即可使用 `mqttx` 命令。
 
-🚀 Checking RobustMQ status...
-✅ RobustMQ Status: Online
-📋 Version: RobustMQ 0.1.35
-🌐 Server: 127.0.0.1:8080
-```
-现实如上信息，表示节点启动成功。
+### 方式二：RobustMQ 自带 robust-bench
 
-## 发送 MQTT 消息
+`robust-bench` 是 RobustMQ 内置的压测工具，随安装包一起提供，无需额外安装。详细使用说明参考：[Bench CLI 文档](../Bench/Bench-CLI.md)
 
-### 使用 MQTTX 发送消息
+---
+
+## 发布与订阅
+
+### 使用 MQTTX
+
+打开两个终端，分别运行：
 
 ```bash
-# 发送简单消息
-mqttx pub -h localhost -p 1883 -t "test/topic" -m "Hello RobustMQ!"
-
-# 发送 QoS 1 消息
-mqttx pub -h localhost -p 1883 -t "test/qos1" -m "QoS 1 message" -q 1
-
-# 发送保留消息
-mqttx pub -h localhost -p 1883 -t "test/retained" -m "Retained message" -r
-
-# 发送 JSON 格式消息
-mqttx pub -h localhost -p 1883 -t "sensors/temperature" -m '{"value": 25.5, "unit": "celsius", "timestamp": "2024-01-01T12:00:00Z"}'
-```
-
-## 消费 MQTT 消息
-
-### 使用 MQTTX 订阅消息
-
-```bash
-# 订阅单个主题
+# 终端 1：订阅
 mqttx sub -h localhost -p 1883 -t "test/topic"
 
-# 订阅通配符主题
-mqttx sub -h localhost -p 1883 -t "test/+"  # 单级通配符
-mqttx sub -h localhost -p 1883 -t "test/#"  # 多级通配符
-
-# 订阅 QoS 1 消息
-mqttx sub -h localhost -p 1883 -t "test/qos1" -q 1
-
-# 订阅并显示详细信息
-mqttx sub -h localhost -p 1883 -t "test/topic" --verbose
+# 终端 2：发布
+mqttx pub -h localhost -p 1883 -t "test/topic" -m "Hello RobustMQ!"
 ```
 
-## 高级功能
+订阅端收到消息则说明 MQTT 收发正常。
 
-### 性能测试
+常用参数：
 
 ```bash
-# 使用 MQTTX 进行性能测试
-mqttx bench pub -h localhost -p 1883 -t "test/bench" -c 10 -C 100
+# 指定 QoS
+mqttx pub -h localhost -p 1883 -t "test/qos1" -m "msg" -q 1
 
-# 测试订阅性能
-mqttx bench sub -h localhost -p 1883 -t "test/bench" -c 50
+# 发布保留消息
+mqttx pub -h localhost -p 1883 -t "test/retained" -m "retained msg" -r
+
+# 通配符订阅
+mqttx sub -h localhost -p 1883 -t "test/#"
 ```
 
-## 完整示例
-
-让我们通过一个完整的示例来体验 RobustMQ MQTT 功能：
-
-### 步骤 1: 启动 Broker
+### 使用 robust-bench
 
 ```bash
-# 终端 1: 启动 Broker
-broker-server start
+# 连接压测（建立 100 个连接）
+robust-bench mqtt conn --count 100
+
+# 发布压测（100 个客户端，持续 30 秒）
+robust-bench mqtt pub --count 100 --duration-secs 30
+
+# 订阅压测（100 个客户端订阅）
+robust-bench mqtt sub --count 100 --duration-secs 30
 ```
 
-### 步骤 2: 查看集群配置
-
-```bash
-# 终端 2: 查看集群状态
-cli-command status
-```
-
-### 步骤 3: 订阅消息
-
-```bash
-# 终端 3: 订阅消息
-mqttx sub -h localhost -p 1883 -t "demo/temperature" --verbose
-```
-
-### 步骤 4: 发送消息
-
-```bash
-# 终端 4: 发送消息
-mqttx pub -h localhost -p 1883 -t "demo/temperature" -m '{"sensor": "temp-001", "value": 23.5, "unit": "celsius"}'
-```
+更多参数和用法参考 [Bench CLI 文档](../Bench/Bench-CLI.md)。

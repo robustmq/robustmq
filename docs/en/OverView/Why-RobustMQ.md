@@ -1,58 +1,63 @@
-## Project Origin
-Write the first line of code in October 2023. There were two goals:
-1. Learn Rust. Rust is a language with a high barrier to entry. It needs to be learned and mastered in the real world. I couldn't find a suitable project at that time, so I decided to write my own.
-2. Explore Rust's use of message queues. Any open source component in the message queue space has issues. I want to start a new wheel and try to see if I can solve these problems without the burden of history.
+# Why RobustMQ
 
-## About License
-Apache License 2.0, our goal is to enter the Apache Foundation. Super cool.
+## The Beginning
 
-## About the Vision
-Our vision is: To create the next-generation cloud-native integrated messaging queue, tailor a unified messaging infrastructure for AI systems, and provide a unified and efficient communication foundation for AI applications.
+October 2023. The first line of code was written.
 
-Is this vision too pretentious?
+The motivation was straightforward: learn Rust. Rust has a steep learning curve — you can only truly master it through real-world practice. After searching for a suitable project without success, the decision was made to build something from scratch. A message queue was the right choice: networking, concurrency, storage, and protocols — every area where Rust excels.
 
-In my opinion, if you don't do it, how can you know if it can be achieved? As someone in the technical field, one should always have some ideals. Look up at the sky, walk down with your head down. Having walked on the technical path for so long, one should leave some traces. I hope to do something cool and interesting with you all.
+This project was never about commercial gain. It was about doing something **technically worth doing**.
 
+---
 
-## Is this a commercial project?
-No, this is a self-indulgent community project based on technology. The ultimate goal is to create an excellent message queue component, then enter the Apache Foundation. And then it'll be all about showing off. Ha ha ha ha.
+## The Problems We Saw
 
-## Will we be competitive in the long run
-There must be some good, absolutely confident.
+Having worked in the messaging queue space for years, the structural problems in this field were clear — long-standing issues that had never been fundamentally solved.
 
-Combined with the current development of Rust, cloud native, AI and other fields, continuous integration and learning, on the basis of no historical baggage. We are absolutely confident that we will be able to build a competitive message queue product for the AI age.
+**Too much historical baggage.** Kafka was born in 2011, with an architecture built on the file system. Topic counts are bounded by file descriptor limits, with tens of thousands as a practical ceiling. RabbitMQ is written in Erlang with a unique concurrency model but limited performance headroom. These systems were never designed with the AI era in mind. Later improvements were patches on top of old architectures — high complexity, low return, and increasingly difficult to keep in sync with upstream communities.
 
-The key words are: multi-protocol, Serverless, plug-in storage. That is:
+**Fragmented by scenario.** IoT uses MQTT. Big data uses Kafka. Enterprise systems use AMQP. Three protocols, three systems, three operations teams. Data flowing between systems requires bridge layers at every hop — each one adding latency and introducing failure points. No single system has ever truly unified these scenarios.
 
->  Based on Rust language, create a message queue product that supports multi-protocol, supports complete Serverless capabilities in the architecture, and has plug-in storage capabilities.
+**No infrastructure designed for the AI era.** Kafka's Topic limit is a hard wall for AI Agent scenarios — 100,000 Agents each needing a few communication channels means hundreds of thousands of Topics, which brings Kafka to its knees. GPU training needs to read terabytes of data from S3, but existing systems require importing that data first — slow and wasteful. These new scenarios are not edge cases; they are the new normal. Yet no existing system addresses them at the architectural level.
 
-This definition will be refined over time, and the combination of MQ and AI will be explored next. And there are some explorations in the financial level Message Queue.
+These are not minor issues. They are architectural flaws. Patching them is futile. They require a clean-slate design.
 
+---
 
-## Now the message queue component is doing something
-Some of the things that mainstream message queuing components are currently doing:
--Separation of storage and computation: solving the problem of elastic expansion and shrinkage of the system.
-- Multi-protocol (fusion of message and stream) : to solve the problem that multiple scenarios need to adapt to multiple protocols, and the cost of user switching protocol client transformation is high.
-- Remove metadata dependency: Current mainstream message queue architectures rely on metadata components such as Zookeeper, but due to the complexity and stability of metadata components themselves, it also leads to stability and availability problems of message queues.
-- Hierarchical storage: You want to reduce the cost of storage by moving some cold data to a lower-cost storage like S3, HDFS, etc.
-- Adapt to different storage engines: Depending on the use case, you may need to adapt to different storage engines, such as S3, HDFS, in-house storage engines, etc.
+## What We Set Out to Build
 
-In doing this, we found two types of problems:
-- Native architecture defects lead to high complexity of the transformation, requiring a lot of human and material resources, and low revenue.
-- It is not compatible with the community after the transformation, it cannot follow the evolution of the community, and it cannot be maintained in the long run.
-- Each company will have its own version of the transformation, unable to form unity and synergy, repeated investment.
--
+A communication infrastructure **designed from the ground up for AI, IoT, and big data** — not adapted from aging architectures.
 
-## What do we wish we were
-- is a pure message queuing component that doesn't bother to do anything around it until it's done with the core message queuing functionality.
-- Is a platform-wide message queue that can be adapted to all popular message queuing protocols to support a variety of scenarios.
-- Is a fully Serverless message queue, fully resilient, capable of unperceived horizontal scaling and horizontal scaling.
-- It is a pluggable message queue that can support different storage requirements in different scenarios. It can be configured to switch between different storage engines, such as S3, HDFS, Bookeeper, etc.
-- Is a high performance, stable, reliable message queue, able to support a large number of connections, QPS, throughput.
+Specifically, RobustMQ aims to:
 
+**Simple architecture with fixed boundaries.** Three components: Meta Service for metadata, Broker for protocol handling, Storage Engine for persistence. Clear component boundaries that don't shift when new protocols or storage backends are added. Adding a new protocol means implementing parsing logic in the Broker layer. Adding new storage means implementing the Storage Engine interface. The core architecture stays stable.
 
-## And existing message queues
-Not yet dare to say the difference, salute the community. But as we continue to try, we will be able to make a message queue product that is better than the current open source components.
+**Unified multi-protocol platform.** MQTT and Kafka run on the same storage layer. Data is stored once, with each protocol providing a different access view. IoT devices write via MQTT; analytics platforms consume via Kafka — no bridge layer required.
 
-## Expectation
-I hope we stand on the shoulders of giants, look up at the sky, walk with heads down, work at ease, and build the best MQ Infra component.
+**Million-scale Topics.** RocksDB-based KV storage frees Topic counts from file system constraints. Each AI Agent gets its own isolated communication channel. A million Agents is not a problem.
+
+**AI-native design.** Topics connect directly to object storage (S3/MinIO). RobustMQ acts as an intelligent cache layer so GPUs don't wait for data. Shared subscriptions decouple consumer concurrency from Partition count, enabling elastic training clusters to scale freely.
+
+**Built with Rust.** Zero-cost abstractions, memory safety, no GC pauses. Communication infrastructure demands stable latency above all else. Rust is the right language for this domain.
+
+---
+
+## What Kind of Project This Is
+
+**Non-commercial.** No corporate backing, no paid version. All core features are fully open source under Apache 2.0.
+
+**Driven by technical conviction.** We believe rebuilding communication infrastructure with Rust is the right direction. We believe the AI era deserves a messaging system designed for its actual needs, not one stretched to fit. We believe great infrastructure software should belong to the entire community. This project exists because it's worth building, not because there's a financial return.
+
+**The goal is Apache Top-Level Project status.** Not for prestige — but because the Apache Foundation's governance model represents the best way to run an open source project: open, transparent, neutral, and sustainable. That's how we want RobustMQ to exist for the long term.
+
+There are no shortcuts here. One step at a time. Eyes on the horizon, feet on the ground.
+
+---
+
+## Where We Are Now
+
+From the first line of code in October 2023 to version 0.3.0 today: the architecture has been redesigned, MQTT core features are nearly complete, and the monitoring, CLI, and Dashboard tooling is in place. There is still much to do — Kafka protocol is under development, AI data caching is not yet complete, and performance and stability have significant room for improvement.
+
+But the direction is clear, the architecture is solid, and the original intent has not changed.
+
+GitHub: https://github.com/robustmq/robustmq
