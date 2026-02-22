@@ -4,23 +4,42 @@
 
 ## What is RobustMQ
 
-RobustMQ is a next-generation unified communication platform built with Rust, purpose-designed for AI, IoT, and big data scenarios.
+**Positioning: Next-generation unified communication infrastructure for AI, IoT, and Big Data.**
 
-**Vision: The next-generation unified communication infrastructure for AI, IoT, and big data.**
+**Vision: Let data flow freely across AI training clusters, millions of Agents, IoT devices, and the cloud — at the optimal path, lowest latency, and minimum cost.**
 
-Through dual MQTT and Kafka protocols, million-scale Topics, object storage (S3/MinIO, etc.) data sources, multi-mode storage engines (memory/hybrid/persistent/tiered), and intelligent data caching, RobustMQ provides high-performance, low-cost, and stable communication infrastructure for AI training, Agent communication, IoT devices (edge/cloud), and big data processing.
+RobustMQ is a next-generation unified messaging platform built with Rust. Through Kafka and MQTT dual-protocol compatibility, intelligent object storage caching, million-scale lightweight Topics, shared subscriptions, and a multi-mode storage engine, it enables data from AI training clusters, millions of Agents, IoT devices, and the cloud to flow freely at optimal paths, lowest latency, and minimum cost.
+
+Fully compatible with Kafka and MQTT 3.1/3.1.1/5.0 protocols — existing applications can connect using standard Kafka SDKs with zero migration cost to gain all of RobustMQ's capabilities.
 
 ---
 
-## Why RobustMQ
+## Core Scenarios
 
-Existing communication middleware is designed for single-purpose scenarios:
+### AI: Intelligent Data Scheduling and Caching Layer
 
-- **Kafka** was designed for big data log streaming. Topic counts are limited by the file system (tens of thousands at most), making it unable to support million-scale Agent communication and AI training data caching needs.
-- **MQTT Brokers** are designed for IoT device connectivity and lack the high-throughput data stream processing capabilities.
-- **Neither considered** the new demands of the AI era: Agent communication isolation, GPU training data acceleration, and unified edge-to-cloud data pipelines.
+Direct object storage (S3/MinIO) integration with three-tier intelligent caching eliminates the need to pre-import training data, removes I/O bottlenecks, and dramatically improves GPU utilization. A single cluster supports million-scale lightweight Topics, providing each AI Agent with an independent communication channel, fine-grained isolation, and per-Agent cost tracing. Shared subscriptions allow GPU training nodes to scale elastically without being constrained by Partition count.
 
-RobustMQ was designed for these scenarios from the ground up, rather than retrofitting existing systems.
+### IoT: MQTT in / Kafka out — Unified Pipeline
+
+A unified storage layer enables protocol interoperability — data ingested via MQTT from IoT devices can be consumed directly using the Kafka protocol by AI and big data systems. One system replaces the MQTT + Kafka dual-broker architecture. Minimal memory footprint supports edge deployment, and offline caching plus automatic sync covers the full pipeline from edge gateways to cloud clusters.
+
+### Big Data: Compatible and Enhanced Kafka
+
+RobustMQ is compatible with and enhances the Kafka protocol. The intelligent storage engine provides four modes — memory, hybrid, persistent, and tiered — configurable per Topic. Hot data is served at full speed; cold data is automatically tiered to S3. Performance and cost are balanced.
+
+---
+
+## Core Features
+
+- 🚀 **Extreme Performance**: Built with Rust — microsecond latency, zero GC pauses, million-level QPS on a single node, tiny memory footprint for edge deployment
+- 🔌 **Dual-Protocol Unification**: Fully compatible with MQTT 3.1/3.1.1/5.0 and Kafka. Unified storage layer enables MQTT in / Kafka out — one system replaces the dual-broker architecture
+- 🎯 **AI Training Acceleration**: Direct object storage (S3/MinIO) integration, three-tier intelligent caching (memory/SSD/S3), no data pre-import needed — eliminates I/O bottlenecks and dramatically improves GPU utilization
+- 🤖 **Agent Communication**: Million-scale lightweight Topics per cluster, each Agent gets an independent channel, fine-grained isolation and monitoring, per-Agent cost tracing
+- 🔄 **Elastic Consumption**: Shared subscriptions break the Kafka "concurrency = Partition count" limit — GPU nodes scale freely without modifying Topic configurations
+- 💾 **Intelligent Storage Engine**: Four modes — memory / hybrid / persistent / tiered — configurable per Topic. Hot data at full speed, cold data auto-tiered to S3. Balance performance and cost
+- 🌐 **Edge to Cloud**: Minimal memory footprint enables unified deployment from edge gateways to cloud clusters. Offline caching + auto-sync covers the full IoT pipeline
+- 🛠️ **Zero-Dependency Deployment**: Single binary, no external dependencies, built-in Raft consensus, ready to run out of the box with minimal operational overhead
 
 ---
 
@@ -28,60 +47,40 @@ RobustMQ was designed for these scenarios from the ground up, rather than retrof
 
 ![architecture](../../images/robustmq-architecture.jpg)
 
-RobustMQ consists of three components with a fixed, clear architecture:
+RobustMQ consists of three components with a fixed architecture and clear boundaries:
 
 ### Meta Service
-Responsible for cluster metadata management and coordination. All node states, Topic configurations, and client session information are stored in Meta Service, with consistency and high availability guaranteed by a self-developed **Multi Raft** mechanism. Multiple independent Raft Groups handle different types of metadata, avoiding the performance bottleneck of a single Raft group.
+Manages cluster metadata and coordination. All node states, Topic configurations, and client session information are stored here, with consistency and high availability guaranteed by a custom-built **Multi Raft** mechanism. Multiple independent Raft Groups are supported so that different types of metadata can be managed separately, avoiding the performance bottleneck of a single Raft group.
 
 ### Broker
-Responsible for protocol processing and request routing. The Broker is **stateless**, handling only client connections, protocol parsing, and message routing without holding any persistent data. This compute-storage separation design allows Brokers to scale horizontally at any time without data migration.
+Handles protocol processing and request routing. The Broker is **stateless** — it only handles client connections, protocol parsing, and message routing without holding any persistent data. This compute-storage separation design allows the Broker to scale horizontally at any time without data migration.
 
 ### Storage Engine
-Responsible for data persistence. Supports three storage engines, configurable independently per Topic:
+Handles data persistence with three pluggable backends, configurable per Topic:
 
 | Engine | Latency | Use Case |
-|--------|---------|---------|
-| Memory | Microseconds | Gradient sync, real-time metrics, ephemeral notifications |
-| RocksDB | Milliseconds | Million-scale Topics, IoT device messages, offline storage |
-| File Segment | Milliseconds | High-throughput log streaming, Kafka workloads |
+|--------|---------|----------|
+| Memory | Microsecond | Gradient sync, real-time metrics, ephemeral notifications |
+| RocksDB | Millisecond | Million-scale Topics, IoT device messages, offline storage |
+| File Segment | Millisecond | High-throughput log streams, Kafka scenarios |
 
-The storage engine uses a pluggable interface and can be extended with additional backends (HDFS, object storage, etc.) in the future.
-
----
-
-## Core Features
-
-### 🦀 High-Performance Rust Core
-Zero-cost abstractions, memory safety, and no GC pauses. Built on the Tokio async runtime, delivering stable latency with no GC-induced jitter.
-
-### 🔌 Multi-Protocol Support
-- **MQTT 3.x / 5.0**: Full protocol support for IoT devices and edge computing
-- **Kafka Protocol** (in development): Existing Kafka clients and toolchains connect with zero code changes
-
-The same data can be written via MQTT and consumed via Kafka. Both protocols share the same storage layer with zero-copy protocol conversion.
-
-RobustMQ's architecture is designed to support additional protocols over time. **AMQP, RocketMQ, and other protocols** are part of the long-term roadmap — the architecture already accommodates them. However, the short-term focus is on building MQTT and Kafka support to a solid, production-ready standard first.
-
-### 🤖 Million-Scale Lightweight Topics
-Unified KV storage based on RocksDB. All Topics share the same storage instance, distinguished by key prefixes. Creating a Topic is simply adding a metadata record — no physical files are created, supporting millions of Topics. Each AI Agent can have its own isolated communication channel.
-
-### 🔄 Shared Subscription
-Borrowed from MQTT's shared subscription mechanism, breaking Kafka's limitation of "concurrency equals number of Partitions." Multiple consumers can concurrently consume from the same Partition, completely decoupling consumer concurrency from storage sharding — enabling elastic scaling for AI training clusters.
-
-### 🧠 Object Storage Data Source & Intelligent Cache (In Development)
-Topics can directly point to file paths in S3/MinIO. RobustMQ acts as an intelligent cache layer with three-tier caching (memory/SSD/object storage) and predictive preloading, reducing training data access latency from 200ms to under 2ms and significantly improving GPU utilization.
+The storage engine interface is plugin-based, allowing future backends (HDFS, object storage, etc.) to be added without changing the core architecture.
 
 ---
 
-## Use Cases
+## Roadmap
 
-| Scenario | Description |
-|----------|-------------|
-| **IoT Device Connectivity** | MQTT protocol, millions of concurrent device connections, QoS 0/1/2, offline messages, will messages |
-| **AI Agent Communication** | Million-scale Topics, independent channel per Agent, precise monitoring and permission isolation |
-| **AI Training Data Acceleration** | Direct object storage integration, intelligent cache layer reduces GPU wait time |
-| **Edge-to-Cloud Data Pipeline** | MQTT edge collection, Kafka cloud consumption, unified dual-protocol storage, no bridge layer needed |
-| **Big Data Stream Processing** | Kafka protocol compatible, zero-change integration with Flink/Spark/Kafka Connect |
+**Phase 1: Core Infrastructure (Complete)**
+
+Build a scalable technical architecture with solid, concise, and well-abstracted code. Establishes the foundation for multi-protocol support, pluggable storage, scalability, and elasticity.
+
+**Phase 2: MQTT Broker (Initially Complete)**
+
+Deliver a stable, high-performance MQTT Broker with full MQTT 3.x/5.0 protocol support, optimized for edge deployment with an installation package under 20MB. Protocol capabilities are initially complete and will continue to evolve in future versions.
+
+**Phase 3: Kafka Protocol & AI Capabilities (In Progress)**
+
+Building on the completed MQTT Broker, this phase initiates Kafka protocol adaptation and AI capability development. Priority is placed on validating AI training data cache acceleration and million-scale lightweight Topics; Kafka protocol implementation is driven by AI scenario requirements, with standard Kafka protocol capabilities progressively completed.
 
 ---
 
@@ -89,33 +88,33 @@ Topics can directly point to file paths in S3/MinIO. RobustMQ acts as an intelli
 
 | Feature | Status |
 |---------|--------|
-| MQTT 3.x / 5.0 Core Protocol | ✅ Available |
-| Session Persistence & Recovery | ✅ Available |
-| Shared Subscription | ✅ Available |
-| Authentication & ACL | ✅ Available |
-| Rule Engine | ✅ Basic Available |
-| Grafana + Prometheus Monitoring | ✅ Available |
-| Web Management Console | ✅ Available |
-| Kafka Protocol | 🚧 In Development |
-| AI Training Data Cache | 🚧 In Development |
+| MQTT 3.x / 5.0 core protocol | ✅ Available |
+| Session persistence and recovery | ✅ Available |
+| Shared subscriptions | ✅ Available |
+| Authentication and ACL | ✅ Available |
+| Rule engine | ✅ Basic |
+| Grafana + Prometheus monitoring | ✅ Available |
+| Web management console | ✅ Available |
+| Kafka protocol | 🚧 In progress |
+| AI training data cache | 🚧 In progress |
 
-> **Note**: The current version (0.3.0) is still in early stages and not recommended for production use. Version 0.4.0 is expected to reach production-ready status around May 2025.
+> **Notice**: The current version (0.3.0) is still in early stage and not recommended for production use. Version 0.4.0 (expected May 2025) is planned to reach production-ready status.
 
 ---
 
 ## Quick Start
 
 ```bash
-# Install and start
+# One-line install
 curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
-broker-server start
 
-# Verify MQTT connection
-mqttx pub -h localhost -p 1883 -t "test/topic" -m "Hello RobustMQ!"
+# Start services
+robust-server start
+
+# Verify MQTT
 mqttx sub -h localhost -p 1883 -t "test/topic"
+mqttx pub -h localhost -p 1883 -t "test/topic" -m "Hello RobustMQ!"
 ```
-
-Access `http://localhost:8080` to open the Web management console.
 
 Full documentation: [Quick Start Guide](../QuickGuide/Quick-Install.md)
 
@@ -123,17 +122,17 @@ Full documentation: [Quick Start Guide](../QuickGuide/Quick-Install.md)
 
 ## Project Philosophy
 
-RobustMQ is a **non-commercial open source project** with no corporate backing, no paid version, and all core features fully open source.
+RobustMQ is a **non-commercial open source project** with no corporate backing and no paid edition — all core features are fully open source.
 
-This is a project driven by technical conviction — believing that redesigning communication infrastructure with Rust is the right direction, that the AI era needs a messaging system truly designed for new scenarios, and that excellent infrastructure software should belong to the entire community.
+This is a project driven by technical conviction — the belief that rebuilding communication infrastructure in Rust is the right direction, that the AI era needs a messaging system truly designed for new scenarios, and that excellent infrastructure software should belong to the entire community.
 
-The long-term goal is to become an **Apache Top-Level Project**, building a global developer community for sustainable growth.
+The long-term goal is to become an **Apache Top-Level Project** and build a global developer community that continuously drives the project forward.
 
 ---
 
 ## Project Info
 
 - **Language**: Rust
-- **License**: Apache 2.0 (fully open source, no commercial version)
+- **License**: Apache 2.0 (fully open source, no commercial edition)
 - **GitHub**: https://github.com/robustmq/robustmq
 - **Website**: https://robustmq.com

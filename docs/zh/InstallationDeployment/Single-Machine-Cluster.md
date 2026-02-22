@@ -1,88 +1,73 @@
-# 单机运行 RobustMQ
+# 单机运行
 
-本指南介绍如何在单台机器上运行 RobustMQ，适用于开发测试环境。
+本指南介绍如何在单台机器上通过二进制包启动 RobustMQ，适用于开发和测试环境。
 
-## 准备工作
+## 安装
 
-### 下载二进制包
+参考 [快速安装](../QuickGuide/Quick-Install.md) 完成安装，或使用一键安装脚本：
 
 ```bash
-# 下载最新版本
-wget https://github.com/robustmq/robustmq/releases/download/v1.0.0/robustmq-v1.0.0-linux-amd64.tar.gz
-
-# 解压
-tar -xzf robustmq-v1.0.0-linux-amd64.tar.gz
-cd robustmq-v1.0.0-linux-amd64
+curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
 ```
 
-## 启动 RobustMQ
+安装完成后，`robust-server`、`robust-ctl`、`robust-bench` 命令自动加入 PATH。
 
-### 使用默认配置启动
+## 启动服务
 
 ```bash
-# 启动 RobustMQ
-./bin/broker-server start
+robust-server start
 ```
 
-### 使用配置文件启动
+默认使用 `config/server.toml`，也可以显式指定：
 
 ```bash
-# 使用配置文件启动
-./bin/broker-server start config/server.toml
+robust-server start config/server.toml
 ```
 
-### 后台启动
+## 验证
+
+**查看集群状态**
 
 ```bash
-# 后台启动
-nohup ./bin/broker-server start > robustmq.log 2>&1 &
+# 查看集群状态
+robust-ctl cluster status
+
+# 查看集群健康状态
+robust-ctl cluster healthy
+
+# 查看 MQTT 概览（连接数、订阅数等）
+robust-ctl mqtt overview
 ```
 
-## 验证运行状态
-
-### 查看服务状态
+`--server` 默认指向 `127.0.0.1:8080`，如需连接其他地址：
 
 ```bash
-# 检查 MQTT 端口
-netstat -tlnp | grep 1883
-
-# 检查管理端口
-netstat -tlnp | grep 8080
+robust-ctl cluster status --server 192.168.1.10:8080
 ```
 
-### 测试 MQTT 连接
+**MQTT 收发测试**
 
 ```bash
-# 发送消息
-mqttx pub -h 127.0.0.1 -p 1883 -t "test/topic" -m "Hello RobustMQ!"
-
-# 订阅消息
+# 订阅（终端 1）
 mqttx sub -h 127.0.0.1 -p 1883 -t "test/topic"
+
+# 发布（终端 2）
+mqttx pub -h 127.0.0.1 -p 1883 -t "test/topic" -m "Hello RobustMQ!"
 ```
+
+收到消息即表示服务运行正常。Web 控制台：`http://localhost:3000`
 
 ## 停止服务
 
 ```bash
-# 停止 RobustMQ
-pkill -f "broker-server"
-
-# 或者查找进程 ID 后停止
-ps aux | grep broker-server
-kill <PID>
+robust-server stop
 ```
 
 ## 默认端口
 
-| 服务 | 端口 | 描述 |
-|------|------|------|
-| MQTT | 1883 | MQTT 协议端口 |
-| Admin | 8080 | 管理接口端口 |
-| Cluster | 9090 | 集群通信端口 |
-| Meta | 9091 | 元数据服务端口 |
-
-## 注意事项
-
-1. **端口占用**: 确保默认端口未被占用
-2. **防火墙**: 确保防火墙允许相关端口通信
-3. **资源要求**: 建议至少 2GB 内存
-4. **数据目录**: RobustMQ 会在当前目录创建数据文件
+| 服务 | 端口 |
+|------|------|
+| MQTT | 1883 |
+| HTTP API | 8083 |
+| Placement Center gRPC | 1228 |
+| Dashboard | 3000 |

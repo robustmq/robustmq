@@ -1,54 +1,46 @@
-# RobustMQ Application Image
+# RobustMQ Docker
 
-This directory contains all files for building the RobustMQ application image, including the application image and monitoring configuration.
+This directory contains the Dockerfile and Docker Compose configuration for running RobustMQ.
 
 ## Files
 
-- `Dockerfile` - Main application image build file
-- `docker-compose.yml` - Local development environment configuration
-- `monitoring/` - Monitoring configuration directory
-  - `prometheus.yml` - Prometheus configuration
-  - `grafana/` - Grafana dashboards and configuration
+- `Dockerfile` — Multi-stage build: `planner` → `builder` → `runtime` → named targets (`all-in-one`, `meta-service`, `mqtt-broker`)
+- `docker-compose.yml` — Local deployment with optional monitoring stack
+- `monitoring/` — Prometheus + Grafana configuration for the `--profile monitoring` stack
 
-## Purpose
-
-This directory is used to deploy RobustMQ applications, containing a complete runtime environment and monitoring stack.
-
-## Build Commands
+## Quick Start
 
 ```bash
-# Build and push to GHCR
-make docker-app-ghcr ORG=yourorg VERSION=0.2.0
+# Run from repo root or docker/robustmq/
 
-# Build and push to Docker Hub
-make docker-app-dockerhub ORG=yourorg VERSION=0.2.0
+# Pull and run pre-built image
+docker run -d --name robustmq \
+  -p 1883:1883 -p 8083:8083 -p 1228:1228 \
+  ghcr.io/robustmq/robustmq:latest
 
-# Custom build
-make docker-app ARGS='--org yourorg --version 0.2.0 --registry ghcr'
-```
+# Or build and run with docker compose (all-in-one)
+docker compose up -d robustmq
 
-## Deployment Commands
-
-```bash
-# Start RobustMQ (basic mode)
-docker-compose up -d
-
-# Start RobustMQ + monitoring
-docker-compose --profile monitoring up -d
-
-# Start microservices mode
-docker-compose --profile microservices up -d
+# With monitoring stack (Prometheus + Grafana)
+docker compose --profile monitoring up -d
 ```
 
 ## Monitoring Access
 
-- **RobustMQ Admin**: http://localhost:8080
-- **Prometheus**: http://localhost:9090
-- **Grafana**: http://localhost:3000 (admin/admin)
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| RobustMQ HTTP API | http://localhost:8080 | — |
+| Prometheus | http://localhost:9090 | — |
+| Grafana | http://localhost:3000 | admin / admin |
 
-## Image Information
+## Build
 
-- **Multi-stage build**: meta-service, mqtt-broker, admin-server
-- **Supported platforms**: linux/amd64, linux/arm64
-- **Registry**: GHCR or Docker Hub
-- **Monitoring stack**: Prometheus + Grafana + Jaeger
+```bash
+# Build from repo root
+docker build -f docker/robustmq/Dockerfile --target all-in-one -t robustmq:local .
+```
+
+## Supported Platforms
+
+- `linux/amd64`
+- `linux/arm64`
