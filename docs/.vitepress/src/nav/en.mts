@@ -10,7 +10,7 @@ export default function getNavs() {
       text: "Demo",
       items: [
         { text: "🖥️ Dashboard", link: "http://demo.robustmq.com:8080/" },
-        { text: "📊 Grafana", link: "http://demo.robustmq.com:3000/d/robustmq-mqtt-broker/robustmq-mqtt-broker-dashboard?orgId=1&from=now-1h&to=now&timezone=browser&var-DS_PROMETHEUS=&refresh=5s" },
+        { text: "📊 Grafana", link: "http://demo.robustmq.com:3000/d/robustmq-mqtt-broker/robustmq-mqtt-broker-dashboard" },
         { text: "📈 Prometheus", link: "http://demo.robustmq.com:9092/classic/graph" },
         { text: "🔌 How to Test", link: "/en/QuickGuide/PublicMqttServer" },
       ]
