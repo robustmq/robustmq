@@ -19,7 +19,249 @@ use protocol::mqtt::{
     common::{ConnectReturnCode, MqttPacket, QoS},
 };
 
-use crate::{counter_metric_inc, counter_metric_inc_by, register_counter_metric};
+use crate::{
+    counter_metric_get, counter_metric_inc, counter_metric_inc_by, register_counter_metric,
+};
+
+// Empty label for total (cross-network) counters
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
+struct TotalLabel {}
+
+register_counter_metric!(
+    MQTT_TOTAL_BYTES_RECEIVED,
+    "mqtt_total_bytes_received",
+    "Total MQTT bytes received across all network types",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_BYTES_SENT,
+    "mqtt_total_bytes_sent",
+    "Total MQTT bytes sent across all network types",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_RECEIVED,
+    "mqtt_total_packets_received",
+    "Total MQTT packets received",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_SENT,
+    "mqtt_total_packets_sent",
+    "Total MQTT packets sent",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_CONNECT,
+    "mqtt_total_packets_connect",
+    "Total MQTT CONNECT packets",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_CONNACK,
+    "mqtt_total_packets_connack",
+    "Total MQTT CONNACK packets sent",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_PUBLISH_RECEIVED,
+    "mqtt_total_packets_publish_received",
+    "Total MQTT PUBLISH packets received",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_PUBLISH_SENT,
+    "mqtt_total_packets_publish_sent",
+    "Total MQTT PUBLISH packets sent",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_PUBACK_RECEIVED,
+    "mqtt_total_packets_puback_received",
+    "Total MQTT PUBACK packets received",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_PUBACK_SENT,
+    "mqtt_total_packets_puback_sent",
+    "Total MQTT PUBACK packets sent",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_PUBREC_RECEIVED,
+    "mqtt_total_packets_pubrec_received",
+    "Total MQTT PUBREC packets received",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_PUBREC_SENT,
+    "mqtt_total_packets_pubrec_sent",
+    "Total MQTT PUBREC packets sent",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_PUBREL_RECEIVED,
+    "mqtt_total_packets_pubrel_received",
+    "Total MQTT PUBREL packets received",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_PUBREL_SENT,
+    "mqtt_total_packets_pubrel_sent",
+    "Total MQTT PUBREL packets sent",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_PUBCOMP_RECEIVED,
+    "mqtt_total_packets_pubcomp_received",
+    "Total MQTT PUBCOMP packets received",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_PUBCOMP_SENT,
+    "mqtt_total_packets_pubcomp_sent",
+    "Total MQTT PUBCOMP packets sent",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_SUBSCRIBE,
+    "mqtt_total_packets_subscribe",
+    "Total MQTT SUBSCRIBE packets received",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_SUBACK,
+    "mqtt_total_packets_suback",
+    "Total MQTT SUBACK packets sent",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_UNSUBSCRIBE,
+    "mqtt_total_packets_unsubscribe",
+    "Total MQTT UNSUBSCRIBE packets received",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_UNSUBACK,
+    "mqtt_total_packets_unsuback",
+    "Total MQTT UNSUBACK packets sent",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_PINGREQ,
+    "mqtt_total_packets_pingreq",
+    "Total MQTT PINGREQ packets received",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_PINGRESP,
+    "mqtt_total_packets_pingresp",
+    "Total MQTT PINGRESP packets sent",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_DISCONNECT_RECEIVED,
+    "mqtt_total_packets_disconnect_received",
+    "Total MQTT DISCONNECT packets received",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_DISCONNECT_SENT,
+    "mqtt_total_packets_disconnect_sent",
+    "Total MQTT DISCONNECT packets sent",
+    TotalLabel
+);
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_AUTH,
+    "mqtt_total_packets_auth",
+    "Total MQTT AUTH packets received",
+    TotalLabel
+);
+
+macro_rules! total_get {
+    ($metric:ident) => {{
+        let label = TotalLabel {};
+        let mut result = 0u64;
+        counter_metric_get!($metric, label, result);
+        result
+    }};
+}
+
+pub fn record_mqtt_total_bytes_received_get() -> u64 {
+    total_get!(MQTT_TOTAL_BYTES_RECEIVED)
+}
+pub fn record_mqtt_total_bytes_sent_get() -> u64 {
+    total_get!(MQTT_TOTAL_BYTES_SENT)
+}
+pub fn record_mqtt_total_packets_received_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_RECEIVED)
+}
+pub fn record_mqtt_total_packets_sent_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_SENT)
+}
+pub fn record_mqtt_total_packets_connect_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_CONNECT)
+}
+pub fn record_mqtt_total_packets_connack_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_CONNACK)
+}
+pub fn record_mqtt_total_packets_publish_received_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_PUBLISH_RECEIVED)
+}
+pub fn record_mqtt_total_packets_publish_sent_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_PUBLISH_SENT)
+}
+pub fn record_mqtt_total_packets_puback_received_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_PUBACK_RECEIVED)
+}
+pub fn record_mqtt_total_packets_puback_sent_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_PUBACK_SENT)
+}
+pub fn record_mqtt_total_packets_pubrec_received_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_PUBREC_RECEIVED)
+}
+pub fn record_mqtt_total_packets_pubrec_sent_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_PUBREC_SENT)
+}
+pub fn record_mqtt_total_packets_pubrel_received_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_PUBREL_RECEIVED)
+}
+pub fn record_mqtt_total_packets_pubrel_sent_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_PUBREL_SENT)
+}
+pub fn record_mqtt_total_packets_pubcomp_received_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_PUBCOMP_RECEIVED)
+}
+pub fn record_mqtt_total_packets_pubcomp_sent_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_PUBCOMP_SENT)
+}
+pub fn record_mqtt_total_packets_subscribe_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_SUBSCRIBE)
+}
+pub fn record_mqtt_total_packets_suback_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_SUBACK)
+}
+pub fn record_mqtt_total_packets_unsubscribe_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_UNSUBSCRIBE)
+}
+pub fn record_mqtt_total_packets_unsuback_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_UNSUBACK)
+}
+pub fn record_mqtt_total_packets_pingreq_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_PINGREQ)
+}
+pub fn record_mqtt_total_packets_pingresp_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_PINGRESP)
+}
+pub fn record_mqtt_total_packets_disconnect_received_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_DISCONNECT_RECEIVED)
+}
+pub fn record_mqtt_total_packets_disconnect_sent_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_DISCONNECT_SENT)
+}
+pub fn record_mqtt_total_packets_auth_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_AUTH)
+}
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 pub struct NetworkLabel {
@@ -266,35 +508,59 @@ pub fn record_packet_received_metrics(
         0
     };
 
+    let total = TotalLabel {};
     counter_metric_inc_by!(MQTT_BYTES_RECEIVED, label, payload_size as u64);
+    counter_metric_inc_by!(MQTT_TOTAL_BYTES_RECEIVED, total, payload_size as u64);
     counter_metric_inc!(MQTT_PACKETS_RECEIVED, label);
+    counter_metric_inc!(MQTT_TOTAL_PACKETS_RECEIVED, total);
 
     match pkg {
         MqttPacket::Connect(_, _, _, _, _, _) => {
-            counter_metric_inc!(MQTT_PACKETS_CONNECT_RECEIVED, label)
+            counter_metric_inc!(MQTT_PACKETS_CONNECT_RECEIVED, label);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_CONNECT, total);
         }
         MqttPacket::ConnAck(_, _) => {
             counter_metric_inc!(MQTT_PACKETS_CONNACK_RECEIVED, label)
         }
         MqttPacket::Publish(_, _) => {
-            counter_metric_inc!(MQTT_PACKETS_PUBLISH_RECEIVED, label)
+            counter_metric_inc!(MQTT_PACKETS_PUBLISH_RECEIVED, label);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_PUBLISH_RECEIVED, total);
         }
-        MqttPacket::PubAck(_, _) => counter_metric_inc!(MQTT_PACKETS_PUBACK_RECEIVED, label),
-        MqttPacket::PubRec(_, _) => counter_metric_inc!(MQTT_PACKETS_PUBREC_RECEIVED, label),
-        MqttPacket::PubRel(_, _) => counter_metric_inc!(MQTT_PACKETS_PUBREL_RECEIVED, label),
+        MqttPacket::PubAck(_, _) => {
+            counter_metric_inc!(MQTT_PACKETS_PUBACK_RECEIVED, label);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_PUBACK_RECEIVED, total);
+        }
+        MqttPacket::PubRec(_, _) => {
+            counter_metric_inc!(MQTT_PACKETS_PUBREC_RECEIVED, label);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_PUBREC_RECEIVED, total);
+        }
+        MqttPacket::PubRel(_, _) => {
+            counter_metric_inc!(MQTT_PACKETS_PUBREL_RECEIVED, label);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_PUBREL_RECEIVED, total);
+        }
         MqttPacket::PubComp(_, _) => {
-            counter_metric_inc!(MQTT_PACKETS_PUBCOMP_RECEIVED, label)
+            counter_metric_inc!(MQTT_PACKETS_PUBCOMP_RECEIVED, label);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_PUBCOMP_RECEIVED, total);
         }
-        MqttPacket::PingReq(_) => counter_metric_inc!(MQTT_PACKETS_PINGREQ_RECEIVED, label),
+        MqttPacket::PingReq(_) => {
+            counter_metric_inc!(MQTT_PACKETS_PINGREQ_RECEIVED, label);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_PINGREQ, total);
+        }
         MqttPacket::Disconnect(_, _) => {
-            counter_metric_inc!(MQTT_PACKETS_DISCONNECT_RECEIVED, label)
+            counter_metric_inc!(MQTT_PACKETS_DISCONNECT_RECEIVED, label);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_DISCONNECT_RECEIVED, total);
         }
-        MqttPacket::Auth(_, _) => counter_metric_inc!(MQTT_PACKETS_AUTH_RECEIVED, label),
+        MqttPacket::Auth(_, _) => {
+            counter_metric_inc!(MQTT_PACKETS_AUTH_RECEIVED, label);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_AUTH, total);
+        }
         MqttPacket::Subscribe(_, _) => {
-            counter_metric_inc!(MQTT_PACKETS_SUBSCRIBE_RECEIVED, label)
+            counter_metric_inc!(MQTT_PACKETS_SUBSCRIBE_RECEIVED, label);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_SUBSCRIBE, total);
         }
         MqttPacket::Unsubscribe(_, _) => {
-            counter_metric_inc!(MQTT_PACKETS_UNSUBSCRIBE_RECEIVED, label)
+            counter_metric_inc!(MQTT_PACKETS_UNSUBSCRIBE_RECEIVED, label);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_UNSUBSCRIBE, total);
         }
         _ => unreachable!("This branch only matches for packets could not be received"),
     }
@@ -315,37 +581,58 @@ pub fn record_packet_send_metrics(packet_wrapper: &MqttPacketWrapper, network_ty
         network: network_type,
     };
     let payload_size = calc_mqtt_packet_size(packet_wrapper.to_owned());
+    let total = TotalLabel {};
     counter_metric_inc!(MQTT_PACKETS_SENT, label_qos);
+    counter_metric_inc!(MQTT_TOTAL_PACKETS_SENT, total);
     counter_metric_inc_by!(MQTT_BYTES_SENT, label_qos, payload_size as u64);
+    counter_metric_inc_by!(MQTT_TOTAL_BYTES_SENT, total, payload_size as u64);
 
     match &packet_wrapper.packet {
         MqttPacket::ConnAck(conn_ack, _) => {
             counter_metric_inc!(MQTT_PACKETS_CONNACK_SENT, label_qos);
-            //  NotAuthorized
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_CONNACK, total);
             if conn_ack.code == ConnectReturnCode::NotAuthorized {
                 counter_metric_inc!(MQTT_PACKETS_CONNACK_AUTH_ERROR, label);
             }
-            //  connack error
             if conn_ack.code != ConnectReturnCode::Success {
                 counter_metric_inc!(MQTT_PACKETS_CONNACK_ERROR, label);
             }
         }
         MqttPacket::Publish(_, _) => {
-            counter_metric_inc!(MQTT_PACKETS_PUBLISH_SENT, label_qos)
+            counter_metric_inc!(MQTT_PACKETS_PUBLISH_SENT, label_qos);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_PUBLISH_SENT, total);
         }
-        MqttPacket::PubAck(_, _) => counter_metric_inc!(MQTT_PACKETS_PUBACK_SENT, label_qos),
-        MqttPacket::PubRec(_, _) => counter_metric_inc!(MQTT_PACKETS_PUBREC_SENT, label_qos),
-        MqttPacket::PubRel(_, _) => counter_metric_inc!(MQTT_PACKETS_PUBREL_SENT, label_qos),
+        MqttPacket::PubAck(_, _) => {
+            counter_metric_inc!(MQTT_PACKETS_PUBACK_SENT, label_qos);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_PUBACK_SENT, total);
+        }
+        MqttPacket::PubRec(_, _) => {
+            counter_metric_inc!(MQTT_PACKETS_PUBREC_SENT, label_qos);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_PUBREC_SENT, total);
+        }
+        MqttPacket::PubRel(_, _) => {
+            counter_metric_inc!(MQTT_PACKETS_PUBREL_SENT, label_qos);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_PUBREL_SENT, total);
+        }
         MqttPacket::PubComp(_, _) => {
-            counter_metric_inc!(MQTT_PACKETS_PUBCOMP_SENT, label_qos)
+            counter_metric_inc!(MQTT_PACKETS_PUBCOMP_SENT, label_qos);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_PUBCOMP_SENT, total);
         }
-        MqttPacket::SubAck(_, _) => counter_metric_inc!(MQTT_PACKETS_SUBACK_SENT, label_qos),
+        MqttPacket::SubAck(_, _) => {
+            counter_metric_inc!(MQTT_PACKETS_SUBACK_SENT, label_qos);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_SUBACK, total);
+        }
         MqttPacket::UnsubAck(_, _) => {
-            counter_metric_inc!(MQTT_PACKETS_UNSUBACK_SENT, label_qos)
+            counter_metric_inc!(MQTT_PACKETS_UNSUBACK_SENT, label_qos);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_UNSUBACK, total);
         }
-        MqttPacket::PingResp(_) => counter_metric_inc!(MQTT_PACKETS_PINGRESP_SENT, label_qos),
+        MqttPacket::PingResp(_) => {
+            counter_metric_inc!(MQTT_PACKETS_PINGRESP_SENT, label_qos);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_PINGRESP, total);
+        }
         MqttPacket::Disconnect(_, _) => {
-            counter_metric_inc!(MQTT_PACKETS_DISCONNECT_SENT, label_qos)
+            counter_metric_inc!(MQTT_PACKETS_DISCONNECT_SENT, label_qos);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_DISCONNECT_SENT, total);
         }
         MqttPacket::Auth(_, _) => counter_metric_inc!(MQTT_PACKETS_CONNACK_SENT, label_qos),
         _ => unreachable!("This branch only matches for packets could not be sent"),

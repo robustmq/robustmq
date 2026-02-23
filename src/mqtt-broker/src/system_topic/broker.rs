@@ -15,6 +15,7 @@
 use std::sync::Arc;
 
 use broker_core::cluster::ClusterStorage;
+use chrono::DateTime;
 use common_base::tools::now_second;
 use common_base::version::version;
 use grpc_clients::pool::ClientPool;
@@ -75,8 +76,12 @@ pub(crate) async fn report_broker_time(
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_UPTIME,
         || async {
-            let start_long_time: u64 = now_second() - metadata_cache.broker_cache.get_start_time();
-            start_long_time.to_string()
+            let secs = now_second() - metadata_cache.broker_cache.get_start_time();
+            let days = secs / 86400;
+            let hours = (secs % 86400) / 3600;
+            let minutes = (secs % 3600) / 60;
+            let seconds = secs % 60;
+            format!("{days} days, {hours} hours, {minutes} minutes, {seconds} seconds")
         },
     )
     .await;
@@ -87,7 +92,12 @@ pub(crate) async fn report_broker_time(
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_DATETIME,
-        || async { now_second().to_string() },
+        || async {
+            let ts = now_second() as i64;
+            DateTime::from_timestamp(ts, 0)
+                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                .unwrap_or_else(|| ts.to_string())
+        },
     )
     .await;
 }
@@ -102,7 +112,7 @@ pub(crate) async fn report_broker_sysdescr(
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_SYSDESCR,
-        || async { format!("report broker sysdescr error,error:{}", os_info::get()) },
+        || async { format!("{}", os_info::get()) },
     )
     .await;
 }

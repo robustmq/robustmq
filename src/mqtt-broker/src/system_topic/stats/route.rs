@@ -14,6 +14,9 @@
 
 use crate::core::cache::MQTTCacheManager;
 use crate::system_topic::report_system_data;
+use common_metrics::mqtt::statistics::{
+    record_mqtt_subscriptions_exclusive_get, record_mqtt_subscriptions_shared_get,
+};
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -29,15 +32,15 @@ pub(crate) async fn report_broker_stat_routes(
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
+    // In MQTT, routes ≈ total active subscriptions (each subscription creates a routing entry)
+    let routes = record_mqtt_subscriptions_exclusive_get() + record_mqtt_subscriptions_shared_get();
+
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_routes_count().to_string()
-        },
+        || async move { routes.to_string() },
     )
     .await;
 
@@ -46,10 +49,7 @@ pub(crate) async fn report_broker_stat_routes(
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX,
-        || async {
-            "".to_string()
-            // metadata_cache.get_routes_max().to_string()
-        },
+        || async move { routes.to_string() },
     )
     .await;
 }

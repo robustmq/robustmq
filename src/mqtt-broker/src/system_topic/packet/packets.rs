@@ -14,6 +14,20 @@
 
 use crate::core::cache::MQTTCacheManager;
 use crate::system_topic::report_system_data;
+use common_metrics::mqtt::packets::{
+    record_mqtt_total_packets_auth_get, record_mqtt_total_packets_connack_get,
+    record_mqtt_total_packets_connect_get, record_mqtt_total_packets_disconnect_received_get,
+    record_mqtt_total_packets_disconnect_sent_get, record_mqtt_total_packets_pingreq_get,
+    record_mqtt_total_packets_pingresp_get, record_mqtt_total_packets_puback_received_get,
+    record_mqtt_total_packets_puback_sent_get, record_mqtt_total_packets_pubcomp_received_get,
+    record_mqtt_total_packets_pubcomp_sent_get, record_mqtt_total_packets_publish_received_get,
+    record_mqtt_total_packets_publish_sent_get, record_mqtt_total_packets_pubrec_received_get,
+    record_mqtt_total_packets_pubrec_sent_get, record_mqtt_total_packets_pubrel_received_get,
+    record_mqtt_total_packets_pubrel_sent_get, record_mqtt_total_packets_received_get,
+    record_mqtt_total_packets_sent_get, record_mqtt_total_packets_suback_get,
+    record_mqtt_total_packets_subscribe_get, record_mqtt_total_packets_unsuback_get,
+    record_mqtt_total_packets_unsubscribe_get,
+};
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -79,320 +93,143 @@ pub(crate) async fn report_broker_metrics_packets(
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+    macro_rules! report {
+        ($topic:expr, $value:expr) => {
+            let v = $value;
+            report_system_data(
+                client_pool,
+                metadata_cache,
+                storage_driver_manager,
+                $topic,
+                || async move { v.to_string() },
+            )
+            .await;
+        };
+    }
+
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_RECEIVED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_received().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+        record_mqtt_total_packets_received_get()
+    );
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SENT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_sent().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+        record_mqtt_total_packets_sent_get()
+    );
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNECT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_connect().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+        record_mqtt_total_packets_connect_get()
+    );
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNACK,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_connack().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+        record_mqtt_total_packets_connack_get()
+    );
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_RECEIVED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_publish_received().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+        record_mqtt_total_packets_publish_received_get()
+    );
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_SENT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_publish_sent().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+        record_mqtt_total_packets_publish_sent_get()
+    );
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_RECEIVED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_puback_received().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+        record_mqtt_total_packets_puback_received_get()
+    );
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_SENT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_puback_sent().to_string()
-        },
-    )
-    .await;
-
+        record_mqtt_total_packets_puback_sent_get()
+    );
+    // missed: not tracked, report 0
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_MISSED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_puback_missed().to_string()
-        },
+        || async { "0".to_string() },
     )
     .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_RECEIVED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pubrec_received().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+        record_mqtt_total_packets_pubrec_received_get()
+    );
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_SENT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pubrec_sent().to_string()
-        },
-    )
-    .await;
-
+        record_mqtt_total_packets_pubrec_sent_get()
+    );
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_MISSED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pubrec_missed().to_string()
-        },
+        || async { "0".to_string() },
     )
     .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_RECEIVED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pubrel_received().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+        record_mqtt_total_packets_pubrel_received_get()
+    );
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_SENT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pubrel_sent().to_string()
-        },
-    )
-    .await;
-
+        record_mqtt_total_packets_pubrel_sent_get()
+    );
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_MISSED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pubrel_missed().to_string()
-        },
+        || async { "0".to_string() },
     )
     .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_RECEIVED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pubcomp_received().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_disconnect_received().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_disconnect_sent().to_string()
-        },
-    )
-    .await;
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_auth().to_string()
-        },
-    )
-    .await;
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBACK,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_suback().to_string()
-        },
-    )
-    .await;
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_unsubscribe().to_string()
-        },
-    )
-    .await;
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_unsuback().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGREQ,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pingreq().to_string()
-        },
-    )
-    .await;
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGRESP,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pingresp().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+        record_mqtt_total_packets_pubcomp_received_get()
+    );
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_SENT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pubcomp_sent().to_string()
-        },
-    )
-    .await;
+        record_mqtt_total_packets_pubcomp_sent_get()
+    );
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_MISSED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_pubcomp_missed().to_string()
-        },
+        || async { "0".to_string() },
     )
     .await;
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+    report!(
         SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBSCRIBE,
-        || async {
-            "".to_string()
-            // metadata_cache.get_packets_subscribe().to_string()
-        },
-    )
-    .await;
+        record_mqtt_total_packets_subscribe_get()
+    );
+    report!(
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBACK,
+        record_mqtt_total_packets_suback_get()
+    );
+    report!(
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE,
+        record_mqtt_total_packets_unsubscribe_get()
+    );
+    report!(
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK,
+        record_mqtt_total_packets_unsuback_get()
+    );
+    report!(
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGREQ,
+        record_mqtt_total_packets_pingreq_get()
+    );
+    report!(
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGRESP,
+        record_mqtt_total_packets_pingresp_get()
+    );
+    report!(
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED,
+        record_mqtt_total_packets_disconnect_received_get()
+    );
+    report!(
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT,
+        record_mqtt_total_packets_disconnect_sent_get()
+    );
+    report!(
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH,
+        record_mqtt_total_packets_auth_get()
+    );
 }

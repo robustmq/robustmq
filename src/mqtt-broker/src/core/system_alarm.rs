@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::storage::local::LocalStorage;
-use crate::system_topic::sysmon::st_report_system_alarm_event;
+use crate::system_topic::sysmon::st_report_system_alarm_alert;
 use crate::{core::cache::MQTTCacheManager, core::tool::ResultMqttBrokerError};
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
@@ -119,7 +119,7 @@ impl SystemAlarm {
                 message: format!("{alarm_type} is {current_usage}%, but config is {config_usage}%"),
                 create_time: now_second(),
             };
-            st_report_system_alarm_event(
+            st_report_system_alarm_alert(
                 &self.client_pool,
                 &self.metadata_cache,
                 &self.storage_driver_manager,

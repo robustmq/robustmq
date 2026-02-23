@@ -52,6 +52,11 @@ storage_type = "EngineRocksDB"
 enable = true
 port = 9091
 
+[mqtt_system_topic]
+# Interval in milliseconds for publishing system topic data (e.g. stats, metrics).
+# Default: 60000 (60 seconds). Recommended range: 10000 ~ 60000.
+interval_ms = 60000
+
 [mqtt_offline_message]
 enable = true
 expire_ms = 3600000

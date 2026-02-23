@@ -72,9 +72,12 @@ use crate::system_topic::stats::subscription::{
     SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT,
     SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX,
 };
-use crate::system_topic::sysmon::SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE;
+use crate::system_topic::stats::topics::{
+    SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX,
+};
 use common_base::error::ResultCommonError;
 use common_base::tools::{get_local_ip, loop_select_ticket};
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
@@ -102,14 +105,6 @@ pub const SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED: &str =
 // System alarm
 pub const SYSTEM_TOPIC_BROKERS_ALARMS_ALERT: &str = "$SYS/brokers/${node}/alarms/alert";
 pub const SYSTEM_TOPIC_BROKERS_ALARMS_CLEAR: &str = "$SYS/brokers/${node}/alarms/clear";
-// system symon
-pub const SYSTEM_TOPIC_BROKERS_SYSMON_LONG_GC: &str = "$SYS/brokers/${node}/sysmon/long_gc";
-pub const SYSTEM_TOPIC_BROKERS_SYSMON_LONG_SCHEDULE: &str =
-    "$SYS/brokers/${node}/sysmon/long_schedule";
-pub const SYSTEM_TOPIC_BROKERS_SYSMON_LARGE_HEAP: &str = "$SYS/brokers/${node}/sysmon/large_heap";
-pub const SYSTEM_TOPIC_BROKERS_SYSMON_BUSY_PORT: &str = "$SYS/brokers/${node}/sysmon/busy_port";
-pub const SYSTEM_TOPIC_BROKERS_SYSMON_BUSY_DIST_PORT: &str =
-    "$SYS/brokers/${node}/sysmon/busy_dist_port";
 
 pub mod broker;
 pub mod event;
@@ -170,7 +165,8 @@ impl SystemTopic {
             Ok(())
         };
 
-        loop_select_ticket(ac_fn, 1000, &stop_send).await;
+        let interval_ms = broker_config().mqtt_system_topic.interval_ms;
+        loop_select_ticket(ac_fn, interval_ms, &stop_send).await;
     }
 
     pub async fn try_init_system_topic(&self) {
@@ -260,8 +256,12 @@ impl SystemTopic {
             SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED.to_string(),
             SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT.to_string(),
             SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH.to_string(),
+            // topics stats (missing from original)
+            SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT.to_string(),
+            SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX.to_string(),
             // ALARM
-            SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE.to_string(),
+            SYSTEM_TOPIC_BROKERS_ALARMS_ALERT.to_string(),
+            SYSTEM_TOPIC_BROKERS_ALARMS_CLEAR.to_string(),
         ]
     }
 }

@@ -16,8 +16,8 @@ use super::security::{AuthnConfig, AuthzConfig};
 use crate::config::{
     GrpcClientConfig, MetaRuntime, MqttAuthConfig, MqttFlappingDetect, MqttKeepAlive,
     MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema, MqttSecurity, MqttServer,
-    MqttSlowSubscribeConfig, MqttSystemMonitor, Network, Rocksdb, Runtime, SchemaFailedOperation,
-    SchemaStrategy, StorageOffset, StorageRuntime,
+    MqttSlowSubscribeConfig, MqttSystemMonitor, MqttSystemTopic, Network, Rocksdb, Runtime,
+    SchemaFailedOperation, SchemaStrategy, StorageOffset, StorageRuntime,
 };
 use crate::storage::{StorageAdapterConfig, StorageType};
 use common_base::enum_type::delay_type::DelayType;
@@ -197,6 +197,10 @@ pub fn default_mqtt_system_monitor() -> MqttSystemMonitor {
         os_cpu_high_watermark: 70.0,
         os_memory_high_watermark: 80.0,
     }
+}
+
+pub fn default_mqtt_system_topic() -> MqttSystemTopic {
+    MqttSystemTopic { interval_ms: 60000 }
 }
 
 pub fn default_storage_offset() -> StorageOffset {

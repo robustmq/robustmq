@@ -73,7 +73,7 @@ pub struct Pprof {
 pub fn default_prometheus() -> Prometheus {
     Prometheus {
         enable: true,
-        port: 9090,
+        port: 9091,
     }
 }
 

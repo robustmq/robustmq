@@ -14,36 +14,46 @@
 
 use crate::core::cache::MQTTCacheManager;
 use crate::core::system_alarm::SystemAlarmEventMessage;
-use crate::system_topic::{replace_topic_name, write_topic_data};
+use crate::system_topic::{
+    report_system_data, SYSTEM_TOPIC_BROKERS_ALARMS_ALERT, SYSTEM_TOPIC_BROKERS_ALARMS_CLEAR,
+};
 use common_base::error::ResultCommonError;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::message::MqttMessage;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
-// sysmon topic
-pub(crate) const SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE: &str =
-    "$SYS/brokers/${node}/alarms/activate";
-
-pub async fn st_report_system_alarm_event(
+pub async fn st_report_system_alarm_alert(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     message_event: &SystemAlarmEventMessage,
 ) -> ResultCommonError {
     let data = serde_json::to_string(message_event)?;
-    let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_ALARMS_ACTIVATE.to_string());
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        storage_driver_manager,
+        SYSTEM_TOPIC_BROKERS_ALARMS_ALERT,
+        || async move { data },
+    )
+    .await;
+    Ok(())
+}
 
-    if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data) {
-        let _ = write_topic_data(
-            storage_driver_manager,
-            metadata_cache,
-            client_pool,
-            topic_name,
-            record,
-        )
-        .await;
-    };
-
+pub async fn st_report_system_alarm_clear(
+    client_pool: &Arc<ClientPool>,
+    metadata_cache: &Arc<MQTTCacheManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
+    message_event: &SystemAlarmEventMessage,
+) -> ResultCommonError {
+    let data = serde_json::to_string(message_event)?;
+    report_system_data(
+        client_pool,
+        metadata_cache,
+        storage_driver_manager,
+        SYSTEM_TOPIC_BROKERS_ALARMS_CLEAR,
+        || async move { data },
+    )
+    .await;
     Ok(())
 }

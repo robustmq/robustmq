@@ -14,6 +14,7 @@
 
 use crate::core::cache::MQTTCacheManager;
 use crate::system_topic::report_system_data;
+use common_metrics::mqtt::statistics::record_mqtt_topics_get;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -27,15 +28,14 @@ pub(crate) async fn report_broker_stat_topics(
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
+    let count = record_mqtt_topics_get();
+
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT,
-        || async {
-            "".to_string()
-            //  metadata_cache.get_topics_count().to_string()
-        },
+        || async move { count.to_string() },
     )
     .await;
 
@@ -44,10 +44,7 @@ pub(crate) async fn report_broker_stat_topics(
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX,
-        || async {
-            "".to_string()
-            //  metadata_cache.get_topics_max().to_string()
-        },
+        || async move { count.to_string() },
     )
     .await;
 }

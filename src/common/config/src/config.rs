@@ -19,7 +19,7 @@ use super::default::{
     default_mqtt_flapping_detect, default_mqtt_keep_alive, default_mqtt_offline_message,
     default_mqtt_protocol_config, default_mqtt_runtime, default_mqtt_schema, default_mqtt_security,
     default_mqtt_server, default_mqtt_slow_subscribe_config, default_mqtt_system_monitor,
-    default_network, default_rocksdb, default_roles, default_runtime,
+    default_mqtt_system_topic, default_network, default_rocksdb, default_roles, default_runtime,
     default_runtime_worker_threads, default_storage_offset,
 };
 use super::security::{AuthnConfig, AuthzConfig};
@@ -122,6 +122,9 @@ pub struct BrokerConfig {
 
     #[serde(default = "default_grpc_client")]
     pub grpc_client: GrpcClientConfig,
+
+    #[serde(default = "default_mqtt_system_topic")]
+    pub mqtt_system_topic: MqttSystemTopic,
 }
 
 impl Default for BrokerConfig {
@@ -156,7 +159,20 @@ impl Default for BrokerConfig {
             mqtt_system_monitor: default_mqtt_system_monitor(),
             storage_offset: default_storage_offset(),
             grpc_client: default_grpc_client(),
+            mqtt_system_topic: default_mqtt_system_topic(),
         }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct MqttSystemTopic {
+    /// Interval in milliseconds for publishing system topic data. Default: 60000 (60s).
+    pub interval_ms: u64,
+}
+
+impl Default for MqttSystemTopic {
+    fn default() -> Self {
+        default_mqtt_system_topic()
     }
 }
 

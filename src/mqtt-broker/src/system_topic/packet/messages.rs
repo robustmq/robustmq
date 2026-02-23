@@ -14,6 +14,11 @@
 
 use crate::core::cache::MQTTCacheManager;
 use crate::system_topic::report_system_data;
+use common_metrics::mqtt::publish::{
+    record_messages_dropped_no_subscribers_get, record_mqtt_messages_received_get,
+    record_mqtt_messages_sent_get,
+};
+use common_metrics::mqtt::statistics::record_mqtt_retained_get;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -53,171 +58,84 @@ pub(crate) async fn report_broker_metrics_messages(
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
+    let received = record_mqtt_messages_received_get();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RECEIVED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_received().to_string()
-        },
+        || async move { received.to_string() },
     )
     .await;
 
+    let sent = record_mqtt_messages_sent_get();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_SENT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_sent().to_string()
-        },
+        || async move { sent.to_string() },
     )
     .await;
 
+    // expired: not currently tracked separately, report 0
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_EXPIRED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_expired().to_string()
-        },
+        || async { "0".to_string() },
     )
     .await;
 
+    let retained = record_mqtt_retained_get();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RETAINED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_retained().to_string()
-        },
+        || async move { retained.to_string() },
     )
     .await;
 
+    let dropped = record_messages_dropped_no_subscribers_get();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_DROPPED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_dropped().to_string()
-        },
+        || async move { dropped.to_string() },
     )
     .await;
 
+    // forward: not tracked separately
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_FORWARD,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_forward().to_string()
-        },
+        || async { "0".to_string() },
     )
     .await;
 
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
+    // Per-QoS counters: not tracked at this granularity, report 0
+    for topic_const in [
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_RECEIVED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_qos0_received().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_SENT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_qos0_sent().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_RECEIVED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_qos1_received().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_SENT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_qos1_sent().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_RECEIVED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_qos2_received().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_SENT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_qos2_sent().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_EXPIRED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_qos2_expired().to_string()
-        },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_DROPPED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_messages_qos2_dropped().to_string()
-        },
-    )
-    .await;
+    ] {
+        report_system_data(
+            client_pool,
+            metadata_cache,
+            storage_driver_manager,
+            topic_const,
+            || async { "0".to_string() },
+        )
+        .await;
+    }
 }

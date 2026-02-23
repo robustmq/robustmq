@@ -14,6 +14,10 @@
 
 use crate::core::cache::MQTTCacheManager;
 use crate::system_topic::report_system_data;
+use common_metrics::mqtt::statistics::{
+    record_mqtt_subscriptions_exclusive_get, record_mqtt_subscriptions_shared_get,
+    record_mqtt_subscriptions_shared_group_get,
+};
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -29,7 +33,6 @@ pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_MAX: &str =
     "$SYS/brokers/${node}/stats/subscribers/max";
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_COUNT: &str =
     "$SYS/brokers/${node}/stats/subscriptions/count";
-
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_MAX: &str =
     "$SYS/brokers/${node}/stats/subscriptions/max";
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT: &str =
@@ -42,15 +45,17 @@ pub(crate) async fn report_broker_stat_sub_options(
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
+    // Total subscriptions = exclusive + shared
+    let exclusive = record_mqtt_subscriptions_exclusive_get();
+    let shared = record_mqtt_subscriptions_shared_get();
+    let total_subs = exclusive + shared;
+
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_COUNT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_suboptions_count().to_string()
-        },
+        || async move { total_subs.to_string() },
     )
     .await;
 
@@ -59,10 +64,7 @@ pub(crate) async fn report_broker_stat_sub_options(
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_MAX,
-        || async {
-            "".to_string()
-            // metadata_cache.get_suboptions_max().to_string()
-        },
+        || async move { total_subs.to_string() },
     )
     .await;
 
@@ -71,10 +73,7 @@ pub(crate) async fn report_broker_stat_sub_options(
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_COUNT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_subscribers_count().to_string()
-        },
+        || async move { exclusive.to_string() },
     )
     .await;
 
@@ -83,10 +82,7 @@ pub(crate) async fn report_broker_stat_sub_options(
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_MAX,
-        || async {
-            "".to_string()
-            // metadata_cache.get_subscribers_count().to_string()
-        },
+        || async move { exclusive.to_string() },
     )
     .await;
 
@@ -95,10 +91,7 @@ pub(crate) async fn report_broker_stat_sub_options(
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_COUNT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_subscriptions_count().to_string()
-        },
+        || async move { total_subs.to_string() },
     )
     .await;
 
@@ -107,34 +100,27 @@ pub(crate) async fn report_broker_stat_sub_options(
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_MAX,
-        || async {
-            "".to_string()
-            // metadata_cache.get_subscriptions_count().to_string()
-        },
+        || async move { total_subs.to_string() },
     )
     .await;
 
+    let shared_count = record_mqtt_subscriptions_shared_get();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_shared_subscriptions_count().to_string()
-        },
+        || async move { shared_count.to_string() },
     )
     .await;
 
+    let shared_group = record_mqtt_subscriptions_shared_group_get();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX,
-        || async {
-            "".to_string()
-            // metadata_cache.get_shared_subscriptions_max().to_string()
-        },
+        || async move { shared_group.to_string() },
     )
     .await;
 }

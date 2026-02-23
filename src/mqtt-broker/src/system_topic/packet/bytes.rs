@@ -14,6 +14,9 @@
 
 use crate::core::cache::MQTTCacheManager;
 use crate::system_topic::report_system_data;
+use common_metrics::mqtt::packets::{
+    record_mqtt_total_bytes_received_get, record_mqtt_total_bytes_sent_get,
+};
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -29,27 +32,23 @@ pub(crate) async fn report_broker_metrics_bytes(
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
+    let received = record_mqtt_total_bytes_received_get();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED,
-        || async {
-            "".to_string()
-            // metadata_cache.get_bytes_received().to_string()
-        },
+        || async move { received.to_string() },
     )
     .await;
 
+    let sent = record_mqtt_total_bytes_sent_get();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT,
-        || async {
-            "".to_string()
-            // metadata_cache.get_bytes_sent().to_string()
-        },
+        || async move { sent.to_string() },
     )
     .await;
 }

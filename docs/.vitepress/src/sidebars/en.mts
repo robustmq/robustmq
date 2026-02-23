@@ -82,6 +82,7 @@ export const sidebar = [
                     { text: "Wildcard Subscription", link: "/en/RobustMQ-MQTT/WildcardSubscription" },
                     { text: "Session Persistence", link: "/en/RobustMQ-MQTT/SessionPersistence" },
                     { text: "System Alarm", link: "/en/RobustMQ-MQTT/SystemAlarm" },
+                    { text: "System Topics", link: "/en/RobustMQ-MQTT/SystemTopic" },
                 ],
             },
             {

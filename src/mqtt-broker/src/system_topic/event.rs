@@ -147,9 +147,9 @@ pub async fn st_report_connected_event(context: StReportConnectedEventContext) {
             ip_address: context.connection.source_ip_addr.clone(),
             expiry_interval: context.session.session_expiry_interval,
             connected_at: now_millis(),
-            connect_ack: 1,
+            connect_ack: 0,
             client_id: context.session.client_id.to_string(),
-            clean_start: false,
+            clean_start: !context.session.is_persist_session,
         };
         match serde_json::to_string(&event_data) {
             Ok(data) => {
@@ -314,8 +314,8 @@ fn replace_name(mut topic_name: String, client_id: String) -> String {
         let local_ip = get_local_ip();
         topic_name = topic_name.replace("${node}", &local_ip)
     }
-    if topic_name.contains("${client_id}") {
-        topic_name = topic_name.replace("${client_id}", &client_id)
+    if topic_name.contains("${clientid}") {
+        topic_name = topic_name.replace("${clientid}", &client_id)
     }
     topic_name
 }

@@ -82,6 +82,7 @@ export const sidebar = [
                     { text: "通配符订阅", link: "/zh/RobustMQ-MQTT/WildcardSubscription" },
                     { text: "会话持久化", link: "/zh/RobustMQ-MQTT/SessionPersistence" },
                     { text: "系统告警", link: "/zh/RobustMQ-MQTT/SystemAlarm.md" },
+                    { text: "系统主题", link: "/zh/RobustMQ-MQTT/SystemTopic" },
                 ],
             },
             {

@@ -190,6 +190,13 @@ pub fn record_mqtt_retained_dec() {
     gauge_metric_inc_by!(MQTT_RETAINED_COUNT, label, -1);
 }
 
+pub fn record_mqtt_retained_get() -> i64 {
+    let label = StatLabel {};
+    let mut result = 0i64;
+    gauge_metric_get!(MQTT_RETAINED_COUNT, label, result);
+    result
+}
+
 pub fn record_mqtt_delay_queue_total_capacity_set(shard_no: u32, capacity: i64) {
     let label = DelayQueueLabel {
         shard_no: shard_no.to_string(),
