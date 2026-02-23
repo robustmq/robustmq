@@ -250,23 +250,94 @@
 ### 3. 获取集群状态
 
 - **接口**: `GET /api/cluster/status`
-- **描述**: 获取集群运行状态，包括版本、节点列表、Meta 状态等
+- **描述**: 获取集群运行状态，包括版本、节点列表、各 Raft Group 的 Meta 状态等
 
 - **响应示例**:
 ```json
 {
   "code": 0,
   "data": {
-    "version": "0.1.34",
+    "version": "0.3.0",
     "cluster_name": "robust_mq_cluster_default",
     "start_time": 1738800000,
     "broker_node_list": [],
-    "meta": { ... },
-    "nodes": ["192.168.1.100", "192.168.1.101"]
+    "nodes": ["127.0.0.1"],
+    "meta": {
+      "mqtt": {
+        "running_state": { "Ok": null },
+        "id": 1,
+        "current_term": 1,
+        "vote": { "leader_id": { "term": 1, "node_id": 1 }, "committed": true },
+        "last_log_index": 30001,
+        "last_applied": { "leader_id": { "term": 1, "node_id": 1 }, "index": 30001 },
+        "snapshot": { "leader_id": { "term": 1, "node_id": 1 }, "index": 30001 },
+        "purged": { "leader_id": { "term": 1, "node_id": 1 }, "index": 30001 },
+        "state": "Leader",
+        "current_leader": 1,
+        "millis_since_quorum_ack": 0,
+        "membership_config": {
+          "log_id": { "leader_id": { "term": 0, "node_id": 0 }, "index": 0 },
+          "membership": {
+            "configs": [[1]],
+            "nodes": { "1": { "node_id": 1, "rpc_addr": "127.0.0.1:1228" } }
+          }
+        },
+        "replication": { "1": { "leader_id": { "term": 1, "node_id": 1 }, "index": 30001 } }
+      },
+      "offset": {
+        "state": "Leader",
+        "current_leader": 1,
+        "last_log_index": 1,
+        "..."  : "..."
+      },
+      "meta": {
+        "state": "Leader",
+        "current_leader": 1,
+        "last_log_index": 42853,
+        "..." : "..."
+      }
+    }
   },
   "error": null
 }
 ```
+
+**`data` 字段说明**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `version` | string | 当前 Broker 版本号 |
+| `cluster_name` | string | 集群名称 |
+| `start_time` | u64 | 进程启动时间戳（Unix 秒） |
+| `broker_node_list` | array | 集群中所有 Broker 节点信息列表 |
+| `nodes` | string[] | 集群节点 IP 列表（去重后） |
+| `meta` | object | 各 Raft Group 的运行状态，key 为 group 名称 |
+
+**`meta` 的 key 说明**：
+
+| key | 说明 |
+|-----|------|
+| `mqtt` | MQTT 数据 Raft Group 状态 |
+| `offset` | Offset 数据 Raft Group 状态 |
+| `meta` | 元数据 Raft Group 状态 |
+
+**每个 Raft Group 状态（`MetaStatus`）字段说明**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `running_state` | object | 运行状态，`{"Ok": null}` 表示正常 |
+| `id` | u64 | 当前节点 ID |
+| `current_term` | u64 | 当前 Raft term |
+| `vote` | object | 当前投票信息 |
+| `last_log_index` | u64 | 最新日志索引 |
+| `last_applied` | object | 已应用到状态机的最新日志位置 |
+| `snapshot` | object/null | 最新快照位置 |
+| `purged` | object/null | 已清理的最旧日志位置 |
+| `state` | string | 节点角色：`Leader`、`Follower`、`Candidate` |
+| `current_leader` | u64 | 当前 Leader 节点 ID |
+| `millis_since_quorum_ack` | u64 | 距上次 quorum 确认的毫秒数 |
+| `membership_config` | object | 集群成员配置信息 |
+| `replication` | object | 各节点的复制进度，key 为节点 ID |
 
 ---
 

@@ -28,8 +28,10 @@ pub struct MetaStatus {
     pub state: String,
     pub current_leader: u64,
     pub millis_since_quorum_ack: u64,
+    #[serde(default)]
     pub last_quorum_acked: u128,
     pub membership_config: MembershipConfig,
+    #[serde(default)]
     pub heartbeat: HashMap<String, u128>,
     pub replication: HashMap<String, ReplicationState>,
 }

@@ -117,8 +117,8 @@ pub fn handler_process(
                                             connection_id = packet.connection_id,
                                             addr = %packet.addr,
                                             timeout_secs = HANDLER_APPLY_TIMEOUT_SECS,
-                                            "Handler apply timeout: packet processing exceeded deadline, \
-                                             connection may be stuck on a slow gRPC call"
+                                            "Handler apply timeout: packet processing exceeded {}s",
+                                            HANDLER_APPLY_TIMEOUT_SECS
                                         );
                                     }
                                 }

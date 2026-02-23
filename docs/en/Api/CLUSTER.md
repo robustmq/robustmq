@@ -160,6 +160,92 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
 
 ---
 
+## Cluster Status
+
+### 3. Get Cluster Status
+
+- **Endpoint**: `GET /api/cluster/status`
+- **Description**: Returns cluster runtime status, including version, node list, and Raft group status for each internal group (`mqtt`, `offset`, `meta`).
+
+- **Response Example**:
+```json
+{
+  "code": 0,
+  "data": {
+    "version": "0.3.0",
+    "cluster_name": "robust_mq_cluster_default",
+    "start_time": 1738800000,
+    "broker_node_list": [],
+    "nodes": ["127.0.0.1"],
+    "meta": {
+      "mqtt": {
+        "running_state": { "Ok": null },
+        "id": 1,
+        "current_term": 1,
+        "vote": { "leader_id": { "term": 1, "node_id": 1 }, "committed": true },
+        "last_log_index": 30001,
+        "last_applied": { "leader_id": { "term": 1, "node_id": 1 }, "index": 30001 },
+        "snapshot": { "leader_id": { "term": 1, "node_id": 1 }, "index": 30001 },
+        "purged": { "leader_id": { "term": 1, "node_id": 1 }, "index": 30001 },
+        "state": "Leader",
+        "current_leader": 1,
+        "millis_since_quorum_ack": 0,
+        "membership_config": {
+          "log_id": { "leader_id": { "term": 0, "node_id": 0 }, "index": 0 },
+          "membership": {
+            "configs": [[1]],
+            "nodes": { "1": { "node_id": 1, "rpc_addr": "127.0.0.1:1228" } }
+          }
+        },
+        "replication": { "1": { "leader_id": { "term": 1, "node_id": 1 }, "index": 30001 } }
+      },
+      "offset": { "state": "Leader", "last_log_index": 1, "...": "..." },
+      "meta":   { "state": "Leader", "last_log_index": 42853, "...": "..." }
+    }
+  },
+  "error": null
+}
+```
+
+**`data` fields**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `version` | string | Current Broker version |
+| `cluster_name` | string | Cluster name |
+| `start_time` | u64 | Process start time (Unix seconds) |
+| `broker_node_list` | array | List of all Broker nodes in the cluster |
+| `nodes` | string[] | Deduplicated list of cluster node IPs |
+| `meta` | object | Raft group status map, keyed by group name |
+
+**`meta` keys**:
+
+| Key | Description |
+|-----|-------------|
+| `mqtt` | MQTT data Raft group status |
+| `offset` | Offset data Raft group status |
+| `meta` | Metadata Raft group status |
+
+**Per-group status (`MetaStatus`) fields**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `running_state` | object | Runtime health; `{"Ok": null}` means healthy |
+| `id` | u64 | Current node ID |
+| `current_term` | u64 | Current Raft term |
+| `vote` | object | Current vote information |
+| `last_log_index` | u64 | Latest log index |
+| `last_applied` | object | Log position last applied to the state machine |
+| `snapshot` | object/null | Latest snapshot position |
+| `purged` | object/null | Oldest log position that has been purged |
+| `state` | string | Node role: `Leader`, `Follower`, or `Candidate` |
+| `current_leader` | u64 | Current Leader node ID |
+| `millis_since_quorum_ack` | u64 | Milliseconds since last quorum acknowledgement |
+| `membership_config` | object | Cluster membership configuration |
+| `replication` | object | Per-node replication progress (key = node ID) |
+
+---
+
 ## Notes
 
 1. **Configuration Format**: Configuration must be a valid JSON string

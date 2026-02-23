@@ -1549,7 +1549,6 @@ impl MqttBrokerCommand {
                 }
                 println!("\n📊 Cluster Overview");
                 println!("{:<30} {}", "Cluster Name", data.cluster_name);
-                println!("{:<30} {}", "Placement Status", data.placement_status);
                 println!("{:<30} {}", "Message In Rate", data.message_in_rate);
                 println!("{:<30} {}", "Message Out Rate", data.message_out_rate);
                 println!("{:<30} {}", "Connection Num", data.connection_num);

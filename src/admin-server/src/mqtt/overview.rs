@@ -14,13 +14,12 @@
 
 use crate::state::HttpState;
 use axum::extract::State;
-use broker_core::{cache::BrokerCacheManager, cluster::ClusterStorage};
+use broker_core::cache::BrokerCacheManager;
 use common_base::{
     error::common::CommonError,
     http_response::{error_response, success_response},
 };
 use common_config::broker::broker_config;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use mqtt_broker::{
     bridge::manager::ConnectorManager, core::cache::MQTTCacheManager,
@@ -40,7 +39,6 @@ pub struct OverViewResp {
     pub connection_num: u32,
     pub session_num: u32,
     pub topic_num: u32,
-    pub placement_status: String,
     pub tcp_connection_num: u32,
     pub tls_connection_num: u32,
     pub websocket_connection_num: u32,
@@ -57,7 +55,6 @@ pub struct OverViewResp {
 
 pub async fn overview(State(state): State<Arc<HttpState>>) -> String {
     match cluster_overview_by_req(
-        &state.client_pool,
         &state.mqtt_context.subscribe_manager,
         &state.connection_manager,
         &state.mqtt_context.cache_manager,
@@ -73,7 +70,6 @@ pub async fn overview(State(state): State<Arc<HttpState>>) -> String {
 }
 
 async fn cluster_overview_by_req(
-    client_pool: &Arc<ClientPool>,
     subscribe_manager: &Arc<SubscribeManager>,
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<MQTTCacheManager>,
@@ -82,8 +78,6 @@ async fn cluster_overview_by_req(
     connector_manager: &Arc<ConnectorManager>,
 ) -> Result<OverViewResp, CommonError> {
     let config = broker_config();
-    let cluster_storage = ClusterStorage::new(client_pool.clone());
-    let placement_status = cluster_storage.meta_cluster_status().await?;
     let node_list = broker_cache.node_list();
 
     let reply = OverViewResp {
@@ -103,7 +97,6 @@ async fn cluster_overview_by_req(
         share_subscribe_thread_num: subscribe_manager.share_push.len() as u32,
         topic_num: cache_manager.broker_cache.topic_list.len() as u32,
         node_list,
-        placement_status,
         tcp_connection_num: connection_manager.tcp_write_list.len() as u32,
         tls_connection_num: connection_manager.tcp_tls_write_list.len() as u32,
         websocket_connection_num: connection_manager.websocket_write_list.len() as u32,

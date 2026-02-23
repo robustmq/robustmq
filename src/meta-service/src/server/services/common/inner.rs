@@ -31,6 +31,7 @@ use protocol::meta::meta_service_common::{
     SaveOffsetDataReply, SaveOffsetDataRequest, SetResourceConfigReply, SetResourceConfigRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::debug;
 
@@ -38,14 +39,14 @@ use tracing::debug;
 pub async fn cluster_status_by_req(
     raft_manager: &Arc<MultiRaftManager>,
 ) -> Result<ClusterStatusReply, MetaServiceError> {
-    let status = raft_manager.metadata_raft_node.metrics().borrow().clone();
-    let _data = raft_manager
-        .metadata_raft_node
-        .data_metrics()
-        .borrow()
-        .clone();
-
-    let content = serde_json::to_string(&status).map_err(MetaServiceError::SerdeJsonError)?;
+    let meta_status = raft_manager.metadata_raft_node.metrics().borrow().clone();
+    let mqtt_status = raft_manager.mqtt_raft_node.metrics().borrow().clone();
+    let offset_status = raft_manager.offset_raft_node.metrics().borrow().clone();
+    let mut results = HashMap::new();
+    results.insert("meta".to_string(), meta_status);
+    results.insert("mqtt".to_string(), mqtt_status);
+    results.insert("offset".to_string(), offset_status);
+    let content = serde_json::to_string(&results).map_err(MetaServiceError::SerdeJsonError)?;
 
     Ok(ClusterStatusReply { content })
 }

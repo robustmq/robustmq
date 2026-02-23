@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::state::HttpState;
@@ -35,7 +35,7 @@ pub struct ClusterInfoResp {
     pub cluster_name: String,
     pub start_time: u64,
     pub broker_node_list: Vec<BrokerNode>,
-    pub meta: MetaStatus,
+    pub meta: HashMap<String, MetaStatus>,
     pub nodes: HashSet<String>,
 }
 use broker_core::{cache::BrokerCacheManager, cluster::ClusterStorage};
@@ -101,13 +101,14 @@ pub async fn healthy() -> String {
 
 pub async fn cluster_info(State(state): State<Arc<HttpState>>) -> String {
     let cluster_storage = ClusterStorage::new(state.client_pool.clone());
-    let meta_data = match cluster_storage.meta_cluster_status().await {
+    let result = match cluster_storage.meta_cluster_status().await {
         Ok(data) => data,
         Err(e) => {
             return error_response(e.to_string());
         }
     };
-    let data = match serde_json::from_str::<MetaStatus>(&meta_data) {
+
+    let data = match serde_json::from_str::<HashMap<String, MetaStatus>>(&result) {
         Ok(data) => data,
         Err(e) => {
             return error_response(e.to_string());
@@ -118,13 +119,16 @@ pub async fn cluster_info(State(state): State<Arc<HttpState>>) -> String {
         cluster_name: state.broker_cache.cluster_name.clone(),
         start_time: state.broker_cache.get_start_time(),
         broker_node_list: state.broker_cache.node_list(),
-        meta: data.clone(),
         nodes: calc_node_num(&state.broker_cache, &data),
+        meta: data,
     };
     success_response(cluster_info)
 }
 
-fn calc_node_num(broker_cache: &Arc<BrokerCacheManager>, meta: &MetaStatus) -> HashSet<String> {
+fn calc_node_num(
+    broker_cache: &Arc<BrokerCacheManager>,
+    meta: &HashMap<String, MetaStatus>,
+) -> HashSet<String> {
     let mut node_list = HashSet::new();
 
     for node in broker_cache.node_lists.iter() {
@@ -133,9 +137,11 @@ fn calc_node_num(broker_cache: &Arc<BrokerCacheManager>, meta: &MetaStatus) -> H
         }
     }
 
-    for (_, node_info) in meta.membership_config.membership.nodes.iter() {
-        if let Some(ip) = node_info.rpc_addr.split(':').next() {
-            node_list.insert(ip.to_string());
+    for status in meta.values() {
+        for node_info in status.membership_config.membership.nodes.values() {
+            if let Some(ip) = node_info.rpc_addr.split(':').next() {
+                node_list.insert(ip.to_string());
+            }
         }
     }
 

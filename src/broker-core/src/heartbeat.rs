@@ -93,37 +93,77 @@ pub async fn report_heartbeat(
 
 #[derive(Deserialize, Serialize, Debug)]
 struct MetaServiceStatus {
-    pub current_leader: u32,
+    pub running_state: serde_json::Value,
+    pub current_leader: u64,
+}
+
+impl MetaServiceStatus {
+    /// A state machine is ready when:
+    /// 1. `running_state` is `{"Ok": ...}` (no error)
+    /// 2. `current_leader != 0` (a leader has been elected)
+    fn is_ready(&self) -> bool {
+        let running_ok = self
+            .running_state
+            .as_object()
+            .map(|m| m.contains_key("Ok"))
+            .unwrap_or(false);
+        running_ok && self.current_leader != 0
+    }
 }
 
 pub async fn check_meta_service_status(client_pool: Arc<ClientPool>) {
     let fun = async move || -> Result<Option<bool>, CommonError> {
         let cluster_storage = ClusterStorage::new(client_pool.clone());
         let data = cluster_storage.meta_cluster_status().await?;
-        let status = serde_json::from_str::<MetaServiceStatus>(&data)?;
-        if status.current_leader > 0 {
+
+        // The status JSON is a map of Raft group name -> MetaServiceStatus,
+        // e.g. {"mqtt": {...}, "offset": {...}, "meta": {...}}.
+        // The cluster is ready only when every group is ready.
+        let groups: std::collections::HashMap<String, MetaServiceStatus> =
+            serde_json::from_str(&data)?;
+
+        if groups.is_empty() {
+            return Ok(None);
+        }
+
+        let not_ready: Vec<String> = groups
+            .iter()
+            .filter(|(_, s)| !s.is_ready())
+            .map(|(name, s)| {
+                format!(
+                    "{}(running_state={}, leader={})",
+                    name, s.running_state, s.current_leader
+                )
+            })
+            .collect();
+
+        if not_ready.is_empty() {
+            let summary: Vec<String> = groups
+                .iter()
+                .map(|(name, s)| format!("{}→node{}", name, s.current_leader))
+                .collect();
             info!(
-                "Meta Service cluster is in normal condition. current leader node is {}.",
-                status.current_leader
+                "Meta Service cluster is ready. All groups have elected a leader: [{}]",
+                summary.join(", ")
             );
             return Ok(Some(true));
-        };
+        }
+
+        info!(
+            "Meta Service cluster not ready yet, waiting for groups: {:?}",
+            not_ready
+        );
         Ok(None)
     };
 
     loop {
         match fun().await {
-            Ok(bol) => {
-                if let Some(b) = bol {
-                    if b {
-                        break;
-                    }
-                }
-
+            Ok(Some(true)) => break,
+            Ok(_) => {
                 sleep(Duration::from_secs(1)).await;
             }
             Err(e) => {
-                debug!(" cluster is not yet ready. Error message: {}", e);
+                info!("Meta Service cluster is not yet ready: {}", e);
                 sleep(Duration::from_secs(1)).await;
             }
         }
