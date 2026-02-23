@@ -424,8 +424,8 @@ impl MultiRaftManager {
     ) -> Result<Raft<TypeConfig>, CommonError> {
         // Raft configuration
         let config = Config {
-            heartbeat_interval: 250,
-            election_timeout_min: 299,
+            heartbeat_interval: 10,
+            election_timeout_min: 15,
             ..Default::default()
         };
 
