@@ -115,14 +115,14 @@ tower-http = { version = "0.6.8", default-features = false, features = ["fs", "c
 # ====================
 # gRPC & Protocol Buffers
 # ====================
-tonic = { version = "0.14.4", default-features = false, features = [
+tonic = { version = "0.14.5", default-features = false, features = [
     "transport",
     "codegen",
     "router",
 ] }
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
-tonic-web = "0.14.4"
+tonic-web = "0.14.5"
 prost = "0.14.3"
 prost-build = "0.14.3"
 prost-validate = { version = "0.2.9", features = ["derive"] }
@@ -235,7 +235,7 @@ pprof = { version = "0.14.0", features = ["flamegraph"] }
 # ====================
 # CLI & Command Line Tools
 # ====================
-clap = { version = "4.5.59", default-features = false, features = ["std", "derive"] }
+clap = { version = "4.5.60", default-features = false, features = ["std", "derive"] }
 clap-cargo = "0.14.1"
 prettytable-rs = "0.10"
 
@@ -249,7 +249,7 @@ apache-avro = "0.17.0"
 # ====================
 # Utilities
 # ====================
-anyhow = "1.0.98"
+anyhow = "1.0.102"
 thiserror = "2.0"
 bytes = { version = "1", features = ["serde"] }
 uuid = { version = "1.21.0", default-features = false, features = ["v4"] }
