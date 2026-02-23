@@ -23,11 +23,9 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::sync::Arc;
-use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
-use sysinfo::{Pid, ProcessExt, System, SystemExt};
+use system_info::{process_cpu_usage, process_memory_usage};
 use tokio::sync::broadcast;
-use tokio::time::sleep;
 use tracing::info;
 
 #[allow(clippy::enum_variant_names)]
@@ -50,7 +48,11 @@ impl fmt::Display for AlarmType {
 pub struct SystemAlarmEventMessage {
     pub name: String,
     pub message: String,
+    /// JSON field name is "activate_at" to align with EMQX system topic format.
+    /// "create_time" is kept as alias for backward-compatible deserialization from storage.
+    #[serde(rename = "activate_at", alias = "create_time")]
     pub create_time: u64,
+    pub activated: bool,
 }
 
 pub struct SystemAlarm {
@@ -83,7 +85,7 @@ impl SystemAlarm {
 
         let record_func = async || -> ResultCommonError {
             let mqtt_conf = broker_config();
-            let cpu_usage = get_process_every_cpu_usage().await;
+            let cpu_usage = process_cpu_usage().await;
 
             self.try_send_a_new_system_event(
                 AlarmType::HighCpuUsage,
@@ -92,7 +94,7 @@ impl SystemAlarm {
             )
             .await?;
 
-            let memory_usage = get_process_memory_usage();
+            let memory_usage = process_memory_usage();
             self.try_send_a_new_system_event(
                 AlarmType::HighMemoryUsage,
                 memory_usage,
@@ -118,6 +120,7 @@ impl SystemAlarm {
                 name: alarm_type.to_string(),
                 message: format!("{alarm_type} is {current_usage}%, but config is {config_usage}%"),
                 create_time: now_second(),
+                activated: true,
             };
             st_report_system_alarm_alert(
                 &self.client_pool,
@@ -131,53 +134,4 @@ impl SystemAlarm {
         }
         Ok(())
     }
-}
-
-// Get CPU usage percentage of the current process
-pub async fn get_process_every_cpu_usage() -> f32 {
-    let mut system = System::new_all();
-    let pid = Pid::from(std::process::id() as usize);
-
-    system.refresh_all();
-
-    sleep(Duration::from_millis(1000)).await;
-
-    system.refresh_all();
-
-    // Get current process ID
-    if let Some(process) = system.process(pid) {
-        // Get latest CPU usage
-        let cpu_usage = process.cpu_usage();
-        let cpu_count = system.cpus().len() as f32;
-
-        // Calculate average CPU usage per core
-        return cpu_usage / cpu_count;
-    }
-
-    // Return 0 if failed to get information
-    0.0
-}
-
-// Get memory usage percentage of the current process
-pub fn get_process_memory_usage() -> f32 {
-    let mut system = System::new_all();
-    system.refresh_all();
-
-    let total_memory = system.total_memory();
-    if total_memory == 0 {
-        return 0.0;
-    }
-
-    // Get current process ID
-    let pid = Pid::from(std::process::id() as usize);
-
-    if let Some(process) = system.process(pid) {
-        // Get process memory usage (in bytes)
-        let used_memory = process.memory();
-
-        // Calculate memory usage percentage
-        return (used_memory as f32 / total_memory as f32) * 100.0;
-    }
-
-    0.0
 }

@@ -961,6 +961,7 @@ dependencies = [
  "serde_json",
  "storage-adapter",
  "storage-engine",
+ "system-info",
  "tokio",
  "tonic 0.14.4",
  "tonic-web 0.14.4",
@@ -4199,6 +4200,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "sysinfo",
+ "system-info",
  "tempfile",
  "third-driver",
  "thiserror 2.0.18",
@@ -7938,6 +7940,17 @@ dependencies = [
  "once_cell",
  "rayon",
  "winapi",
+]
+
+[[package]]
+name = "system-info"
+version = "0.3.1"
+dependencies = [
+ "common-base",
+ "common-metrics",
+ "sysinfo",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

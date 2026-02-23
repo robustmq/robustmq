@@ -21,10 +21,10 @@ use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::session::MqttSession;
 use network_server::common::connection_manager::ConnectionManager;
-use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol, Subscribe, Unsubscribe};
+use protocol::mqtt::common::{DisconnectReasonCode, Subscribe, Unsubscribe};
 use serde::{Deserialize, Serialize};
 use storage_adapter::driver::StorageDriverManager;
-use tracing::error;
+use tracing::{error, warn};
 
 use super::{
     write_topic_data, SYSTEM_TOPIC_BROKERS_CONNECTED, SYSTEM_TOPIC_BROKERS_DISCONNECTED,
@@ -70,14 +70,18 @@ pub struct StReportUnsubscribedEventContext {
 pub struct SystemTopicConnectedEventMessage {
     pub username: String,
     pub ts: u128,
+    #[serde(rename = "sockport")]
     pub sock_port: u16,
-    pub proto_ver: Option<MqttProtocol>,
+    pub proto_ver: u8,
     pub proto_name: String,
     pub keepalive: u16,
+    #[serde(rename = "ipaddress")]
     pub ip_address: String,
     pub expiry_interval: u64,
     pub connected_at: u128,
+    #[serde(rename = "connack")]
     pub connect_ack: u16,
+    #[serde(rename = "clientid")]
     pub client_id: String,
     pub clean_start: bool,
 }
@@ -86,14 +90,18 @@ pub struct SystemTopicConnectedEventMessage {
 pub struct SystemTopicDisConnectedEventMessage {
     pub username: String,
     pub ts: u128,
+    #[serde(rename = "sockport")]
     pub sock_port: u16,
     pub reason: String,
-    pub proto_ver: Option<MqttProtocol>,
+    pub proto_ver: u8,
     pub proto_name: String,
+    #[serde(rename = "ipaddress")]
     pub ip_address: String,
     pub disconnected_at: u128,
+    #[serde(rename = "clientid")]
     pub client_id: String,
 }
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct SystemTopicSubscribedEventMessage {
     pub username: String,
@@ -101,6 +109,7 @@ pub struct SystemTopicSubscribedEventMessage {
     pub subopts: SystemTopicSubscribedEventMessageSupports,
     pub topic: String,
     pub protocol: String,
+    #[serde(rename = "clientid")]
     pub client_id: String,
 }
 
@@ -120,6 +129,7 @@ pub struct SystemTopicUnSubscribedEventMessage {
     pub ts: u128,
     pub topic: String,
     pub protocol: String,
+    #[serde(rename = "clientid")]
     pub client_id: String,
 }
 
@@ -141,7 +151,11 @@ pub async fn st_report_connected_event(context: StReportConnectedEventContext) {
             username: context.connection.login_user.unwrap_or_default(),
             ts: now_millis(),
             sock_port: network_connection.addr.port(),
-            proto_ver: Some(network_connection.protocol.unwrap().to_mqtt()),
+            proto_ver: network_connection
+                .protocol
+                .as_ref()
+                .map(|p| p.to_u8())
+                .unwrap_or(0),
             proto_name: "MQTT".to_string(),
             keepalive: context.connection.keep_alive,
             ip_address: context.connection.source_ip_addr.clone(),
@@ -161,14 +175,20 @@ pub async fn st_report_connected_event(context: StReportConnectedEventContext) {
                 if let Some(record) =
                     MqttMessage::build_system_topic_message(topic_name.clone(), data)
                 {
-                    let _ = write_topic_data(
+                    if let Err(e) = write_topic_data(
                         &context.storage_driver_manager,
                         &context.metadata_cache,
                         &context.client_pool,
-                        topic_name,
+                        topic_name.clone(),
                         record,
                     )
-                    .await;
+                    .await
+                    {
+                        warn!(
+                            "Failed to write system topic data to topic {}: {:?}",
+                            topic_name, e
+                        );
+                    }
                 }
             }
             Err(e) => {
@@ -186,7 +206,11 @@ pub async fn st_report_disconnected_event(context: StReportDisconnectedEventCont
             ts: now_millis(),
             sock_port: network_connection.addr.port(),
             reason: format!("{:?}", context.reason),
-            proto_ver: Some(network_connection.protocol.unwrap().to_mqtt()),
+            proto_ver: network_connection
+                .protocol
+                .as_ref()
+                .map(|p| p.to_u8())
+                .unwrap_or(0),
             proto_name: "MQTT".to_string(),
             ip_address: context.connection.source_ip_addr.clone(),
             client_id: context.session.client_id.to_string(),
@@ -203,14 +227,20 @@ pub async fn st_report_disconnected_event(context: StReportDisconnectedEventCont
                 if let Some(record) =
                     MqttMessage::build_system_topic_message(topic_name.clone(), data)
                 {
-                    let _ = write_topic_data(
+                    if let Err(e) = write_topic_data(
                         &context.storage_driver_manager,
                         &context.metadata_cache,
                         &context.client_pool,
-                        topic_name,
+                        topic_name.clone(),
                         record,
                     )
-                    .await;
+                    .await
+                    {
+                        warn!(
+                            "Failed to write system topic data to topic {}: {:?}",
+                            topic_name, e
+                        );
+                    }
                 }
             }
             Err(e) => {
@@ -251,14 +281,20 @@ pub async fn st_report_subscribed_event(context: StReportSubscribedEventContext)
                     if let Some(record) =
                         MqttMessage::build_system_topic_message(topic_name.clone(), data)
                     {
-                        let _ = write_topic_data(
+                        if let Err(e) = write_topic_data(
                             &context.storage_driver_manager,
                             &context.metadata_cache,
                             &context.client_pool,
-                            topic_name,
+                            topic_name.clone(),
                             record,
                         )
-                        .await;
+                        .await
+                        {
+                            warn!(
+                                "Failed to write system topic data to topic {}: {:?}",
+                                topic_name, e
+                            );
+                        }
                     }
                 }
                 Err(e) => {
@@ -291,14 +327,20 @@ pub async fn st_report_unsubscribed_event(context: StReportUnsubscribedEventCont
                     if let Some(record) =
                         MqttMessage::build_system_topic_message(topic_name.clone(), data)
                     {
-                        let _ = write_topic_data(
+                        if let Err(e) = write_topic_data(
                             &context.storage_driver_manager,
                             &context.metadata_cache,
                             &context.client_pool,
-                            topic_name,
+                            topic_name.clone(),
                             record,
                         )
-                        .await;
+                        .await
+                        {
+                            warn!(
+                                "Failed to write system topic data to topic {}: {:?}",
+                                topic_name, e
+                            );
+                        }
                     }
                 }
                 Err(e) => {

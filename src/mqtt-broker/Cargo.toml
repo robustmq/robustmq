@@ -54,6 +54,7 @@ rustls-pki-types.workspace = true
 rustls.workspace = true
 rdkafka.workspace = true
 sysinfo.workspace = true
+system-info.workspace = true
 chrono.workspace = true
 strum.workspace = true
 strum_macros.workspace = true

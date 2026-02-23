@@ -84,6 +84,7 @@ use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
+use tracing::warn;
 
 // Cluster status information
 pub const SYSTEM_TOPIC_BROKERS: &str = "$SYS/brokers";
@@ -343,14 +344,20 @@ pub(crate) async fn report_system_data<F, Fut>(
     let data = data_generator().await;
 
     if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data) {
-        let _ = write_topic_data(
+        if let Err(e) = write_topic_data(
             storage_driver_manager,
             metadata_cache,
             client_pool,
-            topic_name,
+            topic_name.clone(),
             record,
         )
-        .await;
+        .await
+        {
+            warn!(
+                "Failed to write system topic data to topic {}: {:?}",
+                topic_name, e
+            );
+        }
     }
 }
 

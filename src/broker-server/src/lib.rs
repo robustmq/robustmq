@@ -69,6 +69,7 @@ use storage_engine::{
     filesegment::write::WriteManager, group::OffsetManager, handler::adapter::StorageEngineHandler,
     StorageEngineParams, StorageEngineServer,
 };
+use system_info::start_monitor;
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
 
@@ -326,10 +327,16 @@ impl BrokerServer {
 
         // offset flush thread
         let offset_cache = self.offset_manager.clone();
-        let raw_stop_send = stop_send;
+        let raw_stop_send = stop_send.clone();
         self.server_runtime.spawn(Box::pin(async move {
             offset_cache.offset_save_thread(raw_stop_send).await;
         }));
+
+        // system resource monitor
+        let raw_stop_send = stop_send;
+        self.server_runtime.spawn(async move {
+            start_monitor(raw_stop_send).await;
+        });
 
         // awaiting stop
         self.awaiting_stop(meta_stop_send, mqtt_stop_send, engine_stop_send);

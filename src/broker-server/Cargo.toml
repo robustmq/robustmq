@@ -48,3 +48,4 @@ rate-limit.workspace = true
 rocksdb-engine.workspace = true
 storage-adapter.workspace = true
 metadata-struct.workspace = true
+system-info.workspace = true

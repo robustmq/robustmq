@@ -37,6 +37,7 @@ members = [
     "src/common/metrics",
     "src/common/security",
     "src/common/rate-limit",
+    "src/common/system-info",
     "src/protocol",
     "src/storage-engine",
     "src/rule-engine",
@@ -336,6 +337,7 @@ metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
 rate-limit = { path = "src/common/rate-limit" }
 pprof-monitor = { path = "src/common/pprof-monitor" }
+system-info = { path = "src/common/system-info" }
 
 # Protocol & Macros
 protocol = { path = "src/protocol" }

@@ -22,7 +22,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use storage_adapter::driver::StorageDriverManager;
-use tracing::error;
+use tracing::{error, warn};
 
 use super::{
     replace_topic_name, report_system_data, write_topic_data, SYSTEM_TOPIC_BROKERS,
@@ -38,14 +38,20 @@ pub(crate) async fn report_cluster_status(
 ) {
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS.to_string());
     if let Some(record) = build_node_cluster(&topic_name, client_pool).await {
-        let _ = write_topic_data(
+        if let Err(e) = write_topic_data(
             storage_driver_manager,
             metadata_cache,
             client_pool,
-            topic_name,
+            topic_name.clone(),
             record,
         )
-        .await;
+        .await
+        {
+            warn!(
+                "Failed to write system topic data to topic {}: {:?}",
+                topic_name, e
+            );
+        }
     }
 }
 
