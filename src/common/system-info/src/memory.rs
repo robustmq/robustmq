@@ -41,7 +41,7 @@ pub fn process_memory() -> u64 {
     let mut system = System::new_all();
     let pid = Pid::from(std::process::id() as usize);
     system.refresh_memory();
-    system.refresh_process(pid);
+    system.refresh_processes();
     system.process(pid).map(|p| p.memory()).unwrap_or(0)
 }
 
@@ -49,7 +49,7 @@ pub fn process_memory_usage() -> f32 {
     let mut system = System::new_all();
     let pid = Pid::from(std::process::id() as usize);
     system.refresh_memory();
-    system.refresh_process(pid);
+    system.refresh_processes();
 
     let total = system.total_memory();
     if total == 0 {

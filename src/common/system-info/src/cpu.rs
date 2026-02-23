@@ -29,10 +29,10 @@ pub async fn process_cpu_usage() -> f32 {
     let pid = Pid::from(std::process::id() as usize);
 
     system.refresh_cpu();
-    system.refresh_process(pid);
+    system.refresh_processes();
     sleep(Duration::from_millis(200)).await;
     system.refresh_cpu();
-    system.refresh_process(pid);
+    system.refresh_processes();
 
     if let Some(process) = system.process(pid) {
         let cpu_count = system.cpus().len() as f32;

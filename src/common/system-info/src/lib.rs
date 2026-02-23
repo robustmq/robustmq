@@ -33,17 +33,19 @@ const MONITOR_INTERVAL_MS: u64 = 15_000;
 
 pub async fn start_monitor(stop_send: broadcast::Sender<bool>) {
     let collect = async || -> ResultCommonError {
+        // Multiply by 100 before storing to preserve two decimal places of precision
+        // (e.g. 0.63% is stored as 63). Grafana queries must divide by 100.
         let proc_cpu = process_cpu_usage().await;
-        record_system_process_cpu_set(proc_cpu as i64);
+        record_system_process_cpu_set((proc_cpu * 100.0).round() as i64);
 
         let proc_mem = process_memory_usage();
-        record_system_process_memory_set(proc_mem as i64);
+        record_system_process_memory_set((proc_mem * 100.0).round() as i64);
 
         let sys_cpu = system_cpu_usage().await;
-        record_system_cpu_set(sys_cpu as i64);
+        record_system_cpu_set((sys_cpu * 100.0).round() as i64);
 
         let sys_mem = system_memory_usage();
-        record_system_memory_set(sys_mem as i64);
+        record_system_memory_set((sys_mem * 100.0).round() as i64);
 
         Ok(())
     };

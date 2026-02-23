@@ -7568,7 +7568,7 @@
             {
               "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
               "editorMode": "code",
-              "expr": "system_process_cpu_usage",
+              "expr": "system_process_cpu_usage / 100",
               "legendFormat": "Process CPU",
               "range": true,
               "refId": "A"
@@ -7616,7 +7616,7 @@
             {
               "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
               "editorMode": "code",
-              "expr": "system_cpu_usage",
+              "expr": "system_cpu_usage / 100",
               "legendFormat": "System CPU",
               "range": true,
               "refId": "A"
@@ -7664,7 +7664,7 @@
             {
               "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
               "editorMode": "code",
-              "expr": "system_process_memory_usage",
+              "expr": "system_process_memory_usage / 100",
               "legendFormat": "Process Memory",
               "range": true,
               "refId": "A"
@@ -7712,7 +7712,7 @@
             {
               "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
               "editorMode": "code",
-              "expr": "system_memory_usage",
+              "expr": "system_memory_usage / 100",
               "legendFormat": "System Memory",
               "range": true,
               "refId": "A"
@@ -7773,7 +7773,7 @@
             {
               "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
               "editorMode": "code",
-              "expr": "system_process_cpu_usage",
+              "expr": "system_process_cpu_usage / 100",
               "legendFormat": "Process CPU",
               "range": true,
               "refId": "A"
@@ -7781,7 +7781,7 @@
             {
               "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
               "editorMode": "code",
-              "expr": "system_cpu_usage",
+              "expr": "system_cpu_usage / 100",
               "legendFormat": "System CPU",
               "range": true,
               "refId": "B"
@@ -7842,7 +7842,7 @@
             {
               "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
               "editorMode": "code",
-              "expr": "system_process_memory_usage",
+              "expr": "system_process_memory_usage / 100",
               "legendFormat": "Process Memory",
               "range": true,
               "refId": "A"
@@ -7850,7 +7850,7 @@
             {
               "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
               "editorMode": "code",
-              "expr": "system_memory_usage",
+              "expr": "system_memory_usage / 100",
               "legendFormat": "System Memory",
               "range": true,
               "refId": "B"
