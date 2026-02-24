@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    counter_metric_get, counter_metric_inc, counter_metric_inc_by, register_counter_metric,
+    counter_metric_get, counter_metric_inc, counter_metric_inc_by, counter_metric_touch,
+    register_counter_metric,
 };
 use prometheus_client::encoding::EncodeLabelSet;
 
@@ -111,6 +112,15 @@ pub fn record_messages_dropped_no_subscribers_get() -> u64 {
     let mut result = 0u64;
     counter_metric_get!(MQTT_MESSAGES_DROPPED_NO_SUBSCRIBERS, label, result);
     result
+}
+
+pub fn init() {
+    counter_metric_touch!(MQTT_MESSAGES_DELAYED, MessageLabel {});
+    counter_metric_touch!(MQTT_MESSAGES_RECEIVED, MessageLabel {});
+    counter_metric_touch!(MQTT_MESSAGES_SENT, MessageLabel {});
+    counter_metric_touch!(MQTT_MESSAGE_BYTES_SENT, MessageLabel {});
+    counter_metric_touch!(MQTT_MESSAGE_BYTES_RECEIVED, MessageLabel {});
+    counter_metric_touch!(MQTT_MESSAGES_DROPPED_NO_SUBSCRIBERS, MessageLabel {});
 }
 
 #[cfg(test)]

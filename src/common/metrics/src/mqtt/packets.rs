@@ -20,7 +20,8 @@ use protocol::mqtt::{
 };
 
 use crate::{
-    counter_metric_get, counter_metric_inc, counter_metric_inc_by, register_counter_metric,
+    counter_metric_get, counter_metric_inc, counter_metric_inc_by, counter_metric_touch,
+    register_counter_metric,
 };
 
 // Empty label for total (cross-network) counters
@@ -649,6 +650,183 @@ pub fn record_retain_sent_metrics(qos: QoS) {
     let qos_str = (qos as u8).to_string();
     let label = QosLabel { qos: qos_str };
     counter_metric_inc!(MQTT_RETAIN_PACKETS_SENT, label);
+}
+
+pub fn init() {
+    // TotalLabel {} counters
+    counter_metric_touch!(MQTT_TOTAL_BYTES_RECEIVED, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_BYTES_SENT, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_RECEIVED, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_SENT, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_CONNECT, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_CONNACK, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_PUBLISH_RECEIVED, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_PUBLISH_SENT, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_PUBACK_RECEIVED, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_PUBACK_SENT, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_PUBREC_RECEIVED, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_PUBREC_SENT, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_PUBREL_RECEIVED, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_PUBREL_SENT, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_PUBCOMP_RECEIVED, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_PUBCOMP_SENT, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_SUBSCRIBE, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_SUBACK, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_UNSUBSCRIBE, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_UNSUBACK, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_PINGREQ, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_PINGRESP, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_DISCONNECT_RECEIVED, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_DISCONNECT_SENT, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_AUTH, TotalLabel {});
+
+    // NetworkLabel counters — pre-register for each known network type
+    for net in &["Tcp", "Tls", "WebSocket", "WebSockets", "QUIC"] {
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_RECEIVED, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_CONNECT_RECEIVED, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_PUBLISH_RECEIVED, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_CONNACK_RECEIVED, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_PUBACK_RECEIVED, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_PUBREC_RECEIVED, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_PUBREL_RECEIVED, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_PUBCOMP_RECEIVED, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_SUBSCRIBE_RECEIVED, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_UNSUBSCRIBE_RECEIVED, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_PINGREQ_RECEIVED, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_DISCONNECT_RECEIVED, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_AUTH_RECEIVED, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_RECEIVED_ERROR, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_CONNACK_AUTH_ERROR, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_PACKETS_CONNACK_ERROR, label);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        counter_metric_touch!(MQTT_BYTES_RECEIVED, label);
+
+        // NetworkQosLabel — qos: "-1" (non-publish), "0", "1", "2"
+        for qos in &["-1", "0", "1", "2"] {
+            let label = NetworkQosLabel {
+                network: net.to_string(),
+                qos: qos.to_string(),
+            };
+            counter_metric_touch!(MQTT_PACKETS_SENT, label);
+            let label = NetworkQosLabel {
+                network: net.to_string(),
+                qos: qos.to_string(),
+            };
+            counter_metric_touch!(MQTT_PACKETS_CONNACK_SENT, label);
+            let label = NetworkQosLabel {
+                network: net.to_string(),
+                qos: qos.to_string(),
+            };
+            counter_metric_touch!(MQTT_PACKETS_PUBLISH_SENT, label);
+            let label = NetworkQosLabel {
+                network: net.to_string(),
+                qos: qos.to_string(),
+            };
+            counter_metric_touch!(MQTT_PACKETS_PUBACK_SENT, label);
+            let label = NetworkQosLabel {
+                network: net.to_string(),
+                qos: qos.to_string(),
+            };
+            counter_metric_touch!(MQTT_PACKETS_PUBREC_SENT, label);
+            let label = NetworkQosLabel {
+                network: net.to_string(),
+                qos: qos.to_string(),
+            };
+            counter_metric_touch!(MQTT_PACKETS_PUBREL_SENT, label);
+            let label = NetworkQosLabel {
+                network: net.to_string(),
+                qos: qos.to_string(),
+            };
+            counter_metric_touch!(MQTT_PACKETS_PUBCOMP_SENT, label);
+            let label = NetworkQosLabel {
+                network: net.to_string(),
+                qos: qos.to_string(),
+            };
+            counter_metric_touch!(MQTT_PACKETS_SUBACK_SENT, label);
+            let label = NetworkQosLabel {
+                network: net.to_string(),
+                qos: qos.to_string(),
+            };
+            counter_metric_touch!(MQTT_PACKETS_UNSUBACK_SENT, label);
+            let label = NetworkQosLabel {
+                network: net.to_string(),
+                qos: qos.to_string(),
+            };
+            counter_metric_touch!(MQTT_PACKETS_PINGRESP_SENT, label);
+            let label = NetworkQosLabel {
+                network: net.to_string(),
+                qos: qos.to_string(),
+            };
+            counter_metric_touch!(MQTT_PACKETS_DISCONNECT_SENT, label);
+            let label = NetworkQosLabel {
+                network: net.to_string(),
+                qos: qos.to_string(),
+            };
+            counter_metric_touch!(MQTT_BYTES_SENT, label);
+        }
+    }
+
+    // QosLabel — retain metrics for qos 0/1/2
+    for qos in &["0", "1", "2"] {
+        let label = QosLabel {
+            qos: qos.to_string(),
+        };
+        counter_metric_touch!(MQTT_RETAIN_PACKETS_RECEIVED, label);
+        let label = QosLabel {
+            qos: qos.to_string(),
+        };
+        counter_metric_touch!(MQTT_RETAIN_PACKETS_SENT, label);
+    }
 }
 
 #[cfg(test)]

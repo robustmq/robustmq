@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{counter_metric_inc, register_counter_metric};
+use crate::{counter_metric_inc, counter_metric_touch, register_counter_metric};
 use prometheus_client::encoding::EncodeLabelSet;
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
@@ -76,4 +76,12 @@ pub fn record_mqtt_acl_failed() {
 pub fn record_mqtt_blacklist_blocked() {
     let label = AuthLabel {};
     counter_metric_inc!(MQTT_BLACKLIST_BLOCKED, label);
+}
+
+pub fn init() {
+    counter_metric_touch!(MQTT_AUTH_SUCCESS, AuthLabel {});
+    counter_metric_touch!(MQTT_AUTH_FAILED, AuthLabel {});
+    counter_metric_touch!(MQTT_ACL_SUCCESS, AuthLabel {});
+    counter_metric_touch!(MQTT_ACL_FAILED, AuthLabel {});
+    counter_metric_touch!(MQTT_BLACKLIST_BLOCKED, AuthLabel {});
 }

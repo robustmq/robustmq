@@ -218,6 +218,28 @@ pub fn record_mqtt_delay_queue_remaining_capacity_set(shard_no: u32, remaining: 
     gauge_metric_set!(MQTT_DELAY_QUEUE_REMAINING_CAPACITY, label, remaining);
 }
 
+/// Pre-register all static-label gauge metrics to 0 so that they appear in
+/// the Prometheus output immediately on startup, even before any real event
+/// has occurred.
+pub fn init() {
+    let label = StatLabel {};
+    gauge_metric_set!(MQTT_CONNECTIONS_COUNT, label, 0);
+    let label = StatLabel {};
+    gauge_metric_set!(MQTT_SESSIONS_COUNT, label, 0);
+    let label = StatLabel {};
+    gauge_metric_set!(MQTT_TOPICS_COUNT, label, 0);
+    let label = StatLabel {};
+    gauge_metric_set!(MQTT_SUBSCRIBERS_COUNT, label, 0);
+    let label = StatLabel {};
+    gauge_metric_set!(MQTT_SUBSCRIPTIONS_EXCLUSIVE_COUNT, label, 0);
+    let label = StatLabel {};
+    gauge_metric_set!(MQTT_SUBSCRIPTIONS_SHARED_COUNT, label, 0);
+    let label = StatLabel {};
+    gauge_metric_set!(MQTT_SUBSCRIPTIONS_SHARED_GROUP_COUNT, label, 0);
+    let label = StatLabel {};
+    gauge_metric_set!(MQTT_RETAINED_COUNT, label, 0);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    counter_metric_inc, histogram_metric_observe, register_counter_metric,
+    counter_metric_inc, counter_metric_touch, histogram_metric_observe, register_counter_metric,
     register_histogram_metric_ms_with_default_buckets,
 };
 use prometheus_client::encoding::EncodeLabelSet;
@@ -113,4 +113,12 @@ pub fn record_delay_msg_recover() {
 pub fn record_delay_msg_recover_expired() {
     let l = label();
     counter_metric_inc!(DELAY_MSG_RECOVER_EXPIRED_TOTAL, l);
+}
+
+pub fn init() {
+    counter_metric_touch!(DELAY_MSG_ENQUEUE_TOTAL, DelayLabel {});
+    counter_metric_touch!(DELAY_MSG_DELIVER_TOTAL, DelayLabel {});
+    counter_metric_touch!(DELAY_MSG_DELIVER_FAIL_TOTAL, DelayLabel {});
+    counter_metric_touch!(DELAY_MSG_RECOVER_TOTAL, DelayLabel {});
+    counter_metric_touch!(DELAY_MSG_RECOVER_EXPIRED_TOTAL, DelayLabel {});
 }

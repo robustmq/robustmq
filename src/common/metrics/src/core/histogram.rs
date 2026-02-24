@@ -152,6 +152,17 @@ where
     Arc::new(RwLock::new(family))
 }
 
+/// Pre-register a histogram entry for the given label without recording any
+/// observation.  This creates the histogram (all bucket counts = 0, sum = 0,
+/// count = 0) so it appears in Prometheus output immediately on startup.
+#[macro_export]
+macro_rules! histogram_metric_touch {
+    ($family:ident, $label:expr) => {{
+        let family = $family.clone();
+        let _ = family.write().unwrap().get_or_create(&$label);
+    }};
+}
+
 #[macro_export]
 macro_rules! histogram_metric_observe {
     ($family:ident, $value:ident, $label:ident) => {{

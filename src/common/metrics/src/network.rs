@@ -13,10 +13,12 @@
 // limitations under the License.
 
 use crate::{
-    gauge_metric_inc_by, gauge_metric_set, histogram_metric_observe, register_gauge_metric,
-    register_histogram_metric_ms_with_default_buckets,
+    gauge_metric_inc_by, gauge_metric_set, histogram_metric_observe, histogram_metric_touch,
+    register_gauge_metric, register_histogram_metric_ms_with_default_buckets,
 };
 use metadata_struct::connection::NetworkConnectionType;
+
+const ALL_NETWORK_TYPES: &[&str] = &["Tcp", "Tls", "WebSocket", "WebSockets", "QUIC"];
 use prometheus_client::encoding::EncodeLabelSet;
 
 // ── Labels ──────────────────────────────────────────────────────────────────
@@ -214,6 +216,70 @@ pub fn metrics_handler_instance_apply_ms(handler_index: usize, ms: f64) {
         handler: handler_index.to_string(),
     };
     histogram_metric_observe!(HANDLER_INSTANCE_APPLY_MS, ms, label);
+}
+
+/// Pre-register all network metrics (Gauges + Histograms) for every known
+/// `NetworkConnectionType` so they appear in `/metrics` on startup.
+pub fn init() {
+    for net in ALL_NETWORK_TYPES {
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        gauge_metric_set!(HANDLER_REQUESTS_TOTAL, label, 0);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        gauge_metric_set!(HANDLER_SLOW_REQUESTS_TOTAL, label, 0);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        gauge_metric_set!(HANDLER_TIMEOUT_TOTAL, label, 0);
+
+        // Latency histograms — pre-register so bucket series exist from startup
+        histogram_metric_touch!(
+            HANDLER_TOTAL_MS,
+            NetworkLabel {
+                network: net.to_string()
+            }
+        );
+        histogram_metric_touch!(
+            HANDLER_QUEUE_WAIT_MS,
+            NetworkLabel {
+                network: net.to_string()
+            }
+        );
+        histogram_metric_touch!(
+            HANDLER_APPLY_MS,
+            NetworkLabel {
+                network: net.to_string()
+            }
+        );
+        histogram_metric_touch!(
+            HANDLER_WRITE_MS,
+            NetworkLabel {
+                network: net.to_string()
+            }
+        );
+    }
+
+    let label = QueueLabel {
+        label: "handler".to_string(),
+    };
+    gauge_metric_set!(HANDLER_QUEUE_SIZE, label, 0);
+    let label = QueueLabel {
+        label: "handler".to_string(),
+    };
+    gauge_metric_set!(HANDLER_QUEUE_REMAINING, label, 0);
+
+    for net in ALL_NETWORK_TYPES {
+        for thread_type in &["accept", "handler"] {
+            let label = BrokerThreadLabel {
+                network: net.to_string(),
+                thread_type: thread_type.to_string(),
+            };
+            gauge_metric_set!(BROKER_ACTIVE_THREAD_NUM, label, 0);
+        }
+    }
 }
 
 pub fn record_broker_thread_num(

@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{counter_metric_get, counter_metric_inc, register_counter_metric};
+use crate::{
+    counter_metric_get, counter_metric_inc, counter_metric_touch, register_counter_metric,
+};
 use prometheus_client::encoding::EncodeLabelSet;
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
@@ -78,6 +80,11 @@ pub fn record_mqtt_session_created() {
 pub fn record_mqtt_session_deleted() {
     let label = NetworkLabel {};
     counter_metric_inc!(MQTT_SESSION_DELETED, label);
+}
+
+pub fn init() {
+    counter_metric_touch!(MQTT_SESSION_CREATED, NetworkLabel {});
+    counter_metric_touch!(MQTT_SESSION_DELETED, NetworkLabel {});
 }
 
 pub fn record_session_messages_in(client_id: &str) {

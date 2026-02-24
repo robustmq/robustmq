@@ -143,3 +143,31 @@ pub fn record_runtime_alive_tasks_set(runtime: &str, value: i64) {
     };
     gauge_metric_set!(TOKIO_RUNTIME_ALIVE_TASKS, label, value);
 }
+
+/// Pre-register all gauge metrics in this module to 0 so they appear in
+/// the Prometheus output immediately on startup.
+pub fn init() {
+    let label = SystemLabel {};
+    gauge_metric_set!(SYSTEM_PROCESS_CPU_USAGE, label, 0);
+    let label = SystemLabel {};
+    gauge_metric_set!(SYSTEM_PROCESS_MEMORY_USAGE, label, 0);
+    let label = SystemLabel {};
+    gauge_metric_set!(SYSTEM_CPU_USAGE, label, 0);
+    let label = SystemLabel {};
+    gauge_metric_set!(SYSTEM_MEMORY_USAGE, label, 0);
+
+    for rt in &["server", "meta", "broker"] {
+        let label = RuntimeLabel {
+            runtime: rt.to_string(),
+        };
+        gauge_metric_set!(TOKIO_RUNTIME_BUSY_RATIO, label, 0);
+        let label = RuntimeLabel {
+            runtime: rt.to_string(),
+        };
+        gauge_metric_set!(TOKIO_RUNTIME_QUEUE_DEPTH, label, 0);
+        let label = RuntimeLabel {
+            runtime: rt.to_string(),
+        };
+        gauge_metric_set!(TOKIO_RUNTIME_ALIVE_TASKS, label, 0);
+    }
+}

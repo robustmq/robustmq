@@ -83,6 +83,17 @@ macro_rules! counter_metric_inc_by {
     }};
 }
 
+/// Register a counter entry for the given label without incrementing it.
+/// Useful for pre-registering metrics at startup so they appear as 0 in
+/// Prometheus before any real events have occurred.
+#[macro_export]
+macro_rules! counter_metric_touch {
+    ($family:ident, $label:expr) => {{
+        let family = $family.clone();
+        let _ = family.write().unwrap().get_or_create(&$label);
+    }};
+}
+
 #[macro_export]
 macro_rules! counter_metric_get {
     ($family:ident,$label:ident, $res:ident) => {{

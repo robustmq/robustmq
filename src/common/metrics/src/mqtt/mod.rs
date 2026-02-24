@@ -23,3 +23,13 @@ pub mod statistics;
 pub mod subscribe;
 pub mod time;
 pub mod topic;
+
+pub fn init() {
+    statistics::init();
+    event::init();
+    auth::init();
+    publish::init();
+    delay::init();
+    session::init();
+    packets::init();
+}

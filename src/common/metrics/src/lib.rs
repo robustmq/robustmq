@@ -21,3 +21,13 @@ pub mod meta;
 pub mod mqtt;
 pub mod network;
 pub mod rocksdb;
+
+/// Pre-register all static-label gauge metrics to 0 so that they appear in
+/// the Prometheus `/metrics` output immediately on startup, even before any
+/// real traffic has occurred.  Call this once during broker initialisation.
+pub fn init_metrics() {
+    mqtt::init();
+    broker::init();
+    meta::raft::init();
+    network::init();
+}

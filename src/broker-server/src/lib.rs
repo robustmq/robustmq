@@ -29,7 +29,7 @@ use common_base::{
 use common_config::{
     broker::broker_config, config::BrokerConfig, storage::memory::StorageDriverMemoryConfig,
 };
-use common_metrics::core::server::register_prometheus_export;
+use common_metrics::{core::server::register_prometheus_export, init_metrics};
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use meta_service::{
@@ -108,6 +108,7 @@ impl Default for BrokerServer {
 
 impl BrokerServer {
     pub fn new() -> Self {
+        init_metrics();
         let config = broker_config();
         let client_pool = Arc::new(ClientPool::new(config.grpc_client.channels_per_address));
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(

@@ -14,7 +14,9 @@
 
 use prometheus_client::encoding::EncodeLabelSet;
 
-use crate::{counter_metric_get, counter_metric_inc, register_counter_metric};
+use crate::{
+    counter_metric_get, counter_metric_inc, counter_metric_touch, register_counter_metric,
+};
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 struct ClientConnectionLabels {
@@ -125,6 +127,16 @@ pub fn record_mqtt_unsubscribe_success() {
 pub fn record_mqtt_subscribe_failed() {
     let label = EventLabel {};
     counter_metric_inc!(MQTT_SUBSCRIBE_FAILED, label);
+}
+
+pub fn init() {
+    counter_metric_touch!(MQTT_CONNECTION_SUCCESS, EventLabel {});
+    counter_metric_touch!(MQTT_CONNECTION_FAILED, EventLabel {});
+    counter_metric_touch!(MQTT_DISCONNECT_SUCCESS, EventLabel {});
+    counter_metric_touch!(MQTT_CONNECTION_EXPIRED, EventLabel {});
+    counter_metric_touch!(MQTT_SUBSCRIBE_SUCCESS, EventLabel {});
+    counter_metric_touch!(MQTT_UNSUBSCRIBE_SUCCESS, EventLabel {});
+    counter_metric_touch!(MQTT_SUBSCRIBE_FAILED, EventLabel {});
 }
 
 #[cfg(test)]
