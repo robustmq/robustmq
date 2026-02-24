@@ -22,6 +22,7 @@ use crate::raft::type_config::Entry;
 use crate::raft::type_config::{Node, NodeId, SnapshotData, StorageResult, TypeConfig};
 use bincode::{deserialize, serialize};
 use common_base::error::common::CommonError;
+use common_metrics::meta::raft::record_apply_batch_duration;
 use openraft::storage::RaftStateMachine;
 use openraft::{
     AnyError, EntryPayload, LogId, OptionalSend, RaftSnapshotBuilder, Snapshot, SnapshotMeta,
@@ -30,6 +31,7 @@ use openraft::{
 use rocksdb::{BoundColumnFamily, DB};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::sync::Arc;
+use std::time::Instant;
 
 fn sto_read(e: &(impl std::error::Error + 'static)) -> StorageError<NodeId> {
     StorageIOError::<NodeId>::read(e).into()
@@ -184,6 +186,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         I: IntoIterator<Item = Entry> + OptionalSend,
         I::IntoIter: OptionalSend,
     {
+        let batch_start = Instant::now();
         let entries = entries.into_iter();
         let mut replies = Vec::with_capacity(entries.size_hint().0);
 
@@ -218,6 +221,9 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         if let Some(last_log_id) = self.data.last_applied_log_id {
             self.set_last_applied_(Some(last_log_id))?;
         }
+
+        let batch_ms = batch_start.elapsed().as_secs_f64() * 1000.0;
+        record_apply_batch_duration(&self.machine, batch_ms);
 
         Ok(replies)
     }

@@ -17,6 +17,7 @@ use crate::raft::store::keys::{
 };
 use crate::raft::type_config::{NodeId, StorageResult, TypeConfig};
 use bincode::{deserialize, serialize};
+use common_metrics::meta::raft::record_log_append_batch_duration;
 use openraft::storage::{LogFlushed, RaftLogStorage};
 use openraft::{
     AnyError, Entry, LogId, LogState, OptionalSend, RaftLogReader, StorageError, StorageIOError,
@@ -27,6 +28,7 @@ use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::fmt::Debug;
 use std::ops::RangeBounds;
 use std::sync::Arc;
+use std::time::Instant;
 
 fn sto_read(e: &(impl std::error::Error + 'static)) -> StorageError<NodeId> {
     StorageIOError::<NodeId>::read(e).into()
@@ -232,20 +234,23 @@ impl RaftLogStorage<TypeConfig> for LogStore {
         I: IntoIterator<Item = Entry<TypeConfig>> + Send,
         I::IntoIter: Send,
     {
+        let batch_start = Instant::now();
         let mut batch = WriteBatch::default();
-        let mut entry_count = 0;
+        let mut has_entries = false;
 
         for entry in entries {
             let id = key_raft_log(&self.machine, entry.log_id.index);
             let serialized = serialize(&entry).map_err(|e| sto_write_logs(&*e))?;
-
             batch.put_cf(&self.store(), id, serialized);
-            entry_count += 1;
+            has_entries = true;
         }
 
-        if entry_count > 0 {
+        if has_entries {
             self.db.write(batch).map_err(|e| sto_write_logs(&e))?;
         }
+
+        let batch_ms = batch_start.elapsed().as_secs_f64() * 1000.0;
+        record_log_append_batch_duration(&self.machine, batch_ms);
 
         callback.log_io_completed(Ok(()));
         Ok(())

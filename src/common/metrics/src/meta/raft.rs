@@ -79,6 +79,20 @@ register_gauge_metric!(
     RaftLabel
 );
 
+register_histogram_metric_ms_with_default_buckets!(
+    RAFT_APPLY_BATCH_DURATION,
+    "raft_apply_batch_duration_ms",
+    "Total duration of a single apply() batch call in milliseconds",
+    RaftLabel
+);
+
+register_histogram_metric_ms_with_default_buckets!(
+    RAFT_LOG_APPEND_BATCH_DURATION,
+    "raft_log_append_batch_duration_ms",
+    "Total duration of a single log append() call in milliseconds",
+    RaftLabel
+);
+
 register_counter_metric!(
     RAFT_RPC_REQUESTS_TOTAL,
     "raft_rpc_requests",
@@ -212,7 +226,33 @@ pub fn init() {
                 machine: machine.to_string()
             }
         );
+        histogram_metric_touch!(
+            RAFT_APPLY_BATCH_DURATION,
+            RaftLabel {
+                machine: machine.to_string()
+            }
+        );
+        histogram_metric_touch!(
+            RAFT_LOG_APPEND_BATCH_DURATION,
+            RaftLabel {
+                machine: machine.to_string()
+            }
+        );
     }
+}
+
+pub fn record_log_append_batch_duration(machine: &str, duration_ms: f64) {
+    let label = RaftLabel {
+        machine: machine.to_string(),
+    };
+    histogram_metric_observe!(RAFT_LOG_APPEND_BATCH_DURATION, duration_ms, label);
+}
+
+pub fn record_apply_batch_duration(machine: &str, duration_ms: f64) {
+    let label = RaftLabel {
+        machine: machine.to_string(),
+    };
+    histogram_metric_observe!(RAFT_APPLY_BATCH_DURATION, duration_ms, label);
 }
 
 pub fn record_raft_apply_lag(machine: &str, last_log: u64, last_applied: u64) {
