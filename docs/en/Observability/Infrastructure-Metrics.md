@@ -106,9 +106,56 @@ RobustMQ provides comprehensive infrastructure monitoring metrics to help operat
 | `raft_rpc_failures_total` | Counter | `machine`, `rpc_type` | Total failed Raft RPCs |
 | `raft_rpc_duration_ms` | Histogram | `machine`, `rpc_type` | Raft RPC operation duration (ms) |
 
+### State Machine Lag Metrics
+
+| Metric Name | Type | Labels | Description |
+|-------------|------|--------|-------------|
+| `raft_apply_lag` | Gauge | `machine` | Gap between `last_log_index` and `last_applied`; non-zero means the state machine is falling behind |
+| `raft_last_log_index` | Gauge | `machine` | Latest log index appended to the Raft log |
+| `raft_last_applied` | Gauge | `machine` | Latest log index applied to the state machine |
+
 **Label Descriptions:**
-- `machine`: State machine type (e.g., metadata, offset, mqtt)
+- `machine`: State machine type (e.g., `metadata`, `offset`, `mqtt`)
 - `rpc_type`: RPC type (only reported in multi-node cluster setups)
+
+## System & Process Resource Metrics
+
+Collected every 15 seconds. All percentage values are stored as integers in the range 0–100 (centipercent), divide by 100 in Grafana to get a fraction or use the `percent` unit.
+
+### System-wide Metrics
+
+| Metric Name | Type | Labels | Description |
+|-------------|------|--------|-------------|
+| `system_cpu_usage` | Gauge | — | Overall system CPU usage percentage (0–100) |
+| `system_memory_usage` | Gauge | — | Overall system memory usage percentage (0–100) |
+
+### Process Metrics
+
+| Metric Name | Type | Labels | Description |
+|-------------|------|--------|-------------|
+| `system_process_cpu_usage` | Gauge | — | CPU usage of the broker process, normalized by core count (0–100) |
+| `system_process_memory_usage` | Gauge | — | Memory usage of the broker process as a percentage of total system memory (0–100) |
+
+## Tokio Runtime Metrics
+
+Sampled every 15 seconds using Tokio's unstable `RuntimeMetrics` API. Three runtimes are monitored: `server`, `meta`, and `broker`.
+
+| Metric Name | Type | Labels | Description |
+|-------------|------|--------|-------------|
+| `tokio_runtime_busy_ratio` | Gauge | `runtime` | Worker-thread busy ratio (0–100). Values consistently above 80 indicate the runtime is saturated. |
+| `tokio_runtime_queue_depth` | Gauge | `runtime` | Number of tasks waiting in the global run queue. A growing queue means tasks are produced faster than they are consumed. |
+| `tokio_runtime_alive_tasks` | Gauge | `runtime` | Number of tasks that have been spawned and not yet completed. Continuously growing values may indicate a task leak. |
+
+**Label Values:**
+- `runtime`: `server` / `meta` / `broker`
+
+**Unhealthy thresholds (reference):**
+
+| Metric | Unhealthy |
+|--------|-----------|
+| `tokio_runtime_busy_ratio` | Sustained > 80 |
+| `tokio_runtime_queue_depth` | Consistently > 0 and growing |
+| `tokio_runtime_alive_tasks` | Growing without bound |
 
 ## MQTT Protocol Metrics
 
@@ -351,6 +398,38 @@ sum(rate(raft_write_success_total[5m])) / sum(rate(raft_write_requests_total[5m]
 
 # Raft write P99 latency
 histogram_quantile(0.99, sum(rate(raft_write_duration_ms_bucket[5m])) by (le, machine))
+
+# Raft apply lag per state machine (0 = fully caught up)
+raft_apply_lag
+```
+
+**System & process resource queries:**
+
+```promql
+# System CPU usage (%)
+system_cpu_usage
+
+# System memory usage (%)
+system_memory_usage
+
+# Process CPU usage (%)
+system_process_cpu_usage
+
+# Process memory usage (%)
+system_process_memory_usage
+```
+
+**Tokio runtime queries:**
+
+```promql
+# Runtime busy ratio per runtime (%)
+tokio_runtime_busy_ratio
+
+# Runtime global queue depth
+tokio_runtime_queue_depth
+
+# Alive tasks per runtime
+tokio_runtime_alive_tasks
 ```
 
 **MQTT resource queries:**
@@ -425,6 +504,35 @@ groups:
         annotations:
           summary: "High Raft write failure rate"
           description: "Raft write failure rate exceeds 1%, current: {{ $value | humanizePercentage }}"
+
+      - alert: RaftApplyLag
+        expr: raft_apply_lag > 1000
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Raft state machine apply lag"
+          description: "State machine {{ $labels.machine }} is lagging {{ $value }} entries behind the log"
+
+  - name: robustmq_runtime_metrics
+    rules:
+      - alert: TokioRuntimeSaturated
+        expr: tokio_runtime_busy_ratio > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tokio runtime saturated"
+          description: "Runtime {{ $labels.runtime }} busy ratio is {{ $value }}%, workers may be a bottleneck"
+
+      - alert: TokioRuntimeQueueBacklog
+        expr: tokio_runtime_queue_depth > 500
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tokio runtime queue backlog"
+          description: "Runtime {{ $labels.runtime }} global queue depth is {{ $value }}"
 ```
 
 ## Related Files
@@ -435,5 +543,9 @@ groups:
   - HTTP: `http.rs`
   - RocksDB: `rocksdb.rs`
   - Raft: `meta/raft.rs`
+  - System/process resources & Tokio runtimes: `broker.rs`
   - MQTT: `mqtt/` directory
+- **Collection implementation**: `src/common/system-info/src/`
+  - System/process resource collection: `lib.rs`
+  - Tokio runtime collection: `runtime.rs`
 - **Grafana dashboard**: `grafana/robustmq-broker.json`
