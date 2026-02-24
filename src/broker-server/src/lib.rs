@@ -80,6 +80,10 @@ mod grpc;
 
 pub struct BrokerServer {
     server_runtime: Runtime,
+    /// Dedicated runtime for Raft tasks; Raft::new() is called inside
+    /// meta_runtime.block_on() so all openraft internal tasks are spawned here,
+    /// isolated from the gRPC server_runtime.
+    meta_runtime: Runtime,
     place_params: MetaServiceServerParams,
     mqtt_params: MqttBrokerServerParams,
     engine_params: StorageEngineParams,
@@ -130,9 +134,22 @@ impl BrokerServer {
             offset_manager.clone(),
         );
 
-        // Build meta service and MQTT broker params concurrently in a single block_on.
-        // meta_params is independent; storage_driver + mqtt_params are chained but
-        // run in parallel with meta_params via tokio::join!.
+        // Create meta_runtime here so that Raft::new() (inside build_meta_service) is
+        // called within meta_runtime.block_on().  openraft spawns ~9 internal tasks via
+        // tokio::spawn() during Raft::new(); those calls resolve against the *current*
+        // runtime context, so they all land on meta_runtime instead of server_runtime.
+        let meta_runtime = create_runtime("meta-runtime", worker_threads);
+
+        // Run build_meta_service on meta_runtime so all openraft internal tasks
+        // (core loop, log IO, state machine worker, etc.) are isolated from the
+        // gRPC server_runtime, eliminating task-scheduler contention.
+        let meta_params = meta_runtime.block_on(BrokerServer::build_meta_service(
+            client_pool.clone(),
+            rocksdb_engine_handler.clone(),
+            broker_cache.clone(),
+        ));
+
+        // Build MQTT broker params on server_runtime (unchanged).
         let mqtt_seh = engine_params.storage_engine_handler.clone();
         let mqtt_om = offset_manager.clone();
         let mqtt_cp = client_pool.clone();
@@ -141,47 +158,39 @@ impl BrokerServer {
         let mqtt_cm = connection_manager.clone();
         let mqtt_stop = main_stop_send.clone();
 
-        let (meta_params, mqtt_params) = server_runtime.block_on(async {
-            tokio::join!(
-                BrokerServer::build_meta_service(
-                    client_pool.clone(),
-                    rocksdb_engine_handler.clone(),
-                    broker_cache.clone(),
-                ),
-                async move {
-                    let storage_driver_manager =
-                        match StorageDriverManager::new(mqtt_om.clone(), mqtt_seh).await {
-                            Ok(storage) => Arc::new(storage),
-                            Err(e) => {
-                                error!("Failed to build message storage driver: {}", e);
-                                std::process::exit(1);
-                            }
-                        };
-
-                    match BrokerServer::build_broker_mqtt_params(
-                        mqtt_cp,
-                        mqtt_bc,
-                        mqtt_re,
-                        mqtt_cm,
-                        storage_driver_manager,
-                        mqtt_om,
-                        mqtt_stop,
-                    )
-                    .await
-                    {
-                        Ok(params) => params,
-                        Err(e) => {
-                            error!("Failed to build MQTT broker params: {}", e);
-                            std::process::exit(1);
-                        }
+        let mqtt_params = server_runtime.block_on(async move {
+            let storage_driver_manager =
+                match StorageDriverManager::new(mqtt_om.clone(), mqtt_seh).await {
+                    Ok(storage) => Arc::new(storage),
+                    Err(e) => {
+                        error!("Failed to build message storage driver: {}", e);
+                        std::process::exit(1);
                     }
-                }
+                };
+
+            match BrokerServer::build_broker_mqtt_params(
+                mqtt_cp,
+                mqtt_bc,
+                mqtt_re,
+                mqtt_cm,
+                storage_driver_manager,
+                mqtt_om,
+                mqtt_stop,
             )
+            .await
+            {
+                Ok(params) => params,
+                Err(e) => {
+                    error!("Failed to build MQTT broker params: {}", e);
+                    std::process::exit(1);
+                }
+            }
         });
 
         BrokerServer {
             broker_cache,
             server_runtime,
+            meta_runtime,
             place_params: meta_params,
             engine_params,
             config: config.clone(),
@@ -274,12 +283,13 @@ impl BrokerServer {
         let config = broker_config();
 
         // start meta service
+        // meta_runtime was created in new() so all Raft internal tasks already
+        // live there; MetaServiceServer background tasks also spawn here.
         let (stop_send, _) = broadcast::channel(2);
-        let meta_runtime = create_runtime("meta-runtime", worker_threads);
         let place_params = self.place_params.clone();
         if is_meta_node(&config.roles) {
             meta_stop_send = Some(stop_send.clone());
-            meta_runtime.spawn(Box::pin(async move {
+            self.meta_runtime.spawn(Box::pin(async move {
                 let mut pc = MetaServiceServer::new(place_params, stop_send.clone());
                 pc.start().await;
             }));
