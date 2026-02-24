@@ -34,13 +34,15 @@ RUN mkdir -p src/cli-bench/src && echo 'fn main() {}' > src/cli-bench/src/main.r
 
 # Create dummy lib.rs for all library packages
 RUN for dir in src/admin-server src/amqp-broker src/broker-core src/broker-server \
-               src/delay-message src/grpc-clients src/journal-client src/journal-server \
-               src/kafka-broker src/message-expire src/meta-service src/mqtt-broker \
-               src/robustmq-macro src/schema-register src/storage-adapter \
+               src/delay-message src/grpc-clients \
+               src/kafka-broker src/meta-service src/mqtt-broker \
+               src/robustmq-macro src/rule-engine src/schema-register \
+               src/storage-adapter src/storage-engine \
                src/common/base src/common/config src/common/metadata-struct \
-               src/common/metrics src/common/network-server src/common/pprof-monitor \
-               src/common/rate-limit src/common/rocksdb-engine src/common/security \
-               src/common/third-driver tests; do \
+               src/common/metrics src/common/mmap-file src/common/network-server \
+               src/common/pprof-monitor src/common/rate-limit src/common/rocksdb-engine \
+               src/common/security src/common/system-info src/common/third-driver \
+               tests; do \
       mkdir -p "$dir/src" && echo '' > "$dir/src/lib.rs"; \
     done
 

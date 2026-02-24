@@ -35,7 +35,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Current MQTT connections",
           "fieldConfig": {
@@ -86,7 +86,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "mqtt_connections_count",
@@ -100,7 +100,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Current MQTT sessions",
           "fieldConfig": {
@@ -151,7 +151,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "mqtt_sessions_count",
               "refId": "A"
@@ -163,7 +163,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Current MQTT topics",
           "fieldConfig": {
@@ -214,7 +214,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "mqtt_topics_count",
               "refId": "A"
@@ -226,7 +226,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Current MQTT subscribers",
           "fieldConfig": {
@@ -277,7 +277,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "mqtt_subscribers_count",
               "refId": "A"
@@ -289,7 +289,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Current MQTT shared subscriptions",
           "fieldConfig": {
@@ -348,7 +348,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "mqtt_subscriptions_shared_count",
               "refId": "A"
@@ -360,7 +360,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Current MQTT retained messages",
           "fieldConfig": {
@@ -419,7 +419,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "mqtt_retained_count",
               "refId": "A"
@@ -431,7 +431,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Connection event rates - connect success/fail, disconnect, expired",
           "fieldConfig": {
@@ -577,7 +577,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_connection_success_total[5m])",
@@ -588,7 +588,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_connection_failed_total[5m])",
@@ -599,7 +599,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_disconnect_success_total[5m])",
@@ -610,7 +610,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_connection_expired_total[5m])",
@@ -625,7 +625,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Session lifecycle events - created/deleted rate and current session count",
           "fieldConfig": {
@@ -772,7 +772,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "mqtt_sessions_count",
@@ -783,7 +783,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_session_created_total[5m])",
@@ -794,7 +794,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_session_deleted_total[5m])",
@@ -809,7 +809,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Topic activity - message write/send rates and current topic count",
           "fieldConfig": {
@@ -956,7 +956,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "mqtt_topics_count",
@@ -967,7 +967,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(topic_messages_written_total[5m]))",
@@ -978,7 +978,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(topic_messages_sent_total[5m]))",
@@ -993,7 +993,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Subscription event rates - subscribe/unsubscribe success/fail",
           "fieldConfig": {
@@ -1124,7 +1124,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_subscribe_success_total[5m])",
@@ -1135,7 +1135,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_subscribe_failed_total[5m])",
@@ -1146,7 +1146,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_unsubscribe_success_total[5m])",
@@ -1161,7 +1161,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Subscription type breakdown - shared subscriptions, shared groups, and exclusive subscriptions",
           "fieldConfig": {
@@ -1292,7 +1292,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "mqtt_subscriptions_shared_count",
@@ -1303,7 +1303,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "mqtt_subscriptions_shared_group_count",
@@ -1314,7 +1314,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "mqtt_subscriptions_exclusive_count",
@@ -1329,7 +1329,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Retained message state and activity - current count, receive/send rates",
           "fieldConfig": {
@@ -1476,7 +1476,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "mqtt_retained_count",
@@ -1487,7 +1487,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_retain_packets_received_total[5m])",
@@ -1498,7 +1498,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_retain_packets_sent_total[5m])",
@@ -1511,7 +1511,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "📊 Resource",
+      "title": "\ud83d\udcca Resource",
       "type": "row"
     },
     {
@@ -1527,7 +1527,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "CPU usage of the RobustMQ broker process, normalized by CPU core count",
           "fieldConfig": {
@@ -1588,7 +1588,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "system_process_cpu_usage / 100",
@@ -1603,7 +1603,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Overall system CPU usage across all processes",
           "fieldConfig": {
@@ -1664,7 +1664,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "system_cpu_usage / 100",
@@ -1679,7 +1679,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Memory usage (RSS) of the RobustMQ broker process as a percentage of total system memory",
           "fieldConfig": {
@@ -1740,7 +1740,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "system_process_memory_usage / 100",
@@ -1755,7 +1755,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Overall system memory usage across all processes",
           "fieldConfig": {
@@ -1816,7 +1816,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "system_memory_usage / 100",
@@ -1831,7 +1831,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "CPU usage trend: broker process vs overall system",
           "fieldConfig": {
@@ -1921,7 +1921,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "system_process_cpu_usage / 100",
@@ -1932,7 +1932,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "system_cpu_usage / 100",
@@ -1947,7 +1947,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Memory usage trend: broker process vs overall system",
           "fieldConfig": {
@@ -2037,7 +2037,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "system_process_memory_usage / 100",
@@ -2048,7 +2048,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "system_memory_usage / 100",
@@ -2061,7 +2061,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "🖥 System Resources",
+      "title": "\ud83d\udda5 System Resources",
       "type": "row"
     },
     {
@@ -2077,7 +2077,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "fieldConfig": {
             "defaults": {
@@ -2163,7 +2163,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "tokio_runtime_busy_ratio{runtime=\"server\"}",
               "legendFormat": "server",
@@ -2172,7 +2172,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "tokio_runtime_busy_ratio{runtime=\"meta\"}",
               "legendFormat": "meta",
@@ -2181,7 +2181,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "tokio_runtime_busy_ratio{runtime=\"broker\"}",
               "legendFormat": "broker",
@@ -2194,7 +2194,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "fieldConfig": {
             "defaults": {
@@ -2279,7 +2279,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "tokio_runtime_queue_depth{runtime=\"server\"}",
               "legendFormat": "server",
@@ -2288,7 +2288,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "tokio_runtime_queue_depth{runtime=\"meta\"}",
               "legendFormat": "meta",
@@ -2297,7 +2297,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "tokio_runtime_queue_depth{runtime=\"broker\"}",
               "legendFormat": "broker",
@@ -2310,7 +2310,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "fieldConfig": {
             "defaults": {
@@ -2395,7 +2395,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "tokio_runtime_alive_tasks{runtime=\"server\"}",
               "legendFormat": "server",
@@ -2404,7 +2404,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "tokio_runtime_alive_tasks{runtime=\"meta\"}",
               "legendFormat": "meta",
@@ -2413,7 +2413,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "expr": "tokio_runtime_alive_tasks{runtime=\"broker\"}",
               "legendFormat": "broker",
@@ -2424,7 +2424,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "⚙️ Tokio Runtimes",
+      "title": "\u2699\ufe0f Tokio Runtimes",
       "type": "row"
     },
     {
@@ -2440,7 +2440,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Total handler requests per second (all network types)",
           "fieldConfig": {
@@ -2491,7 +2491,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(handler_requests_total[1m]))",
@@ -2506,7 +2506,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Cumulative count of slow requests (processing time > 1s)",
           "fieldConfig": {
@@ -2565,7 +2565,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(handler_slow_requests_total)",
@@ -2580,7 +2580,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Cumulative count of handler apply timeouts (processing time > 30s hard deadline)",
           "fieldConfig": {
@@ -2639,7 +2639,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(handler_timeout_total)",
@@ -2654,7 +2654,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Handler request throughput per second, broken down by network type (TCP/WebSocket/TLS/QUIC)",
           "fieldConfig": {
@@ -2739,7 +2739,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(handler_requests_total[1m])",
@@ -2754,7 +2754,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Rate of slow requests (>1s) and hard-deadline timeouts (>30s) per second by network type",
           "fieldConfig": {
@@ -2870,7 +2870,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(handler_slow_requests_total[1m])",
@@ -2881,7 +2881,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(handler_timeout_total[1m])",
@@ -2896,7 +2896,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Handler queue depth (used vs remaining capacity). High used + low remaining indicates handler backpressure.",
           "fieldConfig": {
@@ -3012,7 +3012,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "handler_queue_size",
@@ -3023,7 +3023,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "handler_queue_remaining",
@@ -3038,7 +3038,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "End-to-end latency from request arrival to response written (includes queue wait + apply + write)",
           "fieldConfig": {
@@ -3123,7 +3123,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.50, rate(handler_total_ms_bucket[5m]))",
@@ -3134,7 +3134,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.95, rate(handler_total_ms_bucket[5m]))",
@@ -3145,7 +3145,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, rate(handler_total_ms_bucket[5m]))",
@@ -3156,7 +3156,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.999, rate(handler_total_ms_bucket[5m]))",
@@ -3171,7 +3171,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Time a request spent waiting in the channel queue before a handler picked it up",
           "fieldConfig": {
@@ -3256,7 +3256,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.50, rate(handler_queue_wait_ms_bucket[5m]))",
@@ -3267,7 +3267,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.95, rate(handler_queue_wait_ms_bucket[5m]))",
@@ -3278,7 +3278,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, rate(handler_queue_wait_ms_bucket[5m]))",
@@ -3289,7 +3289,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.999, rate(handler_queue_wait_ms_bucket[5m]))",
@@ -3304,9 +3304,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
-          "description": "Time spent in command.apply() — the core business logic (auth, session, gRPC calls, etc.)",
+          "description": "Time spent in command.apply() \u2014 the core business logic (auth, session, gRPC calls, etc.)",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3389,7 +3389,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.50, rate(handler_apply_ms_bucket[5m]))",
@@ -3400,7 +3400,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.95, rate(handler_apply_ms_bucket[5m]))",
@@ -3411,7 +3411,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, rate(handler_apply_ms_bucket[5m]))",
@@ -3422,7 +3422,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.999, rate(handler_apply_ms_bucket[5m]))",
@@ -3437,7 +3437,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Time spent writing the response packet back to the client over TCP/WebSocket/QUIC",
           "fieldConfig": {
@@ -3522,7 +3522,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.50, rate(handler_write_ms_bucket[5m]))",
@@ -3533,7 +3533,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.95, rate(handler_write_ms_bucket[5m]))",
@@ -3544,7 +3544,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, rate(handler_write_ms_bucket[5m]))",
@@ -3555,7 +3555,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.999, rate(handler_write_ms_bucket[5m]))",
@@ -3570,7 +3570,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "QPS per individual handler thread. Uneven distribution indicates load imbalance; a handler near 0 may be stuck.",
           "fieldConfig": {
@@ -3655,7 +3655,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(handler_instance_requests_total[1m])",
@@ -3670,7 +3670,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "P99 apply latency per individual handler thread. A handler with significantly higher P99 than others is likely stuck on a slow gRPC call or blocking I/O.",
           "fieldConfig": {
@@ -3755,7 +3755,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, rate(handler_instance_apply_ms_bucket[5m]))",
@@ -3768,7 +3768,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "🌐 Network",
+      "title": "\ud83c\udf10 Network",
       "type": "row"
     },
     {
@@ -3784,7 +3784,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Processing rate (requests per second) for each MQTT packet type",
           "fieldConfig": {
@@ -3869,7 +3869,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(mqtt_packet_process_duration_ms_count[5m])) by (packet)",
@@ -3884,7 +3884,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Average processing latency for each MQTT packet type",
           "fieldConfig": {
@@ -3969,7 +3969,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(mqtt_packet_process_duration_ms_sum[5m])) by (packet) / sum(rate(mqtt_packet_process_duration_ms_count[5m])) by (packet)",
@@ -3984,7 +3984,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Overall MQTT packet processing latency percentiles (P50/P95/P99) across all packet types",
           "fieldConfig": {
@@ -4115,7 +4115,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.90, sum(rate(mqtt_packet_process_duration_ms_bucket[5m])) by (le))",
@@ -4126,7 +4126,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(mqtt_packet_process_duration_ms_bucket[5m])) by (le))",
@@ -4137,7 +4137,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.999, sum(rate(mqtt_packet_process_duration_ms_bucket[5m])) by (le))",
@@ -4152,7 +4152,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "P99 processing latency for each MQTT packet type (Connect, Publish, Subscribe, PingReq, etc.)",
           "fieldConfig": {
@@ -4237,7 +4237,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.999, sum(rate(mqtt_packet_process_duration_ms_bucket[5m])) by (le, packet))",
@@ -4252,7 +4252,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "MQTT total received packet rate (QPS)",
           "fieldConfig": {
@@ -4337,7 +4337,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_received_total[1m])",
@@ -4352,7 +4352,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "MQTT received packet rate by packet type (QPS)",
           "fieldConfig": {
@@ -4437,7 +4437,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_connect_received_total[1m])",
@@ -4448,7 +4448,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_publish_received_total[1m])",
@@ -4459,7 +4459,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_connack_received_total[1m])",
@@ -4470,7 +4470,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_puback_received_total[1m])",
@@ -4481,7 +4481,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_pubrec_received_total[1m])",
@@ -4492,7 +4492,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_pubrel_received_total[1m])",
@@ -4503,7 +4503,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_pubcomp_received_total[1m])",
@@ -4514,7 +4514,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_subscribe_received_total[1m])",
@@ -4525,7 +4525,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_unsubscribe_received_total[1m])",
@@ -4536,7 +4536,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_pingreq_received_total[1m])",
@@ -4547,7 +4547,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_disconnect_received_total[1m])",
@@ -4558,7 +4558,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_auth_received_total[1m])",
@@ -4573,7 +4573,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "MQTT total sent packet rate (QPS)",
           "fieldConfig": {
@@ -4658,7 +4658,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_sent_total[1m])",
@@ -4673,7 +4673,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "MQTT sent packet rate by packet type and QoS (QPS)",
           "fieldConfig": {
@@ -4758,7 +4758,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_connack_sent_total[1m])",
@@ -4769,7 +4769,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_publish_sent_total[1m])",
@@ -4780,7 +4780,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_puback_sent_total[1m])",
@@ -4791,7 +4791,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_pubrec_sent_total[1m])",
@@ -4802,7 +4802,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_pubrel_sent_total[1m])",
@@ -4813,7 +4813,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_pubcomp_sent_total[1m])",
@@ -4824,7 +4824,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_suback_sent_total[1m])",
@@ -4835,7 +4835,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_unsuback_sent_total[1m])",
@@ -4846,7 +4846,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_pingresp_sent_total[1m])",
@@ -4857,7 +4857,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(mqtt_packets_disconnect_sent_total[1m])",
@@ -4870,7 +4870,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "📈 MQTT Protocol",
+      "title": "\ud83d\udcc8 MQTT Protocol",
       "type": "row"
     },
     {
@@ -4886,15 +4886,56 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
+          "description": "Gap between last_log_index and last_applied; non-zero means state machine is falling behind",
           "fieldConfig": {
             "defaults": {
-              "custom": {
-                "fillOpacity": 10,
-                "lineWidth": 1
+              "color": {
+                "mode": "palette-classic"
               },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
               "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
               "unit": "short"
             },
             "overrides": []
@@ -4908,40 +4949,56 @@
           "id": 609,
           "options": {
             "legend": {
+              "calcs": [
+                "lastNotNull",
+                "max"
+              ],
               "displayMode": "list",
-              "placement": "bottom"
+              "placement": "bottom",
+              "showLegend": true
             },
             "tooltip": {
-              "mode": "multi"
+              "mode": "multi",
+              "sort": "none"
             }
           },
+          "pluginVersion": "12.3.3",
           "targets": [
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
-              "expr": "raft_apply_lag{machine=\"metadata\",job=~\"$job\"}",
+              "editorMode": "code",
+              "expr": "raft_apply_lag{machine=\"metadata\"}",
+              "instant": false,
               "legendFormat": "metadata",
-              "refId": "M"
+              "range": true,
+              "refId": "A"
             },
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
-              "expr": "raft_apply_lag{machine=\"mqtt\",job=~\"$job\"}",
+              "editorMode": "code",
+              "expr": "raft_apply_lag{machine=\"mqtt\"}",
+              "instant": false,
               "legendFormat": "mqtt",
-              "refId": "M"
+              "range": true,
+              "refId": "B"
             },
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
-              "expr": "raft_apply_lag{machine=\"offset\",job=~\"$job\"}",
+              "editorMode": "code",
+              "expr": "raft_apply_lag{machine=\"offset\"}",
+              "instant": false,
               "legendFormat": "offset",
-              "refId": "O"
+              "range": true,
+              "refId": "C"
             }
           ],
           "title": "Raft Apply Lag (log - applied)",
@@ -4950,7 +5007,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Raft write requests per second by machine",
           "fieldConfig": {
@@ -5001,7 +5058,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(raft_write_requests_total[5m])) by (machine)",
@@ -5016,7 +5073,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Raft write success per second by machine",
           "fieldConfig": {
@@ -5067,7 +5124,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(raft_write_success_total[5m])) by (machine)",
@@ -5082,7 +5139,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Raft write failures per second by machine",
           "fieldConfig": {
@@ -5141,7 +5198,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(raft_write_failures_total[5m])) by (machine)",
@@ -5156,7 +5213,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Raft RPC requests per second by machine",
           "fieldConfig": {
@@ -5207,7 +5264,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(raft_rpc_requests_total[5m])) by (machine)",
@@ -5222,135 +5279,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "fillOpacity": 10,
-                "lineWidth": 1
-              },
-              "min": 0,
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 2010
-          },
-          "id": 610,
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "expr": "raft_last_log_index{machine=\"metadata\",job=~\"$job\"}",
-              "legendFormat": "metadata",
-              "refId": "M"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "expr": "raft_last_log_index{machine=\"mqtt\",job=~\"$job\"}",
-              "legendFormat": "mqtt",
-              "refId": "M"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "expr": "raft_last_log_index{machine=\"offset\",job=~\"$job\"}",
-              "legendFormat": "offset",
-              "refId": "O"
-            }
-          ],
-          "title": "Raft Last Log Index",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "fillOpacity": 10,
-                "lineWidth": 1
-              },
-              "min": 0,
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 2010
-          },
-          "id": 611,
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "expr": "raft_last_applied{machine=\"metadata\",job=~\"$job\"}",
-              "legendFormat": "metadata",
-              "refId": "M"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "expr": "raft_last_applied{machine=\"mqtt\",job=~\"$job\"}",
-              "legendFormat": "mqtt",
-              "refId": "M"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "expr": "raft_last_applied{machine=\"offset\",job=~\"$job\"}",
-              "legendFormat": "offset",
-              "refId": "O"
-            }
-          ],
-          "title": "Raft Last Applied Index",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Raft write QPS grouped by machine (metadata / offset / mqtt)",
           "fieldConfig": {
@@ -5435,7 +5364,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(raft_write_requests_total[5m])) by (machine)",
@@ -5446,7 +5375,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(raft_write_success_total[5m])) by (machine)",
@@ -5457,7 +5386,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(raft_write_failures_total[5m])) by (machine)",
@@ -5472,7 +5401,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Raft write latency percentiles grouped by machine",
           "fieldConfig": {
@@ -5557,7 +5486,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.50, sum(rate(raft_write_duration_ms_bucket[5m])) by (le, machine))",
@@ -5568,7 +5497,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.95, sum(rate(raft_write_duration_ms_bucket[5m])) by (le, machine))",
@@ -5579,7 +5508,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(raft_write_duration_ms_bucket[5m])) by (le, machine))",
@@ -5590,7 +5519,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.999, sum(rate(raft_write_duration_ms_bucket[5m])) by (le, machine))",
@@ -5605,7 +5534,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Raft RPC QPS grouped by machine and rpc_type",
           "fieldConfig": {
@@ -5690,7 +5619,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(raft_rpc_requests_total[5m])) by (machine, rpc_type)",
@@ -5701,7 +5630,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(raft_rpc_failures_total[5m])) by (machine, rpc_type)",
@@ -5716,7 +5645,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Raft RPC latency percentiles grouped by machine and rpc_type",
           "fieldConfig": {
@@ -5801,7 +5730,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.50, sum(rate(raft_rpc_duration_ms_bucket[5m])) by (le, machine, rpc_type))",
@@ -5812,7 +5741,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.95, sum(rate(raft_rpc_duration_ms_bucket[5m])) by (le, machine, rpc_type))",
@@ -5823,7 +5752,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(raft_rpc_duration_ms_bucket[5m])) by (le, machine, rpc_type))",
@@ -5836,7 +5765,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "📦 Raft Machine",
+      "title": "\ud83d\udce6 Raft Machine",
       "type": "row"
     },
     {
@@ -5852,7 +5781,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "RocksDB P99 latency for each operation type (save, get, delete, list, etc.)",
           "fieldConfig": {
@@ -5937,7 +5866,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(rocksdb_operation_ms_bucket[5m])) by (le, operation))",
@@ -5952,7 +5881,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "RocksDB operation QPS by operation type (save, get, delete, list, etc.)",
           "fieldConfig": {
@@ -6037,7 +5966,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(rocksdb_operation_count_total[1m])) by (operation)",
@@ -6052,7 +5981,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "RocksDB operation QPS by source (caller module)",
           "fieldConfig": {
@@ -6137,7 +6066,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(rocksdb_operation_count_total[1m])) by (source)",
@@ -6152,7 +6081,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "RocksDB write (save) operation latency percentiles",
           "fieldConfig": {
@@ -6283,7 +6212,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.50, sum(rate(rocksdb_operation_ms_bucket{operation=\"save\"}[5m])) by (le))",
@@ -6294,7 +6223,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.95, sum(rate(rocksdb_operation_ms_bucket{operation=\"save\"}[5m])) by (le))",
@@ -6305,7 +6234,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(rocksdb_operation_ms_bucket{operation=\"save\"}[5m])) by (le))",
@@ -6320,7 +6249,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "RocksDB read (get) operation latency percentiles",
           "fieldConfig": {
@@ -6451,7 +6380,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.50, sum(rate(rocksdb_operation_ms_bucket{operation=\"get\"}[5m])) by (le))",
@@ -6462,7 +6391,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.95, sum(rate(rocksdb_operation_ms_bucket{operation=\"get\"}[5m])) by (le))",
@@ -6473,7 +6402,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(rocksdb_operation_ms_bucket{operation=\"get\"}[5m])) by (le))",
@@ -6486,7 +6415,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "📖 RocksDB",
+      "title": "\ud83d\udcd6 RocksDB",
       "type": "row"
     },
     {
@@ -6502,7 +6431,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "gRPC requests per second (all services/methods combined)",
           "fieldConfig": {
@@ -6553,7 +6482,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(grpc_requests_total[5m]))",
@@ -6568,7 +6497,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "gRPC total errors (all non-OK statuses)",
           "fieldConfig": {
@@ -6627,7 +6556,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(grpc_errors_total)",
@@ -6642,7 +6571,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "gRPC error rate = errors / requests * 100%",
           "fieldConfig": {
@@ -6701,7 +6630,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(grpc_errors_total[1m])) / sum(rate(grpc_requests_total[1m])) * 100",
@@ -6716,7 +6645,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "gRPC QPS: total QPS and QPS grouped by service/method",
           "fieldConfig": {
@@ -6821,7 +6750,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(grpc_requests_total[1m]))",
@@ -6832,7 +6761,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(grpc_requests_total[1m])",
@@ -6847,7 +6776,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "gRPC error QPS grouped by service/method/status_code",
           "fieldConfig": {
@@ -6932,7 +6861,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(grpc_errors_total[1m]))",
@@ -6943,7 +6872,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(grpc_errors_total[1m])",
@@ -6958,7 +6887,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "gRPC overall latency percentiles P50/P95/P99/P999 (all methods combined)",
           "fieldConfig": {
@@ -7104,7 +7033,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.50, sum(rate(grpc_request_duration_ms_bucket[5m])) by (le))",
@@ -7115,7 +7044,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.95, sum(rate(grpc_request_duration_ms_bucket[5m])) by (le))",
@@ -7126,7 +7055,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(grpc_request_duration_ms_bucket[5m])) by (le))",
@@ -7137,7 +7066,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.999, sum(rate(grpc_request_duration_ms_bucket[5m])) by (le))",
@@ -7152,7 +7081,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "gRPC P99 latency by method, useful for identifying slow endpoints",
           "fieldConfig": {
@@ -7237,7 +7166,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(grpc_request_duration_ms_bucket[5m])) by (le, service, method))",
@@ -7250,7 +7179,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "🔗 gRPC Server",
+      "title": "\ud83d\udd17 gRPC Server",
       "type": "row"
     },
     {
@@ -7266,7 +7195,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "P99 latency of outgoing gRPC client calls grouped by service/method",
           "fieldConfig": {
@@ -7353,7 +7282,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le, service, method))",
@@ -7368,7 +7297,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Overall latency percentiles of all outgoing gRPC client calls",
           "fieldConfig": {
@@ -7453,7 +7382,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.5, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
@@ -7464,7 +7393,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.95, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
@@ -7475,7 +7404,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
@@ -7486,7 +7415,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.999, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
@@ -7501,7 +7430,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "QPS of outgoing gRPC client calls grouped by service/method",
           "fieldConfig": {
@@ -7588,7 +7517,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(grpc_client_call_duration_ms_count[5m])) by (service, method)",
@@ -7601,7 +7530,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "📡 gRPC Client",
+      "title": "\ud83d\udce1 gRPC Client",
       "type": "row"
     },
     {
@@ -7617,7 +7546,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "HTTP Admin total requests (all endpoints combined)",
           "fieldConfig": {
@@ -7668,7 +7597,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(http_requests_total)",
@@ -7683,7 +7612,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "HTTP Admin total errors (4xx + 5xx)",
           "fieldConfig": {
@@ -7742,7 +7671,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(http_errors_total)",
@@ -7757,7 +7686,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "HTTP Admin error rate = errors / requests * 100%",
           "fieldConfig": {
@@ -7816,7 +7745,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(http_errors_total[1m])) / sum(rate(http_requests_total[1m])) * 100",
@@ -7831,7 +7760,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "HTTP Admin QPS: total QPS and QPS grouped by endpoint",
           "fieldConfig": {
@@ -7936,7 +7865,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(http_requests_total[1m]))",
@@ -7947,7 +7876,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(http_requests_total[1m])",
@@ -7962,7 +7891,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "HTTP Admin error QPS grouped by endpoint and status code",
           "fieldConfig": {
@@ -8047,7 +7976,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "sum(rate(http_errors_total[1m]))",
@@ -8058,7 +7987,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(http_errors_total[1m])",
@@ -8073,7 +8002,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "HTTP Admin overall latency percentiles P50/P95/P99/P999 (all endpoints combined)",
           "fieldConfig": {
@@ -8219,7 +8148,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_ms_bucket[5m])) by (le))",
@@ -8230,7 +8159,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_ms_bucket[5m])) by (le))",
@@ -8241,7 +8170,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_ms_bucket[5m])) by (le))",
@@ -8252,7 +8181,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.999, sum(rate(http_request_duration_ms_bucket[5m])) by (le))",
@@ -8267,7 +8196,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "HTTP Admin P99 latency by endpoint, useful for identifying slow endpoints",
           "fieldConfig": {
@@ -8352,7 +8281,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_ms_bucket[5m])) by (le, method, uri))",
@@ -8365,7 +8294,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "🌍 HTTP Admin",
+      "title": "\ud83c\udf0d HTTP Admin",
       "type": "row"
     },
     {
@@ -8381,7 +8310,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Total number of messages enqueued into the delay queue",
           "fieldConfig": {
@@ -8432,7 +8361,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "delay_msg_enqueue_total",
@@ -8447,7 +8376,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Total number of delay messages delivered to target topics",
           "fieldConfig": {
@@ -8498,7 +8427,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "delay_msg_deliver_total",
@@ -8513,7 +8442,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Total number of delay message delivery failures",
           "fieldConfig": {
@@ -8572,7 +8501,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "delay_msg_deliver_fail_total",
@@ -8587,7 +8516,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Messages recovered from persistent storage on startup (normal + expired)",
           "fieldConfig": {
@@ -8638,7 +8567,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "delay_msg_recover_total",
@@ -8649,7 +8578,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "delay_msg_recover_expired_total",
@@ -8664,7 +8593,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Enqueue and deliver QPS for delay messages",
           "fieldConfig": {
@@ -8795,7 +8724,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(delay_msg_enqueue_total[1m])",
@@ -8806,7 +8735,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(delay_msg_deliver_total[1m])",
@@ -8817,7 +8746,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "rate(delay_msg_deliver_fail_total[1m])",
@@ -8832,7 +8761,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Delay queue shard capacity (total, used, remaining) per shard",
           "fieldConfig": {
@@ -8963,7 +8892,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "mqtt_delay_queue_total_capacity",
@@ -8974,7 +8903,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "mqtt_delay_queue_used_capacity",
@@ -8985,7 +8914,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "mqtt_delay_queue_remaining_capacity",
@@ -9000,7 +8929,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Enqueue duration percentiles (P50/P95/P99) for writing messages into the delay queue",
           "fieldConfig": {
@@ -9131,7 +9060,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.50, sum(rate(delay_msg_enqueue_duration_ms_bucket[5m])) by (le))",
@@ -9142,7 +9071,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.95, sum(rate(delay_msg_enqueue_duration_ms_bucket[5m])) by (le))",
@@ -9153,7 +9082,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(delay_msg_enqueue_duration_ms_bucket[5m])) by (le))",
@@ -9168,7 +9097,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "dfdi3tx61jshsa"
           },
           "description": "Delivery duration percentiles (P50/P95/P99) for sending delay messages to target topics",
           "fieldConfig": {
@@ -9299,7 +9228,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.50, sum(rate(delay_msg_deliver_duration_ms_bucket[5m])) by (le))",
@@ -9310,7 +9239,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.95, sum(rate(delay_msg_deliver_duration_ms_bucket[5m])) by (le))",
@@ -9321,7 +9250,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(delay_msg_deliver_duration_ms_bucket[5m])) by (le))",
@@ -9334,7 +9263,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "⏱ Delay Message",
+      "title": "\u23f1 Delay Message",
       "type": "row"
     }
   ],

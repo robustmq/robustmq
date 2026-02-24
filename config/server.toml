@@ -21,7 +21,7 @@ http_port = 8080
 meta_addrs = { 1 = "127.0.0.1:1228" }
 
 [rocksdb]
-data_path = "./data/broker/data"
+data_path = "./data/data"
 max_open_files = 10000
 
 [p_prof]
@@ -31,7 +31,7 @@ frequency = 1000
 
 [log]
 log_config = "./config/logger.toml"
-log_path = "./data/broker/logs"
+log_path = "./data/logs"
 
 [network]
 accept_thread_num = 1
@@ -68,7 +68,7 @@ enable_cache = true
 [storage_runtime]
 tcp_port = 1778
 max_segment_size = 1073741824
-data_path = ["./data/broker/engine"]
+data_path = ["./data/engine"]
 io_thread_num = 4
 
 [runtime]

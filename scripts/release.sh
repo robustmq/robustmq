@@ -47,8 +47,8 @@ VERSION="${VERSION:-}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 GITHUB_REPO="${GITHUB_REPO:-robustmq/robustmq}"
 UPLOAD_ONLY="${UPLOAD_ONLY:-false}"
-UPLOAD_MAX_RETRIES="${UPLOAD_MAX_RETRIES:-3}"
-UPLOAD_RETRY_DELAY="${UPLOAD_RETRY_DELAY:-5}"
+UPLOAD_MAX_RETRIES="${UPLOAD_MAX_RETRIES:-5}"
+UPLOAD_RETRY_DELAY="${UPLOAD_RETRY_DELAY:-15}"
 
 # GitHub API base URL
 GITHUB_API_URL="https://api.github.com"
@@ -462,12 +462,17 @@ upload_package() {
     local filename="$(basename "$tarball")"
     local upload_url="https://uploads.github.com/repos/$GITHUB_REPO/releases/$release_id/assets?name=$filename"
 
-    local max_retries="${UPLOAD_MAX_RETRIES:-3}"
-    local retry_delay="${UPLOAD_RETRY_DELAY:-5}"
+    local max_retries="${UPLOAD_MAX_RETRIES:-5}"
+    local retry_delay="${UPLOAD_RETRY_DELAY:-15}"
     local attempt=1
     local response
     local http_code
     local last_error=""
+
+    # Wait briefly before first upload attempt to let GitHub's upload endpoint
+    # become fully ready after release creation (avoids transient 422 errors)
+    log_info "Waiting 15s for GitHub release upload endpoint to be ready..."
+    sleep 15
 
     while [ $attempt -le $max_retries ]; do
         if [ $attempt -gt 1 ]; then
@@ -507,12 +512,31 @@ upload_package() {
             last_error="Rate limit exceeded (HTTP 429)"
             log_warning "$last_error: Rate limit exceeded, will retry with longer delay"
             retry_delay=$((retry_delay * 2))
-        elif [ "$http_code" -ge 400 ] && [ "$http_code" -lt 500 ]; then
-            # Client errors (4xx except 429) are usually not retryable
-            last_error="Client error (HTTP $http_code)"
+        elif [ "$http_code" -eq 422 ]; then
+            # 422 can be transient right after release creation (upload endpoint not ready yet),
+            # or it can mean the asset already exists. Check the error message to distinguish.
+            local error_msg
+            error_msg=$(echo "$response_body" | jq -r '.message // .error // ""' 2>/dev/null || echo "")
+            if echo "$error_msg" | grep -qi "already_exists\|already exists"; then
+                log_warning "Asset $filename already exists on this release, skipping upload"
+                return 0
+            fi
+            last_error="Unprocessable Entity (HTTP 422): $error_msg"
+            log_warning "$last_error - release upload endpoint may not be ready yet, retrying..."
+        elif [ "$http_code" -eq 401 ] || [ "$http_code" -eq 403 ]; then
+            # Auth errors are never retryable
+            last_error="Authentication error (HTTP $http_code)"
             log_error "$last_error: $(echo "$response_body" | jq -r '.message // .error // "Unknown error"' 2>/dev/null || echo "$response_body")"
-            log_error "Client errors are usually not retryable. Aborting."
+            log_error "Check your GITHUB_TOKEN permissions."
             return 1
+        elif [ "$http_code" -eq 404 ]; then
+            last_error="Release not found (HTTP 404)"
+            log_error "$last_error: $(echo "$response_body" | jq -r '.message // .error // "Unknown error"' 2>/dev/null || echo "$response_body")"
+            return 1
+        elif [ "$http_code" -ge 400 ] && [ "$http_code" -lt 500 ]; then
+            # Other 4xx errors: retry a limited number of times in case of transient issues
+            last_error="Client error (HTTP $http_code)"
+            log_warning "$last_error: $(echo "$response_body" | jq -r '.message // .error // "Unknown error"' 2>/dev/null || echo "$response_body")"
         else
             # Other errors (network issues, etc.)
             last_error="Upload failed (HTTP $http_code)"

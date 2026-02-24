@@ -340,7 +340,7 @@ impl MultiRaftManager {
 
         tokio::spawn(async move {
             let mut stop_recv = stop_send.subscribe();
-            let mut ticker = tokio::time::interval(Duration::from_secs(15));
+            let mut ticker = tokio::time::interval(Duration::from_secs(1));
 
             loop {
                 tokio::select! {

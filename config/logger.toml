@@ -20,7 +20,7 @@ level = "info"
 kind = "rolling_file"
 level = "info"
 rotation = "daily"
-directory = "./data/broker/logs"
+directory = "./data/logs"
 prefix = "server"
 suffix = "log"
 max_log_files = 50
@@ -29,7 +29,7 @@ max_log_files = 50
 kind = "rolling_file"
 targets = [{ path = "admin_server::server", level = "info" }]
 rotation = "daily"
-directory = "./data/broker/logs"
+directory = "./data/logs"
 prefix = "http_request"
 suffix = "log"
 max_log_files = 50
@@ -38,7 +38,7 @@ max_log_files = 50
 kind = "rolling_file"
 targets = [{ path = "openraft", level = "info" }]
 rotation = "daily"
-directory = "./data/broker/logs"
+directory = "./data/logs"
 prefix = "raft"
 suffix = "log"
 max_log_files = 50
@@ -52,7 +52,7 @@ bind = "127.0.0.1:5674"
 kind = "rolling_file"
 targets = [{ path = "meta_service", level = "info" }]
 rotation = "daily"
-directory = "./data/broker/logs"
+directory = "./data/logs"
 prefix = "meta"
 suffix = "log"
 max_log_files = 50
@@ -88,7 +88,7 @@ targets = [
     { path = "openraft::engine", level = "off" },
 ]
 rotation = "daily"
-directory = "./data/broker/logs"
+directory = "./data/logs"
 prefix = "openraft-except-engine"
 suffix = "log"
 max_log_files = 10
