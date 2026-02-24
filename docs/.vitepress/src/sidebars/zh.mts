@@ -204,6 +204,7 @@ export const sidebar = [
     items: [
       { text: "Broker 配置", link: "/zh/Configuration/BROKER" },
       { text: "日志配置", link: "/zh/Configuration/Logging" },
+      { text: "性能调优指南", link: "/zh/Configuration/Tuning" },
     ],
   },
   {

@@ -74,20 +74,35 @@ http_port = 8080
 
 ### [runtime]
 
-Tokio runtime and TLS configuration.
+Tokio runtime and TLS configuration. RobustMQ uses three independent Tokio runtimes internally, each serving a distinct role that can be tuned separately.
 
 ```toml
 [runtime]
-runtime_worker_threads = 8
 tls_cert = "./config/certs/cert.pem"
 tls_key = "./config/certs/key.pem"
+# Worker threads per runtime, 0 = auto (recommended)
+# server_worker_threads = 0
+# meta_worker_threads = 0
+# broker_worker_threads = 0
 ```
 
 | Configuration | Type | Default | Description |
 |---------------|------|---------|-------------|
-| `runtime_worker_threads` | `usize` | Auto-detect CPU cores | Tokio runtime worker thread count |
 | `tls_cert` | `string` | `"./config/certs/cert.pem"` | TLS certificate file path |
 | `tls_key` | `string` | `"./config/certs/key.pem"` | TLS private key file path |
+| `server_worker_threads` | `usize` | `0` (auto) | server-runtime worker threads, auto = `max(4, CPU / 2)` |
+| `meta_worker_threads` | `usize` | `0` (auto) | meta-runtime worker threads, auto = `max(4, CPU / 2)` |
+| `broker_worker_threads` | `usize` | `0` (auto) | broker-runtime worker threads, auto = `CPU cores` |
+
+**Runtime Roles:**
+
+| Runtime | Responsibilities | Default Threads |
+|---------|-----------------|-----------------|
+| `server-runtime` | gRPC service, HTTP Admin API, Prometheus metrics | `max(4, CPU/2)` |
+| `meta-runtime` | Raft state machines, RocksDB writes | `max(4, CPU/2)` |
+| `broker-runtime` | MQTT connection handling, message delivery hot path | `CPU cores` |
+
+> **Tuning tip:** Keep the default `0` for auto-detection. Use the `tokio_runtime_busy_ratio` metric in Grafana to guide adjustments: if a runtime's busy ratio consistently exceeds 80%, consider increasing its thread count.
 
 ---
 
@@ -620,9 +635,11 @@ http_port = 8080
 
 # ========== Runtime ==========
 [runtime]
-runtime_worker_threads = 8
 tls_cert = "./config/certs/cert.pem"
 tls_key = "./config/certs/key.pem"
+# server_worker_threads = 0
+# meta_worker_threads = 0
+# broker_worker_threads = 0
 
 # ========== Network ==========
 [network]

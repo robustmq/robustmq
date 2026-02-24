@@ -141,11 +141,46 @@ pub fn get_default_runtime_worker_threads() -> usize {
 }
 
 pub fn calc_runtime_worker_threads(multiplier: usize) -> usize {
-    let cpus = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(4);
+    let cpus = num_cpus();
     let m = if multiplier == 0 { 1 } else { multiplier };
     m * cpus
+}
+
+fn num_cpus() -> usize {
+    std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+}
+
+/// Resolve server-runtime thread count.
+/// explicit=0 means auto: max(4, num_cpus / 2).
+pub fn resolve_server_worker_threads(explicit: usize) -> usize {
+    if explicit > 0 {
+        explicit
+    } else {
+        num_cpus().div_ceil(2).max(4)
+    }
+}
+
+/// Resolve meta-runtime thread count.
+/// explicit=0 means auto: max(4, num_cpus / 2).
+/// Raft is largely a serial pipeline; num_cpus / 2 is enough.
+pub fn resolve_meta_worker_threads(explicit: usize) -> usize {
+    if explicit > 0 {
+        explicit
+    } else {
+        num_cpus().div_ceil(2).max(4)
+    }
+}
+
+/// Resolve broker-runtime thread count.
+/// explicit=0 means auto: num_cpus (MQTT hot path needs full CPU headroom).
+pub fn resolve_broker_worker_threads(explicit: usize) -> usize {
+    if explicit > 0 {
+        explicit
+    } else {
+        num_cpus()
+    }
 }
 
 #[cfg(test)]

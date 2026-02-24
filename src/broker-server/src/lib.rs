@@ -24,7 +24,10 @@ use broker_core::{
 use common_base::{
     error::common::CommonError,
     role::{is_broker_node, is_engine_node, is_meta_node},
-    runtime::{calc_runtime_worker_threads, create_runtime},
+    runtime::{
+        calc_runtime_worker_threads, create_runtime, resolve_broker_worker_threads,
+        resolve_meta_worker_threads, resolve_server_worker_threads,
+    },
 };
 use common_config::{
     broker::broker_config, config::BrokerConfig, storage::memory::StorageDriverMemoryConfig,
@@ -117,8 +120,14 @@ impl BrokerServer {
             column_family_list(),
         ));
         let rate_limiter_manager = Arc::new(RateLimiterManager::new());
-        let worker_threads = calc_runtime_worker_threads(config.runtime.runtime_worker_threads);
-        let server_runtime = create_runtime("server-runtime", worker_threads);
+        let server_worker_threads =
+            resolve_server_worker_threads(config.runtime.server_worker_threads);
+        let meta_worker_threads =
+            resolve_meta_worker_threads(config.runtime.meta_worker_threads);
+        let broker_worker_threads =
+            resolve_broker_worker_threads(config.runtime.broker_worker_threads);
+
+        let server_runtime = create_runtime("server-runtime", server_worker_threads);
         let broker_cache = Arc::new(BrokerCacheManager::new(config.clone()));
         let connection_manager = Arc::new(NetworkConnectionManager::new());
 
@@ -143,7 +152,7 @@ impl BrokerServer {
         // called within meta_runtime.block_on().  openraft spawns ~9 internal tasks via
         // tokio::spawn() during Raft::new(); those calls resolve against the *current*
         // runtime context, so they all land on meta_runtime instead of server_runtime.
-        let meta_runtime = create_runtime("meta-runtime", worker_threads);
+        let meta_runtime = create_runtime("meta-runtime", meta_worker_threads);
 
         // Run build_meta_service on meta_runtime so all openraft internal tasks
         // (core loop, log IO, state machine worker, etc.) are isolated from the
@@ -157,7 +166,7 @@ impl BrokerServer {
         // Create broker_runtime here so that tasks spawned during MQTT param
         // construction (e.g. RetainMessageManager's send thread) land on
         // broker_runtime rather than server_runtime.
-        let broker_runtime = create_runtime("broker-runtime", worker_threads);
+        let broker_runtime = create_runtime("broker-runtime", broker_worker_threads);
 
         let mqtt_seh = engine_params.storage_engine_handler.clone();
         let mqtt_om = offset_manager.clone();

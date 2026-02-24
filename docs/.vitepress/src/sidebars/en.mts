@@ -183,6 +183,7 @@ export const sidebar = [
     items: [
       { text: "Broker Configuration", link: "/en/Configuration/BROKER" },
       { text: "Logging Configuration", link: "/en/Configuration/Logging" },
+      { text: "Performance Tuning Guide", link: "/en/Configuration/Tuning" },
     ],
   },
   {

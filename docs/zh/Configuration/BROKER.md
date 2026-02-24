@@ -74,20 +74,35 @@ http_port = 8080
 
 ### [runtime]
 
-Tokio 运行时与 TLS 配置。
+Tokio 运行时与 TLS 配置。RobustMQ 内部划分了三个独立的 Tokio 运行时，分别承担不同职责，可以独立调优。
 
 ```toml
 [runtime]
-runtime_worker_threads = 8
 tls_cert = "./config/certs/cert.pem"
 tls_key = "./config/certs/key.pem"
+# 各运行时工作线程数，0 = 自动（推荐）
+# server_worker_threads = 0
+# meta_worker_threads = 0
+# broker_worker_threads = 0
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `runtime_worker_threads` | `usize` | 自动检测 CPU 核数 | Tokio 运行时工作线程数 |
 | `tls_cert` | `string` | `"./config/certs/cert.pem"` | TLS 证书文件路径 |
 | `tls_key` | `string` | `"./config/certs/key.pem"` | TLS 私钥文件路径 |
+| `server_worker_threads` | `usize` | `0`（自动） | server-runtime 工作线程数，自动值 = `max(4, CPU核数 / 2)` |
+| `meta_worker_threads` | `usize` | `0`（自动） | meta-runtime 工作线程数，自动值 = `max(4, CPU核数 / 2)` |
+| `broker_worker_threads` | `usize` | `0`（自动） | broker-runtime 工作线程数，自动值 = `CPU核数` |
+
+**三个运行时说明：**
+
+| 运行时 | 职责 | 默认线程数 |
+|--------|------|-----------|
+| `server-runtime` | gRPC 服务、HTTP Admin API、Prometheus 指标暴露 | `max(4, CPU/2)` |
+| `meta-runtime` | Raft 状态机、RocksDB 写入 | `max(4, CPU/2)` |
+| `broker-runtime` | MQTT 连接处理、消息投递热路径 | `CPU核数` |
+
+> **调优建议：** 保持默认值 `0` 即可。通过 Grafana 的 `tokio_runtime_busy_ratio` 指标判断是否需要调整：某个运行时繁忙比持续 > 80% 时，可适当增加其线程数。
 
 ---
 
@@ -620,9 +635,11 @@ http_port = 8080
 
 # ========== 运行时 ==========
 [runtime]
-runtime_worker_threads = 8
 tls_cert = "./config/certs/cert.pem"
 tls_key = "./config/certs/key.pem"
+# server_worker_threads = 0
+# meta_worker_threads = 0
+# broker_worker_threads = 0
 
 # ========== 网络 ==========
 [network]

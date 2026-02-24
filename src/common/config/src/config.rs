@@ -214,8 +214,27 @@ impl BrokerConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Runtime {
+    /// Legacy single multiplier kept for backward-compatibility.
+    /// When the per-runtime fields below are 0 (auto), this value × num_cpus
+    /// is used as a fallback.  Default: 1 (= num_cpus threads per runtime).
     #[serde(default = "default_runtime_worker_threads")]
     pub runtime_worker_threads: usize,
+
+    /// Worker threads for the server runtime (gRPC, HTTP admin, Prometheus).
+    /// 0 = auto: max(4, num_cpus / 2).
+    #[serde(default)]
+    pub server_worker_threads: usize,
+
+    /// Worker threads for the meta runtime (Raft state machines, RocksDB).
+    /// 0 = auto: max(4, num_cpus / 2).
+    /// Raft is largely a serial pipeline; more threads bring diminishing returns.
+    #[serde(default)]
+    pub meta_worker_threads: usize,
+
+    /// Worker threads for the broker runtime (MQTT handler pool, push manager).
+    /// 0 = auto: num_cpus.  This is the hot-path runtime.
+    #[serde(default)]
+    pub broker_worker_threads: usize,
 
     pub tls_cert: String,
 

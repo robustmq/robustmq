@@ -74,6 +74,13 @@ io_thread_num = 4
 [runtime]
 tls_cert = "./config/certs/cert.pem"
 tls_key = "./config/certs/key.pem"
+# Worker threads for each Tokio runtime.  0 = auto (recommended).
+# server: gRPC + HTTP admin  → auto = max(4, num_cpus / 2)
+# meta:   Raft state machines → auto = max(4, num_cpus / 2)
+# broker: MQTT hot path       → auto = num_cpus
+# server_worker_threads = 0
+# meta_worker_threads = 0
+# broker_worker_threads = 0
 
 [mqtt_runtime]
 default_user = "admin"
