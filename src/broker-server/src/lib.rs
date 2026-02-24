@@ -25,8 +25,8 @@ use common_base::{
     error::common::CommonError,
     role::{is_broker_node, is_engine_node, is_meta_node},
     runtime::{
-        calc_runtime_worker_threads, create_runtime, resolve_broker_worker_threads,
-        resolve_meta_worker_threads, resolve_server_worker_threads,
+        create_runtime, resolve_broker_worker_threads, resolve_meta_worker_threads,
+        resolve_server_worker_threads,
     },
 };
 use common_config::{
@@ -122,8 +122,7 @@ impl BrokerServer {
         let rate_limiter_manager = Arc::new(RateLimiterManager::new());
         let server_worker_threads =
             resolve_server_worker_threads(config.runtime.server_worker_threads);
-        let meta_worker_threads =
-            resolve_meta_worker_threads(config.runtime.meta_worker_threads);
+        let meta_worker_threads = resolve_meta_worker_threads(config.runtime.meta_worker_threads);
         let broker_worker_threads =
             resolve_broker_worker_threads(config.runtime.broker_worker_threads);
 
