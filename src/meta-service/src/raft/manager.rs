@@ -16,33 +16,32 @@ use super::network::client::Network;
 use super::store::new_storage;
 use super::type_config::TypeConfig;
 use crate::core::error::MetaServiceError;
+use crate::raft::group::RaftGroup;
 use crate::raft::route::data::StorageData;
 use crate::raft::route::DataRoute;
 use crate::raft::type_config::Node;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
-use common_metrics::meta::raft::{
-    record_raft_apply_lag, record_write_duration, record_write_failure, record_write_request,
-    record_write_success,
-};
+use common_metrics::meta::raft::record_raft_apply_lag;
 use grpc_clients::pool::ClientPool;
 use openraft::raft::ClientWriteResponse;
 use openraft::{Config, Raft};
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::sync::{broadcast, RwLock};
-use tokio::time::timeout;
-use tracing::{info, warn};
+use tracing::info;
 
 pub const DEFAULT_RAFT_WRITE_TIMEOUT_SEC: u64 = 30;
 pub const SLOW_RAFT_WRITE_WARN_THRESHOLD_MS: f64 = 1000.0;
+type RaftShardNodes = Vec<(String, Raft<TypeConfig>)>;
+type MetricsGroups = Vec<(String, RaftShardNodes)>;
 
 #[derive(Clone, Debug)]
 pub enum RaftStateMachineName {
     METADATA,
     OFFSET,
-    MQTT,
+    DATA,
 }
 
 impl RaftStateMachineName {
@@ -50,7 +49,7 @@ impl RaftStateMachineName {
         match self {
             RaftStateMachineName::METADATA => "metadata",
             RaftStateMachineName::OFFSET => "offset",
-            RaftStateMachineName::MQTT => "mqtt",
+            RaftStateMachineName::DATA => "data",
         }
     }
 }
@@ -60,10 +59,18 @@ impl std::str::FromStr for RaftStateMachineName {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "metadata" => Ok(RaftStateMachineName::METADATA),
+            "metadata" | "meta" => Ok(RaftStateMachineName::METADATA),
             "offset" => Ok(RaftStateMachineName::OFFSET),
-            "mqtt" => Ok(RaftStateMachineName::MQTT),
-            _ => Err(format!("Invalid RaftStateMachineName: {}", s)),
+            "data" | "mqtt" => Ok(RaftStateMachineName::DATA),
+            _ => {
+                let group = s.rsplit_once('_').map(|(prefix, _)| prefix).unwrap_or(s);
+                match group {
+                    "metadata" | "meta" => Ok(RaftStateMachineName::METADATA),
+                    "offset" => Ok(RaftStateMachineName::OFFSET),
+                    "data" | "mqtt" => Ok(RaftStateMachineName::DATA),
+                    _ => Err(format!("Invalid RaftStateMachineName: {}", s)),
+                }
+            }
         }
     }
 }
@@ -75,9 +82,9 @@ impl std::fmt::Display for RaftStateMachineName {
 }
 
 pub struct MultiRaftManager {
-    pub metadata_raft_node: Raft<TypeConfig>,
-    pub offset_raft_node: Raft<TypeConfig>,
-    pub mqtt_raft_node: Raft<TypeConfig>,
+    pub metadata: RaftGroup,
+    pub offset: RaftGroup,
+    pub data: RaftGroup,
     pub stop: Arc<RwLock<bool>>,
 }
 
@@ -87,73 +94,84 @@ impl MultiRaftManager {
         rocksdb_engine_handler: Arc<rocksdb_engine::rocksdb::RocksDBEngine>,
         route: Arc<DataRoute>,
     ) -> Result<Self, CommonError> {
+        let conf = broker_config();
+        let meta_rt = &conf.meta_runtime;
+
         info!("Initializing Multi-Raft Manager...");
 
-        info!("Creating Raft node: {}", RaftStateMachineName::METADATA);
-        let metadata_raft_node = MultiRaftManager::create_raft_node(
-            &RaftStateMachineName::METADATA,
-            &client_pool,
-            &rocksdb_engine_handler,
-            &route,
+        info!("Creating metadata RaftGroup (group_num=1)");
+        let metadata = RaftGroup::new(
+            "metadata",
+            1,
+            client_pool.clone(),
+            rocksdb_engine_handler.clone(),
+            route.clone(),
         )
         .await?;
 
-        info!("Creating Raft node: {}", RaftStateMachineName::OFFSET);
-        let offset_raft_node = MultiRaftManager::create_raft_node(
-            &RaftStateMachineName::OFFSET,
-            &client_pool,
-            &rocksdb_engine_handler,
-            &route,
+        info!(
+            "Creating offset RaftGroup (group_num={})",
+            meta_rt.offset_raft_group_num
+        );
+        let offset = RaftGroup::new(
+            "offset",
+            meta_rt.offset_raft_group_num,
+            client_pool.clone(),
+            rocksdb_engine_handler.clone(),
+            route.clone(),
         )
         .await?;
 
-        info!("Creating Raft node: {}", RaftStateMachineName::MQTT);
-        let mqtt_raft_node = MultiRaftManager::create_raft_node(
-            &RaftStateMachineName::MQTT,
-            &client_pool,
-            &rocksdb_engine_handler,
-            &route,
+        info!(
+            "Creating data RaftGroup (group_num={})",
+            meta_rt.data_raft_group_num
+        );
+        let data = RaftGroup::new(
+            "data",
+            meta_rt.data_raft_group_num,
+            client_pool.clone(),
+            rocksdb_engine_handler.clone(),
+            route.clone(),
         )
         .await?;
 
         info!("Multi-Raft Manager initialized successfully");
         Ok(MultiRaftManager {
-            metadata_raft_node,
-            offset_raft_node,
-            mqtt_raft_node,
+            metadata,
+            offset,
+            data,
             stop: Arc::new(RwLock::new(false)),
         })
     }
 
-    pub fn get_raft_node(&self, machine: &str) -> Result<&Raft<TypeConfig>, MetaServiceError> {
-        match machine {
-            "metadata" => Ok(&self.metadata_raft_node),
-            "offset" => Ok(&self.offset_raft_node),
-            "mqtt" => Ok(&self.mqtt_raft_node),
-            _ => Err(MetaServiceError::CommonError(format!(
-                "Unknown raft machine: {}",
-                machine
-            ))),
-        }
-    }
-
     pub async fn start(&self) -> Result<(), CommonError> {
         info!("Starting Multi-Raft cluster...");
-
-        MultiRaftManager::start_raft_node(
-            &RaftStateMachineName::METADATA,
-            &self.metadata_raft_node,
-        )
-        .await?;
-
-        MultiRaftManager::start_raft_node(&RaftStateMachineName::OFFSET, &self.offset_raft_node)
-            .await?;
-
-        MultiRaftManager::start_raft_node(&RaftStateMachineName::MQTT, &self.mqtt_raft_node)
-            .await?;
-
+        self.metadata.start().await?;
+        self.offset.start().await?;
+        self.data.start().await?;
         info!("Multi-Raft cluster started successfully");
         Ok(())
+    }
+
+    pub fn get_raft_node(&self, shard_name: &str) -> Result<&Raft<TypeConfig>, MetaServiceError> {
+        if matches!(shard_name, "metadata" | "meta") {
+            return self.metadata.get_node("metadata_0").ok_or_else(|| {
+                MetaServiceError::CommonError("metadata_0 shard not found".to_string())
+            });
+        }
+        if let Some(raft) = self.metadata.get_node(shard_name) {
+            return Ok(raft);
+        }
+        if let Some(raft) = self.offset.get_node(shard_name) {
+            return Ok(raft);
+        }
+        if let Some(raft) = self.data.get_node(shard_name) {
+            return Ok(raft);
+        }
+        Err(MetaServiceError::CommonError(format!(
+            "Unknown raft shard: {}",
+            shard_name
+        )))
     }
 
     pub fn get_raft_write_timeout() -> Duration {
@@ -169,174 +187,36 @@ impl MultiRaftManager {
         &self,
         data: StorageData,
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
-        let stop = self.stop.read().await;
-        if *stop {
-            return Err(MetaServiceError::RaftNodeHasStopped(
-                RaftStateMachineName::METADATA.to_string(),
-            ));
-        }
-
-        let machine = RaftStateMachineName::METADATA.as_str();
-        let data_type = data.data_type.to_string();
-        record_write_request(machine);
-        let start = Instant::now();
-        let write_timeout = MultiRaftManager::get_raft_write_timeout();
-
-        let result = timeout(write_timeout, self.metadata_raft_node.client_write(data)).await;
-
-        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
-        record_write_duration(machine, duration_ms);
-        if duration_ms > SLOW_RAFT_WRITE_WARN_THRESHOLD_MS {
-            warn!(
-                "Raft write is slow. machine={}, data_type={}, duration_ms={:.2}",
-                machine, data_type, duration_ms
-            );
-        }
-
-        match result {
-            Ok(Ok(response)) => {
-                record_write_success(machine);
-                Ok(Some(response))
-            }
-            Ok(Err(e)) => {
-                record_write_failure(machine);
-                warn!(
-                    "Raft write failed. machine={}, data_type={}, duration_ms={:.2}, error={}",
-                    machine, data_type, duration_ms, e
-                );
-                Err(e.into())
-            }
-            Err(_) => {
-                record_write_failure(machine);
-                warn!(
-                    "Raft write timed out. machine={}, data_type={}, timeout={}s, duration_ms={:.2}",
-                    machine, data_type, write_timeout.as_secs(), duration_ms
-                );
-                Err(MetaServiceError::CommonError(format!(
-                    "Write metadata timeout after {}s, data_type={}",
-                    write_timeout.as_secs(),
-                    data_type
-                )))
-            }
-        }
+        self.metadata.write("", data).await
     }
 
     pub async fn write_offset(
         &self,
+        key: &str,
         data: StorageData,
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
-        let stop = self.stop.read().await;
-        if *stop {
-            return Err(MetaServiceError::RaftNodeHasStopped(
-                RaftStateMachineName::OFFSET.to_string(),
-            ));
-        }
-
-        let machine = RaftStateMachineName::OFFSET.as_str();
-        let data_type = data.data_type.to_string();
-        record_write_request(machine);
-        let start = Instant::now();
-        let write_timeout = MultiRaftManager::get_raft_write_timeout();
-
-        let result = timeout(write_timeout, self.offset_raft_node.client_write(data)).await;
-
-        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
-        record_write_duration(machine, duration_ms);
-        if duration_ms > SLOW_RAFT_WRITE_WARN_THRESHOLD_MS {
-            warn!(
-                "Raft write is slow. machine={}, data_type={}, duration_ms={:.2}",
-                machine, data_type, duration_ms
-            );
-        }
-
-        match result {
-            Ok(Ok(response)) => {
-                record_write_success(machine);
-                Ok(Some(response))
-            }
-            Ok(Err(e)) => {
-                record_write_failure(machine);
-                warn!(
-                    "Raft write failed. machine={}, data_type={}, duration_ms={:.2}, error={}",
-                    machine, data_type, duration_ms, e
-                );
-                Err(e.into())
-            }
-            Err(_) => {
-                record_write_failure(machine);
-                warn!(
-                    "Raft write timed out. machine={}, data_type={}, timeout={}s, duration_ms={:.2}",
-                    machine, data_type, write_timeout.as_secs(), duration_ms
-                );
-                Err(MetaServiceError::CommonError(format!(
-                    "Write offset timeout after {}s, data_type={}",
-                    write_timeout.as_secs(),
-                    data_type
-                )))
-            }
-        }
+        self.offset.write(key, data).await
     }
 
-    pub async fn write_mqtt(
+    pub async fn write_data(
         &self,
+        key: &str,
         data: StorageData,
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
-        let stop = self.stop.read().await;
-        if *stop {
-            return Err(MetaServiceError::RaftNodeHasStopped(
-                RaftStateMachineName::MQTT.to_string(),
-            ));
-        }
-
-        let machine = RaftStateMachineName::MQTT.as_str();
-        let data_type = data.data_type.to_string();
-        record_write_request(machine);
-        let start = Instant::now();
-        let write_timeout = MultiRaftManager::get_raft_write_timeout();
-
-        let result = timeout(write_timeout, self.mqtt_raft_node.client_write(data)).await;
-
-        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
-        record_write_duration(machine, duration_ms);
-        if duration_ms > SLOW_RAFT_WRITE_WARN_THRESHOLD_MS {
-            warn!(
-                "Raft write is slow. machine={}, data_type={}, duration_ms={:.2}",
-                machine, data_type, duration_ms
-            );
-        }
-
-        match result {
-            Ok(Ok(response)) => {
-                record_write_success(machine);
-                Ok(Some(response))
-            }
-            Ok(Err(e)) => {
-                record_write_failure(machine);
-                warn!(
-                    "Raft write failed. machine={}, data_type={}, duration_ms={:.2}, error={}",
-                    machine, data_type, duration_ms, e
-                );
-                Err(e.into())
-            }
-            Err(_) => {
-                record_write_failure(machine);
-                warn!(
-                    "Raft write timed out. machine={}, data_type={}, timeout={}s, duration_ms={:.2}",
-                    machine, data_type, write_timeout.as_secs(), duration_ms
-                );
-                Err(MetaServiceError::CommonError(format!(
-                    "Write mqtt timeout after {}s, data_type={}",
-                    write_timeout.as_secs(),
-                    data_type
-                )))
-            }
-        }
+        self.data.write(key, data).await
     }
 
     pub fn start_metrics_monitor(&self, stop_send: broadcast::Sender<bool>) {
-        let metadata_node = self.metadata_raft_node.clone();
-        let offset_node = self.offset_raft_node.clone();
-        let mqtt_node = self.mqtt_raft_node.clone();
+        let groups: MetricsGroups = [&self.metadata, &self.offset, &self.data]
+            .iter()
+            .map(|g| {
+                let nodes: Vec<_> = g
+                    .all_nodes()
+                    .map(|(name, raft)| (name.clone(), raft.clone()))
+                    .collect();
+                (g.group_name.clone(), nodes)
+            })
+            .collect();
 
         tokio::spawn(async move {
             let mut stop_recv = stop_send.subscribe();
@@ -345,15 +225,13 @@ impl MultiRaftManager {
             loop {
                 tokio::select! {
                     _ = ticker.tick() => {
-                        for (machine, node) in [
-                            (RaftStateMachineName::METADATA.as_str(), &metadata_node),
-                            (RaftStateMachineName::OFFSET.as_str(), &offset_node),
-                            (RaftStateMachineName::MQTT.as_str(), &mqtt_node),
-                        ] {
-                            let m = node.metrics().borrow().clone();
-                            let last_log = m.last_log_index.unwrap_or(0);
-                            let last_applied = m.last_applied.map(|l| l.index).unwrap_or(0);
-                            record_raft_apply_lag(machine, last_log, last_applied);
+                        for (_group_name, nodes) in &groups {
+                            for (shard_name, node) in nodes {
+                                let m = node.metrics().borrow().clone();
+                                let last_log = m.last_log_index.unwrap_or(0);
+                                let last_applied = m.last_applied.map(|l| l.index).unwrap_or(0);
+                                record_raft_apply_lag(shard_name, last_log, last_applied);
+                            }
                         }
                     }
                     val = stop_recv.recv() => {
@@ -365,36 +243,35 @@ impl MultiRaftManager {
     }
 
     pub async fn shutdown(&self) -> Result<(), CommonError> {
-        let mut write = self.stop.write().await;
-        *write = true;
+        let mut stop = self.stop.write().await;
+        *stop = true;
 
-        self.mqtt_raft_node
+        self.data
             .shutdown()
             .await
             .map_err(|e| CommonError::CommonError(e.to_string()))?;
 
-        self.offset_raft_node
+        self.offset
             .shutdown()
             .await
             .map_err(|e| CommonError::CommonError(e.to_string()))?;
 
-        self.metadata_raft_node
+        self.metadata
             .shutdown()
             .await
             .map_err(|e| CommonError::CommonError(e.to_string()))?;
+
         Ok(())
     }
 
-    async fn start_raft_node(
-        machine: &RaftStateMachineName,
+    pub async fn init_raft_node(
+        shard_name: &str,
         raft_node: &Raft<TypeConfig>,
     ) -> Result<(), CommonError> {
-        info!("[{}] Starting Raft node...", machine);
+        info!("[{}] Starting Raft node...", shard_name);
 
         let conf = broker_config();
         let mut nodes = BTreeMap::new();
-
-        // Build node list
         for (node_id, addr) in conf.meta_addrs.clone() {
             let addr = addr.to_string().replace("\"", "");
             let node = Node {
@@ -404,99 +281,87 @@ impl MultiRaftManager {
             nodes.insert(node.node_id, node);
         }
 
-        // Print cluster members
         let node_list: Vec<String> = nodes
             .iter()
             .map(|(id, node)| format!("node_{}={}", id, node.rpc_addr))
             .collect();
-        info!("[{}] Cluster members: [{}]", machine, node_list.join(", "));
+        info!(
+            "[{}] Cluster members: [{}]",
+            shard_name,
+            node_list.join(", ")
+        );
 
-        // Check if already initialized
         match raft_node.is_initialized().await {
-            Ok(is_initialized) => {
-                if !is_initialized {
-                    info!(
-                        "[{}] Initializing Raft cluster with {} nodes...",
-                        machine,
-                        nodes.len()
-                    );
-
-                    match raft_node.initialize(nodes.clone()).await {
-                        Ok(_) => {
-                            info!("[{}] Raft cluster initialized successfully", machine);
-                        }
-                        Err(e) => {
-                            return Err(CommonError::CommonError(format!(
-                                "[{}] Failed to initialize Raft cluster: {}",
-                                machine, e
-                            )));
-                        }
-                    }
-                } else {
-                    info!("[{}] Raft cluster already initialized, skipping", machine);
-                }
+            Ok(false) => {
+                info!(
+                    "[{}] Initializing Raft cluster with {} nodes...",
+                    shard_name,
+                    nodes.len()
+                );
+                raft_node.initialize(nodes.clone()).await.map_err(|e| {
+                    CommonError::CommonError(format!(
+                        "[{}] Failed to initialize Raft cluster: {}",
+                        shard_name, e
+                    ))
+                })?;
+                info!("[{}] Raft cluster initialized successfully", shard_name);
+            }
+            Ok(true) => {
+                info!(
+                    "[{}] Raft cluster already initialized, skipping",
+                    shard_name
+                );
             }
             Err(e) => {
                 return Err(CommonError::CommonError(format!(
                     "[{}] Failed to check initialization status: {}",
-                    machine, e
+                    shard_name, e
                 )));
             }
         }
 
-        info!("[{}] Raft node started successfully", machine);
+        info!("[{}] Raft node started successfully", shard_name);
         Ok(())
     }
 
     pub async fn create_raft_node(
-        machine: &RaftStateMachineName,
+        shard_name: &str,
         client_pool: &Arc<ClientPool>,
         rocksdb_engine_handler: &Arc<rocksdb_engine::rocksdb::RocksDBEngine>,
         route: &Arc<DataRoute>,
     ) -> Result<Raft<TypeConfig>, CommonError> {
-        // Raft configuration
         let config = Config {
             heartbeat_interval: 10,
             election_timeout_min: 15,
             ..Default::default()
         };
 
-        let config = Arc::new(match config.validate() {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(CommonError::CommonError(format!(
-                    "[{}] Invalid Raft configuration: {}",
-                    machine, e
-                )));
-            }
-        });
+        let config = Arc::new(config.validate().map_err(|e| {
+            CommonError::CommonError(format!(
+                "[{}] Invalid Raft configuration: {}",
+                shard_name, e
+            ))
+        })?);
 
         info!(
             "[{}] Raft config: heartbeat={}ms, election_timeout={}ms",
-            machine, config.heartbeat_interval, config.election_timeout_min
+            shard_name, config.heartbeat_interval, config.election_timeout_min
         );
 
         let conf = broker_config();
 
-        // Create storage layer (log store + state machine)
         info!(
             "[{}] Initializing storage (log + state machine)...",
-            machine
+            shard_name
         );
-        let (log_store, state_machine_store) = new_storage(
-            machine.as_str(),
-            rocksdb_engine_handler.clone(),
-            route.clone(),
-        )
-        .await;
+        let (log_store, state_machine_store) =
+            new_storage(shard_name, rocksdb_engine_handler.clone(), route.clone()).await;
 
-        // Create network layer
-        let network = Network::new(machine.to_string(), client_pool.clone());
+        let network = Network::new(shard_name.to_string(), client_pool.clone());
 
-        // Create Raft instance
         info!(
             "[{}] Creating Raft instance (node_id={})...",
-            machine, conf.broker_id
+            shard_name, conf.broker_id
         );
         match Raft::new(
             conf.broker_id,
@@ -508,12 +373,12 @@ impl MultiRaftManager {
         .await
         {
             Ok(raft_node) => {
-                info!("[{}] Raft instance created successfully", machine);
+                info!("[{}] Raft instance created successfully", shard_name);
                 Ok(raft_node)
             }
             Err(e) => Err(CommonError::CommonError(format!(
                 "[{}] Failed to create Raft instance: {}",
-                machine, e
+                shard_name, e
             ))),
         }
     }

@@ -55,7 +55,7 @@ pub async fn get_group_leader(
         StorageDataType::MqttSetGroupLeader,
         Bytes::copy_from_slice(&leader_info.encode()?),
     );
-    raft_manager.write_mqtt(data).await?;
+    raft_manager.write_data(group_name, data).await?;
     storage.save(group_name, target_broker_id)?;
 
     Ok(target_broker_id)

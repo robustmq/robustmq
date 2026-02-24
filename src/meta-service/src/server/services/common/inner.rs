@@ -28,10 +28,11 @@ use protocol::meta::meta_service_common::{
     ClusterStatusReply, DeleteResourceConfigReply, DeleteResourceConfigRequest, GetOffsetDataReply,
     GetOffsetDataReplyOffset, GetOffsetDataRequest, GetResourceConfigReply,
     GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
-    SaveOffsetDataReply, SaveOffsetDataRequest, SetResourceConfigReply, SetResourceConfigRequest,
+    SaveOffsetData, SaveOffsetDataReply, SaveOffsetDataRequest, SetResourceConfigReply,
+    SetResourceConfigRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tracing::debug;
 
@@ -39,13 +40,25 @@ use tracing::debug;
 pub async fn cluster_status_by_req(
     raft_manager: &Arc<MultiRaftManager>,
 ) -> Result<ClusterStatusReply, MetaServiceError> {
-    let meta_status = raft_manager.metadata_raft_node.metrics().borrow().clone();
-    let mqtt_status = raft_manager.mqtt_raft_node.metrics().borrow().clone();
-    let offset_status = raft_manager.offset_raft_node.metrics().borrow().clone();
     let mut results = HashMap::new();
-    results.insert("meta".to_string(), meta_status);
-    results.insert("mqtt".to_string(), mqtt_status);
-    results.insert("offset".to_string(), offset_status);
+    for (name, node) in raft_manager.metadata.all_nodes() {
+        results.insert(name.clone(), node.metrics().borrow().clone());
+    }
+    for (name, node) in raft_manager.offset.all_nodes() {
+        results.insert(name.clone(), node.metrics().borrow().clone());
+    }
+    for (name, node) in raft_manager.data.all_nodes() {
+        results.insert(name.clone(), node.metrics().borrow().clone());
+    }
+    if let Some(node) = raft_manager.metadata.get_node("metadata_0") {
+        results.insert("meta".to_string(), node.metrics().borrow().clone());
+    }
+    if let Some(node) = raft_manager.offset.get_node("offset_0") {
+        results.insert("offset".to_string(), node.metrics().borrow().clone());
+    }
+    if let Some(node) = raft_manager.data.get_node("data_0") {
+        results.insert("mqtt".to_string(), node.metrics().borrow().clone());
+    }
     let content = serde_json::to_string(&results).map_err(MetaServiceError::SerdeJsonError)?;
 
     Ok(ClusterStatusReply { content })
@@ -138,12 +151,26 @@ pub async fn save_offset_data_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &SaveOffsetDataRequest,
 ) -> Result<SaveOffsetDataReply, MetaServiceError> {
-    let data = StorageData::new(StorageDataType::OffsetSet, encode_to_bytes(req));
+    let mut grouped_offsets: BTreeMap<String, Vec<SaveOffsetData>> = BTreeMap::new();
+    for offset in &req.offsets {
+        grouped_offsets
+            .entry(offset.group.clone())
+            .or_default()
+            .push(offset.clone());
+    }
 
-    raft_manager
-        .write_offset(data)
-        .await
-        .map(|_| SaveOffsetDataReply::default())
+    for (group, offsets) in grouped_offsets {
+        let sub_req = SaveOffsetDataRequest { offsets };
+        let data = StorageData::new(StorageDataType::OffsetSet, encode_to_bytes(&sub_req));
+        raft_manager.write_offset(&group, data).await.map_err(|e| {
+            MetaServiceError::CommonError(format!(
+                "Failed to write offset group '{}': {}",
+                group, e
+            ))
+        })?;
+    }
+
+    Ok(SaveOffsetDataReply::default())
 }
 
 pub async fn get_offset_data_by_req(

@@ -59,7 +59,7 @@ pub async fn build_snapshot(
         RaftStateMachineName::OFFSET => {
             build_snapshot_by_offset(db, &snapshot_db, &snapshot_name_path).await
         }
-        RaftStateMachineName::MQTT => {
+        RaftStateMachineName::DATA => {
             build_snapshot_by_mqtt(db, &snapshot_db, &snapshot_name_path).await
         }
     };

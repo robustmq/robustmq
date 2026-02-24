@@ -94,6 +94,8 @@ pub fn default_meta_runtime() -> MetaRuntime {
         heartbeat_check_time_ms: 1000,
         heartbeat_timeout_ms: 30000,
         raft_write_timeout_sec: 30,
+        offset_raft_group_num: 8,
+        data_raft_group_num: 8,
     }
 }
 

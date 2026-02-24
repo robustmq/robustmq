@@ -15,7 +15,7 @@
 use crate::{
     controller::{call_broker::call::BrokerCallManager, BrokerController},
     core::cache::CacheManager,
-    raft::manager::MultiRaftManager,
+    raft::manager::{MultiRaftManager, RaftStateMachineName},
 };
 use grpc_clients::pool::ClientPool;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -35,7 +35,13 @@ pub fn monitoring_leader_transition(
     call_manager: Arc<BrokerCallManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    let mut metrics_rx = raft_manager.mqtt_raft_node.metrics();
+    // Use the single metadata shard leader as the controller leadership source.
+    let metadata_shard = format!("{}_0", RaftStateMachineName::METADATA.as_str());
+    let metadata_node = raft_manager
+        .metadata
+        .get_node(&metadata_shard)
+        .expect("metadata shard must exist");
+    let mut metrics_rx = metadata_node.metrics();
     let mut controller_running = false;
     tokio::spawn(async move {
         let mut last_leader: Option<u64> = None;
@@ -59,7 +65,7 @@ pub fn monitoring_leader_transition(
                         if let Some(current_leader) = mm.current_leader {
                             if last_leader != Some(current_leader)  {
                                 if mm.id == current_leader{
-                                    info!("[mqtt] Leader transition has occurred. current leader is  {:?}. Previous leader was {:?}.mm id:{}", current_leader, last_leader, mm.id);
+                                    info!("[metadata] Leader transition has occurred. current leader is {:?}. previous leader was {:?}. local node id={}", current_leader, last_leader, mm.id);
                                     start_controller(
                                         &rocksdb_engine_handler,
                                         &raft_manager,

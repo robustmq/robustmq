@@ -82,7 +82,7 @@ pub async fn create_topic_by_req(
     }
 
     let data = StorageData::new(StorageDataType::MqttSetTopic, encode_to_bytes(req));
-    raft_manager.write_metadata(data).await?;
+    raft_manager.write_data(&req.topic_name, data).await?;
 
     let topic = Topic::decode(&req.content)?;
     update_cache_by_add_topic(call_manager, client_pool, topic).await?;
@@ -105,7 +105,7 @@ pub async fn delete_topic_by_req(
         .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
     let data = StorageData::new(StorageDataType::MqttDeleteTopic, encode_to_bytes(req));
-    raft_manager.write_metadata(data).await?;
+    raft_manager.write_data(&req.topic_name, data).await?;
 
     update_cache_by_delete_topic(call_manager, client_pool, topic).await?;
 
@@ -135,7 +135,7 @@ pub async fn set_topic_retain_message_by_req(
     };
 
     let data = StorageData::new(data_type, data);
-    raft_manager.write_mqtt(data).await?;
+    raft_manager.write_data(&req.topic_name, data).await?;
 
     Ok(SetTopicRetainMessageReply {})
 }

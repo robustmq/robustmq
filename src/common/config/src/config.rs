@@ -279,6 +279,14 @@ pub struct MetaRuntime {
     pub heartbeat_timeout_ms: u64,
     pub heartbeat_check_time_ms: u64,
     pub raft_write_timeout_sec: u64,
+    #[serde(default = "default_raft_sharded_group_num")]
+    pub offset_raft_group_num: u32,
+    #[serde(default = "default_raft_sharded_group_num")]
+    pub data_raft_group_num: u32,
+}
+
+fn default_raft_sharded_group_num() -> u32 {
+    8
 }
 
 impl Default for MetaRuntime {

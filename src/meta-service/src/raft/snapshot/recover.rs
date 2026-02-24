@@ -50,7 +50,7 @@ pub async fn recover_snapshot(
         let res = match row_machine {
             RaftStateMachineName::METADATA => recover_snapshot_by_metadata(&row_db, snapshot).await,
             RaftStateMachineName::OFFSET => recover_snapshot_by_offset(&row_db, snapshot).await,
-            RaftStateMachineName::MQTT => recover_snapshot_by_mqtt(&row_db, snapshot).await,
+            RaftStateMachineName::DATA => recover_snapshot_by_mqtt(&row_db, snapshot).await,
         };
         if let Err(e) = res {
             error!(

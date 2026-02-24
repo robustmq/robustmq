@@ -100,7 +100,7 @@ pub async fn create_session_by_req(
     req: &CreateSessionRequest,
 ) -> Result<CreateSessionReply, MetaServiceError> {
     let data = StorageData::new(StorageDataType::MqttSetSession, encode_to_bytes(req));
-    raft_manager.write_mqtt(data).await?;
+    raft_manager.write_data(&req.client_id, data).await?;
 
     let session = MqttSession::decode(&req.session)?;
     update_cache_by_add_session(call_manager, client_pool, session).await?;
@@ -126,7 +126,7 @@ pub async fn delete_session_by_req(
     };
 
     let data = StorageData::new(StorageDataType::MqttDeleteSession, encode_to_bytes(req));
-    raft_manager.write_mqtt(data).await?;
+    raft_manager.write_data(&req.client_id, data).await?;
 
     // delete subscribe
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
@@ -167,7 +167,7 @@ pub async fn save_last_will_message_by_req(
         StorageDataType::MqttSaveLastWillMessage,
         encode_to_bytes(req),
     );
-    raft_manager.write_mqtt(data).await?;
+    raft_manager.write_data(&req.client_id, data).await?;
 
     Ok(SaveLastWillMessageReply {})
 }
