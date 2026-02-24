@@ -22,10 +22,13 @@ FROM lukemathwalker/cargo-chef:latest-rust-1.90.0 AS planner
 WORKDIR /robustmq
 
 # Copy all Cargo files to generate recipe
-COPY Cargo.toml Cargo.lock ./
-COPY src/*/Cargo.toml ./src/*/
-COPY src/common/*/Cargo.toml ./src/common/*/
-COPY tests/Cargo.toml ./tests/
+# --parents preserves directory structure (requires BuildKit 0.13+)
+COPY --parents Cargo.toml Cargo.lock \
+    src/*/Cargo.toml \
+    src/common/*/Cargo.toml \
+    src/protocol/build.rs \
+    tests/Cargo.toml \
+    ./
 
 # Create dummy main.rs for packages with binaries
 RUN mkdir -p src/cmd/src && echo 'fn main() {}' > src/cmd/src/main.rs
@@ -46,9 +49,8 @@ RUN for dir in src/admin-server src/amqp-broker src/broker-core src/broker-serve
       mkdir -p "$dir/src" && echo '' > "$dir/src/lib.rs"; \
     done
 
-# Create protocol package with build.rs
+# Create protocol package with stub lib.rs (build.rs already copied above)
 RUN mkdir -p src/protocol/src && echo '' > src/protocol/src/lib.rs
-COPY src/protocol/build.rs ./src/protocol/
 
 # Generate recipe.json with full dependency graph
 RUN cargo chef prepare --recipe-path recipe.json

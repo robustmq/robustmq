@@ -55,15 +55,15 @@ GITHUB_API_URL="https://api.github.com"
 
 # Helper functions
 log_info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
+    echo -e "${BLUE}ℹ️  $1${NC}" >&2
 }
 
 log_success() {
-    echo -e "${GREEN}✅ $1${NC}"
+    echo -e "${GREEN}✅ $1${NC}" >&2
 }
 
 log_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
+    echo -e "${YELLOW}⚠️  $1${NC}" >&2
 }
 
 log_error() {
@@ -71,7 +71,7 @@ log_error() {
 }
 
 log_step() {
-    echo -e "${BOLD}${PURPLE}🚀 $1${NC}"
+    echo -e "${BOLD}${PURPLE}🚀 $1${NC}" >&2
 }
 
 show_help() {
@@ -452,6 +452,17 @@ upload_package() {
 
     log_step "Uploading package to GitHub release"
 
+    # Sanitize inputs: strip any whitespace/newlines that may have been
+    # captured from command substitution output
+    release_id=$(echo "$release_id" | tr -d '[:space:]')
+    local repo
+    repo=$(echo "$GITHUB_REPO" | tr -d '[:space:]')
+
+    if [ -z "$release_id" ]; then
+        log_error "release_id is empty - cannot build upload URL"
+        return 1
+    fi
+
     local tarball="$build_dir/robustmq-$version-$platform.tar.gz"
 
     if [ ! -f "$tarball" ]; then
@@ -459,14 +470,19 @@ upload_package() {
         return 1
     fi
 
-    local filename="$(basename "$tarball")"
-    local upload_url="https://uploads.github.com/repos/$GITHUB_REPO/releases/$release_id/assets?name=$filename"
+    local filename
+    filename="$(basename "$tarball")"
+    local upload_url="https://uploads.github.com/repos/${repo}/releases/${release_id}/assets?name=${filename}"
+
+    log_info "Release ID: ${release_id}"
+    log_info "Upload URL: ${upload_url}"
 
     local max_retries="${UPLOAD_MAX_RETRIES:-5}"
     local retry_delay="${UPLOAD_RETRY_DELAY:-15}"
     local attempt=1
-    local response
-    local http_code
+    local response=""
+    local http_code=""
+    local response_body=""
     local last_error=""
 
     # Wait briefly before first upload attempt to let GitHub's upload endpoint
@@ -484,15 +500,36 @@ upload_package() {
             log_info "Uploading $filename..."
         fi
 
-        # Use curl with HTTP status code capture
+        # Use curl with HTTP status code capture.
+        # Temporarily disable set -e so curl failures are handled manually
+        # instead of silently killing the script with curl's exit code.
+        set +e
         response=$(curl -s -w "HTTPSTATUS:%{http_code}" \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/gzip" \
             --data-binary "@$tarball" \
             "$upload_url")
+        curl_exit=$?
+        set -e
 
-        http_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
-        response_body=$(echo "$response" | sed 's/HTTPSTATUS:[0-9]*$//')
+        # Handle curl-level failure (network error, URL issue, etc.)
+        if [ $curl_exit -ne 0 ]; then
+            last_error="curl failed with exit code $curl_exit (network or URL error)"
+            log_warning "$last_error"
+            attempt=$((attempt + 1))
+            continue
+        fi
+
+        http_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2 || true)
+        response_body=$(echo "$response" | sed 's/HTTPSTATUS:[0-9]*$//' || true)
+
+        # Guard against empty http_code (should not happen after curl success)
+        if [ -z "$http_code" ]; then
+            last_error="Could not parse HTTP status code from response"
+            log_warning "$last_error (raw response: ${response:0:200})"
+            attempt=$((attempt + 1))
+            continue
+        fi
 
         # Check if upload was successful (HTTP 201 Created or 200 OK)
         if [ "$http_code" -eq 201 ] || [ "$http_code" -eq 200 ]; then
@@ -513,11 +550,11 @@ upload_package() {
             log_warning "$last_error: Rate limit exceeded, will retry with longer delay"
             retry_delay=$((retry_delay * 2))
         elif [ "$http_code" -eq 422 ]; then
-            # 422 can be transient right after release creation (upload endpoint not ready yet),
-            # or it can mean the asset already exists. Check the error message to distinguish.
+            # 422 can mean the asset already exists, or that the upload endpoint is not ready yet.
             local error_msg
             error_msg=$(echo "$response_body" | jq -r '.message // .error // ""' 2>/dev/null || echo "")
-            if echo "$error_msg" | grep -qi "already_exists\|already exists"; then
+            # Use grep -iE for portable extended regex (works on both GNU and BSD grep)
+            if echo "$error_msg" | grep -iE "already_exists|already exists" >/dev/null 2>&1; then
                 log_warning "Asset $filename already exists on this release, skipping upload"
                 return 0
             fi
@@ -603,13 +640,13 @@ main() {
     fi
 
     # Show configuration
-    echo -e "${BOLD}${BLUE}🚀 RobustMQ Release Script (Simplified)${NC}"
-    echo
+    echo -e "${BOLD}${BLUE}🚀 RobustMQ Release Script (Simplified)${NC}" >&2
+    echo >&2
     log_info "Version: $VERSION"
     log_info "Platform: $platform"
     log_info "Repository: $GITHUB_REPO"
     log_info "Upload Only: $UPLOAD_ONLY"
-    echo
+    echo >&2
 
     # Check dependencies and authentication
     log_step "Checking dependencies..."
@@ -621,21 +658,24 @@ main() {
     if [ "$UPLOAD_ONLY" = "true" ]; then
         # Upload-only mode: check if release exists
         log_step "Checking if release exists..."
-        local release_exists=$(check_release_exists "$VERSION")
-        
+        local release_exists
+        release_exists=$(check_release_exists "$VERSION")
+
         if [ "$release_exists" != "true" ]; then
             log_error "Release $VERSION does not exist"
             log_error "Upload-only mode requires an existing release"
             exit 1
         fi
-        
+
         release_id=$(get_release_id "$VERSION")
+        release_id=$(echo "$release_id" | tr -d '[:space:]')
         log_success "Release $VERSION exists (ID: $release_id)"
     else
         # Normal mode: create release if it doesn't exist
         log_step "Checking if release exists..."
-        local release_exists=$(check_release_exists "$VERSION")
-        
+        local release_exists
+        release_exists=$(check_release_exists "$VERSION")
+
         if [ "$release_exists" = "true" ]; then
             log_info "Release $VERSION already exists"
             release_id=$(get_release_id "$VERSION")
@@ -645,7 +685,10 @@ main() {
                 exit 1
             fi
         fi
+        release_id=$(echo "$release_id" | tr -d '[:space:]')
     fi
+
+    log_info "Using release ID: $release_id"
 
     # Build package
     build_package "$VERSION" "$platform"
