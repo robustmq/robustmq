@@ -38,6 +38,7 @@ incremental = true     # Enable incremental compilation
 rustflags = [
     "-C", "split-debuginfo=unpacked",
     "-C", "link-arg=-Wl,-dead_strip",  # Remove dead code at link time
+    "--cfg", "tokio_unstable",          # Enable Tokio RuntimeMetrics
 ]
 
 [target.aarch64-apple-darwin]
@@ -45,6 +46,7 @@ rustflags = [
 rustflags = [
     "-C", "split-debuginfo=unpacked",
     "-C", "link-arg=-Wl,-dead_strip",  # Remove dead code at link time
+    "--cfg", "tokio_unstable",          # Enable Tokio RuntimeMetrics
 ]
 
 # Linux-specific optimizations (for CI)
@@ -53,6 +55,7 @@ rustflags = [
 linker = "clang"
 rustflags = [
     "-C", "link-arg=-fuse-ld=lld",
+    "--cfg", "tokio_unstable",          # Enable Tokio RuntimeMetrics
 ]
 
 # Network settings

@@ -69,7 +69,7 @@ use storage_engine::{
     filesegment::write::WriteManager, group::OffsetManager, handler::adapter::StorageEngineHandler,
     StorageEngineParams, StorageEngineServer,
 };
-use system_info::start_monitor;
+use system_info::{start_monitor, start_runtime_monitor};
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
 
@@ -84,6 +84,10 @@ pub struct BrokerServer {
     /// meta_runtime.block_on() so all openraft internal tasks are spawned here,
     /// isolated from the gRPC server_runtime.
     meta_runtime: Runtime,
+    /// Dedicated runtime for MQTT broker tasks; build_broker_mqtt_params is called
+    /// inside broker_runtime.block_on() so tasks spawned during construction
+    /// (e.g. RetainMessageManager's send thread) land here, not on server_runtime.
+    broker_runtime: Runtime,
     place_params: MetaServiceServerParams,
     mqtt_params: MqttBrokerServerParams,
     engine_params: StorageEngineParams,
@@ -149,7 +153,11 @@ impl BrokerServer {
             broker_cache.clone(),
         ));
 
-        // Build MQTT broker params on server_runtime (unchanged).
+        // Create broker_runtime here so that tasks spawned during MQTT param
+        // construction (e.g. RetainMessageManager's send thread) land on
+        // broker_runtime rather than server_runtime.
+        let broker_runtime = create_runtime("broker-runtime", worker_threads);
+
         let mqtt_seh = engine_params.storage_engine_handler.clone();
         let mqtt_om = offset_manager.clone();
         let mqtt_cp = client_pool.clone();
@@ -158,7 +166,7 @@ impl BrokerServer {
         let mqtt_cm = connection_manager.clone();
         let mqtt_stop = main_stop_send.clone();
 
-        let mqtt_params = server_runtime.block_on(async move {
+        let mqtt_params = broker_runtime.block_on(async move {
             let storage_driver_manager =
                 match StorageDriverManager::new(mqtt_om.clone(), mqtt_seh).await {
                     Ok(storage) => Arc::new(storage),
@@ -191,6 +199,7 @@ impl BrokerServer {
             broker_cache,
             server_runtime,
             meta_runtime,
+            broker_runtime,
             place_params: meta_params,
             engine_params,
             config: config.clone(),
@@ -204,9 +213,6 @@ impl BrokerServer {
     }
 
     pub fn start(&self) {
-        let worker_threads =
-            calc_runtime_worker_threads(self.config.runtime.runtime_worker_threads);
-
         // start grpc server
         let place_params = self.place_params.clone();
         let mqtt_params = self.mqtt_params.clone();
@@ -308,13 +314,12 @@ impl BrokerServer {
             self.register_node(raw_stop_send.clone()).await;
         });
 
-        // start storage engine server + mqtt server on shared broker-runtime
-        let broker_runtime = create_runtime("broker-runtime", worker_threads);
-
+        // broker_runtime was created in new() so all MQTT and engine tasks
+        // (including those spawned during construction) are on the same runtime.
         if is_engine_node(&config.roles) {
             engine_stop_send = Some(stop_send.clone());
             let server = StorageEngineServer::new(self.engine_params.clone(), stop_send);
-            broker_runtime.spawn(Box::pin(async move {
+            self.broker_runtime.spawn(Box::pin(async move {
                 server.start().await;
             }));
             self.wait_for_engine_ready();
@@ -324,7 +329,7 @@ impl BrokerServer {
         if is_broker_node(&config.roles) {
             mqtt_stop_send = Some(stop_send.clone());
             let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop_send.clone());
-            broker_runtime.spawn(Box::pin(async move {
+            self.broker_runtime.spawn(Box::pin(async move {
                 server.start().await;
             }));
         }
@@ -343,9 +348,20 @@ impl BrokerServer {
         }));
 
         // system resource monitor
-        let raw_stop_send = stop_send;
+        let raw_stop_send = stop_send.clone();
         self.server_runtime.spawn(async move {
             start_monitor(raw_stop_send).await;
+        });
+
+        // Tokio runtime metrics monitor
+        let runtime_handles = vec![
+            ("server".to_string(), self.server_runtime.handle().clone()),
+            ("meta".to_string(), self.meta_runtime.handle().clone()),
+            ("broker".to_string(), self.broker_runtime.handle().clone()),
+        ];
+        let raw_stop_send = stop_send;
+        self.server_runtime.spawn(async move {
+            start_runtime_monitor(runtime_handles, raw_stop_send).await;
         });
 
         // awaiting stop
