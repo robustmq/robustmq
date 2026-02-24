@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod error;
+pub mod group;
 pub mod leadership;
 pub mod manager;
 pub mod network;
