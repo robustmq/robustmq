@@ -35,8 +35,8 @@ use tokio::sync::{broadcast, RwLock};
 use tokio::time::timeout;
 use tracing::{info, warn};
 
-const DEFAULT_RAFT_WRITE_TIMEOUT_SEC: u64 = 30;
-const SLOW_RAFT_WRITE_WARN_THRESHOLD_MS: f64 = 1000.0;
+pub const DEFAULT_RAFT_WRITE_TIMEOUT_SEC: u64 = 30;
+pub const SLOW_RAFT_WRITE_WARN_THRESHOLD_MS: f64 = 1000.0;
 
 #[derive(Clone, Debug)]
 pub enum RaftStateMachineName {
@@ -156,7 +156,7 @@ impl MultiRaftManager {
         Ok(())
     }
 
-    fn get_raft_write_timeout(&self) -> Duration {
+    pub fn get_raft_write_timeout() -> Duration {
         let conf = broker_config();
         Duration::from_secs(
             conf.meta_runtime
@@ -180,7 +180,7 @@ impl MultiRaftManager {
         let data_type = data.data_type.to_string();
         record_write_request(machine);
         let start = Instant::now();
-        let write_timeout = self.get_raft_write_timeout();
+        let write_timeout = MultiRaftManager::get_raft_write_timeout();
 
         let result = timeout(write_timeout, self.metadata_raft_node.client_write(data)).await;
 
@@ -236,7 +236,7 @@ impl MultiRaftManager {
         let data_type = data.data_type.to_string();
         record_write_request(machine);
         let start = Instant::now();
-        let write_timeout = self.get_raft_write_timeout();
+        let write_timeout = MultiRaftManager::get_raft_write_timeout();
 
         let result = timeout(write_timeout, self.offset_raft_node.client_write(data)).await;
 
@@ -292,7 +292,7 @@ impl MultiRaftManager {
         let data_type = data.data_type.to_string();
         record_write_request(machine);
         let start = Instant::now();
-        let write_timeout = self.get_raft_write_timeout();
+        let write_timeout = MultiRaftManager::get_raft_write_timeout();
 
         let result = timeout(write_timeout, self.mqtt_raft_node.client_write(data)).await;
 
@@ -448,7 +448,7 @@ impl MultiRaftManager {
         Ok(())
     }
 
-    async fn create_raft_node(
+    pub async fn create_raft_node(
         machine: &RaftStateMachineName,
         client_pool: &Arc<ClientPool>,
         rocksdb_engine_handler: &Arc<rocksdb_engine::rocksdb::RocksDBEngine>,
