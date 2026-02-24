@@ -100,13 +100,14 @@ impl MetaServiceServer {
     }
 
     async fn start_raft_machine(&self) {
-        // create raft node
         if let Err(e) = self.raft_manager.start().await {
             error!("Failed to start Raft manager: {}", e);
             std::process::exit(1);
         }
 
-        // monitor leader switch
+        self.raft_manager
+            .start_metrics_monitor(self.inner_stop.clone());
+
         monitoring_leader_transition(
             self.rocksdb_engine_handler.clone(),
             self.cache_manager.clone(),

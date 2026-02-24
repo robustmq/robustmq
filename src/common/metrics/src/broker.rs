@@ -24,13 +24,10 @@ pub struct RuntimeLabel {
     pub runtime: String,
 }
 
-// ── Tokio runtime: busy ratio ──────────────────────────────────────────────
-// Stored as centipercent (0-10000 = 0%-100.00%) to preserve two decimal
-// places in an i64 gauge. Grafana queries must divide by 100.
 register_gauge_metric!(
     TOKIO_RUNTIME_BUSY_RATIO,
     "tokio_runtime_busy_ratio",
-    "Worker-thread busy ratio for the named Tokio runtime (centipercent, divide by 100 for %)",
+    "Worker-thread busy ratio for the named Tokio runtime (0-100)",
     RuntimeLabel
 );
 

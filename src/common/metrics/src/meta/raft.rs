@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    counter_metric_inc, histogram_metric_observe, register_counter_metric,
-    register_histogram_metric_ms_with_default_buckets,
+    counter_metric_inc, gauge_metric_set, histogram_metric_observe, register_counter_metric,
+    register_gauge_metric, register_histogram_metric_ms_with_default_buckets,
 };
 use prometheus_client::encoding::EncodeLabelSet;
 
@@ -54,6 +54,27 @@ register_histogram_metric_ms_with_default_buckets!(
     RAFT_WRITE_DURATION,
     "raft_write_duration_ms",
     "Duration of write operations in milliseconds",
+    RaftLabel
+);
+
+register_gauge_metric!(
+    RAFT_APPLY_LAG,
+    "raft_apply_lag",
+    "Gap between last_log_index and last_applied index; non-zero means state machine is behind",
+    RaftLabel
+);
+
+register_gauge_metric!(
+    RAFT_LAST_LOG_INDEX,
+    "raft_last_log_index",
+    "Latest log index appended to the Raft log",
+    RaftLabel
+);
+
+register_gauge_metric!(
+    RAFT_LAST_APPLIED,
+    "raft_last_applied",
+    "Latest log index applied to the state machine",
     RaftLabel
 );
 
@@ -143,6 +164,22 @@ pub fn record_rpc_duration(machine: &str, rpc_type: &str, duration_ms: f64) {
         rpc_type: rpc_type.to_string(),
     };
     histogram_metric_observe!(RAFT_RPC_DURATION, duration_ms, label);
+}
+
+pub fn record_raft_apply_lag(machine: &str, last_log: u64, last_applied: u64) {
+    let label = RaftLabel {
+        machine: machine.to_string(),
+    };
+    let lag = last_log.saturating_sub(last_applied) as i64;
+    gauge_metric_set!(RAFT_APPLY_LAG, label, lag);
+    let label = RaftLabel {
+        machine: machine.to_string(),
+    };
+    gauge_metric_set!(RAFT_LAST_LOG_INDEX, label, last_log as i64);
+    let label = RaftLabel {
+        machine: machine.to_string(),
+    };
+    gauge_metric_set!(RAFT_LAST_APPLIED, label, last_applied as i64);
 }
 
 #[cfg(test)]

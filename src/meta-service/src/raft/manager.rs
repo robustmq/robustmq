@@ -22,7 +22,8 @@ use crate::raft::type_config::Node;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use common_metrics::meta::raft::{
-    record_write_duration, record_write_failure, record_write_request, record_write_success,
+    record_raft_apply_lag, record_write_duration, record_write_failure, record_write_request,
+    record_write_success,
 };
 use grpc_clients::pool::ClientPool;
 use openraft::raft::ClientWriteResponse;
@@ -30,7 +31,7 @@ use openraft::{Config, Raft};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, RwLock};
 use tokio::time::timeout;
 use tracing::{info, warn};
 
@@ -330,6 +331,37 @@ impl MultiRaftManager {
                 )))
             }
         }
+    }
+
+    pub fn start_metrics_monitor(&self, stop_send: broadcast::Sender<bool>) {
+        let metadata_node = self.metadata_raft_node.clone();
+        let offset_node = self.offset_raft_node.clone();
+        let mqtt_node = self.mqtt_raft_node.clone();
+
+        tokio::spawn(async move {
+            let mut stop_recv = stop_send.subscribe();
+            let mut ticker = tokio::time::interval(Duration::from_secs(15));
+
+            loop {
+                tokio::select! {
+                    _ = ticker.tick() => {
+                        for (machine, node) in [
+                            (RaftStateMachineName::METADATA.as_str(), &metadata_node),
+                            (RaftStateMachineName::OFFSET.as_str(), &offset_node),
+                            (RaftStateMachineName::MQTT.as_str(), &mqtt_node),
+                        ] {
+                            let m = node.metrics().borrow().clone();
+                            let last_log = m.last_log_index.unwrap_or(0);
+                            let last_applied = m.last_applied.map(|l| l.index).unwrap_or(0);
+                            record_raft_apply_lag(machine, last_log, last_applied);
+                        }
+                    }
+                    val = stop_recv.recv() => {
+                        if matches!(val, Ok(true) | Err(_)) { break; }
+                    }
+                }
+            }
+        });
     }
 
     pub async fn shutdown(&self) -> Result<(), CommonError> {

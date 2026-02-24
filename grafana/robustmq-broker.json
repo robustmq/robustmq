@@ -31,6 +31,8 @@
         "y": 0
       },
       "id": 806,
+      "title": "📊 Resource",
+      "type": "row",
       "panels": [
         {
           "datasource": {
@@ -1510,9 +1512,7 @@
           "title": "Retained Messages",
           "type": "timeseries"
         }
-      ],
-      "title": "Resource",
-      "type": "row"
+      ]
     },
     {
       "collapsed": true,
@@ -5844,6 +5844,198 @@
           ],
           "title": "Raft RPC Latency (by Machine / RPC Type)",
           "type": "timeseries"
+        },
+        {
+          "id": 609,
+          "title": "Raft Apply Lag (log - applied)",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "min": 0,
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "raft_apply_lag{machine=\"metadata\",job=~\"$job\"}",
+              "legendFormat": "metadata",
+              "refId": "M"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "raft_apply_lag{machine=\"mqtt\",job=~\"$job\"}",
+              "legendFormat": "mqtt",
+              "refId": "M"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "raft_apply_lag{machine=\"offset\",job=~\"$job\"}",
+              "legendFormat": "offset",
+              "refId": "O"
+            }
+          ]
+        },
+        {
+          "id": 610,
+          "title": "Raft Last Log Index",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "min": 0,
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "raft_last_log_index{machine=\"metadata\",job=~\"$job\"}",
+              "legendFormat": "metadata",
+              "refId": "M"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "raft_last_log_index{machine=\"mqtt\",job=~\"$job\"}",
+              "legendFormat": "mqtt",
+              "refId": "M"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "raft_last_log_index{machine=\"offset\",job=~\"$job\"}",
+              "legendFormat": "offset",
+              "refId": "O"
+            }
+          ]
+        },
+        {
+          "id": 611,
+          "title": "Raft Last Applied Index",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "min": 0,
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "raft_last_applied{machine=\"metadata\",job=~\"$job\"}",
+              "legendFormat": "metadata",
+              "refId": "M"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "raft_last_applied{machine=\"mqtt\",job=~\"$job\"}",
+              "legendFormat": "mqtt",
+              "refId": "M"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "expr": "raft_last_applied{machine=\"offset\",job=~\"$job\"}",
+              "legendFormat": "offset",
+              "refId": "O"
+            }
+          ]
         }
       ],
       "title": "📦 Raft Machine",
@@ -8780,7 +8972,7 @@
       "id": 1100,
       "title": "⚙️ Tokio Runtimes",
       "type": "row",
-      "collapsed": false,
+      "collapsed": true,
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -8813,7 +9005,8 @@
                 "lineWidth": 1,
                 "fillOpacity": 10
               },
-              "min": 0
+              "min": 0,
+              "max": 100
             },
             "overrides": []
           },
@@ -8832,7 +9025,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "tokio_runtime_busy_ratio{runtime=\"server\",job=~\"$job\"} / 100",
+              "expr": "tokio_runtime_busy_ratio{runtime=\"server\"}",
               "legendFormat": "server",
               "refId": "S"
             },
@@ -8841,7 +9034,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "tokio_runtime_busy_ratio{runtime=\"meta\",job=~\"$job\"} / 100",
+              "expr": "tokio_runtime_busy_ratio{runtime=\"meta\"}",
               "legendFormat": "meta",
               "refId": "M"
             },
@@ -8850,7 +9043,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "tokio_runtime_busy_ratio{runtime=\"broker\",job=~\"$job\"} / 100",
+              "expr": "tokio_runtime_busy_ratio{runtime=\"broker\"}",
               "legendFormat": "broker",
               "refId": "B"
             }
@@ -8896,7 +9089,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "tokio_runtime_queue_depth{runtime=\"server\",job=~\"$job\"}",
+              "expr": "tokio_runtime_queue_depth{runtime=\"server\"}",
               "legendFormat": "server",
               "refId": "S"
             },
@@ -8905,7 +9098,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "tokio_runtime_queue_depth{runtime=\"meta\",job=~\"$job\"}",
+              "expr": "tokio_runtime_queue_depth{runtime=\"meta\"}",
               "legendFormat": "meta",
               "refId": "M"
             },
@@ -8914,7 +9107,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "tokio_runtime_queue_depth{runtime=\"broker\",job=~\"$job\"}",
+              "expr": "tokio_runtime_queue_depth{runtime=\"broker\"}",
               "legendFormat": "broker",
               "refId": "B"
             }
@@ -8960,7 +9153,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "tokio_runtime_alive_tasks{runtime=\"server\",job=~\"$job\"}",
+              "expr": "tokio_runtime_alive_tasks{runtime=\"server\"}",
               "legendFormat": "server",
               "refId": "S"
             },
@@ -8969,7 +9162,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "tokio_runtime_alive_tasks{runtime=\"meta\",job=~\"$job\"}",
+              "expr": "tokio_runtime_alive_tasks{runtime=\"meta\"}",
               "legendFormat": "meta",
               "refId": "M"
             },
@@ -8978,7 +9171,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "tokio_runtime_alive_tasks{runtime=\"broker\",job=~\"$job\"}",
+              "expr": "tokio_runtime_alive_tasks{runtime=\"broker\"}",
               "legendFormat": "broker",
               "refId": "B"
             }

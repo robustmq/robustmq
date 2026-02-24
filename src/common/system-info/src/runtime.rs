@@ -60,10 +60,12 @@ impl RuntimeSnapshot {
             0.0
         };
 
-        // Stored as centipercent (0-10000); Grafana queries divide by 100.
-        record_runtime_busy_ratio_set(&self.name, (busy_ratio * 10_000.0).round() as i64);
-        record_runtime_queue_depth_set(&self.name, m.global_queue_depth() as i64);
-        record_runtime_alive_tasks_set(&self.name, m.num_alive_tasks() as i64);
+        let alive = m.num_alive_tasks();
+        let queue = m.global_queue_depth();
+
+        record_runtime_busy_ratio_set(&self.name, (busy_ratio * 100.0).round() as i64);
+        record_runtime_queue_depth_set(&self.name, queue as i64);
+        record_runtime_alive_tasks_set(&self.name, alive as i64);
 
         self.prev_busy = (0..n).map(|i| m.worker_total_busy_duration(i)).collect();
         self.prev_time = now;
