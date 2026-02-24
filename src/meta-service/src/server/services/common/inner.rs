@@ -50,17 +50,7 @@ pub async fn cluster_status_by_req(
     for (name, node) in raft_manager.data.all_nodes() {
         results.insert(name.clone(), node.metrics().borrow().clone());
     }
-    if let Some(node) = raft_manager.metadata.get_node("metadata_0") {
-        results.insert("meta".to_string(), node.metrics().borrow().clone());
-    }
-    if let Some(node) = raft_manager.offset.get_node("offset_0") {
-        results.insert("offset".to_string(), node.metrics().borrow().clone());
-    }
-    if let Some(node) = raft_manager.data.get_node("data_0") {
-        results.insert("mqtt".to_string(), node.metrics().borrow().clone());
-    }
     let content = serde_json::to_string(&results).map_err(MetaServiceError::SerdeJsonError)?;
-
     Ok(ClusterStatusReply { content })
 }
 

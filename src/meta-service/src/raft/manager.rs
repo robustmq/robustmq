@@ -331,8 +331,9 @@ impl MultiRaftManager {
         route: &Arc<DataRoute>,
     ) -> Result<Raft<TypeConfig>, CommonError> {
         let config = Config {
-            heartbeat_interval: 10,
-            election_timeout_min: 15,
+            heartbeat_interval: 100,
+            election_timeout_min: 1000,
+            election_timeout_max: 2000,
             ..Default::default()
         };
 

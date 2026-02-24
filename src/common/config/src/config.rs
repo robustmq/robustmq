@@ -286,7 +286,7 @@ pub struct MetaRuntime {
 }
 
 fn default_raft_sharded_group_num() -> u32 {
-    8
+    1
 }
 
 impl Default for MetaRuntime {

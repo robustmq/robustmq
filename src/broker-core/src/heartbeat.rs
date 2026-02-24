@@ -116,17 +116,17 @@ pub async fn check_meta_service_status(client_pool: Arc<ClientPool>) {
         let cluster_storage = ClusterStorage::new(client_pool.clone());
         let data = cluster_storage.meta_cluster_status().await?;
 
-        // The status JSON is a map of Raft group name -> MetaServiceStatus,
-        // e.g. {"mqtt": {...}, "offset": {...}, "meta": {...}}.
-        // The cluster is ready only when every group is ready.
-        let groups: std::collections::HashMap<String, MetaServiceStatus> =
+        // The status JSON is a map of raft shard name -> MetaServiceStatus,
+        // e.g. {"metadata_0": {...}, "offset_3": {...}, "data_7": {...}}.
+        // The cluster is ready only when every shard is ready.
+        let shard_statuses: std::collections::BTreeMap<String, MetaServiceStatus> =
             serde_json::from_str(&data)?;
 
-        if groups.is_empty() {
+        if shard_statuses.is_empty() {
             return Ok(None);
         }
 
-        let not_ready: Vec<String> = groups
+        let not_ready: Vec<String> = shard_statuses
             .iter()
             .filter(|(_, s)| !s.is_ready())
             .map(|(name, s)| {
@@ -138,20 +138,22 @@ pub async fn check_meta_service_status(client_pool: Arc<ClientPool>) {
             .collect();
 
         if not_ready.is_empty() {
-            let summary: Vec<String> = groups
+            let summary: Vec<String> = shard_statuses
                 .iter()
                 .map(|(name, s)| format!("{}→node{}", name, s.current_leader))
                 .collect();
             info!(
-                "Meta Service cluster is ready. All groups have elected a leader: [{}]",
+                "Meta Service cluster is ready. All raft shards have elected a leader: [{}]",
                 summary.join(", ")
             );
             return Ok(Some(true));
         }
 
+        let total = shard_statuses.len();
+        let ready = total - not_ready.len();
         info!(
-            "Meta Service cluster not ready yet, waiting for groups: {:?}",
-            not_ready
+            "Meta Service cluster not ready yet: {}/{} shards ready. Not ready: {:?}",
+            ready, total, not_ready
         );
         Ok(None)
     };
