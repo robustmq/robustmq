@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::command::ArcCommandAdapter;
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
-use crate::common::handler::handler_process;
 use crate::common::packet::RequestPackage;
-use crate::context::ProcessorConfig;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
 use axum::response::Response;
@@ -46,31 +43,25 @@ pub const ROUTE_ROOT: &str = "/mqtt";
 pub struct WebSocketServerState {
     pub ws_port: u32,
     pub wss_port: u32,
-    pub command: ArcCommandAdapter,
     pub connection_manager: Arc<ConnectionManager>,
     pub stop_sx: broadcast::Sender<bool>,
     pub request_channel: Arc<RequestChannel>,
-    pub proc_config: ProcessorConfig,
 }
 
 impl WebSocketServerState {
     pub fn new(
         ws_port: u32,
         wss_port: u32,
-        command: ArcCommandAdapter,
         connection_manager: Arc<ConnectionManager>,
         stop_sx: broadcast::Sender<bool>,
-        proc_config: ProcessorConfig,
+        request_channel: Arc<RequestChannel>,
     ) -> Self {
-        let request_channel = Arc::new(RequestChannel::new(proc_config.channel_size));
         Self {
             ws_port,
             wss_port,
-            command,
             connection_manager,
             stop_sx,
             request_channel,
-            proc_config,
         }
     }
 }
@@ -87,8 +78,6 @@ impl WebSocketServer {
     }
 
     pub async fn start_ws(&self) -> ResultCommonError {
-        self.start_handlers();
-
         let ip: SocketAddr = format!("0.0.0.0:{}", self.state.ws_port).parse()?;
         let app = routes_v1(self.state.clone());
 
@@ -100,8 +89,6 @@ impl WebSocketServer {
     }
 
     pub async fn start_wss(&self) -> ResultCommonError {
-        self.start_handlers();
-
         let ip: SocketAddr = format!("0.0.0.0:{}", self.state.wss_port).parse()?;
         let app = routes_v1(self.state.clone());
 
@@ -120,17 +107,6 @@ impl WebSocketServer {
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .await?;
         Ok(())
-    }
-
-    fn start_handlers(&self) {
-        handler_process(
-            self.state.proc_config.handler_process_num,
-            self.state.connection_manager.clone(),
-            self.state.command.clone(),
-            self.state.request_channel.clone(),
-            NetworkConnectionType::WebSocket,
-            self.state.stop_sx.clone(),
-        );
     }
 }
 
@@ -200,7 +176,12 @@ async fn handle_socket(
                                         RobustMQCodecWrapper::KAFKA(pkg) => RobustMQPacket::KAFKA(pkg.packet),
                                         RobustMQCodecWrapper::StorageEngine(pkg) => RobustMQPacket::StorageEngine(pkg),
                                     };
-                                    let package = RequestPackage::new(connection_id, addr, robust_packet);
+                                    let package = RequestPackage::new(
+                                        connection_id,
+                                        addr,
+                                        robust_packet,
+                                        NetworkConnectionType::WebSocket,
+                                    );
                                     request_channel.send(package).await;
                                 }
                                 Ok(None) => {}

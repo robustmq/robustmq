@@ -47,6 +47,11 @@ pub async fn read_packet(
         record_packet_received_metrics(connection, mqtt_pack, network_type);
     }
 
-    let package = RequestPackage::new(connection.connection_id, connection.addr, pack);
+    let package = RequestPackage::new(
+        connection.connection_id,
+        connection.addr,
+        pack,
+        network_type.clone(),
+    );
     request_channel.send(package).await;
 }

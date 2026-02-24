@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use common_base::tools::now_millis;
+use metadata_struct::connection::NetworkConnectionType;
 use protocol::{
     mqtt::common::MqttPacket,
     robust::{
@@ -28,15 +29,22 @@ pub struct RequestPackage {
     pub addr: SocketAddr,
     pub packet: RobustMQPacket,
     pub receive_ms: u128,
+    pub network_type: NetworkConnectionType,
 }
 
 impl RequestPackage {
-    pub fn new(connection_id: u64, addr: SocketAddr, packet: RobustMQPacket) -> Self {
+    pub fn new(
+        connection_id: u64,
+        addr: SocketAddr,
+        packet: RobustMQPacket,
+        network_type: NetworkConnectionType,
+    ) -> Self {
         Self {
             connection_id,
             addr,
             packet,
             receive_ms: now_millis(),
+            network_type,
         }
     }
 }

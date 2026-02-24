@@ -25,7 +25,9 @@ use common_config::broker::broker_config;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
+use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
+use network_server::common::handler::handler_process;
 use network_server::context::{ProcessorConfig, ServerContext};
 use network_server::quic::server::QuicServer;
 use network_server::tcp::server::TcpServer;
@@ -44,6 +46,12 @@ pub struct Server {
     tls_server: TcpServer,
     ws_server: WebSocketServer,
     quic_server: QuicServer,
+    // shared handler pool state
+    handler_process_num: usize,
+    connection_manager: Arc<ConnectionManager>,
+    command: network_server::command::ArcCommandAdapter,
+    request_channel: Arc<RequestChannel>,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 #[derive(Clone)]
@@ -86,50 +94,65 @@ impl Server {
             channel_size: conf.network.queue_size,
         };
 
-        let mut context = ServerContext {
+        // One shared request channel for all protocol acceptors.
+        let request_channel = Arc::new(RequestChannel::new(proc_config.channel_size));
+
+        let mut server_context = ServerContext {
             connection_manager: context.connection_manager.clone(),
             client_pool: context.client_pool.clone(),
             command: command.clone(),
             network_type: NetworkConnectionType::Tcp,
             proc_config,
             stop_sx: context.stop_sx.clone(),
-            broker_cache: context.broker_cache,
+            broker_cache: context.broker_cache.clone(),
+            request_channel: request_channel.clone(),
         };
 
         let name = "MQTT".to_string();
-        // TCP Server
-        let tcp_server = TcpServer::new(name.clone(), context.clone());
+        let tcp_server = TcpServer::new(name.clone(), server_context.clone());
 
-        // Tls Server
-        context.network_type = NetworkConnectionType::Tls;
-        let tls_server = TcpServer::new(name.clone(), context.clone());
+        server_context.network_type = NetworkConnectionType::Tls;
+        let tls_server = TcpServer::new(name.clone(), server_context.clone());
 
-        // Websocket Server
         let ws_server = WebSocketServer::new(
             name.clone(),
             WebSocketServerState::new(
                 conf.mqtt_server.websocket_port,
                 conf.mqtt_server.websockets_port,
-                command.clone(),
                 context.connection_manager.clone(),
                 context.stop_sx.clone(),
-                proc_config,
+                request_channel.clone(),
             ),
         );
 
-        // QuicServer
-        context.network_type = NetworkConnectionType::QUIC;
-        let quic_server = QuicServer::new(name.clone(), context);
+        server_context.network_type = NetworkConnectionType::QUIC;
+        let quic_server = QuicServer::new(name.clone(), server_context);
+
         Server {
             tcp_server,
             tls_server,
             ws_server,
             quic_server,
+            handler_process_num: proc_config.handler_process_num,
+            connection_manager: context.connection_manager,
+            command,
+            request_channel,
+            stop_sx: context.stop_sx,
         }
     }
 
     pub async fn start(&self) -> ResultMqttBrokerError {
         let conf = broker_config();
+
+        // Start the shared handler pool once for all protocols.
+        handler_process(
+            self.handler_process_num,
+            self.connection_manager.clone(),
+            self.command.clone(),
+            self.request_channel.clone(),
+            self.stop_sx.clone(),
+        );
+
         self.tcp_server
             .start(false, conf.mqtt_server.tcp_port)
             .await?;

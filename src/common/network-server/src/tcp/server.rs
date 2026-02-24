@@ -13,9 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    command::ArcCommandAdapter,
     common::{
-        channel::RequestChannel, connection_manager::ConnectionManager, handler::handler_process,
+        channel::RequestChannel, connection_manager::ConnectionManager,
         tcp_acceptor::acceptor_process, tls_acceptor::acceptor_tls_process,
     },
     context::{ProcessorConfig, ServerContext},
@@ -32,18 +31,14 @@ use tokio::sync::broadcast;
 use tokio::time::sleep;
 use tracing::{error, info};
 
-// U: codec: encoder + decoder
-// S: message storage adapter
 pub struct TcpServer {
     name: String,
-    command: ArcCommandAdapter,
     connection_manager: Arc<ConnectionManager>,
     proc_config: ProcessorConfig,
     network_type: NetworkConnectionType,
     request_channel: Arc<RequestChannel>,
     acceptor_stop_send: broadcast::Sender<bool>,
     broker_cache: Arc<BrokerCacheManager>,
-    stop_sx: broadcast::Sender<bool>,
 }
 
 impl TcpServer {
@@ -52,16 +47,13 @@ impl TcpServer {
             "network type:{}, process thread num: {:?}",
             context.network_type, context.proc_config
         );
-        let request_channel = Arc::new(RequestChannel::new(context.proc_config.channel_size));
         let (acceptor_stop_send, _) = broadcast::channel(2);
         Self {
             name,
             network_type: context.network_type,
-            command: context.command,
             connection_manager: context.connection_manager,
             proc_config: context.proc_config,
-            stop_sx: context.stop_sx,
-            request_channel,
+            request_channel: context.request_channel,
             acceptor_stop_send,
             broker_cache: context.broker_cache.clone(),
         }
@@ -96,15 +88,6 @@ impl TcpServer {
             )
             .await;
         }
-
-        handler_process(
-            self.proc_config.handler_process_num,
-            self.connection_manager.clone(),
-            self.command.clone(),
-            self.request_channel.clone(),
-            self.network_type.clone(),
-            self.stop_sx.clone(),
-        );
 
         self.record_pre_server_metrics();
         info!(

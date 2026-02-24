@@ -47,14 +47,12 @@ pub fn handler_process(
     connection_manager: Arc<ConnectionManager>,
     command: ArcCommandAdapter,
     request_channel: Arc<RequestChannel>,
-    network_type: NetworkConnectionType,
     stop_sx: broadcast::Sender<bool>,
 ) {
     for index in 1..=handler_process_num {
         let raw_connect_manager = connection_manager.clone();
         let raw_command = command.clone();
         let mut raw_stop_rx = stop_sx.subscribe();
-        let raw_network_type = network_type.clone();
         let receiver = request_channel.receiver.clone();
         let channel_size = request_channel.channel_size;
 
@@ -95,14 +93,14 @@ pub fn handler_process(
                         match val {
                             Ok(packet) => {
                                 let queue_wait_ms = dequeue_ms.saturating_sub(packet.receive_ms);
-                                metrics_handler_queue_wait_ms(&raw_network_type, queue_wait_ms as f64);
+                                let network_type = &packet.network_type;
+                                metrics_handler_queue_wait_ms(network_type, queue_wait_ms as f64);
 
                                 match tokio::time::timeout(
                                     Duration::from_secs(HANDLER_APPLY_TIMEOUT_SECS),
                                     handle_packet(
                                         &raw_connect_manager,
                                         &raw_command,
-                                        &raw_network_type,
                                         &packet,
                                         queue_wait_ms,
                                         index,
@@ -112,7 +110,7 @@ pub fn handler_process(
                                 {
                                     Ok(()) => {}
                                     Err(_) => {
-                                        metrics_handler_timeout_count(&raw_network_type);
+                                        metrics_handler_timeout_count(network_type);
                                         error!(
                                             connection_id = packet.connection_id,
                                             addr = %packet.addr,
@@ -141,11 +139,11 @@ pub fn handler_process(
 async fn handle_packet(
     connection_manager: &Arc<ConnectionManager>,
     command: &ArcCommandAdapter,
-    network_type: &NetworkConnectionType,
     packet: &crate::common::packet::RequestPackage,
     queue_wait_ms: u128,
     handler_index: usize,
 ) {
+    let network_type = &packet.network_type;
     if let Some(connect) = connection_manager.get_connect(packet.connection_id) {
         // apply
         let apply_start = now_millis();
@@ -154,10 +152,10 @@ async fn handle_packet(
         metrics_handler_apply_ms(network_type, apply_ms as f64);
         metrics_handler_instance_apply_ms(handler_index, apply_ms as f64);
 
-        // write response
+        // write response using the connection's actual network type
         if let Some(resp) = response_data {
             let write_start = now_millis();
-            write_response(connection_manager, network_type, &resp).await;
+            write_response(connection_manager, &connect.connection_type, &resp).await;
             let write_ms = now_millis().saturating_sub(write_start);
             metrics_handler_write_ms(network_type, write_ms as f64);
         }

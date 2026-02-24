@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::channel::RequestChannel;
-use crate::common::handler::handler_process;
 use crate::common::tls_acceptor::{load_certs, load_key};
 use crate::context::ServerContext;
 use crate::quic::acceptor::acceptor_process;
@@ -43,29 +41,18 @@ impl QuicServer {
         let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port as u16));
         let server = Endpoint::server(config, addr)?;
         let arc_quic_endpoint = Arc::new(server);
-        let network_type = NetworkConnectionType::QUIC;
-        let request_channel = Arc::new(RequestChannel::new(self.context.proc_config.channel_size));
         let codec = RobustMQCodec::new();
         acceptor_process(
             self.context.proc_config.accept_thread_num,
             self.context.connection_manager.clone(),
             self.context.broker_cache.clone(),
             arc_quic_endpoint.clone(),
-            request_channel.clone(),
-            network_type.clone(),
+            self.context.request_channel.clone(),
+            NetworkConnectionType::QUIC,
             codec.clone(),
             self.context.stop_sx.clone(),
         )
         .await;
-
-        handler_process(
-            self.context.proc_config.handler_process_num,
-            self.context.connection_manager.clone(),
-            self.context.command.clone(),
-            request_channel.clone(),
-            NetworkConnectionType::QUIC,
-            self.context.stop_sx.clone(),
-        );
 
         info!(
             "{} Quic Server started successfully, addr: {}",

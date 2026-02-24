@@ -22,8 +22,10 @@ use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::{
-    command::Command,
-    common::connection_manager::ConnectionManager,
+    command::{ArcCommandAdapter, Command},
+    common::{
+        channel::RequestChannel, connection_manager::ConnectionManager, handler::handler_process,
+    },
     context::{ProcessorConfig, ServerContext},
     tcp::server::TcpServer,
 };
@@ -48,6 +50,11 @@ pub struct ServerParams {
 
 pub struct Server {
     tcp_server: TcpServer,
+    handler_process_num: usize,
+    connection_manager: Arc<ConnectionManager>,
+    command: ArcCommandAdapter,
+    request_channel: Arc<RequestChannel>,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 impl Server {
@@ -70,6 +77,8 @@ impl Server {
             channel_size: conf.network.queue_size,
         };
 
+        let request_channel = Arc::new(RequestChannel::new(proc_config.channel_size));
+
         let context: ServerContext = ServerContext {
             connection_manager: params.connection_manager.clone(),
             client_pool: params.client_pool.clone(),
@@ -78,22 +87,38 @@ impl Server {
             proc_config,
             stop_sx: stop_sx.clone(),
             broker_cache: params.broker_cache.clone(),
+            request_channel: request_channel.clone(),
         };
 
-        // TCP Server
         let name = "Storage Engine".to_string();
-        let tcp_server = TcpServer::new(name.clone(), context.clone());
-        Server { tcp_server }
+        let tcp_server = TcpServer::new(name.clone(), context);
+        Server {
+            tcp_server,
+            handler_process_num: proc_config.handler_process_num,
+            connection_manager: params.connection_manager,
+            command,
+            request_channel,
+            stop_sx,
+        }
     }
 
     pub async fn start(&self) {
         let conf = broker_config();
+
+        handler_process(
+            self.handler_process_num,
+            self.connection_manager.clone(),
+            self.command.clone(),
+            self.request_channel.clone(),
+            self.stop_sx.clone(),
+        );
+
         if let Err(e) = self
             .tcp_server
             .start(false, conf.storage_runtime.tcp_port)
             .await
         {
-            error!("Storage Engine tCP server start fail, error:{}", e);
+            error!("Storage Engine TCP server start fail, error:{}", e);
         }
     }
 }
