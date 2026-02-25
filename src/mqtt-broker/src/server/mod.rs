@@ -15,6 +15,7 @@
 use crate::core::command::create_command;
 use crate::core::retain::RetainMessageManager;
 use crate::core::tool::ResultMqttBrokerError;
+use crate::storage::session::SessionBatcher;
 use crate::{
     core::{cache::MQTTCacheManager, command::CommandContext},
     security::AuthDriver,
@@ -64,6 +65,7 @@ pub struct TcpServerContext {
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub retain_message_manager: Arc<RetainMessageManager>,
     pub client_pool: Arc<ClientPool>,
+    pub session_batcher: Arc<SessionBatcher>,
     pub stop_sx: broadcast::Sender<bool>,
     pub auth_driver: Arc<AuthDriver>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -79,6 +81,7 @@ impl Server {
             delay_message_manager: context.delay_message_manager.clone(),
             subscribe_manager: context.subscribe_manager.clone(),
             client_pool: context.client_pool.clone(),
+            session_batcher: context.session_batcher.clone(),
             connection_manager: context.connection_manager.clone(),
             schema_manager: context.schema_manager.clone(),
             auth_driver: context.auth_driver.clone(),

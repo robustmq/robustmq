@@ -16,7 +16,7 @@ use super::cache::MQTTCacheManager;
 use super::error::MqttBrokerError;
 use super::last_will::last_will_delay_interval;
 use crate::core::tool::ResultMqttBrokerError;
-use crate::storage::session::SessionStorage;
+use crate::storage::session::{SessionBatcher, SessionStorage};
 use crate::subscribe::manager::SubscribeManager;
 use common_config::broker::broker_config;
 use common_metrics::mqtt::session::record_mqtt_session_created;
@@ -36,6 +36,7 @@ pub struct BuildSessionContext {
     pub last_will: Option<LastWill>,
     pub last_will_properties: Option<LastWillProperties>,
     pub client_pool: Arc<ClientPool>,
+    pub session_batcher: Arc<SessionBatcher>,
     pub cache_manager: Arc<MQTTCacheManager>,
     pub subscribe_manager: Arc<SubscribeManager>,
 }
@@ -73,7 +74,7 @@ pub async fn session_process(
             save_session(
                 session.clone(),
                 context.client_id.clone(),
-                &context.client_pool,
+                &context.session_batcher,
             )
             .await?;
         } else {
@@ -97,7 +98,7 @@ pub async fn session_process(
         save_session(
             session.clone(),
             context.client_id.clone(),
-            &context.client_pool,
+            &context.session_batcher,
         )
         .await?;
         return Ok((session, false));
@@ -107,7 +108,7 @@ pub async fn session_process(
     save_session(
         session.clone(),
         context.client_id.clone(),
-        &context.client_pool,
+        &context.session_batcher,
     )
     .await?;
     Ok((session, true))
@@ -150,12 +151,9 @@ fn is_persist_session(_client_id: &str) -> bool {
 async fn save_session(
     session: MqttSession,
     client_id: String,
-    client_pool: &Arc<ClientPool>,
+    session_batcher: &Arc<SessionBatcher>,
 ) -> ResultMqttBrokerError {
-    let session_storage = SessionStorage::new(client_pool.clone());
-    session_storage
-        .set_session(client_id.clone(), &session)
-        .await?;
+    session_batcher.set_session(client_id, &session).await?;
     record_mqtt_session_created();
     Ok(())
 }

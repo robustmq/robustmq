@@ -17,6 +17,7 @@ use super::connection::disconnect_connection;
 use crate::core::connection::build_server_disconnect_conn_context;
 use crate::core::error::MqttBrokerError;
 use crate::mqtt::disconnect::build_distinct_packet;
+use crate::storage::session::SessionBatcher;
 use crate::subscribe::manager::SubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
@@ -39,6 +40,7 @@ use tracing::{debug, info, warn};
 pub struct TrySendDistinctPacketContext {
     pub cache_manager: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
+    pub session_batcher: Arc<SessionBatcher>,
     pub connection_manager: Arc<ConnectionManager>,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub network: NetworkConnection,
@@ -52,6 +54,7 @@ pub struct TrySendDistinctPacketContext {
 pub struct ClientKeepAlive {
     cache_manager: Arc<MQTTCacheManager>,
     client_pool: Arc<ClientPool>,
+    session_batcher: Arc<SessionBatcher>,
     connection_manager: Arc<ConnectionManager>,
     subscribe_manager: Arc<SubscribeManager>,
 }
@@ -59,12 +62,14 @@ pub struct ClientKeepAlive {
 impl ClientKeepAlive {
     pub fn new(
         client_pool: Arc<ClientPool>,
+        session_batcher: Arc<SessionBatcher>,
         connection_manager: Arc<ConnectionManager>,
         subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<MQTTCacheManager>,
     ) -> Self {
         ClientKeepAlive {
             client_pool,
+            session_batcher,
             connection_manager,
             subscribe_manager,
             cache_manager,
@@ -106,6 +111,7 @@ impl ClientKeepAlive {
                     let context = TrySendDistinctPacketContext {
                         cache_manager: self.cache_manager.clone(),
                         client_pool: self.client_pool.clone(),
+                        session_batcher: self.session_batcher.clone(),
                         connection_manager: self.connection_manager.clone(),
                         subscribe_manager: self.subscribe_manager.clone(),
                         network: network.clone(),
@@ -219,6 +225,7 @@ async fn try_send_distinct_packet(
     let context = build_server_disconnect_conn_context(
         &context.cache_manager,
         &context.client_pool,
+        &context.session_batcher,
         &context.connection_manager,
         &context.subscribe_manager,
         context.connect_id,
@@ -260,6 +267,7 @@ mod test {
     use super::keep_live_time;
     use crate::core::keep_alive::{client_keep_live_time, ClientKeepAlive};
     use crate::core::tool::test_build_mqtt_cache_manager;
+    use crate::storage::session::SessionBatcher;
     use crate::subscribe::manager::SubscribeManager;
     use common_base::tools::{local_hostname, now_second};
 
@@ -308,8 +316,10 @@ mod test {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let connection_manager = Arc::new(ConnectionManager::new());
         let subscribe_manager = Arc::new(SubscribeManager::new());
+        let session_batcher = SessionBatcher::new();
         let alive = ClientKeepAlive::new(
             client_pool,
+            session_batcher,
             connection_manager,
             subscribe_manager,
             cache_manager.clone(),

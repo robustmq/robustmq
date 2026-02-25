@@ -46,6 +46,7 @@ use mqtt_broker::{
     broker::{MqttBrokerServer, MqttBrokerServerParams},
     core::{cache::MQTTCacheManager as MqttCacheManager, retain::RetainMessageManager},
     security::AuthDriver,
+    storage::session::SessionBatcher,
     subscribe::{manager::SubscribeManager, PushManager},
 };
 use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
@@ -452,9 +453,12 @@ impl BrokerServer {
             client_pool.clone(),
         ));
 
+        let session_batcher = SessionBatcher::new();
+
         Ok(MqttBrokerServerParams {
             cache_manager,
             client_pool,
+            session_batcher,
             storage_driver_manager,
             subscribe_manager,
             connection_manager,

@@ -162,6 +162,7 @@ impl MqttService {
                 last_will: context.last_will.clone(),
                 last_will_properties: context.last_will_properties.clone(),
                 client_pool: self.client_pool.clone(),
+                session_batcher: self.session_batcher.clone(),
                 cache_manager: self.cache_manager.clone(),
                 subscribe_manager: self.subscribe_manager.clone(),
             },

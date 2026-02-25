@@ -35,7 +35,7 @@ members = [
     "src/common/third-driver",
     "src/common/network-server",
     "src/common/metrics",
-    "src/common/security",
+    "src/common/delay-task",
     "src/common/rate-limit",
     "src/common/system-info",
     "src/protocol",
@@ -330,7 +330,7 @@ storage-adapter = { path = "src/storage-adapter" }
 common-base = { path = "src/common/base" }
 common-config = { path = "src/common/config" }
 common-metrics = { path = "src/common/metrics" }
-common-security = { path = "src/common/security" }
+delay-task = { path = "src/common/delay-task" }
 network-server = { path = "src/common/network-server" }
 rocksdb-engine = { path = "src/common/rocksdb-engine" }
 metadata-struct = { path = "src/common/metadata-struct" }

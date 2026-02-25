@@ -53,6 +53,7 @@ impl MqttService {
         if let Err(e) = disconnect_connection(DisconnectConnectionContext {
             cache_manager: self.cache_manager.clone(),
             client_pool: self.client_pool.clone(),
+            session_batcher: self.session_batcher.clone(),
             connection_manager: self.connection_manager.clone(),
             subscribe_manager: self.subscribe_manager.clone(),
             disconnect_properties: disconnect_properties.clone(),

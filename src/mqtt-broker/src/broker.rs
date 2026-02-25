@@ -28,6 +28,7 @@ use crate::security::auth::super_user::init_system_user;
 use crate::security::storage::sync::sync_auth_storage_info;
 use crate::security::AuthDriver;
 use crate::server::{Server, TcpServerContext};
+use crate::storage::session::SessionBatcher;
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::parse::{start_update_parse_thread, ParseSubscribeData};
 use crate::subscribe::PushManager;
@@ -51,6 +52,7 @@ use tracing::{error, info};
 pub struct MqttBrokerServerParams {
     pub cache_manager: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
+    pub session_batcher: Arc<SessionBatcher>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub connection_manager: Arc<ConnectionManager>,
@@ -69,6 +71,7 @@ pub struct MqttBrokerServerParams {
 pub struct MqttBrokerServer {
     cache_manager: Arc<MQTTCacheManager>,
     client_pool: Arc<ClientPool>,
+    session_batcher: Arc<SessionBatcher>,
     storage_driver_manager: Arc<StorageDriverManager>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
@@ -96,6 +99,7 @@ impl MqttBrokerServer {
             delay_message_manager: params.delay_message_manager.clone(),
             schema_manager: params.schema_manager.clone(),
             client_pool: params.client_pool.clone(),
+            session_batcher: params.session_batcher.clone(),
             stop_sx: inner_stop.clone(),
             auth_driver: params.auth_driver.clone(),
             rocksdb_engine_handler: params.rocksdb_engine_handler.clone(),
@@ -108,6 +112,7 @@ impl MqttBrokerServer {
             inner_stop,
             cache_manager: params.cache_manager,
             client_pool: params.client_pool,
+            session_batcher: params.session_batcher,
             storage_driver_manager: params.storage_driver_manager,
             subscribe_manager: params.subscribe_manager,
             connector_manager: params.connector_manager,
@@ -140,10 +145,14 @@ impl MqttBrokerServer {
     }
 
     fn start_daemon_thread(&self) {
+        // session batch writer
+        self.session_batcher.start(self.client_pool.clone());
+
         // client keep alive
         let raw_stop_send = self.inner_stop.clone();
         let keep_alive = ClientKeepAlive::new(
             self.client_pool.clone(),
+            self.session_batcher.clone(),
             self.connection_manager.clone(),
             self.subscribe_manager.clone(),
             self.cache_manager.clone(),

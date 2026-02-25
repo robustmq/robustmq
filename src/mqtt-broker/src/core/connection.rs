@@ -18,7 +18,7 @@ use crate::core::error::MqttBrokerError;
 use crate::core::session::delete_session_by_local;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::mqtt::connect::build_connect_ack_fail_packet;
-use crate::storage::session::SessionStorage;
+use crate::storage::session::{SessionBatcher, SessionStorage};
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_second;
 use common_base::uuid::unique_id;
@@ -38,6 +38,7 @@ pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/$sys/request_response";
 pub struct DisconnectConnectionContext {
     pub cache_manager: Arc<MQTTCacheManager>,
     pub client_pool: Arc<ClientPool>,
+    pub session_batcher: Arc<SessionBatcher>,
     pub connection_manager: Arc<ConnectionManager>,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub disconnect_properties: Option<DisconnectProperties>,
@@ -209,14 +210,14 @@ pub async fn disconnect_connection(context: DisconnectConnectionContext) -> Resu
     } else {
         let mut new_session = context.session.clone();
         if context.protocol.is_mqtt5() {
-            // MQTT5: DISCONNECT Session Expiry Interval (if present) overrides the session expiry.
             new_session.session_expiry_interval = session_expiry_interval as u64;
         }
         new_session.connection_id = None;
         new_session.broker_id = None;
         new_session.reconnect_time = None;
         new_session.distinct_time = Some(now_second());
-        session_storage
+        context
+            .session_batcher
             .set_session(context.connection.client_id.clone(), &new_session)
             .await?;
     }
@@ -234,6 +235,7 @@ pub async fn disconnect_connection(context: DisconnectConnectionContext) -> Resu
 pub fn build_server_disconnect_conn_context(
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
+    session_batcher: &Arc<SessionBatcher>,
     connection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     connect_id: u64,
@@ -259,6 +261,7 @@ pub fn build_server_disconnect_conn_context(
     Ok(DisconnectConnectionContext {
         cache_manager: cache_manager.clone(),
         client_pool: client_pool.clone(),
+        session_batcher: session_batcher.clone(),
         connection_manager: connection_manager.clone(),
         subscribe_manager: subscribe_manager.clone(),
         disconnect_properties,
