@@ -154,13 +154,19 @@ impl DataRouteMqtt {
     pub fn create_session(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = CreateSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
+
+        let mut persist_sessions = Vec::new();
         for raw in &req.sessions {
             let session = MqttSession::decode(&raw.session)?;
             if session.is_persist_session {
-                storage.save(&raw.client_id, session)?;
+                persist_sessions.push((raw.client_id.clone(), session));
             } else {
                 self.cache_manager.add_session(session);
             }
+        }
+
+        if !persist_sessions.is_empty() {
+            storage.save_batch(&persist_sessions)?;
         }
         Ok(())
     }

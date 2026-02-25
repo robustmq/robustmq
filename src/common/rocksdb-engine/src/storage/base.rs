@@ -71,6 +71,27 @@ where
     utils::serialize::serialize(&wrap)
 }
 
+pub fn engine_batch_save<T>(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    column_family: &str,
+    source: &str,
+    entries: &[(String, &T)],
+) -> Result<(), CommonError>
+where
+    T: Serialize,
+{
+    with_metrics!(source, metrics_rocksdb_save_ms, {
+        let cf = get_cf_handle(rocksdb_engine_handler, column_family)?;
+        let mut batch = rocksdb::WriteBatch::default();
+        for (key, value) in entries {
+            let wrap = StorageDataWrap::new(value);
+            let serialized = utils::serialize::serialize(&wrap)?;
+            batch.put_cf(&cf, key.as_bytes(), &serialized);
+        }
+        rocksdb_engine_handler.write_batch(batch)
+    })
+}
+
 pub fn engine_get<T>(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     column_family: &str,

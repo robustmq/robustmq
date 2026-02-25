@@ -38,7 +38,7 @@ use storage_engine::server::inner::GrpcBrokerStorageServerService;
 use storage_engine::StorageEngineParams;
 use tonic::transport::Server;
 use tower::{Layer, Service};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 const SLOW_GRPC_WARN_THRESHOLD_MS: f64 = 2000.0;
 
@@ -204,7 +204,7 @@ where
                     let status_code = extract_grpc_status_code(resp.headers());
 
                     if duration_ms > SLOW_GRPC_WARN_THRESHOLD_MS {
-                        warn!(
+                        debug!(
                             "Slow gRPC request. service={}, method={}, status={}, duration_ms={:.2}",
                             service, method, status_code, duration_ms
                         );

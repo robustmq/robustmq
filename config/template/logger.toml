@@ -14,11 +14,17 @@
 
 [stdout]
 kind = "console"
-level = "info"
+targets = [
+    { path = "", level = "info" },
+    { path = "openraft::raft::responder", level = "error" },
+]
 
 [server]
 kind = "rolling_file"
-level = "info"
+targets = [
+    { path = "", level = "info" },
+    { path = "openraft::raft::responder", level = "error" },
+]
 rotation = "daily"
 directory = "./data/broker/logs"
 prefix = "server"
@@ -36,7 +42,10 @@ max_log_files = 50
 
 [raft]
 kind = "rolling_file"
-targets = [{ path = "openraft", level = "info" }]
+targets = [
+    { path = "openraft", level = "info" },
+    { path = "openraft::raft::responder", level = "error" },
+]
 rotation = "daily"
 directory = "./data/broker/logs"
 prefix = "raft"

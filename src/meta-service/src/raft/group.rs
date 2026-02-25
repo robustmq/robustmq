@@ -29,7 +29,7 @@ use tokio::{
     sync::RwLock,
     time::{timeout, Instant},
 };
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::{
     core::error::MetaServiceError,
@@ -123,7 +123,7 @@ impl RaftGroup {
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_write_duration(&shard, duration_ms);
         if duration_ms > SLOW_RAFT_WRITE_WARN_THRESHOLD_MS {
-            warn!(
+            debug!(
                 "Raft write is slow. shard={}, data_type={}, duration_ms={:.2}",
                 shard, data_type, duration_ms
             );

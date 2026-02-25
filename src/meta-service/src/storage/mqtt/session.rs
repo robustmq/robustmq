@@ -29,8 +29,8 @@ use metadata_struct::mqtt::session::MqttSession;
 use rocksdb_engine::keys::meta::{storage_key_mqtt_session, storage_key_mqtt_session_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_data::{
-    engine_delete_by_meta_data, engine_get_by_meta_data, engine_prefix_list_by_meta_data,
-    engine_save_by_meta_data,
+    engine_batch_save_by_meta_data, engine_delete_by_meta_data, engine_get_by_meta_data,
+    engine_prefix_list_by_meta_data, engine_save_by_meta_data,
 };
 use std::sync::Arc;
 
@@ -47,6 +47,14 @@ impl MqttSessionStorage {
     pub fn save(&self, client_id: &str, session: MqttSession) -> Result<(), CommonError> {
         let key = storage_key_mqtt_session(client_id);
         engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, session)
+    }
+
+    pub fn save_batch(&self, sessions: &[(String, MqttSession)]) -> Result<(), CommonError> {
+        let entries: Vec<(String, &MqttSession)> = sessions
+            .iter()
+            .map(|(client_id, session)| (storage_key_mqtt_session(client_id), session))
+            .collect();
+        engine_batch_save_by_meta_data(&self.rocksdb_engine_handler, &entries)
     }
 
     pub fn list_all(&self) -> Result<Vec<MqttSession>, CommonError> {

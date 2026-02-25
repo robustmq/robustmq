@@ -15,7 +15,10 @@
 use crate::{
     rocksdb::RocksDBEngine,
     storage::{
-        base::{engine_delete, engine_exists, engine_get, engine_prefix_list, engine_save},
+        base::{
+            engine_batch_save, engine_delete, engine_exists, engine_get, engine_prefix_list,
+            engine_save,
+        },
         family::DB_COLUMN_FAMILY_META_DATA,
     },
     warp::StorageDataWrap,
@@ -38,6 +41,21 @@ where
         "meta_data",
         key_name,
         value,
+    )
+}
+
+pub fn engine_batch_save_by_meta_data<T>(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    entries: &[(String, &T)],
+) -> Result<(), CommonError>
+where
+    T: Serialize,
+{
+    engine_batch_save(
+        rocksdb_engine_handler,
+        DB_COLUMN_FAMILY_META_DATA,
+        "meta_data",
+        entries,
     )
 }
 
