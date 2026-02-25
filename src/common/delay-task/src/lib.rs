@@ -41,7 +41,7 @@ pub enum DelayTaskType {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DelayTask {
-    pub unique_id: String,
+    pub task_id: String,
     pub task_type: DelayTaskType,
     pub task_data: Bytes,
     pub delay_target_time: u64,
@@ -56,7 +56,7 @@ impl DelayTask {
         delay_target_time: u64,
     ) -> Self {
         DelayTask {
-            unique_id: unique_id(),
+            task_id: unique_id(),
             task_type,
             task_data,
             delay_target_time,
@@ -71,7 +71,7 @@ impl DelayTask {
         delay_target_time: u64,
     ) -> Self {
         DelayTask {
-            unique_id: unique_id(),
+            task_id: unique_id(),
             task_type,
             task_data,
             delay_target_time,

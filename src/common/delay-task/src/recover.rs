@@ -155,7 +155,7 @@ async fn process_delay_task_record(
         return RecoverResult::Expired;
     }
 
-    delay_task_manager.send_to_delay_queue(&task).await;
+    delay_task_manager.enqueue_task(&task).await;
     RecoverResult::Recovered
 }
 
@@ -166,8 +166,8 @@ async fn handle_expired_delay_task(
 ) {
     warn!(
         "Delay task expired during recovery, executing immediately. \
-         unique_id={}, task_type={:?}, expired by: {}s",
-        task.unique_id,
+         task_id={}, task_type={:?}, expired by: {}s",
+        task.task_id,
         task.task_type,
         now - task.delay_target_time
     );

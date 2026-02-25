@@ -17,6 +17,11 @@ use crate::handler::{handle_lastwill_expire, handle_session_expire};
 use crate::manager::{DelayTaskManager, SharedDelayQueue};
 use crate::{DelayTask, DelayTaskType};
 use common_base::error::common::CommonError;
+use common_base::tools::now_second;
+use common_metrics::mqtt::delay_task::{
+    record_delay_task_execute_failed, record_delay_task_executed,
+    record_delay_task_schedule_latency,
+};
 use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
@@ -121,18 +126,20 @@ pub(crate) fn spawn_task_process(delay_task_manager: Arc<DelayTaskManager>, task
             Ok(permit) => permit,
             Err(e) => {
                 error!(
-                    "Failed to acquire delay task handler permit: unique_id={}, error={}",
-                    task.unique_id, e
+                    "Failed to acquire delay task handler permit: task_id={}, error={}",
+                    task.task_id, e
                 );
                 return;
             }
         };
 
         let _permit = permit;
+        let task_type_str = format!("{:?}", task.task_type);
         if let Err(e) = delay_task_process(&delay_task_manager, &task).await {
+            record_delay_task_execute_failed(&task_type_str);
             error!(
-                "Failed to process delay task: unique_id={}, task_type={:?}, error={}",
-                task.unique_id, task.task_type, e
+                "Failed to process delay task: task_id={}, task_type={:?}, error={}",
+                task.task_id, task.task_type, e
             );
         }
     });
@@ -143,11 +150,15 @@ pub async fn delay_task_process(
     task: &DelayTask,
 ) -> Result<(), CommonError> {
     debug!(
-        "Processing delay task: unique_id={}, task_type={:?}",
-        task.unique_id, task.task_type
+        "Processing delay task: task_id={}, task_type={:?}",
+        task.task_id, task.task_type
     );
 
-    delay_task_manager.remove_task_key(&task.unique_id);
+    delay_task_manager.remove_task_key(&task.task_id);
+
+    let task_type_str = format!("{:?}", task.task_type);
+    let latency_s = now_second().saturating_sub(task.delay_target_time) as f64;
+    record_delay_task_schedule_latency(&task_type_str, latency_s);
 
     match task.task_type {
         DelayTaskType::MQTTSessionExpire => {
@@ -159,9 +170,9 @@ pub async fn delay_task_process(
     }
 
     if task.persistent {
-        delete_delay_task_index(&delay_task_manager.storage_driver_manager, &task.unique_id)
-            .await?;
+        delete_delay_task_index(&delay_task_manager.storage_driver_manager, &task.task_id).await?;
     }
 
+    record_delay_task_executed(&task_type_str);
     Ok(())
 }

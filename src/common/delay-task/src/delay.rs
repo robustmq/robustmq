@@ -35,7 +35,7 @@ pub(crate) async fn save_delay_task_index(
 ) -> Result<(), CommonError> {
     let data = serialize(task)?;
     let record = AdapterWriteRecord {
-        key: Some(task.unique_id.clone()),
+        key: Some(task.task_id.clone()),
         data: Bytes::copy_from_slice(&data),
         timestamp: now_second(),
         ..Default::default()
@@ -46,8 +46,8 @@ pub(crate) async fn save_delay_task_index(
 
     let resp = result.first().ok_or_else(|| {
         CommonError::CommonError(format!(
-            "Write response is empty when saving delay task index (unique_id={}) to topic '{}'",
-            task.unique_id, DELAY_TASK_INDEX_TOPIC
+            "Write response is empty when saving delay task index (task_id={}) to topic '{}'",
+            task.task_id, DELAY_TASK_INDEX_TOPIC
         ))
     })?;
 
@@ -56,20 +56,20 @@ pub(crate) async fn save_delay_task_index(
     }
 
     debug!(
-        "Delay task index persisted: unique_id={}, task_type={:?}",
-        task.unique_id, task.task_type
+        "Delay task index persisted: task_id={}, task_type={:?}",
+        task.task_id, task.task_type
     );
     Ok(())
 }
 
 pub(crate) async fn delete_delay_task_index(
     storage_driver_manager: &Arc<StorageDriverManager>,
-    unique_id: &str,
+    task_id: &str,
 ) -> Result<(), CommonError> {
     storage_driver_manager
-        .delete_by_key(DELAY_TASK_INDEX_TOPIC, unique_id)
+        .delete_by_key(DELAY_TASK_INDEX_TOPIC, task_id)
         .await?;
-    debug!("Deleted delay task index: unique_id={}", unique_id);
+    debug!("Deleted delay task index: task_id={}", task_id);
     Ok(())
 }
 

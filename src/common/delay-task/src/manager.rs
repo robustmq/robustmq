@@ -16,6 +16,7 @@ use crate::delay::{delete_delay_task_index, save_delay_task_index};
 use crate::DelayTask;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
+use common_metrics::mqtt::delay_task::record_delay_task_created;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use std::sync::{atomic::AtomicU32, Arc};
@@ -66,21 +67,22 @@ impl DelayTaskManager {
         }
     }
 
-    pub async fn send(&self, task: DelayTask) -> Result<(), CommonError> {
+    pub async fn create_task(&self, task: DelayTask) -> Result<String, CommonError> {
         if task.persistent {
             save_delay_task_index(&self.storage_driver_manager, &task).await?;
         }
-        self.send_to_delay_queue(&task).await;
-        Ok(())
+        self.enqueue_task(&task).await;
+        record_delay_task_created();
+        Ok(task.task_id.clone())
     }
 
-    pub async fn cancel(&self, unique_id: &str) -> Result<(), CommonError> {
-        let (_, (shard_no, key)) = match self.task_key_map.remove(unique_id) {
+    pub async fn delete_task(&self, task_id: &str) -> Result<(), CommonError> {
+        let (_, (shard_no, key)) = match self.task_key_map.remove(task_id) {
             Some(entry) => entry,
             None => {
                 warn!(
-                    "Delay task not found when cancelling, may have already been executed: unique_id={}",
-                    unique_id
+                    "Delay task not found when deleting, may have already been executed: task_id={}",
+                    task_id
                 );
                 return Ok(());
             }
@@ -88,8 +90,8 @@ impl DelayTaskManager {
 
         let queue_arc = self.delay_queue_list.get(&shard_no).ok_or_else(|| {
             CommonError::CommonError(format!(
-                "Delay task queue shard {} not found when cancelling unique_id={}",
-                shard_no, unique_id
+                "Delay task queue shard {} not found when deleting task_id={}",
+                shard_no, task_id
             ))
         })?;
 
@@ -98,12 +100,12 @@ impl DelayTaskManager {
         drop(delay_queue);
 
         if task.persistent {
-            delete_delay_task_index(&self.storage_driver_manager, unique_id).await?;
+            delete_delay_task_index(&self.storage_driver_manager, task_id).await?;
         }
 
         debug!(
-            "Delay task cancelled: unique_id={}, task_type={:?}",
-            unique_id, task.task_type
+            "Delay task deleted: task_id={}, task_type={:?}",
+            task_id, task.task_type
         );
         Ok(())
     }
@@ -118,7 +120,7 @@ impl DelayTaskManager {
         Ok(())
     }
 
-    pub(crate) async fn send_to_delay_queue(&self, task: &DelayTask) {
+    pub(crate) async fn enqueue_task(&self, task: &DelayTask) {
         let shard_no = self
             .incr_no
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
@@ -128,9 +130,9 @@ impl DelayTaskManager {
             q.clone()
         } else {
             error!(
-                "Failed to send to delay task queue: shard {} not found, task will be lost: \
-                unique_id={}, task_type={:?}",
-                shard_no, task.unique_id, task.task_type
+                "Failed to enqueue delay task: shard {} not found, task will be lost: \
+                task_id={}, task_type={:?}",
+                shard_no, task.task_id, task.task_type
             );
             return;
         };
@@ -144,9 +146,9 @@ impl DelayTaskManager {
         let target_instant = Instant::now() + delay_duration;
 
         debug!(
-            "Insert delay task to queue. unique_id={}, task_type={:?}, shard_no={}, \
+            "Insert delay task to queue. task_id={}, task_type={:?}, shard_no={}, \
             delay_target_time={}, current_time={}, delay_duration={}s",
-            task.unique_id,
+            task.task_id,
             task.task_type,
             shard_no,
             task.delay_target_time,
@@ -159,11 +161,11 @@ impl DelayTaskManager {
         drop(delay_queue);
 
         self.task_key_map
-            .insert(task.unique_id.clone(), (shard_no, key));
+            .insert(task.task_id.clone(), (shard_no, key));
     }
 
-    pub(crate) fn remove_task_key(&self, unique_id: &str) {
-        self.task_key_map.remove(unique_id);
+    pub(crate) fn remove_task_key(&self, task_id: &str) {
+        self.task_key_map.remove(task_id);
     }
 
     pub fn add_delay_queue_pop_thread(&self, shard_no: u32, stop_send: broadcast::Sender<bool>) {

@@ -1917,6 +1917,7 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
+ "common-metrics",
  "dashmap",
  "futures",
  "grpc-clients",

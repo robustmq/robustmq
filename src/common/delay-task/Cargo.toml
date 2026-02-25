@@ -32,3 +32,4 @@ futures.workspace = true
 grpc-clients.workspace = true
 metadata-struct.workspace = true
 broker-core.workspace = true
+common-metrics.workspace = true

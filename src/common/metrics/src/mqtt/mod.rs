@@ -15,6 +15,7 @@
 pub mod auth;
 pub mod connector;
 pub mod delay;
+pub mod delay_task;
 pub mod event;
 pub mod packets;
 pub mod publish;
@@ -30,6 +31,7 @@ pub fn init() {
     auth::init();
     publish::init();
     delay::init();
+    delay_task::init();
     session::init();
     packets::init();
 }
