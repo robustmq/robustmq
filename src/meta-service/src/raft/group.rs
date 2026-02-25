@@ -111,14 +111,13 @@ impl RaftGroup {
 
         let shard = self.route_shard(key);
         let data_type = data.data_type.to_string();
-
-        record_write_request(&shard);
-        let start = Instant::now();
         let write_timeout = MultiRaftManager::get_raft_write_timeout();
 
         let raft = self.raft_group.get(&shard).ok_or_else(|| {
             MetaServiceError::CommonError(format!("Raft shard not found: {}", shard))
         })?;
+        record_write_request(&shard);
+        let start = Instant::now();
         let result = timeout(write_timeout, raft.client_write(data)).await;
 
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;

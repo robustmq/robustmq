@@ -39,6 +39,13 @@ handler_thread_num = 64
 queue_size = 5000
 keep_alive_enable = false
 
+[meta_runtime]
+heartbeat_timeout_ms = 30000
+heartbeat_check_time_ms = 1000
+raft_write_timeout_sec = 30
+offset_raft_group_num = 1
+data_raft_group_num = 1
+
 [mqtt_keep_alive]
 enable = true
 default_time = 180

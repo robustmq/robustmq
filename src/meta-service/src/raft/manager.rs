@@ -97,9 +97,10 @@ impl MultiRaftManager {
         let conf = broker_config();
         let meta_rt = &conf.meta_runtime;
 
-        info!("Initializing Multi-Raft Manager...");
-
-        info!("Creating metadata RaftGroup (group_num=1)");
+        info!(
+            "Initializing Multi-Raft: metadata=1, offset={}, data={}",
+            meta_rt.offset_raft_group_num, meta_rt.data_raft_group_num
+        );
         let metadata = RaftGroup::new(
             "metadata",
             1,
@@ -109,10 +110,6 @@ impl MultiRaftManager {
         )
         .await?;
 
-        info!(
-            "Creating offset RaftGroup (group_num={})",
-            meta_rt.offset_raft_group_num
-        );
         let offset = RaftGroup::new(
             "offset",
             meta_rt.offset_raft_group_num,
@@ -122,10 +119,6 @@ impl MultiRaftManager {
         )
         .await?;
 
-        info!(
-            "Creating data RaftGroup (group_num={})",
-            meta_rt.data_raft_group_num
-        );
         let data = RaftGroup::new(
             "data",
             meta_rt.data_raft_group_num,
@@ -135,7 +128,7 @@ impl MultiRaftManager {
         )
         .await?;
 
-        info!("Multi-Raft Manager initialized successfully");
+        info!("Multi-Raft initialized");
         Ok(MultiRaftManager {
             metadata,
             offset,
@@ -145,11 +138,11 @@ impl MultiRaftManager {
     }
 
     pub async fn start(&self) -> Result<(), CommonError> {
-        info!("Starting Multi-Raft cluster...");
+        info!("Starting Multi-Raft");
         self.metadata.start().await?;
         self.offset.start().await?;
         self.data.start().await?;
-        info!("Multi-Raft cluster started successfully");
+        info!("Multi-Raft started");
         Ok(())
     }
 
@@ -268,8 +261,6 @@ impl MultiRaftManager {
         shard_name: &str,
         raft_node: &Raft<TypeConfig>,
     ) -> Result<(), CommonError> {
-        info!("[{}] Starting Raft node...", shard_name);
-
         let conf = broker_config();
         let mut nodes = BTreeMap::new();
         for (node_id, addr) in conf.meta_addrs.clone() {
@@ -281,36 +272,19 @@ impl MultiRaftManager {
             nodes.insert(node.node_id, node);
         }
 
-        let node_list: Vec<String> = nodes
-            .iter()
-            .map(|(id, node)| format!("node_{}={}", id, node.rpc_addr))
-            .collect();
-        info!(
-            "[{}] Cluster members: [{}]",
-            shard_name,
-            node_list.join(", ")
-        );
-
         match raft_node.is_initialized().await {
             Ok(false) => {
-                info!(
-                    "[{}] Initializing Raft cluster with {} nodes...",
-                    shard_name,
-                    nodes.len()
-                );
+                info!("[{}] Initializing with {} nodes", shard_name, nodes.len());
                 raft_node.initialize(nodes.clone()).await.map_err(|e| {
                     CommonError::CommonError(format!(
                         "[{}] Failed to initialize Raft cluster: {}",
                         shard_name, e
                     ))
                 })?;
-                info!("[{}] Raft cluster initialized successfully", shard_name);
+                info!("[{}] Initialized", shard_name);
             }
             Ok(true) => {
-                info!(
-                    "[{}] Raft cluster already initialized, skipping",
-                    shard_name
-                );
+                info!("[{}] Already initialized", shard_name);
             }
             Err(e) => {
                 return Err(CommonError::CommonError(format!(
@@ -320,7 +294,6 @@ impl MultiRaftManager {
             }
         }
 
-        info!("[{}] Raft node started successfully", shard_name);
         Ok(())
     }
 
@@ -331,9 +304,9 @@ impl MultiRaftManager {
         route: &Arc<DataRoute>,
     ) -> Result<Raft<TypeConfig>, CommonError> {
         let config = Config {
-            heartbeat_interval: 100,
-            election_timeout_min: 1000,
-            election_timeout_max: 2000,
+            heartbeat_interval: 10,
+            election_timeout_min: 20,
+            election_timeout_max: 50,
             ..Default::default()
         };
 
@@ -344,26 +317,13 @@ impl MultiRaftManager {
             ))
         })?);
 
-        info!(
-            "[{}] Raft config: heartbeat={}ms, election_timeout={}ms",
-            shard_name, config.heartbeat_interval, config.election_timeout_min
-        );
-
         let conf = broker_config();
 
-        info!(
-            "[{}] Initializing storage (log + state machine)...",
-            shard_name
-        );
         let (log_store, state_machine_store) =
             new_storage(shard_name, rocksdb_engine_handler.clone(), route.clone()).await;
 
         let network = Network::new(shard_name.to_string(), client_pool.clone());
 
-        info!(
-            "[{}] Creating Raft instance (node_id={})...",
-            shard_name, conf.broker_id
-        );
         match Raft::new(
             conf.broker_id,
             config.clone(),
@@ -374,7 +334,7 @@ impl MultiRaftManager {
         .await
         {
             Ok(raft_node) => {
-                info!("[{}] Raft instance created successfully", shard_name);
+                info!("[{}] Raft node ready", shard_name);
                 Ok(raft_node)
             }
             Err(e) => Err(CommonError::CommonError(format!(
