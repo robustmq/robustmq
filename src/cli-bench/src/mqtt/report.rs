@@ -128,10 +128,10 @@ impl BenchReport {
             table.add_row(row!["connect_qps", format!("{qps:.2}")]);
         }
         table.add_row(row![
-            "avg_ops_per_sec",
+            "📈 avg_ops_per_sec",
             format!("{:.2}", self.avg_ops_per_sec)
         ]);
-        table.add_row(row!["peak_ops_per_sec", self.peak_ops_per_sec]);
+        table.add_row(row!["🚀 peak_ops_per_sec", self.peak_ops_per_sec]);
         table.add_row(row!["success", self.snapshot.success]);
         table.add_row(row!["failed", self.snapshot.failed]);
         table.add_row(row!["timeout", self.snapshot.timeout]);
@@ -140,19 +140,19 @@ impl BenchReport {
         table.add_row(row!["error_rate(%)", format!("{:.4}", self.error_rate)]);
         table.add_row(row!["timeout_rate(%)", format!("{:.4}", self.timeout_rate)]);
         table.add_row(row![
-            "latency_avg(ms)",
+            "⏱️ latency_avg(ms)",
             format!("{:.3}", self.snapshot.latency_ms_avg)
         ]);
         table.add_row(row![
-            "latency_p50(ms)",
+            "🟢 latency_p50(ms)",
             format!("{:.3}", self.snapshot.latency_ms_p50)
         ]);
         table.add_row(row![
-            "latency_p95(ms)",
+            "🟠 latency_p95(ms)",
             format!("{:.3}", self.snapshot.latency_ms_p95)
         ]);
         table.add_row(row![
-            "latency_p99(ms)",
+            "🔴 latency_p99(ms)",
             format!("{:.3}", self.snapshot.latency_ms_p99)
         ]);
         table.add_row(row![
@@ -164,52 +164,6 @@ impl BenchReport {
             format!("{:.3}", self.snapshot.latency_ms_max)
         ]);
         table.printstd();
-
-        if !self.extras.is_empty() {
-            println!("\n=== Scenario Parameters ===");
-            let mut ext = Table::new();
-            ext.set_titles(row!["param", "value"]);
-            for (k, v) in &self.extras {
-                ext.add_row(row![k, v]);
-            }
-            ext.printstd();
-        }
-
-        if !self.series.is_empty() {
-            println!("\n=== Throughput Timeline (per second) ===");
-            let mut timeline = Table::new();
-            timeline.set_titles(row![
-                "sec",
-                "ops/s",
-                "total_ops",
-                "success",
-                "failed",
-                "timeout",
-                "received"
-            ]);
-            for sample in &self.series {
-                timeline.add_row(row![
-                    sample.second,
-                    sample.ops_per_sec,
-                    sample.total_ops,
-                    sample.success,
-                    sample.failed,
-                    sample.timeout,
-                    sample.received
-                ]);
-            }
-            timeline.printstd();
-        }
-
-        if !self.snapshot.errors.is_empty() {
-            println!("\n=== Error Distribution ===");
-            let mut err = Table::new();
-            err.set_titles(row!["error_type", "count"]);
-            for (k, v) in &self.snapshot.errors {
-                err.add_row(row![k, v]);
-            }
-            err.printstd();
-        }
     }
 
     pub fn print_json(&self) {
