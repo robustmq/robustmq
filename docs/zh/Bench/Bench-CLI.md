@@ -89,12 +89,27 @@ robust-bench mqtt sub \
 
 ### 3.4 Meta 写入压测
 
+单条模式：
+
 ```bash
 robust-bench meta placement-create-session \
   --host 127.0.0.1 \
   --port 1228 \
   --count 100000 \
   --concurrency 1000 \
+  --timeout-ms 3000 \
+  --output table
+```
+
+批量模式（`--batch-size` 指定每次 gRPC 请求携带的 Session 数量）：
+
+```bash
+robust-bench meta placement-create-session \
+  --host 127.0.0.1 \
+  --port 1228 \
+  --count 100000 \
+  --concurrency 1000 \
+  --batch-size 100 \
   --timeout-ms 3000 \
   --output table
 ```

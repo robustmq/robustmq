@@ -143,9 +143,13 @@ message ListSessionReply {
   repeated bytes sessions = 1;
 }
 
+message CreateSessionRaw {
+  string client_id = 1 [(validate.rules).string.min_len = 1];
+  bytes session = 2 [(validate.rules).bytes.min_len = 1];
+}
+
 message CreateSessionRequest {
-  string client_id = 2 [(validate.rules).string.min_len = 1];
-  bytes session = 3 [(validate.rules).bytes.min_len = 1];
+  repeated CreateSessionRaw sessions = 1 [(validate.rules).repeated.min_items = 1];
 }
 
 message CreateSessionReply {}

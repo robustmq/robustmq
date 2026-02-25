@@ -20,14 +20,17 @@ robust-bench meta placement-delete-session ...
 
 - `--host`：Meta 服务地址，默认 `127.0.0.1`
 - `--port`：Meta 服务端口，默认 `1228`
-- `--count`：总请求数
+- `--count`：总 Session 数
 - `--concurrency`：并发请求数
 - `--timeout-ms`：单请求超时毫秒数
 - `--session-expiry-secs`：构造会话时的 `session_expiry_interval`
 - `--client-id-prefix`：压测请求 `client_id` 前缀
+- `--batch-size`：每次 gRPC 请求携带的 Session 数量，默认 `1`（单条模式）。设为 >1 时启用批量写入，多个 Session 合并为一条 Raft 日志提交，显著减少 gRPC round-trip 和 Raft commit 次数
 - `--output`：`table|json`
 
 ### 示例
+
+单条写入（默认）：
 
 ```bash
 robust-bench meta placement-create-session \
@@ -35,6 +38,19 @@ robust-bench meta placement-create-session \
   --port 1228 \
   --count 100000 \
   --concurrency 1000 \
+  --timeout-ms 3000 \
+  --output table
+```
+
+批量写入（每次 100 条）：
+
+```bash
+robust-bench meta placement-create-session \
+  --host 127.0.0.1 \
+  --port 1228 \
+  --count 100000 \
+  --concurrency 1000 \
+  --batch-size 100 \
   --timeout-ms 3000 \
   --output table
 ```

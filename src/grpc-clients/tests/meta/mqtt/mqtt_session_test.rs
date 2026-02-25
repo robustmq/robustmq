@@ -22,7 +22,7 @@ mod tests {
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use protocol::meta::meta_service_mqtt::{
-        CreateSessionRequest, DeleteSessionRequest, ListSessionRequest,
+        CreateSessionRaw, CreateSessionRequest, DeleteSessionRequest, ListSessionRequest,
     };
     use std::sync::Arc;
 
@@ -48,8 +48,10 @@ mod tests {
         mqtt_session.update_connection_id(Some(connection_id));
 
         let request = CreateSessionRequest {
-            client_id: client_id.clone(),
-            session: mqtt_session.encode().unwrap(),
+            sessions: vec![CreateSessionRaw {
+                client_id: client_id.clone(),
+                session: mqtt_session.encode().unwrap(),
+            }],
         };
 
         placement_create_session(&client_pool, &addrs, request)

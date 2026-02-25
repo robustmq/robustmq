@@ -296,6 +296,7 @@ impl BrokerServer {
         let mut engine_stop_send = None;
 
         let config = broker_config();
+        let monitor_interval_ms = config.prometheus.monitor_interval_ms;
 
         // start meta service
         // meta_runtime was created in new() so all Raft internal tasks already
@@ -359,7 +360,7 @@ impl BrokerServer {
         // system resource monitor
         let raw_stop_send = stop_send.clone();
         self.server_runtime.spawn(async move {
-            start_monitor(raw_stop_send).await;
+            start_monitor(raw_stop_send, monitor_interval_ms).await;
         });
 
         // Tokio runtime metrics monitor
@@ -370,7 +371,7 @@ impl BrokerServer {
         ];
         let raw_stop_send = stop_send;
         self.server_runtime.spawn(async move {
-            start_runtime_monitor(runtime_handles, raw_stop_send).await;
+            start_runtime_monitor(runtime_handles, raw_stop_send, monitor_interval_ms).await;
         });
 
         // awaiting stop

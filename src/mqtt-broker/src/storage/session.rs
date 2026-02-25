@@ -23,8 +23,8 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::meta::meta_service_mqtt::{
-    CreateSessionRequest, DeleteSessionRequest, GetLastWillMessageRequest, ListSessionRequest,
-    SaveLastWillMessageRequest,
+    CreateSessionRaw, CreateSessionRequest, DeleteSessionRequest, GetLastWillMessageRequest,
+    ListSessionRequest, SaveLastWillMessageRequest,
 };
 use std::sync::Arc;
 
@@ -44,8 +44,10 @@ impl SessionStorage {
     ) -> Result<(), CommonError> {
         let config = broker_config();
         let request = CreateSessionRequest {
-            client_id,
-            session: session.encode()?,
+            sessions: vec![CreateSessionRaw {
+                client_id,
+                session: session.encode()?,
+            }],
         };
 
         placement_create_session(&self.client_pool, &config.get_meta_service_addr(), request)

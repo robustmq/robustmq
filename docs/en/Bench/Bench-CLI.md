@@ -82,12 +82,27 @@ robust-bench mqtt sub \
 
 ### 3.4 Meta write benchmark
 
+Single mode:
+
 ```bash
 robust-bench meta placement-create-session \
   --host 127.0.0.1 \
   --port 1228 \
   --count 100000 \
   --concurrency 1000 \
+  --timeout-ms 3000 \
+  --output table
+```
+
+Batch mode (`--batch-size` sets sessions per gRPC request):
+
+```bash
+robust-bench meta placement-create-session \
+  --host 127.0.0.1 \
+  --port 1228 \
+  --count 100000 \
+  --concurrency 1000 \
+  --batch-size 100 \
   --timeout-ms 3000 \
   --output table
 ```

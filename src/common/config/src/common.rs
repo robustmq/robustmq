@@ -30,6 +30,8 @@ pub enum AvailableFlag {
 pub struct Prometheus {
     pub enable: bool,
     pub port: u32,
+    #[serde(default = "default_monitor_interval_ms")]
+    pub monitor_interval_ms: u64,
 }
 
 impl Default for Prometheus {
@@ -74,7 +76,12 @@ pub fn default_prometheus() -> Prometheus {
     Prometheus {
         enable: true,
         port: 9091,
+        monitor_interval_ms: default_monitor_interval_ms(),
     }
+}
+
+pub fn default_monitor_interval_ms() -> u64 {
+    1000
 }
 
 pub fn default_pprof() -> PProf {

@@ -25,7 +25,7 @@ use grpc_clients::meta::mqtt::call::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::meta::meta_service_mqtt::{
-    CreateSessionRequest, DeleteSessionRequest, ListSessionRequest,
+    CreateSessionRaw, CreateSessionRequest, DeleteSessionRequest, ListSessionRequest,
 };
 use std::collections::BTreeMap;
 use std::sync::atomic::Ordering;
@@ -48,9 +48,13 @@ pub async fn run_placement_create_session_bench(
         ));
     }
 
+    let batch_size = args.batch_size.max(1);
+    let total_sessions = args.count;
+    let num_batches = total_sessions.div_ceil(batch_size);
+    let total_requests = total_sessions as u64;
+
     let bench_start = Instant::now();
-    let total_requests = args.count as u64;
-    let effective_concurrency = args.concurrency.min(args.count);
+    let effective_concurrency = args.concurrency.min(num_batches);
     let semaphore = Arc::new(Semaphore::new(effective_concurrency));
     let stats = SharedStats::new();
     let client_pool = Arc::new(ClientPool::new(effective_concurrency.min(8)));
@@ -97,7 +101,13 @@ pub async fn run_placement_create_session_bench(
     });
 
     let mut join_set = JoinSet::new();
-    for i in 0..args.count {
+    let mut session_idx = 0usize;
+    for _ in 0..num_batches {
+        let batch_end = (session_idx + batch_size).min(total_sessions);
+        let batch_range_start = session_idx;
+        let batch_range_end = batch_end;
+        session_idx = batch_end;
+
         let permit = semaphore
             .clone()
             .acquire_owned()
@@ -108,26 +118,36 @@ pub async fn run_placement_create_session_bench(
         let local_addrs = addrs.clone();
         let client_id_prefix = args.client_id_prefix.clone();
         let session_expiry_secs = args.session_expiry_secs;
+        let batch_count = (batch_range_end - batch_range_start) as u64;
 
         join_set.spawn(async move {
             let _permit = permit;
-            let client_id = format!("{client_id_prefix}-{}", i);
-            let mut mqtt_session =
-                MqttSession::new(client_id.clone(), session_expiry_secs, false, None, true);
-            mqtt_session.update_broker_id(Some(1));
-            mqtt_session.update_connection_id(Some((i + 1) as u64));
-            let request = CreateSessionRequest {
-                client_id,
-                session: match mqtt_session.encode() {
-                    Ok(data) => data,
+            let mut sessions = Vec::with_capacity(batch_count as usize);
+            for i in batch_range_start..batch_range_end {
+                let client_id = format!("{client_id_prefix}-{i}");
+                let mut mqtt_session =
+                    MqttSession::new(client_id.clone(), session_expiry_secs, false, None, true);
+                mqtt_session.update_broker_id(Some(1));
+                mqtt_session.update_connection_id(Some((i + 1) as u64));
+                match mqtt_session.encode() {
+                    Ok(data) => {
+                        sessions.push(CreateSessionRaw {
+                            client_id,
+                            session: data,
+                        });
+                    }
                     Err(e) => {
                         local_stats.incr_failed();
                         local_stats.record_error(&format!("encode:{e}"));
-                        return;
                     }
-                },
-            };
+                }
+            }
 
+            if sessions.is_empty() {
+                return;
+            }
+
+            let request = CreateSessionRequest { sessions };
             let start = Instant::now();
             match tokio::time::timeout(
                 timeout,
@@ -136,16 +156,22 @@ pub async fn run_placement_create_session_bench(
             .await
             {
                 Ok(Ok(_)) => {
-                    local_stats.incr_success();
+                    for _ in 0..batch_count {
+                        local_stats.incr_success();
+                    }
                     local_stats.record_latency(start.elapsed());
                 }
                 Ok(Err(e)) => {
-                    local_stats.incr_failed();
+                    for _ in 0..batch_count {
+                        local_stats.incr_failed();
+                    }
                     local_stats.record_latency(start.elapsed());
                     local_stats.record_error(&format!("rpc:{e}"));
                 }
                 Err(_) => {
-                    local_stats.incr_timeout();
+                    for _ in 0..batch_count {
+                        local_stats.incr_timeout();
+                    }
                     local_stats.record_error("timeout");
                 }
             }
@@ -166,6 +192,7 @@ pub async fn run_placement_create_session_bench(
     );
     extras.insert("timeout_ms".to_string(), args.timeout_ms.to_string());
     extras.insert("concurrency".to_string(), effective_concurrency.to_string());
+    extras.insert("batch_size".to_string(), batch_size.to_string());
     extras.insert(
         "session_expiry_secs".to_string(),
         args.session_expiry_secs.to_string(),
@@ -220,10 +247,12 @@ pub async fn run_placement_list_session_bench(
     mqtt_session.update_broker_id(Some(1));
     mqtt_session.update_connection_id(Some(1));
     let setup_request = CreateSessionRequest {
-        client_id: setup_client_id.clone(),
-        session: mqtt_session
-            .encode()
-            .map_err(|e| BenchMarkError::ExecutionError(format!("encode setup session: {e}")))?,
+        sessions: vec![CreateSessionRaw {
+            client_id: setup_client_id.clone(),
+            session: mqtt_session.encode().map_err(|e| {
+                BenchMarkError::ExecutionError(format!("encode setup session: {e}"))
+            })?,
+        }],
     };
 
     println!("[setup] Creating session: {setup_client_id}");
@@ -401,10 +430,12 @@ pub async fn run_placement_delete_session_bench(
     mqtt_session.update_broker_id(Some(1));
     mqtt_session.update_connection_id(Some(1));
     let setup_request = CreateSessionRequest {
-        client_id: setup_client_id.clone(),
-        session: mqtt_session
-            .encode()
-            .map_err(|e| BenchMarkError::ExecutionError(format!("encode setup session: {e}")))?,
+        sessions: vec![CreateSessionRaw {
+            client_id: setup_client_id.clone(),
+            session: mqtt_session.encode().map_err(|e| {
+                BenchMarkError::ExecutionError(format!("encode setup session: {e}"))
+            })?,
+        }],
     };
 
     println!("[setup] Creating session: {setup_client_id}");

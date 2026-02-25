@@ -20,14 +20,17 @@ Benchmark Meta Service `CreateSession` write throughput, latency distribution, a
 
 - `--host`: Meta service host, default `127.0.0.1`
 - `--port`: Meta service port, default `1228`
-- `--count`: total number of requests
+- `--count`: total number of sessions
 - `--concurrency`: concurrent request count
 - `--timeout-ms`: per-request timeout in milliseconds
 - `--session-expiry-secs`: `session_expiry_interval` for generated sessions
 - `--client-id-prefix`: `client_id` prefix for generated requests
+- `--batch-size`: number of sessions per gRPC request, default `1` (single mode). When set to >1, multiple sessions are batched into a single Raft log entry, significantly reducing gRPC round-trips and Raft commit count
 - `--output`: `table|json`
 
 ### Example
+
+Single mode (default):
 
 ```bash
 robust-bench meta placement-create-session \
@@ -35,6 +38,19 @@ robust-bench meta placement-create-session \
   --port 1228 \
   --count 100000 \
   --concurrency 1000 \
+  --timeout-ms 3000 \
+  --output table
+```
+
+Batch mode (100 sessions per request):
+
+```bash
+robust-bench meta placement-create-session \
+  --host 127.0.0.1 \
+  --port 1228 \
+  --count 100000 \
+  --concurrency 1000 \
+  --batch-size 100 \
   --timeout-ms 3000 \
   --output table
 ```

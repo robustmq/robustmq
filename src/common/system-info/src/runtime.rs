@@ -18,8 +18,6 @@ use common_metrics::broker::{
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
 
-const INTERVAL_MS: u64 = 15_000;
-
 struct RuntimeSnapshot {
     name: String,
     handle: tokio::runtime::Handle,
@@ -75,14 +73,16 @@ impl RuntimeSnapshot {
 pub async fn start_runtime_monitor(
     handles: Vec<(String, tokio::runtime::Handle)>,
     stop_send: broadcast::Sender<bool>,
+    interval_ms: u64,
 ) {
+    let interval_ms = interval_ms.max(100);
     let mut snapshots: Vec<RuntimeSnapshot> = handles
         .into_iter()
         .map(|(n, h)| RuntimeSnapshot::new(n, h))
         .collect();
 
     let mut stop_recv = stop_send.subscribe();
-    let mut ticker = tokio::time::interval(Duration::from_millis(INTERVAL_MS));
+    let mut ticker = tokio::time::interval(Duration::from_millis(interval_ms));
 
     loop {
         tokio::select! {

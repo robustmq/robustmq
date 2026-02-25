@@ -32,9 +32,8 @@ use common_metrics::broker::{
 };
 use tokio::sync::broadcast;
 
-const MONITOR_INTERVAL_MS: u64 = 15_000;
-
-pub async fn start_monitor(stop_send: broadcast::Sender<bool>) {
+pub async fn start_monitor(stop_send: broadcast::Sender<bool>, interval_ms: u64) {
+    let interval_ms = interval_ms.max(100);
     let collect = async || -> ResultCommonError {
         // Values are stored as centipercent (×100); Grafana queries divide by 100.
         record_system_process_cpu_set((process_cpu_usage().await * 100.0).round() as i64);
@@ -43,5 +42,5 @@ pub async fn start_monitor(stop_send: broadcast::Sender<bool>) {
         record_system_memory_set((system_memory_usage() * 100.0).round() as i64);
         Ok(())
     };
-    loop_select_ticket(collect, MONITOR_INTERVAL_MS, &stop_send).await;
+    loop_select_ticket(collect, interval_ms, &stop_send).await;
 }

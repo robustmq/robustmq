@@ -47,6 +47,9 @@ pub struct PlacementCreateSessionArgs {
     pub session_expiry_secs: u64,
     #[arg(long, default_value_t = String::from("bench-meta-session"))]
     pub client_id_prefix: String,
+    /// Number of sessions per gRPC batch request (1 = single mode)
+    #[arg(long, default_value_t = 1)]
+    pub batch_size: usize,
     #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
     pub output: OutputFormat,
 }

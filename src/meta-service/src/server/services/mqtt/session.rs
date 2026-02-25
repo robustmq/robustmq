@@ -99,11 +99,19 @@ pub async fn create_session_by_req(
     client_pool: &Arc<ClientPool>,
     req: &CreateSessionRequest,
 ) -> Result<CreateSessionReply, MetaServiceError> {
-    let data = StorageData::new(StorageDataType::MqttSetSession, encode_to_bytes(req));
-    raft_manager.write_data(&req.client_id, data).await?;
+    let routing_key = req
+        .sessions
+        .first()
+        .map(|s| s.client_id.as_str())
+        .unwrap_or("");
 
-    let session = MqttSession::decode(&req.session)?;
-    update_cache_by_add_session(call_manager, client_pool, session).await?;
+    let data = StorageData::new(StorageDataType::MqttSetSession, encode_to_bytes(req));
+    raft_manager.write_data(routing_key, data).await?;
+
+    for raw in &req.sessions {
+        let session = MqttSession::decode(&raw.session)?;
+        update_cache_by_add_session(call_manager, client_pool, session).await?;
+    }
 
     Ok(CreateSessionReply {})
 }
