@@ -1910,8 +1910,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "delay-test"
+name = "delay-task"
 version = "0.3.1"
+dependencies = [
+ "broker-core",
+ "bytes",
+ "common-base",
+ "common-config",
+ "dashmap",
+ "futures",
+ "grpc-clients",
+ "metadata-struct",
+ "serde",
+ "storage-adapter",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
 
 [[package]]
 name = "der"
