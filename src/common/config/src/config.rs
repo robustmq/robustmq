@@ -221,13 +221,12 @@ pub struct Runtime {
     pub runtime_worker_threads: usize,
 
     /// Worker threads for the server runtime (gRPC, HTTP admin, Prometheus).
-    /// 0 = auto: max(4, num_cpus / 2).
+    /// 0 = auto: num_cpus.
     #[serde(default)]
     pub server_worker_threads: usize,
 
     /// Worker threads for the meta runtime (Raft state machines, RocksDB).
-    /// 0 = auto: max(4, num_cpus / 2).
-    /// Raft is largely a serial pipeline; more threads bring diminishing returns.
+    /// 0 = auto: num_cpus.
     #[serde(default)]
     pub meta_worker_threads: usize,
 

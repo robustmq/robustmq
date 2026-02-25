@@ -153,23 +153,22 @@ fn num_cpus() -> usize {
 }
 
 /// Resolve server-runtime thread count.
-/// explicit=0 means auto: max(4, num_cpus / 2).
+/// explicit=0 means auto: num_cpus.
 pub fn resolve_server_worker_threads(explicit: usize) -> usize {
     if explicit > 0 {
         explicit
     } else {
-        num_cpus().div_ceil(2).max(4)
+        num_cpus()
     }
 }
 
 /// Resolve meta-runtime thread count.
-/// explicit=0 means auto: max(4, num_cpus / 2).
-/// Raft is largely a serial pipeline; num_cpus / 2 is enough.
+/// explicit=0 means auto: num_cpus.
 pub fn resolve_meta_worker_threads(explicit: usize) -> usize {
     if explicit > 0 {
         explicit
     } else {
-        num_cpus().div_ceil(2).max(4)
+        num_cpus()
     }
 }
 
