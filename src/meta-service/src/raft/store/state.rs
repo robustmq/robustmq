@@ -298,13 +298,16 @@ mod tests {
     use crate::raft::type_config::Node;
     use common_base::utils::file_utils::test_temp_dir;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+    use delay_task::manager::DelayTaskManager;
+    use grpc_clients::pool::ClientPool;
     use openraft::LeaderId;
     use openraft::{LogId, Membership};
     use rocksdb_engine::rocksdb::RocksDBEngine;
     use rocksdb_engine::storage::family::column_family_list;
     use std::collections::{BTreeMap, BTreeSet};
+    use storage_adapter::storage::test_build_storage_driver_manager;
 
-    fn setup_test_environment() -> (Arc<RocksDBEngine>, Arc<DataRoute>) {
+    async fn setup_test_environment() -> (Arc<RocksDBEngine>, Arc<DataRoute>) {
         let config = default_broker_config();
         init_broker_conf_by_config(config.clone());
 
@@ -314,18 +317,27 @@ mod tests {
             column_family_list(),
         ));
 
+        let client_pool = Arc::new(ClientPool::new(4));
+        let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
+        let delay_task_manager = Arc::new(DelayTaskManager::new(
+            client_pool,
+            storage_driver_manager,
+            1,
+            10,
+        ));
         let route = Arc::new(DataRoute::new(
             rocksdb_engine.clone(),
             Arc::new(crate::core::cache::CacheManager::new(
                 rocksdb_engine.clone(),
             )),
+            delay_task_manager.clone(),
         ));
 
         (rocksdb_engine, route)
     }
 
     async fn create_test_state_machine() -> StateMachineStore {
-        let (rocksdb_engine, route) = setup_test_environment();
+        let (rocksdb_engine, route) = setup_test_environment().await;
 
         StateMachineStore::new("test_machine".to_string(), rocksdb_engine.db.clone(), route)
             .await
@@ -410,7 +422,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_state_machine_recovery() {
-        let (rocksdb_engine, route) = setup_test_environment();
+        let (rocksdb_engine, route) = setup_test_environment().await;
 
         let log_id = create_log_id(1, 1, 100);
         let membership = create_stored_membership(log_id);

@@ -30,6 +30,7 @@ use tracing::{debug, error, warn};
 
 pub type SharedDelayQueue = Arc<Mutex<DelayQueue<DelayTask>>>;
 
+#[derive(Clone)]
 pub struct DelayTaskManager {
     pub client_pool: Arc<ClientPool>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
@@ -37,7 +38,7 @@ pub struct DelayTaskManager {
     pub delay_queue_pop_thread: DashMap<u32, broadcast::Sender<bool>>,
     pub delay_queue_num: u32,
     pub handler_semaphore: Arc<Semaphore>,
-    incr_no: AtomicU32,
+    incr_no: Arc<AtomicU32>,
     task_key_map: DashMap<String, (u32, delay_queue::Key)>,
 }
 
@@ -53,7 +54,7 @@ impl DelayTaskManager {
             storage_driver_manager,
             delay_queue_list: DashMap::with_capacity(8),
             delay_queue_pop_thread: DashMap::with_capacity(8),
-            incr_no: AtomicU32::new(0),
+            incr_no: Arc::new(AtomicU32::new(0)),
             delay_queue_num,
             handler_semaphore: Arc::new(Semaphore::new(max_handler_concurrency)),
             task_key_map: DashMap::new(),
@@ -68,6 +69,14 @@ impl DelayTaskManager {
     }
 
     pub async fn create_task(&self, task: DelayTask) -> Result<String, CommonError> {
+        if self.task_key_map.contains_key(&task.task_id) {
+            self.delete_task(&task.task_id).await?;
+            debug!(
+                "Replaced existing delay task: task_id={}, task_type={:?}",
+                task.task_id, task.task_type
+            );
+        }
+
         if task.persistent {
             save_delay_task_index(&self.storage_driver_manager, &task).await?;
         }
@@ -162,6 +171,10 @@ impl DelayTaskManager {
 
         self.task_key_map
             .insert(task.task_id.clone(), (shard_no, key));
+    }
+
+    pub fn contains_task(&self, task_id: &str) -> bool {
+        self.task_key_map.contains_key(task_id)
     }
 
     pub(crate) fn remove_task_key(&self, task_id: &str) {

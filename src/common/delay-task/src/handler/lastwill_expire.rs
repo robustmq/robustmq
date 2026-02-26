@@ -12,13 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::DelayTask;
 use common_base::error::common::CommonError;
 
-pub async fn handle_session_expire(_task: &DelayTask) -> Result<(), CommonError> {
-    // TODO: implement session expire logic
-    Ok(())
-}
+use crate::DelayTask;
 
 pub async fn handle_lastwill_expire(_task: &DelayTask) -> Result<(), CommonError> {
     // TODO: implement last will expire logic

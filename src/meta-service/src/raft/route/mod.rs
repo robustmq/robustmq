@@ -20,6 +20,7 @@ use crate::raft::route::kv::DataRouteKv;
 use crate::raft::route::mqtt::DataRouteMqtt;
 use bytes::Bytes;
 use data::{StorageData, StorageDataType};
+use delay_task::manager::DelayTaskManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -47,9 +48,14 @@ impl DataRoute {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<CacheManager>,
+        delay_task_manager: Arc<DelayTaskManager>,
     ) -> DataRoute {
         let route_kv = DataRouteKv::new(rocksdb_engine_handler.clone());
-        let route_mqtt = DataRouteMqtt::new(rocksdb_engine_handler.clone(), cache_manager.clone());
+        let route_mqtt = DataRouteMqtt::new(
+            rocksdb_engine_handler.clone(),
+            cache_manager.clone(),
+            delay_task_manager.clone(),
+        );
         let route_cluster =
             DataRouteCluster::new(rocksdb_engine_handler.clone(), cache_manager.clone());
         let route_journal = DataRouteJournal::new(rocksdb_engine_handler, cache_manager);
@@ -211,7 +217,9 @@ impl DataRoute {
                 Ok(None)
             }
             StorageDataType::MqttSetSession => {
-                self.route_mqtt.create_session(storage_data.value.clone())?;
+                self.route_mqtt
+                    .create_session(storage_data.value.clone())
+                    .await?;
                 Ok(None)
             }
             StorageDataType::MqttDeleteSession => {

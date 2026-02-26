@@ -34,6 +34,7 @@ use common_config::{
 };
 use common_metrics::{core::server::register_prometheus_export, init_metrics};
 use delay_message::manager::DelayMessageManager;
+use delay_task::{manager::DelayTaskManager, start_delay_task_manager_thread};
 use grpc_clients::pool::ClientPool;
 use meta_service::{
     controller::call_broker::call::BrokerCallManager,
@@ -101,6 +102,7 @@ pub struct BrokerServer {
     connection_manager: Arc<NetworkConnectionManager>,
     broker_cache: Arc<BrokerCacheManager>,
     offset_manager: Arc<OffsetManager>,
+    delay_task_manager: Arc<DelayTaskManager>,
     config: BrokerConfig,
 }
 
@@ -153,6 +155,24 @@ impl BrokerServer {
         // tokio::spawn() during Raft::new(); those calls resolve against the *current*
         // runtime context, so they all land on meta_runtime instead of server_runtime.
         let meta_runtime = create_runtime("meta-runtime", meta_worker_threads);
+        let mqtt_om = offset_manager.clone();
+        let mqtt_seh = engine_params.storage_engine_handler.clone();
+        let storage_driver_manager = meta_runtime.block_on(async move {
+            match StorageDriverManager::new(mqtt_om.clone(), mqtt_seh).await {
+                Ok(storage) => Arc::new(storage),
+                Err(e) => {
+                    error!("Failed to build message storage driver: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        });
+
+        let delay_task_manager: Arc<DelayTaskManager> = Arc::new(DelayTaskManager::new(
+            client_pool.clone(),
+            storage_driver_manager.clone(),
+            1,
+            10,
+        ));
 
         // Run build_meta_service on meta_runtime so all openraft internal tasks
         // (core loop, log IO, state machine worker, etc.) are isolated from the
@@ -161,6 +181,7 @@ impl BrokerServer {
             client_pool.clone(),
             rocksdb_engine_handler.clone(),
             broker_cache.clone(),
+            delay_task_manager.clone(),
         ));
 
         // Create broker_runtime here so that tasks spawned during MQTT param
@@ -168,32 +189,17 @@ impl BrokerServer {
         // broker_runtime rather than server_runtime.
         let broker_runtime = create_runtime("broker-runtime", broker_worker_threads);
 
-        let mqtt_seh = engine_params.storage_engine_handler.clone();
         let mqtt_om = offset_manager.clone();
         let mqtt_cp = client_pool.clone();
         let mqtt_bc = broker_cache.clone();
         let mqtt_re = rocksdb_engine_handler.clone();
         let mqtt_cm = connection_manager.clone();
         let mqtt_stop = main_stop_send.clone();
+        let mqttt_sdm = storage_driver_manager.clone();
 
         let mqtt_params = broker_runtime.block_on(async move {
-            let storage_driver_manager =
-                match StorageDriverManager::new(mqtt_om.clone(), mqtt_seh).await {
-                    Ok(storage) => Arc::new(storage),
-                    Err(e) => {
-                        error!("Failed to build message storage driver: {}", e);
-                        std::process::exit(1);
-                    }
-                };
-
             match BrokerServer::build_broker_mqtt_params(
-                mqtt_cp,
-                mqtt_bc,
-                mqtt_re,
-                mqtt_cm,
-                storage_driver_manager,
-                mqtt_om,
-                mqtt_stop,
+                mqtt_cp, mqtt_bc, mqtt_re, mqtt_cm, mqttt_sdm, mqtt_om, mqtt_stop,
             )
             .await
             {
@@ -215,6 +221,7 @@ impl BrokerServer {
             config: config.clone(),
             mqtt_params,
             client_pool,
+            delay_task_manager,
             rocksdb_engine_handler,
             rate_limiter_manager,
             connection_manager,
@@ -375,6 +382,23 @@ impl BrokerServer {
             start_runtime_monitor(runtime_handles, raw_stop_send, monitor_interval_ms).await;
         });
 
+        // delay task
+        let raw_rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        let raw_broker_cache = self.broker_cache.clone();
+        let raw_delay_task_manager = self.delay_task_manager.clone();
+        self.server_runtime.spawn(async move {
+            if let Err(e) = start_delay_task_manager_thread(
+                &raw_rocksdb_engine_handler,
+                &raw_delay_task_manager,
+                &raw_broker_cache,
+            )
+            .await
+            {
+                error!("Failed to start DelayTask pop threads: {}", e);
+                std::process::exit(1);
+            }
+        });
+
         // awaiting stop
         self.awaiting_stop(meta_stop_send, mqtt_stop_send, engine_stop_send);
     }
@@ -383,6 +407,7 @@ impl BrokerServer {
         client_pool: Arc<ClientPool>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         broker_cache: Arc<BrokerCacheManager>,
+        delay_task_manager: Arc<DelayTaskManager>,
     ) -> MetaServiceServerParams {
         let cache_manager = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let call_manager = Arc::new(BrokerCallManager::new(broker_cache));
@@ -390,6 +415,7 @@ impl BrokerServer {
         let data_route = Arc::new(DataRoute::new(
             rocksdb_engine_handler.clone(),
             cache_manager.clone(),
+            delay_task_manager.clone(),
         ));
         let raft_manager = Arc::new(
             match MultiRaftManager::new(
@@ -413,6 +439,7 @@ impl BrokerServer {
             client_pool,
             call_manager,
             raft_manager,
+            delay_task_manager,
         }
     }
 
@@ -575,6 +602,11 @@ impl BrokerServer {
                     error!("meta stop signal, error message{}", e);
                 }
             }
+
+            if let Err(e) = self.delay_task_manager.stop().await {
+                error!("delay task stop signal, error message{}", e);
+            }
+
             sleep(Duration::from_secs(3));
         }));
     }

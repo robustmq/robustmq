@@ -20,9 +20,10 @@ use grpc_clients::{
     broker::mqtt::call::{broker_mqtt_delete_session, send_last_will_message},
     pool::ClientPool,
 };
-use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::session::MqttSession;
-use protocol::broker::broker_mqtt::{DeleteSessionRequest, SendLastWillMessageRequest};
+use protocol::broker::broker_mqtt::{
+    DeleteSessionRequest, LastWillMessageItem, SendLastWillMessageRequest,
+};
 use rocksdb_engine::keys::meta::storage_key_mqtt_session_prefix;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_DATA;
@@ -148,16 +149,27 @@ impl SessionExpire {
 
     async fn send_expire_lastwill_message(&self, last_will_list: Vec<ExpireLastWill>) {
         let lastwill_storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
-        for lastwill in last_will_list {
+        let mut items = Vec::new();
+        let mut client_ids = Vec::new();
+
+        for lastwill in &last_will_list {
             match lastwill_storage.get(&lastwill.client_id) {
                 Ok(Some(data)) => {
-                    send_last_will(
-                        self.cache_manager.clone(),
-                        self.client_pool.clone(),
-                        lastwill.client_id.clone(),
-                        data,
-                    )
-                    .await;
+                    let last_will_message = match data.encode() {
+                        Ok(encoded) => encoded,
+                        Err(e) => {
+                            error!(
+                                "Failed to encode last will message for client_id='{}': {}",
+                                lastwill.client_id, e
+                            );
+                            continue;
+                        }
+                    };
+                    items.push(LastWillMessageItem {
+                        client_id: lastwill.client_id.clone(),
+                        last_will_message,
+                    });
+                    client_ids.push(lastwill.client_id.clone());
                 }
                 Ok(None) => {
                     self.cache_manager
@@ -173,6 +185,18 @@ impl SessionExpire {
                 }
             }
         }
+
+        if items.is_empty() {
+            return;
+        }
+
+        send_last_will_batch(
+            self.cache_manager.clone(),
+            self.client_pool.clone(),
+            items,
+            client_ids,
+        )
+        .await;
     }
 
     fn is_session_expire(&self, session: &MqttSession) -> bool {
@@ -253,28 +277,12 @@ pub async fn delete_sessions(
     }
 }
 
-pub async fn send_last_will(
+pub async fn send_last_will_batch(
     cache_manager: Arc<CacheManager>,
     client_pool: Arc<ClientPool>,
-    client_id: String,
-    lastwill: MqttLastWillData,
+    items: Vec<LastWillMessageItem>,
+    client_ids: Vec<String>,
 ) {
-    let last_will_message = match lastwill.encode() {
-        Ok(data) => data,
-        Err(e) => {
-            error!(
-                "Failed to encode last will message for client {}: {}",
-                client_id, e
-            );
-            return;
-        }
-    };
-
-    let request = SendLastWillMessageRequest {
-        client_id: client_id.clone(),
-        last_will_message,
-    };
-
     let node_addr: Vec<String> = cache_manager
         .node_list
         .iter()
@@ -282,17 +290,25 @@ pub async fn send_last_will(
         .collect();
 
     if node_addr.is_empty() {
-        debug!("Get Node access address is empty, there is no node address available.");
-        cache_manager.remove_expire_last_will(&client_id);
+        debug!("No broker node address available, skipping last will batch send.");
+        for client_id in &client_ids {
+            cache_manager.remove_expire_last_will(client_id);
+        }
         return;
     }
 
+    let request = SendLastWillMessageRequest { items };
+
     match send_last_will_message(&client_pool, &node_addr, request).await {
-        Ok(_) => cache_manager.remove_expire_last_will(&client_id),
+        Ok(_) => {
+            for client_id in &client_ids {
+                cache_manager.remove_expire_last_will(client_id);
+            }
+        }
         Err(e) => {
             error!(
-                "Failed to send last will message to broker nodes for client_id='{}', nodes={:?}, error={}",
-                client_id, node_addr, e
+                "Failed to send last will batch to broker nodes, client_ids={:?}, nodes={:?}, error={}",
+                client_ids, node_addr, e
             );
         }
     }

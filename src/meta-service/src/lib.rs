@@ -18,6 +18,7 @@ use crate::controller::connector::scheduler::start_connector_scheduler;
 use crate::core::cache::{load_cache, CacheManager};
 use crate::core::controller::ClusterController;
 use crate::raft::manager::MultiRaftManager;
+use delay_task::manager::DelayTaskManager;
 use grpc_clients::pool::ClientPool;
 use raft::leadership::monitoring_leader_transition;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -42,6 +43,7 @@ pub struct MetaServiceServerParams {
     pub client_pool: Arc<ClientPool>,
     // Global call thread manager
     pub call_manager: Arc<BrokerCallManager>,
+    pub delay_task_manager: Arc<DelayTaskManager>,
 }
 pub struct MetaServiceServer {
     raft_manager: Arc<MultiRaftManager>,

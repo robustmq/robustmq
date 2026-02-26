@@ -30,12 +30,13 @@ message DeleteSessionReply {
   string data = 2;
 }
 
-message SendLastWillMessageReply {
-  bool code = 1;
-  string data = 2;
-}
+message SendLastWillMessageReply {}
 
 message SendLastWillMessageRequest {
+  repeated LastWillMessageItem items = 1;
+}
+
+message LastWillMessageItem {
   string client_id = 1;
   bytes last_will_message = 2;
 }

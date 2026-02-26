@@ -23,9 +23,11 @@ use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
-use axum::body::Bytes;
+use bytes::Bytes;
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use common_base::tools::{now_millis, now_second};
+use delay_task::manager::DelayTaskManager;
+use delay_task::{DelayTask, DelayTaskType};
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -51,19 +53,22 @@ use protocol::mqtt::common::{qos, retain_forward_rule, QoS, RetainHandling};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DataRouteMqtt {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<CacheManager>,
+    pub delay_task_manager: Arc<DelayTaskManager>,
 }
 impl DataRouteMqtt {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<CacheManager>,
+        delay_task_manager: Arc<DelayTaskManager>,
     ) -> Self {
         DataRouteMqtt {
             rocksdb_engine_handler,
             cache_manager,
+            delay_task_manager,
         }
     }
 
@@ -151,7 +156,7 @@ impl DataRouteMqtt {
     }
 
     // Session
-    pub fn create_session(&self, value: Bytes) -> Result<(), MetaServiceError> {
+    pub async fn create_session(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = CreateSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
 
@@ -159,15 +164,38 @@ impl DataRouteMqtt {
         for raw in &req.sessions {
             let session = MqttSession::decode(&raw.session)?;
             if session.is_persist_session {
-                persist_sessions.push((raw.client_id.clone(), session));
+                persist_sessions.push((raw.client_id.clone(), session.clone()));
             } else {
-                self.cache_manager.add_session(session);
+                self.cache_manager.add_session(session.clone());
+            }
+
+            let is_session_expire = session.connection_id.is_none()
+                && session.broker_id.is_none()
+                && session.distinct_time.is_some();
+
+            // If it is a disconnected connection, it needs to be added to the queue for session expiration
+            if is_session_expire {
+                if let Some(distinct_time) = session.distinct_time {
+                    let target_time = session.session_expiry_interval + distinct_time;
+                    let task = DelayTask::build_persistent(
+                        session.client_id.clone(),
+                        DelayTaskType::MQTTSessionExpire,
+                        session.client_id.clone(),
+                        target_time,
+                    );
+                    self.delay_task_manager.create_task(task).await?;
+                }
+            } else if self.delay_task_manager.contains_task(&session.client_id) {
+                self.delay_task_manager
+                    .delete_task(&session.client_id)
+                    .await?;
             }
         }
 
         if !persist_sessions.is_empty() {
             storage.save_batch(&persist_sessions)?;
         }
+
         Ok(())
     }
 

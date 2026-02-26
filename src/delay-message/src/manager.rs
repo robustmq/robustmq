@@ -53,8 +53,12 @@ pub async fn start_delay_message_manager_thread(
     delay_message_manager.start();
 
     init_inner_topic(delay_message_manager, broker_cache).await?;
-    recover_delay_queue(delay_message_manager).await;
     spawn_delay_message_pop_threads(delay_message_manager, delay_message_manager.delay_queue_num);
+
+    let recover_manager = delay_message_manager.clone();
+    tokio::spawn(async move {
+        recover_delay_queue(&recover_manager).await;
+    });
 
     Ok(())
 }

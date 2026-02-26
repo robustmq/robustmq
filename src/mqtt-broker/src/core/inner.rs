@@ -59,32 +59,44 @@ pub async fn send_last_will_message_by_req(
     storage_driver_manager: &Arc<StorageDriverManager>,
     req: &SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, MqttBrokerError> {
-    let data = match MqttLastWillData::decode(&req.last_will_message) {
-        Ok(data) => data,
-        Err(e) => {
-            return Err(MqttBrokerError::CommonError(e.to_string()));
-        }
-    };
-
     wait_cluster_running(&cache_manager.broker_cache)
         .await
         .map_err(MqttBrokerError::CommonError)?;
+
     debug!(
-        "Received will message from meta service, source client id: {},data:{:?}",
-        req.client_id, data.client_id
+        "Received batch last will messages from meta service, count: {}",
+        req.items.len()
     );
-    if let Err(e) = send_last_will_message(
-        retain_message_manager,
-        req.client_id.as_str(),
-        cache_manager,
-        client_pool,
-        &data.last_will,
-        &data.last_will_properties,
-        storage_driver_manager,
-    )
-    .await
-    {
-        debug!("send_last_will_message:{}", e);
+
+    for item in &req.items {
+        let data = match MqttLastWillData::decode(&item.last_will_message) {
+            Ok(data) => data,
+            Err(e) => {
+                debug!(
+                    "Failed to decode last will message for client_id={}: {}",
+                    item.client_id, e
+                );
+                continue;
+            }
+        };
+
+        if let Err(e) = send_last_will_message(
+            retain_message_manager,
+            item.client_id.as_str(),
+            cache_manager,
+            client_pool,
+            &data.last_will,
+            &data.last_will_properties,
+            storage_driver_manager,
+        )
+        .await
+        {
+            debug!(
+                "Failed to send last will message for client_id={}: {}",
+                item.client_id, e
+            );
+        }
     }
-    Ok(SendLastWillMessageReply::default())
+
+    Ok(SendLastWillMessageReply {})
 }
