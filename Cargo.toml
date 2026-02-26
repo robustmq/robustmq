@@ -38,6 +38,7 @@ members = [
     "src/common/delay-task",
     "src/common/rate-limit",
     "src/common/system-info",
+    "src/common/node-call",
     "src/protocol",
     "src/storage-engine",
     "src/rule-engine",
@@ -338,6 +339,7 @@ third-driver = { path = "src/common/third-driver" }
 rate-limit = { path = "src/common/rate-limit" }
 pprof-monitor = { path = "src/common/pprof-monitor" }
 system-info = { path = "src/common/system-info" }
+node-call = { path = "src/common/node-call" }
 
 # Protocol & Macros
 protocol = { path = "src/protocol" }

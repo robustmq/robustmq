@@ -56,8 +56,9 @@ pub(crate) async fn save_delay_task_index(
     }
 
     debug!(
-        "Delay task index persisted: task_id={}, task_type={:?}",
-        task.task_id, task.task_type
+        "Delay task index persisted: task_id={}, task_type={}",
+        task.task_id,
+        task.task_type_name()
     );
     Ok(())
 }

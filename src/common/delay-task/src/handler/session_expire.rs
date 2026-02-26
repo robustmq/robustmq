@@ -14,7 +14,6 @@
 
 use std::sync::Arc;
 
-use crate::DelayTask;
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::session::MqttSession;
 use rocksdb_engine::{
@@ -23,11 +22,10 @@ use rocksdb_engine::{
 };
 
 pub async fn handle_session_expire(
-    task: &DelayTask,
+    client_id: &str,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> Result<(), CommonError> {
-    let client_id = task.task_data.clone();
-    let key = storage_key_mqtt_session(&client_id);
+    let key = storage_key_mqtt_session(client_id);
     if let Some(_session) =
         engine_get_by_meta_data::<MqttSession>(rocksdb_engine_handler, &key)?.map(|data| data.data)
     {

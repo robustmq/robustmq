@@ -27,7 +27,7 @@ use bytes::Bytes;
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use common_base::tools::{now_millis, now_second};
 use delay_task::manager::DelayTaskManager;
-use delay_task::{DelayTask, DelayTaskType};
+use delay_task::{DelayTask, DelayTaskData};
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
@@ -179,8 +179,7 @@ impl DataRouteMqtt {
                     let target_time = session.session_expiry_interval + distinct_time;
                     let task = DelayTask::build_persistent(
                         session.client_id.clone(),
-                        DelayTaskType::MQTTSessionExpire,
-                        session.client_id.clone(),
+                        DelayTaskData::MQTTSessionExpire(session.client_id.clone()),
                         target_time,
                     );
                     self.delay_task_manager.create_task(task).await?;

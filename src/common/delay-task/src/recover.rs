@@ -174,9 +174,9 @@ async fn handle_expired_delay_task(
 ) {
     warn!(
         "Delay task expired during recovery, executing immediately. \
-         task_id={}, task_type={:?}, expired by: {}s",
+         task_id={}, task_type={}, expired by: {}s",
         task.task_id,
-        task.task_type,
+        task.task_type_name(),
         now - task.delay_target_time
     );
 

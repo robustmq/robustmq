@@ -72,8 +72,9 @@ impl DelayTaskManager {
         if self.task_key_map.contains_key(&task.task_id) {
             self.delete_task(&task.task_id).await?;
             debug!(
-                "Replaced existing delay task: task_id={}, task_type={:?}",
-                task.task_id, task.task_type
+                "Replaced existing delay task: task_id={}, task_type={}",
+                task.task_id,
+                task.task_type_name()
             );
         }
 
@@ -113,8 +114,9 @@ impl DelayTaskManager {
         }
 
         debug!(
-            "Delay task deleted: task_id={}, task_type={:?}",
-            task_id, task.task_type
+            "Delay task deleted: task_id={}, task_type={}",
+            task_id,
+            task.task_type_name()
         );
         Ok(())
     }
@@ -140,8 +142,10 @@ impl DelayTaskManager {
         } else {
             error!(
                 "Failed to enqueue delay task: shard {} not found, task will be lost: \
-                task_id={}, task_type={:?}",
-                shard_no, task.task_id, task.task_type
+                task_id={}, task_type={}",
+                shard_no,
+                task.task_id,
+                task.task_type_name()
             );
             return;
         };
@@ -155,10 +159,10 @@ impl DelayTaskManager {
         let target_instant = Instant::now() + delay_duration;
 
         debug!(
-            "Insert delay task to queue. task_id={}, task_type={:?}, shard_no={}, \
+            "Insert delay task to queue. task_id={}, task_type={}, shard_no={}, \
             delay_target_time={}, current_time={}, delay_duration={}s",
             task.task_id,
-            task.task_type,
+            task.task_type_name(),
             shard_no,
             task.delay_target_time,
             current_time,

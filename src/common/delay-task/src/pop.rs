@@ -16,7 +16,7 @@ use crate::delay::delete_delay_task_index;
 use crate::handler::lastwill_expire::handle_lastwill_expire;
 use crate::handler::session_expire::handle_session_expire;
 use crate::manager::{DelayTaskManager, SharedDelayQueue};
-use crate::{DelayTask, DelayTaskType};
+use crate::{DelayTask, DelayTaskData};
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use common_metrics::mqtt::delay_task::{
@@ -147,14 +147,14 @@ pub(crate) async fn spawn_task_process(
 
     tokio::spawn(async move {
         let _permit = permit;
-        let task_type_str = format!("{:?}", task.task_type);
+        let task_type_str = task.task_type_name();
         if let Err(e) =
             delay_task_process(&delay_task_manager, &rocksdb_engine_handler, &task).await
         {
-            record_delay_task_execute_failed(&task_type_str);
+            record_delay_task_execute_failed(task_type_str);
             error!(
-                "Failed to process delay task: task_id={}, task_type={:?}, error={}",
-                task.task_id, task.task_type, e
+                "Failed to process delay task: task_id={}, task_type={}, error={}",
+                task.task_id, task_type_str, e
             );
         }
     });
@@ -165,23 +165,23 @@ pub async fn delay_task_process(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     task: &DelayTask,
 ) -> Result<(), CommonError> {
+    let task_type_str = task.task_type_name();
     debug!(
-        "Processing delay task: task_id={}, task_type={:?}",
-        task.task_id, task.task_type
+        "Processing delay task: task_id={}, task_type={}",
+        task.task_id, task_type_str
     );
 
     delay_task_manager.remove_task_key(&task.task_id);
 
-    let task_type_str = format!("{:?}", task.task_type);
     let latency_s = now_second().saturating_sub(task.delay_target_time) as f64;
-    record_delay_task_schedule_latency(&task_type_str, latency_s);
+    record_delay_task_schedule_latency(task_type_str, latency_s);
 
-    match task.task_type {
-        DelayTaskType::MQTTSessionExpire => {
-            handle_session_expire(task, rocksdb_engine_handler).await?;
+    match &task.data {
+        DelayTaskData::MQTTSessionExpire(client_id) => {
+            handle_session_expire(client_id, rocksdb_engine_handler).await?;
         }
-        DelayTaskType::MQTTLastwillExpire => {
-            handle_lastwill_expire(task).await?;
+        DelayTaskData::MQTTLastwillExpire(client_id) => {
+            handle_lastwill_expire(client_id).await?;
         }
     }
 
@@ -189,6 +189,6 @@ pub async fn delay_task_process(
         delete_delay_task_index(&delay_task_manager.storage_driver_manager, &task.task_id).await?;
     }
 
-    record_delay_task_executed(&task_type_str);
+    record_delay_task_executed(task_type_str);
     Ok(())
 }

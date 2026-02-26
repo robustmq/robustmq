@@ -34,68 +34,60 @@ use std::sync::Arc;
 pub const DELAY_TASK_INDEX_TOPIC: &str = "$delay-task-index";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum DelayTaskType {
-    MQTTSessionExpire,
-    MQTTLastwillExpire,
+pub enum DelayTaskData {
+    MQTTSessionExpire(String),
+    MQTTLastwillExpire(String),
+}
+
+impl DelayTaskData {
+    pub fn task_type_name(&self) -> &'static str {
+        match self {
+            DelayTaskData::MQTTSessionExpire(_) => "MQTTSessionExpire",
+            DelayTaskData::MQTTLastwillExpire(_) => "MQTTLastwillExpire",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DelayTask {
     pub task_id: String,
-    pub task_type: DelayTaskType,
-    pub task_data: String,
+    pub data: DelayTaskData,
     pub delay_target_time: u64,
     pub create_time: u64,
     pub persistent: bool,
 }
 
 impl DelayTask {
-    pub fn build_persistent(
-        task_id: String,
-        task_type: DelayTaskType,
-        task_data: String,
-        delay_target_time: u64,
-    ) -> Self {
+    pub fn build_persistent(task_id: String, data: DelayTaskData, delay_target_time: u64) -> Self {
         DelayTask {
             task_id,
-            task_type,
-            task_data,
+            data,
             delay_target_time,
             create_time: now_second(),
             persistent: true,
         }
     }
 
-    pub fn build_persistent_auto_id(
-        task_type: DelayTaskType,
-        task_data: String,
-        delay_target_time: u64,
-    ) -> Self {
-        Self::build_persistent(unique_id(), task_type, task_data, delay_target_time)
+    pub fn build_persistent_auto_id(data: DelayTaskData, delay_target_time: u64) -> Self {
+        Self::build_persistent(unique_id(), data, delay_target_time)
     }
 
-    pub fn build_ephemeral(
-        task_id: String,
-        task_type: DelayTaskType,
-        task_data: String,
-        delay_target_time: u64,
-    ) -> Self {
+    pub fn build_ephemeral(task_id: String, data: DelayTaskData, delay_target_time: u64) -> Self {
         DelayTask {
             task_id,
-            task_type,
-            task_data,
+            data,
             delay_target_time,
             create_time: now_second(),
             persistent: false,
         }
     }
 
-    pub fn build_ephemeral_auto_id(
-        task_type: DelayTaskType,
-        task_data: String,
-        delay_target_time: u64,
-    ) -> Self {
-        Self::build_ephemeral(unique_id(), task_type, task_data, delay_target_time)
+    pub fn build_ephemeral_auto_id(data: DelayTaskData, delay_target_time: u64) -> Self {
+        Self::build_ephemeral(unique_id(), data, delay_target_time)
+    }
+
+    pub fn task_type_name(&self) -> &'static str {
+        self.data.task_type_name()
     }
 }
 
