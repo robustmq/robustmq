@@ -4526,8 +4526,14 @@ dependencies = [
 name = "node-call"
 version = "0.3.1"
 dependencies = [
+ "broker-core",
  "common-base",
  "dashmap",
+ "grpc-clients",
+ "metadata-struct",
+ "protocol",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

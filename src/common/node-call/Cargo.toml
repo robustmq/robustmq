@@ -19,5 +19,11 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+broker-core.workspace = true
 dashmap.workspace = true
 common-base.workspace = true
+grpc-clients.workspace = true
+metadata-struct.workspace = true
+protocol.workspace = true
+tokio.workspace = true
+tracing.workspace = true
