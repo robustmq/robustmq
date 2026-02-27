@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use super::cluster::un_register_node_by_req;
-use crate::controller::call_broker::call::BrokerCallManager;
 use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
+use node_call::NodeCallManager;
 use protocol::meta::meta_service_common::UnRegisterNodeRequest;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -34,7 +34,7 @@ pub struct BrokerHeartbeat {
     cluster_cache: Arc<MetaCacheManager>,
     raft_manager: Arc<MultiRaftManager>,
     client_pool: Arc<ClientPool>,
-    mqtt_call_manager: Arc<BrokerCallManager>,
+    node_call_manager: Arc<NodeCallManager>,
 }
 
 impl BrokerHeartbeat {
@@ -43,14 +43,14 @@ impl BrokerHeartbeat {
         cluster_cache: Arc<MetaCacheManager>,
         raft_manager: Arc<MultiRaftManager>,
         client_pool: Arc<ClientPool>,
-        mqtt_call_manager: Arc<BrokerCallManager>,
+        node_call_manager: Arc<NodeCallManager>,
     ) -> Self {
         BrokerHeartbeat {
             timeout_ms,
             cluster_cache,
             raft_manager,
             client_pool,
-            mqtt_call_manager,
+            node_call_manager,
         }
     }
 
@@ -67,7 +67,7 @@ impl BrokerHeartbeat {
                         &self.cluster_cache,
                         &self.raft_manager,
                         &self.client_pool,
-                        &self.mqtt_call_manager,
+                        &self.node_call_manager,
                         req,
                     )
                     .await

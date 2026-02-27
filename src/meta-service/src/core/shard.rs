@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::call::BrokerCallManager;
-use crate::controller::call_broker::storage::update_cache_by_set_shard;
+use crate::controller::notify::update_cache_by_set_shard;
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::core::segment::delete_segment_by_real;
@@ -24,14 +23,15 @@ use common_base::tools::now_second;
 use common_base::uuid::unique_id;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
+use node_call::NodeCallManager;
 use std::sync::Arc;
 use tracing::info;
 
 pub async fn create_shard(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
+    _client_pool: &Arc<ClientPool>,
     shard_name: &str,
     shard_config: EngineShardConfig,
 ) -> Result<EngineShard, MetaServiceError> {
@@ -56,7 +56,7 @@ pub async fn create_shard(
     };
 
     sync_save_shard_info(raft_manager, &new_shard).await?;
-    update_cache_by_set_shard(call_manager, client_pool, new_shard.clone()).await?;
+    update_cache_by_set_shard(call_manager, new_shard.clone()).await?;
 
     Ok(new_shard)
 }
@@ -86,8 +86,8 @@ pub async fn delete_shard_by_real(
 async fn update_shard<F>(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
+    _client_pool: &Arc<ClientPool>,
     shard_name: &str,
     update_fn: F,
 ) -> Result<(), MetaServiceError>
@@ -100,7 +100,7 @@ where
 
     if let Some(shard) = cache_manager.get_shard(shard_name) {
         sync_save_shard_info(raft_manager, &shard).await?;
-        update_cache_by_set_shard(call_manager, client_pool, shard.clone()).await?;
+        update_cache_by_set_shard(call_manager, shard.clone()).await?;
     }
     Ok(())
 }
@@ -108,7 +108,7 @@ where
 pub async fn update_start_segment_by_shard(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
     segment_no: u32,
@@ -132,7 +132,7 @@ pub async fn update_start_segment_by_shard(
 pub async fn update_last_segment_by_shard(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
     segment_no: u32,
@@ -156,7 +156,7 @@ pub async fn update_last_segment_by_shard(
 pub async fn update_shard_status(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
     status: EngineShardStatus,

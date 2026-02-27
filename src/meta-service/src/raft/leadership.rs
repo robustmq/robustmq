@@ -13,11 +13,12 @@
 // limitations under the License.
 
 use crate::{
-    controller::{call_broker::call::BrokerCallManager, BrokerController},
+    controller::BrokerController,
     core::cache::MetaCacheManager,
     raft::manager::{MultiRaftManager, RaftStateMachineName},
 };
 use grpc_clients::pool::ClientPool;
+use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{sync::Arc, time::Duration};
 use tokio::{
@@ -32,7 +33,7 @@ pub fn monitoring_leader_transition(
     cache_manager: Arc<MetaCacheManager>,
     client_pool: Arc<ClientPool>,
     raft_manager: Arc<MultiRaftManager>,
-    call_manager: Arc<BrokerCallManager>,
+    call_manager: Arc<NodeCallManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
     // Use the single metadata shard leader as the controller leadership source.
@@ -100,7 +101,7 @@ pub fn start_controller(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     client_pool: &Arc<ClientPool>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     stop_send: Sender<bool>,
 ) {
     let mqtt_controller = BrokerController::new(

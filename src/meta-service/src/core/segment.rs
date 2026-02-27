@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::call::BrokerCallManager;
-use crate::controller::call_broker::storage::update_cache_by_set_segment;
+use crate::controller::notify::update_cache_by_set_segment;
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::core::segment_meta::{
@@ -28,6 +27,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentStatus};
 use metadata_struct::storage::shard::EngineShard;
+use node_call::NodeCallManager;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::sync::Arc;
@@ -36,7 +36,7 @@ use tracing::{info, warn};
 pub async fn create_segment(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_info: &EngineShard,
     segment_seq: u32,
@@ -55,7 +55,7 @@ pub async fn create_segment(
         let segment: EngineSegment = build_segment(shard_info, cache_manager, segment_seq).await?;
 
         sync_save_segment_info(raft_manager, &segment).await?;
-        update_cache_by_set_segment(call_manager, client_pool, segment.clone()).await?;
+        update_cache_by_set_segment(call_manager, segment.clone()).await?;
         if shard_info.config.storage_type == StorageType::EngineSegment {
             create_segment_metadata(
                 cache_manager,
@@ -76,7 +76,7 @@ pub async fn create_segment(
 pub async fn seal_up_segment(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     segment: &EngineSegment,
     last_timestamp: u64,
@@ -185,7 +185,7 @@ async fn build_segment(
 
 pub async fn update_segment_status(
     cache_manager: &Arc<MetaCacheManager>,
-    broker_call_manager: &Arc<BrokerCallManager>,
+    broker_call_manager: &Arc<NodeCallManager>,
     raft_manager: &Arc<MultiRaftManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
@@ -205,7 +205,7 @@ pub async fn update_segment_status(
 
     if let Some(segment) = cache_manager.get_segment(shard_name, segment_seq) {
         sync_save_segment_info(raft_manager, &segment).await?;
-        update_cache_by_set_segment(broker_call_manager, client_pool, segment).await?;
+        update_cache_by_set_segment(broker_call_manager, segment).await?;
     }
 
     Ok(())

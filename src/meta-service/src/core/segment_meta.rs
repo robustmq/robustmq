@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    controller::call_broker::{call::BrokerCallManager, storage::update_cache_by_set_segment_meta},
+    controller::notify::update_cache_by_set_segment_meta,
     core::{cache::MetaCacheManager, error::MetaServiceError},
     raft::{
         manager::MultiRaftManager,
@@ -23,6 +23,7 @@ use crate::{
 use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::{segment::EngineSegment, segment_meta::EngineSegmentMetadata};
+use node_call::NodeCallManager;
 use std::sync::Arc;
 use tracing::warn;
 
@@ -31,8 +32,8 @@ const UNINITIALIZED_TIMESTAMP: i64 = -1;
 async fn update_segment_metadata<F>(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
+    _client_pool: &Arc<ClientPool>,
     shard_name: &str,
     segment: u32,
     update_fn: F,
@@ -61,7 +62,7 @@ where
     drop(meta);
     drop(meta_list);
     sync_save_segment_metadata_info(raft_manager, &new_meta).await?;
-    update_cache_by_set_segment_meta(call_manager, client_pool, new_meta).await?;
+    update_cache_by_set_segment_meta(call_manager, new_meta).await?;
 
     Ok(())
 }
@@ -69,7 +70,7 @@ where
 pub async fn update_last_offset_by_segment_metadata(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
     segment: u32,
@@ -90,7 +91,7 @@ pub async fn update_last_offset_by_segment_metadata(
 pub async fn update_start_timestamp_by_segment_metadata(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
     segment: u32,
@@ -115,7 +116,7 @@ pub async fn update_start_timestamp_by_segment_metadata(
 pub async fn update_end_timestamp_by_segment_metadata(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
     segment: u32,
@@ -140,8 +141,8 @@ pub async fn update_end_timestamp_by_segment_metadata(
 pub async fn create_segment_metadata(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
+    _client_pool: &Arc<ClientPool>,
     segment: &EngineSegment,
     start_offset: i64,
 ) -> Result<(), MetaServiceError> {
@@ -162,7 +163,7 @@ pub async fn create_segment_metadata(
     };
 
     sync_save_segment_metadata_info(raft_manager, &metadata).await?;
-    update_cache_by_set_segment_meta(call_manager, client_pool, metadata).await?;
+    update_cache_by_set_segment_meta(call_manager, metadata).await?;
 
     Ok(())
 }

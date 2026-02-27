@@ -12,36 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::engine_gc::start_engine_delete_gc_thread;
-use crate::controller::session_expire::ExpireLastWill;
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
-use common_base::error::ResultCommonError;
-use common_base::tools::{loop_select_ticket, now_second};
 use grpc_clients::pool::ClientPool;
+use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use session_expire::SessionExpire;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
 pub mod connector;
 pub mod engine_gc;
 pub mod notify;
-pub mod session_expire;
-
-pub fn is_send_last_will(lastwill: &ExpireLastWill) -> bool {
-    if now_second() >= lastwill.delay_sec {
-        return true;
-    }
-    false
-}
 
 pub struct BrokerController {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    call_manager: Arc<BrokerCallManager>,
+    node_call_manager: Arc<NodeCallManager>,
     raft_manager: Arc<MultiRaftManager>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MetaCacheManager>,
     client_pool: Arc<ClientPool>,
 }
 
@@ -49,55 +37,24 @@ impl BrokerController {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         raft_manager: Arc<MultiRaftManager>,
-        cache_manager: Arc<CacheManager>,
-        call_manager: Arc<BrokerCallManager>,
+        cache_manager: Arc<MetaCacheManager>,
+        node_call_manager: Arc<NodeCallManager>,
         client_pool: Arc<ClientPool>,
     ) -> BrokerController {
         BrokerController {
             rocksdb_engine_handler,
             cache_manager,
-            call_manager,
+            node_call_manager,
             raft_manager,
             client_pool,
         }
     }
 
     pub async fn start(&self, stop_send: &broadcast::Sender<bool>) {
-        // Periodically check if the session has expired
-        let session = SessionExpire::new(
-            self.rocksdb_engine_handler.clone(),
-            self.cache_manager.clone(),
-            self.client_pool.clone(),
-        );
-        let raw_stop_send = stop_send.clone();
-        tokio::spawn(Box::pin(async move {
-            let ac_fn = async || -> ResultCommonError {
-                session.session_expire().await;
-                Ok(())
-            };
-            loop_select_ticket(ac_fn, 1000, &raw_stop_send).await;
-        }));
-
-        // Periodically check if the session has expired
-        let session = SessionExpire::new(
-            self.rocksdb_engine_handler.clone(),
-            self.cache_manager.clone(),
-            self.client_pool.clone(),
-        );
-
-        let raw_stop_send = stop_send.clone();
-        tokio::spawn(Box::pin(async move {
-            let ac_fn = async || -> ResultCommonError {
-                session.last_will_expire_send().await;
-                Ok(())
-            };
-            loop_select_ticket(ac_fn, 1000, &raw_stop_send).await;
-        }));
-
         // storage engine gc
         let raft_manager = self.raft_manager.clone();
         let cache_manager = self.cache_manager.clone();
-        let call_manager = self.call_manager.clone();
+        let call_manager = self.node_call_manager.clone();
         let client_pool = self.client_pool.clone();
         let raw_stop_send = stop_send.clone();
         tokio::spawn(Box::pin(async move {

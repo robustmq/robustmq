@@ -14,13 +14,12 @@
 
 use super::cache::MetaCacheManager;
 use super::error::MetaServiceError;
-use crate::controller::call_broker::call::BrokerCallManager;
-use crate::controller::call_broker::mqtt::{update_cache_by_add_node, update_cache_by_delete_node};
+use crate::controller::notify::{update_cache_by_add_node, update_cache_by_delete_node};
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use bytes::Bytes;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
+use node_call::NodeCallManager;
 use prost::Message as _;
 use protocol::meta::meta_service_common::{
     RegisterNodeReply, RegisterNodeRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
@@ -30,15 +29,15 @@ use std::sync::Arc;
 pub async fn register_node_by_req(
     cluster_cache: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    client_pool: &Arc<ClientPool>,
-    mqtt_call_manager: &Arc<BrokerCallManager>,
+    _client_pool: &Arc<grpc_clients::pool::ClientPool>,
+    mqtt_call_manager: &Arc<NodeCallManager>,
     req: RegisterNodeRequest,
 ) -> Result<RegisterNodeReply, MetaServiceError> {
     let node = BrokerNode::decode(&req.node)?;
     cluster_cache.report_broker_heart(node.node_id);
     sync_save_node(raft_manager, &node).await?;
 
-    update_cache_by_add_node(mqtt_call_manager, client_pool, node.clone()).await?;
+    update_cache_by_add_node(mqtt_call_manager, node.clone()).await?;
 
     Ok(RegisterNodeReply::default())
 }
@@ -46,14 +45,13 @@ pub async fn register_node_by_req(
 pub async fn un_register_node_by_req(
     cluster_cache: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    client_pool: &Arc<ClientPool>,
-    mqtt_call_manager: &Arc<BrokerCallManager>,
+    _client_pool: &Arc<grpc_clients::pool::ClientPool>,
+    mqtt_call_manager: &Arc<NodeCallManager>,
     req: UnRegisterNodeRequest,
 ) -> Result<UnRegisterNodeReply, MetaServiceError> {
     if let Some(node) = cluster_cache.get_broker_node(req.node_id) {
         sync_delete_node(raft_manager, &req).await?;
-        mqtt_call_manager.remove_node(req.node_id).await;
-        update_cache_by_delete_node(mqtt_call_manager, client_pool, node.clone()).await?;
+        update_cache_by_delete_node(mqtt_call_manager, node.clone()).await?;
     }
     Ok(UnRegisterNodeReply::default())
 }

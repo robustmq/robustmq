@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use super::heartbeat::BrokerHeartbeat;
-use crate::controller::call_broker::call::BrokerCallManager;
 use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
+use node_call::NodeCallManager;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
@@ -27,7 +27,7 @@ pub struct ClusterController {
     cluster_cache: Arc<MetaCacheManager>,
     raft_manager: Arc<MultiRaftManager>,
     client_pool: Arc<ClientPool>,
-    mqtt_call_manager: Arc<BrokerCallManager>,
+    node_call_manager: Arc<NodeCallManager>,
 }
 
 impl ClusterController {
@@ -35,13 +35,13 @@ impl ClusterController {
         cluster_cache: Arc<MetaCacheManager>,
         raft_manager: Arc<MultiRaftManager>,
         client_pool: Arc<ClientPool>,
-        mqtt_call_manager: Arc<BrokerCallManager>,
+        node_call_manager: Arc<NodeCallManager>,
     ) -> ClusterController {
         ClusterController {
             cluster_cache,
             raft_manager,
             client_pool,
-            mqtt_call_manager,
+            node_call_manager,
         }
     }
 
@@ -52,7 +52,7 @@ impl ClusterController {
             self.cluster_cache.clone(),
             self.raft_manager.clone(),
             self.client_pool.clone(),
-            self.mqtt_call_manager.clone(),
+            self.node_call_manager.clone(),
         );
 
         let ac_fn = async || -> ResultCommonError {
