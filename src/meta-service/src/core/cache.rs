@@ -28,7 +28,6 @@ use dashmap::DashMap;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::group_leader::MqttGroupLeader;
-use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::storage::segment::EngineSegment;
@@ -58,9 +57,6 @@ pub struct MetaCacheManager {
 
     //(connector_name, ConnectorHeartbeat)
     pub connector_heartbeat: DashMap<String, ConnectorHeartbeat>,
-
-    // (client_id, MqttSession)
-    pub session_list: DashMap<String, MqttSession>,
 
     // (group_name, broker_id)
     pub group_leader: DashMap<String, MqttGroupLeader>,
@@ -96,7 +92,6 @@ impl MetaCacheManager {
             segment_meta_list: DashMap::with_capacity(256),
             wait_delete_shard_list: DashMap::with_capacity(8),
             wait_delete_segment_list: DashMap::with_capacity(8),
-            session_list: DashMap::with_capacity(8),
             group_leader: DashMap::with_capacity(8),
         };
         cache.load_cache(rocksdb_engine_handler);

@@ -18,3 +18,5 @@ pub async fn handle_lastwill_expire(_client_id: &str) -> Result<(), CommonError>
     // TODO: implement last will expire logic
     Ok(())
 }
+
+// fn get_last_will_message() {}

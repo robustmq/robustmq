@@ -188,6 +188,7 @@ impl BrokerServer {
             rocksdb_engine_handler.clone(),
             delay_task_manager.clone(),
             node_call_manager.clone(),
+            broker_cache.clone(),
         ));
 
         // Create broker_runtime here so that tasks spawned during MQTT param
@@ -417,6 +418,7 @@ impl BrokerServer {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         delay_task_manager: Arc<DelayTaskManager>,
         node_call_manager: Arc<NodeCallManager>,
+        broker_cache: Arc<BrokerCacheManager>,
     ) -> MetaServiceServerParams {
         let cache_manager = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
 
@@ -424,6 +426,7 @@ impl BrokerServer {
             rocksdb_engine_handler.clone(),
             cache_manager.clone(),
             delay_task_manager.clone(),
+            broker_cache.clone(),
         ));
         let raft_manager = Arc::new(
             match MultiRaftManager::new(
@@ -448,6 +451,7 @@ impl BrokerServer {
             node_call_manager,
             raft_manager,
             delay_task_manager,
+            broker_cache,
         }
     }
 

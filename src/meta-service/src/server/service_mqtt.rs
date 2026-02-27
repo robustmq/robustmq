@@ -39,6 +39,7 @@ use crate::server::services::mqtt::topic::{
 use crate::server::services::mqtt::user::{
     create_user_by_req, delete_user_by_req, list_user_by_req,
 };
+use broker_core::cache::BrokerCacheManager;
 use delay_task::manager::DelayTaskManager;
 use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
@@ -77,6 +78,7 @@ pub struct GrpcMqttService {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     delay_task_manager: Arc<DelayTaskManager>,
     call_manager: Arc<NodeCallManager>,
+    broker_cache: Arc<BrokerCacheManager>,
     client_pool: Arc<ClientPool>,
 }
 
@@ -87,6 +89,7 @@ impl GrpcMqttService {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         delay_task_manager: Arc<DelayTaskManager>,
         call_manager: Arc<NodeCallManager>,
+        broker_cache: Arc<BrokerCacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcMqttService {
@@ -96,6 +99,7 @@ impl GrpcMqttService {
             delay_task_manager,
             call_manager,
             client_pool,
+            broker_cache,
         }
     }
 
@@ -172,7 +176,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        list_session_by_req(&self.cache_manager, &self.rocksdb_engine_handler, &req)
+        list_session_by_req(&self.broker_cache, &self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
     }
@@ -207,7 +211,7 @@ impl MqttService for GrpcMqttService {
             &self.delay_task_manager,
             &self.call_manager,
             &self.rocksdb_engine_handler,
-            &self.cache_manager,
+            &self.broker_cache,
             &req,
         )
         .await

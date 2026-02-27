@@ -16,26 +16,10 @@ use crate::core::cache::MetaCacheManager;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::group_leader::MqttGroupLeader;
-use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::user::MqttUser;
 
 impl MetaCacheManager {
-    pub fn add_session(&self, session: MqttSession) {
-        self.session_list.insert(session.client_id.clone(), session);
-    }
-
-    pub fn delete_session(&self, client_id: &str) {
-        self.session_list.remove(client_id);
-    }
-
-    pub fn get_session(&self, client_id: &str) -> Option<MqttSession> {
-        if let Some(session) = self.session_list.get(client_id) {
-            return Some(session.clone());
-        }
-        None
-    }
-
     pub fn add_group_leader(&self, group_info: MqttGroupLeader) {
         self.group_leader
             .insert(group_info.group_name.clone(), group_info);

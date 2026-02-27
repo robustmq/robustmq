@@ -12,24 +12,76 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
+use broker_core::cache::BrokerCacheManager;
+use common_base::{error::common::CommonError, tools::now_second};
+use metadata_struct::mqtt::session::MqttSession;
 use node_call::{NodeCallData, NodeCallManager};
+use protocol::broker::broker_mqtt::LastWillMessageItem;
 use rocksdb_engine::{
-    keys::meta::storage_key_mqtt_session, rocksdb::RocksDBEngine,
-    storage::meta_data::engine_delete_by_meta_data,
+    keys::meta::storage_key_mqtt_session,
+    rocksdb::RocksDBEngine,
+    storage::meta_data::{engine_delete_by_meta_data, engine_get_by_meta_data},
 };
 use std::sync::Arc;
 
+use crate::{manager::DelayTaskManager, DelayTask, DelayTaskData};
+
 pub async fn handle_session_expire(
-    client_id: &str,
     node_call_manager: &Arc<NodeCallManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    broker_cache: &Arc<BrokerCacheManager>,
+    delay_task_manager: &Arc<DelayTaskManager>,
+    client_id: &str,
 ) -> Result<(), CommonError> {
-    let key = storage_key_mqtt_session(client_id);
+    if let Some((session, is_cache)) = get_session(rocksdb_engine_handler, broker_cache, client_id)?
+    {
+        if is_cache {
+            broker_cache.delete_session(client_id);
+        } else {
+            let key = storage_key_mqtt_session(client_id);
+            engine_delete_by_meta_data(rocksdb_engine_handler, &key)?;
+        }
 
-    let data = NodeCallData::DeleteSession(client_id.to_string());
-    node_call_manager.send(data).await?;
-    engine_delete_by_meta_data(rocksdb_engine_handler, &key)?;
+        let data = NodeCallData::DeleteSession(client_id.to_string());
+        node_call_manager.send(data).await?;
+
+        if let Some(delay_interval) = session.last_will_delay_interval {
+            let delay_target_time = now_second() + delay_interval;
+            delay_task_manager
+                .create_task(DelayTask::build_persistent(
+                    client_id.to_string(),
+                    DelayTaskData::MQTTLastwillExpire(client_id.to_string()),
+                    delay_target_time,
+                ))
+                .await?;
+        } else {
+            let will_message = LastWillMessageItem {
+                client_id: client_id.to_string(),
+                last_will_message: Vec::new(),
+            };
+            let data = NodeCallData::SendLastWillMessage(will_message);
+            node_call_manager.send(data).await?;
+        }
+    }
 
     Ok(())
+}
+
+#[allow(clippy::result_large_err)]
+fn get_session(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    broker_cache: &Arc<BrokerCacheManager>,
+    client_id: &str,
+) -> Result<Option<(MqttSession, bool)>, CommonError> {
+    if let Some(session) = broker_cache.get_session(client_id) {
+        return Ok(Some((session, true)));
+    }
+
+    let key = storage_key_mqtt_session(client_id);
+    if let Some(session) =
+        engine_get_by_meta_data::<MqttSession>(rocksdb_engine_handler, &key)?.map(|data| data.data)
+    {
+        return Ok(Some((session, false)));
+    }
+    Ok(None)
 }

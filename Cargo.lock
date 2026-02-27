@@ -1925,6 +1925,7 @@ dependencies = [
  "grpc-clients",
  "metadata-struct",
  "node-call",
+ "protocol",
  "rocksdb-engine",
  "serde",
  "storage-adapter",

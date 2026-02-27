@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::controller::notify::{update_cache_by_add_session, update_cache_by_delete_session};
-use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
@@ -22,6 +21,7 @@ use crate::{
     raft::route::data::{StorageData, StorageDataType},
     storage::mqtt::session::MqttSessionStorage,
 };
+use broker_core::cache::BrokerCacheManager;
 use common_base::tools::now_second;
 use common_base::utils::serialize::encode_to_bytes;
 use delay_task::manager::DelayTaskManager;
@@ -39,11 +39,12 @@ use std::sync::Arc;
 
 // Session Operations
 pub fn list_session_by_req(
-    cache_manager: &Arc<MetaCacheManager>,
+    broker_cache_manager: &Arc<BrokerCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSessionRequest,
 ) -> Result<ListSessionReply, MetaServiceError> {
-    let mut not_persist_session_list = read_not_persist_session(cache_manager, &req.client_id)?;
+    let mut not_persist_session_list =
+        read_not_persist_session(broker_cache_manager, &req.client_id)?;
     let persist_session_list = read_persist_session(rocksdb_engine_handler, &req.client_id)?;
     not_persist_session_list.extend(persist_session_list);
     Ok(ListSessionReply {
@@ -52,16 +53,16 @@ pub fn list_session_by_req(
 }
 
 fn read_not_persist_session(
-    cache_manager: &Arc<MetaCacheManager>,
+    broker_cache_manager: &Arc<BrokerCacheManager>,
     client_id: &str,
 ) -> Result<Vec<Vec<u8>>, MetaServiceError> {
     let mut sessions = Vec::new();
     if !client_id.is_empty() {
-        if let Some(session) = cache_manager.get_session(client_id) {
+        if let Some(session) = broker_cache_manager.get_session(client_id) {
             sessions.push(session.encode()?);
         }
     } else {
-        sessions = cache_manager
+        sessions = broker_cache_manager
             .session_list
             .clone()
             .into_iter()
@@ -121,13 +122,13 @@ pub async fn delete_session_by_req(
     delay_task_manager: &Arc<DelayTaskManager>,
     call_manager: &Arc<NodeCallManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    cache_manager: &Arc<MetaCacheManager>,
+    broker_cache_manager: &Arc<BrokerCacheManager>,
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, MetaServiceError> {
     let session_storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     let session = if let Some(session) = session_storage.get(&req.client_id)? {
         session
-    } else if let Some(session) = cache_manager.get_session(&req.client_id) {
+    } else if let Some(session) = broker_cache_manager.get_session(&req.client_id) {
         session
     } else {
         return Ok(DeleteSessionReply::default());

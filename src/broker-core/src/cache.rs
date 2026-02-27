@@ -15,7 +15,10 @@
 use common_base::{node_status::NodeStatus, tools::now_second};
 use common_config::config::BrokerConfig;
 use dashmap::DashMap;
-use metadata_struct::{meta::node::BrokerNode, mqtt::topic::Topic};
+use metadata_struct::{
+    meta::node::BrokerNode,
+    mqtt::{session::MqttSession, topic::Topic},
+};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -35,6 +38,9 @@ pub struct BrokerCacheManager {
     // topic
     pub topic_list: DashMap<String, Topic>,
 
+    // (client_id, MqttSession)
+    pub session_list: DashMap<String, MqttSession>,
+
     // (cluster_name, Status)
     pub status: Arc<RwLock<NodeStatus>>,
 }
@@ -46,6 +52,7 @@ impl BrokerCacheManager {
             node_lists: DashMap::with_capacity(2),
             cluster_config: Arc::new(RwLock::new(cluster)),
             status: Arc::new(RwLock::new(NodeStatus::Starting)),
+            session_list: DashMap::with_capacity(8),
             topic_list: DashMap::with_capacity(2),
         }
     }
@@ -64,6 +71,22 @@ impl BrokerCacheManager {
             .iter()
             .map(|entry| entry.value().clone())
             .collect()
+    }
+
+    // Session
+    pub fn add_session(&self, session: MqttSession) {
+        self.session_list.insert(session.client_id.clone(), session);
+    }
+
+    pub fn delete_session(&self, client_id: &str) {
+        self.session_list.remove(client_id);
+    }
+
+    pub fn get_session(&self, client_id: &str) -> Option<MqttSession> {
+        if let Some(session) = self.session_list.get(client_id) {
+            return Some(session.clone());
+        }
+        None
     }
 
     // Topic

@@ -321,7 +321,7 @@ mod tests {
         let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
         let delay_task_manager = Arc::new(DelayTaskManager::new(
             client_pool,
-            storage_driver_manager,
+            storage_driver_manager.clone(),
             1,
             10,
         ));
@@ -331,6 +331,7 @@ mod tests {
                 rocksdb_engine.clone(),
             )),
             delay_task_manager.clone(),
+            storage_driver_manager.broker_cache.clone(),
         ));
 
         (rocksdb_engine, route)

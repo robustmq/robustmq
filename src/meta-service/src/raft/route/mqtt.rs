@@ -23,6 +23,7 @@ use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
+use broker_core::cache::BrokerCacheManager;
 use bytes::Bytes;
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use common_base::tools::{now_millis, now_second};
@@ -57,17 +58,20 @@ use std::sync::Arc;
 pub struct DataRouteMqtt {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<MetaCacheManager>,
+    broker_cache: Arc<BrokerCacheManager>,
     pub delay_task_manager: Arc<DelayTaskManager>,
 }
 impl DataRouteMqtt {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<MetaCacheManager>,
+        broker_cache: Arc<BrokerCacheManager>,
         delay_task_manager: Arc<DelayTaskManager>,
     ) -> Self {
         DataRouteMqtt {
             rocksdb_engine_handler,
             cache_manager,
+            broker_cache,
             delay_task_manager,
         }
     }
@@ -166,7 +170,7 @@ impl DataRouteMqtt {
             if session.is_persist_session {
                 persist_sessions.push((raw.client_id.clone(), session.clone()));
             } else {
-                self.cache_manager.add_session(session.clone());
+                self.broker_cache.add_session(session.clone());
             }
 
             let is_session_expire = session.connection_id.is_none()
@@ -202,7 +206,7 @@ impl DataRouteMqtt {
         let req = DeleteSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.client_id)?;
-        self.cache_manager.delete_session(&req.client_id);
+        self.broker_cache.delete_session(&req.client_id);
         Ok(())
     }
 

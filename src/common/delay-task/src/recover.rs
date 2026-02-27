@@ -15,6 +15,7 @@
 use crate::manager::DelayTaskManager;
 use crate::pop::spawn_task_process;
 use crate::{DelayTask, DELAY_TASK_INDEX_TOPIC};
+use broker_core::cache::BrokerCacheManager;
 use common_base::tools::now_second;
 use common_base::utils::serialize;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
@@ -38,6 +39,7 @@ pub(crate) async fn recover_delay_queue(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     delay_task_manager: &Arc<DelayTaskManager>,
     node_call_manager: &Arc<NodeCallManager>,
+    broker_cache: &Arc<BrokerCacheManager>,
 ) {
     info!("Starting delay task queue recovery from persistent storage");
 
@@ -75,6 +77,7 @@ pub(crate) async fn recover_delay_queue(
                 rocksdb_engine_handler,
                 delay_task_manager,
                 node_call_manager,
+                broker_cache,
                 record,
             )
             .await
@@ -151,6 +154,7 @@ async fn process_delay_task_record(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     delay_task_manager: &Arc<DelayTaskManager>,
     node_call_manager: &Arc<NodeCallManager>,
+    broker_cache: &Arc<BrokerCacheManager>,
     record: &metadata_struct::storage::storage_record::StorageRecord,
 ) -> RecoverResult {
     let task = match serialize::deserialize::<DelayTask>(&record.data) {
@@ -170,6 +174,7 @@ async fn process_delay_task_record(
             rocksdb_engine_handler,
             delay_task_manager,
             node_call_manager,
+            broker_cache,
             task,
             now,
         )
@@ -185,6 +190,7 @@ async fn handle_expired_delay_task(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     delay_task_manager: &Arc<DelayTaskManager>,
     node_call_manager: &Arc<NodeCallManager>,
+    broker_cache: &Arc<BrokerCacheManager>,
     task: DelayTask,
     now: u64,
 ) {
@@ -201,6 +207,7 @@ async fn handle_expired_delay_task(
         rocksdb_engine_handler.clone(),
         manager,
         node_call_manager.clone(),
+        broker_cache.clone(),
         task,
     )
     .await;

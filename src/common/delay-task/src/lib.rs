@@ -105,14 +105,22 @@ pub async fn start_delay_task_manager_thread(
         rocksdb_engine_handler,
         delay_task_manager,
         node_call_manager,
+        broker_cache,
         delay_task_manager.delay_queue_num,
     );
 
     let recover_manager = delay_task_manager.clone();
     let recover_engine = rocksdb_engine_handler.clone();
     let node_call_manager = node_call_manager.clone();
+    let broker_cache = broker_cache.clone();
     tokio::spawn(async move {
-        recover_delay_queue(&recover_engine, &recover_manager, &node_call_manager).await;
+        recover_delay_queue(
+            &recover_engine,
+            &recover_manager,
+            &node_call_manager,
+            &broker_cache,
+        )
+        .await;
     });
 
     Ok(())
