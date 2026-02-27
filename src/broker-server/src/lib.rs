@@ -38,7 +38,7 @@ use delay_task::{manager::DelayTaskManager, start_delay_task_manager_thread};
 use grpc_clients::pool::ClientPool;
 use meta_service::{
     controller::call_broker::call::BrokerCallManager,
-    core::cache::CacheManager as PlacementCacheManager,
+    core::cache::MetaCacheManager as PlacementCacheManager,
     raft::{manager::MultiRaftManager, route::DataRoute},
     MetaServiceServer, MetaServiceServerParams,
 };

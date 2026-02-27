@@ -15,7 +15,7 @@
 use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::mqtt::update_cache_by_delete_connector;
 use crate::controller::connector::status::ConnectorContext;
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
@@ -41,7 +41,7 @@ pub struct ConnectorHeartbeat {
 
 // Connector Heartbeat
 pub fn connector_heartbeat_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     req: &ConnectorHeartbeatRequest,
 ) -> Result<ConnectorHeartbeatReply, MetaServiceError> {
     for raw in &req.heatbeats {
@@ -90,7 +90,7 @@ pub async fn create_connector_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     mqtt_call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     req: &CreateConnectorRequest,
 ) -> Result<CreateConnectorReply, MetaServiceError> {
     let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
@@ -119,7 +119,7 @@ pub async fn update_connector_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     mqtt_call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     req: &UpdateConnectorRequest,
 ) -> Result<UpdateConnectorReply, MetaServiceError> {
     let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());

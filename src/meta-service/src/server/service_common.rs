@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::controller::call_broker::call::BrokerCallManager;
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::services::{
@@ -54,7 +54,7 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcPlacementService {
     raft_manager: Arc<MultiRaftManager>,
-    cluster_cache: Arc<CacheManager>,
+    cluster_cache: Arc<MetaCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
     mqtt_call_manager: Arc<BrokerCallManager>,
@@ -63,7 +63,7 @@ pub struct GrpcPlacementService {
 impl GrpcPlacementService {
     pub fn new(
         raft_manager: Arc<MultiRaftManager>,
-        cluster_cache: Arc<CacheManager>,
+        cluster_cache: Arc<MetaCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_pool: Arc<ClientPool>,
         mqtt_call_manager: Arc<BrokerCallManager>,

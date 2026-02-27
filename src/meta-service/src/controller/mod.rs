@@ -25,9 +25,9 @@ use session_expire::SessionExpire;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
-pub mod call_broker;
 pub mod connector;
 pub mod engine_gc;
+pub mod notify;
 pub mod session_expire;
 
 pub fn is_send_last_will(lastwill: &ExpireLastWill) -> bool {

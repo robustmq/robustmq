@@ -15,7 +15,7 @@
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
-use crate::{core::cache::CacheManager, storage::mqtt::group_leader::MqttGroupLeaderStorage};
+use crate::{core::cache::MetaCacheManager, storage::mqtt::group_leader::MqttGroupLeaderStorage};
 use bytes::Bytes;
 use common_base::tools::now_second;
 use metadata_struct::mqtt::group_leader::MqttGroupLeader;
@@ -27,7 +27,7 @@ use std::{collections::HashMap, sync::Arc};
 
 pub async fn get_group_leader(
     raft_manager: &Arc<MultiRaftManager>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     group_name: &str,
 ) -> Result<u64, MetaServiceError> {
@@ -62,7 +62,7 @@ pub async fn get_group_leader(
 }
 
 pub async fn generate_group_leader(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> Result<u64, MetaServiceError> {
     let storage = MqttGroupLeaderStorage::new(rocksdb_engine_handler.clone());
@@ -102,7 +102,7 @@ pub async fn generate_group_leader(
 }
 
 pub async fn get_share_sub_leader_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &GetShareSubLeaderRequest,
@@ -138,11 +138,11 @@ mod tests {
     use metadata_struct::meta::node::BrokerNode;
     use rocksdb_engine::test::test_rocksdb_instance;
 
-    fn setup() -> (Arc<CacheManager>, Arc<RocksDBEngine>) {
+    fn setup() -> (Arc<MetaCacheManager>, Arc<RocksDBEngine>) {
         let config = default_broker_config();
         init_broker_conf_by_config(config);
         let db = test_rocksdb_instance();
-        let cache_manager = Arc::new(CacheManager::new(db.clone()));
+        let cache_manager = Arc::new(MetaCacheManager::new(db.clone()));
         (cache_manager, db)
     }
 

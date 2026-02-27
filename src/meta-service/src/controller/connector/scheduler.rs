@@ -14,8 +14,7 @@
 
 use super::status::ConnectorContext;
 use crate::{
-    controller::call_broker::call::BrokerCallManager,
-    core::{cache::CacheManager, error::MetaServiceError},
+    core::{cache::MetaCacheManager, error::MetaServiceError},
     raft::manager::MultiRaftManager,
 };
 use common_base::{
@@ -25,13 +24,14 @@ use common_base::{
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::{connector::MQTTConnector, status::MQTTStatus};
+use node_call::NodeCallManager;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
 use tracing::{info, warn};
 
 /// Connector Scheduler - Manages MQTT connector lifecycle and load balancing
 pub struct ConnectorScheduler {
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MetaCacheManager>,
     heartbeat_timeout_sec: u64,
     connector_context: ConnectorContext,
 }
@@ -39,14 +39,14 @@ pub struct ConnectorScheduler {
 impl ConnectorScheduler {
     pub fn new(
         raft_manager: Arc<MultiRaftManager>,
-        call_manager: Arc<BrokerCallManager>,
+        node_call_manager: Arc<NodeCallManager>,
         client_pool: Arc<ClientPool>,
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MetaCacheManager>,
     ) -> Self {
         let config = broker_config();
         let connector_context = ConnectorContext::new(
             raft_manager,
-            call_manager,
+            node_call_manager,
             client_pool,
             cache_manager.clone(),
         );
@@ -69,15 +69,15 @@ impl ConnectorScheduler {
 }
 
 pub async fn start_connector_scheduler(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    node_call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     stop_send: &broadcast::Sender<bool>,
 ) {
     let scheduler = ConnectorScheduler::new(
         raft_manager.clone(),
-        call_manager.clone(),
+        node_call_manager.clone(),
         client_pool.clone(),
         cache_manager.clone(),
     );
@@ -324,7 +324,7 @@ impl ConnectorScheduler {
 
 /// Calculate broker load - extracted for testing
 fn calculate_broker_load_internal(
-    cache_manager: &CacheManager,
+    cache_manager: &MetaCacheManager,
 ) -> Result<HashMap<u64, usize>, MetaServiceError> {
     // Step 1: Initialize all brokers with 0 load
     let mut broker_load: HashMap<u64, usize> = cache_manager
@@ -363,8 +363,8 @@ mod tests {
     fn setup_test_cluster(
         broker_count: usize,
         connector_distribution: Vec<usize>, // connectors per broker
-    ) -> Arc<CacheManager> {
-        let cache_manager = Arc::new(CacheManager::new(test_rocksdb_instance()));
+    ) -> Arc<MetaCacheManager> {
+        let cache_manager = Arc::new(MetaCacheManager::new(test_rocksdb_instance()));
 
         // Add brokers
         for i in 1..=broker_count {
@@ -507,7 +507,7 @@ mod tests {
 
     #[test]
     fn test_calculate_broker_load_empty_cluster_returns_error() {
-        let empty_cache = Arc::new(CacheManager::new(test_rocksdb_instance()));
+        let empty_cache = Arc::new(MetaCacheManager::new(test_rocksdb_instance()));
 
         let result = calculate_broker_load_internal(&empty_cache);
 

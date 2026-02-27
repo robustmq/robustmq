@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::controller::call_broker::call::BrokerCallManager;
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
 use crate::server::services::mqtt::acl::{
     create_acl_by_req, create_blacklist_by_req, delete_acl_by_req, delete_blacklist_by_req,
@@ -71,7 +71,7 @@ use tonic::codegen::tokio_stream::Stream;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcMqttService {
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MetaCacheManager>,
     raft_manager: Arc<MultiRaftManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     call_manager: Arc<BrokerCallManager>,
@@ -80,7 +80,7 @@ pub struct GrpcMqttService {
 
 impl GrpcMqttService {
     pub fn new(
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MetaCacheManager>,
         raft_manager: Arc<MultiRaftManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         call_manager: Arc<BrokerCallManager>,

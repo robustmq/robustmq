@@ -14,7 +14,7 @@
 
 use crate::{
     controller::{call_broker::call::BrokerCallManager, BrokerController},
-    core::cache::CacheManager,
+    core::cache::MetaCacheManager,
     raft::manager::{MultiRaftManager, RaftStateMachineName},
 };
 use grpc_clients::pool::ClientPool;
@@ -29,7 +29,7 @@ use tracing::{error, info};
 
 pub fn monitoring_leader_transition(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MetaCacheManager>,
     client_pool: Arc<ClientPool>,
     raft_manager: Arc<MultiRaftManager>,
     call_manager: Arc<BrokerCallManager>,
@@ -98,7 +98,7 @@ pub fn monitoring_leader_transition(
 pub fn start_controller(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     client_pool: &Arc<ClientPool>,
     call_manager: &Arc<BrokerCallManager>,
     stop_send: Sender<bool>,

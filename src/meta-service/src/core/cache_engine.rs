@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
 
-impl CacheManager {
+impl MetaCacheManager {
     pub fn set_shard(&self, shard: EngineShard) {
         self.shard_list.insert(shard.shard_name.clone(), shard);
     }
@@ -144,13 +144,13 @@ impl CacheManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::cache::CacheManager;
+    use crate::core::cache::MetaCacheManager;
     use common_base::tools::now_second;
     use metadata_struct::storage::segment::SegmentStatus;
     use rocksdb_engine::test::test_rocksdb_instance;
 
-    fn test_cache_manager() -> CacheManager {
-        CacheManager::new(test_rocksdb_instance())
+    fn test_cache_manager() -> MetaCacheManager {
+        MetaCacheManager::new(test_rocksdb_instance())
     }
 
     fn test_shard() -> EngineShard {

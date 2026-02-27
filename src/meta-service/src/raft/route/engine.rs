@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
@@ -27,13 +27,13 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct DataRouteJournal {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MetaCacheManager>,
 }
 
 impl DataRouteJournal {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MetaCacheManager>,
     ) -> Self {
         DataRouteJournal {
             rocksdb_engine_handler,

@@ -14,7 +14,7 @@
 
 use super::cluster::un_register_node_by_req;
 use crate::controller::call_broker::call::BrokerCallManager;
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
 use common_base::tools::now_second;
 use grpc_clients::pool::ClientPool;
@@ -31,7 +31,7 @@ pub struct NodeHeartbeatData {
 
 pub struct BrokerHeartbeat {
     timeout_ms: u64,
-    cluster_cache: Arc<CacheManager>,
+    cluster_cache: Arc<MetaCacheManager>,
     raft_manager: Arc<MultiRaftManager>,
     client_pool: Arc<ClientPool>,
     mqtt_call_manager: Arc<BrokerCallManager>,
@@ -40,7 +40,7 @@ pub struct BrokerHeartbeat {
 impl BrokerHeartbeat {
     pub fn new(
         timeout_ms: u64,
-        cluster_cache: Arc<CacheManager>,
+        cluster_cache: Arc<MetaCacheManager>,
         raft_manager: Arc<MultiRaftManager>,
         client_pool: Arc<ClientPool>,
         mqtt_call_manager: Arc<BrokerCallManager>,

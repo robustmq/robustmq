@@ -18,6 +18,7 @@ use crate::{DelayTask, DELAY_TASK_INDEX_TOPIC};
 use common_base::tools::now_second;
 use common_base::utils::serialize;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -36,6 +37,7 @@ enum ReadBatch {
 pub(crate) async fn recover_delay_queue(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     delay_task_manager: &Arc<DelayTaskManager>,
+    node_call_manager: &Arc<NodeCallManager>,
 ) {
     info!("Starting delay task queue recovery from persistent storage");
 
@@ -69,8 +71,13 @@ pub(crate) async fn recover_delay_queue(
         }
 
         for record in &data {
-            match process_delay_task_record(rocksdb_engine_handler, delay_task_manager, record)
-                .await
+            match process_delay_task_record(
+                rocksdb_engine_handler,
+                delay_task_manager,
+                node_call_manager,
+                record,
+            )
+            .await
             {
                 RecoverResult::Recovered => {
                     recovered += 1;
@@ -143,6 +150,7 @@ enum RecoverResult {
 async fn process_delay_task_record(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     delay_task_manager: &Arc<DelayTaskManager>,
+    node_call_manager: &Arc<NodeCallManager>,
     record: &metadata_struct::storage::storage_record::StorageRecord,
 ) -> RecoverResult {
     let task = match serialize::deserialize::<DelayTask>(&record.data) {
@@ -158,7 +166,14 @@ async fn process_delay_task_record(
 
     let now = now_second();
     if task.delay_target_time < now {
-        handle_expired_delay_task(rocksdb_engine_handler, delay_task_manager, task, now).await;
+        handle_expired_delay_task(
+            rocksdb_engine_handler,
+            delay_task_manager,
+            node_call_manager,
+            task,
+            now,
+        )
+        .await;
         return RecoverResult::Expired;
     }
 
@@ -169,6 +184,7 @@ async fn process_delay_task_record(
 async fn handle_expired_delay_task(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     delay_task_manager: &Arc<DelayTaskManager>,
+    node_call_manager: &Arc<NodeCallManager>,
     task: DelayTask,
     now: u64,
 ) {
@@ -181,7 +197,13 @@ async fn handle_expired_delay_task(
     );
 
     let manager = delay_task_manager.clone();
-    spawn_task_process(rocksdb_engine_handler.clone(), manager, task).await;
+    spawn_task_process(
+        rocksdb_engine_handler.clone(),
+        manager,
+        node_call_manager.clone(),
+        task,
+    )
+    .await;
 }
 
 fn update_offsets_from_records(

@@ -32,3 +32,9 @@ impl MqttLastWillData {
         serialize::deserialize(data)
     }
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MqttExpireLastWill {
+    pub client_id: String,
+    pub delay_sec: u64,
+}

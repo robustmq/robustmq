@@ -14,7 +14,7 @@
 
 use crate::{
     controller::call_broker::{call::BrokerCallManager, storage::update_cache_by_set_segment_meta},
-    core::{cache::CacheManager, error::MetaServiceError},
+    core::{cache::MetaCacheManager, error::MetaServiceError},
     raft::{
         manager::MultiRaftManager,
         route::data::{StorageData, StorageDataType},
@@ -29,7 +29,7 @@ use tracing::warn;
 const UNINITIALIZED_TIMESTAMP: i64 = -1;
 
 async fn update_segment_metadata<F>(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -67,7 +67,7 @@ where
 }
 
 pub async fn update_last_offset_by_segment_metadata(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -88,7 +88,7 @@ pub async fn update_last_offset_by_segment_metadata(
 }
 
 pub async fn update_start_timestamp_by_segment_metadata(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -113,7 +113,7 @@ pub async fn update_start_timestamp_by_segment_metadata(
 }
 
 pub async fn update_end_timestamp_by_segment_metadata(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -138,7 +138,7 @@ pub async fn update_end_timestamp_by_segment_metadata(
 }
 
 pub async fn create_segment_metadata(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,

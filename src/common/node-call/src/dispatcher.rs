@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{consumer, NodeCallData, NodeChannel, NODE_CHANNEL_SIZE};
+use crate::{consumer, NodeCallData, NODE_CHANNEL_SIZE};
 use broker_core::cache::BrokerCacheManager;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
@@ -24,7 +24,7 @@ use tracing::{info, warn};
 pub async fn run(
     mut global_receiver: mpsc::Receiver<NodeCallData>,
     stop_send: broadcast::Sender<bool>,
-    node_channels: Arc<DashMap<u64, NodeChannel>>,
+    node_channels: Arc<DashMap<u64, mpsc::Sender<NodeCallData>>>,
     broker_cache: Arc<BrokerCacheManager>,
     client_pool: Arc<ClientPool>,
 ) {
@@ -80,13 +80,13 @@ pub async fn run(
 }
 
 fn get_or_create_sender(
-    node_channels: &Arc<DashMap<u64, NodeChannel>>,
+    node_channels: &Arc<DashMap<u64, mpsc::Sender<NodeCallData>>>,
     node: &BrokerNode,
     client_pool: &Arc<ClientPool>,
     stop_send: &broadcast::Sender<bool>,
 ) -> mpsc::Sender<NodeCallData> {
     if let Some(entry) = node_channels.get(&node.node_id) {
-        return entry.sender.clone();
+        return entry.value().clone();
     }
 
     let (sender, receiver) = mpsc::channel(NODE_CHANNEL_SIZE);
@@ -97,17 +97,14 @@ fn get_or_create_sender(
         receiver,
         stop_receiver,
     );
-    node_channels.insert(
-        node.node_id,
-        NodeChannel {
-            node: node.clone(),
-            sender: sender.clone(),
-        },
-    );
+    node_channels.insert(node.node_id, sender.clone());
     info!("Auto-created channel for node {}", node.node_id);
     sender
 }
 
-fn remove_node_channel(node_channels: &Arc<DashMap<u64, NodeChannel>>, node_id: u64) {
+fn remove_node_channel(
+    node_channels: &Arc<DashMap<u64, mpsc::Sender<NodeCallData>>>,
+    node_id: u64,
+) {
     node_channels.remove(&node_id);
 }

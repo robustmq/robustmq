@@ -24,7 +24,7 @@ use protocol::broker::broker_mqtt::{
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 async fn retry_rpc<F, Fut, R>(addr: &str, label: &str, mut rpc_fn: F)
 where
@@ -42,7 +42,7 @@ where
                     );
                     return;
                 }
-                warn!(
+                debug!(
                     "Failed to {} on broker {} (attempt {}/{}): {}, retrying",
                     label, addr, attempt, RPC_MAX_RETRIES, e
                 );

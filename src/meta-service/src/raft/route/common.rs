@@ -25,7 +25,7 @@ use protocol::meta::meta_service_common::{
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::storage::common::config::ResourceConfigStorage;
 use crate::storage::common::node::NodeStorage;
@@ -35,13 +35,13 @@ use crate::storage::common::schema::SchemaStorage;
 #[derive(Clone)]
 pub struct DataRouteCluster {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    cluster_cache: Arc<CacheManager>,
+    cluster_cache: Arc<MetaCacheManager>,
 }
 
 impl DataRouteCluster {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        cluster_cache: Arc<CacheManager>,
+        cluster_cache: Arc<MetaCacheManager>,
     ) -> Self {
         DataRouteCluster {
             rocksdb_engine_handler,
@@ -154,7 +154,7 @@ mod tests {
     use rocksdb_engine::rocksdb::RocksDBEngine;
     use rocksdb_engine::storage::family::column_family_list;
 
-    use crate::core::cache::CacheManager;
+    use crate::core::cache::MetaCacheManager;
     use crate::raft::route::common::DataRouteCluster;
     use crate::storage::common::node::NodeStorage;
     use prost::Message;
@@ -181,7 +181,7 @@ mod tests {
             config.rocksdb.max_open_files,
             column_family_list(),
         ));
-        let cluster_cache = Arc::new(CacheManager::new(rocksdb_engine.clone()));
+        let cluster_cache = Arc::new(MetaCacheManager::new(rocksdb_engine.clone()));
         let route = DataRouteCluster::new(rocksdb_engine.clone(), cluster_cache);
         route.add_node(data).await.unwrap();
 

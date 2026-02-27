@@ -16,8 +16,7 @@ use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::mqtt::{
     update_cache_by_add_session, update_cache_by_delete_session,
 };
-use crate::controller::session_expire::ExpireLastWill;
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
@@ -40,7 +39,7 @@ use std::sync::Arc;
 
 // Session Operations
 pub fn list_session_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSessionRequest,
 ) -> Result<ListSessionReply, MetaServiceError> {
@@ -53,7 +52,7 @@ pub fn list_session_by_req(
 }
 
 fn read_not_persist_session(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     client_id: &str,
 ) -> Result<Vec<Vec<u8>>, MetaServiceError> {
     let mut sessions = Vec::new();
@@ -121,7 +120,7 @@ pub async fn delete_session_by_req(
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, MetaServiceError> {
     let session_storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
@@ -155,7 +154,7 @@ pub async fn delete_session_by_req(
     let will_storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
     if let Some(will_message) = will_storage.get(&req.client_id)? {
         let delay = session.last_will_delay_interval.unwrap_or_default();
-        cache_manager.add_expire_last_will(ExpireLastWill {
+        call_manager.add_expire_last_will(ExpireLastWill {
             client_id: will_message.client_id,
             delay_sec: now_second() + delay,
         });

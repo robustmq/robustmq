@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::call::{send_cache_update, BrokerCallManager};
 use crate::core::error::MetaServiceError;
 use common_base::utils::serialize;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
@@ -24,260 +22,322 @@ use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
+use metadata_struct::storage::{
+    segment::EngineSegment, segment_meta::EngineSegmentMetadata, shard::EngineShard,
+};
+use node_call::{NodeCallData, NodeCallManager, UpdateCacheData};
 use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use std::sync::Arc;
 
+// MQTT Session
 pub async fn update_cache_by_add_session(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     session: MqttSession,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Session,
-        || Ok(serialize::serialize(&session)?),
+        serialize::serialize(&session)?,
     )
     .await
 }
 
 pub async fn update_cache_by_delete_session(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     session: MqttSession,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::Session,
-        || Ok(serialize::serialize(&session)?),
+        serialize::serialize(&session)?,
     )
     .await
 }
 
+// MQTT Schema
 pub async fn update_cache_by_add_schema(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     schema: SchemaData,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Schema,
-        || Ok(serialize::serialize(&schema)?),
+        serialize::serialize(&schema)?,
     )
     .await
 }
 
 pub async fn update_cache_by_delete_schema(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     schema: SchemaData,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::Schema,
-        || Ok(serialize::serialize(&schema)?),
+        serialize::serialize(&schema)?,
     )
     .await
 }
 
 pub async fn update_cache_by_add_schema_bind(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     bind_data: SchemaResourceBind,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::SchemaResource,
-        || Ok(serialize::serialize(&bind_data)?),
+        serialize::serialize(&bind_data)?,
     )
     .await
 }
 
 pub async fn update_cache_by_delete_schema_bind(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     bind_data: SchemaResourceBind,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::SchemaResource,
-        || Ok(serialize::serialize(&bind_data)?),
+        serialize::serialize(&bind_data)?,
     )
     .await
 }
 
+// MQTT Connector
 pub async fn update_cache_by_add_connector(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     connector: MQTTConnector,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Connector,
-        || Ok(serialize::serialize(&connector)?),
+        serialize::serialize(&connector)?,
     )
     .await
 }
 
 pub async fn update_cache_by_delete_connector(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     connector: MQTTConnector,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::Connector,
-        || Ok(serialize::serialize(&connector)?),
+        serialize::serialize(&connector)?,
     )
     .await
 }
 
+// MQTT User
 pub async fn update_cache_by_add_user(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     user: MqttUser,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::User,
-        || Ok(serialize::serialize(&user)?),
+        serialize::serialize(&user)?,
     )
     .await
 }
 
 pub async fn update_cache_by_delete_user(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     user: MqttUser,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::User,
-        || Ok(serialize::serialize(&user)?),
+        serialize::serialize(&user)?,
     )
     .await
 }
 
+// MQTT Subscribe
 pub async fn update_cache_by_add_subscribe(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     subscribe: MqttSubscribe,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Subscribe,
-        || Ok(serialize::serialize(&subscribe)?),
+        serialize::serialize(&subscribe)?,
     )
     .await
 }
 
 pub async fn update_cache_by_delete_subscribe(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     subscribe: MqttSubscribe,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::Subscribe,
-        || Ok(serialize::serialize(&subscribe)?),
+        serialize::serialize(&subscribe)?,
     )
     .await
 }
 
+// MQTT Topic
 pub async fn update_cache_by_add_topic(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     topic: Topic,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Topic,
-        || Ok(serialize::serialize(&topic)?),
+        serialize::serialize(&topic)?,
     )
     .await
 }
 
 pub async fn update_cache_by_delete_topic(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     topic: Topic,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::Topic,
-        || Ok(serialize::serialize(&topic)?),
+        serialize::serialize(&topic)?,
     )
     .await
 }
 
+// Cluster Node
 pub async fn update_cache_by_add_node(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     node: BrokerNode,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::Node,
-        || Ok(serialize::serialize(&node)?),
+        serialize::serialize(&node)?,
     )
     .await
 }
 
 pub async fn update_cache_by_delete_node(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     node: BrokerNode,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::Node,
-        || Ok(serialize::serialize(&node)?),
+        serialize::serialize(&node)?,
     )
     .await
 }
 
+// Cluster Config
 pub async fn update_cache_by_set_resource_config(
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     config: ResourceConfig,
 ) -> Result<(), MetaServiceError> {
-    send_cache_update(
+    send_update_cache(
         call_manager,
-        client_pool,
         BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::ClusterResourceConfig,
-        || Ok(serialize::serialize(&config)?),
+        serialize::serialize(&config)?,
     )
     .await
+}
+
+// Storage Shard
+pub async fn update_cache_by_set_shard(
+    call_manager: &Arc<NodeCallManager>,
+    shard_info: EngineShard,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::Shard,
+        shard_info.encode()?,
+    )
+    .await
+}
+
+pub async fn update_cache_by_delete_shard(
+    call_manager: &Arc<NodeCallManager>,
+    shard_info: EngineShard,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Shard,
+        shard_info.encode()?,
+    )
+    .await
+}
+
+// Storage Segment
+pub async fn update_cache_by_set_segment(
+    call_manager: &Arc<NodeCallManager>,
+    segment_info: EngineSegment,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::Segment,
+        segment_info.encode()?,
+    )
+    .await
+}
+
+pub async fn update_cache_by_delete_segment(
+    call_manager: &Arc<NodeCallManager>,
+    segment_info: EngineSegment,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Segment,
+        segment_info.encode()?,
+    )
+    .await
+}
+
+// Storage Segment Metadata
+pub async fn update_cache_by_set_segment_meta(
+    call_manager: &Arc<NodeCallManager>,
+    segment_info: EngineSegmentMetadata,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::SegmentMeta,
+        segment_info.encode()?,
+    )
+    .await
+}
+
+// Build and push one cache update notification into node-call manager.
+async fn send_update_cache(
+    call_manager: &Arc<NodeCallManager>,
+    action_type: BrokerUpdateCacheActionType,
+    resource_type: BrokerUpdateCacheResourceType,
+    data: Vec<u8>,
+) -> Result<(), MetaServiceError> {
+    let data = NodeCallData::UpdateCache(UpdateCacheData {
+        action_type,
+        resource_type,
+        data,
+    });
+    call_manager.send(data).await?;
+    Ok(())
 }

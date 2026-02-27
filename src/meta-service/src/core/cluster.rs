@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache::CacheManager;
+use super::cache::MetaCacheManager;
 use super::error::MetaServiceError;
 use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::mqtt::{update_cache_by_add_node, update_cache_by_delete_node};
@@ -28,7 +28,7 @@ use protocol::meta::meta_service_common::{
 use std::sync::Arc;
 
 pub async fn register_node_by_req(
-    cluster_cache: &Arc<CacheManager>,
+    cluster_cache: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     client_pool: &Arc<ClientPool>,
     mqtt_call_manager: &Arc<BrokerCallManager>,
@@ -44,7 +44,7 @@ pub async fn register_node_by_req(
 }
 
 pub async fn un_register_node_by_req(
-    cluster_cache: &Arc<CacheManager>,
+    cluster_cache: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     client_pool: &Arc<ClientPool>,
     mqtt_call_manager: &Arc<BrokerCallManager>,

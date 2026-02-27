@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::session::MqttSessionStorage;
 use common_base::{tools::now_second, utils::serialize};
@@ -34,22 +34,16 @@ use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{debug, error, warn};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ExpireLastWill {
-    pub client_id: String,
-    pub delay_sec: u64,
-}
-
 pub struct SessionExpire {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MetaCacheManager>,
     client_pool: Arc<ClientPool>,
 }
 
 impl SessionExpire {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MetaCacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         SessionExpire {
@@ -213,7 +207,7 @@ impl SessionExpire {
 }
 
 pub async fn delete_sessions(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     client_pool: &Arc<ClientPool>,
     sessions: &[MqttSession],
@@ -278,7 +272,7 @@ pub async fn delete_sessions(
 }
 
 pub async fn send_last_will_batch(
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MetaCacheManager>,
     client_pool: Arc<ClientPool>,
     items: Vec<LastWillMessageItem>,
     client_ids: Vec<String>,
@@ -318,7 +312,7 @@ pub async fn send_last_will_batch(
 mod tests {
     use super::{ExpireLastWill, SessionExpire};
     use crate::controller::is_send_last_will;
-    use crate::core::cache::CacheManager;
+    use crate::core::cache::MetaCacheManager;
     use crate::storage::mqtt::session::MqttSessionStorage;
     use common_base::tools::now_second;
     use common_base::uuid::unique_id;
@@ -332,7 +326,7 @@ mod tests {
     #[test]
     fn is_session_expire_test() {
         let rocksdb_engine_handler = test_rocksdb_instance();
-        let cache_manager = Arc::new(CacheManager::new(rocksdb_engine_handler.clone()));
+        let cache_manager = Arc::new(MetaCacheManager::new(rocksdb_engine_handler.clone()));
         let client_pool = Arc::new(ClientPool::new(10));
 
         let session_expire = SessionExpire::new(rocksdb_engine_handler, cache_manager, client_pool);
@@ -357,7 +351,7 @@ mod tests {
     #[tokio::test]
     async fn get_expire_session_list_test() {
         let rocksdb_engine_handler = test_rocksdb_instance();
-        let cache_manager = Arc::new(CacheManager::new(rocksdb_engine_handler.clone()));
+        let cache_manager = Arc::new(MetaCacheManager::new(rocksdb_engine_handler.clone()));
         let client_pool = Arc::new(ClientPool::new(10));
 
         let session_expire =

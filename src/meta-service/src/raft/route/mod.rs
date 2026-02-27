@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::route::common::DataRouteCluster;
 use crate::raft::route::engine::DataRouteJournal;
@@ -47,7 +47,7 @@ pub struct DataRoute {
 impl DataRoute {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MetaCacheManager>,
         delay_task_manager: Arc<DelayTaskManager>,
     ) -> DataRoute {
         let route_kv = DataRouteKv::new(rocksdb_engine_handler.clone());

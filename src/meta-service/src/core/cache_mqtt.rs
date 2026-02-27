@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::session_expire::ExpireLastWill;
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::group_leader::MqttGroupLeader;
@@ -21,7 +20,7 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::user::MqttUser;
 
-impl CacheManager {
+impl MetaCacheManager {
     pub fn add_session(&self, session: MqttSession) {
         self.session_list.insert(session.client_id.clone(), session);
     }
@@ -60,22 +59,6 @@ impl CacheManager {
 
     pub fn remove_user(&self, user_name: &str) {
         self.user_list.remove(user_name);
-    }
-
-    pub fn add_expire_last_will(&self, expire_last_will: ExpireLastWill) {
-        self.expire_last_wills
-            .insert(expire_last_will.client_id.clone(), expire_last_will);
-    }
-
-    pub fn remove_expire_last_will(&self, client_id: &str) {
-        self.expire_last_wills.remove(client_id);
-    }
-
-    pub fn get_expire_last_wills(&self) -> Vec<ExpireLastWill> {
-        self.expire_last_wills
-            .iter()
-            .map(|entry| entry.value().clone())
-            .collect()
     }
 
     pub fn add_connector(&self, connector: MQTTConnector) {

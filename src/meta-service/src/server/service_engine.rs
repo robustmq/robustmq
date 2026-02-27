@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::controller::call_broker::call::BrokerCallManager;
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::server::services::engine::segment::{
@@ -39,7 +39,7 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcEngineService {
     raft_manager: Arc<MultiRaftManager>,
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MetaCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     call_manager: Arc<BrokerCallManager>,
     client_pool: Arc<ClientPool>,
@@ -48,7 +48,7 @@ pub struct GrpcEngineService {
 impl GrpcEngineService {
     pub fn new(
         raft_manager: Arc<MultiRaftManager>,
-        cache_manager: Arc<CacheManager>,
+        cache_manager: Arc<MetaCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         call_manager: Arc<BrokerCallManager>,
         client_pool: Arc<ClientPool>,

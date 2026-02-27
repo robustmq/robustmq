@@ -27,6 +27,7 @@ use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use common_base::uuid::unique_id;
+use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -95,6 +96,7 @@ pub async fn start_delay_task_manager_thread(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     delay_task_manager: &Arc<DelayTaskManager>,
     broker_cache: &Arc<BrokerCacheManager>,
+    node_call_manager: &Arc<NodeCallManager>,
 ) -> Result<(), CommonError> {
     delay_task_manager.start();
 
@@ -102,13 +104,15 @@ pub async fn start_delay_task_manager_thread(
     spawn_delay_task_pop_threads(
         rocksdb_engine_handler,
         delay_task_manager,
+        node_call_manager,
         delay_task_manager.delay_queue_num,
     );
 
     let recover_manager = delay_task_manager.clone();
     let recover_engine = rocksdb_engine_handler.clone();
+    let node_call_manager = node_call_manager.clone();
     tokio::spawn(async move {
-        recover_delay_queue(&recover_engine, &recover_manager).await;
+        recover_delay_queue(&recover_engine, &recover_manager, &node_call_manager).await;
     });
 
     Ok(())

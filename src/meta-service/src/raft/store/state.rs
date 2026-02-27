@@ -327,7 +327,7 @@ mod tests {
         ));
         let route = Arc::new(DataRoute::new(
             rocksdb_engine.clone(),
-            Arc::new(crate::core::cache::CacheManager::new(
+            Arc::new(crate::core::cache::MetaCacheManager::new(
                 rocksdb_engine.clone(),
             )),
             delay_task_manager.clone(),

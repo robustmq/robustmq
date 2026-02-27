@@ -14,7 +14,7 @@
 
 use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::storage::update_cache_by_set_shard;
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::core::segment::delete_segment_by_real;
 use crate::raft::manager::MultiRaftManager;
@@ -28,7 +28,7 @@ use std::sync::Arc;
 use tracing::info;
 
 pub async fn create_shard(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -62,7 +62,7 @@ pub async fn create_shard(
 }
 
 pub async fn delete_shard_by_real(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     shard_name: &str,
 ) -> Result<(), MetaServiceError> {
@@ -85,7 +85,7 @@ pub async fn delete_shard_by_real(
 
 async fn update_shard<F>(
     raft_manager: &Arc<MultiRaftManager>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
@@ -107,7 +107,7 @@ where
 
 pub async fn update_start_segment_by_shard(
     raft_manager: &Arc<MultiRaftManager>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
@@ -131,7 +131,7 @@ pub async fn update_start_segment_by_shard(
 
 pub async fn update_last_segment_by_shard(
     raft_manager: &Arc<MultiRaftManager>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,
@@ -155,7 +155,7 @@ pub async fn update_last_segment_by_shard(
 
 pub async fn update_shard_status(
     raft_manager: &Arc<MultiRaftManager>,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
     shard_name: &str,

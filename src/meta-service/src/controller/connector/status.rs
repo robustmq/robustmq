@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::call::BrokerCallManager;
 use crate::{
-    controller::call_broker::mqtt::update_cache_by_add_connector,
-    core::{cache::CacheManager, error::MetaServiceError},
+    controller::notify::update_cache_by_add_connector,
+    core::{cache::MetaCacheManager, error::MetaServiceError},
     raft::{
         manager::MultiRaftManager,
         route::data::{StorageData, StorageDataType},
     },
 };
 use bytes::Bytes;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::{connector::MQTTConnector, status::MQTTStatus};
+use node_call::NodeCallManager;
 use prost::Message;
 use protocol::meta::meta_service_mqtt::CreateConnectorRequest;
 use std::sync::Arc;
@@ -32,22 +31,20 @@ use tracing::{info, warn};
 /// Connector status management context - encapsulates shared dependencies
 pub struct ConnectorContext {
     raft_manager: Arc<MultiRaftManager>,
-    call_manager: Arc<BrokerCallManager>,
-    client_pool: Arc<ClientPool>,
-    cache_manager: Arc<CacheManager>,
+    node_call_manager: Arc<NodeCallManager>,
+    cache_manager: Arc<MetaCacheManager>,
 }
 
 impl ConnectorContext {
     pub fn new(
         raft_manager: Arc<MultiRaftManager>,
-        call_manager: Arc<BrokerCallManager>,
-        client_pool: Arc<ClientPool>,
-        cache_manager: Arc<CacheManager>,
+        node_call_manager: Arc<NodeCallManager>,
+        _client_pool: Arc<grpc_clients::pool::ClientPool>,
+        cache_manager: Arc<MetaCacheManager>,
     ) -> Self {
         Self {
             raft_manager,
-            call_manager,
-            client_pool,
+            node_call_manager,
             cache_manager,
         }
     }
@@ -136,7 +133,7 @@ impl ConnectorContext {
         self.raft_manager.write_metadata(data).await?;
 
         // Update cache across all brokers
-        update_cache_by_add_connector(&self.call_manager, &self.client_pool, connector).await?;
+        update_cache_by_add_connector(&self.node_call_manager, connector).await?;
 
         Ok(())
     }

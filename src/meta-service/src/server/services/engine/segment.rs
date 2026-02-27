@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::controller::call_broker::call::BrokerCallManager;
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::core::segment::{create_segment, seal_up_segment, update_segment_status};
 use crate::core::segment_meta::{
@@ -35,7 +35,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 fn validate_shard_exists(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     shard_name: &str,
 ) -> Result<(), MetaServiceError> {
     if !cache_manager.shard_list.contains_key(shard_name) {
@@ -45,7 +45,7 @@ fn validate_shard_exists(
 }
 
 fn validate_segment_exists(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     shard_name: &str,
     segment_seq: u32,
 ) -> Result<EngineSegment, MetaServiceError> {
@@ -83,7 +83,7 @@ pub async fn list_segment_by_req(
 }
 
 pub async fn create_segment_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -142,7 +142,7 @@ pub async fn create_segment_by_req(
 }
 
 pub async fn delete_segment_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -176,7 +176,7 @@ pub async fn delete_segment_by_req(
 }
 
 pub async fn seal_up_segment_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -229,7 +229,7 @@ pub async fn list_segment_meta_by_req(
 }
 
 pub async fn update_start_time_by_segment_meta_by_req(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,

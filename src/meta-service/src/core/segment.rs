@@ -14,7 +14,7 @@
 
 use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::storage::update_cache_by_set_segment;
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::core::segment_meta::{
     create_segment_metadata, sync_delete_segment_metadata_info,
@@ -34,7 +34,7 @@ use std::sync::Arc;
 use tracing::{info, warn};
 
 pub async fn create_segment(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -74,7 +74,7 @@ pub async fn create_segment(
 }
 
 pub async fn seal_up_segment(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<BrokerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -112,7 +112,7 @@ pub async fn seal_up_segment(
 }
 
 pub async fn delete_segment_by_real(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     segment: &EngineSegment,
 ) -> Result<(), MetaServiceError> {
@@ -131,7 +131,7 @@ pub async fn delete_segment_by_real(
 
 async fn build_segment(
     shard_info: &EngineShard,
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     segment_no: u32,
 ) -> Result<EngineSegment, MetaServiceError> {
     if let Some(segment) = cache_manager.get_segment(&shard_info.shard_name, segment_no) {
@@ -184,7 +184,7 @@ async fn build_segment(
 }
 
 pub async fn update_segment_status(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     broker_call_manager: &Arc<BrokerCallManager>,
     raft_manager: &Arc<MultiRaftManager>,
     client_pool: &Arc<ClientPool>,
@@ -253,7 +253,7 @@ fn calc_leader_node(replicas: &[Replica]) -> Result<u64, MetaServiceError> {
 }
 
 fn calc_node_fold(
-    cache_manager: &Arc<CacheManager>,
+    cache_manager: &Arc<MetaCacheManager>,
     node_id: u64,
 ) -> Result<String, MetaServiceError> {
     let node = cache_manager
@@ -278,7 +278,7 @@ fn calc_node_fold(
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{cache::CacheManager, segment::calc_node_fold};
+    use crate::core::{cache::MetaCacheManager, segment::calc_node_fold};
     use common_base::tools::now_second;
     use metadata_struct::{meta::node::BrokerNode, mqtt::node_extend::NodeExtend};
     use rocksdb_engine::test::test_rocksdb_instance;
@@ -287,7 +287,7 @@ mod tests {
     #[tokio::test]
     async fn calc_node_fold_test() {
         let rocksdb_engine_handler = test_rocksdb_instance();
-        let cache_manager = Arc::new(CacheManager::new(rocksdb_engine_handler));
+        let cache_manager = Arc::new(MetaCacheManager::new(rocksdb_engine_handler));
 
         let node = BrokerNode {
             roles: Vec::new(),

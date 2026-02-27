@@ -15,7 +15,7 @@
 #![allow(clippy::result_large_err)]
 use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::connector::scheduler::start_connector_scheduler;
-use crate::core::cache::{load_cache, CacheManager};
+use crate::core::cache::{load_cache, MetaCacheManager};
 use crate::core::controller::ClusterController;
 use crate::raft::manager::MultiRaftManager;
 use delay_task::manager::DelayTaskManager;
@@ -36,7 +36,7 @@ pub mod storage;
 pub struct MetaServiceServerParams {
     pub raft_manager: Arc<MultiRaftManager>,
     // Cache metadata information for the Storage Engine cluster
-    pub cache_manager: Arc<CacheManager>,
+    pub cache_manager: Arc<MetaCacheManager>,
     // Raft Global read and write pointer
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     // Global GRPC client connection pool
@@ -48,7 +48,7 @@ pub struct MetaServiceServerParams {
 pub struct MetaServiceServer {
     raft_manager: Arc<MultiRaftManager>,
     // Cache metadata information for the Storage Engine cluster
-    cache_manager: Arc<CacheManager>,
+    cache_manager: Arc<MetaCacheManager>,
     // Raft Global read and write pointer
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     // Global GRPC client connection pool

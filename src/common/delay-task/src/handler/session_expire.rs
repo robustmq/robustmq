@@ -12,26 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::error::common::CommonError;
-use metadata_struct::mqtt::session::MqttSession;
+use node_call::{NodeCallData, NodeCallManager};
 use rocksdb_engine::{
     keys::meta::storage_key_mqtt_session, rocksdb::RocksDBEngine,
-    storage::meta_data::engine_get_by_meta_data,
+    storage::meta_data::engine_delete_by_meta_data,
 };
+use std::sync::Arc;
 
 pub async fn handle_session_expire(
     client_id: &str,
+    node_call_manager: &Arc<NodeCallManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> Result<(), CommonError> {
     let key = storage_key_mqtt_session(client_id);
-    if let Some(_session) =
-        engine_get_by_meta_data::<MqttSession>(rocksdb_engine_handler, &key)?.map(|data| data.data)
-    {
-    }
+
+    let data = NodeCallData::DeleteSession(client_id.to_string());
+    node_call_manager.send(data).await?;
+    engine_delete_by_meta_data(rocksdb_engine_handler, &key)?;
 
     Ok(())
 }
-
-pub struct SessionExpireCallManager {}

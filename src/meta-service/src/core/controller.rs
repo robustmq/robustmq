@@ -14,7 +14,7 @@
 
 use super::heartbeat::BrokerHeartbeat;
 use crate::controller::call_broker::call::BrokerCallManager;
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
@@ -24,7 +24,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 
 pub struct ClusterController {
-    cluster_cache: Arc<CacheManager>,
+    cluster_cache: Arc<MetaCacheManager>,
     raft_manager: Arc<MultiRaftManager>,
     client_pool: Arc<ClientPool>,
     mqtt_call_manager: Arc<BrokerCallManager>,
@@ -32,7 +32,7 @@ pub struct ClusterController {
 
 impl ClusterController {
     pub fn new(
-        cluster_cache: Arc<CacheManager>,
+        cluster_cache: Arc<MetaCacheManager>,
         raft_manager: Arc<MultiRaftManager>,
         client_pool: Arc<ClientPool>,
         mqtt_call_manager: Arc<BrokerCallManager>,

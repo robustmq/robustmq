@@ -12,37 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::call::BrokerCallManager;
-use crate::controller::call_broker::storage::{
-    update_cache_by_delete_segment, update_cache_by_delete_shard,
-};
-use crate::core::cache::CacheManager;
+use crate::controller::notify::{update_cache_by_delete_segment, update_cache_by_delete_shard};
+use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::core::segment::delete_segment_by_real;
-use crate::core::shard::{delete_shard_by_real, update_shard_status};
+use crate::core::shard::delete_shard_by_real;
 use crate::raft::manager::MultiRaftManager;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::shard::EngineShardStatus;
+use node_call::NodeCallManager;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
 pub async fn start_engine_delete_gc_thread(
     raft_manager: Arc<MultiRaftManager>,
-    cache_manager: Arc<CacheManager>,
-    call_manager: Arc<BrokerCallManager>,
-    client_pool: Arc<ClientPool>,
+    cache_manager: Arc<MetaCacheManager>,
+    node_call_manager: Arc<NodeCallManager>,
+    _client_pool: Arc<ClientPool>,
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {
-        if let Err(e) = gc_shard(&raft_manager, &cache_manager, &call_manager, &client_pool).await {
+        if let Err(e) = gc_shard(&raft_manager, &cache_manager, &node_call_manager).await {
             return Err(CommonError::CommonError(e.to_string()));
         };
 
-        if let Err(e) = gc_segment(&raft_manager, &call_manager, &cache_manager, &client_pool).await
-        {
+        if let Err(e) = gc_segment(&raft_manager, &node_call_manager, &cache_manager).await {
             return Err(CommonError::CommonError(e.to_string()));
         }
         Ok(())
@@ -52,9 +48,8 @@ pub async fn start_engine_delete_gc_thread(
 
 async fn gc_shard(
     raft_manager: &Arc<MultiRaftManager>,
-    cache_manager: &Arc<CacheManager>,
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<MetaCacheManager>,
+    node_call_manager: &Arc<NodeCallManager>,
 ) -> Result<(), MetaServiceError> {
     for shard_name in cache_manager.get_wait_delete_shard_list() {
         let shard = if let Some(shard) = cache_manager.shard_list.get(&shard_name) {
@@ -63,17 +58,7 @@ async fn gc_shard(
             continue;
         };
 
-        update_shard_status(
-            raft_manager,
-            cache_manager,
-            call_manager,
-            client_pool,
-            &shard_name,
-            EngineShardStatus::Deleting,
-        )
-        .await?;
-
-        update_cache_by_delete_shard(call_manager, client_pool, shard).await?;
+        update_cache_by_delete_shard(node_call_manager, shard).await?;
         delete_shard_by_real(cache_manager, raft_manager, &shard_name).await?;
     }
     Ok(())
@@ -81,9 +66,8 @@ async fn gc_shard(
 
 async fn gc_segment(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
-    cache_manager: &Arc<CacheManager>,
-    client_pool: &Arc<ClientPool>,
+    node_call_manager: &Arc<NodeCallManager>,
+    cache_manager: &Arc<MetaCacheManager>,
 ) -> Result<(), MetaServiceError> {
     for segment in cache_manager.get_wait_delete_segment_list() {
         if cache_manager
@@ -94,7 +78,7 @@ async fn gc_segment(
             continue;
         };
 
-        update_cache_by_delete_segment(call_manager, client_pool, segment.clone()).await?;
+        update_cache_by_delete_segment(node_call_manager, segment.clone()).await?;
         delete_segment_by_real(cache_manager, raft_manager, &segment).await?;
     }
     Ok(())

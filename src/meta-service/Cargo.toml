@@ -48,6 +48,7 @@ common-metrics.workspace = true
 zstd.workspace = true
 delay-task.workspace = true
 storage-adapter.workspace = true
+node-call.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

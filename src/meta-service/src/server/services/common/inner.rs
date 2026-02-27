@@ -14,7 +14,7 @@
 
 use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::call_broker::mqtt::update_cache_by_set_resource_config;
-use crate::core::cache::CacheManager;
+use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
@@ -56,7 +56,7 @@ pub async fn cluster_status_by_req(
 
 // Node Management
 pub async fn node_list_by_req(
-    cluster_cache: &Arc<CacheManager>,
+    cluster_cache: &Arc<MetaCacheManager>,
     _req: &NodeListRequest,
 ) -> Result<NodeListReply, MetaServiceError> {
     let nodes = cluster_cache
@@ -70,7 +70,7 @@ pub async fn node_list_by_req(
 
 // Heartbeat
 pub async fn heartbeat_by_req(
-    cluster_cache: &Arc<CacheManager>,
+    cluster_cache: &Arc<MetaCacheManager>,
     req: &HeartbeatRequest,
 ) -> Result<HeartbeatReply, MetaServiceError> {
     // Check if node exists
