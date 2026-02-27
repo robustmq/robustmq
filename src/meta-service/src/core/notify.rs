@@ -30,7 +30,7 @@ use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateC
 use std::sync::Arc;
 
 // MQTT Session
-pub async fn update_cache_by_add_session(
+pub async fn send_notify_by_add_session(
     call_manager: &Arc<NodeCallManager>,
     session: MqttSession,
 ) -> Result<(), MetaServiceError> {
@@ -43,7 +43,7 @@ pub async fn update_cache_by_add_session(
     .await
 }
 
-pub async fn update_cache_by_delete_session(
+pub async fn send_notify_by_delete_session(
     call_manager: &Arc<NodeCallManager>,
     session: MqttSession,
 ) -> Result<(), MetaServiceError> {
@@ -57,7 +57,7 @@ pub async fn update_cache_by_delete_session(
 }
 
 // MQTT Schema
-pub async fn update_cache_by_add_schema(
+pub async fn send_notify_by_add_schema(
     call_manager: &Arc<NodeCallManager>,
     schema: SchemaData,
 ) -> Result<(), MetaServiceError> {
@@ -70,7 +70,7 @@ pub async fn update_cache_by_add_schema(
     .await
 }
 
-pub async fn update_cache_by_delete_schema(
+pub async fn send_notify_by_delete_schema(
     call_manager: &Arc<NodeCallManager>,
     schema: SchemaData,
 ) -> Result<(), MetaServiceError> {
@@ -83,7 +83,7 @@ pub async fn update_cache_by_delete_schema(
     .await
 }
 
-pub async fn update_cache_by_add_schema_bind(
+pub async fn send_notify_by_add_schema_bind(
     call_manager: &Arc<NodeCallManager>,
     bind_data: SchemaResourceBind,
 ) -> Result<(), MetaServiceError> {
@@ -96,7 +96,7 @@ pub async fn update_cache_by_add_schema_bind(
     .await
 }
 
-pub async fn update_cache_by_delete_schema_bind(
+pub async fn send_notify_by_delete_schema_bind(
     call_manager: &Arc<NodeCallManager>,
     bind_data: SchemaResourceBind,
 ) -> Result<(), MetaServiceError> {
@@ -110,7 +110,7 @@ pub async fn update_cache_by_delete_schema_bind(
 }
 
 // MQTT Connector
-pub async fn update_cache_by_add_connector(
+pub async fn send_notify_by_add_connector(
     call_manager: &Arc<NodeCallManager>,
     connector: MQTTConnector,
 ) -> Result<(), MetaServiceError> {
@@ -123,7 +123,7 @@ pub async fn update_cache_by_add_connector(
     .await
 }
 
-pub async fn update_cache_by_delete_connector(
+pub async fn send_notify_by_delete_connector(
     call_manager: &Arc<NodeCallManager>,
     connector: MQTTConnector,
 ) -> Result<(), MetaServiceError> {
@@ -137,7 +137,7 @@ pub async fn update_cache_by_delete_connector(
 }
 
 // MQTT User
-pub async fn update_cache_by_add_user(
+pub async fn send_notify_by_add_user(
     call_manager: &Arc<NodeCallManager>,
     user: MqttUser,
 ) -> Result<(), MetaServiceError> {
@@ -150,7 +150,7 @@ pub async fn update_cache_by_add_user(
     .await
 }
 
-pub async fn update_cache_by_delete_user(
+pub async fn send_notify_by_delete_user(
     call_manager: &Arc<NodeCallManager>,
     user: MqttUser,
 ) -> Result<(), MetaServiceError> {
@@ -164,7 +164,7 @@ pub async fn update_cache_by_delete_user(
 }
 
 // MQTT Subscribe
-pub async fn update_cache_by_add_subscribe(
+pub async fn send_notify_by_add_subscribe(
     call_manager: &Arc<NodeCallManager>,
     subscribe: MqttSubscribe,
 ) -> Result<(), MetaServiceError> {
@@ -177,7 +177,7 @@ pub async fn update_cache_by_add_subscribe(
     .await
 }
 
-pub async fn update_cache_by_delete_subscribe(
+pub async fn send_notify_by_delete_subscribe(
     call_manager: &Arc<NodeCallManager>,
     subscribe: MqttSubscribe,
 ) -> Result<(), MetaServiceError> {
@@ -191,7 +191,7 @@ pub async fn update_cache_by_delete_subscribe(
 }
 
 // MQTT Topic
-pub async fn update_cache_by_add_topic(
+pub async fn send_notify_by_add_topic(
     call_manager: &Arc<NodeCallManager>,
     topic: Topic,
 ) -> Result<(), MetaServiceError> {
@@ -204,7 +204,7 @@ pub async fn update_cache_by_add_topic(
     .await
 }
 
-pub async fn update_cache_by_delete_topic(
+pub async fn send_notify_by_delete_topic(
     call_manager: &Arc<NodeCallManager>,
     topic: Topic,
 ) -> Result<(), MetaServiceError> {
@@ -218,7 +218,7 @@ pub async fn update_cache_by_delete_topic(
 }
 
 // Cluster Node
-pub async fn update_cache_by_add_node(
+pub async fn send_notify_by_add_node(
     call_manager: &Arc<NodeCallManager>,
     node: BrokerNode,
 ) -> Result<(), MetaServiceError> {
@@ -231,7 +231,7 @@ pub async fn update_cache_by_add_node(
     .await
 }
 
-pub async fn update_cache_by_delete_node(
+pub async fn send_notify_by_delete_node(
     call_manager: &Arc<NodeCallManager>,
     node: BrokerNode,
 ) -> Result<(), MetaServiceError> {
@@ -245,7 +245,7 @@ pub async fn update_cache_by_delete_node(
 }
 
 // Cluster Config
-pub async fn update_cache_by_set_resource_config(
+pub async fn send_notify_by_set_resource_config(
     call_manager: &Arc<NodeCallManager>,
     config: ResourceConfig,
 ) -> Result<(), MetaServiceError> {
@@ -259,7 +259,7 @@ pub async fn update_cache_by_set_resource_config(
 }
 
 // Storage Shard
-pub async fn update_cache_by_set_shard(
+pub async fn send_notify_by_set_shard(
     call_manager: &Arc<NodeCallManager>,
     shard_info: EngineShard,
 ) -> Result<(), MetaServiceError> {
@@ -272,7 +272,7 @@ pub async fn update_cache_by_set_shard(
     .await
 }
 
-pub async fn update_cache_by_delete_shard(
+pub async fn send_notify_by_delete_shard(
     call_manager: &Arc<NodeCallManager>,
     shard_info: EngineShard,
 ) -> Result<(), MetaServiceError> {
@@ -286,7 +286,7 @@ pub async fn update_cache_by_delete_shard(
 }
 
 // Storage Segment
-pub async fn update_cache_by_set_segment(
+pub async fn send_notify_by_set_segment(
     call_manager: &Arc<NodeCallManager>,
     segment_info: EngineSegment,
 ) -> Result<(), MetaServiceError> {
@@ -299,7 +299,7 @@ pub async fn update_cache_by_set_segment(
     .await
 }
 
-pub async fn update_cache_by_delete_segment(
+pub async fn send_notify_by_delete_segment(
     call_manager: &Arc<NodeCallManager>,
     segment_info: EngineSegment,
 ) -> Result<(), MetaServiceError> {
@@ -313,7 +313,7 @@ pub async fn update_cache_by_delete_segment(
 }
 
 // Storage Segment Metadata
-pub async fn update_cache_by_set_segment_meta(
+pub async fn send_notify_by_set_segment_meta(
     call_manager: &Arc<NodeCallManager>,
     segment_info: EngineSegmentMetadata,
 ) -> Result<(), MetaServiceError> {

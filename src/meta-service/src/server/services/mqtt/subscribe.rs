@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    controller::notify::{update_cache_by_add_subscribe, update_cache_by_delete_subscribe},
     core::error::MetaServiceError,
+    core::notify::{send_notify_by_add_subscribe, send_notify_by_delete_subscribe},
     raft::{
         manager::MultiRaftManager,
         route::data::{StorageData, StorageDataType},
@@ -61,7 +61,7 @@ pub async fn delete_subscribe_by_req(
     raft_manager.write_metadata(data).await?;
 
     for raw in subscribes {
-        update_cache_by_delete_subscribe(call_manager, raw).await?;
+        send_notify_by_delete_subscribe(call_manager, raw).await?;
     }
 
     Ok(DeleteSubscribeReply {})
@@ -93,7 +93,7 @@ pub async fn set_subscribe_by_req(
     let subscribe = MqttSubscribe::decode(&req.subscribe)
         .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
     let _ = client_pool;
-    update_cache_by_add_subscribe(call_manager, subscribe).await?;
+    send_notify_by_add_subscribe(call_manager, subscribe).await?;
 
     Ok(SetSubscribeReply {})
 }

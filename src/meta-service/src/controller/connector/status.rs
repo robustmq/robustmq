@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    controller::notify::update_cache_by_add_connector,
+    core::notify::send_notify_by_add_connector,
     core::{cache::MetaCacheManager, error::MetaServiceError},
     raft::{
         manager::MultiRaftManager,
@@ -133,7 +133,7 @@ impl ConnectorContext {
         self.raft_manager.write_metadata(data).await?;
 
         // Update cache across all brokers
-        update_cache_by_add_connector(&self.node_call_manager, connector).await?;
+        send_notify_by_add_connector(&self.node_call_manager, connector).await?;
 
         Ok(())
     }

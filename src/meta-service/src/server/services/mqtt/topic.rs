@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::notify::{update_cache_by_add_topic, update_cache_by_delete_topic};
 use crate::core::error::MetaServiceError;
+use crate::core::notify::{send_notify_by_add_topic, send_notify_by_delete_topic};
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::topic::MqttTopicStorage;
@@ -84,7 +84,7 @@ pub async fn create_topic_by_req(
 
     let topic = Topic::decode(&req.content)?;
     let _ = client_pool;
-    update_cache_by_add_topic(call_manager, topic).await?;
+    send_notify_by_add_topic(call_manager, topic).await?;
 
     Ok(CreateTopicReply {})
 }
@@ -107,7 +107,7 @@ pub async fn delete_topic_by_req(
     raft_manager.write_data(&req.topic_name, data).await?;
 
     let _ = client_pool;
-    update_cache_by_delete_topic(call_manager, topic).await?;
+    send_notify_by_delete_topic(call_manager, topic).await?;
 
     Ok(DeleteTopicReply {})
 }

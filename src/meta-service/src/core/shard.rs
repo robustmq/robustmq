@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::notify::update_cache_by_set_shard;
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
+use crate::core::notify::send_notify_by_set_shard;
 use crate::core::segment::delete_segment_by_real;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
@@ -56,7 +56,7 @@ pub async fn create_shard(
     };
 
     sync_save_shard_info(raft_manager, &new_shard).await?;
-    update_cache_by_set_shard(call_manager, new_shard.clone()).await?;
+    send_notify_by_set_shard(call_manager, new_shard.clone()).await?;
 
     Ok(new_shard)
 }
@@ -100,7 +100,7 @@ where
 
     if let Some(shard) = cache_manager.get_shard(shard_name) {
         sync_save_shard_info(raft_manager, &shard).await?;
-        update_cache_by_set_shard(call_manager, shard.clone()).await?;
+        send_notify_by_set_shard(call_manager, shard.clone()).await?;
     }
     Ok(())
 }

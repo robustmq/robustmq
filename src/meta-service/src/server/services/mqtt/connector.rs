@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use crate::controller::connector::status::ConnectorContext;
-use crate::controller::notify::update_cache_by_delete_connector;
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
+use crate::core::notify::send_notify_by_delete_connector;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::connector::MqttConnectorStorage;
@@ -161,7 +161,7 @@ pub async fn delete_connector_by_req(
     raft_manager.write_metadata(data).await?;
 
     let _ = client_pool;
-    update_cache_by_delete_connector(mqtt_call_manager, connector).await?;
+    send_notify_by_delete_connector(mqtt_call_manager, connector).await?;
 
     Ok(DeleteConnectorReply {})
 }

@@ -14,7 +14,7 @@
 
 use super::cache::MetaCacheManager;
 use super::error::MetaServiceError;
-use crate::controller::notify::{update_cache_by_add_node, update_cache_by_delete_node};
+use crate::core::notify::{send_notify_by_add_node, send_notify_by_delete_node};
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use bytes::Bytes;
@@ -37,7 +37,7 @@ pub async fn register_node_by_req(
     cluster_cache.report_broker_heart(node.node_id);
     sync_save_node(raft_manager, &node).await?;
 
-    update_cache_by_add_node(mqtt_call_manager, node.clone()).await?;
+    send_notify_by_add_node(mqtt_call_manager, node.clone()).await?;
 
     Ok(RegisterNodeReply::default())
 }
@@ -51,7 +51,7 @@ pub async fn un_register_node_by_req(
 ) -> Result<UnRegisterNodeReply, MetaServiceError> {
     if let Some(node) = cluster_cache.get_broker_node(req.node_id) {
         sync_delete_node(raft_manager, &req).await?;
-        update_cache_by_delete_node(mqtt_call_manager, node.clone()).await?;
+        send_notify_by_delete_node(mqtt_call_manager, node.clone()).await?;
     }
     Ok(UnRegisterNodeReply::default())
 }

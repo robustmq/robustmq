@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    controller::notify::{update_cache_by_add_user, update_cache_by_delete_user},
     core::error::MetaServiceError,
+    core::notify::{send_notify_by_add_user, send_notify_by_delete_user},
     raft::{
         manager::MultiRaftManager,
         route::data::{StorageData, StorageDataType},
@@ -74,7 +74,7 @@ pub async fn create_user_by_req(
 
     let user = MqttUser::decode(&req.content)?;
     let _ = client_pool;
-    update_cache_by_add_user(call_manager, user).await?;
+    send_notify_by_add_user(call_manager, user).await?;
 
     Ok(CreateUserReply {})
 }
@@ -97,7 +97,7 @@ pub async fn delete_user_by_req(
     raft_manager.write_metadata(data).await?;
 
     let _ = client_pool;
-    update_cache_by_delete_user(call_manager, user).await?;
+    send_notify_by_delete_user(call_manager, user).await?;
 
     Ok(DeleteUserReply {})
 }

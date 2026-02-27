@@ -13,10 +13,48 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use metadata_struct::mqtt::lastwill::MqttLastWillData;
+use node_call::{NodeCallData, NodeCallManager};
+use protocol::broker::broker_mqtt::LastWillMessageItem;
+use rocksdb_engine::{
+    keys::meta::storage_key_mqtt_last_will,
+    rocksdb::RocksDBEngine,
+    storage::meta_data::{engine_delete_by_meta_data, engine_get_by_meta_data},
+};
+use std::sync::Arc;
 
-pub async fn handle_lastwill_expire(_client_id: &str) -> Result<(), CommonError> {
-    // TODO: implement last will expire logic
+pub async fn handle_lastwill_expire(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    node_call_manager: &Arc<NodeCallManager>,
+    client_id: &str,
+) -> Result<(), CommonError> {
+    if let Some(lastwill) = get_last_will_message(rocksdb_engine_handler, client_id)? {
+        node_call_manager
+            .send(NodeCallData::SendLastWillMessage(lastwill))
+            .await?;
+
+        let key = storage_key_mqtt_last_will(client_id);
+        engine_delete_by_meta_data(rocksdb_engine_handler, &key)?
+    }
     Ok(())
 }
 
-// fn get_last_will_message() {}
+#[allow(clippy::result_large_err)]
+pub(crate) fn get_last_will_message(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    client_id: &str,
+) -> Result<Option<LastWillMessageItem>, CommonError> {
+    let key = storage_key_mqtt_last_will(client_id);
+    if let Some(lastwill) =
+        engine_get_by_meta_data::<MqttLastWillData>(rocksdb_engine_handler, &key)?
+            .map(|data| data.data)
+    {
+        let data = lastwill.encode()?;
+        let will_message = LastWillMessageItem {
+            client_id: client_id.to_string(),
+            last_will_message: data,
+        };
+        return Ok(Some(will_message));
+    }
+    Ok(None)
+}

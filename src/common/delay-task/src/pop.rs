@@ -208,7 +208,7 @@ pub async fn delay_task_process(
             .await?;
         }
         DelayTaskData::MQTTLastwillExpire(client_id) => {
-            handle_lastwill_expire(client_id).await?;
+            handle_lastwill_expire(rocksdb_engine_handler, node_call_manager, client_id).await?;
         }
     }
 

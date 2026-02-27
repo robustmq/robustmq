@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::notify::update_cache_by_set_resource_config;
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
+use crate::core::notify::send_notify_by_set_resource_config;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::common::config::ResourceConfigStorage;
@@ -105,7 +105,7 @@ pub async fn set_resource_config_by_req(
         config: req.config.clone().into(),
     };
 
-    update_cache_by_set_resource_config(call_manager, config).await?;
+    send_notify_by_set_resource_config(call_manager, config).await?;
 
     Ok(SetResourceConfigReply::default())
 }

@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use crate::{
-    controller::notify::{
-        update_cache_by_add_schema, update_cache_by_add_schema_bind, update_cache_by_delete_schema,
-        update_cache_by_delete_schema_bind,
-    },
     core::error::MetaServiceError,
+    core::notify::{
+        send_notify_by_add_schema, send_notify_by_add_schema_bind, send_notify_by_delete_schema,
+        send_notify_by_delete_schema_bind,
+    },
     raft::{
         manager::MultiRaftManager,
         route::data::{StorageData, StorageDataType},
@@ -110,7 +110,7 @@ pub async fn create_schema_req(
 
     let schema = SchemaData::decode(&req.schema)?;
     let _ = client_pool;
-    update_cache_by_add_schema(call_manager, schema).await?;
+    send_notify_by_add_schema(call_manager, schema).await?;
 
     Ok(())
 }
@@ -136,7 +136,7 @@ pub async fn update_schema_req(
 
     let schema = SchemaData::decode(&req.schema)?;
     let _ = client_pool;
-    update_cache_by_add_schema(call_manager, schema).await?;
+    send_notify_by_add_schema(call_manager, schema).await?;
 
     Ok(())
 }
@@ -161,7 +161,7 @@ pub async fn delete_schema_req(
     raft_manager.write_metadata(data).await?;
 
     let _ = client_pool;
-    update_cache_by_delete_schema(call_manager, schema).await?;
+    send_notify_by_delete_schema(call_manager, schema).await?;
 
     Ok(())
 }
@@ -221,7 +221,7 @@ pub async fn bind_schema_req(
         resource_name: req.resource_name.clone(),
     };
     let _ = client_pool;
-    update_cache_by_add_schema_bind(call_manager, schema_data).await?;
+    send_notify_by_add_schema_bind(call_manager, schema_data).await?;
 
     Ok(())
 }
@@ -242,7 +242,7 @@ pub async fn un_bind_schema_req(
         resource_name: req.resource_name.clone(),
     };
     let _ = client_pool;
-    update_cache_by_delete_schema_bind(call_manager, schema_data).await?;
+    send_notify_by_delete_schema_bind(call_manager, schema_data).await?;
 
     Ok(())
 }

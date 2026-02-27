@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::notify::{update_cache_by_delete_segment, update_cache_by_delete_shard};
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
+use crate::core::notify::{send_notify_by_delete_segment, send_notify_by_delete_shard};
 use crate::core::segment::delete_segment_by_real;
 use crate::core::shard::delete_shard_by_real;
 use crate::raft::manager::MultiRaftManager;
@@ -58,7 +58,7 @@ async fn gc_shard(
             continue;
         };
 
-        update_cache_by_delete_shard(node_call_manager, shard).await?;
+        send_notify_by_delete_shard(node_call_manager, shard).await?;
         delete_shard_by_real(cache_manager, raft_manager, &shard_name).await?;
     }
     Ok(())
@@ -78,7 +78,7 @@ async fn gc_segment(
             continue;
         };
 
-        update_cache_by_delete_segment(node_call_manager, segment.clone()).await?;
+        send_notify_by_delete_segment(node_call_manager, segment.clone()).await?;
         delete_segment_by_real(cache_manager, raft_manager, &segment).await?;
     }
     Ok(())

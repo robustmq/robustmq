@@ -20,6 +20,7 @@ pub mod controller;
 pub mod error;
 pub mod heartbeat;
 pub mod log;
+pub mod notify;
 pub mod segment;
 pub mod segment_meta;
 pub mod shard;

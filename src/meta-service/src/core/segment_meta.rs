@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    controller::notify::update_cache_by_set_segment_meta,
+    core::notify::send_notify_by_set_segment_meta,
     core::{cache::MetaCacheManager, error::MetaServiceError},
     raft::{
         manager::MultiRaftManager,
@@ -62,7 +62,7 @@ where
     drop(meta);
     drop(meta_list);
     sync_save_segment_metadata_info(raft_manager, &new_meta).await?;
-    update_cache_by_set_segment_meta(call_manager, new_meta).await?;
+    send_notify_by_set_segment_meta(call_manager, new_meta).await?;
 
     Ok(())
 }
@@ -163,7 +163,7 @@ pub async fn create_segment_metadata(
     };
 
     sync_save_segment_metadata_info(raft_manager, &metadata).await?;
-    update_cache_by_set_segment_meta(call_manager, metadata).await?;
+    send_notify_by_set_segment_meta(call_manager, metadata).await?;
 
     Ok(())
 }

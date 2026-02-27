@@ -22,7 +22,6 @@ use tokio::sync::broadcast;
 
 pub mod connector;
 pub mod engine_gc;
-pub mod notify;
 
 pub struct BrokerController {
     node_call_manager: Arc<NodeCallManager>,

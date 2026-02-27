@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::notify::update_cache_by_set_segment;
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
+use crate::core::notify::send_notify_by_set_segment;
 use crate::core::segment_meta::{
     create_segment_metadata, sync_delete_segment_metadata_info,
     update_end_timestamp_by_segment_metadata,
@@ -55,7 +55,7 @@ pub async fn create_segment(
         let segment: EngineSegment = build_segment(shard_info, cache_manager, segment_seq).await?;
 
         sync_save_segment_info(raft_manager, &segment).await?;
-        update_cache_by_set_segment(call_manager, segment.clone()).await?;
+        send_notify_by_set_segment(call_manager, segment.clone()).await?;
         if shard_info.config.storage_type == StorageType::EngineSegment {
             create_segment_metadata(
                 cache_manager,
@@ -203,7 +203,7 @@ pub async fn update_segment_status(
 
     if let Some(segment) = cache_manager.get_segment(shard_name, segment_seq) {
         sync_save_segment_info(raft_manager, &segment).await?;
-        update_cache_by_set_segment(broker_call_manager, segment).await?;
+        send_notify_by_set_segment(broker_call_manager, segment).await?;
     }
 
     Ok(())

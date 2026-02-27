@@ -16,7 +16,6 @@ use broker_core::cache::BrokerCacheManager;
 use common_base::{error::common::CommonError, tools::now_second};
 use metadata_struct::mqtt::session::MqttSession;
 use node_call::{NodeCallData, NodeCallManager};
-use protocol::broker::broker_mqtt::LastWillMessageItem;
 use rocksdb_engine::{
     keys::meta::storage_key_mqtt_session,
     rocksdb::RocksDBEngine,
@@ -24,7 +23,10 @@ use rocksdb_engine::{
 };
 use std::sync::Arc;
 
-use crate::{manager::DelayTaskManager, DelayTask, DelayTaskData};
+use crate::{
+    handler::lastwill_expire::get_last_will_message, manager::DelayTaskManager, DelayTask,
+    DelayTaskData,
+};
 
 pub async fn handle_session_expire(
     node_call_manager: &Arc<NodeCallManager>,
@@ -54,11 +56,8 @@ pub async fn handle_session_expire(
                     delay_target_time,
                 ))
                 .await?;
-        } else {
-            let will_message = LastWillMessageItem {
-                client_id: client_id.to_string(),
-                last_will_message: Vec::new(),
-            };
+        } else if let Some(will_message) = get_last_will_message(rocksdb_engine_handler, client_id)?
+        {
             let data = NodeCallData::SendLastWillMessage(will_message);
             node_call_manager.send(data).await?;
         }

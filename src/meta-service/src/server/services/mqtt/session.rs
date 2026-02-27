@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::notify::{update_cache_by_add_session, update_cache_by_delete_session};
 use crate::core::error::MetaServiceError;
+use crate::core::notify::{send_notify_by_add_session, send_notify_by_delete_session};
 use crate::raft::manager::MultiRaftManager;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
@@ -111,7 +111,7 @@ pub async fn create_session_by_req(
     for raw in &req.sessions {
         let session = MqttSession::decode(&raw.session)?;
         let _ = client_pool;
-        update_cache_by_add_session(call_manager, session).await?;
+        send_notify_by_add_session(call_manager, session).await?;
     }
 
     Ok(CreateSessionReply {})
@@ -164,7 +164,7 @@ pub async fn delete_session_by_req(
             ))
             .await?;
     }
-    update_cache_by_delete_session(call_manager, session.clone()).await?;
+    send_notify_by_delete_session(call_manager, session.clone()).await?;
 
     Ok(DeleteSessionReply {})
 }
