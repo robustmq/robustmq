@@ -341,6 +341,25 @@ impl BrokerServer {
             node_call_manager.start(raw_stop_send).await;
         });
 
+        // delay task
+        let raw_rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        let raw_broker_cache = self.broker_cache.clone();
+        let raw_delay_task_manager = self.delay_task_manager.clone();
+        let raw_node_call_manager = self.node_call_manager.clone();
+        self.server_runtime.spawn(async move {
+            if let Err(e) = start_delay_task_manager_thread(
+                &raw_rocksdb_engine_handler,
+                &raw_delay_task_manager,
+                &raw_broker_cache,
+                &raw_node_call_manager,
+            )
+            .await
+            {
+                error!("Failed to start DelayTask pop threads: {}", e);
+                std::process::exit(1);
+            }
+        });
+
         // register node
         let raw_stop_send = stop_send.clone();
         self.server_runtime.block_on(async move {
@@ -395,25 +414,6 @@ impl BrokerServer {
         let raw_stop_send = stop_send.clone();
         self.server_runtime.spawn(async move {
             start_runtime_monitor(runtime_handles, raw_stop_send, monitor_interval_ms).await;
-        });
-
-        // delay task
-        let raw_rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
-        let raw_broker_cache = self.broker_cache.clone();
-        let raw_delay_task_manager = self.delay_task_manager.clone();
-        let raw_node_call_manager = self.node_call_manager.clone();
-        self.server_runtime.spawn(async move {
-            if let Err(e) = start_delay_task_manager_thread(
-                &raw_rocksdb_engine_handler,
-                &raw_delay_task_manager,
-                &raw_broker_cache,
-                &raw_node_call_manager,
-            )
-            .await
-            {
-                error!("Failed to start DelayTask pop threads: {}", e);
-                std::process::exit(1);
-            }
         });
 
         // awaiting stop
