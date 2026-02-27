@@ -17,7 +17,6 @@ use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
 use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
-use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
@@ -26,7 +25,6 @@ pub mod engine_gc;
 pub mod notify;
 
 pub struct BrokerController {
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
     node_call_manager: Arc<NodeCallManager>,
     raft_manager: Arc<MultiRaftManager>,
     cache_manager: Arc<MetaCacheManager>,
@@ -35,14 +33,12 @@ pub struct BrokerController {
 
 impl BrokerController {
     pub fn new(
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
         raft_manager: Arc<MultiRaftManager>,
         cache_manager: Arc<MetaCacheManager>,
         node_call_manager: Arc<NodeCallManager>,
         client_pool: Arc<ClientPool>,
     ) -> BrokerController {
         BrokerController {
-            rocksdb_engine_handler,
             cache_manager,
             node_call_manager,
             raft_manager,

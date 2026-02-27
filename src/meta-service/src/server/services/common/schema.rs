@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::call::BrokerCallManager;
 use crate::{
-    controller::call_broker::mqtt::{
+    controller::notify::{
         update_cache_by_add_schema, update_cache_by_add_schema_bind, update_cache_by_delete_schema,
         update_cache_by_delete_schema_bind,
     },
@@ -28,6 +27,7 @@ use crate::{
 use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
+use node_call::NodeCallManager;
 use prost_validate::Result;
 use protocol::meta::meta_service_common::{
     BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListBindSchemaRequest,
@@ -89,7 +89,7 @@ pub fn list_schema_req(
 
 pub async fn create_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateSchemaRequest,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -109,7 +109,8 @@ pub async fn create_schema_req(
     raft_manager.write_metadata(data).await?;
 
     let schema = SchemaData::decode(&req.schema)?;
-    update_cache_by_add_schema(call_manager, client_pool, schema).await?;
+    let _ = client_pool;
+    update_cache_by_add_schema(call_manager, schema).await?;
 
     Ok(())
 }
@@ -117,7 +118,7 @@ pub async fn create_schema_req(
 pub async fn update_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
 ) -> Result<(), MetaServiceError> {
@@ -134,7 +135,8 @@ pub async fn update_schema_req(
     raft_manager.write_metadata(data).await?;
 
     let schema = SchemaData::decode(&req.schema)?;
-    update_cache_by_add_schema(call_manager, client_pool, schema).await?;
+    let _ = client_pool;
+    update_cache_by_add_schema(call_manager, schema).await?;
 
     Ok(())
 }
@@ -142,7 +144,7 @@ pub async fn update_schema_req(
 pub async fn delete_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &DeleteSchemaRequest,
 ) -> Result<(), MetaServiceError> {
@@ -158,7 +160,8 @@ pub async fn delete_schema_req(
     let data = StorageData::new(StorageDataType::SchemaDelete, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    update_cache_by_delete_schema(call_manager, client_pool, schema).await?;
+    let _ = client_pool;
+    update_cache_by_delete_schema(call_manager, schema).await?;
 
     Ok(())
 }
@@ -204,7 +207,7 @@ pub async fn list_bind_schema_req(
 
 pub async fn bind_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &BindSchemaRequest,
 ) -> Result<(), MetaServiceError> {
@@ -217,14 +220,15 @@ pub async fn bind_schema_req(
         schema_name: req.schema_name.clone(),
         resource_name: req.resource_name.clone(),
     };
-    update_cache_by_add_schema_bind(call_manager, client_pool, schema_data).await?;
+    let _ = client_pool;
+    update_cache_by_add_schema_bind(call_manager, schema_data).await?;
 
     Ok(())
 }
 
 pub async fn un_bind_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UnBindSchemaRequest,
 ) -> Result<(), MetaServiceError> {
@@ -237,7 +241,8 @@ pub async fn un_bind_schema_req(
         schema_name: req.schema_name.clone(),
         resource_name: req.resource_name.clone(),
     };
-    update_cache_by_delete_schema_bind(call_manager, client_pool, schema_data).await?;
+    let _ = client_pool;
+    update_cache_by_delete_schema_bind(call_manager, schema_data).await?;
 
     Ok(())
 }

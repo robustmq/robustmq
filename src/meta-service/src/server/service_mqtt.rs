@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::call::BrokerCallManager;
 use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
 use crate::server::services::mqtt::acl::{
@@ -40,7 +39,9 @@ use crate::server::services::mqtt::topic::{
 use crate::server::services::mqtt::user::{
     create_user_by_req, delete_user_by_req, list_user_by_req,
 };
+use delay_task::manager::DelayTaskManager;
 use grpc_clients::pool::ClientPool;
+use node_call::NodeCallManager;
 use prost_validate::Validator;
 use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttService;
 use protocol::meta::meta_service_mqtt::{
@@ -74,7 +75,8 @@ pub struct GrpcMqttService {
     cache_manager: Arc<MetaCacheManager>,
     raft_manager: Arc<MultiRaftManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    call_manager: Arc<BrokerCallManager>,
+    delay_task_manager: Arc<DelayTaskManager>,
+    call_manager: Arc<NodeCallManager>,
     client_pool: Arc<ClientPool>,
 }
 
@@ -83,13 +85,15 @@ impl GrpcMqttService {
         cache_manager: Arc<MetaCacheManager>,
         raft_manager: Arc<MultiRaftManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        call_manager: Arc<BrokerCallManager>,
+        delay_task_manager: Arc<DelayTaskManager>,
+        call_manager: Arc<NodeCallManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcMqttService {
             cache_manager,
             raft_manager,
             rocksdb_engine_handler,
+            delay_task_manager,
             call_manager,
             client_pool,
         }
@@ -200,8 +204,8 @@ impl MqttService for GrpcMqttService {
 
         delete_session_by_req(
             &self.raft_manager,
+            &self.delay_task_manager,
             &self.call_manager,
-            &self.client_pool,
             &self.rocksdb_engine_handler,
             &self.cache_manager,
             &req,
@@ -495,7 +499,6 @@ impl MqttService for GrpcMqttService {
             &self.raft_manager,
             &self.rocksdb_engine_handler,
             &self.call_manager,
-            &self.client_pool,
             &req,
         )
         .await

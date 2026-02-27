@@ -50,3 +50,4 @@ storage-adapter.workspace = true
 metadata-struct.workspace = true
 system-info.workspace = true
 delay-task.workspace = true
+node-call.workspace = true

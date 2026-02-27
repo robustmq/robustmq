@@ -13,13 +13,13 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-use crate::controller::call_broker::call::BrokerCallManager;
 use crate::controller::connector::scheduler::start_connector_scheduler;
 use crate::core::cache::{load_cache, MetaCacheManager};
 use crate::core::controller::ClusterController;
 use crate::raft::manager::MultiRaftManager;
 use delay_task::manager::DelayTaskManager;
 use grpc_clients::pool::ClientPool;
+use node_call::NodeCallManager;
 use raft::leadership::monitoring_leader_transition;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -42,7 +42,7 @@ pub struct MetaServiceServerParams {
     // Global GRPC client connection pool
     pub client_pool: Arc<ClientPool>,
     // Global call thread manager
-    pub call_manager: Arc<BrokerCallManager>,
+    pub node_call_manager: Arc<NodeCallManager>,
     pub delay_task_manager: Arc<DelayTaskManager>,
 }
 pub struct MetaServiceServer {
@@ -54,7 +54,7 @@ pub struct MetaServiceServer {
     // Global GRPC client connection pool
     client_pool: Arc<ClientPool>,
     // Global call thread manager
-    broker_call_manager: Arc<BrokerCallManager>,
+    node_call_manager: Arc<NodeCallManager>,
     main_stop: broadcast::Sender<bool>,
     inner_stop: broadcast::Sender<bool>,
 }
@@ -69,7 +69,7 @@ impl MetaServiceServer {
             cache_manager: params.cache_manager,
             rocksdb_engine_handler: params.rocksdb_engine_handler,
             client_pool: params.client_pool,
-            broker_call_manager: params.call_manager,
+            node_call_manager: params.node_call_manager,
             raft_manager: params.raft_manager,
             main_stop,
             inner_stop,
@@ -93,7 +93,7 @@ impl MetaServiceServer {
             self.cache_manager.clone(),
             self.raft_manager.clone(),
             self.client_pool.clone(),
-            self.broker_call_manager.clone(),
+            self.node_call_manager.clone(),
         );
         let raw_stop_send = self.inner_stop.clone();
         tokio::spawn(Box::pin(async move {
@@ -111,18 +111,17 @@ impl MetaServiceServer {
             .start_metrics_monitor(self.inner_stop.clone());
 
         monitoring_leader_transition(
-            self.rocksdb_engine_handler.clone(),
             self.cache_manager.clone(),
             self.client_pool.clone(),
             self.raft_manager.clone(),
-            self.broker_call_manager.clone(),
+            self.node_call_manager.clone(),
             self.main_stop.clone(),
         );
     }
 
     fn start_controller(&self) {
         // start mqtt connector scheduler thread
-        let call_manager = self.broker_call_manager.clone();
+        let call_manager = self.node_call_manager.clone();
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
         let raft_manager = self.raft_manager.clone();

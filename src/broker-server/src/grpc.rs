@@ -113,7 +113,7 @@ fn get_place_inner_handler(place_params: &MetaServiceServerParams) -> GrpcPlacem
         place_params.cache_manager.clone(),
         place_params.rocksdb_engine_handler.clone(),
         place_params.client_pool.clone(),
-        place_params.call_manager.clone(),
+        place_params.node_call_manager.clone(),
     )
 }
 
@@ -122,7 +122,8 @@ fn get_place_mqtt_handler(place_params: &MetaServiceServerParams) -> GrpcMqttSer
         place_params.cache_manager.clone(),
         place_params.raft_manager.clone(),
         place_params.rocksdb_engine_handler.clone(),
-        place_params.call_manager.clone(),
+        place_params.delay_task_manager.clone(),
+        place_params.node_call_manager.clone(),
         place_params.client_pool.clone(),
     )
 }
@@ -132,7 +133,7 @@ fn get_place_engine_handler(place_params: &MetaServiceServerParams) -> GrpcEngin
         place_params.raft_manager.clone(),
         place_params.cache_manager.clone(),
         place_params.rocksdb_engine_handler.clone(),
-        place_params.call_manager.clone(),
+        place_params.node_call_manager.clone(),
         place_params.client_pool.clone(),
     )
 }

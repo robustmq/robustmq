@@ -24,7 +24,7 @@ use protocol::broker::broker_mqtt::{
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{debug, error, warn};
+use tracing::{debug, error};
 
 async fn retry_rpc<F, Fut, R>(addr: &str, label: &str, mut rpc_fn: F)
 where

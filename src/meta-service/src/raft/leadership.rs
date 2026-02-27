@@ -19,7 +19,6 @@ use crate::{
 };
 use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
-use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{sync::Arc, time::Duration};
 use tokio::{
     select,
@@ -29,7 +28,6 @@ use tokio::{
 use tracing::{error, info};
 
 pub fn monitoring_leader_transition(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<MetaCacheManager>,
     client_pool: Arc<ClientPool>,
     raft_manager: Arc<MultiRaftManager>,
@@ -68,7 +66,6 @@ pub fn monitoring_leader_transition(
                                 if mm.id == current_leader{
                                     info!("[metadata] Leader transition has occurred. current leader is {:?}. previous leader was {:?}. local node id={}", current_leader, last_leader, mm.id);
                                     start_controller(
-                                        &rocksdb_engine_handler,
                                         &raft_manager,
                                         &cache_manager,
                                         &client_pool,
@@ -97,7 +94,6 @@ pub fn monitoring_leader_transition(
 }
 
 pub fn start_controller(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     client_pool: &Arc<ClientPool>,
@@ -105,7 +101,6 @@ pub fn start_controller(
     stop_send: Sender<bool>,
 ) {
     let mqtt_controller = BrokerController::new(
-        rocksdb_engine_handler.clone(),
         raft_manager.clone(),
         cache_manager.clone(),
         call_manager.clone(),

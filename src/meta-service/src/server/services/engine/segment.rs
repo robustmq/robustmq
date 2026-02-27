@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::call::BrokerCallManager;
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::core::segment::{create_segment, seal_up_segment, update_segment_status};
@@ -25,6 +24,7 @@ use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::{EngineSegment, SegmentStatus};
+use node_call::NodeCallManager;
 use protocol::meta::meta_service_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, DeleteSegmentReply, DeleteSegmentRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
@@ -85,7 +85,7 @@ pub async fn list_segment_by_req(
 pub async fn create_segment_by_req(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateNextSegmentRequest,
 ) -> Result<CreateNextSegmentReply, MetaServiceError> {
@@ -144,8 +144,7 @@ pub async fn create_segment_by_req(
 pub async fn delete_segment_by_req(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    call_manager: &Arc<NodeCallManager>,
     req: &DeleteSegmentRequest,
 ) -> Result<DeleteSegmentReply, MetaServiceError> {
     for raw in req.segment_list.iter() {
@@ -163,7 +162,6 @@ pub async fn delete_segment_by_req(
             cache_manager,
             call_manager,
             raft_manager,
-            client_pool,
             &segment.shard_name,
             segment.segment_seq,
             SegmentStatus::PreDelete,
@@ -178,7 +176,7 @@ pub async fn delete_segment_by_req(
 pub async fn seal_up_segment_req(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &SealUpSegmentRequest,
 ) -> Result<SealUpSegmentReply, MetaServiceError> {
@@ -231,7 +229,7 @@ pub async fn list_segment_meta_by_req(
 pub async fn update_start_time_by_segment_meta_by_req(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &UpdateStartTimeBySegmentMetaRequest,
 ) -> Result<UpdateStartTimeBySegmentMetaReply, MetaServiceError> {

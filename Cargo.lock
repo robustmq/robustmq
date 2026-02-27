@@ -959,6 +959,7 @@ dependencies = [
  "metadata-struct",
  "mqtt-broker",
  "network-server",
+ "node-call",
  "pprof-monitor",
  "protocol",
  "rate-limit",

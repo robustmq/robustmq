@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::call::BrokerCallManager;
-use crate::controller::call_broker::mqtt::{
-    update_cache_by_add_session, update_cache_by_delete_session,
-};
+use crate::controller::notify::{update_cache_by_add_session, update_cache_by_delete_session};
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
@@ -27,8 +24,11 @@ use crate::{
 };
 use common_base::tools::now_second;
 use common_base::utils::serialize::encode_to_bytes;
+use delay_task::manager::DelayTaskManager;
+use delay_task::{DelayTask, DelayTaskData};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
+use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
     CreateSessionReply, CreateSessionRequest, DeleteSessionReply, DeleteSessionRequest,
     DeleteSubscribeRequest, GetLastWillMessageReply, GetLastWillMessageRequest, ListSessionReply,
@@ -94,7 +94,7 @@ fn read_persist_session(
 
 pub async fn create_session_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
+    call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
     req: &CreateSessionRequest,
 ) -> Result<CreateSessionReply, MetaServiceError> {
@@ -109,7 +109,8 @@ pub async fn create_session_by_req(
 
     for raw in &req.sessions {
         let session = MqttSession::decode(&raw.session)?;
-        update_cache_by_add_session(call_manager, client_pool, session).await?;
+        let _ = client_pool;
+        update_cache_by_add_session(call_manager, session).await?;
     }
 
     Ok(CreateSessionReply {})
@@ -117,8 +118,8 @@ pub async fn create_session_by_req(
 
 pub async fn delete_session_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<BrokerCallManager>,
-    client_pool: &Arc<ClientPool>,
+    delay_task_manager: &Arc<DelayTaskManager>,
+    call_manager: &Arc<NodeCallManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     cache_manager: &Arc<MetaCacheManager>,
     req: &DeleteSessionRequest,
@@ -154,13 +155,15 @@ pub async fn delete_session_by_req(
     let will_storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
     if let Some(will_message) = will_storage.get(&req.client_id)? {
         let delay = session.last_will_delay_interval.unwrap_or_default();
-        call_manager.add_expire_last_will(ExpireLastWill {
-            client_id: will_message.client_id,
-            delay_sec: now_second() + delay,
-        });
+        delay_task_manager
+            .create_task(DelayTask::build_persistent(
+                will_message.client_id.clone(),
+                DelayTaskData::MQTTLastwillExpire(will_message.client_id.clone()),
+                now_second() + delay,
+            ))
+            .await?;
     }
-
-    update_cache_by_delete_session(call_manager, client_pool, session.clone()).await?;
+    update_cache_by_delete_session(call_manager, session.clone()).await?;
 
     Ok(DeleteSessionReply {})
 }

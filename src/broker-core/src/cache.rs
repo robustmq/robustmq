@@ -15,10 +15,7 @@
 use common_base::{node_status::NodeStatus, tools::now_second};
 use common_config::config::BrokerConfig;
 use dashmap::DashMap;
-use metadata_struct::{
-    meta::node::BrokerNode,
-    mqtt::{lastwill::MqttExpireLastWill, topic::Topic},
-};
+use metadata_struct::{meta::node::BrokerNode, mqtt::topic::Topic};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -38,9 +35,6 @@ pub struct BrokerCacheManager {
     // topic
     pub topic_list: DashMap<String, Topic>,
 
-    // (client_id, ExpireLastWill)
-    pub expire_last_wills: DashMap<String, MqttExpireLastWill>,
-
     // (cluster_name, Status)
     pub status: Arc<RwLock<NodeStatus>>,
 }
@@ -53,7 +47,6 @@ impl BrokerCacheManager {
             cluster_config: Arc::new(RwLock::new(cluster)),
             status: Arc::new(RwLock::new(NodeStatus::Starting)),
             topic_list: DashMap::with_capacity(2),
-            expire_last_wills: DashMap::with_capacity(2),
         }
     }
 
@@ -97,23 +90,6 @@ impl BrokerCacheManager {
         self.topic_list
             .iter()
             .map(|topic| topic.topic_name.clone())
-            .collect()
-    }
-
-    // Expire LastWill
-    pub fn add_expire_last_will(&self, expire_last_will: MqttExpireLastWill) {
-        self.expire_last_wills
-            .insert(expire_last_will.client_id.clone(), expire_last_will);
-    }
-
-    pub fn remove_expire_last_will(&self, client_id: &str) {
-        self.expire_last_wills.remove(client_id);
-    }
-
-    pub fn get_expire_last_wills(&self) -> Vec<MqttExpireLastWill> {
-        self.expire_last_wills
-            .iter()
-            .map(|entry| entry.value().clone())
             .collect()
     }
 

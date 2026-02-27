@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::call_broker::call::BrokerCallManager;
 use crate::core::cache::MetaCacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
 use crate::raft::manager::MultiRaftManager;
@@ -32,6 +31,7 @@ use crate::server::services::common::schema::{
     un_bind_schema_req, update_schema_req,
 };
 use grpc_clients::pool::ClientPool;
+use node_call::NodeCallManager;
 use prost_validate::Validator;
 use protocol::meta::meta_service_common::meta_service_service_server::MetaServiceService;
 use protocol::meta::meta_service_common::{
@@ -57,7 +57,7 @@ pub struct GrpcPlacementService {
     cluster_cache: Arc<MetaCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
-    mqtt_call_manager: Arc<BrokerCallManager>,
+    mqtt_call_manager: Arc<NodeCallManager>,
 }
 
 impl GrpcPlacementService {
@@ -66,7 +66,7 @@ impl GrpcPlacementService {
         cluster_cache: Arc<MetaCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_pool: Arc<ClientPool>,
-        mqtt_call_manager: Arc<BrokerCallManager>,
+        mqtt_call_manager: Arc<NodeCallManager>,
     ) -> Self {
         GrpcPlacementService {
             raft_manager,
