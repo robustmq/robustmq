@@ -385,7 +385,7 @@ impl BrokerServer {
             ("meta".to_string(), self.meta_runtime.handle().clone()),
             ("broker".to_string(), self.broker_runtime.handle().clone()),
         ];
-        let raw_stop_send = stop_send;
+        let raw_stop_send = stop_send.clone();
         self.server_runtime.spawn(async move {
             start_runtime_monitor(runtime_handles, raw_stop_send, monitor_interval_ms).await;
         });
@@ -409,6 +409,12 @@ impl BrokerServer {
             }
         });
 
+        // node call
+        let node_call_manager = self.node_call_manager.clone();
+        let raw_stop_send = stop_send.clone();
+        self.server_runtime.spawn(async move {
+            node_call_manager.start(raw_stop_send).await;
+        });
         // awaiting stop
         self.awaiting_stop(meta_stop_send, mqtt_stop_send, engine_stop_send);
     }

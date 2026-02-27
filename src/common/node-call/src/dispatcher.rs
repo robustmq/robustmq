@@ -28,7 +28,7 @@ pub async fn run(
     broker_cache: Arc<BrokerCacheManager>,
     client_pool: Arc<ClientPool>,
 ) {
-    info!("NodeCallManager dispatcher started");
+    info!("Node call manager dispatcher started");
     let mut stop_receiver = stop_send.subscribe();
 
     loop {
@@ -76,7 +76,7 @@ pub async fn run(
     for node_id in node_ids {
         remove_node_channel(&node_channels, node_id);
     }
-    info!("NodeCallManager dispatcher exited");
+    info!("Node call manager dispatcher exited");
 }
 
 fn get_or_create_sender(

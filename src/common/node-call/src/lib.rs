@@ -23,7 +23,7 @@ use grpc_clients::pool::ClientPool;
 use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use protocol::broker::broker_mqtt::LastWillMessageItem;
 use std::sync::Arc;
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{broadcast, mpsc, RwLock};
 use tracing::info;
 
 pub const GLOBAL_CHANNEL_SIZE: usize = 10000;
@@ -47,8 +47,7 @@ pub enum NodeCallData {
 }
 
 pub struct NodeCallManager {
-    pub global_sender: mpsc::Sender<NodeCallData>,
-    global_receiver: Option<mpsc::Receiver<NodeCallData>>,
+    pub global_sender: RwLock<Option<mpsc::Sender<NodeCallData>>>,
     broker_cache: Arc<BrokerCacheManager>,
     node_channels: Arc<DashMap<u64, mpsc::Sender<NodeCallData>>>,
     client_pool: Arc<ClientPool>,
@@ -56,10 +55,8 @@ pub struct NodeCallManager {
 
 impl NodeCallManager {
     pub fn new(client_pool: Arc<ClientPool>, broker_cache: Arc<BrokerCacheManager>) -> Self {
-        let (global_sender, global_receiver) = mpsc::channel(GLOBAL_CHANNEL_SIZE);
         NodeCallManager {
-            global_sender,
-            global_receiver: Some(global_receiver),
+            global_sender: RwLock::new(None),
             broker_cache,
             node_channels: Arc::new(DashMap::with_capacity(8)),
             client_pool,
@@ -67,16 +64,20 @@ impl NodeCallManager {
     }
 
     pub async fn send(&self, data: NodeCallData) -> Result<(), CommonError> {
-        self.global_sender.send(data).await.map_err(|e| {
-            CommonError::CommonError(format!("Failed to send to global channel: {}", e))
-        })
+        let read = self.global_sender.read().await;
+        if let Some(sender) = read.clone() {
+            sender.send(data).await.map_err(|e| {
+                CommonError::CommonError(format!("Failed to send to global channel: {}", e))
+            })?;
+            return Ok(());
+        }
+        Err(CommonError::CommonError("".to_string()))
     }
 
-    pub fn start(&mut self, stop_send: broadcast::Sender<bool>) {
-        let global_receiver = self
-            .global_receiver
-            .take()
-            .expect("NodeCallManager::start must be called exactly once");
+    pub async fn start(&self, stop_send: broadcast::Sender<bool>) {
+        let (global_sender, global_receiver) = mpsc::channel(GLOBAL_CHANNEL_SIZE);
+        let mut write = self.global_sender.write().await;
+        *write = Some(global_sender);
 
         tokio::spawn(dispatcher::run(
             global_receiver,
@@ -86,6 +87,6 @@ impl NodeCallManager {
             self.client_pool.clone(),
         ));
 
-        info!("NodeCallManager started");
+        info!("Node call manager started");
     }
 }
