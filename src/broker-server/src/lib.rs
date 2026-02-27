@@ -334,6 +334,13 @@ impl BrokerServer {
 
         let (stop_send, _) = broadcast::channel(2);
 
+        // node call
+        let node_call_manager = self.node_call_manager.clone();
+        let raw_stop_send = stop_send.clone();
+        self.server_runtime.spawn(async move {
+            node_call_manager.start(raw_stop_send).await;
+        });
+
         // register node
         let raw_stop_send = stop_send.clone();
         self.server_runtime.block_on(async move {
@@ -409,12 +416,6 @@ impl BrokerServer {
             }
         });
 
-        // node call
-        let node_call_manager = self.node_call_manager.clone();
-        let raw_stop_send = stop_send.clone();
-        self.server_runtime.spawn(async move {
-            node_call_manager.start(raw_stop_send).await;
-        });
         // awaiting stop
         self.awaiting_stop(meta_stop_send, mqtt_stop_send, engine_stop_send);
     }
