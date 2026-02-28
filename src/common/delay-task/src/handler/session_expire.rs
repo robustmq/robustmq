@@ -22,7 +22,7 @@ use rocksdb_engine::{
     storage::meta_data::{engine_delete_by_meta_data, engine_get_by_meta_data},
 };
 use std::sync::Arc;
-use tracing::{debug, info};
+use tracing::debug;
 
 use crate::{
     handler::lastwill_expire::get_last_will_message, manager::DelayTaskManager, DelayTask,
@@ -66,7 +66,7 @@ pub async fn handle_session_expire(
         }
     }
 
-    info!(
+    debug!(
         "Session expire handling completed: client_id={}, session_found={}",
         client_id, has_session
     );

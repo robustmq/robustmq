@@ -26,7 +26,7 @@ use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
-use tracing::info;
+use tracing::debug;
 
 pub async fn send_last_will_message(
     retain_message_manager: &Arc<RetainMessageManager>,
@@ -54,7 +54,6 @@ pub async fn send_last_will_message(
         client_pool,
     )
     .await?;
-    println!("topic:{:?}", topic);
 
     retain_message_manager
         .save_retain_message(&topic_name, client_id, &publish, &publish_properties)
@@ -70,7 +69,7 @@ pub async fn send_last_will_message(
         message_storage
             .append_topic_message(&topic.topic_name, vec![record])
             .await?;
-        info!(
+        debug!(
             "Last will message saved successfully. client_id={}, topic={}",
             client_id, topic.topic_name
         );

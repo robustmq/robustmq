@@ -37,7 +37,6 @@ pub async fn create_topic_full(
     };
     placement_create_topic(client_pool, &conf.get_meta_service_addr(), request).await?;
 
-    println!("555");
     // wait topic create complete with timeout (30 seconds)
     let wait_result = timeout(Duration::from_secs(30), async {
         loop {
@@ -48,8 +47,7 @@ pub async fn create_topic_full(
         }
     })
     .await;
-    println!("wait_result:{:?}", wait_result);
-    println!("666");
+
     if wait_result.is_err() {
         return Err(CommonError::CommonError(format!(
             "Timeout waiting for topic '{}' to be created after 30 seconds",

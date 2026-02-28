@@ -26,7 +26,7 @@ use protocol::broker::broker_mqtt::{
 };
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 pub async fn delete_session_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
@@ -63,7 +63,7 @@ pub async fn send_last_will_message_by_req(
         .await
         .map_err(MqttBrokerError::CommonError)?;
 
-    info!(
+    debug!(
         "Received batch last will messages from meta service, count: {}",
         req.items.len()
     );

@@ -333,13 +333,11 @@ async fn send_update_cache(
     resource_type: BrokerUpdateCacheResourceType,
     data: Vec<u8>,
 ) -> Result<(), MetaServiceError> {
-    println!("{:?},{:?}", action_type, resource_type);
     let data = NodeCallData::UpdateCache(UpdateCacheData {
         action_type,
         resource_type,
         data,
     });
     call_manager.send(data).await?;
-    println!("3333 end");
     Ok(())
 }
