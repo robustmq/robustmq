@@ -90,12 +90,11 @@ fn get_or_create_sender(
     }
 
     let (sender, receiver) = mpsc::channel(NODE_CHANNEL_SIZE);
-    let stop_receiver = stop_send.subscribe();
     consumer::start_node_consumer_thread(
         node.clone(),
         client_pool.clone(),
         receiver,
-        stop_receiver,
+        stop_send.clone(),
     );
     node_channels.insert(node.node_id, sender.clone());
     info!("Auto-created channel for node {}", node.node_id);

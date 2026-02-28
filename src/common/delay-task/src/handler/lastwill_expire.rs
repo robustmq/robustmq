@@ -22,7 +22,7 @@ use rocksdb_engine::{
     storage::meta_data::{engine_delete_by_meta_data, engine_get_by_meta_data},
 };
 use std::sync::Arc;
-use tracing::debug;
+use tracing::{debug, info};
 
 pub async fn handle_lastwill_expire(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -39,7 +39,7 @@ pub async fn handle_lastwill_expire(
         let key = storage_key_mqtt_last_will(client_id);
         engine_delete_by_meta_data(rocksdb_engine_handler, &key)?
     }
-    debug!(
+    info!(
         "Lastwill expire handling completed: client_id={}, lastwill_found={}",
         client_id, has_lastwill
     );

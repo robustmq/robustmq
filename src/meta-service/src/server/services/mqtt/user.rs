@@ -58,7 +58,7 @@ pub fn list_user_by_req(
 pub async fn create_user_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateUserRequest,
 ) -> Result<CreateUserReply, MetaServiceError> {
@@ -73,7 +73,6 @@ pub async fn create_user_by_req(
     raft_manager.write_metadata(data).await?;
 
     let user = MqttUser::decode(&req.content)?;
-    let _ = client_pool;
     send_notify_by_add_user(call_manager, user).await?;
 
     Ok(CreateUserReply {})
@@ -82,7 +81,7 @@ pub async fn create_user_by_req(
 pub async fn delete_user_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &DeleteUserRequest,
 ) -> Result<DeleteUserReply, MetaServiceError> {
@@ -96,7 +95,6 @@ pub async fn delete_user_by_req(
     let data = StorageData::new(StorageDataType::MqttDeleteUser, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    let _ = client_pool;
     send_notify_by_delete_user(call_manager, user).await?;
 
     Ok(DeleteUserReply {})

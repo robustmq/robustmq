@@ -170,7 +170,6 @@ pub async fn try_init_topic(
         let shard_config = EngineShardConfig {
             replica_num: 1,
             storage_type: StorageType::EngineRocksDB,
-
             ..Default::default()
         };
         create_topic_full(

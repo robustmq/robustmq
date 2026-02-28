@@ -96,7 +96,7 @@ fn read_persist_session(
 pub async fn create_session_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
     req: &CreateSessionRequest,
 ) -> Result<CreateSessionReply, MetaServiceError> {
     let routing_key = req
@@ -110,7 +110,6 @@ pub async fn create_session_by_req(
 
     for raw in &req.sessions {
         let session = MqttSession::decode(&raw.session)?;
-        let _ = client_pool;
         send_notify_by_add_session(call_manager, session).await?;
     }
 

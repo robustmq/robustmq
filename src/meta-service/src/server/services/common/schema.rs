@@ -90,7 +90,7 @@ pub fn list_schema_req(
 pub async fn create_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
     req: &CreateSchemaRequest,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> Result<(), MetaServiceError> {
@@ -109,7 +109,6 @@ pub async fn create_schema_req(
     raft_manager.write_metadata(data).await?;
 
     let schema = SchemaData::decode(&req.schema)?;
-    let _ = client_pool;
     send_notify_by_add_schema(call_manager, schema).await?;
 
     Ok(())
@@ -119,7 +118,7 @@ pub async fn update_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
 ) -> Result<(), MetaServiceError> {
     validate_schema_fields(&req.schema_name, &req.schema)?;
@@ -135,7 +134,6 @@ pub async fn update_schema_req(
     raft_manager.write_metadata(data).await?;
 
     let schema = SchemaData::decode(&req.schema)?;
-    let _ = client_pool;
     send_notify_by_add_schema(call_manager, schema).await?;
 
     Ok(())
@@ -145,7 +143,7 @@ pub async fn delete_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
     req: &DeleteSchemaRequest,
 ) -> Result<(), MetaServiceError> {
     validate_non_empty(&req.schema_name, "schema_name")?;
@@ -160,7 +158,6 @@ pub async fn delete_schema_req(
     let data = StorageData::new(StorageDataType::SchemaDelete, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    let _ = client_pool;
     send_notify_by_delete_schema(call_manager, schema).await?;
 
     Ok(())
@@ -208,7 +205,7 @@ pub async fn list_bind_schema_req(
 pub async fn bind_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
     req: &BindSchemaRequest,
 ) -> Result<(), MetaServiceError> {
     validate_bind_fields(&req.schema_name, &req.resource_name)?;
@@ -220,7 +217,6 @@ pub async fn bind_schema_req(
         schema_name: req.schema_name.clone(),
         resource_name: req.resource_name.clone(),
     };
-    let _ = client_pool;
     send_notify_by_add_schema_bind(call_manager, schema_data).await?;
 
     Ok(())
@@ -229,7 +225,7 @@ pub async fn bind_schema_req(
 pub async fn un_bind_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
     req: &UnBindSchemaRequest,
 ) -> Result<(), MetaServiceError> {
     validate_bind_fields(&req.schema_name, &req.resource_name)?;
@@ -241,7 +237,6 @@ pub async fn un_bind_schema_req(
         schema_name: req.schema_name.clone(),
         resource_name: req.resource_name.clone(),
     };
-    let _ = client_pool;
     send_notify_by_delete_schema_bind(call_manager, schema_data).await?;
 
     Ok(())

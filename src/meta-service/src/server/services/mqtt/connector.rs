@@ -147,7 +147,7 @@ pub async fn delete_connector_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
     mqtt_call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
     req: &DeleteConnectorRequest,
 ) -> Result<DeleteConnectorReply, MetaServiceError> {
     let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
@@ -160,7 +160,6 @@ pub async fn delete_connector_by_req(
     let data = StorageData::new(StorageDataType::MqttDeleteConnector, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    let _ = client_pool;
     send_notify_by_delete_connector(mqtt_call_manager, connector).await?;
 
     Ok(DeleteConnectorReply {})

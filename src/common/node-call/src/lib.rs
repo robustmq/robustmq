@@ -29,6 +29,7 @@ use tracing::info;
 pub const GLOBAL_CHANNEL_SIZE: usize = 10000;
 pub const NODE_CHANNEL_SIZE: usize = 5000;
 pub const BATCH_SIZE: usize = 100;
+pub const WORKER_THREAD_NUM: usize = 10;
 pub const RPC_MAX_RETRIES: usize = 3;
 pub const RPC_RETRY_BASE_MS: u64 = 50;
 
@@ -44,6 +45,16 @@ pub enum NodeCallData {
     UpdateCache(UpdateCacheData),
     DeleteSession(String),
     SendLastWillMessage(LastWillMessageItem),
+}
+
+impl NodeCallData {
+    pub fn partition_key(&self) -> Option<&str> {
+        match self {
+            NodeCallData::UpdateCache(_) => None,
+            NodeCallData::DeleteSession(client_id) => Some(client_id),
+            NodeCallData::SendLastWillMessage(item) => Some(&item.client_id),
+        }
+    }
 }
 
 pub struct NodeCallManager {

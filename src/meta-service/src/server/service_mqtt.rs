@@ -244,7 +244,6 @@ impl MqttService for GrpcMqttService {
         create_topic_by_req(
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &self.rocksdb_engine_handler,
             &req,
         )

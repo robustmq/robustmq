@@ -65,6 +65,7 @@ async fn update_cache(
     storage_params: &StorageEngineParams,
     record: &UpdateCacheRecord,
 ) -> ResultCommonError {
+    println!("update_cache:{:?}", record);
     match record.resource_type() {
         // MQTT Broker
         BrokerUpdateCacheResourceType::Session

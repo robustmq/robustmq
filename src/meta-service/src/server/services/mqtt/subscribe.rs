@@ -84,7 +84,7 @@ pub fn list_subscribe_by_req(
 pub async fn set_subscribe_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
     req: &SetSubscribeRequest,
 ) -> Result<SetSubscribeReply, MetaServiceError> {
     let data = StorageData::new(StorageDataType::MqttSetSubscribe, encode_to_bytes(req));
@@ -92,7 +92,6 @@ pub async fn set_subscribe_by_req(
 
     let subscribe = MqttSubscribe::decode(&req.subscribe)
         .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
-    let _ = client_pool;
     send_notify_by_add_subscribe(call_manager, subscribe).await?;
 
     Ok(SetSubscribeReply {})

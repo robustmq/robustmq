@@ -26,7 +26,7 @@ use protocol::broker::broker_mqtt::{
 };
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
-use tracing::debug;
+use tracing::{debug, info, warn};
 
 pub async fn delete_session_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
@@ -63,7 +63,7 @@ pub async fn send_last_will_message_by_req(
         .await
         .map_err(MqttBrokerError::CommonError)?;
 
-    debug!(
+    info!(
         "Received batch last will messages from meta service, count: {}",
         req.items.len()
     );
@@ -72,7 +72,7 @@ pub async fn send_last_will_message_by_req(
         let data = match MqttLastWillData::decode(&item.last_will_message) {
             Ok(data) => data,
             Err(e) => {
-                debug!(
+                warn!(
                     "Failed to decode last will message for client_id={}: {}",
                     item.client_id, e
                 );
@@ -91,7 +91,7 @@ pub async fn send_last_will_message_by_req(
         )
         .await
         {
-            debug!(
+            warn!(
                 "Failed to send last will message for client_id={}: {}",
                 item.client_id, e
             );
