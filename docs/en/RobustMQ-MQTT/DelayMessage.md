@@ -27,13 +27,11 @@ $delayed/{DelayInterval}/{TopicName}
 **Parameter Description**:
 
 - `$delayed`: Messages using `$delayed` as the topic prefix will be considered as messages that need delayed publishing
-- `{DelayInterval}`: Specifies the time interval for delayed publishing of the MQTT message, in seconds, with a maximum allowed interval of 4294967 seconds
 - `{TopicName}`: The target topic name for the MQTT message
 
 **Important Notes**:
 
 - If `{DelayInterval}` cannot be parsed as an integer, the server will discard the message
-- Delay time is in seconds, supporting a maximum delay time of 4294967 seconds (approximately 49.7 days)
 - Delayed messages are stored on the server until the delay time is reached
 
 ## Characteristics of Delayed Publishing
@@ -154,8 +152,7 @@ mqttx sub -t "user/+" -h '117.72.92.117' -p 1883 -v
 ## Important Notes
 
 1. **Time format**: Delay time must be an integer in seconds
-2. **Maximum delay**: Maximum supported delay time is 4294967 seconds (approximately 49.7 days)
-3. **Topic format**: Must use the `$delayed/{DelayInterval}/{TopicName}` format
-4. **Message persistence**: Delayed messages are persistently stored and can execute normally after server restart
-5. **QoS support**: Delayed publishing supports MQTT QoS levels
-6. **Error handling**: Messages will be discarded if the delay time format is incorrect
+2. **Topic format**: Must use the `$delayed/{DelayInterval}/{TopicName}` format
+3. **Message persistence**: Delayed messages are persistently stored and can execute normally after server restart
+4. **QoS support**: Delayed publishing supports MQTT QoS levels
+5. **Error handling**: Messages will be discarded if the delay time format is incorrect
