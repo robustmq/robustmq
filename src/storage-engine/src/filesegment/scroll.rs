@@ -298,6 +298,7 @@ mod tests {
             last_segment_seq: segment_iden.segment,
             status: EngineShardStatus::Run,
             config: EngineShardConfig::default(),
+            desc: "".to_string(),
             create_time: now_second(),
         };
         cache_manager.set_shard(shard);

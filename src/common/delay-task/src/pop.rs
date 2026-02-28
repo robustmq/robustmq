@@ -186,7 +186,7 @@ pub async fn delay_task_process(
     task: &DelayTask,
 ) -> Result<(), CommonError> {
     let task_type_str = task.task_type_name();
-    debug!(
+    info!(
         "Processing delay task: task_id={}, task_type={}",
         task.task_id, task_type_str
     );

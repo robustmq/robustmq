@@ -76,11 +76,12 @@ use crate::system_topic::stats::topics::{
     SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX,
 };
 use common_base::error::ResultCommonError;
-use common_base::tools::{get_local_ip, loop_select_ticket};
+use common_base::tools::{get_local_ip, loop_select_ticket, now_millis};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
@@ -88,30 +89,34 @@ use tracing::warn;
 
 // Cluster status information
 pub const SYSTEM_TOPIC_BROKERS: &str = "$SYS/brokers";
-pub const SYSTEM_TOPIC_BROKERS_VERSION: &str = "$SYS/brokers/${node}/version";
-pub const SYSTEM_TOPIC_BROKERS_UPTIME: &str = "$SYS/brokers/${node}/uptime";
-pub const SYSTEM_TOPIC_BROKERS_DATETIME: &str = "$SYS/brokers/${node}/datetime";
-pub const SYSTEM_TOPIC_BROKERS_SYSDESCR: &str = "$SYS/brokers/${node}/sysdescr";
+pub const SYSTEM_TOPIC_BROKERS_VERSION: &str = "$SYS/brokers/version";
+pub const SYSTEM_TOPIC_BROKERS_UPTIME: &str = "$SYS/brokers/uptime";
+pub const SYSTEM_TOPIC_BROKERS_DATETIME: &str = "$SYS/brokers/datetime";
+pub const SYSTEM_TOPIC_BROKERS_SYSDESCR: &str = "$SYS/brokers/sysdescr";
 
 // Event
-pub const SYSTEM_TOPIC_BROKERS_CONNECTED: &str =
-    "$SYS/brokers/${node}/clients/${clientid}/connected";
-pub const SYSTEM_TOPIC_BROKERS_DISCONNECTED: &str =
-    "$SYS/brokers/${node}/clients/${clientid}/disconnected";
-pub const SYSTEM_TOPIC_BROKERS_SUBSCRIBED: &str =
-    "$SYS/brokers/${node}/clients/${clientid}/subscribed";
-pub const SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED: &str =
-    "$SYS/brokers/${node}/clients/${clientid}/unsubscribed";
+pub const SYSTEM_TOPIC_BROKERS_CONNECTED: &str = "$SYS/brokers/clients/connected";
+pub const SYSTEM_TOPIC_BROKERS_DISCONNECTED: &str = "$SYS/brokers/clients/disconnected";
+pub const SYSTEM_TOPIC_BROKERS_SUBSCRIBED: &str = "$SYS/brokers/clients/subscribed";
+pub const SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED: &str = "$SYS/brokers/clients/unsubscribed";
 
 // System alarm
-pub const SYSTEM_TOPIC_BROKERS_ALARMS_ALERT: &str = "$SYS/brokers/${node}/alarms/alert";
-pub const SYSTEM_TOPIC_BROKERS_ALARMS_CLEAR: &str = "$SYS/brokers/${node}/alarms/clear";
+pub const SYSTEM_TOPIC_BROKERS_ALARMS_ALERT: &str = "$SYS/brokers/alarms/alert";
+pub const SYSTEM_TOPIC_BROKERS_ALARMS_CLEAR: &str = "$SYS/brokers/alarms/clear";
 
 pub mod broker;
 pub mod event;
 pub mod packet;
 pub mod stats;
 pub mod sysmon;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SystemTopicEnvelope<T> {
+    pub node_id: u64,
+    pub node_ip: String,
+    pub ts: u128,
+    pub value: T,
+}
 
 pub struct SystemTopic {
     pub metadata_cache: Arc<MQTTCacheManager>,
@@ -183,7 +188,7 @@ impl SystemTopic {
             .await
             {
                 if e.to_string().contains("already exist") {
-                    return;
+                    continue;
                 }
                 panic!("Initializing system topic {new_topic_name} Failed, error message :{e}");
             }
@@ -198,6 +203,11 @@ impl SystemTopic {
             SYSTEM_TOPIC_BROKERS_UPTIME.to_string(),
             SYSTEM_TOPIC_BROKERS_DATETIME.to_string(),
             SYSTEM_TOPIC_BROKERS_SYSDESCR.to_string(),
+            // event
+            SYSTEM_TOPIC_BROKERS_CONNECTED.to_string(),
+            SYSTEM_TOPIC_BROKERS_DISCONNECTED.to_string(),
+            SYSTEM_TOPIC_BROKERS_SUBSCRIBED.to_string(),
+            SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED.to_string(),
             // stats
             SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT.to_string(),
             SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX.to_string(),
@@ -330,7 +340,19 @@ pub(crate) async fn report_stats_info(
         .await;
 }
 
-pub(crate) async fn report_system_data<F, Fut>(
+pub(crate) fn build_system_topic_payload<T: Serialize>(
+    value: T,
+) -> Result<String, serde_json::Error> {
+    let payload = SystemTopicEnvelope {
+        node_id: broker_config().broker_id,
+        node_ip: get_local_ip(),
+        ts: now_millis(),
+        value,
+    };
+    serde_json::to_string(&payload)
+}
+
+pub(crate) async fn report_system_data<F, Fut, T>(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
@@ -338,10 +360,21 @@ pub(crate) async fn report_system_data<F, Fut>(
     data_generator: F,
 ) where
     F: FnOnce() -> Fut,
-    Fut: std::future::Future<Output = String>,
+    Fut: std::future::Future<Output = T>,
+    T: Serialize,
 {
     let topic_name = replace_topic_name(topic_const.to_string());
-    let data = data_generator().await;
+    let value = data_generator().await;
+    let data = match build_system_topic_payload(value) {
+        Ok(data) => data,
+        Err(e) => {
+            warn!(
+                "Failed to serialize system topic payload for topic {}: {:?}",
+                topic_name, e
+            );
+            return;
+        }
+    };
 
     if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data) {
         if let Err(e) = write_topic_data(
@@ -472,13 +505,13 @@ mod test {
 
         test_add_topic(&storage_driver_manager, &topic_name);
 
-        let expect_data = "test_data".to_string();
+        let expect_value = "test_data".to_string();
         super::report_system_data(
             &client_pool,
             &cache_manger,
             &storage_driver_manager,
             &topic_name,
-            || async { expect_data.clone() },
+            || async { expect_value.clone() },
         )
         .await;
 
@@ -496,8 +529,9 @@ mod test {
             .await
             .unwrap();
 
+        let expected_payload = super::build_system_topic_payload(expect_value).unwrap();
         let except_message =
-            MqttMessage::build_system_topic_message(topic_name.clone(), expect_data).unwrap();
+            MqttMessage::build_system_topic_message(topic_name.clone(), expected_payload).unwrap();
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].data, except_message.data);

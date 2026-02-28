@@ -23,9 +23,8 @@ use storage_adapter::driver::StorageDriverManager;
 
 // metrics
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED: &str =
-    "$SYS/brokers/${node}/metrics/bytes/received";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT: &str =
-    "$SYS/brokers/${node}/metrics/bytes/sent";
+    "$SYS/brokers/metrics/bytes/received";
+pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT: &str = "$SYS/brokers/metrics/bytes/sent";
 
 pub(crate) async fn report_broker_metrics_bytes(
     client_pool: &Arc<ClientPool>,

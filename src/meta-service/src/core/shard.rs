@@ -31,17 +31,17 @@ pub async fn create_shard(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     shard_name: &str,
     shard_config: EngineShardConfig,
+    desc: &str,
 ) -> Result<EngineShard, MetaServiceError> {
     if let Some(existing_shard) = cache_manager.shard_list.get(shard_name) {
         return Ok(existing_shard.clone());
     }
 
     info!(
-        "Creating shard: name={}, replica_num={}, max_segment_size={}",
-        shard_name, shard_config.replica_num, shard_config.max_segment_size
+        "Creating shard: name={}, replica_num={}, max_segment_size={},desc={}",
+        shard_name, shard_config.replica_num, shard_config.max_segment_size, desc
     );
 
     let new_shard = EngineShard {
@@ -52,6 +52,7 @@ pub async fn create_shard(
         last_segment_seq: 0,
         status: EngineShardStatus::Run,
         config: shard_config.clone(),
+        desc: desc.to_string(),
         create_time: now_second(),
     };
 

@@ -27,12 +27,14 @@ pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
     let shard1 = AdapterShardInfo {
         shard_name: shard1_name.clone(),
         config: EngineShardConfig::default(),
+        ..Default::default()
     };
     adapter.create_shard(&shard1).await.unwrap();
     adapter
         .create_shard(&AdapterShardInfo {
             shard_name: shard2_name.clone(),
             config: EngineShardConfig::default(),
+            ..Default::default()
         })
         .await
         .unwrap();

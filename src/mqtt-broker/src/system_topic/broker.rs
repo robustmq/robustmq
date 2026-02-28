@@ -25,9 +25,9 @@ use storage_adapter::driver::StorageDriverManager;
 use tracing::{error, warn};
 
 use super::{
-    replace_topic_name, report_system_data, write_topic_data, SYSTEM_TOPIC_BROKERS,
-    SYSTEM_TOPIC_BROKERS_DATETIME, SYSTEM_TOPIC_BROKERS_SYSDESCR, SYSTEM_TOPIC_BROKERS_UPTIME,
-    SYSTEM_TOPIC_BROKERS_VERSION,
+    build_system_topic_payload, replace_topic_name, report_system_data, write_topic_data,
+    SYSTEM_TOPIC_BROKERS, SYSTEM_TOPIC_BROKERS_DATETIME, SYSTEM_TOPIC_BROKERS_SYSDESCR,
+    SYSTEM_TOPIC_BROKERS_UPTIME, SYSTEM_TOPIC_BROKERS_VERSION,
 };
 use crate::core::cache::MQTTCacheManager;
 
@@ -136,13 +136,10 @@ async fn build_node_cluster(
         }
     };
 
-    let content = match serde_json::to_string(&node_list) {
+    let content = match build_system_topic_payload(node_list) {
         Ok(content) => content,
         Err(e) => {
-            error!(
-                "Failed to serialize node-list, failure message :{}",
-                e.to_string()
-            );
+            error!("Failed to serialize node-list payload: {}", e);
             return None;
         }
     };

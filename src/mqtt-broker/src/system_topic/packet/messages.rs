@@ -25,33 +25,33 @@ use storage_adapter::driver::StorageDriverManager;
 
 // MQTT Message Received and Sent
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RECEIVED: &str =
-    "$SYS/brokers/${node}/metrics/messages/received";
+    "$SYS/brokers/metrics/messages/received";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_SENT: &str =
-    "$SYS/brokers/${node}/metrics/messages/sent";
+    "$SYS/brokers/metrics/messages/sent";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_EXPIRED: &str =
-    "$SYS/brokers/${node}/metrics/messages/expired";
+    "$SYS/brokers/metrics/messages/expired";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RETAINED: &str =
-    "$SYS/brokers/${node}/metrics/messages/retained";
+    "$SYS/brokers/metrics/messages/retained";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_DROPPED: &str =
-    "$SYS/brokers/${node}/metrics/messages/dropped";
+    "$SYS/brokers/metrics/messages/dropped";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_FORWARD: &str =
-    "$SYS/brokers/${node}/metrics/messages/forward";
+    "$SYS/brokers/metrics/messages/forward";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_RECEIVED: &str =
-    "$SYS/brokers/${node}/metrics/messages/qos0/received";
+    "$SYS/brokers/metrics/messages/qos0/received";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_SENT: &str =
-    "$SYS/brokers/${node}/metrics/messages/qos0/sent";
+    "$SYS/brokers/metrics/messages/qos0/sent";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_RECEIVED: &str =
-    "$SYS/brokers/${node}/metrics/messages/qos1/received";
+    "$SYS/brokers/metrics/messages/qos1/received";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_SENT: &str =
-    "$SYS/brokers/${node}/metrics/messages/qos1/sent";
+    "$SYS/brokers/metrics/messages/qos1/sent";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_RECEIVED: &str =
-    "$SYS/brokers/${node}/metrics/messages/qos2/received";
+    "$SYS/brokers/metrics/messages/qos2/received";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_SENT: &str =
-    "$SYS/brokers/${node}/metrics/messages/qos2/sent";
+    "$SYS/brokers/metrics/messages/qos2/sent";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_EXPIRED: &str =
-    "$SYS/brokers/${node}/metrics/messages/qos2/expired";
+    "$SYS/brokers/metrics/messages/qos2/expired";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_DROPPED: &str =
-    "$SYS/brokers/${node}/metrics/messages/qos2/dropped";
+    "$SYS/brokers/metrics/messages/qos2/dropped";
 
 pub(crate) async fn report_broker_metrics_messages(
     client_pool: &Arc<ClientPool>,

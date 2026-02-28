@@ -171,6 +171,7 @@ pub async fn shard_create(
     let shard_info = AdapterShardInfo {
         shard_name: params.shard_name.clone(),
         config,
+        desc: "".to_string(),
     };
 
     if let Err(e) = state

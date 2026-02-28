@@ -28,13 +28,12 @@ pub async fn st_report_system_alarm_alert(
     storage_driver_manager: &Arc<StorageDriverManager>,
     message_event: &SystemAlarmEventMessage,
 ) -> ResultCommonError {
-    let data = serde_json::to_string(message_event)?;
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_ALARMS_ALERT,
-        || async move { data },
+        || async move { message_event.clone() },
     )
     .await;
     Ok(())
@@ -46,13 +45,12 @@ pub async fn st_report_system_alarm_clear(
     storage_driver_manager: &Arc<StorageDriverManager>,
     message_event: &SystemAlarmEventMessage,
 ) -> ResultCommonError {
-    let data = serde_json::to_string(message_event)?;
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_ALARMS_CLEAR,
-        || async move { data },
+        || async move { message_event.clone() },
     )
     .await;
     Ok(())

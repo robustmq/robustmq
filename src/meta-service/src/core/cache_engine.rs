@@ -162,6 +162,7 @@ mod tests {
             last_segment_seq: 0,
             status: metadata_struct::storage::shard::EngineShardStatus::Run,
             config: metadata_struct::storage::shard::EngineShardConfig::default(),
+            desc: "".to_string(),
             create_time: now_second(),
         }
     }

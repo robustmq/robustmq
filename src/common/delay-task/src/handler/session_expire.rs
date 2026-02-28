@@ -22,6 +22,7 @@ use rocksdb_engine::{
     storage::meta_data::{engine_delete_by_meta_data, engine_get_by_meta_data},
 };
 use std::sync::Arc;
+use tracing::debug;
 
 use crate::{
     handler::lastwill_expire::get_last_will_message, manager::DelayTaskManager, DelayTask,
@@ -35,8 +36,10 @@ pub async fn handle_session_expire(
     delay_task_manager: &Arc<DelayTaskManager>,
     client_id: &str,
 ) -> Result<(), CommonError> {
+    let mut has_session = false;
     if let Some((session, is_cache)) = get_session(rocksdb_engine_handler, broker_cache, client_id)?
     {
+        has_session = true;
         if is_cache {
             broker_cache.delete_session(client_id);
         } else {
@@ -63,6 +66,10 @@ pub async fn handle_session_expire(
         }
     }
 
+    debug!(
+        "Session expire handling completed: client_id={}, session_found={}",
+        client_id, has_session
+    );
     Ok(())
 }
 

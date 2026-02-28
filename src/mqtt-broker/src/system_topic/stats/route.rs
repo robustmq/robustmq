@@ -22,10 +22,8 @@ use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
 // routes
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT: &str =
-    "$SYS/brokers/${node}/stats/routes/count";
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX: &str =
-    "$SYS/brokers/${node}/stats/routes/max";
+pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT: &str = "$SYS/brokers/stats/routes/count";
+pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX: &str = "$SYS/brokers/stats/routes/max";
 
 pub(crate) async fn report_broker_stat_routes(
     client_pool: &Arc<ClientPool>,

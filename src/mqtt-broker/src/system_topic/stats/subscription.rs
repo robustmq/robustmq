@@ -24,21 +24,21 @@ use storage_adapter::driver::StorageDriverManager;
 
 // subscribe
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_COUNT: &str =
-    "$SYS/brokers/${node}/stats/suboptions/count";
+    "$SYS/brokers/stats/suboptions/count";
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_MAX: &str =
-    "$SYS/brokers/${node}/stats/suboptions/max";
+    "$SYS/brokers/stats/suboptions/max";
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_COUNT: &str =
-    "$SYS/brokers/${node}/stats/subscribers/count";
+    "$SYS/brokers/stats/subscribers/count";
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_MAX: &str =
-    "$SYS/brokers/${node}/stats/subscribers/max";
+    "$SYS/brokers/stats/subscribers/max";
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_COUNT: &str =
-    "$SYS/brokers/${node}/stats/subscriptions/count";
+    "$SYS/brokers/stats/subscriptions/count";
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_MAX: &str =
-    "$SYS/brokers/${node}/stats/subscriptions/max";
+    "$SYS/brokers/stats/subscriptions/max";
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT: &str =
-    "$SYS/brokers/${node}/stats/subscriptions/shared/count";
+    "$SYS/brokers/stats/subscriptions/shared/count";
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX: &str =
-    "$SYS/brokers/${node}/stats/subscriptions/shared/max";
+    "$SYS/brokers/stats/subscriptions/shared/max";
 
 pub(crate) async fn report_broker_stat_sub_options(
     client_pool: &Arc<ClientPool>,

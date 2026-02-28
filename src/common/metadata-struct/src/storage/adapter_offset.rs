@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 pub struct AdapterShardInfo {
     pub shard_name: String,
     pub config: EngineShardConfig,
+    pub desc: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]

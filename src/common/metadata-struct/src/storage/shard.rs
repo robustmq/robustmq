@@ -28,11 +28,12 @@ pub struct EngineShard {
     pub last_segment_seq: u32,
     pub status: EngineShardStatus,
     pub config: EngineShardConfig,
+    pub desc: String,
     pub create_time: u64,
 }
 
 impl EngineShard {
-    pub fn new(shard_name: String, config: EngineShardConfig) -> Self {
+    pub fn new(shard_name: String, config: EngineShardConfig, desc: String) -> Self {
         EngineShard {
             shard_uid: unique_id(),
             shard_name,
@@ -40,6 +41,7 @@ impl EngineShard {
             active_segment_seq: 0,
             last_segment_seq: 0,
             status: EngineShardStatus::Run,
+            desc,
             config,
             create_time: now_second(),
         }

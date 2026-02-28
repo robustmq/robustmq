@@ -186,6 +186,7 @@ impl DataRouteMqtt {
                         DelayTaskData::MQTTSessionExpire(session.client_id.clone()),
                         target_time,
                     );
+
                     self.delay_task_manager.create_task(task).await?;
                 }
             } else if self.delay_task_manager.contains_task(&session.client_id) {

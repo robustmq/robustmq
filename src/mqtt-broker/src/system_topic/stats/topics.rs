@@ -20,8 +20,8 @@ use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
 // topics
-pub const SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT: &str = "$SYS/brokers/${node}/stats/topics/count";
-pub const SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX: &str = "$SYS/brokers/${node}/stats/topics/max";
+pub const SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT: &str = "$SYS/brokers/stats/topics/count";
+pub const SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX: &str = "$SYS/brokers/stats/topics/max";
 
 pub(crate) async fn report_broker_stat_topics(
     client_pool: &Arc<ClientPool>,

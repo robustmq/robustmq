@@ -22,9 +22,9 @@ use storage_adapter::driver::StorageDriverManager;
 // Stats
 // connections
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT: &str =
-    "$SYS/brokers/${node}/stats/connections/count";
+    "$SYS/brokers/stats/connections/count";
 pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX: &str =
-    "$SYS/brokers/${node}/stats/connections/max";
+    "$SYS/brokers/stats/connections/max";
 
 pub(crate) async fn report_broker_stat_connections(
     client_pool: &Arc<ClientPool>,

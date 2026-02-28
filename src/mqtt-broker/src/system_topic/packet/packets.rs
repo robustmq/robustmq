@@ -34,59 +34,59 @@ use storage_adapter::driver::StorageDriverManager;
 
 // MQTT Packet Received and Sent
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_RECEIVED: &str =
-    "$SYS/brokers/${node}/metrics/packets/received";
+    "$SYS/brokers/metrics/packets/received";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SENT: &str =
-    "$SYS/brokers/${node}/metrics/packets/sent";
+    "$SYS/brokers/metrics/packets/sent";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNECT: &str =
-    "$SYS/brokers/${node}/metrics/packets/connect";
+    "$SYS/brokers/metrics/packets/connect";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNACK: &str =
-    "$SYS/brokers/${node}/metrics/packets/connack";
+    "$SYS/brokers/metrics/packets/connack";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_RECEIVED: &str =
-    "$SYS/brokers/${node}/metrics/packets/publish/received";
+    "$SYS/brokers/metrics/packets/publish/received";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_SENT: &str =
-    "$SYS/brokers/${node}/metrics/packets/publish/sent";
+    "$SYS/brokers/metrics/packets/publish/sent";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_RECEIVED: &str =
-    "$SYS/brokers/${node}/metrics/packets/puback/received";
+    "$SYS/brokers/metrics/packets/puback/received";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_SENT: &str =
-    "$SYS/brokers/${node}/metrics/packets/puback/sent";
+    "$SYS/brokers/metrics/packets/puback/sent";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_MISSED: &str =
-    "$SYS/brokers/${node}/metrics/packets/puback/missed";
+    "$SYS/brokers/metrics/packets/puback/missed";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_RECEIVED: &str =
-    "$SYS/brokers/${node}/metrics/packets/pubrec/received";
+    "$SYS/brokers/metrics/packets/pubrec/received";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_SENT: &str =
-    "$SYS/brokers/${node}/metrics/packets/pubrec/sent";
+    "$SYS/brokers/metrics/packets/pubrec/sent";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_MISSED: &str =
-    "$SYS/brokers/${node}/metrics/packets/pubrec/missed";
+    "$SYS/brokers/metrics/packets/pubrec/missed";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_RECEIVED: &str =
-    "$SYS/brokers/${node}/metrics/packets/pubrel/received";
+    "$SYS/brokers/metrics/packets/pubrel/received";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_SENT: &str =
-    "$SYS/brokers/${node}/metrics/packets/pubrel/sent";
+    "$SYS/brokers/metrics/packets/pubrel/sent";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_MISSED: &str =
-    "$SYS/brokers/${node}/metrics/packets/pubrel/missed";
+    "$SYS/brokers/metrics/packets/pubrel/missed";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_RECEIVED: &str =
-    "$SYS/brokers/${node}/metrics/packets/pubcomp/received";
+    "$SYS/brokers/metrics/packets/pubcomp/received";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_SENT: &str =
-    "$SYS/brokers/${node}/metrics/packets/pubcomp/sent";
+    "$SYS/brokers/metrics/packets/pubcomp/sent";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_MISSED: &str =
-    "$SYS/brokers/${node}/metrics/packets/pubcomp/missed";
+    "$SYS/brokers/metrics/packets/pubcomp/missed";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBSCRIBE: &str =
-    "$SYS/brokers/${node}/metrics/packets/subscribe";
+    "$SYS/brokers/metrics/packets/subscribe";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBACK: &str =
-    "$SYS/brokers/${node}/metrics/packets/suback";
+    "$SYS/brokers/metrics/packets/suback";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE: &str =
-    "$SYS/brokers/${node}/metrics/packets/unsubscribe";
+    "$SYS/brokers/metrics/packets/unsubscribe";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK: &str =
-    "$SYS/brokers/${node}/metrics/packets/unsuback";
+    "$SYS/brokers/metrics/packets/unsuback";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGREQ: &str =
-    "$SYS/brokers/${node}/metrics/packets/pingreq";
+    "$SYS/brokers/metrics/packets/pingreq";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGRESP: &str =
-    "$SYS/brokers/${node}/metrics/packets/pingresp";
+    "$SYS/brokers/metrics/packets/pingresp";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED: &str =
-    "$SYS/brokers/${node}/metrics/packets/disconnect/received";
+    "$SYS/brokers/metrics/packets/disconnect/received";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT: &str =
-    "$SYS/brokers/${node}/metrics/packets/disconnect/sent";
+    "$SYS/brokers/metrics/packets/disconnect/sent";
 pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH: &str =
-    "$SYS/brokers/${node}/metrics/packets/auth";
+    "$SYS/brokers/metrics/packets/auth";
 
 pub(crate) async fn report_broker_metrics_packets(
     client_pool: &Arc<ClientPool>,

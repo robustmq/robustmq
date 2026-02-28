@@ -102,6 +102,7 @@ pub async fn create_shard_to_place(
     let request = CreateShardRequest {
         shard_name: shard_name.to_string(),
         shard_config: shard.config.encode()?,
+        desc: shard.desc.to_string(),
     };
     grpc_clients::meta::storage::call::create_shard(
         client_pool,
@@ -137,7 +138,10 @@ pub async fn create_shard_to_place(
 
     match wait_result {
         Ok(_) => {
-            info!("Shard {} created successfully", shard_name);
+            info!(
+                "Shard {} created successfully, shard info:{:?}",
+                shard_name, shard
+            );
             Ok(())
         }
         Err(_) => Err(StorageEngineError::CommonErrorStr(format!(

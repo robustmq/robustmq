@@ -93,6 +93,7 @@ pub async fn test_init_segment(
             storage_type: engine_storage_type,
             ..Default::default()
         },
+        desc: "".to_string(),
         create_time: now_second(),
     };
     cache_manager.set_shard(shard);

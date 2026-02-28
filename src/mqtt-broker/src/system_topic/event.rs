@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use common_base::tools::{get_local_ip, now_millis};
+use common_base::tools::now_millis;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -27,8 +27,9 @@ use storage_adapter::driver::StorageDriverManager;
 use tracing::{error, warn};
 
 use super::{
-    write_topic_data, SYSTEM_TOPIC_BROKERS_CONNECTED, SYSTEM_TOPIC_BROKERS_DISCONNECTED,
-    SYSTEM_TOPIC_BROKERS_SUBSCRIBED, SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED,
+    build_system_topic_payload, write_topic_data, SYSTEM_TOPIC_BROKERS_CONNECTED,
+    SYSTEM_TOPIC_BROKERS_DISCONNECTED, SYSTEM_TOPIC_BROKERS_SUBSCRIBED,
+    SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED,
 };
 use crate::core::cache::MQTTCacheManager;
 
@@ -165,34 +166,29 @@ pub async fn st_report_connected_event(context: StReportConnectedEventContext) {
             client_id: context.session.client_id.to_string(),
             clean_start: !context.session.is_persist_session,
         };
-        match serde_json::to_string(&event_data) {
-            Ok(data) => {
-                let topic_name = replace_name(
-                    SYSTEM_TOPIC_BROKERS_CONNECTED.to_string(),
-                    context.session.client_id.to_string(),
-                );
-
-                if let Some(record) =
-                    MqttMessage::build_system_topic_message(topic_name.clone(), data)
-                {
-                    if let Err(e) = write_topic_data(
-                        &context.storage_driver_manager,
-                        &context.metadata_cache,
-                        &context.client_pool,
-                        topic_name.clone(),
-                        record,
-                    )
-                    .await
-                    {
-                        warn!(
-                            "Failed to write system topic data to topic {}: {:?}",
-                            topic_name, e
-                        );
-                    }
-                }
-            }
+        let topic_name = replace_name(SYSTEM_TOPIC_BROKERS_CONNECTED.to_string());
+        let data = match build_system_topic_payload(event_data) {
+            Ok(data) => data,
             Err(e) => {
-                error!("{}", e.to_string());
+                error!("{}", e);
+                return;
+            }
+        };
+
+        if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data) {
+            if let Err(e) = write_topic_data(
+                &context.storage_driver_manager,
+                &context.metadata_cache,
+                &context.client_pool,
+                topic_name.clone(),
+                record,
+            )
+            .await
+            {
+                warn!(
+                    "Failed to write system topic data to topic {}: {:?}",
+                    topic_name, e
+                );
             }
         }
     }
@@ -217,34 +213,29 @@ pub async fn st_report_disconnected_event(context: StReportDisconnectedEventCont
             disconnected_at: now_millis(),
         };
 
-        match serde_json::to_string(&event_data) {
-            Ok(data) => {
-                let topic_name = replace_name(
-                    SYSTEM_TOPIC_BROKERS_DISCONNECTED.to_string(),
-                    context.session.client_id.to_string(),
-                );
-
-                if let Some(record) =
-                    MqttMessage::build_system_topic_message(topic_name.clone(), data)
-                {
-                    if let Err(e) = write_topic_data(
-                        &context.storage_driver_manager,
-                        &context.metadata_cache,
-                        &context.client_pool,
-                        topic_name.clone(),
-                        record,
-                    )
-                    .await
-                    {
-                        warn!(
-                            "Failed to write system topic data to topic {}: {:?}",
-                            topic_name, e
-                        );
-                    }
-                }
-            }
+        let topic_name = replace_name(SYSTEM_TOPIC_BROKERS_DISCONNECTED.to_string());
+        let data = match build_system_topic_payload(event_data) {
+            Ok(data) => data,
             Err(e) => {
-                error!("{}", e.to_string());
+                error!("{}", e);
+                return;
+            }
+        };
+
+        if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data) {
+            if let Err(e) = write_topic_data(
+                &context.storage_driver_manager,
+                &context.metadata_cache,
+                &context.client_pool,
+                topic_name.clone(),
+                record,
+            )
+            .await
+            {
+                warn!(
+                    "Failed to write system topic data to topic {}: {:?}",
+                    topic_name, e
+                );
             }
         }
     }
@@ -271,34 +262,30 @@ pub async fn st_report_subscribed_event(context: StReportSubscribedEventContext)
                 protocol: format!("{:?}", network_connection.protocol),
                 client_id: context.connection.client_id.to_string(),
             };
-            match serde_json::to_string(&event_data) {
-                Ok(data) => {
-                    let topic_name = replace_name(
-                        SYSTEM_TOPIC_BROKERS_SUBSCRIBED.to_string(),
-                        context.connection.client_id.to_string(),
-                    );
-
-                    if let Some(record) =
-                        MqttMessage::build_system_topic_message(topic_name.clone(), data)
-                    {
-                        if let Err(e) = write_topic_data(
-                            &context.storage_driver_manager,
-                            &context.metadata_cache,
-                            &context.client_pool,
-                            topic_name.clone(),
-                            record,
-                        )
-                        .await
-                        {
-                            warn!(
-                                "Failed to write system topic data to topic {}: {:?}",
-                                topic_name, e
-                            );
-                        }
-                    }
-                }
+            let topic_name = replace_name(SYSTEM_TOPIC_BROKERS_SUBSCRIBED.to_string());
+            let data = match build_system_topic_payload(event_data) {
+                Ok(data) => data,
                 Err(e) => {
-                    error!("{}", e.to_string());
+                    error!("{}", e);
+                    return;
+                }
+            };
+
+            if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data)
+            {
+                if let Err(e) = write_topic_data(
+                    &context.storage_driver_manager,
+                    &context.metadata_cache,
+                    &context.client_pool,
+                    topic_name.clone(),
+                    record,
+                )
+                .await
+                {
+                    warn!(
+                        "Failed to write system topic data to topic {}: {:?}",
+                        topic_name, e
+                    );
                 }
             }
         }
@@ -317,47 +304,36 @@ pub async fn st_report_unsubscribed_event(context: StReportUnsubscribedEventCont
                 protocol: format!("{:?}", network_connection.protocol),
                 client_id: context.connection.client_id.to_string(),
             };
-            match serde_json::to_string(&event_data) {
-                Ok(data) => {
-                    let topic_name = replace_name(
-                        SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED.to_string(),
-                        context.connection.client_id.to_string(),
-                    );
-
-                    if let Some(record) =
-                        MqttMessage::build_system_topic_message(topic_name.clone(), data)
-                    {
-                        if let Err(e) = write_topic_data(
-                            &context.storage_driver_manager,
-                            &context.metadata_cache,
-                            &context.client_pool,
-                            topic_name.clone(),
-                            record,
-                        )
-                        .await
-                        {
-                            warn!(
-                                "Failed to write system topic data to topic {}: {:?}",
-                                topic_name, e
-                            );
-                        }
-                    }
-                }
+            let topic_name = replace_name(SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED.to_string());
+            let data = match build_system_topic_payload(event_data) {
+                Ok(data) => data,
                 Err(e) => {
-                    error!("{}", e.to_string());
+                    error!("{}", e);
+                    return;
+                }
+            };
+
+            if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data)
+            {
+                if let Err(e) = write_topic_data(
+                    &context.storage_driver_manager,
+                    &context.metadata_cache,
+                    &context.client_pool,
+                    topic_name.clone(),
+                    record,
+                )
+                .await
+                {
+                    warn!(
+                        "Failed to write system topic data to topic {}: {:?}",
+                        topic_name, e
+                    );
                 }
             }
         }
     }
 }
 
-fn replace_name(mut topic_name: String, client_id: String) -> String {
-    if topic_name.contains("${node}") {
-        let local_ip = get_local_ip();
-        topic_name = topic_name.replace("${node}", &local_ip)
-    }
-    if topic_name.contains("${clientid}") {
-        topic_name = topic_name.replace("${clientid}", &client_id)
-    }
+fn replace_name(topic_name: String) -> String {
     topic_name
 }
