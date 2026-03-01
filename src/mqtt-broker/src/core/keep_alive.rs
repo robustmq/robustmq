@@ -19,18 +19,15 @@ use crate::core::error::MqttBrokerError;
 use crate::mqtt::disconnect::build_distinct_packet;
 use crate::storage::session::SessionBatcher;
 use crate::subscribe::manager::SubscribeManager;
-use axum::extract::ws::Message;
-use bytes::BytesMut;
-use common_base::error::{client_unavailable_error_by_str, ResultCommonError};
+use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use common_metrics::mqtt::event::record_mqtt_connection_expired;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use network_server::common::connection_manager::ConnectionManager;
-use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
+use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol};
-use protocol::robust::RobustMQPacketWrapper;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::broadcast::{self};
@@ -121,7 +118,7 @@ impl ClientKeepAlive {
                         connect_id,
                     };
 
-                    if let Err(e) = try_send_distinct_packet(&context).await {
+                    if let Err(e) = close_connect(&context).await {
                         if !matches!(e, MqttBrokerError::SessionDoesNotExist) {
                             warn!(
                                 connect_id = context.connect_id,
@@ -173,54 +170,11 @@ impl ClientKeepAlive {
     }
 }
 
-async fn try_send_distinct_packet(
-    context: &TrySendDistinctPacketContext,
-) -> Result<(), MqttBrokerError> {
-    let close_conn_fn = async move || -> Result<(), MqttBrokerError> {
-        if context.network.is_tcp() {
-            context
-                .connection_manager
-                .write_tcp_frame(
-                    context.connection.connect_id,
-                    RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
-                )
-                .await?;
-        } else if context.network.is_quic() {
-            context
-                .connection_manager
-                .write_quic_frame(
-                    context.connection.connect_id,
-                    RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
-                )
-                .await?;
-        } else {
-            let mut codec = MqttCodec::new(Some(context.protocol.clone().into()));
-            let mut buff = BytesMut::new();
-            codec.encode_data(context.wrap.clone(), &mut buff)?;
-            context
-                .connection_manager
-                .write_websocket_frame(
-                    context.connection.connect_id,
-                    RobustMQPacketWrapper::from_mqtt(context.wrap.clone()),
-                    Message::Binary(buff.to_vec().into()),
-                )
-                .await?
-        }
-        Ok(())
-    };
-
-    if let Err(e) = close_conn_fn().await {
-        if !client_unavailable_error_by_str(&e.to_string()) {
-            warn!(
-                connect_id = context.connect_id,
-                client_id = %context.connection.client_id,
-                protocol = ?context.protocol,
-                network = ?context.network,
-                error = %e,
-                "Failed to send keep-alive disconnect packet"
-            );
-        }
-    }
+async fn close_connect(context: &TrySendDistinctPacketContext) -> Result<(), MqttBrokerError> {
+    context
+        .connection_manager
+        .close_connect(context.connect_id)
+        .await;
 
     let context = build_server_disconnect_conn_context(
         &context.cache_manager,
