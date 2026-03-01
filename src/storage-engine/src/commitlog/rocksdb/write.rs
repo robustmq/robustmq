@@ -149,7 +149,6 @@ impl RocksDBStorageEngine {
         } else {
             return Ok(());
         };
-
         self.delete_by_offset(shard, index.offset).await
     }
 

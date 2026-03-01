@@ -30,27 +30,14 @@ COPY --parents Cargo.toml Cargo.lock \
     tests/Cargo.toml \
     ./
 
-# Create dummy main.rs for packages with binaries
-RUN mkdir -p src/cmd/src && echo 'fn main() {}' > src/cmd/src/main.rs
-RUN mkdir -p src/cli-command/src && echo 'fn main() {}' > src/cli-command/src/main.rs
-RUN mkdir -p src/cli-bench/src && echo 'fn main() {}' > src/cli-bench/src/main.rs
-
-# Create dummy lib.rs for all library packages
-RUN for dir in src/admin-server src/amqp-broker src/broker-core src/broker-server \
-               src/delay-message src/grpc-clients \
-               src/kafka-broker src/meta-service src/mqtt-broker \
-               src/robustmq-macro src/rule-engine src/schema-register \
-               src/storage-adapter src/storage-engine \
-               src/common/base src/common/config src/common/metadata-struct \
-               src/common/metrics src/common/mmap-file src/common/network-server \
-               src/common/pprof-monitor src/common/rate-limit src/common/rocksdb-engine \
-               src/common/security src/common/system-info src/common/third-driver \
-               tests; do \
-      mkdir -p "$dir/src" && echo '' > "$dir/src/lib.rs"; \
+# Auto-create dummy src/lib.rs or src/main.rs for every crate found via Cargo.toml
+RUN find . -name "Cargo.toml" -not -path "./Cargo.toml" -exec dirname {} \; | while read dir; do \
+      mkdir -p "$dir/src"; \
+      if grep -q '\[\[bin\]\]' "$dir/Cargo.toml" 2>/dev/null; then \
+        echo 'fn main() {}' > "$dir/src/main.rs"; \
+      fi; \
+      echo '' > "$dir/src/lib.rs"; \
     done
-
-# Create protocol package with stub lib.rs (build.rs already copied above)
-RUN mkdir -p src/protocol/src && echo '' > src/protocol/src/lib.rs
 
 # Generate recipe.json with full dependency graph
 RUN cargo chef prepare --recipe-path recipe.json
