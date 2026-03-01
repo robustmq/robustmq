@@ -81,7 +81,7 @@ pub fn default_prometheus() -> Prometheus {
 }
 
 pub fn default_monitor_interval_ms() -> u64 {
-    1000
+    10000
 }
 
 pub fn default_pprof() -> PProf {

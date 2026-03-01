@@ -27,7 +27,7 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver};
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 /// The `acceptor_process` function is responsible for accepting incoming TCP connections
 /// in an asynchronous manner. It utilizes multiple threads to handle the incoming connections
@@ -168,7 +168,7 @@ fn read_frame_process(
                      if let Some(pkg) = package {
                         match pkg {
                             Ok(pack) => {
-                                info!("recv package: {:?}",pack);
+                                debug!("recv package: {:?}",pack);
                                 if broker_cache.is_stop().await{
                                     debug!("{} connection 【{}】 acceptor thread stopped successfully.", network_type, connection_id);
                                     break;

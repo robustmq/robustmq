@@ -34,7 +34,7 @@ use tracing::{error, info};
 
 const SESSION_BATCH_CHANNEL_SIZE: usize = 5000;
 const SESSION_BATCH_SIZE: usize = 100;
-const SESSION_BATCH_MAX_WAIT_MS: u64 = 10;
+const SESSION_BATCH_MAX_WAIT_MS: u64 = 100;
 
 struct SessionBatchItem {
     raw: CreateSessionRaw,
@@ -84,7 +84,6 @@ impl SessionBatcher {
             .send(SessionBatchItem { raw, result_tx })
             .await
             .map_err(|_| CommonError::CommonError("SessionBatcher channel closed".to_string()))?;
-
         result_rx.await.map_err(|_| {
             CommonError::CommonError("SessionBatcher result channel dropped".to_string())
         })?
@@ -133,6 +132,7 @@ async fn session_batch_consumer(
 }
 
 async fn flush_batch(batch: Vec<SessionBatchItem>, client_pool: &Arc<ClientPool>) {
+    println!("flush batch:{}", batch.len());
     let (raws, txs): (Vec<_>, Vec<_>) = batch
         .into_iter()
         .map(|item| (item.raw, item.result_tx))
@@ -142,7 +142,6 @@ async fn flush_batch(batch: Vec<SessionBatchItem>, client_pool: &Arc<ClientPool>
     let request = CreateSessionRequest { sessions: raws };
     let result =
         placement_create_session(client_pool, &config.get_meta_service_addr(), request).await;
-
     match result {
         Ok(_) => {
             for tx in txs {

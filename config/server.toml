@@ -60,7 +60,7 @@ enable = true
 port = 9091
 # Sampling interval (ms) for system and Tokio runtime metrics.
 # Smaller values provide finer granularity but increase metric write overhead.
-monitor_interval_ms = 1000
+monitor_interval_ms = 10000
 
 [mqtt_system_topic]
 # Interval in milliseconds for publishing system topic data (e.g. stats, metrics).

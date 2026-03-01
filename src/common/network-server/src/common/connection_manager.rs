@@ -29,7 +29,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio_util::codec::FramedWrite;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 type TcpWriter =
     Arc<Mutex<FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, RobustMQCodec>>>;
