@@ -39,7 +39,6 @@ impl ConnectorContext {
     pub fn new(
         raft_manager: Arc<MultiRaftManager>,
         node_call_manager: Arc<NodeCallManager>,
-        _client_pool: Arc<grpc_clients::pool::ClientPool>,
         cache_manager: Arc<MetaCacheManager>,
     ) -> Self {
         Self {

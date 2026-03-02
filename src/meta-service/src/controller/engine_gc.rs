@@ -21,7 +21,6 @@ use crate::raft::manager::MultiRaftManager;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
-use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -30,7 +29,6 @@ pub async fn start_engine_delete_gc_thread(
     raft_manager: Arc<MultiRaftManager>,
     cache_manager: Arc<MetaCacheManager>,
     node_call_manager: Arc<NodeCallManager>,
-    _client_pool: Arc<ClientPool>,
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {

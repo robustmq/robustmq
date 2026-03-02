@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-use crate::controller::connector::scheduler::start_connector_scheduler;
 use crate::core::cache::{load_cache, MetaCacheManager};
 use crate::core::controller::ClusterController;
 use crate::raft::manager::MultiRaftManager;
@@ -85,8 +84,6 @@ impl MetaServiceServer {
 
         self.start_heartbeat();
 
-        self.start_controller();
-
         self.awaiting_stop().await;
     }
 
@@ -114,30 +111,10 @@ impl MetaServiceServer {
 
         monitoring_leader_transition(
             self.cache_manager.clone(),
-            self.client_pool.clone(),
             self.raft_manager.clone(),
             self.node_call_manager.clone(),
             self.main_stop.clone(),
         );
-    }
-
-    fn start_controller(&self) {
-        // start mqtt connector scheduler thread
-        let call_manager = self.node_call_manager.clone();
-        let client_pool = self.client_pool.clone();
-        let cache_manager = self.cache_manager.clone();
-        let raft_manager = self.raft_manager.clone();
-        let stop_send = self.inner_stop.clone();
-        tokio::spawn(Box::pin(async move {
-            start_connector_scheduler(
-                &cache_manager,
-                &raft_manager,
-                &call_manager,
-                &client_pool,
-                &stop_send,
-            )
-            .await;
-        }));
     }
 
     pub fn start_init(&self) {

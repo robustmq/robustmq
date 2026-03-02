@@ -13,23 +13,17 @@
 // limitations under the License.
 
 use crate::{
-    controller::BrokerController,
+    controller::{start_controller, stop_controller},
     core::cache::MetaCacheManager,
     raft::manager::{MultiRaftManager, RaftStateMachineName},
 };
-use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
 use std::{sync::Arc, time::Duration};
-use tokio::{
-    select,
-    sync::broadcast::{self, Sender},
-    time::sleep,
-};
+use tokio::{select, sync::broadcast, time::sleep};
 use tracing::{error, info};
 
 pub fn monitoring_leader_transition(
     cache_manager: Arc<MetaCacheManager>,
-    client_pool: Arc<ClientPool>,
     raft_manager: Arc<MultiRaftManager>,
     call_manager: Arc<NodeCallManager>,
     stop_send: broadcast::Sender<bool>,
@@ -68,7 +62,6 @@ pub fn monitoring_leader_transition(
                                     start_controller(
                                         &raft_manager,
                                         &cache_manager,
-                                        &client_pool,
                                         &call_manager,
                                         controller_stop_recv.clone(),
                                     );
@@ -91,31 +84,4 @@ pub fn monitoring_leader_transition(
         }
         sleep(Duration::from_secs(1)).await;
     });
-}
-
-pub fn start_controller(
-    raft_manager: &Arc<MultiRaftManager>,
-    cache_manager: &Arc<MetaCacheManager>,
-    client_pool: &Arc<ClientPool>,
-    call_manager: &Arc<NodeCallManager>,
-    stop_send: Sender<bool>,
-) {
-    let mqtt_controller = BrokerController::new(
-        raft_manager.clone(),
-        cache_manager.clone(),
-        call_manager.clone(),
-        client_pool.clone(),
-    );
-    tokio::spawn(async move {
-        mqtt_controller.start(&stop_send).await;
-    });
-}
-
-pub fn stop_controller(stop_send: Sender<bool>) {
-    if let Err(e) = stop_send.send(true) {
-        error!(
-            "Failed to send stop signal, Failure to stop controller,Error message:{}",
-            e
-        );
-    }
 }

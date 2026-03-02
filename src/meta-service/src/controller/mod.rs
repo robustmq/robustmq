@@ -12,22 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::engine_gc::start_engine_delete_gc_thread;
+use crate::controller::{
+    connector::scheduler::start_connector_scheduler, engine_gc::start_engine_delete_gc_thread,
+};
 use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
-use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
 use std::sync::Arc;
-use tokio::sync::broadcast;
+use tokio::sync::broadcast::{self, Sender};
+use tracing::error;
 
 pub mod connector;
 pub mod engine_gc;
+
+pub fn start_controller(
+    raft_manager: &Arc<MultiRaftManager>,
+    cache_manager: &Arc<MetaCacheManager>,
+    call_manager: &Arc<NodeCallManager>,
+    stop_send: Sender<bool>,
+) {
+    let mqtt_controller = BrokerController::new(
+        raft_manager.clone(),
+        cache_manager.clone(),
+        call_manager.clone(),
+    );
+    tokio::spawn(async move {
+        mqtt_controller.start(&stop_send).await;
+    });
+}
+
+pub fn stop_controller(stop_send: Sender<bool>) {
+    if let Err(e) = stop_send.send(true) {
+        error!(
+            "Failed to send stop signal, Failure to stop controller,Error message:{}",
+            e
+        );
+    }
+}
 
 pub struct BrokerController {
     node_call_manager: Arc<NodeCallManager>,
     raft_manager: Arc<MultiRaftManager>,
     cache_manager: Arc<MetaCacheManager>,
-    client_pool: Arc<ClientPool>,
 }
 
 impl BrokerController {
@@ -35,13 +61,11 @@ impl BrokerController {
         raft_manager: Arc<MultiRaftManager>,
         cache_manager: Arc<MetaCacheManager>,
         node_call_manager: Arc<NodeCallManager>,
-        client_pool: Arc<ClientPool>,
     ) -> BrokerController {
         BrokerController {
             cache_manager,
             node_call_manager,
             raft_manager,
-            client_pool,
         }
     }
 
@@ -50,17 +74,20 @@ impl BrokerController {
         let raft_manager = self.raft_manager.clone();
         let cache_manager = self.cache_manager.clone();
         let call_manager = self.node_call_manager.clone();
-        let client_pool = self.client_pool.clone();
         let raw_stop_send = stop_send.clone();
         tokio::spawn(Box::pin(async move {
-            start_engine_delete_gc_thread(
-                raft_manager,
-                cache_manager,
-                call_manager,
-                client_pool,
-                raw_stop_send,
-            )
-            .await;
+            start_engine_delete_gc_thread(raft_manager, cache_manager, call_manager, raw_stop_send)
+                .await;
+        }));
+
+        // connector manager
+        let raft_manager = self.raft_manager.clone();
+        let cache_manager = self.cache_manager.clone();
+        let call_manager = self.node_call_manager.clone();
+        let raw_stop_send = stop_send.clone();
+        tokio::spawn(Box::pin(async move {
+            start_connector_scheduler(&cache_manager, &raft_manager, &call_manager, &raw_stop_send)
+                .await;
         }));
     }
 }

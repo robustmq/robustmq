@@ -533,7 +533,6 @@ impl MqttService for GrpcMqttService {
             &self.rocksdb_engine_handler,
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &self.cache_manager,
             &req,
         )
@@ -553,7 +552,6 @@ impl MqttService for GrpcMqttService {
             &self.rocksdb_engine_handler,
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &self.cache_manager,
             &req,
         )

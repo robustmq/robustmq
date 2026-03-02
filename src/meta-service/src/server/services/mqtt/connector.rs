@@ -89,7 +89,6 @@ pub async fn create_connector_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
     mqtt_call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<MetaCacheManager>,
     req: &CreateConnectorRequest,
 ) -> Result<CreateConnectorReply, MetaServiceError> {
@@ -106,7 +105,6 @@ pub async fn create_connector_by_req(
     let ctx = ConnectorContext::new(
         raft_manager.clone(),
         mqtt_call_manager.clone(),
-        client_pool.clone(),
         cache_manager.clone(),
     );
     ctx.save_connector(connector).await?;
@@ -118,7 +116,6 @@ pub async fn update_connector_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
     mqtt_call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<MetaCacheManager>,
     req: &UpdateConnectorRequest,
 ) -> Result<UpdateConnectorReply, MetaServiceError> {
@@ -135,7 +132,6 @@ pub async fn update_connector_by_req(
     let ctx = ConnectorContext::new(
         raft_manager.clone(),
         mqtt_call_manager.clone(),
-        client_pool.clone(),
         cache_manager.clone(),
     );
     ctx.save_connector(connector).await?;

@@ -22,7 +22,6 @@ use common_base::{
     tools::{loop_select_ticket, now_second},
 };
 use common_config::broker::broker_config;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::{connector::MQTTConnector, status::MQTTStatus};
 use node_call::NodeCallManager;
 use std::{collections::HashMap, sync::Arc};
@@ -40,16 +39,11 @@ impl ConnectorScheduler {
     pub fn new(
         raft_manager: Arc<MultiRaftManager>,
         node_call_manager: Arc<NodeCallManager>,
-        client_pool: Arc<ClientPool>,
         cache_manager: Arc<MetaCacheManager>,
     ) -> Self {
         let config = broker_config();
-        let connector_context = ConnectorContext::new(
-            raft_manager,
-            node_call_manager,
-            client_pool,
-            cache_manager.clone(),
-        );
+        let connector_context =
+            ConnectorContext::new(raft_manager, node_call_manager, cache_manager.clone());
         Self {
             cache_manager,
             heartbeat_timeout_sec: config.meta_runtime.heartbeat_timeout_ms / 1000,
@@ -72,13 +66,11 @@ pub async fn start_connector_scheduler(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     node_call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     stop_send: &broadcast::Sender<bool>,
 ) {
     let scheduler = ConnectorScheduler::new(
         raft_manager.clone(),
         node_call_manager.clone(),
-        client_pool.clone(),
         cache_manager.clone(),
     );
 
