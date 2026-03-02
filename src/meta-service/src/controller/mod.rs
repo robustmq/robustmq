@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::{
-    connector_scheduler::start_connector_scheduler, engine_gc::start_engine_delete_gc_thread,
-};
+use crate::controller::connector_scheduler::ConnectorScheduler;
+use crate::controller::engine_gc::start_engine_delete_gc_thread;
 use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
 use node_call::NodeCallManager;
@@ -87,8 +86,13 @@ impl BrokerController {
         let call_manager = self.node_call_manager.clone();
         let raw_stop_send = stop_send.clone();
         tokio::spawn(Box::pin(async move {
-            start_connector_scheduler(&cache_manager, &raft_manager, &call_manager, &raw_stop_send)
-                .await;
+            let scheduler = ConnectorScheduler::new(
+                raft_manager.clone(),
+                call_manager.clone(),
+                cache_manager.clone(),
+            );
+
+            scheduler.run(&raw_stop_send).await;
         }));
     }
 }

@@ -28,7 +28,6 @@ use protocol::meta::meta_service_mqtt::CreateConnectorRequest;
 use std::sync::Arc;
 use tracing::{info, warn};
 
-/// Connector status management context - encapsulates shared dependencies
 pub struct ConnectorStatus {
     raft_manager: Arc<MultiRaftManager>,
     node_call_manager: Arc<NodeCallManager>,
@@ -48,7 +47,6 @@ impl ConnectorStatus {
         }
     }
 
-    /// Update connector status to Idle and clear broker assignment
     pub async fn update_status_to_idle(
         &self,
         connector_name: &str,
@@ -57,7 +55,6 @@ impl ConnectorStatus {
         self.update_status(connector_name, MQTTStatus::Idle).await
     }
 
-    /// Update connector status to Running
     pub async fn update_status_to_running(
         &self,
         connector_name: &str,
@@ -67,7 +64,6 @@ impl ConnectorStatus {
             .await
     }
 
-    /// Update connector status to the specified value
     async fn update_status(
         &self,
         connector_name: &str,
@@ -89,10 +85,8 @@ impl ConnectorStatus {
         let old_status = connector.status.clone();
         let new_status = status.clone();
 
-        // Update status
         connector.status = status;
 
-        // Clear broker_id when status changes to Idle
         if connector.status == MQTTStatus::Idle {
             connector.broker_id = None;
             info!(
@@ -109,12 +103,10 @@ impl ConnectorStatus {
         self.save_connector_internal(connector).await
     }
 
-    /// Save connector to Raft and update cache
     pub async fn save_connector(&self, connector: MQTTConnector) -> Result<(), MetaServiceError> {
         self.save_connector_internal(connector).await
     }
 
-    /// Internal implementation for saving connector
     async fn save_connector_internal(
         &self,
         connector: MQTTConnector,
@@ -124,14 +116,12 @@ impl ConnectorStatus {
             connector: connector.encode()?,
         };
 
-        // Write to Raft for persistence
         let data = StorageData::new(
             StorageDataType::MqttSetConnector,
             Bytes::copy_from_slice(&CreateConnectorRequest::encode_to_vec(&req)),
         );
         self.raft_manager.write_metadata(data).await?;
 
-        // Update cache across all brokers
         send_notify_by_add_connector(&self.node_call_manager, connector).await?;
 
         Ok(())
