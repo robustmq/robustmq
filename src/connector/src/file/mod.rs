@@ -14,10 +14,9 @@
 
 use super::core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink};
 use super::manager::ConnectorManager;
-use crate::core::error::MqttBrokerError;
-use crate::core::tool::ResultMqttBrokerError;
 use async_trait::async_trait;
 use chrono::{DateTime, Local, Timelike};
+use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::bridge::config_local_file::RotationStrategy;
 use metadata_struct::mqtt::message::MqttMessage;
@@ -43,7 +42,7 @@ pub struct FileWriter {
 }
 
 impl FileWriter {
-    async fn new(config: LocalFileConnectorConfig) -> Result<Self, MqttBrokerError> {
+    async fn new(config: LocalFileConnectorConfig) -> Result<Self, CommonError> {
         let path = PathBuf::from(&config.local_file_path);
         let writer = Self::create_file(&path).await?;
         let current_size = Self::get_file_size(&path).await?;
@@ -57,7 +56,7 @@ impl FileWriter {
         })
     }
 
-    async fn create_file(path: &Path) -> Result<BufWriter<File>, MqttBrokerError> {
+    async fn create_file(path: &Path) -> Result<BufWriter<File>, CommonError> {
         if let Some(parent) = path.parent() {
             tokio::fs::create_dir_all(parent).await?;
         }
@@ -70,7 +69,7 @@ impl FileWriter {
         Ok(BufWriter::new(file))
     }
 
-    async fn get_file_size(path: &Path) -> Result<u64, MqttBrokerError> {
+    async fn get_file_size(path: &Path) -> Result<u64, CommonError> {
         match tokio::fs::metadata(path).await {
             Ok(metadata) => Ok(metadata.len()),
             Err(_) => Ok(0),
@@ -119,7 +118,7 @@ impl FileWriter {
         }
     }
 
-    async fn rotate(&mut self) -> Result<(), MqttBrokerError> {
+    async fn rotate(&mut self) -> Result<(), CommonError> {
         self.writer.flush().await?;
         self.writer.shutdown().await?;
 
@@ -139,7 +138,7 @@ impl FileWriter {
         Ok(())
     }
 
-    async fn write(&mut self, data: &[u8]) -> Result<(), MqttBrokerError> {
+    async fn write(&mut self, data: &[u8]) -> Result<(), CommonError> {
         if self.should_rotate().await {
             self.rotate().await?;
         }
@@ -149,12 +148,12 @@ impl FileWriter {
         Ok(())
     }
 
-    async fn flush(&mut self) -> Result<(), MqttBrokerError> {
+    async fn flush(&mut self) -> Result<(), CommonError> {
         self.writer.flush().await?;
         Ok(())
     }
 
-    async fn shutdown(mut self) -> Result<(), MqttBrokerError> {
+    async fn shutdown(mut self) -> Result<(), CommonError> {
         self.writer.flush().await?;
         self.writer.shutdown().await?;
         Ok(())
@@ -175,7 +174,7 @@ impl FileBridgePlugin {
 impl ConnectorSink for FileBridgePlugin {
     type SinkResource = FileWriter;
 
-    async fn validate(&self) -> ResultMqttBrokerError {
+    async fn validate(&self) -> Result<(), CommonError> {
         let file_path = Path::new(&self.config.local_file_path);
 
         if let Some(parent) = file_path.parent() {
@@ -188,7 +187,7 @@ impl ConnectorSink for FileBridgePlugin {
         Ok(())
     }
 
-    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, CommonError> {
         FileWriter::new(self.config.clone()).await
     }
 
@@ -196,7 +195,7 @@ impl ConnectorSink for FileBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         writer: &mut FileWriter,
-    ) -> ResultMqttBrokerError {
+    ) -> Result<(), CommonError> {
         for record in records {
             let msg = MqttMessage::decode(&record.data)?;
             let data = serde_json::to_string(&msg)?;
@@ -207,7 +206,7 @@ impl ConnectorSink for FileBridgePlugin {
         Ok(())
     }
 
-    async fn cleanup_sink(&self, writer: FileWriter) -> ResultMqttBrokerError {
+    async fn cleanup_sink(&self, writer: FileWriter) -> Result<(), CommonError> {
         writer.shutdown().await?;
         Ok(())
     }
@@ -276,7 +275,7 @@ mod tests {
     use storage_adapter::storage::test_build_storage_driver_manager;
     use tokio::{fs::File, io::AsyncReadExt, time::sleep};
 
-    use crate::bridge::{
+    use crate::{
         core::{run_connector_loop, BridgePluginReadConfig},
         file::FileBridgePlugin,
         manager::ConnectorManager,

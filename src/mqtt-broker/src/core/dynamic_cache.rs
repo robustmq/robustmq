@@ -14,7 +14,6 @@
 
 use super::cache::MQTTCacheManager;
 use super::dynamic_config::build_cluster_config;
-use crate::bridge::manager::ConnectorManager;
 use crate::core::error::MqttBrokerError;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::core::topic::delete_topic;
@@ -25,6 +24,7 @@ use crate::storage::topic::TopicStorage;
 use crate::subscribe::parse::ParseSubscribeData;
 use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
 use common_base::utils::serialize;
+use connector::manager::ConnectorManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::bridge::connector::MQTTConnector;

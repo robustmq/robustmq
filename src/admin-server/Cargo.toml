@@ -45,5 +45,7 @@ storage-engine.workspace = true
 bytes.workspace = true
 validator.workspace = true
 rocksdb-engine.workspace = true
+connector.workspace = true
+
 [dev-dependencies]
 mockall.workspace = true

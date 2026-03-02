@@ -33,8 +33,7 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::error;
 
-use crate::core::error::MqttBrokerError;
-use crate::core::tool::ResultMqttBrokerError;
+use common_base::error::common::CommonError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
@@ -50,12 +49,12 @@ impl ElasticsearchBridgePlugin {
         ElasticsearchBridgePlugin { config }
     }
 
-    async fn create_client(&self) -> Result<Elasticsearch, MqttBrokerError> {
+    async fn create_client(&self) -> Result<Elasticsearch, CommonError> {
         let url = self
             .config
             .url
             .parse()
-            .map_err(|e| MqttBrokerError::CommonError(format!("Invalid URL: {}", e)))?;
+            .map_err(|e| CommonError::CommonError(format!("Invalid URL: {}", e)))?;
 
         let conn_pool = SingleNodeConnectionPool::new(url);
         let mut transport_builder = TransportBuilder::new(conn_pool);
@@ -78,14 +77,15 @@ impl ElasticsearchBridgePlugin {
             metadata_struct::mqtt::bridge::config_elasticsearch::ElasticsearchAuthType::None => {}
         }
 
-        let transport = transport_builder.build().map_err(|e| {
-            MqttBrokerError::CommonError(format!("Failed to build transport: {}", e))
-        })?;
+        let transport = transport_builder
+            .build()
+            .map_err(|e| CommonError::CommonError(format!("Failed to build transport: {}", e)))?;
 
         Ok(Elasticsearch::new(transport))
     }
 
-    fn record_to_json(&self, record: &AdapterWriteRecord) -> Result<Value, MqttBrokerError> {
+    #[allow(clippy::result_large_err)]
+    fn record_to_json(&self, record: &AdapterWriteRecord) -> Result<Value, CommonError> {
         let payload_str = String::from_utf8_lossy(&record.data).to_string();
 
         let mut doc = json!({
@@ -113,11 +113,11 @@ impl ElasticsearchBridgePlugin {
 impl ConnectorSink for ElasticsearchBridgePlugin {
     type SinkResource = Elasticsearch;
 
-    async fn validate(&self) -> ResultMqttBrokerError {
+    async fn validate(&self) -> Result<(), CommonError> {
         Ok(())
     }
 
-    async fn init_sink(&self) -> Result<Self::SinkResource, MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, CommonError> {
         let client = self.create_client().await?;
         Ok(client)
     }
@@ -126,7 +126,7 @@ impl ConnectorSink for ElasticsearchBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         client: &mut Elasticsearch,
-    ) -> ResultMqttBrokerError {
+    ) -> Result<(), CommonError> {
         if records.is_empty() {
             return Ok(());
         }
@@ -160,7 +160,7 @@ impl ConnectorSink for ElasticsearchBridgePlugin {
             .send()
             .await
             .map_err(|e| {
-                MqttBrokerError::CommonError(format!("Elasticsearch bulk request failed: {}", e))
+                CommonError::CommonError(format!("Elasticsearch bulk request failed: {}", e))
             })?;
 
         if response.status_code().is_success() {
@@ -170,7 +170,7 @@ impl ConnectorSink for ElasticsearchBridgePlugin {
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
-            Err(MqttBrokerError::CommonError(format!(
+            Err(CommonError::CommonError(format!(
                 "Elasticsearch bulk operation failed: {}",
                 error_text
             )))

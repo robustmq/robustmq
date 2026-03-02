@@ -13,42 +13,46 @@
 # limitations under the License.
 
 [package]
-name = "broker-server"
+name = "connector"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-
 [dependencies]
-axum.workspace = true
-mqtt-broker.workspace = true
-meta-service.workspace = true
-tonic.workspace = true
-tower-http = { workspace = true, features = ["cors"] }
-tonic-web.workspace = true
+# Async
 tokio.workspace = true
-rustls.workspace = true
-common-base.workspace = true
-tower.workspace = true
-protocol.workspace = true
-common-config.workspace = true
-grpc-clients.workspace = true
-tracing-appender.workspace = true
-delay-message.workspace = true
-schema-register.workspace = true
-tracing.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+
+# Serialization
+serde.workspace = true
 serde_json.workspace = true
-storage-engine.workspace = true
-pprof-monitor.workspace = true
-network-server.workspace = true
-admin-server.workspace = true
-broker-core.workspace = true
+bson.workspace = true
+chrono.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# External connectors
+rdkafka.workspace = true
+elasticsearch.workspace = true
+redis.workspace = true
+mongodb.workspace = true
+pulsar.workspace = true
+lapin.workspace = true
+reqwest.workspace = true
+sqlx = { workspace = true, features = ["runtime-tokio", "mysql", "postgres"] }
+
+# Internal
+common-base.workspace = true
+common-config.workspace = true
 common-metrics.workspace = true
-rate-limit.workspace = true
-rocksdb-engine.workspace = true
-storage-adapter.workspace = true
+grpc-clients.workspace = true
 metadata-struct.workspace = true
-system-info.workspace = true
-delay-task.workspace = true
-node-call.workspace = true
-connector.workspace = true
+storage-adapter.workspace = true
+protocol.workspace = true
+governor.workspace = true
+dashmap.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

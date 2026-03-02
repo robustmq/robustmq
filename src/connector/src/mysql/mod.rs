@@ -25,7 +25,7 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::{error, warn};
 
-use crate::core::tool::ResultMqttBrokerError;
+use common_base::error::common::CommonError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
@@ -52,7 +52,7 @@ impl MySQLBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         pool: &Pool<MySql>,
-    ) -> ResultMqttBrokerError {
+    ) -> Result<(), CommonError> {
         for record in records {
             let payload = serde_json::to_string(record)?;
 
@@ -96,7 +96,7 @@ impl MySQLBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         pool: &Pool<MySql>,
-    ) -> ResultMqttBrokerError {
+    ) -> Result<(), CommonError> {
         let mut values_placeholders = Vec::with_capacity(records.len());
         let mut bindings = Vec::with_capacity(records.len());
 
@@ -136,11 +136,11 @@ impl MySQLBridgePlugin {
 impl ConnectorSink for MySQLBridgePlugin {
     type SinkResource = Pool<MySql>;
 
-    async fn validate(&self) -> ResultMqttBrokerError {
+    async fn validate(&self) -> Result<(), CommonError> {
         Ok(())
     }
 
-    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, CommonError> {
         let pool = self.create_pool().await?;
         Ok(pool)
     }
@@ -149,7 +149,7 @@ impl ConnectorSink for MySQLBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         pool: &mut Pool<MySql>,
-    ) -> ResultMqttBrokerError {
+    ) -> Result<(), CommonError> {
         if records.is_empty() {
             return Ok(());
         }
@@ -165,7 +165,7 @@ impl ConnectorSink for MySQLBridgePlugin {
         }
     }
 
-    async fn cleanup_sink(&self, pool: Pool<MySql>) -> ResultMqttBrokerError {
+    async fn cleanup_sink(&self, pool: Pool<MySql>) -> Result<(), CommonError> {
         pool.close().await;
         Ok(())
     }

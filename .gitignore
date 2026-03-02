@@ -178,7 +178,7 @@ vgcore.*
 *.valgrind
 
 # Core dumps
-core.*
+# core.*
 
 # ====================
 # CI/CD & Deployment

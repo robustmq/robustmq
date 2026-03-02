@@ -25,7 +25,7 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::{error, warn};
 
-use crate::core::tool::ResultMqttBrokerError;
+use common_base::error::common::CommonError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
@@ -52,7 +52,7 @@ impl PostgresBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         pool: &Pool<Postgres>,
-    ) -> ResultMqttBrokerError {
+    ) -> Result<(), CommonError> {
         for record in records {
             let client_id = &record.key;
             let timestamp = record.timestamp as i64;
@@ -114,7 +114,7 @@ impl PostgresBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         pool: &Pool<Postgres>,
-    ) -> ResultMqttBrokerError {
+    ) -> Result<(), CommonError> {
         let mut value_placeholders = Vec::with_capacity(records.len());
         let mut param_index = 1;
 
@@ -194,11 +194,11 @@ impl PostgresBridgePlugin {
 impl ConnectorSink for PostgresBridgePlugin {
     type SinkResource = Pool<Postgres>;
 
-    async fn validate(&self) -> ResultMqttBrokerError {
+    async fn validate(&self) -> Result<(), CommonError> {
         Ok(())
     }
 
-    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, CommonError> {
         let pool = self.create_pool().await?;
         Ok(pool)
     }
@@ -207,7 +207,7 @@ impl ConnectorSink for PostgresBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         pool: &mut Pool<Postgres>,
-    ) -> ResultMqttBrokerError {
+    ) -> Result<(), CommonError> {
         if records.is_empty() {
             return Ok(());
         }
@@ -224,7 +224,7 @@ impl ConnectorSink for PostgresBridgePlugin {
         }
     }
 
-    async fn cleanup_sink(&self, pool: Pool<Postgres>) -> ResultMqttBrokerError {
+    async fn cleanup_sink(&self, pool: Pool<Postgres>) -> Result<(), CommonError> {
         pool.close().await;
         Ok(())
     }

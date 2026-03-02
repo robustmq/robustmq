@@ -14,59 +14,60 @@
 
 use std::sync::Arc;
 
+use crate::{
+    core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
+    manager::ConnectorManager,
+};
 use async_trait::async_trait;
+use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
-    mqtt::bridge::config_greptimedb::GreptimeDBConnectorConfig,
-    mqtt::bridge::connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
+    mqtt::bridge::config_pulsar::PulsarConnectorConfig, mqtt::bridge::connector::MQTTConnector,
+    storage::adapter_record::AdapterWriteRecord,
 };
-
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::error;
+mod pulsar_producer;
 
-use crate::{
-    bridge::{
-        core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
-        manager::ConnectorManager,
-    },
-    core::tool::ResultMqttBrokerError,
-};
-
-mod sender;
-
-pub struct GreptimeDBBridgePlugin {
-    config: GreptimeDBConnectorConfig,
+pub struct PulsarBridgePlugin {
+    config: PulsarConnectorConfig,
 }
 
-impl GreptimeDBBridgePlugin {
-    pub fn new(config: GreptimeDBConnectorConfig) -> Self {
-        GreptimeDBBridgePlugin { config }
+impl PulsarBridgePlugin {
+    pub fn new(config: PulsarConnectorConfig) -> Self {
+        PulsarBridgePlugin { config }
     }
 }
 
 #[async_trait]
-impl ConnectorSink for GreptimeDBBridgePlugin {
-    type SinkResource = sender::Sender;
+impl ConnectorSink for PulsarBridgePlugin {
+    type SinkResource = pulsar::producer::Producer<pulsar::TokioExecutor>;
 
-    async fn validate(&self) -> ResultMqttBrokerError {
+    async fn validate(&self) -> Result<(), CommonError> {
         Ok(())
     }
 
-    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
-        sender::Sender::new(&self.config)
+    async fn init_sink(&self) -> Result<Self::SinkResource, CommonError> {
+        let producer = pulsar_producer::Producer::new(&self.config)
+            .build_producer()
+            .await?;
+        Ok(producer)
     }
 
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
-        sender: &mut sender::Sender,
-    ) -> ResultMqttBrokerError {
-        sender.send_batch(records).await
+        producer: &mut pulsar::producer::Producer<pulsar::TokioExecutor>,
+    ) -> Result<(), CommonError> {
+        for record in records {
+            producer.send_non_blocking(record.clone()).await?;
+        }
+        Ok(())
     }
 }
 
-pub fn start_greptimedb_connector(
+pub fn start_pulsar_connector(
     client_pool: Arc<ClientPool>,
     connector_manager: Arc<ConnectorManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
@@ -75,15 +76,15 @@ pub fn start_greptimedb_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
-        let greptimedb_config = match &connector.config {
-            metadata_struct::mqtt::bridge::ConnectorConfig::GreptimeDB(config) => config.clone(),
+        let pulsar_config = match &connector.config {
+            metadata_struct::mqtt::bridge::ConnectorConfig::Pulsar(config) => config.clone(),
             _ => {
-                error!("Invalid connector config type, expected GreptimeDB config");
+                error!("Invalid connector config type, expected Pulsar config");
                 return;
             }
         };
 
-        let bridge = GreptimeDBBridgePlugin::new(greptimedb_config);
+        let bridge = PulsarBridgePlugin::new(pulsar_config);
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(
@@ -103,7 +104,7 @@ pub fn start_greptimedb_connector(
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
-                "Failed to start GreptimeDBBridgePlugin with error message: {:?}",
+                "Failed to start PulsarBridgePlugin with error message: {:?}",
                 e
             );
         }

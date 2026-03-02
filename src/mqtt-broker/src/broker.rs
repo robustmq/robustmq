@@ -13,8 +13,6 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-use crate::bridge::core::start_connector_thread;
-use crate::bridge::manager::ConnectorManager;
 use crate::core::cache::MQTTCacheManager;
 use crate::core::dynamic_cache::load_metadata_cache;
 use crate::core::flapping_detect::clean_flapping_detect;
@@ -35,6 +33,8 @@ use crate::subscribe::PushManager;
 use crate::system_topic::SystemTopic;
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
+use connector::core::start_connector_thread;
+use connector::manager::ConnectorManager;
 use delay_message::manager::{start_delay_message_manager_thread, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;

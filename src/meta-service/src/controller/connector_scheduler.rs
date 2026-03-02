@@ -51,9 +51,14 @@ impl ConnectorScheduler {
     }
 
     pub async fn run(&self, stop_send: &broadcast::Sender<bool>) {
-        let scheduler = self;
         let ac_fn = async move || -> ResultCommonError {
-            scheduler.scheduler_cycle().await;
+            if let Err(e) = self.check_heartbeat().await {
+                warn!("Heartbeat check failed: {:?}", e);
+            }
+
+            if let Err(e) = self.start_stop_connector_thread().await {
+                warn!("Connector scheduling failed: {:?}", e);
+            }
             Ok(())
         };
 
@@ -62,21 +67,15 @@ impl ConnectorScheduler {
 }
 
 impl ConnectorScheduler {
-    async fn scheduler_cycle(&self) {
-        if let Err(e) = self.check_heartbeat().await {
-            warn!("Heartbeat check failed: {:?}", e);
-        }
-
-        if let Err(e) = self.start_stop_connector_thread().await {
-            warn!("Connector scheduling failed: {:?}", e);
-        }
-    }
-
     async fn check_heartbeat(&self) -> Result<(), MetaServiceError> {
         let current_time = now_second();
 
         for heartbeat in self.cache_manager.get_all_connector_heartbeat() {
-            if !self.cache_manager.connector_list.contains_key(&heartbeat.connector_name) {
+            if !self
+                .cache_manager
+                .connector_list
+                .contains_key(&heartbeat.connector_name)
+            {
                 self.cache_manager
                     .remove_connector_heartbeat(&heartbeat.connector_name);
                 continue;
@@ -93,7 +92,10 @@ impl ConnectorScheduler {
                     .update_status_to_idle(&heartbeat.connector_name)
                     .await
                 {
-                    warn!("Failed to reset connector {} to Idle: {:?}", heartbeat.connector_name, e);
+                    warn!(
+                        "Failed to reset connector {} to Idle: {:?}",
+                        heartbeat.connector_name, e
+                    );
                 }
             }
         }
@@ -102,7 +104,7 @@ impl ConnectorScheduler {
     }
 
     async fn start_stop_connector_thread(&self) -> Result<(), MetaServiceError> {
-        let mut connectors_to_process = Vec::new();
+        let mut idle_connectors = Vec::new();
 
         for connector in self.cache_manager.get_all_connector() {
             if connector.broker_id.is_none() && connector.status == MQTTStatus::Running {
@@ -112,64 +114,54 @@ impl ConnectorScheduler {
                     .await;
                 continue;
             }
-            connectors_to_process.push(connector);
-        }
 
-        if let Err(e) = self.assign_brokers_batch(&connectors_to_process).await {
-            warn!("Failed to assign brokers: {:?}", e);
-        }
-
-        for connector in connectors_to_process {
-            if let Err(e) = self.process_connector_state(connector).await {
-                warn!("Failed to process connector: {:?}", e);
+            if connector.status == MQTTStatus::Idle {
+                idle_connectors.push(connector);
             }
         }
 
-        Ok(())
+        self.assign_and_start(&idle_connectors).await
     }
 
-    async fn assign_brokers_batch(
+    async fn assign_and_start(
         &self,
-        connectors: &[MQTTConnector],
+        idle_connectors: &[MQTTConnector],
     ) -> Result<(), MetaServiceError> {
-        if connectors.is_empty() {
+        if idle_connectors.is_empty() {
             return Ok(());
         }
 
         let mut broker_load = calculate_broker_load_internal(&self.cache_manager)?;
 
-        for connector in connectors.iter() {
-            if connector.broker_id.is_some() {
-                continue;
+        for connector in idle_connectors {
+            let mut connector = connector.clone();
+
+            if connector.broker_id.is_none() {
+                let broker_id = match broker_load
+                    .iter()
+                    .min_by_key(|(_, count)| *count)
+                    .map(|(id, _)| *id)
+                {
+                    Some(id) => id,
+                    None => {
+                        warn!(
+                            "No available broker for connector {}",
+                            connector.connector_name
+                        );
+                        continue;
+                    }
+                };
+
+                connector.broker_id = Some(broker_id);
+                *broker_load.entry(broker_id).or_insert(0) += 1;
+
+                info!(
+                    "Connector {} assigned to Broker {} (load: {})",
+                    connector.connector_name, broker_id, broker_load[&broker_id]
+                );
             }
 
-            let mut connector = connector.clone();
-            let broker_id = match broker_load
-                .iter()
-                .min_by_key(|(_, count)| *count)
-                .map(|(id, _)| *id)
-            {
-                Some(id) => id,
-                None => {
-                    warn!(
-                        "No available broker for connector {}: cluster has no brokers",
-                        connector.connector_name
-                    );
-                    continue;
-                }
-            };
-
-            connector.broker_id = Some(broker_id);
-            connector.status = MQTTStatus::Idle;
-
-            info!(
-                "Connector {} assigned to Broker {} for execution (current load: {})",
-                connector.connector_name,
-                broker_id,
-                broker_load.get(&broker_id).unwrap_or(&0)
-            );
-
-            *broker_load.entry(broker_id).or_insert(0) += 1;
+            connector.status = MQTTStatus::Running;
 
             if let Err(e) = self
                 .connector_context
@@ -177,30 +169,18 @@ impl ConnectorScheduler {
                 .await
             {
                 warn!(
-                    "Failed to save connector {} assignment: {:?}",
+                    "Failed to save connector {}: {:?}",
                     connector.connector_name, e
                 );
-                if let Some(count) = broker_load.get_mut(&broker_id) {
-                    *count = count.saturating_sub(1);
+                if let Some(bid) = connector.broker_id {
+                    if let Some(count) = broker_load.get_mut(&bid) {
+                        *count = count.saturating_sub(1);
+                    }
                 }
             }
         }
 
         Ok(())
-    }
-
-    async fn process_connector_state(
-        &self,
-        connector: MQTTConnector,
-    ) -> Result<(), MetaServiceError> {
-        match connector.status {
-            MQTTStatus::Running | MQTTStatus::SealUp => Ok(()),
-            MQTTStatus::Idle => {
-                self.connector_context
-                    .update_status_to_running(&connector.connector_name)
-                    .await
-            }
-        }
     }
 }
 
@@ -285,7 +265,8 @@ mod tests {
             connector_type: ConnectorType::LocalFile,
             topic_name: "test_topic".to_string(),
             config: metadata_struct::mqtt::bridge::ConnectorConfig::LocalFile(
-                metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig::default(),
+                metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig::default(
+                ),
             ),
             failure_strategy: FailureHandlingStrategy::Discard,
             status: MQTTStatus::Idle,

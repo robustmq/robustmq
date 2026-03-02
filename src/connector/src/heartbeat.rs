@@ -60,7 +60,7 @@ mod tests {
     use std::time::Duration;
 
     use super::*;
-    use crate::bridge::manager::ConnectorManager;
+    use crate::manager::ConnectorManager;
     use common_base::uuid::unique_id;
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
     use tokio::time::sleep;

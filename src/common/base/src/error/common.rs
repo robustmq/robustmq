@@ -106,6 +106,24 @@ pub enum CommonError {
     FromParseIntError(#[from] ParseIntError),
 
     #[error("{0}")]
+    KafkaError(#[from] rdkafka::error::KafkaError),
+
+    #[error("{0}")]
+    PulsarError(#[from] pulsar::Error),
+
+    #[error("{0}")]
+    LapinError(#[from] lapin::Error),
+
+    #[error("{0}")]
+    SqlxError(#[from] sqlx::Error),
+
+    #[error("{0}")]
+    ReqwestError(#[from] reqwest::Error),
+
+    #[error("{0}")]
+    MpscSendErrorBool(#[from] tokio::sync::mpsc::error::SendError<bool>),
+
+    #[error("{0}")]
     CommonError(String),
 
     #[error("Connection ID [0] information not found in cache.")]

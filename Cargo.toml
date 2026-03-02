@@ -40,6 +40,7 @@ members = [
     "src/common/system-info",
     "src/common/node-call",
     "src/protocol",
+    "src/connector",
     "src/storage-engine",
     "src/rule-engine",
     "src/storage-adapter",
@@ -343,6 +344,7 @@ node-call = { path = "src/common/node-call" }
 
 # Protocol & Macros
 protocol = { path = "src/protocol" }
+connector = { path = "src/connector" }
 robustmq-macro = { path = "src/robustmq-macro" }
 
 # Testing

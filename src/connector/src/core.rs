@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    bridge::failure::failure_message_process,
-    core::{error::MqttBrokerError, tool::ResultMqttBrokerError},
-    storage::connector::ConnectorStorage,
-};
+use crate::{failure::failure_message_process, storage::connector::ConnectorStorage};
 use async_trait::async_trait;
+use common_base::error::common::CommonError;
 use common_base::{
     error::ResultCommonError,
     tools::{loop_select_ticket, now_millis, now_second},
@@ -79,24 +76,24 @@ pub struct BridgePluginThread {
 
 #[async_trait]
 pub trait BridgePlugin {
-    async fn exec(&self, config: BridgePluginReadConfig) -> ResultMqttBrokerError;
+    async fn exec(&self, config: BridgePluginReadConfig) -> Result<(), CommonError>;
 }
 
 #[async_trait]
 pub trait ConnectorSink: Send + Sync {
     type SinkResource: Send;
 
-    async fn validate(&self) -> ResultMqttBrokerError;
+    async fn validate(&self) -> Result<(), CommonError>;
 
-    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError>;
+    async fn init_sink(&self) -> Result<Self::SinkResource, CommonError>;
 
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
         resource: &mut Self::SinkResource,
-    ) -> ResultMqttBrokerError;
+    ) -> Result<(), CommonError>;
 
-    async fn cleanup_sink(&self, _resource: Self::SinkResource) -> ResultMqttBrokerError {
+    async fn cleanup_sink(&self, _resource: Self::SinkResource) -> Result<(), CommonError> {
         Ok(())
     }
 }
@@ -109,7 +106,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     connector_name: String,
     config: BridgePluginReadConfig,
     mut stop_recv: mpsc::Receiver<bool>,
-) -> ResultMqttBrokerError {
+) -> Result<(), CommonError> {
     sink.validate().await?;
 
     let mut resource = sink.init_sink().await?;
@@ -207,7 +204,7 @@ async fn seal_up_connector(
     connector_manager: &Arc<ConnectorManager>,
     connector_name: &str,
     e: &str,
-) -> Result<bool, MqttBrokerError> {
+) -> Result<bool, CommonError> {
     if e.contains("not found in broker cache") && e.contains("Topic") {
         if let Some(mut connector) = connector_manager.get_connector(connector_name) {
             let storage = ConnectorStorage::new(client_pool.clone());
@@ -544,7 +541,7 @@ fn start_thread(
     }
 }
 
-async fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
+async fn stop_thread(thread: BridgePluginThread) -> Result<(), CommonError> {
     debug!(
         "Sending stop signal to connector '{}' thread",
         thread.connector_name
@@ -556,7 +553,7 @@ async fn stop_thread(thread: BridgePluginThread) -> ResultMqttBrokerError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bridge::manager::ConnectorManager;
+    use crate::manager::ConnectorManager;
     use common_base::uuid::unique_id;
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
     use metadata_struct::mqtt::bridge::connector::FailureHandlingStrategy;

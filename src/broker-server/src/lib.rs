@@ -33,6 +33,7 @@ use common_config::{
     broker::broker_config, config::BrokerConfig, storage::memory::StorageDriverMemoryConfig,
 };
 use common_metrics::{core::server::register_prometheus_export, init_metrics};
+use connector::manager::ConnectorManager;
 use delay_message::manager::DelayMessageManager;
 use delay_task::{manager::DelayTaskManager, start_delay_task_manager_thread};
 use grpc_clients::pool::ClientPool;
@@ -42,7 +43,6 @@ use meta_service::{
     MetaServiceServer, MetaServiceServerParams,
 };
 use mqtt_broker::{
-    bridge::manager::ConnectorManager,
     broker::{MqttBrokerServer, MqttBrokerServerParams},
     core::{cache::MQTTCacheManager as MqttCacheManager, retain::RetainMessageManager},
     security::AuthDriver,

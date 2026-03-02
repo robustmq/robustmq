@@ -29,7 +29,7 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::{debug, error, info, warn};
 
-use crate::core::tool::ResultMqttBrokerError;
+use common_base::error::common::CommonError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
@@ -67,7 +67,7 @@ impl RabbitMQBridgePlugin {
 impl ConnectorSink for RabbitMQBridgePlugin {
     type SinkResource = Channel;
 
-    async fn validate(&self) -> ResultMqttBrokerError {
+    async fn validate(&self) -> Result<(), CommonError> {
         info!(
             "Validating RabbitMQ connector configuration for {}:{}/{}",
             self.config.server, self.config.port, self.config.virtual_host
@@ -77,18 +77,16 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         let connection = Connection::connect(&uri, ConnectionProperties::default())
             .await
             .map_err(|e| {
-                crate::core::error::MqttBrokerError::CommonError(format!(
+                CommonError::CommonError(format!(
                     "Failed to connect to RabbitMQ at {}:{}: {}",
                     self.config.server, self.config.port, e
                 ))
             })?;
 
-        let channel = connection.create_channel().await.map_err(|e| {
-            crate::core::error::MqttBrokerError::CommonError(format!(
-                "Failed to create channel: {}",
-                e
-            ))
-        })?;
+        let channel = connection
+            .create_channel()
+            .await
+            .map_err(|e| CommonError::CommonError(format!("Failed to create channel: {}", e)))?;
 
         channel.close(200, "Validation complete").await.ok();
         connection.close(200, "Validation complete").await.ok();
@@ -101,7 +99,7 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         Ok(())
     }
 
-    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, CommonError> {
         info!(
             "Initializing RabbitMQ channel: {}:{}/{} exchange: {} (timeout: {}s, heartbeat: {}s)",
             self.config.server,
@@ -137,7 +135,7 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         channel: &mut Channel,
-    ) -> ResultMqttBrokerError {
+    ) -> Result<(), CommonError> {
         if records.is_empty() {
             return Ok(());
         }
@@ -253,7 +251,7 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         }
 
         if failed_records.len() == records.len() {
-            return Err(crate::core::error::MqttBrokerError::CommonError(format!(
+            return Err(CommonError::CommonError(format!(
                 "All {} records failed to send to RabbitMQ",
                 records.len()
             )));
@@ -262,7 +260,7 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         Ok(())
     }
 
-    async fn cleanup_sink(&self, channel: Channel) -> ResultMqttBrokerError {
+    async fn cleanup_sink(&self, channel: Channel) -> Result<(), CommonError> {
         info!(
             "Closing RabbitMQ channel for exchange {}",
             self.config.exchange

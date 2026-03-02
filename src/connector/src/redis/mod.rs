@@ -29,8 +29,7 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::{error, info, warn};
 
-use crate::core::error::MqttBrokerError;
-use crate::core::tool::ResultMqttBrokerError;
+use common_base::error::common::CommonError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
@@ -118,11 +117,12 @@ impl RedisBridgePlugin {
         Client::open(connection_info)
     }
 
+    #[allow(clippy::result_large_err)]
     fn render_command_template(
         &self,
         record: &AdapterWriteRecord,
         msg: &MqttMessage,
-    ) -> Result<Vec<String>, MqttBrokerError> {
+    ) -> Result<Vec<String>, CommonError> {
         let mut rendered = self.config.command_template.clone();
 
         let mut replacements = HashMap::new();
@@ -142,7 +142,7 @@ impl RedisBridgePlugin {
         let parts: Vec<String> = rendered.split_whitespace().map(|s| s.to_string()).collect();
 
         if parts.is_empty() {
-            return Err(MqttBrokerError::CommonError(
+            return Err(CommonError::CommonError(
                 "Rendered command template is empty".to_string(),
             ));
         }
@@ -174,22 +174,19 @@ impl RedisBridgePlugin {
 impl ConnectorSink for RedisBridgePlugin {
     type SinkResource = ConnectionManager;
 
-    async fn validate(&self) -> ResultMqttBrokerError {
+    async fn validate(&self) -> Result<(), CommonError> {
         self.config.validate()?;
 
         Ok(())
     }
 
-    async fn init_sink(&self) -> Result<Self::SinkResource, MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, CommonError> {
         let client = self.build_redis_client().map_err(|e| {
-            MqttBrokerError::CommonError(format!("Failed to build Redis client: {}", e))
+            CommonError::CommonError(format!("Failed to build Redis client: {}", e))
         })?;
 
         let conn_manager = ConnectionManager::new(client).await.map_err(|e| {
-            MqttBrokerError::CommonError(format!(
-                "Failed to create Redis connection manager: {}",
-                e
-            ))
+            CommonError::CommonError(format!("Failed to create Redis connection manager: {}", e))
         })?;
 
         info!(
@@ -204,7 +201,7 @@ impl ConnectorSink for RedisBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         conn: &mut ConnectionManager,
-    ) -> ResultMqttBrokerError {
+    ) -> Result<(), CommonError> {
         let mut success_count = 0;
         let mut error_count = 0;
 
@@ -272,7 +269,7 @@ impl ConnectorSink for RedisBridgePlugin {
         );
 
         if error_count == records.len() && !records.is_empty() {
-            return Err(MqttBrokerError::CommonError(
+            return Err(CommonError::CommonError(
                 "All records failed to send to Redis".to_string(),
             ));
         }
@@ -280,7 +277,7 @@ impl ConnectorSink for RedisBridgePlugin {
         Ok(())
     }
 
-    async fn cleanup_sink(&self, _conn: ConnectionManager) -> ResultMqttBrokerError {
+    async fn cleanup_sink(&self, _conn: ConnectionManager) -> Result<(), CommonError> {
         info!("Redis connection manager cleanup completed");
         Ok(())
     }

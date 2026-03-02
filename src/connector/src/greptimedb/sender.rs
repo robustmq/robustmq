@@ -19,8 +19,7 @@ use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use reqwest::header::{self, AUTHORIZATION};
 use reqwest::Client;
 
-use crate::core::error::MqttBrokerError;
-use crate::core::tool::ResultMqttBrokerError;
+use common_base::error::common::CommonError;
 
 #[derive(Clone)]
 pub struct Sender {
@@ -29,13 +28,12 @@ pub struct Sender {
 }
 
 impl Sender {
-    pub fn new(config: &GreptimeDBConnectorConfig) -> Result<Self, MqttBrokerError> {
+    #[allow(clippy::result_large_err)]
+    pub fn new(config: &GreptimeDBConnectorConfig) -> Result<Self, CommonError> {
         let mut auth_header = header::HeaderMap::new();
         let token_value = format!("token {}:{}", config.user, config.password)
             .parse()
-            .map_err(|e| {
-                MqttBrokerError::CommonError(format!("Invalid auth token format: {}", e))
-            })?;
+            .map_err(|e| CommonError::CommonError(format!("Invalid auth token format: {}", e)))?;
         auth_header.insert(AUTHORIZATION, token_value);
 
         let builder = Client::builder()
@@ -43,9 +41,9 @@ impl Sender {
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(30));
 
-        let client = builder.build().map_err(|e| {
-            MqttBrokerError::CommonError(format!("Failed to build HTTP client: {}", e))
-        })?;
+        let client = builder
+            .build()
+            .map_err(|e| CommonError::CommonError(format!("Failed to build HTTP client: {}", e)))?;
 
         Ok(Self {
             client,
@@ -77,7 +75,8 @@ impl Sender {
             .replace(' ', "\\ ")
     }
 
-    fn record_to_line(record: &AdapterWriteRecord) -> Result<String, MqttBrokerError> {
+    #[allow(clippy::result_large_err)]
+    fn record_to_line(record: &AdapterWriteRecord) -> Result<String, CommonError> {
         let mut tags = Vec::new();
         if let Some(headers) = &record.header {
             tags.reserve(headers.len());
@@ -93,13 +92,13 @@ impl Sender {
         fields.push(format!("pkid={}i", record.pkid));
 
         let data_json = serde_json::to_string(&record.data).map_err(|e| {
-            MqttBrokerError::CommonError(format!("Failed to serialize record data: {}", e))
+            CommonError::CommonError(format!("Failed to serialize record data: {}", e))
         })?;
         let escaped_data = Self::escape_field_value(&data_json);
         fields.push(format!(r#"data="{}""#, escaped_data));
 
         let tags_json = serde_json::to_string(&record.tags).map_err(|e| {
-            MqttBrokerError::CommonError(format!("Failed to serialize record tags: {}", e))
+            CommonError::CommonError(format!("Failed to serialize record tags: {}", e))
         })?;
         let escaped_tags = Self::escape_field_value(&tags_json);
         fields.push(format!(r#"tags="{}""#, escaped_tags));
@@ -113,7 +112,7 @@ impl Sender {
         ))
     }
 
-    pub async fn send(&self, data: &AdapterWriteRecord) -> ResultMqttBrokerError {
+    pub async fn send(&self, data: &AdapterWriteRecord) -> Result<(), CommonError> {
         let line = Self::record_to_line(data)?;
         let res = self.client.post(&self.url).body(line).send().await?;
 
@@ -123,7 +122,7 @@ impl Sender {
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unable to read response body".to_string());
-            return Err(MqttBrokerError::CommonError(format!(
+            return Err(CommonError::CommonError(format!(
                 "Failed to send to GreptimeDB: HTTP {}, response: {}",
                 status.as_u16(),
                 body
@@ -133,7 +132,7 @@ impl Sender {
         Ok(())
     }
 
-    pub async fn send_batch(&self, records: &[AdapterWriteRecord]) -> ResultMqttBrokerError {
+    pub async fn send_batch(&self, records: &[AdapterWriteRecord]) -> Result<(), CommonError> {
         if records.is_empty() {
             return Ok(());
         }
@@ -152,7 +151,7 @@ impl Sender {
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unable to read response body".to_string());
-            return Err(MqttBrokerError::CommonError(format!(
+            return Err(CommonError::CommonError(format!(
                 "Failed to send batch to GreptimeDB: HTTP {}, response: {}",
                 status.as_u16(),
                 body

@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    bridge::manager::ConnectorManager, core::cache::MQTTCacheManager,
-    subscribe::manager::SubscribeManager,
-};
+use crate::{core::cache::MQTTCacheManager, subscribe::manager::SubscribeManager};
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use common_metrics::mqtt::connector::{
@@ -36,6 +33,7 @@ use common_metrics::mqtt::subscribe::{
     get_subscribe_messages_sent, get_subscribe_topic_messages_sent,
 };
 use common_metrics::mqtt::topic::{get_topic_messages_sent, get_topic_messages_written};
+use connector::manager::ConnectorManager;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;

@@ -69,6 +69,7 @@ lapin.workspace = true
 elasticsearch.workspace = true
 sqlx = { workspace = true, features = ["mysql", "postgres", "runtime-tokio"] }
 rocksdb-engine.workspace = true
+connector.workspace = true
 # security
 r2d2.workspace = true
 r2d2_mysql.workspace = true

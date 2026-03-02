@@ -20,11 +20,9 @@ use common_base::{
     http_response::{error_response, success_response},
 };
 use common_config::broker::broker_config;
+use connector::manager::ConnectorManager;
 use metadata_struct::meta::node::BrokerNode;
-use mqtt_broker::{
-    bridge::manager::ConnectorManager, core::cache::MQTTCacheManager,
-    subscribe::manager::SubscribeManager,
-};
+use mqtt_broker::{core::cache::MQTTCacheManager, subscribe::manager::SubscribeManager};
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use serde::{Deserialize, Serialize};

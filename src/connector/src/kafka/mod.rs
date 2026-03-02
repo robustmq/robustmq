@@ -18,8 +18,8 @@ use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
     manager::ConnectorManager,
 };
-use crate::core::tool::ResultMqttBrokerError;
 use async_trait::async_trait;
+use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     mqtt::bridge::config_kafka::KafkaConnectorConfig, mqtt::bridge::connector::MQTTConnector,
@@ -44,11 +44,11 @@ impl KafkaBridgePlugin {
 impl ConnectorSink for KafkaBridgePlugin {
     type SinkResource = FutureProducer;
 
-    async fn validate(&self) -> ResultMqttBrokerError {
+    async fn validate(&self) -> Result<(), CommonError> {
         Ok(())
     }
 
-    async fn init_sink(&self) -> Result<Self::SinkResource, crate::core::error::MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, CommonError> {
         use tracing::info;
 
         let mut client_config = rdkafka::ClientConfig::new();
@@ -84,7 +84,7 @@ impl ConnectorSink for KafkaBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         producer: &mut FutureProducer,
-    ) -> ResultMqttBrokerError {
+    ) -> Result<(), CommonError> {
         use futures::future::join_all;
 
         let mut serialized_data = Vec::with_capacity(records.len());
@@ -117,7 +117,7 @@ impl ConnectorSink for KafkaBridgePlugin {
         let results = join_all(send_futures).await;
 
         if results.iter().all(|r| r.is_err()) {
-            return Err(crate::core::error::MqttBrokerError::CommonError(
+            return Err(CommonError::CommonError(
                 "All records failed to send to Kafka".to_string(),
             ));
         }
@@ -125,7 +125,7 @@ impl ConnectorSink for KafkaBridgePlugin {
         Ok(())
     }
 
-    async fn cleanup_sink(&self, producer: FutureProducer) -> ResultMqttBrokerError {
+    async fn cleanup_sink(&self, producer: FutureProducer) -> Result<(), CommonError> {
         use tracing::info;
 
         info!(

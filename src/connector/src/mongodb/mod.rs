@@ -30,8 +30,7 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::{debug, error, info, warn};
 
-use crate::core::error::MqttBrokerError;
-use crate::core::tool::ResultMqttBrokerError;
+use common_base::error::common::CommonError;
 
 use super::{
     core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
@@ -47,12 +46,12 @@ impl MongoDBBridgePlugin {
         MongoDBBridgePlugin { config }
     }
 
-    async fn create_client(&self) -> Result<Client, MqttBrokerError> {
+    async fn create_client(&self) -> Result<Client, CommonError> {
         let uri = self.config.build_connection_uri();
         debug!("Connecting to MongoDB at {}", self.config.host);
 
         let mut client_options = ClientOptions::parse(&uri).await.map_err(|e| {
-            MqttBrokerError::MongoDBError(format!(
+            CommonError::CommonError(format!(
                 "Failed to parse MongoDB URI for {}: {}",
                 self.config.host, e
             ))
@@ -87,16 +86,17 @@ impl MongoDBBridgePlugin {
         client_options.write_concern = Some(w_value);
 
         Client::with_options(client_options).map_err(|e| {
-            MqttBrokerError::MongoDBError(format!(
+            CommonError::CommonError(format!(
                 "Failed to create MongoDB client for {}:{}: {}",
                 self.config.host, self.config.port, e
             ))
         })
     }
 
-    fn record_to_document(&self, record: &AdapterWriteRecord) -> Result<Document, MqttBrokerError> {
+    #[allow(clippy::result_large_err)]
+    fn record_to_document(&self, record: &AdapterWriteRecord) -> Result<Document, CommonError> {
         bson::to_document(record).map_err(|e| {
-            MqttBrokerError::BsonSerializationError(format!(
+            CommonError::CommonError(format!(
                 "Failed to serialize record with key '{:?}' at timestamp {}: {}",
                 record.key, record.timestamp, e
             ))
@@ -108,7 +108,7 @@ impl MongoDBBridgePlugin {
 impl ConnectorSink for MongoDBBridgePlugin {
     type SinkResource = Collection<Document>;
 
-    async fn validate(&self) -> ResultMqttBrokerError {
+    async fn validate(&self) -> Result<(), CommonError> {
         info!(
             "Validating MongoDB connector configuration for {}:{}",
             self.config.host, self.config.port
@@ -131,18 +131,18 @@ impl ConnectorSink for MongoDBBridgePlugin {
                 );
                 Ok(())
             }
-            Ok(Err(e)) => Err(MqttBrokerError::MongoDBError(format!(
+            Ok(Err(e)) => Err(CommonError::CommonError(format!(
                 "MongoDB ping failed for {}:{}/{}: {}",
                 self.config.host, self.config.port, self.config.database, e
             ))),
-            Err(_) => Err(MqttBrokerError::MongoDBError(format!(
+            Err(_) => Err(CommonError::CommonError(format!(
                 "MongoDB ping timeout for {}:{}/{}",
                 self.config.host, self.config.port, self.config.database
             ))),
         }
     }
 
-    async fn init_sink(&self) -> Result<Self::SinkResource, MqttBrokerError> {
+    async fn init_sink(&self) -> Result<Self::SinkResource, CommonError> {
         info!(
             "Initializing MongoDB sink: {}:{}/{}/{}",
             self.config.host, self.config.port, self.config.database, self.config.collection
@@ -158,7 +158,7 @@ impl ConnectorSink for MongoDBBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         collection: &mut Collection<Document>,
-    ) -> ResultMqttBrokerError {
+    ) -> Result<(), CommonError> {
         if records.is_empty() {
             return Ok(());
         }
@@ -186,7 +186,7 @@ impl ConnectorSink for MongoDBBridgePlugin {
         }
 
         if documents.is_empty() {
-            return Err(MqttBrokerError::MongoDBError(format!(
+            return Err(CommonError::CommonError(format!(
                 "All {} records failed to serialize to BSON",
                 records.len()
             )));
@@ -226,7 +226,7 @@ impl ConnectorSink for MongoDBBridgePlugin {
                     self.config.database, self.config.collection, e
                 );
                 error!("{}", error_msg);
-                Err(MqttBrokerError::MongoDBError(error_msg))
+                Err(CommonError::CommonError(error_msg))
             }
         }
     }
