@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::controller::{
-    connector::scheduler::start_connector_scheduler, engine_gc::start_engine_delete_gc_thread,
+    connector_scheduler::start_connector_scheduler, engine_gc::start_engine_delete_gc_thread,
 };
 use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
@@ -22,7 +22,8 @@ use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
 use tracing::error;
 
-pub mod connector;
+pub mod connector_scheduler;
+pub mod connector_status;
 pub mod engine_gc;
 
 pub fn start_controller(

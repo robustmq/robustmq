@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::status::ConnectorContext;
 use crate::{
+    controller::connector_status::ConnectorStatus,
     core::{cache::MetaCacheManager, error::MetaServiceError},
     raft::manager::MultiRaftManager,
 };
@@ -32,7 +32,7 @@ use tracing::{info, warn};
 pub struct ConnectorScheduler {
     cache_manager: Arc<MetaCacheManager>,
     heartbeat_timeout_sec: u64,
-    connector_context: ConnectorContext,
+    connector_context: ConnectorStatus,
 }
 
 impl ConnectorScheduler {
@@ -43,7 +43,7 @@ impl ConnectorScheduler {
     ) -> Self {
         let config = broker_config();
         let connector_context =
-            ConnectorContext::new(raft_manager, node_call_manager, cache_manager.clone());
+            ConnectorStatus::new(raft_manager, node_call_manager, cache_manager.clone());
         Self {
             cache_manager,
             heartbeat_timeout_sec: config.meta_runtime.heartbeat_timeout_ms / 1000,

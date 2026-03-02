@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::controller::connector::status::ConnectorContext;
+use crate::controller::connector_status::ConnectorStatus;
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::core::notify::send_notify_by_delete_connector;
@@ -102,7 +102,7 @@ pub async fn create_connector_by_req(
     }
 
     let connector = MQTTConnector::decode(&req.connector)?;
-    let ctx = ConnectorContext::new(
+    let ctx = ConnectorStatus::new(
         raft_manager.clone(),
         mqtt_call_manager.clone(),
         cache_manager.clone(),
@@ -129,7 +129,7 @@ pub async fn update_connector_by_req(
     }
 
     let connector = MQTTConnector::decode(&req.connector)?;
-    let ctx = ConnectorContext::new(
+    let ctx = ConnectorStatus::new(
         raft_manager.clone(),
         mqtt_call_manager.clone(),
         cache_manager.clone(),

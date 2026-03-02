@@ -29,13 +29,13 @@ use std::sync::Arc;
 use tracing::{info, warn};
 
 /// Connector status management context - encapsulates shared dependencies
-pub struct ConnectorContext {
+pub struct ConnectorStatus {
     raft_manager: Arc<MultiRaftManager>,
     node_call_manager: Arc<NodeCallManager>,
     cache_manager: Arc<MetaCacheManager>,
 }
 
-impl ConnectorContext {
+impl ConnectorStatus {
     pub fn new(
         raft_manager: Arc<MultiRaftManager>,
         node_call_manager: Arc<NodeCallManager>,
