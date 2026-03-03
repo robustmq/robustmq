@@ -35,7 +35,7 @@ use super::{
     mqtt_bridge::start_mqtt_bridge_connector, mysql::start_mysql_connector,
     opentsdb::start_opentsdb_connector, postgres::start_postgres_connector,
     pulsar::start_pulsar_connector, rabbitmq::start_rabbitmq_connector,
-    redis::start_redis_connector, webhook::start_webhook_connector,
+    redis::start_redis_connector, s3::start_s3_connector, webhook::start_webhook_connector,
 };
 use crate::storage::connector::ConnectorStorage;
 
@@ -323,6 +323,16 @@ fn start_thread(
         }
         ConnectorType::Cassandra(_) => {
             start_cassandra_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+                stop_rx,
+            );
+        }
+        ConnectorType::S3(_) => {
+            start_s3_connector(
                 client_pool,
                 connector_manager,
                 storage_driver_manager,

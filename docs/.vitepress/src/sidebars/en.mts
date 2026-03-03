@@ -173,6 +173,7 @@ export const sidebar = [
       { text: "Overview", link: "/en/Api/COMMON" },
       { text: "Cluster API", link: "/en/Api/CLUSTER" },
       { text: "MQTT API", link: "/en/Api/MQTT" },
+      { text: "Connector API", link: "/en/Api/Connector" },
     ],
   },
   {

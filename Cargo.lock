@@ -1543,6 +1543,7 @@ dependencies = [
  "lapin",
  "metadata-struct",
  "mongodb",
+ "opendal",
  "paho-mqtt",
  "protocol",
  "pulsar",

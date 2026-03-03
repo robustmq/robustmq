@@ -43,6 +43,7 @@ pub mod postgres;
 pub mod pulsar;
 pub mod rabbitmq;
 pub mod redis;
+pub mod s3;
 pub mod storage;
 pub mod traits;
 pub mod webhook;

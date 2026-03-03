@@ -27,8 +27,8 @@ use metadata_struct::connector::{
     config_mysql::MySQLConnectorConfig, config_opentsdb::OpenTSDBConnectorConfig,
     config_postgres::PostgresConnectorConfig, config_pulsar::PulsarConnectorConfig,
     config_rabbitmq::RabbitMQConnectorConfig, config_redis::RedisConnectorConfig,
-    config_webhook::WebhookConnectorConfig, status::MQTTStatus, ConnectorType,
-    FailureHandlingStrategy, MQTTConnector,
+    config_s3::S3ConnectorConfig, config_webhook::WebhookConnectorConfig, status::MQTTStatus,
+    ConnectorType, FailureHandlingStrategy, MQTTConnector,
 };
 use mqtt_broker::storage::connector::ConnectorStorage;
 use std::sync::Arc;
@@ -101,6 +101,7 @@ pub struct CreateConnectorReq {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate, Default)]
+#[validate(schema(function = "validate_failure_strategy"))]
 pub struct FailureStrategy {
     #[validate(length(
         min = 1,
@@ -113,14 +114,87 @@ pub struct FailureStrategy {
     pub topic_name: Option<String>,
 }
 
+fn validate_failure_strategy(strategy: &FailureStrategy) -> Result<(), validator::ValidationError> {
+    let strategy_name = strategy.strategy.to_lowercase();
+    match strategy_name.as_str() {
+        "discard" => Ok(()),
+        "discard_after_retry" => {
+            if let Some(retry_total_times) = strategy.retry_total_times {
+                if retry_total_times == 0 {
+                    let mut err = validator::ValidationError::new("invalid_retry_total_times");
+                    err.message = Some(std::borrow::Cow::from(
+                        "retry_total_times must be greater than 0",
+                    ));
+                    return Err(err);
+                }
+            }
+            if let Some(wait_time_ms) = strategy.wait_time_ms {
+                if wait_time_ms == 0 {
+                    let mut err = validator::ValidationError::new("invalid_wait_time_ms");
+                    err.message = Some(std::borrow::Cow::from(
+                        "wait_time_ms must be greater than 0",
+                    ));
+                    return Err(err);
+                }
+            }
+            Ok(())
+        }
+        "dead_message_queue" => {
+            if let Some(retry_total_times) = strategy.retry_total_times {
+                if retry_total_times == 0 {
+                    let mut err = validator::ValidationError::new("invalid_retry_total_times");
+                    err.message = Some(std::borrow::Cow::from(
+                        "retry_total_times must be greater than 0",
+                    ));
+                    return Err(err);
+                }
+            }
+            if let Some(wait_time_ms) = strategy.wait_time_ms {
+                if wait_time_ms == 0 {
+                    let mut err = validator::ValidationError::new("invalid_wait_time_ms");
+                    err.message = Some(std::borrow::Cow::from(
+                        "wait_time_ms must be greater than 0",
+                    ));
+                    return Err(err);
+                }
+            }
+            if let Some(topic_name) = &strategy.topic_name {
+                let topic_name = topic_name.trim();
+                if topic_name.is_empty() {
+                    let mut err = validator::ValidationError::new("invalid_dead_letter_topic_name");
+                    err.message = Some(std::borrow::Cow::from(
+                        "topic_name for dead_message_queue cannot be empty",
+                    ));
+                    return Err(err);
+                }
+                if topic_name.len() > 256 {
+                    let mut err = validator::ValidationError::new("invalid_dead_letter_topic_name");
+                    err.message = Some(std::borrow::Cow::from(
+                        "topic_name for dead_message_queue length must be <= 256",
+                    ));
+                    return Err(err);
+                }
+            }
+            Ok(())
+        }
+        _ => {
+            let mut err = validator::ValidationError::new("invalid_failure_strategy");
+            err.message = Some(std::borrow::Cow::from(
+                "strategy must be discard, discard_after_retry or dead_message_queue",
+            ));
+            Err(err)
+        }
+    }
+}
+
 fn validate_connector_type(connector_type: &str) -> Result<(), validator::ValidationError> {
     match connector_type {
         "kafka" | "pulsar" | "rabbitmq" | "greptime" | "postgres" | "mysql" | "mongodb"
         | "file" | "elasticsearch" | "redis" | "webhook" | "opentsdb" | "mqtt" | "clickhouse"
-        | "influxdb" | "cassandra" => Ok(()),
+        | "influxdb" | "cassandra" | "s3" => Ok(()),
         _ => {
             let mut err = validator::ValidationError::new("invalid_connector_type");
-            err.message = Some(std::borrow::Cow::from("Connector type must be kafka, pulsar, rabbitmq, greptime, postgres, mysql, mongodb, elasticsearch, redis, webhook, opentsdb, mqtt, clickhouse, influxdb, cassandra or file"));
+            err.message = Some(std::borrow::Cow::from("Connector type must be kafka, pulsar, rabbitmq, greptime, postgres, mysql, mongodb, elasticsearch, redis, webhook, opentsdb, mqtt, clickhouse, influxdb, cassandra, s3 or file"));
             Err(err)
         }
     }
@@ -342,6 +416,11 @@ fn parse_connector_type(type_str: &str, config: &str) -> Result<ConnectorType, C
             c.validate()?;
             ConnectorType::Cassandra(c)
         }
+        "s3" => {
+            let c: S3ConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::S3(c)
+        }
         _ => return Err(CommonError::IneligibleConnectorType(type_str.to_string())),
     };
     Ok(connector_type)
@@ -364,7 +443,13 @@ fn parse_failure_strategy(strategy: FailureStrategy) -> FailureHandlingStrategy 
             let topic_name = strategy
                 .topic_name
                 .unwrap_or_else(|| "dead_letter_queue".to_string());
-            FailureHandlingStrategy::DeadMessageQueue(DeadMessageQueueStrategy { topic_name })
+            let retry_total_times = strategy.retry_total_times.unwrap_or(3);
+            let wait_time_ms = strategy.wait_time_ms.unwrap_or(1000);
+            FailureHandlingStrategy::DeadMessageQueue(DeadMessageQueueStrategy {
+                topic_name,
+                retry_total_times,
+                wait_time_ms,
+            })
         }
         _ => {
             // Default to Discard if strategy is not recognized

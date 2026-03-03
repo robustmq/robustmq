@@ -188,10 +188,15 @@ pub fn start_elasticsearch_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
+        let connector_name = connector.connector_name.clone();
+        let connector_type = connector.connector_type.to_string();
         let es_config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::Elasticsearch(config) => config.clone(),
             _ => {
-                error!("Invalid connector config type, expected Elasticsearch config");
+                error!(
+                    "Invalid connector config type for Elasticsearch connector, connector_name='{}', connector_type='{}'",
+                    connector_name, connector_type
+                );
                 return;
             }
         };
@@ -216,8 +221,8 @@ pub fn start_elasticsearch_connector(
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
-                "Failed to start ElasticsearchBridgePlugin with error message: {:?}",
-                e
+                "Failed to start ElasticsearchBridgePlugin, connector_name='{}', connector_type='{}', error={:?}",
+                connector_name, connector_type, e
             );
         }
     }));

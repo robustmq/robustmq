@@ -33,7 +33,7 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
 | 数据集成类型 | EMQX 支持 | RobustMQ 支持 | 优先级 | 备注 |
 |-------------|-----------|---------------|--------|------|
 | **Webhook** | ✅ | ✅ | P0 | |
-| **HTTP Server** | ✅ | ✅ | P0 | 由 Webhook 连接器提供同等能力 |
+| **HTTP Server** | ✅ | ✅ | P0 | 协议兼容：由 Webhook 连接器提供同等能力 |
 | **Apache Kafka** | ✅ | ✅ | P0 | |
 | **MQTT** | ✅ | ✅ | P0 | MQTT 桥接（Sink） |
 | **MySQL** | ✅ | ✅ | P0 | |
@@ -49,28 +49,38 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
 | **Cassandra** | ✅ | ✅ | P1 | 基于 scylla 驱动，兼容 ScyllaDB |
 | **GreptimeDB** | ✅ | ✅ | P1 | |
 | **OpenTSDB** | ✅ | ✅ | P1 | |
+| **TimescaleDB** | ✅ | ✅ | P2 | 协议兼容：基于 PostgreSQL 扩展，直接使用 PostgreSQL 连接器 |
+| **Apache Doris** | ✅ | ✅ | P2 | 协议兼容：兼容 MySQL 协议，直接使用 MySQL 连接器 |
+| **AlloyDB** | ✅ | ✅ | P2 | 协议兼容：兼容 PostgreSQL 协议，直接使用 PostgreSQL 连接器 |
+| **CockroachDB** | ✅ | ✅ | P2 | 协议兼容：兼容 PostgreSQL 协议，直接使用 PostgreSQL 连接器 |
 | **TDengine** | ✅ | ❌ | P2 | 国产时序数据库，需评估 Rust 客户端 |
-| **TimescaleDB** | ✅ | ✅ | P2 | 基于 PostgreSQL 扩展，直接使用 PostgreSQL 连接器 |
-| **Apache Doris** | ✅ | ✅ | P2 | 兼容 MySQL 协议，直接使用 MySQL 连接器 |
 | **Microsoft SQL Server** | ✅ | ❌ | P2 | |
+| **Datalayers** | ✅ | ❌ | P2 | 国产 IoT 时序数据库 |
 | **RocketMQ** | ✅ | ❌ | P3 | Rust 客户端依赖 nightly，暂无法支持 |
 | **Couchbase** | ✅ | ❌ | P3 | 半开源（BSL），Rust 生态支持有限 |
 | **Oracle Database** | ✅ | ❌ | P3 | 商业数据库，Rust 驱动有限 |
 | **HStreamDB** | ✅ | ❌ | P3 | 用户量较少 |
 | **Apache IoTDB** | ✅ | ❌ | P3 | Rust 客户端不成熟 |
+| **SysKeeper** | ✅ | ❌ | P3 | 工控安全网关，场景特殊 |
+| **Disk Log** | ✅ | ❌ | P3 | 由本地文件连接器提供类似能力 |
 
 ### 商业/云厂商组件
 
 | 数据集成类型 | EMQX 支持 | RobustMQ 支持 | 优先级 | 云服务厂商 |
 |-------------|-----------|---------------|--------|-----------|
-| **AWS S3** | ✅ | ❌ | P1 | AWS |
+| **AWS S3** | ✅ | ✅ | P1 | AWS（原生支持：S3 连接器） |
 | **AWS Kinesis** | ✅ | ❌ | P2 | AWS |
+| **AWS S3 Tables** | ✅ | ❌ | P2 | AWS |
+| **AWS Redshift** | ✅ | ✅ | P2 | AWS（协议兼容：兼容 PostgreSQL 协议，直接使用 PostgreSQL 连接器） |
+| **AWS Timestream** | ✅ | ❌ | P2 | AWS |
 | **DynamoDB** | ✅ | ❌ | P2 | AWS |
 | **GCP PubSub** | ✅ | ❌ | P2 | Google Cloud |
+| **BigQuery** | ✅ | ❌ | P2 | Google Cloud |
 | **Azure Blob Storage** | ✅ | ❌ | P2 | Microsoft Azure |
-| **Azure Event Hubs** | ✅ | ❌ | P2 | Microsoft Azure |
-| **Confluent** | ✅ | ❌ | P2 | Confluent |
+| **Azure Event Hubs** | ✅ | ✅ | P2 | Microsoft Azure（协议兼容：兼容 Kafka 协议，直接使用 Kafka 连接器） |
+| **Confluent** | ✅ | ✅ | P2 | Confluent（协议兼容：兼容 Kafka 协议，直接使用 Kafka 连接器） |
 | **Snowflake** | ✅ | ❌ | P3 | Snowflake |
 | **Lindorm** | ✅ | ❌ | P3 | 阿里云 |
+| **Tablestore** | ✅ | ❌ | P3 | 阿里云 |
 
 RobustMQ 优先支持通用开源组件，覆盖 HTTP 推送、消息队列、时序数据库、关系型数据库、NoSQL 数据库、搜索引擎和文件存储等核心场景。商业/云厂商组件将根据社区需求逐步扩展。

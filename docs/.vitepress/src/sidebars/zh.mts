@@ -194,6 +194,7 @@ export const sidebar = [
       { text: "概览", link: "/zh/Api/COMMON" },
       { text: "Cluster API", link: "/zh/Api/CLUSTER" },
       { text: "MQTT API", link: "/zh/Api/MQTT" },
+      { text: "Connector API", link: "/zh/Api/Connector" },
     ],
   },
   {

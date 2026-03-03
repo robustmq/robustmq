@@ -220,8 +220,10 @@ async fn record_connector_metrics(
 
     for connector in connector_manager.get_all_connector() {
         record_metric_safe!(format!("connector {}", connector.connector_name), {
+            let connector_type = connector.connector_type.to_string();
             // success messages
-            let num = get_connector_messages_sent_success(&connector.connector_name);
+            let num =
+                get_connector_messages_sent_success(&connector_type, &connector.connector_name);
             record_cumulative_metric!(
                 metrics_cache_manager,
                 record_connector_success_num,
@@ -233,7 +235,8 @@ async fn record_connector_metrics(
             );
 
             // failure messages
-            let num = get_connector_messages_sent_failure(&connector.connector_name);
+            let num =
+                get_connector_messages_sent_failure(&connector_type, &connector.connector_name);
             record_cumulative_metric!(
                 metrics_cache_manager,
                 record_connector_failure_num,

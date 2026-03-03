@@ -290,10 +290,15 @@ pub fn start_rabbitmq_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
+        let connector_name = connector.connector_name.clone();
+        let connector_type = connector.connector_type.to_string();
         let rabbitmq_config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::RabbitMQ(config) => config.clone(),
             _ => {
-                error!("Invalid connector config type, expected RabbitMQ config");
+                error!(
+                    "Invalid connector config type for RabbitMQ connector, connector_name='{}', connector_type='{}'",
+                    connector_name, connector_type
+                );
                 return;
             }
         };
@@ -319,8 +324,8 @@ pub fn start_rabbitmq_connector(
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
-                "Failed to start RabbitMQBridgePlugin with error message: {:?}",
-                e
+                "Failed to start RabbitMQBridgePlugin, connector_name='{}', connector_type='{}', error={:?}",
+                connector_name, connector_type, e
             );
         }
     }));
