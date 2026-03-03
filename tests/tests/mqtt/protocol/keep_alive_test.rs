@@ -56,6 +56,7 @@ mod tests {
                         }
                     }
                     Err(e) => {
+                        println!("{:?}", e);
                         // When the peer closes the connection, the decoder might see an incomplete frame.
                         // Treat that as non-fatal and keep waiting for a proper DISCONNECT.
                         if !e.to_string().contains("Insufficient number") {

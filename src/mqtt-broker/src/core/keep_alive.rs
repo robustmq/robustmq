@@ -129,7 +129,7 @@ impl ClientKeepAlive {
                             );
                         }
                     } else {
-                        debug!(
+                        info!(
                             "Heartbeat timeout, active disconnection {} successful",
                             context.connect_id
                         );
