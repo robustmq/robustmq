@@ -531,7 +531,8 @@ mod test {
 
         assert_eq!(results.len(), 1);
 
-        let message = MqttMessage::decode_record(&results[0]).unwrap();
+        let message: MqttMessage =
+            common_base::utils::serialize::deserialize(&results[0].data).unwrap();
         let payload: super::SystemTopicEnvelope<String> =
             serde_json::from_str(&String::from_utf8_lossy(&message.payload)).unwrap();
         assert_eq!(payload.value, "test_data");
