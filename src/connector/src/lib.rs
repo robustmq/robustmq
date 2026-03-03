@@ -23,23 +23,29 @@ use crate::{
     manager::ConnectorManager,
 };
 
+pub mod cassandra;
+pub mod clickhouse_connector;
 pub mod core;
 pub mod elasticsearch;
 pub mod failure;
 pub mod file;
 pub mod greptimedb;
 pub mod heartbeat;
+pub mod influxdb_connector;
 pub mod kafka;
 pub mod loops;
 pub mod manager;
 pub mod mongodb;
+pub mod mqtt_bridge;
 pub mod mysql;
+pub mod opentsdb;
 pub mod postgres;
 pub mod pulsar;
 pub mod rabbitmq;
 pub mod redis;
 pub mod storage;
 pub mod traits;
+pub mod webhook;
 
 pub async fn start_connector(
     client_pool: &Arc<ClientPool>,
