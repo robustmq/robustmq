@@ -318,16 +318,22 @@ Real-time counts of various system resources.
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `mqtt_connector_messages_sent_success_total` | Counter | `connector_name` | Messages successfully sent by connector |
-| `mqtt_connector_messages_sent_failure_total` | Counter | `connector_name` | Messages failed to send by connector |
-| `mqtt_connector_send_duration_ms` | Histogram | `connector_name` | Message send duration by connector (ms) |
+| `mqtt_connector_messages_sent_success` | Counter | `connector_type`, `connector_name` | Messages successfully sent by connector |
+| `mqtt_connector_messages_sent_failure` | Counter | `connector_type`, `connector_name` | Messages failed to send by connector |
+| `mqtt_connector_send_duration_ms` | Histogram | `connector_type`, `connector_name` | Message send latency distribution by connector (ms) |
+| `mqtt_connector_retry_total` | Counter | `connector_type`, `connector_name`, `strategy` | Total retry attempts by connector |
+| `mqtt_connector_messages_discarded_total` | Counter | `connector_type`, `connector_name`, `strategy` | Messages discarded by connector terminal strategy |
+| `mqtt_connector_dlq_messages_total` | Counter | `connector_type`, `connector_name`, `result` | Messages attempted to write to DLQ by connector (result=success/failure) |
+| `mqtt_connector_offset_commit_failure_total` | Counter | `connector_type`, `connector_name` | Total offset commit failures by connector |
+| `mqtt_connector_source_read_failure_total` | Counter | `connector_type`, `connector_name` | Total source topic read failures by connector |
+| `mqtt_connector_up` | Gauge | `connector_type`, `connector_name` | Connector thread status (1=running, 0=stopped) |
 
 ### Aggregate
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `mqtt_connector_messages_sent_success_agg_total` | Counter | — | Total messages successfully sent by all connectors |
-| `mqtt_connector_messages_sent_failure_agg_total` | Counter | — | Total messages failed to send by all connectors |
+| `mqtt_connector_messages_sent_success_agg` | Counter | — | Total messages successfully sent by all connectors |
+| `mqtt_connector_messages_sent_failure_agg` | Counter | — | Total messages failed to send by all connectors |
 | `mqtt_connector_send_duration_ms_agg` | Histogram | — | Aggregate send duration across all connectors (ms) |
 
 ## Usage Examples
