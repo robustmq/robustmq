@@ -288,7 +288,7 @@ message DeleteConnectorRequest {
 message DeleteConnectorReply {}
 
 message ConnectorHeartbeatRequest {
-  repeated ConnectorHeartbeatRaw heatbeats = 2 [(validate.rules).repeated.min_items = 1];
+  repeated ConnectorHeartbeatRaw heartbeats = 2 [(validate.rules).repeated.min_items = 1];
 }
 
 message ConnectorHeartbeatRaw {

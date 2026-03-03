@@ -95,10 +95,10 @@ impl ConnectorStorage {
 
     pub async fn connector_heartbeat(
         &self,
-        heatbeats: Vec<ConnectorHeartbeatRaw>,
+        heartbeats: Vec<ConnectorHeartbeatRaw>,
     ) -> Result<(), CommonError> {
         let config = broker_config();
-        let request = ConnectorHeartbeatRequest { heatbeats };
+        let request = ConnectorHeartbeatRequest { heartbeats };
         placement_connector_heartbeat(&self.client_pool, &config.get_meta_service_addr(), request)
             .await?;
         Ok(())

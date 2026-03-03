@@ -18,12 +18,15 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 use crate::connector::{
+    config_cassandra::CassandraConnectorConfig, config_clickhouse::ClickHouseConnectorConfig,
     config_elasticsearch::ElasticsearchConnectorConfig,
-    config_greptimedb::GreptimeDBConnectorConfig, config_kafka::KafkaConnectorConfig,
-    config_local_file::LocalFileConnectorConfig, config_mongodb::MongoDBConnectorConfig,
-    config_mysql::MySQLConnectorConfig, config_postgres::PostgresConnectorConfig,
-    config_pulsar::PulsarConnectorConfig, config_rabbitmq::RabbitMQConnectorConfig,
-    config_redis::RedisConnectorConfig,
+    config_greptimedb::GreptimeDBConnectorConfig, config_influxdb::InfluxDBConnectorConfig,
+    config_kafka::KafkaConnectorConfig, config_local_file::LocalFileConnectorConfig,
+    config_mongodb::MongoDBConnectorConfig, config_mqtt::MqttBridgeConnectorConfig,
+    config_mysql::MySQLConnectorConfig, config_opentsdb::OpenTSDBConnectorConfig,
+    config_postgres::PostgresConnectorConfig, config_pulsar::PulsarConnectorConfig,
+    config_rabbitmq::RabbitMQConnectorConfig, config_redis::RedisConnectorConfig,
+    config_webhook::WebhookConnectorConfig,
 };
 
 pub const CONNECTOR_TYPE_FILE: &str = "file";
@@ -36,6 +39,12 @@ pub const CONNECTOR_TYPE_RABBITMQ: &str = "rabbitmq";
 pub const CONNECTOR_TYPE_MYSQL: &str = "mysql";
 pub const CONNECTOR_TYPE_ELASTICSEARCH: &str = "elasticsearch";
 pub const CONNECTOR_TYPE_REDIS: &str = "redis";
+pub const CONNECTOR_TYPE_WEBHOOK: &str = "webhook";
+pub const CONNECTOR_TYPE_OPENTSDB: &str = "opentsdb";
+pub const CONNECTOR_TYPE_MQTT_BRIDGE: &str = "mqtt";
+pub const CONNECTOR_TYPE_CLICKHOUSE: &str = "clickhouse";
+pub const CONNECTOR_TYPE_INFLUXDB: &str = "influxdb";
+pub const CONNECTOR_TYPE_CASSANDRA: &str = "cassandra";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum ConnectorType {
@@ -49,6 +58,12 @@ pub enum ConnectorType {
     MySQL(MySQLConnectorConfig),
     Elasticsearch(ElasticsearchConnectorConfig),
     Redis(RedisConnectorConfig),
+    Webhook(WebhookConnectorConfig),
+    OpenTSDB(OpenTSDBConnectorConfig),
+    MqttBridge(MqttBridgeConnectorConfig),
+    ClickHouse(ClickHouseConnectorConfig),
+    InfluxDB(InfluxDBConnectorConfig),
+    Cassandra(CassandraConnectorConfig),
 }
 
 impl Default for ConnectorType {
@@ -70,6 +85,12 @@ impl ConnectorType {
             ConnectorType::MySQL(_) => CONNECTOR_TYPE_MYSQL,
             ConnectorType::Elasticsearch(_) => CONNECTOR_TYPE_ELASTICSEARCH,
             ConnectorType::Redis(_) => CONNECTOR_TYPE_REDIS,
+            ConnectorType::Webhook(_) => CONNECTOR_TYPE_WEBHOOK,
+            ConnectorType::OpenTSDB(_) => CONNECTOR_TYPE_OPENTSDB,
+            ConnectorType::MqttBridge(_) => CONNECTOR_TYPE_MQTT_BRIDGE,
+            ConnectorType::ClickHouse(_) => CONNECTOR_TYPE_CLICKHOUSE,
+            ConnectorType::InfluxDB(_) => CONNECTOR_TYPE_INFLUXDB,
+            ConnectorType::Cassandra(_) => CONNECTOR_TYPE_CASSANDRA,
         }
     }
 }
@@ -108,6 +129,22 @@ impl FromStr for ConnectorType {
             ))
         } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_REDIS) {
             Ok(ConnectorType::Redis(RedisConnectorConfig::default()))
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_WEBHOOK) {
+            Ok(ConnectorType::Webhook(WebhookConnectorConfig::default()))
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_OPENTSDB) {
+            Ok(ConnectorType::OpenTSDB(OpenTSDBConnectorConfig::default()))
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_MQTT_BRIDGE) {
+            Ok(ConnectorType::MqttBridge(
+                MqttBridgeConnectorConfig::default(),
+            ))
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_CLICKHOUSE) {
+            Ok(ConnectorType::ClickHouse(
+                ClickHouseConnectorConfig::default(),
+            ))
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_INFLUXDB) {
+            Ok(ConnectorType::InfluxDB(InfluxDBConnectorConfig::default()))
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_CASSANDRA) {
+            Ok(ConnectorType::Cassandra(CassandraConnectorConfig::default()))
         } else {
             Err(CommonError::IneligibleConnectorType(s.to_string()))
         }

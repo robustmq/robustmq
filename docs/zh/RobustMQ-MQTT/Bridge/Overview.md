@@ -17,64 +17,60 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
 
 ## 数据集成支持对比
 
-基于 [EMQX 数据集成功能](https://docs.emqx.com/zh/emqx/latest/getting-started/feature-comparison.html#%E6%95%B0%E6%8D%AE%E9%9B%86%E6%88%90)，以下是 RobustMQ 与 EMQX 在数据集成方面的支持对比：
+基于 [EMQX 数据集成功能](https://docs.emqx.com/zh/emqx/latest/getting-started/feature-comparison.html#%E6%95%B0%E6%8D%AE%E9%9B%86%E6%88%90)，以下是 RobustMQ 与 EMQX 在数据集成方面的支持对比。
 
-| 数据集成类型 | EMQX 支持 | RobustMQ 支持 | 备注 |
-|-------------|-----------|---------------|------|
-| **Webhook** | ✅ | ❌ | RobustMQ 暂不支持 HTTP Webhook |
-| **Apache Kafka** | ✅ | ✅ | RobustMQ 支持 Kafka 连接器 |
-| **Apache Pulsar** | ✅ | ✅ | RobustMQ 支持 Pulsar 连接器 |
-| **Apache IoTDB** | ✅ | ❌ | RobustMQ 暂不支持 IoTDB |
-| **Apache Doris** | ✅ | ❌ | RobustMQ 暂不支持 Doris |
-| **AWS Kinesis** | ✅ | ❌ | RobustMQ 暂不支持 AWS Kinesis |
-| **AWS S3** | ✅ | ❌ | RobustMQ 暂不支持 AWS S3 |
-| **Azure Blob Storage** | ✅ | ❌ | RobustMQ 暂不支持 Azure Blob |
-| **Azure Event Hubs** | ✅ | ❌ | RobustMQ 暂不支持 Azure Event Hubs |
-| **Cassandra** | ✅ | ❌ | RobustMQ 暂不支持 Cassandra |
-| **ClickHouse** | ✅ | ❌ | RobustMQ 暂不支持 ClickHouse |
-| **Confluent** | ✅ | ❌ | RobustMQ 暂不支持 Confluent |
-| **Couchbase** | ✅ | ❌ | RobustMQ 暂不支持 Couchbase |
-| **DynamoDB** | ✅ | ❌ | RobustMQ 暂不支持 DynamoDB |
-| **Elasticsearch** | ✅ | ✅ | RobustMQ 支持 Elasticsearch 连接器 |
-| **GCP PubSub** | ✅ | ❌ | RobustMQ 暂不支持 GCP PubSub |
-| **GreptimeDB** | ✅ | ✅ | RobustMQ 支持 GreptimeDB 连接器 |
-| **HStreamDB** | ✅ | ❌ | RobustMQ 暂不支持 HStreamDB |
-| **HTTP Server** | ✅ | ❌ | RobustMQ 暂不支持 HTTP Server |
-| **InfluxDB** | ✅ | ❌ | RobustMQ 暂不支持 InfluxDB |
-| **Lindorm** | ✅ | ❌ | RobustMQ 暂不支持 Lindorm |
-| **Microsoft SQL Server** | ✅ | ❌ | RobustMQ 暂不支持 SQL Server |
-| **MongoDB** | ✅ | ✅ | RobustMQ 支持 MongoDB 连接器 |
-| **MQTT** | ✅ | ❌ | RobustMQ 暂不支持 MQTT 桥接 |
-| **MySQL** | ✅ | ✅ | RobustMQ 支持 MySQL 连接器 |
-| **OpenTSDB** | ✅ | ❌ | RobustMQ 暂不支持 OpenTSDB |
-| **Oracle Database** | ✅ | ❌ | RobustMQ 暂不支持 Oracle |
-| **PostgreSQL** | ✅ | ✅ | RobustMQ 支持 PostgreSQL 连接器 |
-| **RabbitMQ** | ✅ | ✅ | RobustMQ 支持 RabbitMQ 连接器 |
-| **Redis** | ✅ | ❌ | RobustMQ 暂不支持 Redis |
-| **RocketMQ** | ✅ | ❌ | RobustMQ 暂不支持 RocketMQ |
-| **Snowflake** | ✅ | ❌ | RobustMQ 暂不支持 Snowflake |
-| **TDengine** | ✅ | ❌ | RobustMQ 暂不支持 TDengine |
-| **TimescaleDB** | ✅ | ❌ | RobustMQ 暂不支持 TimescaleDB |
-| **本地文件** | ✅ | ✅ | RobustMQ 支持本地文件连接器 |
+### 优先级说明
 
-### 支持情况总结
+| 优先级 | 含义 |
+|--------|------|
+| P0 | 核心组件，已支持，IoT 场景高频使用 |
+| P1 | 重要组件，用户需求较多，计划近期支持 |
+| P2 | 一般组件，有一定需求，按社区反馈排期 |
+| P3 | 低优先级，使用场景较少或 Rust 生态支持有限 |
 
-- **EMQX 支持**：30+ 种数据集成类型
-- **RobustMQ 支持**：9 种数据集成类型
-  - ✅ Apache Kafka
-  - ✅ Apache Pulsar
-  - ✅ RabbitMQ
-  - ✅ GreptimeDB  
-  - ✅ PostgreSQL
-  - ✅ MySQL
-  - ✅ MongoDB
-  - ✅ Elasticsearch
-  - ✅ 本地文件
+### 通用组件
 
-RobustMQ 目前专注于核心的数据集成场景，支持最常用的消息队列（Kafka、Pulsar、RabbitMQ）、时序数据库（GreptimeDB）、关系型数据库（PostgreSQL、MySQL）、NoSQL 数据库（MongoDB）、搜索引擎（Elasticsearch）和本地文件存储。未来版本将逐步扩展更多数据集成类型。
+| 数据集成类型 | EMQX 支持 | RobustMQ 支持 | 优先级 | 备注 |
+|-------------|-----------|---------------|--------|------|
+| **Webhook** | ✅ | ✅ | P0 | |
+| **HTTP Server** | ✅ | ✅ | P0 | 由 Webhook 连接器提供同等能力 |
+| **Apache Kafka** | ✅ | ✅ | P0 | |
+| **MQTT** | ✅ | ✅ | P0 | MQTT 桥接（Sink） |
+| **MySQL** | ✅ | ✅ | P0 | |
+| **PostgreSQL** | ✅ | ✅ | P0 | |
+| **Redis** | ✅ | ✅ | P0 | |
+| **MongoDB** | ✅ | ✅ | P0 | |
+| **Elasticsearch** | ✅ | ✅ | P0 | |
+| **ClickHouse** | ✅ | ✅ | P0 | |
+| **InfluxDB** | ✅ | ✅ | P0 | 支持 v1/v2，HTTP + Line Protocol |
+| **本地文件** | ✅ | ✅ | P0 | |
+| **Apache Pulsar** | ✅ | ✅ | P1 | |
+| **RabbitMQ** | ✅ | ✅ | P1 | |
+| **Cassandra** | ✅ | ✅ | P1 | 基于 scylla 驱动，兼容 ScyllaDB |
+| **GreptimeDB** | ✅ | ✅ | P1 | |
+| **OpenTSDB** | ✅ | ✅ | P1 | |
+| **TDengine** | ✅ | ❌ | P2 | 国产时序数据库，需评估 Rust 客户端 |
+| **TimescaleDB** | ✅ | ✅ | P2 | 基于 PostgreSQL 扩展，直接使用 PostgreSQL 连接器 |
+| **Apache Doris** | ✅ | ✅ | P2 | 兼容 MySQL 协议，直接使用 MySQL 连接器 |
+| **Microsoft SQL Server** | ✅ | ❌ | P2 | |
+| **RocketMQ** | ✅ | ❌ | P3 | Rust 客户端依赖 nightly，暂无法支持 |
+| **Couchbase** | ✅ | ❌ | P3 | 半开源（BSL），Rust 生态支持有限 |
+| **Oracle Database** | ✅ | ❌ | P3 | 商业数据库，Rust 驱动有限 |
+| **HStreamDB** | ✅ | ❌ | P3 | 用户量较少 |
+| **Apache IoTDB** | ✅ | ❌ | P3 | Rust 客户端不成熟 |
 
-## 总结
+### 商业/云厂商组件
 
-RobustMQ 连接器采用插件化架构设计，为 MQTT 消息提供高效的数据集成能力。目前支持 9 种核心连接器类型：Kafka、Pulsar、RabbitMQ、GreptimeDB、PostgreSQL、MySQL、MongoDB、Elasticsearch 和本地文件，覆盖了消息队列、时序数据库、关系型数据库、NoSQL 数据库、搜索引擎和文件存储的主要场景。
+| 数据集成类型 | EMQX 支持 | RobustMQ 支持 | 优先级 | 云服务厂商 |
+|-------------|-----------|---------------|--------|-----------|
+| **AWS S3** | ✅ | ❌ | P1 | AWS |
+| **AWS Kinesis** | ✅ | ❌ | P2 | AWS |
+| **DynamoDB** | ✅ | ❌ | P2 | AWS |
+| **GCP PubSub** | ✅ | ❌ | P2 | Google Cloud |
+| **Azure Blob Storage** | ✅ | ❌ | P2 | Microsoft Azure |
+| **Azure Event Hubs** | ✅ | ❌ | P2 | Microsoft Azure |
+| **Confluent** | ✅ | ❌ | P2 | Confluent |
+| **Snowflake** | ✅ | ❌ | P3 | Snowflake |
+| **Lindorm** | ✅ | ❌ | P3 | 阿里云 |
 
-相比 EMQX 的 30+ 种数据集成类型，RobustMQ 专注于核心场景，通过 Rust 语言的内存安全和零成本抽象特性，实现了高性能、高可靠性的消息桥接。这种精简而高效的设计理念，为构建可靠的 IoT 数据管道提供了坚实的基础。
+RobustMQ 优先支持通用开源组件，覆盖 HTTP 推送、消息队列、时序数据库、关系型数据库、NoSQL 数据库、搜索引擎和文件存储等核心场景。商业/云厂商组件将根据社区需求逐步扩展。

@@ -44,7 +44,7 @@ pub fn connector_heartbeat_by_req(
     cache_manager: &Arc<MetaCacheManager>,
     req: &ConnectorHeartbeatRequest,
 ) -> Result<ConnectorHeartbeatReply, MetaServiceError> {
-    for raw in &req.heatbeats {
+    for raw in &req.heartbeats {
         if let Some(connector) = cache_manager.connector_list.get(&raw.connector_name) {
             if connector.broker_id.is_none() {
                 warn!("connector:{} not register", raw.connector_name);

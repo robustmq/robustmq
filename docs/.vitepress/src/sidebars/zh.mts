@@ -110,6 +110,13 @@ export const sidebar = [
                     { text: "MySQL", link: "/zh/RobustMQ-MQTT/Bridge/MySQL" },
                     { text: "MongoDB", link: "/zh/RobustMQ-MQTT/Bridge/MongoDB" },
                     { text: "Elasticsearch", link: "/zh/RobustMQ-MQTT/Bridge/Elasticsearch" },
+                    { text: "Redis", link: "/zh/RobustMQ-MQTT/Bridge/Redis" },
+                    { text: "Webhook", link: "/zh/RobustMQ-MQTT/Bridge/Webhook" },
+                    { text: "OpenTSDB", link: "/zh/RobustMQ-MQTT/Bridge/OpenTSDB" },
+                    { text: "MQTT 桥接", link: "/zh/RobustMQ-MQTT/Bridge/MQTT" },
+                    { text: "ClickHouse", link: "/zh/RobustMQ-MQTT/Bridge/ClickHouse" },
+                    { text: "InfluxDB", link: "/zh/RobustMQ-MQTT/Bridge/InfluxDB" },
+                    { text: "Cassandra", link: "/zh/RobustMQ-MQTT/Bridge/Cassandra" },
                 ]
             },
 

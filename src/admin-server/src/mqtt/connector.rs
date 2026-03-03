@@ -19,13 +19,16 @@ use common_base::{
     utils::time_util::timestamp_to_local_datetime,
 };
 use metadata_struct::connector::{
+    config_cassandra::CassandraConnectorConfig, config_clickhouse::ClickHouseConnectorConfig,
     config_elasticsearch::ElasticsearchConnectorConfig,
-    config_greptimedb::GreptimeDBConnectorConfig, config_kafka::KafkaConnectorConfig,
-    config_local_file::LocalFileConnectorConfig, config_mongodb::MongoDBConnectorConfig,
-    config_mysql::MySQLConnectorConfig, config_postgres::PostgresConnectorConfig,
-    config_pulsar::PulsarConnectorConfig, config_rabbitmq::RabbitMQConnectorConfig,
-    config_redis::RedisConnectorConfig, status::MQTTStatus, ConnectorType, FailureHandlingStrategy,
-    MQTTConnector,
+    config_greptimedb::GreptimeDBConnectorConfig, config_influxdb::InfluxDBConnectorConfig,
+    config_kafka::KafkaConnectorConfig, config_local_file::LocalFileConnectorConfig,
+    config_mongodb::MongoDBConnectorConfig, config_mqtt::MqttBridgeConnectorConfig,
+    config_mysql::MySQLConnectorConfig, config_opentsdb::OpenTSDBConnectorConfig,
+    config_postgres::PostgresConnectorConfig, config_pulsar::PulsarConnectorConfig,
+    config_rabbitmq::RabbitMQConnectorConfig, config_redis::RedisConnectorConfig,
+    config_webhook::WebhookConnectorConfig, status::MQTTStatus, ConnectorType,
+    FailureHandlingStrategy, MQTTConnector,
 };
 use mqtt_broker::storage::connector::ConnectorStorage;
 use std::sync::Arc;
@@ -113,10 +116,11 @@ pub struct FailureStrategy {
 fn validate_connector_type(connector_type: &str) -> Result<(), validator::ValidationError> {
     match connector_type {
         "kafka" | "pulsar" | "rabbitmq" | "greptime" | "postgres" | "mysql" | "mongodb"
-        | "file" | "elasticsearch" | "redis" => Ok(()),
+        | "file" | "elasticsearch" | "redis" | "webhook" | "opentsdb" | "mqtt" | "clickhouse"
+        | "influxdb" | "cassandra" => Ok(()),
         _ => {
             let mut err = validator::ValidationError::new("invalid_connector_type");
-            err.message = Some(std::borrow::Cow::from("Connector type must be kafka, pulsar, rabbitmq, greptime, postgres, mysql, mongodb, elasticsearch, redis or file"));
+            err.message = Some(std::borrow::Cow::from("Connector type must be kafka, pulsar, rabbitmq, greptime, postgres, mysql, mongodb, elasticsearch, redis, webhook, opentsdb, mqtt, clickhouse, influxdb, cassandra or file"));
             Err(err)
         }
     }
@@ -307,6 +311,36 @@ fn parse_connector_type(type_str: &str, config: &str) -> Result<ConnectorType, C
             let c: RedisConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::Redis(c)
+        }
+        "webhook" => {
+            let c: WebhookConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::Webhook(c)
+        }
+        "opentsdb" => {
+            let c: OpenTSDBConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::OpenTSDB(c)
+        }
+        "mqtt" => {
+            let c: MqttBridgeConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::MqttBridge(c)
+        }
+        "clickhouse" => {
+            let c: ClickHouseConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::ClickHouse(c)
+        }
+        "influxdb" => {
+            let c: InfluxDBConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::InfluxDB(c)
+        }
+        "cassandra" => {
+            let c: CassandraConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::Cassandra(c)
         }
         _ => return Err(CommonError::IneligibleConnectorType(type_str.to_string())),
     };

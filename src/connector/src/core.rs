@@ -28,11 +28,14 @@ use tokio::sync::{
 use tracing::{debug, error, info, warn};
 
 use super::{
+    cassandra::start_cassandra_connector, clickhouse_connector::start_clickhouse_connector,
     elasticsearch::start_elasticsearch_connector, file::start_local_file_connector,
-    greptimedb::start_greptimedb_connector, kafka::start_kafka_connector,
-    manager::ConnectorManager, mongodb::start_mongodb_connector, mysql::start_mysql_connector,
-    postgres::start_postgres_connector, pulsar::start_pulsar_connector,
-    rabbitmq::start_rabbitmq_connector, redis::start_redis_connector,
+    greptimedb::start_greptimedb_connector, influxdb_connector::start_influxdb_connector,
+    kafka::start_kafka_connector, manager::ConnectorManager, mongodb::start_mongodb_connector,
+    mqtt_bridge::start_mqtt_bridge_connector, mysql::start_mysql_connector,
+    opentsdb::start_opentsdb_connector, postgres::start_postgres_connector,
+    pulsar::start_pulsar_connector, rabbitmq::start_rabbitmq_connector,
+    redis::start_redis_connector, webhook::start_webhook_connector,
 };
 use crate::storage::connector::ConnectorStorage;
 
@@ -260,6 +263,66 @@ fn start_thread(
         }
         ConnectorType::Redis(_) => {
             start_redis_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+                stop_rx,
+            );
+        }
+        ConnectorType::Webhook(_) => {
+            start_webhook_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+                stop_rx,
+            );
+        }
+        ConnectorType::OpenTSDB(_) => {
+            start_opentsdb_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+                stop_rx,
+            );
+        }
+        ConnectorType::MqttBridge(_) => {
+            start_mqtt_bridge_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+                stop_rx,
+            );
+        }
+        ConnectorType::ClickHouse(_) => {
+            start_clickhouse_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+                stop_rx,
+            );
+        }
+        ConnectorType::InfluxDB(_) => {
+            start_influxdb_connector(
+                client_pool,
+                connector_manager,
+                storage_driver_manager,
+                connector,
+                thread,
+                stop_rx,
+            );
+        }
+        ConnectorType::Cassandra(_) => {
+            start_cassandra_connector(
                 client_pool,
                 connector_manager,
                 storage_driver_manager,

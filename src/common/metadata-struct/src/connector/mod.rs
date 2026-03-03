@@ -15,16 +15,22 @@
 use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
+pub mod config_cassandra;
+pub mod config_clickhouse;
 pub mod config_elasticsearch;
 pub mod config_greptimedb;
+pub mod config_influxdb;
 pub mod config_kafka;
 pub mod config_local_file;
 pub mod config_mongodb;
+pub mod config_mqtt;
 pub mod config_mysql;
+pub mod config_opentsdb;
 pub mod config_postgres;
 pub mod config_pulsar;
 pub mod config_rabbitmq;
 pub mod config_redis;
+pub mod config_webhook;
 pub mod connector_type;
 pub mod status;
 
