@@ -30,6 +30,7 @@ pub mod config_postgres;
 pub mod config_pulsar;
 pub mod config_rabbitmq;
 pub mod config_redis;
+pub mod config_s3;
 pub mod config_webhook;
 pub mod connector_type;
 pub mod status;
@@ -67,6 +68,18 @@ pub struct DiscardAfterRetryStrategy {
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct DeadMessageQueueStrategy {
     pub topic_name: String,
+    #[serde(default = "default_retry_total_times")]
+    pub retry_total_times: u32,
+    #[serde(default = "default_wait_time_ms")]
+    pub wait_time_ms: u64,
+}
+
+fn default_retry_total_times() -> u32 {
+    3
+}
+
+fn default_wait_time_ms() -> u64 {
+    1000
 }
 
 impl MQTTConnector {

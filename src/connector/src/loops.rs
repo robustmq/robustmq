@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::BridgePluginReadConfig;
-use crate::failure::failure_message_process;
+use crate::failure::{failure_message_process, FailureContext};
 use crate::manager::ConnectorManager;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::message::MessageStorage;
@@ -48,7 +48,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     sink.validate().await?;
 
     let mut resource = sink.init_sink().await?;
-    let message_storage = MessageStorage::new(storage_driver_manager);
+    let message_storage = MessageStorage::new(storage_driver_manager.clone());
     let group_name = connector_name.clone();
 
     loop {
@@ -107,8 +107,22 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                                         message_count,
                                         false
                                     );
-                                    error!("Connector {} failed to send batch: {}", connector_name, e);
-                                    if failure_message_process(config.strategy.clone(),retry_times).await{
+                                    let err_msg = e.to_string();
+                                    error!("Connector {} failed to send batch: {}", connector_name, err_msg);
+                                    let context = FailureContext {
+                                        storage_driver_manager: &storage_driver_manager,
+                                        connector_name: &connector_name,
+                                        source_topic: &config.topic_name,
+                                        error_message: &err_msg,
+                                        records: &data_list,
+                                    };
+                                    if failure_message_process(config.strategy.clone(), retry_times, &context).await {
+                                        for (k, v) in max_offsets.iter() {
+                                            offsets.insert(k.to_string(), *v);
+                                        }
+                                        message_storage
+                                            .commit_group_offset(&group_name, &offsets)
+                                            .await?;
                                         sleep(Duration::from_millis(100)).await;
                                         break
                                     }

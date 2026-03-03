@@ -134,7 +134,7 @@ Broker 上的 `start_connector_thread` 每秒执行两个检查：
 |------|------|
 | `Discard` | 直接丢弃，继续消费下一批 |
 | `DiscardAfterRetry` | 重试指定次数后丢弃，每次重试间隔可配置 |
-| `DeadMessageQueue` | （规划中）发送到死信队列 |
+| `DeadMessageQueue` | 重试指定次数后发送到死信队列，重试次数和间隔可配置 |
 
 ---
 

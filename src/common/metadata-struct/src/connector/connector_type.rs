@@ -26,7 +26,7 @@ use crate::connector::{
     config_mysql::MySQLConnectorConfig, config_opentsdb::OpenTSDBConnectorConfig,
     config_postgres::PostgresConnectorConfig, config_pulsar::PulsarConnectorConfig,
     config_rabbitmq::RabbitMQConnectorConfig, config_redis::RedisConnectorConfig,
-    config_webhook::WebhookConnectorConfig,
+    config_s3::S3ConnectorConfig, config_webhook::WebhookConnectorConfig,
 };
 
 pub const CONNECTOR_TYPE_FILE: &str = "file";
@@ -45,6 +45,7 @@ pub const CONNECTOR_TYPE_MQTT_BRIDGE: &str = "mqtt";
 pub const CONNECTOR_TYPE_CLICKHOUSE: &str = "clickhouse";
 pub const CONNECTOR_TYPE_INFLUXDB: &str = "influxdb";
 pub const CONNECTOR_TYPE_CASSANDRA: &str = "cassandra";
+pub const CONNECTOR_TYPE_S3: &str = "s3";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum ConnectorType {
@@ -64,6 +65,7 @@ pub enum ConnectorType {
     ClickHouse(ClickHouseConnectorConfig),
     InfluxDB(InfluxDBConnectorConfig),
     Cassandra(CassandraConnectorConfig),
+    S3(S3ConnectorConfig),
 }
 
 impl Default for ConnectorType {
@@ -91,6 +93,7 @@ impl ConnectorType {
             ConnectorType::ClickHouse(_) => CONNECTOR_TYPE_CLICKHOUSE,
             ConnectorType::InfluxDB(_) => CONNECTOR_TYPE_INFLUXDB,
             ConnectorType::Cassandra(_) => CONNECTOR_TYPE_CASSANDRA,
+            ConnectorType::S3(_) => CONNECTOR_TYPE_S3,
         }
     }
 }
@@ -145,6 +148,8 @@ impl FromStr for ConnectorType {
             Ok(ConnectorType::InfluxDB(InfluxDBConnectorConfig::default()))
         } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_CASSANDRA) {
             Ok(ConnectorType::Cassandra(CassandraConnectorConfig::default()))
+        } else if s.eq_ignore_ascii_case(CONNECTOR_TYPE_S3) {
+            Ok(ConnectorType::S3(S3ConnectorConfig::default()))
         } else {
             Err(CommonError::IneligibleConnectorType(s.to_string()))
         }

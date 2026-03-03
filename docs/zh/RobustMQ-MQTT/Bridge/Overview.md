@@ -33,7 +33,7 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
 | 数据集成类型 | EMQX 支持 | RobustMQ 支持 | 优先级 | 备注 |
 |-------------|-----------|---------------|--------|------|
 | **Webhook** | ✅ | ✅ | P0 | |
-| **HTTP Server** | ✅ | ✅ | P0 | 由 Webhook 连接器提供同等能力 |
+| **HTTP Server** | ✅ | ✅ | P0 | 协议兼容：由 Webhook 连接器提供同等能力 |
 | **Apache Kafka** | ✅ | ✅ | P0 | |
 | **MQTT** | ✅ | ✅ | P0 | MQTT 桥接（Sink） |
 | **MySQL** | ✅ | ✅ | P0 | |
@@ -49,10 +49,10 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
 | **Cassandra** | ✅ | ✅ | P1 | 基于 scylla 驱动，兼容 ScyllaDB |
 | **GreptimeDB** | ✅ | ✅ | P1 | |
 | **OpenTSDB** | ✅ | ✅ | P1 | |
-| **TimescaleDB** | ✅ | ✅ | P2 | 基于 PostgreSQL 扩展，直接使用 PostgreSQL 连接器 |
-| **Apache Doris** | ✅ | ✅ | P2 | 兼容 MySQL 协议，直接使用 MySQL 连接器 |
-| **AlloyDB** | ✅ | ✅ | P2 | 兼容 PostgreSQL 协议，直接使用 PostgreSQL 连接器 |
-| **CockroachDB** | ✅ | ✅ | P2 | 兼容 PostgreSQL 协议，直接使用 PostgreSQL 连接器 |
+| **TimescaleDB** | ✅ | ✅ | P2 | 协议兼容：基于 PostgreSQL 扩展，直接使用 PostgreSQL 连接器 |
+| **Apache Doris** | ✅ | ✅ | P2 | 协议兼容：兼容 MySQL 协议，直接使用 MySQL 连接器 |
+| **AlloyDB** | ✅ | ✅ | P2 | 协议兼容：兼容 PostgreSQL 协议，直接使用 PostgreSQL 连接器 |
+| **CockroachDB** | ✅ | ✅ | P2 | 协议兼容：兼容 PostgreSQL 协议，直接使用 PostgreSQL 连接器 |
 | **TDengine** | ✅ | ❌ | P2 | 国产时序数据库，需评估 Rust 客户端 |
 | **Microsoft SQL Server** | ✅ | ❌ | P2 | |
 | **Datalayers** | ✅ | ❌ | P2 | 国产 IoT 时序数据库 |
@@ -68,17 +68,17 @@ RobustMQ 连接器采用插件化架构设计，主要包含以下组件：
 
 | 数据集成类型 | EMQX 支持 | RobustMQ 支持 | 优先级 | 云服务厂商 |
 |-------------|-----------|---------------|--------|-----------|
-| **AWS S3** | ✅ | ❌ | P1 | AWS |
+| **AWS S3** | ✅ | ✅ | P1 | AWS（原生支持：S3 连接器） |
 | **AWS Kinesis** | ✅ | ❌ | P2 | AWS |
 | **AWS S3 Tables** | ✅ | ❌ | P2 | AWS |
-| **AWS Redshift** | ✅ | ✅ | P2 | AWS（兼容 PostgreSQL 协议，直接使用 PostgreSQL 连接器） |
+| **AWS Redshift** | ✅ | ✅ | P2 | AWS（协议兼容：兼容 PostgreSQL 协议，直接使用 PostgreSQL 连接器） |
 | **AWS Timestream** | ✅ | ❌ | P2 | AWS |
 | **DynamoDB** | ✅ | ❌ | P2 | AWS |
 | **GCP PubSub** | ✅ | ❌ | P2 | Google Cloud |
 | **BigQuery** | ✅ | ❌ | P2 | Google Cloud |
 | **Azure Blob Storage** | ✅ | ❌ | P2 | Microsoft Azure |
-| **Azure Event Hubs** | ✅ | ❌ | P2 | Microsoft Azure |
-| **Confluent** | ✅ | ✅ | P2 | Confluent（兼容 Kafka 协议，直接使用 Kafka 连接器） |
+| **Azure Event Hubs** | ✅ | ✅ | P2 | Microsoft Azure（协议兼容：兼容 Kafka 协议，直接使用 Kafka 连接器） |
+| **Confluent** | ✅ | ✅ | P2 | Confluent（协议兼容：兼容 Kafka 协议，直接使用 Kafka 连接器） |
 | **Snowflake** | ✅ | ❌ | P3 | Snowflake |
 | **Lindorm** | ✅ | ❌ | P3 | 阿里云 |
 | **Tablestore** | ✅ | ❌ | P3 | 阿里云 |

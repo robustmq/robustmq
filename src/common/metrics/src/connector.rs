@@ -11,24 +11,3 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-pub mod broker;
-pub mod common;
-pub mod connector;
-pub mod core;
-pub mod grpc;
-pub mod http;
-pub mod meta;
-pub mod mqtt;
-pub mod network;
-pub mod rocksdb;
-
-/// Pre-register all static-label gauge metrics to 0 so that they appear in
-/// the Prometheus `/metrics` output immediately on startup, even before any
-/// real traffic has occurred.  Call this once during broker initialisation.
-pub fn init_metrics() {
-    mqtt::init();
-    broker::init();
-    meta::raft::init();
-    network::init();
-}

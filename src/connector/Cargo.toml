@@ -44,6 +44,7 @@ reqwest.workspace = true
 paho-mqtt.workspace = true
 clickhouse.workspace = true
 scylla.workspace = true
+opendal.workspace = true
 sqlx = { workspace = true, features = ["runtime-tokio", "mysql", "postgres"] }
 
 # Internal

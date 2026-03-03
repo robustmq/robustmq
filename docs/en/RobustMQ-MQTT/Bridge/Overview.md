@@ -33,7 +33,7 @@ Based on [EMQX Data Integration Features](https://docs.emqx.com/zh/emqx/latest/g
 | Data Integration Type | EMQX Support | RobustMQ Support | Priority | Notes |
 |----------------------|--------------|------------------|----------|-------|
 | **Webhook** | ✅ | ✅ | P0 | |
-| **HTTP Server** | ✅ | ✅ | P0 | Covered by the Webhook connector |
+| **HTTP Server** | ✅ | ✅ | P0 | Protocol compatible: covered by the Webhook connector |
 | **Apache Kafka** | ✅ | ✅ | P0 | |
 | **MQTT** | ✅ | ✅ | P0 | MQTT bridging (Sink) |
 | **MySQL** | ✅ | ✅ | P0 | |
@@ -49,10 +49,10 @@ Based on [EMQX Data Integration Features](https://docs.emqx.com/zh/emqx/latest/g
 | **Cassandra** | ✅ | ✅ | P1 | Based on scylla driver, ScyllaDB compatible |
 | **GreptimeDB** | ✅ | ✅ | P1 | |
 | **OpenTSDB** | ✅ | ✅ | P1 | |
-| **TimescaleDB** | ✅ | ✅ | P2 | PostgreSQL extension, use PostgreSQL connector directly |
-| **Apache Doris** | ✅ | ✅ | P2 | MySQL protocol compatible, use MySQL connector directly |
-| **AlloyDB** | ✅ | ✅ | P2 | PostgreSQL protocol compatible, use PostgreSQL connector directly |
-| **CockroachDB** | ✅ | ✅ | P2 | PostgreSQL protocol compatible, use PostgreSQL connector directly |
+| **TimescaleDB** | ✅ | ✅ | P2 | Protocol compatible: PostgreSQL extension, use PostgreSQL connector directly |
+| **Apache Doris** | ✅ | ✅ | P2 | Protocol compatible: MySQL protocol, use MySQL connector directly |
+| **AlloyDB** | ✅ | ✅ | P2 | Protocol compatible: PostgreSQL protocol, use PostgreSQL connector directly |
+| **CockroachDB** | ✅ | ✅ | P2 | Protocol compatible: PostgreSQL protocol, use PostgreSQL connector directly |
 | **TDengine** | ✅ | ❌ | P2 | Chinese time-series DB, Rust client needs evaluation |
 | **Microsoft SQL Server** | ✅ | ❌ | P2 | |
 | **Datalayers** | ✅ | ❌ | P2 | Chinese IoT time-series DB |
@@ -68,17 +68,17 @@ Based on [EMQX Data Integration Features](https://docs.emqx.com/zh/emqx/latest/g
 
 | Data Integration Type | EMQX Support | RobustMQ Support | Priority | Cloud Vendor |
 |----------------------|--------------|------------------|----------|-------------|
-| **AWS S3** | ✅ | ❌ | P1 | AWS |
+| **AWS S3** | ✅ | ✅ | P1 | AWS (Native support: S3 connector) |
 | **AWS Kinesis** | ✅ | ❌ | P2 | AWS |
 | **AWS S3 Tables** | ✅ | ❌ | P2 | AWS |
-| **AWS Redshift** | ✅ | ✅ | P2 | AWS (PostgreSQL protocol compatible, use PostgreSQL connector directly) |
+| **AWS Redshift** | ✅ | ✅ | P2 | AWS (Protocol compatible: PostgreSQL protocol, use PostgreSQL connector directly) |
 | **AWS Timestream** | ✅ | ❌ | P2 | AWS |
 | **DynamoDB** | ✅ | ❌ | P2 | AWS |
 | **GCP PubSub** | ✅ | ❌ | P2 | Google Cloud |
 | **BigQuery** | ✅ | ❌ | P2 | Google Cloud |
 | **Azure Blob Storage** | ✅ | ❌ | P2 | Microsoft Azure |
-| **Azure Event Hubs** | ✅ | ❌ | P2 | Microsoft Azure |
-| **Confluent** | ✅ | ✅ | P2 | Confluent (Kafka protocol compatible, use Kafka connector directly) |
+| **Azure Event Hubs** | ✅ | ✅ | P2 | Microsoft Azure (Protocol compatible: Kafka protocol, use Kafka connector directly) |
+| **Confluent** | ✅ | ✅ | P2 | Confluent (Protocol compatible: Kafka protocol, use Kafka connector directly) |
 | **Snowflake** | ✅ | ❌ | P3 | Snowflake |
 | **Lindorm** | ✅ | ❌ | P3 | Alibaba Cloud |
 | **Tablestore** | ✅ | ❌ | P3 | Alibaba Cloud |
