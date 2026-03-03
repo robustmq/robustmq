@@ -19,6 +19,8 @@ use crate::core::error::MqttBrokerError;
 use crate::mqtt::disconnect::build_distinct_packet;
 use crate::storage::session::SessionBatcher;
 use crate::subscribe::manager::SubscribeManager;
+use axum::extract::ws::Message;
+use bytes::BytesMut;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use common_metrics::mqtt::event::record_mqtt_connection_expired;
@@ -26,10 +28,12 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use network_server::common::connection_manager::ConnectionManager;
-use protocol::mqtt::codec::MqttPacketWrapper;
+use network_server::common::packet::build_mqtt_packet_wrapper;
+use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::broadcast::{self};
 use tracing::{debug, info, warn};
 
@@ -170,7 +174,54 @@ impl ClientKeepAlive {
     }
 }
 
+const DISCONNECT_SEND_TIMEOUT: Duration = Duration::from_secs(1);
+
+async fn try_send_disconnect(context: &TrySendDistinctPacketContext) {
+    let protocol = context.network.protocol.clone().unwrap();
+    let response = build_mqtt_packet_wrapper(protocol.clone(), context.wrap.packet.clone());
+    let connect_id = context.connect_id;
+    let cm = &context.connection_manager;
+
+    let send_fut = async {
+        if cm.is_websocket(connect_id) {
+            let mut codec = MqttCodec::new(Some(protocol.to_u8()));
+            let mut buff = BytesMut::new();
+            codec
+                .encode_data(response.to_mqtt(), &mut buff)
+                .map_err(|e| e.to_string())?;
+            cm.write_websocket_frame(connect_id, response, Message::Binary(buff.to_vec().into()))
+                .await
+                .map_err(|e| e.to_string())
+        } else if cm.is_quic(connect_id) {
+            cm.write_quic_frame(connect_id, response)
+                .await
+                .map_err(|e| e.to_string())
+        } else {
+            cm.write_tcp_frame(connect_id, response)
+                .await
+                .map_err(|e| e.to_string())
+        }
+    };
+
+    match tokio::time::timeout(DISCONNECT_SEND_TIMEOUT, send_fut).await {
+        Ok(Ok(())) => {
+            debug!("Sent DISCONNECT to connection {}", connect_id);
+        }
+        Ok(Err(e)) => {
+            debug!(
+                "Failed to send DISCONNECT to connection {}: {}",
+                connect_id, e
+            );
+        }
+        Err(_) => {
+            debug!("Timed out sending DISCONNECT to connection {}", connect_id);
+        }
+    }
+}
+
 async fn close_connect(context: &TrySendDistinctPacketContext) -> Result<(), MqttBrokerError> {
+    try_send_disconnect(context).await;
+
     context
         .connection_manager
         .close_connect(context.connect_id)
