@@ -294,10 +294,15 @@ pub fn start_redis_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
+        let connector_name = connector.connector_name.clone();
+        let connector_type = connector.connector_type.to_string();
         let redis_config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::Redis(config) => config.clone(),
             _ => {
-                error!("Invalid connector config type, expected Redis config");
+                error!(
+                    "Invalid connector config type for Redis connector, connector_name='{}', connector_type='{}'",
+                    connector_name, connector_type
+                );
                 return;
             }
         };
@@ -321,8 +326,8 @@ pub fn start_redis_connector(
         .await
         {
             error!(
-                "Redis connector loop error for connector {}: {}",
-                connector.connector_name, e
+                "Redis connector loop error, connector_name='{}', connector_type='{}', error={}",
+                connector_name, connector_type, e
             );
         }
     }));

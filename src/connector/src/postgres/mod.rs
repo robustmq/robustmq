@@ -241,10 +241,15 @@ pub fn start_postgres_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
+        let connector_name = connector.connector_name.clone();
+        let connector_type = connector.connector_type.to_string();
         let postgres_config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::Postgres(config) => config.clone(),
             _ => {
-                error!("Invalid connector config type, expected Postgres config");
+                error!(
+                    "Invalid connector config type for Postgres connector, connector_name='{}', connector_type='{}'",
+                    connector_name, connector_type
+                );
                 return;
             }
         };
@@ -268,8 +273,8 @@ pub fn start_postgres_connector(
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
-                "Failed to start PostgresBridgePlugin with error message: {:?}",
-                e
+                "Failed to start PostgresBridgePlugin, connector_name='{}', connector_type='{}', error={:?}",
+                connector_name, connector_type, e
             );
         }
     }));

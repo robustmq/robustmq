@@ -209,10 +209,9 @@ impl StorageDriverManager {
         let topic = if let Some(topic) = self.broker_cache.get_topic_by_name(topic_name) {
             topic
         } else {
-            return Err(CommonError::CommonError(format!(
-                "Topic '{}' not found in broker cache",
-                topic_name
-            )));
+            return Err(CommonError::TopicNotFoundInBrokerCache(
+                topic_name.to_string(),
+            ));
         };
 
         let driver = self.get_storage_driver_by_topic(&topic).await?;

@@ -185,10 +185,15 @@ pub fn start_opentsdb_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
+        let connector_name = connector.connector_name.clone();
+        let connector_type = connector.connector_type.to_string();
         let opentsdb_config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::OpenTSDB(config) => config.clone(),
             _ => {
-                error!("Invalid connector config type, expected OpenTSDB config");
+                error!(
+                    "Invalid connector config type for OpenTSDB connector, connector_name='{}', connector_type='{}'",
+                    connector_name, connector_type
+                );
                 return;
             }
         };
@@ -213,8 +218,8 @@ pub fn start_opentsdb_connector(
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
-                "Failed to start OpenTSDBBridgePlugin with error message: {:?}",
-                e
+                "Failed to start OpenTSDBBridgePlugin, connector_name='{}', connector_type='{}', error={:?}",
+                connector_name, connector_type, e
             );
         }
     }));

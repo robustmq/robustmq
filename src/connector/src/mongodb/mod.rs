@@ -243,10 +243,15 @@ pub fn start_mongodb_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
+        let connector_name = connector.connector_name.clone();
+        let connector_type = connector.connector_type.to_string();
         let mongodb_config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::MongoDB(config) => config.clone(),
             _ => {
-                error!("Invalid connector config type, expected MongoDB config");
+                error!(
+                    "Invalid connector config type for MongoDB connector, connector_name='{}', connector_type='{}'",
+                    connector_name, connector_type
+                );
                 return;
             }
         };
@@ -273,8 +278,8 @@ pub fn start_mongodb_connector(
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
-                "Failed to start MongoDBBridgePlugin with error message: {:?}",
-                e
+                "Failed to start MongoDBBridgePlugin, connector_name='{}', connector_type='{}', error={:?}",
+                connector_name, connector_type, e
             );
         }
     }));

@@ -50,7 +50,7 @@ pub struct FailureContext<'a> {
 }
 
 pub async fn failure_message_process(
-    strategy: FailureHandlingStrategy,
+    strategy: &FailureHandlingStrategy,
     retry_times: u32,
     context: &FailureContext<'_>,
 ) -> bool {
@@ -64,14 +64,14 @@ pub async fn failure_message_process(
             );
             true
         }
-        FailureHandlingStrategy::DiscardAfterRetry(strategy) => {
-            if retry_times < strategy.retry_total_times {
+        FailureHandlingStrategy::DiscardAfterRetry(discard_strategy) => {
+            if retry_times < discard_strategy.retry_total_times {
                 record_connector_retry(
                     context.connector_type.to_string(),
                     context.connector_name.to_string(),
                     "discard_after_retry",
                 );
-                sleep(Duration::from_millis(strategy.wait_time_ms)).await;
+                sleep(Duration::from_millis(discard_strategy.wait_time_ms)).await;
                 return false;
             }
             record_connector_messages_discarded(
@@ -82,18 +82,18 @@ pub async fn failure_message_process(
             );
             true
         }
-        FailureHandlingStrategy::DeadMessageQueue(strategy) => {
-            if retry_times < strategy.retry_total_times {
+        FailureHandlingStrategy::DeadMessageQueue(dlq_strategy) => {
+            if retry_times < dlq_strategy.retry_total_times {
                 record_connector_retry(
                     context.connector_type.to_string(),
                     context.connector_name.to_string(),
                     "dead_message_queue",
                 );
-                sleep(Duration::from_millis(strategy.wait_time_ms)).await;
+                sleep(Duration::from_millis(dlq_strategy.wait_time_ms)).await;
                 return false;
             }
             if let Err(e) =
-                send_to_dead_letter_queue(&strategy.topic_name, retry_times, context).await
+                send_to_dead_letter_queue(&dlq_strategy.topic_name, retry_times, context).await
             {
                 record_connector_dlq_messages(
                     context.connector_type.to_string(),
@@ -105,7 +105,7 @@ pub async fn failure_message_process(
                     "Failed to write dead letter queue for connector '{}', will retry. reason: {}",
                     context.connector_name, e
                 );
-                sleep(Duration::from_millis(strategy.wait_time_ms)).await;
+                sleep(Duration::from_millis(dlq_strategy.wait_time_ms)).await;
                 return false;
             }
             record_connector_dlq_messages(

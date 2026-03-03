@@ -75,10 +75,15 @@ pub fn start_greptimedb_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
+        let connector_name = connector.connector_name.clone();
+        let connector_type = connector.connector_type.to_string();
         let greptimedb_config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::GreptimeDB(config) => config.clone(),
             _ => {
-                error!("Invalid connector config type, expected GreptimeDB config");
+                error!(
+                    "Invalid connector config type for GreptimeDB connector, connector_name='{}', connector_type='{}'",
+                    connector_name, connector_type
+                );
                 return;
             }
         };
@@ -103,8 +108,8 @@ pub fn start_greptimedb_connector(
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
-                "Failed to start GreptimeDBBridgePlugin with error message: {:?}",
-                e
+                "Failed to start GreptimeDBBridgePlugin, connector_name='{}', connector_type='{}', error={:?}",
+                connector_name, connector_type, e
             );
         }
     }));

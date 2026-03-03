@@ -182,10 +182,15 @@ pub fn start_mysql_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
+        let connector_name = connector.connector_name.clone();
+        let connector_type = connector.connector_type.to_string();
         let mysql_config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::MySQL(config) => config.clone(),
             _ => {
-                error!("Invalid connector config type, expected MySQL config");
+                error!(
+                    "Invalid connector config type for MySQL connector, connector_name='{}', connector_type='{}'",
+                    connector_name, connector_type
+                );
                 return;
             }
         };
@@ -210,8 +215,8 @@ pub fn start_mysql_connector(
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
-                "Failed to start MySQLBridgePlugin with error message: {:?}",
-                e
+                "Failed to start MySQLBridgePlugin, connector_name='{}', connector_type='{}', error={:?}",
+                connector_name, connector_type, e
             );
         }
     }));

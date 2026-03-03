@@ -223,10 +223,15 @@ pub fn start_local_file_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
+        let connector_name = connector.connector_name.clone();
+        let connector_type = connector.connector_type.to_string();
         let local_file_config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::LocalFile(config) => config.clone(),
             _ => {
-                error!("Invalid connector config type, expected LocalFile config");
+                error!(
+                    "Invalid connector config type for LocalFile connector, connector_name='{}', connector_type='{}'",
+                    connector_name, connector_type
+                );
                 return;
             }
         };
@@ -252,8 +257,8 @@ pub fn start_local_file_connector(
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
-                "Failed to start FileBridgePlugin with error message: {:?}",
-                e
+                "Failed to start FileBridgePlugin, connector_name='{}', connector_type='{}', error={:?}",
+                connector_name, connector_type, e
             );
         }
     }));

@@ -146,10 +146,15 @@ pub fn start_s3_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
+        let connector_name = connector.connector_name.clone();
+        let connector_type = connector.connector_type.to_string();
         let s3_config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::S3(config) => config.clone(),
             _ => {
-                error!("Invalid connector config type, expected S3 config");
+                error!(
+                    "Invalid connector config type for S3 connector, connector_name='{}', connector_type='{}'",
+                    connector_name, connector_type
+                );
                 return;
             }
         };
@@ -172,7 +177,10 @@ pub fn start_s3_connector(
         .await
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
-            error!("Failed to start S3BridgePlugin with error message: {:?}", e);
+            error!(
+                "Failed to start S3BridgePlugin, connector_name='{}', connector_type='{}', error={:?}",
+                connector_name, connector_type, e
+            );
         }
     }));
 }
