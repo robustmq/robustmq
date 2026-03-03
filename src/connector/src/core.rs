@@ -16,10 +16,8 @@ use common_base::error::common::CommonError;
 use common_base::{error::ResultCommonError, tools::loop_select_ticket};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::bridge::{
-    connector::{FailureHandlingStrategy, MQTTConnector},
-    connector_type::ConnectorType,
-    status::MQTTStatus,
+use metadata_struct::connector::{
+    status::MQTTStatus, ConnectorType, FailureHandlingStrategy, MQTTConnector,
 };
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -170,7 +168,7 @@ fn start_thread(
     );
 
     match connector_type {
-        ConnectorType::LocalFile => {
+        ConnectorType::LocalFile(_) => {
             start_local_file_connector(
                 client_pool,
                 connector_manager,
@@ -180,7 +178,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::Kafka => {
+        ConnectorType::Kafka(_) => {
             start_kafka_connector(
                 client_pool,
                 connector_manager,
@@ -190,7 +188,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::GreptimeDB => {
+        ConnectorType::GreptimeDB(_) => {
             start_greptimedb_connector(
                 client_pool,
                 connector_manager,
@@ -200,7 +198,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::Pulsar => {
+        ConnectorType::Pulsar(_) => {
             start_pulsar_connector(
                 client_pool,
                 connector_manager,
@@ -210,7 +208,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::Postgres => {
+        ConnectorType::Postgres(_) => {
             start_postgres_connector(
                 client_pool,
                 connector_manager,
@@ -220,7 +218,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::MongoDB => {
+        ConnectorType::MongoDB(_) => {
             start_mongodb_connector(
                 client_pool,
                 connector_manager,
@@ -230,7 +228,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::RabbitMQ => {
+        ConnectorType::RabbitMQ(_) => {
             start_rabbitmq_connector(
                 client_pool,
                 connector_manager,
@@ -240,7 +238,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::MySQL => {
+        ConnectorType::MySQL(_) => {
             start_mysql_connector(
                 client_pool,
                 connector_manager,
@@ -250,7 +248,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::Elasticsearch => {
+        ConnectorType::Elasticsearch(_) => {
             start_elasticsearch_connector(
                 client_pool,
                 connector_manager,
@@ -260,7 +258,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::Redis => {
+        ConnectorType::Redis(_) => {
             start_redis_connector(
                 client_pool,
                 connector_manager,
@@ -288,7 +286,7 @@ mod tests {
     use crate::manager::ConnectorManager;
     use common_base::uuid::unique_id;
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
-    use metadata_struct::mqtt::bridge::connector::FailureHandlingStrategy;
+    use metadata_struct::connector::FailureHandlingStrategy;
     use std::time::Duration;
     use storage_adapter::storage::test_build_storage_driver_manager;
     use tokio::time::sleep;

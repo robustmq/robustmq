@@ -19,7 +19,7 @@ use async_trait::async_trait;
 use bson::Document;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
-    mqtt::bridge::config_mongodb::MongoDBConnectorConfig, mqtt::bridge::connector::MQTTConnector,
+    connector::config_mongodb::MongoDBConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
 use mongodb::{
@@ -243,8 +243,8 @@ pub fn start_mongodb_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
-        let mongodb_config = match &connector.config {
-            metadata_struct::mqtt::bridge::ConnectorConfig::MongoDB(config) => config.clone(),
+        let mongodb_config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::MongoDB(config) => config.clone(),
             _ => {
                 error!("Invalid connector config type, expected MongoDB config");
                 return;

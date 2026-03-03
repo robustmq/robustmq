@@ -22,7 +22,6 @@ pub enum MQTTStatus {
     Idle,
     Running,
     Stop,
-    SealUp,
 }
 
 impl Display for MQTTStatus {

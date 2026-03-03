@@ -24,7 +24,7 @@ use grpc_clients::{
     },
     pool::ClientPool,
 };
-use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::connector::MQTTConnector;
 use protocol::meta::meta_service_mqtt::{
     ConnectorHeartbeatRaw, ConnectorHeartbeatRequest, CreateConnectorRequest,
     DeleteConnectorRequest, ListConnectorRequest, UpdateConnectorRequest,

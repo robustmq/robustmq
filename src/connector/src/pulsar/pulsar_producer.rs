@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::mqtt::bridge::config_pulsar::PulsarConnectorConfig;
+use metadata_struct::connector::config_pulsar::PulsarConnectorConfig;
 
 use pulsar::{
     authentication::{basic::BasicAuthentication, oauth2::OAuth2Authentication},

@@ -20,11 +20,11 @@ use async_trait::async_trait;
 use chrono::{DateTime, Local, Timelike};
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::bridge::config_local_file::RotationStrategy;
+use metadata_struct::connector::config_local_file::RotationStrategy;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
-    mqtt::bridge::config_local_file::LocalFileConnectorConfig,
-    mqtt::bridge::connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
+    connector::config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
+    storage::adapter_record::AdapterWriteRecord,
 };
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -223,8 +223,8 @@ pub fn start_local_file_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
-        let local_file_config = match &connector.config {
-            metadata_struct::mqtt::bridge::ConnectorConfig::LocalFile(config) => config.clone(),
+        let local_file_config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::LocalFile(config) => config.clone(),
             _ => {
                 error!("Invalid connector config type, expected LocalFile config");
                 return;
@@ -265,9 +265,7 @@ mod tests {
     use common_base::uuid::unique_id;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::{
-        mqtt::bridge::{
-            config_local_file::LocalFileConnectorConfig, connector::FailureHandlingStrategy,
-        },
+        connector::{config_local_file::LocalFileConnectorConfig, FailureHandlingStrategy},
         storage::{
             adapter_record::{AdapterWriteRecord, AdapterWriteRecordHeader},
             shard::EngineShardConfig,
@@ -332,7 +330,7 @@ mod tests {
                 .unwrap()
                 .to_string(),
             rotation_strategy:
-                metadata_struct::mqtt::bridge::config_local_file::RotationStrategy::None,
+                metadata_struct::connector::config_local_file::RotationStrategy::None,
             max_size_gb: 1,
         };
 

@@ -24,7 +24,7 @@ use async_trait::async_trait;
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
-    mqtt::bridge::config_pulsar::PulsarConnectorConfig, mqtt::bridge::connector::MQTTConnector,
+    connector::config_pulsar::PulsarConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
 use storage_adapter::driver::StorageDriverManager;
@@ -78,8 +78,8 @@ pub fn start_pulsar_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
-        let pulsar_config = match &connector.config {
-            metadata_struct::mqtt::bridge::ConnectorConfig::Pulsar(config) => config.clone(),
+        let pulsar_config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Pulsar(config) => config.clone(),
             _ => {
                 error!("Invalid connector config type, expected Pulsar config");
                 return;

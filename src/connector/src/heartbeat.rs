@@ -50,6 +50,10 @@ async fn report_heartbeat(
         });
     }
 
+    if heatbeats.is_empty() {
+        return;
+    }
+
     if let Err(e) = storage.connector_heartbeat(heatbeats).await {
         error!("report connector heartbeat error:{}", e);
     }

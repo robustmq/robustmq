@@ -21,7 +21,7 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::connector::MqttConnectorStorage;
 use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::connector::MQTTConnector;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
     ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateConnectorReply,

@@ -24,9 +24,9 @@ mod test {
         },
         pool::ClientPool,
     };
-    use metadata_struct::mqtt::bridge::{
+    use metadata_struct::connector::{
         config_kafka::KafkaConnectorConfig, config_local_file::LocalFileConnectorConfig,
-        connector::MQTTConnector, connector_type::ConnectorType, ConnectorConfig,
+        ConnectorType, MQTTConnector,
     };
     use protocol::meta::meta_service_mqtt::{
         CreateConnectorRequest, DeleteConnectorRequest, ListConnectorRequest,
@@ -37,11 +37,7 @@ mod test {
 
     fn check_connector_equal(left: &MQTTConnector, right: &MQTTConnector) {
         assert_eq!(left.connector_name, right.connector_name);
-        assert_eq!(
-            left.connector_type.clone() as u8,
-            right.connector_type.clone() as u8
-        );
-        assert_eq!(left.config, right.config);
+        assert_eq!(left.connector_type, right.connector_type);
         assert_eq!(left.topic_name, right.topic_name);
         assert_eq!(left.status.clone() as u8, right.status.clone() as u8);
         assert_eq!(left.broker_id, right.broker_id);
@@ -57,8 +53,7 @@ mod test {
         // create connector
         let mut connector = MQTTConnector {
             connector_name: connector_name.clone(),
-            connector_type: ConnectorType::LocalFile,
-            config: ConnectorConfig::LocalFile(LocalFileConnectorConfig {
+            connector_type: ConnectorType::LocalFile(LocalFileConnectorConfig {
                 local_file_path: "/tmp/test".to_string(),
                 ..Default::default()
             }),
@@ -90,8 +85,7 @@ mod test {
         }
 
         // update connector
-        connector.connector_type = ConnectorType::Kafka;
-        connector.config = ConnectorConfig::Kafka(KafkaConnectorConfig {
+        connector.connector_type = ConnectorType::Kafka(KafkaConnectorConfig {
             bootstrap_servers: "127.0.0.1:9092".to_string(),
             topic: "test_topic".to_string(),
             key: "test_key".to_string(),

@@ -25,7 +25,7 @@ use common_metrics::mqtt::connector::{
     record_connector_send_duration,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::bridge::status::MQTTStatus;
+use metadata_struct::connector::status::MQTTStatus;
 use metadata_struct::storage::{
     adapter_record::AdapterWriteRecord, convert::convert_engine_record_to_adapter,
 };

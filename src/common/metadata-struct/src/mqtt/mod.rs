@@ -13,7 +13,6 @@
 // limitations under the License.
 
 pub mod auto_subscribe_rule;
-pub mod bridge;
 pub mod connection;
 pub mod group_leader;
 pub mod lastwill;

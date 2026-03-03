@@ -27,7 +27,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::connector::MQTTConnector;
 
 use rocksdb_engine::keys::meta::{storage_key_mqtt_connector, storage_key_mqtt_connector_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;

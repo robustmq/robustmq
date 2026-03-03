@@ -22,7 +22,7 @@ use common_base::{
     tools::{loop_select_ticket, now_second},
 };
 use common_config::broker::broker_config;
-use metadata_struct::mqtt::bridge::{connector::MQTTConnector, status::MQTTStatus};
+use metadata_struct::connector::{status::MQTTStatus, MQTTConnector};
 use node_call::NodeCallManager;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
@@ -210,10 +210,10 @@ fn calculate_broker_load_internal(
 mod tests {
     use super::*;
     use common_base::tools::now_second;
+    use metadata_struct::connector::{
+        status::MQTTStatus, ConnectorType, FailureHandlingStrategy, MQTTConnector,
+    };
     use metadata_struct::meta::node::BrokerNode;
-    use metadata_struct::mqtt::bridge::connector::{FailureHandlingStrategy, MQTTConnector};
-    use metadata_struct::mqtt::bridge::connector_type::ConnectorType;
-    use metadata_struct::mqtt::bridge::status::MQTTStatus;
     use metadata_struct::mqtt::node_extend::NodeExtend;
     use rocksdb_engine::test::test_rocksdb_instance;
 
@@ -242,11 +242,10 @@ mod tests {
             for j in 0..count {
                 cache_manager.add_connector(MQTTConnector {
                     connector_name: format!("conn_b{}_n{}", broker_id, j),
-                    connector_type: ConnectorType::LocalFile,
-                    topic_name: "test_topic".to_string(),
-                    config: metadata_struct::mqtt::bridge::ConnectorConfig::LocalFile(
-                        metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig::default(),
+                    connector_type: ConnectorType::LocalFile(
+                        metadata_struct::connector::config_local_file::LocalFileConnectorConfig::default(),
                     ),
+                    topic_name: "test_topic".to_string(),
                     failure_strategy: FailureHandlingStrategy::Discard,
                     status: MQTTStatus::Idle,
                     broker_id: Some(broker_id),
@@ -262,12 +261,10 @@ mod tests {
     fn make_unassigned_connector(name: &str) -> MQTTConnector {
         MQTTConnector {
             connector_name: name.to_string(),
-            connector_type: ConnectorType::LocalFile,
-            topic_name: "test_topic".to_string(),
-            config: metadata_struct::mqtt::bridge::ConnectorConfig::LocalFile(
-                metadata_struct::mqtt::bridge::config_local_file::LocalFileConnectorConfig::default(
-                ),
+            connector_type: ConnectorType::LocalFile(
+                metadata_struct::connector::config_local_file::LocalFileConnectorConfig::default(),
             ),
+            topic_name: "test_topic".to_string(),
             failure_strategy: FailureHandlingStrategy::Discard,
             status: MQTTStatus::Idle,
             broker_id: None,

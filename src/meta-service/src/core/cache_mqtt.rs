@@ -14,7 +14,7 @@
 
 use crate::core::cache::MetaCacheManager;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
-use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::connector::MQTTConnector;
 use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::user::MqttUser;

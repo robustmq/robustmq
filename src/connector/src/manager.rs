@@ -15,7 +15,7 @@
 use super::core::BridgePluginThread;
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::mqtt::bridge::connector::MQTTConnector;
+use metadata_struct::connector::MQTTConnector;
 
 #[derive(Default)]
 pub struct ConnectorManager {
@@ -98,18 +98,17 @@ impl ConnectorManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metadata_struct::mqtt::bridge::{
-        config_local_file::LocalFileConnectorConfig, connector::FailureHandlingStrategy,
-        connector_type::ConnectorType, status::MQTTStatus, ConnectorConfig,
+    use metadata_struct::connector::{
+        config_local_file::LocalFileConnectorConfig, status::MQTTStatus, ConnectorType,
+        FailureHandlingStrategy,
     };
     use tokio::sync::mpsc;
 
     fn create_test_connector(name: &str) -> MQTTConnector {
         MQTTConnector {
             connector_name: name.to_string(),
-            connector_type: ConnectorType::LocalFile,
+            connector_type: ConnectorType::LocalFile(LocalFileConnectorConfig::default()),
             topic_name: "test_topic".to_string(),
-            config: ConnectorConfig::LocalFile(LocalFileConnectorConfig::default()),
             failure_strategy: FailureHandlingStrategy::Discard,
             status: MQTTStatus::Running,
             broker_id: Some(1),

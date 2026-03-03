@@ -23,8 +23,8 @@ use elasticsearch::{
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
-    mqtt::bridge::config_elasticsearch::ElasticsearchConnectorConfig,
-    mqtt::bridge::connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
+    connector::config_elasticsearch::ElasticsearchConnectorConfig, connector::MQTTConnector,
+    storage::adapter_record::AdapterWriteRecord,
 };
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -61,7 +61,7 @@ impl ElasticsearchBridgePlugin {
         let mut transport_builder = TransportBuilder::new(conn_pool);
 
         match self.config.auth_type {
-            metadata_struct::mqtt::bridge::config_elasticsearch::ElasticsearchAuthType::Basic => {
+            metadata_struct::connector::config_elasticsearch::ElasticsearchAuthType::Basic => {
                 if let (Some(username), Some(password)) =
                     (&self.config.username, &self.config.password)
                 {
@@ -69,13 +69,13 @@ impl ElasticsearchBridgePlugin {
                         .auth(Credentials::Basic(username.clone(), password.clone()));
                 }
             }
-            metadata_struct::mqtt::bridge::config_elasticsearch::ElasticsearchAuthType::ApiKey => {
+            metadata_struct::connector::config_elasticsearch::ElasticsearchAuthType::ApiKey => {
                 if let Some(api_key) = &self.config.api_key {
                     transport_builder = transport_builder
                         .auth(Credentials::ApiKey("".to_string(), api_key.clone()));
                 }
             }
-            metadata_struct::mqtt::bridge::config_elasticsearch::ElasticsearchAuthType::None => {}
+            metadata_struct::connector::config_elasticsearch::ElasticsearchAuthType::None => {}
         }
 
         let transport = transport_builder
@@ -188,8 +188,8 @@ pub fn start_elasticsearch_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
-        let es_config = match &connector.config {
-            metadata_struct::mqtt::bridge::ConnectorConfig::Elasticsearch(config) => config.clone(),
+        let es_config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Elasticsearch(config) => config.clone(),
             _ => {
                 error!("Invalid connector config type, expected Elasticsearch config");
                 return;

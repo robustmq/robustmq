@@ -17,8 +17,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
-    mqtt::bridge::config_greptimedb::GreptimeDBConnectorConfig,
-    mqtt::bridge::connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
+    connector::config_greptimedb::GreptimeDBConnectorConfig, connector::MQTTConnector,
+    storage::adapter_record::AdapterWriteRecord,
 };
 
 use storage_adapter::driver::StorageDriverManager;
@@ -75,8 +75,8 @@ pub fn start_greptimedb_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
-        let greptimedb_config = match &connector.config {
-            metadata_struct::mqtt::bridge::ConnectorConfig::GreptimeDB(config) => config.clone(),
+        let greptimedb_config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::GreptimeDB(config) => config.clone(),
             _ => {
                 error!("Invalid connector config type, expected GreptimeDB config");
                 return;

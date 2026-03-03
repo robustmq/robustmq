@@ -14,8 +14,8 @@
 
 use crate::core::error::MetaServiceError;
 use common_base::utils::serialize;
+use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
-use metadata_struct::mqtt::bridge::connector::MQTTConnector;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
