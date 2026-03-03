@@ -21,7 +21,7 @@ use crate::{
     },
 };
 use bytes::Bytes;
-use metadata_struct::mqtt::bridge::{connector::MQTTConnector, status::MQTTStatus};
+use metadata_struct::connector::{status::MQTTStatus, MQTTConnector};
 use node_call::NodeCallManager;
 use prost::Message;
 use protocol::meta::meta_service_mqtt::CreateConnectorRequest;

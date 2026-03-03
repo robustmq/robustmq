@@ -15,14 +15,16 @@
 use std::{sync::Arc, time::Duration};
 
 use super::{
-    core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
+    core::{BridgePluginReadConfig, BridgePluginThread},
+    loops::run_connector_loop,
     manager::ConnectorManager,
+    traits::ConnectorSink,
 };
 use async_trait::async_trait;
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
-    mqtt::bridge::config_kafka::KafkaConnectorConfig, mqtt::bridge::connector::MQTTConnector,
+    connector::config_kafka::KafkaConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
@@ -146,8 +148,8 @@ pub fn start_kafka_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
-        let kafka_config = match &connector.config {
-            metadata_struct::mqtt::bridge::ConnectorConfig::Kafka(config) => config.clone(),
+        let kafka_config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Kafka(config) => config.clone(),
             _ => {
                 error!("Invalid connector config type, expected Kafka config");
                 return;

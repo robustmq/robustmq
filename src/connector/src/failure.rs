@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::mqtt::bridge::connector::FailureHandlingStrategy;
+use metadata_struct::connector::FailureHandlingStrategy;
 use std::time::Duration;
 use tokio::time::sleep;
 

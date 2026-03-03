@@ -13,14 +13,9 @@
 // limitations under the License.
 
 use super::core::BridgePluginThread;
-use common_base::tools::{now_millis, now_second};
-use common_metrics::mqtt::connector::{
-    record_connector_messages_sent_failure, record_connector_messages_sent_success,
-    record_connector_send_duration,
-};
+use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::mqtt::bridge::connector::MQTTConnector;
-use std::sync::Arc;
+use metadata_struct::connector::MQTTConnector;
 
 #[derive(Default)]
 pub struct ConnectorManager {
@@ -100,46 +95,20 @@ impl ConnectorManager {
     }
 }
 
-pub fn update_last_active(
-    connector_manager: &Arc<ConnectorManager>,
-    connector_name: &str,
-    start_time: u128,
-    message_count: u64,
-    success: bool,
-) {
-    if let Some(mut thread) = connector_manager.connector_thread.get_mut(connector_name) {
-        thread.last_send_time = now_second();
-
-        if success {
-            thread.send_success_total += message_count;
-            let duration_ms = (now_millis() - start_time) as f64;
-            record_connector_messages_sent_success(connector_name.to_owned(), message_count);
-            record_connector_send_duration(connector_name.to_owned(), duration_ms);
-        } else {
-            thread.send_fail_total += message_count;
-            record_connector_messages_sent_failure(connector_name.to_owned(), message_count);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metadata_struct::mqtt::bridge::{
-        connector::FailureHandlingStrategy, connector_type::ConnectorType, status::MQTTStatus,
+    use metadata_struct::connector::{
+        config_local_file::LocalFileConnectorConfig, status::MQTTStatus, ConnectorType,
+        FailureHandlingStrategy,
     };
     use tokio::sync::mpsc;
 
-    fn create_test_connector() -> MQTTConnector {
-        use metadata_struct::mqtt::bridge::{
-            config_local_file::LocalFileConnectorConfig, ConnectorConfig,
-        };
-
+    fn create_test_connector(name: &str) -> MQTTConnector {
         MQTTConnector {
-            connector_name: "test_connector".to_string(),
-            connector_type: ConnectorType::LocalFile,
+            connector_name: name.to_string(),
+            connector_type: ConnectorType::LocalFile(LocalFileConnectorConfig::default()),
             topic_name: "test_topic".to_string(),
-            config: ConnectorConfig::LocalFile(LocalFileConnectorConfig::default()),
             failure_strategy: FailureHandlingStrategy::Discard,
             status: MQTTStatus::Running,
             broker_id: Some(1),
@@ -161,116 +130,28 @@ mod tests {
     }
 
     #[test]
-    fn connector_operations() {
+    fn test_connector_manager() {
         let manager = ConnectorManager::new();
-        let mut connector1 = create_test_connector();
-        connector1.connector_name = "connector1".to_string();
-        let mut connector2 = create_test_connector();
-        connector2.connector_name = "connector2".to_string();
 
-        // add
-        manager.add_connector(&connector1);
-
-        // get
-        let retrieved = manager.get_connector("connector1");
-        assert!(retrieved.is_some());
-        let retrieved_connector = retrieved.unwrap();
-        assert_eq!(retrieved_connector.connector_name, "connector1");
-        assert_eq!(retrieved_connector.topic_name, "test_topic");
-        assert!(manager.get_connector("non_existent").is_none());
-
-        // remove
-        manager.remove_connector("connector1");
-        assert!(manager.get_all_connector().is_empty());
-
-        // add again
-        manager.add_connector(&connector1);
-        manager.add_connector(&connector2);
-
-        // get all connectors
+        // connector CRUD
+        manager.add_connector(&create_test_connector("c1"));
+        manager.add_connector(&create_test_connector("c2"));
         assert_eq!(manager.get_all_connector().len(), 2);
-    }
+        assert_eq!(manager.get_connector("c1").unwrap().connector_name, "c1");
+        assert!(manager.get_connector("non_existent").is_none());
+        manager.remove_connector("c1");
+        assert_eq!(manager.get_all_connector().len(), 1);
 
-    #[test]
-    fn connector_thread_operations() {
-        let manager = ConnectorManager::new();
-        let thread1 = create_test_thread();
-        let thread2 = create_test_thread();
-
-        // add
-        manager.add_connector_thread("connector1", thread1);
-
-        // get
-        let retrieved = manager.get_connector_thread("connector1");
-        assert_eq!(retrieved.unwrap().connector_name, "test_connector");
+        // thread CRUD
+        manager.add_connector_thread("t1", create_test_thread());
+        assert!(manager.get_connector_thread("t1").is_some());
         assert!(manager.get_connector_thread("non_existent").is_none());
-
-        // remove
-        manager.remove_connector_thread("connector1");
+        manager.remove_connector_thread("t1");
         assert!(manager.get_all_connector_thread().is_empty());
 
-        // add again
-        manager.add_connector_thread("connector2", thread2);
-
-        // get all connectors
-        let all = manager.get_all_connector_thread();
-        assert_eq!(all.len(), 1);
-    }
-
-    #[test]
-    fn connector_heartbeat_operations() {
-        let manager = ConnectorManager::new();
-
-        manager.report_heartbeat("test_connector");
-
-        assert!(manager.connector_heartbeat.contains_key("test_connector"));
-        let heartbeat_time = manager.connector_heartbeat.get("test_connector").unwrap();
-
-        let current_time = now_second();
-        assert!(heartbeat_time.value() <= &current_time);
-        assert!(heartbeat_time.value() > &(current_time - 10));
-    }
-
-    #[test]
-    fn update_last_active_success() {
-        let manager = Arc::new(ConnectorManager::new());
-        let thread = create_test_thread();
-        manager.add_connector_thread("test_connector", thread);
-
-        update_last_active(&manager, "test_connector", now_millis(), 100, true);
-
-        let thread = manager.get_connector_thread("test_connector").unwrap();
-        assert_eq!(thread.send_success_total, 100);
-        assert_eq!(thread.send_fail_total, 0);
-        assert!(thread.last_send_time > 0);
-    }
-
-    #[test]
-    fn update_last_active_failure() {
-        let manager = Arc::new(ConnectorManager::new());
-        let thread = create_test_thread();
-        manager.add_connector_thread("test_connector", thread);
-
-        update_last_active(&manager, "test_connector", now_millis(), 50, false);
-
-        let thread = manager.get_connector_thread("test_connector").unwrap();
-        assert_eq!(thread.send_success_total, 0);
-        assert_eq!(thread.send_fail_total, 50);
-        assert!(thread.last_send_time > 0);
-    }
-
-    #[test]
-    fn update_last_active_multiple_batches() {
-        let manager = Arc::new(ConnectorManager::new());
-        let thread = create_test_thread();
-        manager.add_connector_thread("test_connector", thread);
-
-        update_last_active(&manager, "test_connector", now_millis(), 100, true);
-        update_last_active(&manager, "test_connector", now_millis(), 50, true);
-        update_last_active(&manager, "test_connector", now_millis(), 10, false);
-
-        let thread = manager.get_connector_thread("test_connector").unwrap();
-        assert_eq!(thread.send_success_total, 150);
-        assert_eq!(thread.send_fail_total, 10);
+        // heartbeat
+        manager.report_heartbeat("c2");
+        let ts = *manager.connector_heartbeat.get("c2").unwrap();
+        assert!(ts <= now_second() && ts > now_second() - 10);
     }
 }

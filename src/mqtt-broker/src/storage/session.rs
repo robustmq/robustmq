@@ -132,7 +132,6 @@ async fn session_batch_consumer(
 }
 
 async fn flush_batch(batch: Vec<SessionBatchItem>, client_pool: &Arc<ClientPool>) {
-    println!("flush batch:{}", batch.len());
     let (raws, txs): (Vec<_>, Vec<_>) = batch
         .into_iter()
         .map(|item| (item.raw, item.result_tx))

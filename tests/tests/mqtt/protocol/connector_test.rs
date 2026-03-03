@@ -26,7 +26,7 @@ mod tests {
         CreateConnectorReq, FailureStrategy,
     };
     use common_base::uuid::unique_id;
-    use metadata_struct::mqtt::bridge::config_local_file::{
+    use metadata_struct::connector::config_local_file::{
         LocalFileConnectorConfig, RotationStrategy,
     };
     use paho_mqtt::MessageBuilder;

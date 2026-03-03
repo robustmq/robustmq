@@ -12,50 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{failure::failure_message_process, storage::connector::ConnectorStorage};
-use async_trait::async_trait;
 use common_base::error::common::CommonError;
-use common_base::{
-    error::ResultCommonError,
-    tools::{loop_select_ticket, now_millis, now_second},
-};
+use common_base::{error::ResultCommonError, tools::loop_select_ticket};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::{
-    mqtt::bridge::{
-        connector::{FailureHandlingStrategy, MQTTConnector},
-        connector_type::ConnectorType,
-        status::MQTTStatus,
-    },
-    storage::{adapter_record::AdapterWriteRecord, convert::convert_engine_record_to_adapter},
+use metadata_struct::connector::{
+    status::MQTTStatus, ConnectorType, FailureHandlingStrategy, MQTTConnector,
 };
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
-use tokio::{
-    select,
-    sync::{
-        broadcast,
-        mpsc::{self, Receiver},
-    },
-    time::sleep,
+use tokio::sync::{
+    broadcast,
+    mpsc::{self, Receiver},
 };
 use tracing::{debug, error, info, warn};
 
 use super::{
-    elasticsearch::start_elasticsearch_connector,
-    file::start_local_file_connector,
-    greptimedb::start_greptimedb_connector,
-    kafka::start_kafka_connector,
-    manager::{update_last_active, ConnectorManager},
-    mongodb::start_mongodb_connector,
-    mysql::start_mysql_connector,
-    postgres::start_postgres_connector,
-    pulsar::start_pulsar_connector,
-    rabbitmq::start_rabbitmq_connector,
-    redis::start_redis_connector,
+    elasticsearch::start_elasticsearch_connector, file::start_local_file_connector,
+    greptimedb::start_greptimedb_connector, kafka::start_kafka_connector,
+    manager::ConnectorManager, mongodb::start_mongodb_connector, mysql::start_mysql_connector,
+    postgres::start_postgres_connector, pulsar::start_pulsar_connector,
+    rabbitmq::start_rabbitmq_connector, redis::start_redis_connector,
 };
-
-use crate::storage::message::MessageStorage;
+use crate::storage::connector::ConnectorStorage;
 
 #[derive(Clone)]
 pub struct BridgePluginReadConfig {
@@ -74,251 +53,48 @@ pub struct BridgePluginThread {
     pub last_msg: Option<String>,
 }
 
-#[async_trait]
-pub trait BridgePlugin {
-    async fn exec(&self, config: BridgePluginReadConfig) -> Result<(), CommonError>;
-}
-
-#[async_trait]
-pub trait ConnectorSink: Send + Sync {
-    type SinkResource: Send;
-
-    async fn validate(&self) -> Result<(), CommonError>;
-
-    async fn init_sink(&self) -> Result<Self::SinkResource, CommonError>;
-
-    async fn send_batch(
-        &self,
-        records: &[AdapterWriteRecord],
-        resource: &mut Self::SinkResource,
-    ) -> Result<(), CommonError>;
-
-    async fn cleanup_sink(&self, _resource: Self::SinkResource) -> Result<(), CommonError> {
-        Ok(())
-    }
-}
-
-pub async fn run_connector_loop<S: ConnectorSink>(
-    sink: &S,
-    client_pool: &Arc<ClientPool>,
-    connector_manager: &Arc<ConnectorManager>,
-    storage_driver_manager: Arc<StorageDriverManager>,
-    connector_name: String,
-    config: BridgePluginReadConfig,
-    mut stop_recv: mpsc::Receiver<bool>,
-) -> Result<(), CommonError> {
-    sink.validate().await?;
-
-    let mut resource = sink.init_sink().await?;
-    let message_storage = MessageStorage::new(storage_driver_manager);
-    let group_name = connector_name.clone();
-
-    loop {
-        let mut offsets = message_storage.get_group_offset(&group_name).await?;
-        select! {
-            val = stop_recv.recv() => {
-                if let Some(flag) = val {
-                    if flag {
-                        sink.cleanup_sink(resource).await?;
-                        break;
-                    }
-                }
-            },
-
-            val = message_storage.read_topic_message(&config.topic_name, &offsets, config.record_num) => {
-                match val {
-                    Ok(data) => {
-                        connector_manager.report_heartbeat(&connector_name);
-
-                        if data.is_empty() {
-                            sleep(Duration::from_millis(100)).await;
-                            continue;
-                        }
-
-                        let start_time = now_millis();
-                        let message_count = data.len() as u64;
-                        let mut retry_times = 0;
-
-                        // Extract max offsets and convert records
-                        let (data_list, max_offsets) = extract_max_offsets_and_convert(&data);
-
-                        loop{
-                            match sink.send_batch(&data_list, &mut resource).await {
-                                Ok(_) => {
-                                    // commit offset
-                                    for (k,v) in max_offsets.iter(){
-                                        offsets.insert(k.to_string(), *v);
-                                    }
-                                    message_storage.commit_group_offset(
-                                        &group_name,
-                                        &offsets,
-                                    ).await?;
-
-                                    update_last_active(
-                                        connector_manager,
-                                        &connector_name,
-                                        start_time,
-                                        message_count,
-                                        true
-                                    );
-                                    break;
-                                },
-                                Err(e) => {
-                                    update_last_active(
-                                        connector_manager,
-                                        &connector_name,
-                                        start_time,
-                                        message_count,
-                                        false
-                                    );
-                                    error!("Connector {} failed to send batch: {}", connector_name, e);
-                                    if failure_message_process(config.strategy.clone(),retry_times).await{
-                                        sleep(Duration::from_millis(100)).await;
-                                        break
-                                    }
-                                    retry_times +=1;
-                                }
-                            }
-                        }
-
-                    },
-                    Err(e) => {
-                        update_last_active(connector_manager, &connector_name, now_millis(), 0, false);
-                        if seal_up_connector(client_pool,connector_manager, &connector_name, &e.to_string()).await?{
-                            info!("Connector '{}' has been sealed up and stopped, reason: {}", connector_name, e);
-                            break;
-                        }
-                        error!("Connector {} failed to read Topic {} data: {}", connector_name, config.topic_name, e);
-                        sleep(Duration::from_millis(100)).await;
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-async fn seal_up_connector(
-    client_pool: &Arc<ClientPool>,
-    connector_manager: &Arc<ConnectorManager>,
-    connector_name: &str,
-    e: &str,
-) -> Result<bool, CommonError> {
-    if e.contains("not found in broker cache") && e.contains("Topic") {
-        if let Some(mut connector) = connector_manager.get_connector(connector_name) {
-            let storage = ConnectorStorage::new(client_pool.clone());
-            connector.status = MQTTStatus::SealUp;
-            connector.update_time = now_second();
-            storage.update_connector(connector).await?;
-        }
-        return Ok(true);
-    }
-
-    Ok(false)
-}
-
-fn extract_max_offsets_and_convert(
-    data: &[metadata_struct::storage::storage_record::StorageRecord],
-) -> (Vec<AdapterWriteRecord>, HashMap<String, u64>) {
-    let mut data_list = Vec::with_capacity(data.len());
-    let mut max_offsets = HashMap::new();
-
-    for record in data {
-        data_list.push(convert_engine_record_to_adapter(record.clone()));
-        let current_offset = max_offsets
-            .get(&record.metadata.shard)
-            .copied()
-            .unwrap_or(0);
-        // Use offset + 1 to read next record in next iteration
-        max_offsets.insert(
-            record.metadata.shard.clone(),
-            current_offset.max(record.metadata.offset + 1),
-        );
-    }
-
-    (data_list, max_offsets)
-}
-
-pub async fn start_connector_thread(
+pub(crate) async fn start_connector_thread(
     client_pool: Arc<ClientPool>,
     storage_driver_manager: Arc<StorageDriverManager>,
     connector_manager: Arc<ConnectorManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {
-        check_connector(&storage_driver_manager, &connector_manager, &client_pool).await;
-        sleep(Duration::from_secs(1)).await;
+        let current_broker_id = broker_config().broker_id;
+        start_connectors(
+            &storage_driver_manager,
+            &connector_manager,
+            &client_pool,
+            current_broker_id,
+        );
+        gc_connectors(&connector_manager, &client_pool, current_broker_id).await;
         Ok(())
     };
 
     loop_select_ticket(ac_fn, 1000, &stop_send).await;
-    info!("Connector thread exited successfully");
 }
 
-async fn check_connector(
+fn start_connectors(
     storage_driver_manager: &Arc<StorageDriverManager>,
     connector_manager: &Arc<ConnectorManager>,
     client_pool: &Arc<ClientPool>,
+    current_broker_id: u64,
 ) {
-    let config = broker_config();
-    let current_broker_id = config.broker_id;
-
-    let all_connectors = connector_manager.get_all_connector();
-    let all_threads = connector_manager.get_all_connector_thread();
-
-    debug!(
-        "Checking connectors: current_broker_id={}, total_connectors={}, running_threads={}",
-        current_broker_id,
-        all_connectors.len(),
-        all_threads.len()
-    );
-
-    let mut started_count = 0;
-    let mut skipped_count = 0;
-    let mut stopped_count = 0;
-
-    // Start connector thread
-    for raw in all_connectors {
-        // Skip if broker_id is not assigned
-        if raw.broker_id.is_none() {
-            debug!(
-                "Skipping connector '{}': broker_id not assigned (status: {:?})",
-                raw.connector_name, raw.status
-            );
-            skipped_count += 1;
+    for raw in connector_manager.get_all_connector() {
+        if raw.broker_id != Some(current_broker_id) {
             continue;
         }
 
-        // Skip if not assigned to current broker
-        if let Some(broker_id) = raw.broker_id {
-            if broker_id != current_broker_id {
-                debug!(
-                    "Skipping connector '{}': assigned to broker {} (current: {})",
-                    raw.connector_name, broker_id, current_broker_id
-                );
-                skipped_count += 1;
-                continue;
-            }
-        }
-
-        // Skip if thread already running
         if connector_manager
             .get_connector_thread(&raw.connector_name)
             .is_some()
         {
-            debug!(
-                "Connector '{}' thread already running, skipping",
-                raw.connector_name
-            );
-            skipped_count += 1;
             continue;
         }
 
-        // Start new connector thread
         info!(
-            "Starting connector '{}' (type: {:?}, topic: {}, broker_id: {})",
-            raw.connector_name, raw.connector_type, raw.topic_name, current_broker_id
+            "Starting connector '{}' (type: {:?}, topic: {})",
+            raw.connector_name, raw.connector_type, raw.topic_name
         );
 
         let (stop_send, stop_rx) = mpsc::channel::<bool>(1);
@@ -339,85 +115,39 @@ async fn check_connector(
             thread,
             stop_rx,
         );
-        started_count += 1;
     }
+}
 
-    // Gc connector thread
-    for raw in all_threads {
-        let (is_stop_thread, stop_reason) =
-            if let Some(connector) = connector_manager.get_connector(&raw.connector_name) {
-                if let Some(broker_id) = connector.broker_id {
-                    if broker_id != current_broker_id {
-                        (
-                            true,
-                            format!(
-                                "broker reassigned from {} to {}",
-                                current_broker_id, broker_id
-                            ),
-                        )
-                    } else {
-                        (false, String::new())
-                    }
-                } else {
-                    (true, "broker_id is None".to_string())
-                }
-            } else {
-                (
-                    true,
-                    "connector not found in manager, possibly deleted".to_string(),
-                )
-            };
+async fn gc_connectors(
+    connector_manager: &Arc<ConnectorManager>,
+    client_pool: &Arc<ClientPool>,
+    current_broker_id: u64,
+) {
+    for raw in connector_manager.get_all_connector_thread() {
+        let should_stop = match connector_manager.get_connector(&raw.connector_name) {
+            Some(connector) => connector.broker_id != Some(current_broker_id),
+            None => true,
+        };
 
-        if is_stop_thread {
-            info!(
-                "Stopping connector '{}' thread: {}",
-                raw.connector_name, stop_reason
-            );
-
-            match stop_thread(raw.clone()).await {
-                Ok(_) => {
-                    info!(
-                        "Successfully sent stop signal to connector '{}'",
-                        raw.connector_name
-                    );
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to send stop signal to connector '{}': {}",
-                        raw.connector_name, e
-                    );
-                }
-            }
-
-            connector_manager.remove_connector_thread(&raw.connector_name);
-
-            if let Some(mut connector) = connector_manager.get_connector(&raw.connector_name) {
-                let old_status = connector.status.clone();
-                connector.status = MQTTStatus::Idle;
-
-                info!(
-                    "Updating connector '{}' status: {:?} -> {:?}",
-                    raw.connector_name, old_status, connector.status
-                );
-
-                let storage = ConnectorStorage::new(client_pool.clone());
-                if let Err(e) = storage.update_connector(connector).await {
-                    error!(
-                        "Failed to update connector '{}' status to Idle: {}",
-                        raw.connector_name, e
-                    );
-                }
-            }
-
-            stopped_count += 1;
+        if !should_stop {
+            continue;
         }
-    }
 
-    if started_count > 0 || stopped_count > 0 {
-        debug!(
-            "Connector check completed: started={}, stopped={}, skipped={}",
-            started_count, stopped_count, skipped_count
-        );
+        if let Err(e) = stop_thread(raw.clone()).await {
+            warn!("Failed to stop connector '{}': {}", raw.connector_name, e);
+        }
+        connector_manager.remove_connector_thread(&raw.connector_name);
+
+        if let Some(mut connector) = connector_manager.get_connector(&raw.connector_name) {
+            connector.status = MQTTStatus::Idle;
+            let storage = ConnectorStorage::new(client_pool.clone());
+            if let Err(e) = storage.update_connector(connector).await {
+                error!(
+                    "Failed to update connector '{}' to Idle: {}",
+                    raw.connector_name, e
+                );
+            }
+        }
     }
 }
 
@@ -438,7 +168,7 @@ fn start_thread(
     );
 
     match connector_type {
-        ConnectorType::LocalFile => {
+        ConnectorType::LocalFile(_) => {
             start_local_file_connector(
                 client_pool,
                 connector_manager,
@@ -448,7 +178,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::Kafka => {
+        ConnectorType::Kafka(_) => {
             start_kafka_connector(
                 client_pool,
                 connector_manager,
@@ -458,7 +188,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::GreptimeDB => {
+        ConnectorType::GreptimeDB(_) => {
             start_greptimedb_connector(
                 client_pool,
                 connector_manager,
@@ -468,7 +198,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::Pulsar => {
+        ConnectorType::Pulsar(_) => {
             start_pulsar_connector(
                 client_pool,
                 connector_manager,
@@ -478,7 +208,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::Postgres => {
+        ConnectorType::Postgres(_) => {
             start_postgres_connector(
                 client_pool,
                 connector_manager,
@@ -488,7 +218,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::MongoDB => {
+        ConnectorType::MongoDB(_) => {
             start_mongodb_connector(
                 client_pool,
                 connector_manager,
@@ -498,7 +228,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::RabbitMQ => {
+        ConnectorType::RabbitMQ(_) => {
             start_rabbitmq_connector(
                 client_pool,
                 connector_manager,
@@ -508,7 +238,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::MySQL => {
+        ConnectorType::MySQL(_) => {
             start_mysql_connector(
                 client_pool,
                 connector_manager,
@@ -518,7 +248,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::Elasticsearch => {
+        ConnectorType::Elasticsearch(_) => {
             start_elasticsearch_connector(
                 client_pool,
                 connector_manager,
@@ -528,7 +258,7 @@ fn start_thread(
                 stop_rx,
             );
         }
-        ConnectorType::Redis => {
+        ConnectorType::Redis(_) => {
             start_redis_connector(
                 client_pool,
                 connector_manager,
@@ -556,8 +286,10 @@ mod tests {
     use crate::manager::ConnectorManager;
     use common_base::uuid::unique_id;
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
-    use metadata_struct::mqtt::bridge::connector::FailureHandlingStrategy;
+    use metadata_struct::connector::FailureHandlingStrategy;
+    use std::time::Duration;
     use storage_adapter::storage::test_build_storage_driver_manager;
+    use tokio::time::sleep;
 
     async fn setup() -> (Arc<StorageDriverManager>, Arc<ConnectorManager>) {
         let namespace = unique_id();

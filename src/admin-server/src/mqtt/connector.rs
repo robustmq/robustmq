@@ -18,23 +18,17 @@ use common_base::{
     tools::now_second,
     utils::time_util::timestamp_to_local_datetime,
 };
-use metadata_struct::mqtt::bridge::{
+use metadata_struct::connector::{
     config_elasticsearch::ElasticsearchConnectorConfig,
-    config_greptimedb::GreptimeDBConnectorConfig,
-    config_kafka::KafkaConnectorConfig,
-    config_local_file::LocalFileConnectorConfig,
-    config_mongodb::MongoDBConnectorConfig,
-    config_mysql::MySQLConnectorConfig,
-    config_postgres::PostgresConnectorConfig,
-    config_pulsar::PulsarConnectorConfig,
-    config_rabbitmq::RabbitMQConnectorConfig,
-    config_redis::RedisConnectorConfig,
-    connector::{FailureHandlingStrategy, MQTTConnector},
-    connector_type::ConnectorType,
-    status::MQTTStatus,
+    config_greptimedb::GreptimeDBConnectorConfig, config_kafka::KafkaConnectorConfig,
+    config_local_file::LocalFileConnectorConfig, config_mongodb::MongoDBConnectorConfig,
+    config_mysql::MySQLConnectorConfig, config_postgres::PostgresConnectorConfig,
+    config_pulsar::PulsarConnectorConfig, config_rabbitmq::RabbitMQConnectorConfig,
+    config_redis::RedisConnectorConfig, status::MQTTStatus, ConnectorType, FailureHandlingStrategy,
+    MQTTConnector,
 };
 use mqtt_broker::storage::connector::ConnectorStorage;
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     extractor::ValidatedJson,
@@ -183,7 +177,8 @@ pub async fn connector_list(
         results.push(ConnectorListRow {
             connector_name: connector.connector_name.clone(),
             connector_type: connector.connector_type.to_string(),
-            config: serde_json::to_string(&connector.config).unwrap_or_else(|_| "{}".to_string()),
+            config: serde_json::to_string(&connector.connector_type)
+                .unwrap_or_else(|_| "{}".to_string()),
             topic_name: connector.topic_name.clone(),
             status: connector.status.to_string(),
             broker_id: if let Some(id) = connector.broker_id {
@@ -244,14 +239,12 @@ async fn connector_create_inner(
     state: &Arc<HttpState>,
     params: CreateConnectorReq,
 ) -> ResultCommonError {
-    let connector_type = ConnectorType::from_str(&params.connector_type)?;
-    let connector_config = parse_connector_config(&connector_type, &params.config)?;
+    let connector_type = parse_connector_type(&params.connector_type, &params.config)?;
 
     let storage = ConnectorStorage::new(state.client_pool.clone());
     let connector = MQTTConnector {
         connector_name: params.connector_name.clone(),
         connector_type,
-        config: connector_config,
         failure_strategy: parse_failure_strategy(params.failure_strategy),
         topic_name: params.topic_name.clone(),
         status: MQTTStatus::Idle,
@@ -263,71 +256,65 @@ async fn connector_create_inner(
     storage.create_connector(connector).await
 }
 
-fn parse_connector_config(
-    connector_type: &ConnectorType,
-    config: &str,
-) -> Result<metadata_struct::mqtt::bridge::ConnectorConfig, CommonError> {
-    use metadata_struct::mqtt::bridge::ConnectorConfig;
-
-    let connector_config = match connector_type {
-        ConnectorType::LocalFile => {
-            let file_config: LocalFileConnectorConfig = serde_json::from_str(config)?;
-            file_config.validate()?;
-            ConnectorConfig::LocalFile(file_config)
+fn parse_connector_type(type_str: &str, config: &str) -> Result<ConnectorType, CommonError> {
+    let connector_type = match type_str.to_lowercase().as_str() {
+        "file" => {
+            let c: LocalFileConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::LocalFile(c)
         }
-        ConnectorType::Kafka => {
-            let kafka_config: KafkaConnectorConfig = serde_json::from_str(config)?;
-            kafka_config.validate()?;
-            ConnectorConfig::Kafka(kafka_config)
+        "kafka" => {
+            let c: KafkaConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::Kafka(c)
         }
-        ConnectorType::GreptimeDB => {
-            let greptime_config: GreptimeDBConnectorConfig = serde_json::from_str(config)?;
-            greptime_config.validate()?;
-            ConnectorConfig::GreptimeDB(greptime_config)
+        "greptime" => {
+            let c: GreptimeDBConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::GreptimeDB(c)
         }
-        ConnectorType::Pulsar => {
-            let pulsar_config: PulsarConnectorConfig = serde_json::from_str(config)?;
-            pulsar_config.validate()?;
-            ConnectorConfig::Pulsar(pulsar_config)
+        "pulsar" => {
+            let c: PulsarConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::Pulsar(c)
         }
-        ConnectorType::Postgres => {
-            let postgres_config: PostgresConnectorConfig = serde_json::from_str(config)?;
-            postgres_config.validate()?;
-            ConnectorConfig::Postgres(postgres_config)
+        "postgres" => {
+            let c: PostgresConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::Postgres(c)
         }
-        ConnectorType::MongoDB => {
-            let mongo_config: MongoDBConnectorConfig = serde_json::from_str(config)?;
-            mongo_config.validate()?;
-            ConnectorConfig::MongoDB(mongo_config)
+        "mongodb" => {
+            let c: MongoDBConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::MongoDB(c)
         }
-        ConnectorType::RabbitMQ => {
-            let rabbitmq_config: RabbitMQConnectorConfig = serde_json::from_str(config)?;
-            rabbitmq_config.validate()?;
-            ConnectorConfig::RabbitMQ(rabbitmq_config)
+        "rabbitmq" => {
+            let c: RabbitMQConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::RabbitMQ(c)
         }
-        ConnectorType::MySQL => {
-            let mysql_config: MySQLConnectorConfig = serde_json::from_str(config)?;
-            mysql_config.validate()?;
-            ConnectorConfig::MySQL(mysql_config)
+        "mysql" => {
+            let c: MySQLConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::MySQL(c)
         }
-        ConnectorType::Elasticsearch => {
-            let es_config: ElasticsearchConnectorConfig = serde_json::from_str(config)?;
-            es_config.validate()?;
-            ConnectorConfig::Elasticsearch(es_config)
+        "elasticsearch" => {
+            let c: ElasticsearchConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::Elasticsearch(c)
         }
-        ConnectorType::Redis => {
-            let redis_config: RedisConnectorConfig = serde_json::from_str(config)?;
-            redis_config.validate()?;
-            ConnectorConfig::Redis(redis_config)
+        "redis" => {
+            let c: RedisConnectorConfig = serde_json::from_str(config)?;
+            c.validate()?;
+            ConnectorType::Redis(c)
         }
+        _ => return Err(CommonError::IneligibleConnectorType(type_str.to_string())),
     };
-    Ok(connector_config)
+    Ok(connector_type)
 }
 
 fn parse_failure_strategy(strategy: FailureStrategy) -> FailureHandlingStrategy {
-    use metadata_struct::mqtt::bridge::connector::{
-        DeadMessageQueueStrategy, DiscardAfterRetryStrategy,
-    };
+    use metadata_struct::connector::{DeadMessageQueueStrategy, DiscardAfterRetryStrategy};
 
     match strategy.strategy.to_lowercase().as_str() {
         "discard" => FailureHandlingStrategy::Discard,

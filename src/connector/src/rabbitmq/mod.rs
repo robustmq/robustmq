@@ -22,7 +22,7 @@ use lapin::{
     BasicProperties, Channel, Connection, ConnectionProperties,
 };
 use metadata_struct::{
-    mqtt::bridge::config_rabbitmq::RabbitMQConnectorConfig, mqtt::bridge::connector::MQTTConnector,
+    connector::config_rabbitmq::RabbitMQConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
 use storage_adapter::driver::StorageDriverManager;
@@ -32,8 +32,10 @@ use tracing::{debug, error, info, warn};
 use common_base::error::common::CommonError;
 
 use super::{
-    core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
+    core::{BridgePluginReadConfig, BridgePluginThread},
+    loops::run_connector_loop,
     manager::ConnectorManager,
+    traits::ConnectorSink,
 };
 
 pub struct RabbitMQBridgePlugin {
@@ -288,8 +290,8 @@ pub fn start_rabbitmq_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
-        let rabbitmq_config = match &connector.config {
-            metadata_struct::mqtt::bridge::ConnectorConfig::RabbitMQ(config) => config.clone(),
+        let rabbitmq_config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::RabbitMQ(config) => config.clone(),
             _ => {
                 error!("Invalid connector config type, expected RabbitMQ config");
                 return;

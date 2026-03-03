@@ -429,7 +429,7 @@ mod test {
     use crate::core::tool::test_build_mqtt_cache_manager0;
     use crate::system_topic::write_topic_data;
     use common_base::{tools::get_local_ip, uuid::unique_id};
-    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+    use common_config::broker::{broker_config, default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
@@ -529,11 +529,13 @@ mod test {
             .await
             .unwrap();
 
-        let expected_payload = super::build_system_topic_payload(expect_value).unwrap();
-        let except_message =
-            MqttMessage::build_system_topic_message(topic_name.clone(), expected_payload).unwrap();
-
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].data, except_message.data);
+
+        let message: MqttMessage =
+            common_base::utils::serialize::deserialize(&results[0].data).unwrap();
+        let payload: super::SystemTopicEnvelope<String> =
+            serde_json::from_str(&String::from_utf8_lossy(&message.payload)).unwrap();
+        assert_eq!(payload.value, "test_data");
+        assert_eq!(payload.node_id, broker_config().broker_id);
     }
 }

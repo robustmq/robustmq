@@ -33,7 +33,7 @@ use common_config::{
     broker::broker_config, config::BrokerConfig, storage::memory::StorageDriverMemoryConfig,
 };
 use common_metrics::{core::server::register_prometheus_export, init_metrics};
-use connector::manager::ConnectorManager;
+use connector::{manager::ConnectorManager, start_connector};
 use delay_message::manager::DelayMessageManager;
 use delay_task::{manager::DelayTaskManager, start_delay_task_manager_thread};
 use grpc_clients::pool::ClientPool;
@@ -415,6 +415,21 @@ impl BrokerServer {
         self.server_runtime.spawn(async move {
             start_runtime_monitor(runtime_handles, raw_stop_send, monitor_interval_ms).await;
         });
+
+        // connector
+        let message_storage = self.mqtt_params.storage_driver_manager.clone();
+        let connector_manager = self.mqtt_params.connector_manager.clone();
+        let raw_stop_send = stop_send.clone();
+        let client_poll = self.client_pool.clone();
+        self.server_runtime.spawn(Box::pin(async move {
+            start_connector(
+                &client_poll,
+                &message_storage,
+                &connector_manager,
+                &raw_stop_send,
+            )
+            .await;
+        }));
 
         // awaiting stop
         self.awaiting_stop(meta_stop_send, mqtt_stop_send, engine_stop_send);

@@ -20,8 +20,8 @@ use async_trait::async_trait;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
-    mqtt::bridge::config_redis::RedisConnectorConfig, mqtt::bridge::config_redis::RedisMode,
-    mqtt::bridge::connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
+    connector::config_redis::RedisConnectorConfig, connector::config_redis::RedisMode,
+    connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
 };
 use redis::aio::ConnectionManager;
 use redis::{Client, Cmd, RedisError};
@@ -32,8 +32,10 @@ use tracing::{error, info, warn};
 use common_base::error::common::CommonError;
 
 use super::{
-    core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
+    core::{BridgePluginReadConfig, BridgePluginThread},
+    loops::run_connector_loop,
     manager::ConnectorManager,
+    traits::ConnectorSink,
 };
 pub struct RedisBridgePlugin {
     config: RedisConnectorConfig,
@@ -292,8 +294,8 @@ pub fn start_redis_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
-        let redis_config = match &connector.config {
-            metadata_struct::mqtt::bridge::ConnectorConfig::Redis(config) => config.clone(),
+        let redis_config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Redis(config) => config.clone(),
             _ => {
                 error!("Invalid connector config type, expected Redis config");
                 return;

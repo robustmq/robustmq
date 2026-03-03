@@ -59,6 +59,7 @@ export const sidebar = [
             { text: "Meta Service", link: "/zh/Architect/MetaService-Architecture" },
             { text: "Storage Adapter", link: "/zh/Architect/StorageAdapter-Architecture" },
             { text: "Storage Engine", link: "/zh/Architect/StorageEngine-Architecture" },
+            { text: "Connector", link: "/zh/Architect/Connector-Architecture" },
         ],
     },
     {
@@ -218,6 +219,10 @@ export const sidebar = [
       {
         text: "PR 提交示例",
         link: "/zh/ContributionGuide/Pull-Request-Example",
+      },
+      {
+        text: "AI Skills 使用指南",
+        link: "/zh/ContributionGuide/AI-Skills",
       },
       {
         text: "代码贡献",

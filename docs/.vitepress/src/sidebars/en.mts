@@ -59,6 +59,7 @@ export const sidebar = [
             { text: "Meta Service", link: "/en/Architect/MetaService-Architecture" },
             { text: "Storage Adapter", link: "/en/Architect/StorageAdapter-Architecture" },
             { text: "Storage Engine", link: "/en/Architect/StorageEngine-Architecture" },
+            { text: "Connector", link: "/en/Architect/Connector-Architecture" },
         ],
     },
     {
@@ -205,6 +206,7 @@ export const sidebar = [
         link: "/en/ContributionGuide/GitHub-Contribution-Guide",
       },
       { text: "PR Example", link: "/en/ContributionGuide/Pull-Request-Example" },
+      { text: "AI Skills Guide", link: "/en/ContributionGuide/AI-Skills" },
       {
         text: "ContributingCode",
         collapsed: true,

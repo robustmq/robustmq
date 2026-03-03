@@ -22,7 +22,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::error;
 
-pub async fn start_connector_report_heartbeat_thread(
+pub(crate) async fn start_connector_report_heartbeat_thread(
     client_pool: Arc<ClientPool>,
     connector_manager: Arc<ConnectorManager>,
     stop_send: broadcast::Sender<bool>,
@@ -48,6 +48,10 @@ async fn report_heartbeat(
             heartbeat_time,
             broker_id: conf.broker_id,
         });
+    }
+
+    if heatbeats.is_empty() {
+        return;
     }
 
     if let Err(e) = storage.connector_heartbeat(heatbeats).await {

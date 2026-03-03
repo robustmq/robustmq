@@ -17,7 +17,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
-    mqtt::bridge::config_postgres::PostgresConnectorConfig, mqtt::bridge::connector::MQTTConnector,
+    connector::config_postgres::PostgresConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
@@ -28,8 +28,10 @@ use tracing::{error, warn};
 use common_base::error::common::CommonError;
 
 use super::{
-    core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
+    core::{BridgePluginReadConfig, BridgePluginThread},
+    loops::run_connector_loop,
     manager::ConnectorManager,
+    traits::ConnectorSink,
 };
 
 pub struct PostgresBridgePlugin {
@@ -239,8 +241,8 @@ pub fn start_postgres_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
-        let postgres_config = match &connector.config {
-            metadata_struct::mqtt::bridge::ConnectorConfig::Postgres(config) => config.clone(),
+        let postgres_config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Postgres(config) => config.clone(),
             _ => {
                 error!("Invalid connector config type, expected Postgres config");
                 return;

@@ -17,7 +17,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
-    mqtt::bridge::config_mysql::MySQLConnectorConfig, mqtt::bridge::connector::MQTTConnector,
+    connector::config_mysql::MySQLConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
 use sqlx::{mysql::MySqlPoolOptions, MySql, Pool};
@@ -28,8 +28,10 @@ use tracing::{error, warn};
 use common_base::error::common::CommonError;
 
 use super::{
-    core::{run_connector_loop, BridgePluginReadConfig, BridgePluginThread, ConnectorSink},
+    core::{BridgePluginReadConfig, BridgePluginThread},
+    loops::run_connector_loop,
     manager::ConnectorManager,
+    traits::ConnectorSink,
 };
 
 pub struct MySQLBridgePlugin {
@@ -180,8 +182,8 @@ pub fn start_mysql_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
-        let mysql_config = match &connector.config {
-            metadata_struct::mqtt::bridge::ConnectorConfig::MySQL(config) => config.clone(),
+        let mysql_config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::MySQL(config) => config.clone(),
             _ => {
                 error!("Invalid connector config type, expected MySQL config");
                 return;

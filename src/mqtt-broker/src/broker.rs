@@ -33,7 +33,6 @@ use crate::subscribe::PushManager;
 use crate::system_topic::SystemTopic;
 use broker_core::cache::BrokerCacheManager;
 use common_config::broker::broker_config;
-use connector::core::start_connector_thread;
 use connector::manager::ConnectorManager;
 use delay_message::manager::{start_delay_message_manager_thread, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
@@ -135,8 +134,6 @@ impl MqttBrokerServer {
 
         self.start_delay_message_thread();
 
-        self.start_connector_thread();
-
         self.start_subscribe_push().await;
 
         self.start_server();
@@ -227,17 +224,6 @@ impl MqttBrokerServer {
                 error!("Failed to start MQTT broker server: {}", e);
                 std::process::exit(1);
             }
-        }));
-    }
-
-    fn start_connector_thread(&self) {
-        let message_storage = self.storage_driver_manager.clone();
-        let connector_manager = self.connector_manager.clone();
-        let stop_send = self.inner_stop.clone();
-        let client_poll = self.client_pool.clone();
-        tokio::spawn(Box::pin(async move {
-            start_connector_thread(client_poll, message_storage, connector_manager, stop_send)
-                .await;
         }));
     }
 

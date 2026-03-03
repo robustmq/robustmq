@@ -14,7 +14,7 @@
 
 use std::time::Duration;
 
-use metadata_struct::mqtt::bridge::config_greptimedb::GreptimeDBConnectorConfig;
+use metadata_struct::connector::config_greptimedb::GreptimeDBConnectorConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use reqwest::header::{self, AUTHORIZATION};
 use reqwest::Client;

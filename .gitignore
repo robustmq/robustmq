@@ -24,6 +24,7 @@ src/admin-server/data/
 src/storage-engine/data/
 src/delay-message/data/
 src/mqtt-broker/data/
+src/connector/data
 
 # Test data and temporary files
 /target/tmp/
