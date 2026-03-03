@@ -22,7 +22,8 @@ use common_base::error::common::CommonError;
 use common_base::tools::{now_millis, now_second};
 use common_metrics::mqtt::connector::{
     record_connector_messages_sent_failure, record_connector_messages_sent_success,
-    record_connector_send_duration,
+    record_connector_offset_commit_failure, record_connector_send_duration,
+    record_connector_source_read_failure,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connector::status::MQTTStatus;
@@ -50,6 +51,10 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     let mut resource = sink.init_sink().await?;
     let message_storage = MessageStorage::new(storage_driver_manager.clone());
     let group_name = connector_name.clone();
+    let connector_type = connector_manager
+        .get_connector(&connector_name)
+        .map(|connector| connector.connector_type.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
 
     loop {
         let mut offsets = message_storage.get_group_offset(&group_name).await?;
@@ -88,11 +93,19 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                                     message_storage.commit_group_offset(
                                         &group_name,
                                         &offsets,
-                                    ).await?;
+                                    )
+                                    .await
+                                    .inspect_err(|_e| {
+                                        record_connector_offset_commit_failure(
+                                            connector_type.clone(),
+                                            connector_name.clone(),
+                                        );
+                                    })?;
 
                                     update_last_active(
                                         connector_manager,
                                         &connector_name,
+                                        &connector_type,
                                         start_time,
                                         message_count,
                                         true
@@ -103,6 +116,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                                     update_last_active(
                                         connector_manager,
                                         &connector_name,
+                                        &connector_type,
                                         start_time,
                                         message_count,
                                         false
@@ -112,6 +126,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                                     let context = FailureContext {
                                         storage_driver_manager: &storage_driver_manager,
                                         connector_name: &connector_name,
+                                        connector_type: &connector_type,
                                         source_topic: &config.topic_name,
                                         error_message: &err_msg,
                                         records: &data_list,
@@ -122,7 +137,13 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                                         }
                                         message_storage
                                             .commit_group_offset(&group_name, &offsets)
-                                            .await?;
+                                            .await
+                                            .inspect_err(|_e| {
+                                                record_connector_offset_commit_failure(
+                                                    connector_type.clone(),
+                                                    connector_name.clone(),
+                                                );
+                                            })?;
                                         sleep(Duration::from_millis(100)).await;
                                         break
                                     }
@@ -133,7 +154,18 @@ pub async fn run_connector_loop<S: ConnectorSink>(
 
                     },
                     Err(e) => {
-                        update_last_active(connector_manager, &connector_name, now_millis(), 0, false);
+                        record_connector_source_read_failure(
+                            connector_type.clone(),
+                            connector_name.clone(),
+                        );
+                        update_last_active(
+                            connector_manager,
+                            &connector_name,
+                            &connector_type,
+                            now_millis(),
+                            0,
+                            false,
+                        );
                         if stop_connector(client_pool,connector_manager, &connector_name, &e.to_string()).await?{
                             info!("Connector '{}' has been sealed up and stopped, reason: {}", connector_name, e);
                             break;
@@ -192,6 +224,7 @@ fn extract_max_offsets_and_convert(
 pub fn update_last_active(
     connector_manager: &Arc<ConnectorManager>,
     connector_name: &str,
+    connector_type: &str,
     start_time: u128,
     message_count: u64,
     success: bool,
@@ -202,11 +235,23 @@ pub fn update_last_active(
         if success {
             thread.send_success_total += message_count;
             let duration_ms = (now_millis() - start_time) as f64;
-            record_connector_messages_sent_success(connector_name.to_owned(), message_count);
-            record_connector_send_duration(connector_name.to_owned(), duration_ms);
+            record_connector_messages_sent_success(
+                connector_type.to_owned(),
+                connector_name.to_owned(),
+                message_count,
+            );
+            record_connector_send_duration(
+                connector_type.to_owned(),
+                connector_name.to_owned(),
+                duration_ms,
+            );
         } else {
             thread.send_fail_total += message_count;
-            record_connector_messages_sent_failure(connector_name.to_owned(), message_count);
+            record_connector_messages_sent_failure(
+                connector_type.to_owned(),
+                connector_name.to_owned(),
+                message_count,
+            );
         }
     }
 }

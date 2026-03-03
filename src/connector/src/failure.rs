@@ -13,6 +13,9 @@
 // limitations under the License.
 
 use common_base::{error::common::CommonError, tools::now_second};
+use common_metrics::mqtt::connector::{
+    record_connector_dlq_messages, record_connector_messages_discarded, record_connector_retry,
+};
 use metadata_struct::connector::FailureHandlingStrategy;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use serde::{Deserialize, Serialize};
@@ -40,6 +43,7 @@ pub struct DeadLetterRecord {
 pub struct FailureContext<'a> {
     pub storage_driver_manager: &'a Arc<StorageDriverManager>,
     pub connector_name: &'a str,
+    pub connector_type: &'a str,
     pub source_topic: &'a str,
     pub error_message: &'a str,
     pub records: &'a [AdapterWriteRecord],
@@ -51,22 +55,52 @@ pub async fn failure_message_process(
     context: &FailureContext<'_>,
 ) -> bool {
     match strategy {
-        FailureHandlingStrategy::Discard => true,
+        FailureHandlingStrategy::Discard => {
+            record_connector_messages_discarded(
+                context.connector_type.to_string(),
+                context.connector_name.to_string(),
+                "discard",
+                context.records.len() as u64,
+            );
+            true
+        }
         FailureHandlingStrategy::DiscardAfterRetry(strategy) => {
             if retry_times < strategy.retry_total_times {
+                record_connector_retry(
+                    context.connector_type.to_string(),
+                    context.connector_name.to_string(),
+                    "discard_after_retry",
+                );
                 sleep(Duration::from_millis(strategy.wait_time_ms)).await;
                 return false;
             }
+            record_connector_messages_discarded(
+                context.connector_type.to_string(),
+                context.connector_name.to_string(),
+                "discard_after_retry",
+                context.records.len() as u64,
+            );
             true
         }
         FailureHandlingStrategy::DeadMessageQueue(strategy) => {
             if retry_times < strategy.retry_total_times {
+                record_connector_retry(
+                    context.connector_type.to_string(),
+                    context.connector_name.to_string(),
+                    "dead_message_queue",
+                );
                 sleep(Duration::from_millis(strategy.wait_time_ms)).await;
                 return false;
             }
             if let Err(e) =
                 send_to_dead_letter_queue(&strategy.topic_name, retry_times, context).await
             {
+                record_connector_dlq_messages(
+                    context.connector_type.to_string(),
+                    context.connector_name.to_string(),
+                    "failure",
+                    context.records.len() as u64,
+                );
                 error!(
                     "Failed to write dead letter queue for connector '{}', will retry. reason: {}",
                     context.connector_name, e
@@ -74,6 +108,12 @@ pub async fn failure_message_process(
                 sleep(Duration::from_millis(strategy.wait_time_ms)).await;
                 return false;
             }
+            record_connector_dlq_messages(
+                context.connector_type.to_string(),
+                context.connector_name.to_string(),
+                "success",
+                context.records.len() as u64,
+            );
             true
         }
     }

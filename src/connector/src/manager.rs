@@ -14,6 +14,7 @@
 
 use super::core::BridgePluginThread;
 use common_base::tools::now_second;
+use common_metrics::mqtt::connector::set_connector_up;
 use dashmap::DashMap;
 use metadata_struct::connector::MQTTConnector;
 
@@ -66,6 +67,12 @@ impl ConnectorManager {
     pub fn add_connector_thread(&self, connector_name: &str, thread: BridgePluginThread) {
         self.connector_thread
             .insert(connector_name.to_owned(), thread);
+        let connector_type = self
+            .connector_list
+            .get(connector_name)
+            .map(|connector| connector.connector_type.to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+        set_connector_up(connector_type, connector_name.to_owned(), true);
     }
 
     pub fn get_connector_thread(&self, connector_name: &str) -> Option<BridgePluginThread> {
@@ -85,6 +92,12 @@ impl ConnectorManager {
     }
 
     pub fn remove_connector_thread(&self, connector_name: &str) {
+        let connector_type = self
+            .connector_list
+            .get(connector_name)
+            .map(|connector| connector.connector_type.to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+        set_connector_up(connector_type, connector_name.to_owned(), false);
         self.connector_thread.remove(connector_name);
     }
 

@@ -14,7 +14,6 @@
 
 pub mod broker;
 pub mod common;
-pub mod connector;
 pub mod core;
 pub mod grpc;
 pub mod http;
