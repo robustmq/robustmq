@@ -180,7 +180,7 @@ r2d2 = "0.8.10"
 r2d2_mysql = { version = "25.0.0", default-features = false }
 r2d2_postgres = { version = "0.18.2", default-features = false }
 mobc = { version = "0.9.0", default-features = false, features = ["tokio"] }
-opendal = { version = "0.51", default-features = false, features = [
+opendal = { version = "0.55", default-features = false, features = [
     "services-s3",
     "executors-tokio",
 ] }
