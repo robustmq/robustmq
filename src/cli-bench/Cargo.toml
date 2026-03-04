@@ -35,5 +35,5 @@ metadata-struct.workspace = true
 tokio.workspace = true
 dashmap.workspace = true
 prettytable-rs.workspace = true
-rumqttc = "0.24.0"
+rumqttc = "0.25.1"
 hdrhistogram = "7.5.4"
