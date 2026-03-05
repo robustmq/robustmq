@@ -20,6 +20,7 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
 
+#[derive(Default)]
 pub struct MetaServiceAuthStorageAdapter {}
 
 impl MetaServiceAuthStorageAdapter {
