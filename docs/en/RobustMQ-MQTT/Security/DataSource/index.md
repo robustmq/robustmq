@@ -56,8 +56,8 @@ By default, external source sync has around a 5-second delay; built-in source do
 
 ## Subpages
 
-- [Built-in Data Source (Meta Service)](./DataSource/BuiltIn.md)
-- [MySQL Data Source](./DataSource/MySQL.md)
-- [PostgreSQL Data Source](./DataSource/PostgreSQL.md)
-- [Redis Data Source](./DataSource/Redis.md)
-- [HTTP Data Source](./DataSource/HTTP.md)
+- [Built-in Data Source (Meta Service)](./BuiltIn.md)
+- [MySQL Data Source](./MySQL.md)
+- [PostgreSQL Data Source](./PostgreSQL.md)
+- [Redis Data Source](./Redis.md)
+- [HTTP Data Source](./HTTP.md)

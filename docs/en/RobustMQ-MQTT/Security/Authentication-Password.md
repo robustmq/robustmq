@@ -43,7 +43,7 @@ Supported storage backends:
 
 See storage-specific details:
 
-- [Data Source Overview](./DataSource.md)
+- [Data Source Overview](./DataSource/)
 - [Built-in Data Source (Meta Service)](./DataSource/BuiltIn.md)
 - [MySQL Data Source](./DataSource/MySQL.md)
 - [PostgreSQL Data Source](./DataSource/PostgreSQL.md)

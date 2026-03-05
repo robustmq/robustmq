@@ -40,7 +40,7 @@ pub struct MysqlConfig {
 
 数据源的具体参数请参考：
 
-- [数据源总览](./DataSource.md)
+- [数据源总览](./DataSource/)
 - [内置数据源（Meta Service）](./DataSource/BuiltIn.md)
 - [MySQL 数据源](./DataSource/MySQL.md)
 - [PostgreSQL 数据源](./DataSource/PostgreSQL.md)
