@@ -21,6 +21,7 @@ pub struct StorageConfig {
     pub mysql_config: Option<MysqlConfig>,
     pub postgres_config: Option<PostgresConfig>,
     pub redis_config: Option<RedisConfig>,
+    pub mongodb_config: Option<MongoDBConfig>,
     pub http_config: Option<HttpConfig>,
 }
 
@@ -41,7 +42,9 @@ pub struct PostgresConfig {
     pub database: String,
     pub username: String,
     pub password: String,
-    pub query: String,
+    pub query_user: String,
+    pub query_acl: String,
+    pub query_blacklist: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -50,13 +53,32 @@ pub struct RedisConfig {
     pub mode: String, // Single/Cluster/Sentinel
     pub database: i32,
     pub password: String,
-    pub query: String,
+    pub query_user: String,
+    pub query_acl: String,
+    pub query_blacklist: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct MongoDBConfig {
+    pub mongodb_uri: String,
+    pub database: String,
+    pub username: String,
+    pub password: String,
+    pub collection_user: String,
+    pub collection_acl: String,
+    pub collection_blacklist: String,
+    pub query_user: String,
+    pub query_acl: String,
+    pub query_blacklist: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct HttpConfig {
     pub url: String,
     pub method: String, // GET/POST
+    pub query_user: String,
+    pub query_acl: String,
+    pub query_blacklist: String,
     pub headers: Option<HashMap<String, String>>,
     pub body: Option<HashMap<String, String>>,
 }
@@ -68,6 +90,7 @@ impl Default for StorageConfig {
             mysql_config: None,
             postgres_config: None,
             redis_config: None,
+            mongodb_config: None,
             http_config: None,
         }
     }
@@ -96,8 +119,11 @@ impl Default for PostgresConfig {
             database: "mqtt_user".to_string(),
             username: "root".to_string(),
             password: "".to_string(),
-            query: "SELECT password_hash, salt FROM mqtt_user where username = ${username} LIMIT 1"
-                .to_string(),
+            query_user: "SELECT username AS username, password AS password, salt AS salt, is_superuser AS is_superuser, created::text AS created FROM mqtt_user".to_string(),
+            query_acl: "SELECT permission AS permission, ipaddr AS ipaddr, username AS username, clientid AS clientid, access AS access, topic AS topic FROM mqtt_acl".to_string(),
+            query_blacklist:
+                "SELECT blacklist_type AS blacklist_type, resource_name AS resource_name, end_time AS end_time, \"desc\" AS \"desc\" FROM mqtt_blacklist"
+                    .to_string(),
         }
     }
 }
@@ -109,7 +135,26 @@ impl Default for RedisConfig {
             mode: "Single".to_string(),
             database: 0,
             password: "".to_string(),
-            query: "HMGET mqtt_user:${username} password_hash salt".to_string(),
+            query_user: "SMEMBERS mqtt:users".to_string(),
+            query_acl: "SMEMBERS mqtt:acls".to_string(),
+            query_blacklist: "SMEMBERS mqtt:blacklists".to_string(),
+        }
+    }
+}
+
+impl Default for MongoDBConfig {
+    fn default() -> Self {
+        Self {
+            mongodb_uri: "mongodb://127.0.0.1:27017".to_string(),
+            database: "mqtt".to_string(),
+            username: "".to_string(),
+            password: "".to_string(),
+            collection_user: "mqtt_user".to_string(),
+            collection_acl: "mqtt_acl".to_string(),
+            collection_blacklist: "mqtt_blacklist".to_string(),
+            query_user: "{}".to_string(),
+            query_acl: "{}".to_string(),
+            query_blacklist: "{}".to_string(),
         }
     }
 }
@@ -126,6 +171,9 @@ impl Default for HttpConfig {
         Self {
             url: "http://127.0.0.1:8080/auth".to_string(),
             method: "POST".to_string(),
+            query_user: "".to_string(),
+            query_acl: "".to_string(),
+            query_blacklist: "".to_string(),
             headers: Some(headers),
             body: Some(body),
         }

@@ -28,7 +28,52 @@ Key fields in `redis_config`:
 - `mode`: `Single` / `Cluster` / `Sentinel`
 - `database`: DB index
 - `password`: Redis password
-- `query`: query template for your model
+- `query_user`: command to fetch user ID list (for example `SMEMBERS mqtt:users`)
+- `query_acl`: command to fetch ACL ID list (for example `SMEMBERS mqtt:acls`)
+- `query_blacklist`: command to fetch blacklist ID list (for example `SMEMBERS mqtt:blacklists`)
+
+The adapter first executes `query_user/query_acl/query_blacklist` to get ID lists,
+then reads hash details by key convention (for example `mqtt:user:{id}`, `mqtt:acl:{id}`, `mqtt:blacklist:{id}`).
+
+## Hash Field Contract
+
+### User hash (`mqtt:user:{username}`)
+
+Required:
+
+- `password`
+- `is_superuser` (`1` or `0`)
+
+Optional:
+
+- `salt`
+- `created` (unix seconds)
+
+### ACL hash (`mqtt:acl:{id}`)
+
+Required:
+
+- `permission` (`1`=Allow, `0`=Deny)
+- `access` (`0..5`)
+
+Optional:
+
+- `username`
+- `clientid`
+- `ipaddr`
+- `topic`
+
+### Blacklist hash (`mqtt:blacklist:{id}`)
+
+Required:
+
+- `blacklist_type`
+- `resource_name`
+- `end_time`
+
+Optional:
+
+- `desc`
 
 ## Example
 
@@ -44,5 +89,7 @@ redis_addr = "127.0.0.1:6379"
 mode = "Single"
 database = 0
 password = ""
-query = "HMGET mqtt_user:${username} password_hash salt"
+query_user = "SMEMBERS mqtt:users"
+query_acl = "SMEMBERS mqtt:acls"
+query_blacklist = "SMEMBERS mqtt:blacklists"
 ```

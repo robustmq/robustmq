@@ -15,6 +15,8 @@
 use crate::core::error::MqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use async_trait::async_trait;
+use chrono::NaiveDateTime;
+use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
@@ -34,27 +36,68 @@ pub struct PostgresqlAuthStorageAdapter {
 }
 
 impl PostgresqlAuthStorageAdapter {
-    pub fn new(config: PostgresConfig) -> Self {
+    pub fn new(config: PostgresConfig) -> Result<Self, MqttBrokerError> {
         let addr = format!(
             "postgres://{}:{}@{}/{}",
             config.username, config.password, config.postgre_addr, config.database
         );
 
-        let pool = match build_postgresql_conn_pool(&addr) {
-            Ok(data) => data,
-            Err(e) => {
-                panic!("Failed to create PostgreSQL connection pool: {}", e);
+        let pool = build_postgresql_conn_pool(&addr)?;
+        Ok(PostgresqlAuthStorageAdapter { pool, config })
+    }
+
+    fn table_user(&self) -> &'static str {
+        "mqtt_user"
+    }
+
+    fn table_acl(&self) -> &'static str {
+        "mqtt_acl"
+    }
+
+    fn table_blacklist(&self) -> &'static str {
+        "mqtt_blacklist"
+    }
+
+    fn parse_created_to_seconds(created: Option<String>) -> u64 {
+        if let Some(value) = created {
+            if let Ok(dt) = NaiveDateTime::parse_from_str(&value, "%Y-%m-%d %H:%M:%S") {
+                return dt.and_utc().timestamp().max(0) as u64;
             }
-        };
-        PostgresqlAuthStorageAdapter { pool, config }
+        }
+        now_second()
     }
 
-    fn table_user(&self) -> String {
-        "mqtt_user".to_string()
+    fn user_query(&self) -> String {
+        if self.config.query_user.trim().is_empty() {
+            format!(
+                "select username as username, password as password, salt as salt, is_superuser as is_superuser, created::text as created from {}",
+                self.table_user()
+            )
+        } else {
+            self.config.query_user.clone()
+        }
     }
 
-    fn table_acl(&self) -> String {
-        "mqtt_acl".to_string()
+    fn acl_query(&self) -> String {
+        if self.config.query_acl.trim().is_empty() {
+            format!(
+                "select permission as permission, ipaddr as ipaddr, username as username, clientid as clientid, access as access, topic as topic from {}",
+                self.table_acl()
+            )
+        } else {
+            self.config.query_acl.clone()
+        }
+    }
+
+    fn blacklist_query(&self) -> String {
+        if self.config.query_blacklist.trim().is_empty() {
+            format!(
+                "select blacklist_type as blacklist_type, resource_name as resource_name, end_time as end_time, \"desc\" as \"desc\" from {}",
+                self.table_blacklist()
+            )
+        } else {
+            self.config.query_blacklist.clone()
+        }
     }
 }
 
@@ -62,24 +105,31 @@ impl PostgresqlAuthStorageAdapter {
 impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
     async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
         let mut conn = self.pool.get()?;
-        let sql = format!(
-            "select username,password,salt,is_superuser,created from {}",
-            self.table_user()
-        );
+        let sql = self.user_query();
         let rows = conn.query(&sql, &[])?;
-        let results = DashMap::with_capacity(2);
+        let results = DashMap::with_capacity(rows.len());
         for row in rows {
-            let username: String = row.get(0);
-            let password: String = row.get(1);
-            let salt: Option<String> = row.get(2);
-            let is_superuser: i32 = row.get(3);
+            let username: String = row.try_get("username").map_err(|_| {
+                MqttBrokerError::CommonError("missing column: username".to_string())
+            })?;
+            let password: String = row.try_get("password").map_err(|_| {
+                MqttBrokerError::CommonError("missing column: password".to_string())
+            })?;
+            let salt: Option<String> = row
+                .try_get("salt")
+                .map_err(|_| MqttBrokerError::CommonError("missing column: salt".to_string()))?;
+            let is_superuser: i32 = row.try_get("is_superuser").map_err(|_| {
+                MqttBrokerError::CommonError("missing column: is_superuser".to_string())
+            })?;
+            let created: Option<String> = row
+                .try_get("created")
+                .map_err(|_| MqttBrokerError::CommonError("missing column: created".to_string()))?;
             let user = MqttUser {
                 username: username.clone(),
                 password,
                 salt,
                 is_superuser: is_superuser == 1,
-                // todo bugfix
-                create_time: now_second(),
+                create_time: Self::parse_created_to_seconds(created),
             };
             results.insert(username, user);
         }
@@ -88,19 +138,28 @@ impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
 
     async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
         let mut conn = self.pool.get()?;
-        let sql = format!(
-            "select permission, ipaddr, username, clientid, access, topic from {}",
-            self.table_acl()
-        );
+        let sql = self.acl_query();
         let rows = conn.query(&sql, &[])?;
-        let mut results = Vec::new();
+        let mut results = Vec::with_capacity(rows.len());
         for row in rows {
-            let permission: i32 = row.get(0);
-            let ipaddr: String = row.get(1);
-            let username: String = row.get(2);
-            let clientid: String = row.get(3);
-            let access: i32 = row.get(4);
-            let topic: Option<String> = row.get(5);
+            let permission: i32 = row.try_get("permission").map_err(|_| {
+                MqttBrokerError::CommonError("missing column: permission".to_string())
+            })?;
+            let ipaddr: String = row
+                .try_get("ipaddr")
+                .map_err(|_| MqttBrokerError::CommonError("missing column: ipaddr".to_string()))?;
+            let username: String = row.try_get("username").map_err(|_| {
+                MqttBrokerError::CommonError("missing column: username".to_string())
+            })?;
+            let clientid: String = row.try_get("clientid").map_err(|_| {
+                MqttBrokerError::CommonError("missing column: clientid".to_string())
+            })?;
+            let access: i32 = row
+                .try_get("access")
+                .map_err(|_| MqttBrokerError::CommonError("missing column: access".to_string()))?;
+            let topic: Option<String> = row
+                .try_get("topic")
+                .map_err(|_| MqttBrokerError::CommonError("missing column: topic".to_string()))?;
 
             let acl = MqttAcl {
                 permission: match permission {
@@ -134,6 +193,32 @@ impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
     }
 
     async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
-        return Ok(Vec::new());
+        let mut conn = self.pool.get()?;
+        let sql = self.blacklist_query();
+        let rows = conn.query(&sql, &[])?;
+        let mut results = Vec::with_capacity(rows.len());
+        for row in rows {
+            let blacklist_type: String = row.try_get("blacklist_type").map_err(|_| {
+                MqttBrokerError::CommonError("missing column: blacklist_type".to_string())
+            })?;
+            let resource_name: String = row.try_get("resource_name").map_err(|_| {
+                MqttBrokerError::CommonError("missing column: resource_name".to_string())
+            })?;
+            let end_time: i64 = row.try_get("end_time").map_err(|_| {
+                MqttBrokerError::CommonError("missing column: end_time".to_string())
+            })?;
+            let desc: Option<String> = row
+                .try_get("desc")
+                .map_err(|_| MqttBrokerError::CommonError("missing column: desc".to_string()))?;
+
+            let blacklist = MqttAclBlackList {
+                blacklist_type: get_blacklist_type_by_str(&blacklist_type)?,
+                resource_name,
+                end_time: end_time.max(0) as u64,
+                desc: desc.unwrap_or_default(),
+            };
+            results.push(blacklist);
+        }
+        Ok(results)
     }
 }

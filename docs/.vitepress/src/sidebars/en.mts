@@ -100,6 +100,7 @@ export const sidebar = [
                             { text: "MySQL", link: "/en/RobustMQ-MQTT/Security/DataSource/MySQL" },
                             { text: "PostgreSQL", link: "/en/RobustMQ-MQTT/Security/DataSource/PostgreSQL" },
                             { text: "Redis", link: "/en/RobustMQ-MQTT/Security/DataSource/Redis" },
+                            { text: "MongoDB", link: "/en/RobustMQ-MQTT/Security/DataSource/MongoDB" },
                             { text: "HTTP", link: "/en/RobustMQ-MQTT/Security/DataSource/HTTP" },
                         ]
                     },

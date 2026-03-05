@@ -171,25 +171,7 @@ pub async fn acl_list(
         params.filter_values,
         params.exact_match,
     );
-    let mut data: Vec<MqttAcl> = Vec::new();
-    for entry in state
-        .mqtt_context
-        .cache_manager
-        .acl_metadata
-        .acl_user
-        .iter()
-    {
-        data.extend(entry.value().iter().cloned());
-    }
-    for entry in state
-        .mqtt_context
-        .cache_manager
-        .acl_metadata
-        .acl_client_id
-        .iter()
-    {
-        data.extend(entry.value().iter().cloned());
-    }
+    let data: Vec<MqttAcl> = state.mqtt_context.cache_manager.acl_metadata.get_all_acl();
 
     let mut acls_list = Vec::new();
     for acl in data {

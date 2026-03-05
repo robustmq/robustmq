@@ -131,6 +131,17 @@ impl AclMetadata {
         }
     }
 
+    pub fn get_all_acl(&self) -> Vec<MqttAcl> {
+        let mut data: Vec<MqttAcl> = Vec::new();
+        for entry in self.acl_user.iter() {
+            data.extend(entry.value().iter().cloned());
+        }
+        for entry in self.acl_client_id.iter() {
+            data.extend(entry.value().iter().cloned());
+        }
+        data
+    }
+
     // Blacklist
     pub fn parse_mqtt_blacklist(&self, blacklist: MqttAclBlackList) {
         match blacklist.blacklist_type {
@@ -221,6 +232,31 @@ impl AclMetadata {
             return Some(data.clone());
         }
         None
+    }
+
+    pub fn get_all_blacklist(&self) -> Vec<MqttAclBlackList> {
+        let mut data: Vec<MqttAclBlackList> = Vec::new();
+        data.extend(
+            self.blacklist_user
+                .iter()
+                .map(|entry| entry.value().clone()),
+        );
+        data.extend(
+            self.blacklist_client_id
+                .iter()
+                .map(|entry| entry.value().clone()),
+        );
+        data.extend(self.blacklist_ip.iter().map(|entry| entry.value().clone()));
+        for entry in self.blacklist_user_match.iter() {
+            data.extend(entry.value().iter().cloned());
+        }
+        for entry in self.blacklist_client_id_match.iter() {
+            data.extend(entry.value().iter().cloned());
+        }
+        for entry in self.blacklist_ip_match.iter() {
+            data.extend(entry.value().iter().cloned());
+        }
+        data
     }
 
     fn get_client_id_match_key(&self) -> String {
@@ -449,5 +485,32 @@ mod test {
                 .len(),
             2
         );
+
+        let all_blacklist = acl_metadata.get_all_blacklist();
+        assert_eq!(all_blacklist.len(), 7);
+    }
+
+    #[tokio::test]
+    pub async fn get_all_acl_test() {
+        let acl_metadata = AclMetadata::new();
+        acl_metadata.parse_mqtt_acl(MqttAcl {
+            resource_type: MqttAclResourceType::ClientId,
+            resource_name: "client-a".to_string(),
+            topic: "a/#".to_string(),
+            ip: "".to_string(),
+            action: MqttAclAction::All,
+            permission: MqttAclPermission::Allow,
+        });
+        acl_metadata.parse_mqtt_acl(MqttAcl {
+            resource_type: MqttAclResourceType::User,
+            resource_name: "user-a".to_string(),
+            topic: "b/#".to_string(),
+            ip: "".to_string(),
+            action: MqttAclAction::Publish,
+            permission: MqttAclPermission::Deny,
+        });
+
+        let all_acl = acl_metadata.get_all_acl();
+        assert_eq!(all_acl.len(), 2);
     }
 }

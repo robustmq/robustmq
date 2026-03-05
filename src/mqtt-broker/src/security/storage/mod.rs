@@ -20,6 +20,7 @@ use std::sync::Arc;
 
 pub mod http;
 pub mod meta;
+pub mod mongodb;
 pub mod mysql;
 pub mod postgresql;
 pub mod redis;
@@ -51,7 +52,8 @@ pub fn build_storage_driver(
         }
         AuthDataStorageType::Postgresql => {
             if let Some(postgres_config) = &storage_config.postgres_config {
-                let driver = postgresql::PostgresqlAuthStorageAdapter::new(postgres_config.clone());
+                let driver =
+                    postgresql::PostgresqlAuthStorageAdapter::new(postgres_config.clone())?;
                 Ok(Arc::new(driver))
             } else {
                 Err(MqttBrokerError::CommonError(
@@ -61,11 +63,21 @@ pub fn build_storage_driver(
         }
         AuthDataStorageType::Redis => {
             if let Some(redis_config) = &storage_config.redis_config {
-                let driver = redis::RedisAuthStorageAdapter::new(redis_config.clone());
+                let driver = redis::RedisAuthStorageAdapter::new(redis_config.clone())?;
                 Ok(Arc::new(driver))
             } else {
                 Err(MqttBrokerError::CommonError(
                     "Redis config not found".to_string(),
+                ))
+            }
+        }
+        AuthDataStorageType::Mongodb => {
+            if let Some(mongodb_config) = &storage_config.mongodb_config {
+                let driver = mongodb::MongoDBAuthStorageAdapter::new(mongodb_config.clone());
+                Ok(Arc::new(driver))
+            } else {
+                Err(MqttBrokerError::CommonError(
+                    "MongoDB config not found".to_string(),
                 ))
             }
         }

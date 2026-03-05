@@ -1,35 +1,44 @@
 # HTTP Data Source
 
-HTTP data source is suitable when authentication is centralized in external services (IAM, API gateway, auth center).
+HTTP data source is suitable when user/ACL/blacklist data is maintained in external services and exposed by HTTP APIs.
 
 ## Suitable Scenarios
 
-- Existing auth logic already lives in external HTTP services.
-- Multiple systems share one identity platform.
-- You want broker integration without duplicating business auth rules.
+- Identity and policy data is already managed by an external platform.
+- You want to integrate through HTTP APIs instead of direct DB access.
+- You still want broker cache-first auth behavior.
 
 ## Core Capabilities
 
-- Delegate auth decision to external HTTP API.
-- Support templated request parameters (`username/password/clientid/source_ip`).
-- Reuse existing IAM infrastructure with minimal broker-side logic.
+- Pull `user` / `acl` / `blacklist` data through HTTP.
+- Configure separate endpoints via `query_user/query_acl/query_blacklist`.
+- Support array response or wrapped array (`users`/`acls`/`blacklists`/`data`).
 
 ## Runtime Model (Brief)
 
-1. On CONNECT, broker builds request and calls external auth API.
-2. Broker interprets response (`allow/deny/ignore`).
-3. Successful auth continues to session and authorization flow.
+1. Broker periodically calls configured HTTP endpoints.
+2. Responses are parsed and written into local cache.
+3. CONNECT and access checks use in-memory cache, not per-request HTTP calls.
 
 ## Configuration
 
 Key fields in `http_config`:
 
-- `url`: auth endpoint
+- `url`: base endpoint
 - `method`: `GET` or `POST`
-- `headers`: templated request headers
-- `body`: templated request body
+- `query_user`: user endpoint (full URL or relative path)
+- `query_acl`: ACL endpoint (full URL or relative path)
+- `query_blacklist`: blacklist endpoint (full URL or relative path)
+- `headers`: request headers template
+- `body`: request body template
 
-Common variables: `${username}`, `${password}`, `${clientid}`, `${source_ip}`.
+Template variable `${resource}` is supported (`user` / `acl` / `blacklist`).
+
+Response can be:
+
+- top-level array: `[{...}, {...}]`
+- object with list field: `{ "users": [...] }`, `{ "acls": [...] }`, `{ "blacklists": [...] }`
+- generic list wrapper: `{ "data": [...] }`
 
 ## Example
 
@@ -41,15 +50,15 @@ authn_type = "password_based"
 storage_type = "http"
 
 [mqtt.auth.config.storage_config.http_config]
-url = "http://127.0.0.1:8080/auth"
+url = "http://127.0.0.1:8080/auth-source"
 method = "POST"
+query_user = "/users"
+query_acl = "/acls"
+query_blacklist = "/blacklists"
 
 [mqtt.auth.config.storage_config.http_config.headers]
 content-type = "application/json"
 
 [mqtt.auth.config.storage_config.http_config.body]
-username = "${username}"
-password = "${password}"
-clientid = "${clientid}"
-source_ip = "${source_ip}"
+resource = "${resource}"
 ```

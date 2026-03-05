@@ -15,139 +15,85 @@
 use crate::core::error::MqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use async_trait::async_trait;
+use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str;
+use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
+use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auth::storage::HttpConfig;
 use metadata_struct::mqtt::user::MqttUser;
-use reqwest;
-use serde::Deserialize;
+use reqwest::Client;
+use serde_json::{Map, Value};
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::time::Duration;
-
-/// HTTP auth response
-#[derive(Debug, Deserialize)]
-pub struct HttpAuthResponse {
-    pub result: String,             // "allow", "deny", "ignore"
-    pub is_superuser: Option<bool>, // is superuser
-    #[serde(default)]
-    pub client_attrs: Option<HashMap<String, String>>, // client attrs
-    pub expire_at: Option<u64>,     // expire at
-}
+use tracing::warn;
 
 /// HTTP auth storage adapter
 pub struct HttpAuthStorageAdapter {
     config: HttpConfig,
+    client: Client,
 }
 
 impl HttpAuthStorageAdapter {
-    /// Create HTTP auth storage adapter with HttpConfig
+    const RESOURCE_USER: &'static str = "user";
+    const RESOURCE_ACL: &'static str = "acl";
+    const RESOURCE_BLACKLIST: &'static str = "blacklist";
+
     pub fn new(config: HttpConfig) -> Self {
-        HttpAuthStorageAdapter { config }
+        let client = Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| Client::new());
+        HttpAuthStorageAdapter { config, client }
     }
 
-    /// Render template string, replace placeholders
-    fn render_template(
-        &self,
-        template: &str,
-        username: &str,
-        password: &str,
-        client_id: &str,
-        source_ip: &str,
-    ) -> String {
-        template
-            .replace("${username}", username)
-            .replace("${password}", password)
-            .replace("${clientid}", client_id)
-            .replace("${source_ip}", source_ip)
+    fn endpoint_for(&self, query: &str) -> String {
+        if query.trim().is_empty() {
+            return self.config.url.clone();
+        }
+        if query.starts_with("http://") || query.starts_with("https://") {
+            return query.to_string();
+        }
+        let base = self.config.url.trim_end_matches('/');
+        let path = query.trim_start_matches('/');
+        format!("{base}/{path}")
     }
 
-    /// Render URL
-    fn render_url(
-        &self,
-        username: &str,
-        password: &str,
-        client_id: &str,
-        source_ip: &str,
-    ) -> String {
-        self.render_template(&self.config.url, username, password, client_id, source_ip)
+    fn render_template(&self, template: &str, resource: &str) -> String {
+        template.replace("${resource}", resource)
     }
 
-    /// Render request headers
-    fn render_headers(
-        &self,
-        username: &str,
-        password: &str,
-        client_id: &str,
-        source_ip: &str,
-    ) -> HashMap<String, String> {
+    fn build_headers(&self, resource: &str) -> HashMap<String, String> {
         if let Some(ref headers) = self.config.headers {
             headers
                 .iter()
-                .map(|(k, v)| {
-                    (
-                        k.clone(),
-                        self.render_template(v, username, password, client_id, source_ip),
-                    )
-                })
+                .map(|(k, v)| (k.clone(), self.render_template(v, resource)))
                 .collect()
         } else {
             HashMap::new()
         }
     }
 
-    /// Render request body
-    fn render_body(
-        &self,
-        username: &str,
-        password: &str,
-        client_id: &str,
-        source_ip: &str,
-    ) -> HashMap<String, String> {
+    fn build_body(&self, resource: &str) -> HashMap<String, String> {
         if let Some(ref body) = self.config.body {
             body.iter()
-                .map(|(k, v)| {
-                    (
-                        k.clone(),
-                        self.render_template(v, username, password, client_id, source_ip),
-                    )
-                })
+                .map(|(k, v)| (k.clone(), self.render_template(v, resource)))
                 .collect()
         } else {
             HashMap::new()
         }
     }
 
-    /// Send HTTP auth request
-    pub async fn authenticate_user(
-        &self,
-        username: &str,
-        password: &str,
-        client_id: &str,
-        source_ip: &str,
-    ) -> Result<HttpAuthResponse, MqttBrokerError> {
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(5))
-            .build()
-            .map_err(|e| MqttBrokerError::HttpRequestError(e.to_string()))?;
-
-        let url = self.render_url(username, password, client_id, source_ip);
-        let headers = self.render_headers(username, password, client_id, source_ip);
-
+    async fn request_json(&self, endpoint: &str, resource: &str) -> Result<Value, MqttBrokerError> {
+        let headers = self.build_headers(resource);
+        let body = self.build_body(resource);
         let mut request_builder = match self.config.method.to_uppercase().as_str() {
-            "GET" => {
-                let mut query_params = Vec::new();
-                let body_params = self.render_body(username, password, client_id, source_ip);
-                for (key, value) in body_params {
-                    query_params.push((key, value));
-                }
-                client.get(&url).query(&query_params)
-            }
-            "POST" => {
-                let body_params = self.render_body(username, password, client_id, source_ip);
-                client.post(&url).json(&body_params)
-            }
+            "GET" => self.client.get(endpoint).query(&body),
+            "POST" => self.client.post(endpoint).json(&body),
             _ => {
                 return Err(MqttBrokerError::UnsupportedHttpMethod(
                     self.config.method.clone(),
@@ -155,7 +101,6 @@ impl HttpAuthStorageAdapter {
             }
         };
 
-        // Add request headers
         for (key, value) in headers {
             request_builder = request_builder.header(&key, &value);
         }
@@ -165,196 +110,346 @@ impl HttpAuthStorageAdapter {
             .await
             .map_err(|e| MqttBrokerError::HttpRequestError(e.to_string()))?;
 
-        // Check response status code
         if !response.status().is_success() {
-            let status = response.status();
-            if status.is_client_error() || status.is_server_error() {
-                // 4xx/5xx status code return ignore
-                return Ok(HttpAuthResponse {
-                    result: "ignore".to_string(),
-                    is_superuser: None,
-                    client_attrs: None,
-                    expire_at: None,
-                });
-            }
+            return Err(MqttBrokerError::HttpRequestError(format!(
+                "HTTP data source request failed, status={}, endpoint={}",
+                response.status(),
+                endpoint
+            )));
         }
 
-        let response_text = response
-            .text()
+        response
+            .json::<Value>()
             .await
-            .map_err(|e| MqttBrokerError::HttpResponseParseError(e.to_string()))?;
-
-        serde_json::from_str::<HttpAuthResponse>(&response_text)
             .map_err(|e| MqttBrokerError::HttpResponseParseError(e.to_string()))
     }
 
-    /// Verify user auth
-    pub async fn verify_user(
+    async fn fetch_resource(
         &self,
-        username: &str,
-        password: &str,
-        client_id: &str,
-        source_ip: &str,
-    ) -> Result<Option<MqttUser>, MqttBrokerError> {
-        let response = self
-            .authenticate_user(username, password, client_id, source_ip)
-            .await?;
+        resource: &str,
+        query: &str,
+    ) -> Result<Vec<Value>, MqttBrokerError> {
+        let endpoint = self.endpoint_for(query);
+        let payload = self.request_json(&endpoint, resource).await?;
+        Self::extract_items(payload, resource)
+    }
 
-        match response.result.as_str() {
-            "allow" => Ok(Some(MqttUser {
-                username: username.to_string(),
-                password: password.to_string(),
-                salt: None,
-                is_superuser: response.is_superuser.unwrap_or(false),
-                // todo bugfix
-                create_time: now_second(),
-            })),
-            "deny" => Ok(None),
-            "ignore" => Err(MqttBrokerError::UserDoesNotExist),
-            _ => Err(MqttBrokerError::HttpResponseParseError(format!(
-                "Unknown result: {}",
-                response.result
-            ))),
+    fn extract_items(payload: Value, resource: &str) -> Result<Vec<Value>, MqttBrokerError> {
+        match payload {
+            Value::Array(items) => Ok(items),
+            Value::Object(map) => {
+                let keys = match resource {
+                    Self::RESOURCE_USER => vec!["users", "user", "data", "items", "list"],
+                    Self::RESOURCE_ACL => vec!["acls", "acl", "data", "items", "list"],
+                    Self::RESOURCE_BLACKLIST => {
+                        vec!["blacklists", "blacklist", "data", "items", "list"]
+                    }
+                    _ => vec!["data", "items", "list"],
+                };
+                for key in keys {
+                    if let Some(value) = map.get(key) {
+                        return match value {
+                            Value::Array(items) => Ok(items.clone()),
+                            Value::Object(_) => Ok(vec![value.clone()]),
+                            _ => Err(MqttBrokerError::HttpResponseParseError(format!(
+                                "field `{}` is not array/object",
+                                key
+                            ))),
+                        };
+                    }
+                }
+                Err(MqttBrokerError::HttpResponseParseError(
+                    "unable to locate resource data in response".to_string(),
+                ))
+            }
+            _ => Err(MqttBrokerError::HttpResponseParseError(
+                "invalid response json, expected object/array".to_string(),
+            )),
+        }
+    }
+
+    fn as_object(value: Value) -> Option<Map<String, Value>> {
+        match value {
+            Value::Object(map) => Some(map),
+            _ => None,
+        }
+    }
+
+    fn parse_created_to_seconds(value: Option<&Value>) -> u64 {
+        match value {
+            Some(Value::Number(num)) => num.as_u64().unwrap_or_else(now_second),
+            Some(Value::String(s)) => {
+                if let Ok(ts) = s.parse::<u64>() {
+                    return ts;
+                }
+                if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
+                    return dt.and_utc().timestamp().max(0) as u64;
+                }
+                now_second()
+            }
+            _ => now_second(),
+        }
+    }
+
+    fn parse_bool_like(value: Option<&Value>) -> bool {
+        match value {
+            Some(Value::Bool(v)) => *v,
+            Some(Value::Number(v)) => v.as_i64().unwrap_or_default() == 1,
+            Some(Value::String(v)) => v == "1" || v.eq_ignore_ascii_case("true"),
+            _ => false,
+        }
+    }
+
+    fn parse_string(value: Option<&Value>) -> Option<String> {
+        match value {
+            Some(Value::String(v)) => Some(v.clone()),
+            Some(Value::Number(v)) => Some(v.to_string()),
+            Some(Value::Bool(v)) => Some(v.to_string()),
+            _ => None,
+        }
+    }
+
+    fn parse_permission(value: Option<&Value>) -> Result<MqttAclPermission, MqttBrokerError> {
+        match value {
+            Some(Value::Number(v)) if v.as_i64() == Some(0) => Ok(MqttAclPermission::Deny),
+            Some(Value::Number(v)) if v.as_i64() == Some(1) => Ok(MqttAclPermission::Allow),
+            Some(Value::String(v)) => {
+                MqttAclPermission::from_str(v).map_err(|_| MqttBrokerError::InvalidAclPermission)
+            }
+            _ => Err(MqttBrokerError::InvalidAclPermission),
+        }
+    }
+
+    fn parse_action(value: Option<&Value>) -> Result<MqttAclAction, MqttBrokerError> {
+        match value {
+            Some(Value::Number(v)) if v.as_i64() == Some(0) => Ok(MqttAclAction::All),
+            Some(Value::Number(v)) if v.as_i64() == Some(1) => Ok(MqttAclAction::Subscribe),
+            Some(Value::Number(v)) if v.as_i64() == Some(2) => Ok(MqttAclAction::Publish),
+            Some(Value::Number(v)) if v.as_i64() == Some(3) => Ok(MqttAclAction::PubSub),
+            Some(Value::Number(v)) if v.as_i64() == Some(4) => Ok(MqttAclAction::Retain),
+            Some(Value::Number(v)) if v.as_i64() == Some(5) => Ok(MqttAclAction::Qos),
+            Some(Value::String(v)) => {
+                let normalized = match v.to_ascii_lowercase().as_str() {
+                    "all" => "All",
+                    "subscribe" => "Subscribe",
+                    "publish" => "Publish",
+                    "pubsub" | "publish_subscribe" => "PubSub",
+                    "retain" => "Retain",
+                    "qos" => "Qos",
+                    _ => v,
+                };
+                MqttAclAction::from_str(normalized).map_err(|_| MqttBrokerError::InvalidAclAction)
+            }
+            _ => Err(MqttBrokerError::InvalidAclAction),
         }
     }
 }
 
 #[async_trait]
 impl AuthStorageAdapter for HttpAuthStorageAdapter {
-    /// HTTP adapter does not support read all users, return empty collection
     async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
-        Ok(DashMap::new())
+        let users = DashMap::new();
+        let values = self
+            .fetch_resource(Self::RESOURCE_USER, &self.config.query_user)
+            .await?;
+
+        for value in values {
+            let Some(map) = Self::as_object(value) else {
+                warn!("HTTP user item is not object, skip");
+                continue;
+            };
+            let Some(username) = Self::parse_string(map.get("username")) else {
+                warn!("HTTP user item missing username, skip");
+                continue;
+            };
+            let Some(password) = Self::parse_string(map.get("password")) else {
+                warn!(username = %username, "HTTP user item missing password, skip");
+                continue;
+            };
+            let user = MqttUser {
+                username: username.clone(),
+                password,
+                salt: Self::parse_string(map.get("salt")),
+                is_superuser: Self::parse_bool_like(map.get("is_superuser")),
+                create_time: Self::parse_created_to_seconds(map.get("created")),
+            };
+            users.insert(username, user);
+        }
+        Ok(users)
     }
 
-    /// HTTP adapter does not support read all ACLs, return empty vector
     async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
-        Ok(Vec::new())
+        let mut acls = Vec::new();
+        let values = self
+            .fetch_resource(Self::RESOURCE_ACL, &self.config.query_acl)
+            .await?;
+
+        for value in values {
+            let Some(map) = Self::as_object(value) else {
+                warn!("HTTP acl item is not object, skip");
+                continue;
+            };
+
+            let permission = match Self::parse_permission(map.get("permission")) {
+                Ok(v) => v,
+                Err(_) => {
+                    warn!("HTTP acl item invalid permission, skip");
+                    continue;
+                }
+            };
+            let action = match Self::parse_action(map.get("access").or_else(|| map.get("action"))) {
+                Ok(v) => v,
+                Err(_) => {
+                    warn!("HTTP acl item invalid access/action, skip");
+                    continue;
+                }
+            };
+
+            let username = Self::parse_string(map.get("username")).unwrap_or_default();
+            let clientid = Self::parse_string(map.get("clientid")).unwrap_or_default();
+            let ip = Self::parse_string(map.get("ipaddr"))
+                .or_else(|| Self::parse_string(map.get("ipaddress")))
+                .unwrap_or_default();
+            let topics = match map.get("topics") {
+                Some(Value::Array(items)) => items
+                    .iter()
+                    .filter_map(|item| Self::parse_string(Some(item)))
+                    .collect::<Vec<_>>(),
+                _ => {
+                    let topic = Self::parse_string(map.get("topic")).unwrap_or_default();
+                    if topic.is_empty() {
+                        Vec::new()
+                    } else {
+                        vec![topic]
+                    }
+                }
+            };
+            if topics.is_empty() {
+                warn!("HTTP acl item missing topic/topics, skip");
+                continue;
+            }
+
+            let resource_type = if username.is_empty() {
+                MqttAclResourceType::ClientId
+            } else {
+                MqttAclResourceType::User
+            };
+            let resource_name = if username.is_empty() {
+                clientid
+            } else {
+                username
+            };
+
+            for topic in topics {
+                acls.push(MqttAcl {
+                    permission,
+                    resource_type,
+                    resource_name: resource_name.clone(),
+                    topic,
+                    ip: ip.clone(),
+                    action,
+                });
+            }
+        }
+        Ok(acls)
     }
 
-    /// HTTP adapter does not support read all blacklists, return empty vector
     async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
-        Ok(Vec::new())
+        let mut blacklists = Vec::new();
+        let values = self
+            .fetch_resource(Self::RESOURCE_BLACKLIST, &self.config.query_blacklist)
+            .await?;
+
+        for value in values {
+            let Some(map) = Self::as_object(value) else {
+                warn!("HTTP blacklist item is not object, skip");
+                continue;
+            };
+            let Some(blacklist_type_raw) = Self::parse_string(map.get("blacklist_type")) else {
+                warn!("HTTP blacklist item missing blacklist_type, skip");
+                continue;
+            };
+            let Some(resource_name) = Self::parse_string(map.get("resource_name")) else {
+                warn!("HTTP blacklist item missing resource_name, skip");
+                continue;
+            };
+            let end_time = Self::parse_string(map.get("end_time"))
+                .and_then(|s| s.parse::<u64>().ok())
+                .or_else(|| map.get("end_time").and_then(|v| v.as_u64()))
+                .unwrap_or(0);
+            let desc = Self::parse_string(map.get("desc")).unwrap_or_default();
+
+            let normalized = match blacklist_type_raw.to_ascii_lowercase().as_str() {
+                "clientid" | "client_id" => "ClientId".to_string(),
+                "user" | "username" => "User".to_string(),
+                "ip" | "ipaddr" | "ipaddress" => "Ip".to_string(),
+                "clientidmatch" | "client_id_match" => "ClientIdMatch".to_string(),
+                "usermatch" | "user_match" => "UserMatch".to_string(),
+                "ipcidr" | "ip_cidr" => "IPCIDR".to_string(),
+                _ => blacklist_type_raw,
+            };
+
+            let blacklist_type = match get_blacklist_type_by_str(&normalized) {
+                Ok(v) => v,
+                Err(_) => {
+                    warn!("HTTP blacklist item invalid blacklist_type, skip");
+                    continue;
+                }
+            };
+
+            blacklists.push(MqttAclBlackList {
+                blacklist_type,
+                resource_name,
+                end_time,
+                desc,
+            });
+        }
+        Ok(blacklists)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     #[tokio::test]
-    async fn test_http_template_rendering() {
-        let mut headers = HashMap::new();
-        headers.insert(
-            "Authorization".to_string(),
-            "Bearer ${username}".to_string(),
-        );
-
-        let mut body = HashMap::new();
-        body.insert("username".to_string(), "${username}".to_string());
-        body.insert("password".to_string(), "${password}".to_string());
-        body.insert("clientid".to_string(), "${clientid}".to_string());
-
+    async fn test_endpoint_for() {
         let http_config = HttpConfig {
-            url: "http://127.0.0.1:8080/auth?client=${clientid}".to_string(),
+            url: "http://127.0.0.1:8080/auth".to_string(),
             method: "POST".to_string(),
-            headers: Some(headers),
-            body: Some(body),
+            query_user: "users".to_string(),
+            query_acl: "/acls".to_string(),
+            query_blacklist: "http://127.0.0.1:8081/blacklists".to_string(),
+            headers: None,
+            body: None,
         };
 
-        let http_adapter = HttpAuthStorageAdapter::new(http_config);
-
-        let rendered_url =
-            http_adapter.render_url("test_user", "test_password", "test_client", "127.0.0.1");
+        let adapter = HttpAuthStorageAdapter::new(http_config);
         assert_eq!(
-            rendered_url,
-            "http://127.0.0.1:8080/auth?client=test_client"
-        );
-
-        let rendered_headers =
-            http_adapter.render_headers("test_user", "test_password", "test_client", "127.0.0.1");
-        assert_eq!(
-            rendered_headers.get("Authorization"),
-            Some(&"Bearer test_user".to_string())
-        );
-
-        let rendered_body =
-            http_adapter.render_body("test_user", "test_password", "test_client", "127.0.0.1");
-        assert_eq!(
-            rendered_body.get("username"),
-            Some(&"test_user".to_string())
+            adapter.endpoint_for(&adapter.config.query_user),
+            "http://127.0.0.1:8080/auth/users"
         );
         assert_eq!(
-            rendered_body.get("password"),
-            Some(&"test_password".to_string())
+            adapter.endpoint_for(&adapter.config.query_acl),
+            "http://127.0.0.1:8080/auth/acls"
         );
         assert_eq!(
-            rendered_body.get("clientid"),
-            Some(&"test_client".to_string())
+            adapter.endpoint_for(&adapter.config.query_blacklist),
+            "http://127.0.0.1:8081/blacklists"
         );
     }
 
     #[test]
-    fn test_http_auth_response_parsing() {
-        let json_response = r#"
-        {
-            "result": "allow",
-            "is_superuser": true
-        }
-        "#;
-
-        let response: HttpAuthResponse = serde_json::from_str(json_response).unwrap();
-        assert_eq!(response.result, "allow");
-        assert_eq!(response.is_superuser, Some(true));
-    }
-
-    #[test]
-    fn test_http_auth_response_parsing_with_client_attrs() {
-        let json_response = r#"
-        {
-            "result": "allow",
-            "is_superuser": false,
-            "client_attrs": {
-                "role": "admin",
-                "sn": "10c61f1a1f47"
-            },
-            "expire_at": 1654254601
-        }
-        "#;
-
-        let response: HttpAuthResponse = serde_json::from_str(json_response).unwrap();
-        assert_eq!(response.result, "allow");
-        assert_eq!(response.is_superuser, Some(false));
-        assert_eq!(response.expire_at, Some(1654254601));
-
-        let client_attrs = response.client_attrs.unwrap();
-        assert_eq!(client_attrs.get("role"), Some(&"admin".to_string()));
-        assert_eq!(client_attrs.get("sn"), Some(&"10c61f1a1f47".to_string()));
-    }
-
-    #[test]
-    fn test_http_auth_response_deny() {
-        let json_response = r#"
-        {
-            "result": "deny"
-        }
-        "#;
-
-        let response: HttpAuthResponse = serde_json::from_str(json_response).unwrap();
-        assert_eq!(response.result, "deny");
-        assert_eq!(response.is_superuser, None);
-    }
-
-    #[test]
-    fn test_http_auth_response_ignore() {
-        let json_response = r#"
-        {
-            "result": "ignore"
-        }
-        "#;
-
-        let response: HttpAuthResponse = serde_json::from_str(json_response).unwrap();
-        assert_eq!(response.result, "ignore");
-        assert_eq!(response.is_superuser, None);
+    fn test_extract_items() {
+        let payload = serde_json::json!({
+            "users": [
+                {"username": "u1", "password": "p1"},
+                {"username": "u2", "password": "p2"}
+            ]
+        });
+        let items =
+            HttpAuthStorageAdapter::extract_items(payload, HttpAuthStorageAdapter::RESOURCE_USER)
+                .unwrap();
+        assert_eq!(items.len(), 2);
     }
 }

@@ -23,6 +23,7 @@ pub enum AuthDataStorageType {
     Mysql,
     Postgresql,
     Redis,
+    Mongodb,
     Http,
 }
 
@@ -35,6 +36,7 @@ impl FromStr for AuthDataStorageType {
             "mysql" => Ok(AuthDataStorageType::Mysql),
             "postgresql" => Ok(AuthDataStorageType::Postgresql),
             "redis" => Ok(AuthDataStorageType::Redis),
+            "mongodb" => Ok(AuthDataStorageType::Mongodb),
             "http" => Ok(AuthDataStorageType::Http),
             _ => Err(format!("invalid auth type: {s}")),
         }

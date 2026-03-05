@@ -15,6 +15,7 @@
 use crate::core::error::MqttBrokerError;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use async_trait::async_trait;
+use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
@@ -26,11 +27,12 @@ use metadata_struct::mqtt::user::MqttUser;
 use redis::Commands;
 use std::collections::HashMap;
 use third_driver::redis::{build_redis_conn_pool, RedisPool};
+use tracing::warn;
 
 type RedisConnection = r2d2::PooledConnection<redis::Client>;
 
 mod schema;
-use schema::{RedisAuthAcl, RedisAuthUser};
+use schema::{RedisAuthAcl, RedisAuthBlacklist, RedisAuthUser};
 
 pub struct RedisAuthStorageAdapter {
     pool: RedisPool,
@@ -39,7 +41,7 @@ pub struct RedisAuthStorageAdapter {
 }
 
 impl RedisAuthStorageAdapter {
-    pub fn new(config: RedisConfig) -> Self {
+    pub fn new(config: RedisConfig) -> Result<Self, MqttBrokerError> {
         // build Redis connection address according to configuration
         let addr = if config.password.is_empty() {
             format!("redis://{}/{}", config.redis_addr, config.database)
@@ -50,13 +52,52 @@ impl RedisAuthStorageAdapter {
             )
         };
 
-        let pool = match build_redis_conn_pool(&addr) {
-            Ok(data) => data,
-            Err(e) => {
-                panic!("Failed to create Redis connection pool: {}", e);
-            }
-        };
-        RedisAuthStorageAdapter { pool, config }
+        let pool = build_redis_conn_pool(&addr)?;
+        Ok(RedisAuthStorageAdapter { pool, config })
+    }
+
+    fn exec_query_ids(
+        conn: &mut RedisConnection,
+        query: &str,
+        fallback_key: String,
+    ) -> Result<Vec<String>, MqttBrokerError> {
+        if query.trim().is_empty() {
+            return Ok(conn.smembers(fallback_key)?);
+        }
+
+        let parts: Vec<&str> = query.split_whitespace().collect();
+        if parts.is_empty() {
+            return Ok(conn.smembers(fallback_key)?);
+        }
+
+        let mut cmd = redis::cmd(parts[0]);
+        for arg in parts.iter().skip(1) {
+            cmd.arg(*arg);
+        }
+        Ok(cmd.query::<Vec<String>>(conn)?)
+    }
+
+    fn query_user_ids(&self, conn: &mut RedisConnection) -> Result<Vec<String>, MqttBrokerError> {
+        Self::exec_query_ids(
+            conn,
+            &self.config.query_user,
+            RedisAuthUser::redis_users_key(),
+        )
+    }
+
+    fn query_acl_ids(&self, conn: &mut RedisConnection) -> Result<Vec<String>, MqttBrokerError> {
+        Self::exec_query_ids(conn, &self.config.query_acl, RedisAuthAcl::redis_acls_key())
+    }
+
+    fn query_blacklist_ids(
+        &self,
+        conn: &mut RedisConnection,
+    ) -> Result<Vec<String>, MqttBrokerError> {
+        Self::exec_query_ids(
+            conn,
+            &self.config.query_blacklist,
+            RedisAuthBlacklist::redis_blacklists_key(),
+        )
     }
 }
 
@@ -64,32 +105,41 @@ impl RedisAuthStorageAdapter {
 impl AuthStorageAdapter for RedisAuthStorageAdapter {
     async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
         let mut conn: RedisConnection = self.pool.get()?;
-        let results = DashMap::with_capacity(2);
+        let usernames = self.query_user_ids(&mut conn)?;
+        let results = DashMap::with_capacity(usernames.len());
 
-        let usernames: Vec<String> = conn.smembers(RedisAuthUser::redis_users_key())?;
+        if usernames.is_empty() {
+            return Ok(results);
+        }
 
-        for username in usernames {
-            let user_key = RedisAuthUser::redis_user_key(&username);
-            let fields: HashMap<String, String> = conn.hgetall(&user_key)?;
+        let mut pipe = redis::pipe();
+        for username in &usernames {
+            pipe.cmd("HGETALL")
+                .arg(RedisAuthUser::redis_user_key(username));
+        }
+        let rows: Vec<HashMap<String, String>> = pipe.query(&mut conn)?;
 
-            if !fields.is_empty() {
-                match RedisAuthUser::from_redis_hash(username.clone(), fields) {
-                    Ok(redis_user) => {
-                        let user = MqttUser {
-                            username: redis_user.username.clone(),
-                            password: redis_user.password,
-                            salt: if redis_user.salt.is_empty() {
-                                None
-                            } else {
-                                Some(redis_user.salt)
-                            },
-                            is_superuser: redis_user.is_superuser == 1,
-                            // todo bugfix
-                            create_time: now_second(),
-                        };
-                        results.insert(redis_user.username, user);
-                    }
-                    Err(_) => continue,
+        for (username, fields) in usernames.into_iter().zip(rows.into_iter()) {
+            if fields.is_empty() {
+                continue;
+            }
+            match RedisAuthUser::from_redis_hash(username.clone(), fields) {
+                Ok(redis_user) => {
+                    let user = MqttUser {
+                        username: redis_user.username.clone(),
+                        password: redis_user.password,
+                        salt: if redis_user.salt.is_empty() {
+                            None
+                        } else {
+                            Some(redis_user.salt)
+                        },
+                        is_superuser: redis_user.is_superuser == 1,
+                        create_time: redis_user.created.unwrap_or_else(now_second),
+                    };
+                    results.insert(redis_user.username, user);
+                }
+                Err(e) => {
+                    warn!(username = %username, error = %e, "Parse Redis user failed, skip record");
                 }
             }
         }
@@ -99,46 +149,55 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
 
     async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
         let mut conn: RedisConnection = self.pool.get()?;
-        let mut results = Vec::new();
+        let acl_ids = self.query_acl_ids(&mut conn)?;
+        let mut results = Vec::with_capacity(acl_ids.len());
 
-        let acl_ids: Vec<String> = conn.smembers(RedisAuthAcl::redis_acls_key())?;
+        if acl_ids.is_empty() {
+            return Ok(results);
+        }
 
-        for acl_id in acl_ids {
-            let acl_key = RedisAuthAcl::redis_acl_key(&acl_id);
-            let fields: HashMap<String, String> = conn.hgetall(&acl_key)?;
+        let mut pipe = redis::pipe();
+        for acl_id in &acl_ids {
+            pipe.cmd("HGETALL").arg(RedisAuthAcl::redis_acl_key(acl_id));
+        }
+        let rows: Vec<HashMap<String, String>> = pipe.query(&mut conn)?;
 
-            if !fields.is_empty() {
-                match RedisAuthAcl::from_redis_hash(acl_id, fields) {
-                    Ok(redis_acl) => {
-                        let acl = MqttAcl {
-                            permission: match redis_acl.permission {
-                                0 => MqttAclPermission::Deny,
-                                1 => MqttAclPermission::Allow,
-                                _ => return Err(MqttBrokerError::InvalidAclPermission),
-                            },
-                            resource_type: match redis_acl.username.is_empty() {
-                                true => MqttAclResourceType::ClientId,
-                                false => MqttAclResourceType::User,
-                            },
-                            resource_name: match redis_acl.username.is_empty() {
-                                true => redis_acl.clientid,
-                                false => redis_acl.username,
-                            },
-                            topic: redis_acl.topic,
-                            ip: redis_acl.ipaddr,
-                            action: match redis_acl.access {
-                                0 => MqttAclAction::All,
-                                1 => MqttAclAction::Subscribe,
-                                2 => MqttAclAction::Publish,
-                                3 => MqttAclAction::PubSub,
-                                4 => MqttAclAction::Retain,
-                                5 => MqttAclAction::Qos,
-                                _ => return Err(MqttBrokerError::InvalidAclAction),
-                            },
-                        };
-                        results.push(acl);
-                    }
-                    Err(_) => continue,
+        for (acl_id, fields) in acl_ids.into_iter().zip(rows.into_iter()) {
+            if fields.is_empty() {
+                continue;
+            }
+            match RedisAuthAcl::from_redis_hash(acl_id.clone(), fields) {
+                Ok(redis_acl) => {
+                    let acl = MqttAcl {
+                        permission: match redis_acl.permission {
+                            0 => MqttAclPermission::Deny,
+                            1 => MqttAclPermission::Allow,
+                            _ => return Err(MqttBrokerError::InvalidAclPermission),
+                        },
+                        resource_type: match redis_acl.username.is_empty() {
+                            true => MqttAclResourceType::ClientId,
+                            false => MqttAclResourceType::User,
+                        },
+                        resource_name: match redis_acl.username.is_empty() {
+                            true => redis_acl.clientid,
+                            false => redis_acl.username,
+                        },
+                        topic: redis_acl.topic,
+                        ip: redis_acl.ipaddr,
+                        action: match redis_acl.access {
+                            0 => MqttAclAction::All,
+                            1 => MqttAclAction::Subscribe,
+                            2 => MqttAclAction::Publish,
+                            3 => MqttAclAction::PubSub,
+                            4 => MqttAclAction::Retain,
+                            5 => MqttAclAction::Qos,
+                            _ => return Err(MqttBrokerError::InvalidAclAction),
+                        },
+                    };
+                    results.push(acl);
+                }
+                Err(e) => {
+                    warn!(acl_id = %acl_id, error = %e, "Parse Redis ACL failed, skip record");
                 }
             }
         }
@@ -147,6 +206,41 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
     }
 
     async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
-        Ok(Vec::new())
+        let mut conn: RedisConnection = self.pool.get()?;
+        let blacklist_ids = self.query_blacklist_ids(&mut conn)?;
+        let mut results = Vec::with_capacity(blacklist_ids.len());
+
+        if blacklist_ids.is_empty() {
+            return Ok(results);
+        }
+
+        let mut pipe = redis::pipe();
+        for id in &blacklist_ids {
+            pipe.cmd("HGETALL")
+                .arg(RedisAuthBlacklist::redis_blacklist_key(id));
+        }
+        let rows: Vec<HashMap<String, String>> = pipe.query(&mut conn)?;
+
+        for (id, fields) in blacklist_ids.into_iter().zip(rows.into_iter()) {
+            if fields.is_empty() {
+                continue;
+            }
+            match RedisAuthBlacklist::from_redis_hash(id.clone(), fields) {
+                Ok(raw) => {
+                    let blacklist = MqttAclBlackList {
+                        blacklist_type: get_blacklist_type_by_str(&raw.blacklist_type)?,
+                        resource_name: raw.resource_name,
+                        end_time: raw.end_time,
+                        desc: raw.desc,
+                    };
+                    results.push(blacklist);
+                }
+                Err(e) => {
+                    warn!(blacklist_id = %id, error = %e, "Parse Redis blacklist failed, skip record");
+                }
+            }
+        }
+
+        Ok(results)
     }
 }

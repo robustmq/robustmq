@@ -16,6 +16,7 @@ use std::str::FromStr;
 
 // pub mod jwt;
 pub mod password;
+pub mod super_user;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoginType {
