@@ -363,7 +363,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        create_acl_by_req(&self.raft_manager, &req)
+        create_acl_by_req(&self.raft_manager, &self.call_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)
@@ -376,7 +376,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        delete_acl_by_req(&self.raft_manager, &req)
+        delete_acl_by_req(&self.raft_manager, &self.call_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)
@@ -402,7 +402,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        create_blacklist_by_req(&self.raft_manager, &req)
+        create_blacklist_by_req(&self.raft_manager, &self.call_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)
@@ -415,7 +415,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        delete_blacklist_by_req(&self.raft_manager, &req)
+        delete_blacklist_by_req(&self.raft_manager, &self.call_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)

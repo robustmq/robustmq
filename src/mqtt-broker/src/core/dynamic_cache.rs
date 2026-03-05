@@ -26,6 +26,8 @@ use crate::{security::AuthManager, subscribe::manager::SubscribeManager};
 use common_base::utils::serialize;
 use connector::manager::ConnectorManager;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::session::MqttSession;
@@ -200,6 +202,28 @@ pub async fn update_mqtt_cache_metadata(
             BrokerUpdateCacheActionType::Delete => {
                 let user = serialize::deserialize::<MqttUser>(&record.data)?;
                 cache_manager.del_user(user.username);
+            }
+        },
+        BrokerUpdateCacheResourceType::Acl => match record.action_type() {
+            BrokerUpdateCacheActionType::Create => {
+                let acl = serialize::deserialize::<MqttAcl>(&record.data)?;
+                cache_manager.add_acl(acl);
+            }
+            BrokerUpdateCacheActionType::Update => {}
+            BrokerUpdateCacheActionType::Delete => {
+                let acl = serialize::deserialize::<MqttAcl>(&record.data)?;
+                cache_manager.remove_acl(acl);
+            }
+        },
+        BrokerUpdateCacheResourceType::Blacklist => match record.action_type() {
+            BrokerUpdateCacheActionType::Create => {
+                let blacklist = serialize::deserialize::<MqttAclBlackList>(&record.data)?;
+                cache_manager.add_blacklist(blacklist);
+            }
+            BrokerUpdateCacheActionType::Update => {}
+            BrokerUpdateCacheActionType::Delete => {
+                let blacklist = serialize::deserialize::<MqttAclBlackList>(&record.data)?;
+                cache_manager.remove_blacklist(blacklist);
             }
         },
 

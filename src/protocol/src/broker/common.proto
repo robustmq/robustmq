@@ -48,6 +48,8 @@ enum BrokerUpdateCacheResourceType {
   Shard = 9;
   Segment = 10;
   SegmentMeta = 11;
+  Acl = 12;
+  Blacklist = 13;
 }
 
 enum BrokerUpdateCacheActionType {

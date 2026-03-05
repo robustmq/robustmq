@@ -13,13 +13,21 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
+use crate::core::notify::{
+    send_notify_by_add_acl, send_notify_by_add_blacklist, send_notify_by_delete_acl,
+    send_notify_by_delete_blacklist,
+};
 use crate::raft::manager::MultiRaftManager;
 use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::{
     raft::route::data::{StorageData, StorageDataType},
     storage::mqtt::acl::AclStorage,
 };
+use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str;
 use common_base::utils::serialize::encode_to_bytes;
+use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest, DeleteAclReply,
     DeleteAclRequest, DeleteBlacklistReply, DeleteBlacklistRequest, ListAclReply, ListAclRequest,
@@ -45,20 +53,26 @@ pub fn list_acl_by_req(
 
 pub async fn create_acl_by_req(
     raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
     req: &CreateAclRequest,
 ) -> Result<CreateAclReply, MetaServiceError> {
     let data = StorageData::new(StorageDataType::MqttSetAcl, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
+    let acl = MqttAcl::decode(&req.acl)?;
+    send_notify_by_add_acl(call_manager, acl).await?;
 
     Ok(CreateAclReply {})
 }
 
 pub async fn delete_acl_by_req(
     raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
     req: &DeleteAclRequest,
 ) -> Result<DeleteAclReply, MetaServiceError> {
     let data = StorageData::new(StorageDataType::MqttDeleteAcl, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
+    let acl = MqttAcl::decode(&req.acl)?;
+    send_notify_by_delete_acl(call_manager, acl).await?;
 
     Ok(DeleteAclReply {})
 }
@@ -80,20 +94,31 @@ pub fn list_blacklist_by_req(
 
 pub async fn create_blacklist_by_req(
     raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
     req: &CreateBlacklistRequest,
 ) -> Result<CreateBlacklistReply, MetaServiceError> {
     let data = StorageData::new(StorageDataType::MqttSetBlacklist, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
+    let blacklist = MqttAclBlackList::decode(&req.blacklist)?;
+    send_notify_by_add_blacklist(call_manager, blacklist).await?;
 
     Ok(CreateBlacklistReply {})
 }
 
 pub async fn delete_blacklist_by_req(
     raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
     req: &DeleteBlacklistRequest,
 ) -> Result<DeleteBlacklistReply, MetaServiceError> {
     let data = StorageData::new(StorageDataType::MqttDeleteBlacklist, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
+    let blacklist = MqttAclBlackList {
+        blacklist_type: get_blacklist_type_by_str(&req.blacklist_type)?,
+        resource_name: req.resource_name.clone(),
+        end_time: 0,
+        desc: String::new(),
+    };
+    send_notify_by_delete_blacklist(call_manager, blacklist).await?;
 
     Ok(DeleteBlacklistReply {})
 }
