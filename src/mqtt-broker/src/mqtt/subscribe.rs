@@ -22,7 +22,7 @@ use crate::core::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_su
 use crate::core::sub_wildcards::sub_path_validator;
 use crate::core::subscribe::remove_subscribe;
 use crate::core::subscribe::{save_subscribe, SaveSubscribeContext};
-use crate::security::AuthDriver;
+use crate::security::AuthManager;
 use crate::subscribe::common::min_qos;
 use crate::subscribe::manager::SubscribeManager;
 use crate::system_topic::event::{
@@ -279,7 +279,7 @@ fn response_packet_mqtt_unsub_ack(
 
 async fn subscribe_validator(
     cache_manager: &Arc<MQTTCacheManager>,
-    auth_driver: &Arc<AuthDriver>,
+    auth_driver: &Arc<AuthManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     connection: &MQTTConnection,
     subscribe: &Subscribe,
@@ -373,10 +373,7 @@ async fn subscribe_validator(
         );
     }
 
-    if !auth_driver
-        .auth_subscribe_check(connection, subscribe)
-        .await
-    {
+    if !auth_driver.subscribe_check(connection, subscribe).await {
         return (
             vec![SubscribeReasonCode::NotAuthorized],
             "Subscription not authorized".to_string(),

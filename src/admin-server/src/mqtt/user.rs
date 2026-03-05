@@ -65,7 +65,7 @@ use common_base::{
     tools::now_second,
 };
 use metadata_struct::mqtt::user::MqttUser;
-use mqtt_broker::security::AuthDriver;
+use mqtt_broker::security::AuthManager;
 use std::sync::Arc;
 
 pub async fn user_list(
@@ -108,7 +108,7 @@ pub async fn user_list(
         exact_match,
     );
 
-    let auth_driver = AuthDriver::new(
+    let auth_driver = AuthManager::new(
         state.mqtt_context.cache_manager.clone(),
         state.client_pool.clone(),
     );
@@ -162,7 +162,7 @@ pub async fn user_create(
         create_time: now_second(),
     };
 
-    let auth_driver = AuthDriver::new(
+    let auth_driver = AuthManager::new(
         state.mqtt_context.cache_manager.clone(),
         state.client_pool.clone(),
     );
@@ -176,7 +176,7 @@ pub async fn user_delete(
     State(state): State<Arc<HttpState>>,
     ValidatedJson(params): ValidatedJson<DeleteUserReq>,
 ) -> String {
-    let auth_driver = AuthDriver::new(
+    let auth_driver = AuthManager::new(
         state.mqtt_context.cache_manager.clone(),
         state.client_pool.clone(),
     );

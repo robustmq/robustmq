@@ -23,8 +23,8 @@ use crate::core::system_alarm::SystemAlarm;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::core::topic_rewrite::start_topic_rewrite_convert_thread;
 use crate::security::auth::super_user::init_system_user;
-use crate::security::storage::sync::sync_auth_storage_info;
-use crate::security::AuthDriver;
+use crate::security::storage::sync::start_auth_sync_thread;
+use crate::security::AuthManager;
 use crate::server::{Server, TcpServerContext};
 use crate::storage::session::SessionBatcher;
 use crate::subscribe::manager::SubscribeManager;
@@ -56,7 +56,7 @@ pub struct MqttBrokerServerParams {
     pub subscribe_manager: Arc<SubscribeManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub connector_manager: Arc<ConnectorManager>,
-    pub auth_driver: Arc<AuthDriver>,
+    pub auth_driver: Arc<AuthManager>,
     pub delay_message_manager: Arc<DelayMessageManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub metrics_cache_manager: Arc<MQTTMetricsCache>,
@@ -75,7 +75,7 @@ pub struct MqttBrokerServer {
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     connector_manager: Arc<ConnectorManager>,
-    auth_driver: Arc<AuthDriver>,
+    auth_driver: Arc<AuthManager>,
     delay_message_manager: Arc<DelayMessageManager>,
     schema_manager: Arc<SchemaRegisterManager>,
     metrics_cache_manager: Arc<MQTTMetricsCache>,
@@ -162,7 +162,7 @@ impl MqttBrokerServer {
         let auth_driver = self.auth_driver.clone();
         let raw_stop_send = self.inner_stop.clone();
         tokio::spawn(async move {
-            sync_auth_storage_info(auth_driver.clone(), raw_stop_send.clone());
+            start_auth_sync_thread(auth_driver.clone(), raw_stop_send.clone());
         });
 
         // flapping detect

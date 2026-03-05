@@ -155,7 +155,7 @@ impl MqttService {
         };
 
         self.auth_driver
-            .auth_publish_check(connection, &topic_name, publish.retain, publish.qos)
+            .publish_check(connection, &topic_name, publish.retain, publish.qos)
             .await?;
 
         let topic = try_init_topic(

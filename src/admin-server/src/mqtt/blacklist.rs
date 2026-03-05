@@ -104,7 +104,7 @@ use common_base::{
     utils::time_util::timestamp_to_local_datetime,
 };
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use mqtt_broker::security::AuthDriver;
+use mqtt_broker::security::AuthManager;
 use std::sync::Arc;
 
 pub async fn blacklist_list(
@@ -121,7 +121,7 @@ pub async fn blacklist_list(
         params.exact_match,
     );
 
-    let auth_driver = AuthDriver::new(
+    let auth_driver = AuthManager::new(
         state.mqtt_context.cache_manager.clone(),
         state.client_pool.clone(),
     );
@@ -179,7 +179,7 @@ pub async fn blacklist_create(
         end_time: params.end_time,
         desc: params.desc.clone(),
     };
-    let auth_driver = AuthDriver::new(
+    let auth_driver = AuthManager::new(
         state.mqtt_context.cache_manager.clone(),
         state.client_pool.clone(),
     );
@@ -207,7 +207,7 @@ pub async fn blacklist_delete(
         desc: "".to_string(),
     };
 
-    let auth_driver = AuthDriver::new(
+    let auth_driver = AuthManager::new(
         state.mqtt_context.cache_manager.clone(),
         state.client_pool.clone(),
     );

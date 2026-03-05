@@ -19,7 +19,7 @@ use crate::core::retain::RetainMessageManager;
 use crate::mqtt::connect::build_connect_ack_fail_packet;
 use crate::mqtt::disconnect::build_distinct_packet;
 use crate::mqtt::{MqttService, MqttServiceConnectContext, MqttServiceContext};
-use crate::security::AuthDriver;
+use crate::security::AuthManager;
 use crate::storage::session::SessionBatcher;
 use crate::subscribe::common::is_error_by_suback;
 use crate::subscribe::manager::SubscribeManager;
@@ -76,7 +76,7 @@ pub struct CommandContext {
     pub session_batcher: Arc<SessionBatcher>,
     pub connection_manager: Arc<ConnectionManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
-    pub auth_driver: Arc<AuthDriver>,
+    pub auth_driver: Arc<AuthManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub broker_cache: Arc<BrokerCacheManager>,
     pub retain_message_manager: Arc<RetainMessageManager>,

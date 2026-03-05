@@ -14,23 +14,29 @@
 
 use std::str::FromStr;
 
-// pub mod jwt;
-pub mod password;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LoginType {
-    PasswordBased,
-    Jwt,
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub enum AuthDataStorageType {
+    #[default]
+    Meta,
+    Mysql,
+    Postgresql,
+    Redis,
+    Http,
 }
 
-impl FromStr for LoginType {
+impl FromStr for AuthDataStorageType {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "password_based" => Ok(Self::PasswordBased),
-            "jwt" => Ok(Self::Jwt),
-            _ => Err(format!("invalid login type: {s}")),
+            "meta" => Ok(AuthDataStorageType::Meta),
+            "mysql" => Ok(AuthDataStorageType::Mysql),
+            "postgresql" => Ok(AuthDataStorageType::Postgresql),
+            "redis" => Ok(AuthDataStorageType::Redis),
+            "http" => Ok(AuthDataStorageType::Http),
+            _ => Err(format!("invalid auth type: {s}")),
         }
     }
 }

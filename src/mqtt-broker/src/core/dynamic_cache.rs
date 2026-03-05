@@ -22,7 +22,7 @@ use crate::storage::connector::ConnectorStorage;
 use crate::storage::schema::SchemaStorage;
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::parse::ParseSubscribeData;
-use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
+use crate::{security::AuthManager, subscribe::manager::SubscribeManager};
 use common_base::utils::serialize;
 use connector::manager::ConnectorManager;
 use grpc_clients::pool::ClientPool;
@@ -45,7 +45,7 @@ use tracing::info;
 pub async fn load_metadata_cache(
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
-    auth_driver: &Arc<AuthDriver>,
+    auth_driver: &Arc<AuthManager>,
     connector_manager: &Arc<ConnectorManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
 ) -> ResultMqttBrokerError {

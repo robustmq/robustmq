@@ -12,25 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::str::FromStr;
+use crate::core::cache::MQTTCacheManager;
+use std::sync::Arc;
 
-// pub mod jwt;
-pub mod password;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LoginType {
-    PasswordBased,
-    Jwt,
-}
-
-impl FromStr for LoginType {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "password_based" => Ok(Self::PasswordBased),
-            "jwt" => Ok(Self::Jwt),
-            _ => Err(format!("invalid login type: {s}")),
-        }
+pub fn password_check_by_login(
+    cache_manager: &Arc<MQTTCacheManager>,
+    username: &str,
+    password: &str,
+) -> bool {
+    if let Some(user) = cache_manager.user_info.get(username) {
+        return user.password == password;
     }
+    false
 }

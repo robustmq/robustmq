@@ -32,7 +32,7 @@ use storage_adapter::driver::StorageDriverManager;
 
 use crate::core::cache::MQTTCacheManager;
 use crate::core::retain::RetainMessageManager;
-use crate::security::AuthDriver;
+use crate::security::AuthManager;
 use crate::storage::session::SessionBatcher;
 use crate::subscribe::manager::SubscribeManager;
 
@@ -49,7 +49,7 @@ pub struct MqttService {
     schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     session_batcher: Arc<SessionBatcher>,
-    auth_driver: Arc<AuthDriver>,
+    auth_driver: Arc<AuthManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     retain_message_manager: Arc<RetainMessageManager>,
 }
@@ -65,7 +65,7 @@ pub struct MqttServiceContext {
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub client_pool: Arc<ClientPool>,
     pub session_batcher: Arc<SessionBatcher>,
-    pub auth_driver: Arc<AuthDriver>,
+    pub auth_driver: Arc<AuthManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub retain_message_manager: Arc<RetainMessageManager>,
 }

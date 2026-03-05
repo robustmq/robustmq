@@ -155,7 +155,7 @@ use common_base::{
     http_response::{error_response, success_response},
 };
 use metadata_struct::acl::mqtt_acl::MqttAcl;
-use mqtt_broker::security::AuthDriver;
+use mqtt_broker::security::AuthManager;
 use std::{str::FromStr, sync::Arc};
 
 pub async fn acl_list(
@@ -171,7 +171,7 @@ pub async fn acl_list(
         params.filter_values,
         params.exact_match,
     );
-    let auth_driver = AuthDriver::new(
+    let auth_driver = AuthManager::new(
         state.mqtt_context.cache_manager.clone(),
         state.client_pool.clone(),
     );
@@ -256,7 +256,7 @@ async fn acl_create_inner(state: &Arc<HttpState>, params: &CreateAclReq) -> Resu
         action,
         permission,
     };
-    let auth_driver = AuthDriver::new(
+    let auth_driver = AuthManager::new(
         state.mqtt_context.cache_manager.clone(),
         state.client_pool.clone(),
     );
@@ -306,7 +306,7 @@ async fn acl_delete_inner(state: &Arc<HttpState>, params: &DeleteAclReq) -> Resu
         action,
         permission,
     };
-    let auth_driver = AuthDriver::new(
+    let auth_driver = AuthManager::new(
         state.mqtt_context.cache_manager.clone(),
         state.client_pool.clone(),
     );
