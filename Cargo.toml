@@ -274,7 +274,7 @@ reqwest = { version = "0.12.23", default-features = false, features = [
 tempfile = "3.26.0"
 chrono = { version = "0.4.44", default-features = false, features = ["std", "clock"] }
 bson = "2.9"
-strum = "0.26"
+strum = "0.28"
 strum_macros = "0.28"
 governor = "0.10.1"
 os_info = "3.8.2"
