@@ -14,7 +14,6 @@
 
 use crate::core::error::MqttBrokerError;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auth::storage::StorageConfig;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -30,7 +29,6 @@ pub mod sync;
 pub use storage_type::AuthDataStorageType;
 
 pub fn build_storage_driver(
-    client_pool: &Arc<ClientPool>,
     storage_config: &StorageConfig,
 ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, MqttBrokerError> {
     let storage_type = AuthDataStorageType::from_str(&storage_config.storage_type)
@@ -38,7 +36,7 @@ pub fn build_storage_driver(
 
     match storage_type {
         AuthDataStorageType::Meta => {
-            let driver = meta::MetaServiceAuthStorageAdapter::new(client_pool.clone());
+            let driver = meta::MetaServiceAuthStorageAdapter::new();
             Ok(Arc::new(driver))
         }
         AuthDataStorageType::Mysql => {

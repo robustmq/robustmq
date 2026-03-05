@@ -104,7 +104,7 @@ use common_base::{
     utils::time_util::timestamp_to_local_datetime,
 };
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use mqtt_broker::{security::AuthManager, storage::blacklist::BlackListStorage};
+use mqtt_broker::storage::blacklist::BlackListStorage;
 use std::sync::Arc;
 
 pub async fn blacklist_list(
@@ -121,16 +121,35 @@ pub async fn blacklist_list(
         params.exact_match,
     );
 
-    let auth_driver = AuthManager::new(
-        state.mqtt_context.cache_manager.clone(),
-        state.client_pool.clone(),
+    let mut data: Vec<MqttAclBlackList> = Vec::new();
+    let acl_metadata = &state.mqtt_context.cache_manager.acl_metadata;
+    data.extend(
+        acl_metadata
+            .blacklist_user
+            .iter()
+            .map(|entry| entry.value().clone()),
     );
-    let data = match auth_driver.read_all_blacklist().await {
-        Ok(data) => data,
-        Err(e) => {
-            return error_response(e.to_string());
-        }
-    };
+    data.extend(
+        acl_metadata
+            .blacklist_client_id
+            .iter()
+            .map(|entry| entry.value().clone()),
+    );
+    data.extend(
+        acl_metadata
+            .blacklist_ip
+            .iter()
+            .map(|entry| entry.value().clone()),
+    );
+    for entry in acl_metadata.blacklist_user_match.iter() {
+        data.extend(entry.value().iter().cloned());
+    }
+    for entry in acl_metadata.blacklist_client_id_match.iter() {
+        data.extend(entry.value().iter().cloned());
+    }
+    for entry in acl_metadata.blacklist_ip_match.iter() {
+        data.extend(entry.value().iter().cloned());
+    }
 
     let mut blacklists = Vec::new();
     for blacklist in data {

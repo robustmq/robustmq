@@ -492,7 +492,7 @@ impl BrokerServer {
         ));
         let subscribe_manager = Arc::new(SubscribeManager::new());
         let connector_manager = Arc::new(ConnectorManager::new());
-        let auth_driver = Arc::new(AuthManager::new(cache_manager.clone(), client_pool.clone()));
+        let auth_driver = Arc::new(AuthManager::new(cache_manager.clone()));
         let delay_message_manager = Arc::new(
             DelayMessageManager::new(client_pool.clone(), storage_driver_manager.clone(), 5)
                 .await?,

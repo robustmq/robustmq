@@ -27,10 +27,11 @@ use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceTy
 use common_base::tools::now_millis;
 use common_metrics::mqtt::auth::{record_mqtt_acl_failed, record_mqtt_acl_success};
 use dashmap::DashMap;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::mqtt::auth::authn_config::AuthnConfig;
 use metadata_struct::mqtt::auth::authn_config::LoginAuthEnum;
+use metadata_struct::mqtt::auth::password::PasswordBasedConfig;
 use metadata_struct::mqtt::auth::storage::StorageConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::user::MqttUser;
@@ -54,17 +55,35 @@ struct CachedStorageDriver {
 #[derive(Clone)]
 pub struct AuthManager {
     cache_manager: Arc<MQTTCacheManager>,
-    client_pool: Arc<ClientPool>,
     storage_drivers: Arc<DashMap<String, CachedStorageDriver>>,
 }
 
 impl AuthManager {
-    pub fn new(cache_manager: Arc<MQTTCacheManager>, client_pool: Arc<ClientPool>) -> AuthManager {
+    pub fn new(cache_manager: Arc<MQTTCacheManager>) -> AuthManager {
         AuthManager {
             cache_manager,
-            client_pool,
             storage_drivers: Arc::new(DashMap::new()),
         }
+    }
+
+    fn authn_list_with_default(&self) -> Vec<(String, AuthnConfig)> {
+        let mut authn_list = self.cache_manager.get_authn();
+        if authn_list.is_empty() {
+            let default_authn = AuthnConfig {
+                uid: "inner_default".to_string(),
+                authn_type: "password_based".to_string(),
+                config: LoginAuthEnum::PasswordBased(Box::new(PasswordBasedConfig {
+                    storage_config: StorageConfig {
+                        storage_type: "meta".to_string(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })),
+                create_at: 0,
+            };
+            authn_list.push((default_authn.uid.clone(), default_authn));
+        }
+        authn_list
     }
 
     fn get_or_build_storage_driver(
@@ -79,7 +98,7 @@ impl AuthManager {
             }
         }
 
-        let driver = build_storage_driver(&self.client_pool, storage_config)?;
+        let driver = build_storage_driver(storage_config)?;
         self.storage_drivers.insert(
             authn_id.to_string(),
             CachedStorageDriver {
@@ -94,7 +113,7 @@ impl AuthManager {
         &self,
     ) -> Result<Vec<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>>, MqttBrokerError> {
         let mut drivers = Vec::new();
-        for (authn_id, authn) in self.cache_manager.get_authn() {
+        for (authn_id, authn) in self.authn_list_with_default() {
             if let LoginAuthEnum::PasswordBased(config) = authn.config {
                 let driver = self.get_or_build_storage_driver(&authn_id, &config.storage_config)?;
                 drivers.push(driver);
@@ -115,11 +134,7 @@ impl AuthManager {
             return Ok(true);
         }
 
-        if self.cache_manager.authn_list.is_empty() {
-            return Ok(false);
-        }
-
-        if let Some((_, authn)) = self.cache_manager.get_authn().into_iter().next() {
+        if let Some((_, authn)) = self.authn_list_with_default().into_iter().next() {
             let login_type = LoginType::from_str(&authn.authn_type)
                 .map_err(|_| MqttBrokerError::UnsupportedAuthType(authn.authn_type.clone()))?;
 
