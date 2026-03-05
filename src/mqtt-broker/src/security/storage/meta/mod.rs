@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::core::error::MqttBrokerError;
-use crate::core::tool::ResultMqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use crate::storage::acl::AclStorage;
 use crate::storage::blacklist::BlackListStorage;
@@ -51,40 +50,5 @@ impl AuthStorageAdapter for MetaServiceAuthStorageAdapter {
     async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
         let blacklist_storage = BlackListStorage::new(self.client_pool.clone());
         return blacklist_storage.list_blacklist().await;
-    }
-
-    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError> {
-        let user_storage = UserStorage::new(self.client_pool.clone());
-        return user_storage.get_user(username).await;
-    }
-
-    async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
-        let user_storage = UserStorage::new(self.client_pool.clone());
-        return user_storage.save_user(user_info).await;
-    }
-
-    async fn delete_user(&self, username: String) -> ResultMqttBrokerError {
-        let user_storage = UserStorage::new(self.client_pool.clone());
-        return user_storage.delete_user(username).await;
-    }
-
-    async fn save_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
-        let acl_storage = AclStorage::new(self.client_pool.clone());
-        return acl_storage.save_acl(acl).await;
-    }
-
-    async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
-        let acl_storage = AclStorage::new(self.client_pool.clone());
-        return acl_storage.delete_acl(acl).await;
-    }
-
-    async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
-        let blacklist_storage = BlackListStorage::new(self.client_pool.clone());
-        blacklist_storage.save_blacklist(blacklist).await
-    }
-
-    async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
-        let blacklist_storage = BlackListStorage::new(self.client_pool.clone());
-        blacklist_storage.delete_blacklist(blacklist).await
     }
 }

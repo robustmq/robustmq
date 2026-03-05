@@ -20,6 +20,8 @@ MySQL data source is suitable when users, ACL, and blacklist are already maintai
 2. Results are written into local cache.
 3. CONNECT auth checks only in-memory cache.
 
+Use explicit `AS` aliases and keep field names consistent. Do not use `SELECT *`.
+
 ## Configuration
 
 Key fields in `mysql_config`:
@@ -35,7 +37,7 @@ Key fields in `mysql_config`:
 
 ### `query_user`
 
-Return 5 columns in order:
+Return 5 fields with these names (order is not required):
 
 1. `username` (String)
 2. `password` (String)
@@ -45,7 +47,7 @@ Return 5 columns in order:
 
 ### `query_acl`
 
-Return 6 columns in order:
+Return 6 fields with these names (order is not required):
 
 1. `permission` (0/1)
 2. `ipaddr` (String)
@@ -56,7 +58,7 @@ Return 6 columns in order:
 
 ### `query_blacklist`
 
-Return 4 columns in order:
+Return 4 fields with these names (order is not required):
 
 1. `blacklist_type` (String)
 2. `resource_name` (String)
@@ -77,7 +79,7 @@ mysql_addr = "127.0.0.1:3306"
 database = "mqtt"
 username = "root"
 password = "123456"
-query_user = "SELECT username,password,salt,is_superuser,created FROM user_table"
-query_acl = "SELECT permission,ipaddr,username,clientid,access,topic FROM acl_table"
-query_blacklist = "SELECT blacklist_type,resource_name,end_time,`desc` FROM blacklist_table"
+query_user = "SELECT username AS username, password AS password, salt AS salt, is_superuser AS is_superuser, created AS created FROM user_table"
+query_acl = "SELECT permission AS permission, ipaddr AS ipaddr, username AS username, clientid AS clientid, access AS access, topic AS topic FROM acl_table"
+query_blacklist = "SELECT blacklist_type AS blacklist_type, resource_name AS resource_name, end_time AS end_time, `desc` AS `desc` FROM blacklist_table"
 ```

@@ -80,12 +80,10 @@ impl Default for MysqlConfig {
             database: "mqtt_user".to_string(),
             username: "root".to_string(),
             password: "".to_string(),
-            query_user: "SELECT username,password,salt,is_superuser,created FROM mqtt_user"
-                .to_string(),
-            query_acl: "SELECT permission, ipaddr, username, clientid, access, topic FROM mqtt_acl"
-                .to_string(),
+            query_user: "SELECT username AS username, password AS password, salt AS salt, is_superuser AS is_superuser, created AS created FROM mqtt_user".to_string(),
+            query_acl: "SELECT permission AS permission, ipaddr AS ipaddr, username AS username, clientid AS clientid, access AS access, topic AS topic FROM mqtt_acl".to_string(),
             query_blacklist:
-                "SELECT blacklist_type, resource_name, end_time, `desc` FROM mqtt_blacklist"
+                "SELECT blacklist_type AS blacklist_type, resource_name AS resource_name, end_time AS end_time, `desc` AS `desc` FROM mqtt_blacklist"
                     .to_string(),
         }
     }

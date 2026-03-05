@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::core::error::MqttBrokerError;
-use crate::core::tool::ResultMqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
@@ -26,8 +25,8 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auth::storage::MysqlConfig;
 use metadata_struct::mqtt::user::MqttUser;
-use r2d2_mysql::mysql::params;
 use r2d2_mysql::mysql::prelude::Queryable;
+use r2d2_mysql::mysql::Row;
 use third_driver::mysql::{build_mysql_conn_pool, MysqlPool};
 
 mod schema;
@@ -72,7 +71,7 @@ impl MySQLAuthStorageAdapter {
     fn user_query(&self) -> String {
         if self.config.query_user.trim().is_empty() {
             format!(
-                "select username,password,salt,is_superuser,created from {}",
+                "select username as username, password as password, salt as salt, is_superuser as is_superuser, created as created from {}",
                 self.table_user()
             )
         } else {
@@ -83,7 +82,7 @@ impl MySQLAuthStorageAdapter {
     fn acl_query(&self) -> String {
         if self.config.query_acl.trim().is_empty() {
             format!(
-                "select permission, ipaddr, username, clientid, access, topic from {}",
+                "select permission as permission, ipaddr as ipaddr, username as username, clientid as clientid, access as access, topic as topic from {}",
                 self.table_acl()
             )
         } else {
@@ -94,7 +93,7 @@ impl MySQLAuthStorageAdapter {
     fn blacklist_query(&self) -> String {
         if self.config.query_blacklist.trim().is_empty() {
             format!(
-                "select blacklist_type, resource_name, end_time, `desc` from {}",
+                "select blacklist_type as blacklist_type, resource_name as resource_name, end_time as end_time, `desc` as `desc` from {}",
                 self.table_blacklist()
             )
         } else {
@@ -108,17 +107,33 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
         let mut conn = self.pool.get()?;
         let sql = self.user_query();
-        let data: Vec<(String, String, Option<String>, u8, Option<String>)> = conn.query(sql)?;
-        let results = DashMap::with_capacity(data.len());
-        for raw in data {
+        let rows: Vec<Row> = conn.query(sql)?;
+        let results = DashMap::with_capacity(rows.len());
+        for mut row in rows {
+            let username: String = row.take("username").ok_or_else(|| {
+                MqttBrokerError::CommonError("missing column: username".to_string())
+            })?;
+            let password: String = row.take("password").ok_or_else(|| {
+                MqttBrokerError::CommonError("missing column: password".to_string())
+            })?;
+            let salt: Option<String> = row
+                .take("salt")
+                .ok_or_else(|| MqttBrokerError::CommonError("missing column: salt".to_string()))?;
+            let is_superuser: u8 = row.take("is_superuser").ok_or_else(|| {
+                MqttBrokerError::CommonError("missing column: is_superuser".to_string())
+            })?;
+            let created: Option<String> = row.take("created").ok_or_else(|| {
+                MqttBrokerError::CommonError("missing column: created".to_string())
+            })?;
+
             let user = MqttUser {
-                username: raw.0.clone(),
-                password: raw.1.clone(),
-                salt: raw.2.clone(),
-                is_superuser: raw.3 == 1,
-                create_time: Self::parse_created_to_seconds(raw.4.clone()),
+                username: username.clone(),
+                password,
+                salt,
+                is_superuser: is_superuser == 1,
+                create_time: Self::parse_created_to_seconds(created),
             };
-            results.insert(raw.0.clone(), user);
+            results.insert(username, user);
         }
         return Ok(results);
     }
@@ -126,26 +141,45 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
         let mut conn = self.pool.get()?;
         let sql = self.acl_query();
-        let data: Vec<(u8, String, String, String, u8, Option<String>)> = conn.query(sql)?;
-        let mut results = Vec::new();
-        for raw in data {
+        let rows: Vec<Row> = conn.query(sql)?;
+        let mut results = Vec::with_capacity(rows.len());
+        for mut row in rows {
+            let permission: u8 = row.take("permission").ok_or_else(|| {
+                MqttBrokerError::CommonError("missing column: permission".to_string())
+            })?;
+            let ipaddr: String = row.take("ipaddr").ok_or_else(|| {
+                MqttBrokerError::CommonError("missing column: ipaddr".to_string())
+            })?;
+            let username: String = row.take("username").ok_or_else(|| {
+                MqttBrokerError::CommonError("missing column: username".to_string())
+            })?;
+            let clientid: String = row.take("clientid").ok_or_else(|| {
+                MqttBrokerError::CommonError("missing column: clientid".to_string())
+            })?;
+            let access: u8 = row.take("access").ok_or_else(|| {
+                MqttBrokerError::CommonError("missing column: access".to_string())
+            })?;
+            let topic: Option<String> = row
+                .take("topic")
+                .ok_or_else(|| MqttBrokerError::CommonError("missing column: topic".to_string()))?;
+
             let acl = MqttAcl {
-                permission: match raw.0 {
+                permission: match permission {
                     0 => MqttAclPermission::Deny,
                     1 => MqttAclPermission::Allow,
                     _ => return Err(MqttBrokerError::InvalidAclPermission),
                 },
-                resource_type: match raw.2.clone().is_empty() {
+                resource_type: match username.is_empty() {
                     true => MqttAclResourceType::ClientId,
                     false => MqttAclResourceType::User,
                 },
-                resource_name: match raw.2.clone().is_empty() {
-                    true => raw.3.clone(),
-                    false => raw.2.clone(),
+                resource_name: match username.is_empty() {
+                    true => clientid,
+                    false => username,
                 },
-                topic: raw.5.clone().unwrap_or(String::new()),
-                ip: raw.1.clone(),
-                action: match raw.4 {
+                topic: topic.unwrap_or_default(),
+                ip: ipaddr,
+                action: match access {
                     0 => MqttAclAction::All,
                     1 => MqttAclAction::Subscribe,
                     2 => MqttAclAction::Publish,
@@ -163,132 +197,31 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
         let mut conn = self.pool.get()?;
         let sql = self.blacklist_query();
-        let data: Vec<(String, String, u64, Option<String>)> = conn.query(sql)?;
-        let mut results = Vec::with_capacity(data.len());
-        for raw in data {
+        let rows: Vec<Row> = conn.query(sql)?;
+        let mut results = Vec::with_capacity(rows.len());
+        for mut row in rows {
+            let blacklist_type: String = row.take("blacklist_type").ok_or_else(|| {
+                MqttBrokerError::CommonError("missing column: blacklist_type".to_string())
+            })?;
+            let resource_name: String = row.take("resource_name").ok_or_else(|| {
+                MqttBrokerError::CommonError("missing column: resource_name".to_string())
+            })?;
+            let end_time: u64 = row.take("end_time").ok_or_else(|| {
+                MqttBrokerError::CommonError("missing column: end_time".to_string())
+            })?;
+            let desc: Option<String> = row
+                .take("desc")
+                .ok_or_else(|| MqttBrokerError::CommonError("missing column: desc".to_string()))?;
+
             let blacklist = MqttAclBlackList {
-                blacklist_type: get_blacklist_type_by_str(&raw.0)?,
-                resource_name: raw.1,
-                end_time: raw.2,
-                desc: raw.3.unwrap_or_default(),
+                blacklist_type: get_blacklist_type_by_str(&blacklist_type)?,
+                resource_name,
+                end_time,
+                desc: desc.unwrap_or_default(),
             };
             results.push(blacklist);
         }
         return Ok(results);
-    }
-
-    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError> {
-        let mut conn = self.pool.get()?;
-        let sql = format!(
-            "select username,password,salt,is_superuser,created from {} where username=:username",
-            self.table_user()
-        );
-        let data: Option<(String, String, Option<String>, u8, Option<String>)> =
-            conn.exec_first(sql, params! { "username" => username })?;
-        if let Some(value) = data {
-            return Ok(Some(MqttUser {
-                username: value.0,
-                password: value.1,
-                salt: value.2,
-                is_superuser: value.3 == 1,
-                create_time: Self::parse_created_to_seconds(value.4),
-            }));
-        }
-        return Ok(None);
-    }
-
-    async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
-        let mut conn = self.pool.get()?;
-        let sql = format!(
-            "insert into {} (`username`, `password`, `is_superuser`, `salt`) values (:username, :password, :is_superuser, :salt)",
-            self.table_user(),
-        );
-        conn.exec_drop(
-            sql,
-            params! {
-                "username" => user_info.username,
-                "password" => user_info.password,
-                "is_superuser" => user_info.is_superuser as i32,
-                "salt" => user_info.salt,
-            },
-        )?;
-        return Ok(());
-    }
-
-    async fn delete_user(&self, username: String) -> ResultMqttBrokerError {
-        let mut conn = self.pool.get()?;
-        let sql = format!(
-            "delete from {} where username = :username",
-            self.table_user(),
-        );
-        conn.exec_drop(sql, params! { "username" => username })?;
-        return Ok(());
-    }
-
-    async fn save_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
-        let permission: u8 = match acl.permission {
-            MqttAclPermission::Allow => 1,
-            MqttAclPermission::Deny => 0,
-        };
-        let (username, clientid) = match acl.resource_type {
-            MqttAclResourceType::ClientId => (String::new(), acl.resource_name),
-            MqttAclResourceType::User => (acl.resource_name, String::new()),
-        };
-        let access: u8 = match acl.action {
-            MqttAclAction::All => 0,
-            MqttAclAction::Subscribe => 1,
-            MqttAclAction::Publish => 2,
-            MqttAclAction::PubSub => 3,
-            MqttAclAction::Retain => 4,
-            MqttAclAction::Qos => 5,
-        };
-
-        let mut conn = self.pool.get()?;
-        let sql = format!(
-            "insert into {} (permission, ipaddr, username, clientid, access, topic) values (:permission, :ipaddr, :username, :clientid, :access, :topic)",
-            self.table_acl(),
-        );
-        conn.exec_drop(
-            sql,
-            params! {
-                "permission" => permission,
-                "ipaddr" => acl.ip,
-                "username" => username,
-                "clientid" => clientid,
-                "access" => access,
-                "topic" => acl.topic,
-            },
-        )?;
-
-        return Ok(());
-    }
-
-    async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
-        let mut conn = self.pool.get()?;
-        let (sql, params) = match acl.resource_type {
-            MqttAclResourceType::ClientId => (
-                format!(
-                    "delete from {} where clientid = :resource_name",
-                    self.table_acl()
-                ),
-                params! { "resource_name" => acl.resource_name },
-            ),
-            MqttAclResourceType::User => (
-                format!(
-                    "delete from {} where username = :resource_name",
-                    self.table_acl()
-                ),
-                params! { "resource_name" => acl.resource_name },
-            ),
-        };
-        conn.exec_drop(sql, params)?;
-        return Ok(());
-    }
-    async fn save_blacklist(&self, _blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
-        return Ok(());
-    }
-    async fn delete_blacklist(&self, _blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
-        return Ok(());
     }
 }
 
@@ -322,28 +255,6 @@ mod tests {
         let res = result.unwrap();
         assert!(res.contains_key("robustmq"));
         let user = res.get("robustmq").unwrap();
-        assert_eq!(user.password, "robustmq@2024");
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn get_user_test() {
-        let config = MysqlConfig {
-            mysql_addr: "127.0.0.1:3306".to_string(),
-            database: "mqtt".to_string(),
-            username: "root".to_string(),
-            password: "123456".to_string(),
-            ..Default::default()
-        };
-
-        let addr = "mysql://root:123456@127.0.0.1:3306/mqtt".to_string();
-        init_user(&addr);
-        let auth_mysql = MySQLAuthStorageAdapter::new(config).unwrap();
-        let username = "robustmq".to_string();
-        let result = auth_mysql.get_user(username).await;
-        assert!(result.is_ok());
-        let res = result.unwrap();
-        let user = res.unwrap();
         assert_eq!(user.password, "robustmq@2024");
     }
 

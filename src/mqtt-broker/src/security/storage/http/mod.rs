@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::core::error::MqttBrokerError;
-use crate::core::tool::ResultMqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use async_trait::async_trait;
 use common_base::tools::now_second;
@@ -235,54 +234,6 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
     /// HTTP adapter does not support read all blacklists, return empty vector
     async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
         Ok(Vec::new())
-    }
-
-    /// HTTP adapter does not support directly get user, need to provide password and other authentication information
-    /// This method returns None, actual authentication please use verify_user method
-    async fn get_user(&self, _username: String) -> Result<Option<MqttUser>, MqttBrokerError> {
-        Ok(None)
-    }
-
-    /// HTTP adapter does not support save user
-    async fn save_user(&self, _user_info: MqttUser) -> ResultMqttBrokerError {
-        Err(MqttBrokerError::CommonError(
-            "HTTP adapter does not support save_user".to_string(),
-        ))
-    }
-
-    /// HTTP adapter does not support delete user
-    async fn delete_user(&self, _username: String) -> ResultMqttBrokerError {
-        Err(MqttBrokerError::CommonError(
-            "HTTP adapter does not support delete_user".to_string(),
-        ))
-    }
-
-    /// HTTP adapter does not support save ACL
-    async fn save_acl(&self, _acl: MqttAcl) -> ResultMqttBrokerError {
-        Err(MqttBrokerError::CommonError(
-            "HTTP adapter does not support save_acl".to_string(),
-        ))
-    }
-
-    /// HTTP adapter does not support delete ACL
-    async fn delete_acl(&self, _acl: MqttAcl) -> ResultMqttBrokerError {
-        Err(MqttBrokerError::CommonError(
-            "HTTP adapter does not support delete_acl".to_string(),
-        ))
-    }
-
-    /// HTTP adapter does not support save blacklist
-    async fn save_blacklist(&self, _blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
-        Err(MqttBrokerError::CommonError(
-            "HTTP adapter does not support save_blacklist".to_string(),
-        ))
-    }
-
-    /// HTTP adapter does not support delete blacklist
-    async fn delete_blacklist(&self, _blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
-        Err(MqttBrokerError::CommonError(
-            "HTTP adapter does not support delete_blacklist".to_string(),
-        ))
     }
 }
 
