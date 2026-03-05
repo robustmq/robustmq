@@ -73,7 +73,9 @@ async fn update_cache(
         | BrokerUpdateCacheResourceType::Topic
         | BrokerUpdateCacheResourceType::Connector
         | BrokerUpdateCacheResourceType::Schema
-        | BrokerUpdateCacheResourceType::SchemaResource => {
+        | BrokerUpdateCacheResourceType::SchemaResource
+        | BrokerUpdateCacheResourceType::Acl
+        | BrokerUpdateCacheResourceType::Blacklist => {
             if let Err(e) = update_mqtt_cache_metadata(
                 &mqtt_params.cache_manager,
                 &mqtt_params.connector_manager,

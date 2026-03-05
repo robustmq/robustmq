@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::security::AuthDriver;
+use crate::security::AuthManager;
 use common_base::{
     error::{common::CommonError, ResultCommonError},
     tools::loop_select_ticket,
@@ -20,13 +20,13 @@ use common_base::{
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
-pub fn sync_auth_storage_info(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
+pub fn start_auth_sync_thread(auth_driver: Arc<AuthManager>, stop_send: broadcast::Sender<bool>) {
     sync_user_cache(auth_driver.clone(), stop_send.clone());
     sync_acl_cache(auth_driver.clone(), stop_send.clone());
     sync_blacklist_cache(auth_driver, stop_send);
 }
 
-fn sync_user_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
+fn sync_user_cache(auth_driver: Arc<AuthManager>, stop_send: broadcast::Sender<bool>) {
     tokio::spawn(async move {
         let ac_fn = async || -> ResultCommonError {
             if let Err(e) = auth_driver.update_user_cache().await {
@@ -34,11 +34,11 @@ fn sync_user_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bo
             }
             Ok(())
         };
-        loop_select_ticket(ac_fn, 1000, &stop_send).await;
+        loop_select_ticket(ac_fn, 5000, &stop_send).await;
     });
 }
 
-fn sync_acl_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
+fn sync_acl_cache(auth_driver: Arc<AuthManager>, stop_send: broadcast::Sender<bool>) {
     tokio::spawn(async move {
         let ac_fn = async || -> ResultCommonError {
             if let Err(e) = auth_driver.update_acl_cache().await {
@@ -46,11 +46,11 @@ fn sync_acl_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<boo
             }
             Ok(())
         };
-        loop_select_ticket(ac_fn, 1000, &stop_send).await;
+        loop_select_ticket(ac_fn, 5000, &stop_send).await;
     });
 }
 
-fn sync_blacklist_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Sender<bool>) {
+fn sync_blacklist_cache(auth_driver: Arc<AuthManager>, stop_send: broadcast::Sender<bool>) {
     tokio::spawn(async move {
         let ac_fn = async || -> ResultCommonError {
             if let Err(e) = auth_driver.update_blacklist_cache().await {
@@ -58,6 +58,6 @@ fn sync_blacklist_cache(auth_driver: Arc<AuthDriver>, stop_send: broadcast::Send
             }
             Ok(())
         };
-        loop_select_ticket(ac_fn, 1000, &stop_send).await;
+        loop_select_ticket(ac_fn, 5000, &stop_send).await;
     });
 }

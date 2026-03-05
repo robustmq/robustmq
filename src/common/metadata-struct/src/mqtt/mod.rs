@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod auth;
 pub mod auto_subscribe_rule;
 pub mod connection;
 pub mod group_leader;

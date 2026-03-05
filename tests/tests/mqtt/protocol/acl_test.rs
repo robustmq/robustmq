@@ -14,6 +14,8 @@
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crate::mqtt::protocol::common::{
         broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
         publish_data,
@@ -28,6 +30,7 @@ mod tests {
     use common_base::uuid::unique_id;
     use metadata_struct::acl::mqtt_acl::MqttAcl;
     use paho_mqtt::MessageBuilder;
+    use tokio::time::sleep;
 
     #[tokio::test]
     async fn acl_storage_test() {
@@ -41,8 +44,9 @@ mod tests {
         );
         create_acl(&admin_client, acl.clone()).await;
 
+        sleep(Duration::from_secs(2)).await;
         check_acl_in_list(&admin_client, &acl, true).await;
-
+        sleep(Duration::from_secs(2)).await;
         delete_acl(&admin_client, acl.clone()).await;
 
         check_acl_in_list(&admin_client, &acl, false).await;

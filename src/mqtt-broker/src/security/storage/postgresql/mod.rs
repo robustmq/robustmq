@@ -13,16 +13,15 @@
 // limitations under the License.
 
 use crate::core::error::MqttBrokerError;
-use crate::core::tool::ResultMqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use async_trait::async_trait;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
-use common_config::security::PostgresConfig;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::mqtt::auth::storage::PostgresConfig;
 use metadata_struct::mqtt::user::MqttUser;
 use third_driver::postgresql::{build_postgresql_conn_pool, PostgresPool};
 
@@ -136,113 +135,5 @@ impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
 
     async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
         return Ok(Vec::new());
-    }
-
-    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError> {
-        let mut conn = self.pool.get()?;
-        let sql = format!(
-            "select username,password,salt,is_superuser,created from {} where username=$1",
-            self.table_user()
-        );
-        let rows = conn.query(&sql, &[&username])?;
-        if let Some(row) = rows.first() {
-            let username: String = row.get(0);
-            let password: String = row.get(1);
-            let salt: Option<String> = row.get(2);
-            let is_superuser: i32 = row.get(3);
-            return Ok(Some(MqttUser {
-                username,
-                password,
-                salt,
-                is_superuser: is_superuser == 1,
-                // todo bugfix
-                create_time: now_second(),
-            }));
-        }
-        return Ok(None);
-    }
-
-    async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
-        let mut conn = self.pool.get()?;
-        let sql = format!(
-            "insert into {} (username, password, is_superuser, salt) values ($1, $2, $3, $4)",
-            self.table_user()
-        );
-        conn.execute(
-            &sql,
-            &[
-                &user_info.username,
-                &user_info.password,
-                &(user_info.is_superuser as i32),
-                &user_info.salt,
-            ],
-        )?;
-        return Ok(());
-    }
-
-    async fn delete_user(&self, username: String) -> ResultMqttBrokerError {
-        let mut conn = self.pool.get()?;
-        let sql = format!("delete from {} where username = $1", self.table_user());
-        conn.execute(&sql, &[&username])?;
-        return Ok(());
-    }
-
-    async fn save_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
-        let permission: i32 = match acl.permission {
-            MqttAclPermission::Allow => 1,
-            MqttAclPermission::Deny => 0,
-        };
-        let (username, clientid) = match acl.resource_type {
-            MqttAclResourceType::ClientId => (String::new(), acl.resource_name),
-            MqttAclResourceType::User => (acl.resource_name, String::new()),
-        };
-        let access: i32 = match acl.action {
-            MqttAclAction::All => 0,
-            MqttAclAction::Subscribe => 1,
-            MqttAclAction::Publish => 2,
-            MqttAclAction::PubSub => 3,
-            MqttAclAction::Retain => 4,
-            MqttAclAction::Qos => 5,
-        };
-
-        let mut conn = self.pool.get()?;
-        let sql = format!(
-            "insert into {} (permission, ipaddr, username, clientid, access, topic) values ($1, $2, $3, $4, $5, $6)",
-            self.table_acl()
-        );
-
-        conn.execute(
-            &sql,
-            &[
-                &permission,
-                &acl.ip,
-                &username,
-                &clientid,
-                &access,
-                &acl.topic,
-            ],
-        )?;
-
-        return Ok(());
-    }
-
-    async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
-        let mut conn = self.pool.get()?;
-        let sql = match acl.resource_type {
-            MqttAclResourceType::ClientId => {
-                format!("delete from {} where clientid = $1", self.table_acl())
-            }
-            MqttAclResourceType::User => {
-                format!("delete from {} where username = $1", self.table_acl())
-            }
-        };
-        conn.execute(&sql, &[&acl.resource_name])?;
-        return Ok(());
-    }
-    async fn save_blacklist(&self, _blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
-        return Ok(());
-    }
-    async fn delete_blacklist(&self, _blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
-        return Ok(());
     }
 }

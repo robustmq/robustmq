@@ -82,6 +82,7 @@ export const sidebar = [
                     { text: "主题重写", link: "/zh/RobustMQ-MQTT/TopicRewrite" },
                     { text: "通配符订阅", link: "/zh/RobustMQ-MQTT/WildcardSubscription" },
                     { text: "会话持久化", link: "/zh/RobustMQ-MQTT/SessionPersistence" },
+                    { text: "连接抖动", link: "/zh/RobustMQ-MQTT/FlappingDetect" },
                     { text: "系统告警", link: "/zh/RobustMQ-MQTT/SystemAlarm.md" },
                     { text: "系统主题", link: "/zh/RobustMQ-MQTT/SystemTopic" },
                 ],
@@ -90,10 +91,29 @@ export const sidebar = [
                 text: "安全",
                 collapsed: true,
                 items: [
-                    { text: "认证", link: "/zh/RobustMQ-MQTT/Security/Authentication" },
+                    {
+                        text: "数据源",
+                        collapsed: true,
+                        items: [
+                            { text: "概览", link: "/zh/RobustMQ-MQTT/Security/DataSource" },
+                            { text: "内置数据源（Meta Service）", link: "/zh/RobustMQ-MQTT/Security/DataSource/BuiltIn" },
+                            { text: "MySQL", link: "/zh/RobustMQ-MQTT/Security/DataSource/MySQL" },
+                            { text: "PostgreSQL", link: "/zh/RobustMQ-MQTT/Security/DataSource/PostgreSQL" },
+                            { text: "Redis", link: "/zh/RobustMQ-MQTT/Security/DataSource/Redis" },
+                            { text: "HTTP", link: "/zh/RobustMQ-MQTT/Security/DataSource/HTTP" },
+                        ]
+                    },
+                    {
+                        text: "认证",
+                        collapsed: true,
+                        items: [
+                            { text: "概览", link: "/zh/RobustMQ-MQTT/Security/Authentication" },
+                            { text: "Password", link: "/zh/RobustMQ-MQTT/Security/Authentication-Password" },
+                            { text: "JWT", link: "/zh/RobustMQ-MQTT/Security/Authentication-JWT" },
+                        ]
+                    },
                     { text: "授权", link: "/zh/RobustMQ-MQTT/Security/Authorization" },
                     { text: "黑名单", link: "/zh/RobustMQ-MQTT/Security/Blacklist" },
-                    { text: "连接抖动", link: "/zh/RobustMQ-MQTT/FlappingDetect" },
                 ]
             },
             {

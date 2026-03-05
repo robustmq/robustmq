@@ -65,7 +65,7 @@ use common_base::{
     tools::now_second,
 };
 use metadata_struct::mqtt::user::MqttUser;
-use mqtt_broker::security::AuthDriver;
+use mqtt_broker::storage::user::UserStorage;
 use std::sync::Arc;
 
 pub async fn user_list(
@@ -108,25 +108,12 @@ pub async fn user_list(
         exact_match,
     );
 
-    let auth_driver = AuthDriver::new(
-        state.mqtt_context.cache_manager.clone(),
-        state.client_pool.clone(),
-    );
-
-    let data = match auth_driver.read_all_user().await {
-        Ok(data) => data,
-        Err(e) => {
-            return error_response(e.to_string());
-        }
-    };
-
     let mut users = Vec::new();
-
-    for ele in data {
+    for ele in state.mqtt_context.cache_manager.user_info.iter() {
         let user_raw = UserListRow {
-            username: ele.1.username,
-            is_superuser: ele.1.is_superuser,
-            create_time: ele.1.create_time,
+            username: ele.value().username.clone(),
+            is_superuser: ele.value().is_superuser,
+            create_time: ele.value().create_time,
         };
         users.push(user_raw);
     }
@@ -154,7 +141,7 @@ pub async fn user_create(
     State(state): State<Arc<HttpState>>,
     ValidatedJson(params): ValidatedJson<CreateUserReq>,
 ) -> String {
-    let mqtt_user = MqttUser {
+    let user_info = MqttUser {
         username: params.username.clone(),
         password: params.password.clone(),
         salt: None,
@@ -162,11 +149,8 @@ pub async fn user_create(
         create_time: now_second(),
     };
 
-    let auth_driver = AuthDriver::new(
-        state.mqtt_context.cache_manager.clone(),
-        state.client_pool.clone(),
-    );
-    match auth_driver.save_user(mqtt_user).await {
+    let user_storage = UserStorage::new(state.client_pool.clone());
+    match user_storage.save_user(user_info).await {
         Ok(_) => success_response("success"),
         Err(e) => error_response(e.to_string()),
     }
@@ -176,12 +160,8 @@ pub async fn user_delete(
     State(state): State<Arc<HttpState>>,
     ValidatedJson(params): ValidatedJson<DeleteUserReq>,
 ) -> String {
-    let auth_driver = AuthDriver::new(
-        state.mqtt_context.cache_manager.clone(),
-        state.client_pool.clone(),
-    );
-
-    match auth_driver.delete_user(params.username.clone()).await {
+    let user_storage = UserStorage::new(state.client_pool.clone());
+    match user_storage.delete_user(params.username.clone()).await {
         Ok(_) => success_response("success"),
         Err(e) => error_response(e.to_string()),
     }

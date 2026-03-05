@@ -82,6 +82,7 @@ export const sidebar = [
                     { text: "Topic Rewrite", link: "/en/RobustMQ-MQTT/TopicRewrite" },
                     { text: "Wildcard Subscription", link: "/en/RobustMQ-MQTT/WildcardSubscription" },
                     { text: "Session Persistence", link: "/en/RobustMQ-MQTT/SessionPersistence" },
+                    { text: "Flapping Detect", link: "/en/RobustMQ-MQTT/FlappingDetect" },
                     { text: "System Alarm", link: "/en/RobustMQ-MQTT/SystemAlarm" },
                     { text: "System Topics", link: "/en/RobustMQ-MQTT/SystemTopic" },
                 ],
@@ -90,10 +91,29 @@ export const sidebar = [
                 text: "Security",
                 collapsed: true,
                 items: [
-                    { text: "Authentication", link: "/en/RobustMQ-MQTT/Security/Authentication" },
+                    {
+                        text: "Data Source",
+                        collapsed: true,
+                        items: [
+                            { text: "Overview", link: "/en/RobustMQ-MQTT/Security/DataSource" },
+                            { text: "Built-in (Meta Service)", link: "/en/RobustMQ-MQTT/Security/DataSource/BuiltIn" },
+                            { text: "MySQL", link: "/en/RobustMQ-MQTT/Security/DataSource/MySQL" },
+                            { text: "PostgreSQL", link: "/en/RobustMQ-MQTT/Security/DataSource/PostgreSQL" },
+                            { text: "Redis", link: "/en/RobustMQ-MQTT/Security/DataSource/Redis" },
+                            { text: "HTTP", link: "/en/RobustMQ-MQTT/Security/DataSource/HTTP" },
+                        ]
+                    },
+                    {
+                        text: "Authentication",
+                        collapsed: true,
+                        items: [
+                            { text: "Overview", link: "/en/RobustMQ-MQTT/Security/Authentication" },
+                            { text: "Password", link: "/en/RobustMQ-MQTT/Security/Authentication-Password" },
+                            { text: "JWT", link: "/en/RobustMQ-MQTT/Security/Authentication-JWT" },
+                        ]
+                    },
                     { text: "Authorization", link: "/en/RobustMQ-MQTT/Security/Authorization" },
                     { text: "Blacklist", link: "/en/RobustMQ-MQTT/Security/Blacklist" },
-                    { text: "Flapping Detect", link: "/en/RobustMQ-MQTT/FlappingDetect" },
                 ]
             },
             {

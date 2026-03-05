@@ -20,5 +20,16 @@ CREATE TABLE `mqtt_acl` (
 PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE `mqtt_blacklist` (
+`id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+`blacklist_type` varchar(32) NOT NULL COMMENT 'ClientId/User/Ip/ClientIdMatch/UserMatch/IPCIDR',
+`resource_name` varchar(255) NOT NULL COMMENT 'blacklist resource value',
+`end_time` bigint unsigned NOT NULL DEFAULT 0 COMMENT '0 means no expiry',
+`desc` varchar(255) NOT NULL DEFAULT '' COMMENT 'description',
+PRIMARY KEY (`id`),
+KEY `idx_blacklist_resource` (`resource_name`),
+KEY `idx_blacklist_type` (`blacklist_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 INSERT INTO `mqtt_user` ( `username`, `password`, `salt`) VALUES
 ('robustmq', 'robustmq@2024', NULL);

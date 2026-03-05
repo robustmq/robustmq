@@ -18,7 +18,7 @@ use crate::core::tool::ResultMqttBrokerError;
 use crate::storage::session::SessionBatcher;
 use crate::{
     core::{cache::MQTTCacheManager, command::CommandContext},
-    security::AuthDriver,
+    security::AuthManager,
     subscribe::manager::SubscribeManager,
 };
 use broker_core::cache::BrokerCacheManager;
@@ -67,7 +67,7 @@ pub struct TcpServerContext {
     pub client_pool: Arc<ClientPool>,
     pub session_batcher: Arc<SessionBatcher>,
     pub stop_sx: broadcast::Sender<bool>,
-    pub auth_driver: Arc<AuthDriver>,
+    pub auth_driver: Arc<AuthManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub broker_cache: Arc<BrokerCacheManager>,
 }

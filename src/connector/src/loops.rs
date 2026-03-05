@@ -70,10 +70,9 @@ pub async fn run_connector_loop<S: ConnectorSink>(
         }
         select! {
             val = stop_recv.recv() => {
-                if let Some(flag) = val {
-                    if flag {
-                        break;
-                    }
+                match val {
+                    Some(true) | None => break,
+                    Some(false) => {}
                 }
             },
 

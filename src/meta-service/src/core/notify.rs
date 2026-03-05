@@ -14,6 +14,8 @@
 
 use crate::core::error::MetaServiceError;
 use common_base::utils::serialize;
+use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::session::MqttSession;
@@ -159,6 +161,60 @@ pub async fn send_notify_by_delete_user(
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::User,
         serialize::serialize(&user)?,
+    )
+    .await
+}
+
+// MQTT ACL
+pub async fn send_notify_by_add_acl(
+    call_manager: &Arc<NodeCallManager>,
+    acl: MqttAcl,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::Acl,
+        serialize::serialize(&acl)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_acl(
+    call_manager: &Arc<NodeCallManager>,
+    acl: MqttAcl,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Acl,
+        serialize::serialize(&acl)?,
+    )
+    .await
+}
+
+// MQTT Blacklist
+pub async fn send_notify_by_add_blacklist(
+    call_manager: &Arc<NodeCallManager>,
+    blacklist: MqttAclBlackList,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::Blacklist,
+        serialize::serialize(&blacklist)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_blacklist(
+    call_manager: &Arc<NodeCallManager>,
+    blacklist: MqttAclBlackList,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Blacklist,
+        serialize::serialize(&blacklist)?,
     )
     .await
 }

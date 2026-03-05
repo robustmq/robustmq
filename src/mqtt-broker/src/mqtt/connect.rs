@@ -33,7 +33,7 @@ use protocol::mqtt::common::{
     LastWillProperties, Login, MqttPacket, MqttProtocol,
 };
 use std::cmp::min;
-use tracing::{error, warn};
+use tracing::warn;
 
 impl MqttService {
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
@@ -93,7 +93,7 @@ impl MqttService {
             {
                 return build_connect_ack_fail_packet(
                     &self.protocol,
-                    ConnectReturnCode::UnspecifiedError,
+                    ConnectReturnCode::ConnectionRateExceeded,
                     &context.connect_properties,
                     Some(e.to_string()),
                 );
@@ -103,7 +103,7 @@ impl MqttService {
         // auth check
         if self
             .auth_driver
-            .auth_connect_check(
+            .connect_check(
                 &connection.client_id,
                 &context.addr.to_string(),
                 &context.login,
@@ -121,12 +121,7 @@ impl MqttService {
         // login check
         match self
             .auth_driver
-            .auth_login_check(
-                &context.login,
-                &context.connect_properties,
-                &context.addr,
-                Some(&context.connect.client_id),
-            )
+            .login_check(&context.login, &context.connect_properties)
             .await
         {
             Ok(flag) => {
@@ -144,7 +139,7 @@ impl MqttService {
             Err(e) => {
                 return build_connect_ack_fail_packet(
                     &self.protocol,
-                    ConnectReturnCode::UnspecifiedError,
+                    ConnectReturnCode::ServerUnavailable,
                     &context.connect_properties,
                     Some(e.to_string()),
                 );
@@ -173,24 +168,12 @@ impl MqttService {
             Err(e) => {
                 return build_connect_ack_fail_packet(
                     &self.protocol,
-                    ConnectReturnCode::MalformedPacket,
+                    ConnectReturnCode::ServerUnavailable,
                     &context.connect_properties,
                     Some(e.to_string()),
                 );
             }
         };
-
-        let live_time = ConnectionLiveTime {
-            protocol: self.protocol.clone(),
-            keep_live: context.connect.keep_alive,
-            heartbeat: now_second(),
-        };
-        self.cache_manager
-            .report_heartbeat(client_id.clone(), live_time);
-
-        self.cache_manager.add_session(&client_id, &session);
-        self.cache_manager
-            .add_connection(context.connect_id, connection.clone());
 
         if let Err(e) = save_last_will_message(
             client_id.clone(),
@@ -200,10 +183,11 @@ impl MqttService {
         )
         .await
         {
-            error!(
-                client_id = %client_id,
-                error = %e,
-                "Failed to save last will message"
+            return build_connect_ack_fail_packet(
+                &self.protocol,
+                ConnectReturnCode::UnspecifiedError,
+                &context.connect_properties,
+                Some(e.to_string()),
             );
         }
 
@@ -218,12 +202,25 @@ impl MqttService {
         )
         .await
         {
-            error!(
-                client_id = %client_id,
-                error = %e,
-                "Failed to execute auto subscribe"
+            return build_connect_ack_fail_packet(
+                &self.protocol,
+                ConnectReturnCode::UnspecifiedError,
+                &context.connect_properties,
+                Some(e.to_string()),
             );
         }
+
+        let live_time = ConnectionLiveTime {
+            protocol: self.protocol.clone(),
+            keep_live: context.connect.keep_alive,
+            heartbeat: now_second(),
+        };
+        self.cache_manager
+            .report_heartbeat(client_id.clone(), live_time);
+
+        self.cache_manager.add_session(&client_id, &session);
+        self.cache_manager
+            .add_connection(context.connect_id, connection.clone());
 
         st_report_connected_event(StReportConnectedEventContext {
             storage_driver_manager: self.storage_driver_manager.clone(),

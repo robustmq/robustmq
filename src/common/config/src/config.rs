@@ -15,14 +15,13 @@
 use super::default::{
     default_broker_id, default_broker_ip, default_cluster_name, default_engine_runtime,
     default_grpc_client, default_grpc_port, default_http_port, default_message_storage,
-    default_meta_addrs, default_meta_runtime, default_mqtt_auth_config,
-    default_mqtt_flapping_detect, default_mqtt_keep_alive, default_mqtt_offline_message,
-    default_mqtt_protocol_config, default_mqtt_runtime, default_mqtt_schema, default_mqtt_security,
-    default_mqtt_server, default_mqtt_slow_subscribe_config, default_mqtt_system_monitor,
-    default_mqtt_system_topic, default_network, default_rocksdb, default_roles, default_runtime,
+    default_meta_addrs, default_meta_runtime, default_mqtt_flapping_detect,
+    default_mqtt_keep_alive, default_mqtt_offline_message, default_mqtt_protocol_config,
+    default_mqtt_runtime, default_mqtt_schema, default_mqtt_security, default_mqtt_server,
+    default_mqtt_slow_subscribe_config, default_mqtt_system_monitor, default_mqtt_system_topic,
+    default_network, default_rocksdb, default_roles, default_runtime,
     default_runtime_worker_threads, default_storage_offset,
 };
-use super::security::{AuthnConfig, AuthzConfig};
 use crate::common::Log;
 use crate::common::Prometheus;
 use crate::common::{default_log, default_pprof, default_prometheus};
@@ -90,9 +89,6 @@ pub struct BrokerConfig {
     #[serde(default = "default_mqtt_keep_alive")]
     pub mqtt_keep_alive: MqttKeepAlive,
 
-    #[serde(default = "default_mqtt_auth_config")]
-    pub mqtt_auth_config: MqttAuthConfig,
-
     #[serde(default = "default_mqtt_runtime")]
     pub mqtt_runtime: MqttRuntime,
 
@@ -148,7 +144,6 @@ impl Default for BrokerConfig {
             storage_runtime: default_engine_runtime(),
             mqtt_server: default_mqtt_server(),
             mqtt_keep_alive: default_mqtt_keep_alive(),
-            mqtt_auth_config: default_mqtt_auth_config(),
             mqtt_runtime: default_mqtt_runtime(),
             mqtt_offline_message: default_mqtt_offline_message(),
             mqtt_slow_subscribe_config: default_mqtt_slow_subscribe_config(),
@@ -306,18 +301,6 @@ pub struct MqttServer {
 impl Default for MqttServer {
     fn default() -> Self {
         default_mqtt_server()
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct MqttAuthConfig {
-    pub authn_config: AuthnConfig,
-    pub authz_config: AuthzConfig,
-}
-
-impl Default for MqttAuthConfig {
-    fn default() -> Self {
-        default_mqtt_auth_config()
     }
 }
 

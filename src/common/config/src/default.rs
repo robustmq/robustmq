@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::security::{AuthnConfig, AuthzConfig};
 use crate::config::{
-    GrpcClientConfig, MetaRuntime, MqttAuthConfig, MqttFlappingDetect, MqttKeepAlive,
-    MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema, MqttSecurity, MqttServer,
-    MqttSlowSubscribeConfig, MqttSystemMonitor, MqttSystemTopic, Network, Rocksdb, Runtime,
-    SchemaFailedOperation, SchemaStrategy, StorageOffset, StorageRuntime,
+    GrpcClientConfig, MetaRuntime, MqttFlappingDetect, MqttKeepAlive, MqttOfflineMessage,
+    MqttProtocolConfig, MqttRuntime, MqttSchema, MqttSecurity, MqttServer, MqttSlowSubscribeConfig,
+    MqttSystemMonitor, MqttSystemTopic, Network, Rocksdb, Runtime, SchemaFailedOperation,
+    SchemaStrategy, StorageOffset, StorageRuntime,
 };
 use crate::storage::{StorageAdapterConfig, StorageType};
 use common_base::enum_type::delay_type::DelayType;
@@ -115,13 +114,6 @@ pub fn default_mqtt_keep_alive() -> MqttKeepAlive {
         max_time: 3600,
         default_time: 180,
         default_timeout: 2,
-    }
-}
-
-pub fn default_mqtt_auth_config() -> MqttAuthConfig {
-    MqttAuthConfig {
-        authn_config: AuthnConfig::default(),
-        authz_config: AuthzConfig::default(),
     }
 }
 

@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::error::MqttBrokerError;
+use crate::security::storage::storage_trait::AuthStorageAdapter;
+use metadata_struct::mqtt::auth::storage::StorageConfig;
 use std::str::FromStr;
-
-use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 pub mod http;
 pub mod meta;
@@ -22,33 +24,58 @@ pub mod mysql;
 pub mod postgresql;
 pub mod redis;
 pub mod storage_trait;
+pub mod storage_type;
 pub mod sync;
+pub use storage_type::AuthDataStorageType;
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub enum AuthType {
-    #[default]
-    Placement,
-    Journal,
-    Mysql,
-    Postgresql,
-    Redis,
-    Jwt,
-    Http,
-}
+pub fn build_storage_driver(
+    storage_config: &StorageConfig,
+) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, MqttBrokerError> {
+    let storage_type = AuthDataStorageType::from_str(&storage_config.storage_type)
+        .map_err(|_| MqttBrokerError::UnavailableStorageType)?;
 
-impl FromStr for AuthType {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "placement" => Ok(AuthType::Placement),
-            "journal" => Ok(AuthType::Journal),
-            "mysql" => Ok(AuthType::Mysql),
-            "postgresql" => Ok(AuthType::Postgresql),
-            "redis" => Ok(AuthType::Redis),
-            "jwt" => Ok(AuthType::Jwt),
-            "http" => Ok(AuthType::Http),
-            _ => Err(format!("invalid auth type: {s}")),
+    match storage_type {
+        AuthDataStorageType::Meta => {
+            let driver = meta::MetaServiceAuthStorageAdapter::new();
+            Ok(Arc::new(driver))
+        }
+        AuthDataStorageType::Mysql => {
+            if let Some(mysql_config) = &storage_config.mysql_config {
+                let driver = mysql::MySQLAuthStorageAdapter::new(mysql_config.clone())?;
+                Ok(Arc::new(driver))
+            } else {
+                Err(MqttBrokerError::CommonError(
+                    "Mysql config not found".to_string(),
+                ))
+            }
+        }
+        AuthDataStorageType::Postgresql => {
+            if let Some(postgres_config) = &storage_config.postgres_config {
+                let driver = postgresql::PostgresqlAuthStorageAdapter::new(postgres_config.clone());
+                Ok(Arc::new(driver))
+            } else {
+                Err(MqttBrokerError::CommonError(
+                    "Postgres config not found".to_string(),
+                ))
+            }
+        }
+        AuthDataStorageType::Redis => {
+            if let Some(redis_config) = &storage_config.redis_config {
+                let driver = redis::RedisAuthStorageAdapter::new(redis_config.clone());
+                Ok(Arc::new(driver))
+            } else {
+                Err(MqttBrokerError::CommonError(
+                    "Redis config not found".to_string(),
+                ))
+            }
+        }
+        AuthDataStorageType::Http => {
+            if let Some(http_config) = &storage_config.http_config {
+                let driver = http::HttpAuthStorageAdapter::new(http_config.clone());
+                Ok(Arc::new(driver))
+            } else {
+                Err(MqttBrokerError::HttpConfigNotFound)
+            }
         }
     }
 }

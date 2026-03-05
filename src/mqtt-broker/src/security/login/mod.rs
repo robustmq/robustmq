@@ -12,20 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::MqttBrokerError;
-use async_trait::async_trait;
+use std::str::FromStr;
 
-pub mod http;
-pub mod jwt;
-pub mod mysql;
-pub mod plaintext;
-pub mod postgresql;
-pub mod redis;
+// pub mod jwt;
+pub mod password;
 
-#[async_trait]
-pub trait Authentication {
-    async fn apply(&self) -> Result<bool, MqttBrokerError>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoginType {
+    PasswordBased,
+    Jwt,
 }
 
-#[cfg(test)]
-mod test {}
+impl FromStr for LoginType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "password_based" => Ok(Self::PasswordBased),
+            "jwt" => Ok(Self::Jwt),
+            _ => Err(format!("invalid login type: {s}")),
+        }
+    }
+}

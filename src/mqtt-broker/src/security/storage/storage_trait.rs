@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::error::MqttBrokerError;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::user::MqttUser;
-
-use crate::core::error::MqttBrokerError;
-use crate::core::tool::ResultMqttBrokerError;
 
 #[async_trait]
 pub trait AuthStorageAdapter {
@@ -28,18 +26,4 @@ pub trait AuthStorageAdapter {
     async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError>;
 
     async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError>;
-
-    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError>;
-
-    async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError;
-
-    async fn delete_user(&self, username: String) -> ResultMqttBrokerError;
-
-    async fn save_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError;
-
-    async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError;
-
-    async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError;
-
-    async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError;
 }

@@ -17,15 +17,20 @@ use super::dynamic_config::build_cluster_config;
 use crate::core::error::MqttBrokerError;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::core::topic::delete_topic;
+use crate::storage::acl::AclStorage;
 use crate::storage::auto_subscribe::AutoSubscribeStorage;
+use crate::storage::blacklist::BlackListStorage;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::schema::SchemaStorage;
 use crate::storage::topic::TopicStorage;
+use crate::storage::user::UserStorage;
+use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::parse::ParseSubscribeData;
-use crate::{security::AuthDriver, subscribe::manager::SubscribeManager};
 use common_base::utils::serialize;
 use connector::manager::ConnectorManager;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::session::MqttSession;
@@ -45,7 +50,6 @@ use tracing::info;
 pub async fn load_metadata_cache(
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
-    auth_driver: &Arc<AuthDriver>,
     connector_manager: &Arc<ConnectorManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
 ) -> ResultMqttBrokerError {
@@ -65,24 +69,28 @@ pub async fn load_metadata_cache(
             .add_topic(&topic.topic_name, &topic.clone());
     }
 
-    let user_list = auth_driver
-        .read_all_user()
+    let user_storage = UserStorage::new(client_pool.clone());
+    let user_list = user_storage
+        .user_list()
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load users: {}", e)))?;
+
     for user in user_list.iter() {
-        cache_manager.add_user(user.clone());
+        cache_manager.add_user(user.value().clone());
     }
 
-    let acl_list = auth_driver
-        .read_all_acl()
+    let acl_storage = AclStorage::new(client_pool.clone());
+    let acl_list = acl_storage
+        .list_acl()
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load ACLs: {}", e)))?;
     for acl in acl_list.iter() {
         cache_manager.add_acl(acl.clone());
     }
 
-    let blacklist_list = auth_driver
-        .read_all_blacklist()
+    let blacklist_storage = BlackListStorage::new(client_pool.clone());
+    let blacklist_list = blacklist_storage
+        .list_blacklist()
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load blacklist: {}", e)))?;
     for blacklist in blacklist_list.iter() {
@@ -200,6 +208,28 @@ pub async fn update_mqtt_cache_metadata(
             BrokerUpdateCacheActionType::Delete => {
                 let user = serialize::deserialize::<MqttUser>(&record.data)?;
                 cache_manager.del_user(user.username);
+            }
+        },
+        BrokerUpdateCacheResourceType::Acl => match record.action_type() {
+            BrokerUpdateCacheActionType::Create => {
+                let acl = serialize::deserialize::<MqttAcl>(&record.data)?;
+                cache_manager.add_acl(acl);
+            }
+            BrokerUpdateCacheActionType::Update => {}
+            BrokerUpdateCacheActionType::Delete => {
+                let acl = serialize::deserialize::<MqttAcl>(&record.data)?;
+                cache_manager.remove_acl(acl);
+            }
+        },
+        BrokerUpdateCacheResourceType::Blacklist => match record.action_type() {
+            BrokerUpdateCacheActionType::Create => {
+                let blacklist = serialize::deserialize::<MqttAclBlackList>(&record.data)?;
+                cache_manager.add_blacklist(blacklist);
+            }
+            BrokerUpdateCacheActionType::Update => {}
+            BrokerUpdateCacheActionType::Delete => {
+                let blacklist = serialize::deserialize::<MqttAclBlackList>(&record.data)?;
+                cache_manager.remove_blacklist(blacklist);
             }
         },
 

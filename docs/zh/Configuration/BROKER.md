@@ -376,58 +376,6 @@ client_pkid_persistent = false
 
 ---
 
-## 13. MQTT 安全配置
-
-### [mqtt_security]
-
-MQTT 集群安全相关动态配置。
-
-```toml
-[mqtt_security]
-is_self_protection_status = false
-secret_free_login = false
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `is_self_protection_status` | `bool` | `false` | 是否启用自我保护模式 |
-| `secret_free_login` | `bool` | `false` | 是否允许免密登录 |
-
----
-
-## 14. MQTT 认证与鉴权配置
-
-### [mqtt_auth_config]
-
-MQTT 认证（AuthN）和鉴权（AuthZ）配置。
-
-```toml
-[mqtt_auth_config.authn_config]
-authn_type = "password_based"
-
-[mqtt_auth_config.authn_config.password_based_config]
-# 密码认证相关配置
-
-[mqtt_auth_config.authn_config.password_based_config.storage_config]
-storage_type = "placement"
-
-[mqtt_auth_config.authn_config.password_based_config.password_config]
-credential_type = "username"
-algorithm = "plain"
-salt_position = "disable"
-
-[mqtt_auth_config.authz_config.storage_config]
-storage_type = "placement"
-```
-
-**认证类型（authn_type）可选值：** `password_based`、`JWT`
-
-**密码算法（algorithm）可选值：** `plain`、`md5`、`sha`、`sha256`、`sha512`、`bcrypt`、`pbkdf2`
-
-**认证/鉴权数据存储（storage_type）可选值：** `placement`、`mysql`、`postgresql`、`redis`、`http`、`file`（仅鉴权）
-
----
-
 ## 15. MQTT 离线消息配置
 
 ### [mqtt_offline_message]
@@ -705,18 +653,6 @@ max_packet_size = 10485760
 receive_max = 65535
 max_message_expiry_interval = 3600
 client_pkid_persistent = false
-
-# ========== MQTT 安全 ==========
-[mqtt_security]
-is_self_protection_status = false
-secret_free_login = false
-
-# ========== MQTT 认证 ==========
-[mqtt_auth_config.authn_config]
-authn_type = "password_based"
-
-[mqtt_auth_config.authz_config.storage_config]
-storage_type = "placement"
 
 # ========== MQTT 离线消息 ==========
 [mqtt_offline_message]

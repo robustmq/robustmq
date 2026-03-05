@@ -15,59 +15,13 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// TODO: add validator
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct AuthnConfig {
-    pub authn_type: String, // Password-Based/JWT/SCRAM/GSSAPI/ClientInfo...
-    pub jwt_config: Option<JwtConfig>,
-    pub password_based_config: Option<PasswordBasedConfig>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct AuthzConfig {
-    pub storage_config: StorageConfig,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct JwtConfig {
-    pub jwt_source: String,                  // password/username
-    pub jwt_encryption: String,              // hmac-based/public-key
-    pub secret: Option<String>,              // hmac-based need
-    pub secret_base64_encoded: Option<bool>, // hmac-based need
-    pub public_key: Option<String>,          // public-key need
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct PasswordBasedConfig {
-    pub storage_config: StorageConfig,
-    pub password_config: PasswordConfig,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct PasswordConfig {
-    pub credential_type: String, // username/clientid (only for placement)
-    pub algorithm: String,       // plain/md5/sha/sha256/sha512/bcrypt/pbkdf2
-    pub salt_position: Option<String>, // disable/prefix/suffix
-    pub salt_rounds: Option<u32>, // bcrypt need
-    pub mac_fun: Option<String>, // pbkdf2 need
-    pub iterations: Option<u32>, // pbkdf2 need
-    pub dk_length: Option<u32>,  // pbkdf2 need
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StorageConfig {
     pub storage_type: String, // file(only for authz)/placement/mysql/postgresql/redis/http
-    pub placement_config: Option<PlacementConfig>,
     pub mysql_config: Option<MysqlConfig>,
     pub postgres_config: Option<PostgresConfig>,
     pub redis_config: Option<RedisConfig>,
     pub http_config: Option<HttpConfig>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct PlacementConfig {
-    pub journal_addr: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -76,7 +30,9 @@ pub struct MysqlConfig {
     pub database: String,
     pub username: String,
     pub password: String,
-    pub query: String,
+    pub query_user: String,
+    pub query_acl: String,
+    pub query_blacklist: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -105,59 +61,14 @@ pub struct HttpConfig {
     pub body: Option<HashMap<String, String>>,
 }
 
-impl Default for AuthnConfig {
-    fn default() -> Self {
-        Self {
-            authn_type: "password_based".to_string(),
-            jwt_config: None,
-            password_based_config: Some(PasswordBasedConfig::default()),
-        }
-    }
-}
-
-impl Default for JwtConfig {
-    fn default() -> Self {
-        Self {
-            jwt_source: "password".to_string(),
-            jwt_encryption: "hmac-based".to_string(),
-            secret: Some("mqtt_secret".to_string()),
-            secret_base64_encoded: Some(false),
-            public_key: None,
-        }
-    }
-}
-
-impl Default for PasswordConfig {
-    fn default() -> Self {
-        Self {
-            credential_type: "username".to_string(),
-            algorithm: "plain".to_string(),
-            salt_position: Some("disable".to_string()),
-            salt_rounds: None,
-            mac_fun: None,
-            iterations: None,
-            dk_length: None,
-        }
-    }
-}
-
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
             storage_type: "placement".to_string(),
-            placement_config: Some(PlacementConfig::default()),
             mysql_config: None,
             postgres_config: None,
             redis_config: None,
             http_config: None,
-        }
-    }
-}
-
-impl Default for PlacementConfig {
-    fn default() -> Self {
-        Self {
-            journal_addr: "".to_string(),
         }
     }
 }
@@ -169,8 +80,11 @@ impl Default for MysqlConfig {
             database: "mqtt_user".to_string(),
             username: "root".to_string(),
             password: "".to_string(),
-            query: "SELECT password_hash, salt FROM mqtt_user where username = ${username} LIMIT 1"
-                .to_string(),
+            query_user: "SELECT username AS username, password AS password, salt AS salt, is_superuser AS is_superuser, created AS created FROM mqtt_user".to_string(),
+            query_acl: "SELECT permission AS permission, ipaddr AS ipaddr, username AS username, clientid AS clientid, access AS access, topic AS topic FROM mqtt_acl".to_string(),
+            query_blacklist:
+                "SELECT blacklist_type AS blacklist_type, resource_name AS resource_name, end_time AS end_time, `desc` AS `desc` FROM mqtt_blacklist"
+                    .to_string(),
         }
     }
 }

@@ -118,9 +118,9 @@ impl ConnectorSink for KafkaBridgePlugin {
 
         let results = join_all(send_futures).await;
 
-        if results.iter().all(|r| r.is_err()) {
+        if results.iter().any(|r| r.is_err()) {
             return Err(CommonError::CommonError(
-                "All records failed to send to Kafka".to_string(),
+                "One or more records failed to send to Kafka".to_string(),
             ));
         }
 

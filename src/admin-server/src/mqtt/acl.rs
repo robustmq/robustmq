@@ -155,7 +155,7 @@ use common_base::{
     http_response::{error_response, success_response},
 };
 use metadata_struct::acl::mqtt_acl::MqttAcl;
-use mqtt_broker::security::AuthDriver;
+use mqtt_broker::storage::acl::AclStorage;
 use std::{str::FromStr, sync::Arc};
 
 pub async fn acl_list(
@@ -171,16 +171,25 @@ pub async fn acl_list(
         params.filter_values,
         params.exact_match,
     );
-    let auth_driver = AuthDriver::new(
-        state.mqtt_context.cache_manager.clone(),
-        state.client_pool.clone(),
-    );
-    let data = match auth_driver.read_all_acl().await {
-        Ok(data) => data,
-        Err(e) => {
-            return error_response(e.to_string());
-        }
-    };
+    let mut data: Vec<MqttAcl> = Vec::new();
+    for entry in state
+        .mqtt_context
+        .cache_manager
+        .acl_metadata
+        .acl_user
+        .iter()
+    {
+        data.extend(entry.value().iter().cloned());
+    }
+    for entry in state
+        .mqtt_context
+        .cache_manager
+        .acl_metadata
+        .acl_client_id
+        .iter()
+    {
+        data.extend(entry.value().iter().cloned());
+    }
 
     let mut acls_list = Vec::new();
     for acl in data {
@@ -256,11 +265,9 @@ async fn acl_create_inner(state: &Arc<HttpState>, params: &CreateAclReq) -> Resu
         action,
         permission,
     };
-    let auth_driver = AuthDriver::new(
-        state.mqtt_context.cache_manager.clone(),
-        state.client_pool.clone(),
-    );
-    if let Err(e) = auth_driver.save_acl(mqtt_acl).await {
+
+    let acl_storage = AclStorage::new(state.client_pool.clone());
+    if let Err(e) = acl_storage.save_acl(mqtt_acl).await {
         return Err(CommonError::CommonError(e.to_string()));
     }
     Ok(())
@@ -306,11 +313,9 @@ async fn acl_delete_inner(state: &Arc<HttpState>, params: &DeleteAclReq) -> Resu
         action,
         permission,
     };
-    let auth_driver = AuthDriver::new(
-        state.mqtt_context.cache_manager.clone(),
-        state.client_pool.clone(),
-    );
-    if let Err(e) = auth_driver.delete_acl(mqtt_acl).await {
+
+    let acl_storage = AclStorage::new(state.client_pool.clone());
+    if let Err(e) = acl_storage.delete_acl(mqtt_acl).await {
         return Err(CommonError::CommonError(e.to_string()));
     }
     Ok(())
