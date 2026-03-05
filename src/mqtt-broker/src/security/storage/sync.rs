@@ -34,7 +34,7 @@ fn sync_user_cache(auth_driver: Arc<AuthManager>, stop_send: broadcast::Sender<b
             }
             Ok(())
         };
-        loop_select_ticket(ac_fn, 1000, &stop_send).await;
+        loop_select_ticket(ac_fn, 5000, &stop_send).await;
     });
 }
 
@@ -46,7 +46,7 @@ fn sync_acl_cache(auth_driver: Arc<AuthManager>, stop_send: broadcast::Sender<bo
             }
             Ok(())
         };
-        loop_select_ticket(ac_fn, 1000, &stop_send).await;
+        loop_select_ticket(ac_fn, 5000, &stop_send).await;
     });
 }
 
@@ -58,6 +58,6 @@ fn sync_blacklist_cache(auth_driver: Arc<AuthManager>, stop_send: broadcast::Sen
             }
             Ok(())
         };
-        loop_select_ticket(ac_fn, 1000, &stop_send).await;
+        loop_select_ticket(ac_fn, 5000, &stop_send).await;
     });
 }

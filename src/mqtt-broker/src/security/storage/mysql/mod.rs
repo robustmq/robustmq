@@ -17,6 +17,7 @@ use crate::core::tool::ResultMqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
+use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
@@ -30,8 +31,10 @@ use r2d2_mysql::mysql::prelude::Queryable;
 use third_driver::mysql::{build_mysql_conn_pool, MysqlPool};
 
 mod schema;
+
 pub struct MySQLAuthStorageAdapter {
     pool: MysqlPool,
+    config: MysqlConfig,
 }
 
 impl MySQLAuthStorageAdapter {
@@ -41,7 +44,7 @@ impl MySQLAuthStorageAdapter {
             config.username, config.password, config.mysql_addr, config.database
         );
         let pool = build_mysql_conn_pool(&addr)?;
-        Ok(MySQLAuthStorageAdapter { pool })
+        Ok(MySQLAuthStorageAdapter { pool, config })
     }
 
     fn table_user(&self) -> &'static str {
@@ -50,6 +53,10 @@ impl MySQLAuthStorageAdapter {
 
     fn table_acl(&self) -> &'static str {
         "mqtt_acl"
+    }
+
+    fn table_blacklist(&self) -> &'static str {
+        "mqtt_blacklist"
     }
 
     fn parse_created_to_seconds(created: Option<String>) -> u64 {
@@ -61,16 +68,46 @@ impl MySQLAuthStorageAdapter {
         }
         now_second()
     }
+
+    fn user_query(&self) -> String {
+        if self.config.query_user.trim().is_empty() {
+            format!(
+                "select username,password,salt,is_superuser,created from {}",
+                self.table_user()
+            )
+        } else {
+            self.config.query_user.clone()
+        }
+    }
+
+    fn acl_query(&self) -> String {
+        if self.config.query_acl.trim().is_empty() {
+            format!(
+                "select permission, ipaddr, username, clientid, access, topic from {}",
+                self.table_acl()
+            )
+        } else {
+            self.config.query_acl.clone()
+        }
+    }
+
+    fn blacklist_query(&self) -> String {
+        if self.config.query_blacklist.trim().is_empty() {
+            format!(
+                "select blacklist_type, resource_name, end_time, `desc` from {}",
+                self.table_blacklist()
+            )
+        } else {
+            self.config.query_blacklist.clone()
+        }
+    }
 }
 
 #[async_trait]
 impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
         let mut conn = self.pool.get()?;
-        let sql = format!(
-            "select username,password,salt,is_superuser,created from {}",
-            self.table_user()
-        );
+        let sql = self.user_query();
         let data: Vec<(String, String, Option<String>, u8, Option<String>)> = conn.query(sql)?;
         let results = DashMap::with_capacity(data.len());
         for raw in data {
@@ -88,10 +125,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
 
     async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
         let mut conn = self.pool.get()?;
-        let sql = format!(
-            "select permission, ipaddr, username, clientid, access, topic from {}",
-            self.table_acl()
-        );
+        let sql = self.acl_query();
         let data: Vec<(u8, String, String, String, u8, Option<String>)> = conn.query(sql)?;
         let mut results = Vec::new();
         for raw in data {
@@ -127,7 +161,20 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     }
 
     async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
-        return Ok(Vec::new());
+        let mut conn = self.pool.get()?;
+        let sql = self.blacklist_query();
+        let data: Vec<(String, String, u64, Option<String>)> = conn.query(sql)?;
+        let mut results = Vec::with_capacity(data.len());
+        for raw in data {
+            let blacklist = MqttAclBlackList {
+                blacklist_type: get_blacklist_type_by_str(&raw.0)?,
+                resource_name: raw.1,
+                end_time: raw.2,
+                desc: raw.3.unwrap_or_default(),
+            };
+            results.push(blacklist);
+        }
+        return Ok(results);
     }
 
     async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError> {

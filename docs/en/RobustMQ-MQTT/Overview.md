@@ -49,6 +49,7 @@ RobustMQ MQTT is a complete implementation of the MQTT protocol by RobustMQ, pro
 | Delayed Publishing | Delayed Publishing | ✅ Fully Supported |
 | Auto Subscription | Auto Subscription | ✅ Fully Supported |
 | Topic Rewrite | Topic Rewrite | ✅ Fully Supported |
+| Flapping Detection | Connection flapping detection and protection | ✅ Fully Supported |
 | System Topics | System Topics | ✅ Fully Supported |
 | Slow Subscription Statistics | Slow Subscription Statistics | ✅ Fully Supported |
 
@@ -59,7 +60,6 @@ RobustMQ MQTT is a complete implementation of the MQTT protocol by RobustMQ, pro
 | Password Authentication | Supports built-in database, MySQL, Redis password authentication | ✅ Fully Supported |
 | Access Control | Supports built-in database, MySQL, Redis authorization implementation | ✅ Fully Supported |
 | Blacklist | Client blacklist management | ✅ Fully Supported |
-| Connection Jitter Detection | Connection jitter detection and protection | ✅ Fully Supported |
 
 ### Data Integration & Storage
 

@@ -18,16 +18,10 @@ use std::collections::HashMap;
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StorageConfig {
     pub storage_type: String, // file(only for authz)/placement/mysql/postgresql/redis/http
-    pub placement_config: Option<PlacementConfig>,
     pub mysql_config: Option<MysqlConfig>,
     pub postgres_config: Option<PostgresConfig>,
     pub redis_config: Option<RedisConfig>,
     pub http_config: Option<HttpConfig>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct PlacementConfig {
-    pub journal_addr: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -71,19 +65,10 @@ impl Default for StorageConfig {
     fn default() -> Self {
         Self {
             storage_type: "placement".to_string(),
-            placement_config: Some(PlacementConfig::default()),
             mysql_config: None,
             postgres_config: None,
             redis_config: None,
             http_config: None,
-        }
-    }
-}
-
-impl Default for PlacementConfig {
-    fn default() -> Self {
-        Self {
-            journal_addr: "".to_string(),
         }
     }
 }
@@ -95,11 +80,13 @@ impl Default for MysqlConfig {
             database: "mqtt_user".to_string(),
             username: "root".to_string(),
             password: "".to_string(),
-            query_user:
-                "SELECT password_hash, salt FROM mqtt_user where username = ${username} LIMIT 1"
+            query_user: "SELECT username,password,salt,is_superuser,created FROM mqtt_user"
+                .to_string(),
+            query_acl: "SELECT permission, ipaddr, username, clientid, access, topic FROM mqtt_acl"
+                .to_string(),
+            query_blacklist:
+                "SELECT blacklist_type, resource_name, end_time, `desc` FROM mqtt_blacklist"
                     .to_string(),
-            query_acl: "".to_string(),
-            query_blacklist: "".to_string(),
         }
     }
 }
