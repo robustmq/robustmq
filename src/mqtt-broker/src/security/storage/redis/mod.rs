@@ -22,7 +22,7 @@ use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::n
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use metadata_struct::mqtt::security::RedisConfig;
+use metadata_struct::mqtt::auth::storage::RedisConfig;
 use metadata_struct::mqtt::user::MqttUser;
 use redis::Commands;
 use std::collections::HashMap;
@@ -289,7 +289,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metadata_struct::mqtt::security::RedisConfig;
+    use metadata_struct::mqtt::auth::storage::RedisConfig;
 
     #[tokio::test]
     #[ignore]

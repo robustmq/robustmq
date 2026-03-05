@@ -22,7 +22,7 @@ use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::n
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use metadata_struct::mqtt::security::PostgresConfig;
+use metadata_struct::mqtt::auth::storage::PostgresConfig;
 use metadata_struct::mqtt::user::MqttUser;
 use third_driver::postgresql::{build_postgresql_conn_pool, PostgresPool};
 

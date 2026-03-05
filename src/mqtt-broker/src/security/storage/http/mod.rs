@@ -20,7 +20,7 @@ use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use metadata_struct::mqtt::security::HttpConfig;
+use metadata_struct::mqtt::auth::storage::HttpConfig;
 use metadata_struct::mqtt::user::MqttUser;
 use reqwest;
 use serde::Deserialize;

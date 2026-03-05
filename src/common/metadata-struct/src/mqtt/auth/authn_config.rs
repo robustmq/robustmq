@@ -12,16 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod auth;
-pub mod auto_subscribe_rule;
-pub mod connection;
-pub mod group_leader;
-pub mod lastwill;
-pub mod message;
-pub mod node_extend;
-pub mod retain_message;
-pub mod session;
-pub mod subscribe_data;
-pub mod topic;
-pub mod topic_rewrite_rule;
-pub mod user;
+use super::jwt::JwtConfig;
+use super::password::PasswordBasedConfig;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AuthnConfig {
+    pub uid: String,
+    pub authn_type: String, // Password-Based/JWT/SCRAM/GSSAPI/ClientInfo...
+    pub config: LoginAuthEnum,
+    pub create_at: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum LoginAuthEnum {
+    PasswordBased(Box<PasswordBasedConfig>),
+    JWT(JwtConfig),
+}

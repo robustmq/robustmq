@@ -16,47 +16,50 @@ use crate::core::error::MqttBrokerError;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::security::AuthStorageAdapter;
 use async_trait::async_trait;
+use chrono::NaiveDateTime;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use metadata_struct::mqtt::security::MysqlConfig;
+use metadata_struct::mqtt::auth::storage::MysqlConfig;
 use metadata_struct::mqtt::user::MqttUser;
+use r2d2_mysql::mysql::params;
 use r2d2_mysql::mysql::prelude::Queryable;
 use third_driver::mysql::{build_mysql_conn_pool, MysqlPool};
 
 mod schema;
 pub struct MySQLAuthStorageAdapter {
     pool: MysqlPool,
-    #[allow(dead_code)]
-    config: MysqlConfig,
 }
 
 impl MySQLAuthStorageAdapter {
-    pub fn new(config: MysqlConfig) -> Self {
-        // build connection string
+    pub fn new(config: MysqlConfig) -> Result<Self, MqttBrokerError> {
         let addr = format!(
             "mysql://{}:{}@{}/{}",
             config.username, config.password, config.mysql_addr, config.database
         );
+        let pool = build_mysql_conn_pool(&addr)?;
+        Ok(MySQLAuthStorageAdapter { pool })
+    }
 
-        let pool = match build_mysql_conn_pool(&addr) {
-            Ok(data) => data,
-            Err(e) => {
-                panic!("{}", e.to_string());
+    fn table_user(&self) -> &'static str {
+        "mqtt_user"
+    }
+
+    fn table_acl(&self) -> &'static str {
+        "mqtt_acl"
+    }
+
+    fn parse_created_to_seconds(created: Option<String>) -> u64 {
+        if let Some(value) = created {
+            // MySQL DATETIME format used by current schema: "YYYY-MM-DD HH:MM:SS".
+            if let Ok(dt) = NaiveDateTime::parse_from_str(&value, "%Y-%m-%d %H:%M:%S") {
+                return dt.and_utc().timestamp().max(0) as u64;
             }
-        };
-        MySQLAuthStorageAdapter { pool, config }
-    }
-
-    fn table_user(&self) -> String {
-        "mqtt_user".to_string()
-    }
-
-    fn table_acl(&self) -> String {
-        "mqtt_acl".to_string()
+        }
+        now_second()
     }
 }
 
@@ -69,15 +72,14 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
             self.table_user()
         );
         let data: Vec<(String, String, Option<String>, u8, Option<String>)> = conn.query(sql)?;
-        let results = DashMap::with_capacity(2);
+        let results = DashMap::with_capacity(data.len());
         for raw in data {
             let user = MqttUser {
                 username: raw.0.clone(),
                 password: raw.1.clone(),
                 salt: raw.2.clone(),
                 is_superuser: raw.3 == 1,
-                // todo bugfix
-                create_time: now_second(),
+                create_time: Self::parse_created_to_seconds(raw.4.clone()),
             };
             results.insert(raw.0.clone(), user);
         }
@@ -131,19 +133,18 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError> {
         let mut conn = self.pool.get()?;
         let sql = format!(
-            "select username,password,salt,is_superuser,created from {} where username='{}'",
-            self.table_user(),
-            username
+            "select username,password,salt,is_superuser,created from {} where username=:username",
+            self.table_user()
         );
-        let data: Vec<(String, String, Option<String>, u8, Option<String>)> = conn.query(sql)?;
-        if let Some(value) = data.first() {
+        let data: Option<(String, String, Option<String>, u8, Option<String>)> =
+            conn.exec_first(sql, params! { "username" => username })?;
+        if let Some(value) = data {
             return Ok(Some(MqttUser {
-                username: value.0.clone(),
-                password: value.1.clone(),
-                salt: value.2.clone(),
+                username: value.0,
+                password: value.1,
+                salt: value.2,
                 is_superuser: value.3 == 1,
-                // todo bugfix
-                create_time: now_second(),
+                create_time: Self::parse_created_to_seconds(value.4),
             }));
         }
         return Ok(None);
@@ -151,30 +152,29 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
 
     async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
         let mut conn = self.pool.get()?;
-        let salt_value = match &user_info.salt {
-            Some(salt) => format!("'{}'", salt),
-            None => "null".to_string(),
-        };
         let sql = format!(
-            "insert into {} ( `username`, `password`, `is_superuser`, `salt`) values ('{}', '{}', '{}', {});",
+            "insert into {} (`username`, `password`, `is_superuser`, `salt`) values (:username, :password, :is_superuser, :salt)",
             self.table_user(),
-            user_info.username,
-            user_info.password,
-            user_info.is_superuser as i32,
-            salt_value,
         );
-        let _data: Vec<(String, String, Option<String>, u8)> = conn.query(sql)?;
+        conn.exec_drop(
+            sql,
+            params! {
+                "username" => user_info.username,
+                "password" => user_info.password,
+                "is_superuser" => user_info.is_superuser as i32,
+                "salt" => user_info.salt,
+            },
+        )?;
         return Ok(());
     }
 
     async fn delete_user(&self, username: String) -> ResultMqttBrokerError {
         let mut conn = self.pool.get()?;
         let sql = format!(
-            "delete from {} where username = '{}';",
+            "delete from {} where username = :username",
             self.table_user(),
-            username
         );
-        let _data: Vec<(String, String, Option<String>, u8, Option<String>)> = conn.query(sql)?;
+        conn.exec_drop(sql, params! { "username" => username })?;
         return Ok(());
     }
 
@@ -198,50 +198,43 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
 
         let mut conn = self.pool.get()?;
         let sql = format!(
-            "insert into {} (permission, ipaddr, username, clientid, access, topic) values ('{}', '{}', '{}', '{}', '{}', '{}');",
+            "insert into {} (permission, ipaddr, username, clientid, access, topic) values (:permission, :ipaddr, :username, :clientid, :access, :topic)",
             self.table_acl(),
-            permission,
-            acl.ip,
-            username,
-            clientid,
-            access,
-            acl.topic,
         );
-
-        let _: Vec<(
-            u8,
-            String,
-            Option<String>,
-            Option<String>,
-            u8,
-            Option<String>,
-        )> = conn.query(sql)?;
+        conn.exec_drop(
+            sql,
+            params! {
+                "permission" => permission,
+                "ipaddr" => acl.ip,
+                "username" => username,
+                "clientid" => clientid,
+                "access" => access,
+                "topic" => acl.topic,
+            },
+        )?;
 
         return Ok(());
     }
 
     async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
         let mut conn = self.pool.get()?;
-        let sql = match acl.resource_type {
-            MqttAclResourceType::ClientId => format!(
-                "delete from {} where clientid = '{}';",
-                self.table_acl(),
-                acl.resource_name
+        let (sql, params) = match acl.resource_type {
+            MqttAclResourceType::ClientId => (
+                format!(
+                    "delete from {} where clientid = :resource_name",
+                    self.table_acl()
+                ),
+                params! { "resource_name" => acl.resource_name },
             ),
-            MqttAclResourceType::User => format!(
-                "delete from {} where username = '{}';",
-                self.table_acl(),
-                acl.resource_name
+            MqttAclResourceType::User => (
+                format!(
+                    "delete from {} where username = :resource_name",
+                    self.table_acl()
+                ),
+                params! { "resource_name" => acl.resource_name },
             ),
         };
-        let _: Vec<(
-            u8,
-            String,
-            Option<String>,
-            Option<String>,
-            u8,
-            Option<String>,
-        )> = conn.query(sql)?;
+        conn.exec_drop(sql, params)?;
         return Ok(());
     }
     async fn save_blacklist(&self, _blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
@@ -254,7 +247,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
 
 #[cfg(test)]
 mod tests {
-    use metadata_struct::mqtt::security::MysqlConfig;
+    use metadata_struct::mqtt::auth::storage::MysqlConfig;
     use r2d2_mysql::mysql::params;
     use r2d2_mysql::mysql::prelude::Queryable;
     use third_driver::mysql::build_mysql_conn_pool;
@@ -271,12 +264,12 @@ mod tests {
             database: "mqtt".to_string(),
             username: "root".to_string(),
             password: "123456".to_string(),
-            query: "".to_string(),
+            ..Default::default()
         };
 
         let addr = "mysql://root:123456@127.0.0.1:3306/mqtt".to_string();
         init_user(&addr);
-        let auth_mysql = MySQLAuthStorageAdapter::new(config);
+        let auth_mysql = MySQLAuthStorageAdapter::new(config).unwrap();
         let result = auth_mysql.read_all_user().await;
         assert!(result.is_ok());
         let res = result.unwrap();
@@ -293,12 +286,12 @@ mod tests {
             database: "mqtt".to_string(),
             username: "root".to_string(),
             password: "123456".to_string(),
-            query: "".to_string(),
+            ..Default::default()
         };
 
         let addr = "mysql://root:123456@127.0.0.1:3306/mqtt".to_string();
         init_user(&addr);
-        let auth_mysql = MySQLAuthStorageAdapter::new(config);
+        let auth_mysql = MySQLAuthStorageAdapter::new(config).unwrap();
         let username = "robustmq".to_string();
         let result = auth_mysql.get_user(username).await;
         assert!(result.is_ok());
