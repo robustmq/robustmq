@@ -23,7 +23,6 @@ use crate::security::storage::build_storage_driver;
 use crate::security::storage::storage_trait::AuthStorageAdapter;
 use crate::subscribe::common::get_sub_topic_name_list;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
-use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::tools::now_millis;
 use common_metrics::mqtt::auth::{record_mqtt_acl_failed, record_mqtt_acl_success};
 use dashmap::DashMap;
@@ -36,7 +35,7 @@ use metadata_struct::mqtt::auth::storage::StorageConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -254,9 +253,6 @@ impl AuthManager {
             self.cache_manager.add_user(user.clone());
         }
 
-        let db_usernames: HashSet<String> = all_users.keys().cloned().collect();
-        self.cache_manager.retain_users(db_usernames);
-
         Ok(())
     }
 
@@ -267,17 +263,6 @@ impl AuthManager {
         for acl in all_acls.iter() {
             self.cache_manager.add_acl(acl.to_owned());
         }
-
-        let mut user_acl = HashSet::new();
-        let mut client_acl = HashSet::new();
-
-        for acl in all_acls {
-            match acl.resource_type {
-                MqttAclResourceType::User => user_acl.insert(acl.resource_name.clone()),
-                MqttAclResourceType::ClientId => client_acl.insert(acl.resource_name.clone()),
-            };
-        }
-        self.cache_manager.retain_acls(user_acl, client_acl);
 
         Ok(())
     }
