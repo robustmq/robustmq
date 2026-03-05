@@ -15,18 +15,18 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// TODO: add validator
-
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AuthnConfig {
+    pub uid: String,
     pub authn_type: String, // Password-Based/JWT/SCRAM/GSSAPI/ClientInfo...
-    pub jwt_config: Option<JwtConfig>,
-    pub password_based_config: Option<PasswordBasedConfig>,
+    pub config: LoginAuthEnum,
+    pub create_at: u64,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct AuthzConfig {
-    pub storage_config: StorageConfig,
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum LoginAuthEnum {
+    PasswordBased(Box<PasswordBasedConfig>),
+    JWT(JwtConfig),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -40,8 +40,8 @@ pub struct JwtConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct PasswordBasedConfig {
-    pub storage_config: StorageConfig,
     pub password_config: PasswordConfig,
+    pub storage_config: StorageConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -103,16 +103,6 @@ pub struct HttpConfig {
     pub method: String, // GET/POST
     pub headers: Option<HashMap<String, String>>,
     pub body: Option<HashMap<String, String>>,
-}
-
-impl Default for AuthnConfig {
-    fn default() -> Self {
-        Self {
-            authn_type: "password_based".to_string(),
-            jwt_config: None,
-            password_based_config: Some(PasswordBasedConfig::default()),
-        }
-    }
 }
 
 impl Default for JwtConfig {

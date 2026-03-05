@@ -21,6 +21,7 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::connection::MQTTConnection;
+use metadata_struct::mqtt::security::AuthnConfig;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
@@ -101,6 +102,8 @@ pub struct MQTTCacheManager {
     // (connect_id, Connection)
     pub connection_info: DashMap<u64, MQTTConnection>,
 
+    pub authn_list: DashMap<String, AuthnConfig>,
+
     // (client_id, HeartbeatShard)
     pub heartbeat_data: DashMap<String, ConnectionLiveTime>,
 
@@ -140,6 +143,7 @@ impl MQTTCacheManager {
             topic_is_validator: DashMap::with_capacity(8),
             re_calc_topic_rewrite: Arc::new(RwLock::new(false)),
             topic_rewrite_new_name: DashMap::with_capacity(8),
+            authn_list: DashMap::with_capacity(2),
         }
     }
 
@@ -356,6 +360,26 @@ impl MQTTCacheManager {
     // topic_is_validator
     pub fn add_topic_is_validator(&self, topic_name: &str) {
         self.topic_is_validator.insert(topic_name.to_string(), true);
+    }
+
+    // Authn
+    pub fn add_authn(&self, auth: AuthnConfig) {
+        self.authn_list.insert(auth.uid.clone(), auth);
+    }
+
+    pub fn get_authn(&self) -> Vec<(String, AuthnConfig)> {
+        let mut authn_list: Vec<(String, AuthnConfig)> = self
+            .authn_list
+            .iter()
+            .map(|entry| (entry.key().clone(), entry.value().clone()))
+            .collect();
+
+        authn_list.sort_by(|a, b| b.1.create_at.cmp(&a.1.create_at));
+        authn_list
+    }
+
+    pub fn remove_authn(&self, uid: &str) {
+        self.authn_list.remove(uid);
     }
 
     // key

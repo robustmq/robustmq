@@ -19,10 +19,10 @@ use async_trait::async_trait;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
-use common_config::security::RedisConfig;
 use dashmap::DashMap;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::mqtt::security::RedisConfig;
 use metadata_struct::mqtt::user::MqttUser;
 use redis::Commands;
 use std::collections::HashMap;
@@ -289,7 +289,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common_config::security::RedisConfig;
+    use metadata_struct::mqtt::security::RedisConfig;
 
     #[tokio::test]
     #[ignore]

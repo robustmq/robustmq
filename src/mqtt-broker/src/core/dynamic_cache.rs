@@ -69,7 +69,7 @@ pub async fn load_metadata_cache(
         .read_all_user()
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load users: {}", e)))?;
-    for user in user_list.iter() {
+    for user in user_list.values() {
         cache_manager.add_user(user.clone());
     }
 

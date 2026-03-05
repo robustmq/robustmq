@@ -24,46 +24,83 @@ use crate::security::storage::storage_trait::AuthStorageAdapter;
 use crate::subscribe::common::get_sub_topic_name_list;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
-use common_config::broker::broker_config;
-use common_config::security::AuthnConfig;
+use common_base::tools::now_millis;
 use common_metrics::mqtt::auth::{record_mqtt_acl_failed, record_mqtt_acl_success};
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::connection::MQTTConnection;
+use metadata_struct::mqtt::security::{LoginAuthEnum, StorageConfig};
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::Arc;
-use storage::meta::MetaServiceAuthStorageAdapter;
+use tracing::error;
 
 pub mod auth;
 pub mod login;
 pub mod storage;
 
+const STORAGE_DRIVER_REBUILD_MS: u128 = 5000;
+
+#[derive(Clone)]
+struct CachedStorageDriver {
+    driver: Arc<dyn AuthStorageAdapter + Send + Sync>,
+    build_at_ms: u128,
+}
+
 #[derive(Clone)]
 pub struct AuthManager {
     cache_manager: Arc<MQTTCacheManager>,
-    storage_driver: Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
+    client_pool: Arc<ClientPool>,
+    storage_drivers: Arc<DashMap<String, CachedStorageDriver>>,
 }
 
 impl AuthManager {
     pub fn new(cache_manager: Arc<MQTTCacheManager>, client_pool: Arc<ClientPool>) -> AuthManager {
-        let conf = broker_config();
-
-        let driver = match build_auth_driver(client_pool, &conf.mqtt_auth_config.authn_config) {
-            Ok(driver) => driver,
-            Err(e) => {
-                panic!("{}, auth config:{:?}", e, conf.mqtt_auth_config);
-            }
-        };
-
         AuthManager {
             cache_manager,
-            storage_driver: driver,
+            client_pool,
+            storage_drivers: Arc::new(DashMap::new()),
         }
+    }
+
+    fn get_or_build_storage_driver(
+        &self,
+        authn_id: &str,
+        storage_config: &StorageConfig,
+    ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, MqttBrokerError> {
+        let now = now_millis();
+        if let Some(cached) = self.storage_drivers.get(authn_id) {
+            if now.saturating_sub(cached.build_at_ms) <= STORAGE_DRIVER_REBUILD_MS {
+                return Ok(cached.driver.clone());
+            }
+        }
+
+        let driver = build_storage_driver(&self.client_pool, storage_config)?;
+        self.storage_drivers.insert(
+            authn_id.to_string(),
+            CachedStorageDriver {
+                driver: driver.clone(),
+                build_at_ms: now,
+            },
+        );
+        Ok(driver)
+    }
+
+    fn password_based_drivers(
+        &self,
+    ) -> Result<Vec<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>>, MqttBrokerError> {
+        let mut drivers = Vec::new();
+        for (authn_id, authn) in self.cache_manager.get_authn() {
+            if let LoginAuthEnum::PasswordBased(config) = authn.config {
+                let driver = self.get_or_build_storage_driver(&authn_id, &config.storage_config)?;
+                drivers.push(driver);
+            }
+        }
+        Ok(drivers)
     }
 
     // Permission: Allow && Deny
@@ -78,40 +115,28 @@ impl AuthManager {
             return Ok(true);
         }
 
-        if let Some(info) = login {
-            let conf = broker_config();
-            let login_type = LoginType::from_str(&conf.mqtt_auth_config.authn_config.authn_type)
-                .map_err(|_| {
-                    MqttBrokerError::UnsupportedAuthType(
-                        conf.mqtt_auth_config.authn_config.authn_type.clone(),
-                    )
-                })?;
+        if self.cache_manager.authn_list.is_empty() {
+            return Ok(false);
+        }
 
-            // according to auth_type to select authentication method
-            match login_type {
+        if let Some((_, authn)) = self.cache_manager.get_authn().into_iter().next() {
+            let login_type = LoginType::from_str(&authn.authn_type)
+                .map_err(|_| MqttBrokerError::UnsupportedAuthType(authn.authn_type.clone()))?;
+
+            return match login_type {
                 LoginType::PasswordBased => {
-                    return Ok(password_check_by_login(
-                        &self.cache_manager,
-                        &info.username,
-                        &info.password,
-                    ));
+                    if let Some(user_info) = login {
+                        Ok(password_check_by_login(
+                            &self.cache_manager,
+                            &user_info.username,
+                            &user_info.password,
+                        ))
+                    } else {
+                        Ok(false)
+                    }
                 }
-                LoginType::Jwt => {
-                    // JWT authentication
-                    // if let Some(jwt_config) = &conf.mqtt_auth_config.authn_config.jwt_config {
-                    //     jwt_check_login(
-                    //         &self.cache_manager,
-                    //         jwt_config,
-                    //         &info.username,
-                    //         &info.password,
-                    //     )
-                    //     .await
-                    // } else {
-                    //     Err(MqttBrokerError::JwtConfigNotFound)
-                    // }
-                    return Ok(true);
-                }
-            }
+                LoginType::Jwt => Ok(false),
+            };
         }
 
         Ok(false)
@@ -173,47 +198,122 @@ impl AuthManager {
         true
     }
 
-    // User
-    pub async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
-        self.storage_driver.read_all_user().await
+    // read all
+    pub async fn read_all_user(&self) -> Result<HashMap<String, MqttUser>, MqttBrokerError> {
+        let mut results = HashMap::new();
+        for driver in self.password_based_drivers()? {
+            let list = driver.read_all_user().await?;
+            for user in list.iter() {
+                results.insert(user.username.clone(), user.clone());
+            }
+        }
+        Ok(results)
     }
 
     pub async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
-        self.storage_driver.read_all_acl().await
+        let mut results = Vec::new();
+        for driver in self.password_based_drivers()? {
+            let list = driver.read_all_acl().await?;
+            for acl in list.iter() {
+                results.push(acl.clone());
+            }
+        }
+        Ok(results)
     }
 
     pub async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
-        self.storage_driver.read_all_blacklist().await
+        let mut results = Vec::new();
+        for driver in self.password_based_drivers()? {
+            let list = driver.read_all_blacklist().await?;
+            for blacklist in list.iter() {
+                results.push(blacklist.clone());
+            }
+        }
+        Ok(results)
     }
 
+    // User
     pub async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
         let username = user_info.username.clone();
         if let Some(_user) = self.cache_manager.user_info.get(&username) {
             return Err(MqttBrokerError::UserAlreadyExist);
         }
+
+        for (authn_id, authn) in self.cache_manager.get_authn() {
+            if let LoginAuthEnum::PasswordBased(config) = authn.config {
+                let driver = match self
+                    .get_or_build_storage_driver(&authn_id, &config.storage_config)
+                {
+                    Ok(driver) => driver,
+                    Err(e) => {
+                        error!(
+                            authn_id = %authn_id,
+                            error = %e,
+                            "Build storage driver failed when saving user, continue next backend"
+                        );
+                        continue;
+                    }
+                };
+
+                if let Err(e) = driver.save_user(user_info.clone()).await {
+                    error!(
+                        authn_id = %authn_id,
+                        username = %username,
+                        error = %e,
+                        "Save user failed on one backend, continue next backend"
+                    );
+                }
+            }
+        }
+
         self.cache_manager.add_user(user_info.clone());
-        self.storage_driver.save_user(user_info).await
+        Ok(())
     }
 
     pub async fn delete_user(&self, username: String) -> ResultMqttBrokerError {
         if self.cache_manager.user_info.get(&username).is_none() {
             return Err(MqttBrokerError::UserDoesNotExist);
         }
-        self.storage_driver.delete_user(username.clone()).await?;
+
+        for (authn_id, authn) in self.cache_manager.get_authn() {
+            if let LoginAuthEnum::PasswordBased(config) = authn.config {
+                let driver = match self
+                    .get_or_build_storage_driver(&authn_id, &config.storage_config)
+                {
+                    Ok(driver) => driver,
+                    Err(e) => {
+                        error!(
+                            authn_id = %authn_id,
+                            error = %e,
+                            "Build storage driver failed when deleting user, continue next backend"
+                        );
+                        continue;
+                    }
+                };
+
+                if let Err(e) = driver.delete_user(username.clone()).await {
+                    error!(
+                        authn_id = %authn_id,
+                        username = %username,
+                        error = %e,
+                        "Delete user failed on one backend, continue next backend"
+                    );
+                }
+            }
+        }
+
         self.cache_manager.del_user(username.clone());
         Ok(())
     }
 
     pub async fn update_user_cache(&self) -> ResultMqttBrokerError {
-        let all_users: DashMap<String, MqttUser> = self.storage_driver.read_all_user().await?;
+        let all_users: HashMap<String, MqttUser> = self.read_all_user().await?;
 
-        for entry in all_users.iter() {
-            let user = entry.value().clone();
-            self.cache_manager.add_user(user);
+        for user in all_users.values() {
+            self.cache_manager.add_user(user.clone());
         }
 
-        let db_usernames: HashSet<String> =
-            all_users.iter().map(|user| user.key().clone()).collect();
+        let db_usernames: HashSet<String> = all_users.keys().cloned().collect();
         self.cache_manager.retain_users(db_usernames);
 
         Ok(())
@@ -221,18 +321,66 @@ impl AuthManager {
 
     // ACL
     pub async fn save_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
+        for (authn_id, authn) in self.cache_manager.get_authn() {
+            if let LoginAuthEnum::PasswordBased(config) = authn.config {
+                let driver =
+                    match self.get_or_build_storage_driver(&authn_id, &config.storage_config) {
+                        Ok(driver) => driver,
+                        Err(e) => {
+                            error!(
+                                authn_id = %authn_id,
+                                error = %e,
+                                "Build storage driver failed when saving ACL, continue next backend"
+                            );
+                            continue;
+                        }
+                    };
+
+                if let Err(e) = driver.save_acl(acl.clone()).await {
+                    error!(
+                        authn_id = %authn_id,
+                        error = %e,
+                        "Save ACL failed on one backend, continue next backend"
+                    );
+                }
+            }
+        }
         self.cache_manager.add_acl(acl.clone());
-        self.storage_driver.save_acl(acl).await
+        Ok(())
     }
 
     pub async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
-        self.storage_driver.delete_acl(acl.clone()).await?;
+        for (authn_id, authn) in self.cache_manager.get_authn() {
+            if let LoginAuthEnum::PasswordBased(config) = authn.config {
+                let driver = match self
+                    .get_or_build_storage_driver(&authn_id, &config.storage_config)
+                {
+                    Ok(driver) => driver,
+                    Err(e) => {
+                        error!(
+                            authn_id = %authn_id,
+                            error = %e,
+                            "Build storage driver failed when deleting ACL, continue next backend"
+                        );
+                        continue;
+                    }
+                };
+
+                if let Err(e) = driver.delete_acl(acl.clone()).await {
+                    error!(
+                        authn_id = %authn_id,
+                        error = %e,
+                        "Delete ACL failed on one backend, continue next backend"
+                    );
+                }
+            }
+        }
         self.cache_manager.remove_acl(acl.clone());
         Ok(())
     }
 
     pub async fn update_acl_cache(&self) -> ResultMqttBrokerError {
-        let all_acls: Vec<MqttAcl> = self.storage_driver.read_all_acl().await?;
+        let all_acls: Vec<MqttAcl> = self.read_all_acl().await?;
 
         for acl in all_acls.iter() {
             self.cache_manager.add_acl(acl.to_owned());
@@ -254,50 +402,72 @@ impl AuthManager {
 
     // BlackList
     pub async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
+        for (authn_id, authn) in self.cache_manager.get_authn() {
+            if let LoginAuthEnum::PasswordBased(config) = authn.config {
+                let driver = match self
+                    .get_or_build_storage_driver(&authn_id, &config.storage_config)
+                {
+                    Ok(driver) => driver,
+                    Err(e) => {
+                        error!(
+                            authn_id = %authn_id,
+                            error = %e,
+                            "Build storage driver failed when saving blacklist, continue next backend"
+                        );
+                        continue;
+                    }
+                };
+
+                if let Err(e) = driver.save_blacklist(blacklist.clone()).await {
+                    error!(
+                        authn_id = %authn_id,
+                        error = %e,
+                        "Save blacklist failed on one backend, continue next backend"
+                    );
+                }
+            }
+        }
         self.cache_manager.add_blacklist(blacklist.clone());
-        self.storage_driver.save_blacklist(blacklist).await
+        Ok(())
     }
 
     pub async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
-        self.storage_driver
-            .delete_blacklist(blacklist.clone())
-            .await?;
+        for (authn_id, authn) in self.cache_manager.get_authn() {
+            if let LoginAuthEnum::PasswordBased(config) = authn.config {
+                let driver = match self
+                    .get_or_build_storage_driver(&authn_id, &config.storage_config)
+                {
+                    Ok(driver) => driver,
+                    Err(e) => {
+                        error!(
+                            authn_id = %authn_id,
+                            error = %e,
+                            "Build storage driver failed when deleting blacklist, continue next backend"
+                        );
+                        continue;
+                    }
+                };
+
+                if let Err(e) = driver.delete_blacklist(blacklist.clone()).await {
+                    error!(
+                        authn_id = %authn_id,
+                        error = %e,
+                        "Delete blacklist failed on one backend, continue next backend"
+                    );
+                }
+            }
+        }
         self.cache_manager.remove_blacklist(blacklist.clone());
         Ok(())
     }
 
     pub async fn update_blacklist_cache(&self) -> ResultMqttBrokerError {
-        let all_blacklist = self.storage_driver.read_all_blacklist().await?;
+        let all_blacklist = self.read_all_blacklist().await?;
 
         for acl in all_blacklist.iter() {
             self.cache_manager.add_blacklist(acl.to_owned());
         }
 
         Ok(())
-    }
-}
-
-fn build_auth_driver(
-    client_pool: Arc<ClientPool>,
-    authn_config: &AuthnConfig,
-) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, MqttBrokerError> {
-    let login_type = LoginType::from_str(&authn_config.authn_type)
-        .map_err(|_| MqttBrokerError::UnsupportedAuthType(authn_config.authn_type.clone()))?;
-
-    match login_type {
-        LoginType::PasswordBased => {
-            if let Some(password_based_config) = &authn_config.password_based_config {
-                let storage_config = &password_based_config.storage_config;
-                build_storage_driver(client_pool, storage_config)
-            } else {
-                Err(MqttBrokerError::PasswordConfigNotFound)
-            }
-        }
-        LoginType::Jwt => {
-            // JWT authentication doesn't need specific storage adapter (pure token validation)
-            // But we still create a minimal adapter to maintain API compatibility
-            let driver = MetaServiceAuthStorageAdapter::new(client_pool);
-            Ok(Arc::new(driver))
-        }
     }
 }
