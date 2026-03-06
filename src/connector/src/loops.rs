@@ -48,6 +48,25 @@ enum ReadErrorAction {
     Continue,
 }
 
+struct SendFailureParams<'a> {
+    data_list: &'a [AdapterWriteRecord],
+    max_offsets: &'a HashMap<String, u64>,
+    offsets: &'a mut HashMap<String, u64>,
+    start_time: u128,
+    message_count: u64,
+    retry_times: u32,
+    error: CommonError,
+}
+
+struct SendSuccessParams<'a> {
+    strategy: &'a FailureHandlingStrategy,
+    fail_messages: &'a [FailureRecordInfo],
+    max_offsets: &'a HashMap<String, u64>,
+    offsets: &'a mut HashMap<String, u64>,
+    start_time: u128,
+    message_count: u64,
+}
+
 struct BatchCtx<'a> {
     connector_name: &'a str,
     connector_type: &'a str,
@@ -131,12 +150,14 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                                 Ok(fail_messages) => {
                                     if let Err(e) = handle_send_success(
                                         &ctx,
-                                        &config.strategy,
-                                        &fail_messages,
-                                        &max_offsets,
-                                        &mut offsets,
-                                        start_time,
-                                        message_count,
+                                        SendSuccessParams {
+                                            strategy: &config.strategy,
+                                            fail_messages: &fail_messages,
+                                            max_offsets: &max_offsets,
+                                            offsets: &mut offsets,
+                                            start_time,
+                                            message_count,
+                                        },
                                     )
                                     .await
                                     {
@@ -149,13 +170,15 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                                     match handle_send_failure(
                                         &ctx,
                                         &config,
-                                        &data_list,
-                                        &max_offsets,
-                                        &mut offsets,
-                                        start_time,
-                                        message_count,
-                                        retry_times,
-                                        e,
+                                        SendFailureParams {
+                                            data_list: &data_list,
+                                            max_offsets: &max_offsets,
+                                            offsets: &mut offsets,
+                                            start_time,
+                                            message_count,
+                                            retry_times,
+                                            error: e,
+                                        },
                                     )
                                     .await
                                     {
@@ -205,21 +228,21 @@ pub async fn run_connector_loop<S: ConnectorSink>(
 
 async fn handle_send_success(
     ctx: &BatchCtx<'_>,
-    strategy: &FailureHandlingStrategy,
-    fail_messages: &[FailureRecordInfo],
-    max_offsets: &HashMap<String, u64>,
-    offsets: &mut HashMap<String, u64>,
-    start_time: u128,
-    message_count: u64,
+    params: SendSuccessParams<'_>,
 ) -> Result<(), CommonError> {
-    commit_batch_offsets(ctx, max_offsets, offsets).await?;
-    process_fail_messages(ctx.storage_driver_manager, strategy, fail_messages).await;
+    commit_batch_offsets(ctx, params.max_offsets, params.offsets).await?;
+    process_fail_messages(
+        ctx.storage_driver_manager,
+        params.strategy,
+        params.fail_messages,
+    )
+    .await;
     update_last_active(
         ctx.connector_manager,
         ctx.connector_name,
         ctx.connector_type,
-        start_time,
-        message_count,
+        params.start_time,
+        params.message_count,
         true,
     );
     Ok(())
@@ -228,29 +251,25 @@ async fn handle_send_success(
 async fn handle_send_failure(
     ctx: &BatchCtx<'_>,
     config: &BridgePluginReadConfig,
-    data_list: &[AdapterWriteRecord],
-    max_offsets: &HashMap<String, u64>,
-    offsets: &mut HashMap<String, u64>,
-    start_time: u128,
-    message_count: u64,
-    retry_times: u32,
-    error: CommonError,
+    params: SendFailureParams<'_>,
 ) -> Result<SendResultAction, CommonError> {
-    if retry_times == 0 {
+    if params.retry_times == 0 {
         update_last_active(
             ctx.connector_manager,
             ctx.connector_name,
             ctx.connector_type,
-            start_time,
-            message_count,
+            params.start_time,
+            params.message_count,
             false,
         );
     }
 
-    let err_msg = error.to_string();
+    let err_msg = params.error.to_string();
     error!(
         connector_name = ctx.connector_name,
-        retry_times, "failed to send batch: {}", err_msg
+        retry_times = params.retry_times,
+        "failed to send batch: {}",
+        err_msg
     );
 
     let context = FailureRecordInfo {
@@ -258,18 +277,18 @@ async fn handle_send_failure(
         connector_type: ctx.connector_type.to_string(),
         source_topic: config.topic_name.clone(),
         error_message: err_msg,
-        records: data_list.to_vec(),
+        records: params.data_list.to_vec(),
     };
 
     if failure_message_process(
         ctx.storage_driver_manager,
         &config.strategy,
-        retry_times,
+        params.retry_times,
         &context,
     )
     .await
     {
-        commit_batch_offsets(ctx, max_offsets, offsets).await?;
+        commit_batch_offsets(ctx, params.max_offsets, params.offsets).await?;
         sleep(Duration::from_millis(100)).await;
         return Ok(SendResultAction::BatchDone);
     }
