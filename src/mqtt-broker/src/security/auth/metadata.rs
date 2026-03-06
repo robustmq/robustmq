@@ -128,7 +128,9 @@ impl AclMetadata {
             MqttAclResourceType::ClientId => {
                 let mut remove_key = false;
                 if let Some(mut list) = self.acl_client_id.get_mut(&acl.resource_name) {
-                    list.retain(|item| item != &acl);
+                    if let Some(pos) = list.iter().position(|item| item == &acl) {
+                        list.remove(pos);
+                    }
                     remove_key = list.is_empty();
                 }
                 if remove_key {
@@ -138,7 +140,9 @@ impl AclMetadata {
             MqttAclResourceType::User => {
                 let mut remove_key = false;
                 if let Some(mut list) = self.acl_user.get_mut(&acl.resource_name) {
-                    list.retain(|item| item != &acl);
+                    if let Some(pos) = list.iter().position(|item| item == &acl) {
+                        list.remove(pos);
+                    }
                     remove_key = list.is_empty();
                 }
                 if remove_key {
@@ -237,7 +241,12 @@ impl AclMetadata {
                 let key = self.get_client_id_match_key();
                 let mut remove_key = false;
                 if let Some(mut data) = self.blacklist_client_id_match.get_mut(key) {
-                    data.retain(|item| item.resource_name != blacklist.resource_name);
+                    if let Some(pos) = data
+                        .iter()
+                        .position(|item| item.resource_name == blacklist.resource_name)
+                    {
+                        data.remove(pos);
+                    }
                     remove_key = data.is_empty();
                 }
                 if remove_key {
@@ -248,7 +257,12 @@ impl AclMetadata {
                 let key = self.get_user_match_key();
                 let mut remove_key = false;
                 if let Some(mut data) = self.blacklist_user_match.get_mut(key) {
-                    data.retain(|item| item.resource_name != blacklist.resource_name);
+                    if let Some(pos) = data
+                        .iter()
+                        .position(|item| item.resource_name == blacklist.resource_name)
+                    {
+                        data.remove(pos);
+                    }
                     remove_key = data.is_empty();
                 }
                 if remove_key {
@@ -259,7 +273,12 @@ impl AclMetadata {
                 let key = self.get_ip_cidr_key();
                 let mut remove_key = false;
                 if let Some(mut data) = self.blacklist_ip_match.get_mut(key) {
-                    data.retain(|item| item.resource_name != blacklist.resource_name);
+                    if let Some(pos) = data
+                        .iter()
+                        .position(|item| item.resource_name == blacklist.resource_name)
+                    {
+                        data.remove(pos);
+                    }
                     remove_key = data.is_empty();
                 }
                 if remove_key {
