@@ -20,8 +20,8 @@ use metadata_struct::{
     connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
-use rule_engine::apply_rule_engine;
 use reqwest::Client;
+use rule_engine::apply_rule_engine;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
@@ -41,6 +41,7 @@ pub struct InfluxDBBridgePlugin {
 }
 
 impl InfluxDBBridgePlugin {
+    #[allow(clippy::result_large_err)]
     pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
         let config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::InfluxDB(config) => config.clone(),

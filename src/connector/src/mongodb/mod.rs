@@ -22,11 +22,11 @@ use metadata_struct::{
     connector::config_mongodb::MongoDBConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
-use rule_engine::apply_rule_engine;
 use mongodb::{
     options::{ClientOptions, InsertManyOptions, WriteConcern},
     Client, Collection,
 };
+use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::{debug, error, info, warn};
@@ -46,6 +46,7 @@ pub struct MongoDBBridgePlugin {
 }
 
 impl MongoDBBridgePlugin {
+    #[allow(clippy::result_large_err)]
     pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
         let config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::MongoDB(config) => config.clone(),
@@ -106,7 +107,10 @@ impl MongoDBBridgePlugin {
     }
 
     #[allow(clippy::result_large_err)]
-    async fn record_to_document(&self, record: &AdapterWriteRecord) -> Result<Document, CommonError> {
+    async fn record_to_document(
+        &self,
+        record: &AdapterWriteRecord,
+    ) -> Result<Document, CommonError> {
         let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
         let mut processed_record = record.clone();
         processed_record.data = processed_data;

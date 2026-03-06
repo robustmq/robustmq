@@ -50,6 +50,7 @@ pub struct S3BridgePlugin {
 }
 
 impl S3BridgePlugin {
+    #[allow(clippy::result_large_err)]
     pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
         let config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::S3(config) => config.clone(),
@@ -127,7 +128,8 @@ impl ConnectorSink for S3BridgePlugin {
 
         let mut payload: Vec<S3MessageRecord> = Vec::with_capacity(records.len());
         for record in records {
-            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await {
+            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
+            {
                 Ok(data) => data,
                 Err(e) => {
                     tracing::error!("Failed to apply rule before S3 send: {}", e);

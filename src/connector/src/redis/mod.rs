@@ -23,9 +23,9 @@ use metadata_struct::{
     connector::config_redis::RedisConnectorConfig, connector::config_redis::RedisMode,
     connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
 };
-use rule_engine::apply_rule_engine;
 use redis::aio::ConnectionManager;
 use redis::{Client, Cmd, RedisError};
+use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::{error, info, warn};
@@ -44,6 +44,7 @@ pub struct RedisBridgePlugin {
 }
 
 impl RedisBridgePlugin {
+    #[allow(clippy::result_large_err)]
     pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
         let config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::Redis(config) => config.clone(),
@@ -218,7 +219,8 @@ impl ConnectorSink for RedisBridgePlugin {
         let mut error_count = 0;
 
         for record in records {
-            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await {
+            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
+            {
                 Ok(data) => data,
                 Err(e) => {
                     error!("Failed to apply rule before Redis send: {}", e);

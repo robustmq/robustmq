@@ -42,6 +42,7 @@ pub struct WebhookBridgePlugin {
 }
 
 impl WebhookBridgePlugin {
+    #[allow(clippy::result_large_err)]
     pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
         let config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::Webhook(config) => config.clone(),
@@ -96,7 +97,8 @@ impl WebhookBridgePlugin {
     async fn records_to_json(&self, records: &[AdapterWriteRecord]) -> String {
         let mut items: Vec<serde_json::Value> = Vec::with_capacity(records.len());
         for record in records {
-            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await {
+            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
+            {
                 Ok(data) => data,
                 Err(e) => {
                     tracing::error!("Failed to apply rule before Webhook send: {}", e);

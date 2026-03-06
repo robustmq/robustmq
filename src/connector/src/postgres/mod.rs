@@ -41,6 +41,7 @@ pub struct PostgresBridgePlugin {
 }
 
 impl PostgresBridgePlugin {
+    #[allow(clippy::result_large_err)]
     pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
         let config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::Postgres(config) => config.clone(),

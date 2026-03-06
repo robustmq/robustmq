@@ -45,6 +45,7 @@ pub struct RabbitMQBridgePlugin {
 }
 
 impl RabbitMQBridgePlugin {
+    #[allow(clippy::result_large_err)]
     pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
         let config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::RabbitMQ(config) => config.clone(),
@@ -163,7 +164,8 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         let mut confirms = Vec::new();
 
         for (idx, record) in records.iter().enumerate() {
-            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await {
+            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
+            {
                 Ok(data) => data,
                 Err(e) => {
                     warn!(

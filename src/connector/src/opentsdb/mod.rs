@@ -19,8 +19,8 @@ use metadata_struct::{
     connector::config_opentsdb::OpenTSDBConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
-use rule_engine::apply_rule_engine;
 use reqwest::Client;
+use rule_engine::apply_rule_engine;
 use serde_json::{json, Map, Value};
 use std::sync::Arc;
 use std::time::Duration;
@@ -41,6 +41,7 @@ pub struct OpenTSDBBridgePlugin {
 }
 
 impl OpenTSDBBridgePlugin {
+    #[allow(clippy::result_large_err)]
     pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
         let config = match &connector.connector_type {
             metadata_struct::connector::ConnectorType::OpenTSDB(config) => config.clone(),
@@ -62,7 +63,10 @@ impl OpenTSDBBridgePlugin {
     }
 
     #[allow(clippy::result_large_err)]
-    async fn record_to_data_point(&self, record: &AdapterWriteRecord) -> Result<Value, CommonError> {
+    async fn record_to_data_point(
+        &self,
+        record: &AdapterWriteRecord,
+    ) -> Result<Value, CommonError> {
         let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
         let payload_str = String::from_utf8_lossy(&processed_data);
         let payload: Value = serde_json::from_str(&payload_str).map_err(|e| {
