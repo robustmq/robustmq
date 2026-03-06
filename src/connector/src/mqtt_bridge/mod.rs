@@ -29,6 +29,7 @@ use tracing::{debug, error};
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -132,9 +133,9 @@ impl ConnectorSink for MqttBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         client: &mut mqtt::AsyncClient,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         if !client.is_connected() {
@@ -143,9 +144,22 @@ impl ConnectorSink for MqttBridgePlugin {
             ));
         }
 
+        let mut fail_messages = Vec::new();
         for record in records {
             let topic = self.build_target_topic(record);
-            let payload = apply_rule_engine(&self.connector.rules, &record.data).await?;
+            let payload = match apply_rule_engine(&self.connector.rules, &record.data).await {
+                Ok(data) => data,
+                Err(e) => {
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
+                    continue;
+                }
+            };
 
             let msg = mqtt::MessageBuilder::new()
                 .topic(&topic)
@@ -162,7 +176,7 @@ impl ConnectorSink for MqttBridgePlugin {
             })?;
         }
 
-        Ok(())
+        Ok(fail_messages)
     }
 }
 
@@ -194,7 +208,7 @@ pub fn start_mqtt_bridge_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

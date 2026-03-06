@@ -30,6 +30,7 @@ use tracing::{debug, error};
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -117,15 +118,32 @@ impl ConnectorSink for InfluxDBBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         client: &mut Client,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         let mut lines: Vec<String> = Vec::with_capacity(records.len());
+        let mut fail_messages = Vec::new();
         for record in records {
-            let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
+            {
+                Ok(data) => data,
+                Err(e) => {
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
+                    continue;
+                }
+            };
             lines.push(self.record_to_line_protocol(record, &processed_data));
+        }
+        if lines.is_empty() {
+            return Ok(fail_messages);
         }
         let body = lines.join("\n");
 
@@ -145,7 +163,7 @@ impl ConnectorSink for InfluxDBBridgePlugin {
         })?;
 
         if response.status().is_success() || response.status().as_u16() == 204 {
-            Ok(())
+            Ok(fail_messages)
         } else {
             let status = response.status();
             let error_text = response
@@ -188,7 +206,7 @@ pub fn start_influxdb_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

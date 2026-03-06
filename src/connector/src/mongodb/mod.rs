@@ -35,6 +35,7 @@ use common_base::error::common::CommonError;
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -177,15 +178,16 @@ impl ConnectorSink for MongoDBBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         collection: &mut Collection<Document>,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         debug!("Processing batch of {} records for MongoDB", records.len());
 
         let mut documents = Vec::with_capacity(records.len());
         let mut failed_serializations = Vec::new();
+        let mut fail_messages = Vec::new();
 
         for (idx, record) in records.iter().enumerate() {
             match self.record_to_document(record).await {
@@ -199,16 +201,20 @@ impl ConnectorSink for MongoDBBridgePlugin {
                         record.timestamp,
                         e
                     );
-                    failed_serializations.push((idx, e));
+                    failed_serializations.push((idx, e.to_string()));
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
                 }
             }
         }
 
         if documents.is_empty() {
-            return Err(CommonError::CommonError(format!(
-                "All {} records failed to serialize to BSON",
-                records.len()
-            )));
+            return Ok(fail_messages);
         }
 
         if !failed_serializations.is_empty() {
@@ -237,7 +243,7 @@ impl ConnectorSink for MongoDBBridgePlugin {
                     self.config.database,
                     self.config.collection
                 );
-                Ok(())
+                Ok(fail_messages)
             }
             Err(e) => {
                 let error_msg = format!(
@@ -280,7 +286,7 @@ pub fn start_mongodb_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

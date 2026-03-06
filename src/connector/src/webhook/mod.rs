@@ -31,6 +31,7 @@ use tracing::error;
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -94,7 +95,11 @@ impl WebhookBridgePlugin {
         req.body(body)
     }
 
-    async fn records_to_json(&self, records: &[AdapterWriteRecord]) -> String {
+    async fn records_to_json(
+        &self,
+        records: &[AdapterWriteRecord],
+        fail_messages: &mut Vec<FailureRecordInfo>,
+    ) -> String {
         let mut items: Vec<serde_json::Value> = Vec::with_capacity(records.len());
         for record in records {
             let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
@@ -102,6 +107,13 @@ impl WebhookBridgePlugin {
                 Ok(data) => data,
                 Err(e) => {
                     tracing::error!("Failed to apply rule before Webhook send: {}", e);
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
                     continue;
                 }
             };
@@ -126,7 +138,9 @@ impl WebhookBridgePlugin {
             items.push(item);
         }
 
-        if items.len() == 1 {
+        if items.is_empty() {
+            String::new()
+        } else if items.len() == 1 {
             items[0].to_string()
         } else {
             json!(items).to_string()
@@ -150,12 +164,16 @@ impl ConnectorSink for WebhookBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         client: &mut Client,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
-        let body = self.records_to_json(records).await;
+        let mut fail_messages = Vec::new();
+        let body = self.records_to_json(records, &mut fail_messages).await;
+        if body.is_empty() {
+            return Ok(fail_messages);
+        }
         let request = self.build_request(client, body);
 
         let response = request
@@ -164,7 +182,7 @@ impl ConnectorSink for WebhookBridgePlugin {
             .map_err(|e| CommonError::CommonError(format!("Webhook HTTP request failed: {}", e)))?;
 
         if response.status().is_success() {
-            Ok(())
+            Ok(fail_messages)
         } else {
             let status = response.status();
             let error_text = response
@@ -207,7 +225,7 @@ pub fn start_webhook_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

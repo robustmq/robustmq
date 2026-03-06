@@ -28,6 +28,7 @@ use tracing::error;
 
 use crate::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -72,15 +73,33 @@ impl ConnectorSink for GreptimeDBBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         sender: &mut sender::Sender,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         let mut processed_records = Vec::with_capacity(records.len());
+        let mut fail_messages = Vec::new();
         for record in records {
-            let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
+            {
+                Ok(data) => data,
+                Err(e) => {
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
+                    continue;
+                }
+            };
             let mut processed_record = record.clone();
             processed_record.data = processed_data;
             processed_records.push(processed_record);
         }
-        sender.send_batch(&processed_records).await
+        if processed_records.is_empty() {
+            return Ok(fail_messages);
+        }
+        sender.send_batch(&processed_records).await?;
+        Ok(fail_messages)
     }
 }
 
@@ -111,7 +130,7 @@ pub fn start_greptimedb_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

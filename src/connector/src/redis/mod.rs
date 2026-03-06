@@ -34,6 +34,7 @@ use common_base::error::common::CommonError;
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -214,9 +215,10 @@ impl ConnectorSink for RedisBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         conn: &mut ConnectionManager,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         let mut success_count = 0;
         let mut error_count = 0;
+        let mut fail_messages = Vec::new();
 
         for record in records {
             let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
@@ -225,6 +227,13 @@ impl ConnectorSink for RedisBridgePlugin {
                 Err(e) => {
                     error!("Failed to apply rule before Redis send: {}", e);
                     error_count += 1;
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
                     continue;
                 }
             };
@@ -237,6 +246,13 @@ impl ConnectorSink for RedisBridgePlugin {
                 Err(e) => {
                     error!("Failed to parse MQTT message: {}", e);
                     error_count += 1;
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
                     continue;
                 }
             };
@@ -246,6 +262,13 @@ impl ConnectorSink for RedisBridgePlugin {
                 Err(e) => {
                     error!("Failed to render command template: {}", e);
                     error_count += 1;
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
                     continue;
                 }
             };
@@ -280,12 +303,22 @@ impl ConnectorSink for RedisBridgePlugin {
             }
 
             if retry_count > self.config.max_retries {
+                let err_msg = last_error
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .unwrap_or_else(|| "unknown redis command error".to_string());
                 error!(
                     "Redis command failed after {} retries: {}",
-                    self.config.max_retries,
-                    last_error.unwrap()
+                    self.config.max_retries, err_msg
                 );
                 error_count += 1;
+                fail_messages.push(FailureRecordInfo {
+                    connector_name: self.connector.connector_name.clone(),
+                    connector_type: self.connector.connector_type.to_string(),
+                    source_topic: self.connector.topic_name.clone(),
+                    error_message: err_msg,
+                    records: vec![record.clone()],
+                });
             }
         }
 
@@ -300,7 +333,7 @@ impl ConnectorSink for RedisBridgePlugin {
             ));
         }
 
-        Ok(())
+        Ok(fail_messages)
     }
 
     async fn cleanup_sink(&self, _conn: ConnectionManager) -> Result<(), CommonError> {
@@ -336,7 +369,7 @@ pub fn start_redis_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

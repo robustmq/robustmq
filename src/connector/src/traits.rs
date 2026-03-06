@@ -16,6 +16,8 @@ use async_trait::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 
+use crate::failure::FailureRecordInfo;
+
 #[async_trait]
 pub trait ConnectorSink: Send + Sync {
     type SinkResource: Send;
@@ -28,7 +30,7 @@ pub trait ConnectorSink: Send + Sync {
         &self,
         records: &[AdapterWriteRecord],
         resource: &mut Self::SinkResource,
-    ) -> Result<(), CommonError>;
+    ) -> Result<Vec<FailureRecordInfo>, CommonError>;
 
     async fn cleanup_sink(&self, _resource: Self::SinkResource) -> Result<(), CommonError> {
         Ok(())

@@ -29,6 +29,7 @@ use tracing::{debug, error};
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -121,18 +122,26 @@ impl ConnectorSink for S3BridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         operator: &mut Operator,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         let mut payload: Vec<S3MessageRecord> = Vec::with_capacity(records.len());
+        let mut fail_messages = Vec::new();
         for record in records {
             let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
             {
                 Ok(data) => data,
                 Err(e) => {
                     tracing::error!("Failed to apply rule before S3 send: {}", e);
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
                     continue;
                 }
             };
@@ -148,7 +157,7 @@ impl ConnectorSink for S3BridgePlugin {
         }
 
         if payload.is_empty() {
-            return Ok(());
+            return Ok(fail_messages);
         }
 
         let object_key = self.build_object_key();
@@ -157,7 +166,7 @@ impl ConnectorSink for S3BridgePlugin {
         })?;
         operator.write(&object_key, bytes).await?;
 
-        Ok(())
+        Ok(fail_messages)
     }
 }
 
@@ -188,7 +197,7 @@ pub fn start_s3_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

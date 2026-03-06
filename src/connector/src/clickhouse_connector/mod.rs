@@ -30,6 +30,7 @@ use tracing::{debug, error};
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -112,9 +113,9 @@ impl ConnectorSink for ClickHouseBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         client: &mut Client,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         let mut insert = client
@@ -124,8 +125,22 @@ impl ConnectorSink for ClickHouseBridgePlugin {
                 CommonError::CommonError(format!("Failed to prepare ClickHouse insert: {}", e))
             })?;
 
+        let mut fail_messages = Vec::new();
         for record in records {
-            let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
+            {
+                Ok(data) => data,
+                Err(e) => {
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
+                    continue;
+                }
+            };
             let row = MqttMessageRow {
                 data: String::from_utf8_lossy(&processed_data).to_string(),
                 key: record.key.clone().unwrap_or_default(),
@@ -136,12 +151,15 @@ impl ConnectorSink for ClickHouseBridgePlugin {
                 CommonError::CommonError(format!("Failed to write row to ClickHouse: {}", e))
             })?;
         }
+        if fail_messages.len() == records.len() {
+            return Ok(fail_messages);
+        }
 
         insert.end().await.map_err(|e| {
             CommonError::CommonError(format!("Failed to flush ClickHouse insert: {}", e))
         })?;
 
-        Ok(())
+        Ok(fail_messages)
     }
 }
 
@@ -173,7 +191,7 @@ pub fn start_clickhouse_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

@@ -30,6 +30,7 @@ use common_base::error::common::CommonError;
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -220,17 +221,35 @@ impl ConnectorSink for PostgresBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         pool: &mut Pool<Postgres>,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         let mut processed_records = Vec::with_capacity(records.len());
+        let mut fail_messages = Vec::new();
         for record in records {
-            let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
+            {
+                Ok(data) => data,
+                Err(e) => {
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
+                    continue;
+                }
+            };
             let mut processed_record = record.clone();
             processed_record.data = processed_data;
             processed_records.push(processed_record);
+        }
+
+        if processed_records.is_empty() {
+            return Ok(fail_messages);
         }
 
         if self.config.is_batch_insert_enabled() {
@@ -239,10 +258,11 @@ impl ConnectorSink for PostgresBridgePlugin {
                     "sql_template is not applied in batch mode; default batch INSERT will be used"
                 );
             }
-            self.batch_insert(&processed_records, pool).await
+            self.batch_insert(&processed_records, pool).await?;
         } else {
-            self.single_insert(&processed_records, pool).await
+            self.single_insert(&processed_records, pool).await?;
         }
+        Ok(fail_messages)
     }
 
     async fn cleanup_sink(&self, pool: Pool<Postgres>) -> Result<(), CommonError> {
@@ -278,7 +298,7 @@ pub fn start_postgres_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

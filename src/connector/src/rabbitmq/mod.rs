@@ -34,6 +34,7 @@ use common_base::error::common::CommonError;
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -148,9 +149,9 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         channel: &mut Channel,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         debug!(
@@ -289,7 +290,19 @@ impl ConnectorSink for RabbitMQBridgePlugin {
             )));
         }
 
-        Ok(())
+        let mut fail_messages = Vec::with_capacity(failed_records.len());
+        for (idx, error_message) in failed_records {
+            if let Some(record) = records.get(idx) {
+                fail_messages.push(FailureRecordInfo {
+                    connector_name: self.connector.connector_name.clone(),
+                    connector_type: self.connector.connector_type.to_string(),
+                    source_topic: self.connector.topic_name.clone(),
+                    error_message,
+                    records: vec![record.clone()],
+                });
+            }
+        }
+        Ok(fail_messages)
     }
 
     async fn cleanup_sink(&self, channel: Channel) -> Result<(), CommonError> {
@@ -339,7 +352,7 @@ pub fn start_rabbitmq_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

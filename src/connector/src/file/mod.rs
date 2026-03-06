@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::failure::FailureRecordInfo;
+
 use super::core::{BridgePluginReadConfig, BridgePluginThread};
 use super::loops::run_connector_loop;
 use super::manager::ConnectorManager;
 use super::traits::ConnectorSink;
 use async_trait::async_trait;
+use bytes::Bytes;
 use chrono::{DateTime, Local, Timelike};
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
@@ -181,6 +184,13 @@ impl FileBridgePlugin {
         };
         Ok(FileBridgePlugin { connector, config })
     }
+
+    async fn process_data(&self, data: &Bytes) -> Result<String, CommonError> {
+        let msg = MqttMessage::decode(data)?;
+        let processed_data = apply_rule_engine(&self.connector.rules, &msg.payload).await?;
+        let data = serde_json::to_string(&processed_data)?;
+        Ok(data)
+    }
 }
 
 #[async_trait]
@@ -208,16 +218,27 @@ impl ConnectorSink for FileBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         writer: &mut FileWriter,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
+        let mut fail_messages = Vec::new();
         for record in records {
-            let msg = MqttMessage::decode(&record.data)?;
-            let processed_data = apply_rule_engine(&self.connector.rules, &msg.payload).await?;
-            let data = serde_json::to_string(&processed_data)?;
+            let data = match self.process_data(&record.data).await {
+                Ok(data) => data,
+                Err(e) => {
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
+                    continue;
+                }
+            };
             writer.write(data.as_ref()).await?;
             writer.write(b"\n").await?;
         }
         writer.flush().await?;
-        Ok(())
+        Ok(fail_messages)
     }
 
     async fn cleanup_sink(&self, writer: FileWriter) -> Result<(), CommonError> {
@@ -254,7 +275,7 @@ pub fn start_local_file_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
@@ -386,7 +407,7 @@ mod tests {
                 &file_bridge_plugin,
                 &client_pool,
                 &connector_manager_clone,
-                storage_driver_manager,
+                &storage_driver_manager,
                 connector_name_clone,
                 record_config_clone,
                 stop_recv,

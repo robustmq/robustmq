@@ -16,6 +16,7 @@ use std::{sync::Arc, time::Duration};
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -97,10 +98,11 @@ impl ConnectorSink for KafkaBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         producer: &mut FutureProducer,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         use futures::future::join_all;
 
         let mut processed_records = Vec::with_capacity(records.len());
+        let mut fail_messages = Vec::new();
         for record in records {
             match apply_rule_engine(&self.connector.rules, &record.data).await {
                 Ok(data) => {
@@ -110,12 +112,19 @@ impl ConnectorSink for KafkaBridgePlugin {
                 }
                 Err(e) => {
                     tracing::error!("Failed to apply rule before Kafka send: {}", e);
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
                 }
             }
         }
 
         if processed_records.is_empty() {
-            return Ok(());
+            return Ok(fail_messages);
         }
 
         let mut serialized_data = Vec::with_capacity(records.len());
@@ -153,7 +162,7 @@ impl ConnectorSink for KafkaBridgePlugin {
             ));
         }
 
-        Ok(())
+        Ok(fail_messages)
     }
 
     async fn cleanup_sink(&self, producer: FutureProducer) -> Result<(), CommonError> {
@@ -195,7 +204,7 @@ pub fn start_kafka_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

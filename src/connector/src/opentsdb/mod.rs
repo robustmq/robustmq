@@ -30,6 +30,7 @@ use tracing::error;
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -135,12 +136,13 @@ impl ConnectorSink for OpenTSDBBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         client: &mut Client,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         let mut data_points = Vec::new();
+        let mut fail_messages = Vec::new();
         for record in records {
             match self.record_to_data_point(record).await {
                 Ok(dp) => data_points.push(dp),
@@ -149,13 +151,20 @@ impl ConnectorSink for OpenTSDBBridgePlugin {
                         "Failed to convert record to OpenTSDB data point: {}. Skipping.",
                         e
                     );
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
                     continue;
                 }
             }
         }
 
         if data_points.is_empty() {
-            return Ok(());
+            return Ok(fail_messages);
         }
 
         let url = self.config.put_url();
@@ -176,7 +185,7 @@ impl ConnectorSink for OpenTSDBBridgePlugin {
             })?;
 
         if response.status().is_success() {
-            Ok(())
+            Ok(fail_messages)
         } else {
             let status = response.status();
             let error_text = response
@@ -219,7 +228,7 @@ pub fn start_opentsdb_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
