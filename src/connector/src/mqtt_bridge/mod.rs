@@ -34,12 +34,21 @@ use super::{
 };
 
 pub struct MqttBridgePlugin {
+    connector: MQTTConnector,
     config: MqttBridgeConnectorConfig,
 }
 
 impl MqttBridgePlugin {
-    pub fn new(config: MqttBridgeConnectorConfig) -> Self {
-        MqttBridgePlugin { config }
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::MqttBridge(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for mqtt bridge plugin".to_string(),
+                ));
+            }
+        };
+        Ok(MqttBridgePlugin { connector, config })
     }
 
     fn build_target_topic(&self, record: &AdapterWriteRecord) -> String {
@@ -117,6 +126,14 @@ impl ConnectorSink for MqttBridgePlugin {
         Ok(client)
     }
 
+    async fn apply_rule(
+        &self,
+        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<bytes::Bytes, CommonError> {
+        Ok(data.clone())
+    }
+
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -166,17 +183,16 @@ pub fn start_mqtt_bridge_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let mqtt_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::MqttBridge(config) => config.clone(),
-            _ => {
+        let bridge = match MqttBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for MqttBridge connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for MqttBridge connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = MqttBridgePlugin::new(mqtt_config);
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 

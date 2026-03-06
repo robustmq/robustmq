@@ -38,12 +38,21 @@ use super::{
     traits::ConnectorSink,
 };
 pub struct RedisBridgePlugin {
+    connector: MQTTConnector,
     config: RedisConnectorConfig,
 }
 
 impl RedisBridgePlugin {
-    pub fn new(config: RedisConnectorConfig) -> Self {
-        RedisBridgePlugin { config }
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Redis(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for redis plugin".to_string(),
+                ));
+            }
+        };
+        Ok(RedisBridgePlugin { connector, config })
     }
 
     fn build_redis_client(&self) -> Result<Client, RedisError> {
@@ -199,6 +208,14 @@ impl ConnectorSink for RedisBridgePlugin {
         Ok(conn_manager)
     }
 
+    async fn apply_rule(
+        &self,
+        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<bytes::Bytes, CommonError> {
+        Ok(data.clone())
+    }
+
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -296,18 +313,16 @@ pub fn start_redis_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let redis_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::Redis(config) => config.clone(),
-            _ => {
+        let bridge = match RedisBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for Redis connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for Redis connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-
-        let bridge = RedisBridgePlugin::new(redis_config);
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(

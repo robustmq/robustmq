@@ -33,12 +33,21 @@ use tracing::error;
 mod pulsar_producer;
 
 pub struct PulsarBridgePlugin {
+    connector: MQTTConnector,
     config: PulsarConnectorConfig,
 }
 
 impl PulsarBridgePlugin {
-    pub fn new(config: PulsarConnectorConfig) -> Self {
-        PulsarBridgePlugin { config }
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Pulsar(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for pulsar plugin".to_string(),
+                ));
+            }
+        };
+        Ok(PulsarBridgePlugin { connector, config })
     }
 }
 
@@ -55,6 +64,14 @@ impl ConnectorSink for PulsarBridgePlugin {
             .build_producer()
             .await?;
         Ok(producer)
+    }
+
+    async fn apply_rule(
+        &self,
+        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<bytes::Bytes, CommonError> {
+        Ok(data.clone())
     }
 
     async fn send_batch(
@@ -80,18 +97,16 @@ pub fn start_pulsar_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let pulsar_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::Pulsar(config) => config.clone(),
-            _ => {
+        let bridge = match PulsarBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for Pulsar connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for Pulsar connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-
-        let bridge = PulsarBridgePlugin::new(pulsar_config);
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(

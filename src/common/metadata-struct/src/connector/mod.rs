@@ -33,11 +33,14 @@ pub mod config_redis;
 pub mod config_s3;
 pub mod config_webhook;
 pub mod connector_type;
+pub mod rule;
 pub mod status;
 
 pub use connector_type::ConnectorType;
 
 use status::MQTTStatus;
+
+use crate::connector::rule::ETLRule;
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub struct MQTTConnector {
@@ -46,6 +49,7 @@ pub struct MQTTConnector {
     pub failure_strategy: FailureHandlingStrategy,
     pub topic_name: String,
     pub status: MQTTStatus,
+    pub rules: Vec<ETLRule>,
     pub broker_id: Option<u64>,
     pub create_time: u64,
     pub update_time: u64,

@@ -39,12 +39,21 @@ use super::{
 };
 
 pub struct RabbitMQBridgePlugin {
+    connector: MQTTConnector,
     config: RabbitMQConnectorConfig,
 }
 
 impl RabbitMQBridgePlugin {
-    pub fn new(config: RabbitMQConnectorConfig) -> Self {
-        RabbitMQBridgePlugin { config }
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::RabbitMQ(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for rabbitmq plugin".to_string(),
+                ));
+            }
+        };
+        Ok(RabbitMQBridgePlugin { connector, config })
     }
 
     fn build_connection_uri(&self) -> String {
@@ -131,6 +140,14 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         );
 
         Ok(channel)
+    }
+
+    async fn apply_rule(
+        &self,
+        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<bytes::Bytes, CommonError> {
+        Ok(data.clone())
     }
 
     async fn send_batch(
@@ -292,19 +309,17 @@ pub fn start_rabbitmq_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let rabbitmq_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::RabbitMQ(config) => config.clone(),
-            _ => {
+        let bridge = match RabbitMQBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for RabbitMQ connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for RabbitMQ connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-
-        let batch_size = rabbitmq_config.batch_size as u64;
-        let bridge = RabbitMQBridgePlugin::new(rabbitmq_config);
+        let batch_size = bridge.config.batch_size as u64;
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(

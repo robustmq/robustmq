@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use common_base::error::common::CommonError;
+use metadata_struct::connector::rule::ETLRule;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 
 #[async_trait]
@@ -23,6 +25,12 @@ pub trait ConnectorSink: Send + Sync {
     async fn validate(&self) -> Result<(), CommonError>;
 
     async fn init_sink(&self) -> Result<Self::SinkResource, CommonError>;
+
+    async fn apply_rule(
+        &self,
+        rules: &Vec<ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<Bytes, CommonError>;
 
     async fn send_batch(
         &self,

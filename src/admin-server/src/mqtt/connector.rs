@@ -326,6 +326,7 @@ async fn connector_create_inner(
         failure_strategy: parse_failure_strategy(params.failure_strategy),
         topic_name: params.topic_name.clone(),
         status: MQTTStatus::Idle,
+        rules: Vec::new(),
         broker_id: None,
         create_time: now_second(),
         update_time: now_second(),

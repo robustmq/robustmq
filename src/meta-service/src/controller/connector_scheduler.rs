@@ -251,6 +251,7 @@ mod tests {
                     broker_id: Some(broker_id),
                     create_time: now_second(),
                     update_time: now_second(),
+                    rules:Vec::new(),
                 });
             }
         }
@@ -270,6 +271,7 @@ mod tests {
             broker_id: None,
             create_time: now_second(),
             update_time: now_second(),
+            rules: Vec::new(),
         }
     }
 

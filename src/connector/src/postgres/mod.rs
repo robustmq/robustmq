@@ -35,12 +35,21 @@ use super::{
 };
 
 pub struct PostgresBridgePlugin {
+    connector: MQTTConnector,
     config: PostgresConnectorConfig,
 }
 
 impl PostgresBridgePlugin {
-    pub fn new(config: PostgresConnectorConfig) -> Self {
-        PostgresBridgePlugin { config }
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Postgres(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for postgres plugin".to_string(),
+                ));
+            }
+        };
+        Ok(PostgresBridgePlugin { connector, config })
     }
 
     async fn create_pool(&self) -> Result<Pool<Postgres>, sqlx::Error> {
@@ -205,6 +214,14 @@ impl ConnectorSink for PostgresBridgePlugin {
         Ok(pool)
     }
 
+    async fn apply_rule(
+        &self,
+        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<bytes::Bytes, CommonError> {
+        Ok(data.clone())
+    }
+
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -243,17 +260,16 @@ pub fn start_postgres_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let postgres_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::Postgres(config) => config.clone(),
-            _ => {
+        let bridge = match PostgresBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for Postgres connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for Postgres connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = PostgresBridgePlugin::new(postgres_config);
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(

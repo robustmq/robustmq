@@ -21,11 +21,13 @@ use chrono::{DateTime, Local, Timelike};
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connector::config_local_file::RotationStrategy;
+use metadata_struct::connector::rule::ETLRule;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
     connector::config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -163,12 +165,21 @@ impl FileWriter {
 }
 
 pub struct FileBridgePlugin {
+    connector: MQTTConnector,
     config: LocalFileConnectorConfig,
 }
 
 impl FileBridgePlugin {
-    pub fn new(config: LocalFileConnectorConfig) -> Self {
-        FileBridgePlugin { config }
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::LocalFile(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for file plugin".to_string(),
+                ));
+            }
+        };
+        Ok(FileBridgePlugin { connector, config })
     }
 }
 
@@ -193,6 +204,14 @@ impl ConnectorSink for FileBridgePlugin {
         FileWriter::new(self.config.clone()).await
     }
 
+    async fn apply_rule(
+        &self,
+        rules: &Vec<ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<bytes::Bytes, CommonError> {
+        apply_rule_engine(rules, data).await
+    }
+
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -200,7 +219,8 @@ impl ConnectorSink for FileBridgePlugin {
     ) -> Result<(), CommonError> {
         for record in records {
             let msg = MqttMessage::decode(&record.data)?;
-            let data = serde_json::to_string(&msg)?;
+            let result = self.apply_rule(&self.connector.rules, &msg.payload).await?;
+            let data = serde_json::to_string(&result)?;
             writer.write(data.as_ref()).await?;
             writer.write(b"\n").await?;
         }
@@ -225,18 +245,16 @@ pub fn start_local_file_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let local_file_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::LocalFile(config) => config.clone(),
-            _ => {
+        let bridge = match FileBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for LocalFile connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for LocalFile connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-
-        let bridge = FileBridgePlugin::new(local_file_config);
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
@@ -270,7 +288,10 @@ mod tests {
     use common_base::uuid::unique_id;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::{
-        connector::{config_local_file::LocalFileConnectorConfig, FailureHandlingStrategy},
+        connector::{
+            config_local_file::LocalFileConnectorConfig, ConnectorType, FailureHandlingStrategy,
+            MQTTConnector,
+        },
         storage::{
             adapter_record::{AdapterWriteRecord, AdapterWriteRecordHeader},
             shard::EngineShardConfig,
@@ -345,7 +366,18 @@ mod tests {
 
         let (stop_send, stop_recv) = tokio::sync::mpsc::channel(1);
 
-        let file_bridge_plugin = FileBridgePlugin::new(config.clone());
+        let file_bridge_plugin = FileBridgePlugin::new(MQTTConnector {
+            connector_name: "test-file".to_string(),
+            connector_type: ConnectorType::LocalFile(config.clone()),
+            failure_strategy: FailureHandlingStrategy::Discard,
+            topic_name: topic_name.clone(),
+            status: Default::default(),
+            rules: vec![],
+            broker_id: None,
+            create_time: now_second(),
+            update_time: now_second(),
+        })
+        .unwrap();
 
         let read_config = BridgePluginReadConfig {
             topic_name: topic_name.clone(),

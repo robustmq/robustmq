@@ -53,12 +53,21 @@ struct MqttMessageRow {
 }
 
 pub struct ClickHouseBridgePlugin {
+    connector: MQTTConnector,
     config: ClickHouseConnectorConfig,
 }
 
 impl ClickHouseBridgePlugin {
-    pub fn new(config: ClickHouseConnectorConfig) -> Self {
-        ClickHouseBridgePlugin { config }
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::ClickHouse(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for clickhouse plugin".to_string(),
+                ));
+            }
+        };
+        Ok(ClickHouseBridgePlugin { connector, config })
     }
 }
 
@@ -95,6 +104,14 @@ impl ConnectorSink for ClickHouseBridgePlugin {
         );
 
         Ok(client)
+    }
+
+    async fn apply_rule(
+        &self,
+        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<bytes::Bytes, CommonError> {
+        Ok(data.clone())
     }
 
     async fn send_batch(
@@ -144,17 +161,16 @@ pub fn start_clickhouse_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let ch_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::ClickHouse(config) => config.clone(),
-            _ => {
+        let bridge = match ClickHouseBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for ClickHouse connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for ClickHouse connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = ClickHouseBridgePlugin::new(ch_config);
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 

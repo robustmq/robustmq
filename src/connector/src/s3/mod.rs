@@ -44,12 +44,21 @@ struct S3MessageRecord {
 }
 
 pub struct S3BridgePlugin {
+    connector: MQTTConnector,
     config: S3ConnectorConfig,
 }
 
 impl S3BridgePlugin {
-    pub fn new(config: S3ConnectorConfig) -> Self {
-        S3BridgePlugin { config }
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::S3(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for s3 plugin".to_string(),
+                ));
+            }
+        };
+        Ok(S3BridgePlugin { connector, config })
     }
 
     fn normalize_prefix(prefix: &str) -> &str {
@@ -106,6 +115,14 @@ impl ConnectorSink for S3BridgePlugin {
         Ok(op)
     }
 
+    async fn apply_rule(
+        &self,
+        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<bytes::Bytes, CommonError> {
+        Ok(data.clone())
+    }
+
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -148,17 +165,16 @@ pub fn start_s3_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let s3_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::S3(config) => config.clone(),
-            _ => {
+        let bridge = match S3BridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for S3 connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for S3 connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = S3BridgePlugin::new(s3_config);
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(

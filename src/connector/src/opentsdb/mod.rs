@@ -35,12 +35,21 @@ use super::{
 };
 
 pub struct OpenTSDBBridgePlugin {
+    connector: MQTTConnector,
     config: OpenTSDBConnectorConfig,
 }
 
 impl OpenTSDBBridgePlugin {
-    pub fn new(config: OpenTSDBConnectorConfig) -> Self {
-        OpenTSDBBridgePlugin { config }
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::OpenTSDB(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for opentsdb plugin".to_string(),
+                ));
+            }
+        };
+        Ok(OpenTSDBBridgePlugin { connector, config })
     }
 
     #[allow(clippy::result_large_err)]
@@ -116,6 +125,14 @@ impl ConnectorSink for OpenTSDBBridgePlugin {
         self.build_client()
     }
 
+    async fn apply_rule(
+        &self,
+        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<bytes::Bytes, CommonError> {
+        Ok(data.clone())
+    }
+
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -187,17 +204,16 @@ pub fn start_opentsdb_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let opentsdb_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::OpenTSDB(config) => config.clone(),
-            _ => {
+        let bridge = match OpenTSDBBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for OpenTSDB connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for OpenTSDB connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = OpenTSDBBridgePlugin::new(opentsdb_config);
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 

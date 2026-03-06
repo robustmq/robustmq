@@ -127,6 +127,7 @@ mod tests {
             broker_id: Some(1),
             create_time: now_second(),
             update_time: now_second(),
+            rules: Vec::new(),
         }
     }
 

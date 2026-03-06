@@ -35,12 +35,21 @@ use super::{
 };
 
 pub struct InfluxDBBridgePlugin {
+    connector: MQTTConnector,
     config: InfluxDBConnectorConfig,
 }
 
 impl InfluxDBBridgePlugin {
-    pub fn new(config: InfluxDBConnectorConfig) -> Self {
-        InfluxDBBridgePlugin { config }
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::InfluxDB(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for influxdb plugin".to_string(),
+                ));
+            }
+        };
+        Ok(InfluxDBBridgePlugin { connector, config })
     }
 
     #[allow(clippy::result_large_err)]
@@ -96,6 +105,14 @@ impl ConnectorSink for InfluxDBBridgePlugin {
         );
 
         Ok(client)
+    }
+
+    async fn apply_rule(
+        &self,
+        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<bytes::Bytes, CommonError> {
+        Ok(data.clone())
     }
 
     async fn send_batch(
@@ -155,17 +172,16 @@ pub fn start_influxdb_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let influxdb_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::InfluxDB(config) => config.clone(),
-            _ => {
+        let bridge = match InfluxDBBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for InfluxDB connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for InfluxDB connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = InfluxDBBridgePlugin::new(influxdb_config);
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 

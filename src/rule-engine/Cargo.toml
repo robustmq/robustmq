@@ -19,3 +19,6 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+metadata-struct.workspace = true
+bytes.workspace = true
+common-base.workspace = true

@@ -56,7 +56,9 @@ metadata-struct.workspace = true
 storage-adapter.workspace = true
 protocol.workspace = true
 governor.workspace = true
+bytes.workspace = true
 dashmap.workspace = true
+rule-engine.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

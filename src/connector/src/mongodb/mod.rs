@@ -40,12 +40,21 @@ use super::{
 };
 
 pub struct MongoDBBridgePlugin {
+    connector: MQTTConnector,
     config: MongoDBConnectorConfig,
 }
 
 impl MongoDBBridgePlugin {
-    pub fn new(config: MongoDBConnectorConfig) -> Self {
-        MongoDBBridgePlugin { config }
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::MongoDB(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for mongodb plugin".to_string(),
+                ));
+            }
+        };
+        Ok(MongoDBBridgePlugin { connector, config })
     }
 
     async fn create_client(&self) -> Result<Client, CommonError> {
@@ -156,6 +165,14 @@ impl ConnectorSink for MongoDBBridgePlugin {
         Ok(collection)
     }
 
+    async fn apply_rule(
+        &self,
+        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<bytes::Bytes, CommonError> {
+        Ok(data.clone())
+    }
+
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -245,19 +262,17 @@ pub fn start_mongodb_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let mongodb_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::MongoDB(config) => config.clone(),
-            _ => {
+        let bridge = match MongoDBBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for MongoDB connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for MongoDB connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-
-        let batch_size = mongodb_config.batch_size as u64;
-        let bridge = MongoDBBridgePlugin::new(mongodb_config);
+        let batch_size = bridge.config.batch_size as u64;
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 

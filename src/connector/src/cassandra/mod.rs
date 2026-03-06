@@ -34,12 +34,21 @@ use super::{
 };
 
 pub struct CassandraBridgePlugin {
+    connector: MQTTConnector,
     config: CassandraConnectorConfig,
 }
 
 impl CassandraBridgePlugin {
-    pub fn new(config: CassandraConnectorConfig) -> Self {
-        CassandraBridgePlugin { config }
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Cassandra(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for cassandra plugin".to_string(),
+                ));
+            }
+        };
+        Ok(CassandraBridgePlugin { connector, config })
     }
 
     fn build_insert_cql(&self) -> String {
@@ -84,6 +93,14 @@ impl ConnectorSink for CassandraBridgePlugin {
         Ok(session)
     }
 
+    async fn apply_rule(
+        &self,
+        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<bytes::Bytes, CommonError> {
+        Ok(data.clone())
+    }
+
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -126,17 +143,16 @@ pub fn start_cassandra_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let cass_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::Cassandra(config) => config.clone(),
-            _ => {
+        let bridge = match CassandraBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for Cassandra connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for Cassandra connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = CassandraBridgePlugin::new(cass_config);
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 

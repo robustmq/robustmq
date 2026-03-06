@@ -1,7 +1,3 @@
-use bytes::Bytes;
-use common_base::error::common::CommonError;
-use metadata_struct::connector::rule::ETLRule;
-
 // Copyright 2023 RobustMQ Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,9 +12,9 @@ use metadata_struct::connector::rule::ETLRule;
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod rule_trait;
+use bytes::Bytes;
+use metadata_struct::connector::rule::ETLRule;
 
-pub async fn apply_rule_engine(rules: &Vec<ETLRule>, data: &Bytes) -> Result<Bytes, CommonError> {
-    for rule in rules.iter() {}
-    Ok(Bytes::new())
+pub trait RuleTrait {
+    fn apply(rule: ETLRule, data: Bytes) -> Bytes;
 }

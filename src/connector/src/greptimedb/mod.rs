@@ -36,12 +36,21 @@ use common_base::error::common::CommonError;
 mod sender;
 
 pub struct GreptimeDBBridgePlugin {
+    connector: MQTTConnector,
     config: GreptimeDBConnectorConfig,
 }
 
 impl GreptimeDBBridgePlugin {
-    pub fn new(config: GreptimeDBConnectorConfig) -> Self {
-        GreptimeDBBridgePlugin { config }
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::GreptimeDB(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for greptimedb plugin".to_string(),
+                ));
+            }
+        };
+        Ok(GreptimeDBBridgePlugin { connector, config })
     }
 }
 
@@ -55,6 +64,14 @@ impl ConnectorSink for GreptimeDBBridgePlugin {
 
     async fn init_sink(&self) -> Result<Self::SinkResource, CommonError> {
         sender::Sender::new(&self.config)
+    }
+
+    async fn apply_rule(
+        &self,
+        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
+        data: &bytes::Bytes,
+    ) -> Result<bytes::Bytes, CommonError> {
+        Ok(data.clone())
     }
 
     async fn send_batch(
@@ -77,18 +94,16 @@ pub fn start_greptimedb_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let greptimedb_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::GreptimeDB(config) => config.clone(),
-            _ => {
+        let bridge = match GreptimeDBBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for GreptimeDB connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for GreptimeDB connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-
-        let bridge = GreptimeDBBridgePlugin::new(greptimedb_config);
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(
