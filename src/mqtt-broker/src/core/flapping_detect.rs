@@ -72,7 +72,7 @@ pub async fn check_flapping_detect(
     // get flapping detect info
     let flapping_detect_condition = if let Some(flapping_detect_info) = cache_manager
         .acl_metadata
-        .get_flapping_detect_condition(client_id.clone())
+        .get_flapping_detect_condition(&client_id)
     {
         flapping_detect_info
     } else {

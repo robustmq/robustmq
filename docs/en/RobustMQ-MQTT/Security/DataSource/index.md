@@ -24,7 +24,7 @@ Broker loads these data sets and uses them in the connection auth and access-con
 Typical steps:
 
 1. Configure `storage_type` through the management console or CLI.
-2. Fill the matching config block (for example `mysql_config`, `redis_config`).
+2. Fill the matching config block (for example `mysql_config`, `redis_config`, `mongodb_config`).
 3. For SQL-based sources, configure queries and ensure result mappings match expected contracts.
 4. Validate auth result and cache sync behavior after startup.
 
@@ -34,7 +34,7 @@ The auth path is cache-first, with different update strategies per source:
 
 1. CONNECT auth checks in-memory cache first.
 2. Built-in data source (Meta Service) updates cache in real time (no delay).
-3. External data sources (MySQL/PostgreSQL/Redis/HTTP) update cache by periodic sync.
+3. External data sources (MySQL/PostgreSQL/Redis/MongoDB/HTTP) update cache by periodic sync.
 4. External sources are used for sync/management, not queried on every CONNECT.
 
 By moving the hot path to memory, broker remains stable under connection bursts.  
@@ -46,6 +46,7 @@ By default, external source sync has around a 5-second delay; built-in source do
 - MySQL
 - PostgreSQL
 - Redis
+- MongoDB
 - HTTP
 
 ## Design Goals
@@ -60,4 +61,5 @@ By default, external source sync has around a 5-second delay; built-in source do
 - [MySQL Data Source](./MySQL.md)
 - [PostgreSQL Data Source](./PostgreSQL.md)
 - [Redis Data Source](./Redis.md)
+- [MongoDB Data Source](./MongoDB.md)
 - [HTTP Data Source](./HTTP.md)

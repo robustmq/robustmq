@@ -19,7 +19,19 @@ use crate::{
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use metadata_struct::{acl::mqtt_acl::MqttAcl, mqtt::connection::MQTTConnection};
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
+
+fn normalize_source_ip(source_ip_addr: &str) -> String {
+    if let Ok(socket_addr) = source_ip_addr.parse::<SocketAddr>() {
+        return socket_addr.ip().to_string();
+    }
+    if let Some((ip, _)) = source_ip_addr.rsplit_once(':') {
+        if ip.split('.').count() == 4 {
+            return ip.to_string();
+        }
+    }
+    source_ip_addr.to_string()
+}
 
 pub fn is_acl_deny(
     cache_manager: &Arc<MQTTCacheManager>,
@@ -27,22 +39,23 @@ pub fn is_acl_deny(
     topic_name: &str,
     action: MqttAclAction,
 ) -> bool {
+    let source_ip = normalize_source_ip(&connection.source_ip_addr);
     let user = connection.login_user.clone().unwrap_or_default();
-    // check user acl
-    if let Some(acl_list) = cache_manager.acl_metadata.acl_user.get(&user) {
-        return check_for_deny(&acl_list, &action, topic_name, &connection.source_ip_addr);
-    }
+    let user_deny = cache_manager
+        .acl_metadata
+        .acl_user
+        .get(&user)
+        .map(|acl_list| check_for_deny(&acl_list, &action, topic_name, &source_ip))
+        .unwrap_or(false);
 
-    // check client id acl
-    if let Some(acl_list) = cache_manager
+    let client_id_deny = cache_manager
         .acl_metadata
         .acl_client_id
         .get(&connection.client_id)
-    {
-        return check_for_deny(&acl_list, &action, topic_name, &connection.source_ip_addr);
-    }
+        .map(|acl_list| check_for_deny(&acl_list, &action, topic_name, &source_ip))
+        .unwrap_or(false);
 
-    false
+    user_deny || client_id_deny
 }
 
 fn check_for_deny(
@@ -52,11 +65,13 @@ fn check_for_deny(
     source_ip: &str,
 ) -> bool {
     for acl in acl_list.iter() {
-        if topic_match(topic_name, &acl.topic)
-            && ip_match(source_ip, &acl.ip)
-            && (acl.action == *action || acl.action == MqttAclAction::All)
-            && acl.permission == MqttAclPermission::Deny
-        {
+        if acl.permission != MqttAclPermission::Deny {
+            continue;
+        }
+        if acl.action != *action && acl.action != MqttAclAction::All {
+            continue;
+        }
+        if topic_match(topic_name, &acl.topic) && ip_match(source_ip, &acl.ip) {
             return true;
         }
     }
@@ -142,7 +157,7 @@ mod test {
     }
 
     #[tokio::test]
-    pub async fn check_empty_acl_test() {
+    async fn empty_acl_returns_false() {
         let fixture = setup().await;
         assert!(!is_acl_deny(
             &fixture.cache_manager,
@@ -150,17 +165,10 @@ mod test {
             &fixture.topic_name,
             MqttAclAction::Publish,
         ));
-
-        assert!(!is_acl_deny(
-            &fixture.cache_manager,
-            &fixture.connection,
-            &fixture.topic_name,
-            MqttAclAction::Subscribe
-        ));
     }
 
     #[tokio::test]
-    async fn test_user_is_denied_by_specific_topic_rule() {
+    async fn user_specific_rule_blocks_publish_only() {
         let fixture = setup().await;
         add_deny_rule(
             &fixture,
@@ -174,39 +182,74 @@ mod test {
             &fixture.connection,
             &fixture.topic_name,
             MqttAclAction::Publish
-        ),);
+        ));
 
         assert!(!is_acl_deny(
             &fixture.cache_manager,
             &fixture.connection,
             &fixture.topic_name,
             MqttAclAction::Subscribe
-        ),);
+        ));
     }
 
     #[tokio::test]
-    async fn test_clientid_is_denied_by_wildcard_topic_rule() {
+    async fn client_id_deny_still_effective_when_user_rules_exist() {
         let fixture = setup().await;
-        add_deny_rule(
-            &fixture,
-            MqttAclResourceType::ClientId,
-            WILDCARD_RESOURCE,
-            MqttAclAction::All,
-        );
+
+        fixture.cache_manager.add_acl(MqttAcl {
+            resource_type: MqttAclResourceType::User,
+            resource_name: fixture.user.username.clone(),
+            topic: "other/topic".to_string(),
+            ip: WILDCARD_RESOURCE.to_string(),
+            action: MqttAclAction::Publish,
+            permission: MqttAclPermission::Deny,
+        });
+
+        fixture.cache_manager.add_acl(MqttAcl {
+            resource_type: MqttAclResourceType::ClientId,
+            resource_name: fixture.connection.client_id.clone(),
+            topic: WILDCARD_RESOURCE.to_string(),
+            ip: WILDCARD_RESOURCE.to_string(),
+            action: MqttAclAction::All,
+            permission: MqttAclPermission::Deny,
+        });
 
         assert!(is_acl_deny(
             &fixture.cache_manager,
             &fixture.connection,
             &fixture.topic_name,
             MqttAclAction::Publish
-        ),);
+        ));
 
         assert!(is_acl_deny(
             &fixture.cache_manager,
             &fixture.connection,
-            "tp-2",
+            "any/topic",
             MqttAclAction::Subscribe
-        ),);
+        ));
+    }
+
+    #[tokio::test]
+    async fn source_ip_with_port_is_normalized_for_acl_match() {
+        let fixture = setup().await;
+        let mut conn = fixture.connection.clone();
+        conn.source_ip_addr = "127.0.0.1:1883".to_string();
+
+        fixture.cache_manager.add_acl(MqttAcl {
+            resource_type: MqttAclResourceType::ClientId,
+            resource_name: conn.client_id.clone(),
+            topic: fixture.topic_name.clone(),
+            ip: "127.0.0.1".to_string(),
+            action: MqttAclAction::Publish,
+            permission: MqttAclPermission::Deny,
+        });
+
+        assert!(is_acl_deny(
+            &fixture.cache_manager,
+            &conn,
+            &fixture.topic_name,
+            MqttAclAction::Publish
+        ));
     }
 
     mod check_for_deny_tests {
@@ -215,97 +258,46 @@ mod test {
         use super::*;
 
         #[test]
-        fn returns_false_for_empty_rule_list() {
-            let rules: Vec<MqttAcl> = vec![];
-            assert!(!check_for_deny(
-                &rules,
-                &MqttAclAction::Publish,
-                "test/topic",
-                "127.0.0.1"
-            ));
-        }
-
-        #[test]
-        fn returns_true_for_matching_deny_rule() {
-            let rules = vec![MqttAcl {
-                permission: MqttAclPermission::Deny,
-                action: MqttAclAction::Publish,
+        fn check_for_deny_core_cases() {
+            let rule = |permission: MqttAclPermission, action: MqttAclAction| MqttAcl {
+                permission,
+                action,
                 topic: "test/topic".to_string(),
                 ip: "127.0.0.1".to_string(),
                 resource_type: MqttAclResourceType::User,
                 resource_name: "resource_name".to_string(),
-            }];
-            assert!(check_for_deny(
-                &rules,
-                &MqttAclAction::Publish,
-                "test/topic",
-                "127.0.0.1"
-            ),);
-        }
+            };
 
-        #[test]
-        fn returns_false_for_matching_allow_rule() {
-            let rules = vec![MqttAcl {
-                permission: MqttAclPermission::Allow,
-                action: MqttAclAction::Publish,
-                topic: "test/topic".to_string(),
-                ip: "127.0.0.1".to_string(),
+            let cases = vec![
+                (vec![], MqttAclAction::Publish, false),
+                (
+                    vec![rule(MqttAclPermission::Deny, MqttAclAction::Publish)],
+                    MqttAclAction::Publish,
+                    true,
+                ),
+                (
+                    vec![rule(MqttAclPermission::Allow, MqttAclAction::Publish)],
+                    MqttAclAction::Publish,
+                    false,
+                ),
+                (
+                    vec![rule(MqttAclPermission::Deny, MqttAclAction::Subscribe)],
+                    MqttAclAction::Publish,
+                    false,
+                ),
+                (
+                    vec![rule(MqttAclPermission::Deny, MqttAclAction::All)],
+                    MqttAclAction::Subscribe,
+                    true,
+                ),
+            ];
 
-                resource_type: MqttAclResourceType::User,
-                resource_name: "resource_name".to_string(),
-            }];
-
-            assert!(!check_for_deny(
-                &rules,
-                &MqttAclAction::Publish,
-                "test/topic",
-                "127.0.0.1"
-            ),);
-        }
-
-        #[test]
-        fn returns_false_when_action_does_not_match() {
-            let rules = vec![MqttAcl {
-                permission: MqttAclPermission::Deny,
-                action: MqttAclAction::Subscribe,
-                topic: "test/topic".to_string(),
-                ip: "127.0.0.1".to_string(),
-
-                resource_type: MqttAclResourceType::User,
-                resource_name: "resource_name".to_string(),
-            }];
-
-            assert!(!check_for_deny(
-                &rules,
-                &MqttAclAction::Publish,
-                "test/topic",
-                "127.0.0.1"
-            ),);
-        }
-
-        #[test]
-        fn returns_true_when_rule_action_is_all() {
-            let rules = vec![MqttAcl {
-                permission: MqttAclPermission::Deny,
-                action: MqttAclAction::All,
-                topic: "test/topic".to_string(),
-                ip: "127.0.0.1".to_string(),
-
-                resource_type: MqttAclResourceType::User,
-                resource_name: "resource_name".to_string(),
-            }];
-            assert!(check_for_deny(
-                &rules,
-                &MqttAclAction::Publish,
-                "test/topic",
-                "127.0.0.1"
-            ),);
-            assert!(check_for_deny(
-                &rules,
-                &MqttAclAction::Subscribe,
-                "test/topic",
-                "127.0.0.1"
-            ),);
+            for (rules, action, expected) in cases {
+                assert_eq!(
+                    check_for_deny(&rules, &action, "test/topic", "127.0.0.1"),
+                    expected
+                );
+            }
         }
     }
 }

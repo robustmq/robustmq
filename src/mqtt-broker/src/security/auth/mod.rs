@@ -14,7 +14,7 @@
 
 use crate::core::cache::MQTTCacheManager;
 use crate::security::auth::acl::is_acl_deny;
-use crate::security::auth::super_user::is_super_user;
+use crate::security::login::super_user::is_super_user;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::QoS;
@@ -24,7 +24,6 @@ pub mod acl;
 pub mod blacklist;
 pub mod common;
 pub mod metadata;
-pub mod super_user;
 
 pub fn is_allow_acl(
     cache_manager: &Arc<MQTTCacheManager>,

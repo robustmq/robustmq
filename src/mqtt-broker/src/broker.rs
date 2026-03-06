@@ -22,7 +22,7 @@ use crate::core::retain::RetainMessageManager;
 use crate::core::system_alarm::SystemAlarm;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::core::topic_rewrite::start_topic_rewrite_convert_thread;
-use crate::security::auth::super_user::init_system_user;
+use crate::security::login::super_user::init_system_user;
 use crate::security::storage::sync::start_auth_sync_thread;
 use crate::security::AuthManager;
 use crate::server::{Server, TcpServerContext};

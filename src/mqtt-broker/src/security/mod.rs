@@ -15,7 +15,7 @@
 use crate::core::cache::MQTTCacheManager;
 use crate::core::error::MqttBrokerError;
 use crate::core::tool::ResultMqttBrokerError;
-use crate::security::auth::blacklist::is_blacklist;
+use crate::security::auth::blacklist::is_connection_blacklisted;
 use crate::security::auth::is_allow_acl;
 use crate::security::login::password::password_check_by_login;
 use crate::security::login::LoginType;
@@ -163,7 +163,8 @@ impl AuthManager {
         login: &Option<Login>,
     ) -> bool {
         // default true if blacklist check fails
-        is_blacklist(&self.cache_manager, client_id, source_ip_addr, login).unwrap_or(true)
+        is_connection_blacklisted(&self.cache_manager, client_id, source_ip_addr, login)
+            .unwrap_or(true)
     }
 
     pub async fn publish_check(

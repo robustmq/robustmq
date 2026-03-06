@@ -39,6 +39,10 @@ RUN find . -name "Cargo.toml" -not -path "./Cargo.toml" -exec dirname {} \; | wh
       echo '' > "$dir/src/lib.rs"; \
     done
 
+# Safety net for newly-added workspace crates during CI cache churn.
+# Keeps cargo-chef prepare from failing on "no targets specified".
+RUN mkdir -p src/common/delay-task/src && test -f src/common/delay-task/src/lib.rs || echo '' > src/common/delay-task/src/lib.rs
+
 # Generate recipe.json with full dependency graph
 RUN cargo chef prepare --recipe-path recipe.json
 
