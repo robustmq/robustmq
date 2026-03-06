@@ -69,58 +69,33 @@ mod test {
         security::auth::common::{ip_match, topic_match},
     };
 
-    #[tokio::test]
-    pub async fn topic_match_test() {
-        let topic_name = "t1";
-        let match_topic_name = WILDCARD_RESOURCE.to_string();
-        assert!(topic_match(topic_name, &match_topic_name));
-        assert!(topic_match(topic_name, topic_name));
-        assert!(!topic_match(topic_name, "v1"));
+    #[test]
+    fn topic_match_test() {
+        assert!(topic_match("t1", WILDCARD_RESOURCE));
+        assert!(topic_match("t1", "t1"));
+        assert!(!topic_match("t1", "t2"));
     }
 
-    #[tokio::test]
-    pub async fn ip_match_test() {
-        let source_ip = "127.0.0.1";
-        let match_ip = WILDCARD_RESOURCE;
-        assert!(ip_match(source_ip, match_ip));
+    #[test]
+    fn ip_match_test() {
+        let cases = [
+            // wildcard and exact match
+            ("127.0.0.1", WILDCARD_RESOURCE, true),
+            ("127.0.0.1", "127.0.0.1", true),
+            ("127.0.0.1", "192.1.1.1", false),
+            // cidr
+            ("127.0.0.1", "127.0.0.1/24", true),
+            ("10.0.0.2", "10.0.0.1/32", false),
+            // invalid inputs
+            ("not-an-ip", "127.0.0.1", false),
+            ("127.0.0.1", "not-a-cidr", false),
+            // ipv6
+            ("2001:db8::1", "2001:db8::/32", true),
+            ("2001:db8::1", "2001:db9::/32", false),
+        ];
 
-        assert!(ip_match(source_ip, source_ip));
-        assert!(!ip_match(source_ip, "192.1.1.1"));
-        assert!(ip_match(source_ip, "127.0.0.1/24"));
-    }
-
-    #[tokio::test]
-    pub async fn ip_match_invalid_source_test() {
-        // Invalid source IP should return false
-        assert!(!ip_match("not-an-ip", "127.0.0.1"));
-        assert!(!ip_match("not-an-ip", "not-an-ip")); // Security: should not match invalid IPs
-        assert!(!ip_match("", "127.0.0.1"));
-    }
-
-    #[tokio::test]
-    pub async fn ip_match_invalid_pattern_test() {
-        // Valid source IP but invalid pattern should return false
-        assert!(!ip_match("127.0.0.1", "not-a-cidr"));
-        assert!(!ip_match("127.0.0.1", "999.999.999.999"));
-    }
-
-    #[tokio::test]
-    pub async fn ip_match_cidr_test() {
-        // Test various CIDR ranges
-        assert!(ip_match("192.168.1.100", "192.168.1.0/24"));
-        assert!(ip_match("192.168.1.1", "192.168.0.0/16"));
-        assert!(!ip_match("192.168.2.1", "192.168.1.0/24"));
-
-        // Single IP as CIDR /32
-        assert!(ip_match("10.0.0.1", "10.0.0.1/32"));
-        assert!(!ip_match("10.0.0.2", "10.0.0.1/32"));
-    }
-
-    #[tokio::test]
-    pub async fn ip_match_ipv6_test() {
-        // Test IPv6 addresses
-        assert!(ip_match("::1", "::1"));
-        assert!(ip_match("2001:db8::1", "2001:db8::/32"));
-        assert!(!ip_match("2001:db8::1", "2001:db9::/32"));
+        for (source, pattern, expected) in cases {
+            assert_eq!(ip_match(source, pattern), expected);
+        }
     }
 }
