@@ -25,6 +25,7 @@ use metadata_struct::{
     connector::config_rabbitmq::RabbitMQConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::{debug, error, info, warn};
@@ -142,14 +143,6 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         Ok(channel)
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -170,7 +163,25 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         let mut confirms = Vec::new();
 
         for (idx, record) in records.iter().enumerate() {
-            let data = match serde_json::to_string(record) {
+            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await {
+                Ok(data) => data,
+                Err(e) => {
+                    warn!(
+                        "Failed to apply rule for record {}/{} (key: '{:?}'): {}",
+                        idx + 1,
+                        records.len(),
+                        record.key,
+                        e
+                    );
+                    failed_records.push((idx, e.to_string()));
+                    continue;
+                }
+            };
+
+            let mut processed_record = record.clone();
+            processed_record.data = processed_data;
+
+            let data = match serde_json::to_string(&processed_record) {
                 Ok(d) => d,
                 Err(e) => {
                     warn!(

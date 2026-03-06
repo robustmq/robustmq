@@ -27,6 +27,7 @@ use metadata_struct::{
     connector::config_pulsar::PulsarConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::error;
@@ -66,21 +67,16 @@ impl ConnectorSink for PulsarBridgePlugin {
         Ok(producer)
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
         producer: &mut pulsar::producer::Producer<pulsar::TokioExecutor>,
     ) -> Result<(), CommonError> {
         for record in records {
-            producer.send_non_blocking(record.clone()).await?;
+            let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+            let mut processed_record = record.clone();
+            processed_record.data = processed_data;
+            producer.send_non_blocking(processed_record).await?;
         }
         Ok(())
     }

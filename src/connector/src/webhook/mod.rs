@@ -21,6 +21,7 @@ use metadata_struct::{
     storage::adapter_record::AdapterWriteRecord,
 };
 use reqwest::{Client, RequestBuilder};
+use rule_engine::apply_rule_engine;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
@@ -92,30 +93,36 @@ impl WebhookBridgePlugin {
         req.body(body)
     }
 
-    fn records_to_json(&self, records: &[AdapterWriteRecord]) -> String {
-        let items: Vec<serde_json::Value> = records
-            .iter()
-            .map(|record| {
-                let payload = String::from_utf8_lossy(&record.data).to_string();
-                let mut item = json!({
-                    "payload": payload,
-                    "timestamp": record.timestamp,
-                });
-                if let Some(key) = &record.key {
-                    item["key"] = json!(key);
+    async fn records_to_json(&self, records: &[AdapterWriteRecord]) -> String {
+        let mut items: Vec<serde_json::Value> = Vec::with_capacity(records.len());
+        for record in records {
+            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await {
+                Ok(data) => data,
+                Err(e) => {
+                    tracing::error!("Failed to apply rule before Webhook send: {}", e);
+                    continue;
                 }
-                if let Some(headers) = &record.header {
-                    if !headers.is_empty() {
-                        let h: Vec<serde_json::Value> = headers
-                            .iter()
-                            .map(|h| json!({"name": h.name, "value": h.value}))
-                            .collect();
-                        item["headers"] = json!(h);
-                    }
+            };
+
+            let payload = String::from_utf8_lossy(&processed_data).to_string();
+            let mut item = json!({
+                "payload": payload,
+                "timestamp": record.timestamp,
+            });
+            if let Some(key) = &record.key {
+                item["key"] = json!(key);
+            }
+            if let Some(headers) = &record.header {
+                if !headers.is_empty() {
+                    let h: Vec<serde_json::Value> = headers
+                        .iter()
+                        .map(|h| json!({"name": h.name, "value": h.value}))
+                        .collect();
+                    item["headers"] = json!(h);
                 }
-                item
-            })
-            .collect();
+            }
+            items.push(item);
+        }
 
         if items.len() == 1 {
             items[0].to_string()
@@ -137,14 +144,6 @@ impl ConnectorSink for WebhookBridgePlugin {
         self.build_client()
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -154,7 +153,7 @@ impl ConnectorSink for WebhookBridgePlugin {
             return Ok(());
         }
 
-        let body = self.records_to_json(records);
+        let body = self.records_to_json(records).await;
         let request = self.build_request(client, body);
 
         let response = request

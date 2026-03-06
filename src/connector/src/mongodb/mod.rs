@@ -22,6 +22,7 @@ use metadata_struct::{
     connector::config_mongodb::MongoDBConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use mongodb::{
     options::{ClientOptions, InsertManyOptions, WriteConcern},
     Client, Collection,
@@ -105,11 +106,14 @@ impl MongoDBBridgePlugin {
     }
 
     #[allow(clippy::result_large_err)]
-    fn record_to_document(&self, record: &AdapterWriteRecord) -> Result<Document, CommonError> {
-        bson::to_document(record).map_err(|e| {
+    async fn record_to_document(&self, record: &AdapterWriteRecord) -> Result<Document, CommonError> {
+        let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+        let mut processed_record = record.clone();
+        processed_record.data = processed_data;
+        bson::to_document(&processed_record).map_err(|e| {
             CommonError::CommonError(format!(
                 "Failed to serialize record with key '{:?}' at timestamp {}: {}",
-                record.key, record.timestamp, e
+                processed_record.key, processed_record.timestamp, e
             ))
         })
     }
@@ -165,14 +169,6 @@ impl ConnectorSink for MongoDBBridgePlugin {
         Ok(collection)
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -188,7 +184,7 @@ impl ConnectorSink for MongoDBBridgePlugin {
         let mut failed_serializations = Vec::new();
 
         for (idx, record) in records.iter().enumerate() {
-            match self.record_to_document(record) {
+            match self.record_to_document(record).await {
                 Ok(doc) => documents.push(doc),
                 Err(e) => {
                     warn!(

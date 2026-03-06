@@ -19,6 +19,7 @@ use metadata_struct::{
     connector::config_cassandra::CassandraConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use scylla::{Session, SessionBuilder};
 use std::sync::Arc;
 use std::time::Duration;
@@ -93,14 +94,6 @@ impl ConnectorSink for CassandraBridgePlugin {
         Ok(session)
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -116,7 +109,8 @@ impl ConnectorSink for CassandraBridgePlugin {
         })?;
 
         for record in records {
-            let payload = String::from_utf8_lossy(&record.data).to_string();
+            let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+            let payload = String::from_utf8_lossy(&processed_data).to_string();
             let key = record.key.clone().unwrap_or_default();
             let timestamp = record.timestamp as i64;
 

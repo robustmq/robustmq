@@ -19,6 +19,7 @@ use metadata_struct::{
     connector::config_opentsdb::OpenTSDBConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use reqwest::Client;
 use serde_json::{json, Map, Value};
 use std::sync::Arc;
@@ -61,8 +62,9 @@ impl OpenTSDBBridgePlugin {
     }
 
     #[allow(clippy::result_large_err)]
-    fn record_to_data_point(&self, record: &AdapterWriteRecord) -> Result<Value, CommonError> {
-        let payload_str = String::from_utf8_lossy(&record.data);
+    async fn record_to_data_point(&self, record: &AdapterWriteRecord) -> Result<Value, CommonError> {
+        let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+        let payload_str = String::from_utf8_lossy(&processed_data);
         let payload: Value = serde_json::from_str(&payload_str).map_err(|e| {
             CommonError::CommonError(format!("Failed to parse payload as JSON: {}", e))
         })?;
@@ -125,14 +127,6 @@ impl ConnectorSink for OpenTSDBBridgePlugin {
         self.build_client()
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -144,7 +138,7 @@ impl ConnectorSink for OpenTSDBBridgePlugin {
 
         let mut data_points = Vec::new();
         for record in records {
-            match self.record_to_data_point(record) {
+            match self.record_to_data_point(record).await {
                 Ok(dp) => data_points.push(dp),
                 Err(e) => {
                     error!(

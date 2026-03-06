@@ -28,6 +28,7 @@ use metadata_struct::{
     storage::adapter_record::AdapterWriteRecord,
 };
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
+use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::error;
@@ -91,14 +92,6 @@ impl ConnectorSink for KafkaBridgePlugin {
         Ok(producer)
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -106,10 +99,28 @@ impl ConnectorSink for KafkaBridgePlugin {
     ) -> Result<(), CommonError> {
         use futures::future::join_all;
 
+        let mut processed_records = Vec::with_capacity(records.len());
+        for record in records {
+            match apply_rule_engine(&self.connector.rules, &record.data).await {
+                Ok(data) => {
+                    let mut processed_record = record.clone();
+                    processed_record.data = data;
+                    processed_records.push(processed_record);
+                }
+                Err(e) => {
+                    tracing::error!("Failed to apply rule before Kafka send: {}", e);
+                }
+            }
+        }
+
+        if processed_records.is_empty() {
+            return Ok(());
+        }
+
         let mut serialized_data = Vec::with_capacity(records.len());
         let mut keys = Vec::with_capacity(records.len());
 
-        for record in records {
+        for record in &processed_records {
             let data = serde_json::to_string(record)?;
             serialized_data.push(data);
 

@@ -21,6 +21,7 @@ use metadata_struct::{
     storage::adapter_record::AdapterWriteRecord,
 };
 
+use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::error;
@@ -66,20 +67,19 @@ impl ConnectorSink for GreptimeDBBridgePlugin {
         sender::Sender::new(&self.config)
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
         sender: &mut sender::Sender,
     ) -> Result<(), CommonError> {
-        sender.send_batch(records).await
+        let mut processed_records = Vec::with_capacity(records.len());
+        for record in records {
+            let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+            let mut processed_record = record.clone();
+            processed_record.data = processed_data;
+            processed_records.push(processed_record);
+        }
+        sender.send_batch(&processed_records).await
     }
 }
 

@@ -20,6 +20,7 @@ use metadata_struct::{
     connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
 };
 use paho_mqtt as mqtt;
+use rule_engine::apply_rule_engine;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
@@ -126,14 +127,6 @@ impl ConnectorSink for MqttBridgePlugin {
         Ok(client)
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -151,7 +144,7 @@ impl ConnectorSink for MqttBridgePlugin {
 
         for record in records {
             let topic = self.build_target_topic(record);
-            let payload = record.data.clone();
+            let payload = apply_rule_engine(&self.connector.rules, &record.data).await?;
 
             let msg = mqtt::MessageBuilder::new()
                 .topic(&topic)

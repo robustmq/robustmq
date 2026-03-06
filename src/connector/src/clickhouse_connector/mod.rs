@@ -21,6 +21,7 @@ use metadata_struct::{
     connector::config_clickhouse::ClickHouseConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use serde::Serialize;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -106,14 +107,6 @@ impl ConnectorSink for ClickHouseBridgePlugin {
         Ok(client)
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -131,8 +124,9 @@ impl ConnectorSink for ClickHouseBridgePlugin {
             })?;
 
         for record in records {
+            let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
             let row = MqttMessageRow {
-                data: String::from_utf8_lossy(&record.data).to_string(),
+                data: String::from_utf8_lossy(&processed_data).to_string(),
                 key: record.key.clone().unwrap_or_default(),
                 timestamp: record.timestamp,
             };

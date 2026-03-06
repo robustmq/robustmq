@@ -23,6 +23,7 @@ use metadata_struct::{
     connector::config_redis::RedisConnectorConfig, connector::config_redis::RedisMode,
     connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use redis::aio::ConnectionManager;
 use redis::{Client, Cmd, RedisError};
 use storage_adapter::driver::StorageDriverManager;
@@ -208,14 +209,6 @@ impl ConnectorSink for RedisBridgePlugin {
         Ok(conn_manager)
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -225,7 +218,19 @@ impl ConnectorSink for RedisBridgePlugin {
         let mut error_count = 0;
 
         for record in records {
-            let msg = match MqttMessage::decode_record(record.clone()) {
+            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await {
+                Ok(data) => data,
+                Err(e) => {
+                    error!("Failed to apply rule before Redis send: {}", e);
+                    error_count += 1;
+                    continue;
+                }
+            };
+
+            let mut processed_record = record.clone();
+            processed_record.data = processed_data;
+
+            let msg = match MqttMessage::decode_record(processed_record.clone()) {
                 Ok(m) => m,
                 Err(e) => {
                     error!("Failed to parse MQTT message: {}", e);
@@ -234,7 +239,7 @@ impl ConnectorSink for RedisBridgePlugin {
                 }
             };
 
-            let command_parts = match self.render_command_template(record, &msg) {
+            let command_parts = match self.render_command_template(&processed_record, &msg) {
                 Ok(parts) => parts,
                 Err(e) => {
                     error!("Failed to render command template: {}", e);

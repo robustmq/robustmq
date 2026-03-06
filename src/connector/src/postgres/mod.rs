@@ -20,6 +20,7 @@ use metadata_struct::{
     connector::config_postgres::PostgresConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
@@ -214,14 +215,6 @@ impl ConnectorSink for PostgresBridgePlugin {
         Ok(pool)
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -231,15 +224,23 @@ impl ConnectorSink for PostgresBridgePlugin {
             return Ok(());
         }
 
+        let mut processed_records = Vec::with_capacity(records.len());
+        for record in records {
+            let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+            let mut processed_record = record.clone();
+            processed_record.data = processed_data;
+            processed_records.push(processed_record);
+        }
+
         if self.config.is_batch_insert_enabled() {
             if self.config.sql_template.is_some() {
                 warn!(
                     "sql_template is not applied in batch mode; default batch INSERT will be used"
                 );
             }
-            self.batch_insert(records, pool).await
+            self.batch_insert(&processed_records, pool).await
         } else {
-            self.single_insert(records, pool).await
+            self.single_insert(&processed_records, pool).await
         }
     }
 

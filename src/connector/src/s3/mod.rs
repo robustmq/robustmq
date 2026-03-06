@@ -20,6 +20,7 @@ use metadata_struct::{
     storage::adapter_record::{AdapterWriteRecord, AdapterWriteRecordHeader},
 };
 use opendal::{services::S3, Operator};
+use rule_engine::apply_rule_engine;
 use serde::Serialize;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -115,14 +116,6 @@ impl ConnectorSink for S3BridgePlugin {
         Ok(op)
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -132,17 +125,29 @@ impl ConnectorSink for S3BridgePlugin {
             return Ok(());
         }
 
-        let payload: Vec<S3MessageRecord> = records
-            .iter()
-            .map(|record| S3MessageRecord {
+        let mut payload: Vec<S3MessageRecord> = Vec::with_capacity(records.len());
+        for record in records {
+            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await {
+                Ok(data) => data,
+                Err(e) => {
+                    tracing::error!("Failed to apply rule before S3 send: {}", e);
+                    continue;
+                }
+            };
+
+            payload.push(S3MessageRecord {
                 pkid: record.pkid,
                 key: record.key.clone(),
                 headers: record.header.clone(),
                 tags: record.tags.clone(),
-                data: record.data.to_vec(),
+                data: processed_data.to_vec(),
                 timestamp: record.timestamp,
-            })
-            .collect();
+            });
+        }
+
+        if payload.is_empty() {
+            return Ok(());
+        }
 
         let object_key = self.build_object_key();
         let bytes = serde_json::to_vec(&payload).map_err(|e| {

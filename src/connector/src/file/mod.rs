@@ -21,7 +21,6 @@ use chrono::{DateTime, Local, Timelike};
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connector::config_local_file::RotationStrategy;
-use metadata_struct::connector::rule::ETLRule;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
     connector::config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
@@ -204,14 +203,6 @@ impl ConnectorSink for FileBridgePlugin {
         FileWriter::new(self.config.clone()).await
     }
 
-    async fn apply_rule(
-        &self,
-        rules: &Vec<ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        apply_rule_engine(rules, data).await
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -219,8 +210,8 @@ impl ConnectorSink for FileBridgePlugin {
     ) -> Result<(), CommonError> {
         for record in records {
             let msg = MqttMessage::decode(&record.data)?;
-            let result = self.apply_rule(&self.connector.rules, &msg.payload).await?;
-            let data = serde_json::to_string(&result)?;
+            let processed_data = apply_rule_engine(&self.connector.rules, &msg.payload).await?;
+            let data = serde_json::to_string(&processed_data)?;
             writer.write(data.as_ref()).await?;
             writer.write(b"\n").await?;
         }

@@ -20,6 +20,7 @@ use metadata_struct::{
     connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use reqwest::Client;
 use std::sync::Arc;
 use std::time::Duration;
@@ -62,9 +63,13 @@ impl InfluxDBBridgePlugin {
 
     /// Convert an AdapterWriteRecord to InfluxDB Line Protocol format:
     /// `measurement,tag1=val1 field1="strval",field2=42i timestamp`
-    fn record_to_line_protocol(&self, record: &AdapterWriteRecord) -> String {
+    fn record_to_line_protocol(
+        &self,
+        record: &AdapterWriteRecord,
+        processed_data: &bytes::Bytes,
+    ) -> String {
         let measurement = &self.config.measurement;
-        let payload_str = String::from_utf8_lossy(&record.data);
+        let payload_str = String::from_utf8_lossy(processed_data);
 
         let mut tags = String::new();
         if let Some(key) = &record.key {
@@ -107,14 +112,6 @@ impl ConnectorSink for InfluxDBBridgePlugin {
         Ok(client)
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -124,10 +121,11 @@ impl ConnectorSink for InfluxDBBridgePlugin {
             return Ok(());
         }
 
-        let lines: Vec<String> = records
-            .iter()
-            .map(|r| self.record_to_line_protocol(r))
-            .collect();
+        let mut lines: Vec<String> = Vec::with_capacity(records.len());
+        for record in records {
+            let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+            lines.push(self.record_to_line_protocol(record, &processed_data));
+        }
         let body = lines.join("\n");
 
         let url = self.config.write_url();

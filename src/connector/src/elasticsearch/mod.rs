@@ -26,6 +26,7 @@ use metadata_struct::{
     connector::config_elasticsearch::ElasticsearchConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -95,14 +96,15 @@ impl ElasticsearchBridgePlugin {
     }
 
     #[allow(clippy::result_large_err)]
-    fn record_to_json(&self, record: &AdapterWriteRecord) -> Result<Value, CommonError> {
-        let payload_str = String::from_utf8_lossy(&record.data).to_string();
+    async fn record_to_json(&self, record: &AdapterWriteRecord) -> Result<Value, CommonError> {
+        let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+        let payload_str = String::from_utf8_lossy(&processed_data).to_string();
 
         let mut doc = json!({
             "key": record.key,
             "timestamp": record.timestamp,
             "payload": payload_str,
-            "data": record.data,
+            "data": processed_data,
         });
 
         if let Some(headers) = &record.header {
@@ -132,14 +134,6 @@ impl ConnectorSink for ElasticsearchBridgePlugin {
         Ok(client)
     }
 
-    async fn apply_rule(
-        &self,
-        _rules: &Vec<metadata_struct::connector::rule::ETLRule>,
-        data: &bytes::Bytes,
-    ) -> Result<bytes::Bytes, CommonError> {
-        Ok(data.clone())
-    }
-
     async fn send_batch(
         &self,
         records: &[AdapterWriteRecord],
@@ -152,7 +146,7 @@ impl ConnectorSink for ElasticsearchBridgePlugin {
         let mut body_parts: Vec<JsonBody<_>> = Vec::new();
 
         for record in records {
-            let doc = match self.record_to_json(record) {
+            let doc = match self.record_to_json(record).await {
                 Ok(d) => d,
                 Err(e) => {
                     error!(
