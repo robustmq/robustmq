@@ -187,7 +187,7 @@ impl FileBridgePlugin {
 
     async fn process_data(&self, data: &Bytes) -> Result<String, CommonError> {
         let msg = MqttMessage::decode(data)?;
-        let processed_data = apply_rule_engine(&self.connector.rules, &msg.payload).await?;
+        let processed_data = apply_rule_engine(&self.connector.etl_rule, &msg.payload).await?;
         let data = serde_json::to_string(&processed_data)?;
         Ok(data)
     }
@@ -302,8 +302,8 @@ mod tests {
     use common_base::uuid::unique_id;
     use metadata_struct::{
         connector::{
-            config_local_file::LocalFileConnectorConfig, ConnectorType, FailureHandlingStrategy,
-            MQTTConnector,
+            config_local_file::LocalFileConnectorConfig, rule::ETLRule, ConnectorType,
+            FailureHandlingStrategy, MQTTConnector,
         },
         mqtt::message::MqttMessage,
         storage::adapter_record::{AdapterWriteRecord, AdapterWriteRecordHeader},
@@ -377,7 +377,7 @@ mod tests {
             failure_strategy: FailureHandlingStrategy::Discard,
             topic_name: unique_id(),
             status: Default::default(),
-            rules: vec![],
+            etl_rule: ETLRule::default(),
             broker_id: None,
             create_time: now_second(),
             update_time: now_second(),

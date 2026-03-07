@@ -102,21 +102,21 @@ impl WebhookBridgePlugin {
     ) -> String {
         let mut items: Vec<serde_json::Value> = Vec::with_capacity(records.len());
         for record in records {
-            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
-            {
-                Ok(data) => data,
-                Err(e) => {
-                    tracing::error!("Failed to apply rule before Webhook send: {}", e);
-                    fail_messages.push(FailureRecordInfo {
-                        connector_name: self.connector.connector_name.clone(),
-                        connector_type: self.connector.connector_type.to_string(),
-                        source_topic: self.connector.topic_name.clone(),
-                        error_message: e.to_string(),
-                        records: vec![record.clone()],
-                    });
-                    continue;
-                }
-            };
+            let processed_data =
+                match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        tracing::error!("Failed to apply rule before Webhook send: {}", e);
+                        fail_messages.push(FailureRecordInfo {
+                            connector_name: self.connector.connector_name.clone(),
+                            connector_type: self.connector.connector_type.to_string(),
+                            source_topic: self.connector.topic_name.clone(),
+                            error_message: e.to_string(),
+                            records: vec![record.clone()],
+                        });
+                        continue;
+                    }
+                };
 
             let payload = String::from_utf8_lossy(&processed_data).to_string();
             let mut item = json!({

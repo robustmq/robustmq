@@ -14,18 +14,29 @@
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
+pub struct ETLRule {
+    pub decode_rule: Option<ETLOperator>,
+    pub ops_rule_list: Vec<ETLOperator>,
+    pub encode_rule: Option<ETLOperator>,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub enum ETLRule {
+pub enum ETLOperator {
+    Decode(DecodeDeleteParams),
     Filter(FilterRuleParams),
     Set(FilterSetParams),
     Delete(FilterDeleteParams),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Default, Deserialize, Clone, Debug, PartialEq)]
 pub struct FilterRuleParams {}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Default, Deserialize, Clone, Debug, PartialEq)]
 pub struct FilterSetParams {}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Default, Deserialize, Clone, Debug, PartialEq)]
 pub struct FilterDeleteParams {}
+
+#[derive(Serialize, Default, Deserialize, Clone, Debug, PartialEq)]
+pub struct DecodeDeleteParams {}

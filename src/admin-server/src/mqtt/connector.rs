@@ -27,8 +27,8 @@ use metadata_struct::connector::{
     config_mysql::MySQLConnectorConfig, config_opentsdb::OpenTSDBConnectorConfig,
     config_postgres::PostgresConnectorConfig, config_pulsar::PulsarConnectorConfig,
     config_rabbitmq::RabbitMQConnectorConfig, config_redis::RedisConnectorConfig,
-    config_s3::S3ConnectorConfig, config_webhook::WebhookConnectorConfig, status::MQTTStatus,
-    ConnectorType, FailureHandlingStrategy, MQTTConnector,
+    config_s3::S3ConnectorConfig, config_webhook::WebhookConnectorConfig, rule::ETLRule,
+    status::MQTTStatus, ConnectorType, FailureHandlingStrategy, MQTTConnector,
 };
 use mqtt_broker::storage::connector::ConnectorStorage;
 use std::sync::Arc;
@@ -326,7 +326,7 @@ async fn connector_create_inner(
         failure_strategy: parse_failure_strategy(params.failure_strategy),
         topic_name: params.topic_name.clone(),
         status: MQTTStatus::Idle,
-        rules: Vec::new(),
+        etl_rule: ETLRule::default(),
         broker_id: None,
         create_time: now_second(),
         update_time: now_second(),

@@ -127,20 +127,20 @@ impl ConnectorSink for ClickHouseBridgePlugin {
 
         let mut fail_messages = Vec::new();
         for record in records {
-            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
-            {
-                Ok(data) => data,
-                Err(e) => {
-                    fail_messages.push(FailureRecordInfo {
-                        connector_name: self.connector.connector_name.clone(),
-                        connector_type: self.connector.connector_type.to_string(),
-                        source_topic: self.connector.topic_name.clone(),
-                        error_message: e.to_string(),
-                        records: vec![record.clone()],
-                    });
-                    continue;
-                }
-            };
+            let processed_data =
+                match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        fail_messages.push(FailureRecordInfo {
+                            connector_name: self.connector.connector_name.clone(),
+                            connector_type: self.connector.connector_type.to_string(),
+                            source_topic: self.connector.topic_name.clone(),
+                            error_message: e.to_string(),
+                            records: vec![record.clone()],
+                        });
+                        continue;
+                    }
+                };
             let row = MqttMessageRow {
                 data: String::from_utf8_lossy(&processed_data).to_string(),
                 key: record.key.clone().unwrap_or_default(),

@@ -112,7 +112,7 @@ impl MongoDBBridgePlugin {
         &self,
         record: &AdapterWriteRecord,
     ) -> Result<Document, CommonError> {
-        let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+        let processed_data = apply_rule_engine(&self.connector.etl_rule, &record.data).await?;
         let mut processed_record = record.clone();
         processed_record.data = processed_data;
         bson::to_document(&processed_record).map_err(|e| {

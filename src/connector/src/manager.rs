@@ -112,8 +112,8 @@ impl ConnectorManager {
 mod tests {
     use super::*;
     use metadata_struct::connector::{
-        config_local_file::LocalFileConnectorConfig, status::MQTTStatus, ConnectorType,
-        FailureHandlingStrategy,
+        config_local_file::LocalFileConnectorConfig, rule::ETLRule, status::MQTTStatus,
+        ConnectorType, FailureHandlingStrategy,
     };
     use tokio::sync::mpsc;
 
@@ -127,7 +127,7 @@ mod tests {
             broker_id: Some(1),
             create_time: now_second(),
             update_time: now_second(),
-            rules: Vec::new(),
+            etl_rule: ETLRule::default(),
         }
     }
 

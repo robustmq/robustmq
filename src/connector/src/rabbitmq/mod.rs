@@ -165,21 +165,21 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         let mut confirms = Vec::new();
 
         for (idx, record) in records.iter().enumerate() {
-            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
-            {
-                Ok(data) => data,
-                Err(e) => {
-                    warn!(
-                        "Failed to apply rule for record {}/{} (key: '{:?}'): {}",
-                        idx + 1,
-                        records.len(),
-                        record.key,
-                        e
-                    );
-                    failed_records.push((idx, e.to_string()));
-                    continue;
-                }
-            };
+            let processed_data =
+                match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        warn!(
+                            "Failed to apply rule for record {}/{} (key: '{:?}'): {}",
+                            idx + 1,
+                            records.len(),
+                            record.key,
+                            e
+                        );
+                        failed_records.push((idx, e.to_string()));
+                        continue;
+                    }
+                };
 
             let mut processed_record = record.clone();
             processed_record.data = processed_data;

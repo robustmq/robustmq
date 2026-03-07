@@ -147,7 +147,7 @@ impl ConnectorSink for MqttBridgePlugin {
         let mut fail_messages = Vec::new();
         for record in records {
             let topic = self.build_target_topic(record);
-            let payload = match apply_rule_engine(&self.connector.rules, &record.data).await {
+            let payload = match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
                 Ok(data) => data,
                 Err(e) => {
                     fail_messages.push(FailureRecordInfo {

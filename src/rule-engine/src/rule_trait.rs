@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bytes::Bytes;
-use metadata_struct::connector::rule::ETLRule;
+use metadata_struct::connector::rule::ETLOperator;
+use serde_json::{Map, Value};
 
 pub trait RuleTrait {
-    fn apply(rule: ETLRule, data: Bytes) -> Bytes;
+    fn apply(rule: ETLOperator, data: Map<String, Value>) -> Map<String, Value>;
 }

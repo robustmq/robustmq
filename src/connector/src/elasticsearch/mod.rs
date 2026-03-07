@@ -99,7 +99,7 @@ impl ElasticsearchBridgePlugin {
 
     #[allow(clippy::result_large_err)]
     async fn record_to_json(&self, record: &AdapterWriteRecord) -> Result<Value, CommonError> {
-        let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+        let processed_data = apply_rule_engine(&self.connector.etl_rule, &record.data).await?;
         let payload_str = String::from_utf8_lossy(&processed_data).to_string();
 
         let mut doc = json!({

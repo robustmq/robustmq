@@ -210,6 +210,7 @@ fn calculate_broker_load_internal(
 mod tests {
     use super::*;
     use common_base::tools::now_second;
+    use metadata_struct::connector::rule::ETLRule;
     use metadata_struct::connector::{
         status::MQTTStatus, ConnectorType, FailureHandlingStrategy, MQTTConnector,
     };
@@ -251,7 +252,7 @@ mod tests {
                     broker_id: Some(broker_id),
                     create_time: now_second(),
                     update_time: now_second(),
-                    rules:Vec::new(),
+                    etl_rule:ETLRule::default(),
                 });
             }
         }
@@ -271,7 +272,7 @@ mod tests {
             broker_id: None,
             create_time: now_second(),
             update_time: now_second(),
-            rules: Vec::new(),
+            etl_rule: ETLRule::default(),
         }
     }
 

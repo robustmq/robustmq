@@ -104,7 +104,7 @@ impl ConnectorSink for KafkaBridgePlugin {
         let mut processed_records = Vec::with_capacity(records.len());
         let mut fail_messages = Vec::new();
         for record in records {
-            match apply_rule_engine(&self.connector.rules, &record.data).await {
+            match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
                 Ok(data) => {
                     let mut processed_record = record.clone();
                     processed_record.data = data;

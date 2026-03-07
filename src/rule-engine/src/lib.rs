@@ -14,16 +14,23 @@
 
 use bytes::Bytes;
 use common_base::error::common::CommonError;
-use metadata_struct::connector::rule::ETLRule;
+use metadata_struct::connector::rule::{ETLOperator, ETLRule};
 
+pub mod decode;
+pub mod encode;
 pub mod rule_trait;
 
-pub async fn apply_rule_engine(rules: &[ETLRule], data: &Bytes) -> Result<Bytes, CommonError> {
-    for rule in rules.iter() {
+pub async fn apply_rule_engine(etl_rule: &ETLRule, data: &Bytes) -> Result<Bytes, CommonError> {
+    if etl_rule.ops_rule_list.is_empty() {
+        return Ok(data.clone());
+    }
+
+    for rule in etl_rule.ops_rule_list.iter() {
         match rule {
-            ETLRule::Filter(_params) => {}
-            ETLRule::Set(_params) => {}
-            ETLRule::Delete(_params) => {}
+            ETLOperator::Decode(_params) => {}
+            ETLOperator::Filter(_params) => {}
+            ETLOperator::Set(_params) => {}
+            ETLOperator::Delete(_params) => {}
         }
     }
     Ok(data.clone())

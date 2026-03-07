@@ -126,20 +126,20 @@ impl ConnectorSink for InfluxDBBridgePlugin {
         let mut lines: Vec<String> = Vec::with_capacity(records.len());
         let mut fail_messages = Vec::new();
         for record in records {
-            let processed_data = match apply_rule_engine(&self.connector.rules, &record.data).await
-            {
-                Ok(data) => data,
-                Err(e) => {
-                    fail_messages.push(FailureRecordInfo {
-                        connector_name: self.connector.connector_name.clone(),
-                        connector_type: self.connector.connector_type.to_string(),
-                        source_topic: self.connector.topic_name.clone(),
-                        error_message: e.to_string(),
-                        records: vec![record.clone()],
-                    });
-                    continue;
-                }
-            };
+            let processed_data =
+                match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        fail_messages.push(FailureRecordInfo {
+                            connector_name: self.connector.connector_name.clone(),
+                            connector_type: self.connector.connector_type.to_string(),
+                            source_topic: self.connector.topic_name.clone(),
+                            error_message: e.to_string(),
+                            records: vec![record.clone()],
+                        });
+                        continue;
+                    }
+                };
             lines.push(self.record_to_line_protocol(record, &processed_data));
         }
         if lines.is_empty() {

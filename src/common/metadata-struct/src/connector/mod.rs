@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::connector::rule::ETLRule;
 use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
+use status::MQTTStatus;
 
 pub mod config_cassandra;
 pub mod config_clickhouse;
@@ -38,10 +40,6 @@ pub mod status;
 
 pub use connector_type::ConnectorType;
 
-use status::MQTTStatus;
-
-use crate::connector::rule::ETLRule;
-
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub struct MQTTConnector {
     pub connector_name: String,
@@ -49,7 +47,7 @@ pub struct MQTTConnector {
     pub failure_strategy: FailureHandlingStrategy,
     pub topic_name: String,
     pub status: MQTTStatus,
-    pub rules: Vec<ETLRule>,
+    pub etl_rule: ETLRule,
     pub broker_id: Option<u64>,
     pub create_time: u64,
     pub update_time: u64,

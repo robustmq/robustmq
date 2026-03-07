@@ -68,7 +68,7 @@ impl OpenTSDBBridgePlugin {
         &self,
         record: &AdapterWriteRecord,
     ) -> Result<Value, CommonError> {
-        let processed_data = apply_rule_engine(&self.connector.rules, &record.data).await?;
+        let processed_data = apply_rule_engine(&self.connector.etl_rule, &record.data).await?;
         let payload_str = String::from_utf8_lossy(&processed_data);
         let payload: Value = serde_json::from_str(&payload_str).map_err(|e| {
             CommonError::CommonError(format!("Failed to parse payload as JSON: {}", e))

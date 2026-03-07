@@ -7139,6 +7139,7 @@ dependencies = [
  "bytes",
  "common-base",
  "metadata-struct",
+ "serde_json",
 ]
 
 [[package]]
