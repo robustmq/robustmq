@@ -20,6 +20,7 @@ use metadata_struct::{
     storage::adapter_record::AdapterWriteRecord,
 };
 use reqwest::Client;
+use rule_engine::apply_rule_engine;
 use serde_json::{json, Map, Value};
 use std::sync::Arc;
 use std::time::Duration;
@@ -29,18 +30,29 @@ use tracing::error;
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
 };
 
 pub struct OpenTSDBBridgePlugin {
+    connector: MQTTConnector,
     config: OpenTSDBConnectorConfig,
 }
 
 impl OpenTSDBBridgePlugin {
-    pub fn new(config: OpenTSDBConnectorConfig) -> Self {
-        OpenTSDBBridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::OpenTSDB(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for opentsdb plugin".to_string(),
+                ));
+            }
+        };
+        Ok(OpenTSDBBridgePlugin { connector, config })
     }
 
     #[allow(clippy::result_large_err)]
@@ -52,8 +64,12 @@ impl OpenTSDBBridgePlugin {
     }
 
     #[allow(clippy::result_large_err)]
-    fn record_to_data_point(&self, record: &AdapterWriteRecord) -> Result<Value, CommonError> {
-        let payload_str = String::from_utf8_lossy(&record.data);
+    async fn record_to_data_point(
+        &self,
+        record: &AdapterWriteRecord,
+    ) -> Result<Value, CommonError> {
+        let processed_data = apply_rule_engine(&self.connector.etl_rule, &record.data).await?;
+        let payload_str = String::from_utf8_lossy(&processed_data);
         let payload: Value = serde_json::from_str(&payload_str).map_err(|e| {
             CommonError::CommonError(format!("Failed to parse payload as JSON: {}", e))
         })?;
@@ -120,27 +136,35 @@ impl ConnectorSink for OpenTSDBBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         client: &mut Client,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         let mut data_points = Vec::new();
+        let mut fail_messages = Vec::new();
         for record in records {
-            match self.record_to_data_point(record) {
+            match self.record_to_data_point(record).await {
                 Ok(dp) => data_points.push(dp),
                 Err(e) => {
                     error!(
                         "Failed to convert record to OpenTSDB data point: {}. Skipping.",
                         e
                     );
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
                     continue;
                 }
             }
         }
 
         if data_points.is_empty() {
-            return Ok(());
+            return Ok(fail_messages);
         }
 
         let url = self.config.put_url();
@@ -161,7 +185,7 @@ impl ConnectorSink for OpenTSDBBridgePlugin {
             })?;
 
         if response.status().is_success() {
-            Ok(())
+            Ok(fail_messages)
         } else {
             let status = response.status();
             let error_text = response
@@ -187,17 +211,16 @@ pub fn start_opentsdb_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let opentsdb_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::OpenTSDB(config) => config.clone(),
-            _ => {
+        let bridge = match OpenTSDBBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for OpenTSDB connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for OpenTSDB connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = OpenTSDBBridgePlugin::new(opentsdb_config);
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
@@ -205,7 +228,7 @@ pub fn start_opentsdb_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use crate::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -27,18 +28,29 @@ use metadata_struct::{
     connector::config_pulsar::PulsarConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::error;
 mod pulsar_producer;
 
 pub struct PulsarBridgePlugin {
+    connector: MQTTConnector,
     config: PulsarConnectorConfig,
 }
 
 impl PulsarBridgePlugin {
-    pub fn new(config: PulsarConnectorConfig) -> Self {
-        PulsarBridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Pulsar(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for pulsar plugin".to_string(),
+                ));
+            }
+        };
+        Ok(PulsarBridgePlugin { connector, config })
     }
 }
 
@@ -61,11 +73,28 @@ impl ConnectorSink for PulsarBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         producer: &mut pulsar::producer::Producer<pulsar::TokioExecutor>,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
+        let mut fail_messages = Vec::new();
         for record in records {
-            producer.send_non_blocking(record.clone()).await?;
+            let processed_data =
+                match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        fail_messages.push(FailureRecordInfo {
+                            connector_name: self.connector.connector_name.clone(),
+                            connector_type: self.connector.connector_type.to_string(),
+                            source_topic: self.connector.topic_name.clone(),
+                            error_message: e.to_string(),
+                            records: vec![record.clone()],
+                        });
+                        continue;
+                    }
+                };
+            let mut processed_record = record.clone();
+            processed_record.data = processed_data;
+            producer.send_non_blocking(processed_record).await?;
         }
-        Ok(())
+        Ok(fail_messages)
     }
 }
 
@@ -80,25 +109,23 @@ pub fn start_pulsar_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let pulsar_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::Pulsar(config) => config.clone(),
-            _ => {
+        let bridge = match PulsarBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for Pulsar connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for Pulsar connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-
-        let bridge = PulsarBridgePlugin::new(pulsar_config);
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

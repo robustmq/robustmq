@@ -26,6 +26,7 @@ use metadata_struct::{
     connector::config_elasticsearch::ElasticsearchConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -36,18 +37,29 @@ use common_base::error::common::CommonError;
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
 };
 
 pub struct ElasticsearchBridgePlugin {
+    connector: MQTTConnector,
     config: ElasticsearchConnectorConfig,
 }
 
 impl ElasticsearchBridgePlugin {
-    pub fn new(config: ElasticsearchConnectorConfig) -> Self {
-        ElasticsearchBridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Elasticsearch(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for elasticsearch plugin".to_string(),
+                ));
+            }
+        };
+        Ok(ElasticsearchBridgePlugin { connector, config })
     }
 
     async fn create_client(&self) -> Result<Elasticsearch, CommonError> {
@@ -86,14 +98,15 @@ impl ElasticsearchBridgePlugin {
     }
 
     #[allow(clippy::result_large_err)]
-    fn record_to_json(&self, record: &AdapterWriteRecord) -> Result<Value, CommonError> {
-        let payload_str = String::from_utf8_lossy(&record.data).to_string();
+    async fn record_to_json(&self, record: &AdapterWriteRecord) -> Result<Value, CommonError> {
+        let processed_data = apply_rule_engine(&self.connector.etl_rule, &record.data).await?;
+        let payload_str = String::from_utf8_lossy(&processed_data).to_string();
 
         let mut doc = json!({
             "key": record.key,
             "timestamp": record.timestamp,
             "payload": payload_str,
-            "data": record.data,
+            "data": processed_data,
         });
 
         if let Some(headers) = &record.header {
@@ -127,21 +140,29 @@ impl ConnectorSink for ElasticsearchBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         client: &mut Elasticsearch,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         let mut body_parts: Vec<JsonBody<_>> = Vec::new();
+        let mut fail_messages = Vec::new();
 
         for record in records {
-            let doc = match self.record_to_json(record) {
+            let doc = match self.record_to_json(record).await {
                 Ok(d) => d,
                 Err(e) => {
                     error!(
                         "Failed to convert record to JSON: {}. Record will be skipped.",
                         e
                     );
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
                     continue;
                 }
             };
@@ -152,7 +173,7 @@ impl ConnectorSink for ElasticsearchBridgePlugin {
         }
 
         if body_parts.is_empty() {
-            return Ok(());
+            return Ok(fail_messages);
         }
 
         let response = client
@@ -165,7 +186,7 @@ impl ConnectorSink for ElasticsearchBridgePlugin {
             })?;
 
         if response.status_code().is_success() {
-            Ok(())
+            Ok(fail_messages)
         } else {
             let error_text = response
                 .text()
@@ -190,17 +211,16 @@ pub fn start_elasticsearch_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let es_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::Elasticsearch(config) => config.clone(),
-            _ => {
+        let bridge = match ElasticsearchBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for Elasticsearch connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for Elasticsearch connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = ElasticsearchBridgePlugin::new(es_config);
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
@@ -208,7 +228,7 @@ pub fn start_elasticsearch_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

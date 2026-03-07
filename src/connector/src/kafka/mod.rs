@@ -16,6 +16,7 @@ use std::{sync::Arc, time::Duration};
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -28,17 +29,28 @@ use metadata_struct::{
     storage::adapter_record::AdapterWriteRecord,
 };
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
+use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::error;
 
 pub struct KafkaBridgePlugin {
+    connector: MQTTConnector,
     config: KafkaConnectorConfig,
 }
 
 impl KafkaBridgePlugin {
-    pub fn new(config: KafkaConnectorConfig) -> Self {
-        KafkaBridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Kafka(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for kafka plugin".to_string(),
+                ));
+            }
+        };
+        Ok(KafkaBridgePlugin { connector, config })
     }
 }
 
@@ -86,13 +98,39 @@ impl ConnectorSink for KafkaBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         producer: &mut FutureProducer,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         use futures::future::join_all;
+
+        let mut processed_records = Vec::with_capacity(records.len());
+        let mut fail_messages = Vec::new();
+        for record in records {
+            match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                Ok(data) => {
+                    let mut processed_record = record.clone();
+                    processed_record.data = data;
+                    processed_records.push(processed_record);
+                }
+                Err(e) => {
+                    tracing::error!("Failed to apply rule before Kafka send: {}", e);
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
+                }
+            }
+        }
+
+        if processed_records.is_empty() {
+            return Ok(fail_messages);
+        }
 
         let mut serialized_data = Vec::with_capacity(records.len());
         let mut keys = Vec::with_capacity(records.len());
 
-        for record in records {
+        for record in &processed_records {
             let data = serde_json::to_string(record)?;
             serialized_data.push(data);
 
@@ -124,7 +162,7 @@ impl ConnectorSink for KafkaBridgePlugin {
             ));
         }
 
-        Ok(())
+        Ok(fail_messages)
     }
 
     async fn cleanup_sink(&self, producer: FutureProducer) -> Result<(), CommonError> {
@@ -150,25 +188,23 @@ pub fn start_kafka_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let kafka_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::Kafka(config) => config.clone(),
-            _ => {
+        let bridge = match KafkaBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for Kafka connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for Kafka connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-
-        let bridge = KafkaBridgePlugin::new(kafka_config);
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

@@ -20,6 +20,7 @@ use metadata_struct::{
     connector::config_postgres::PostgresConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
@@ -29,18 +30,29 @@ use common_base::error::common::CommonError;
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
 };
 
 pub struct PostgresBridgePlugin {
+    connector: MQTTConnector,
     config: PostgresConnectorConfig,
 }
 
 impl PostgresBridgePlugin {
-    pub fn new(config: PostgresConnectorConfig) -> Self {
-        PostgresBridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Postgres(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for postgres plugin".to_string(),
+                ));
+            }
+        };
+        Ok(PostgresBridgePlugin { connector, config })
     }
 
     async fn create_pool(&self) -> Result<Pool<Postgres>, sqlx::Error> {
@@ -209,9 +221,35 @@ impl ConnectorSink for PostgresBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         pool: &mut Pool<Postgres>,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
+        }
+
+        let mut processed_records = Vec::with_capacity(records.len());
+        let mut fail_messages = Vec::new();
+        for record in records {
+            let processed_data =
+                match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        fail_messages.push(FailureRecordInfo {
+                            connector_name: self.connector.connector_name.clone(),
+                            connector_type: self.connector.connector_type.to_string(),
+                            source_topic: self.connector.topic_name.clone(),
+                            error_message: e.to_string(),
+                            records: vec![record.clone()],
+                        });
+                        continue;
+                    }
+                };
+            let mut processed_record = record.clone();
+            processed_record.data = processed_data;
+            processed_records.push(processed_record);
+        }
+
+        if processed_records.is_empty() {
+            return Ok(fail_messages);
         }
 
         if self.config.is_batch_insert_enabled() {
@@ -220,10 +258,11 @@ impl ConnectorSink for PostgresBridgePlugin {
                     "sql_template is not applied in batch mode; default batch INSERT will be used"
                 );
             }
-            self.batch_insert(records, pool).await
+            self.batch_insert(&processed_records, pool).await?;
         } else {
-            self.single_insert(records, pool).await
+            self.single_insert(&processed_records, pool).await?;
         }
+        Ok(fail_messages)
     }
 
     async fn cleanup_sink(&self, pool: Pool<Postgres>) -> Result<(), CommonError> {
@@ -243,24 +282,23 @@ pub fn start_postgres_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let postgres_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::Postgres(config) => config.clone(),
-            _ => {
+        let bridge = match PostgresBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for Postgres connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for Postgres connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = PostgresBridgePlugin::new(postgres_config);
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

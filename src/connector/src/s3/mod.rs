@@ -20,6 +20,7 @@ use metadata_struct::{
     storage::adapter_record::{AdapterWriteRecord, AdapterWriteRecordHeader},
 };
 use opendal::{services::S3, Operator};
+use rule_engine::apply_rule_engine;
 use serde::Serialize;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -28,6 +29,7 @@ use tracing::{debug, error};
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
@@ -44,12 +46,22 @@ struct S3MessageRecord {
 }
 
 pub struct S3BridgePlugin {
+    connector: MQTTConnector,
     config: S3ConnectorConfig,
 }
 
 impl S3BridgePlugin {
-    pub fn new(config: S3ConnectorConfig) -> Self {
-        S3BridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::S3(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for s3 plugin".to_string(),
+                ));
+            }
+        };
+        Ok(S3BridgePlugin { connector, config })
     }
 
     fn normalize_prefix(prefix: &str) -> &str {
@@ -110,22 +122,43 @@ impl ConnectorSink for S3BridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         operator: &mut Operator,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
-        let payload: Vec<S3MessageRecord> = records
-            .iter()
-            .map(|record| S3MessageRecord {
+        let mut payload: Vec<S3MessageRecord> = Vec::with_capacity(records.len());
+        let mut fail_messages = Vec::new();
+        for record in records {
+            let processed_data =
+                match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        tracing::error!("Failed to apply rule before S3 send: {}", e);
+                        fail_messages.push(FailureRecordInfo {
+                            connector_name: self.connector.connector_name.clone(),
+                            connector_type: self.connector.connector_type.to_string(),
+                            source_topic: self.connector.topic_name.clone(),
+                            error_message: e.to_string(),
+                            records: vec![record.clone()],
+                        });
+                        continue;
+                    }
+                };
+
+            payload.push(S3MessageRecord {
                 pkid: record.pkid,
                 key: record.key.clone(),
                 headers: record.header.clone(),
                 tags: record.tags.clone(),
-                data: record.data.to_vec(),
+                data: processed_data.to_vec(),
                 timestamp: record.timestamp,
-            })
-            .collect();
+            });
+        }
+
+        if payload.is_empty() {
+            return Ok(fail_messages);
+        }
 
         let object_key = self.build_object_key();
         let bytes = serde_json::to_vec(&payload).map_err(|e| {
@@ -133,7 +166,7 @@ impl ConnectorSink for S3BridgePlugin {
         })?;
         operator.write(&object_key, bytes).await?;
 
-        Ok(())
+        Ok(fail_messages)
     }
 }
 
@@ -148,24 +181,23 @@ pub fn start_s3_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let s3_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::S3(config) => config.clone(),
-            _ => {
+        let bridge = match S3BridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for S3 connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for S3 connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = S3BridgePlugin::new(s3_config);
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

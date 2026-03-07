@@ -20,6 +20,7 @@ use metadata_struct::{
     connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
 };
 use paho_mqtt as mqtt;
+use rule_engine::apply_rule_engine;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
@@ -28,18 +29,29 @@ use tracing::{debug, error};
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
 };
 
 pub struct MqttBridgePlugin {
+    connector: MQTTConnector,
     config: MqttBridgeConnectorConfig,
 }
 
 impl MqttBridgePlugin {
-    pub fn new(config: MqttBridgeConnectorConfig) -> Self {
-        MqttBridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::MqttBridge(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for mqtt bridge plugin".to_string(),
+                ));
+            }
+        };
+        Ok(MqttBridgePlugin { connector, config })
     }
 
     fn build_target_topic(&self, record: &AdapterWriteRecord) -> String {
@@ -121,9 +133,9 @@ impl ConnectorSink for MqttBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         client: &mut mqtt::AsyncClient,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         if !client.is_connected() {
@@ -132,9 +144,22 @@ impl ConnectorSink for MqttBridgePlugin {
             ));
         }
 
+        let mut fail_messages = Vec::new();
         for record in records {
             let topic = self.build_target_topic(record);
-            let payload = record.data.clone();
+            let payload = match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                Ok(data) => data,
+                Err(e) => {
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
+                    continue;
+                }
+            };
 
             let msg = mqtt::MessageBuilder::new()
                 .topic(&topic)
@@ -151,7 +176,7 @@ impl ConnectorSink for MqttBridgePlugin {
             })?;
         }
 
-        Ok(())
+        Ok(fail_messages)
     }
 }
 
@@ -166,17 +191,16 @@ pub fn start_mqtt_bridge_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let mqtt_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::MqttBridge(config) => config.clone(),
-            _ => {
+        let bridge = match MqttBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for MqttBridge connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for MqttBridge connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = MqttBridgePlugin::new(mqtt_config);
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
@@ -184,7 +208,7 @@ pub fn start_mqtt_bridge_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

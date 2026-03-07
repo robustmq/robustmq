@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::failure::FailureRecordInfo;
+
 use super::core::{BridgePluginReadConfig, BridgePluginThread};
 use super::loops::run_connector_loop;
 use super::manager::ConnectorManager;
 use super::traits::ConnectorSink;
 use async_trait::async_trait;
+use bytes::Bytes;
 use chrono::{DateTime, Local, Timelike};
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
@@ -26,6 +29,7 @@ use metadata_struct::{
     connector::config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -163,12 +167,29 @@ impl FileWriter {
 }
 
 pub struct FileBridgePlugin {
+    connector: MQTTConnector,
     config: LocalFileConnectorConfig,
 }
 
 impl FileBridgePlugin {
-    pub fn new(config: LocalFileConnectorConfig) -> Self {
-        FileBridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::LocalFile(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for file plugin".to_string(),
+                ));
+            }
+        };
+        Ok(FileBridgePlugin { connector, config })
+    }
+
+    async fn process_data(&self, data: &Bytes) -> Result<String, CommonError> {
+        let msg = MqttMessage::decode(data)?;
+        let processed_data = apply_rule_engine(&self.connector.etl_rule, &msg.payload).await?;
+        let data = serde_json::to_string(&processed_data)?;
+        Ok(data)
     }
 }
 
@@ -197,15 +218,27 @@ impl ConnectorSink for FileBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         writer: &mut FileWriter,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
+        let mut fail_messages = Vec::new();
         for record in records {
-            let msg = MqttMessage::decode(&record.data)?;
-            let data = serde_json::to_string(&msg)?;
+            let data = match self.process_data(&record.data).await {
+                Ok(data) => data,
+                Err(e) => {
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
+                    continue;
+                }
+            };
             writer.write(data.as_ref()).await?;
             writer.write(b"\n").await?;
         }
         writer.flush().await?;
-        Ok(())
+        Ok(fail_messages)
     }
 
     async fn cleanup_sink(&self, writer: FileWriter) -> Result<(), CommonError> {
@@ -225,18 +258,16 @@ pub fn start_local_file_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let local_file_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::LocalFile(config) => config.clone(),
-            _ => {
+        let bridge = match FileBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for LocalFile connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for LocalFile connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-
-        let bridge = FileBridgePlugin::new(local_file_config);
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
@@ -244,7 +275,7 @@ pub fn start_local_file_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
@@ -266,39 +297,26 @@ pub fn start_local_file_connector(
 
 #[cfg(test)]
 mod tests {
+    use bytes::Bytes;
     use common_base::tools::now_second;
     use common_base::uuid::unique_id;
-    use grpc_clients::pool::ClientPool;
     use metadata_struct::{
-        connector::{config_local_file::LocalFileConnectorConfig, FailureHandlingStrategy},
-        storage::{
-            adapter_record::{AdapterWriteRecord, AdapterWriteRecordHeader},
-            shard::EngineShardConfig,
+        connector::{
+            config_local_file::LocalFileConnectorConfig, rule::ETLRule, ConnectorType,
+            FailureHandlingStrategy, MQTTConnector,
         },
+        mqtt::message::MqttMessage,
+        storage::adapter_record::{AdapterWriteRecord, AdapterWriteRecordHeader},
     };
-    use std::{fs, path::PathBuf, sync::Arc, time::Duration};
-    use storage_adapter::storage::test_build_storage_driver_manager;
-    use tokio::{fs::File, io::AsyncReadExt, time::sleep};
+    use protocol::mqtt::common::QoS;
+    use std::{fs, path::PathBuf};
+    use tokio::{fs::File, io::AsyncReadExt};
 
-    use crate::{
-        core::BridgePluginReadConfig, file::FileBridgePlugin, loops::run_connector_loop,
-        manager::ConnectorManager,
-    };
+    use crate::{file::FileBridgePlugin, traits::ConnectorSink};
     use tempfile::tempdir;
 
-    #[ignore]
     #[tokio::test]
     async fn file_bridge_plugin_test() {
-        let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
-        let topic_name = unique_id();
-        let client_pool = Arc::new(ClientPool::new(8));
-
-        // prepare some data for testing
-        storage_driver_manager
-            .create_storage_resource(&topic_name, &EngineShardConfig::default())
-            .await
-            .unwrap();
-
         let mut test_data = vec![];
 
         for i in 0..1000 {
@@ -309,22 +327,32 @@ mod tests {
                     value: "test_value".to_string(),
                 }]),
                 key: Some(format!("test_key_{i}")),
-                data: format!("test_data_{i}").as_bytes().to_vec().into(),
+                data: MqttMessage {
+                    client_id: "test-client".to_string(),
+                    dup: false,
+                    qos: QoS::AtMostOnce,
+                    pkid: 0,
+                    retain: false,
+                    topic: Bytes::from("test/topic"),
+                    payload: Bytes::from(format!("test_data_{i}")),
+                    format_indicator: None,
+                    expiry_interval: 0,
+                    response_topic: None,
+                    correlation_data: None,
+                    user_properties: None,
+                    subscription_identifiers: None,
+                    content_type: None,
+                    create_time: now_second(),
+                }
+                .encode()
+                .unwrap()
+                .into(),
                 tags: Some(vec![]),
                 timestamp: now_second(),
             };
 
             test_data.push(record);
         }
-
-        storage_driver_manager
-            .write(&topic_name, &test_data)
-            .await
-            .unwrap();
-
-        let connector_name = "test_file_connector".to_string();
-
-        let connector_manager = Arc::new(ConnectorManager::new());
 
         let dir_path = tempdir().unwrap().path().to_str().unwrap().to_string();
 
@@ -343,40 +371,26 @@ mod tests {
         fs::create_dir_all(dir_path).unwrap();
         File::create(config.local_file_path.clone()).await.unwrap();
 
-        let (stop_send, stop_recv) = tokio::sync::mpsc::channel(1);
+        let file_bridge_plugin = FileBridgePlugin::new(MQTTConnector {
+            connector_name: "test-file".to_string(),
+            connector_type: ConnectorType::LocalFile(config.clone()),
+            failure_strategy: FailureHandlingStrategy::Discard,
+            topic_name: unique_id(),
+            status: Default::default(),
+            etl_rule: ETLRule::default(),
+            broker_id: None,
+            create_time: now_second(),
+            update_time: now_second(),
+        })
+        .unwrap();
 
-        let file_bridge_plugin = FileBridgePlugin::new(config.clone());
-
-        let read_config = BridgePluginReadConfig {
-            topic_name: topic_name.clone(),
-            record_num: 100,
-            strategy: FailureHandlingStrategy::Discard,
-        };
-
-        let record_config_clone = read_config.clone();
-        let connector_manager_clone = connector_manager.clone();
-        let connector_name_clone = connector_name.clone();
-
-        let handle = tokio::spawn(async move {
-            run_connector_loop(
-                &file_bridge_plugin,
-                &client_pool,
-                &connector_manager_clone,
-                storage_driver_manager,
-                connector_name_clone,
-                record_config_clone,
-                stop_recv,
-            )
+        let mut writer = file_bridge_plugin.init_sink().await.unwrap();
+        let fail_messages = file_bridge_plugin
+            .send_batch(&test_data, &mut writer)
             .await
             .unwrap();
-        });
-
-        // wait for a while
-        sleep(Duration::from_secs(2)).await;
-
-        stop_send.send(true).await.unwrap();
-
-        handle.await.unwrap();
+        assert!(fail_messages.is_empty());
+        file_bridge_plugin.cleanup_sink(writer).await.unwrap();
 
         // read the file and check the data
         let mut file = File::open(config.local_file_path.clone()).await.unwrap();
@@ -384,9 +398,12 @@ mod tests {
         let mut res: String = String::new();
         file.read_to_string(&mut res).await.unwrap();
 
-        let expected = test_data.iter().fold(String::new(), |acc, record| {
-            let data = serde_json::to_string(record).unwrap();
-            acc + &data
+        let expected = test_data.iter().fold(String::new(), |mut acc, record| {
+            let msg = MqttMessage::decode(&record.data).unwrap();
+            let data = serde_json::to_string(&msg.payload).unwrap();
+            acc.push_str(&data);
+            acc.push('\n');
+            acc
         });
 
         assert_eq!(res, expected);

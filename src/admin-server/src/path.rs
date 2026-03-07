@@ -20,6 +20,11 @@
 
 // Common API paths
 pub const STATUS_PATH: &str = "/status";
+pub const HEALTH_LIVE_PATH: &str = "/health/live";
+pub const HEALTH_READY_PATH: &str = "/health/ready";
+pub const HEALTH_STARTUP_PATH: &str = "/health/startup";
+pub const HEALTH_NODE_PATH: &str = "/health/node";
+pub const HEALTH_CLUSTER_PATH: &str = "/health/cluster";
 
 // Cluster API paths
 pub const CLUSTER_CONFIG_SET_PATH: &str = "/cluster/config/set";

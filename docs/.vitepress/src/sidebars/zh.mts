@@ -117,30 +117,6 @@ export const sidebar = [
                     { text: "黑名单", link: "/zh/RobustMQ-MQTT/Security/Blacklist" },
                 ]
             },
-            {
-                text: "数据集成",
-                collapsed: true,
-                items: [
-                    { text: "概述", link: "/zh/RobustMQ-MQTT/Bridge/Overview" },
-                    { text: "本地文件", link: "/zh/RobustMQ-MQTT/Bridge/LocalFile" },
-                    { text: "Kafka", link: "/zh/RobustMQ-MQTT/Bridge/Kafka" },
-                    { text: "Pulsar", link: "/zh/RobustMQ-MQTT/Bridge/Pulsar" },
-                    { text: "RabbitMQ", link: "/zh/RobustMQ-MQTT/Bridge/RabbitMQ" },
-                    { text: "GreptimeDB", link: "/zh/RobustMQ-MQTT/Bridge/GreptimeDB" },
-                    { text: "PostgreSQL", link: "/zh/RobustMQ-MQTT/Bridge/PostgreSQL" },
-                    { text: "MySQL", link: "/zh/RobustMQ-MQTT/Bridge/MySQL" },
-                    { text: "MongoDB", link: "/zh/RobustMQ-MQTT/Bridge/MongoDB" },
-                    { text: "Elasticsearch", link: "/zh/RobustMQ-MQTT/Bridge/Elasticsearch" },
-                    { text: "Redis", link: "/zh/RobustMQ-MQTT/Bridge/Redis" },
-                    { text: "Webhook", link: "/zh/RobustMQ-MQTT/Bridge/Webhook" },
-                    { text: "OpenTSDB", link: "/zh/RobustMQ-MQTT/Bridge/OpenTSDB" },
-                    { text: "MQTT 桥接", link: "/zh/RobustMQ-MQTT/Bridge/MQTT" },
-                    { text: "ClickHouse", link: "/zh/RobustMQ-MQTT/Bridge/ClickHouse" },
-                    { text: "InfluxDB", link: "/zh/RobustMQ-MQTT/Bridge/InfluxDB" },
-                    { text: "Cassandra", link: "/zh/RobustMQ-MQTT/Bridge/Cassandra" },
-                ]
-            },
-
       { text: "MQTTX 测试指南", link: "/zh/RobustMQ-MQTT/MQTTX-Guide" },
       {
         text: "客户端 SDK",
@@ -184,10 +160,45 @@ export const sidebar = [
   },
 
   {
-    text: "RobustMQ Dashboard",
+    text: "RobustMQ 数据处理",
     collapsed: true,
-    items: [{ text: "概览", link: "" }],
+    items: [
+      { text: "概览", link: "/zh/RuleEngine/Introduction" },
+      {
+        text: "连接器",
+        collapsed: true,
+        items: [
+          { text: "概述", link: "/zh/RobustMQ-MQTT/Bridge/Overview" },
+          { text: "本地文件", link: "/zh/RobustMQ-MQTT/Bridge/LocalFile" },
+          { text: "Kafka", link: "/zh/RobustMQ-MQTT/Bridge/Kafka" },
+          { text: "Pulsar", link: "/zh/RobustMQ-MQTT/Bridge/Pulsar" },
+          { text: "RabbitMQ", link: "/zh/RobustMQ-MQTT/Bridge/RabbitMQ" },
+          { text: "GreptimeDB", link: "/zh/RobustMQ-MQTT/Bridge/GreptimeDB" },
+          { text: "PostgreSQL", link: "/zh/RobustMQ-MQTT/Bridge/PostgreSQL" },
+          { text: "MySQL", link: "/zh/RobustMQ-MQTT/Bridge/MySQL" },
+          { text: "MongoDB", link: "/zh/RobustMQ-MQTT/Bridge/MongoDB" },
+          { text: "Elasticsearch", link: "/zh/RobustMQ-MQTT/Bridge/Elasticsearch" },
+          { text: "Redis", link: "/zh/RobustMQ-MQTT/Bridge/Redis" },
+          { text: "Webhook", link: "/zh/RobustMQ-MQTT/Bridge/Webhook" },
+          { text: "OpenTSDB", link: "/zh/RobustMQ-MQTT/Bridge/OpenTSDB" },
+          { text: "MQTT 桥接", link: "/zh/RobustMQ-MQTT/Bridge/MQTT" },
+          { text: "ClickHouse", link: "/zh/RobustMQ-MQTT/Bridge/ClickHouse" },
+          { text: "InfluxDB", link: "/zh/RobustMQ-MQTT/Bridge/InfluxDB" },
+          { text: "Cassandra", link: "/zh/RobustMQ-MQTT/Bridge/Cassandra" },
+        ],
+      },
+      {
+        text: "规则引擎",
+        collapsed: true,
+        items: [
+          { text: "概述", link: "/zh/RuleEngine/Introduction" },
+          { text: "算子列表", link: "/zh/RuleEngine/overview" },
+          { text: "处理 Demo", link: "/zh/RuleEngine/Demo" },
+        ],
+      },
+    ],
   },
+
   {
     text: "RobustMQ 命令行",
     collapsed: true,
@@ -209,32 +220,39 @@ export const sidebar = [
     ],
   },
   {
-    text: "HTTP 接口文档",
+    text: "管理员指南",
     collapsed: true,
     items: [
-      { text: "概览", link: "/zh/Api/COMMON" },
-      { text: "Cluster API", link: "/zh/Api/CLUSTER" },
-      { text: "MQTT API", link: "/zh/Api/MQTT" },
-      { text: "Connector API", link: "/zh/Api/Connector" },
-    ],
-  },
-  {
-    text: "可观测性",
-    collapsed: true,
-    items: [
-      { text: "Prometheus 接入", link: "/zh/Observability/Prometheus接入" },
-      { text: "基础设施指标", link: "/zh/Observability/基础设施指标" },
-      { text: "MQTT 专用指标", link: "/zh/Observability/MQTT专用指标" },
-      { text: "Grafana 配置指南", link: "/zh/Observability/Grafana配置指南" },
-    ],
-  },
-  {
-    text: "配置说明",
-    collapsed: true,
-    items: [
-      { text: "Broker 配置", link: "/zh/Configuration/BROKER" },
-      { text: "日志配置", link: "/zh/Configuration/Logging" },
-      { text: "性能调优指南", link: "/zh/Configuration/Tuning" },
+      { text: "Dashboard", link: "/zh/Operations/Dashboard" },
+      {
+        text: "HTTP 接口文档",
+        collapsed: true,
+        items: [
+          { text: "概览", link: "/zh/Api/COMMON" },
+          { text: "Cluster API", link: "/zh/Api/CLUSTER" },
+          { text: "MQTT API", link: "/zh/Api/MQTT" },
+          { text: "Connector API", link: "/zh/Api/Connector" },
+        ],
+      },
+      {
+        text: "可观测性",
+        collapsed: true,
+        items: [
+          { text: "Prometheus 接入", link: "/zh/Observability/Prometheus接入" },
+          { text: "基础设施指标", link: "/zh/Observability/基础设施指标" },
+          { text: "MQTT 专用指标", link: "/zh/Observability/MQTT专用指标" },
+          { text: "Grafana 配置指南", link: "/zh/Observability/Grafana配置指南" },
+        ],
+      },
+      {
+        text: "配置说明",
+        collapsed: true,
+        items: [
+          { text: "Broker 配置", link: "/zh/Configuration/BROKER" },
+          { text: "日志配置", link: "/zh/Configuration/Logging" },
+          { text: "性能调优指南", link: "/zh/Configuration/Tuning" },
+        ],
+      },
     ],
   },
   {

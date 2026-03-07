@@ -21,6 +21,7 @@ use metadata_struct::{
     storage::adapter_record::AdapterWriteRecord,
 };
 use reqwest::{Client, RequestBuilder};
+use rule_engine::apply_rule_engine;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
@@ -30,18 +31,29 @@ use tracing::error;
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
 };
 
 pub struct WebhookBridgePlugin {
+    connector: MQTTConnector,
     config: WebhookConnectorConfig,
 }
 
 impl WebhookBridgePlugin {
-    pub fn new(config: WebhookConnectorConfig) -> Self {
-        WebhookBridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Webhook(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for webhook plugin".to_string(),
+                ));
+            }
+        };
+        Ok(WebhookBridgePlugin { connector, config })
     }
 
     #[allow(clippy::result_large_err)]
@@ -83,32 +95,52 @@ impl WebhookBridgePlugin {
         req.body(body)
     }
 
-    fn records_to_json(&self, records: &[AdapterWriteRecord]) -> String {
-        let items: Vec<serde_json::Value> = records
-            .iter()
-            .map(|record| {
-                let payload = String::from_utf8_lossy(&record.data).to_string();
-                let mut item = json!({
-                    "payload": payload,
-                    "timestamp": record.timestamp,
-                });
-                if let Some(key) = &record.key {
-                    item["key"] = json!(key);
-                }
-                if let Some(headers) = &record.header {
-                    if !headers.is_empty() {
-                        let h: Vec<serde_json::Value> = headers
-                            .iter()
-                            .map(|h| json!({"name": h.name, "value": h.value}))
-                            .collect();
-                        item["headers"] = json!(h);
+    async fn records_to_json(
+        &self,
+        records: &[AdapterWriteRecord],
+        fail_messages: &mut Vec<FailureRecordInfo>,
+    ) -> String {
+        let mut items: Vec<serde_json::Value> = Vec::with_capacity(records.len());
+        for record in records {
+            let processed_data =
+                match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        tracing::error!("Failed to apply rule before Webhook send: {}", e);
+                        fail_messages.push(FailureRecordInfo {
+                            connector_name: self.connector.connector_name.clone(),
+                            connector_type: self.connector.connector_type.to_string(),
+                            source_topic: self.connector.topic_name.clone(),
+                            error_message: e.to_string(),
+                            records: vec![record.clone()],
+                        });
+                        continue;
                     }
-                }
-                item
-            })
-            .collect();
+                };
 
-        if items.len() == 1 {
+            let payload = String::from_utf8_lossy(&processed_data).to_string();
+            let mut item = json!({
+                "payload": payload,
+                "timestamp": record.timestamp,
+            });
+            if let Some(key) = &record.key {
+                item["key"] = json!(key);
+            }
+            if let Some(headers) = &record.header {
+                if !headers.is_empty() {
+                    let h: Vec<serde_json::Value> = headers
+                        .iter()
+                        .map(|h| json!({"name": h.name, "value": h.value}))
+                        .collect();
+                    item["headers"] = json!(h);
+                }
+            }
+            items.push(item);
+        }
+
+        if items.is_empty() {
+            String::new()
+        } else if items.len() == 1 {
             items[0].to_string()
         } else {
             json!(items).to_string()
@@ -132,12 +164,16 @@ impl ConnectorSink for WebhookBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         client: &mut Client,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
-        let body = self.records_to_json(records);
+        let mut fail_messages = Vec::new();
+        let body = self.records_to_json(records, &mut fail_messages).await;
+        if body.is_empty() {
+            return Ok(fail_messages);
+        }
         let request = self.build_request(client, body);
 
         let response = request
@@ -146,7 +182,7 @@ impl ConnectorSink for WebhookBridgePlugin {
             .map_err(|e| CommonError::CommonError(format!("Webhook HTTP request failed: {}", e)))?;
 
         if response.status().is_success() {
-            Ok(())
+            Ok(fail_messages)
         } else {
             let status = response.status();
             let error_text = response
@@ -172,17 +208,16 @@ pub fn start_webhook_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let webhook_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::Webhook(config) => config.clone(),
-            _ => {
+        let bridge = match WebhookBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for Webhook connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for Webhook connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = WebhookBridgePlugin::new(webhook_config);
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
@@ -190,7 +225,7 @@ pub fn start_webhook_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

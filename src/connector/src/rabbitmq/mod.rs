@@ -25,6 +25,7 @@ use metadata_struct::{
     connector::config_rabbitmq::RabbitMQConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::{debug, error, info, warn};
@@ -33,18 +34,29 @@ use common_base::error::common::CommonError;
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
 };
 
 pub struct RabbitMQBridgePlugin {
+    connector: MQTTConnector,
     config: RabbitMQConnectorConfig,
 }
 
 impl RabbitMQBridgePlugin {
-    pub fn new(config: RabbitMQConnectorConfig) -> Self {
-        RabbitMQBridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::RabbitMQ(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for rabbitmq plugin".to_string(),
+                ));
+            }
+        };
+        Ok(RabbitMQBridgePlugin { connector, config })
     }
 
     fn build_connection_uri(&self) -> String {
@@ -137,9 +149,9 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         channel: &mut Channel,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         debug!(
@@ -153,7 +165,26 @@ impl ConnectorSink for RabbitMQBridgePlugin {
         let mut confirms = Vec::new();
 
         for (idx, record) in records.iter().enumerate() {
-            let data = match serde_json::to_string(record) {
+            let processed_data =
+                match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        warn!(
+                            "Failed to apply rule for record {}/{} (key: '{:?}'): {}",
+                            idx + 1,
+                            records.len(),
+                            record.key,
+                            e
+                        );
+                        failed_records.push((idx, e.to_string()));
+                        continue;
+                    }
+                };
+
+            let mut processed_record = record.clone();
+            processed_record.data = processed_data;
+
+            let data = match serde_json::to_string(&processed_record) {
                 Ok(d) => d,
                 Err(e) => {
                     warn!(
@@ -259,7 +290,19 @@ impl ConnectorSink for RabbitMQBridgePlugin {
             )));
         }
 
-        Ok(())
+        let mut fail_messages = Vec::with_capacity(failed_records.len());
+        for (idx, error_message) in failed_records {
+            if let Some(record) = records.get(idx) {
+                fail_messages.push(FailureRecordInfo {
+                    connector_name: self.connector.connector_name.clone(),
+                    connector_type: self.connector.connector_type.to_string(),
+                    source_topic: self.connector.topic_name.clone(),
+                    error_message,
+                    records: vec![record.clone()],
+                });
+            }
+        }
+        Ok(fail_messages)
     }
 
     async fn cleanup_sink(&self, channel: Channel) -> Result<(), CommonError> {
@@ -292,26 +335,24 @@ pub fn start_rabbitmq_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let rabbitmq_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::RabbitMQ(config) => config.clone(),
-            _ => {
+        let bridge = match RabbitMQBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for RabbitMQ connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for RabbitMQ connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-
-        let batch_size = rabbitmq_config.batch_size as u64;
-        let bridge = RabbitMQBridgePlugin::new(rabbitmq_config);
+        let batch_size = bridge.config.batch_size as u64;
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

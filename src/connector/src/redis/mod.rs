@@ -25,6 +25,7 @@ use metadata_struct::{
 };
 use redis::aio::ConnectionManager;
 use redis::{Client, Cmd, RedisError};
+use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::{error, info, warn};
@@ -33,17 +34,28 @@ use common_base::error::common::CommonError;
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
 };
 pub struct RedisBridgePlugin {
+    connector: MQTTConnector,
     config: RedisConnectorConfig,
 }
 
 impl RedisBridgePlugin {
-    pub fn new(config: RedisConnectorConfig) -> Self {
-        RedisBridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Redis(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for redis plugin".to_string(),
+                ));
+            }
+        };
+        Ok(RedisBridgePlugin { connector, config })
     }
 
     fn build_redis_client(&self) -> Result<Client, RedisError> {
@@ -203,25 +215,60 @@ impl ConnectorSink for RedisBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         conn: &mut ConnectionManager,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         let mut success_count = 0;
         let mut error_count = 0;
+        let mut fail_messages = Vec::new();
 
         for record in records {
-            let msg = match MqttMessage::decode_record(record.clone()) {
+            let processed_data =
+                match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        error!("Failed to apply rule before Redis send: {}", e);
+                        error_count += 1;
+                        fail_messages.push(FailureRecordInfo {
+                            connector_name: self.connector.connector_name.clone(),
+                            connector_type: self.connector.connector_type.to_string(),
+                            source_topic: self.connector.topic_name.clone(),
+                            error_message: e.to_string(),
+                            records: vec![record.clone()],
+                        });
+                        continue;
+                    }
+                };
+
+            let mut processed_record = record.clone();
+            processed_record.data = processed_data;
+
+            let msg = match MqttMessage::decode_record(processed_record.clone()) {
                 Ok(m) => m,
                 Err(e) => {
                     error!("Failed to parse MQTT message: {}", e);
                     error_count += 1;
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
                     continue;
                 }
             };
 
-            let command_parts = match self.render_command_template(record, &msg) {
+            let command_parts = match self.render_command_template(&processed_record, &msg) {
                 Ok(parts) => parts,
                 Err(e) => {
                     error!("Failed to render command template: {}", e);
                     error_count += 1;
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
                     continue;
                 }
             };
@@ -256,12 +303,22 @@ impl ConnectorSink for RedisBridgePlugin {
             }
 
             if retry_count > self.config.max_retries {
+                let err_msg = last_error
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .unwrap_or_else(|| "unknown redis command error".to_string());
                 error!(
                     "Redis command failed after {} retries: {}",
-                    self.config.max_retries,
-                    last_error.unwrap()
+                    self.config.max_retries, err_msg
                 );
                 error_count += 1;
+                fail_messages.push(FailureRecordInfo {
+                    connector_name: self.connector.connector_name.clone(),
+                    connector_type: self.connector.connector_type.to_string(),
+                    source_topic: self.connector.topic_name.clone(),
+                    error_message: err_msg,
+                    records: vec![record.clone()],
+                });
             }
         }
 
@@ -276,7 +333,7 @@ impl ConnectorSink for RedisBridgePlugin {
             ));
         }
 
-        Ok(())
+        Ok(fail_messages)
     }
 
     async fn cleanup_sink(&self, _conn: ConnectionManager) -> Result<(), CommonError> {
@@ -296,25 +353,23 @@ pub fn start_redis_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let redis_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::Redis(config) => config.clone(),
-            _ => {
+        let bridge = match RedisBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for Redis connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for Redis connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-
-        let bridge = RedisBridgePlugin::new(redis_config);
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
         if let Err(e) = run_connector_loop(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

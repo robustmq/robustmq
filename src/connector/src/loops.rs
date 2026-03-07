@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::BridgePluginReadConfig;
-use crate::failure::{failure_message_process, FailureContext};
+use crate::failure::{failure_message_process, FailureRecordInfo};
 use crate::manager::ConnectorManager;
 use crate::storage::connector::ConnectorStorage;
 use crate::storage::message::MessageStorage;
@@ -27,6 +27,7 @@ use common_metrics::mqtt::connector::{
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connector::status::MQTTStatus;
+use metadata_struct::connector::FailureHandlingStrategy;
 use metadata_struct::storage::{
     adapter_record::AdapterWriteRecord, convert::convert_engine_record_to_adapter,
 };
@@ -37,11 +38,48 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::{select, sync::mpsc, time::sleep};
 use tracing::{error, info};
 
+enum SendResultAction {
+    Retry,
+    BatchDone,
+}
+
+enum ReadErrorAction {
+    Stop,
+    Continue,
+}
+
+struct SendFailureParams<'a> {
+    data_list: &'a [AdapterWriteRecord],
+    max_offsets: &'a HashMap<String, u64>,
+    offsets: &'a mut HashMap<String, u64>,
+    start_time: u128,
+    message_count: u64,
+    retry_times: u32,
+    error: CommonError,
+}
+
+struct SendSuccessParams<'a> {
+    strategy: &'a FailureHandlingStrategy,
+    fail_messages: &'a [FailureRecordInfo],
+    max_offsets: &'a HashMap<String, u64>,
+    offsets: &'a mut HashMap<String, u64>,
+    start_time: u128,
+    message_count: u64,
+}
+
+struct BatchCtx<'a> {
+    connector_name: &'a str,
+    connector_type: &'a str,
+    storage_driver_manager: &'a Arc<StorageDriverManager>,
+    message_storage: &'a MessageStorage,
+    connector_manager: &'a Arc<ConnectorManager>,
+}
+
 pub async fn run_connector_loop<S: ConnectorSink>(
     sink: &S,
     client_pool: &Arc<ClientPool>,
     connector_manager: &Arc<ConnectorManager>,
-    storage_driver_manager: Arc<StorageDriverManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     connector_name: String,
     config: BridgePluginReadConfig,
     mut stop_recv: mpsc::Receiver<bool>,
@@ -50,13 +88,21 @@ pub async fn run_connector_loop<S: ConnectorSink>(
 
     let mut resource = Some(sink.init_sink().await?);
     let message_storage = MessageStorage::new(storage_driver_manager.clone());
-    let group_name = connector_name.clone();
     let connector_type = connector_manager
         .get_connector(&connector_name)
-        .map(|connector| connector.connector_type.to_string())
+        .map(|c| c.connector_type.to_string())
         .unwrap_or_else(|| "unknown".to_string());
+
+    let ctx = BatchCtx {
+        connector_name: &connector_name,
+        connector_type: &connector_type,
+        storage_driver_manager,
+        message_storage: &message_storage,
+        connector_manager,
+    };
+
     let mut run_result: Result<(), CommonError> = Ok(());
-    let mut offsets = match message_storage.get_group_offset(&group_name).await {
+    let mut offsets = match message_storage.get_group_offset(&connector_name).await {
         Ok(offsets) => offsets,
         Err(e) => {
             run_result = Err(e);
@@ -88,11 +134,11 @@ pub async fn run_connector_loop<S: ConnectorSink>(
 
                         let start_time = now_millis();
                         let message_count = data.len() as u64;
-                        let mut retry_times = 0;
+                        let mut retry_times: u32 = 0;
 
                         let (data_list, max_offsets) = extract_max_offsets_and_convert(data);
 
-                        loop{
+                        loop {
                             match sink.send_batch(
                                 &data_list,
                                 resource
@@ -101,105 +147,63 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                             )
                             .await
                             {
-                                Ok(_) => {
-                                    for (k,v) in max_offsets.iter(){
-                                        offsets.insert(k.to_string(), *v);
-                                    }
-                                    if let Err(e) = message_storage.commit_group_offset(
-                                        &group_name,
-                                        &offsets,
+                                Ok(fail_messages) => {
+                                    if let Err(e) = handle_send_success(
+                                        &ctx,
+                                        SendSuccessParams {
+                                            strategy: &config.strategy,
+                                            fail_messages: &fail_messages,
+                                            max_offsets: &max_offsets,
+                                            offsets: &mut offsets,
+                                            start_time,
+                                            message_count,
+                                        },
                                     )
                                     .await
-                                    .inspect_err(|_e| {
-                                        record_connector_offset_commit_failure(
-                                            connector_type.clone(),
-                                            connector_name.clone(),
-                                        );
-                                    }) {
+                                    {
                                         run_result = Err(e);
                                         break 'run;
                                     }
-
-                                    update_last_active(
-                                        connector_manager,
-                                        &connector_name,
-                                        &connector_type,
-                                        start_time,
-                                        message_count,
-                                        true
-                                    );
                                     break;
-                                },
+                                }
                                 Err(e) => {
-                                    update_last_active(
-                                        connector_manager,
-                                        &connector_name,
-                                        &connector_type,
-                                        start_time,
-                                        message_count,
-                                        false
-                                    );
-                                    let err_msg = e.to_string();
-                                    error!("Connector {} failed to send batch: {}", connector_name, err_msg);
-                                    let context = FailureContext {
-                                        storage_driver_manager: &storage_driver_manager,
-                                        connector_name: &connector_name,
-                                        connector_type: &connector_type,
-                                        source_topic: &config.topic_name,
-                                        error_message: &err_msg,
-                                        records: &data_list,
-                                    };
-                                    if failure_message_process(&config.strategy, retry_times, &context).await {
-                                        for (k, v) in max_offsets.iter() {
-                                            offsets.insert(k.to_string(), *v);
+                                    match handle_send_failure(
+                                        &ctx,
+                                        &config,
+                                        SendFailureParams {
+                                            data_list: &data_list,
+                                            max_offsets: &max_offsets,
+                                            offsets: &mut offsets,
+                                            start_time,
+                                            message_count,
+                                            retry_times,
+                                            error: e,
+                                        },
+                                    )
+                                    .await
+                                    {
+                                        Ok(SendResultAction::BatchDone) => break,
+                                        Ok(SendResultAction::Retry) => {
+                                            retry_times += 1;
                                         }
-                                        if let Err(e) = message_storage
-                                            .commit_group_offset(&group_name, &offsets)
-                                            .await
-                                            .inspect_err(|_e| {
-                                                record_connector_offset_commit_failure(
-                                                    connector_type.clone(),
-                                                    connector_name.clone(),
-                                                );
-                                            }) {
-                                            run_result = Err(e);
+                                        Err(err) => {
+                                            run_result = Err(err);
                                             break 'run;
                                         }
-                                        sleep(Duration::from_millis(100)).await;
-                                        break
                                     }
-                                    retry_times +=1;
                                 }
                             }
                         }
-
-                    },
+                    }
                     Err(e) => {
-                        record_connector_source_read_failure(
-                            connector_type.clone(),
-                            connector_name.clone(),
-                        );
-                        update_last_active(
-                            connector_manager,
-                            &connector_name,
-                            &connector_type,
-                            now_millis(),
-                            0,
-                            false,
-                        );
-                        match stop_connector(client_pool,connector_manager, &connector_name, &e).await {
-                            Ok(true) => {
-                                info!("Connector '{}' has been sealed up and stopped, reason: {}", connector_name, e);
-                                break;
-                            }
-                            Ok(false) => {}
+                        match handle_read_error(client_pool, &ctx, &config.topic_name, e).await {
+                            Ok(ReadErrorAction::Stop) => break,
+                            Ok(ReadErrorAction::Continue) => {}
                             Err(err) => {
                                 run_result = Err(err);
                                 break;
                             }
                         }
-                        error!("Connector {} failed to read Topic {} data: {}", connector_name, config.topic_name, e);
-                        sleep(Duration::from_millis(100)).await;
                     }
                 }
             }
@@ -222,6 +226,152 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     run_result
 }
 
+async fn handle_send_success(
+    ctx: &BatchCtx<'_>,
+    params: SendSuccessParams<'_>,
+) -> Result<(), CommonError> {
+    commit_batch_offsets(ctx, params.max_offsets, params.offsets).await?;
+    process_fail_messages(
+        ctx.storage_driver_manager,
+        params.strategy,
+        params.fail_messages,
+    )
+    .await;
+    update_last_active(
+        ctx.connector_manager,
+        ctx.connector_name,
+        ctx.connector_type,
+        params.start_time,
+        params.message_count,
+        true,
+    );
+    Ok(())
+}
+
+async fn handle_send_failure(
+    ctx: &BatchCtx<'_>,
+    config: &BridgePluginReadConfig,
+    params: SendFailureParams<'_>,
+) -> Result<SendResultAction, CommonError> {
+    if params.retry_times == 0 {
+        update_last_active(
+            ctx.connector_manager,
+            ctx.connector_name,
+            ctx.connector_type,
+            params.start_time,
+            params.message_count,
+            false,
+        );
+    }
+
+    let err_msg = params.error.to_string();
+    error!(
+        connector_name = ctx.connector_name,
+        retry_times = params.retry_times,
+        "failed to send batch: {}",
+        err_msg
+    );
+
+    let context = FailureRecordInfo {
+        connector_name: ctx.connector_name.to_string(),
+        connector_type: ctx.connector_type.to_string(),
+        source_topic: config.topic_name.clone(),
+        error_message: err_msg,
+        records: params.data_list.to_vec(),
+    };
+
+    if failure_message_process(
+        ctx.storage_driver_manager,
+        &config.strategy,
+        params.retry_times,
+        &context,
+    )
+    .await
+    {
+        commit_batch_offsets(ctx, params.max_offsets, params.offsets).await?;
+        sleep(Duration::from_millis(100)).await;
+        return Ok(SendResultAction::BatchDone);
+    }
+
+    Ok(SendResultAction::Retry)
+}
+
+async fn handle_read_error(
+    client_pool: &Arc<ClientPool>,
+    ctx: &BatchCtx<'_>,
+    topic_name: &str,
+    error: CommonError,
+) -> Result<ReadErrorAction, CommonError> {
+    record_connector_source_read_failure(
+        ctx.connector_type.to_string(),
+        ctx.connector_name.to_string(),
+    );
+    update_last_active(
+        ctx.connector_manager,
+        ctx.connector_name,
+        ctx.connector_type,
+        now_millis(),
+        0,
+        false,
+    );
+    match stop_connector(
+        client_pool,
+        ctx.connector_manager,
+        ctx.connector_name,
+        &error,
+    )
+    .await
+    {
+        Ok(true) => {
+            info!(
+                connector_name = ctx.connector_name,
+                "connector sealed and stopped, reason: {}", error
+            );
+            Ok(ReadErrorAction::Stop)
+        }
+        Ok(false) => {
+            error!(
+                connector_name = ctx.connector_name,
+                topic_name, "failed to read topic data: {}", error
+            );
+            sleep(Duration::from_millis(100)).await;
+            Ok(ReadErrorAction::Continue)
+        }
+        Err(err) => Err(err),
+    }
+}
+
+async fn process_fail_messages(
+    storage_driver_manager: &Arc<StorageDriverManager>,
+    strategy: &FailureHandlingStrategy,
+    fail_messages: &[FailureRecordInfo],
+) {
+    for context in fail_messages {
+        if failure_message_process(storage_driver_manager, strategy, 99999, context).await {
+            break;
+        }
+    }
+}
+
+async fn commit_batch_offsets(
+    ctx: &BatchCtx<'_>,
+    max_offsets: &HashMap<String, u64>,
+    offsets: &mut HashMap<String, u64>,
+) -> Result<(), CommonError> {
+    for (k, v) in max_offsets {
+        offsets.insert(k.to_string(), *v);
+    }
+    ctx.message_storage
+        .commit_group_offset(ctx.connector_name, offsets)
+        .await
+        .inspect_err(|_| {
+            record_connector_offset_commit_failure(
+                ctx.connector_type.to_string(),
+                ctx.connector_name.to_string(),
+            );
+        })
+}
+
 async fn stop_connector(
     client_pool: &Arc<ClientPool>,
     connector_manager: &Arc<ConnectorManager>,
@@ -237,7 +387,6 @@ async fn stop_connector(
         }
         return Ok(true);
     }
-
     Ok(false)
 }
 

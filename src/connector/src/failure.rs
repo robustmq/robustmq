@@ -40,19 +40,19 @@ pub struct DeadLetterRecord {
     pub dead_letter_timestamp: u64,
 }
 
-pub struct FailureContext<'a> {
-    pub storage_driver_manager: &'a Arc<StorageDriverManager>,
-    pub connector_name: &'a str,
-    pub connector_type: &'a str,
-    pub source_topic: &'a str,
-    pub error_message: &'a str,
-    pub records: &'a [AdapterWriteRecord],
+pub struct FailureRecordInfo {
+    pub connector_name: String,
+    pub connector_type: String,
+    pub source_topic: String,
+    pub error_message: String,
+    pub records: Vec<AdapterWriteRecord>,
 }
 
 pub async fn failure_message_process(
+    storage_driver_manager: &Arc<StorageDriverManager>,
     strategy: &FailureHandlingStrategy,
     retry_times: u32,
-    context: &FailureContext<'_>,
+    context: &FailureRecordInfo,
 ) -> bool {
     match strategy {
         FailureHandlingStrategy::Discard => {
@@ -92,8 +92,13 @@ pub async fn failure_message_process(
                 sleep(Duration::from_millis(dlq_strategy.wait_time_ms)).await;
                 return false;
             }
-            if let Err(e) =
-                send_to_dead_letter_queue(&dlq_strategy.topic_name, retry_times, context).await
+            if let Err(e) = send_to_dead_letter_queue(
+                storage_driver_manager,
+                &dlq_strategy.topic_name,
+                retry_times,
+                context,
+            )
+            .await
             {
                 record_connector_dlq_messages(
                     context.connector_type.to_string(),
@@ -120,14 +125,15 @@ pub async fn failure_message_process(
 }
 
 async fn send_to_dead_letter_queue(
+    storage_driver_manager: &Arc<StorageDriverManager>,
     dlq_topic: &str,
     retry_times: u32,
-    context: &FailureContext<'_>,
+    context: &FailureRecordInfo,
 ) -> Result<(), CommonError> {
     let now = now_second();
     let mut dlq_records = Vec::with_capacity(context.records.len());
 
-    for record in context.records {
+    for record in context.records.iter() {
         let dead_letter = DeadLetterRecord {
             connector_name: context.connector_name.to_string(),
             source_topic: context.source_topic.to_string(),
@@ -156,7 +162,7 @@ async fn send_to_dead_letter_queue(
         return Ok(());
     }
 
-    let message_storage = MessageStorage::new(context.storage_driver_manager.clone());
+    let message_storage = MessageStorage::new(storage_driver_manager.clone());
     let offsets = message_storage
         .append_topic_message(dlq_topic, dlq_records)
         .await?;

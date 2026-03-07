@@ -1552,6 +1552,7 @@ version = "0.3.2"
 dependencies = [
  "async-trait",
  "bson",
+ "bytes",
  "chrono",
  "clickhouse",
  "common-base",
@@ -1572,6 +1573,7 @@ dependencies = [
  "rdkafka",
  "redis",
  "reqwest",
+ "rule-engine",
  "scylla",
  "serde",
  "serde_json",
@@ -7133,6 +7135,12 @@ dependencies = [
 [[package]]
 name = "rule-engine"
 version = "0.3.2"
+dependencies = [
+ "bytes",
+ "common-base",
+ "metadata-struct",
+ "serde_json",
+]
 
 [[package]]
 name = "rumqttc"

@@ -26,6 +26,7 @@ use mongodb::{
     options::{ClientOptions, InsertManyOptions, WriteConcern},
     Client, Collection,
 };
+use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::mpsc::Receiver;
 use tracing::{debug, error, info, warn};
@@ -34,18 +35,29 @@ use common_base::error::common::CommonError;
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
 };
 
 pub struct MongoDBBridgePlugin {
+    connector: MQTTConnector,
     config: MongoDBConnectorConfig,
 }
 
 impl MongoDBBridgePlugin {
-    pub fn new(config: MongoDBConnectorConfig) -> Self {
-        MongoDBBridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::MongoDB(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for mongodb plugin".to_string(),
+                ));
+            }
+        };
+        Ok(MongoDBBridgePlugin { connector, config })
     }
 
     async fn create_client(&self) -> Result<Client, CommonError> {
@@ -96,11 +108,17 @@ impl MongoDBBridgePlugin {
     }
 
     #[allow(clippy::result_large_err)]
-    fn record_to_document(&self, record: &AdapterWriteRecord) -> Result<Document, CommonError> {
-        bson::to_document(record).map_err(|e| {
+    async fn record_to_document(
+        &self,
+        record: &AdapterWriteRecord,
+    ) -> Result<Document, CommonError> {
+        let processed_data = apply_rule_engine(&self.connector.etl_rule, &record.data).await?;
+        let mut processed_record = record.clone();
+        processed_record.data = processed_data;
+        bson::to_document(&processed_record).map_err(|e| {
             CommonError::CommonError(format!(
                 "Failed to serialize record with key '{:?}' at timestamp {}: {}",
-                record.key, record.timestamp, e
+                processed_record.key, processed_record.timestamp, e
             ))
         })
     }
@@ -160,18 +178,19 @@ impl ConnectorSink for MongoDBBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         collection: &mut Collection<Document>,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         debug!("Processing batch of {} records for MongoDB", records.len());
 
         let mut documents = Vec::with_capacity(records.len());
         let mut failed_serializations = Vec::new();
+        let mut fail_messages = Vec::new();
 
         for (idx, record) in records.iter().enumerate() {
-            match self.record_to_document(record) {
+            match self.record_to_document(record).await {
                 Ok(doc) => documents.push(doc),
                 Err(e) => {
                     warn!(
@@ -182,16 +201,20 @@ impl ConnectorSink for MongoDBBridgePlugin {
                         record.timestamp,
                         e
                     );
-                    failed_serializations.push((idx, e));
+                    failed_serializations.push((idx, e.to_string()));
+                    fail_messages.push(FailureRecordInfo {
+                        connector_name: self.connector.connector_name.clone(),
+                        connector_type: self.connector.connector_type.to_string(),
+                        source_topic: self.connector.topic_name.clone(),
+                        error_message: e.to_string(),
+                        records: vec![record.clone()],
+                    });
                 }
             }
         }
 
         if documents.is_empty() {
-            return Err(CommonError::CommonError(format!(
-                "All {} records failed to serialize to BSON",
-                records.len()
-            )));
+            return Ok(fail_messages);
         }
 
         if !failed_serializations.is_empty() {
@@ -220,7 +243,7 @@ impl ConnectorSink for MongoDBBridgePlugin {
                     self.config.database,
                     self.config.collection
                 );
-                Ok(())
+                Ok(fail_messages)
             }
             Err(e) => {
                 let error_msg = format!(
@@ -245,19 +268,17 @@ pub fn start_mongodb_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let mongodb_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::MongoDB(config) => config.clone(),
-            _ => {
+        let bridge = match MongoDBBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for MongoDB connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for MongoDB connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-
-        let batch_size = mongodb_config.batch_size as u64;
-        let bridge = MongoDBBridgePlugin::new(mongodb_config);
+        let batch_size = bridge.config.batch_size as u64;
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
@@ -265,7 +286,7 @@ pub fn start_mongodb_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

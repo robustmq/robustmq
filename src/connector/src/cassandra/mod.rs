@@ -19,6 +19,7 @@ use metadata_struct::{
     connector::config_cassandra::CassandraConnectorConfig, connector::MQTTConnector,
     storage::adapter_record::AdapterWriteRecord,
 };
+use rule_engine::apply_rule_engine;
 use scylla::{Session, SessionBuilder};
 use std::sync::Arc;
 use std::time::Duration;
@@ -28,18 +29,29 @@ use tracing::{debug, error};
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
 };
 
 pub struct CassandraBridgePlugin {
+    connector: MQTTConnector,
     config: CassandraConnectorConfig,
 }
 
 impl CassandraBridgePlugin {
-    pub fn new(config: CassandraConnectorConfig) -> Self {
-        CassandraBridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::Cassandra(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for cassandra plugin".to_string(),
+                ));
+            }
+        };
+        Ok(CassandraBridgePlugin { connector, config })
     }
 
     fn build_insert_cql(&self) -> String {
@@ -88,9 +100,9 @@ impl ConnectorSink for CassandraBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         session: &mut Session,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
         let cql = self.build_insert_cql();
@@ -98,8 +110,23 @@ impl ConnectorSink for CassandraBridgePlugin {
             CommonError::CommonError(format!("Failed to prepare CQL statement: {}", e))
         })?;
 
+        let mut fail_messages = Vec::new();
         for record in records {
-            let payload = String::from_utf8_lossy(&record.data).to_string();
+            let processed_data =
+                match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        fail_messages.push(FailureRecordInfo {
+                            connector_name: self.connector.connector_name.clone(),
+                            connector_type: self.connector.connector_type.to_string(),
+                            source_topic: self.connector.topic_name.clone(),
+                            error_message: e.to_string(),
+                            records: vec![record.clone()],
+                        });
+                        continue;
+                    }
+                };
+            let payload = String::from_utf8_lossy(&processed_data).to_string();
             let key = record.key.clone().unwrap_or_default();
             let timestamp = record.timestamp as i64;
 
@@ -111,7 +138,7 @@ impl ConnectorSink for CassandraBridgePlugin {
                 })?;
         }
 
-        Ok(())
+        Ok(fail_messages)
     }
 }
 
@@ -126,17 +153,16 @@ pub fn start_cassandra_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let cass_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::Cassandra(config) => config.clone(),
-            _ => {
+        let bridge = match CassandraBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for Cassandra connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for Cassandra connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = CassandraBridgePlugin::new(cass_config);
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
@@ -144,7 +170,7 @@ pub fn start_cassandra_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,

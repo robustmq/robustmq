@@ -21,6 +21,7 @@ use metadata_struct::{
     storage::adapter_record::AdapterWriteRecord,
 };
 use reqwest::Client;
+use rule_engine::apply_rule_engine;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
@@ -29,18 +30,29 @@ use tracing::{debug, error};
 
 use super::{
     core::{BridgePluginReadConfig, BridgePluginThread},
+    failure::FailureRecordInfo,
     loops::run_connector_loop,
     manager::ConnectorManager,
     traits::ConnectorSink,
 };
 
 pub struct InfluxDBBridgePlugin {
+    connector: MQTTConnector,
     config: InfluxDBConnectorConfig,
 }
 
 impl InfluxDBBridgePlugin {
-    pub fn new(config: InfluxDBConnectorConfig) -> Self {
-        InfluxDBBridgePlugin { config }
+    #[allow(clippy::result_large_err)]
+    pub fn new(connector: MQTTConnector) -> Result<Self, CommonError> {
+        let config = match &connector.connector_type {
+            metadata_struct::connector::ConnectorType::InfluxDB(config) => config.clone(),
+            _ => {
+                return Err(CommonError::CommonError(
+                    "invalid connector type for influxdb plugin".to_string(),
+                ));
+            }
+        };
+        Ok(InfluxDBBridgePlugin { connector, config })
     }
 
     #[allow(clippy::result_large_err)]
@@ -53,9 +65,13 @@ impl InfluxDBBridgePlugin {
 
     /// Convert an AdapterWriteRecord to InfluxDB Line Protocol format:
     /// `measurement,tag1=val1 field1="strval",field2=42i timestamp`
-    fn record_to_line_protocol(&self, record: &AdapterWriteRecord) -> String {
+    fn record_to_line_protocol(
+        &self,
+        record: &AdapterWriteRecord,
+        processed_data: &bytes::Bytes,
+    ) -> String {
         let measurement = &self.config.measurement;
-        let payload_str = String::from_utf8_lossy(&record.data);
+        let payload_str = String::from_utf8_lossy(processed_data);
 
         let mut tags = String::new();
         if let Some(key) = &record.key {
@@ -102,15 +118,33 @@ impl ConnectorSink for InfluxDBBridgePlugin {
         &self,
         records: &[AdapterWriteRecord],
         client: &mut Client,
-    ) -> Result<(), CommonError> {
+    ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
-            return Ok(());
+            return Ok(vec![]);
         }
 
-        let lines: Vec<String> = records
-            .iter()
-            .map(|r| self.record_to_line_protocol(r))
-            .collect();
+        let mut lines: Vec<String> = Vec::with_capacity(records.len());
+        let mut fail_messages = Vec::new();
+        for record in records {
+            let processed_data =
+                match apply_rule_engine(&self.connector.etl_rule, &record.data).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        fail_messages.push(FailureRecordInfo {
+                            connector_name: self.connector.connector_name.clone(),
+                            connector_type: self.connector.connector_type.to_string(),
+                            source_topic: self.connector.topic_name.clone(),
+                            error_message: e.to_string(),
+                            records: vec![record.clone()],
+                        });
+                        continue;
+                    }
+                };
+            lines.push(self.record_to_line_protocol(record, &processed_data));
+        }
+        if lines.is_empty() {
+            return Ok(fail_messages);
+        }
         let body = lines.join("\n");
 
         let url = self.config.write_url();
@@ -129,7 +163,7 @@ impl ConnectorSink for InfluxDBBridgePlugin {
         })?;
 
         if response.status().is_success() || response.status().as_u16() == 204 {
-            Ok(())
+            Ok(fail_messages)
         } else {
             let status = response.status();
             let error_text = response
@@ -155,17 +189,16 @@ pub fn start_influxdb_connector(
     tokio::spawn(Box::pin(async move {
         let connector_name = connector.connector_name.clone();
         let connector_type = connector.connector_type.to_string();
-        let influxdb_config = match &connector.connector_type {
-            metadata_struct::connector::ConnectorType::InfluxDB(config) => config.clone(),
-            _ => {
+        let bridge = match InfluxDBBridgePlugin::new(connector.clone()) {
+            Ok(bridge) => bridge,
+            Err(e) => {
                 error!(
-                    "Invalid connector config type for InfluxDB connector, connector_name='{}', connector_type='{}'",
-                    connector_name, connector_type
+                    "Invalid connector config type for InfluxDB connector, connector_name='{}', connector_type='{}', error={}",
+                    connector_name, connector_type, e
                 );
                 return;
             }
         };
-        let bridge = InfluxDBBridgePlugin::new(influxdb_config);
 
         connector_manager.add_connector_thread(&connector.connector_name, thread);
 
@@ -173,7 +206,7 @@ pub fn start_influxdb_connector(
             &bridge,
             &client_pool,
             &connector_manager,
-            storage_driver_manager.clone(),
+            &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
                 topic_name: connector.topic_name,
