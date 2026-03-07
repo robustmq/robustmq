@@ -23,3 +23,5 @@ metadata-struct.workspace = true
 bytes.workspace = true
 common-base.workspace = true
 serde_json.workspace = true
+chrono.workspace = true
+cel = { version = "0.12.0", features = ["json"] }

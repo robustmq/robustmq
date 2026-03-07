@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub struct ETLRule {
@@ -34,6 +35,8 @@ pub enum ETLOperator {
     Decode(DecodeDeleteParams),
     Encode(EncodeDeleteParams),
     Extract(ExtractRuleParams),
+    Rename(RenameRuleParams),
+    KeepOnly(KeepOnlyRuleParams),
     Set(FilterSetParams),
     Delete(FilterDeleteParams),
 }
@@ -44,10 +47,44 @@ pub struct ExtractRuleParams {
 }
 
 #[derive(Serialize, Default, Deserialize, Clone, Debug, PartialEq)]
-pub struct FilterSetParams {}
+pub struct RenameRuleParams {
+    pub field_mapping: HashMap<String, String>,
+}
 
 #[derive(Serialize, Default, Deserialize, Clone, Debug, PartialEq)]
-pub struct FilterDeleteParams {}
+pub struct KeepOnlyRuleParams {
+    pub keys: Vec<String>,
+}
+
+#[derive(Serialize, Default, Deserialize, Clone, Debug, PartialEq)]
+pub struct FilterSetParams {
+    pub rules: Vec<SetRule>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct SetRule {
+    pub target_field: String,
+    pub value: SetValue,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum SetValue {
+    Const { value: Value },
+    Now,
+    Cel { expr: String },
+}
+
+impl Default for SetValue {
+    fn default() -> Self {
+        SetValue::Const { value: Value::Null }
+    }
+}
+
+#[derive(Serialize, Default, Deserialize, Clone, Debug, PartialEq)]
+pub struct FilterDeleteParams {
+    pub keys: Vec<String>,
+}
 
 #[derive(Serialize, Default, Deserialize, Clone, Debug, PartialEq)]
 pub struct DecodeDeleteParams {
