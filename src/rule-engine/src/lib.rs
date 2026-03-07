@@ -72,8 +72,8 @@ mod tests {
     use super::apply_rule_engine;
     use metadata_struct::connector::rule::{
         DataDecodeType, DataEncodeType, DecodeDeleteParams, ETLOperator, ETLRule,
-        EncodeDeleteParams, ExtractRuleParams, FilterDeleteParams, KeepOnlyRuleParams,
-        RenameRuleParams,
+        EncodeDeleteParams, ExtractRuleParams, FilterDeleteParams, FilterSetParams,
+        KeepOnlyRuleParams, RenameRuleParams, SetRule, SetValue,
     };
     use serde_json::Value;
     use std::collections::HashMap;
@@ -116,10 +116,33 @@ mod tests {
                 "gateway_wan_ip".to_string(),
                 "alarm_active".to_string(),
                 "missing".to_string(),
+                "rule_name".to_string(),
+                "processed_at".to_string(),
+                "topic_copy".to_string(),
             ],
         };
         let delete_params = FilterDeleteParams {
             keys: vec!["missing".to_string(), "gateway_wan_ip".to_string()],
+        };
+        let set_params = FilterSetParams {
+            rules: vec![
+                SetRule {
+                    target_field: "rule_name".to_string(),
+                    value: SetValue::Const {
+                        value: Value::String("extract_chain".to_string()),
+                    },
+                },
+                SetRule {
+                    target_field: "processed_at".to_string(),
+                    value: SetValue::Now,
+                },
+                SetRule {
+                    target_field: "topic_copy".to_string(),
+                    value: SetValue::Cel {
+                        expr: "topic".to_string(),
+                    },
+                },
+            ],
         };
 
         let etl_rule = ETLRule {
@@ -136,6 +159,7 @@ mod tests {
                 ETLOperator::Rename(RenameRuleParams {
                     field_mapping: rename_field_mapping,
                 }),
+                ETLOperator::Set(set_params),
                 ETLOperator::KeepOnly(keep_only_params),
                 ETLOperator::Delete(delete_params),
             ],
@@ -163,6 +187,19 @@ mod tests {
             output.get("alarm_active").and_then(|v| v.as_bool()),
             Some(true)
         );
+        assert_eq!(
+            output.get("rule_name").and_then(|v| v.as_str()),
+            Some("extract_chain")
+        );
+        assert_eq!(
+            output.get("topic_copy").and_then(|v| v.as_str()),
+            Some("factory/a/line3/meter/44001/data")
+        );
+        assert!(output
+            .get("processed_at")
+            .and_then(|v| v.as_str())
+            .map(|v| !v.is_empty())
+            .unwrap_or(false));
         assert!(output.get("gateway_wan_ip").is_none());
         assert!(output.get("missing").is_none());
         assert!(output.get("mqtt_topic").is_none());
