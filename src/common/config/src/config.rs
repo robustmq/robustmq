@@ -27,8 +27,68 @@ use crate::common::Prometheus;
 use crate::common::{default_log, default_pprof, default_prometheus};
 use crate::storage::StorageAdapterConfig;
 use common_base::enum_type::delay_type::DelayType;
+use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 use toml::Table;
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LLMPlatform {
+    OpenAI,
+    OpenAIResp,
+    Gemini,
+    Anthropic,
+    Fireworks,
+    Together,
+    Groq,
+    Mimo,
+    Nebius,
+    Xai,
+    DeepSeek,
+    Zai,
+    BigModel,
+    Cohere,
+    Ollama,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct LLMClientConfig {
+    pub platform: LLMPlatform,
+    pub model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
+}
+
+impl LLMClientConfig {
+    pub fn validate(&self) -> Result<(), CommonError> {
+        if self.model.trim().is_empty() {
+            return Err(CommonError::CommonError(
+                "model cannot be empty".to_string(),
+            ));
+        }
+
+        if let Some(base_url) = &self.base_url {
+            if !(base_url.starts_with("http://") || base_url.starts_with("https://")) {
+                return Err(CommonError::CommonError(
+                    "base_url must start with http:// or https://".to_string(),
+                ));
+            }
+        }
+
+        if self.platform != LLMPlatform::Ollama {
+            let token = self.token.as_deref().unwrap_or_default().trim();
+            if token.is_empty() {
+                return Err(CommonError::CommonError(
+                    "token is required for non-ollama platforms".to_string(),
+                ));
+            }
+        }
+
+        Ok(())
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct BrokerConfig {
@@ -119,6 +179,9 @@ pub struct BrokerConfig {
     #[serde(default = "default_grpc_client")]
     pub grpc_client: GrpcClientConfig,
 
+    #[serde(default)]
+    pub llm_client: Option<LLMClientConfig>,
+
     #[serde(default = "default_mqtt_system_topic")]
     pub mqtt_system_topic: MqttSystemTopic,
 }
@@ -154,6 +217,7 @@ impl Default for BrokerConfig {
             mqtt_system_monitor: default_mqtt_system_monitor(),
             storage_offset: default_storage_offset(),
             grpc_client: default_grpc_client(),
+            llm_client: None,
             mqtt_system_topic: default_mqtt_system_topic(),
         }
     }

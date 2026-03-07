@@ -22,3 +22,8 @@ license.workspace = true
 governor.workspace = true
 dashmap.workspace = true
 common-base.workspace = true
+common-config.workspace = true
+genai.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
