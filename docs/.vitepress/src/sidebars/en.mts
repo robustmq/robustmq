@@ -117,29 +117,6 @@ export const sidebar = [
                     { text: "Blacklist", link: "/en/RobustMQ-MQTT/Security/Blacklist" },
                 ]
             },
-            {
-                text: "Data integration",
-                collapsed: true,
-                items: [
-                    { text: "Overview", link: "/en/RobustMQ-MQTT/Bridge/Overview" },
-                    { text: "Local File", link: "/en/RobustMQ-MQTT/Bridge/LocalFile" },
-                    { text: "Kafka", link: "/en/RobustMQ-MQTT/Bridge/Kafka" },
-                    { text: "Pulsar", link: "/en/RobustMQ-MQTT/Bridge/Pulsar" },
-                    { text: "RabbitMQ", link: "/en/RobustMQ-MQTT/Bridge/RabbitMQ" },
-                    { text: "GreptimeDB", link: "/en/RobustMQ-MQTT/Bridge/GreptimeDB" },
-                    { text: "PostgreSQL", link: "/en/RobustMQ-MQTT/Bridge/PostgreSQL" },
-                    { text: "MySQL", link: "/en/RobustMQ-MQTT/Bridge/MySQL" },
-                    { text: "MongoDB", link: "/en/RobustMQ-MQTT/Bridge/MongoDB" },
-                    { text: "Elasticsearch", link: "/en/RobustMQ-MQTT/Bridge/Elasticsearch" },
-                    { text: "Redis", link: "/en/RobustMQ-MQTT/Bridge/Redis" },
-                    { text: "Webhook", link: "/en/RobustMQ-MQTT/Bridge/Webhook" },
-                    { text: "OpenTSDB", link: "/en/RobustMQ-MQTT/Bridge/OpenTSDB" },
-                    { text: "MQTT Bridge", link: "/en/RobustMQ-MQTT/Bridge/MQTT" },
-                    { text: "ClickHouse", link: "/en/RobustMQ-MQTT/Bridge/ClickHouse" },
-                    { text: "InfluxDB", link: "/en/RobustMQ-MQTT/Bridge/InfluxDB" },
-                    { text: "Cassandra", link: "/en/RobustMQ-MQTT/Bridge/Cassandra" },
-                ]
-            },
       { text: "MQTTX Testing Guide", link: "/en/RobustMQ-MQTT/MQTTX-Guide" },
       { text: "Performance", link: "" },
       {
@@ -173,9 +150,42 @@ export const sidebar = [
     items: [{ text: "Overview", link: "/en/RobustMQ-Kafka/Overview" }],
   },
   {
-    text: "RobustMQ Dashboard",
+    text: "Data Processing",
     collapsed: true,
-    items: [{ text: "Overview", link: "" }],
+    items: [
+      {
+        text: "Connector",
+        collapsed: true,
+        items: [
+          { text: "Overview", link: "/en/RobustMQ-MQTT/Bridge/Overview" },
+          { text: "Local File", link: "/en/RobustMQ-MQTT/Bridge/LocalFile" },
+          { text: "Kafka", link: "/en/RobustMQ-MQTT/Bridge/Kafka" },
+          { text: "Pulsar", link: "/en/RobustMQ-MQTT/Bridge/Pulsar" },
+          { text: "RabbitMQ", link: "/en/RobustMQ-MQTT/Bridge/RabbitMQ" },
+          { text: "GreptimeDB", link: "/en/RobustMQ-MQTT/Bridge/GreptimeDB" },
+          { text: "PostgreSQL", link: "/en/RobustMQ-MQTT/Bridge/PostgreSQL" },
+          { text: "MySQL", link: "/en/RobustMQ-MQTT/Bridge/MySQL" },
+          { text: "MongoDB", link: "/en/RobustMQ-MQTT/Bridge/MongoDB" },
+          { text: "Elasticsearch", link: "/en/RobustMQ-MQTT/Bridge/Elasticsearch" },
+          { text: "Redis", link: "/en/RobustMQ-MQTT/Bridge/Redis" },
+          { text: "Webhook", link: "/en/RobustMQ-MQTT/Bridge/Webhook" },
+          { text: "OpenTSDB", link: "/en/RobustMQ-MQTT/Bridge/OpenTSDB" },
+          { text: "MQTT Bridge", link: "/en/RobustMQ-MQTT/Bridge/MQTT" },
+          { text: "ClickHouse", link: "/en/RobustMQ-MQTT/Bridge/ClickHouse" },
+          { text: "InfluxDB", link: "/en/RobustMQ-MQTT/Bridge/InfluxDB" },
+          { text: "Cassandra", link: "/en/RobustMQ-MQTT/Bridge/Cassandra" },
+        ],
+      },
+      {
+        text: "Rule Engine",
+        collapsed: true,
+        items: [
+          { text: "Introduction", link: "/en/RuleEngine/Introduction" },
+          { text: "Operator List", link: "/en/RuleEngine/overview" },
+          { text: "Processing Demo", link: "/en/RuleEngine/Demo" },
+        ],
+      },
+    ],
   },
   {
     text: "RobustMQ Command",
@@ -188,35 +198,6 @@ export const sidebar = [
     ],
   },
   {
-    text: "HTTP Rest API",
-    collapsed: true,
-    items: [
-      { text: "Overview", link: "/en/Api/COMMON" },
-      { text: "Cluster API", link: "/en/Api/CLUSTER" },
-      { text: "MQTT API", link: "/en/Api/MQTT" },
-      { text: "Connector API", link: "/en/Api/Connector" },
-    ],
-  },
-  {
-    text: "Observability",
-    collapsed: true,
-    items: [
-      { text: "Prometheus Integration", link: "/en/Observability/Prometheus-Integration" },
-      { text: "Infrastructure Metrics", link: "/en/Observability/Infrastructure-Metrics" },
-      { text: "MQTT Specific Metrics", link: "/en/Observability/MQTT-Specific-Metrics" },
-      { text: "Grafana Configuration Guide", link: "/en/Observability/Grafana-Configuration-Guide" },
-    ],
-  },
-  {
-    text: "Configuration",
-    collapsed: true,
-    items: [
-      { text: "Broker Configuration", link: "/en/Configuration/BROKER" },
-      { text: "Logging Configuration", link: "/en/Configuration/Logging" },
-      { text: "Performance Tuning Guide", link: "/en/Configuration/Tuning" },
-    ],
-  },
-  {
     text: "Performance Metrics",
     collapsed: true,
     items: [
@@ -224,6 +205,42 @@ export const sidebar = [
       { text: "MQTT Bench Guide", link: "/en/Bench/MQTT-Bench" },
       { text: "Meta Bench Guide", link: "/en/Bench/Meta-Bench" },
       { text: "Benchmark Report", link: "/en/Bench/Bench-Report" },
+    ],
+  },
+  {
+    text: "Administrator Guide",
+    collapsed: true,
+    items: [
+      { text: "Dashboard", link: "/en/Operations/Dashboard" },
+      {
+        text: "HTTP Rest API",
+        collapsed: true,
+        items: [
+          { text: "Overview", link: "/en/Api/COMMON" },
+          { text: "Cluster API", link: "/en/Api/CLUSTER" },
+          { text: "MQTT API", link: "/en/Api/MQTT" },
+          { text: "Connector API", link: "/en/Api/Connector" },
+        ],
+      },
+      {
+        text: "Observability",
+        collapsed: true,
+        items: [
+          { text: "Prometheus Integration", link: "/en/Observability/Prometheus-Integration" },
+          { text: "Infrastructure Metrics", link: "/en/Observability/Infrastructure-Metrics" },
+          { text: "MQTT Specific Metrics", link: "/en/Observability/MQTT-Specific-Metrics" },
+          { text: "Grafana Configuration Guide", link: "/en/Observability/Grafana-Configuration-Guide" },
+        ],
+      },
+      {
+        text: "Configuration",
+        collapsed: true,
+        items: [
+          { text: "Broker Configuration", link: "/en/Configuration/BROKER" },
+          { text: "Logging Configuration", link: "/en/Configuration/Logging" },
+          { text: "Performance Tuning Guide", link: "/en/Configuration/Tuning" },
+        ],
+      },
     ],
   },
   {

@@ -12,13 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
-use metadata_struct::connector::rule::ETLOperator;
-use serde_json::{Map, Value};
-
-pub trait RuleTrait {
-    fn apply(
-        rule: ETLOperator,
-        data: Vec<Map<String, Value>>,
-    ) -> Result<Vec<Map<String, Value>>, CommonError>;
-}
+pub mod extract;

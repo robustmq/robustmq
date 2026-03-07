@@ -12,43 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-
 use bytes::Bytes;
 use common_base::error::common::CommonError;
+use metadata_struct::connector::rule::{DataDecodeType, ETLOperator};
 use serde_json::{Map, Value};
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub enum DataDecodeType {
-    #[default]
-    JsonObject,
-    JsonArray,
-    JsonLines,
-    KeyValueLine,
-    PositionalLine,
-    Csv,
-    PlainText,
-    Bytes,
-    Protobuf,
-    Xml,
-}
-
-/// Source data format: delegated by `DataDecodeType`.
 /// Demo input: `{"device":"d1","temp":36.5}`
 /// Demo output: `[{"device":"d1","temp":36.5}]`
 pub fn operator_decode_data(
-    data: Bytes,
-    decode_type: &DataDecodeType,
+    etl_operator: &ETLOperator,
+    data: &Bytes,
 ) -> Result<Vec<Map<String, Value>>, CommonError> {
-    match decode_type {
-        DataDecodeType::JsonObject => decode_json_object(&data),
-        DataDecodeType::JsonArray => decode_json_array(&data),
-        DataDecodeType::JsonLines => decode_json_lines(&data),
-        DataDecodeType::KeyValueLine => decode_key_value_line(&data),
-        DataDecodeType::PositionalLine => decode_positional_line(&data),
-        DataDecodeType::Csv => decode_csv(&data),
-        DataDecodeType::PlainText => decode_plain_text(&data),
-        DataDecodeType::Bytes => decode_raw_bytes(&data),
+    let params = if let ETLOperator::Decode(params) = etl_operator {
+        params
+    } else {
+        return Err(CommonError::CommonError(
+            "operator_decode_data expects ETLOperator::Decode".to_string(),
+        ));
+    };
+
+    match params.data_type {
+        DataDecodeType::JsonObject => decode_json_object(data),
+        DataDecodeType::JsonArray => decode_json_array(data),
+        DataDecodeType::JsonLines => decode_json_lines(data, params.line_separator.as_deref()),
+        DataDecodeType::KeyValueLine => decode_key_value_line(
+            data,
+            params.token_separator.as_deref(),
+            params.kv_separator.as_deref(),
+        ),
+        DataDecodeType::PositionalLine => {
+            decode_positional_line(data, params.token_separator.as_deref())
+        }
+        DataDecodeType::Csv => decode_csv(data),
+        DataDecodeType::PlainText => decode_plain_text(data),
+        DataDecodeType::Bytes => decode_raw_bytes(data),
         DataDecodeType::Protobuf => Err(CommonError::CommonError(
             "protobuf decode is not supported yet".to_string(),
         )),
@@ -58,7 +55,6 @@ pub fn operator_decode_data(
     }
 }
 
-/// Source data format: JSON Object.
 /// Demo input: `{"device":"d1","temp":36.5}`
 /// Demo output: `[{"device":"d1","temp":36.5}]`
 fn decode_json_object(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonError> {
@@ -73,7 +69,6 @@ fn decode_json_object(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonErro
     }
 }
 
-/// Source data format: JSON Array (array of objects).
 /// Demo input: `[{"device":"d1"},{"device":"d2"}]`
 /// Demo output: `[{"device":"d1"},{"device":"d2"}]`
 fn decode_json_array(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonError> {
@@ -101,16 +96,25 @@ fn decode_json_array(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonError
     }
 }
 
-/// Source data format: JSON Lines (one JSON object per line).
 /// Demo input: `{"d":"d1"}\n{"d":"d2"}`
 /// Demo output: `[{"d":"d1"},{"d":"d2"}]`
-fn decode_json_lines(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonError> {
+fn decode_json_lines(
+    data: &[u8],
+    line_separator: Option<&str>,
+) -> Result<Vec<Map<String, Value>>, CommonError> {
     let text = std::str::from_utf8(data).map_err(|e| {
         CommonError::CommonError(format!("failed to parse json lines as utf-8 text: {e}"))
     })?;
 
+    let line_separator = line_separator.filter(|sep| !sep.is_empty());
+
     let mut records = Vec::new();
-    for (idx, line) in text.lines().enumerate() {
+    let lines: Vec<&str> = if let Some(sep) = line_separator {
+        text.split(sep).collect()
+    } else {
+        text.lines().collect()
+    };
+    for (idx, line) in lines.into_iter().enumerate() {
         let trimmed = line.trim();
         if trimmed.is_empty() {
             continue;
@@ -131,21 +135,38 @@ fn decode_json_lines(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonError
     Ok(records)
 }
 
-/// Source data format: key=value line.
 /// Demo input: `ts=2026-03-03 level=INFO temp=36.5`
 /// Demo output: `[{"ts":"2026-03-03","level":"INFO","temp":36.5}]`
-fn decode_key_value_line(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonError> {
+fn decode_key_value_line(
+    data: &[u8],
+    token_separator: Option<&str>,
+    kv_separator: Option<&str>,
+) -> Result<Vec<Map<String, Value>>, CommonError> {
     let text = std::str::from_utf8(data).map_err(|e| {
         CommonError::CommonError(format!("failed to parse key=value line as utf-8 text: {e}"))
     })?;
 
+    let token_separator = token_separator.filter(|sep| !sep.is_empty());
+    let kv_separator = kv_separator.filter(|sep| !sep.is_empty());
+
     let mut map = Map::new();
-    for token in text.split_whitespace() {
+    let tokens: Vec<&str> = if let Some(sep) = token_separator {
+        text.split(sep).collect()
+    } else {
+        text.split_whitespace().collect()
+    };
+    let kv_sep = kv_separator.unwrap_or("=");
+
+    for token in tokens {
+        if token.is_empty() {
+            continue;
+        }
+        let token = token.trim();
         if token.is_empty() {
             continue;
         }
         let (key, raw_value) = token
-            .split_once('=')
+            .split_once(kv_sep)
             .ok_or_else(|| CommonError::CommonError(format!("invalid key=value token: {token}")))?;
         if key.is_empty() {
             return Err(CommonError::CommonError(
@@ -157,18 +178,32 @@ fn decode_key_value_line(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonE
     Ok(vec![map])
 }
 
-/// Source data format: positional line (space-delimited, no keys).
 /// Demo input: `2026-03-03 INFO d1 36.5`
 /// Demo output: `[{"col_0":"2026-03-03","col_1":"INFO","col_2":"d1","col_3":36.5}]`
-fn decode_positional_line(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonError> {
+fn decode_positional_line(
+    data: &[u8],
+    token_separator: Option<&str>,
+) -> Result<Vec<Map<String, Value>>, CommonError> {
     let text = std::str::from_utf8(data).map_err(|e| {
         CommonError::CommonError(format!(
             "failed to parse positional line as utf-8 text: {e}"
         ))
     })?;
 
+    let token_separator = token_separator.filter(|sep| !sep.is_empty());
+
     let mut map = Map::new();
-    for (idx, token) in text.split_whitespace().enumerate() {
+    let tokens: Vec<&str> = if let Some(sep) = token_separator {
+        text.split(sep).collect()
+    } else {
+        text.split_whitespace().collect()
+    };
+    for (idx, token) in tokens
+        .into_iter()
+        .filter(|v| !v.trim().is_empty())
+        .enumerate()
+    {
+        let token = token.trim();
         map.insert(format!("col_{idx}"), parse_scalar_value(token));
     }
     if map.is_empty() {
@@ -179,7 +214,6 @@ fn decode_positional_line(data: &[u8]) -> Result<Vec<Map<String, Value>>, Common
     Ok(vec![map])
 }
 
-/// Source data format: CSV text (first row is header).
 /// Demo input: `ts,level,temp\n2026-03-03,INFO,36.5`
 /// Demo output: `[{"ts":"2026-03-03","level":"INFO","temp":36.5}]`
 fn decode_csv(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonError> {
@@ -214,7 +248,6 @@ fn decode_csv(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonError> {
     Ok(records)
 }
 
-/// Source data format: plain text.
 /// Demo input: `device d1 temp 36.5`
 /// Demo output: `[{"message":"device d1 temp 36.5"}]`
 fn decode_plain_text(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonError> {
@@ -226,7 +259,6 @@ fn decode_plain_text(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonError
     Ok(vec![map])
 }
 
-/// Source data format: raw bytes.
 /// Demo input: `[137,80,78,71]`
 /// Demo output: `[{"bytes":[137,80,78,71]}]`
 fn decode_raw_bytes(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonError> {
@@ -239,7 +271,6 @@ fn decode_raw_bytes(data: &[u8]) -> Result<Vec<Map<String, Value>>, CommonError>
     Ok(vec![map])
 }
 
-/// Scalar parser used by line/csv formats (bool/int/float/string).
 fn parse_scalar_value(raw: &str) -> Value {
     if raw.eq_ignore_ascii_case("true") {
         return Value::Bool(true);
@@ -262,53 +293,154 @@ fn parse_scalar_value(raw: &str) -> Value {
 mod tests {
     use super::{operator_decode_data, DataDecodeType};
     use bytes::Bytes;
+    use metadata_struct::connector::rule::{DecodeDeleteParams, ETLOperator};
+    use serde_json::Value;
+
+    type ExpectedFieldPairs<'a> = Vec<(&'a str, Value)>;
+    type DecodeCase<'a> = (ETLOperator, Bytes, ExpectedFieldPairs<'a>);
+
+    fn build_decode_op(data_type: DataDecodeType) -> ETLOperator {
+        ETLOperator::Decode(DecodeDeleteParams {
+            data_type,
+            line_separator: None,
+            token_separator: None,
+            kv_separator: None,
+        })
+    }
+
+    fn build_decode_op_with_separators(
+        data_type: DataDecodeType,
+        line_separator: Option<&str>,
+        token_separator: Option<&str>,
+        kv_separator: Option<&str>,
+    ) -> ETLOperator {
+        ETLOperator::Decode(DecodeDeleteParams {
+            data_type,
+            line_separator: line_separator.map(|v| v.to_string()),
+            token_separator: token_separator.map(|v| v.to_string()),
+            kv_separator: kv_separator.map(|v| v.to_string()),
+        })
+    }
 
     #[test]
-    fn decode_json_object_ok() {
+    fn decode_json_object_and_array_ok() {
         let data = Bytes::from(r#"{"k":"v","n":1}"#);
-        let result = operator_decode_data(data, &DataDecodeType::JsonObject).unwrap();
+        let op = build_decode_op(DataDecodeType::JsonObject);
+        let result = operator_decode_data(&op, &data).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].get("k").and_then(|v| v.as_str()), Some("v"));
         assert_eq!(result[0].get("n").and_then(|v| v.as_i64()), Some(1));
-    }
-
-    #[test]
-    fn decode_json_array_ok() {
-        let data = Bytes::from(r#"[{"k":"a"},{"k":"b"}]"#);
-        let result = operator_decode_data(data, &DataDecodeType::JsonArray).unwrap();
-        assert_eq!(result.len(), 2);
-    }
-
-    #[test]
-    fn decode_key_value_line_ok() {
-        let data = Bytes::from("a=1 b=true c=hello");
-        let result = operator_decode_data(data, &DataDecodeType::KeyValueLine).unwrap();
-        assert_eq!(result.len(), 1);
-        let map = &result[0];
-        assert_eq!(map.get("a").and_then(|v| v.as_i64()), Some(1));
-        assert_eq!(map.get("b").and_then(|v| v.as_bool()), Some(true));
-        assert_eq!(map.get("c").and_then(|v| v.as_str()), Some("hello"));
-    }
-
-    #[test]
-    fn decode_csv_ok() {
-        let data = Bytes::from("a,b\n1,2\n3,4");
-        let result = operator_decode_data(data, &DataDecodeType::Csv).unwrap();
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0].get("a").and_then(|v| v.as_i64()), Some(1));
+        let array_data = Bytes::from(r#"[{"k":"a"},{"k":"b"}]"#);
+        let array_op = build_decode_op(DataDecodeType::JsonArray);
+        let array_result = operator_decode_data(&array_op, &array_data).unwrap();
+        assert_eq!(array_result.len(), 2);
     }
 
     #[test]
     fn decode_positional_line_empty_err() {
         let data = Bytes::from("   ");
-        let result = operator_decode_data(data, &DataDecodeType::PositionalLine);
+        let op = build_decode_op(DataDecodeType::PositionalLine);
+        let result = operator_decode_data(&op, &data);
         assert!(result.is_err());
     }
 
     #[test]
     fn decode_json_array_non_object_element_has_index() {
         let data = Bytes::from(r#"[{"k":"v"}, 42]"#);
-        let err = operator_decode_data(data, &DataDecodeType::JsonArray).unwrap_err();
+        let op = build_decode_op(DataDecodeType::JsonArray);
+        let err = operator_decode_data(&op, &data).unwrap_err();
         assert!(err.to_string().contains("index: 1"));
+    }
+
+    #[test]
+    fn decode_with_separators_cases() {
+        let cases: Vec<DecodeCase<'_>> = vec![
+            (
+                build_decode_op_with_separators(DataDecodeType::JsonLines, Some("||"), None, None),
+                Bytes::from(r#"{"d":"d1"}||{"d":"d2"}"#),
+                vec![("d", Value::String("d2".to_string()))],
+            ),
+            (
+                build_decode_op_with_separators(
+                    DataDecodeType::KeyValueLine,
+                    None,
+                    Some(";"),
+                    Some(":"),
+                ),
+                Bytes::from("a:1;b:true;c:hello"),
+                vec![
+                    ("a", Value::Number(1_i64.into())),
+                    ("b", Value::Bool(true)),
+                    ("c", Value::String("hello".to_string())),
+                ],
+            ),
+            (
+                build_decode_op_with_separators(
+                    DataDecodeType::KeyValueLine,
+                    None,
+                    Some(""),
+                    Some(""),
+                ),
+                Bytes::from("a=1 b=true c=hello"),
+                vec![
+                    ("a", Value::Number(1_i64.into())),
+                    ("b", Value::Bool(true)),
+                    ("c", Value::String("hello".to_string())),
+                ],
+            ),
+            (
+                build_decode_op_with_separators(
+                    DataDecodeType::PositionalLine,
+                    None,
+                    Some("|"),
+                    None,
+                ),
+                Bytes::from("2026-03-03|INFO|d1|36.5"),
+                vec![
+                    ("col_0", Value::String("2026-03-03".to_string())),
+                    ("col_1", Value::String("INFO".to_string())),
+                    ("col_2", Value::String("d1".to_string())),
+                    (
+                        "col_3",
+                        Value::Number(serde_json::Number::from_f64(36.5).unwrap()),
+                    ),
+                ],
+            ),
+            (
+                build_decode_op_with_separators(
+                    DataDecodeType::PositionalLine,
+                    None,
+                    Some(""),
+                    None,
+                ),
+                Bytes::from("2026-03-03 INFO d1 36.5"),
+                vec![
+                    ("col_0", Value::String("2026-03-03".to_string())),
+                    ("col_1", Value::String("INFO".to_string())),
+                    ("col_2", Value::String("d1".to_string())),
+                    (
+                        "col_3",
+                        Value::Number(serde_json::Number::from_f64(36.5).unwrap()),
+                    ),
+                ],
+            ),
+        ];
+
+        for (op, data, expected_fields) in cases {
+            let result = operator_decode_data(&op, &data).unwrap();
+            let map = result.last().unwrap();
+            for (field, expected_value) in expected_fields {
+                assert_eq!(map.get(field), Some(&expected_value));
+            }
+        }
+    }
+
+    #[test]
+    fn decode_csv_ok() {
+        let data = Bytes::from("a,b\n1,2\n3,4");
+        let op = build_decode_op(DataDecodeType::Csv);
+        let result = operator_decode_data(&op, &data).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].get("a").and_then(|v| v.as_i64()), Some(1));
     }
 }

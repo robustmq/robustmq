@@ -82,7 +82,10 @@ impl NodeCallManager {
             })?;
             return Ok(());
         }
-        Err(CommonError::CommonError("".to_string()))
+        Err(CommonError::CommonError(
+            "NodeCallManager global sender is not initialized; call start() before send()"
+                .to_string(),
+        ))
     }
 
     pub async fn start(&self, stop_send: broadcast::Sender<bool>) {

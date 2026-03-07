@@ -209,7 +209,9 @@ async fn send_delay_message_to_shard(
         properties.push((DELAY_MESSAGE_SAVE_MS.to_string(), trigger_time.to_string()));
         properties
     } else {
-        return Err(CommonError::CommonError("".to_string()));
+        return Err(CommonError::CommonError(
+            "Delay message user_properties is None; cannot append delay timestamp".to_string(),
+        ));
     };
     msg.user_properties = Some(user_properties);
 
