@@ -59,6 +59,7 @@ reqwest.workspace = true
 governor.workspace = true
 chrono-tz.workspace = true
 bytes.workspace = true
+dashmap.workspace = true
 
 # A custom cfg for enabling tokio-console in tracing-subscriber
 # Enable this by running with `RUSTFLAGS="--cfg tokio_console"`

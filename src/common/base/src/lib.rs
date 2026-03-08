@@ -24,6 +24,7 @@ pub mod node_status;
 pub mod port;
 pub mod role;
 pub mod runtime;
+pub mod task;
 pub mod telemetry;
 pub mod tools;
 pub mod utils;

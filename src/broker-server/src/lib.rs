@@ -28,6 +28,7 @@ use common_base::{
         create_runtime, resolve_broker_worker_threads, resolve_meta_worker_threads,
         resolve_server_worker_threads,
     },
+    task::TaskSupervisor,
 };
 use common_config::{
     broker::broker_config, config::BrokerConfig, storage::memory::StorageDriverMemoryConfig,
@@ -98,6 +99,7 @@ pub struct BrokerServer {
     offset_manager: Arc<OffsetManager>,
     delay_task_manager: Arc<DelayTaskManager>,
     node_call_manager: Arc<NodeCallManager>,
+    task_supervisor: Arc<TaskSupervisor>,
     config: BrokerConfig,
 }
 
@@ -127,6 +129,7 @@ impl BrokerServer {
         let server_runtime = create_runtime("server-runtime", server_worker_threads);
         let broker_cache = Arc::new(BrokerCacheManager::new(config.clone()));
         let connection_manager = Arc::new(NetworkConnectionManager::new());
+        let task_supervisor = Arc::new(TaskSupervisor::new());
 
         let (main_stop_send, _) = broadcast::channel(2);
 
@@ -228,6 +231,7 @@ impl BrokerServer {
             connection_manager,
             node_call_manager,
             offset_manager,
+            task_supervisor,
         }
     }
 
