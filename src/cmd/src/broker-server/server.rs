@@ -21,7 +21,7 @@ use common_base::version::logo::banner_info;
 use common_config::{broker::init_broker_conf_by_path, DEFAULT_BROKER_SERVER_CONFIG};
 
 #[derive(Parser, Debug)]
-#[command(author="RobustMQ", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
+#[command(author="RobustMQ", version="0.3.3", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
 #[command(next_line_help = true)]
 struct ArgsParams {
     /// broker server configuration file path
