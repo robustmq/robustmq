@@ -582,7 +582,77 @@ export ROBUST_MQ_SERVER_GRPC_CLIENT_CHANNELS_PER_ADDRESS=8
 
 ---
 
-## 21. Monitoring Configuration
+## 21. LLM Client Configuration
+
+### [llm_client]
+
+Configures the Broker's unified LLM client (`LLMClient`). This section is optional. If omitted, the LLM client is not enabled.
+
+```toml
+[llm_client]
+platform = "open_ai"
+model = "gpt-4o-mini"
+token = "your_api_token"
+# Optional: useful for OpenAI-compatible gateways or private deployments
+# base_url = "https://api.openai.com/v1/"
+```
+
+| Configuration | Type | Default | Description |
+|---------------|------|---------|-------------|
+| `platform` | `string` | none | LLM provider identifier |
+| `model` | `string` | none | Model name, e.g. `gpt-4o-mini`, `claude-3-5-sonnet`, `gemini-2.0-flash` |
+| `token` | `string` | none | Access token. Required for all providers except `ollama` |
+| `base_url` | `string` | none | Custom API base URL (optional) |
+
+**`base_url` behavior (important):**
+
+- If `base_url` is omitted, `genai` uses the provider's default official endpoint.
+- Set `base_url` when using a proxy gateway, an OpenAI-compatible service, private deployment, or internal routing.
+- For `ollama`, if omitted, the default is `http://localhost:11434/v1/`.
+
+**Default endpoint behavior when `base_url` is omitted:**
+
+| `platform` | Can omit `base_url` | Default endpoint |
+|------------|----------------------|------------------|
+| `open_ai` / `open_ai_resp` | yes | OpenAI official |
+| `gemini` | yes | Google Gemini official |
+| `anthropic` | yes | Anthropic official |
+| `cohere` | yes | Cohere official |
+| `xai` | yes | xAI official |
+| `deep_seek` | yes | DeepSeek official |
+| `groq` / `together` / `fireworks` / `nebius` / `mimo` / `zai` / `big_model` | yes | Each provider official |
+| `ollama` | yes | `http://localhost:11434/v1/` |
+
+**Allowed `platform` values:**
+
+- `open_ai`
+- `open_ai_resp`
+- `gemini`
+- `anthropic`
+- `fireworks`
+- `together`
+- `groq`
+- `mimo`
+- `nebius`
+- `xai`
+- `deep_seek`
+- `zai`
+- `big_model`
+- `cohere`
+- `ollama`
+
+**Environment variable example:**
+
+```bash
+export ROBUST_MQ_SERVER_LLM_CLIENT_PLATFORM=open_ai
+export ROBUST_MQ_SERVER_LLM_CLIENT_MODEL=gpt-4o-mini
+export ROBUST_MQ_SERVER_LLM_CLIENT_TOKEN=your_api_token
+# export ROBUST_MQ_SERVER_LLM_CLIENT_BASE_URL=https://api.openai.com/v1/
+```
+
+---
+
+## 22. Monitoring Configuration
 
 ### [prometheus]
 
@@ -764,6 +834,13 @@ frequency = 100
 # ========== gRPC Client ==========
 [grpc_client]
 channels_per_address = 4
+
+# ========== LLM Client (optional) ==========
+[llm_client]
+platform = "open_ai"
+model = "gpt-4o-mini"
+token = "your_api_token"
+# base_url = "https://api.openai.com/v1/"
 
 # ========== Logging ==========
 [log]

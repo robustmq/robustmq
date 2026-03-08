@@ -530,7 +530,77 @@ export ROBUST_MQ_SERVER_GRPC_CLIENT_CHANNELS_PER_ADDRESS=8
 
 ---
 
-## 21. 监控配置
+## 21. LLM 客户端配置
+
+### [llm_client]
+
+用于配置 Broker 内部统一的 LLM 调用客户端（`LLMClient`）。该配置为可选项，不配置时不会启用 LLM 客户端。
+
+```toml
+[llm_client]
+platform = "open_ai"
+model = "gpt-4o-mini"
+token = "your_api_token"
+# 可选：用于 OpenAI 兼容网关或私有部署
+# base_url = "https://api.openai.com/v1/"
+```
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `platform` | `string` | 无 | LLM 平台标识 |
+| `model` | `string` | 无 | 模型名称，如 `gpt-4o-mini`、`claude-3-5-sonnet`、`gemini-2.0-flash` |
+| `token` | `string` | 无 | 访问令牌。除 `ollama` 外其余平台必填 |
+| `base_url` | `string` | 无 | 自定义 API 基地址（可选） |
+
+**`base_url` 说明（重点）：**
+
+- 不填 `base_url` 时，会使用 `genai` 的默认官方 endpoint。
+- 只有在以下场景建议填写：使用代理网关、OpenAI 兼容服务、私有化部署、内网转发。
+- `ollama` 不填时默认走本机：`http://localhost:11434/v1/`。
+
+**常见平台不填 `base_url` 的默认行为：**
+
+| `platform` | `base_url` 可否省略 | 默认 endpoint |
+|------------|---------------------|---------------|
+| `open_ai` / `open_ai_resp` | 可以 | OpenAI 官方 |
+| `gemini` | 可以 | Google Gemini 官方 |
+| `anthropic` | 可以 | Anthropic 官方 |
+| `cohere` | 可以 | Cohere 官方 |
+| `xai` | 可以 | xAI 官方 |
+| `deep_seek` | 可以 | DeepSeek 官方 |
+| `groq` / `together` / `fireworks` / `nebius` / `mimo` / `zai` / `big_model` | 可以 | 各平台官方 |
+| `ollama` | 可以 | `http://localhost:11434/v1/` |
+
+**`platform` 可选值：**
+
+- `open_ai`
+- `open_ai_resp`
+- `gemini`
+- `anthropic`
+- `fireworks`
+- `together`
+- `groq`
+- `mimo`
+- `nebius`
+- `xai`
+- `deep_seek`
+- `zai`
+- `big_model`
+- `cohere`
+- `ollama`
+
+**环境变量示例：**
+
+```bash
+export ROBUST_MQ_SERVER_LLM_CLIENT_PLATFORM=open_ai
+export ROBUST_MQ_SERVER_LLM_CLIENT_MODEL=gpt-4o-mini
+export ROBUST_MQ_SERVER_LLM_CLIENT_TOKEN=your_api_token
+# export ROBUST_MQ_SERVER_LLM_CLIENT_BASE_URL=https://api.openai.com/v1/
+```
+
+---
+
+## 22. 监控配置
 
 ### [prometheus]
 
@@ -700,6 +770,13 @@ frequency = 100
 # ========== gRPC 客户端 ==========
 [grpc_client]
 channels_per_address = 4
+
+# ========== LLM 客户端（可选） ==========
+[llm_client]
+platform = "open_ai"
+model = "gpt-4o-mini"
+token = "your_api_token"
+# base_url = "https://api.openai.com/v1/"
 
 # ========== 日志 ==========
 [log]

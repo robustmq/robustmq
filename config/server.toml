@@ -114,5 +114,7 @@ channels_per_address = 4
 # platform = "open_ai"
 # model = "gpt-4o-mini"
 # token = "your_api_token"
-# # Optional, useful for custom OpenAI-compatible endpoints.
+# # Optional. If omitted, use provider default official endpoint.
+# # For ollama, default is http://localhost:11434/v1/
+# # Useful for custom OpenAI-compatible gateways/private deployments.
 # # base_url = "https://api.openai.com/v1/"
