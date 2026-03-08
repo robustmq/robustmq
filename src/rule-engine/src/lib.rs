@@ -16,7 +16,11 @@
 use bytes::Bytes;
 use common_base::error::common::CommonError;
 use metadata_struct::connector::rule::{ETLOperator, ETLRule};
+use operator::delete::operator_delete;
 use operator::extract::operator_extract;
+use operator::keep_only::operator_keep_only;
+use operator::rename::operator_rename;
+use operator::set::operator_set;
 
 use crate::{decode::operator_decode_data, encode::operator_encode_data};
 
@@ -43,8 +47,18 @@ pub async fn apply_rule_engine(etl_rule: &ETLRule, data: &Bytes) -> Result<Bytes
             ETLOperator::Extract(params) => {
                 record_data = operator_extract(params, &record_data)?;
             }
-            ETLOperator::Set(_params) => {}
-            ETLOperator::Delete(_params) => {}
+            ETLOperator::Rename(params) => {
+                record_data = operator_rename(params, &record_data)?;
+            }
+            ETLOperator::KeepOnly(params) => {
+                record_data = operator_keep_only(params, &record_data)?;
+            }
+            ETLOperator::Set(params) => {
+                record_data = operator_set(params, &record_data)?;
+            }
+            ETLOperator::Delete(params) => {
+                record_data = operator_delete(params, &record_data)?;
+            }
         }
     }
 
@@ -58,7 +72,8 @@ mod tests {
     use super::apply_rule_engine;
     use metadata_struct::connector::rule::{
         DataDecodeType, DataEncodeType, DecodeDeleteParams, ETLOperator, ETLRule,
-        EncodeDeleteParams, ExtractRuleParams,
+        EncodeDeleteParams, ExtractRuleParams, FilterDeleteParams, FilterSetParams,
+        KeepOnlyRuleParams, RenameRuleParams, SetRule, SetValue,
     };
     use serde_json::Value;
     use std::collections::HashMap;
@@ -82,14 +97,53 @@ mod tests {
     fn apply_rule_engine_extract_chain_ok() {
         let source = crate::test_data::gateway_source_json_bytes();
 
-        let mut field_mapping = HashMap::new();
-        field_mapping.insert("session.mqtt.topic".to_string(), "mqtt_topic".to_string());
-        field_mapping.insert("gateway.network.wan.ip".to_string(), "wan_ip".to_string());
-        field_mapping.insert(
+        let mut extract_field_mapping = HashMap::new();
+        extract_field_mapping.insert("session.mqtt.topic".to_string(), "mqtt_topic".to_string());
+        extract_field_mapping.insert("gateway.network.wan.ip".to_string(), "wan_ip".to_string());
+        extract_field_mapping.insert(
             "/payload/alarms/0/active".to_string(),
             "alarm_active".to_string(),
         );
-        field_mapping.insert("not.exists.path".to_string(), "missing".to_string());
+        extract_field_mapping.insert("not.exists.path".to_string(), "missing".to_string());
+
+        let mut rename_field_mapping = HashMap::new();
+        rename_field_mapping.insert("mqtt_topic".to_string(), "topic".to_string());
+        rename_field_mapping.insert("wan_ip".to_string(), "gateway_wan_ip".to_string());
+
+        let keep_only_params = KeepOnlyRuleParams {
+            keys: vec![
+                "topic".to_string(),
+                "gateway_wan_ip".to_string(),
+                "alarm_active".to_string(),
+                "missing".to_string(),
+                "rule_name".to_string(),
+                "processed_at".to_string(),
+                "topic_copy".to_string(),
+            ],
+        };
+        let delete_params = FilterDeleteParams {
+            keys: vec!["missing".to_string(), "gateway_wan_ip".to_string()],
+        };
+        let set_params = FilterSetParams {
+            rules: vec![
+                SetRule {
+                    target_field: "rule_name".to_string(),
+                    value: SetValue::Const {
+                        value: Value::String("extract_chain".to_string()),
+                    },
+                },
+                SetRule {
+                    target_field: "processed_at".to_string(),
+                    value: SetValue::Now,
+                },
+                SetRule {
+                    target_field: "topic_copy".to_string(),
+                    value: SetValue::Cel {
+                        expr: "topic".to_string(),
+                    },
+                },
+            ],
+        };
 
         let etl_rule = ETLRule {
             decode_rule: Some(ETLOperator::Decode(DecodeDeleteParams {
@@ -98,7 +152,17 @@ mod tests {
                 token_separator: None,
                 kv_separator: None,
             })),
-            ops_rule_list: vec![ETLOperator::Extract(ExtractRuleParams { field_mapping })],
+            ops_rule_list: vec![
+                ETLOperator::Extract(ExtractRuleParams {
+                    field_mapping: extract_field_mapping,
+                }),
+                ETLOperator::Rename(RenameRuleParams {
+                    field_mapping: rename_field_mapping,
+                }),
+                ETLOperator::Set(set_params),
+                ETLOperator::KeepOnly(keep_only_params),
+                ETLOperator::Delete(delete_params),
+            ],
             encode_rule: Some(ETLOperator::Encode(EncodeDeleteParams {
                 data_type: DataEncodeType::JsonObject,
                 line_separator: None,
@@ -116,18 +180,30 @@ mod tests {
         println!("output: {}", output);
 
         assert_eq!(
-            output.get("mqtt_topic").and_then(|v| v.as_str()),
+            output.get("topic").and_then(|v| v.as_str()),
             Some("factory/a/line3/meter/44001/data")
-        );
-        assert_eq!(
-            output.get("wan_ip").and_then(|v| v.as_str()),
-            Some("10.8.12.34")
         );
         assert_eq!(
             output.get("alarm_active").and_then(|v| v.as_bool()),
             Some(true)
         );
-        assert_eq!(output.get("missing").and_then(|v| v.as_str()), Some("-"));
+        assert_eq!(
+            output.get("rule_name").and_then(|v| v.as_str()),
+            Some("extract_chain")
+        );
+        assert_eq!(
+            output.get("topic_copy").and_then(|v| v.as_str()),
+            Some("factory/a/line3/meter/44001/data")
+        );
+        assert!(output
+            .get("processed_at")
+            .and_then(|v| v.as_str())
+            .map(|v| !v.is_empty())
+            .unwrap_or(false));
+        assert!(output.get("gateway_wan_ip").is_none());
+        assert!(output.get("missing").is_none());
+        assert!(output.get("mqtt_topic").is_none());
+        assert!(output.get("wan_ip").is_none());
         assert!(output.get("ts").is_none());
     }
 }

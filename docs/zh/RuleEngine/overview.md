@@ -7,14 +7,14 @@ RobustMQ 规则引擎用于在 Connector 内做轻量数据处理。
 
 | 源数据格式 | 简要说明 | Demo（短） | 是否支持 | 优先级 |
 | --- | --- | --- | --- | --- |
-| JSON Object | 单条结构化对象 | `{"device":"d1","temp":36.5}` | ❌ | 高 |
-| JSON Array | 多条对象数组 | `[{"device":"d1"},{"device":"d2"}]` | ❌ | 高 |
-| JSON Lines | 每行一个 JSON 对象 | `{"d":"d1"}\n{"d":"d2"}` | ❌ | 中 |
-| key=value 行日志 | 键值对文本，按分隔符解析 | `ts=2026-03-03 level=INFO temp=36.5` | ❌ | 高 |
-| 无 key 行日志 | 固定列顺序文本 | `2026-03-03 INFO d1 36.5` | ❌ | 高 |
-| CSV | 逗号分隔表格文本 | `ts,level,device,temp` | ❌ | 高 |
-| 纯文本 | 非结构化或半结构化字符串 | `device d1 temp 36.5` | ❌ | 中 |
-| bytes（二进制） | 原始二进制负载 | `0x89 0x50 0x4E 0x47 ...` | ❌ | 低 |
+| JSON Object | 单条结构化对象 | `{"device":"d1","temp":36.5}` | ✅ | 高 |
+| JSON Array | 多条对象数组 | `[{"device":"d1"},{"device":"d2"}]` | ✅ | 高 |
+| JSON Lines | 每行一个 JSON 对象 | `{"d":"d1"}\n{"d":"d2"}` | ✅ | 中 |
+| key=value 行日志 | 键值对文本，按分隔符解析 | `ts=2026-03-03 level=INFO temp=36.5` | ✅ | 高 |
+| 无 key 行日志 | 固定列顺序文本 | `2026-03-03 INFO d1 36.5` | ✅ | 高 |
+| CSV | 逗号分隔表格文本 | `ts,level,device,temp` | ✅ | 高 |
+| 纯文本 | 非结构化或半结构化字符串 | `device d1 temp 36.5` | ✅ | 中 |
+| bytes（二进制） | 原始二进制负载 | `0x89 0x50 0x4E 0x47 ...` | ✅ | 低 |
 | Protobuf | 二进制协议，需要 schema | `Message<DeviceData>(binary)` | ❌ | 低 |
 | XML | 标签化结构文本 | `<msg><device>d1</device></msg>` | ❌ | 中 |
 
@@ -32,10 +32,11 @@ RobustMQ 规则引擎用于在 Connector 内做轻量数据处理。
 
 | 算子 | 作用 | 典型场景 | 完成 |
 | --- | --- | --- | --- |
+| `extract` | 按字段映射提取字段，支持点路径和 JSON Pointer，不存在字段填 `"-"` | 从复杂 JSON 投影出 `topic / ip / alarm_active` 等关键字段 | ✅ |
 | `set` | 新增字段或覆盖字段，值支持 CEL 表达式 | 写入 `tenant`、计算 `temp_f = temp * 1.8 + 32` | ❌ |
-| `delete` | 删除一个或多个字段 | 删除中间态字段、敏感字段、调试字段 | ❌ |
-| `rename` | 字段重命名 | 把异构设备字段名统一映射 | ❌ |
-| `keep_only` | 只保留指定字段，其余全部删除 | 脱敏后只保留必要字段再写存储 | ❌ |
+| `delete` | 删除一个或多个顶层字段（按 key 列表） | 删除中间态字段、敏感字段、调试字段 | ✅ |
+| `rename` | 顶层字段重命名（`old_key -> new_key`） | 把异构设备字段名统一映射 | ✅ |
+| `keep_only` | 只保留指定顶层字段（按 key 列表），其余全部删除 | 脱敏后只保留必要字段再写存储 | ✅ |
 | `flatten` | 嵌套 JSON 展平为顶层字段，支持自定义前缀 | `{"a":{"b":1}}` → `{"a.b":1}` | ❌ |
 | `nest` | 将多个字段打包为嵌套结构 | 把 `lat / lon` 合并为 `location: {lat, lon}` | ❌ |
 | `merge` | 合并两个 Map 对象，key 冲突时可配置覆盖策略 | 用元数据扩充设备上报字段 | ❌ |
@@ -111,6 +112,8 @@ RobustMQ 规则引擎用于在 Connector 内做轻量数据处理。
 
 | 算子 | 作用 | 典型场景 | 完成 |
 | --- | --- | --- | --- |
+| `decode` | 将输入 `Bytes` 解析为统一记录格式 `Vec<Map<String, Value>>`，支持 JSON/行日志/CSV/纯文本/bytes | 统一不同来源数据形态，供后续算子处理 | ✅ |
+| `encode` | 将处理后的统一记录格式序列化回 `Bytes`，支持 JSON/行日志/CSV/纯文本/bytes | 按目标 Connector 所需格式输出数据 | ✅ |
 | `base64_encode / base64_decode` | Base64 编解码 | 二进制内容转文本传输 | ❌ |
 | `bin2hexstr / hexstr2bin` | 十六进制字符串与字节互转 | 调试工业设备原始帧 | ❌ |
 | `gzip / gunzip` | 压缩/解压 | 压缩前写存储，或解压设备上报数据 | ❌ |

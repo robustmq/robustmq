@@ -12,8 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod delete;
-pub mod extract;
-pub mod keep_only;
-pub mod rename;
-pub mod set;
+pub mod client;

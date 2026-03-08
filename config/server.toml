@@ -106,3 +106,15 @@ durable_sessions_enable = false
 # Each channel supports ~200 concurrent RPCs via HTTP/2 multiplexing.
 # Default of 4 handles ~800 concurrent RPCs; increase only under extreme load.
 channels_per_address = 4
+
+# [llm_client]
+# # Supported values include:
+# # open_ai, open_ai_resp, gemini, anthropic, fireworks, together, groq,
+# # mimo, nebius, xai, deep_seek, zai, big_model, cohere, ollama
+# platform = "open_ai"
+# model = "gpt-4o-mini"
+# token = "your_api_token"
+# # Optional. If omitted, use provider default official endpoint.
+# # For ollama, default is http://localhost:11434/v1/
+# # Useful for custom OpenAI-compatible gateways/private deployments.
+# # base_url = "https://api.openai.com/v1/"
