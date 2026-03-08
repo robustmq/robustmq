@@ -46,6 +46,7 @@ bytes.workspace = true
 validator.workspace = true
 rocksdb-engine.workspace = true
 connector.workspace = true
+common-healthy.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

@@ -21,7 +21,7 @@ use crate::mqtt::topic::{topic_delete, topic_rewrite_delete};
 use crate::{
     cluster::{
         cluster_config_get, cluster_config_set, cluster_info,
-        health::{health_cluster, health_live, health_node, health_ready, health_startup},
+        health::{health_cluster, health_node, health_ready},
         healthy,
     },
     mqtt::{
@@ -120,9 +120,7 @@ impl AdminServer {
         Router::new()
             .route(STATUS_PATH, get(cluster_info))
             .route(CLUSTER_HEALTHY_PATH, get(healthy))
-            .route(HEALTH_LIVE_PATH, get(health_live))
             .route(HEALTH_READY_PATH, get(health_ready))
-            .route(HEALTH_STARTUP_PATH, get(health_startup))
             .route(HEALTH_NODE_PATH, get(health_node))
             .route(HEALTH_CLUSTER_PATH, get(health_cluster))
             // config

@@ -12,5 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod port;
-pub mod ready;
+use std::net::TcpStream;
+
+/// Check whether a local TCP port is currently listening.
+pub fn is_local_port_listening(port: u32) -> bool {
+    TcpStream::connect(format!("127.0.0.1:{port}")).is_ok()
+}
