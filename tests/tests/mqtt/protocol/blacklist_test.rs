@@ -29,6 +29,8 @@ mod tests {
     use common_base::uuid::unique_id;
     use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
     use paho_mqtt::MessageBuilder;
+    use std::time::Duration;
+    use tokio::time::sleep;
 
     #[tokio::test]
     async fn blacklist_storage_test() {
@@ -45,6 +47,7 @@ mod tests {
         };
 
         create_blacklist(&admin_client, blacklist.clone()).await;
+        sleep(Duration::from_secs(3)).await;
 
         // list
         let list_request = BlackListListReq {
@@ -71,6 +74,7 @@ mod tests {
 
         // delete
         delete_blacklist(&admin_client, blacklist.clone()).await;
+        sleep(Duration::from_secs(3)).await;
 
         // list
         let mut flag = false;
