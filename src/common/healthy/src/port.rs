@@ -33,7 +33,7 @@ pub fn wait_for_port_ready(
         }
 
         checks += 1;
-        if checks % 10 == 0 {
+        if checks.is_multiple_of(10) {
             info!(
                 "{service_name} not ready yet on port {} (elapsed: {:?})",
                 port,
