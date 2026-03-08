@@ -32,6 +32,7 @@ use common_base::{
 use common_config::{
     broker::broker_config, config::BrokerConfig, storage::memory::StorageDriverMemoryConfig,
 };
+use common_healthy::port::{wait_for_engine_ready, wait_for_grpc_ready};
 use common_metrics::{core::server::register_prometheus_export, init_metrics};
 use connector::{manager::ConnectorManager, start_connector};
 use delay_message::manager::DelayMessageManager;
@@ -59,14 +60,7 @@ use rocksdb_engine::{
     storage::family::{column_family_list, storage_data_fold},
 };
 use schema_register::schema::SchemaRegisterManager;
-use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    thread::sleep,
-    time::Duration,
-};
+use std::{sync::Arc, thread::sleep, time::Duration};
 use storage_adapter::driver::StorageDriverManager;
 use storage_engine::{
     clients::manager::ClientConnectionManager, commitlog::memory::engine::MemoryStorageEngine,
@@ -245,8 +239,6 @@ impl BrokerServer {
         let broker_cache = self.broker_cache.clone();
         let grpc_port = self.config.grpc_port;
 
-        let grpc_ready = Arc::new(AtomicBool::new(false));
-        let grpc_ready_check = grpc_ready.clone();
         self.server_runtime.spawn(Box::pin(async move {
             if let Err(e) =
                 start_grpc_server(place_params, mqtt_params, engine_params, grpc_port).await
@@ -286,9 +278,6 @@ impl BrokerServer {
             admin_server.start(http_port, state).await;
         });
 
-        // check grpc server ready
-        self.check_grpc_server_ready(grpc_port, grpc_ready_check);
-
         // start pprof server
         self.server_runtime.spawn(async move {
             let conf = broker_config();
@@ -305,7 +294,9 @@ impl BrokerServer {
             });
         }
 
-        self.wait_for_grpc_ready(&grpc_ready);
+        if !wait_for_grpc_ready(grpc_port) {
+            std::process::exit(1);
+        }
 
         let mut meta_stop_send = None;
         let mut mqtt_stop_send = None;
@@ -374,7 +365,9 @@ impl BrokerServer {
             self.broker_runtime.spawn(Box::pin(async move {
                 server.start().await;
             }));
-            self.wait_for_engine_ready();
+            if !wait_for_engine_ready(self.config.storage_runtime.tcp_port) {
+                std::process::exit(1);
+            }
         }
 
         let (stop_send, _) = broadcast::channel(2);
@@ -643,78 +636,6 @@ impl BrokerServer {
 
             sleep(Duration::from_secs(3));
         }));
-    }
-
-    fn check_grpc_server_ready(&self, grpc_port: u32, grpc_ready: Arc<AtomicBool>) {
-        let max_retries = 30;
-        let retry_interval = Duration::from_millis(100);
-
-        std::thread::spawn(move || {
-            let addr = format!("127.0.0.1:{grpc_port}");
-
-            for attempt in 1..=max_retries {
-                match std::net::TcpStream::connect(&addr) {
-                    Ok(_) => {
-                        info!("GRPC server is ready on port {grpc_port}");
-                        grpc_ready.store(true, Ordering::Relaxed);
-                        return;
-                    }
-                    Err(e) => {
-                        if attempt % 10 == 0 {
-                            info!(
-                                "GRPC server not ready yet (attempt {}/{}): {}",
-                                attempt, max_retries, e
-                            );
-                        }
-                    }
-                }
-
-                std::thread::sleep(retry_interval);
-            }
-            error!(
-                "GRPC server failed to start within {} attempts",
-                max_retries
-            );
-            std::process::exit(1);
-        });
-    }
-
-    fn wait_for_grpc_ready(&self, grpc_ready: &Arc<AtomicBool>) {
-        let max_wait_time = Duration::from_secs(10);
-        let check_interval = Duration::from_millis(100);
-        let start_time = std::time::Instant::now();
-
-        while !grpc_ready.load(Ordering::Relaxed) {
-            if start_time.elapsed() > max_wait_time {
-                error!("GRPC server failed to start within {:?}", max_wait_time);
-                std::process::exit(1);
-            }
-            std::thread::sleep(check_interval);
-        }
-
-        info!("GRPC server startup check completed");
-    }
-
-    fn wait_for_engine_ready(&self) {
-        let engine_port = self.config.storage_runtime.tcp_port;
-        let max_wait_time = Duration::from_secs(10);
-        let check_interval = Duration::from_millis(100);
-        let start_time = std::time::Instant::now();
-
-        while start_time.elapsed() < max_wait_time {
-            match std::net::TcpStream::connect(format!("127.0.0.1:{engine_port}")) {
-                Ok(_) => {
-                    info!("Storage Engine startup check completed");
-                    return;
-                }
-                Err(_) => {
-                    std::thread::sleep(check_interval);
-                }
-            }
-        }
-
-        error!("Storage Engine failed to start within {:?}", max_wait_time);
-        std::process::exit(1);
     }
 
     async fn register_node(&self, main_stop: broadcast::Sender<bool>) {

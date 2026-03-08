@@ -43,6 +43,7 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
+ "common-healthy",
  "common-metrics",
  "connector",
  "dashmap 6.1.0",
@@ -1018,6 +1019,7 @@ dependencies = [
  "broker-core",
  "common-base",
  "common-config",
+ "common-healthy",
  "common-metrics",
  "connector",
  "delay-message",
@@ -1572,8 +1574,10 @@ name = "common-healthy"
 version = "0.3.2"
 dependencies = [
  "common-base",
+ "common-config",
  "dashmap 6.1.0",
  "governor",
+ "tracing",
 ]
 
 [[package]]

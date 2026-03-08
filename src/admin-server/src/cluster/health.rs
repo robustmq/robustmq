@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use axum::http::StatusCode;
 use common_base::http_response::success_response;
+use common_healthy::ready::healthy_ready_check;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -30,16 +32,26 @@ fn build_placeholder_resp(check_type: &str) -> String {
     })
 }
 
-pub async fn health_live() -> String {
-    build_placeholder_resp("live")
-}
-
-pub async fn health_ready() -> String {
-    build_placeholder_resp("ready")
-}
-
-pub async fn health_startup() -> String {
-    build_placeholder_resp("startup")
+pub async fn health_ready() -> (StatusCode, String) {
+    if healthy_ready_check() {
+        (
+            StatusCode::OK,
+            success_response(HealthCheckResp {
+                status: "ok".to_string(),
+                check_type: "ready".to_string(),
+                message: "all configured ports are ready".to_string(),
+            }),
+        )
+    } else {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            success_response(HealthCheckResp {
+                status: "not_ready".to_string(),
+                check_type: "ready".to_string(),
+                message: "one or more configured ports are not ready".to_string(),
+            }),
+        )
+    }
 }
 
 pub async fn health_node() -> String {
