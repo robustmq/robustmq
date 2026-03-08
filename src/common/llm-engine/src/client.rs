@@ -143,4 +143,23 @@ mod tests {
         assert!(!response.trim().is_empty());
         Ok(())
     }
+
+    #[tokio::test]
+    #[ignore = "requires local ollama service and model pre-pulled"]
+    async fn test_ollama_chat() -> super::LLMResult<()> {
+        let config = LLMClientConfig {
+            platform: LLMPlatform::Ollama,
+            model: std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5:3b".to_string()),
+            token: None,
+            base_url: std::env::var("OLLAMA_BASE_URL").ok(),
+        };
+
+        let client = LLMClient::new(config)?;
+        let response = client
+            .chat("Reply with a short phrase that includes the word robustmq.")
+            .await?;
+
+        assert!(!response.trim().is_empty());
+        Ok(())
+    }
 }
