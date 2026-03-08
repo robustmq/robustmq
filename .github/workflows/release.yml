@@ -116,7 +116,7 @@ jobs:
       startsWith(github.event.pull_request.title, 'release:')
     needs: build-and-release
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 120
 
     steps:
       - name: Checkout code
@@ -156,6 +156,7 @@ jobs:
             ghcr.io/${{ github.repository }}:latest
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
+            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

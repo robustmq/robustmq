@@ -30,6 +30,8 @@ RUN apt-get update && apt-get install -y \
 ARG VERSION
 ARG TARGETARCH
 ARG GITHUB_REPO=robustmq/robustmq
+# Optional: pass a GitHub token to avoid rate-limiting (required for private repos)
+ARG GITHUB_TOKEN
 
 # Poll release asset for up to 40 minutes, checking every 60 seconds.
 # Log each attempt so CI output clearly shows wait progress.
@@ -42,16 +44,31 @@ RUN set -e; \
       amd64|arm64) ASSET_ARCH="${TARGETARCH}" ;; \
       *) echo "ERROR: unsupported TARGETARCH=${TARGETARCH}"; exit 1 ;; \
     esac; \
+    if [ -n "${GITHUB_TOKEN}" ]; then \
+      AUTH_HEADER="-H \"Authorization: Bearer ${GITHUB_TOKEN}\""; \
+      AUTH_FLAG="--header \"Authorization: Bearer ${GITHUB_TOKEN}\""; \
+    else \
+      AUTH_HEADER=""; \
+      AUTH_FLAG=""; \
+    fi; \
     ASSET_NAME="robustmq-${VERSION}-linux-${ASSET_ARCH}.tar.gz"; \
     ASSET_URL="https://github.com/${GITHUB_REPO}/releases/download/${VERSION}/${ASSET_NAME}"; \
     echo "INFO: waiting for release asset: ${ASSET_URL}"; \
     ATTEMPT=1; \
     MAX_ATTEMPTS=40; \
     while [ "${ATTEMPT}" -le "${MAX_ATTEMPTS}" ]; do \
-      HTTP_CODE="$(curl -sSL -o /dev/null -w "%{http_code}" "${ASSET_URL}" || true)"; \
+      if [ -n "${GITHUB_TOKEN}" ]; then \
+        HTTP_CODE="$(curl -sSL -H "Authorization: Bearer ${GITHUB_TOKEN}" -o /dev/null -w "%{http_code}" "${ASSET_URL}" || true)"; \
+      else \
+        HTTP_CODE="$(curl -sSL -o /dev/null -w "%{http_code}" "${ASSET_URL}" || true)"; \
+      fi; \
       if [ "${HTTP_CODE}" = "200" ]; then \
         echo "INFO: asset is available (attempt ${ATTEMPT}/${MAX_ATTEMPTS}), downloading..."; \
-        curl -fsSLo "/tmp/${ASSET_NAME}" "${ASSET_URL}"; \
+        if [ -n "${GITHUB_TOKEN}" ]; then \
+          curl -fsSL -H "Authorization: Bearer ${GITHUB_TOKEN}" -o "/tmp/${ASSET_NAME}" "${ASSET_URL}"; \
+        else \
+          curl -fsSLo "/tmp/${ASSET_NAME}" "${ASSET_URL}"; \
+        fi; \
         mkdir -p /tmp/extract; \
         tar -xzf "/tmp/${ASSET_NAME}" -C /tmp/extract; \
         PKG_DIR="/tmp/extract/robustmq-${VERSION}-linux-${ASSET_ARCH}"; \
