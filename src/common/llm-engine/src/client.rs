@@ -19,6 +19,8 @@ use genai::chat::{ChatMessage, ChatRequest};
 use genai::resolver::{AuthData, Endpoint};
 use genai::{Client, ModelIden, ServiceTarget};
 
+pub type LLMResult<T> = Result<T, Box<CommonError>>;
+
 fn platform_to_adapter_kind(platform: &LLMPlatform) -> AdapterKind {
     match platform {
         LLMPlatform::OpenAI => AdapterKind::OpenAI,
@@ -45,8 +47,10 @@ pub struct LLMClient {
 }
 
 impl LLMClient {
-    pub fn new(config: LLMClientConfig) -> Result<Self, CommonError> {
-        config.validate()?;
+    pub fn new(config: LLMClientConfig) -> LLMResult<Self> {
+        config
+            .validate()
+            .map_err(|e| Box::new(CommonError::CommonError(e)))?;
 
         let adapter_kind = platform_to_adapter_kind(&config.platform);
         let base_url = config.base_url.clone();
@@ -73,7 +77,7 @@ impl LLMClient {
         Ok(Self { model_name, client })
     }
 
-    pub async fn chat(&self, prompt: &str) -> Result<String, CommonError> {
+    pub async fn chat(&self, prompt: &str) -> LLMResult<String> {
         self.chat_with_system(None, prompt).await
     }
 
@@ -81,11 +85,11 @@ impl LLMClient {
         &self,
         system_prompt: Option<&str>,
         prompt: &str,
-    ) -> Result<String, CommonError> {
+    ) -> LLMResult<String> {
         if prompt.trim().is_empty() {
-            return Err(CommonError::CommonError(
+            return Err(Box::new(CommonError::CommonError(
                 "prompt cannot be empty".to_string(),
-            ));
+            )));
         }
 
         let mut chat_req = ChatRequest::new(vec![ChatMessage::user(prompt)]);
@@ -99,26 +103,31 @@ impl LLMClient {
             .client
             .exec_chat(&self.model_name, chat_req, None)
             .await
-            .map_err(|e| CommonError::CommonError(format!("LLM request failed: {e}")))?;
+            .map_err(|e| Box::new(CommonError::CommonError(format!("LLM request failed: {e}"))))?;
 
         response
             .first_text()
             .map(ToString::to_string)
-            .ok_or_else(|| CommonError::CommonError("LLM response has no text content".to_string()))
+            .ok_or_else(|| {
+                Box::new(CommonError::CommonError(
+                    "LLM response has no text content".to_string(),
+                ))
+            })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::LLMClient;
-    use common_base::error::common::CommonError;
     use common_config::config::{LLMClientConfig, LLMPlatform};
 
     #[tokio::test]
     #[ignore = "requires OPENAI_API_KEY and real network access"]
-    async fn test_openai_chat() -> Result<(), CommonError> {
+    async fn test_openai_chat() -> super::LLMResult<()> {
         let token = std::env::var("OPENAI_API_KEY").map_err(|_| {
-            CommonError::CommonError("OPENAI_API_KEY environment variable is required".to_string())
+            Box::new(common_base::error::common::CommonError::CommonError(
+                "OPENAI_API_KEY environment variable is required".to_string(),
+            ))
         })?;
 
         let config = LLMClientConfig {

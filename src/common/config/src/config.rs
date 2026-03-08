@@ -27,7 +27,6 @@ use crate::common::Prometheus;
 use crate::common::{default_log, default_pprof, default_prometheus};
 use crate::storage::StorageAdapterConfig;
 use common_base::enum_type::delay_type::DelayType;
-use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 use toml::Table;
 
@@ -62,27 +61,21 @@ pub struct LLMClientConfig {
 }
 
 impl LLMClientConfig {
-    pub fn validate(&self) -> Result<(), CommonError> {
+    pub fn validate(&self) -> Result<(), String> {
         if self.model.trim().is_empty() {
-            return Err(CommonError::CommonError(
-                "model cannot be empty".to_string(),
-            ));
+            return Err("model cannot be empty".to_string());
         }
 
         if let Some(base_url) = &self.base_url {
             if !(base_url.starts_with("http://") || base_url.starts_with("https://")) {
-                return Err(CommonError::CommonError(
-                    "base_url must start with http:// or https://".to_string(),
-                ));
+                return Err("base_url must start with http:// or https://".to_string());
             }
         }
 
         if self.platform != LLMPlatform::Ollama {
             let token = self.token.as_deref().unwrap_or_default().trim();
             if token.is_empty() {
-                return Err(CommonError::CommonError(
-                    "token is required for non-ollama platforms".to_string(),
-                ));
+                return Err("token is required for non-ollama platforms".to_string());
             }
         }
 
