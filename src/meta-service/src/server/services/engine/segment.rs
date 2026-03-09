@@ -32,7 +32,18 @@ use protocol::meta::meta_service_journal::{
     UpdateStartTimeBySegmentMetaRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::pin::Pin;
 use std::sync::Arc;
+use tonic::codegen::tokio_stream::Stream;
+use tonic::Status;
+
+type ListSegmentStream =
+    Result<Pin<Box<dyn Stream<Item = Result<ListSegmentReply, Status>> + Send>>, MetaServiceError>;
+
+type ListSegmentMetaStream = Result<
+    Pin<Box<dyn Stream<Item = Result<ListSegmentMetaReply, Status>> + Send>>,
+    MetaServiceError,
+>;
 
 fn validate_shard_exists(
     cache_manager: &Arc<MetaCacheManager>,
@@ -59,7 +70,7 @@ fn validate_segment_exists(
 pub async fn list_segment_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSegmentRequest,
-) -> Result<ListSegmentReply, MetaServiceError> {
+) -> ListSegmentStream {
     let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
     let binary_segments = if req.shard_name.is_empty() && req.segment == -1 {
         segment_storage.all_segment()?
@@ -74,12 +85,16 @@ pub async fn list_segment_by_req(
 
     let segments_data = binary_segments
         .into_iter()
-        .map(|segment| segment.encode())
+        .map(|seg| seg.encode())
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(ListSegmentReply {
-        segments: segments_data,
-    })
+    let output = async_stream::try_stream! {
+        for segment in segments_data {
+            yield ListSegmentReply { segment };
+        }
+    };
+
+    Ok(Box::pin(output))
 }
 
 pub async fn create_segment_by_req(
@@ -203,7 +218,7 @@ pub async fn seal_up_segment_req(
 pub async fn list_segment_meta_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSegmentMetaRequest,
-) -> Result<ListSegmentMetaReply, MetaServiceError> {
+) -> ListSegmentMetaStream {
     let storage = SegmentMetadataStorage::new(rocksdb_engine_handler.clone());
     let binary_segments = if req.shard_name.is_empty() && req.segment == -1 {
         storage.all_segment()?
@@ -216,14 +231,18 @@ pub async fn list_segment_meta_by_req(
         }
     };
 
-    let segments_data = binary_segments
+    let segment_metas_data = binary_segments
         .into_iter()
-        .map(|segment| segment.encode())
+        .map(|meta| meta.encode())
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(ListSegmentMetaReply {
-        segments: segments_data,
-    })
+    let output = async_stream::try_stream! {
+        for segment_meta in segment_metas_data {
+            yield ListSegmentMetaReply { segment_meta };
+        }
+    };
+
+    Ok(Box::pin(output))
 }
 
 pub async fn update_start_time_by_segment_meta_by_req(

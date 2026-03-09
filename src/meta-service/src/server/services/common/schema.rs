@@ -30,11 +30,25 @@ use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use node_call::NodeCallManager;
 use prost_validate::Result;
 use protocol::meta::meta_service_common::{
-    BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListBindSchemaRequest,
-    ListSchemaRequest, UnBindSchemaRequest, UpdateSchemaRequest,
+    BindSchemaRequest, CreateSchemaRequest, DeleteSchemaRequest, ListBindSchemaReply,
+    ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, UnBindSchemaRequest,
+    UpdateSchemaRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::pin::Pin;
 use std::sync::Arc;
+use tonic::codegen::tokio_stream::Stream;
+use tonic::Status;
+
+type ListSchemaStream = std::result::Result<
+    Pin<Box<dyn Stream<Item = std::result::Result<ListSchemaReply, Status>> + Send>>,
+    MetaServiceError,
+>;
+
+type ListBindSchemaStream = std::result::Result<
+    Pin<Box<dyn Stream<Item = std::result::Result<ListBindSchemaReply, Status>> + Send>>,
+    MetaServiceError,
+>;
 
 // Helper: Validate non-empty field
 fn validate_non_empty(value: &str, field_name: &str) -> Result<(), MetaServiceError> {
@@ -68,7 +82,7 @@ fn validate_bind_fields(schema_name: &str, resource_name: &str) -> Result<(), Me
 pub fn list_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSchemaRequest,
-) -> Result<Vec<Vec<u8>>, MetaServiceError> {
+) -> ListSchemaStream {
     let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
     let list = if !req.schema_name.is_empty() {
         if let Some(data) = schema_storage.get(&req.schema_name)? {
@@ -80,11 +94,18 @@ pub fn list_schema_req(
         schema_storage.list()?
     };
 
-    let results = list
+    let schemas = list
         .into_iter()
         .map(|data| data.encode())
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(results)
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+
+    let output = async_stream::try_stream! {
+        for schema in schemas {
+            yield ListSchemaReply { schema };
+        }
+    };
+
+    Ok(Box::pin(output))
 }
 
 pub async fn create_schema_req(
@@ -167,39 +188,40 @@ pub async fn delete_schema_req(
 pub async fn list_bind_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListBindSchemaRequest,
-) -> Result<Vec<Vec<u8>>, MetaServiceError> {
+) -> ListBindSchemaStream {
     let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
 
     let has_schema = !req.schema_name.is_empty();
     let has_resource = !req.resource_name.is_empty();
 
-    // Get specific schema bind (both fields provided)
-    if has_schema && has_resource {
-        return match schema_storage.get_bind(&req.schema_name, &req.resource_name)? {
-            Some(bind) => Ok(vec![bind.encode()?]),
-            None => Ok(Vec::new()),
-        };
-    }
-
-    // List all schema binds
-    if !has_schema && !has_resource {
-        let results = schema_storage.list_bind()?;
-        return Ok(results
+    let schema_binds: Vec<Vec<u8>> = if has_schema && has_resource {
+        match schema_storage.get_bind(&req.schema_name, &req.resource_name)? {
+            Some(bind) => vec![bind.encode()?],
+            None => Vec::new(),
+        }
+    } else if !has_schema && !has_resource {
+        schema_storage
+            .list_bind()?
             .into_iter()
             .map(|raw| raw.encode())
-            .collect::<Result<Vec<_>, _>>()?);
-    }
-
-    // List by resource
-    if !has_schema && has_resource {
-        let results = schema_storage.list_bind_by_resource(&req.resource_name)?;
-        return Ok(results
+            .collect::<std::result::Result<Vec<_>, _>>()?
+    } else if !has_schema && has_resource {
+        schema_storage
+            .list_bind_by_resource(&req.resource_name)?
             .into_iter()
             .map(|raw| raw.encode())
-            .collect::<Result<Vec<_>, _>>()?);
-    }
+            .collect::<std::result::Result<Vec<_>, _>>()?
+    } else {
+        Vec::new()
+    };
 
-    Ok(Vec::new())
+    let output = async_stream::try_stream! {
+        for schema_bind in schema_binds {
+            yield ListBindSchemaReply { schema_bind };
+        }
+    };
+
+    Ok(Box::pin(output))
 }
 
 pub async fn bind_schema_req(

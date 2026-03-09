@@ -78,13 +78,14 @@ mod test {
         };
 
         match list_schema(&client_pool, &addrs, list_request.clone()).await {
-            Ok(reply) => {
-                assert_eq!(reply.schemas.len(), 1);
-                let schema = SchemaData::decode(reply.schemas.first().unwrap()).unwrap();
-
-                check_schema_equal(&schema, &schema_data);
+            Ok(mut stream) => {
+                let mut schemas = Vec::new();
+                while let Some(reply) = stream.message().await.unwrap() {
+                    schemas.push(SchemaData::decode(&reply.schema).unwrap());
+                }
+                assert_eq!(schemas.len(), 1);
+                check_schema_equal(schemas.first().unwrap(), &schema_data);
             }
-
             Err(e) => {
                 panic!("list schema failed: {e}");
             }
@@ -117,13 +118,14 @@ mod test {
 
         // check the schema we just updated
         match list_schema(&client_pool, &addrs, list_request.clone()).await {
-            Ok(reply) => {
-                assert_eq!(reply.schemas.len(), 1);
-                let schema = SchemaData::decode(reply.schemas.first().unwrap()).unwrap();
-
-                check_schema_equal(&schema, &schema_data);
+            Ok(mut stream) => {
+                let mut schemas = Vec::new();
+                while let Some(reply) = stream.message().await.unwrap() {
+                    schemas.push(SchemaData::decode(&reply.schema).unwrap());
+                }
+                assert_eq!(schemas.len(), 1);
+                check_schema_equal(schemas.first().unwrap(), &schema_data);
             }
-
             Err(e) => {
                 panic!("list schema failed: {e}");
             }
@@ -142,10 +144,13 @@ mod test {
         }
 
         match list_schema(&client_pool, &addrs, list_request).await {
-            Ok(reply) => {
-                assert_eq!(reply.schemas.len(), 0);
+            Ok(mut stream) => {
+                let mut count = 0;
+                while let Some(_reply) = stream.message().await.unwrap() {
+                    count += 1;
+                }
+                assert_eq!(count, 0);
             }
-
             Err(e) => {
                 panic!("list schema failed: {e}");
             }

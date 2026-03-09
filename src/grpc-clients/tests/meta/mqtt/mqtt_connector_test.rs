@@ -74,15 +74,16 @@ mod test {
             connector_name: connector_name.clone(),
         };
 
-        let reply = placement_list_connector(&client_pool, &addrs, list_request.clone())
+        let mut stream = placement_list_connector(&client_pool, &addrs, list_request.clone())
             .await
             .unwrap();
-        assert_eq!(reply.connectors.len(), 1);
-        for connector_bytes in reply.connectors {
-            let mqtt_connector = MQTTConnector::decode(&connector_bytes).unwrap();
-
+        let mut count = 0;
+        while let Some(reply) = stream.message().await.unwrap() {
+            let mqtt_connector = MQTTConnector::decode(&reply.connector).unwrap();
             check_connector_equal(&mqtt_connector, &connector);
+            count += 1;
         }
+        assert_eq!(count, 1);
 
         // update connector
         connector.connector_type = ConnectorType::Kafka(KafkaConnectorConfig {
@@ -102,17 +103,16 @@ mod test {
             .unwrap();
 
         // list the connector we just updated
-        let reply = placement_list_connector(&client_pool, &addrs, list_request.clone())
+        let mut stream = placement_list_connector(&client_pool, &addrs, list_request.clone())
             .await
             .unwrap();
-
-        assert_eq!(reply.connectors.len(), 1);
-
-        for connector_bytes in reply.connectors {
-            let mqtt_connector = MQTTConnector::decode(&connector_bytes).unwrap();
-
+        let mut count = 0;
+        while let Some(reply) = stream.message().await.unwrap() {
+            let mqtt_connector = MQTTConnector::decode(&reply.connector).unwrap();
             check_connector_equal(&mqtt_connector, &connector);
+            count += 1;
         }
+        assert_eq!(count, 1);
 
         // delete connector
         let delete_request = DeleteConnectorRequest {
@@ -124,9 +124,13 @@ mod test {
             .unwrap();
 
         // list connector should return nothing
-        let reply = placement_list_connector(&client_pool, &addrs, list_request)
+        let mut stream = placement_list_connector(&client_pool, &addrs, list_request)
             .await
             .unwrap();
-        assert_eq!(reply.connectors.len(), 0);
+        let mut count = 0;
+        while let Some(_reply) = stream.message().await.unwrap() {
+            count += 1;
+        }
+        assert_eq!(count, 0);
     }
 }

@@ -20,6 +20,7 @@ use protocol::meta::meta_service_journal::{
     ListShardReply, ListShardRequest, SealUpSegmentReply, SealUpSegmentRequest,
     UpdateStartTimeBySegmentMetaReply, UpdateStartTimeBySegmentMetaRequest,
 };
+use tonic::Streaming;
 
 use crate::pool::ClientPool;
 
@@ -35,7 +36,12 @@ macro_rules! generate_storage_engine_service_call {
     };
 }
 
-generate_storage_engine_service_call!(list_shard, ListShardRequest, ListShardReply, ListShard);
+generate_storage_engine_service_call!(
+    list_shard,
+    ListShardRequest,
+    Streaming<ListShardReply>,
+    ListShard
+);
 generate_storage_engine_service_call!(
     create_shard,
     CreateShardRequest,
@@ -51,7 +57,7 @@ generate_storage_engine_service_call!(
 generate_storage_engine_service_call!(
     list_segment,
     ListSegmentRequest,
-    ListSegmentReply,
+    Streaming<ListSegmentReply>,
     ListSegment
 );
 generate_storage_engine_service_call!(
@@ -75,7 +81,7 @@ generate_storage_engine_service_call!(
 generate_storage_engine_service_call!(
     list_segment_meta,
     ListSegmentMetaRequest,
-    ListSegmentMetaReply,
+    Streaming<ListSegmentMetaReply>,
     ListSegmentMeta
 );
 generate_storage_engine_service_call!(

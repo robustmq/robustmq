@@ -117,6 +117,8 @@ impl GrpcMqttService {
 
 #[tonic::async_trait]
 impl MqttService for GrpcMqttService {
+    type ListSessionStream = Pin<Box<dyn Stream<Item = Result<ListSessionReply, Status>> + Send>>;
+
     // User
     async fn list_user(
         &self,
@@ -172,7 +174,7 @@ impl MqttService for GrpcMqttService {
     async fn list_session(
         &self,
         request: Request<ListSessionRequest>,
-    ) -> Result<Response<ListSessionReply>, Status> {
+    ) -> Result<Response<Self::ListSessionStream>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
@@ -221,6 +223,14 @@ impl MqttService for GrpcMqttService {
 
     // Topic
     type ListTopicStream = Pin<Box<dyn Stream<Item = Result<ListTopicReply, Status>> + Send>>;
+
+    // Subscribe
+    type ListSubscribeStream =
+        Pin<Box<dyn Stream<Item = Result<ListSubscribeReply, Status>> + Send>>;
+
+    // Connector
+    type ListConnectorsStream =
+        Pin<Box<dyn Stream<Item = Result<ListConnectorReply, Status>> + Send>>;
 
     async fn list_topic(
         &self,
@@ -460,11 +470,10 @@ impl MqttService for GrpcMqttService {
             .map(Response::new)
     }
 
-    // Subscribe
     async fn list_subscribe(
         &self,
         request: Request<ListSubscribeRequest>,
-    ) -> Result<Response<ListSubscribeReply>, Status> {
+    ) -> Result<Response<Self::ListSubscribeStream>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
@@ -509,11 +518,10 @@ impl MqttService for GrpcMqttService {
         .map(Response::new)
     }
 
-    // Connector
     async fn list_connectors(
         &self,
         request: Request<ListConnectorRequest>,
-    ) -> Result<Response<ListConnectorReply>, Status> {
+    ) -> Result<Response<Self::ListConnectorsStream>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
 

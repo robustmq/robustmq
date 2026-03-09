@@ -28,6 +28,7 @@ use protocol::meta::meta_service_common::{
     UpdateSchemaRequest, VoteReply, VoteRequest,
 };
 use tonic::transport::Channel;
+use tonic::Streaming;
 
 use crate::macros::impl_retriable_request;
 
@@ -136,7 +137,7 @@ impl_retriable_request!(
 impl_retriable_request!(
     ListSchemaRequest,
     MetaServiceServiceClient<Channel>,
-    ListSchemaReply,
+    Streaming<ListSchemaReply>,
     list_schema,
     "PlacementService",
     "ListSchema",
@@ -176,7 +177,7 @@ impl_retriable_request!(
 impl_retriable_request!(
     ListBindSchemaRequest,
     MetaServiceServiceClient<Channel>,
-    ListBindSchemaReply,
+    Streaming<ListBindSchemaReply>,
     list_bind_schema,
     "PlacementService",
     "ListBindSchema",

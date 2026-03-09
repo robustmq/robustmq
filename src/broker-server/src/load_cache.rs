@@ -13,13 +13,8 @@
 // limitations under the License.
 
 use broker_core::cache::BrokerCacheManager;
-use common_config::broker::broker_config;
 use connector::manager::ConnectorManager;
-use grpc_clients::meta::storage::call::{list_segment, list_segment_meta, list_shard};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::segment::EngineSegment;
-use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
-use metadata_struct::storage::shard::EngineShard;
 use mqtt_broker::core::cache::MQTTCacheManager;
 use mqtt_broker::core::dynamic_config::build_cluster_config;
 use mqtt_broker::core::error::MqttBrokerError;
@@ -31,13 +26,12 @@ use mqtt_broker::storage::connector::ConnectorStorage;
 use mqtt_broker::storage::schema::SchemaStorage;
 use mqtt_broker::storage::topic::TopicStorage;
 use mqtt_broker::storage::user::UserStorage;
-use protocol::meta::meta_service_journal::{
-    ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,
-};
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_engine::core::cache::StorageCacheManager;
 use storage_engine::core::error::StorageEngineError;
+use storage_engine::core::segment::{list_segment_metas, list_segments};
+use storage_engine::core::shard::list_shards;
 use tracing::info;
 
 pub async fn load_metadata_cache(
@@ -183,34 +177,15 @@ pub async fn load_engine_cache(
     cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
 ) -> Result<(), StorageEngineError> {
-    let conf = broker_config();
-
-    let request = ListShardRequest {
-        ..Default::default()
-    };
-    let list = list_shard(client_pool, &conf.get_meta_service_addr(), request).await?;
-    for shard_bytes in list.shards {
-        let shard = EngineShard::decode(&shard_bytes)?;
+    for shard in list_shards(client_pool).await? {
         cache_manager.set_shard(shard);
     }
 
-    let request = ListSegmentRequest {
-        segment: -1,
-        ..Default::default()
-    };
-    let list = list_segment(client_pool, &conf.get_meta_service_addr(), request).await?;
-    for segment_bytes in list.segments {
-        let segment = EngineSegment::decode(&segment_bytes)?;
+    for segment in list_segments(client_pool).await? {
         cache_manager.set_segment(&segment);
     }
 
-    let request = ListSegmentMetaRequest {
-        segment: -1,
-        ..Default::default()
-    };
-    let list = list_segment_meta(client_pool, &conf.get_meta_service_addr(), request).await?;
-    for segment_bytes in list.segments {
-        let meta = EngineSegmentMetadata::decode(&segment_bytes)?;
+    for meta in list_segment_metas(client_pool).await? {
         cache_manager.set_segment_meta(meta);
     }
 

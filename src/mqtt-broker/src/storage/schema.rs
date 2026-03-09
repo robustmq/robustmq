@@ -40,11 +40,11 @@ impl SchemaStorage {
         let config = broker_config();
         let request = ListSchemaRequest { schema_name };
 
-        let reply =
+        let mut stream =
             list_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         let mut results = Vec::new();
-        for raw in reply.schemas {
-            results.push(SchemaData::decode(&raw)?);
+        while let Some(reply) = stream.message().await? {
+            results.push(SchemaData::decode(&reply.schema)?);
         }
         Ok(results)
     }
@@ -99,11 +99,11 @@ impl SchemaStorage {
             ..Default::default()
         };
 
-        let reply =
+        let mut stream =
             list_bind_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         let mut results = Vec::new();
-        for raw in reply.schema_binds {
-            results.push(SchemaResourceBind::decode(&raw)?);
+        while let Some(reply) = stream.message().await? {
+            results.push(SchemaResourceBind::decode(&reply.schema_bind)?);
         }
         Ok(results)
     }

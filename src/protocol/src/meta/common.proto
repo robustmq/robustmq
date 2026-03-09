@@ -49,7 +49,7 @@ service MetaServiceService {
   rpc GetOffsetData(GetOffsetDataRequest) returns (GetOffsetDataReply) {}
 
   // Schema
-  rpc ListSchema(ListSchemaRequest) returns (ListSchemaReply) {}
+  rpc ListSchema(ListSchemaRequest) returns (stream ListSchemaReply) {}
 
   rpc CreateSchema(CreateSchemaRequest) returns (CreateSchemaReply) {}
 
@@ -57,7 +57,7 @@ service MetaServiceService {
 
   rpc DeleteSchema(DeleteSchemaRequest) returns (DeleteSchemaReply) {}
 
-  rpc ListBindSchema(ListBindSchemaRequest) returns (ListBindSchemaReply) {}
+  rpc ListBindSchema(ListBindSchemaRequest) returns (stream ListBindSchemaReply) {}
 
   rpc BindSchema(BindSchemaRequest) returns (BindSchemaReply) {}
 
@@ -194,7 +194,7 @@ message ListSchemaRequest {
 }
 
 message ListSchemaReply {
-  repeated bytes schemas = 1;
+  bytes schema = 1;
 }
 
 message CreateSchemaRequest {
@@ -223,7 +223,7 @@ message ListBindSchemaRequest {
 }
 
 message ListBindSchemaReply {
-  repeated bytes schema_binds = 1;
+  bytes schema_bind = 1;
 }
 
 message BindSchemaRequest {

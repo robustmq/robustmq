@@ -30,8 +30,16 @@ use protocol::meta::meta_service_mqtt::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
+use std::pin::Pin;
 use std::sync::Arc;
+use tonic::codegen::tokio_stream::Stream;
+use tonic::Status;
 use tracing::warn;
+
+type ListConnectorStream = Result<
+    Pin<Box<dyn Stream<Item = Result<ListConnectorReply, Status>> + Send>>,
+    MetaServiceError,
+>;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ConnectorHeartbeat {
@@ -66,7 +74,7 @@ pub fn connector_heartbeat_by_req(
 pub fn list_connectors_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListConnectorRequest,
-) -> Result<ListConnectorReply, MetaServiceError> {
+) -> ListConnectorStream {
     let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
 
     let connectors = if !req.connector_name.is_empty() {
@@ -82,7 +90,13 @@ pub fn list_connectors_by_req(
             .collect::<Result<Vec<_>, _>>()?
     };
 
-    Ok(ListConnectorReply { connectors })
+    let output = async_stream::try_stream! {
+        for connector in connectors {
+            yield ListConnectorReply { connector };
+        }
+    };
+
+    Ok(Box::pin(output))
 }
 
 pub async fn create_connector_by_req(

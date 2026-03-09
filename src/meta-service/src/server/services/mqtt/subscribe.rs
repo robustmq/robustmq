@@ -32,7 +32,15 @@ use protocol::meta::meta_service_mqtt::{
     SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::pin::Pin;
 use std::sync::Arc;
+use tonic::codegen::tokio_stream::Stream;
+use tonic::Status;
+
+type ListSubscribeStream = Result<
+    Pin<Box<dyn Stream<Item = Result<ListSubscribeReply, Status>> + Send>>,
+    MetaServiceError,
+>;
 
 // Subscribe Operations
 pub async fn delete_subscribe_by_req(
@@ -70,7 +78,7 @@ pub async fn delete_subscribe_by_req(
 pub fn list_subscribe_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     _req: &ListSubscribeRequest,
-) -> Result<ListSubscribeReply, MetaServiceError> {
+) -> ListSubscribeStream {
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
     let subscribes = storage
         .list_all()?
@@ -78,7 +86,13 @@ pub fn list_subscribe_by_req(
         .map(|raw| raw.encode())
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(ListSubscribeReply { subscribes })
+    let output = async_stream::try_stream! {
+        for subscribe in subscribes {
+            yield ListSubscribeReply { subscribe };
+        }
+    };
+
+    Ok(Box::pin(output))
 }
 
 pub async fn set_subscribe_by_req(

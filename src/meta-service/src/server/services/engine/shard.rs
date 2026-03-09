@@ -26,13 +26,19 @@ use protocol::meta::meta_service_journal::{
     ListShardRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::pin::Pin;
 use std::sync::Arc;
+use tonic::codegen::tokio_stream::Stream;
+use tonic::Status;
 use tracing::info;
+
+type ListShardStream =
+    Result<Pin<Box<dyn Stream<Item = Result<ListShardReply, Status>> + Send>>, MetaServiceError>;
 
 pub async fn list_shard_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListShardRequest,
-) -> Result<ListShardReply, MetaServiceError> {
+) -> ListShardStream {
     let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
     let shards = if req.shard_name.is_empty() {
         shard_storage.all_shard()?
@@ -48,9 +54,13 @@ pub async fn list_shard_by_req(
         .map(|shard| shard.encode())
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(ListShardReply {
-        shards: shards_data,
-    })
+    let output = async_stream::try_stream! {
+        for shard in shards_data {
+            yield ListShardReply { shard };
+        }
+    };
+
+    Ok(Box::pin(output))
 }
 
 pub async fn create_shard_by_req(

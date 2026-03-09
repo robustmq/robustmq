@@ -10,7 +10,7 @@ service MqttService {
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserReply) {}
 
   // Session
-  rpc ListSession(ListSessionRequest) returns (ListSessionReply) {}
+  rpc ListSession(ListSessionRequest) returns (stream ListSessionReply) {}
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionReply) {}
   rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionReply) {}
 
@@ -44,12 +44,12 @@ service MqttService {
   rpc ListTopicRewriteRule(ListTopicRewriteRuleRequest) returns (ListTopicRewriteRuleReply) {}
 
   // Subscribe
-  rpc ListSubscribe(ListSubscribeRequest) returns (ListSubscribeReply) {}
+  rpc ListSubscribe(ListSubscribeRequest) returns (stream ListSubscribeReply) {}
   rpc SetSubscribe(SetSubscribeRequest) returns (SetSubscribeReply) {}
   rpc DeleteSubscribe(DeleteSubscribeRequest) returns (DeleteSubscribeReply) {}
 
   // Connector
-  rpc ListConnectors(ListConnectorRequest) returns (ListConnectorReply) {}
+  rpc ListConnectors(ListConnectorRequest) returns (stream ListConnectorReply) {}
   rpc CreateConnector(CreateConnectorRequest) returns (CreateConnectorReply) {}
   rpc UpdateConnector(UpdateConnectorRequest) returns (UpdateConnectorReply) {}
   rpc DeleteConnector(DeleteConnectorRequest) returns (DeleteConnectorReply) {}
@@ -140,7 +140,7 @@ message ListSessionRequest {
 }
 
 message ListSessionReply {
-  repeated bytes sessions = 1;
+  bytes session = 1;
 }
 
 message CreateSessionRaw {
@@ -256,7 +256,7 @@ message ListSubscribeRequest {
 }
 
 message ListSubscribeReply {
-  repeated bytes subscribes = 1;
+  bytes subscribe = 1;
 }
 
 message ListConnectorRequest {
@@ -264,7 +264,7 @@ message ListConnectorRequest {
 }
 
 message ListConnectorReply {
-  repeated bytes connectors = 1;
+  bytes connector = 1;
 }
 
 message CreateConnectorRequest {

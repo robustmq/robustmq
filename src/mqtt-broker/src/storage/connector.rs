@@ -49,12 +49,12 @@ impl ConnectorStorage {
         let request = ListConnectorRequest {
             connector_name: connector_name.to_owned(),
         };
-        let reply =
+        let mut stream =
             placement_list_connector(&self.client_pool, &config.get_meta_service_addr(), request)
                 .await?;
         let mut list = Vec::new();
-        for raw in reply.connectors {
-            list.push(MQTTConnector::decode(&raw)?);
+        while let Some(reply) = stream.message().await? {
+            list.push(MQTTConnector::decode(&reply.connector)?);
         }
         Ok(list)
     }

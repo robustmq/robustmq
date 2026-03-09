@@ -34,7 +34,9 @@ use protocol::meta::meta_service_journal::{
     UpdateStartTimeBySegmentMetaReply, UpdateStartTimeBySegmentMetaRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::pin::Pin;
 use std::sync::Arc;
+use tonic::codegen::tokio_stream::Stream;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcEngineService {
@@ -108,10 +110,15 @@ impl GrpcEngineService {
 
 #[tonic::async_trait]
 impl EngineService for GrpcEngineService {
+    type ListShardStream = Pin<Box<dyn Stream<Item = Result<ListShardReply, Status>> + Send>>;
+    type ListSegmentStream = Pin<Box<dyn Stream<Item = Result<ListSegmentReply, Status>> + Send>>;
+    type ListSegmentMetaStream =
+        Pin<Box<dyn Stream<Item = Result<ListSegmentMetaReply, Status>> + Send>>;
+
     async fn list_shard(
         &self,
         request: Request<ListShardRequest>,
-    ) -> Result<Response<ListShardReply>, Status> {
+    ) -> Result<Response<Self::ListShardStream>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
@@ -162,7 +169,7 @@ impl EngineService for GrpcEngineService {
     async fn list_segment(
         &self,
         request: Request<ListSegmentRequest>,
-    ) -> Result<Response<ListSegmentReply>, Status> {
+    ) -> Result<Response<Self::ListSegmentStream>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
@@ -231,7 +238,7 @@ impl EngineService for GrpcEngineService {
     async fn list_segment_meta(
         &self,
         request: Request<ListSegmentMetaRequest>,
-    ) -> Result<Response<ListSegmentMetaReply>, Status> {
+    ) -> Result<Response<Self::ListSegmentMetaStream>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
