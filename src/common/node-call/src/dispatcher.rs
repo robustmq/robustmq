@@ -28,7 +28,6 @@ pub async fn run(
     broker_cache: Arc<BrokerCacheManager>,
     client_pool: Arc<ClientPool>,
 ) {
-    info!("Node call manager dispatcher started");
     let mut stop_receiver = stop_send.subscribe();
 
     loop {

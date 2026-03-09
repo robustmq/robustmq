@@ -19,6 +19,7 @@ use crate::manager::{DelayTaskManager, SharedDelayQueue};
 use crate::{DelayTask, DelayTaskData};
 use broker_core::cache::BrokerCacheManager;
 use common_base::error::common::CommonError;
+use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::tools::now_second;
 use common_metrics::mqtt::delay_task::{
     record_delay_task_execute_failed, record_delay_task_executed,
@@ -40,6 +41,7 @@ pub(crate) fn spawn_delay_task_pop_threads(
     delay_task_manager: &Arc<DelayTaskManager>,
     node_call_manager: &Arc<NodeCallManager>,
     broker_cache: &Arc<BrokerCacheManager>,
+    task_supervisor: &Arc<TaskSupervisor>,
     delay_queue_num: u32,
 ) {
     info!("Starting delay task pop threads ({})", delay_queue_num);
@@ -52,8 +54,7 @@ pub(crate) fn spawn_delay_task_pop_threads(
         let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
         let raw_node_call_manager = node_call_manager.clone();
         let raw_broker_cache = broker_cache.clone();
-        tokio::spawn(async move {
-            info!("Delay task pop thread started for shard {}", shard_no);
+        task_supervisor.spawn(format!("{}_{}",TaskKind::DelayMessagePop,shard_no), async move {
             let mut recv = stop_send.subscribe();
             loop {
                 select! {

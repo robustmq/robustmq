@@ -14,7 +14,6 @@
 
 #![allow(clippy::result_large_err)]
 use crate::core::cache::MQTTCacheManager;
-use crate::core::dynamic_cache::load_metadata_cache;
 use crate::core::flapping_detect::clean_flapping_detect;
 use crate::core::keep_alive::ClientKeepAlive;
 use crate::core::metrics_cache::metrics_record_thread;
@@ -77,7 +76,6 @@ pub struct MqttBrokerServer {
     connector_manager: Arc<ConnectorManager>,
     auth_driver: Arc<AuthManager>,
     delay_message_manager: Arc<DelayMessageManager>,
-    schema_manager: Arc<SchemaRegisterManager>,
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     offset_manager: Arc<OffsetManager>,
@@ -118,7 +116,6 @@ impl MqttBrokerServer {
             connection_manager: params.connection_manager,
             auth_driver: params.auth_driver,
             delay_message_manager: params.delay_message_manager,
-            schema_manager: params.schema_manager,
             server,
             metrics_cache_manager: params.metrics_cache_manager,
             rocksdb_engine_handler: params.rocksdb_engine_handler,
@@ -281,18 +278,6 @@ impl MqttBrokerServer {
 
         if let Err(e) = self.offset_manager.try_comparison_and_save_offset().await {
             error!("Failed to synchronize offset data: {}", e);
-            std::process::exit(1);
-        }
-
-        if let Err(e) = load_metadata_cache(
-            &self.cache_manager,
-            &self.client_pool,
-            &self.connector_manager,
-            &self.schema_manager,
-        )
-        .await
-        {
-            error!("Failed to load metadata cache: {}", e);
             std::process::exit(1);
         }
     }

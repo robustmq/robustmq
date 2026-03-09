@@ -21,7 +21,7 @@ use crate::filesegment::expire::start_segment_expire_thread;
 use crate::handler::adapter::StorageEngineHandler;
 use crate::server::Server;
 use crate::{clients::gc::start_conn_gc_thread, filesegment::write::WriteManager};
-use core::cache::{load_metadata_cache, StorageCacheManager};
+use core::cache::StorageCacheManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -149,9 +149,6 @@ impl StorageEngineServer {
     }
 
     async fn init(&self) {
-        if let Err(e) = load_metadata_cache(&self.cache_manager, &self.client_pool).await {
-            error!("{}", e);
-        }
         info!("Engine Node was initialized successfully");
     }
 

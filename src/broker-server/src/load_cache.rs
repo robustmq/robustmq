@@ -1,0 +1,229 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use broker_core::cache::BrokerCacheManager;
+use common_config::broker::broker_config;
+use connector::manager::ConnectorManager;
+use grpc_clients::meta::storage::call::{list_segment, list_segment_meta, list_shard};
+use grpc_clients::pool::ClientPool;
+use metadata_struct::storage::segment::EngineSegment;
+use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
+use metadata_struct::storage::shard::EngineShard;
+use mqtt_broker::core::cache::MQTTCacheManager;
+use mqtt_broker::core::dynamic_config::build_cluster_config;
+use mqtt_broker::core::error::MqttBrokerError;
+use mqtt_broker::core::tool::ResultMqttBrokerError;
+use mqtt_broker::storage::acl::AclStorage;
+use mqtt_broker::storage::auto_subscribe::AutoSubscribeStorage;
+use mqtt_broker::storage::blacklist::BlackListStorage;
+use mqtt_broker::storage::connector::ConnectorStorage;
+use mqtt_broker::storage::schema::SchemaStorage;
+use mqtt_broker::storage::topic::TopicStorage;
+use mqtt_broker::storage::user::UserStorage;
+use protocol::meta::meta_service_journal::{
+    ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,
+};
+use schema_register::schema::SchemaRegisterManager;
+use std::sync::Arc;
+use storage_engine::core::cache::StorageCacheManager;
+use storage_engine::core::error::StorageEngineError;
+use tracing::info;
+
+pub async fn load_metadata_cache(
+    cache_manager: &Arc<MQTTCacheManager>,
+    client_pool: &Arc<ClientPool>,
+    connector_manager: &Arc<ConnectorManager>,
+    schema_manager: &Arc<SchemaRegisterManager>,
+) -> ResultMqttBrokerError {
+    info!("Starting to load metadata cache...");
+    load_common_cache(
+        &cache_manager.broker_cache,
+        client_pool,
+        connector_manager,
+        schema_manager,
+    )
+    .await?;
+
+    load_mqtt_cache(cache_manager, client_pool).await?;
+    Ok(())
+}
+
+async fn load_common_cache(
+    broker_cache: &Arc<BrokerCacheManager>,
+    client_pool: &Arc<ClientPool>,
+    connector_manager: &Arc<ConnectorManager>,
+    schema_manager: &Arc<SchemaRegisterManager>,
+) -> ResultMqttBrokerError {
+    let cluster = build_cluster_config(client_pool).await.map_err(|e| {
+        MqttBrokerError::CommonError(format!("Failed to load cluster config: {}", e))
+    })?;
+    broker_cache.set_cluster_config(cluster).await;
+
+    let topic_storage = TopicStorage::new(client_pool.clone());
+    let topic_list = topic_storage
+        .all()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load topics: {}", e)))?;
+    for topic in topic_list.iter() {
+        broker_cache.add_topic(&topic.topic_name, &topic.clone());
+    }
+
+    let connector_storage = ConnectorStorage::new(client_pool.clone());
+    let connectors = connector_storage
+        .list_all_connectors()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load connectors: {}", e)))?;
+    for connector in connectors.iter() {
+        connector_manager.add_connector(connector);
+    }
+
+    let schema_storage = SchemaStorage::new(client_pool.clone());
+    let schemas = schema_storage
+        .list("".to_string())
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load schemas: {}", e)))?;
+    for schema in schemas.iter() {
+        schema_manager.add_schema(schema.clone());
+    }
+
+    let schema_storage = SchemaStorage::new(client_pool.clone());
+    let schema_binds = schema_storage
+        .list_bind()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load schema binds: {}", e)))?;
+    for schema in schema_binds.iter() {
+        schema_manager.add_bind(schema);
+    }
+
+    info!(
+        "Common cache loaded: topics={}, connectors={}, schemas={}, schema_binds={}",
+        topic_list.len(),
+        connectors.len(),
+        schemas.len(),
+        schema_binds.len(),
+    );
+
+    Ok(())
+}
+
+async fn load_mqtt_cache(
+    cache_manager: &Arc<MQTTCacheManager>,
+    client_pool: &Arc<ClientPool>,
+) -> ResultMqttBrokerError {
+    let user_storage = UserStorage::new(client_pool.clone());
+    let user_list = user_storage
+        .user_list()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load users: {}", e)))?;
+    for user in user_list.iter() {
+        cache_manager.add_user(user.value().clone());
+    }
+
+    let acl_storage = AclStorage::new(client_pool.clone());
+    let acl_list = acl_storage
+        .list_acl()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load ACLs: {}", e)))?;
+    for acl in acl_list.iter() {
+        cache_manager.add_acl(acl.clone());
+    }
+
+    let blacklist_storage = BlackListStorage::new(client_pool.clone());
+    let blacklist_list = blacklist_storage
+        .list_blacklist()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load blacklist: {}", e)))?;
+    for blacklist in blacklist_list.iter() {
+        cache_manager.add_blacklist(blacklist.clone());
+    }
+
+    let topic_storage = TopicStorage::new(client_pool.clone());
+    let topic_rewrite_rules = topic_storage.all_topic_rewrite_rule().await.map_err(|e| {
+        MqttBrokerError::CommonError(format!("Failed to load topic rewrite rules: {}", e))
+    })?;
+    for rule in topic_rewrite_rules.iter() {
+        cache_manager.add_topic_rewrite_rule(rule.clone());
+    }
+
+    let auto_subscribe_storage = AutoSubscribeStorage::new(client_pool.clone());
+    let auto_subscribe_rules = auto_subscribe_storage
+        .list_auto_subscribe_rule()
+        .await
+        .map_err(|e| {
+            MqttBrokerError::CommonError(format!("Failed to load auto subscribe rules: {}", e))
+        })?;
+    for rule in auto_subscribe_rules.iter() {
+        cache_manager.add_auto_subscribe_rule(rule.clone());
+    }
+
+    info!(
+        "MQTT cache loaded: users={}, acls={}, blacklist={}, topic_rewrite_rules={}, auto_subscribe_rules={}",
+        user_list.len(),
+        acl_list.len(),
+        blacklist_list.len(),
+        topic_rewrite_rules.len(),
+        auto_subscribe_rules.len(),
+    );
+
+    Ok(())
+}
+
+pub async fn load_engine_cache(
+    cache_manager: &Arc<StorageCacheManager>,
+    client_pool: &Arc<ClientPool>,
+) -> Result<(), StorageEngineError> {
+    let conf = broker_config();
+
+    let request = ListShardRequest {
+        ..Default::default()
+    };
+    let list = list_shard(client_pool, &conf.get_meta_service_addr(), request).await?;
+    for shard_bytes in list.shards {
+        let shard = EngineShard::decode(&shard_bytes)?;
+        cache_manager.set_shard(shard);
+    }
+
+    let request = ListSegmentRequest {
+        segment: -1,
+        ..Default::default()
+    };
+    let list = list_segment(client_pool, &conf.get_meta_service_addr(), request).await?;
+    for segment_bytes in list.segments {
+        let segment = EngineSegment::decode(&segment_bytes)?;
+        cache_manager.set_segment(&segment);
+    }
+
+    let request = ListSegmentMetaRequest {
+        segment: -1,
+        ..Default::default()
+    };
+    let list = list_segment_meta(client_pool, &conf.get_meta_service_addr(), request).await?;
+    for segment_bytes in list.segments {
+        let meta = EngineSegmentMetadata::decode(&segment_bytes)?;
+        cache_manager.set_segment_meta(meta);
+    }
+
+    for shard in cache_manager.shards.iter() {
+        cache_manager.sort_offset_index(&shard.shard_name);
+    }
+
+    info!(
+        "Engine cache loaded: shards={}, segments={}, segment_metadatas={}",
+        cache_manager.shards.len(),
+        cache_manager.segments.len(),
+        cache_manager.segment_metadatas.len(),
+    );
+
+    Ok(())
+}

@@ -12,25 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::StorageEngineError;
 use crate::core::offset_index::SegmentOffsetIndex;
 use crate::core::shard::ShardOffsetState;
 use crate::filesegment::segment_file::SegmentFile;
 use crate::filesegment::SegmentIdentity;
 use broker_core::cache::BrokerCacheManager;
 use common_base::tools::now_second;
-use common_config::broker::broker_config;
 use dashmap::DashMap;
-use grpc_clients::meta::storage::call::{list_segment, list_segment_meta, list_shard};
-use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
-use protocol::meta::meta_service_journal::{
-    ListSegmentMetaRequest, ListSegmentRequest, ListShardRequest,
-};
 use std::sync::Arc;
-use tracing::info;
 
 #[derive(Clone)]
 pub struct StorageCacheManager {
@@ -291,63 +283,4 @@ impl StorageCacheManager {
             state.earliest_offset = offset;
         }
     }
-}
-
-/// fetch node, shard, segment, segment meta from meta service and store them in cache
-pub async fn load_metadata_cache(
-    cache_manager: &Arc<StorageCacheManager>,
-    client_pool: &Arc<ClientPool>,
-) -> Result<(), StorageEngineError> {
-    let conf = broker_config();
-
-    // load shard
-    let request = ListShardRequest {
-        ..Default::default()
-    };
-    let list = list_shard(client_pool, &conf.get_meta_service_addr(), request).await?;
-
-    info!(
-        "Load the shard cache, the number of shards is {}",
-        list.shards.len()
-    );
-
-    for shard_bytes in list.shards {
-        let shard = EngineShard::decode(&shard_bytes)?;
-        cache_manager.set_shard(shard);
-    }
-
-    // load segment
-    let request = ListSegmentRequest {
-        segment: -1,
-        ..Default::default()
-    };
-    let list = list_segment(client_pool, &conf.get_meta_service_addr(), request).await?;
-    info!(
-        "Load the segment cache, the number of segments is {}",
-        list.segments.len()
-    );
-    for segment_bytes in list.segments {
-        let segment = EngineSegment::decode(&segment_bytes)?;
-        cache_manager.set_segment(&segment);
-    }
-
-    // load segment data
-    let request = ListSegmentMetaRequest {
-        segment: -1,
-        ..Default::default()
-    };
-    let list = list_segment_meta(client_pool, &conf.get_meta_service_addr(), request).await?;
-    info!(
-        "Load the segment metadata cache, the number of segments is {}",
-        list.segments.len()
-    );
-    for segment_bytes in list.segments {
-        let meta = EngineSegmentMetadata::decode(&segment_bytes)?;
-        cache_manager.set_segment_meta(meta);
-    }
-
-    for shard in cache_manager.shards.iter() {
-        cache_manager.sort_offset_index(&shard.shard_name);
-    }
-    Ok(())
 }

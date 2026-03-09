@@ -27,7 +27,7 @@ use common_base::{
         create_runtime, resolve_broker_worker_threads, resolve_meta_worker_threads,
         resolve_server_worker_threads,
     },
-    task::TaskSupervisor,
+    task::{TaskKind, TaskSupervisor},
 };
 use common_config::{broker::broker_config, config::BrokerConfig};
 use common_healthy::port::{wait_for_engine_ready, wait_for_grpc_ready};
@@ -56,6 +56,7 @@ mod cluster_service;
 pub mod common;
 mod connection;
 mod grpc;
+mod load_cache;
 mod params;
 
 pub struct BrokerServer {
@@ -232,22 +233,27 @@ impl BrokerServer {
             check_meta_service_status(self.client_pool.clone()).await;
         });
 
-        // ── Phase 3: Engine service ────────────────────────────────────
+        // ── Phase 3: Load Cache ────────────────────────────────────
+        self.start_load_cache();
+
+        // ── Phase 4: Engine service ────────────────────────────────────
         let engine_stop_send = self.start_engine_service();
 
-        // ── Phase 4: MQTT broker ─────────────
+        // ── Phase 5: MQTT broker + all background services ─────────────
         let (app_stop, _) = broadcast::channel::<bool>(2);
         let mqtt_stop_send = self.start_mqtt_broker(app_stop.clone());
 
-        // ── Phase 5: all background services ─────────────
-        self.start_background_services(app_stop.clone(), monitor_interval_ms);
+        // ── Phase 6: all background services ─────────────
+        self.server_runtime.block_on(async {
+            self.start_background_services(app_stop.clone(), monitor_interval_ms)
+                .await;
+        });
 
-        // ── Phase 6: Register node and heartbeat ───────────
-        self.server_runtime.block_on(async move {
+        // ── Phase 7: Register node ─────────────────────────────────────
+        self.server_runtime.block_on(async {
             self.register_node(app_stop).await;
         });
 
-        // ── Phase 7: wait app_stop ───────────
         self.awaiting_stop(meta_stop_send, mqtt_stop_send, engine_stop_send);
     }
 
@@ -315,6 +321,37 @@ impl BrokerServer {
         }
     }
 
+    fn start_load_cache(&self) {
+        let cache_manager = self.mqtt_params.cache_manager.clone();
+        let client_pool = self.client_pool.clone();
+        let connector_manager = self.mqtt_params.connector_manager.clone();
+        let schema_manager = self.mqtt_params.schema_manager.clone();
+        self.server_runtime.block_on(async {
+            if let Err(e) = load_cache::load_metadata_cache(
+                &cache_manager,
+                &client_pool,
+                &connector_manager,
+                &schema_manager,
+            )
+            .await
+            {
+                error!("Failed to load metadata cache: {}", e);
+                std::process::exit(1);
+            }
+        });
+
+        if is_engine_node(&self.config.roles) {
+            let engine_cache = self.engine_params.cache_manager.clone();
+            let client_pool = self.client_pool.clone();
+            self.server_runtime.block_on(async {
+                if let Err(e) = load_cache::load_engine_cache(&engine_cache, &client_pool).await {
+                    error!("Failed to load engine cache: {}", e);
+                    std::process::exit(1);
+                }
+            });
+        }
+    }
+
     fn start_meta_service(&self) -> Option<broadcast::Sender<bool>> {
         if !is_meta_node(&self.config.roles) {
             return None;
@@ -358,25 +395,32 @@ impl BrokerServer {
         Some(stop_handle)
     }
 
-    fn start_background_services(&self, stop: broadcast::Sender<bool>, monitor_interval_ms: u64) {
+    async fn start_background_services(
+        &self,
+        stop: broadcast::Sender<bool>,
+        monitor_interval_ms: u64,
+    ) {
         // node call
         let node_call_manager = self.node_call_manager.clone();
         let tx = stop.clone();
-        self.server_runtime.spawn(async move {
-            node_call_manager.start(tx).await;
-        });
+        self.task_supervisor
+            .spawn(TaskKind::BrokerNodeCall.to_string(), async move {
+                node_call_manager.start(tx).await;
+            });
 
         // delay task
         let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
         let broker_cache = self.broker_cache.clone();
         let delay_task_manager = self.delay_task_manager.clone();
         let node_call_manager = self.node_call_manager.clone();
+        let task_supervisor = self.task_supervisor.clone();
         self.server_runtime.spawn(async move {
             if let Err(e) = start_delay_task_manager_thread(
                 &rocksdb_engine_handler,
                 &delay_task_manager,
                 &broker_cache,
                 &node_call_manager,
+                &task_supervisor,
             )
             .await
             {

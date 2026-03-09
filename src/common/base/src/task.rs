@@ -14,12 +14,21 @@
 
 use dashmap::DashMap;
 use tokio::task::JoinHandle;
+use tracing::{error, info};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum TaskKind {
-    NetworkGc,
-    OffsetFlush,
-    RuntimeMonitor,
+    BrokerNodeCall,
+    DelayMessagePop,
+}
+
+impl std::fmt::Display for TaskKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TaskKind::BrokerNodeCall => write!(f, "BrokerNodeCall"),
+            TaskKind::DelayMessagePop => write!(f, "DelayMessagePop"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -31,7 +40,7 @@ enum TaskState {
 
 #[derive(Default, Clone)]
 pub struct TaskSupervisor {
-    task_status: DashMap<TaskKind, TaskState>,
+    task_status: DashMap<String, TaskState>,
 }
 
 impl TaskSupervisor {
@@ -41,32 +50,44 @@ impl TaskSupervisor {
         }
     }
 
-    pub fn spawn<F>(&self, kind: TaskKind, fut: F) -> JoinHandle<()>
+    pub fn spawn<F>(&self, kind: String, fut: F) -> JoinHandle<()>
     where
         F: std::future::Future<Output = ()> + Send + 'static,
     {
         let sup = self.clone();
-        tokio::spawn(async move {
-            sup.set_state(kind, TaskState::Running).await;
-            let inner = tokio::spawn(fut);
-            match inner.await {
-                Ok(()) => sup.set_state(kind, TaskState::Stopped).await,
-                Err(e) => {
-                    sup.set_state(kind, TaskState::Failed(format!("join error: {e}")))
-                        .await
+        let task_name = kind.to_string();
+        tokio::task::Builder::new()
+            .name(&task_name)
+            .spawn(async move {
+                sup.set_state(kind.clone(), TaskState::Running).await;
+                info!("Task {} started", kind);
+                let inner = tokio::task::Builder::new()
+                    .name(&format!("{kind}/inner"))
+                    .spawn(fut)
+                    .expect("failed to spawn inner task");
+                match inner.await {
+                    Ok(()) => {
+                        info!("Task {} stopped normally", kind);
+                        sup.set_state(kind.clone(), TaskState::Stopped).await;
+                    }
+                    Err(e) => {
+                        error!("Task {} failed: join error: {}", kind, e);
+                        sup.set_state(kind.clone(), TaskState::Failed(format!("join error: {e}")))
+                            .await;
+                    }
                 }
-            }
-        })
+            })
+            .expect("failed to spawn task")
     }
 
-    pub fn ready(self, kind: &TaskKind) -> bool {
+    pub fn ready(self, kind: &str) -> bool {
         if let Some(state) = self.task_status.get(kind) {
             return *state == TaskState::Running;
         }
         false
     }
 
-    async fn set_state(&self, kind: TaskKind, state: TaskState) {
+    async fn set_state(&self, kind: String, state: TaskState) {
         self.task_status.insert(kind, state);
     }
 }
