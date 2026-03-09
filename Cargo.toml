@@ -206,7 +206,7 @@ paho-mqtt = { version = "0.13.3", default-features = false, features = [
     "ssl",
 ] }
 clickhouse = "0.14.2"
-scylla = "0.15"
+scylla = "1.5"
 
 # ====================
 # Distributed Systems
