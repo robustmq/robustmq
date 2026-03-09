@@ -47,6 +47,9 @@ pub enum TaskKind {
     MQTTSystemAlarm,
     MQTTSubscribePush,
     MQTTSubscribeParse,
+    StorageEngineSegmentExpire,
+    StorageEngineRocksDBExpire,
+    StorageEngineConnGC,
 }
 
 impl std::fmt::Display for TaskKind {
@@ -81,6 +84,9 @@ impl std::fmt::Display for TaskKind {
             TaskKind::MQTTSystemAlarm => write!(f, "MQTTSystemAlarm"),
             TaskKind::MQTTSubscribePush => write!(f, "MQTTSubscribePush"),
             TaskKind::MQTTSubscribeParse => write!(f, "MQTTSubscribeParse"),
+            TaskKind::StorageEngineSegmentExpire => write!(f, "StorageEngineSegmentExpire"),
+            TaskKind::StorageEngineRocksDBExpire => write!(f, "StorageEngineRocksDBExpire"),
+            TaskKind::StorageEngineConnGC => write!(f, "StorageEngineConnGC"),
         }
     }
 }

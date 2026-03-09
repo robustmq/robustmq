@@ -50,17 +50,15 @@ pub struct MetaServiceServer {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
     node_call_manager: Arc<NodeCallManager>,
-    main_stop: broadcast::Sender<bool>,
-    inner_stop: broadcast::Sender<bool>,
+    stop: broadcast::Sender<bool>,
     task_supervisor: Arc<TaskSupervisor>,
 }
 
 impl MetaServiceServer {
     pub fn new(
         params: MetaServiceServerParams,
-        main_stop: broadcast::Sender<bool>,
+        stop: broadcast::Sender<bool>,
     ) -> MetaServiceServer {
-        let (inner_stop, _) = broadcast::channel(2);
         MetaServiceServer {
             cache_manager: params.cache_manager,
             rocksdb_engine_handler: params.rocksdb_engine_handler,
@@ -68,8 +66,7 @@ impl MetaServiceServer {
             node_call_manager: params.node_call_manager,
             raft_manager: params.raft_manager,
             task_supervisor: params.task_supervisor,
-            main_stop,
-            inner_stop,
+            stop,
         }
     }
 
@@ -92,7 +89,7 @@ impl MetaServiceServer {
     async fn start_background_services(&self) {
         // raft machine monitor
         let raft_manager = self.raft_manager.clone();
-        let stop = self.inner_stop.clone();
+        let stop = self.stop.clone();
         self.task_supervisor
             .spawn(TaskKind::MetaRaftMachineMonitor.to_string(), async move {
                 raft_manager.start_metrics_monitor(stop).await;
@@ -102,7 +99,7 @@ impl MetaServiceServer {
         let cache_manager = self.cache_manager.clone();
         let raft_manager = self.raft_manager.clone();
         let node_call_manager = self.node_call_manager.clone();
-        let stop = self.inner_stop.clone();
+        let stop = self.stop.clone();
         self.task_supervisor.spawn(
             TaskKind::MetaMonitorRaftLeaderChange.to_string(),
             async move {
@@ -118,7 +115,7 @@ impl MetaServiceServer {
             self.client_pool.clone(),
             self.node_call_manager.clone(),
         );
-        let stop = self.inner_stop.clone();
+        let stop = self.stop.clone();
         self.task_supervisor.spawn(
             TaskKind::BrokerNodeHeartbeat.to_string(),
             Box::pin(async move {
@@ -128,34 +125,16 @@ impl MetaServiceServer {
     }
 
     pub async fn awaiting_stop(&self) {
-        let main_stop = self.main_stop.clone();
         let raft_manager = self.raft_manager.clone();
-        let inner_stop = self.inner_stop.clone();
-        // Stop the Server first, indicating that it will no longer receive request packets.
-        let mut recv = main_stop.subscribe();
+        let mut recv = self.stop.subscribe();
         match recv.recv().await {
             Ok(_) => {
-                info!("Meta service shutdown initiated...");
-
-                // Step 1: Stop all background threads (GC, heartbeat, controllers)
-                info!("Stopping background threads...");
-                if let Err(e) = inner_stop.send(true) {
-                    error!("Failed to send stop signal to background threads: {}", e);
-                }
-
-                // Step 2: Wait for background threads to finish gracefully
-                info!("Waiting for background threads to complete...");
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-
-                // Step 3: Shutdown Raft node
-                info!("Shutting down Raft node...");
+                info!("Meta service shutdown...");
                 if let Err(e) = raft_manager.shutdown().await {
                     error!("Failed to shutdown Raft node: {}", e);
                 } else {
                     info!("Raft node shutdown successfully.");
                 }
-
-                info!("Meta service stopped gracefully.");
             }
             Err(e) => {
                 error!("Failed to receive stop signal: {}", e);

@@ -391,7 +391,11 @@ impl BrokerServer {
         }
         let (stop_send, _) = broadcast::channel(2);
         let stop_handle = stop_send.clone();
-        let server = StorageEngineServer::new(self.engine_params.clone(), stop_send);
+        let server = StorageEngineServer::new(
+            self.engine_params.clone(),
+            stop_send,
+            self.task_supervisor.clone(),
+        );
         self.broker_runtime.spawn(Box::pin(async move {
             server.start().await;
         }));

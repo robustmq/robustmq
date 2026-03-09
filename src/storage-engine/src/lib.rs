@@ -18,9 +18,10 @@ use crate::clients::manager::ClientConnectionManager;
 use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::filesegment::expire::start_segment_expire_thread;
+use crate::filesegment::write::WriteManager;
 use crate::handler::adapter::StorageEngineHandler;
 use crate::server::Server;
-use crate::{clients::gc::start_conn_gc_thread, filesegment::write::WriteManager};
+use common_base::task::{TaskKind, TaskSupervisor};
 use core::cache::StorageCacheManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
@@ -55,16 +56,19 @@ pub struct StorageEngineServer {
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<StorageCacheManager>,
     write_manager: Arc<WriteManager>,
-    main_stop: broadcast::Sender<bool>,
-    inner_stop: broadcast::Sender<bool>,
+    stop: broadcast::Sender<bool>,
     client_connection_manager: Arc<ClientConnectionManager>,
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     server: Arc<Server>,
+    task_supervisor: Arc<TaskSupervisor>,
 }
 
 impl StorageEngineServer {
-    pub fn new(params: StorageEngineParams, main_stop: Sender<bool>) -> Self {
-        let (inner_stop, _) = broadcast::channel(2);
+    pub fn new(
+        params: StorageEngineParams,
+        stop: Sender<bool>,
+        task_supervisor: Arc<TaskSupervisor>,
+    ) -> Self {
         let server = Arc::new(Server::new(
             crate::server::ServerParams {
                 client_pool: params.client_pool.clone(),
@@ -77,7 +81,7 @@ impl StorageEngineServer {
                 rocksdb_storage_engine: params.rocksdb_storage_engine.clone(),
                 client_connection_manager: params.client_connection_manager.clone(),
             },
-            inner_stop.clone(),
+            stop.clone(),
         ));
         StorageEngineServer {
             client_pool: params.client_pool,
@@ -85,18 +89,16 @@ impl StorageEngineServer {
             write_manager: params.write_manager,
             client_connection_manager: params.client_connection_manager,
             rocksdb_storage_engine: params.rocksdb_storage_engine,
-            main_stop,
-            inner_stop,
+            stop,
             server,
+            task_supervisor,
         }
     }
 
     pub async fn start(&self) {
-        self.init().await;
+        self.start_daemon_thread();
 
         self.start_tcp_server();
-
-        self.start_daemon_thread();
 
         self.waiting_stop().await;
     }
@@ -107,50 +109,46 @@ impl StorageEngineServer {
     }
 
     fn start_daemon_thread(&self) {
-        self.write_manager.start(self.inner_stop.clone());
-        start_conn_gc_thread(
-            self.client_connection_manager.clone(),
-            self.inner_stop.clone(),
-        );
+        self.write_manager.start(self.stop.clone());
+
+        let conn_manager = self.client_connection_manager.clone();
+        let stop_sx = self.stop.clone();
+        self.task_supervisor
+            .spawn(TaskKind::StorageEngineConnGC.to_string(), async move {
+                crate::clients::gc::start_conn_gc_thread(conn_manager, stop_sx).await;
+            });
 
         // segment engine
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
-        let stop_sx = self.inner_stop.clone();
-        tokio::spawn(Box::pin(async move {
-            start_segment_expire_thread(client_pool, cache_manager, &stop_sx).await
-        }));
+        let stop_sx = self.stop.clone();
+        self.task_supervisor.spawn(
+            TaskKind::StorageEngineSegmentExpire.to_string(),
+            async move {
+                start_segment_expire_thread(client_pool, cache_manager, &stop_sx).await;
+            },
+        );
 
         // rocksdb engine
         let rocksdb_storage_engine = self.rocksdb_storage_engine.clone();
-        let stop_sx = self.inner_stop.clone();
-        tokio::spawn(async move {
-            rocksdb_storage_engine.start_expire_thread(&stop_sx).await;
-        });
+        let stop_sx = self.stop.clone();
+        self.task_supervisor.spawn(
+            TaskKind::StorageEngineRocksDBExpire.to_string(),
+            async move {
+                rocksdb_storage_engine.start_expire_thread(&stop_sx).await;
+            },
+        );
     }
 
     async fn waiting_stop(&self) {
-        let inner_stop = self.inner_stop.clone();
-        let client_pool = self.client_pool.clone();
-        let cache_manager = self.cache_manager.clone();
-        let mut recv = self.main_stop.subscribe();
-
+        let mut recv = self.stop.subscribe();
         match recv.recv().await {
             Ok(_) => {
                 info!("Storage Engine has stopped.");
-                if inner_stop.send(true).is_ok() {
-                    StorageEngineServer::stop_server(cache_manager, client_pool).await;
-                }
             }
             Err(e) => {
                 error!("{}", e)
             }
         }
     }
-
-    async fn init(&self) {
-        info!("Engine Node was initialized successfully");
-    }
-
-    async fn stop_server(_cache_manager: Arc<StorageCacheManager>, _client_pool: Arc<ClientPool>) {}
 }

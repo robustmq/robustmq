@@ -22,17 +22,15 @@ use tracing::debug;
 pub const CONNECTION_IDLE_TIMEOUT_SECS: u64 = 600;
 const GC_INTERVAL_MILLIS: u64 = 10000;
 
-pub fn start_conn_gc_thread(
+pub async fn start_conn_gc_thread(
     connection_manager: Arc<ClientConnectionManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    tokio::spawn(async move {
-        let ac_fn = async || -> ResultCommonError {
-            gc_conn(&connection_manager).await;
-            Ok(())
-        };
-        loop_select_ticket(ac_fn, GC_INTERVAL_MILLIS, &stop_send).await;
-    });
+    let ac_fn = async || -> ResultCommonError {
+        gc_conn(&connection_manager).await;
+        Ok(())
+    };
+    loop_select_ticket(ac_fn, GC_INTERVAL_MILLIS, &stop_send).await;
 }
 
 async fn gc_conn(connection_manager: &ClientConnectionManager) {
