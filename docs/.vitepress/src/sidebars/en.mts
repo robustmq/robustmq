@@ -212,6 +212,7 @@ export const sidebar = [
     collapsed: true,
     items: [
       { text: "Dashboard", link: "/en/Operations/Dashboard" },
+      { text: "Health Check", link: "/en/Operations/HealthCheck" },
       {
         text: "HTTP Rest API",
         collapsed: true,

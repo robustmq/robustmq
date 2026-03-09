@@ -49,6 +49,7 @@ mod tests {
         sleep(Duration::from_secs(2)).await;
         delete_acl(&admin_client, acl.clone()).await;
 
+        sleep(Duration::from_secs(2)).await;
         check_acl_in_list(&admin_client, &acl, false).await;
     }
 
