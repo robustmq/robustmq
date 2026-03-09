@@ -121,7 +121,7 @@ generate_mqtt_service_call!(
 generate_mqtt_service_call!(
     placement_list_session,
     ListSessionRequest,
-    ListSessionReply,
+    Streaming<ListSessionReply>,
     ListSession
 );
 generate_mqtt_service_call!(
@@ -193,14 +193,14 @@ generate_mqtt_service_call!(
 generate_mqtt_service_call!(
     placement_list_subscribe,
     ListSubscribeRequest,
-    ListSubscribeReply,
+    Streaming<ListSubscribeReply>,
     ListSubscribe
 );
 
 generate_mqtt_service_call!(
     placement_list_connector,
     ListConnectorRequest,
-    ListConnectorReply,
+    Streaming<ListConnectorReply>,
     ListConnector
 );
 

@@ -49,7 +49,9 @@ use protocol::meta::meta_service_common::{
     UpdateSchemaReply, UpdateSchemaRequest, VoteReply, VoteRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::pin::Pin;
 use std::sync::Arc;
+use tonic::codegen::tokio_stream::Stream;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcPlacementService {
@@ -91,6 +93,10 @@ impl GrpcPlacementService {
 
 #[tonic::async_trait]
 impl MetaServiceService for GrpcPlacementService {
+    type ListSchemaStream = Pin<Box<dyn Stream<Item = Result<ListSchemaReply, Status>> + Send>>;
+    type ListBindSchemaStream =
+        Pin<Box<dyn Stream<Item = Result<ListBindSchemaReply, Status>> + Send>>;
+
     // Cluster
     async fn cluster_status(
         &self,
@@ -258,13 +264,12 @@ impl MetaServiceService for GrpcPlacementService {
     async fn list_schema(
         &self,
         request: Request<ListSchemaRequest>,
-    ) -> Result<Response<ListSchemaReply>, Status> {
+    ) -> Result<Response<Self::ListSchemaStream>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
         list_schema_req(&self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
-            .map(|data| ListSchemaReply { schemas: data })
             .map(Response::new)
     }
 
@@ -331,14 +336,13 @@ impl MetaServiceService for GrpcPlacementService {
     async fn list_bind_schema(
         &self,
         request: Request<ListBindSchemaRequest>,
-    ) -> Result<Response<ListBindSchemaReply>, Status> {
+    ) -> Result<Response<Self::ListBindSchemaStream>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
         list_bind_schema_req(&self.rocksdb_engine_handler, &req)
             .await
             .map_err(Self::to_status)
-            .map(|schema_binds| ListBindSchemaReply { schema_binds })
             .map(Response::new)
     }
 

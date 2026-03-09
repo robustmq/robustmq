@@ -80,7 +80,6 @@ impl ClientKeepAlive {
     pub async fn start_heartbeat_check(&self, stop_send: &broadcast::Sender<bool>) {
         let ac_fn = async || -> ResultCommonError { self.keep_alive().await };
         loop_select_ticket(ac_fn, 1000, stop_send).await;
-        info!("Heartbeat check thread stopped successfully.");
     }
 
     async fn keep_alive(&self) -> ResultCommonError {

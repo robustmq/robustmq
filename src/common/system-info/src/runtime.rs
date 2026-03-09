@@ -70,7 +70,7 @@ impl RuntimeSnapshot {
     }
 }
 
-pub async fn start_runtime_monitor(
+pub async fn start_tokio_runtime_info_collection(
     handles: Vec<(String, tokio::runtime::Handle)>,
     stop_send: broadcast::Sender<bool>,
     interval_ms: u64,

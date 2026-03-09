@@ -19,11 +19,64 @@ use crate::filesegment::segment_file::{open_segment_write, SegmentFile};
 use crate::filesegment::SegmentIdentity;
 use common_config::broker::broker_config;
 use common_config::storage::StorageType;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::EngineSegment;
+use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
+use protocol::meta::meta_service_journal::{ListSegmentMetaRequest, ListSegmentRequest};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tracing::{error, info};
+
+pub async fn list_segments(
+    client_pool: &Arc<ClientPool>,
+) -> Result<Vec<EngineSegment>, StorageEngineError> {
+    let conf = broker_config();
+    let request = ListSegmentRequest {
+        segment: -1,
+        ..Default::default()
+    };
+    let mut stream = grpc_clients::meta::storage::call::list_segment(
+        client_pool,
+        &conf.get_meta_service_addr(),
+        request,
+    )
+    .await?;
+    let mut segments = Vec::new();
+    while let Some(reply) = stream
+        .message()
+        .await
+        .map_err(|e| StorageEngineError::CommonErrorStr(e.to_string()))?
+    {
+        segments.push(EngineSegment::decode(&reply.segment)?);
+    }
+    Ok(segments)
+}
+
+pub async fn list_segment_metas(
+    client_pool: &Arc<ClientPool>,
+) -> Result<Vec<EngineSegmentMetadata>, StorageEngineError> {
+    let conf = broker_config();
+    let request = ListSegmentMetaRequest {
+        segment: -1,
+        ..Default::default()
+    };
+    let mut stream = grpc_clients::meta::storage::call::list_segment_meta(
+        client_pool,
+        &conf.get_meta_service_addr(),
+        request,
+    )
+    .await?;
+    let mut metas = Vec::new();
+    while let Some(reply) = stream
+        .message()
+        .await
+        .map_err(|e| StorageEngineError::CommonErrorStr(e.to_string()))?
+    {
+        metas.push(EngineSegmentMetadata::decode(&reply.segment_meta)?);
+    }
+    Ok(metas)
+}
 
 pub fn segment_validator(
     cache_manager: &Arc<StorageCacheManager>,

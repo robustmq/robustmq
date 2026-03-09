@@ -154,7 +154,7 @@ impl_retriable_request!(
 impl_retriable_request!(
     ListSessionRequest,
     MqttServiceClient<Channel>,
-    ListSessionReply,
+    Streaming<ListSessionReply>,
     list_session,
     "MqttService",
     "ListSession",
@@ -294,7 +294,7 @@ impl_retriable_request!(
 impl_retriable_request!(
     ListSubscribeRequest,
     MqttServiceClient<Channel>,
-    ListSubscribeReply,
+    Streaming<ListSubscribeReply>,
     list_subscribe,
     "MqttService",
     "ListSubscribe",
@@ -304,7 +304,7 @@ impl_retriable_request!(
 impl_retriable_request!(
     ListConnectorRequest,
     MqttServiceClient<Channel>,
-    ListConnectorReply,
+    Streaming<ListConnectorReply>,
     list_connectors,
     "MqttService",
     "ListConnectors",

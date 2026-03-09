@@ -26,7 +26,6 @@ use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use system_info::{process_cpu_usage, process_memory_usage};
 use tokio::sync::broadcast;
-use tracing::info;
 
 #[allow(clippy::enum_variant_names)]
 enum AlarmType {
@@ -78,11 +77,6 @@ impl SystemAlarm {
     }
 
     pub async fn start(&self, stop_send: broadcast::Sender<bool>) -> ResultMqttBrokerError {
-        let config = broker_config();
-        if !config.mqtt_system_monitor.enable {
-            return Ok(());
-        }
-
         let record_func = async || -> ResultCommonError {
             let mqtt_conf = broker_config();
             let cpu_usage = process_cpu_usage().await;
@@ -104,7 +98,6 @@ impl SystemAlarm {
             Ok(())
         };
 
-        info!("System alarm thread start successfully");
         loop_select_ticket(record_func, 60000, &stop_send).await;
         Ok(())
     }

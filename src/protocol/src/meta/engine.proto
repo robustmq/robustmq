@@ -18,13 +18,13 @@ syntax = "proto3";
 package meta.service.journal;
 
 service EngineService {
-  rpc ListShard(ListShardRequest) returns (ListShardReply) {}
+  rpc ListShard(ListShardRequest) returns (stream ListShardReply) {}
 
   rpc CreateShard(CreateShardRequest) returns (CreateShardReply) {}
 
   rpc DeleteShard(DeleteShardRequest) returns (DeleteShardReply) {}
 
-  rpc ListSegment(ListSegmentRequest) returns (ListSegmentReply) {}
+  rpc ListSegment(ListSegmentRequest) returns (stream ListSegmentReply) {}
 
   rpc CreateNextSegment(CreateNextSegmentRequest) returns (CreateNextSegmentReply) {}
 
@@ -32,7 +32,7 @@ service EngineService {
 
   rpc SealUpSegment(SealUpSegmentRequest) returns (SealUpSegmentReply) {}
 
-  rpc ListSegmentMeta(ListSegmentMetaRequest) returns (ListSegmentMetaReply) {}
+  rpc ListSegmentMeta(ListSegmentMetaRequest) returns (stream ListSegmentMetaReply) {}
 
   rpc UpdateStartTimeBySegmentMeta(UpdateStartTimeBySegmentMetaRequest) returns (UpdateStartTimeBySegmentMetaReply) {}
 }
@@ -42,7 +42,7 @@ message ListShardRequest {
 }
 
 message ListShardReply {
-  repeated bytes shards = 1;
+  bytes shard = 1;
 }
 
 message CreateShardRequest {
@@ -68,7 +68,7 @@ message ListSegmentRequest {
 }
 
 message ListSegmentReply {
-  repeated bytes segments = 1;
+  bytes segment = 1;
 }
 
 message CreateNextSegmentRequest {
@@ -104,7 +104,7 @@ message ListSegmentMetaRequest {
 }
 
 message ListSegmentMetaReply {
-  repeated bytes segments = 1;
+  bytes segment_meta = 1;
 }
 
 message UpdateStartTimeBySegmentMetaRequest {

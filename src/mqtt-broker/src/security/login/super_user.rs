@@ -21,7 +21,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use std::sync::Arc;
 
-pub async fn init_system_user(
+pub async fn try_init_system_user(
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
 ) -> ResultMqttBrokerError {

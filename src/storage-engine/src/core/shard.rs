@@ -20,7 +20,10 @@ use crate::filesegment::SegmentIdentity;
 use common_config::{broker::broker_config, storage::StorageType};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::AdapterShardInfo;
-use protocol::meta::meta_service_journal::{CreateShardRequest, DeleteShardRequest};
+use metadata_struct::storage::shard::EngineShard;
+use protocol::meta::meta_service_journal::{
+    CreateShardRequest, DeleteShardRequest, ListShardRequest,
+};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::fs::remove_dir_all;
 use std::path::Path;
@@ -167,6 +170,30 @@ pub async fn delete_shard_to_place(
     )
     .await?;
     Ok(())
+}
+
+pub async fn list_shards(
+    client_pool: &Arc<ClientPool>,
+) -> Result<Vec<EngineShard>, StorageEngineError> {
+    let conf = broker_config();
+    let request = ListShardRequest {
+        ..Default::default()
+    };
+    let mut stream = grpc_clients::meta::storage::call::list_shard(
+        client_pool,
+        &conf.get_meta_service_addr(),
+        request,
+    )
+    .await?;
+    let mut shards = Vec::new();
+    while let Some(reply) = stream
+        .message()
+        .await
+        .map_err(|e| StorageEngineError::CommonErrorStr(e.to_string()))?
+    {
+        shards.push(EngineShard::decode(&reply.shard)?);
+    }
+    Ok(shards)
 }
 
 pub fn is_support_storage_type(storage_type: StorageType) -> Result<(), StorageEngineError> {

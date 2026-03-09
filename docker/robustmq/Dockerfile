@@ -13,94 +13,87 @@
 # limitations under the License.
 
 # ==============================================================================
-# Build Stage - Using cargo-chef for better dependency caching
+# Downloader Stage - Pull pre-built release package
 # ==============================================================================
-
-# Stage 1: Planner - Generate dependency recipe
-FROM lukemathwalker/cargo-chef:latest-rust-1.90.0 AS planner
+FROM debian:bookworm-slim AS downloader
 
 WORKDIR /robustmq
 
-# Copy all Cargo files to generate recipe
-# --parents preserves directory structure (requires BuildKit 0.13+)
-COPY --parents Cargo.toml Cargo.lock \
-    src/*/Cargo.toml \
-    src/common/*/Cargo.toml \
-    src/protocol/build.rs \
-    tests/Cargo.toml \
-    ./
-
-# Auto-create dummy src/lib.rs or src/main.rs for every crate found via Cargo.toml
-RUN find . -name "Cargo.toml" -not -path "./Cargo.toml" -exec dirname {} \; | while read dir; do \
-      mkdir -p "$dir/src"; \
-      if grep -q '\[\[bin\]\]' "$dir/Cargo.toml" 2>/dev/null; then \
-        echo 'fn main() {}' > "$dir/src/main.rs"; \
-      fi; \
-      echo '' > "$dir/src/lib.rs"; \
-    done
-
-# Safety net for newly-added workspace crates during CI cache churn.
-# Keeps cargo-chef prepare from failing on "no targets specified".
-RUN mkdir -p src/common/delay-task/src && test -f src/common/delay-task/src/lib.rs || echo '' > src/common/delay-task/src/lib.rs
-
-# Generate recipe.json with full dependency graph
-RUN cargo chef prepare --recipe-path recipe.json
-
-# Stage 2: Builder - Compile dependencies and application
-FROM rust:1.90.0-bookworm AS builder
-
-WORKDIR /robustmq
-
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    clang \
-    libclang-dev \
-    cmake \
-    libssl-dev \
-    pkg-config \
     ca-certificates \
     curl \
-    lld \
-    && rm -rf /var/lib/apt/lists/*
+    tar \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Install protoc (Protocol Buffers compiler) - auto-detect architecture
-ARG PROTOC_VERSION=23.4
-RUN ARCH=$(uname -m) && \
-    case "$ARCH" in \
-        x86_64)  PROTOC_ARCH="linux-x86_64" ;; \
-        aarch64) PROTOC_ARCH="linux-aarch_64" ;; \
-        *) echo "Unsupported arch: $ARCH" && exit 1 ;; \
-    esac && \
-    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-${PROTOC_ARCH}.zip" \
-    && unzip "protoc-${PROTOC_VERSION}-${PROTOC_ARCH}.zip" -d /usr/local \
-    && rm "protoc-${PROTOC_VERSION}-${PROTOC_ARCH}.zip"
+# Required: VERSION must be like v0.3.3
+ARG VERSION
+ARG TARGETARCH
+ARG GITHUB_REPO=robustmq/robustmq
+# Optional: pass a GitHub token to avoid rate-limiting (required for private repos)
+ARG GITHUB_TOKEN
 
-# Install cargo-chef for dependency caching
-RUN cargo install cargo-chef --locked
-
-# Set environment variables for compilation
-# Find LLVM library path - try multiple common locations
-RUN LIBCLANG_PATH=$(find /usr/lib -name "libclang*" -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null || \
-                    find /usr/lib/x86_64-linux-gnu -name "libclang*" -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null || \
-                    echo "/usr/lib/llvm-14/lib") && \
-    echo "LIBCLANG_PATH=$LIBCLANG_PATH" >> /etc/environment
-ENV LIBCLANG_PATH=/usr/lib/llvm-14/lib/ \
-    PATH="/usr/local/bin:${PATH}"
-
-# Copy dependency recipe from planner
-COPY --from=planner /robustmq/recipe.json recipe.json
-
-# Build dependencies - this layer is cached unless Cargo.lock changes
-RUN cargo chef cook --release --recipe-path recipe.json
-
-# Copy the actual source code
-COPY . .
-
-# Build the application (dependencies are already compiled)
-RUN cargo build --release \
-    && strip target/release/broker-server \
-    && strip target/release/cli-command \
-    && strip target/release/cli-bench
+# Poll release asset for up to 40 minutes, checking every 60 seconds.
+# Log each attempt so CI output clearly shows wait progress.
+RUN set -e; \
+    if [ -z "${VERSION}" ]; then \
+      echo "ERROR: build arg VERSION is required (example: --build-arg VERSION=v0.3.3)"; \
+      exit 1; \
+    fi; \
+    case "${TARGETARCH}" in \
+      amd64|arm64) ASSET_ARCH="${TARGETARCH}" ;; \
+      *) echo "ERROR: unsupported TARGETARCH=${TARGETARCH}"; exit 1 ;; \
+    esac; \
+    if [ -n "${GITHUB_TOKEN}" ]; then \
+      AUTH_HEADER="-H \"Authorization: Bearer ${GITHUB_TOKEN}\""; \
+      AUTH_FLAG="--header \"Authorization: Bearer ${GITHUB_TOKEN}\""; \
+    else \
+      AUTH_HEADER=""; \
+      AUTH_FLAG=""; \
+    fi; \
+    ASSET_NAME="robustmq-${VERSION}-linux-${ASSET_ARCH}.tar.gz"; \
+    ASSET_URL="https://github.com/${GITHUB_REPO}/releases/download/${VERSION}/${ASSET_NAME}"; \
+    echo "INFO: waiting for release asset: ${ASSET_URL}"; \
+    ATTEMPT=1; \
+    MAX_ATTEMPTS=40; \
+    while [ "${ATTEMPT}" -le "${MAX_ATTEMPTS}" ]; do \
+      if [ -n "${GITHUB_TOKEN}" ]; then \
+        HTTP_CODE="$(curl -sSL -H "Authorization: Bearer ${GITHUB_TOKEN}" -o /dev/null -w "%{http_code}" "${ASSET_URL}" || true)"; \
+      else \
+        HTTP_CODE="$(curl -sSL -o /dev/null -w "%{http_code}" "${ASSET_URL}" || true)"; \
+      fi; \
+      if [ "${HTTP_CODE}" = "200" ]; then \
+        echo "INFO: asset is available (attempt ${ATTEMPT}/${MAX_ATTEMPTS}), downloading..."; \
+        if [ -n "${GITHUB_TOKEN}" ]; then \
+          curl -fsSL -H "Authorization: Bearer ${GITHUB_TOKEN}" -o "/tmp/${ASSET_NAME}" "${ASSET_URL}"; \
+        else \
+          curl -fsSLo "/tmp/${ASSET_NAME}" "${ASSET_URL}"; \
+        fi; \
+        mkdir -p /tmp/extract; \
+        tar -xzf "/tmp/${ASSET_NAME}" -C /tmp/extract; \
+        PKG_DIR="/tmp/extract/robustmq-${VERSION}-linux-${ASSET_ARCH}"; \
+        if [ ! -d "${PKG_DIR}" ]; then \
+          echo "ERROR: extracted package directory not found: ${PKG_DIR}"; \
+          exit 1; \
+        fi; \
+        mkdir -p /robustmq/dist; \
+        cp -r "${PKG_DIR}/bin" /robustmq/; \
+        cp -r "${PKG_DIR}/libs" /robustmq/; \
+        cp -r "${PKG_DIR}/config" /robustmq/; \
+        if [ -d "${PKG_DIR}/dist" ]; then cp -r "${PKG_DIR}/dist" /robustmq/; fi; \
+        if [ -f "${PKG_DIR}/LICENSE" ]; then cp "${PKG_DIR}/LICENSE" /robustmq/; else touch /robustmq/LICENSE; fi; \
+        if [ -f "${PKG_DIR}/package-info.txt" ]; then cp "${PKG_DIR}/package-info.txt" /robustmq/; else touch /robustmq/package-info.txt; fi; \
+        echo "INFO: release package prepared successfully"; \
+        exit 0; \
+      fi; \
+      echo "INFO: asset not ready yet (attempt ${ATTEMPT}/${MAX_ATTEMPTS}, http=${HTTP_CODE})"; \
+      if [ "${ATTEMPT}" -ge "${MAX_ATTEMPTS}" ]; then break; fi; \
+      echo "INFO: retrying in 60s..."; \
+      ATTEMPT=$((ATTEMPT + 1)); \
+      sleep 60; \
+    done; \
+    echo "ERROR: timed out after 40 minutes waiting for ${ASSET_URL}"; \
+    exit 1
 
 # ==============================================================================
 # Runtime Stage
@@ -124,14 +117,13 @@ RUN mkdir -p /robustmq/{bin,libs,config,data,logs} \
 # Set working directory
 WORKDIR /robustmq
 
-# Copy binaries from builder
-COPY --from=builder /robustmq/target/release/broker-server ./libs/
-COPY --from=builder /robustmq/target/release/cli-command ./libs/
-COPY --from=builder /robustmq/target/release/cli-bench ./libs/
-
-# Copy configuration files and scripts
-COPY --chown=robustmq:robustmq config/ ./config/
-COPY --chown=robustmq:robustmq bin/ ./bin/
+# Copy packaged artifacts from downloader
+COPY --from=downloader --chown=robustmq:robustmq /robustmq/libs ./libs
+COPY --from=downloader --chown=robustmq:robustmq /robustmq/bin ./bin
+COPY --from=downloader --chown=robustmq:robustmq /robustmq/config ./config
+COPY --from=downloader --chown=robustmq:robustmq /robustmq/dist ./dist
+COPY --from=downloader --chown=robustmq:robustmq /robustmq/LICENSE ./LICENSE
+COPY --from=downloader --chown=robustmq:robustmq /robustmq/package-info.txt ./package-info.txt
 
 # Make scripts executable
 RUN chmod +x ./bin/*

@@ -15,6 +15,7 @@
 use crate::delay::{delete_delay_index_info, delete_delay_message, DELAY_QUEUE_MESSAGE_TOPIC};
 use crate::manager::{DelayMessageManager, SharedDelayQueue, DELAY_MESSAGE_SAVE_MS};
 use common_base::error::common::CommonError;
+use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::tools::now_second;
 use common_metrics::mqtt::delay::{
     record_delay_msg_deliver, record_delay_msg_deliver_duration, record_delay_msg_deliver_fail,
@@ -34,18 +35,16 @@ const POP_LOCK_TIMEOUT_MS: u64 = 100;
 
 pub(crate) fn spawn_delay_message_pop_threads(
     delay_message_manager: &Arc<DelayMessageManager>,
+    task_supervisor: &Arc<TaskSupervisor>,
     delay_queue_num: u32,
 ) {
-    info!("Starting delay message pop threads ( {})", delay_queue_num);
-
     for shard_no in 0..delay_queue_num {
         let new_delay_message_manager = delay_message_manager.clone();
 
         let (stop_send, _) = broadcast::channel(2);
         delay_message_manager.add_delay_queue_pop_thread(shard_no, stop_send.clone());
 
-        tokio::spawn(async move {
-            info!("Delay message pop thread started for shard {}", shard_no);
+        task_supervisor.spawn(format!("{}_{}",TaskKind::DelayMessagePop, shard_no), async move {
             let mut recv = stop_send.subscribe();
             loop {
                 select! {

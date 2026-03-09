@@ -36,9 +36,7 @@ pub async fn register_node_by_req(
     let node = BrokerNode::decode(&req.node)?;
     cluster_cache.report_broker_heart(node.node_id);
     sync_save_node(raft_manager, &node).await?;
-
     send_notify_by_add_node(mqtt_call_manager, node.clone()).await?;
-
     Ok(RegisterNodeReply::default())
 }
 

@@ -46,7 +46,7 @@ pub struct MetaCacheManager {
     pub node_heartbeat: DashMap<u64, NodeHeartbeatData>,
 
     // MQTT
-    // (username,(topic_name,topic))
+    // (topic_name,topic)
     pub topic_list: DashMap<String, Topic>,
 
     // (username,user)

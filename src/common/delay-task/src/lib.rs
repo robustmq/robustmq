@@ -24,9 +24,9 @@ use crate::manager::DelayTaskManager;
 use crate::pop::spawn_delay_task_pop_threads;
 use crate::recover::recover_delay_queue;
 use broker_core::cache::BrokerCacheManager;
-use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use common_base::uuid::unique_id;
+use common_base::{error::common::CommonError, task::TaskSupervisor};
 use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
@@ -97,6 +97,7 @@ pub async fn start_delay_task_manager_thread(
     delay_task_manager: &Arc<DelayTaskManager>,
     broker_cache: &Arc<BrokerCacheManager>,
     node_call_manager: &Arc<NodeCallManager>,
+    task_supervisor: &Arc<TaskSupervisor>,
 ) -> Result<(), CommonError> {
     delay_task_manager.start();
 
@@ -106,6 +107,7 @@ pub async fn start_delay_task_manager_thread(
         delay_task_manager,
         node_call_manager,
         broker_cache,
+        task_supervisor,
         delay_task_manager.delay_queue_num,
     );
 

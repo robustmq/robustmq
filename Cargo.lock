@@ -1527,6 +1527,7 @@ dependencies = [
  "clap",
  "console-subscriber",
  "crc32fast",
+ "dashmap 6.1.0",
  "governor",
  "lapin",
  "local-ip-address",

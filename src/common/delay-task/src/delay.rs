@@ -27,7 +27,7 @@ use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use storage_adapter::topic::create_topic_full;
-use tracing::debug;
+use tracing::{debug, info};
 
 pub(crate) async fn save_delay_task_index(
     storage_driver_manager: &Arc<StorageDriverManager>,
@@ -78,6 +78,22 @@ pub(crate) async fn init_inner_topic(
     delay_task_manager: &Arc<DelayTaskManager>,
     broker_cache: &Arc<BrokerCacheManager>,
 ) -> Result<(), CommonError> {
+    if broker_cache
+        .get_topic_by_name(DELAY_TASK_INDEX_TOPIC)
+        .is_some()
+    {
+        info!(
+            "Delay task index topic '{}' already exists, skipping creation",
+            DELAY_TASK_INDEX_TOPIC
+        );
+        return Ok(());
+    }
+
+    info!(
+        "Delay task index topic '{}' not found, creating...",
+        DELAY_TASK_INDEX_TOPIC
+    );
+
     let uid = unique_id();
     let topic = Topic {
         topic_id: uid.clone(),
@@ -97,5 +113,10 @@ pub(crate) async fn init_inner_topic(
         &shard_config,
     )
     .await?;
+
+    info!(
+        "Delay task index topic '{}' created successfully",
+        DELAY_TASK_INDEX_TOPIC
+    );
     Ok(())
 }

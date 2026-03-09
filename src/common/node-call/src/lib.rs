@@ -24,7 +24,6 @@ use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateC
 use protocol::broker::broker_mqtt::LastWillMessageItem;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, RwLock};
-use tracing::info;
 
 pub const GLOBAL_CHANNEL_SIZE: usize = 10000;
 pub const NODE_CHANNEL_SIZE: usize = 5000;
@@ -90,17 +89,18 @@ impl NodeCallManager {
 
     pub async fn start(&self, stop_send: broadcast::Sender<bool>) {
         let (global_sender, global_receiver) = mpsc::channel(GLOBAL_CHANNEL_SIZE);
-        let mut write = self.global_sender.write().await;
-        *write = Some(global_sender);
-
-        tokio::spawn(dispatcher::run(
+        {
+            let mut write = self.global_sender.write().await;
+            *write = Some(global_sender);
+            // write guard dropped here, before the dispatcher loop starts
+        }
+        dispatcher::run(
             global_receiver,
             stop_send,
             self.node_channels.clone(),
             self.broker_cache.clone(),
             self.client_pool.clone(),
-        ));
-
-        info!("Node call manager started");
+        )
+        .await;
     }
 }

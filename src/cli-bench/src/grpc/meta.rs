@@ -347,10 +347,14 @@ pub async fn run_placement_list_session_bench(
             )
             .await
             {
-                Ok(Ok(reply)) => {
+                Ok(Ok(mut stream)) => {
                     local_stats.incr_success();
                     local_stats.record_latency(start.elapsed());
-                    local_stats.add_received(reply.sessions.len() as u64);
+                    let mut count = 0u64;
+                    while stream.message().await.ok().flatten().is_some() {
+                        count += 1;
+                    }
+                    local_stats.add_received(count);
                 }
                 Ok(Err(e)) => {
                     local_stats.incr_failed();

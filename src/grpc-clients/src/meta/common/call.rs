@@ -27,6 +27,7 @@ use protocol::meta::meta_service_common::{
     UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply,
     UpdateSchemaRequest, VoteReply, VoteRequest,
 };
+use tonic::Streaming;
 
 use crate::pool::ClientPool;
 
@@ -89,7 +90,12 @@ generate_meta_service_call!(
     SaveOffsetData
 );
 
-generate_meta_service_call!(list_schema, ListSchemaRequest, ListSchemaReply, ListSchema);
+generate_meta_service_call!(
+    list_schema,
+    ListSchemaRequest,
+    Streaming<ListSchemaReply>,
+    ListSchema
+);
 
 generate_meta_service_call!(
     create_schema,
@@ -115,7 +121,7 @@ generate_meta_service_call!(
 generate_meta_service_call!(
     list_bind_schema,
     ListBindSchemaRequest,
-    ListBindSchemaReply,
+    Streaming<ListBindSchemaReply>,
     ListBindSchema
 );
 

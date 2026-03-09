@@ -14,6 +14,7 @@
 
 use crate::{core::cache::MQTTCacheManager, subscribe::manager::SubscribeManager};
 use common_base::error::ResultCommonError;
+use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::tools::{loop_select_ticket, now_second};
 use common_metrics::mqtt::connector::{
     get_connector_messages_sent_failure, get_connector_messages_sent_failure_total,
@@ -38,7 +39,7 @@ use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::{error, info};
+use tracing::error;
 
 macro_rules! record_cumulative_metric {
     ($cache:expr, $record_fn:ident, $get_pre_fn:ident, $now:expr, $num:expr, $time_window:expr) => {{
@@ -429,6 +430,7 @@ async fn record_subscribe_metrics(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn metrics_record_thread(
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     cache_manager: Arc<MQTTCacheManager>,
@@ -437,102 +439,66 @@ pub fn metrics_record_thread(
     connector_manager: Arc<ConnectorManager>,
     time_window: u64,
     stop_send: broadcast::Sender<bool>,
+    task_supervisor: Arc<TaskSupervisor>,
 ) {
-    info!("Metrics record thread start successfully");
-
     // Basic metrics thread
-    {
-        let metrics_cache_manager = metrics_cache_manager.clone();
-        let cache_manager = cache_manager.clone();
-        let subscribe_manager = subscribe_manager.clone();
-        let connection_manager = connection_manager;
-        let stop_send = stop_send.clone();
-        tokio::spawn(Box::pin(async move {
-            let record_func = async || {
-                record_basic_metrics(
-                    metrics_cache_manager.clone(),
-                    cache_manager.clone(),
-                    subscribe_manager.clone(),
-                    connection_manager.clone(),
-                    time_window,
-                )
-                .await
-            };
-            loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
-        }));
-    }
+    let mcm = metrics_cache_manager.clone();
+    let cm = cache_manager.clone();
+    let sm = subscribe_manager.clone();
+    let conm = connection_manager;
+    let stop = stop_send.clone();
+    task_supervisor.spawn(TaskKind::MQTTMetricsBasic.to_string(), async move {
+        let record_func = async || {
+            record_basic_metrics(
+                mcm.clone(),
+                cm.clone(),
+                sm.clone(),
+                conm.clone(),
+                time_window,
+            )
+            .await
+        };
+        loop_select_ticket(record_func, time_window * 1000, &stop).await;
+    });
 
     // Topic metrics thread
-    {
-        let metrics_cache_manager = metrics_cache_manager.clone();
-        let cache_manager = cache_manager.clone();
-        let stop_send = stop_send.clone();
-        tokio::spawn(Box::pin(async move {
-            let record_func = async || {
-                record_topic_metrics(
-                    metrics_cache_manager.clone(),
-                    cache_manager.clone(),
-                    time_window,
-                )
-                .await
-            };
-            loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
-        }));
-    }
+    let mcm = metrics_cache_manager.clone();
+    let cm = cache_manager.clone();
+    let stop = stop_send.clone();
+    task_supervisor.spawn(TaskKind::MQTTMetricsTopic.to_string(), async move {
+        let record_func = async || record_topic_metrics(mcm.clone(), cm.clone(), time_window).await;
+        loop_select_ticket(record_func, time_window * 1000, &stop).await;
+    });
 
     // Subscribe metrics thread
-    {
-        let metrics_cache_manager = metrics_cache_manager.clone();
-        let subscribe_manager = subscribe_manager;
-        let stop_send = stop_send.clone();
-        tokio::spawn(Box::pin(async move {
-            let record_func = async || {
-                record_subscribe_metrics(
-                    metrics_cache_manager.clone(),
-                    subscribe_manager.clone(),
-                    time_window,
-                )
-                .await
-            };
-            loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
-        }));
-    }
+    let mcm = metrics_cache_manager.clone();
+    let sm = subscribe_manager;
+    let stop = stop_send.clone();
+    task_supervisor.spawn(TaskKind::MQTTMetricsSubscribe.to_string(), async move {
+        let record_func =
+            async || record_subscribe_metrics(mcm.clone(), sm.clone(), time_window).await;
+        loop_select_ticket(record_func, time_window * 1000, &stop).await;
+    });
 
     // Session metrics thread
-    {
-        let metrics_cache_manager = metrics_cache_manager.clone();
-        let cache_manager = cache_manager;
-        let stop_send = stop_send.clone();
-        tokio::spawn(Box::pin(async move {
-            let record_func = async || {
-                record_session_metrics(
-                    metrics_cache_manager.clone(),
-                    cache_manager.clone(),
-                    time_window,
-                )
-                .await
-            };
-            loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
-        }));
-    }
+    let mcm = metrics_cache_manager.clone();
+    let cm = cache_manager;
+    let stop = stop_send.clone();
+    task_supervisor.spawn(TaskKind::MQTTMetricsSession.to_string(), async move {
+        let record_func =
+            async || record_session_metrics(mcm.clone(), cm.clone(), time_window).await;
+        loop_select_ticket(record_func, time_window * 1000, &stop).await;
+    });
 
     // Connector metrics thread
-    {
-        let metrics_cache_manager = metrics_cache_manager;
-        let connector_manager = connector_manager;
-        let stop_send = stop_send;
-        tokio::spawn(Box::pin(async move {
-            let record_func = async || {
-                record_connector_metrics(
-                    metrics_cache_manager.clone(),
-                    connector_manager.clone(),
-                    time_window,
-                )
-                .await
-            };
-            loop_select_ticket(record_func, time_window * 1000, &stop_send).await;
-        }));
-    }
+    let mcm = metrics_cache_manager;
+    let stop = stop_send;
+    task_supervisor.spawn(TaskKind::MQTTMetricsConnector.to_string(), async move {
+        let record_func = async || {
+            record_connector_metrics(mcm.clone(), connector_manager.clone(), time_window).await
+        };
+        loop_select_ticket(record_func, time_window * 1000, &stop).await;
+    });
 }
 
 fn calc_value(max_value: u64, min_value: u64, time_window: u64) -> u64 {

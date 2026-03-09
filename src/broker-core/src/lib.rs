@@ -15,6 +15,5 @@
 #![allow(clippy::result_large_err)]
 pub mod cache;
 pub mod cluster;
-pub mod healthy;
 pub mod heartbeat;
 pub mod tool;

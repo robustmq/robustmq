@@ -62,12 +62,12 @@ mod tests {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        let data = placement_list_session(&client_pool, &addrs, request)
+        let mut stream = placement_list_session(&client_pool, &addrs, request)
             .await
             .unwrap();
-        let mut flag: bool = false;
-        for raw in data.sessions {
-            let session = MqttSession::decode(&raw).unwrap();
+        let mut flag = false;
+        while let Some(reply) = stream.message().await.unwrap() {
+            let session = MqttSession::decode(&reply.session).unwrap();
             if mqtt_session == session {
                 flag = true;
             }
@@ -78,12 +78,12 @@ mod tests {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        let data = placement_list_session(&client_pool, &addrs, request)
+        let mut stream = placement_list_session(&client_pool, &addrs, request)
             .await
             .unwrap();
-        let mut flag: bool = false;
-        for raw in data.sessions {
-            let session = MqttSession::decode(&raw).unwrap();
+        let mut flag = false;
+        while let Some(reply) = stream.message().await.unwrap() {
+            let session = MqttSession::decode(&reply.session).unwrap();
             if mqtt_session == session {
                 flag = true;
             }
@@ -102,13 +102,12 @@ mod tests {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        let data = placement_list_session(&client_pool, &addrs, request)
+        let mut stream = placement_list_session(&client_pool, &addrs, request)
             .await
             .unwrap();
-
-        let mut flag: bool = false;
-        for raw in data.sessions {
-            let session = MqttSession::decode(&raw).unwrap();
+        let mut flag = false;
+        while let Some(reply) = stream.message().await.unwrap() {
+            let session = MqttSession::decode(&reply.session).unwrap();
             if mqtt_session == session {
                 flag = true;
             }

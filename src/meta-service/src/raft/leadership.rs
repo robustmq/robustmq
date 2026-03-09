@@ -18,11 +18,11 @@ use crate::{
     raft::manager::{MultiRaftManager, RaftStateMachineName},
 };
 use node_call::NodeCallManager;
-use std::{sync::Arc, time::Duration};
-use tokio::{select, sync::broadcast, time::sleep};
+use std::sync::Arc;
+use tokio::{select, sync::broadcast};
 use tracing::{error, info};
 
-pub fn monitoring_leader_transition(
+pub async fn monitoring_leader_transition(
     cache_manager: Arc<MetaCacheManager>,
     raft_manager: Arc<MultiRaftManager>,
     call_manager: Arc<NodeCallManager>,
@@ -36,52 +36,50 @@ pub fn monitoring_leader_transition(
         .expect("metadata shard must exist");
     let mut metrics_rx = metadata_node.metrics();
     let mut controller_running = false;
-    tokio::spawn(async move {
-        let mut last_leader: Option<u64> = None;
-        let mut stop_recv = stop_send.subscribe();
-        let (controller_stop_recv, _) = broadcast::channel::<bool>(2);
 
-        loop {
-            select! {
-            val = stop_recv.recv() => {
-                if let Ok(flag) = val {
-                    if flag {
-                        break;
-                    }
-                }
-            }
+    let mut last_leader: Option<u64> = None;
+    let mut stop_recv = stop_send.subscribe();
+    let (controller_stop_recv, _) = broadcast::channel::<bool>(2);
 
-            val =  metrics_rx.changed() => {
-                match val {
-                    Ok(_) => {
-                        let mm = metrics_rx.borrow().clone();
-                        if let Some(current_leader) = mm.current_leader {
-                            if last_leader != Some(current_leader)  {
-                                if mm.id == current_leader{
-                                    info!("[metadata] Leader transition has occurred. current leader is {:?}. previous leader was {:?}. local node id={}", current_leader, last_leader, mm.id);
-                                    start_controller(
-                                        &raft_manager,
-                                        &cache_manager,
-                                        &call_manager,
-                                        controller_stop_recv.clone(),
-                                    );
-                                    controller_running = true;
-                                } else if controller_running {
-                                    stop_controller(controller_stop_recv.clone());
-                                    controller_running = false
-                                }
-
-                                last_leader = Some(current_leader);
-                            }
-                        }
-                    }
-
-                    Err(changed_err) => {
-                        error!("Error while watching metrics_rx: {}; quitting monitoring_leader_transition() loop",changed_err);}
-                    }
+    loop {
+        select! {
+        val = stop_recv.recv() => {
+            if let Ok(flag) = val {
+                if flag {
+                    break;
                 }
             }
         }
-        sleep(Duration::from_secs(1)).await;
-    });
+
+        val =  metrics_rx.changed() => {
+            match val {
+                Ok(_) => {
+                    let mm = metrics_rx.borrow().clone();
+                    if let Some(current_leader) = mm.current_leader {
+                        if last_leader != Some(current_leader)  {
+                            if mm.id == current_leader{
+                                info!("[metadata] Leader transition has occurred. current leader is {:?}. previous leader was {:?}. local node id={}", current_leader, last_leader, mm.id);
+                                start_controller(
+                                    &raft_manager,
+                                    &cache_manager,
+                                    &call_manager,
+                                    controller_stop_recv.clone(),
+                                );
+                                controller_running = true;
+                            } else if controller_running {
+                                stop_controller(controller_stop_recv.clone());
+                                controller_running = false
+                            }
+
+                            last_leader = Some(current_leader);
+                        }
+                    }
+                }
+
+                Err(changed_err) => {
+                    error!("Error while watching metrics_rx: {}; quitting monitoring_leader_transition() loop",changed_err);}
+                }
+            }
+        }
+    }
 }

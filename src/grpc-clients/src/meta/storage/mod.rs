@@ -21,6 +21,7 @@ use protocol::meta::meta_service_journal::{
     UpdateStartTimeBySegmentMetaReply, UpdateStartTimeBySegmentMetaRequest,
 };
 use tonic::transport::Channel;
+use tonic::Streaming;
 
 use crate::macros::impl_retriable_request;
 
@@ -29,7 +30,7 @@ pub mod call;
 impl_retriable_request!(
     ListShardRequest,
     EngineServiceClient<Channel>,
-    ListShardReply,
+    Streaming<ListShardReply>,
     list_shard,
     "EngineService",
     "ListShard",
@@ -59,7 +60,7 @@ impl_retriable_request!(
 impl_retriable_request!(
     ListSegmentRequest,
     EngineServiceClient<Channel>,
-    ListSegmentReply,
+    Streaming<ListSegmentReply>,
     list_segment,
     "EngineService",
     "ListSegment",
@@ -99,7 +100,7 @@ impl_retriable_request!(
 impl_retriable_request!(
     ListSegmentMetaRequest,
     EngineServiceClient<Channel>,
-    ListSegmentMetaReply,
+    Streaming<ListSegmentMetaReply>,
     list_segment_meta,
     "EngineService",
     "ListSegmentMeta",

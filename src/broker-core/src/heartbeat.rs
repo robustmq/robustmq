@@ -14,6 +14,7 @@
 
 use common_base::{
     error::{common::CommonError, ResultCommonError},
+    task::{TaskKind, TaskSupervisor},
     tools::loop_select_ticket,
 };
 use common_config::broker::broker_config;
@@ -36,6 +37,31 @@ pub async fn register_node(
     let node = cluster_storage.register_node(cache_manager, config).await?;
     cache_manager.add_node(node);
     Ok(())
+}
+
+pub async fn register_node_and_start_heartbeat(
+    client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<BrokerCacheManager>,
+    task_supervisor: &Arc<TaskSupervisor>,
+    stop_send: broadcast::Sender<bool>,
+) {
+    let config = broker_config();
+    match register_node(client_pool, cache_manager).await {
+        Ok(()) => {
+            let raw_client_pool = client_pool.clone();
+            let broker_cache = cache_manager.clone();
+            task_supervisor.spawn(
+                TaskKind::BrokerNodeHeartbeat.to_string(),
+                Box::pin(async move {
+                    report_heartbeat(&raw_client_pool, &broker_cache, stop_send).await;
+                }),
+            );
+            info!("Node {} has been successfully registered", config.broker_id);
+        }
+        Err(e) => {
+            error!("Node registration failed. Error message:{}", e);
+        }
+    }
 }
 
 pub async fn report_heartbeat(
@@ -66,6 +92,7 @@ pub async fn report_heartbeat(
                         );
                     } else {
                         info!("Node {} successfully re-registered", config.broker_id);
+                        return Ok(());
                     }
                 }
                 error!(

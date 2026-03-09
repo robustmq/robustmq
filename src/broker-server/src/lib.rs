@@ -19,56 +19,36 @@ use admin_server::{
 };
 use broker_core::{
     cache::BrokerCacheManager,
-    heartbeat::{check_meta_service_status, register_node, report_heartbeat},
+    heartbeat::{check_meta_service_status, register_node_and_start_heartbeat},
 };
 use common_base::{
-    error::common::CommonError,
     role::{is_broker_node, is_engine_node, is_meta_node},
     runtime::{
         create_runtime, resolve_broker_worker_threads, resolve_meta_worker_threads,
         resolve_server_worker_threads,
     },
+    task::{TaskKind, TaskSupervisor},
 };
-use common_config::{
-    broker::broker_config, config::BrokerConfig, storage::memory::StorageDriverMemoryConfig,
-};
+use common_config::{broker::broker_config, config::BrokerConfig};
 use common_healthy::port::{wait_for_engine_ready, wait_for_grpc_ready};
 use common_metrics::{core::server::register_prometheus_export, init_metrics};
-use connector::{manager::ConnectorManager, start_connector};
-use delay_message::manager::DelayMessageManager;
+use connector::start_connector;
 use delay_task::{manager::DelayTaskManager, start_delay_task_manager_thread};
 use grpc_clients::pool::ClientPool;
-use meta_service::{
-    core::cache::MetaCacheManager as PlacementCacheManager,
-    raft::{manager::MultiRaftManager, route::DataRoute},
-    MetaServiceServer, MetaServiceServerParams,
-};
-use mqtt_broker::{
-    broker::{MqttBrokerServer, MqttBrokerServerParams},
-    core::{cache::MQTTCacheManager as MqttCacheManager, retain::RetainMessageManager},
-    security::AuthManager,
-    storage::session::SessionBatcher,
-    subscribe::{manager::SubscribeManager, PushManager},
-};
+use meta_service::{MetaServiceServer, MetaServiceServerParams};
+use mqtt_broker::broker::{MqttBrokerServer, MqttBrokerServerParams};
 use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
 use node_call::NodeCallManager;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
 use rate_limit::RateLimiterManager;
 use rocksdb_engine::{
-    metrics::mqtt::MQTTMetricsCache,
     rocksdb::RocksDBEngine,
     storage::family::{column_family_list, storage_data_fold},
 };
-use schema_register::schema::SchemaRegisterManager;
 use std::{sync::Arc, thread::sleep, time::Duration};
 use storage_adapter::driver::StorageDriverManager;
-use storage_engine::{
-    clients::manager::ClientConnectionManager, commitlog::memory::engine::MemoryStorageEngine,
-    commitlog::rocksdb::engine::RocksDBStorageEngine, core::cache::StorageCacheManager,
-    filesegment::write::WriteManager, group::OffsetManager, handler::adapter::StorageEngineHandler,
-    StorageEngineParams, StorageEngineServer,
-};
-use system_info::{start_monitor, start_runtime_monitor};
+use storage_engine::{group::OffsetManager, StorageEngineParams, StorageEngineServer};
+use system_info::{start_system_info_collection, start_tokio_runtime_info_collection};
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
 
@@ -76,12 +56,11 @@ mod cluster_service;
 pub mod common;
 mod connection;
 mod grpc;
+mod load_cache;
+mod params;
 
 pub struct BrokerServer {
     server_runtime: Runtime,
-    /// Dedicated runtime for Raft tasks; Raft::new() is called inside
-    /// meta_runtime.block_on() so all openraft internal tasks are spawned here,
-    /// isolated from the gRPC server_runtime.
     meta_runtime: Runtime,
     /// Dedicated runtime for MQTT broker tasks; build_broker_mqtt_params is called
     /// inside broker_runtime.block_on() so tasks spawned during construction
@@ -98,6 +77,7 @@ pub struct BrokerServer {
     offset_manager: Arc<OffsetManager>,
     delay_task_manager: Arc<DelayTaskManager>,
     node_call_manager: Arc<NodeCallManager>,
+    task_supervisor: Arc<TaskSupervisor>,
     config: BrokerConfig,
 }
 
@@ -127,6 +107,7 @@ impl BrokerServer {
         let server_runtime = create_runtime("server-runtime", server_worker_threads);
         let broker_cache = Arc::new(BrokerCacheManager::new(config.clone()));
         let connection_manager = Arc::new(NetworkConnectionManager::new());
+        let task_supervisor = Arc::new(TaskSupervisor::new());
 
         let (main_stop_send, _) = broadcast::channel(2);
 
@@ -142,7 +123,7 @@ impl BrokerServer {
         ));
 
         // storage adapter driver (sync, no async needed)
-        let engine_params = BrokerServer::build_storage_engine_params(
+        let engine_params = params::build_storage_engine_params(
             client_pool.clone(),
             rocksdb_engine_handler.clone(),
             broker_cache.clone(),
@@ -177,12 +158,13 @@ impl BrokerServer {
         // Run build_meta_service on meta_runtime so all openraft internal tasks
         // (core loop, log IO, state machine worker, etc.) are isolated from the
         // gRPC server_runtime, eliminating task-scheduler contention.
-        let meta_params = meta_runtime.block_on(BrokerServer::build_meta_service(
+        let meta_params = meta_runtime.block_on(params::build_meta_service(
             client_pool.clone(),
             rocksdb_engine_handler.clone(),
             delay_task_manager.clone(),
             node_call_manager.clone(),
             broker_cache.clone(),
+            task_supervisor.clone(),
         ));
 
         // Create broker_runtime here so that tasks spawned during MQTT param
@@ -197,10 +179,18 @@ impl BrokerServer {
         let mqtt_cm = connection_manager.clone();
         let mqtt_stop = main_stop_send.clone();
         let mqttt_sdm = storage_driver_manager.clone();
+        let mqtt_task_supervisor = task_supervisor.clone();
 
         let mqtt_params = broker_runtime.block_on(async move {
-            match BrokerServer::build_broker_mqtt_params(
-                mqtt_cp, mqtt_bc, mqtt_re, mqtt_cm, mqttt_sdm, mqtt_om, mqtt_stop,
+            match params::build_broker_mqtt_params(
+                mqtt_cp,
+                mqtt_bc,
+                mqtt_re,
+                mqtt_cm,
+                mqttt_sdm,
+                mqtt_om,
+                mqtt_task_supervisor,
+                mqtt_stop,
             )
             .await
             {
@@ -228,17 +218,68 @@ impl BrokerServer {
             connection_manager,
             node_call_manager,
             offset_manager,
+            task_supervisor,
         }
     }
 
     pub fn start(&self) {
-        // start grpc server
+        let config = broker_config();
+        let monitor_interval_ms = config.prometheus.monitor_interval_ms;
+
+        // ── Phase 1: Start network-facing servers ─────────────────────
+        self.start_grpc_server();
+        self.start_admin_server();
+        self.start_pprof_server();
+        self.start_prometheus_server();
+
+        if !wait_for_grpc_ready(self.config.grpc_port) {
+            std::process::exit(1);
+        }
+
+        // ── Phase 2: Meta (Raft) service ──────────────────────────────
+        let meta_stop_send = self.start_meta_service();
+        self.server_runtime.block_on(async {
+            check_meta_service_status(self.client_pool.clone()).await;
+        });
+
+        // ── Phase 3: Load Cache ────────────────────────────────────
+        self.start_load_cache();
+
+        // ── Phase 4: Engine service ────────────────────────────────────
+        let engine_stop_send = self.start_engine_service();
+
+        // ── Phase 5: MQTT broker + all background services ─────────────
+        let (app_stop, _) = broadcast::channel::<bool>(2);
+        let mqtt_stop_send = self.start_mqtt_broker(app_stop.clone());
+
+        // ── Phase 6: all background services ─────────────
+        self.server_runtime.block_on(async {
+            self.start_background_services(app_stop.clone(), monitor_interval_ms)
+                .await;
+        });
+
+        // ── Phase 7: Register node ─────────────────────────────────────
+        let client_pool = self.client_pool.clone();
+        let broker_cache = self.broker_cache.clone();
+        let task_supervisor = self.task_supervisor.clone();
+        self.server_runtime.block_on(async {
+            register_node_and_start_heartbeat(
+                &client_pool,
+                &broker_cache,
+                &task_supervisor,
+                app_stop,
+            )
+            .await;
+        });
+
+        self.awaiting_stop(meta_stop_send, mqtt_stop_send, engine_stop_send);
+    }
+
+    fn start_grpc_server(&self) {
         let place_params = self.place_params.clone();
         let mqtt_params = self.mqtt_params.clone();
         let engine_params = self.engine_params.clone();
-        let broker_cache = self.broker_cache.clone();
         let grpc_port = self.config.grpc_port;
-
         self.server_runtime.spawn(Box::pin(async move {
             if let Err(e) =
                 start_grpc_server(place_params, mqtt_params, engine_params, grpc_port).await
@@ -247,8 +288,10 @@ impl BrokerServer {
                 std::process::exit(1);
             }
         }));
+    }
 
-        // Start Admin Server
+    fn start_admin_server(&self) {
+        let broker_cache = self.broker_cache.clone();
         let state = Arc::new(HttpState {
             client_pool: self.client_pool.clone(),
             connection_manager: self.mqtt_params.connection_manager.clone(),
@@ -271,78 +314,135 @@ impl BrokerServer {
             rate_limiter_manager: self.rate_limiter_manager.clone(),
             storage_driver_manager: self.mqtt_params.storage_driver_manager.clone(),
         });
-
         let http_port = self.config.http_port;
         self.server_runtime.spawn(async move {
-            let admin_server = AdminServer::new();
-            admin_server.start(http_port, state).await;
+            AdminServer::new().start(http_port, state).await;
         });
+    }
 
-        // start pprof server
-        self.server_runtime.spawn(async move {
-            let conf = broker_config();
-            if conf.p_prof.enable {
-                start_pprof_monitor(conf.p_prof.port, conf.p_prof.frequency).await;
-            }
-        });
+    fn start_pprof_server(&self) {
+        let pprof_port = self.config.p_prof.port;
+        let pprof_frequency = self.config.p_prof.frequency;
+        if self.config.p_prof.enable {
+            self.server_runtime.spawn(async move {
+                start_pprof_monitor(pprof_port, pprof_frequency).await;
+            });
+        }
+    }
 
-        // start prometheus
+    fn start_prometheus_server(&self) {
         let prometheus_port = self.config.prometheus.port;
         if self.config.prometheus.enable {
             self.server_runtime.spawn(async move {
                 register_prometheus_export(prometheus_port).await;
             });
         }
+    }
 
-        if !wait_for_grpc_ready(grpc_port) {
-            std::process::exit(1);
+    fn start_load_cache(&self) {
+        let cache_manager = self.mqtt_params.cache_manager.clone();
+        let client_pool = self.client_pool.clone();
+        let connector_manager = self.mqtt_params.connector_manager.clone();
+        let schema_manager = self.mqtt_params.schema_manager.clone();
+        self.server_runtime.block_on(async {
+            if let Err(e) = load_cache::load_metadata_cache(
+                &cache_manager,
+                &client_pool,
+                &connector_manager,
+                &schema_manager,
+            )
+            .await
+            {
+                error!("Failed to load metadata cache: {}", e);
+                std::process::exit(1);
+            }
+        });
+
+        if is_engine_node(&self.config.roles) {
+            let engine_cache = self.engine_params.cache_manager.clone();
+            let client_pool = self.client_pool.clone();
+            self.server_runtime.block_on(async {
+                if let Err(e) = load_cache::load_engine_cache(&engine_cache, &client_pool).await {
+                    error!("Failed to load engine cache: {}", e);
+                    std::process::exit(1);
+                }
+            });
         }
+    }
 
-        let mut meta_stop_send = None;
-        let mut mqtt_stop_send = None;
-        let mut engine_stop_send = None;
-
-        let config = broker_config();
-        let monitor_interval_ms = config.prometheus.monitor_interval_ms;
-
-        // start meta service
-        // meta_runtime was created in new() so all Raft internal tasks already
-        // live there; MetaServiceServer background tasks also spawn here.
+    fn start_meta_service(&self) -> Option<broadcast::Sender<bool>> {
+        if !is_meta_node(&self.config.roles) {
+            return None;
+        }
         let (stop_send, _) = broadcast::channel(2);
         let place_params = self.place_params.clone();
-        if is_meta_node(&config.roles) {
-            meta_stop_send = Some(stop_send.clone());
-            self.meta_runtime.spawn(Box::pin(async move {
-                let mut pc = MetaServiceServer::new(place_params, stop_send.clone());
-                pc.start().await;
-            }));
+        let tx = stop_send.clone();
+        self.meta_runtime.spawn(Box::pin(async move {
+            MetaServiceServer::new(place_params, tx).start().await;
+        }));
+        Some(stop_send)
+    }
+
+    // broker_runtime was created in new() so all engine tasks (including those
+    // spawned during construction) are already on the same runtime.
+    fn start_engine_service(&self) -> Option<broadcast::Sender<bool>> {
+        if !is_engine_node(&self.config.roles) {
+            return None;
         }
-
-        // check meta service ready
-        self.server_runtime.block_on(async {
-            check_meta_service_status(self.client_pool.clone()).await;
-        });
-
         let (stop_send, _) = broadcast::channel(2);
+        let stop_handle = stop_send.clone();
+        let server = StorageEngineServer::new(
+            self.engine_params.clone(),
+            stop_send,
+            self.task_supervisor.clone(),
+        );
+        self.broker_runtime.spawn(Box::pin(async move {
+            server.start().await;
+        }));
+        if !wait_for_engine_ready(self.config.storage_runtime.tcp_port) {
+            std::process::exit(1);
+        }
+        Some(stop_handle)
+    }
 
+    fn start_mqtt_broker(&self, stop: broadcast::Sender<bool>) -> Option<broadcast::Sender<bool>> {
+        if !is_broker_node(&self.config.roles) {
+            return None;
+        }
+        let stop_handle = stop.clone();
+        let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop);
+        self.broker_runtime.spawn(Box::pin(async move {
+            server.start().await;
+        }));
+        Some(stop_handle)
+    }
+
+    async fn start_background_services(
+        &self,
+        stop: broadcast::Sender<bool>,
+        monitor_interval_ms: u64,
+    ) {
         // node call
         let node_call_manager = self.node_call_manager.clone();
-        let raw_stop_send = stop_send.clone();
-        self.server_runtime.spawn(async move {
-            node_call_manager.start(raw_stop_send).await;
-        });
+        let tx = stop.clone();
+        self.task_supervisor
+            .spawn(TaskKind::BrokerNodeCall.to_string(), async move {
+                node_call_manager.start(tx).await;
+            });
 
         // delay task
-        let raw_rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
-        let raw_broker_cache = self.broker_cache.clone();
-        let raw_delay_task_manager = self.delay_task_manager.clone();
-        let raw_node_call_manager = self.node_call_manager.clone();
+        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        let broker_cache = self.broker_cache.clone();
+        let delay_task_manager = self.delay_task_manager.clone();
+        let node_call_manager = self.node_call_manager.clone();
+        let task_supervisor = self.task_supervisor.clone();
         self.server_runtime.spawn(async move {
             if let Err(e) = start_delay_task_manager_thread(
-                &raw_rocksdb_engine_handler,
-                &raw_delay_task_manager,
-                &raw_broker_cache,
-                &raw_node_call_manager,
+                &rocksdb_engine_handler,
+                &delay_task_manager,
+                &broker_cache,
+                &node_call_manager,
+                &task_supervisor,
             )
             .await
             {
@@ -351,236 +451,60 @@ impl BrokerServer {
             }
         });
 
-        // register node
-        let raw_stop_send = stop_send.clone();
-        self.server_runtime.block_on(async move {
-            self.register_node(raw_stop_send.clone()).await;
-        });
-
-        // broker_runtime was created in new() so all MQTT and engine tasks
-        // (including those spawned during construction) are on the same runtime.
-        if is_engine_node(&config.roles) {
-            engine_stop_send = Some(stop_send.clone());
-            let server = StorageEngineServer::new(self.engine_params.clone(), stop_send);
-            self.broker_runtime.spawn(Box::pin(async move {
-                server.start().await;
-            }));
-            if !wait_for_engine_ready(self.config.storage_runtime.tcp_port) {
-                std::process::exit(1);
-            }
-        }
-
-        let (stop_send, _) = broadcast::channel(2);
-        if is_broker_node(&config.roles) {
-            mqtt_stop_send = Some(stop_send.clone());
-            let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop_send.clone());
-            self.broker_runtime.spawn(Box::pin(async move {
-                server.start().await;
-            }));
-        }
-
         // connection gc
         let connection_manager = self.connection_manager.clone();
-        let raw_stop_send = stop_send.clone();
-        self.server_runtime
-            .spawn(async move { network_connection_gc(connection_manager, raw_stop_send).await });
+        let tx = stop.clone();
+        self.task_supervisor
+            .spawn(TaskKind::NetworkConnectionGC.to_string(), async move {
+                network_connection_gc(connection_manager, tx).await
+            });
 
-        // offset flush thread
+        // offset async commit
         let offset_cache = self.offset_manager.clone();
-        let raw_stop_send = stop_send.clone();
-        self.server_runtime.spawn(Box::pin(async move {
-            offset_cache.offset_save_thread(raw_stop_send).await;
-        }));
+        let tx = stop.clone();
+        self.task_supervisor.spawn(
+            TaskKind::OffsetAsyncCommit.to_string(),
+            Box::pin(async move {
+                offset_cache.offset_async_save_thread(tx).await;
+            }),
+        );
 
-        // system resource monitor
-        let raw_stop_send = stop_send.clone();
-        self.server_runtime.spawn(async move {
-            start_monitor(raw_stop_send, monitor_interval_ms).await;
-        });
+        // system info collection
+        let tx = stop.clone();
+        self.task_supervisor
+            .spawn(TaskKind::SystemInfoCollection.to_string(), async move {
+                start_system_info_collection(tx, monitor_interval_ms).await;
+            });
 
-        // Tokio runtime metrics monitor
+        // tokio runtime info collection
         let runtime_handles = vec![
             ("server".to_string(), self.server_runtime.handle().clone()),
             ("meta".to_string(), self.meta_runtime.handle().clone()),
             ("broker".to_string(), self.broker_runtime.handle().clone()),
         ];
-        let raw_stop_send = stop_send.clone();
-        self.server_runtime.spawn(async move {
-            start_runtime_monitor(runtime_handles, raw_stop_send, monitor_interval_ms).await;
-        });
+        let tx = stop.clone();
+        self.task_supervisor.spawn(
+            TaskKind::TokioRuntimeInfoCollection.to_string(),
+            async move {
+                start_tokio_runtime_info_collection(runtime_handles, tx, monitor_interval_ms).await;
+            },
+        );
 
-        // connector
+        //
         let message_storage = self.mqtt_params.storage_driver_manager.clone();
         let connector_manager = self.mqtt_params.connector_manager.clone();
-        let raw_stop_send = stop_send.clone();
-        let client_poll = self.client_pool.clone();
+        let client_pool = self.client_pool.clone();
+        let task_supervisor = self.task_supervisor.clone();
         self.server_runtime.spawn(Box::pin(async move {
             start_connector(
-                &client_poll,
+                &client_pool,
                 &message_storage,
                 &connector_manager,
-                &raw_stop_send,
+                &task_supervisor,
+                &stop,
             )
             .await;
         }));
-
-        // awaiting stop
-        self.awaiting_stop(meta_stop_send, mqtt_stop_send, engine_stop_send);
-    }
-
-    async fn build_meta_service(
-        client_pool: Arc<ClientPool>,
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
-        delay_task_manager: Arc<DelayTaskManager>,
-        node_call_manager: Arc<NodeCallManager>,
-        broker_cache: Arc<BrokerCacheManager>,
-    ) -> MetaServiceServerParams {
-        let cache_manager = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
-
-        let data_route = Arc::new(DataRoute::new(
-            rocksdb_engine_handler.clone(),
-            cache_manager.clone(),
-            delay_task_manager.clone(),
-            broker_cache.clone(),
-        ));
-        let raft_manager = Arc::new(
-            match MultiRaftManager::new(
-                client_pool.clone(),
-                rocksdb_engine_handler.clone(),
-                data_route,
-            )
-            .await
-            {
-                Ok(data) => data,
-                Err(e) => {
-                    error!("Failed to create MultiRaftManager: {}", e);
-                    std::process::exit(1);
-                }
-            },
-        );
-
-        MetaServiceServerParams {
-            cache_manager,
-            rocksdb_engine_handler,
-            client_pool,
-            node_call_manager,
-            raft_manager,
-            delay_task_manager,
-            broker_cache,
-        }
-    }
-
-    async fn build_broker_mqtt_params(
-        client_pool: Arc<ClientPool>,
-        broker_cache: Arc<BrokerCacheManager>,
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
-        connection_manager: Arc<NetworkConnectionManager>,
-        storage_driver_manager: Arc<StorageDriverManager>,
-        offset_manager: Arc<OffsetManager>,
-        stop_sx: broadcast::Sender<bool>,
-    ) -> Result<MqttBrokerServerParams, CommonError> {
-        let cache_manager = Arc::new(MqttCacheManager::new(
-            client_pool.clone(),
-            broker_cache.clone(),
-        ));
-        let subscribe_manager = Arc::new(SubscribeManager::new());
-        let connector_manager = Arc::new(ConnectorManager::new());
-        let auth_driver = Arc::new(AuthManager::new(cache_manager.clone()));
-        let delay_message_manager = Arc::new(
-            DelayMessageManager::new(client_pool.clone(), storage_driver_manager.clone(), 5)
-                .await?,
-        );
-        let metrics_cache_manager = Arc::new(MQTTMetricsCache::new(rocksdb_engine_handler.clone()));
-        let schema_manager = Arc::new(SchemaRegisterManager::new());
-        let retain_message_manager = RetainMessageManager::new(
-            cache_manager.clone(),
-            client_pool.clone(),
-            connection_manager.clone(),
-            stop_sx,
-        );
-        let push_manager = Arc::new(PushManager::new(
-            cache_manager.clone(),
-            storage_driver_manager.clone(),
-            connection_manager.clone(),
-            rocksdb_engine_handler.clone(),
-            subscribe_manager.clone(),
-            client_pool.clone(),
-        ));
-
-        let session_batcher = SessionBatcher::new();
-
-        Ok(MqttBrokerServerParams {
-            cache_manager,
-            client_pool,
-            session_batcher,
-            storage_driver_manager,
-            subscribe_manager,
-            connection_manager,
-            connector_manager,
-            auth_driver,
-            delay_message_manager,
-            schema_manager,
-            metrics_cache_manager,
-            rocksdb_engine_handler,
-            broker_cache,
-            offset_manager,
-            retain_message_manager,
-            push_manager,
-        })
-    }
-
-    fn build_storage_engine_params(
-        client_pool: Arc<ClientPool>,
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
-        broker_cache: Arc<BrokerCacheManager>,
-        connection_manager: Arc<NetworkConnectionManager>,
-        offset_manager: Arc<OffsetManager>,
-    ) -> StorageEngineParams {
-        let config = broker_config();
-
-        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache.clone()));
-        let write_manager = Arc::new(WriteManager::new(
-            rocksdb_engine_handler.clone(),
-            cache_manager.clone(),
-            client_pool.clone(),
-            config.storage_runtime.io_thread_num,
-        ));
-        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
-            rocksdb_engine_handler.clone(),
-            cache_manager.clone(),
-            StorageDriverMemoryConfig::default(),
-        ));
-        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::new(
-            cache_manager.clone(),
-            rocksdb_engine_handler.clone(),
-        ));
-
-        let client_connection_manager =
-            Arc::new(ClientConnectionManager::new(cache_manager.clone(), 4));
-
-        let storage_engine_handler = Arc::new(StorageEngineHandler::new(
-            storage_engine::handler::adapter::StorageEngineHandlerParams {
-                cache_manager: cache_manager.clone(),
-                client_pool: client_pool.clone(),
-                memory_storage_engine: memory_storage_engine.clone(),
-                rocksdb_storage_engine: rocksdb_storage_engine.clone(),
-                client_connection_manager: client_connection_manager.clone(),
-                rocksdb_engine_handler: rocksdb_engine_handler.clone(),
-                write_manager: write_manager.clone(),
-                offset_manager: offset_manager.clone(),
-            },
-        ));
-        StorageEngineParams {
-            cache_manager,
-            client_pool,
-            rocksdb_engine_handler,
-            connection_manager,
-            client_connection_manager,
-            memory_storage_engine,
-            rocksdb_storage_engine,
-            write_manager,
-            storage_engine_handler,
-        }
     }
 
     pub fn awaiting_stop(
@@ -617,6 +541,10 @@ impl BrokerServer {
                 );
             }
 
+            if let Err(e) = self.delay_task_manager.stop().await {
+                error!("delay task stop signal, error message{}", e);
+            }
+
             if let Some(sx) = engine_stop {
                 if let Err(e) = sx.send(true) {
                     error!("storage engine stop signal, error message{}", e);
@@ -630,34 +558,7 @@ impl BrokerServer {
                 }
             }
 
-            if let Err(e) = self.delay_task_manager.stop().await {
-                error!("delay task stop signal, error message{}", e);
-            }
-
             sleep(Duration::from_secs(3));
         }));
-    }
-
-    async fn register_node(&self, main_stop: broadcast::Sender<bool>) {
-        // register node
-        let client_pool = self.client_pool.clone();
-        let broker_cache = self.broker_cache.clone();
-
-        // register node
-        let config = broker_config();
-        match register_node(&client_pool, &broker_cache).await {
-            Ok(()) => {
-                // heartbeat report
-                let raw_client_pool = client_pool.clone();
-                tokio::spawn(Box::pin(async move {
-                    report_heartbeat(&raw_client_pool, &broker_cache, main_stop.clone()).await;
-                }));
-
-                info!("Node {} has been successfully registered", config.broker_id);
-            }
-            Err(e) => {
-                error!("Node registration failed. Error message:{}", e);
-            }
-        }
     }
 }

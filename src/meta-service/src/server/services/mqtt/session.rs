@@ -35,21 +35,31 @@ use protocol::meta::meta_service_mqtt::{
     ListSessionRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::pin::Pin;
 use std::sync::Arc;
+use tonic::codegen::tokio_stream::Stream;
+use tonic::Status;
+
+type ListSessionStream =
+    Result<Pin<Box<dyn Stream<Item = Result<ListSessionReply, Status>> + Send>>, MetaServiceError>;
 
 // Session Operations
 pub fn list_session_by_req(
     broker_cache_manager: &Arc<BrokerCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSessionRequest,
-) -> Result<ListSessionReply, MetaServiceError> {
-    let mut not_persist_session_list =
-        read_not_persist_session(broker_cache_manager, &req.client_id)?;
-    let persist_session_list = read_persist_session(rocksdb_engine_handler, &req.client_id)?;
-    not_persist_session_list.extend(persist_session_list);
-    Ok(ListSessionReply {
-        sessions: not_persist_session_list,
-    })
+) -> ListSessionStream {
+    let mut sessions = read_not_persist_session(broker_cache_manager, &req.client_id)?;
+    let persist_sessions = read_persist_session(rocksdb_engine_handler, &req.client_id)?;
+    sessions.extend(persist_sessions);
+
+    let output = async_stream::try_stream! {
+        for session in sessions {
+            yield ListSessionReply { session };
+        }
+    };
+
+    Ok(Box::pin(output))
 }
 
 fn read_not_persist_session(

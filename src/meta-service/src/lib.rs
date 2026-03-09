@@ -17,6 +17,7 @@ use crate::core::cache::{load_cache, MetaCacheManager};
 use crate::core::controller::ClusterController;
 use crate::raft::manager::MultiRaftManager;
 use broker_core::cache::BrokerCacheManager;
+use common_base::task::{TaskKind, TaskSupervisor};
 use delay_task::manager::DelayTaskManager;
 use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
@@ -35,124 +36,105 @@ pub mod storage;
 #[derive(Clone)]
 pub struct MetaServiceServerParams {
     pub raft_manager: Arc<MultiRaftManager>,
-    // Cache metadata information for the Storage Engine cluster
     pub cache_manager: Arc<MetaCacheManager>,
-    // Raft Global read and write pointer
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
-    // Global GRPC client connection pool
     pub client_pool: Arc<ClientPool>,
-    // Global call thread manager
     pub node_call_manager: Arc<NodeCallManager>,
     pub delay_task_manager: Arc<DelayTaskManager>,
     pub broker_cache: Arc<BrokerCacheManager>,
+    pub task_supervisor: Arc<TaskSupervisor>,
 }
 pub struct MetaServiceServer {
     raft_manager: Arc<MultiRaftManager>,
-    // Cache metadata information for the Storage Engine cluster
     cache_manager: Arc<MetaCacheManager>,
-    // Raft Global read and write pointer
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    // Global GRPC client connection pool
     client_pool: Arc<ClientPool>,
-    // Global call thread manager
     node_call_manager: Arc<NodeCallManager>,
-    main_stop: broadcast::Sender<bool>,
-    inner_stop: broadcast::Sender<bool>,
+    stop: broadcast::Sender<bool>,
+    task_supervisor: Arc<TaskSupervisor>,
 }
 
 impl MetaServiceServer {
     pub fn new(
         params: MetaServiceServerParams,
-        main_stop: broadcast::Sender<bool>,
+        stop: broadcast::Sender<bool>,
     ) -> MetaServiceServer {
-        let (inner_stop, _) = broadcast::channel(2);
         MetaServiceServer {
             cache_manager: params.cache_manager,
             rocksdb_engine_handler: params.rocksdb_engine_handler,
             client_pool: params.client_pool,
             node_call_manager: params.node_call_manager,
             raft_manager: params.raft_manager,
-            main_stop,
-            inner_stop,
+            task_supervisor: params.task_supervisor,
+            stop,
         }
     }
 
     pub async fn start(&mut self) {
-        self.start_init();
+        if let Err(e) = load_cache(&self.cache_manager, &self.rocksdb_engine_handler) {
+            error!("Failed to load cache: {}", e);
+            std::process::exit(1);
+        }
 
-        self.start_raft_machine().await;
+        if let Err(e) = self.raft_manager.start().await {
+            error!("Failed to start Raft manager: {}", e);
+            std::process::exit(1);
+        }
 
-        self.start_heartbeat();
+        self.start_background_services().await;
 
         self.awaiting_stop().await;
     }
 
-    pub fn start_heartbeat(&self) {
+    async fn start_background_services(&self) {
+        // raft machine monitor
+        let raft_manager = self.raft_manager.clone();
+        let stop = self.stop.clone();
+        self.task_supervisor
+            .spawn(TaskKind::MetaRaftMachineMonitor.to_string(), async move {
+                raft_manager.start_metrics_monitor(stop).await;
+            });
+
+        // monitor leader change
+        let cache_manager = self.cache_manager.clone();
+        let raft_manager = self.raft_manager.clone();
+        let node_call_manager = self.node_call_manager.clone();
+        let stop = self.stop.clone();
+        self.task_supervisor.spawn(
+            TaskKind::MetaMonitorRaftLeaderChange.to_string(),
+            async move {
+                monitoring_leader_transition(cache_manager, raft_manager, node_call_manager, stop)
+                    .await;
+            },
+        );
+
+        // broker node heartbeat check
         let ctrl = ClusterController::new(
             self.cache_manager.clone(),
             self.raft_manager.clone(),
             self.client_pool.clone(),
             self.node_call_manager.clone(),
         );
-        let raw_stop_send = self.inner_stop.clone();
-        tokio::spawn(Box::pin(async move {
-            ctrl.start_node_heartbeat_check(&raw_stop_send).await;
-        }));
-    }
-
-    async fn start_raft_machine(&self) {
-        if let Err(e) = self.raft_manager.start().await {
-            error!("Failed to start Raft manager: {}", e);
-            std::process::exit(1);
-        }
-
-        self.raft_manager
-            .start_metrics_monitor(self.inner_stop.clone());
-
-        monitoring_leader_transition(
-            self.cache_manager.clone(),
-            self.raft_manager.clone(),
-            self.node_call_manager.clone(),
-            self.main_stop.clone(),
+        let stop = self.stop.clone();
+        self.task_supervisor.spawn(
+            TaskKind::BrokerNodeHeartbeat.to_string(),
+            Box::pin(async move {
+                ctrl.start_node_heartbeat_check(&stop).await;
+            }),
         );
     }
 
-    pub fn start_init(&self) {
-        if let Err(e) = load_cache(&self.cache_manager, &self.rocksdb_engine_handler) {
-            error!("Failed to load cache: {}", e);
-            std::process::exit(1);
-        }
-    }
-
     pub async fn awaiting_stop(&self) {
-        let main_stop = self.main_stop.clone();
         let raft_manager = self.raft_manager.clone();
-        let inner_stop = self.inner_stop.clone();
-        // Stop the Server first, indicating that it will no longer receive request packets.
-        let mut recv = main_stop.subscribe();
+        let mut recv = self.stop.subscribe();
         match recv.recv().await {
             Ok(_) => {
-                info!("Meta service shutdown initiated...");
-
-                // Step 1: Stop all background threads (GC, heartbeat, controllers)
-                info!("Stopping background threads...");
-                if let Err(e) = inner_stop.send(true) {
-                    error!("Failed to send stop signal to background threads: {}", e);
-                }
-
-                // Step 2: Wait for background threads to finish gracefully
-                info!("Waiting for background threads to complete...");
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-
-                // Step 3: Shutdown Raft node
-                info!("Shutting down Raft node...");
+                info!("Meta service shutdown...");
                 if let Err(e) = raft_manager.shutdown().await {
                     error!("Failed to shutdown Raft node: {}", e);
                 } else {
                     info!("Raft node shutdown successfully.");
                 }
-
-                info!("Meta service stopped gracefully.");
             }
             Err(e) => {
                 error!("Failed to receive stop signal: {}", e);

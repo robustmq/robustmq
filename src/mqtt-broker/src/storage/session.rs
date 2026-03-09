@@ -55,18 +55,14 @@ impl SessionBatcher {
         })
     }
 
-    pub fn start(&self, client_pool: Arc<ClientPool>) {
+    pub async fn start(&self, client_pool: Arc<ClientPool>) {
         let rx = self
             .consumer
             .lock()
             .unwrap()
             .take()
             .expect("SessionBatcher::start must be called exactly once");
-        tokio::spawn(session_batch_consumer(rx, client_pool));
-        info!(
-            "SessionBatcher started: batch_size={}, max_wait_ms={}",
-            SESSION_BATCH_SIZE, SESSION_BATCH_MAX_WAIT_MS
-        );
+        session_batch_consumer(rx, client_pool).await;
     }
 
     pub async fn set_session(
@@ -196,16 +192,16 @@ impl SessionStorage {
         let config = broker_config();
         let request = ListSessionRequest { client_id };
 
-        let reply =
+        let mut stream =
             placement_list_session(&self.client_pool, &config.get_meta_service_addr(), request)
                 .await?;
-        if reply.sessions.is_empty() {
-            return Ok(None);
+
+        if let Some(reply) = stream.message().await? {
+            let data = MqttSession::decode(&reply.session)?;
+            return Ok(Some(data));
         }
 
-        let raw = reply.sessions.first().unwrap();
-        let data = MqttSession::decode(raw)?;
-        Ok(Some(data))
+        Ok(None)
     }
 
     pub async fn list_session(
@@ -214,20 +210,16 @@ impl SessionStorage {
     ) -> Result<DashMap<String, MqttSession>, CommonError> {
         let config = broker_config();
         let request = ListSessionRequest {
-            client_id: if let Some(id) = client_id {
-                id
-            } else {
-                "".to_string()
-            },
+            client_id: client_id.unwrap_or_default(),
         };
 
-        let reply =
+        let mut stream =
             placement_list_session(&self.client_pool, &config.get_meta_service_addr(), request)
                 .await?;
-        let results = DashMap::with_capacity(2);
+        let results = DashMap::new();
 
-        for raw in reply.sessions {
-            let data = MqttSession::decode(&raw)?;
+        while let Some(reply) = stream.message().await? {
+            let data = MqttSession::decode(&reply.session)?;
             results.insert(data.client_id.clone(), data);
         }
 

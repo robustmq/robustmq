@@ -224,6 +224,7 @@ export const sidebar = [
     collapsed: true,
     items: [
       { text: "Dashboard", link: "/zh/Operations/Dashboard" },
+      { text: "健康检查", link: "/zh/Operations/HealthCheck" },
       {
         text: "HTTP 接口文档",
         collapsed: true,
