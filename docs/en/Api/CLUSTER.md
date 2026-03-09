@@ -246,6 +246,130 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
 
 ---
 
+---
+
+## Tenant Management
+
+A **Tenant** is the core multi-tenancy concept in RobustMQ, providing logical isolation of cluster resources. Use tenants when a single cluster serves multiple business units, multiple environments (dev / staging / prod), or multiple teams.
+
+### 4. List Tenants
+
+- **Endpoint**: `GET /api/tenant/list`
+- **Description**: List all tenants. Supports pagination, sorting, and filtering.
+- **Query Parameters**:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tenant_name` | string | No | Exact match filter by tenant name |
+| `page` | u32 | No | Page number, starting from 1 (default: 1) |
+| `limit` | u32 | No | Items per page (default: 100) |
+| `sort_field` | string | No | Sort field; supports `tenant_name` |
+| `sort_by` | string | No | Sort direction: `asc` or `desc` |
+| `filter_field` | string | No | Field name to filter on |
+| `filter_values` | string[] | No | Filter value list |
+| `exact_match` | string | No | Set to `exact` for exact matching |
+
+- **Response Example**:
+```json
+{
+  "code": 0,
+  "data": {
+    "data": [
+      {
+        "tenant_name": "business-a",
+        "desc": "Business A tenant",
+        "create_time": 1738800000
+      }
+    ],
+    "total_count": 1
+  },
+  "error": null
+}
+```
+
+- **curl Example**:
+```bash
+# List all tenants
+curl -X GET "http://localhost:8080/api/tenant/list"
+
+# Query a specific tenant
+curl -X GET "http://localhost:8080/api/tenant/list?tenant_name=business-a"
+```
+
+---
+
+### 5. Create Tenant
+
+- **Endpoint**: `POST /api/tenant/create`
+- **Description**: Create a new tenant.
+- **Request Body**:
+
+| Field | Type | Required | Validation | Description |
+|-------|------|----------|------------|-------------|
+| `tenant_name` | string | Yes | Length 1–128 | Tenant name, must be globally unique |
+| `desc` | string | No | Length ≤ 500 | Human-readable description |
+
+- **Request Example**:
+```json
+{
+  "tenant_name": "business-a",
+  "desc": "Business A tenant"
+}
+```
+
+- **Response Example**:
+```json
+{
+  "code": 0,
+  "data": "success",
+  "error": null
+}
+```
+
+- **curl Example**:
+```bash
+curl -X POST http://localhost:8080/api/tenant/create \
+  -H "Content-Type: application/json" \
+  -d '{"tenant_name": "business-a", "desc": "Business A tenant"}'
+```
+
+---
+
+### 6. Delete Tenant
+
+- **Endpoint**: `POST /api/tenant/delete`
+- **Description**: Delete a tenant by name.
+- **Request Body**:
+
+| Field | Type | Required | Validation | Description |
+|-------|------|----------|------------|-------------|
+| `tenant_name` | string | Yes | Length 1–128 | Name of the tenant to delete |
+
+- **Request Example**:
+```json
+{
+  "tenant_name": "business-a"
+}
+```
+
+- **Response Example**:
+```json
+{
+  "code": 0,
+  "data": "success",
+  "error": null
+}
+```
+
+- **curl Example**:
+```bash
+curl -X POST http://localhost:8080/api/tenant/delete \
+  -H "Content-Type: application/json" \
+  -d '{"tenant_name": "business-a"}'
+```
+
+---
+
 ## Notes
 
 1. **Configuration Format**: Configuration must be a valid JSON string
@@ -253,9 +377,4 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
 3. **Hot Update**: Most configurations support hot updates without service restart
 4. **Backup Recommendation**: It's recommended to get current configuration for backup before making changes
 5. **Permission Requirements**: Configuration modifications usually require administrator privileges
-
----
-
-*Documentation Version: v4.0*
-*Last Updated: 2025-09-20*
-*Based on Code Version: RobustMQ Admin Server v0.1.34*
+6. **Tenant Isolation**: Tenants provide logical isolation, suitable for private deployments. For SaaS scenarios requiring stronger isolation boundaries, consider physical separation.

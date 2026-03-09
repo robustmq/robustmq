@@ -23,6 +23,7 @@ use crate::core::last_will::save_last_will_message;
 use crate::core::session::{session_process, BuildSessionContext};
 use crate::core::string_validator::{validate_client_id, validate_password, validate_username};
 use crate::core::sub_auto::try_auto_subscribe;
+use crate::core::tenant::get_tenant_info;
 use crate::core::topic::topic_name_validator;
 use crate::system_topic::event::{st_report_connected_event, StReportConnectedEventContext};
 use common_base::tools::now_second;
@@ -72,6 +73,25 @@ impl MqttService {
             );
         };
 
+        // decode tenant
+        let _tenant = match get_tenant_info(
+            &self.cache_manager,
+            &client_id,
+            &context.connect_properties,
+            &context.login,
+        ) {
+            Ok(tenant) => tenant,
+            Err(e) => {
+                return build_connect_ack_fail_packet(
+                    &self.protocol,
+                    ConnectReturnCode::UnspecifiedError,
+                    &context.connect_properties,
+                    Some(e.to_string()),
+                );
+            }
+        };
+
+        // build connection
         let connection = build_connection(
             context.connect_id,
             client_id.clone(),

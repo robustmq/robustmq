@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
+use crate::cache::BrokerCacheManager;
+use common_base::{error::common::CommonError, tools::now_second};
 use common_config::broker::broker_config;
 use grpc_clients::meta::common::call::{create_tenant, delete_tenant, list_tenant};
 use grpc_clients::pool::ClientPool;
@@ -21,6 +22,38 @@ use protocol::meta::meta_service_common::{
     CreateTenantRequest, DeleteTenantRequest, ListTenantRequest,
 };
 use std::sync::Arc;
+
+pub const DEFAULT_TENANT_NAME: &str = "default";
+pub const DEFAULT_TENANT_DESC: &str = "Default tenant";
+
+/// 启动时尝试初始化默认租户。
+/// 若 default 租户已存在则跳过，否则创建并写入缓存。
+pub async fn try_init_default_tenant(
+    broker_cache: &Arc<BrokerCacheManager>,
+    client_pool: &Arc<ClientPool>,
+) -> Result<(), CommonError> {
+    let storage = TenantStorage::new(client_pool.clone());
+    let exists = storage
+        .list(Some(DEFAULT_TENANT_NAME))
+        .await?
+        .into_iter()
+        .any(|t| t.tenant_name == DEFAULT_TENANT_NAME);
+
+    if exists {
+        return Ok(());
+    }
+
+    storage
+        .create(DEFAULT_TENANT_NAME, DEFAULT_TENANT_DESC)
+        .await?;
+
+    broker_cache.add_tenant(Tenant {
+        tenant_name: DEFAULT_TENANT_NAME.to_string(),
+        desc: DEFAULT_TENANT_DESC.to_string(),
+        create_time: now_second(),
+    });
+    Ok(())
+}
 
 pub struct TenantStorage {
     client_pool: Arc<ClientPool>,
@@ -48,6 +81,10 @@ impl TenantStorage {
         };
         delete_tenant(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
         Ok(())
+    }
+
+    pub async fn list_all(&self) -> Result<Vec<Tenant>, CommonError> {
+        self.list(None).await
     }
 
     pub async fn list(&self, tenant_name: Option<&str>) -> Result<Vec<Tenant>, CommonError> {
