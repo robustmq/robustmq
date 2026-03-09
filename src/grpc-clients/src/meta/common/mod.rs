@@ -16,16 +16,17 @@ use protocol::meta::meta_service_common::meta_service_service_client::MetaServic
 use protocol::meta::meta_service_common::{
     AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, BindSchemaReply,
     BindSchemaRequest, ChangeMembershipReply, ChangeMembershipRequest, ClusterStatusReply,
-    ClusterStatusRequest, CreateSchemaReply, CreateSchemaRequest, DeleteReply, DeleteRequest,
-    DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
-    ExistsReply, ExistsRequest, GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply,
-    GetPrefixRequest, GetReply, GetRequest, GetResourceConfigReply, GetResourceConfigRequest,
-    HeartbeatReply, HeartbeatRequest, ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply,
-    ListSchemaRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
-    SaveOffsetDataReply, SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply,
-    SetResourceConfigRequest, SnapshotReply, SnapshotRequest, UnBindSchemaReply,
-    UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply,
-    UpdateSchemaRequest, VoteReply, VoteRequest,
+    ClusterStatusRequest, CreateSchemaReply, CreateSchemaRequest, CreateTenantReply,
+    CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
+    DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest, DeleteTenantReply,
+    DeleteTenantRequest, ExistsReply, ExistsRequest, GetOffsetDataReply, GetOffsetDataRequest,
+    GetPrefixReply, GetPrefixRequest, GetReply, GetRequest, GetResourceConfigReply,
+    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
+    ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, ListTenantReply, ListTenantRequest,
+    NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
+    SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply, SetResourceConfigRequest,
+    SnapshotReply, SnapshotRequest, UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply,
+    UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest, VoteReply, VoteRequest,
 };
 use tonic::transport::Channel;
 use tonic::Streaming;
@@ -131,6 +132,36 @@ impl_retriable_request!(
     get_offset_data,
     "PlacementService",
     "GetOffsetData",
+    true
+);
+
+impl_retriable_request!(
+    CreateTenantRequest,
+    MetaServiceServiceClient<Channel>,
+    CreateTenantReply,
+    create_tenant,
+    "PlacementService",
+    "CreateTenant",
+    true
+);
+
+impl_retriable_request!(
+    DeleteTenantRequest,
+    MetaServiceServiceClient<Channel>,
+    DeleteTenantReply,
+    delete_tenant,
+    "PlacementService",
+    "DeleteTenant",
+    true
+);
+
+impl_retriable_request!(
+    ListTenantRequest,
+    MetaServiceServiceClient<Channel>,
+    Streaming<ListTenantReply>,
+    list_tenant,
+    "PlacementService",
+    "ListTenant",
     true
 );
 

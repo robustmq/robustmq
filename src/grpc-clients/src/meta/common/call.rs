@@ -16,16 +16,17 @@ use common_base::error::common::CommonError;
 use protocol::meta::meta_service_common::{
     AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, BindSchemaReply,
     BindSchemaRequest, ChangeMembershipReply, ChangeMembershipRequest, ClusterStatusReply,
-    ClusterStatusRequest, CreateSchemaReply, CreateSchemaRequest, DeleteReply, DeleteRequest,
-    DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
-    ExistsReply, ExistsRequest, GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply,
-    GetPrefixRequest, GetReply, GetRequest, GetResourceConfigReply, GetResourceConfigRequest,
-    HeartbeatReply, HeartbeatRequest, ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply,
-    ListSchemaRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
-    SaveOffsetDataReply, SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply,
-    SetResourceConfigRequest, SnapshotReply, SnapshotRequest, UnBindSchemaReply,
-    UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply,
-    UpdateSchemaRequest, VoteReply, VoteRequest,
+    ClusterStatusRequest, CreateSchemaReply, CreateSchemaRequest, CreateTenantReply,
+    CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
+    DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest, DeleteTenantReply,
+    DeleteTenantRequest, ExistsReply, ExistsRequest, GetOffsetDataReply, GetOffsetDataRequest,
+    GetPrefixReply, GetPrefixRequest, GetReply, GetRequest, GetResourceConfigReply,
+    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
+    ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, ListTenantReply, ListTenantRequest,
+    NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
+    SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply, SetResourceConfigRequest,
+    SnapshotReply, SnapshotRequest, UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply,
+    UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest, VoteReply, VoteRequest,
 };
 use tonic::Streaming;
 
@@ -88,6 +89,27 @@ generate_meta_service_call!(
     SaveOffsetDataRequest,
     SaveOffsetDataReply,
     SaveOffsetData
+);
+
+generate_meta_service_call!(
+    create_tenant,
+    CreateTenantRequest,
+    CreateTenantReply,
+    CreateTenant
+);
+
+generate_meta_service_call!(
+    delete_tenant,
+    DeleteTenantRequest,
+    DeleteTenantReply,
+    DeleteTenant
+);
+
+generate_meta_service_call!(
+    list_tenant,
+    ListTenantRequest,
+    Streaming<ListTenantReply>,
+    ListTenant
 );
 
 generate_meta_service_call!(

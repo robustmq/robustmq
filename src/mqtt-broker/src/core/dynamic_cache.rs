@@ -28,6 +28,7 @@ use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
+use metadata_struct::tenant::Tenant;
 use protocol::broker::broker_common::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
 };
@@ -213,6 +214,19 @@ pub async fn update_mqtt_cache_metadata(
             BrokerUpdateCacheActionType::Delete => {
                 let schema_resource = serialize::deserialize::<SchemaResourceBind>(&record.data)?;
                 schema_manager.remove_bind(&schema_resource);
+            }
+        },
+        BrokerUpdateCacheResourceType::Tenant => match record.action_type() {
+            BrokerUpdateCacheActionType::Create => {
+                let tenant = serialize::deserialize::<Tenant>(&record.data)?;
+                cache_manager.broker_cache.add_tenant(tenant);
+            }
+            BrokerUpdateCacheActionType::Update => {}
+            BrokerUpdateCacheActionType::Delete => {
+                let tenant = serialize::deserialize::<Tenant>(&record.data)?;
+                cache_manager
+                    .broker_cache
+                    .remove_tenant(&tenant.tenant_name);
             }
         },
         _ => {}

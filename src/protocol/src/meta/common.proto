@@ -63,6 +63,13 @@ service MetaServiceService {
 
   rpc UnBindSchema(UnBindSchemaRequest) returns (UnBindSchemaReply) {}
 
+  // Tenant
+  rpc CreateTenant(CreateTenantRequest) returns (CreateTenantReply) {}
+
+  rpc DeleteTenant(DeleteTenantRequest) returns (DeleteTenantReply) {}
+
+  rpc ListTenant(ListTenantRequest) returns (stream ListTenantReply) {}
+
   // KV
   rpc Set(SetRequest) returns (SetReply) {}
 
@@ -239,6 +246,27 @@ message UnBindSchemaRequest {
 }
 
 message UnBindSchemaReply {}
+
+message CreateTenantRequest {
+  string tenant_name = 1 [(validate.rules).string.min_len = 1];
+  string desc = 2;
+}
+
+message CreateTenantReply {}
+
+message DeleteTenantRequest {
+  string tenant_name = 1 [(validate.rules).string.min_len = 1];
+}
+
+message DeleteTenantReply {}
+
+message ListTenantRequest {
+  string tenant_name = 1;
+}
+
+message ListTenantReply {
+  bytes tenant = 1;
+}
 
 message SetRequest {
   string key = 1 [(validate.rules).string.min_len = 1];

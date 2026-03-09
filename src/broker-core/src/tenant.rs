@@ -1,0 +1,68 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use common_base::error::common::CommonError;
+use common_config::broker::broker_config;
+use grpc_clients::meta::common::call::{create_tenant, delete_tenant, list_tenant};
+use grpc_clients::pool::ClientPool;
+use metadata_struct::tenant::Tenant;
+use protocol::meta::meta_service_common::{
+    CreateTenantRequest, DeleteTenantRequest, ListTenantRequest,
+};
+use std::sync::Arc;
+
+pub struct TenantStorage {
+    client_pool: Arc<ClientPool>,
+}
+
+impl TenantStorage {
+    pub fn new(client_pool: Arc<ClientPool>) -> Self {
+        TenantStorage { client_pool }
+    }
+
+    pub async fn create(&self, tenant_name: &str, desc: &str) -> Result<(), CommonError> {
+        let conf = broker_config();
+        let request = CreateTenantRequest {
+            tenant_name: tenant_name.to_string(),
+            desc: desc.to_string(),
+        };
+        create_tenant(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
+        Ok(())
+    }
+
+    pub async fn delete(&self, tenant_name: &str) -> Result<(), CommonError> {
+        let conf = broker_config();
+        let request = DeleteTenantRequest {
+            tenant_name: tenant_name.to_string(),
+        };
+        delete_tenant(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
+        Ok(())
+    }
+
+    pub async fn list(&self, tenant_name: Option<&str>) -> Result<Vec<Tenant>, CommonError> {
+        let conf = broker_config();
+        let request = ListTenantRequest {
+            tenant_name: tenant_name.unwrap_or_default().to_string(),
+        };
+        let mut stream =
+            list_tenant(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
+
+        let mut tenants = Vec::new();
+        while let Some(reply) = stream.message().await? {
+            let tenant = Tenant::decode(&reply.tenant)?;
+            tenants.push(tenant);
+        }
+        Ok(tenants)
+    }
+}

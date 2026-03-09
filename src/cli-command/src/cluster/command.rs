@@ -14,7 +14,10 @@
 
 use crate::mqtt::pub_sub::error_info;
 use crate::output::OutputFormat;
-use admin_server::{client::AdminHttpClient, cluster::ClusterConfigSetReq};
+use admin_server::{
+    client::AdminHttpClient,
+    cluster::{tenant::TenantListRow, ClusterConfigSetReq},
+};
 use common_config::config::BrokerConfig;
 use prettytable::{row, Table};
 use serde::Serialize;
@@ -32,6 +35,14 @@ pub enum ClusterActionType {
     Healthy,
     GetConfig,
     SetConfig(ClusterConfigSetReq),
+    ListTenant,
+    CreateTenant {
+        tenant_name: String,
+        desc: Option<String>,
+    },
+    DeleteTenant {
+        tenant_name: String,
+    },
 }
 
 pub struct ClusterCommand {}
@@ -59,6 +70,15 @@ impl ClusterCommand {
             }
             ClusterActionType::SetConfig(request) => {
                 self.set_cluster_config(params, request.clone()).await;
+            }
+            ClusterActionType::ListTenant => {
+                self.list_tenant(params).await;
+            }
+            ClusterActionType::CreateTenant { tenant_name, desc } => {
+                self.create_tenant(params, tenant_name, desc).await;
+            }
+            ClusterActionType::DeleteTenant { tenant_name } => {
+                self.delete_tenant(params, tenant_name).await;
             }
         }
     }
@@ -146,6 +166,71 @@ impl ClusterCommand {
                 println!("{raw}");
             }
             Err(e) => error_info(e.to_string()),
+        }
+    }
+
+    // ------------ tenant ------------
+    async fn list_tenant(&self, params: ClusterCliCommandParam) {
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
+        let request = admin_server::cluster::tenant::TenantListReq {
+            tenant_name: None,
+            limit: None,
+            page: None,
+            sort_field: None,
+            sort_by: None,
+            filter_field: None,
+            filter_values: None,
+            exact_match: None,
+        };
+        match admin_client
+            .get_tenant_list::<_, Vec<TenantListRow>>(&request)
+            .await
+        {
+            Ok(page_data) => {
+                if matches!(params.output, OutputFormat::Json) {
+                    self.print_json(&page_data);
+                    return;
+                }
+                let mut table = Table::new();
+                table.set_titles(row!["tenant_name", "desc", "create_time"]);
+                for tenant in page_data.data {
+                    table.add_row(row![tenant.tenant_name, tenant.desc, tenant.create_time]);
+                }
+                table.printstd();
+            }
+            Err(e) => {
+                println!("List tenant exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn create_tenant(
+        &self,
+        params: ClusterCliCommandParam,
+        tenant_name: String,
+        desc: Option<String>,
+    ) {
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
+        let request = admin_server::cluster::tenant::CreateTenantReq { tenant_name, desc };
+        match admin_client.create_tenant(&request).await {
+            Ok(_) => println!("Created successfully!"),
+            Err(e) => {
+                println!("Create tenant exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn delete_tenant(&self, params: ClusterCliCommandParam, tenant_name: String) {
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
+        let request = admin_server::cluster::tenant::DeleteTenantReq { tenant_name };
+        match admin_client.delete_tenant(&request).await {
+            Ok(_) => println!("Deleted successfully!"),
+            Err(e) => {
+                println!("Delete tenant exception");
+                error_info(e.to_string());
+            }
         }
     }
 }

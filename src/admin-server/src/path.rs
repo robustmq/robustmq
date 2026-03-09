@@ -102,6 +102,11 @@ pub const MQTT_SCHEMA_BIND_LIST_PATH: &str = "/mqtt/schema-bind/list";
 pub const MQTT_SCHEMA_BIND_CREATE_PATH: &str = "/mqtt/schema-bind/create";
 pub const MQTT_SCHEMA_BIND_DELETE_PATH: &str = "/mqtt/schema-bind/delete";
 
+// Tenant API paths
+pub const TENANT_LIST_PATH: &str = "/tenant/list";
+pub const TENANT_CREATE_PATH: &str = "/tenant/create";
+pub const TENANT_DELETE_PATH: &str = "/tenant/delete";
+
 // MQTT System API paths
 pub const MQTT_SYSTEM_ALARM_LIST_PATH: &str = "/mqtt/system-alarm/list";
 pub const MQTT_BAN_LOG_LIST_PATH: &str = "/mqtt/ban-log/list";

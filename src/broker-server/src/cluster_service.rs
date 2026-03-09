@@ -95,6 +95,23 @@ async fn update_cache(
         BrokerUpdateCacheResourceType::ClusterResourceConfig
         | BrokerUpdateCacheResourceType::Node => {}
 
+        // Tenant
+        BrokerUpdateCacheResourceType::Tenant => {
+            if let Err(e) = update_mqtt_cache_metadata(
+                &mqtt_params.cache_manager,
+                &mqtt_params.connector_manager,
+                &mqtt_params.subscribe_manager,
+                &mqtt_params.schema_manager,
+                &mqtt_params.storage_driver_manager,
+                &mqtt_params.metrics_cache_manager,
+                record,
+            )
+            .await
+            {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
+
         // Storage Engine
         BrokerUpdateCacheResourceType::Shard
         | BrokerUpdateCacheResourceType::Segment

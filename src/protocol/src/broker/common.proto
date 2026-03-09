@@ -50,6 +50,7 @@ enum BrokerUpdateCacheResourceType {
   SegmentMeta = 11;
   Acl = 12;
   Blacklist = 13;
+  Tenant = 14;
 }
 
 enum BrokerUpdateCacheActionType {

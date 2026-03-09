@@ -573,9 +573,40 @@ impl AdminHttpClient {
             .await
     }
 
-    /// Set cluster configuration
+    /// Get cluster configuration
     pub async fn get_cluster_config(&self) -> Result<String, HttpClientError> {
         self.get_raw(&api_path(CLUSTER_CONFIG_GET_PATH)).await
+    }
+
+    // ========== Tenant APIs ==========
+
+    /// Get tenant list
+    pub async fn get_tenant_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.get_with_params(&api_path(TENANT_LIST_PATH), request)
+            .await
+    }
+
+    /// Create tenant
+    pub async fn create_tenant<T>(&self, request: &T) -> Result<String, HttpClientError>
+    where
+        T: Serialize,
+    {
+        self.post_raw(&api_path(TENANT_CREATE_PATH), request).await
+    }
+
+    /// Delete tenant
+    pub async fn delete_tenant<T>(&self, request: &T) -> Result<String, HttpClientError>
+    where
+        T: Serialize,
+    {
+        self.post_raw(&api_path(TENANT_DELETE_PATH), request).await
     }
 
     /// Get flapping detection list

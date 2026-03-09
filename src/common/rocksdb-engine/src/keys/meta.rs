@@ -86,6 +86,16 @@ pub fn key_segment_metadata_shard_prefix(shard_name: &str) -> String {
 }
 
 #[inline]
+pub fn storage_key_tenant(tenant_name: &str) -> String {
+    format!("{}tenant/{}", PREFIX_META, tenant_name)
+}
+
+#[inline]
+pub fn storage_key_tenant_prefix() -> String {
+    format!("{}tenant/", PREFIX_META)
+}
+
+#[inline]
 pub fn storage_key_mqtt_user(user_name: &str) -> String {
     format!("{}mqtt/user/{}", PREFIX_META, user_name)
 }

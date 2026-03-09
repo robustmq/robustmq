@@ -15,3 +15,4 @@
 pub mod inner;
 pub mod kv;
 pub mod schema;
+pub mod tenant;
