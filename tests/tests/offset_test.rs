@@ -51,7 +51,7 @@ mod tests {
 
         let raw_offset_manager = offset_manager.clone();
         tokio::spawn(async move {
-            raw_offset_manager.offset_save_thread(stop_send).await;
+            raw_offset_manager.offset_async_save_thread(stop_send).await;
         });
 
         let group_name = unique_id();

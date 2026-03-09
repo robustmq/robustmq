@@ -22,7 +22,7 @@ pub use fd::{process_fd_count, system_fd_count};
 pub use memory::{
     process_memory, process_memory_usage, system_memory_usage, total_memory, used_memory,
 };
-pub use runtime::start_runtime_monitor;
+pub use runtime::start_tokio_runtime_info_collection;
 
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
@@ -32,7 +32,7 @@ use common_metrics::broker::{
 };
 use tokio::sync::broadcast;
 
-pub async fn start_monitor(stop_send: broadcast::Sender<bool>, interval_ms: u64) {
+pub async fn start_system_info_collection(stop_send: broadcast::Sender<bool>, interval_ms: u64) {
     let interval_ms = interval_ms.max(100);
     let collect = async || -> ResultCommonError {
         // Values are stored as centipercent (×100); Grafana queries divide by 100.

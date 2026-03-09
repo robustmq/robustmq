@@ -80,7 +80,7 @@ impl OffsetManager {
         Ok(())
     }
 
-    pub async fn offset_save_thread(&self, stop_sx: broadcast::Sender<bool>) {
+    pub async fn offset_async_save_thread(&self, stop_sx: broadcast::Sender<bool>) {
         if self.enable_cache {
             let ac_fn = async || -> ResultCommonError {
                 self.offset_cache_storage

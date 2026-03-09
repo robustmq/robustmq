@@ -19,7 +19,7 @@ use admin_server::{
 };
 use broker_core::{
     cache::BrokerCacheManager,
-    heartbeat::{check_meta_service_status, register_node, report_heartbeat},
+    heartbeat::{check_meta_service_status, register_node_and_start_heartbeat},
 };
 use common_base::{
     role::{is_broker_node, is_engine_node, is_meta_node},
@@ -48,7 +48,7 @@ use rocksdb_engine::{
 use std::{sync::Arc, thread::sleep, time::Duration};
 use storage_adapter::driver::StorageDriverManager;
 use storage_engine::{group::OffsetManager, StorageEngineParams, StorageEngineServer};
-use system_info::{start_monitor, start_runtime_monitor};
+use system_info::{start_system_info_collection, start_tokio_runtime_info_collection};
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tracing::{error, info};
 
@@ -164,6 +164,7 @@ impl BrokerServer {
             delay_task_manager.clone(),
             node_call_manager.clone(),
             broker_cache.clone(),
+            task_supervisor.clone(),
         ));
 
         // Create broker_runtime here so that tasks spawned during MQTT param
@@ -250,8 +251,17 @@ impl BrokerServer {
         });
 
         // ── Phase 7: Register node ─────────────────────────────────────
+        let client_pool = self.client_pool.clone();
+        let broker_cache = self.broker_cache.clone();
+        let task_supervisor = self.task_supervisor.clone();
         self.server_runtime.block_on(async {
-            self.register_node(app_stop).await;
+            register_node_and_start_heartbeat(
+                &client_pool,
+                &broker_cache,
+                &task_supervisor,
+                app_stop,
+            )
+            .await;
         });
 
         self.awaiting_stop(meta_stop_send, mqtt_stop_send, engine_stop_send);
@@ -432,35 +442,56 @@ impl BrokerServer {
         // connection gc
         let connection_manager = self.connection_manager.clone();
         let tx = stop.clone();
-        self.server_runtime
-            .spawn(async move { network_connection_gc(connection_manager, tx).await });
+        self.task_supervisor
+            .spawn(TaskKind::NetworkConnectionGC.to_string(), async move {
+                network_connection_gc(connection_manager, tx).await
+            });
 
+        // offset async commit
         let offset_cache = self.offset_manager.clone();
         let tx = stop.clone();
-        self.server_runtime.spawn(Box::pin(async move {
-            offset_cache.offset_save_thread(tx).await;
-        }));
+        self.task_supervisor.spawn(
+            TaskKind::OffsetAsyncCommit.to_string(),
+            Box::pin(async move {
+                offset_cache.offset_async_save_thread(tx).await;
+            }),
+        );
 
+        // system info collection
         let tx = stop.clone();
-        self.server_runtime.spawn(async move {
-            start_monitor(tx, monitor_interval_ms).await;
-        });
+        self.task_supervisor
+            .spawn(TaskKind::SystemInfoCollection.to_string(), async move {
+                start_system_info_collection(tx, monitor_interval_ms).await;
+            });
 
+        // tokio runtime info collection
         let runtime_handles = vec![
             ("server".to_string(), self.server_runtime.handle().clone()),
             ("meta".to_string(), self.meta_runtime.handle().clone()),
             ("broker".to_string(), self.broker_runtime.handle().clone()),
         ];
         let tx = stop.clone();
-        self.server_runtime.spawn(async move {
-            start_runtime_monitor(runtime_handles, tx, monitor_interval_ms).await;
-        });
+        self.task_supervisor.spawn(
+            TaskKind::TokioRuntimeInfoCollection.to_string(),
+            async move {
+                start_tokio_runtime_info_collection(runtime_handles, tx, monitor_interval_ms).await;
+            },
+        );
 
+        //
         let message_storage = self.mqtt_params.storage_driver_manager.clone();
         let connector_manager = self.mqtt_params.connector_manager.clone();
         let client_pool = self.client_pool.clone();
+        let task_supervisor = self.task_supervisor.clone();
         self.server_runtime.spawn(Box::pin(async move {
-            start_connector(&client_pool, &message_storage, &connector_manager, &stop).await;
+            start_connector(
+                &client_pool,
+                &message_storage,
+                &connector_manager,
+                &task_supervisor,
+                &stop,
+            )
+            .await;
         }));
     }
 
@@ -498,6 +529,10 @@ impl BrokerServer {
                 );
             }
 
+            if let Err(e) = self.delay_task_manager.stop().await {
+                error!("delay task stop signal, error message{}", e);
+            }
+
             if let Some(sx) = engine_stop {
                 if let Err(e) = sx.send(true) {
                     error!("storage engine stop signal, error message{}", e);
@@ -511,31 +546,7 @@ impl BrokerServer {
                 }
             }
 
-            if let Err(e) = self.delay_task_manager.stop().await {
-                error!("delay task stop signal, error message{}", e);
-            }
-
             sleep(Duration::from_secs(3));
         }));
-    }
-
-    async fn register_node(&self, main_stop: broadcast::Sender<bool>) {
-        let client_pool = self.client_pool.clone();
-        let broker_cache = self.broker_cache.clone();
-        let config = broker_config();
-        match register_node(&client_pool, &broker_cache).await {
-            Ok(()) => {
-                // heartbeat report
-                let raw_client_pool = client_pool.clone();
-                tokio::spawn(Box::pin(async move {
-                    report_heartbeat(&raw_client_pool, &broker_cache, main_stop.clone()).await;
-                }));
-
-                info!("Node {} has been successfully registered", config.broker_id);
-            }
-            Err(e) => {
-                error!("Node registration failed. Error message:{}", e);
-            }
-        }
     }
 }

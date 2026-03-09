@@ -20,6 +20,16 @@ use tracing::{error, info};
 pub enum TaskKind {
     BrokerNodeCall,
     DelayMessagePop,
+    NetworkConnectionGC,
+    OffsetAsyncCommit,
+    SystemInfoCollection,
+    TokioRuntimeInfoCollection,
+    ConnectorManager,
+    ConnectorHeartbeat,
+    BrokerNodeHeartbeat,
+    MetaRaftMachineMonitor,
+    MetaMonitorRaftLeaderChange,
+    MetaBrokerHeartbeatCheck,
 }
 
 impl std::fmt::Display for TaskKind {
@@ -27,6 +37,16 @@ impl std::fmt::Display for TaskKind {
         match self {
             TaskKind::BrokerNodeCall => write!(f, "BrokerNodeCall"),
             TaskKind::DelayMessagePop => write!(f, "DelayMessagePop"),
+            TaskKind::NetworkConnectionGC => write!(f, "NetworkConnectionGC"),
+            TaskKind::OffsetAsyncCommit => write!(f, "OffsetAsyncCommit"),
+            TaskKind::SystemInfoCollection => write!(f, "SystemInfoCollection"),
+            TaskKind::TokioRuntimeInfoCollection => write!(f, "TokioRuntimeInfoCollection"),
+            TaskKind::ConnectorManager => write!(f, "ConnectorManager"),
+            TaskKind::ConnectorHeartbeat => write!(f, "ConnectorHeartbeat"),
+            TaskKind::BrokerNodeHeartbeat => write!(f, "BrokerNodeHeartbeat"),
+            TaskKind::MetaRaftMachineMonitor => write!(f, "MetaRaftMachineMonitor"),
+            TaskKind::MetaMonitorRaftLeaderChange => write!(f, "MetaMonitorRaftLeaderChange"),
+            TaskKind::MetaBrokerHeartbeatCheck => write!(f, "MetaBrokerHeartbeatCheck"),
         }
     }
 }

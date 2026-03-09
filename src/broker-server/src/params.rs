@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use broker_core::cache::BrokerCacheManager;
-use common_base::error::common::CommonError;
+use common_base::{error::common::CommonError, task::TaskSupervisor};
 use common_config::{broker::broker_config, storage::memory::StorageDriverMemoryConfig};
 use connector::manager::ConnectorManager;
 use delay_message::manager::DelayMessageManager;
@@ -58,6 +58,7 @@ pub async fn build_meta_service(
     delay_task_manager: Arc<DelayTaskManager>,
     node_call_manager: Arc<NodeCallManager>,
     broker_cache: Arc<BrokerCacheManager>,
+    task_supervisor: Arc<TaskSupervisor>,
 ) -> MetaServiceServerParams {
     let cache_manager = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
 
@@ -91,6 +92,7 @@ pub async fn build_meta_service(
         raft_manager,
         delay_task_manager,
         broker_cache,
+        task_supervisor,
     }
 }
 

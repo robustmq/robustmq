@@ -199,7 +199,7 @@ impl MultiRaftManager {
         self.data.write(key, data).await
     }
 
-    pub fn start_metrics_monitor(&self, stop_send: broadcast::Sender<bool>) {
+    pub async fn start_metrics_monitor(&self, stop_send: broadcast::Sender<bool>) {
         let groups: MetricsGroups = [&self.metadata, &self.offset, &self.data]
             .iter()
             .map(|g| {
@@ -211,28 +211,26 @@ impl MultiRaftManager {
             })
             .collect();
 
-        tokio::spawn(async move {
-            let mut stop_recv = stop_send.subscribe();
-            let mut ticker = tokio::time::interval(Duration::from_secs(1));
+        let mut stop_recv = stop_send.subscribe();
+        let mut ticker = tokio::time::interval(Duration::from_secs(1));
 
-            loop {
-                tokio::select! {
-                    _ = ticker.tick() => {
-                        for (_group_name, nodes) in &groups {
-                            for (shard_name, node) in nodes {
-                                let m = node.metrics().borrow().clone();
-                                let last_log = m.last_log_index.unwrap_or(0);
-                                let last_applied = m.last_applied.map(|l| l.index).unwrap_or(0);
-                                record_raft_apply_lag(shard_name, last_log, last_applied);
-                            }
+        loop {
+            tokio::select! {
+                _ = ticker.tick() => {
+                    for (_group_name, nodes) in &groups {
+                        for (shard_name, node) in nodes {
+                            let m = node.metrics().borrow().clone();
+                            let last_log = m.last_log_index.unwrap_or(0);
+                            let last_applied = m.last_applied.map(|l| l.index).unwrap_or(0);
+                            record_raft_apply_lag(shard_name, last_log, last_applied);
                         }
                     }
-                    val = stop_recv.recv() => {
-                        if matches!(val, Ok(true) | Err(_)) { break; }
-                    }
+                }
+                val = stop_recv.recv() => {
+                    if matches!(val, Ok(true) | Err(_)) { break; }
                 }
             }
-        });
+        }
     }
 
     pub async fn shutdown(&self) -> Result<(), CommonError> {
