@@ -92,7 +92,6 @@ pub async fn start_update_parse_thread(
     mut rx: Receiver<ParseSubscribeData>,
     stop_sx: broadcast::Sender<bool>,
 ) {
-    info!("Subscribe parse thread started");
     let mut stop_recv = stop_sx.subscribe();
 
     loop {

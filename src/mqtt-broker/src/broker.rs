@@ -32,6 +32,7 @@ use crate::subscribe::PushManager;
 use crate::system_topic::SystemTopic;
 use broker_core::cache::BrokerCacheManager;
 use common_base::task::{TaskKind, TaskSupervisor};
+use common_config::broker::broker_config;
 use connector::manager::ConnectorManager;
 use delay_message::manager::{start_delay_message_manager_thread, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
@@ -83,13 +84,11 @@ pub struct MqttBrokerServer {
     push_manager: Arc<PushManager>,
     task_supervisor: Arc<TaskSupervisor>,
     server: Arc<Server>,
-    main_stop: broadcast::Sender<bool>,
-    inner_stop: broadcast::Sender<bool>,
+    stop: broadcast::Sender<bool>,
 }
 
 impl MqttBrokerServer {
-    pub fn new(params: MqttBrokerServerParams, main_stop: broadcast::Sender<bool>) -> Self {
-        let (inner_stop, _) = broadcast::channel(2);
+    pub fn new(params: MqttBrokerServerParams, stop: broadcast::Sender<bool>) -> Self {
         let server = Arc::new(Server::new(TcpServerContext {
             subscribe_manager: params.subscribe_manager.clone(),
             cache_manager: params.cache_manager.clone(),
@@ -99,7 +98,7 @@ impl MqttBrokerServer {
             schema_manager: params.schema_manager.clone(),
             client_pool: params.client_pool.clone(),
             session_batcher: params.session_batcher.clone(),
-            stop_sx: inner_stop.clone(),
+            stop_sx: stop.clone(),
             auth_driver: params.auth_driver.clone(),
             rocksdb_engine_handler: params.rocksdb_engine_handler.clone(),
             broker_cache: params.broker_cache.clone(),
@@ -107,8 +106,7 @@ impl MqttBrokerServer {
         }));
 
         MqttBrokerServer {
-            main_stop,
-            inner_stop,
+            stop,
             cache_manager: params.cache_manager,
             client_pool: params.client_pool,
             session_batcher: params.session_batcher,
@@ -173,7 +171,7 @@ impl MqttBrokerServer {
             });
 
         // client keep alive
-        let raw_stop_send = self.inner_stop.clone();
+        let raw_stop_send = self.stop.clone();
         let keep_alive = ClientKeepAlive::new(
             self.client_pool.clone(),
             self.session_batcher.clone(),
@@ -192,11 +190,11 @@ impl MqttBrokerServer {
         start_auth_sync_thread(
             self.auth_driver.clone(),
             self.task_supervisor.clone(),
-            self.inner_stop.clone(),
+            self.stop.clone(),
         );
 
         // flapping detect
-        let stop_send = self.inner_stop.clone();
+        let stop_send = self.stop.clone();
         let cache_manager = self.cache_manager.clone();
         self.task_supervisor
             .spawn(TaskKind::MQTTCleanFlappingDetect.to_string(), async move {
@@ -204,7 +202,7 @@ impl MqttBrokerServer {
             });
 
         // report system topic info
-        let raw_stop_send = self.inner_stop.clone();
+        let raw_stop_send = self.stop.clone();
         let system_topic = SystemTopic::new(
             self.cache_manager.clone(),
             self.storage_driver_manager.clone(),
@@ -219,7 +217,7 @@ impl MqttBrokerServer {
 
         // parse topic rewrite
         let metadata_cache = self.cache_manager.clone();
-        let stop_send = self.inner_stop.clone();
+        let stop_send = self.stop.clone();
         self.task_supervisor
             .spawn(TaskKind::MQTTTopicRewriteConvert.to_string(), async move {
                 start_topic_rewrite_convert_thread(metadata_cache, stop_send).await;
@@ -233,9 +231,9 @@ impl MqttBrokerServer {
             self.connection_manager.clone(),
             self.connector_manager.clone(),
             30,
-            self.inner_stop.clone(),
-        )
-        .await;
+            self.stop.clone(),
+            self.task_supervisor.clone(),
+        );
 
         // system alarm
         let system_alarm = SystemAlarm::new(
@@ -244,12 +242,16 @@ impl MqttBrokerServer {
             self.storage_driver_manager.clone(),
             self.rocksdb_engine_handler.clone(),
         );
-        let raw_stop_send = self.inner_stop.clone();
-        tokio::spawn(async move {
-            if let Err(e) = system_alarm.start(raw_stop_send).await {
-                error!("Failed to start system alarm monitoring: {}", e);
-            }
-        });
+        let raw_stop_send = self.stop.clone();
+        let config = broker_config();
+        if config.mqtt_system_monitor.enable {
+            self.task_supervisor
+                .spawn(TaskKind::MQTTSystemAlarm.to_string(), async move {
+                    if let Err(e) = system_alarm.start(raw_stop_send).await {
+                        error!("Failed to start system alarm monitoring: {}", e);
+                    }
+                });
+        }
     }
 
     fn start_server(&self) {
@@ -264,12 +266,12 @@ impl MqttBrokerServer {
 
     async fn start_subscribe_push(&self) {
         // start push manager
-        let stop_send = self.inner_stop.clone();
+        let stop_send = self.stop.clone();
         let push_manager = self.push_manager.clone();
-
-        tokio::spawn(async move {
-            push_manager.start(&stop_send).await;
-        });
+        self.task_supervisor
+            .spawn(TaskKind::MQTTSubscribePush.to_string(), async move {
+                push_manager.start(&stop_send).await;
+            });
 
         // parse subscribe data
         let (sx, rx) = mpsc::channel::<ParseSubscribeData>(2000);
@@ -277,11 +279,18 @@ impl MqttBrokerServer {
         let subscribe_manager = self.subscribe_manager.clone();
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
-        let stop_send = self.inner_stop.clone();
-        tokio::spawn(Box::pin(async move {
-            start_update_parse_thread(client_pool, cache_manager, subscribe_manager, rx, stop_send)
+        let stop_send = self.stop.clone();
+        self.task_supervisor
+            .spawn(TaskKind::MQTTSubscribeParse.to_string(), async move {
+                start_update_parse_thread(
+                    client_pool,
+                    cache_manager,
+                    subscribe_manager,
+                    rx,
+                    stop_send,
+                )
                 .await;
-        }));
+            });
     }
 
     pub async fn awaiting_stop(&self) {
@@ -289,30 +298,20 @@ impl MqttBrokerServer {
         let server = self.server.clone();
         let delay_message_manager = self.delay_message_manager.clone();
         let connection_manager = self.connection_manager.clone();
-        let mut recv = self.main_stop.subscribe();
-        let raw_inner_stop = self.inner_stop.clone();
+        let mut recv = self.stop.subscribe();
         // Stop the Server first, indicating that it will no longer receive request packets.
         match recv.recv().await {
             Ok(_) => {
                 info!("Broker has stopped.");
                 server.stop().await;
-                match raw_inner_stop.send(true) {
-                    Ok(_) => {
-                        info!("Process stop signal was sent successfully.");
-                        if let Err(e) = MqttBrokerServer::stop_server(
-                            &delay_message_manager,
-                            &connection_manager,
-                        )
-                        .await
-                        {
-                            error!("Failed to stop broker components: {}", e);
-                        }
-                        info!("Service has been stopped successfully. Exiting the process.");
-                    }
-                    Err(e) => {
-                        error!("Failed to broadcast internal stop signal: {}", e);
-                    }
+
+                info!("Process stop signal was sent successfully.");
+                if let Err(e) =
+                    MqttBrokerServer::stop_server(&delay_message_manager, &connection_manager).await
+                {
+                    error!("Failed to stop broker components: {}", e);
                 }
+                info!("Service has been stopped successfully. Exiting the process.");
             }
             Err(e) => {
                 error!("Failed to receive shutdown signal: {}", e);

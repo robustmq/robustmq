@@ -39,6 +39,14 @@ pub enum TaskKind {
     MQTTCleanFlappingDetect,
     MQTTReportSystemTopicData,
     MQTTTopicRewriteConvert,
+    MQTTMetricsBasic,
+    MQTTMetricsTopic,
+    MQTTMetricsSession,
+    MQTTMetricsSubscribe,
+    MQTTMetricsConnector,
+    MQTTSystemAlarm,
+    MQTTSubscribePush,
+    MQTTSubscribeParse,
 }
 
 impl std::fmt::Display for TaskKind {
@@ -65,6 +73,14 @@ impl std::fmt::Display for TaskKind {
             TaskKind::MQTTCleanFlappingDetect => write!(f, "MQTTCleanFlappingDetect"),
             TaskKind::MQTTReportSystemTopicData => write!(f, "MQTTReportSystemTopicData"),
             TaskKind::MQTTTopicRewriteConvert => write!(f, "MQTTTopicRewriteConvert"),
+            TaskKind::MQTTMetricsBasic => write!(f, "MQTTMetricsBasic"),
+            TaskKind::MQTTMetricsTopic => write!(f, "MQTTMetricsTopic"),
+            TaskKind::MQTTMetricsSession => write!(f, "MQTTMetricsSession"),
+            TaskKind::MQTTMetricsSubscribe => write!(f, "MQTTMetricsSubscribe"),
+            TaskKind::MQTTMetricsConnector => write!(f, "MQTTMetricsConnector"),
+            TaskKind::MQTTSystemAlarm => write!(f, "MQTTSystemAlarm"),
+            TaskKind::MQTTSubscribePush => write!(f, "MQTTSubscribePush"),
+            TaskKind::MQTTSubscribeParse => write!(f, "MQTTSubscribeParse"),
         }
     }
 }

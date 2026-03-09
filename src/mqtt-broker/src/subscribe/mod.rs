@@ -80,7 +80,6 @@ impl PushManager {
     }
 
     pub async fn start(&self, stop_sx: &broadcast::Sender<bool>) {
-        info!("PushManager started");
         let ac_fn = async || -> ResultCommonError {
             // directly
             self.start_directly_push_thread();
@@ -101,7 +100,6 @@ impl PushManager {
             res
         };
         loop_select_ticket(ac_fn, 1000, stop_sx).await;
-        info!("PushManager stopped");
     }
 
     pub fn start_directly_push_thread(&self) {
