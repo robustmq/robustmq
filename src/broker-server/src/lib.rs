@@ -179,10 +179,18 @@ impl BrokerServer {
         let mqtt_cm = connection_manager.clone();
         let mqtt_stop = main_stop_send.clone();
         let mqttt_sdm = storage_driver_manager.clone();
+        let mqtt_task_supervisor = task_supervisor.clone();
 
         let mqtt_params = broker_runtime.block_on(async move {
             match params::build_broker_mqtt_params(
-                mqtt_cp, mqtt_bc, mqtt_re, mqtt_cm, mqttt_sdm, mqtt_om, mqtt_stop,
+                mqtt_cp,
+                mqtt_bc,
+                mqtt_re,
+                mqtt_cm,
+                mqttt_sdm,
+                mqtt_om,
+                mqtt_task_supervisor,
+                mqtt_stop,
             )
             .await
             {

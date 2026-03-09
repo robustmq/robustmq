@@ -54,7 +54,7 @@ pub(crate) fn spawn_delay_task_pop_threads(
         let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
         let raw_node_call_manager = node_call_manager.clone();
         let raw_broker_cache = broker_cache.clone();
-        task_supervisor.spawn(format!("{}_{}",TaskKind::DelayMessagePop, shard_no), async move {
+        task_supervisor.spawn(format!("{}_{}",TaskKind::DelayTaskPop, shard_no), async move {
             let mut recv = stop_send.subscribe();
             loop {
                 select! {

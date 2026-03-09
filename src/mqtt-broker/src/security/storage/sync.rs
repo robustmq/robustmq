@@ -15,19 +15,36 @@
 use crate::security::AuthManager;
 use common_base::{
     error::{common::CommonError, ResultCommonError},
+    task::{TaskKind, TaskSupervisor},
     tools::loop_select_ticket,
 };
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
-pub fn start_auth_sync_thread(auth_driver: Arc<AuthManager>, stop_send: broadcast::Sender<bool>) {
-    sync_user_cache(auth_driver.clone(), stop_send.clone());
-    sync_acl_cache(auth_driver.clone(), stop_send.clone());
-    sync_blacklist_cache(auth_driver, stop_send);
+pub fn start_auth_sync_thread(
+    auth_driver: Arc<AuthManager>,
+    task_supervisor: Arc<TaskSupervisor>,
+    stop_send: broadcast::Sender<bool>,
+) {
+    sync_user_cache(
+        auth_driver.clone(),
+        task_supervisor.clone(),
+        stop_send.clone(),
+    );
+    sync_acl_cache(
+        auth_driver.clone(),
+        task_supervisor.clone(),
+        stop_send.clone(),
+    );
+    sync_blacklist_cache(auth_driver, task_supervisor.clone(), stop_send);
 }
 
-fn sync_user_cache(auth_driver: Arc<AuthManager>, stop_send: broadcast::Sender<bool>) {
-    tokio::spawn(async move {
+fn sync_user_cache(
+    auth_driver: Arc<AuthManager>,
+    task_supervisor: Arc<TaskSupervisor>,
+    stop_send: broadcast::Sender<bool>,
+) {
+    task_supervisor.spawn(TaskKind::MQTTSecurityUserSync.to_string(), async move {
         let ac_fn = async || -> ResultCommonError {
             if let Err(e) = auth_driver.update_user_cache().await {
                 return Err(CommonError::CommonError(e.to_string()));
@@ -38,8 +55,12 @@ fn sync_user_cache(auth_driver: Arc<AuthManager>, stop_send: broadcast::Sender<b
     });
 }
 
-fn sync_acl_cache(auth_driver: Arc<AuthManager>, stop_send: broadcast::Sender<bool>) {
-    tokio::spawn(async move {
+fn sync_acl_cache(
+    auth_driver: Arc<AuthManager>,
+    task_supervisor: Arc<TaskSupervisor>,
+    stop_send: broadcast::Sender<bool>,
+) {
+    task_supervisor.spawn(TaskKind::MQTTSecurityAclSync.to_string(), async move {
         let ac_fn = async || -> ResultCommonError {
             if let Err(e) = auth_driver.update_acl_cache().await {
                 return Err(CommonError::CommonError(e.to_string()));
@@ -50,14 +71,21 @@ fn sync_acl_cache(auth_driver: Arc<AuthManager>, stop_send: broadcast::Sender<bo
     });
 }
 
-fn sync_blacklist_cache(auth_driver: Arc<AuthManager>, stop_send: broadcast::Sender<bool>) {
-    tokio::spawn(async move {
-        let ac_fn = async || -> ResultCommonError {
-            if let Err(e) = auth_driver.update_blacklist_cache().await {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-            Ok(())
-        };
-        loop_select_ticket(ac_fn, 5000, &stop_send).await;
-    });
+fn sync_blacklist_cache(
+    auth_driver: Arc<AuthManager>,
+    task_supervisor: Arc<TaskSupervisor>,
+    stop_send: broadcast::Sender<bool>,
+) {
+    task_supervisor.spawn(
+        TaskKind::MQTTSecurityBlacklistSync.to_string(),
+        async move {
+            let ac_fn = async || -> ResultCommonError {
+                if let Err(e) = auth_driver.update_blacklist_cache().await {
+                    return Err(CommonError::CommonError(e.to_string()));
+                }
+                Ok(())
+            };
+            loop_select_ticket(ac_fn, 5000, &stop_send).await;
+        },
+    );
 }

@@ -55,18 +55,14 @@ impl SessionBatcher {
         })
     }
 
-    pub fn start(&self, client_pool: Arc<ClientPool>) {
+    pub async fn start(&self, client_pool: Arc<ClientPool>) {
         let rx = self
             .consumer
             .lock()
             .unwrap()
             .take()
             .expect("SessionBatcher::start must be called exactly once");
-        tokio::spawn(session_batch_consumer(rx, client_pool));
-        info!(
-            "SessionBatcher started: batch_size={}, max_wait_ms={}",
-            SESSION_BATCH_SIZE, SESSION_BATCH_MAX_WAIT_MS
-        );
+        session_batch_consumer(rx, client_pool).await;
     }
 
     pub async fn set_session(

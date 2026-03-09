@@ -21,7 +21,7 @@ use crate::core::retain::RetainMessageManager;
 use crate::core::system_alarm::SystemAlarm;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::core::topic_rewrite::start_topic_rewrite_convert_thread;
-use crate::security::login::super_user::init_system_user;
+use crate::security::login::super_user::try_init_system_user;
 use crate::security::storage::sync::start_auth_sync_thread;
 use crate::security::AuthManager;
 use crate::server::{Server, TcpServerContext};
@@ -31,7 +31,7 @@ use crate::subscribe::parse::{start_update_parse_thread, ParseSubscribeData};
 use crate::subscribe::PushManager;
 use crate::system_topic::SystemTopic;
 use broker_core::cache::BrokerCacheManager;
-use common_config::broker::broker_config;
+use common_base::task::{TaskKind, TaskSupervisor};
 use connector::manager::ConnectorManager;
 use delay_message::manager::{start_delay_message_manager_thread, DelayMessageManager};
 use grpc_clients::pool::ClientPool;
@@ -64,6 +64,7 @@ pub struct MqttBrokerServerParams {
     pub offset_manager: Arc<OffsetManager>,
     pub retain_message_manager: Arc<RetainMessageManager>,
     pub push_manager: Arc<PushManager>,
+    pub task_supervisor: Arc<TaskSupervisor>,
 }
 
 pub struct MqttBrokerServer {
@@ -80,6 +81,7 @@ pub struct MqttBrokerServer {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     offset_manager: Arc<OffsetManager>,
     push_manager: Arc<PushManager>,
+    task_supervisor: Arc<TaskSupervisor>,
     server: Arc<Server>,
     main_stop: broadcast::Sender<bool>,
     inner_stop: broadcast::Sender<bool>,
@@ -121,15 +123,12 @@ impl MqttBrokerServer {
             rocksdb_engine_handler: params.rocksdb_engine_handler,
             offset_manager: params.offset_manager,
             push_manager: params.push_manager,
+            task_supervisor: params.task_supervisor,
         }
     }
 
     pub async fn start(&self) {
-        self.start_init().await;
-
-        self.start_daemon_thread();
-
-        self.start_delay_message_thread();
+        self.start_daemon_thread().await;
 
         self.start_subscribe_push().await;
 
@@ -138,9 +137,40 @@ impl MqttBrokerServer {
         self.awaiting_stop().await;
     }
 
-    fn start_daemon_thread(&self) {
+    async fn start_daemon_thread(&self) {
+        // init system user
+        if let Err(e) = try_init_system_user(&self.cache_manager, &self.client_pool).await {
+            error!("Failed to initialize system user: {}", e);
+            std::process::exit(1);
+        }
+
+        if let Err(e) = self.offset_manager.try_comparison_and_save_offset().await {
+            error!("Failed to synchronize offset data: {}", e);
+            std::process::exit(1);
+        }
+
+        // delay message
+        let delay_message_manager = self.delay_message_manager.clone();
+        let broker_cache = self.cache_manager.broker_cache.clone();
+        let task_supervisor = self.task_supervisor.clone();
+        if let Err(e) = start_delay_message_manager_thread(
+            &delay_message_manager,
+            &task_supervisor,
+            &broker_cache,
+        )
+        .await
+        {
+            error!("Failed to start delay message manager, error:{}", e);
+            std::process::exit(1);
+        }
+
         // session batch writer
-        self.session_batcher.start(self.client_pool.clone());
+        let session_batcher = self.session_batcher.clone();
+        let client_pool = self.client_pool.clone();
+        self.task_supervisor
+            .spawn(TaskKind::MQTTSessionBatchSend.to_string(), async move {
+                session_batcher.start(client_pool.clone()).await;
+            });
 
         // client keep alive
         let raw_stop_send = self.inner_stop.clone();
@@ -151,34 +181,48 @@ impl MqttBrokerServer {
             self.subscribe_manager.clone(),
             self.cache_manager.clone(),
         );
-        tokio::spawn(Box::pin(async move {
-            keep_alive.start_heartbeat_check(&raw_stop_send).await;
-        }));
+        self.task_supervisor.spawn(
+            TaskKind::MQTTClientKeepAlive.to_string(),
+            Box::pin(async move {
+                keep_alive.start_heartbeat_check(&raw_stop_send).await;
+            }),
+        );
 
         // sync auth info
-        let auth_driver = self.auth_driver.clone();
-        let raw_stop_send = self.inner_stop.clone();
-        tokio::spawn(async move {
-            start_auth_sync_thread(auth_driver.clone(), raw_stop_send.clone());
-        });
+        start_auth_sync_thread(
+            self.auth_driver.clone(),
+            self.task_supervisor.clone(),
+            self.inner_stop.clone(),
+        );
 
         // flapping detect
         let stop_send = self.inner_stop.clone();
         let cache_manager = self.cache_manager.clone();
-        tokio::spawn(async move {
-            clean_flapping_detect(cache_manager, stop_send).await;
-        });
+        self.task_supervisor
+            .spawn(TaskKind::MQTTCleanFlappingDetect.to_string(), async move {
+                clean_flapping_detect(cache_manager, stop_send).await;
+            });
 
-        // observability
+        // report system topic info
         let raw_stop_send = self.inner_stop.clone();
         let system_topic = SystemTopic::new(
             self.cache_manager.clone(),
             self.storage_driver_manager.clone(),
             self.client_pool.clone(),
         );
-        tokio::spawn(Box::pin(async move {
-            system_topic.start_thread(raw_stop_send).await;
-        }));
+        self.task_supervisor.spawn(
+            TaskKind::MQTTReportSystemTopicData.to_string(),
+            Box::pin(async move {
+                system_topic.start_thread(raw_stop_send).await;
+            }),
+        );
+
+        // parse topic rewrite
+        let metadata_cache = self.cache_manager.clone();
+        let stop_send = self.inner_stop.clone();
+        tokio::spawn(async move {
+            start_topic_rewrite_convert_thread(metadata_cache, stop_send).await;
+        });
 
         // metrics record
         let metrics_cache_manager = self.metrics_cache_manager.clone();
@@ -233,13 +277,6 @@ impl MqttBrokerServer {
             push_manager.start(&stop_send).await;
         });
 
-        // parse topic rewrite
-        let metadata_cache = self.cache_manager.clone();
-        let stop_send = self.inner_stop.clone();
-        tokio::spawn(async move {
-            start_topic_rewrite_convert_thread(metadata_cache, stop_send).await;
-        });
-
         // parse subscribe data
         let (sx, rx) = mpsc::channel::<ParseSubscribeData>(2000);
         self.subscribe_manager.set_cache_sender(sx).await;
@@ -251,35 +288,6 @@ impl MqttBrokerServer {
             start_update_parse_thread(client_pool, cache_manager, subscribe_manager, rx, stop_send)
                 .await;
         }));
-    }
-
-    fn start_delay_message_thread(&self) {
-        let delay_message_manager = self.delay_message_manager.clone();
-        let broker_cache = self.cache_manager.broker_cache.clone();
-        tokio::spawn(async move {
-            let conf = broker_config();
-            if let Err(e) =
-                start_delay_message_manager_thread(&delay_message_manager, &broker_cache).await
-            {
-                error!(
-                    "Failed to start delay message manager for cluster '{}': {}",
-                    conf.cluster_name, e
-                );
-                std::process::exit(1);
-            }
-        });
-    }
-
-    async fn start_init(&self) {
-        if let Err(e) = init_system_user(&self.cache_manager, &self.client_pool).await {
-            error!("Failed to initialize system user: {}", e);
-            std::process::exit(1);
-        }
-
-        if let Err(e) = self.offset_manager.try_comparison_and_save_offset().await {
-            error!("Failed to synchronize offset data: {}", e);
-            std::process::exit(1);
-        }
     }
 
     pub async fn awaiting_stop(&self) {

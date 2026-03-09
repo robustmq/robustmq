@@ -19,7 +19,7 @@ use tracing::{error, info};
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum TaskKind {
     BrokerNodeCall,
-    DelayMessagePop,
+    DelayTaskPop,
     NetworkConnectionGC,
     OffsetAsyncCommit,
     SystemInfoCollection,
@@ -30,13 +30,21 @@ pub enum TaskKind {
     MetaRaftMachineMonitor,
     MetaMonitorRaftLeaderChange,
     MetaBrokerHeartbeatCheck,
+    DelayMessagePop,
+    MQTTSessionBatchSend,
+    MQTTClientKeepAlive,
+    MQTTSecurityUserSync,
+    MQTTSecurityAclSync,
+    MQTTSecurityBlacklistSync,
+    MQTTCleanFlappingDetect,
+    MQTTReportSystemTopicData,
 }
 
 impl std::fmt::Display for TaskKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TaskKind::BrokerNodeCall => write!(f, "BrokerNodeCall"),
-            TaskKind::DelayMessagePop => write!(f, "DelayMessagePop"),
+            TaskKind::DelayTaskPop => write!(f, "DelayTaskPop"),
             TaskKind::NetworkConnectionGC => write!(f, "NetworkConnectionGC"),
             TaskKind::OffsetAsyncCommit => write!(f, "OffsetAsyncCommit"),
             TaskKind::SystemInfoCollection => write!(f, "SystemInfoCollection"),
@@ -47,6 +55,14 @@ impl std::fmt::Display for TaskKind {
             TaskKind::MetaRaftMachineMonitor => write!(f, "MetaRaftMachineMonitor"),
             TaskKind::MetaMonitorRaftLeaderChange => write!(f, "MetaMonitorRaftLeaderChange"),
             TaskKind::MetaBrokerHeartbeatCheck => write!(f, "MetaBrokerHeartbeatCheck"),
+            TaskKind::DelayMessagePop => write!(f, "DelayMessagePop"),
+            TaskKind::MQTTSessionBatchSend => write!(f, "MQTTSessionBatchSend"),
+            TaskKind::MQTTClientKeepAlive => write!(f, "MQTTClientKeepAlive"),
+            TaskKind::MQTTSecurityUserSync => write!(f, "MQTTSecurityUserSync"),
+            TaskKind::MQTTSecurityAclSync => write!(f, "MQTTSecurityAclSync"),
+            TaskKind::MQTTSecurityBlacklistSync => write!(f, "MQTTSecurityBlacklistSync"),
+            TaskKind::MQTTCleanFlappingDetect => write!(f, "MQTTCleanFlappingDetect"),
+            TaskKind::MQTTReportSystemTopicData => write!(f, "MQTTReportSystemTopicData"),
         }
     }
 }

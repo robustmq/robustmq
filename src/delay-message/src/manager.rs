@@ -18,6 +18,7 @@ use crate::{
     pop::spawn_delay_message_pop_threads,
 };
 use broker_core::cache::BrokerCacheManager;
+use common_base::task::TaskSupervisor;
 use common_base::uuid::unique_id;
 use common_base::{error::common::CommonError, tools::now_second};
 use common_metrics::mqtt::delay::{record_delay_msg_enqueue, record_delay_msg_enqueue_duration};
@@ -48,12 +49,18 @@ pub const DELAY_MESSAGE_SAVE_MS: &str = "delay_message_save_ms";
 
 pub async fn start_delay_message_manager_thread(
     delay_message_manager: &Arc<DelayMessageManager>,
+    task_supervisor: &Arc<TaskSupervisor>,
     broker_cache: &Arc<BrokerCacheManager>,
 ) -> Result<(), CommonError> {
     delay_message_manager.start();
 
     init_inner_topic(delay_message_manager, broker_cache).await?;
-    spawn_delay_message_pop_threads(delay_message_manager, delay_message_manager.delay_queue_num);
+
+    spawn_delay_message_pop_threads(
+        delay_message_manager,
+        task_supervisor,
+        delay_message_manager.delay_queue_num,
+    );
 
     let recover_manager = delay_message_manager.clone();
     tokio::spawn(async move {

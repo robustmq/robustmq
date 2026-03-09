@@ -98,6 +98,7 @@ pub async fn build_meta_service(
 
 /// Build [`MqttBrokerServerParams`] on the caller's runtime so that tasks
 /// spawned during construction (e.g. `RetainMessageManager`) land there.
+#[allow(clippy::too_many_arguments)]
 pub async fn build_broker_mqtt_params(
     client_pool: Arc<ClientPool>,
     broker_cache: Arc<BrokerCacheManager>,
@@ -105,6 +106,7 @@ pub async fn build_broker_mqtt_params(
     connection_manager: Arc<NetworkConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     offset_manager: Arc<OffsetManager>,
+    task_supervisor: Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
 ) -> Result<MqttBrokerServerParams, CommonError> {
     let cache_manager = Arc::new(MqttCacheManager::new(
@@ -153,6 +155,7 @@ pub async fn build_broker_mqtt_params(
         offset_manager,
         retain_message_manager,
         push_manager,
+        task_supervisor,
     })
 }
 

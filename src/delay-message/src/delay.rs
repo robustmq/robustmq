@@ -27,7 +27,7 @@ use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use storage_adapter::topic::create_topic_full;
-use tracing::debug;
+use tracing::{debug, info};
 
 pub const DELAY_QUEUE_MESSAGE_TOPIC: &str = "$delay-queue-message";
 pub const DELAY_QUEUE_INDEX_TOPIC: &str = "$delay-queue-index";
@@ -129,6 +129,14 @@ pub(crate) async fn init_inner_topic(
         DELAY_QUEUE_MESSAGE_TOPIC.to_string(),
         DELAY_QUEUE_INDEX_TOPIC.to_string(),
     ] {
+        if broker_cache.topic_list.contains_key(&topic_name) {
+            info!(
+                "Delay task inner topic '{}' already exists, skipping creation",
+                topic_name
+            );
+            continue;
+        }
+
         let uid = unique_id();
         let topic = Topic {
             topic_id: uid.clone(),
@@ -153,129 +161,4 @@ pub(crate) async fn init_inner_topic(
 }
 
 #[cfg(test)]
-mod test {
-    // use common_base::{tools::unique_id, utils::serialize};
-    // use common_config::storage::StorageType;
-    // use metadata_struct::{
-    //     delay_info::DelayMessageIndexInfo,
-    //     storage::{adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord},
-    // };
-    // use storage_adapter::storage::test_build_memory_storage_driver;
-
-    // use crate::{
-    //     delay::{
-    //         delete_delay_index_info, delete_delay_message, get_delay_message_topic_name,
-    //         init_inner_topic, save_delay_index_info, save_delay_message,
-    //         DELAY_QUEUE_INFO_SHARD_NAME,
-    //     },
-    //     pop::read_offset_data,
-    // };
-
-    // #[tokio::test]
-    // async fn shard_name_format_test() {
-    //     assert_eq!(
-    //         get_delay_message_topic_name(0),
-    //         "$delay-queue-message-shard-0"
-    //     );
-    // }
-
-    // #[tokio::test]
-    // async fn shard_init_test() {
-    //     let adapter = test_build_memory_storage_driver();
-    //     init_inner_topic(&adapter, &StorageType::EngineMemory, 2)
-    //         .await
-    //         .unwrap();
-
-    //     let all_shards = adapter.list_shard(None).await.unwrap();
-    //     assert_eq!(all_shards.len(), 3);
-
-    //     let shard_names: Vec<_> = all_shards.iter().map(|s| s.shard_name.as_str()).collect();
-    //     assert!(shard_names.contains(&get_delay_message_topic_name(0).as_str()));
-    //     assert!(shard_names.contains(&get_delay_message_topic_name(1).as_str()));
-    //     assert!(shard_names.contains(&DELAY_QUEUE_INFO_SHARD_NAME));
-    // }
-
-    // #[tokio::test]
-    // async fn message_crud_test() {
-    //     let adapter = test_build_memory_storage_driver();
-    //     let shard_name = unique_id();
-    //     adapter
-    //         .create_shard(&AdapterShardInfo {
-    //             shard_name: shard_name.clone(),
-    //             ..Default::default()
-    //         })
-    //         .await
-    //         .unwrap();
-
-    //     let data = AdapterWriteRecord::from_string("test_data".to_string());
-    //     let offset = save_delay_message(&adapter, &shard_name, data)
-    //         .await
-    //         .unwrap();
-
-    //     let record = read_offset_data(&adapter, &shard_name, offset)
-    //         .await
-    //         .unwrap()
-    //         .unwrap();
-    //     assert_eq!(record.pkid, offset);
-    //     assert_eq!(
-    //         String::from_utf8(record.data.to_vec()).unwrap(),
-    //         "test_data"
-    //     );
-
-    //     delete_delay_message(
-    //         &adapter,
-    //         &DelayMessageIndexInfo {
-    //             unique_id: unique_id(),
-    //             delay_shard_name: shard_name.clone(),
-    //             target_topic_name: "".to_string(),
-    //             offset,
-    //             delay_timestamp: 0,
-    //             shard_no: 0,
-    //         },
-    //     )
-    //     .await
-    //     .unwrap();
-
-    //     let result = read_offset_data(&adapter, &shard_name, offset).await;
-    //     assert!(result.is_ok());
-    //     assert!(result.unwrap().is_none());
-    // }
-
-    // #[tokio::test]
-    // async fn index_info_crud_test() {
-    //     let adapter = test_build_memory_storage_driver();
-    //     init_inner_topic(&adapter, &StorageType::EngineMemory, 1)
-    //         .await
-    //         .unwrap();
-
-    //     let delay_info = DelayMessageIndexInfo {
-    //         unique_id: unique_id(),
-    //         delay_shard_name: "test_delay_shard".to_string(),
-    //         target_topic_name: "test_target".to_string(),
-    //         offset: 100,
-    //         delay_timestamp: 1000,
-    //         shard_no: 0,
-    //     };
-
-    //     save_delay_index_info(&adapter, &delay_info).await.unwrap();
-
-    //     let record = read_offset_data(&adapter, DELAY_QUEUE_INFO_SHARD_NAME, 0)
-    //         .await
-    //         .unwrap()
-    //         .unwrap();
-    //     let saved_info = serialize::deserialize::<DelayMessageIndexInfo>(&record.data).unwrap();
-    //     assert_eq!(saved_info.unique_id, delay_info.unique_id);
-    //     assert_eq!(saved_info.offset, 100);
-    //     assert_eq!(saved_info.delay_timestamp, 1000);
-
-    //     delete_delay_index_info(&adapter, &delay_info)
-    //         .await
-    //         .unwrap();
-
-    //     let key_result = adapter
-    //         .read_by_key(DELAY_QUEUE_INFO_SHARD_NAME, &delay_info.unique_id)
-    //         .await
-    //         .unwrap();
-    //     assert_eq!(key_result.len(), 0);
-    // }
-}
+mod test {}
