@@ -38,6 +38,7 @@ pub enum TaskKind {
     MQTTSecurityBlacklistSync,
     MQTTCleanFlappingDetect,
     MQTTReportSystemTopicData,
+    MQTTTopicRewriteConvert,
 }
 
 impl std::fmt::Display for TaskKind {
@@ -63,6 +64,7 @@ impl std::fmt::Display for TaskKind {
             TaskKind::MQTTSecurityBlacklistSync => write!(f, "MQTTSecurityBlacklistSync"),
             TaskKind::MQTTCleanFlappingDetect => write!(f, "MQTTCleanFlappingDetect"),
             TaskKind::MQTTReportSystemTopicData => write!(f, "MQTTReportSystemTopicData"),
+            TaskKind::MQTTTopicRewriteConvert => write!(f, "MQTTTopicRewriteConvert"),
         }
     }
 }

@@ -220,28 +220,22 @@ impl MqttBrokerServer {
         // parse topic rewrite
         let metadata_cache = self.cache_manager.clone();
         let stop_send = self.inner_stop.clone();
-        tokio::spawn(async move {
-            start_topic_rewrite_convert_thread(metadata_cache, stop_send).await;
-        });
+        self.task_supervisor
+            .spawn(TaskKind::MQTTTopicRewriteConvert.to_string(), async move {
+                start_topic_rewrite_convert_thread(metadata_cache, stop_send).await;
+            });
 
         // metrics record
-        let metrics_cache_manager = self.metrics_cache_manager.clone();
-        let cache_manager = self.cache_manager.clone();
-        let subscribe_manager = self.subscribe_manager.clone();
-        let connection_manager = self.connection_manager.clone();
-        let connector_manager = self.connector_manager.clone();
-        let raw_stop_send = self.inner_stop.clone();
-        tokio::spawn(async move {
-            metrics_record_thread(
-                metrics_cache_manager.clone(),
-                cache_manager.clone(),
-                subscribe_manager.clone(),
-                connection_manager.clone(),
-                connector_manager.clone(),
-                30,
-                raw_stop_send.clone(),
-            );
-        });
+        metrics_record_thread(
+            self.metrics_cache_manager.clone(),
+            self.cache_manager.clone(),
+            self.subscribe_manager.clone(),
+            self.connection_manager.clone(),
+            self.connector_manager.clone(),
+            30,
+            self.inner_stop.clone(),
+        )
+        .await;
 
         // system alarm
         let system_alarm = SystemAlarm::new(

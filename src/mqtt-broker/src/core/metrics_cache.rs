@@ -429,7 +429,7 @@ async fn record_subscribe_metrics(
     Ok(())
 }
 
-pub fn metrics_record_thread(
+pub async fn metrics_record_thread(
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     cache_manager: Arc<MQTTCacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
