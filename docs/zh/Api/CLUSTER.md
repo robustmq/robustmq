@@ -557,9 +557,134 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
 
 ---
 
+---
+
+## 租户管理
+
+租户（Tenant）是 RobustMQ 多租户架构的核心概念，用于对集群资源进行逻辑隔离。适用于同一集群服务多个业务、多个环境（开发/测试/生产）等场景。
+
+### 4. 获取租户列表
+
+- **接口**: `GET /api/tenant/list`
+- **描述**: 获取集群中所有租户，支持分页、排序、过滤
+- **请求参数**（Query String）:
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant_name` | string | 否 | 按租户名称精确查询 |
+| `page` | u32 | 否 | 页码，从 1 开始，默认 1 |
+| `limit` | u32 | 否 | 每页条数，默认 100 |
+| `sort_field` | string | 否 | 排序字段，支持 `tenant_name` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
+| `filter_field` | string | 否 | 过滤字段名 |
+| `filter_values` | string[] | 否 | 过滤值列表 |
+| `exact_match` | string | 否 | 是否精确匹配：`exact` |
+
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "data": {
+    "data": [
+      {
+        "tenant_name": "business-a",
+        "desc": "业务 A 租户",
+        "create_time": 1738800000
+      }
+    ],
+    "total_count": 1
+  },
+  "error": null
+}
+```
+
+- **curl 示例**:
+```bash
+# 查询所有租户
+curl -X GET "http://localhost:8080/api/tenant/list"
+
+# 查询指定租户
+curl -X GET "http://localhost:8080/api/tenant/list?tenant_name=business-a"
+```
+
+---
+
+### 5. 创建租户
+
+- **接口**: `POST /api/tenant/create`
+- **描述**: 创建一个新租户
+- **请求体**:
+
+| 字段 | 类型 | 必填 | 校验 | 说明 |
+|------|------|------|------|------|
+| `tenant_name` | string | 是 | 长度 1-128 | 租户名称，全局唯一 |
+| `desc` | string | 否 | 长度 ≤ 500 | 租户描述 |
+
+- **请求示例**:
+```json
+{
+  "tenant_name": "business-a",
+  "desc": "业务 A 租户"
+}
+```
+
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "data": "success",
+  "error": null
+}
+```
+
+- **curl 示例**:
+```bash
+curl -X POST http://localhost:8080/api/tenant/create \
+  -H "Content-Type: application/json" \
+  -d '{"tenant_name": "business-a", "desc": "业务 A 租户"}'
+```
+
+---
+
+### 6. 删除租户
+
+- **接口**: `POST /api/tenant/delete`
+- **描述**: 删除指定租户。删除后，归属该租户的元数据将不再受该租户管控。
+- **请求体**:
+
+| 字段 | 类型 | 必填 | 校验 | 说明 |
+|------|------|------|------|------|
+| `tenant_name` | string | 是 | 长度 1-128 | 要删除的租户名称 |
+
+- **请求示例**:
+```json
+{
+  "tenant_name": "business-a"
+}
+```
+
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "data": "success",
+  "error": null
+}
+```
+
+- **curl 示例**:
+```bash
+curl -X POST http://localhost:8080/api/tenant/delete \
+  -H "Content-Type: application/json" \
+  -d '{"tenant_name": "business-a"}'
+```
+
+---
+
 ## 注意事项
 
 1. **响应格式**: 成功时 `code` 为 `0`，`error` 为 `null`；失败时 `code` 为 `100`，`error` 包含错误信息
 2. **配置格式**: `config_set` 接口的 `config` 字段必须是有效的 JSON 字符串
 3. **热更新**: 部分配置支持热更新，无需重启服务
 4. **备份建议**: 修改配置前建议先通过 `config/get` 接口获取当前配置进行备份
+5. **租户隔离**: 租户为逻辑隔离，适用于私有化部署场景；SaaS 多租户场景建议使用物理隔离方案

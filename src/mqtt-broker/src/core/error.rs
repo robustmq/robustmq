@@ -289,6 +289,9 @@ pub enum MqttBrokerError {
 
     #[error("Sqlx error: {0}")]
     SqlxError(#[from] SqlxError),
+
+    #[error("Tenant [{0}] does not exist.")]
+    TenantNotFound(String),
 }
 
 impl From<MqttBrokerError> for Status {

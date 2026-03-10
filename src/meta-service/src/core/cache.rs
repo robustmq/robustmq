@@ -16,6 +16,7 @@ use super::heartbeat::NodeHeartbeatData;
 use crate::core::error::MetaServiceError;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
 use crate::storage::common::node::NodeStorage;
+use crate::storage::common::tenant::TenantStorage;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use crate::storage::journal::shard::ShardStorage;
@@ -33,12 +34,16 @@ use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
+use metadata_struct::tenant::Tenant;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct MetaCacheManager {
+    // (tenant_name, Tenant)
+    pub tenant_list: DashMap<String, Tenant>,
+
     // (node_id, BrokerNode)
     pub node_list: DashMap<u64, BrokerNode>,
 
@@ -81,6 +86,7 @@ pub struct MetaCacheManager {
 impl MetaCacheManager {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> MetaCacheManager {
         let mut cache = MetaCacheManager {
+            tenant_list: DashMap::with_capacity(8),
             node_heartbeat: DashMap::with_capacity(2),
             node_list: DashMap::with_capacity(2),
             topic_list: DashMap::with_capacity(8),
@@ -96,6 +102,23 @@ impl MetaCacheManager {
         };
         cache.load_cache(rocksdb_engine_handler);
         cache
+    }
+
+    // Tenant
+    pub fn add_tenant(&self, tenant: Tenant) {
+        self.tenant_list.insert(tenant.tenant_name.clone(), tenant);
+    }
+
+    pub fn remove_tenant(&self, tenant_name: &str) {
+        self.tenant_list.remove(tenant_name);
+    }
+
+    pub fn get_tenant(&self, tenant_name: &str) -> Option<Tenant> {
+        self.tenant_list.get(tenant_name).map(|t| t.clone())
+    }
+
+    pub fn tenant_exists(&self, tenant_name: &str) -> bool {
+        self.tenant_list.contains_key(tenant_name)
     }
 
     // Node
@@ -156,6 +179,12 @@ pub fn load_cache(
     cache_manager: &Arc<MetaCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> Result<(), MetaServiceError> {
+    // Tenant
+    let tenant_storage = TenantStorage::new(rocksdb_engine_handler.clone());
+    for tenant in tenant_storage.list()? {
+        cache_manager.add_tenant(tenant);
+    }
+
     // placement
 
     // journal

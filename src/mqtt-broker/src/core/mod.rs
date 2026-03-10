@@ -43,6 +43,7 @@ pub mod sub_slow;
 pub mod sub_wildcards;
 pub mod subscribe;
 pub mod system_alarm;
+pub mod tenant;
 pub mod tool;
 pub mod topic;
 pub mod topic_rewrite;

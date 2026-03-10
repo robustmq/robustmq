@@ -31,6 +31,7 @@ use crate::subscribe::parse::{start_update_parse_thread, ParseSubscribeData};
 use crate::subscribe::PushManager;
 use crate::system_topic::SystemTopic;
 use broker_core::cache::BrokerCacheManager;
+use broker_core::tenant::try_init_default_tenant;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_config::broker::broker_config;
 use connector::manager::ConnectorManager;
@@ -136,6 +137,14 @@ impl MqttBrokerServer {
     }
 
     async fn start_daemon_thread(&self) {
+        // init default tenant
+        if let Err(e) =
+            try_init_default_tenant(&self.cache_manager.broker_cache, &self.client_pool).await
+        {
+            error!("Failed to initialize default tenant: {}", e);
+            std::process::exit(1);
+        }
+
         // init system user
         if let Err(e) = try_init_system_user(&self.cache_manager, &self.client_pool).await {
             error!("Failed to initialize system user: {}", e);

@@ -32,7 +32,6 @@ use std::collections::HashMap;
 #[derive(Parser)]
 #[command(name = "robust-ctl")]
 #[command(bin_name = "robust-ctl")]
-#[command(styles = CLAP_STYLING)]
 #[command(author="RobustMQ", version="0.0.1", about="Command line tool for RobustMQ", long_about = None)]
 #[command(next_line_help = true)]
 pub struct RobustMQCli {
@@ -110,6 +109,42 @@ pub enum ClusterAction {
     Status,
     Healthy,
     Config(ClusterConfigArgs),
+    Tenant(TenantArgs),
+}
+
+// tenant
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "Tenant management: list, create, delete", long_about = None)]
+#[command(next_line_help = true)]
+pub struct TenantArgs {
+    #[command(subcommand)]
+    pub action: TenantActionType,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum TenantActionType {
+    #[command(author = "RobustMQ", about = "List all tenants", long_about = None)]
+    List,
+    #[command(author = "RobustMQ", about = "Create a tenant", long_about = None)]
+    Create(CreateTenantArgs),
+    #[command(author = "RobustMQ", about = "Delete a tenant", long_about = None)]
+    Delete(DeleteTenantArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(next_line_help = true)]
+pub struct CreateTenantArgs {
+    #[arg(short = 'n', long, required = true, help = "Tenant name")]
+    pub tenant_name: String,
+    #[arg(short = 'd', long, help = "Description")]
+    pub desc: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(next_line_help = true)]
+pub struct DeleteTenantArgs {
+    #[arg(short = 'n', long, required = true, help = "Tenant name")]
+    pub tenant_name: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -274,6 +309,16 @@ pub async fn handle_cluster(args: ClusterArgs) {
                     config: set_args.config,
                 })
             }
+        },
+        ClusterAction::Tenant(tenant_args) => match tenant_args.action {
+            TenantActionType::List => ClusterActionType::ListTenant,
+            TenantActionType::Create(arg) => ClusterActionType::CreateTenant {
+                tenant_name: arg.tenant_name,
+                desc: arg.desc,
+            },
+            TenantActionType::Delete(arg) => ClusterActionType::DeleteTenant {
+                tenant_name: arg.tenant_name,
+            },
         },
     };
 

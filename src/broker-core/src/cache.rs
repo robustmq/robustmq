@@ -18,6 +18,7 @@ use dashmap::DashMap;
 use metadata_struct::{
     meta::node::BrokerNode,
     mqtt::{session::MqttSession, topic::Topic},
+    tenant::Tenant,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -25,6 +26,9 @@ use tokio::sync::RwLock;
 pub struct BrokerCacheManager {
     // start_time
     pub start_time: u64,
+
+    // (tenant_name, Tenant)
+    pub tenant_list: DashMap<String, Tenant>,
 
     // node list
     pub node_lists: DashMap<u64, BrokerNode>,
@@ -49,12 +53,30 @@ impl BrokerCacheManager {
         BrokerCacheManager {
             cluster_name: cluster.cluster_name.clone(),
             start_time: now_second(),
+            tenant_list: DashMap::with_capacity(8),
             node_lists: DashMap::with_capacity(2),
             cluster_config: Arc::new(RwLock::new(cluster)),
             status: Arc::new(RwLock::new(NodeStatus::Starting)),
             session_list: DashMap::with_capacity(8),
             topic_list: DashMap::with_capacity(2),
         }
+    }
+
+    // Tenant
+    pub fn add_tenant(&self, tenant: Tenant) {
+        self.tenant_list.insert(tenant.tenant_name.clone(), tenant);
+    }
+
+    pub fn remove_tenant(&self, tenant_name: &str) {
+        self.tenant_list.remove(tenant_name);
+    }
+
+    pub fn tenant_exists(&self, tenant_name: &str) -> bool {
+        self.tenant_list.contains_key(tenant_name)
+    }
+
+    pub fn get_tenant(&self, tenant_name: &str) -> Option<Tenant> {
+        self.tenant_list.get(tenant_name).map(|t| t.clone())
     }
 
     // node

@@ -119,6 +119,16 @@ impl DataRoute {
                     .delete_offset_data(storage_data.value.clone())?;
                 Ok(None)
             }
+            StorageDataType::TenantCreate => {
+                self.route_cluster
+                    .create_tenant(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::TenantDelete => {
+                self.route_cluster
+                    .delete_tenant(storage_data.value.clone())?;
+                Ok(None)
+            }
             StorageDataType::SchemaSet => {
                 self.route_cluster.set_schema(storage_data.value.clone())?;
                 Ok(None)

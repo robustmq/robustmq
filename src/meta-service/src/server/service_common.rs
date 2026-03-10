@@ -30,6 +30,9 @@ use crate::server::services::common::schema::{
     bind_schema_req, create_schema_req, delete_schema_req, list_bind_schema_req, list_schema_req,
     un_bind_schema_req, update_schema_req,
 };
+use crate::server::services::common::tenant::{
+    create_tenant_by_req, delete_tenant_by_req, list_tenant_by_req,
+};
 use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
 use prost_validate::Validator;
@@ -37,14 +40,16 @@ use protocol::meta::meta_service_common::meta_service_service_server::MetaServic
 use protocol::meta::meta_service_common::{
     AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, BindSchemaReply,
     BindSchemaRequest, ChangeMembershipReply, ChangeMembershipRequest, ClusterStatusReply,
-    ClusterStatusRequest, CreateSchemaReply, CreateSchemaRequest, DeleteReply, DeleteRequest,
-    DeleteResourceConfigReply, DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
-    ExistsReply, ExistsRequest, GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply,
-    GetPrefixRequest, GetReply, GetRequest, GetResourceConfigReply, GetResourceConfigRequest,
-    HeartbeatReply, HeartbeatRequest, ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply,
-    ListSchemaRequest, NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest,
-    ReportMonitorReply, ReportMonitorRequest, SaveOffsetDataReply, SaveOffsetDataRequest, SetReply,
-    SetRequest, SetResourceConfigReply, SetResourceConfigRequest, SnapshotReply, SnapshotRequest,
+    ClusterStatusRequest, CreateSchemaReply, CreateSchemaRequest, CreateTenantReply,
+    CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
+    DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest, DeleteTenantReply,
+    DeleteTenantRequest, ExistsReply, ExistsRequest, GetOffsetDataReply, GetOffsetDataRequest,
+    GetPrefixReply, GetPrefixRequest, GetReply, GetRequest, GetResourceConfigReply,
+    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
+    ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, ListTenantReply, ListTenantRequest,
+    NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply,
+    ReportMonitorRequest, SaveOffsetDataReply, SaveOffsetDataRequest, SetReply, SetRequest,
+    SetResourceConfigReply, SetResourceConfigRequest, SnapshotReply, SnapshotRequest,
     UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
     UpdateSchemaReply, UpdateSchemaRequest, VoteReply, VoteRequest,
 };
@@ -96,6 +101,7 @@ impl MetaServiceService for GrpcPlacementService {
     type ListSchemaStream = Pin<Box<dyn Stream<Item = Result<ListSchemaReply, Status>> + Send>>;
     type ListBindSchemaStream =
         Pin<Box<dyn Stream<Item = Result<ListBindSchemaReply, Status>> + Send>>;
+    type ListTenantStream = Pin<Box<dyn Stream<Item = Result<ListTenantReply, Status>> + Send>>;
 
     // Cluster
     async fn cluster_status(
@@ -382,6 +388,54 @@ impl MetaServiceService for GrpcPlacementService {
         .map_err(Self::to_status)?;
 
         Ok(Response::new(UnBindSchemaReply {}))
+    }
+
+    // Tenant Operations
+    async fn create_tenant(
+        &self,
+        request: Request<CreateTenantRequest>,
+    ) -> Result<Response<CreateTenantReply>, Status> {
+        let req = request.into_inner();
+        self.validate_request(&req)?;
+
+        create_tenant_by_req(
+            &self.raft_manager,
+            &self.mqtt_call_manager,
+            &self.rocksdb_engine_handler,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
+    }
+
+    async fn delete_tenant(
+        &self,
+        request: Request<DeleteTenantRequest>,
+    ) -> Result<Response<DeleteTenantReply>, Status> {
+        let req = request.into_inner();
+        self.validate_request(&req)?;
+
+        delete_tenant_by_req(
+            &self.raft_manager,
+            &self.mqtt_call_manager,
+            &self.rocksdb_engine_handler,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
+    }
+
+    async fn list_tenant(
+        &self,
+        request: Request<ListTenantRequest>,
+    ) -> Result<Response<Self::ListTenantStream>, Status> {
+        let req = request.into_inner();
+
+        list_tenant_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(Self::to_status)
+            .map(Response::new)
     }
 
     // KV Operations

@@ -16,4 +16,5 @@
 pub mod cache;
 pub mod cluster;
 pub mod heartbeat;
+pub mod tenant;
 pub mod tool;

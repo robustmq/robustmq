@@ -27,9 +27,37 @@ use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use metadata_struct::storage::{
     segment::EngineSegment, segment_meta::EngineSegmentMetadata, shard::EngineShard,
 };
+use metadata_struct::tenant::Tenant;
 use node_call::{NodeCallData, NodeCallManager, UpdateCacheData};
 use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use std::sync::Arc;
+
+// Tenant
+pub async fn send_notify_by_create_tenant(
+    call_manager: &Arc<NodeCallManager>,
+    tenant: Tenant,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::Tenant,
+        serialize::serialize(&tenant)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_tenant(
+    call_manager: &Arc<NodeCallManager>,
+    tenant: Tenant,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Tenant,
+        serialize::serialize(&tenant)?,
+    )
+    .await
+}
 
 // MQTT Session
 pub async fn send_notify_by_add_session(

@@ -47,6 +47,7 @@ use common_base::{
 use std::str::FromStr;
 
 pub mod health;
+pub mod tenant;
 
 pub async fn index(State(_state): State<Arc<HttpState>>) -> String {
     format!("RobustMQ API {}", version())

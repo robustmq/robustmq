@@ -16,11 +16,12 @@ use bytes::Bytes;
 use common_base::tools::now_second;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
+use metadata_struct::tenant::Tenant;
 use prost::Message as _;
 use protocol::meta::meta_service_common::{
-    BindSchemaRequest, CreateSchemaRequest, DeleteResourceConfigRequest, DeleteSchemaRequest,
-    RegisterNodeRequest, SaveOffsetDataRequest, SetResourceConfigRequest, UnBindSchemaRequest,
-    UnRegisterNodeRequest,
+    BindSchemaRequest, CreateSchemaRequest, CreateTenantRequest, DeleteResourceConfigRequest,
+    DeleteSchemaRequest, DeleteTenantRequest, RegisterNodeRequest, SaveOffsetDataRequest,
+    SetResourceConfigRequest, UnBindSchemaRequest, UnRegisterNodeRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -31,6 +32,7 @@ use crate::storage::common::config::ResourceConfigStorage;
 use crate::storage::common::node::NodeStorage;
 use crate::storage::common::offset::{OffsetData, OffsetStorage};
 use crate::storage::common::schema::SchemaStorage;
+use crate::storage::common::tenant::TenantStorage;
 
 #[derive(Clone)]
 pub struct DataRouteCluster {
@@ -139,6 +141,28 @@ impl DataRouteCluster {
     }
 
     pub fn delete_offset_data(&self, _: Bytes) -> Result<(), MetaServiceError> {
+        Ok(())
+    }
+
+    // Tenant
+    pub fn create_tenant(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = CreateTenantRequest::decode(value.as_ref())?;
+        let tenant = Tenant {
+            tenant_name: req.tenant_name.clone(),
+            desc: req.desc.clone(),
+            create_time: now_second(),
+        };
+        let tenant_storage = TenantStorage::new(self.rocksdb_engine_handler.clone());
+        tenant_storage.save(&tenant)?;
+        self.cluster_cache.add_tenant(tenant);
+        Ok(())
+    }
+
+    pub fn delete_tenant(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = DeleteTenantRequest::decode(value.as_ref())?;
+        let tenant_storage = TenantStorage::new(self.rocksdb_engine_handler.clone());
+        tenant_storage.delete(&req.tenant_name)?;
+        self.cluster_cache.remove_tenant(&req.tenant_name);
         Ok(())
     }
 }

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use broker_core::cache::BrokerCacheManager;
+use broker_core::tenant::TenantStorage;
 use connector::manager::ConnectorManager;
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::core::cache::MQTTCacheManager;
@@ -100,12 +101,22 @@ async fn load_common_cache(
         schema_manager.add_bind(schema);
     }
 
+    let tenant_storage = TenantStorage::new(client_pool.clone());
+    let tenants = tenant_storage
+        .list_all()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load tenants: {}", e)))?;
+    for tenant in tenants.iter() {
+        broker_cache.add_tenant(tenant.clone());
+    }
+
     info!(
-        "Common cache loaded: topics={}, connectors={}, schemas={}, schema_binds={}",
+        "Common cache loaded: topics={}, connectors={}, schemas={}, schema_binds={}, tenants={}",
         topic_list.len(),
         connectors.len(),
         schemas.len(),
         schema_binds.len(),
+        tenants.len(),
     );
 
     Ok(())

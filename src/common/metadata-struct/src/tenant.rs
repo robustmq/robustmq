@@ -12,10 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod config;
-pub mod kv;
-pub mod lock;
-pub mod node;
-pub mod offset;
-pub mod schema;
-pub mod tenant;
+use common_base::{error::common::CommonError, utils::serialize};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct Tenant {
+    pub tenant_name: String,
+    pub desc: String,
+    pub create_time: u64,
+}
+
+impl Tenant {
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
+    }
+}
