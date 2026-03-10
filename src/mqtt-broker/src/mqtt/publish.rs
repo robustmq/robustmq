@@ -577,6 +577,7 @@ mod tests {
     fn build_test_connection(topic_alias_max: u16, max_packet_size: u32) -> MQTTConnection {
         MQTTConnection {
             connect_id: 1,
+            tenant: "tenant1".to_string(),
             client_id: "test_client".to_string(),
             is_login: true,
             source_ip_addr: "127.0.0.1".to_string(),

@@ -279,6 +279,7 @@ mod test {
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::mqtt::session::MqttSession;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use network_server::common::connection_manager::ConnectionManager;
     use std::sync::Arc;
     use std::time::Duration;
@@ -332,13 +333,21 @@ mod test {
         let client_id = unique_id();
         let connect_id = 1;
 
-        let session = MqttSession::new(client_id.clone(), 60, false, None, true);
+        let session = MqttSession::new(
+            DEFAULT_TENANT.to_string(),
+            client_id.clone(),
+            60,
+            false,
+            None,
+            true,
+        );
         cache_manager.add_session(&client_id, &session);
 
         let keep_alive = 2;
         let addr = local_hostname();
         let config = ConnectionConfig {
             connect_id: 1,
+            tenant: "tenant1".to_string(),
             client_id,
             receive_maximum: 100,
             max_packet_size: 100,

@@ -24,6 +24,7 @@ use grpc_clients::meta::mqtt::call::{
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use protocol::meta::meta_service_mqtt::{
     CreateSessionRaw, CreateSessionRequest, DeleteSessionRequest, ListSessionRequest,
 };
@@ -125,8 +126,14 @@ pub async fn run_placement_create_session_bench(
             let mut sessions = Vec::with_capacity(batch_count as usize);
             for i in batch_range_start..batch_range_end {
                 let client_id = format!("{client_id_prefix}-{i}");
-                let mut mqtt_session =
-                    MqttSession::new(client_id.clone(), session_expiry_secs, false, None, true);
+                let mut mqtt_session = MqttSession::new(
+                    DEFAULT_TENANT.to_string(),
+                    client_id.clone(),
+                    session_expiry_secs,
+                    false,
+                    None,
+                    true,
+                );
                 mqtt_session.update_broker_id(Some(1));
                 mqtt_session.update_connection_id(Some((i + 1) as u64));
                 match mqtt_session.encode() {
@@ -243,7 +250,14 @@ pub async fn run_placement_list_session_bench(
 
     // Setup phase: create one session so that the read bench has data to query.
     let setup_client_id = format!("{}-0", args.client_id_prefix);
-    let mut mqtt_session = MqttSession::new(setup_client_id.clone(), 3600, false, None, true);
+    let mut mqtt_session = MqttSession::new(
+        DEFAULT_TENANT.to_string(),
+        setup_client_id.clone(),
+        3600,
+        false,
+        None,
+        true,
+    );
     mqtt_session.update_broker_id(Some(1));
     mqtt_session.update_connection_id(Some(1));
     let setup_request = CreateSessionRequest {
@@ -430,7 +444,14 @@ pub async fn run_placement_delete_session_bench(
     // Setup phase: create the session so the first delete has something to remove.
     // Subsequent deletes against a non-existent session still exercise the full Raft write path.
     let setup_client_id = args.client_id.clone();
-    let mut mqtt_session = MqttSession::new(setup_client_id.clone(), 3600, false, None, true);
+    let mut mqtt_session = MqttSession::new(
+        DEFAULT_TENANT.to_string(),
+        setup_client_id.clone(),
+        3600,
+        false,
+        None,
+        true,
+    );
     mqtt_session.update_broker_id(Some(1));
     mqtt_session.update_connection_id(Some(1));
     let setup_request = CreateSessionRequest {

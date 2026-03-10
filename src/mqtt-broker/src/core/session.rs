@@ -29,6 +29,7 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct BuildSessionContext {
+    pub tenant: String,
     pub connect_id: u64,
     pub client_id: String,
     pub connect: Connect,
@@ -129,6 +130,7 @@ async fn build_new_session(context: &BuildSessionContext) -> MqttSession {
     let is_contain_last_will = context.last_will.is_some();
     let last_will_delay_interval = last_will_delay_interval(&context.last_will_properties);
     let mut session = MqttSession::new(
+        context.tenant.clone(),
         context.client_id.clone(),
         session_expiry,
         is_contain_last_will,
@@ -193,13 +195,20 @@ mod test {
     use super::session_expiry_interval;
     use crate::core::tool::test_build_mqtt_cache_manager;
     use common_config::broker::default_broker_config;
-    use metadata_struct::mqtt::session::MqttSession;
+    use metadata_struct::{mqtt::session::MqttSession, tenant::DEFAULT_TENANT};
     use protocol::mqtt::common::ConnectProperties;
 
     #[tokio::test]
     pub async fn build_session_test() {
         let client_id = "client_id_test-**".to_string();
-        let session = MqttSession::new(client_id.clone(), 10, false, None, true);
+        let session = MqttSession::new(
+            DEFAULT_TENANT.to_string(),
+            client_id.clone(),
+            10,
+            false,
+            None,
+            true,
+        );
         assert_eq!(client_id, session.client_id);
         assert_eq!(10, session.session_expiry_interval);
         assert!(!session.is_contain_last_will);

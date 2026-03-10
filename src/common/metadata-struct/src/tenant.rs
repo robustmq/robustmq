@@ -15,6 +15,8 @@
 use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
+pub const DEFAULT_TENANT: &str = "default";
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Tenant {
     pub tenant_name: String,

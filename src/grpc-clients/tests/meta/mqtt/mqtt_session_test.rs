@@ -21,6 +21,7 @@ mod tests {
     };
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::meta::meta_service_mqtt::{
         CreateSessionRaw, CreateSessionRequest, DeleteSessionRequest, ListSessionRequest,
     };
@@ -38,6 +39,7 @@ mod tests {
         let last_will_delay_interval: u64 = 10000;
 
         let mut mqtt_session: MqttSession = MqttSession::new(
+            DEFAULT_TENANT.to_string(),
             client_id.clone(),
             session_expiry,
             true,

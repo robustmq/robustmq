@@ -14,6 +14,7 @@
 
 use crate::core::cache::MQTTCacheManager;
 use crate::core::error::MqttBrokerError;
+use crate::core::tenant::try_decode_username;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::security::auth::blacklist::is_connection_blacklisted;
 use crate::security::auth::is_allow_acl;
@@ -140,10 +141,12 @@ impl AuthManager {
             return match login_type {
                 LoginType::PasswordBased => {
                     if let Some(user_info) = login {
+                        let username = try_decode_username(&user_info.username);
+                        let password = user_info.password.clone();
                         Ok(password_check_by_login(
                             &self.cache_manager,
-                            &user_info.username,
-                            &user_info.password,
+                            &username,
+                            &password,
                         ))
                     } else {
                         Ok(false)
