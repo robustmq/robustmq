@@ -26,8 +26,6 @@ use std::sync::Arc;
 pub const DEFAULT_TENANT_NAME: &str = "default";
 pub const DEFAULT_TENANT_DESC: &str = "Default tenant";
 
-/// 启动时尝试初始化默认租户。
-/// 若 default 租户已存在则跳过，否则创建并写入缓存。
 pub async fn try_init_default_tenant(
     broker_cache: &Arc<BrokerCacheManager>,
     client_pool: &Arc<ClientPool>,

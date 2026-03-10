@@ -33,19 +33,11 @@ pub fn get_tenant_info(
         .ok_or_else(|| MqttBrokerError::TenantNotFound(tenant_name))
 }
 
-/// Decode the tenant name from CONNECT packet fields.
-///
-/// Priority:
-///   1. MQTT 5.0 User Properties  → key "tenant"
-///   2. username prefix            → "business-a@admin"
-///   3. client_id prefix           → "business-a@device-001"
-///   4. fallback                   → "default"
 fn decode_tenant_name(
     client_id: &str,
     connect_properties: &Option<ConnectProperties>,
     login: &Option<Login>,
 ) -> Result<String, MqttBrokerError> {
-    // 1. MQTT 5.0 User Properties
     if let Some(props) = connect_properties {
         for (k, v) in &props.user_properties {
             if k == TENANT_USER_PROPERTY_KEY && !v.is_empty() {
@@ -54,14 +46,12 @@ fn decode_tenant_name(
         }
     }
 
-    // 2. username prefix: "tenant@username"
     if let Some(login) = login {
         if let Some(tenant) = extract_prefix(&login.username) {
             return Ok(tenant);
         }
     }
 
-    // 3. client_id prefix: "tenant@client_id"
     if let Some(tenant) = extract_prefix(client_id) {
         return Ok(tenant);
     }
