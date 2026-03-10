@@ -26,11 +26,14 @@
 
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::session::MqttSession;
-use rocksdb_engine::keys::meta::{storage_key_mqtt_session, storage_key_mqtt_session_prefix};
+use rocksdb_engine::keys::meta::{
+    storage_key_mqtt_session, storage_key_mqtt_session_prefix,
+    storage_key_mqtt_session_tenant_prefix,
+};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_data::{
     engine_batch_save_by_meta_data, engine_delete_by_meta_data, engine_get_by_meta_data,
-    engine_prefix_list_by_meta_data, engine_save_by_meta_data,
+    engine_prefix_list_by_meta_data,
 };
 use std::sync::Arc;
 
@@ -44,20 +47,21 @@ impl MqttSessionStorage {
             rocksdb_engine_handler,
         }
     }
-    pub fn save(&self, client_id: &str, session: MqttSession) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_session(client_id);
-        engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, session)
-    }
 
-    pub fn save_batch(&self, sessions: &[(String, MqttSession)]) -> Result<(), CommonError> {
+    pub fn save_batch(&self, sessions: &[MqttSession]) -> Result<(), CommonError> {
         let entries: Vec<(String, &MqttSession)> = sessions
             .iter()
-            .map(|(client_id, session)| (storage_key_mqtt_session(client_id), session))
+            .map(|session| {
+                (
+                    storage_key_mqtt_session(&session.tenant, &session.client_id),
+                    session,
+                )
+            })
             .collect();
         engine_batch_save_by_meta_data(&self.rocksdb_engine_handler, &entries)
     }
 
-    pub fn list_all(&self) -> Result<Vec<MqttSession>, CommonError> {
+    pub fn list(&self) -> Result<Vec<MqttSession>, CommonError> {
         let prefix_key = storage_key_mqtt_session_prefix();
         let data = engine_prefix_list_by_meta_data::<MqttSession>(
             &self.rocksdb_engine_handler,
@@ -66,16 +70,25 @@ impl MqttSessionStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn get(&self, client_id: &str) -> Result<Option<MqttSession>, CommonError> {
-        let key = storage_key_mqtt_session(client_id);
+    pub fn list_by_tenant(&self, tenant: &str) -> Result<Vec<MqttSession>, CommonError> {
+        let prefix_key = storage_key_mqtt_session_tenant_prefix(tenant);
+        let data = engine_prefix_list_by_meta_data::<MqttSession>(
+            &self.rocksdb_engine_handler,
+            &prefix_key,
+        )?;
+        Ok(data.into_iter().map(|raw| raw.data).collect())
+    }
+
+    pub fn get(&self, tenant: &str, client_id: &str) -> Result<Option<MqttSession>, CommonError> {
+        let key = storage_key_mqtt_session(tenant, client_id);
         Ok(
             engine_get_by_meta_data::<MqttSession>(&self.rocksdb_engine_handler, &key)?
                 .map(|data| data.data),
         )
     }
 
-    pub fn delete(&self, client_id: &str) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_session(client_id);
+    pub fn delete(&self, tenant: &str, client_id: &str) -> Result<(), CommonError> {
+        let key = storage_key_mqtt_session(tenant, client_id);
         engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)
     }
 }
@@ -93,8 +106,9 @@ mod tests {
         MqttSessionStorage::new(db)
     }
 
-    fn create_session(client_id: &str) -> MqttSession {
+    fn create_session(tenant: &str, client_id: &str) -> MqttSession {
         MqttSession {
+            tenant: tenant.to_string(),
             client_id: client_id.to_string(),
             session_expiry_interval: 3600,
             ..Default::default()
@@ -105,34 +119,50 @@ mod tests {
     fn test_session_crud_operations() {
         let storage = setup_storage();
 
-        // Test: Save and Get
-        let session1 = create_session("client1");
-        storage.save("client1", session1).unwrap();
+        let session1 = create_session("tenant1", "client1");
+        storage.save_batch(&[session1]).unwrap();
 
-        let retrieved = storage.get("client1").unwrap();
+        let retrieved = storage.get("tenant1", "client1").unwrap();
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().client_id, "client1");
 
-        // Test: List multiple sessions
-        let session2 = create_session("client2");
-        storage.save("client2", session2).unwrap();
+        let session2 = create_session("tenant1", "client2");
+        storage.save_batch(&[session2]).unwrap();
 
-        let all_sessions = storage.list_all().unwrap();
+        let all_sessions = storage.list().unwrap();
         assert_eq!(all_sessions.len(), 2);
 
-        // Test: Delete and verify
-        storage.delete("client2").unwrap();
-        assert!(storage.get("client2").unwrap().is_none());
+        storage.delete("tenant1", "client2").unwrap();
+        assert!(storage.get("tenant1", "client2").unwrap().is_none());
 
-        let remaining = storage.list_all().unwrap();
+        let remaining = storage.list().unwrap();
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].client_id, "client1");
     }
 
     #[test]
+    fn test_list_by_tenant() {
+        let storage = setup_storage();
+
+        storage
+            .save_batch(&[
+                create_session("t1", "c1"),
+                create_session("t1", "c2"),
+                create_session("t2", "c1"),
+            ])
+            .unwrap();
+
+        let t1_sessions = storage.list_by_tenant("t1").unwrap();
+        assert_eq!(t1_sessions.len(), 2);
+
+        let t2_sessions = storage.list_by_tenant("t2").unwrap();
+        assert_eq!(t2_sessions.len(), 1);
+    }
+
+    #[test]
     fn test_get_nonexistent_session() {
         let storage = setup_storage();
-        let result = storage.get("nonexistent").unwrap();
+        let result = storage.get("tenant1", "nonexistent").unwrap();
         assert!(result.is_none());
     }
 
@@ -140,21 +170,18 @@ mod tests {
     fn test_save_overwrites_existing() {
         let storage = setup_storage();
 
-        // Save initial session
-        let session1 = create_session("client1");
-        storage.save("client1", session1).unwrap();
+        storage
+            .save_batch(&[create_session("t1", "client1")])
+            .unwrap();
 
-        // Overwrite with new session
-        let mut session2 = create_session("client1");
+        let mut session2 = create_session("t1", "client1");
         session2.session_expiry_interval = 7200;
-        storage.save("client1", session2).unwrap();
+        storage.save_batch(&[session2]).unwrap();
 
-        // Verify overwrite
-        let retrieved = storage.get("client1").unwrap().unwrap();
+        let retrieved = storage.get("t1", "client1").unwrap().unwrap();
         assert_eq!(retrieved.session_expiry_interval, 7200);
 
-        // Should still have only one session
-        let all_sessions = storage.list_all().unwrap();
+        let all_sessions = storage.list().unwrap();
         assert_eq!(all_sessions.len(), 1);
     }
 }

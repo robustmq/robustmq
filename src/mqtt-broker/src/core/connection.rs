@@ -202,7 +202,10 @@ pub async fn disconnect_connection(context: DisconnectConnectionContext) -> Resu
     );
     if delete {
         session_storage
-            .delete_session(context.connection.client_id.clone())
+            .delete_session(
+                context.connection.tenant.clone(),
+                context.connection.client_id.clone(),
+            )
             .await?;
         delete_session_by_local(
             &context.cache_manager,

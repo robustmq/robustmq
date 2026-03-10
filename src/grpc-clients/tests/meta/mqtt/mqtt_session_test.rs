@@ -61,6 +61,7 @@ mod tests {
             .unwrap();
 
         let request = ListSessionRequest {
+            tenant: DEFAULT_TENANT.to_string(),
             client_id: mqtt_session.client_id.clone(),
         };
 
@@ -77,6 +78,7 @@ mod tests {
         assert!(flag);
 
         let request = ListSessionRequest {
+            tenant: DEFAULT_TENANT.to_string(),
             client_id: mqtt_session.client_id.clone(),
         };
 
@@ -93,6 +95,7 @@ mod tests {
         assert!(flag);
 
         let request = DeleteSessionRequest {
+            tenant: DEFAULT_TENANT.to_string(),
             client_id: mqtt_session.client_id.clone(),
         };
 
@@ -101,6 +104,7 @@ mod tests {
             .unwrap();
 
         let request = ListSessionRequest {
+            tenant: DEFAULT_TENANT.to_string(),
             client_id: mqtt_session.client_id.clone(),
         };
 

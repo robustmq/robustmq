@@ -164,7 +164,7 @@ impl DataRouteMqtt {
         for raw in &req.sessions {
             let session = MqttSession::decode(&raw.session)?;
             if session.is_persist_session {
-                persist_sessions.push((raw.client_id.clone(), session.clone()));
+                persist_sessions.push(session.clone());
             } else {
                 self.broker_cache.add_session(session.clone());
             }
@@ -179,7 +179,10 @@ impl DataRouteMqtt {
                     let target_time = session.session_expiry_interval + distinct_time;
                     let task = DelayTask::build_persistent(
                         session.client_id.clone(),
-                        DelayTaskData::MQTTSessionExpire(session.client_id.clone()),
+                        DelayTaskData::MQTTSessionExpire(
+                            session.tenant.clone(),
+                            session.client_id.clone(),
+                        ),
                         target_time,
                     );
 
@@ -202,7 +205,7 @@ impl DataRouteMqtt {
     pub fn delete_session(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&req.client_id)?;
+        storage.delete(&req.tenant, &req.client_id)?;
         self.broker_cache.delete_session(&req.client_id);
         Ok(())
     }

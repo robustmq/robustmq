@@ -29,7 +29,9 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let session_storage = SessionStorage::new(client_pool);
         let client_id: String = "client_id_11111".to_string();
+        let tenant = "tenant-1".to_string();
         let session = MqttSession {
+            tenant: tenant.clone(),
             client_id: client_id.clone(),
             session_expiry_interval: 1000,
             broker_id: Some(1),
@@ -43,7 +45,7 @@ mod tests {
             .unwrap();
 
         let result = session_storage
-            .get_session(client_id.clone())
+            .get_session(tenant.clone(), client_id.clone())
             .await
             .unwrap()
             .unwrap();
@@ -52,25 +54,25 @@ mod tests {
         assert!(result.connection_id.is_none());
 
         let result = session_storage
-            .list_session(Some(client_id.clone()))
+            .list_session(tenant.clone(), Some(client_id.clone()))
             .await
             .unwrap();
 
         assert!(!result.is_empty());
 
         session_storage
-            .delete_session(client_id.clone())
+            .delete_session(tenant.clone(), client_id.clone())
             .await
             .unwrap();
 
         let result = session_storage
-            .get_session(client_id.clone())
+            .get_session(tenant.clone(), client_id.clone())
             .await
             .unwrap();
         assert!(result.is_none());
 
         let result = session_storage
-            .list_session(Some(client_id.clone()))
+            .list_session(tenant.clone(), Some(client_id.clone()))
             .await
             .unwrap();
         assert!(result.is_empty());

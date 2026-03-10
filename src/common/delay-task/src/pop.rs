@@ -198,12 +198,13 @@ pub async fn delay_task_process(
     record_delay_task_schedule_latency(task_type_str, latency_s);
 
     match &task.data {
-        DelayTaskData::MQTTSessionExpire(client_id) => {
+        DelayTaskData::MQTTSessionExpire(tenant, client_id) => {
             handle_session_expire(
                 node_call_manager,
                 rocksdb_engine_handler,
                 broker_cache,
                 delay_task_manager,
+                tenant,
                 client_id,
             )
             .await?;

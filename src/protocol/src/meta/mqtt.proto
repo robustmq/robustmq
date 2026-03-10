@@ -136,6 +136,7 @@ message GetTopicRetainMessageReply {
 }
 
 message ListSessionRequest {
+  string tenant = 1;
   string client_id = 2;
 }
 
@@ -155,6 +156,7 @@ message CreateSessionRequest {
 message CreateSessionReply {}
 
 message DeleteSessionRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string client_id = 2 [(validate.rules).string.min_len = 1];
 }
 

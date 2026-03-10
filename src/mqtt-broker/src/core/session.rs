@@ -80,7 +80,7 @@ pub async fn session_process(
             .await?;
         } else {
             session_storage
-                .delete_session(context.client_id.clone())
+                .delete_session(context.tenant.clone(), context.client_id.clone())
                 .await?;
         }
         return Ok((session, true));
@@ -88,7 +88,7 @@ pub async fn session_process(
 
     // Clean Session = 0
     if let Some(mut session) = session_storage
-        .get_session(context.client_id.clone())
+        .get_session(context.tenant.clone(), context.client_id.clone())
         .await?
     {
         let conf = broker_config();

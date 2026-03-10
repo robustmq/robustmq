@@ -351,6 +351,7 @@ pub async fn run_placement_list_session_bench(
         join_set.spawn(async move {
             let _permit = permit;
             let request = ListSessionRequest {
+                tenant: DEFAULT_TENANT.to_string(),
                 client_id: (*local_client_id).clone(),
             };
 
@@ -547,6 +548,7 @@ pub async fn run_placement_delete_session_bench(
         join_set.spawn(async move {
             let _permit = permit;
             let request = DeleteSessionRequest {
+                tenant: DEFAULT_TENANT.to_string(),
                 client_id: (*local_client_id).clone(),
             };
 

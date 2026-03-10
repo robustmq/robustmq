@@ -49,8 +49,8 @@ pub fn list_session_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSessionRequest,
 ) -> ListSessionStream {
-    let mut sessions = read_not_persist_session(broker_cache_manager, &req.client_id)?;
-    let persist_sessions = read_persist_session(rocksdb_engine_handler, &req.client_id)?;
+    let mut sessions = read_not_persist_session(broker_cache_manager, &req.tenant, &req.client_id)?;
+    let persist_sessions = read_persist_session(rocksdb_engine_handler, &req.tenant, &req.client_id)?;
     sessions.extend(persist_sessions);
 
     let output = async_stream::try_stream! {
@@ -64,37 +64,46 @@ pub fn list_session_by_req(
 
 fn read_not_persist_session(
     broker_cache_manager: &Arc<BrokerCacheManager>,
+    tenant: &str,
     client_id: &str,
 ) -> Result<Vec<Vec<u8>>, MetaServiceError> {
-    let mut sessions = Vec::new();
     if !client_id.is_empty() {
         if let Some(session) = broker_cache_manager.get_session(client_id) {
-            sessions.push(session.encode()?);
+            return Ok(vec![session.encode()?]);
         }
-    } else {
-        sessions = broker_cache_manager
-            .session_list
-            .clone()
-            .into_iter()
-            .map(|(_, raw)| raw.encode())
-            .collect::<Result<Vec<_>, _>>()?;
+        return Ok(vec![]);
     }
+
+    let sessions = broker_cache_manager
+        .session_list
+        .iter()
+        .filter(|entry| tenant.is_empty() || entry.value().tenant == tenant)
+        .map(|entry| entry.value().encode())
+        .collect::<Result<Vec<_>, _>>()?;
+
     Ok(sessions)
 }
 
 fn read_persist_session(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    tenant: &str,
     client_id: &str,
 ) -> Result<Vec<Vec<u8>>, MetaServiceError> {
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     let mut sessions = Vec::new();
 
     if !client_id.is_empty() {
-        if let Some(data) = storage.get(client_id)? {
+        if let Some(data) = storage.get(tenant, client_id)? {
             sessions.push(data.encode()?);
         }
+    } else if !tenant.is_empty() {
+        let data = storage.list_by_tenant(tenant)?;
+        sessions = data
+            .into_iter()
+            .map(|raw| raw.encode())
+            .collect::<Result<Vec<_>, _>>()?;
     } else {
-        let data = storage.list_all()?;
+        let data = storage.list()?;
         sessions = data
             .into_iter()
             .map(|raw| raw.encode())
@@ -135,7 +144,7 @@ pub async fn delete_session_by_req(
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, MetaServiceError> {
     let session_storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
-    let session = if let Some(session) = session_storage.get(&req.client_id)? {
+    let session = if let Some(session) = session_storage.get(&req.tenant, &req.client_id)? {
         session
     } else if let Some(session) = broker_cache_manager.get_session(&req.client_id) {
         session

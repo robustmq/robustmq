@@ -42,7 +42,6 @@ pub struct BrokerCacheManager {
     // topic
     pub topic_list: DashMap<String, Topic>,
 
-    // (client_id, MqttSession)
     pub session_list: DashMap<String, MqttSession>,
 
     // (cluster_name, Status)

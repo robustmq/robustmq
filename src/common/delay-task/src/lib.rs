@@ -36,14 +36,14 @@ pub const DELAY_TASK_INDEX_TOPIC: &str = "$delay-task-index";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DelayTaskData {
-    MQTTSessionExpire(String),
+    MQTTSessionExpire(String, String), // (tenant, client_id)
     MQTTLastwillExpire(String),
 }
 
 impl DelayTaskData {
     pub fn task_type_name(&self) -> &'static str {
         match self {
-            DelayTaskData::MQTTSessionExpire(_) => "MQTTSessionExpire",
+            DelayTaskData::MQTTSessionExpire(_, _) => "MQTTSessionExpire",
             DelayTaskData::MQTTLastwillExpire(_) => "MQTTLastwillExpire",
         }
     }
