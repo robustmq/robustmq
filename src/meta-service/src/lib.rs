@@ -16,7 +16,7 @@
 use crate::core::cache::{load_cache, MetaCacheManager};
 use crate::core::controller::ClusterController;
 use crate::raft::manager::MultiRaftManager;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::task::{TaskKind, TaskSupervisor};
 use delay_task::manager::DelayTaskManager;
 use grpc_clients::pool::ClientPool;
@@ -41,7 +41,7 @@ pub struct MetaServiceServerParams {
     pub client_pool: Arc<ClientPool>,
     pub node_call_manager: Arc<NodeCallManager>,
     pub delay_task_manager: Arc<DelayTaskManager>,
-    pub broker_cache: Arc<BrokerCacheManager>,
+    pub broker_cache: Arc<NodeCacheManager>,
     pub task_supervisor: Arc<TaskSupervisor>,
 }
 pub struct MetaServiceServer {

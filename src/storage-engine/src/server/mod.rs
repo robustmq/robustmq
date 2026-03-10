@@ -17,7 +17,7 @@ use crate::{
     commitlog::rocksdb::engine::RocksDBStorageEngine, core::cache::StorageCacheManager,
     filesegment::write::WriteManager, handler::command::StorageEngineHandlerCommand,
 };
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
@@ -42,7 +42,7 @@ pub struct ServerParams {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub connection_manager: Arc<ConnectionManager>,
     pub write_manager: Arc<WriteManager>,
-    pub broker_cache: Arc<BrokerCacheManager>,
+    pub broker_cache: Arc<NodeCacheManager>,
     pub memory_storage_engine: Arc<MemoryStorageEngine>,
     pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     pub client_connection_manager: Arc<ClientConnectionManager>,

@@ -15,7 +15,7 @@
 use crate::manager::DelayTaskManager;
 use crate::pop::spawn_task_process;
 use crate::{DelayTask, DELAY_TASK_INDEX_TOPIC};
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::tools::now_second;
 use common_base::utils::serialize;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
@@ -39,7 +39,7 @@ pub(crate) async fn recover_delay_queue(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     delay_task_manager: &Arc<DelayTaskManager>,
     node_call_manager: &Arc<NodeCallManager>,
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
 ) {
     info!("Starting delay task queue recovery from persistent storage");
 
@@ -154,7 +154,7 @@ async fn process_delay_task_record(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     delay_task_manager: &Arc<DelayTaskManager>,
     node_call_manager: &Arc<NodeCallManager>,
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
     record: &metadata_struct::storage::storage_record::StorageRecord,
 ) -> RecoverResult {
     let task = match serialize::deserialize::<DelayTask>(&record.data) {
@@ -190,7 +190,7 @@ async fn handle_expired_delay_task(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     delay_task_manager: &Arc<DelayTaskManager>,
     node_call_manager: &Arc<NodeCallManager>,
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
     task: DelayTask,
     now: u64,
 ) {

@@ -154,7 +154,7 @@ mod tests {
         commitlog::{offset::CommitLogOffset, rocksdb::engine::RocksDBStorageEngine},
         core::cache::StorageCacheManager,
     };
-    use broker_core::cache::BrokerCacheManager;
+    use broker_core::cache::NodeCacheManager;
     use bytes::Bytes;
     use common_base::{tools::now_second, uuid::unique_id};
     use common_config::config::BrokerConfig;
@@ -169,7 +169,7 @@ mod tests {
     async fn test_scan_and_delete_expire_data() {
         let shard_name = unique_id();
         let db = test_rocksdb_instance();
-        let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+        let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
             BrokerConfig::default(),
         ))));
 

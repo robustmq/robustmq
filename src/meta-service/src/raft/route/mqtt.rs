@@ -23,7 +23,7 @@ use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use bytes::Bytes;
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use common_base::tools::{now_millis, now_second};
@@ -58,14 +58,14 @@ use std::sync::Arc;
 pub struct DataRouteMqtt {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<MetaCacheManager>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     pub delay_task_manager: Arc<DelayTaskManager>,
 }
 impl DataRouteMqtt {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<MetaCacheManager>,
-        broker_cache: Arc<BrokerCacheManager>,
+        broker_cache: Arc<NodeCacheManager>,
         delay_task_manager: Arc<DelayTaskManager>,
     ) -> Self {
         DataRouteMqtt {

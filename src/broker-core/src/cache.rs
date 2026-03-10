@@ -23,7 +23,7 @@ use metadata_struct::{
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-pub struct BrokerCacheManager {
+pub struct NodeCacheManager {
     // start_time
     pub start_time: u64,
 
@@ -42,14 +42,15 @@ pub struct BrokerCacheManager {
     // topic
     pub topic_list: DashMap<String, Topic>,
 
+    
     pub session_list: DashMap<String, MqttSession>,
 
     // (cluster_name, Status)
     pub status: Arc<RwLock<NodeStatus>>,
 }
-impl BrokerCacheManager {
+impl NodeCacheManager {
     pub fn new(cluster: BrokerConfig) -> Self {
-        BrokerCacheManager {
+        NodeCacheManager {
             cluster_name: cluster.cluster_name.clone(),
             start_time: now_second(),
             tenant_list: DashMap::with_capacity(8),
@@ -169,14 +170,14 @@ impl BrokerCacheManager {
 
 #[cfg(test)]
 mod tests {
-    use crate::cache::BrokerCacheManager;
+    use crate::cache::NodeCacheManager;
     use common_base::tools::now_second;
     use common_config::broker::default_broker_config;
     use metadata_struct::meta::node::BrokerNode;
 
     #[tokio::test]
     async fn start_time_operations() {
-        let cache_manager = BrokerCacheManager::new(default_broker_config());
+        let cache_manager = NodeCacheManager::new(default_broker_config());
         let start_time = cache_manager.get_start_time();
         assert!(start_time > 0);
         assert!(start_time <= now_second());
@@ -184,7 +185,7 @@ mod tests {
 
     #[tokio::test]
     async fn node_operations() {
-        let cache_manager = BrokerCacheManager::new(default_broker_config());
+        let cache_manager = NodeCacheManager::new(default_broker_config());
         let node = BrokerNode {
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),

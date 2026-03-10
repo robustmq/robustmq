@@ -196,7 +196,7 @@ impl CommitLogOffset {
 mod tests {
     use super::*;
     use crate::core::cache::StorageCacheManager;
-    use broker_core::cache::BrokerCacheManager;
+    use broker_core::cache::NodeCacheManager;
     use common_config::config::BrokerConfig;
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
@@ -204,7 +204,7 @@ mod tests {
     #[tokio::test]
     async fn test_save_and_read_earliest_offset() {
         let rocksdb_engine = test_rocksdb_instance();
-        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
         let offset_manager = CommitLogOffset::new(cache_manager, rocksdb_engine.clone());
 
@@ -227,7 +227,7 @@ mod tests {
     #[tokio::test]
     async fn test_save_and_read_high_watermark_offset() {
         let rocksdb_engine = test_rocksdb_instance();
-        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
         let offset_manager = CommitLogOffset::new(cache_manager, rocksdb_engine.clone());
 
@@ -250,7 +250,7 @@ mod tests {
     #[tokio::test]
     async fn test_save_and_read_latest_offset() {
         let rocksdb_engine = test_rocksdb_instance();
-        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
         let offset_manager = CommitLogOffset::new(cache_manager, rocksdb_engine.clone());
 

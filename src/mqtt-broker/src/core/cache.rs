@@ -14,7 +14,7 @@
 
 use crate::core::pkid_manager::PkidManager;
 use crate::security::auth::metadata::AclMetadata;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -88,7 +88,7 @@ pub struct ClientPkidData {
 #[derive(Clone)]
 pub struct MQTTCacheManager {
     // broker cache
-    pub broker_cache: Arc<BrokerCacheManager>,
+    pub broker_cache: Arc<NodeCacheManager>,
 
     // client pool
     pub client_pool: Arc<ClientPool>,
@@ -128,7 +128,7 @@ pub struct MQTTCacheManager {
 }
 
 impl MQTTCacheManager {
-    pub fn new(client_pool: Arc<ClientPool>, broker_cache: Arc<BrokerCacheManager>) -> Self {
+    pub fn new(client_pool: Arc<ClientPool>, broker_cache: Arc<NodeCacheManager>) -> Self {
         MQTTCacheManager {
             client_pool,
             broker_cache,

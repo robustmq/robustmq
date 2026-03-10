@@ -24,7 +24,7 @@ use crate::storage::session::SessionBatcher;
 use crate::subscribe::common::is_error_by_suback;
 use crate::subscribe::manager::SubscribeManager;
 use async_trait::async_trait;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::tools::now_millis;
 use common_metrics::mqtt::event::{
     record_mqtt_connection_failed, record_mqtt_connection_success, record_mqtt_subscribe_failed,
@@ -78,7 +78,7 @@ pub struct CommandContext {
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub auth_driver: Arc<AuthManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
-    pub broker_cache: Arc<BrokerCacheManager>,
+    pub broker_cache: Arc<NodeCacheManager>,
     pub retain_message_manager: Arc<RetainMessageManager>,
 }
 

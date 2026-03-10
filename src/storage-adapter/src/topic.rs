@@ -15,7 +15,7 @@
 use std::{sync::Arc, time::Duration};
 
 use crate::driver::StorageDriverManager;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use grpc_clients::{meta::mqtt::call::placement_create_topic, pool::ClientPool};
@@ -24,7 +24,7 @@ use protocol::meta::meta_service_mqtt::CreateTopicRequest;
 use tokio::time::{sleep, timeout};
 
 pub async fn create_topic_full(
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_pool: &Arc<ClientPool>,
     topic: &Topic,

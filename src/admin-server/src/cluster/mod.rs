@@ -38,7 +38,7 @@ pub struct ClusterInfoResp {
     pub meta: HashMap<String, MetaStatus>,
     pub nodes: HashSet<String>,
 }
-use broker_core::{cache::BrokerCacheManager, cluster::ClusterStorage};
+use broker_core::{cache::NodeCacheManager, cluster::ClusterStorage};
 use common_base::{
     enum_type::feature_type::FeatureType,
     http_response::{error_response, success_response},
@@ -129,7 +129,7 @@ pub async fn cluster_info(State(state): State<Arc<HttpState>>) -> String {
 }
 
 fn calc_node_num(
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
     meta: &HashMap<String, MetaStatus>,
 ) -> HashSet<String> {
     let mut node_list = HashSet::new();

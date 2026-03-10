@@ -18,7 +18,7 @@ use admin_server::{
     state::{HttpState, MQTTContext, StorageEngineContext},
 };
 use broker_core::{
-    cache::BrokerCacheManager,
+    cache::NodeCacheManager,
     heartbeat::{check_meta_service_status, register_node_and_start_heartbeat},
 };
 use common_base::{
@@ -73,7 +73,7 @@ pub struct BrokerServer {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     rate_limiter_manager: Arc<RateLimiterManager>,
     connection_manager: Arc<NetworkConnectionManager>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     offset_manager: Arc<OffsetManager>,
     delay_task_manager: Arc<DelayTaskManager>,
     node_call_manager: Arc<NodeCallManager>,
@@ -105,7 +105,7 @@ impl BrokerServer {
             resolve_broker_worker_threads(config.runtime.broker_worker_threads);
 
         let server_runtime = create_runtime("server-runtime", server_worker_threads);
-        let broker_cache = Arc::new(BrokerCacheManager::new(config.clone()));
+        let broker_cache = Arc::new(NodeCacheManager::new(config.clone()));
         let connection_manager = Arc::new(NetworkConnectionManager::new());
         let task_supervisor = Arc::new(TaskSupervisor::new());
 

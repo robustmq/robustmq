@@ -16,7 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
-    use broker_core::cache::BrokerCacheManager;
+    use broker_core::cache::NodeCacheManager;
     use common_config::config::BrokerConfig;
     use metadata_struct::meta::node::BrokerNode;
     use protocol::storage::{
@@ -29,7 +29,7 @@ mod tests {
 
     #[tokio::test]
     async fn client_conn_test() {
-        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
         let node_id = 1;
         broker_cache.add_node(BrokerNode {
             node_id,

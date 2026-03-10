@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{engine::EngineStorageAdapter, storage::StorageAdapter};
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use common_config::storage::StorageType;
 use dashmap::DashMap;
@@ -38,7 +38,7 @@ pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 pub struct StorageDriverManager {
     pub driver_list: DashMap<String, ArcStorageAdapter>,
     pub engine_storage_handler: Arc<StorageEngineHandler>,
-    pub broker_cache: Arc<BrokerCacheManager>,
+    pub broker_cache: Arc<NodeCacheManager>,
     pub offset_manager: Arc<OffsetManager>,
     pub message_seq: Arc<AtomicU64>,
 }

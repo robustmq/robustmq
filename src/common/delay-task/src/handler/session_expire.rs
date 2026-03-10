@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::{error::common::CommonError, tools::now_second};
 use metadata_struct::mqtt::session::MqttSession;
 use node_call::{NodeCallData, NodeCallManager};
@@ -32,7 +32,7 @@ use crate::{
 pub async fn handle_session_expire(
     node_call_manager: &Arc<NodeCallManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
     delay_task_manager: &Arc<DelayTaskManager>,
     tenant: &str,
     client_id: &str,
@@ -77,7 +77,7 @@ pub async fn handle_session_expire(
 #[allow(clippy::result_large_err)]
 fn get_session(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
     tenant: &str,
     client_id: &str,
 ) -> Result<Option<(MqttSession, bool)>, CommonError> {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::{error::common::CommonError, task::TaskSupervisor};
 use common_config::{broker::broker_config, storage::memory::StorageDriverMemoryConfig};
 use connector::manager::ConnectorManager;
@@ -57,7 +57,7 @@ pub async fn build_meta_service(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     delay_task_manager: Arc<DelayTaskManager>,
     node_call_manager: Arc<NodeCallManager>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     task_supervisor: Arc<TaskSupervisor>,
 ) -> MetaServiceServerParams {
     let cache_manager = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
@@ -101,7 +101,7 @@ pub async fn build_meta_service(
 #[allow(clippy::too_many_arguments)]
 pub async fn build_broker_mqtt_params(
     client_pool: Arc<ClientPool>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     connection_manager: Arc<NetworkConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
@@ -163,7 +163,7 @@ pub async fn build_broker_mqtt_params(
 pub fn build_storage_engine_params(
     client_pool: Arc<ClientPool>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     connection_manager: Arc<NetworkConnectionManager>,
     offset_manager: Arc<OffsetManager>,
 ) -> StorageEngineParams {

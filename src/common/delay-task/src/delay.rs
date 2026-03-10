@@ -15,7 +15,7 @@
 use crate::driver::build_delay_task_shard_config;
 use crate::manager::DelayTaskManager;
 use crate::{DelayTask, DELAY_TASK_INDEX_TOPIC};
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
@@ -76,7 +76,7 @@ pub(crate) async fn delete_delay_task_index(
 
 pub(crate) async fn init_inner_topic(
     delay_task_manager: &Arc<DelayTaskManager>,
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
 ) -> Result<(), CommonError> {
     if broker_cache
         .get_topic_by_name(DELAY_TASK_INDEX_TOPIC)

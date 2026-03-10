@@ -21,7 +21,7 @@ use crate::{
     raft::route::data::{StorageData, StorageDataType},
     storage::mqtt::session::MqttSessionStorage,
 };
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::tools::now_second;
 use common_base::utils::serialize::encode_to_bytes;
 use delay_task::manager::DelayTaskManager;
@@ -45,7 +45,7 @@ type ListSessionStream =
 
 // Session Operations
 pub fn list_session_by_req(
-    broker_cache_manager: &Arc<BrokerCacheManager>,
+    broker_cache_manager: &Arc<NodeCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSessionRequest,
 ) -> ListSessionStream {
@@ -63,7 +63,7 @@ pub fn list_session_by_req(
 }
 
 fn read_not_persist_session(
-    broker_cache_manager: &Arc<BrokerCacheManager>,
+    broker_cache_manager: &Arc<NodeCacheManager>,
     tenant: &str,
     client_id: &str,
 ) -> Result<Vec<Vec<u8>>, MetaServiceError> {
@@ -140,7 +140,7 @@ pub async fn delete_session_by_req(
     delay_task_manager: &Arc<DelayTaskManager>,
     call_manager: &Arc<NodeCallManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    broker_cache_manager: &Arc<BrokerCacheManager>,
+    broker_cache_manager: &Arc<NodeCacheManager>,
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, MetaServiceError> {
     let session_storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());

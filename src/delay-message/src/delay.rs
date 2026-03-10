@@ -14,7 +14,7 @@
 
 use crate::driver::build_delay_message_shard_config;
 use crate::manager::DelayMessageManager;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
@@ -123,7 +123,7 @@ pub(crate) async fn delete_delay_index_info(
 
 pub(crate) async fn init_inner_topic(
     delay_message_manager: &Arc<DelayMessageManager>,
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
 ) -> Result<(), CommonError> {
     for topic_name in [
         DELAY_QUEUE_MESSAGE_TOPIC.to_string(),

@@ -16,7 +16,7 @@ use crate::core::offset_index::SegmentOffsetIndex;
 use crate::core::shard::ShardOffsetState;
 use crate::filesegment::segment_file::SegmentFile;
 use crate::filesegment::SegmentIdentity;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::storage::segment::EngineSegment;
@@ -27,7 +27,7 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct StorageCacheManager {
     // broker cache
-    pub broker_cache: Arc<BrokerCacheManager>,
+    pub broker_cache: Arc<NodeCacheManager>,
 
     // (shard_name, JournalShard)
     pub shards: DashMap<String, EngineShard>,
@@ -55,7 +55,7 @@ pub struct StorageCacheManager {
 }
 
 impl StorageCacheManager {
-    pub fn new(broker_cache: Arc<BrokerCacheManager>) -> Self {
+    pub fn new(broker_cache: Arc<NodeCacheManager>) -> Self {
         let shards = DashMap::with_capacity(8);
         let segments = DashMap::with_capacity(8);
         let segment_metadatas = DashMap::with_capacity(8);

@@ -33,7 +33,7 @@ use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::segment::create_local_segment;
 use crate::filesegment::offset::FileSegmentOffset;
 use crate::filesegment::SegmentIdentity;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::tools::now_second;
 use common_base::uuid::unique_id;
 use common_config::broker::{default_broker_config, init_broker_conf_by_config};
@@ -77,7 +77,7 @@ pub async fn test_init_segment(
     let rocksdb_engine_handler = test_rocksdb_instance();
     let segment_iden = test_build_segment();
     let fold = test_build_data_fold().first().unwrap().to_string();
-    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
         BrokerConfig::default(),
     ))));
 
@@ -164,7 +164,7 @@ pub async fn test_init_segment(
 
 pub fn test_build_rocksdb_engine() -> RocksDBStorageEngine {
     let db = test_rocksdb_instance();
-    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
         BrokerConfig::default(),
     ))));
 
@@ -173,7 +173,7 @@ pub fn test_build_rocksdb_engine() -> RocksDBStorageEngine {
 
 pub fn test_build_memory_engine() -> MemoryStorageEngine {
     let db = test_rocksdb_instance();
-    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+    let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
         BrokerConfig::default(),
     ))));
     let config = common_config::storage::memory::StorageDriverMemoryConfig::default();

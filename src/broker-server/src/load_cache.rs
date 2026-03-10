@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use broker_core::tenant::TenantStorage;
 use connector::manager::ConnectorManager;
 use grpc_clients::pool::ClientPool;
@@ -55,7 +55,7 @@ pub async fn load_metadata_cache(
 }
 
 async fn load_common_cache(
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
     client_pool: &Arc<ClientPool>,
     connector_manager: &Arc<ConnectorManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
