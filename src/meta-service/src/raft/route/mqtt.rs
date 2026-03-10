@@ -82,7 +82,6 @@ impl DataRouteMqtt {
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
         let user = MqttUser::decode(&req.content)?;
         storage.save(&req.user_name, user.clone())?;
-        self.cache_manager.add_user(user);
         Ok(())
     }
 
@@ -90,7 +89,6 @@ impl DataRouteMqtt {
         let req = DeleteUserRequest::decode(value.as_ref())?;
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.user_name)?;
-        self.cache_manager.remove_user(&req.user_name);
         Ok(())
     }
 
@@ -100,7 +98,6 @@ impl DataRouteMqtt {
         let topic = Topic::decode(&req.content)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(&topic.topic_name, topic.clone())?;
-        self.cache_manager.add_topic(topic);
         Ok(())
     }
 
@@ -108,7 +105,6 @@ impl DataRouteMqtt {
         let req = DeleteTopicRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.topic_name)?;
-        self.cache_manager.remove_topic(&req.topic_name);
         Ok(())
     }
 

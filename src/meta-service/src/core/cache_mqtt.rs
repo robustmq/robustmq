@@ -16,8 +16,6 @@ use crate::core::cache::MetaCacheManager;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::mqtt::group_leader::MqttGroupLeader;
-use metadata_struct::mqtt::topic::Topic;
-use metadata_struct::mqtt::user::MqttUser;
 
 impl MetaCacheManager {
     pub fn add_group_leader(&self, group_info: MqttGroupLeader) {
@@ -27,22 +25,6 @@ impl MetaCacheManager {
 
     pub fn remove_group_leader(&self, group_name: &str) {
         self.group_leader.remove(group_name);
-    }
-
-    pub fn add_topic(&self, topic: Topic) {
-        self.topic_list.insert(topic.topic_name.clone(), topic);
-    }
-
-    pub fn remove_topic(&self, topic_name: &str) {
-        self.topic_list.remove(topic_name);
-    }
-
-    pub fn add_user(&self, user: MqttUser) {
-        self.user_list.insert(user.username.clone(), user);
-    }
-
-    pub fn remove_user(&self, user_name: &str) {
-        self.user_list.remove(user_name);
     }
 
     pub fn add_connector(&self, connector: MQTTConnector) {

@@ -238,16 +238,16 @@ message ListTopicRewriteRuleReply {
 }
 
 message SetSubscribeRequest {
-  string client_id = 3 [(validate.rules).string.min_len = 1];
-  string path = 4 [(validate.rules).string.min_len = 1];
-  bytes subscribe = 5 [(validate.rules).bytes.min_len = 1];
+  string client_id = 1 [(validate.rules).string.min_len = 1];
+  string path = 2 [(validate.rules).string.min_len = 1];
+  bytes subscribe = 3 [(validate.rules).bytes.min_len = 1];
 }
 
 message SetSubscribeReply {}
 
 message DeleteSubscribeRequest {
-  string client_id = 2 [(validate.rules).string.min_len = 1];
-  string path = 3 [(validate.rules).string.min_len = 1];
+  string client_id = 1 [(validate.rules).string.min_len = 1];
+  string path = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteSubscribeReply {}
