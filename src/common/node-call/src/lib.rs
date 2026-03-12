@@ -87,6 +87,12 @@ impl NodeCallManager {
         ))
     }
 
+    /// Returns true once `start()` has initialised the global sender channel.
+    /// Use this to wait for readiness before calling `send()`.
+    pub async fn is_ready(&self) -> bool {
+        self.global_sender.read().await.is_some()
+    }
+
     pub async fn start(&self, stop_send: broadcast::Sender<bool>) {
         let (global_sender, global_receiver) = mpsc::channel(GLOBAL_CHANNEL_SIZE);
         {

@@ -248,14 +248,14 @@ impl BrokerServer {
         // ── Phase 4: Engine service ────────────────────────────────────
         let engine_stop_send = self.start_engine_service();
 
-        // ── Phase 5: MQTT broker + all background services ─────────────
+        // ── Phase 5: MQTT broker  ─────────────
         let (app_stop, _) = broadcast::channel::<bool>(2);
         let mqtt_stop_send = self.start_mqtt_broker(app_stop.clone());
 
-        // ── Phase 6: all background services ─────────────
+        // ── Phase 6: NodeCallManager ───────────────────────────────────
         self.server_runtime.block_on(async {
-            self.start_background_services(app_stop.clone(), monitor_interval_ms)
-                .await;
+            self.start_node_call_manager(app_stop.clone());
+            self.wait_for_node_call_manager_ready().await;
         });
 
         // ── Phase 7: Register node ─────────────────────────────────────
@@ -267,9 +267,15 @@ impl BrokerServer {
                 &client_pool,
                 &broker_cache,
                 &task_supervisor,
-                app_stop,
+                app_stop.clone(),
             )
             .await;
+        });
+
+        // ── Phase 8: Background services ──────────────────────────────
+        self.server_runtime.block_on(async {
+            self.start_background_services(app_stop.clone(), monitor_interval_ms)
+                .await;
         });
 
         self.awaiting_stop(meta_stop_send, mqtt_stop_send, engine_stop_send);
@@ -417,19 +423,29 @@ impl BrokerServer {
         Some(stop_handle)
     }
 
+    fn start_node_call_manager(&self, stop: broadcast::Sender<bool>) {
+        let node_call_manager = self.node_call_manager.clone();
+        self.task_supervisor
+            .spawn(TaskKind::BrokerNodeCall.to_string(), async move {
+                node_call_manager.start(stop).await;
+            });
+    }
+
+    async fn wait_for_node_call_manager_ready(&self) {
+        use tokio::time::{sleep, Duration};
+        loop {
+            if self.node_call_manager.is_ready().await {
+                return;
+            }
+            sleep(Duration::from_millis(5)).await;
+        }
+    }
+
     async fn start_background_services(
         &self,
         stop: broadcast::Sender<bool>,
         monitor_interval_ms: u64,
     ) {
-        // node call
-        let node_call_manager = self.node_call_manager.clone();
-        let tx = stop.clone();
-        self.task_supervisor
-            .spawn(TaskKind::BrokerNodeCall.to_string(), async move {
-                node_call_manager.start(tx).await;
-            });
-
         // delay task
         let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
         let broker_cache = self.broker_cache.clone();
