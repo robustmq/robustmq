@@ -21,7 +21,7 @@ use crate::{
     raft::route::data::{StorageData, StorageDataType},
     storage::mqtt::session::MqttSessionStorage,
 };
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::tools::now_second;
 use common_base::utils::serialize::encode_to_bytes;
 use delay_task::manager::DelayTaskManager;
@@ -45,12 +45,13 @@ type ListSessionStream =
 
 // Session Operations
 pub fn list_session_by_req(
-    broker_cache_manager: &Arc<BrokerCacheManager>,
+    broker_cache_manager: &Arc<NodeCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListSessionRequest,
 ) -> ListSessionStream {
-    let mut sessions = read_not_persist_session(broker_cache_manager, &req.client_id)?;
-    let persist_sessions = read_persist_session(rocksdb_engine_handler, &req.client_id)?;
+    let mut sessions = read_not_persist_session(broker_cache_manager, &req.tenant, &req.client_id)?;
+    let persist_sessions =
+        read_persist_session(rocksdb_engine_handler, &req.tenant, &req.client_id)?;
     sessions.extend(persist_sessions);
 
     let output = async_stream::try_stream! {
@@ -63,38 +64,61 @@ pub fn list_session_by_req(
 }
 
 fn read_not_persist_session(
-    broker_cache_manager: &Arc<BrokerCacheManager>,
+    broker_cache_manager: &Arc<NodeCacheManager>,
+    tenant: &str,
     client_id: &str,
 ) -> Result<Vec<Vec<u8>>, MetaServiceError> {
-    let mut sessions = Vec::new();
     if !client_id.is_empty() {
-        if let Some(session) = broker_cache_manager.get_session(client_id) {
-            sessions.push(session.encode()?);
+        if let Some(session) = broker_cache_manager.get_session(tenant, client_id) {
+            return Ok(vec![session.encode()?]);
         }
-    } else {
-        sessions = broker_cache_manager
-            .session_list
-            .clone()
-            .into_iter()
-            .map(|(_, raw)| raw.encode())
-            .collect::<Result<Vec<_>, _>>()?;
+        return Ok(vec![]);
     }
+
+    if !tenant.is_empty() {
+        let sessions = broker_cache_manager
+            .list_sessions_by_tenant(tenant)
+            .into_iter()
+            .map(|s| s.encode())
+            .collect::<Result<Vec<_>, _>>()?;
+        return Ok(sessions);
+    }
+
+    let sessions = broker_cache_manager
+        .session_list
+        .iter()
+        .flat_map(|entry| {
+            entry
+                .value()
+                .iter()
+                .map(|e| e.value().encode())
+                .collect::<Vec<_>>()
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
     Ok(sessions)
 }
 
 fn read_persist_session(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    tenant: &str,
     client_id: &str,
 ) -> Result<Vec<Vec<u8>>, MetaServiceError> {
     let storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     let mut sessions = Vec::new();
 
     if !client_id.is_empty() {
-        if let Some(data) = storage.get(client_id)? {
+        if let Some(data) = storage.get(tenant, client_id)? {
             sessions.push(data.encode()?);
         }
+    } else if !tenant.is_empty() {
+        let data = storage.list_by_tenant(tenant)?;
+        sessions = data
+            .into_iter()
+            .map(|raw| raw.encode())
+            .collect::<Result<Vec<_>, _>>()?;
     } else {
-        let data = storage.list_all()?;
+        let data = storage.list()?;
         sessions = data
             .into_iter()
             .map(|raw| raw.encode())
@@ -131,13 +155,13 @@ pub async fn delete_session_by_req(
     delay_task_manager: &Arc<DelayTaskManager>,
     call_manager: &Arc<NodeCallManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    broker_cache_manager: &Arc<BrokerCacheManager>,
+    broker_cache_manager: &Arc<NodeCacheManager>,
     req: &DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, MetaServiceError> {
     let session_storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
-    let session = if let Some(session) = session_storage.get(&req.client_id)? {
+    let session = if let Some(session) = session_storage.get(&req.tenant, &req.client_id)? {
         session
-    } else if let Some(session) = broker_cache_manager.get_session(&req.client_id) {
+    } else if let Some(session) = broker_cache_manager.get_session(&req.tenant, &req.client_id) {
         session
     } else {
         return Ok(DeleteSessionReply::default());

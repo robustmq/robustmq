@@ -23,7 +23,7 @@ use crate::core::last_will::save_last_will_message;
 use crate::core::session::{session_process, BuildSessionContext};
 use crate::core::string_validator::{validate_client_id, validate_password, validate_username};
 use crate::core::sub_auto::try_auto_subscribe;
-use crate::core::tenant::get_tenant_info;
+use crate::core::tenant::{get_tenant_info, try_decode_client_id};
 use crate::core::topic::topic_name_validator;
 use crate::system_topic::event::{st_report_connected_event, StReportConnectedEventContext};
 use common_base::tools::now_second;
@@ -64,7 +64,7 @@ impl MqttService {
             return pkt;
         }
 
-        let Some((client_id, new_client_id)) = data else {
+        let Some((mut client_id, new_client_id)) = data else {
             return build_connect_ack_fail_packet(
                 &self.protocol,
                 ConnectReturnCode::UnspecifiedError,
@@ -74,7 +74,7 @@ impl MqttService {
         };
 
         // decode tenant
-        let _tenant = match get_tenant_info(
+        let tenant = match get_tenant_info(
             &self.cache_manager,
             &client_id,
             &context.connect_properties,
@@ -91,8 +91,11 @@ impl MqttService {
             }
         };
 
+        client_id = try_decode_client_id(&client_id);
+
         // build connection
         let connection = build_connection(
+            &tenant.tenant_name,
             context.connect_id,
             client_id.clone(),
             &self.cache_manager,
@@ -170,6 +173,7 @@ impl MqttService {
         let (session, new_session) = match session_process(
             &self.protocol,
             BuildSessionContext {
+                tenant: tenant.tenant_name.clone(),
                 connect_id: context.connect_id,
                 client_id: client_id.clone(),
                 connect: context.connect.clone(),

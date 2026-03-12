@@ -17,7 +17,7 @@ use crate::handler::lastwill_expire::handle_lastwill_expire;
 use crate::handler::session_expire::handle_session_expire;
 use crate::manager::{DelayTaskManager, SharedDelayQueue};
 use crate::{DelayTask, DelayTaskData};
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::tools::now_second;
@@ -40,7 +40,7 @@ pub(crate) fn spawn_delay_task_pop_threads(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     delay_task_manager: &Arc<DelayTaskManager>,
     node_call_manager: &Arc<NodeCallManager>,
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
     task_supervisor: &Arc<TaskSupervisor>,
     delay_queue_num: u32,
 ) {
@@ -86,7 +86,7 @@ async fn pop_delay_queue(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     delay_task_manager: &Arc<DelayTaskManager>,
     node_call_manager: &Arc<NodeCallManager>,
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
     shard_no: u32,
 ) -> Result<(), CommonError> {
     let queue_arc: SharedDelayQueue =
@@ -139,7 +139,7 @@ pub(crate) async fn spawn_task_process(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     delay_task_manager: Arc<DelayTaskManager>,
     node_call_manager: Arc<NodeCallManager>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     task: DelayTask,
 ) {
     let permit = match delay_task_manager
@@ -183,7 +183,7 @@ pub async fn delay_task_process(
     delay_task_manager: &Arc<DelayTaskManager>,
     node_call_manager: &Arc<NodeCallManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
     task: &DelayTask,
 ) -> Result<(), CommonError> {
     let task_type_str = task.task_type_name();
@@ -198,12 +198,13 @@ pub async fn delay_task_process(
     record_delay_task_schedule_latency(task_type_str, latency_s);
 
     match &task.data {
-        DelayTaskData::MQTTSessionExpire(client_id) => {
+        DelayTaskData::MQTTSessionExpire(tenant, client_id) => {
             handle_session_expire(
                 node_call_manager,
                 rocksdb_engine_handler,
                 broker_cache,
                 delay_task_manager,
+                tenant,
                 client_id,
             )
             .await?;

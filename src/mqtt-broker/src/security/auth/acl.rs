@@ -114,6 +114,7 @@ mod test {
         cache_manager.add_user(user.clone());
         let config = ConnectionConfig {
             connect_id: 1,
+            tenant: "tenant1".to_string(),
             client_id: "client_id-1".to_string(),
             receive_maximum: 3,
             max_packet_size: 3,

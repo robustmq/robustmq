@@ -180,17 +180,25 @@ impl SessionStorage {
         Ok(())
     }
 
-    pub async fn delete_session(&self, client_id: String) -> Result<(), CommonError> {
+    pub async fn delete_session(
+        &self,
+        tenant: String,
+        client_id: String,
+    ) -> Result<(), CommonError> {
         let config = broker_config();
-        let request = DeleteSessionRequest { client_id };
+        let request = DeleteSessionRequest { tenant, client_id };
         placement_delete_session(&self.client_pool, &config.get_meta_service_addr(), request)
             .await?;
         Ok(())
     }
 
-    pub async fn get_session(&self, client_id: String) -> Result<Option<MqttSession>, CommonError> {
+    pub async fn get_session(
+        &self,
+        tenant: String,
+        client_id: String,
+    ) -> Result<Option<MqttSession>, CommonError> {
         let config = broker_config();
-        let request = ListSessionRequest { client_id };
+        let request = ListSessionRequest { tenant, client_id };
 
         let mut stream =
             placement_list_session(&self.client_pool, &config.get_meta_service_addr(), request)
@@ -206,10 +214,12 @@ impl SessionStorage {
 
     pub async fn list_session(
         &self,
+        tenant: String,
         client_id: Option<String>,
     ) -> Result<DashMap<String, MqttSession>, CommonError> {
         let config = broker_config();
         let request = ListSessionRequest {
+            tenant,
             client_id: client_id.unwrap_or_default(),
         };
 

@@ -23,7 +23,7 @@ use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use bytes::Bytes;
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use common_base::tools::{now_millis, now_second};
@@ -58,14 +58,14 @@ use std::sync::Arc;
 pub struct DataRouteMqtt {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<MetaCacheManager>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     pub delay_task_manager: Arc<DelayTaskManager>,
 }
 impl DataRouteMqtt {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<MetaCacheManager>,
-        broker_cache: Arc<BrokerCacheManager>,
+        broker_cache: Arc<NodeCacheManager>,
         delay_task_manager: Arc<DelayTaskManager>,
     ) -> Self {
         DataRouteMqtt {
@@ -82,7 +82,6 @@ impl DataRouteMqtt {
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
         let user = MqttUser::decode(&req.content)?;
         storage.save(&req.user_name, user.clone())?;
-        self.cache_manager.add_user(user);
         Ok(())
     }
 
@@ -90,7 +89,6 @@ impl DataRouteMqtt {
         let req = DeleteUserRequest::decode(value.as_ref())?;
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.user_name)?;
-        self.cache_manager.remove_user(&req.user_name);
         Ok(())
     }
 
@@ -100,7 +98,6 @@ impl DataRouteMqtt {
         let topic = Topic::decode(&req.content)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(&topic.topic_name, topic.clone())?;
-        self.cache_manager.add_topic(topic);
         Ok(())
     }
 
@@ -108,7 +105,6 @@ impl DataRouteMqtt {
         let req = DeleteTopicRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.topic_name)?;
-        self.cache_manager.remove_topic(&req.topic_name);
         Ok(())
     }
 
@@ -168,7 +164,7 @@ impl DataRouteMqtt {
         for raw in &req.sessions {
             let session = MqttSession::decode(&raw.session)?;
             if session.is_persist_session {
-                persist_sessions.push((raw.client_id.clone(), session.clone()));
+                persist_sessions.push(session.clone());
             } else {
                 self.broker_cache.add_session(session.clone());
             }
@@ -183,7 +179,10 @@ impl DataRouteMqtt {
                     let target_time = session.session_expiry_interval + distinct_time;
                     let task = DelayTask::build_persistent(
                         session.client_id.clone(),
-                        DelayTaskData::MQTTSessionExpire(session.client_id.clone()),
+                        DelayTaskData::MQTTSessionExpire(
+                            session.tenant.clone(),
+                            session.client_id.clone(),
+                        ),
                         target_time,
                     );
 
@@ -206,8 +205,9 @@ impl DataRouteMqtt {
     pub fn delete_session(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&req.client_id)?;
-        self.broker_cache.delete_session(&req.client_id);
+        storage.delete(&req.tenant, &req.client_id)?;
+        self.broker_cache
+            .delete_session(&req.tenant, &req.client_id);
         Ok(())
     }
 

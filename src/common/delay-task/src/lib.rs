@@ -23,7 +23,7 @@ use crate::delay::init_inner_topic;
 use crate::manager::DelayTaskManager;
 use crate::pop::spawn_delay_task_pop_threads;
 use crate::recover::recover_delay_queue;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::tools::now_second;
 use common_base::uuid::unique_id;
 use common_base::{error::common::CommonError, task::TaskSupervisor};
@@ -36,14 +36,14 @@ pub const DELAY_TASK_INDEX_TOPIC: &str = "$delay-task-index";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DelayTaskData {
-    MQTTSessionExpire(String),
+    MQTTSessionExpire(String, String), // (tenant, client_id)
     MQTTLastwillExpire(String),
 }
 
 impl DelayTaskData {
     pub fn task_type_name(&self) -> &'static str {
         match self {
-            DelayTaskData::MQTTSessionExpire(_) => "MQTTSessionExpire",
+            DelayTaskData::MQTTSessionExpire(_, _) => "MQTTSessionExpire",
             DelayTaskData::MQTTLastwillExpire(_) => "MQTTLastwillExpire",
         }
     }
@@ -95,7 +95,7 @@ impl DelayTask {
 pub async fn start_delay_task_manager_thread(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     delay_task_manager: &Arc<DelayTaskManager>,
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
     node_call_manager: &Arc<NodeCallManager>,
     task_supervisor: &Arc<TaskSupervisor>,
 ) -> Result<(), CommonError> {

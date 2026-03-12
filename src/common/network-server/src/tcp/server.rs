@@ -19,7 +19,7 @@ use crate::{
     },
     context::{ProcessorConfig, ServerContext},
 };
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::error::ResultCommonError;
 use common_metrics::network::record_broker_thread_num;
 use metadata_struct::connection::NetworkConnectionType;
@@ -38,7 +38,7 @@ pub struct TcpServer {
     network_type: NetworkConnectionType,
     request_channel: Arc<RequestChannel>,
     acceptor_stop_send: broadcast::Sender<bool>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
 }
 
 impl TcpServer {

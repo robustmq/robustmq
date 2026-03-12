@@ -15,7 +15,7 @@
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::tool::read_packet;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_metrics::mqtt::packets::record_received_error_metrics;
 use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
@@ -46,7 +46,7 @@ use tracing::{debug, error};
 pub async fn acceptor_process(
     accept_thread_num: usize,
     connection_manager: Arc<ConnectionManager>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     stop_sx: broadcast::Sender<bool>,
     listener_arc: Arc<TcpListener>,
     request_channel: Arc<RequestChannel>,
@@ -136,7 +136,7 @@ pub async fn acceptor_process(
 
 // spawn connection read thread
 fn read_frame_process(
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     mut read_frame_stream: FramedRead<io::ReadHalf<tokio::net::TcpStream>, RobustMQCodec>,
     connection_id: u64,
     connection_manager: Arc<ConnectionManager>,

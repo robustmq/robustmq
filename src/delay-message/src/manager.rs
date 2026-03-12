@@ -17,7 +17,7 @@ use crate::{
     delay::{init_inner_topic, save_delay_message},
     pop::spawn_delay_message_pop_threads,
 };
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
 use common_base::uuid::unique_id;
 use common_base::{error::common::CommonError, tools::now_second};
@@ -50,7 +50,7 @@ pub const DELAY_MESSAGE_SAVE_MS: &str = "delay_message_save_ms";
 pub async fn start_delay_message_manager_thread(
     delay_message_manager: &Arc<DelayMessageManager>,
     task_supervisor: &Arc<TaskSupervisor>,
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
 ) -> Result<(), CommonError> {
     delay_message_manager.start();
 

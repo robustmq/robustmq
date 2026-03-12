@@ -301,7 +301,7 @@ mod tests {
     use crate::commitlog::offset::CommitLogOffset;
     use crate::core::cache::StorageCacheManager;
     use crate::core::test_tool::test_build_rocksdb_engine;
-    use broker_core::cache::BrokerCacheManager;
+    use broker_core::cache::NodeCacheManager;
     use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
     use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
@@ -311,7 +311,7 @@ mod tests {
     async fn test_batch_write_and_read_by_offset() {
         let engine = test_build_rocksdb_engine();
         let shard_name = unique_id();
-        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
         let commit_offset =
             CommitLogOffset::new(cache_manager.clone(), engine.rocksdb_engine_handler.clone());

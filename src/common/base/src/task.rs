@@ -14,7 +14,7 @@
 
 use dashmap::DashMap;
 use tokio::task::JoinHandle;
-use tracing::{error, info};
+use tracing::{debug, error};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum TaskKind {
@@ -120,14 +120,14 @@ impl TaskSupervisor {
             .name(&task_name)
             .spawn(async move {
                 sup.set_state(kind.clone(), TaskState::Running).await;
-                info!("Task {} started", kind);
+                debug!("Task {} started", kind);
                 let inner = tokio::task::Builder::new()
                     .name(&format!("{kind}/inner"))
                     .spawn(fut)
                     .expect("failed to spawn inner task");
                 match inner.await {
                     Ok(()) => {
-                        info!("Task {} stopped normally", kind);
+                        debug!("Task {} stopped normally", kind);
                         sup.set_state(kind.clone(), TaskState::Stopped).await;
                     }
                     Err(e) => {

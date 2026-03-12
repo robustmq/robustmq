@@ -23,7 +23,7 @@ use metadata_struct::{
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-pub struct BrokerCacheManager {
+pub struct NodeCacheManager {
     // start_time
     pub start_time: u64,
 
@@ -42,15 +42,15 @@ pub struct BrokerCacheManager {
     // topic
     pub topic_list: DashMap<String, Topic>,
 
-    // (client_id, MqttSession)
-    pub session_list: DashMap<String, MqttSession>,
+    // (tenant, (client_id, MqttSession))
+    pub session_list: DashMap<String, DashMap<String, MqttSession>>,
 
     // (cluster_name, Status)
     pub status: Arc<RwLock<NodeStatus>>,
 }
-impl BrokerCacheManager {
+impl NodeCacheManager {
     pub fn new(cluster: BrokerConfig) -> Self {
-        BrokerCacheManager {
+        NodeCacheManager {
             cluster_name: cluster.cluster_name.clone(),
             start_time: now_second(),
             tenant_list: DashMap::with_capacity(8),
@@ -97,18 +97,30 @@ impl BrokerCacheManager {
 
     // Session
     pub fn add_session(&self, session: MqttSession) {
-        self.session_list.insert(session.client_id.clone(), session);
+        self.session_list
+            .entry(session.tenant.clone())
+            .or_default()
+            .insert(session.client_id.clone(), session);
     }
 
-    pub fn delete_session(&self, client_id: &str) {
-        self.session_list.remove(client_id);
-    }
-
-    pub fn get_session(&self, client_id: &str) -> Option<MqttSession> {
-        if let Some(session) = self.session_list.get(client_id) {
-            return Some(session.clone());
+    pub fn delete_session(&self, tenant: &str, client_id: &str) {
+        if let Some(tenant_map) = self.session_list.get(tenant) {
+            tenant_map.remove(client_id);
         }
-        None
+    }
+
+    pub fn get_session(&self, tenant: &str, client_id: &str) -> Option<MqttSession> {
+        self.session_list
+            .get(tenant)?
+            .get(client_id)
+            .map(|s| s.clone())
+    }
+
+    pub fn list_sessions_by_tenant(&self, tenant: &str) -> Vec<MqttSession> {
+        self.session_list
+            .get(tenant)
+            .map(|tenant_map| tenant_map.iter().map(|e| e.value().clone()).collect())
+            .unwrap_or_default()
     }
 
     // Topic
@@ -170,14 +182,14 @@ impl BrokerCacheManager {
 
 #[cfg(test)]
 mod tests {
-    use crate::cache::BrokerCacheManager;
+    use crate::cache::NodeCacheManager;
     use common_base::tools::now_second;
     use common_config::broker::default_broker_config;
     use metadata_struct::meta::node::BrokerNode;
 
     #[tokio::test]
     async fn start_time_operations() {
-        let cache_manager = BrokerCacheManager::new(default_broker_config());
+        let cache_manager = NodeCacheManager::new(default_broker_config());
         let start_time = cache_manager.get_start_time();
         assert!(start_time > 0);
         assert!(start_time <= now_second());
@@ -185,7 +197,7 @@ mod tests {
 
     #[tokio::test]
     async fn node_operations() {
-        let cache_manager = BrokerCacheManager::new(default_broker_config());
+        let cache_manager = NodeCacheManager::new(default_broker_config());
         let node = BrokerNode {
             node_id: 1,
             node_ip: "127.0.0.1".to_string(),

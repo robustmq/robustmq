@@ -14,7 +14,7 @@
 
 use crate::core::cache::MQTTCacheManager;
 use crate::core::error::MqttBrokerError;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_config::broker::default_broker_config;
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
@@ -23,7 +23,7 @@ pub type ResultMqttBrokerError = Result<(), MqttBrokerError>;
 
 pub async fn test_build_mqtt_cache_manager() -> Arc<MQTTCacheManager> {
     let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-    let broker_cache = Arc::new(BrokerCacheManager::new(default_broker_config()));
+    let broker_cache = Arc::new(NodeCacheManager::new(default_broker_config()));
     let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, broker_cache));
     cache_manager
         .broker_cache
@@ -33,7 +33,7 @@ pub async fn test_build_mqtt_cache_manager() -> Arc<MQTTCacheManager> {
 }
 
 pub async fn test_build_mqtt_cache_manager0(
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
 ) -> Arc<MQTTCacheManager> {
     let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
     let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, broker_cache));

@@ -30,7 +30,7 @@ use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::parse::{start_update_parse_thread, ParseSubscribeData};
 use crate::subscribe::PushManager;
 use crate::system_topic::SystemTopic;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use broker_core::tenant::try_init_default_tenant;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_config::broker::broker_config;
@@ -62,7 +62,7 @@ pub struct MqttBrokerServerParams {
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub metrics_cache_manager: Arc<MQTTMetricsCache>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
-    pub broker_cache: Arc<BrokerCacheManager>,
+    pub broker_cache: Arc<NodeCacheManager>,
     pub offset_manager: Arc<OffsetManager>,
     pub retain_message_manager: Arc<RetainMessageManager>,
     pub push_manager: Arc<PushManager>,

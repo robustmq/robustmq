@@ -16,7 +16,7 @@ use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::tool::read_packet;
 use crate::quic::stream::{QuicFramedReadStream, QuicFramedWriteStream};
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_metrics::mqtt::packets::record_received_error_metrics;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
@@ -32,7 +32,7 @@ use tracing::{debug, error, info};
 pub(crate) async fn acceptor_process(
     accept_thread_num: usize,
     connection_manager: Arc<ConnectionManager>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     endpoint_arc: Arc<Endpoint>,
     request_channel: Arc<RequestChannel>,
     network_type: NetworkConnectionType,
@@ -120,7 +120,7 @@ pub(crate) async fn acceptor_process(
 }
 
 fn read_frame_process(
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     mut read_frame_stream: QuicFramedReadStream,
     connection_id: u64,
     connection_manager: Arc<ConnectionManager>,

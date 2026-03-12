@@ -26,11 +26,11 @@ use tokio::sync::broadcast;
 use tokio::time::{sleep, timeout};
 use tracing::{debug, error, info, warn};
 
-use crate::{cache::BrokerCacheManager, cluster::ClusterStorage};
+use crate::{cache::NodeCacheManager, cluster::ClusterStorage};
 
 pub async fn register_node(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<BrokerCacheManager>,
+    cache_manager: &Arc<NodeCacheManager>,
 ) -> ResultCommonError {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let config = broker_config();
@@ -41,7 +41,7 @@ pub async fn register_node(
 
 pub async fn register_node_and_start_heartbeat(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<BrokerCacheManager>,
+    cache_manager: &Arc<NodeCacheManager>,
     task_supervisor: &Arc<TaskSupervisor>,
     stop_send: broadcast::Sender<bool>,
 ) {
@@ -66,7 +66,7 @@ pub async fn register_node_and_start_heartbeat(
 
 pub async fn report_heartbeat(
     client_pool: &Arc<ClientPool>,
-    cache_manager: &Arc<BrokerCacheManager>,
+    cache_manager: &Arc<NodeCacheManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {

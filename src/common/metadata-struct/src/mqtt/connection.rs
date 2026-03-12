@@ -20,15 +20,16 @@ use serde::{Deserialize, Serialize};
 pub struct MQTTConnection {
     // Connection ID
     pub connect_id: u64,
+    // Tenant Id
+    pub tenant: String,
     // Each connection has a unique Client ID
     pub client_id: String,
     // Mark whether the link is already logged in
     pub is_login: bool,
     // The IP address of the client that initiated the connection
     pub source_ip_addr: String,
-    //
+    // clean session flag
     pub clean_session: bool,
-
     // The user name of the client that initiated the connection
     pub login_user: Option<String>,
     // When the client does not report a heartbeat, the maximum survival time of the connection,
@@ -48,6 +49,7 @@ pub struct MQTTConnection {
 }
 
 pub struct ConnectionConfig {
+    pub tenant: String,
     pub connect_id: u64,
     pub client_id: String,
     pub receive_maximum: u16,
@@ -62,6 +64,7 @@ pub struct ConnectionConfig {
 impl MQTTConnection {
     pub fn new(config: ConnectionConfig) -> MQTTConnection {
         MQTTConnection {
+            tenant: config.tenant,
             connect_id: config.connect_id,
             client_id: config.client_id,
             is_login: false,
@@ -85,5 +88,9 @@ impl MQTTConnection {
     pub fn login_success(&mut self, user_name: String) {
         self.is_login = true;
         self.login_user = Some(user_name);
+    }
+
+    pub fn uniq_key(&self) -> String {
+        format!("{}_{}", self.tenant, self.client_id)
     }
 }

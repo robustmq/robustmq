@@ -224,7 +224,7 @@ mod tests {
     use crate::core::cache::StorageCacheManager;
     use crate::core::test_tool::{test_build_data_fold, test_build_segment, test_init_conf};
     use crate::filesegment::segment_file::SegmentFile;
-    use broker_core::cache::BrokerCacheManager;
+    use broker_core::cache::NodeCacheManager;
     use common_config::broker::default_broker_config;
     use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
 
@@ -249,7 +249,7 @@ mod tests {
         test_init_conf();
         let data_fold = test_build_data_fold();
         let segment_iden = test_build_segment();
-        let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+        let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
             default_broker_config(),
         ))));
         let client_pool = Arc::new(ClientPool::new(10));
@@ -285,7 +285,7 @@ mod tests {
         let data_fold = test_build_data_fold();
         let segment_iden = test_build_segment();
 
-        let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(BrokerCacheManager::new(
+        let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
             default_broker_config(),
         ))));
         let client_pool = Arc::new(ClientPool::new(10));

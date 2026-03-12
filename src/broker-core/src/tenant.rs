@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cache::BrokerCacheManager;
+use crate::cache::NodeCacheManager;
 use common_base::{error::common::CommonError, tools::now_second};
 use common_config::broker::broker_config;
 use grpc_clients::meta::common::call::{create_tenant, delete_tenant, list_tenant};
@@ -27,7 +27,7 @@ pub const DEFAULT_TENANT_NAME: &str = "default";
 pub const DEFAULT_TENANT_DESC: &str = "Default tenant";
 
 pub async fn try_init_default_tenant(
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
     client_pool: &Arc<ClientPool>,
 ) -> Result<(), CommonError> {
     let storage = TenantStorage::new(client_pool.clone());

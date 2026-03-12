@@ -21,7 +21,7 @@ use crate::{
     security::AuthManager,
     subscribe::manager::SubscribeManager,
 };
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_config::broker::broker_config;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -69,7 +69,7 @@ pub struct TcpServerContext {
     pub stop_sx: broadcast::Sender<bool>,
     pub auth_driver: Arc<AuthManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
-    pub broker_cache: Arc<BrokerCacheManager>,
+    pub broker_cache: Arc<NodeCacheManager>,
 }
 
 impl Server {

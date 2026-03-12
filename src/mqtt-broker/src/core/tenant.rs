@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use crate::core::{cache::MQTTCacheManager, error::MqttBrokerError};
+use metadata_struct::tenant::DEFAULT_TENANT;
 use protocol::mqtt::common::{ConnectProperties, Login};
 use std::sync::Arc;
 
-pub const DEFAULT_TENANT: &str = "default";
 pub const TENANT_SEPARATOR: &str = "@";
 pub const TENANT_USER_PROPERTY_KEY: &str = "tenant";
 
@@ -68,6 +68,22 @@ fn extract_prefix(s: &str) -> Option<String> {
     None
 }
 
+fn extract_suffix(s: &str) -> String {
+    if let Some((_, suffix)) = s.split_once(TENANT_SEPARATOR) {
+        suffix.to_string()
+    } else {
+        s.to_string()
+    }
+}
+
+pub fn try_decode_username(username: &str) -> String {
+    extract_suffix(username)
+}
+
+pub fn try_decode_client_id(client_id: &str) -> String {
+    extract_suffix(client_id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -91,6 +107,20 @@ mod tests {
         )
         .unwrap();
         assert_eq!(result, "prop-tenant");
+    }
+
+    #[test]
+    fn test_try_decode_username() {
+        assert_eq!(try_decode_username("biz@admin"), "admin");
+        assert_eq!(try_decode_username("admin"), "admin");
+        assert_eq!(try_decode_username("@admin"), "admin");
+    }
+
+    #[test]
+    fn test_try_decode_client_id() {
+        assert_eq!(try_decode_client_id("biz@device-001"), "device-001");
+        assert_eq!(try_decode_client_id("device-001"), "device-001");
+        assert_eq!(try_decode_client_id("@device-001"), "device-001");
     }
 
     #[test]

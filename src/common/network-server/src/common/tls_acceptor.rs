@@ -15,7 +15,7 @@
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::tool::read_packet;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_config::broker::broker_config;
@@ -56,7 +56,7 @@ pub async fn acceptor_tls_process(
     stop_sx: broadcast::Sender<bool>,
     network_type: NetworkConnectionType,
     connection_manager: Arc<ConnectionManager>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     request_channel: Arc<RequestChannel>,
     codec: RobustMQCodec,
 ) -> ResultCommonError {
@@ -146,7 +146,7 @@ pub async fn acceptor_tls_process(
 // spawn connection read thread
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn read_tls_frame_process(
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     connection_manager: Arc<ConnectionManager>,
     mut read_frame_stream: FramedRead<
         tokio::io::ReadHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,

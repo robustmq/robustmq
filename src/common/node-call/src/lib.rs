@@ -16,7 +16,7 @@ pub mod consumer;
 pub mod dispatcher;
 pub mod handler;
 
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
@@ -58,13 +58,13 @@ impl NodeCallData {
 
 pub struct NodeCallManager {
     pub global_sender: RwLock<Option<mpsc::Sender<NodeCallData>>>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     node_channels: Arc<DashMap<u64, mpsc::Sender<NodeCallData>>>,
     client_pool: Arc<ClientPool>,
 }
 
 impl NodeCallManager {
-    pub fn new(client_pool: Arc<ClientPool>, broker_cache: Arc<BrokerCacheManager>) -> Self {
+    pub fn new(client_pool: Arc<ClientPool>, broker_cache: Arc<NodeCacheManager>) -> Self {
         NodeCallManager {
             global_sender: RwLock::new(None),
             broker_cache,
@@ -85,6 +85,12 @@ impl NodeCallManager {
             "NodeCallManager global sender is not initialized; call start() before send()"
                 .to_string(),
         ))
+    }
+
+    /// Returns true once `start()` has initialised the global sender channel.
+    /// Use this to wait for readiness before calling `send()`.
+    pub async fn is_ready(&self) -> bool {
+        self.global_sender.read().await.is_some()
     }
 
     pub async fn start(&self, stop_send: broadcast::Sender<bool>) {

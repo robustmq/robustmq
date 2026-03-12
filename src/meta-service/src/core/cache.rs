@@ -21,16 +21,12 @@ use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use crate::storage::journal::shard::ShardStorage;
 use crate::storage::mqtt::connector::MqttConnectorStorage;
-use crate::storage::mqtt::topic::MqttTopicStorage;
-use crate::storage::mqtt::user::MqttUserStorage;
 use common_base::role::is_engine_node;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::group_leader::MqttGroupLeader;
-use metadata_struct::mqtt::topic::Topic;
-use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
@@ -51,13 +47,7 @@ pub struct MetaCacheManager {
     pub node_heartbeat: DashMap<u64, NodeHeartbeatData>,
 
     // MQTT
-    // (topic_name,topic)
-    pub topic_list: DashMap<String, Topic>,
-
-    // (username,user)
-    pub user_list: DashMap<String, MqttUser>,
-
-    // (client_id,MQTTConnector)
+    // (client_id, MQTTConnector)
     pub connector_list: DashMap<String, MQTTConnector>,
 
     //(connector_name, ConnectorHeartbeat)
@@ -89,8 +79,6 @@ impl MetaCacheManager {
             tenant_list: DashMap::with_capacity(8),
             node_heartbeat: DashMap::with_capacity(2),
             node_list: DashMap::with_capacity(2),
-            topic_list: DashMap::with_capacity(8),
-            user_list: DashMap::with_capacity(8),
             connector_list: DashMap::with_capacity(8),
             connector_heartbeat: DashMap::with_capacity(8),
             shard_list: DashMap::with_capacity(8),
@@ -205,21 +193,6 @@ pub fn load_cache(
     for meta in res {
         cache_manager.set_segment_meta(meta);
     }
-
-    // Topic
-    let topic = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-    let data = topic.list()?;
-    for topic in data {
-        cache_manager.add_topic(topic);
-    }
-
-    // User
-    let user = MqttUserStorage::new(rocksdb_engine_handler.clone());
-    let data = user.list()?;
-    for user in data {
-        cache_manager.add_user(user);
-    }
-
     // connector
     let connector = MqttConnectorStorage::new(rocksdb_engine_handler.clone());
     let data = connector.list()?;

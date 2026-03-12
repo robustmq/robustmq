@@ -16,7 +16,7 @@ use crate::{
     command::ArcCommandAdapter,
     common::{channel::RequestChannel, connection_manager::ConnectionManager},
 };
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use std::sync::Arc;
@@ -36,7 +36,7 @@ pub struct ServerContext {
     pub command: ArcCommandAdapter,
     pub network_type: NetworkConnectionType,
     pub proc_config: ProcessorConfig,
-    pub broker_cache: Arc<BrokerCacheManager>,
+    pub broker_cache: Arc<NodeCacheManager>,
     pub stop_sx: broadcast::Sender<bool>,
     /// Shared request channel for all protocol acceptors.
     pub request_channel: Arc<RequestChannel>,

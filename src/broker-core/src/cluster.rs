@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cache::BrokerCacheManager;
+use crate::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use common_base::tools::{get_local_ip, now_second};
 use common_config::broker::broker_config;
@@ -64,7 +64,7 @@ impl ClusterStorage {
 
     pub async fn register_node(
         &self,
-        cache_manager: &Arc<BrokerCacheManager>,
+        cache_manager: &Arc<NodeCacheManager>,
         config: &BrokerConfig,
     ) -> Result<BrokerNode, CommonError> {
         let local_ip = config.broker_ip.clone().unwrap_or_else(get_local_ip);

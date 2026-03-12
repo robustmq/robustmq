@@ -39,7 +39,7 @@ use crate::server::services::mqtt::topic::{
 use crate::server::services::mqtt::user::{
     create_user_by_req, delete_user_by_req, list_user_by_req,
 };
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use delay_task::manager::DelayTaskManager;
 use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
@@ -78,7 +78,7 @@ pub struct GrpcMqttService {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     delay_task_manager: Arc<DelayTaskManager>,
     call_manager: Arc<NodeCallManager>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     client_pool: Arc<ClientPool>,
 }
 
@@ -89,7 +89,7 @@ impl GrpcMqttService {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         delay_task_manager: Arc<DelayTaskManager>,
         call_manager: Arc<NodeCallManager>,
-        broker_cache: Arc<BrokerCacheManager>,
+        broker_cache: Arc<NodeCacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcMqttService {

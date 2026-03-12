@@ -14,7 +14,7 @@
 
 use crate::state::HttpState;
 use axum::extract::State;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::{
     error::common::CommonError,
     http_response::{error_response, success_response},
@@ -71,7 +71,7 @@ async fn cluster_overview_by_req(
     subscribe_manager: &Arc<SubscribeManager>,
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<MQTTCacheManager>,
-    broker_cache: &Arc<BrokerCacheManager>,
+    broker_cache: &Arc<NodeCacheManager>,
     metrics_manager: &Arc<MQTTMetricsCache>,
     connector_manager: &Arc<ConnectorManager>,
 ) -> Result<OverViewResp, CommonError> {

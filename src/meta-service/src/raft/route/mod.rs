@@ -18,7 +18,7 @@ use crate::raft::route::common::DataRouteCluster;
 use crate::raft::route::engine::DataRouteJournal;
 use crate::raft::route::kv::DataRouteKv;
 use crate::raft::route::mqtt::DataRouteMqtt;
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use bytes::Bytes;
 use data::{StorageData, StorageDataType};
 use delay_task::manager::DelayTaskManager;
@@ -50,7 +50,7 @@ impl DataRoute {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<MetaCacheManager>,
         delay_task_manager: Arc<DelayTaskManager>,
-        broker_cache: Arc<BrokerCacheManager>,
+        broker_cache: Arc<NodeCacheManager>,
     ) -> DataRoute {
         let route_kv = DataRouteKv::new(rocksdb_engine_handler.clone());
         let route_mqtt = DataRouteMqtt::new(

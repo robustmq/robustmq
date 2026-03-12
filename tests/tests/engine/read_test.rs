@@ -16,7 +16,7 @@
 mod tests {
     use crate::mqtt::protocol::common::create_test_env;
     use admin_server::engine::shard::ShardCreateReq;
-    use broker_core::cache::BrokerCacheManager;
+    use broker_core::cache::NodeCacheManager;
     use bytes::Bytes;
     use common_base::tools::now_second;
     use common_base::utils::serialize::{self, deserialize};
@@ -68,7 +68,7 @@ mod tests {
         println!("{:?}", create_result);
         sleep(Duration::from_secs(10)).await;
 
-        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
         let node_id = 1;
         broker_cache.add_node(BrokerNode {
             node_id,

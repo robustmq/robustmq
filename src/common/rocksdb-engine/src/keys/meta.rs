@@ -116,13 +116,18 @@ pub fn storage_key_mqtt_topic_cluster_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_session(client_id: &str) -> String {
-    format!("{}mqtt/session/{}", PREFIX_META, client_id)
+pub fn storage_key_mqtt_session(tenant: &str, client_id: &str) -> String {
+    format!("{}mqtt/session/{}/{}", PREFIX_META, tenant, client_id)
 }
 
 #[inline]
 pub fn storage_key_mqtt_session_prefix() -> String {
     format!("{}mqtt/session/", PREFIX_META)
+}
+
+#[inline]
+pub fn storage_key_mqtt_session_tenant_prefix(tenant: &str) -> String {
+    format!("{}mqtt/session/{}/", PREFIX_META, tenant)
 }
 
 #[inline]

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cache::BrokerCacheManager;
+use crate::cache::NodeCacheManager;
 use common_base::node_status::NodeStatus;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -22,7 +22,7 @@ use tracing::{debug, warn};
 const WAIT_CLUSTER_WARN_THRESHOLD: Duration = Duration::from_secs(1);
 const WAIT_CLUSTER_MAX_TIMEOUT: Duration = Duration::from_secs(60);
 
-pub async fn wait_cluster_running(cache_manager: &Arc<BrokerCacheManager>) -> Result<(), String> {
+pub async fn wait_cluster_running(cache_manager: &Arc<NodeCacheManager>) -> Result<(), String> {
     let start = Instant::now();
     let mut warned = false;
 

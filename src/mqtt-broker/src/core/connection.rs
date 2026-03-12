@@ -48,6 +48,7 @@ pub struct DisconnectConnectionContext {
 }
 
 pub async fn build_connection(
+    tenant: &str,
     connect_id: u64,
     client_id: String,
     cache_manager: &Arc<MQTTCacheManager>,
@@ -103,6 +104,7 @@ pub async fn build_connection(
         };
 
     let config = ConnectionConfig {
+        tenant: tenant.to_string(),
         connect_id,
         client_id: client_id.clone(),
         receive_maximum: client_receive_maximum,
@@ -200,7 +202,10 @@ pub async fn disconnect_connection(context: DisconnectConnectionContext) -> Resu
     );
     if delete {
         session_storage
-            .delete_session(context.connection.client_id.clone())
+            .delete_session(
+                context.connection.tenant.clone(),
+                context.connection.client_id.clone(),
+            )
             .await?;
         delete_session_by_local(
             &context.cache_manager,
@@ -337,6 +342,7 @@ mod test {
         };
         let addr = "0.0.0.0:8080".to_string().parse().unwrap();
         let mut conn = build_connection(
+            "tenant1",
             connect_id,
             client_id.clone(),
             &cache_manager,

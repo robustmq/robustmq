@@ -566,7 +566,7 @@ mod tests {
     use crate::core::error::StorageEngineError;
     use crate::core::test_tool::{test_build_data_fold, test_build_segment};
     use crate::filesegment::SegmentIdentity;
-    use broker_core::cache::BrokerCacheManager;
+    use broker_core::cache::NodeCacheManager;
     use bytes::Bytes;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use common_config::config::BrokerConfig;
@@ -605,7 +605,7 @@ mod tests {
             ..Default::default()
         };
 
-        let broker_cache = Arc::new(BrokerCacheManager::new(BrokerConfig::default()));
+        let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
 
         let res = open_segment_write(&cache_manager, &segment_iden).await;

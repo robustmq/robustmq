@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{consumer, NodeCallData, NODE_CHANNEL_SIZE};
-use broker_core::cache::BrokerCacheManager;
+use broker_core::cache::NodeCacheManager;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
@@ -25,7 +25,7 @@ pub async fn run(
     mut global_receiver: mpsc::Receiver<NodeCallData>,
     stop_send: broadcast::Sender<bool>,
     node_channels: Arc<DashMap<u64, mpsc::Sender<NodeCallData>>>,
-    broker_cache: Arc<BrokerCacheManager>,
+    broker_cache: Arc<NodeCacheManager>,
     client_pool: Arc<ClientPool>,
 ) {
     let mut stop_receiver = stop_send.subscribe();

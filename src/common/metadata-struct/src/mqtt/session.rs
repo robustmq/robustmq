@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub struct MqttSession {
+    pub tenant: String,
     pub client_id: String,
     pub session_expiry_interval: u64,
     pub is_contain_last_will: bool,
@@ -32,6 +33,7 @@ pub struct MqttSession {
 
 impl MqttSession {
     pub fn new(
+        tenant: String,
         client_id: String,
         session_expiry: u64,
         is_contain_last_will: bool,
@@ -39,6 +41,7 @@ impl MqttSession {
         is_persist_session: bool,
     ) -> MqttSession {
         MqttSession {
+            tenant,
             client_id,
             session_expiry_interval: session_expiry,
             is_contain_last_will,
