@@ -217,6 +217,7 @@ impl MqttService {
 
         if let Err(e) = try_auto_subscribe(
             client_id.clone(),
+            &tenant.tenant_name,
             &context.login,
             context.addr.ip().to_string(),
             &self.protocol,

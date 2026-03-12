@@ -286,9 +286,9 @@ impl DataRoute {
             }
 
             // auto subscribe
-            StorageDataType::MqttSetAutoSubscribeRule => {
+            StorageDataType::MqttCreateAutoSubscribeRule => {
                 self.route_mqtt
-                    .set_auto_subscribe_rule(storage_data.value.clone())?;
+                    .create_auto_subscribe_rule(storage_data.value.clone())?;
                 Ok(None)
             }
             StorageDataType::MqttDeleteAutoSubscribeRule => {

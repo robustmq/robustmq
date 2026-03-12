@@ -28,8 +28,8 @@ use crate::server::services::mqtt::session::{
 };
 use crate::server::services::mqtt::share_sub::get_share_sub_leader_by_req;
 use crate::server::services::mqtt::subscribe::{
-    delete_auto_subscribe_rule_by_req, delete_subscribe_by_req, list_auto_subscribe_rule_by_req,
-    list_subscribe_by_req, set_auto_subscribe_rule_by_req, set_subscribe_by_req,
+    create_auto_subscribe_rule_by_req, delete_auto_subscribe_rule_by_req, delete_subscribe_by_req,
+    list_auto_subscribe_rule_by_req, list_subscribe_by_req, set_subscribe_by_req,
 };
 use crate::server::services::mqtt::topic::{
     create_topic_by_req, create_topic_rewrite_rule_by_req, delete_topic_by_req,
@@ -47,10 +47,11 @@ use prost_validate::Validator;
 use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttService;
 use protocol::meta::meta_service_mqtt::{
     ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateAclReply, CreateAclRequest,
-    CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
-    CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
-    CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
-    DeleteAclReply, DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
+    CreateAutoSubscribeRuleReply, CreateAutoSubscribeRuleRequest, CreateBlacklistReply,
+    CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest, CreateSessionReply,
+    CreateSessionRequest, CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
+    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
+    DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest,
     DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
@@ -61,8 +62,7 @@ use protocol::meta::meta_service_mqtt::{
     ListBlacklistRequest, ListConnectorReply, ListConnectorRequest, ListSessionReply,
     ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
     ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
-    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetAutoSubscribeRuleReply,
-    SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
+    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetSubscribeReply, SetSubscribeRequest,
     SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateConnectorReply,
     UpdateConnectorRequest,
 };
@@ -600,14 +600,14 @@ impl MqttService for GrpcMqttService {
     }
 
     // Auto Subscribe Rule
-    async fn set_auto_subscribe_rule(
+    async fn create_auto_subscribe_rule(
         &self,
-        request: Request<SetAutoSubscribeRuleRequest>,
-    ) -> Result<Response<SetAutoSubscribeRuleReply>, Status> {
+        request: Request<CreateAutoSubscribeRuleRequest>,
+    ) -> Result<Response<CreateAutoSubscribeRuleReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        set_auto_subscribe_rule_by_req(&self.raft_manager, &req)
+        create_auto_subscribe_rule_by_req(&self.raft_manager, &self.rocksdb_engine_handler, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)

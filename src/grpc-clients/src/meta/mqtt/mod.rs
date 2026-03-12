@@ -15,10 +15,11 @@
 use protocol::meta::meta_service_mqtt::mqtt_service_client::MqttServiceClient;
 use protocol::meta::meta_service_mqtt::{
     ConnectorHeartbeatReply, ConnectorHeartbeatRequest, CreateAclReply, CreateAclRequest,
-    CreateBlacklistReply, CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest,
-    CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
-    CreateTopicRewriteRuleReply, CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest,
-    DeleteAclReply, DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
+    CreateAutoSubscribeRuleReply, CreateAutoSubscribeRuleRequest, CreateBlacklistReply,
+    CreateBlacklistRequest, CreateConnectorReply, CreateConnectorRequest, CreateSessionReply,
+    CreateSessionRequest, CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
+    CreateTopicRewriteRuleRequest, CreateUserReply, CreateUserRequest, DeleteAclReply,
+    DeleteAclRequest, DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest,
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest,
     DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
@@ -29,8 +30,7 @@ use protocol::meta::meta_service_mqtt::{
     ListBlacklistRequest, ListConnectorReply, ListConnectorRequest, ListSessionReply,
     ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
     ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
-    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetAutoSubscribeRuleReply,
-    SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
+    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetSubscribeReply, SetSubscribeRequest,
     SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateConnectorReply,
     UpdateConnectorRequest,
 };
@@ -362,12 +362,12 @@ impl_retriable_request!(
 );
 
 impl_retriable_request!(
-    SetAutoSubscribeRuleRequest,
+    CreateAutoSubscribeRuleRequest,
     MqttServiceClient<Channel>,
-    SetAutoSubscribeRuleReply,
-    set_auto_subscribe_rule,
+    CreateAutoSubscribeRuleReply,
+    create_auto_subscribe_rule,
     "MqttService",
-    "SetAutoSubscribeRule",
+    "CreateAutoSubscribeRule",
     true
 );
 

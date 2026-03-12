@@ -35,8 +35,10 @@ fn replace_topic_placeholders(
         .replace("${host}", remote_addr)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn try_auto_subscribe(
     client_id: String,
+    tenant: &str,
     login: &Option<Login>,
     remote_addr: String,
     protocol: &MqttProtocol,
@@ -57,6 +59,9 @@ pub async fn try_auto_subscribe(
 
     for rule_entry in cache_manager.auto_subscribe_rule.iter() {
         let rule = rule_entry.value();
+        if rule.tenant != tenant {
+            continue;
+        }
         let topic = replace_topic_placeholders(&rule.topic, &client_id, username, &remote_addr);
 
         debug!(

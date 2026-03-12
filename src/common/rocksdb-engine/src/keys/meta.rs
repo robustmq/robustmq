@@ -243,13 +243,21 @@ pub fn storage_key_mqtt_topic_rewrite_rule_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_auto_subscribe_rule(topic: &str) -> String {
-    format!("{}mqtt/auto_subscribe_rule/{}", PREFIX_META, topic)
+pub fn storage_key_mqtt_auto_subscribe_rule(tenant: &str, uniq_id: &str) -> String {
+    format!(
+        "{}mqtt/auto_subscribe_rule/{}/{}",
+        PREFIX_META, tenant, uniq_id
+    )
 }
 
 #[inline]
 pub fn storage_key_mqtt_auto_subscribe_rule_prefix() -> String {
     format!("{}mqtt/auto_subscribe_rule/", PREFIX_META)
+}
+
+#[inline]
+pub fn storage_key_mqtt_auto_subscribe_rule_tenant_prefix(tenant: &str) -> String {
+    format!("{}mqtt/auto_subscribe_rule/{}/", PREFIX_META, tenant)
 }
 
 #[inline]

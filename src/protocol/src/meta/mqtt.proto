@@ -56,7 +56,7 @@ service MqttService {
   rpc ConnectorHeartbeat(ConnectorHeartbeatRequest) returns (ConnectorHeartbeatReply) {}
 
   // Auto Subscribe Rule
-  rpc SetAutoSubscribeRule(SetAutoSubscribeRuleRequest) returns (SetAutoSubscribeRuleReply) {}
+  rpc CreateAutoSubscribeRule(CreateAutoSubscribeRuleRequest) returns (CreateAutoSubscribeRuleReply) {}
   rpc DeleteAutoSubscribeRule(DeleteAutoSubscribeRuleRequest) returns (DeleteAutoSubscribeRuleReply) {}
   rpc ListAutoSubscribeRule(ListAutoSubscribeRuleRequest) returns (ListAutoSubscribeRuleReply) {}
 }
@@ -301,23 +301,20 @@ message ConnectorHeartbeatRaw {
 
 message ConnectorHeartbeatReply {}
 
-message SetAutoSubscribeRuleRequest {
-  string topic = 2 [(validate.rules).string.min_len = 1];
-  uint32 qos = 3 [(validate.rules).uint32.lte = 2];
-  bool no_local = 4;
-  bool retain_as_published = 5;
-  uint32 retained_handling = 6 [(validate.rules).uint32.lte = 2];
+message CreateAutoSubscribeRuleRequest {
+  bytes content = 2 [(validate.rules).bytes.min_len = 1];
 }
 
-message SetAutoSubscribeRuleReply {}
+message CreateAutoSubscribeRuleReply {}
 
 message DeleteAutoSubscribeRuleRequest {
-  string topic = 2 [(validate.rules).string.min_len = 1];
+  string uniq_id = 1 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteAutoSubscribeRuleReply {}
 
 message ListAutoSubscribeRuleRequest {
+  string tenant = 1;
 }
 
 message ListAutoSubscribeRuleReply {

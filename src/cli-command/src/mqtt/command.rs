@@ -173,7 +173,7 @@ impl MqttBrokerCommand {
                 self.list_auto_subscribe_rule(params_clone.clone()).await;
             }
             MqttActionType::CreateAutoSubscribe(request) => {
-                self.set_auto_subscribe_rule(params_clone.clone(), request)
+                self.create_auto_subscribe_rule(params_clone.clone(), request)
                     .await;
             }
             MqttActionType::DeleteAutoSubscribe(request) => {
@@ -1443,7 +1443,7 @@ impl MqttBrokerCommand {
     }
 
     // ------------------ auto subscribe ----------------
-    async fn set_auto_subscribe_rule(
+    async fn create_auto_subscribe_rule(
         &self,
         params: MqttCliCommandParam,
         cli_request: admin_server::mqtt::subscribe::CreateAutoSubscribeReq,

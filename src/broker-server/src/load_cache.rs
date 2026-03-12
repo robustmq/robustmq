@@ -163,7 +163,7 @@ async fn load_mqtt_cache(
 
     let auto_subscribe_storage = AutoSubscribeStorage::new(client_pool.clone());
     let auto_subscribe_rules = auto_subscribe_storage
-        .list_auto_subscribe_rule()
+        .list_auto_subscribe_rule(None)
         .await
         .map_err(|e| {
             MqttBrokerError::CommonError(format!("Failed to load auto subscribe rules: {}", e))

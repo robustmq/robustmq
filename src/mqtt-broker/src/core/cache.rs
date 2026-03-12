@@ -389,11 +389,11 @@ impl MQTTCacheManager {
 
     pub fn add_auto_subscribe_rule(&self, auto_subscribe_rule: MqttAutoSubscribeRule) {
         self.auto_subscribe_rule
-            .insert(auto_subscribe_rule.topic.clone(), auto_subscribe_rule);
+            .insert(auto_subscribe_rule.uniq_id.clone(), auto_subscribe_rule);
     }
 
-    pub fn delete_auto_subscribe_rule(&self, topic: &str) {
-        self.auto_subscribe_rule.remove(topic);
+    pub fn delete_auto_subscribe_rule(&self, uniq_id: &str) {
+        self.auto_subscribe_rule.remove(uniq_id);
     }
 }
 
@@ -402,11 +402,11 @@ mod tests {
     use crate::core::tool::test_build_mqtt_cache_manager;
 
     use super::*;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
     use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::tools::now_second;
+    use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, uuid::unique_id};
     use metadata_struct::meta::node::BrokerNode;
     use protocol::mqtt::common::{QoS, RetainHandling};
 
@@ -612,6 +612,8 @@ mod tests {
     async fn auto_subscribe_rule_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttAutoSubscribeRule {
+            uniq_id: unique_id(),
+            tenant: "tenant-1".to_string(),
             topic: "auto/sub/topic".to_string(),
             qos: QoS::AtLeastOnce,
             no_local: false,
@@ -623,16 +625,16 @@ mod tests {
         cache_manager.add_auto_subscribe_rule(rule.clone());
 
         // get
-        let rule_info = cache_manager.auto_subscribe_rule.get(&rule.topic);
+        let rule_info = cache_manager.auto_subscribe_rule.get(&rule.uniq_id);
         println!("{rule_info:?}");
         assert!(rule_info.is_some());
         assert_eq!(rule_info.unwrap().topic, rule.topic);
 
         // remove
-        cache_manager.delete_auto_subscribe_rule(&rule.topic);
+        cache_manager.delete_auto_subscribe_rule(&rule.uniq_id);
 
         // get again
-        let rule_info_after_remove = cache_manager.auto_subscribe_rule.get(&rule.topic);
+        let rule_info_after_remove = cache_manager.auto_subscribe_rule.get(&rule.uniq_id);
         assert!(rule_info_after_remove.is_none());
     }
 

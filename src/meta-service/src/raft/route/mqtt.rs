@@ -25,7 +25,6 @@ use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
 use broker_core::cache::NodeCacheManager;
 use bytes::Bytes;
-use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use common_base::tools::{now_millis, now_second};
 use delay_task::manager::DelayTaskManager;
 use delay_task::{DelayTask, DelayTaskData};
@@ -43,14 +42,14 @@ use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message as _;
 use protocol::meta::meta_service_mqtt::{
-    CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest, CreateSessionRequest,
-    CreateTopicRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
+    CreateAclRequest, CreateAutoSubscribeRuleRequest, CreateBlacklistRequest,
+    CreateConnectorRequest, CreateSessionRequest, CreateTopicRequest,
+    CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
     DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
     DeleteSessionRequest, DeleteSubscribeRequest, DeleteTopicRequest,
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, SaveLastWillMessageRequest,
-    SetAutoSubscribeRuleRequest, SetSubscribeRequest, SetTopicRetainMessageRequest,
+    SetSubscribeRequest, SetTopicRetainMessageRequest,
 };
-use protocol::mqtt::common::{qos, retain_forward_rule, QoS, RetainHandling};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
@@ -323,46 +322,23 @@ impl DataRouteMqtt {
     }
 
     // AutoSubscribeRule
-    pub fn set_auto_subscribe_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let req = SetAutoSubscribeRuleRequest::decode(value.as_ref())?;
+    pub fn create_auto_subscribe_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = CreateAutoSubscribeRuleRequest::decode(value.as_ref())?;
+        let rule = MqttAutoSubscribeRule::decode(&req.content)
+            .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
-        let mut _qos: Option<QoS> = None;
-        if req.qos <= u8::MAX as u32 {
-            _qos = qos(req.qos as u8);
-        } else {
-            return Err(MetaServiceError::CommonError(
-                MQTTProtocolError::InvalidRemainingLength(req.qos as usize).to_string(),
-            ));
-        };
-
-        let mut _retained_handling: Option<RetainHandling> = None;
-        if req.retained_handling <= u8::MAX as u32 {
-            _retained_handling = retain_forward_rule(req.retained_handling as u8);
-        } else {
-            return Err(MetaServiceError::CommonError(
-                MQTTProtocolError::InvalidRemainingLength(req.retained_handling as usize)
-                    .to_string(),
-            ));
-        };
-
-        let auto_subscribe_rule: MqttAutoSubscribeRule = MqttAutoSubscribeRule {
-            topic: req.topic.clone(),
-            qos: _qos.ok_or(MetaServiceError::CommonError(
-                MQTTProtocolError::InvalidQoS(req.qos as u8).to_string(),
-            ))?,
-            no_local: req.no_local,
-            retain_as_published: req.retain_as_published,
-            retained_handling: _retained_handling.ok_or(MetaServiceError::CommonError(
-                MQTTProtocolError::InvalidRetainForwardRule(req.retained_handling as u8)
-                    .to_string(),
-            ))?,
-        };
-        storage.save_auto_subscribe_rule(&req.topic, auto_subscribe_rule)
+        storage.save_auto_subscribe_rule(&rule)
     }
 
     pub fn delete_auto_subscribe_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteAutoSubscribeRuleRequest::decode(value.as_ref())?;
+        // uniq_id alone is enough to locate the rule; scan to resolve tenant for the key
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete_auto_subscribe_rule(&req.topic)
+        let all = storage.list_all_auto_subscribe_rules()?;
+        if let Some(rule) = all.into_iter().find(|r| r.uniq_id == req.uniq_id) {
+            storage.delete_auto_subscribe_rule(&rule.tenant, &rule.uniq_id)
+        } else {
+            Ok(())
+        }
     }
 }

@@ -23,13 +23,14 @@ use crate::{
 };
 use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
-    DeleteAutoSubscribeRuleReply, DeleteAutoSubscribeRuleRequest, DeleteSubscribeReply,
-    DeleteSubscribeRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
-    ListSubscribeReply, ListSubscribeRequest, SetAutoSubscribeRuleReply,
-    SetAutoSubscribeRuleRequest, SetSubscribeReply, SetSubscribeRequest,
+    CreateAutoSubscribeRuleReply, CreateAutoSubscribeRuleRequest, DeleteAutoSubscribeRuleReply,
+    DeleteAutoSubscribeRuleRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
+    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListSubscribeReply,
+    ListSubscribeRequest, SetSubscribeReply, SetSubscribeRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -112,17 +113,33 @@ pub async fn set_subscribe_by_req(
 }
 
 // Auto Subscribe Rule Operations
-pub async fn set_auto_subscribe_rule_by_req(
+pub async fn create_auto_subscribe_rule_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    req: &SetAutoSubscribeRuleRequest,
-) -> Result<SetAutoSubscribeRuleReply, MetaServiceError> {
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: &CreateAutoSubscribeRuleRequest,
+) -> Result<CreateAutoSubscribeRuleReply, MetaServiceError> {
+    let rule = MqttAutoSubscribeRule::decode(&req.content)
+        .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
+
+    // Uniqueness: one rule per (tenant, topic)
+    let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
+    if storage
+        .get_auto_subscribe_rule_by_tenant_topic(&rule.tenant, &rule.topic)?
+        .is_some()
+    {
+        return Err(MetaServiceError::CommonError(format!(
+            "Auto subscribe rule for tenant '{}' and topic '{}' already exists",
+            rule.tenant, rule.topic
+        )));
+    }
+
     let data = StorageData::new(
-        StorageDataType::MqttSetAutoSubscribeRule,
+        StorageDataType::MqttCreateAutoSubscribeRule,
         encode_to_bytes(req),
     );
     raft_manager.write_metadata(data).await?;
 
-    Ok(SetAutoSubscribeRuleReply {})
+    Ok(CreateAutoSubscribeRuleReply {})
 }
 
 pub async fn delete_auto_subscribe_rule_by_req(
@@ -140,10 +157,14 @@ pub async fn delete_auto_subscribe_rule_by_req(
 
 pub fn list_auto_subscribe_rule_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    _req: &ListAutoSubscribeRuleRequest,
+    req: &ListAutoSubscribeRuleRequest,
 ) -> Result<ListAutoSubscribeRuleReply, MetaServiceError> {
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
-    let data = storage.list_all_auto_subscribe_rules()?;
+    let data = if req.tenant.is_empty() {
+        storage.list_all_auto_subscribe_rules()?
+    } else {
+        storage.list_auto_subscribe_rules_by_tenant(&req.tenant)?
+    };
 
     let auto_subscribe_rules = data
         .into_iter()
