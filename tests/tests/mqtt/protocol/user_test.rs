@@ -46,6 +46,7 @@ mod tests {
         connect_server(&client_properties);
 
         create_user(&admin_client, username.clone(), password.clone()).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         assert_eq!(get_user(&admin_client, username.clone()).await, 1);
 
         let client_properties = ClientTestProperties {
@@ -63,6 +64,7 @@ mod tests {
         distinct_conn(cli);
 
         delete_user(&admin_client, username.clone()).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         assert_eq!(get_user(&admin_client, username.clone()).await, 0);
 
         let client_properties = ClientTestProperties {
