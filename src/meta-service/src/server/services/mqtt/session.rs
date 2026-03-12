@@ -50,7 +50,8 @@ pub fn list_session_by_req(
     req: &ListSessionRequest,
 ) -> ListSessionStream {
     let mut sessions = read_not_persist_session(broker_cache_manager, &req.tenant, &req.client_id)?;
-    let persist_sessions = read_persist_session(rocksdb_engine_handler, &req.tenant, &req.client_id)?;
+    let persist_sessions =
+        read_persist_session(rocksdb_engine_handler, &req.tenant, &req.client_id)?;
     sessions.extend(persist_sessions);
 
     let output = async_stream::try_stream! {
@@ -68,17 +69,31 @@ fn read_not_persist_session(
     client_id: &str,
 ) -> Result<Vec<Vec<u8>>, MetaServiceError> {
     if !client_id.is_empty() {
-        if let Some(session) = broker_cache_manager.get_session(client_id) {
+        if let Some(session) = broker_cache_manager.get_session(tenant, client_id) {
             return Ok(vec![session.encode()?]);
         }
         return Ok(vec![]);
     }
 
+    if !tenant.is_empty() {
+        let sessions = broker_cache_manager
+            .list_sessions_by_tenant(tenant)
+            .into_iter()
+            .map(|s| s.encode())
+            .collect::<Result<Vec<_>, _>>()?;
+        return Ok(sessions);
+    }
+
     let sessions = broker_cache_manager
         .session_list
         .iter()
-        .filter(|entry| tenant.is_empty() || entry.value().tenant == tenant)
-        .map(|entry| entry.value().encode())
+        .flat_map(|entry| {
+            entry
+                .value()
+                .iter()
+                .map(|e| e.value().encode())
+                .collect::<Vec<_>>()
+        })
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(sessions)
@@ -146,7 +161,7 @@ pub async fn delete_session_by_req(
     let session_storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
     let session = if let Some(session) = session_storage.get(&req.tenant, &req.client_id)? {
         session
-    } else if let Some(session) = broker_cache_manager.get_session(&req.client_id) {
+    } else if let Some(session) = broker_cache_manager.get_session(&req.tenant, &req.client_id) {
         session
     } else {
         return Ok(DeleteSessionReply::default());

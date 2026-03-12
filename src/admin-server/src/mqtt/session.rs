@@ -15,7 +15,7 @@
 use crate::{
     state::HttpState,
     tool::{
-        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        query::{apply_filters, apply_pagination, build_query_params, Queryable},
         PageReplyData,
     },
 };
@@ -122,8 +122,7 @@ pub async fn session_list(
     }
 
     let filtered = apply_filters(sessions, &options);
-    let sorted = apply_sorting(filtered, &options);
-    let pagination = apply_pagination(sorted, &options);
+    let pagination = apply_pagination(filtered, &options);
 
     success_response(PageReplyData {
         data: pagination.0,

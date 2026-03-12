@@ -42,8 +42,8 @@ pub struct NodeCacheManager {
     // topic
     pub topic_list: DashMap<String, Topic>,
 
-    
-    pub session_list: DashMap<String, MqttSession>,
+    // (tenant, (client_id, MqttSession))
+    pub session_list: DashMap<String, DashMap<String, MqttSession>>,
 
     // (cluster_name, Status)
     pub status: Arc<RwLock<NodeStatus>>,
@@ -97,18 +97,30 @@ impl NodeCacheManager {
 
     // Session
     pub fn add_session(&self, session: MqttSession) {
-        self.session_list.insert(session.client_id.clone(), session);
+        self.session_list
+            .entry(session.tenant.clone())
+            .or_default()
+            .insert(session.client_id.clone(), session);
     }
 
-    pub fn delete_session(&self, client_id: &str) {
-        self.session_list.remove(client_id);
-    }
-
-    pub fn get_session(&self, client_id: &str) -> Option<MqttSession> {
-        if let Some(session) = self.session_list.get(client_id) {
-            return Some(session.clone());
+    pub fn delete_session(&self, tenant: &str, client_id: &str) {
+        if let Some(tenant_map) = self.session_list.get(tenant) {
+            tenant_map.remove(client_id);
         }
-        None
+    }
+
+    pub fn get_session(&self, tenant: &str, client_id: &str) -> Option<MqttSession> {
+        self.session_list
+            .get(tenant)?
+            .get(client_id)
+            .map(|s| s.clone())
+    }
+
+    pub fn list_sessions_by_tenant(&self, tenant: &str) -> Vec<MqttSession> {
+        self.session_list
+            .get(tenant)
+            .map(|tenant_map| tenant_map.iter().map(|e| e.value().clone()).collect())
+            .unwrap_or_default()
     }
 
     // Topic

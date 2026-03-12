@@ -21,7 +21,6 @@ use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use crate::storage::journal::shard::ShardStorage;
 use crate::storage::mqtt::connector::MqttConnectorStorage;
-use crate::storage::mqtt::user::MqttUserStorage;
 use common_base::role::is_engine_node;
 use common_base::tools::now_second;
 use dashmap::DashMap;

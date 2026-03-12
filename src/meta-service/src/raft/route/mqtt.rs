@@ -206,7 +206,8 @@ impl DataRouteMqtt {
         let req = DeleteSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.tenant, &req.client_id)?;
-        self.broker_cache.delete_session(&req.client_id);
+        self.broker_cache
+            .delete_session(&req.tenant, &req.client_id);
         Ok(())
     }
 

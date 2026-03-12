@@ -38,11 +38,12 @@ pub async fn handle_session_expire(
     client_id: &str,
 ) -> Result<(), CommonError> {
     let mut has_session = false;
-    if let Some((session, is_cache)) = get_session(rocksdb_engine_handler, broker_cache, tenant, client_id)?
+    if let Some((session, is_cache)) =
+        get_session(rocksdb_engine_handler, broker_cache, tenant, client_id)?
     {
         has_session = true;
         if is_cache {
-            broker_cache.delete_session(client_id);
+            broker_cache.delete_session(tenant, client_id);
         } else {
             let key = storage_key_mqtt_session(tenant, client_id);
             engine_delete_by_meta_data(rocksdb_engine_handler, &key)?;
@@ -81,7 +82,7 @@ fn get_session(
     tenant: &str,
     client_id: &str,
 ) -> Result<Option<(MqttSession, bool)>, CommonError> {
-    if let Some(session) = broker_cache.get_session(client_id) {
+    if let Some(session) = broker_cache.get_session(tenant, client_id) {
         return Ok(Some((session, true)));
     }
 

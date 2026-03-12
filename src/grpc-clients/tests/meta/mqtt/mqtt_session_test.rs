@@ -27,97 +27,125 @@ mod tests {
     };
     use std::sync::Arc;
 
-    #[tokio::test]
-
-    async fn mqtt_session_test() {
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
-        let client_id: String = unique_id();
-        let connection_id: u64 = 1;
-        let broker_id: u64 = 1;
-        let session_expiry: u64 = 10000;
-        let last_will_delay_interval: u64 = 10000;
-
-        let mut mqtt_session: MqttSession = MqttSession::new(
-            DEFAULT_TENANT.to_string(),
-            client_id.clone(),
-            session_expiry,
-            true,
-            Some(last_will_delay_interval),
+    fn build_session(tenant: &str, client_id: &str) -> MqttSession {
+        let mut session = MqttSession::new(
+            tenant.to_string(),
+            client_id.to_string(),
+            10000,
+            false,
+            None,
             true,
         );
-        mqtt_session.update_broker_id(Some(broker_id));
-        mqtt_session.update_connection_id(Some(connection_id));
+        session.update_broker_id(Some(1));
+        session.update_connection_id(Some(1));
+        session
+    }
 
-        let request = CreateSessionRequest {
-            sessions: vec![CreateSessionRaw {
+    async fn create_sessions(
+        client_pool: &Arc<ClientPool>,
+        addrs: &[String],
+        sessions: Vec<MqttSession>,
+    ) {
+        let raws = sessions
+            .iter()
+            .map(|s| CreateSessionRaw {
+                client_id: s.client_id.clone(),
+                session: s.encode().unwrap(),
+            })
+            .collect();
+        placement_create_session(client_pool, addrs, CreateSessionRequest { sessions: raws })
+            .await
+            .unwrap();
+    }
+
+    async fn list_sessions(
+        client_pool: &Arc<ClientPool>,
+        addrs: &[String],
+        tenant: &str,
+        client_id: &str,
+    ) -> Vec<MqttSession> {
+        let request = ListSessionRequest {
+            tenant: tenant.to_string(),
+            client_id: client_id.to_string(),
+        };
+        let mut stream = placement_list_session(client_pool, addrs, request)
+            .await
+            .unwrap();
+        let mut results = Vec::new();
+        while let Some(reply) = stream.message().await.unwrap() {
+            results.push(MqttSession::decode(&reply.session).unwrap());
+        }
+        results
+    }
+
+    #[tokio::test]
+    async fn mqtt_session_crud_test() {
+        let client_pool = Arc::new(ClientPool::new(3));
+        let addrs = vec![get_placement_addr()];
+        let client_id = unique_id();
+
+        let session = build_session(DEFAULT_TENANT, &client_id);
+        create_sessions(&client_pool, &addrs, vec![session.clone()]).await;
+
+        // verify session exists
+        let results = list_sessions(&client_pool, &addrs, DEFAULT_TENANT, &client_id).await;
+        assert!(results.iter().any(|s| s == &session));
+
+        // delete and verify gone
+        placement_delete_session(
+            &client_pool,
+            &addrs,
+            DeleteSessionRequest {
+                tenant: DEFAULT_TENANT.to_string(),
                 client_id: client_id.clone(),
-                session: mqtt_session.encode().unwrap(),
-            }],
-        };
+            },
+        )
+        .await
+        .unwrap();
 
-        placement_create_session(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        let results = list_sessions(&client_pool, &addrs, DEFAULT_TENANT, &client_id).await;
+        assert!(!results.iter().any(|s| s.client_id == client_id));
+    }
 
-        let request = ListSessionRequest {
-            tenant: DEFAULT_TENANT.to_string(),
-            client_id: mqtt_session.client_id.clone(),
-        };
+    #[tokio::test]
+    async fn mqtt_session_tenant_isolation_test() {
+        let client_pool = Arc::new(ClientPool::new(3));
+        let addrs = vec![get_placement_addr()];
 
-        let mut stream = placement_list_session(&client_pool, &addrs, request)
-            .await
-            .unwrap();
-        let mut flag = false;
-        while let Some(reply) = stream.message().await.unwrap() {
-            let session = MqttSession::decode(&reply.session).unwrap();
-            if mqtt_session == session {
-                flag = true;
-            }
-        }
-        assert!(flag);
+        let tenant_a = format!("tenant-a-{}", unique_id());
+        let tenant_b = format!("tenant-b-{}", unique_id());
+        let client_id_1 = unique_id();
+        let client_id_2 = unique_id();
 
-        let request = ListSessionRequest {
-            tenant: DEFAULT_TENANT.to_string(),
-            client_id: mqtt_session.client_id.clone(),
-        };
+        let session_a1 = build_session(&tenant_a, &client_id_1);
+        let session_a2 = build_session(&tenant_a, &client_id_2);
+        let session_b1 = build_session(&tenant_b, &client_id_1);
 
-        let mut stream = placement_list_session(&client_pool, &addrs, request)
-            .await
-            .unwrap();
-        let mut flag = false;
-        while let Some(reply) = stream.message().await.unwrap() {
-            let session = MqttSession::decode(&reply.session).unwrap();
-            if mqtt_session == session {
-                flag = true;
-            }
-        }
-        assert!(flag);
+        create_sessions(
+            &client_pool,
+            &addrs,
+            vec![session_a1.clone(), session_a2.clone(), session_b1.clone()],
+        )
+        .await;
 
-        let request = DeleteSessionRequest {
-            tenant: DEFAULT_TENANT.to_string(),
-            client_id: mqtt_session.client_id.clone(),
-        };
+        // list by tenant_a: should return only tenant_a sessions
+        let results_a = list_sessions(&client_pool, &addrs, &tenant_a, "").await;
+        assert_eq!(results_a.len(), 2);
+        assert!(results_a.iter().all(|s| s.tenant == tenant_a));
 
-        placement_delete_session(&client_pool, &addrs, request)
-            .await
-            .unwrap();
+        // list by tenant_b: should return only tenant_b sessions
+        let results_b = list_sessions(&client_pool, &addrs, &tenant_b, "").await;
+        assert_eq!(results_b.len(), 1);
+        assert_eq!(results_b[0].tenant, tenant_b);
 
-        let request = ListSessionRequest {
-            tenant: DEFAULT_TENANT.to_string(),
-            client_id: mqtt_session.client_id.clone(),
-        };
+        // get specific session by tenant + client_id
+        let results = list_sessions(&client_pool, &addrs, &tenant_a, &client_id_1).await;
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0], session_a1);
 
-        let mut stream = placement_list_session(&client_pool, &addrs, request)
-            .await
-            .unwrap();
-        let mut flag = false;
-        while let Some(reply) = stream.message().await.unwrap() {
-            let session = MqttSession::decode(&reply.session).unwrap();
-            if mqtt_session == session {
-                flag = true;
-            }
-        }
-        assert!(!flag);
+        // same client_id under tenant_b returns different session
+        let results = list_sessions(&client_pool, &addrs, &tenant_b, &client_id_1).await;
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0], session_b1);
     }
 }
