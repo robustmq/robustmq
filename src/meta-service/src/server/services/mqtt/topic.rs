@@ -43,9 +43,20 @@ pub async fn list_topic_by_req(
     let mut topics = Vec::new();
 
     if !req.topic_name.is_empty() {
-        if let Some(topic) = storage.get(&req.topic_name)? {
+        let tenant = if req.tenant.is_empty() {
+            ""
+        } else {
+            &req.tenant
+        };
+        if let Some(topic) = storage.get(tenant, &req.topic_name)? {
             topics.push(topic.encode()?);
         }
+    } else if !req.tenant.is_empty() {
+        let data = storage.list_by_tenant(&req.tenant)?;
+        topics = data
+            .into_iter()
+            .map(|raw| raw.encode())
+            .collect::<Result<Vec<_>, _>>()?;
     } else {
         let data = storage.list()?;
         topics = data
@@ -74,7 +85,7 @@ pub async fn create_topic_by_req(
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
     // interface maintains the idempotent semantics.
-    if topic_storage.get(&req.topic_name)?.is_some() {
+    if topic_storage.get(&req.tenant, &req.topic_name)?.is_some() {
         return Ok(CreateTopicReply {});
     }
 
@@ -98,7 +109,7 @@ pub async fn delete_topic_by_req(
 
     // Get topic to delete (must exist)
     let topic = topic_storage
-        .get(&req.topic_name)?
+        .get(&req.tenant, &req.topic_name)?
         .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
     let data = StorageData::new(StorageDataType::MqttDeleteTopic, encode_to_bytes(req));
@@ -119,7 +130,7 @@ pub async fn set_topic_retain_message_by_req(
 
     // Verify topic exists
     topic_storage
-        .get(&req.topic_name)?
+        .get(&req.tenant, &req.topic_name)?
         .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
     let (data_type, data) = if req.retain_message.is_none() {

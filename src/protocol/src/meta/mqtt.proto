@@ -98,6 +98,7 @@ message DeleteUserRequest {
 message DeleteUserReply {}
 
 message ListTopicRequest {
+  string tenant = 1;
   string topic_name = 2;
 }
 
@@ -106,6 +107,7 @@ message ListTopicReply {
 }
 
 message CreateTopicRequest {
+  string tenant = 1;
   string topic_name = 2 [(validate.rules).string.min_len = 1];
   bytes content = 3 [(validate.rules).bytes.min_len = 1];
 }
@@ -113,12 +115,14 @@ message CreateTopicRequest {
 message CreateTopicReply {}
 
 message DeleteTopicRequest {
+  string tenant = 1;
   string topic_name = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteTopicReply {}
 
 message SetTopicRetainMessageRequest {
+  string tenant = 1;
   string topic_name = 2 [(validate.rules).string.min_len = 1];
   optional bytes retain_message = 3;
   uint64 retain_message_expired_at = 4 [(validate.rules).uint64.gte = 0];

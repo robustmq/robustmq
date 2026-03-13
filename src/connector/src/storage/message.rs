@@ -34,12 +34,13 @@ impl MessageStorage {
 
     pub async fn append_topic_message(
         &self,
+        tenant: &str,
         topic_name: &str,
         records: Vec<AdapterWriteRecord>,
     ) -> Result<Vec<u64>, CommonError> {
         let results = self
             .storage_driver_manager
-            .write(topic_name, &records)
+            .write(tenant, topic_name, &records)
             .await?;
         let mut offsets = Vec::new();
         for row in results {
@@ -53,6 +54,7 @@ impl MessageStorage {
 
     pub async fn read_topic_message(
         &self,
+        tenant: &str,
         topic_name: &str,
         offsets: &HashMap<String, u64>,
         max_record_num: u64,
@@ -63,7 +65,7 @@ impl MessageStorage {
         };
 
         self.storage_driver_manager
-            .read_by_offset(topic_name, offsets, &read_config)
+            .read_by_offset(tenant, topic_name, offsets, &read_config)
             .await
     }
 

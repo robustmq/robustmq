@@ -216,6 +216,7 @@ mod tests {
     };
     use metadata_struct::meta::node::BrokerNode;
     use metadata_struct::mqtt::node_extend::NodeExtend;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use rocksdb_engine::test::test_rocksdb_instance;
 
     fn setup_test_cluster(
@@ -246,6 +247,7 @@ mod tests {
                     connector_type: ConnectorType::LocalFile(
                         metadata_struct::connector::config_local_file::LocalFileConnectorConfig::default(),
                     ),
+                    tenant:DEFAULT_TENANT.to_string(),
                     topic_name: "test_topic".to_string(),
                     failure_strategy: FailureHandlingStrategy::Discard,
                     status: MQTTStatus::Idle,
@@ -266,6 +268,7 @@ mod tests {
             connector_type: ConnectorType::LocalFile(
                 metadata_struct::connector::config_local_file::LocalFileConnectorConfig::default(),
             ),
+            tenant: DEFAULT_TENANT.to_string(),
             topic_name: "test_topic".to_string(),
             failure_strategy: FailureHandlingStrategy::Discard,
             status: MQTTStatus::Idle,

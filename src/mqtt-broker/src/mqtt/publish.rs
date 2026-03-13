@@ -159,6 +159,7 @@ impl MqttService {
             .await?;
 
         let topic = try_init_topic(
+            &connection.tenant,
             &topic_name,
             &self.cache_manager,
             &self.storage_driver_manager,

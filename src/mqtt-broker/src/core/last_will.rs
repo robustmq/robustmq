@@ -28,9 +28,11 @@ use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::debug;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn send_last_will_message(
     retain_message_manager: &Arc<RetainMessageManager>,
     client_id: &str,
+    tenant: &str,
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     last_will: &Option<LastWill>,
@@ -48,6 +50,7 @@ pub async fn send_last_will_message(
     let publish = publish_res.unwrap();
 
     let topic = try_init_topic(
+        tenant,
         &topic_name,
         cache_manager,
         storage_driver_manager,
@@ -56,7 +59,13 @@ pub async fn send_last_will_message(
     .await?;
 
     retain_message_manager
-        .save_retain_message(&topic_name, client_id, &publish, &publish_properties)
+        .save_retain_message(
+            tenant,
+            &topic_name,
+            client_id,
+            &publish,
+            &publish_properties,
+        )
         .await?;
 
     // Persisting stores message data
@@ -67,7 +76,7 @@ pub async fn send_last_will_message(
         MqttMessage::build_record(client_id, &publish, &publish_properties, message_expire)
     {
         message_storage
-            .append_topic_message(&topic.topic_name, vec![record])
+            .append_topic_message(&topic.tenant, &topic.topic_name, vec![record])
             .await?;
         debug!(
             "Last will message saved successfully. client_id={}, topic={}",

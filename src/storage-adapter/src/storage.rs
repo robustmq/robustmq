@@ -154,9 +154,7 @@ pub async fn test_build_storage_driver_manager() -> Result<Arc<StorageDriverMana
 
 pub fn test_add_topic(storage_driver_manager: &Arc<StorageDriverManager>, topic_name: &str) {
     let topic = Topic::build_by_name(topic_name);
-    storage_driver_manager
-        .broker_cache
-        .add_topic(topic_name, &topic);
+    storage_driver_manager.broker_cache.add_topic(&topic);
 
     let shard_name = Topic::build_storage_name(&topic.topic_id, 0);
 

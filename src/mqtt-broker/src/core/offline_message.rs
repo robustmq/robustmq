@@ -56,6 +56,7 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
     context
         .retain_message_manager
         .save_retain_message(
+            &context.topic.tenant,
             &context.topic.topic_name,
             &context.client_id,
             &context.publish,
@@ -117,7 +118,7 @@ async fn save_simple_message(
     {
         let message_storage = MessageStorage::new(storage_driver_manager.clone());
         let offsets = message_storage
-            .append_topic_message(&topic.topic_name, vec![record])
+            .append_topic_message(&topic.tenant, &topic.topic_name, vec![record])
             .await?;
         return Ok(Some(format!("{offsets:?}")));
     }

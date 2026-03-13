@@ -257,6 +257,7 @@ impl BucketsManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::mqtt::common::{MqttProtocol, QoS, RetainHandling};
 
     fn create_sub(client_id: &str, sub_path: &str) -> Subscriber {
@@ -264,6 +265,7 @@ mod tests {
             client_id: client_id.to_string(),
             sub_path: sub_path.to_string(),
             rewrite_sub_path: None,
+            tenant: DEFAULT_TENANT.to_string(),
             topic_name: "topic".to_string(),
             group_name: format!("group_{}", client_id),
             protocol: MqttProtocol::Mqtt5,

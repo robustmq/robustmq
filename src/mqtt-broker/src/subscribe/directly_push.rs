@@ -161,7 +161,11 @@ impl DirectlyPushManager {
         let mut processed_count = 0;
 
         let data_list = self
-            .next_message(&subscriber.group_name, &subscriber.topic_name)
+            .next_message(
+                &subscriber.group_name,
+                &subscriber.tenant,
+                &subscriber.topic_name,
+            )
             .await?;
 
         let data_list_len = data_list.len();
@@ -289,6 +293,7 @@ impl DirectlyPushManager {
     async fn next_message(
         &self,
         group: &str,
+        tenant: &str,
         topic_name: &str,
     ) -> Result<Vec<StorageRecord>, MqttBrokerError> {
         let offsets = if let Some(offsets) = self.group_offsets.get(group) {
@@ -302,7 +307,7 @@ impl DirectlyPushManager {
 
         let data = self
             .message_storage
-            .read_topic_message(topic_name, &offsets, BATCH_SIZE)
+            .read_topic_message(tenant, topic_name, &offsets, BATCH_SIZE)
             .await?;
         Ok(data)
     }

@@ -278,6 +278,7 @@ pub fn start_local_file_connector(
             &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
+                tenant: connector.tenant,
                 topic_name: connector.topic_name,
                 record_num: 100,
                 strategy: connector.failure_strategy,
@@ -307,6 +308,7 @@ mod tests {
         },
         mqtt::message::MqttMessage,
         storage::adapter_record::{AdapterWriteRecord, AdapterWriteRecordHeader},
+        tenant::DEFAULT_TENANT,
     };
     use protocol::mqtt::common::QoS;
     use std::{fs, path::PathBuf};
@@ -375,6 +377,7 @@ mod tests {
             connector_name: "test-file".to_string(),
             connector_type: ConnectorType::LocalFile(config.clone()),
             failure_strategy: FailureHandlingStrategy::Discard,
+            tenant: DEFAULT_TENANT.to_string(),
             topic_name: unique_id(),
             status: Default::default(),
             etl_rule: ETLRule::default(),

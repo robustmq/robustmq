@@ -41,9 +41,10 @@ impl TopicStorage {
         TopicStorage { client_pool }
     }
 
-    pub async fn create_topic(&self, topic: Topic) -> ResultMqttBrokerError {
+    pub async fn create_topic(&self, topic: &Topic) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = CreateTopicRequest {
+            tenant: topic.tenant.clone(),
             topic_name: topic.topic_name.clone(),
             content: topic.encode()?,
         };
@@ -52,9 +53,10 @@ impl TopicStorage {
         Ok(())
     }
 
-    pub async fn delete_topic(&self, topic_name: &str) -> ResultMqttBrokerError {
+    pub async fn delete_topic(&self, tenant: &str, topic_name: &str) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = DeleteTopicRequest {
+            tenant: tenant.to_string(),
             topic_name: topic_name.to_string(),
         };
         placement_delete_topic(&self.client_pool, &config.get_meta_service_addr(), request).await?;
@@ -64,7 +66,7 @@ impl TopicStorage {
     pub async fn all(&self) -> Result<DashMap<String, Topic>, MqttBrokerError> {
         let config = broker_config();
         let request = ListTopicRequest {
-            topic_name: "".to_string(),
+            ..Default::default()
         };
         let mut data_stream =
             placement_list_topic(&self.client_pool, &config.get_meta_service_addr(), request)
@@ -79,9 +81,14 @@ impl TopicStorage {
         Ok(results)
     }
 
-    pub async fn get_topic(&self, topic_name: &str) -> Result<Option<Topic>, MqttBrokerError> {
+    pub async fn get_topic(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+    ) -> Result<Option<Topic>, MqttBrokerError> {
         let config = broker_config();
         let request = ListTopicRequest {
+            tenant: tenant.to_owned(),
             topic_name: topic_name.to_owned(),
         };
 
@@ -99,12 +106,14 @@ impl TopicStorage {
     // retain message
     pub async fn set_retain_message(
         &self,
+        tenant: &str,
         topic_name: &str,
         retain_message: &MqttMessage,
         retain_message_expired_at: u64,
     ) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = SetTopicRetainMessageRequest {
+            tenant: tenant.to_string(),
             topic_name: topic_name.to_string(),
             retain_message: Some(retain_message.encode()?.to_vec()),
             retain_message_expired_at,
@@ -118,9 +127,14 @@ impl TopicStorage {
         Ok(())
     }
 
-    pub async fn delete_retain_message(&self, topic_name: &str) -> ResultMqttBrokerError {
+    pub async fn delete_retain_message(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+    ) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = SetTopicRetainMessageRequest {
+            tenant: tenant.to_string(),
             topic_name: topic_name.to_owned(),
             retain_message: None,
             retain_message_expired_at: 0,

@@ -32,15 +32,19 @@ pub async fn create_topic_full(
 ) -> Result<(), CommonError> {
     let conf = broker_config();
     let request = CreateTopicRequest {
+        tenant: topic.tenant.clone(),
         topic_name: topic.topic_name.clone(),
         content: topic.encode()?,
     };
     placement_create_topic(client_pool, &conf.get_meta_service_addr(), request).await?;
 
-    // wait topic create complete with timeout (30 seconds)
-    let wait_result = timeout(Duration::from_secs(30), async {
+    // wait topic create complete with timeout (5 seconds)
+    let wait_result = timeout(Duration::from_secs(5), async {
         loop {
-            if broker_cache.get_topic_by_name(&topic.topic_name).is_some() {
+            if broker_cache
+                .get_topic_by_name(&topic.tenant, &topic.topic_name)
+                .is_some()
+            {
                 break;
             }
             sleep(Duration::from_millis(10)).await;
@@ -50,14 +54,14 @@ pub async fn create_topic_full(
 
     if wait_result.is_err() {
         return Err(CommonError::CommonError(format!(
-            "Timeout waiting for topic '{}' to be created after 30 seconds",
+            "Timeout waiting for topic '{}' to be created after 5 seconds",
             topic.topic_name
         )));
     }
 
     // todo create topic message storage
     storage_driver_manager
-        .create_storage_resource(&topic.topic_name, shard_config)
+        .create_storage_resource(&topic.tenant, &topic.topic_name, shard_config)
         .await?;
     Ok(())
 }

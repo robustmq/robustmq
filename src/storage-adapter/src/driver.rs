@@ -59,10 +59,11 @@ impl StorageDriverManager {
 
     pub async fn create_storage_resource(
         &self,
+        tenant: &str,
         topic_name: &str,
         config: &EngineShardConfig,
     ) -> Result<(), CommonError> {
-        let (topic, driver) = self.build_driver(topic_name).await?;
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         for (_, shard_name) in topic.storage_name_list.iter() {
             driver
                 .create_shard(&AdapterShardInfo {
@@ -77,9 +78,10 @@ impl StorageDriverManager {
 
     pub async fn list_storage_resource(
         &self,
+        tenant: &str,
         topic_name: &str,
     ) -> Result<HashMap<u32, EngineShard>, CommonError> {
-        let (topic, driver) = self.build_driver(topic_name).await?;
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         let mut results = HashMap::new();
         for (partition, shard_name) in topic.storage_name_list {
             let resp = driver.list_shard(Some(shard_name)).await?;
@@ -90,8 +92,12 @@ impl StorageDriverManager {
         Ok(results)
     }
 
-    pub async fn delete_storage_resource(&self, topic_name: &str) -> Result<(), CommonError> {
-        let (topic, driver) = self.build_driver(topic_name).await?;
+    pub async fn delete_storage_resource(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+    ) -> Result<(), CommonError> {
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         for (_, shard_name) in topic.storage_name_list {
             driver.delete_shard(&shard_name).await?;
         }
@@ -100,10 +106,11 @@ impl StorageDriverManager {
 
     pub async fn write(
         &self,
+        tenant: &str,
         topic_name: &str,
         data: &[AdapterWriteRecord],
     ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
-        let (topic, driver) = self.build_driver(topic_name).await?;
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
 
         // todo write-up strategy needs to be further improved.
         let partition = self
@@ -116,11 +123,12 @@ impl StorageDriverManager {
 
     pub async fn read_by_offset(
         &self,
+        tenant: &str,
         topic_name: &str,
         offsets: &HashMap<String, u64>,
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
-        let (topic, driver) = self.build_driver(topic_name).await?;
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         let mut results = Vec::new();
         for (_, shard_name) in topic.storage_name_list {
             let offset = if let Some(offset) = offsets.get(&shard_name) {
@@ -138,12 +146,13 @@ impl StorageDriverManager {
 
     pub async fn read_by_tag(
         &self,
+        tenant: &str,
         topic_name: &str,
         tag: &str,
         start_offset: Option<u64>,
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
-        let (topic, driver) = self.build_driver(topic_name).await?;
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         let mut results = Vec::new();
         for (_, shard_name) in topic.storage_name_list {
             let resp = driver
@@ -156,10 +165,11 @@ impl StorageDriverManager {
 
     pub async fn read_by_key(
         &self,
+        tenant: &str,
         topic_name: &str,
         key: &str,
     ) -> Result<Vec<StorageRecord>, CommonError> {
-        let (topic, driver) = self.build_driver(topic_name).await?;
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         let mut results = Vec::new();
         for (_, shard_name) in topic.storage_name_list {
             let resp = driver.read_by_key(&shard_name, key).await?;
@@ -168,16 +178,26 @@ impl StorageDriverManager {
         Ok(results)
     }
 
-    pub async fn delete_by_key(&self, topic_name: &str, key: &str) -> Result<(), CommonError> {
-        let (topic, driver) = self.build_driver(topic_name).await?;
+    pub async fn delete_by_key(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+        key: &str,
+    ) -> Result<(), CommonError> {
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         for (_, shard_name) in topic.storage_name_list {
             driver.delete_by_key(&shard_name, key).await?
         }
         Ok(())
     }
 
-    pub async fn delete_by_offset(&self, topic_name: &str, offset: u64) -> Result<(), CommonError> {
-        let (topic, driver) = self.build_driver(topic_name).await?;
+    pub async fn delete_by_offset(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+        offset: u64,
+    ) -> Result<(), CommonError> {
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         for (_, shard_name) in topic.storage_name_list {
             driver.delete_by_offset(&shard_name, offset).await?
         }
@@ -186,11 +206,12 @@ impl StorageDriverManager {
 
     pub async fn get_offset_by_timestamp(
         &self,
+        tenant: &str,
         topic_name: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
     ) -> Result<u64, CommonError> {
-        let (topic, driver) = self.build_driver(topic_name).await?;
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         let mut results = Vec::new();
         for (_, shard_name) in topic.storage_name_list {
             let offset = driver
@@ -204,12 +225,14 @@ impl StorageDriverManager {
 
     async fn build_driver(
         &self,
+        tenant: &str,
         topic_name: &str,
     ) -> Result<(Topic, ArcStorageAdapter), CommonError> {
-        let topic = if let Some(topic) = self.broker_cache.get_topic_by_name(topic_name) {
+        let topic = if let Some(topic) = self.broker_cache.get_topic_by_name(tenant, topic_name) {
             topic
         } else {
             return Err(CommonError::TopicNotFoundInBrokerCache(
+                tenant.to_string(),
                 topic_name.to_string(),
             ));
         };

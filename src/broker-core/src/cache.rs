@@ -39,8 +39,8 @@ pub struct NodeCacheManager {
     // (cluster_name, Cluster)
     pub cluster_config: Arc<RwLock<BrokerConfig>>,
 
-    // topic
-    pub topic_list: DashMap<String, Topic>,
+    // (tenant, (topic_name, Topic))
+    pub topic_list: DashMap<String, DashMap<String, Topic>>,
 
     // (tenant, (client_id, MqttSession))
     pub session_list: DashMap<String, DashMap<String, MqttSession>>,
@@ -124,29 +124,50 @@ impl NodeCacheManager {
     }
 
     // Topic
-    pub fn add_topic(&self, topic_name: &str, topic: &Topic) {
-        self.topic_list.insert(topic_name.to_owned(), topic.clone());
+    pub fn add_topic(&self, topic: &Topic) {
+        self.topic_list
+            .entry(topic.tenant.clone())
+            .or_default()
+            .insert(topic.topic_name.clone(), topic.clone());
     }
 
-    pub fn delete_topic(&self, topic_name: &str) {
-        self.topic_list.remove(topic_name);
-    }
-
-    pub fn topic_exists(&self, topic_name: &str) -> bool {
-        self.topic_list.contains_key(topic_name)
-    }
-
-    pub fn get_topic_by_name(&self, topic_name: &str) -> Option<Topic> {
-        if let Some(topic) = self.topic_list.get(topic_name) {
-            return Some(topic.clone());
+    pub fn delete_topic(&self, tenant: &str, topic_name: &str) {
+        if let Some(tenant_map) = self.topic_list.get(tenant) {
+            tenant_map.remove(topic_name);
         }
-        None
+    }
+
+    pub fn topic_exists(&self, tenant: &str, topic_name: &str) -> bool {
+        self.topic_list
+            .get(tenant)
+            .map(|m| m.contains_key(topic_name))
+            .unwrap_or(false)
+    }
+
+    pub fn get_topic_by_name(&self, tenant: &str, topic_name: &str) -> Option<Topic> {
+        self.topic_list
+            .get(tenant)?
+            .get(topic_name)
+            .map(|t| t.clone())
+    }
+
+    pub fn list_topics_by_tenant(&self, tenant: &str) -> Vec<Topic> {
+        self.topic_list
+            .get(tenant)
+            .map(|m| m.iter().map(|e| e.value().clone()).collect())
+            .unwrap_or_default()
     }
 
     pub fn get_all_topic_name(&self) -> Vec<String> {
         self.topic_list
             .iter()
-            .map(|topic| topic.topic_name.clone())
+            .flat_map(|entry| {
+                entry
+                    .value()
+                    .iter()
+                    .map(|t| t.topic_name.clone())
+                    .collect::<Vec<_>>()
+            })
             .collect()
     }
 

@@ -117,6 +117,9 @@ pub enum MqttBrokerError {
     #[error("Client ID cannot be empty")]
     ClientIDIsEmpty,
 
+    #[error("Tenant cannot be empty")]
+    TenantIsEmpty,
+
     #[error("Cluster name does not match")]
     ClusterNotMatch(String),
 

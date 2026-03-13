@@ -19,6 +19,9 @@ use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct PublishReq {
+    #[validate(length(min = 1, max = 256, message = "Tenant length must be between 1-256"))]
+    pub tenant: String,
+
     #[validate(length(min = 1, max = 256, message = "Topic length must be between 1-256"))]
     pub topic: String,
 
@@ -33,6 +36,7 @@ pub struct PublishReq {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReadReq {
+    pub tenant: String,
     pub topic: String,
     pub offset: u64,
 }
@@ -82,6 +86,7 @@ async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64
     let client_id = format!("{}_{}", config.cluster_name, config.broker_id);
 
     if let Err(e) = try_init_topic(
+        &params.tenant,
         &params.topic,
         &state.mqtt_context.cache_manager,
         &state.storage_driver_manager,
@@ -107,7 +112,13 @@ async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64
         if let Err(e) = state
             .mqtt_context
             .retain_message_manager
-            .save_retain_message(&params.topic, &client_id, &publish, &publish_properties)
+            .save_retain_message(
+                &params.tenant,
+                &params.topic,
+                &client_id,
+                &publish,
+                &publish_properties,
+            )
             .await
         {
             return Err(CommonError::CommonError(e.to_string()));
@@ -120,7 +131,7 @@ async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64
         MqttMessage::build_record(&client_id, &publish, &publish_properties, message_expire)
     {
         offset = message_storage
-            .append_topic_message(&params.topic.clone(), vec![record])
+            .append_topic_message(&params.tenant, &params.topic.clone(), vec![record])
             .await?;
     }
 
@@ -144,7 +155,7 @@ pub async fn read_inner(
     data.insert(params.topic.clone(), params.offset);
 
     let data = message_storage
-        .read_topic_message(&params.topic, &data, 100)
+        .read_topic_message(&params.tenant, &params.topic, &data, 100)
         .await?;
 
     for row in data {

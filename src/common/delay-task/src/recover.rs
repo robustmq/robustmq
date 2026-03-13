@@ -19,6 +19,7 @@ use broker_core::cache::NodeCacheManager;
 use common_base::tools::now_second;
 use common_base::utils::serialize;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
@@ -116,7 +117,7 @@ async fn read_delay_task_batch(
 ) -> ReadBatch {
     match delay_task_manager
         .storage_driver_manager
-        .read_by_offset(DELAY_TASK_INDEX_TOPIC, offsets, read_config)
+        .read_by_offset(DEFAULT_TENANT, DELAY_TASK_INDEX_TOPIC, offsets, read_config)
         .await
     {
         Ok(data) => {

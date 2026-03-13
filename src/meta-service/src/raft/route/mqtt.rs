@@ -96,14 +96,14 @@ impl DataRouteMqtt {
         let req = CreateTopicRequest::decode(value.as_ref())?;
         let topic = Topic::decode(&req.content)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        storage.save(&topic.topic_name, topic.clone())?;
+        storage.save(topic.clone())?;
         Ok(())
     }
 
     pub fn delete_topic(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteTopicRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&req.topic_name)?;
+        storage.delete(&req.tenant, &req.topic_name)?;
         Ok(())
     }
 
@@ -112,20 +112,17 @@ impl DataRouteMqtt {
         let req = SetTopicRetainMessageRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        let topic = if let Some(topic) = storage.get(&req.topic_name)? {
-            topic
-        } else {
+        if storage.get(&req.tenant, &req.topic_name)?.is_none() {
             return Ok(());
-        };
+        }
 
         if let Some(retain) = req.retain_message {
             let message = MQTTRetainMessage {
-                topic_name: topic.topic_name,
+                topic_name: req.topic_name,
                 retain_message: Bytes::copy_from_slice(&retain),
                 retain_message_expired_at: req.retain_message_expired_at,
                 create_time: now_second(),
             };
-
             storage.save_retain_message(message)?;
         }
 
@@ -136,12 +133,10 @@ impl DataRouteMqtt {
         let req = SetTopicRetainMessageRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        let topic = if let Some(topic) = storage.get(&req.topic_name)? {
-            topic
-        } else {
+        if storage.get(&req.tenant, &req.topic_name)?.is_none() {
             return Ok(());
-        };
-        storage.delete_retain_message(&topic.topic_name)?;
+        }
+        storage.delete_retain_message(&req.topic_name)?;
         Ok(())
     }
 

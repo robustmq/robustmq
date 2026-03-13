@@ -905,6 +905,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         let request = admin_server::mqtt::topic::TopicListReq {
+            tenant: None,
             topic_name: None,
             topic_type: None,
             limit: Some(params.limit),

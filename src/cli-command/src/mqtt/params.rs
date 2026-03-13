@@ -390,6 +390,8 @@ pub struct CreateConnectorArgs {
     pub config: String,
     #[arg(short = 'p', long, required = true)]
     pub topic_name: String,
+    #[arg(short = 'T', long, default_value = "default")]
+    pub tenant: String,
 }
 
 #[derive(clap::Args, Debug)]
@@ -614,6 +616,7 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
                     strategy: "discard".to_string(),
                     ..Default::default()
                 },
+                tenant: arg.tenant,
                 topic_name: arg.topic_name,
             })
         }

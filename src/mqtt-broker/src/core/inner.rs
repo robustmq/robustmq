@@ -21,6 +21,7 @@ use broker_core::tool::wait_cluster_running;
 use common_metrics::mqtt::session::record_mqtt_session_deleted;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use protocol::broker::broker_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
 };
@@ -83,6 +84,7 @@ pub async fn send_last_will_message_by_req(
         if let Err(e) = send_last_will_message(
             retain_message_manager,
             item.client_id.as_str(),
+            DEFAULT_TENANT,
             cache_manager,
             client_pool,
             &data.last_will,

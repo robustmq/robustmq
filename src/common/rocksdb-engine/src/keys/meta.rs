@@ -106,8 +106,13 @@ pub fn storage_key_mqtt_user_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_topic(topic_name: &str) -> String {
-    format!("{}mqtt/topic/{}", PREFIX_META, topic_name)
+pub fn storage_key_mqtt_topic(tenant: &str, topic_name: &str) -> String {
+    format!("{}mqtt/topic/{}/{}", PREFIX_META, tenant, topic_name)
+}
+
+#[inline]
+pub fn storage_key_mqtt_topic_tenant_prefix(tenant: &str) -> String {
+    format!("{}mqtt/topic/{}/", PREFIX_META, tenant)
 }
 
 #[inline]

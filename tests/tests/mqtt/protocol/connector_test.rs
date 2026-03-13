@@ -26,8 +26,9 @@ mod tests {
         CreateConnectorReq, FailureStrategy,
     };
     use common_base::uuid::unique_id;
-    use metadata_struct::connector::config_local_file::{
-        LocalFileConnectorConfig, RotationStrategy,
+    use metadata_struct::{
+        connector::config_local_file::{LocalFileConnectorConfig, RotationStrategy},
+        tenant::DEFAULT_TENANT,
     };
     use paho_mqtt::MessageBuilder;
     use std::time::Duration;
@@ -79,6 +80,7 @@ mod tests {
                 strategy: "discard".to_string(),
                 ..Default::default()
             },
+            tenant: DEFAULT_TENANT.to_string(),
         };
 
         let res = admin_client.create_connector(&connector).await;

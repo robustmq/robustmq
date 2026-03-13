@@ -173,6 +173,7 @@ pub fn start_cassandra_connector(
             &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
+                tenant: connector.tenant,
                 topic_name: connector.topic_name,
                 record_num: 100,
                 strategy: connector.failure_strategy,

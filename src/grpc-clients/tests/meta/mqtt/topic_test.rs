@@ -41,6 +41,7 @@ mod tests {
         };
 
         let request = CreateTopicRequest {
+            tenant: mqtt_topic.tenant.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
             content: mqtt_topic.encode().unwrap(),
         };
@@ -59,6 +60,7 @@ mod tests {
         .await;
 
         let request = DeleteTopicRequest {
+            tenant: mqtt_topic.tenant.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
         };
 
@@ -83,7 +85,10 @@ mod tests {
         mqtt_topic: Topic,
         contain: bool,
     ) {
-        let request = ListTopicRequest { topic_name };
+        let request = ListTopicRequest {
+            tenant: "".to_string(),
+            topic_name,
+        };
         let mut data_stream = placement_list_topic(client_pool, addrs, request)
             .await
             .unwrap();

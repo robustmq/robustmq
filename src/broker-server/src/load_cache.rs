@@ -71,7 +71,7 @@ async fn load_common_cache(
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load topics: {}", e)))?;
     for topic in topic_list.iter() {
-        broker_cache.add_topic(&topic.topic_name, &topic.clone());
+        broker_cache.add_topic(&topic.clone());
     }
 
     let connector_storage = ConnectorStorage::new(client_pool.clone());

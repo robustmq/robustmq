@@ -111,9 +111,12 @@ impl ConnectorManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metadata_struct::connector::{
-        config_local_file::LocalFileConnectorConfig, rule::ETLRule, status::MQTTStatus,
-        ConnectorType, FailureHandlingStrategy,
+    use metadata_struct::{
+        connector::{
+            config_local_file::LocalFileConnectorConfig, rule::ETLRule, status::MQTTStatus,
+            ConnectorType, FailureHandlingStrategy,
+        },
+        tenant::DEFAULT_TENANT,
     };
     use tokio::sync::mpsc;
 
@@ -121,6 +124,7 @@ mod tests {
         MQTTConnector {
             connector_name: name.to_string(),
             connector_type: ConnectorType::LocalFile(LocalFileConnectorConfig::default()),
+            tenant: DEFAULT_TENANT.to_string(),
             topic_name: "test_topic".to_string(),
             failure_strategy: FailureHandlingStrategy::Discard,
             status: MQTTStatus::Running,

@@ -20,6 +20,7 @@ use common_base::utils::serialize::{self};
 use common_metrics::mqtt::delay::{record_delay_msg_recover, record_delay_msg_recover_expired};
 use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -87,7 +88,12 @@ async fn read_delay_index_batch(
 ) -> Option<Vec<metadata_struct::storage::storage_record::StorageRecord>> {
     match delay_message_manager
         .storage_driver_manager
-        .read_by_offset(DELAY_QUEUE_INDEX_TOPIC, offsets, read_config)
+        .read_by_offset(
+            DEFAULT_TENANT,
+            DELAY_QUEUE_INDEX_TOPIC,
+            offsets,
+            read_config,
+        )
         .await
     {
         Ok(data) => {

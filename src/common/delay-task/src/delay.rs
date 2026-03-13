@@ -24,6 +24,7 @@ use common_base::uuid::unique_id;
 use common_config::storage::StorageType;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use storage_adapter::topic::create_topic_full;
@@ -41,7 +42,7 @@ pub(crate) async fn save_delay_task_index(
         ..Default::default()
     };
     let result = storage_driver_manager
-        .write(DELAY_TASK_INDEX_TOPIC, &[record])
+        .write(DEFAULT_TENANT, DELAY_TASK_INDEX_TOPIC, &[record])
         .await?;
 
     let resp = result.first().ok_or_else(|| {
@@ -68,7 +69,7 @@ pub(crate) async fn delete_delay_task_index(
     task_id: &str,
 ) -> Result<(), CommonError> {
     storage_driver_manager
-        .delete_by_key(DELAY_TASK_INDEX_TOPIC, task_id)
+        .delete_by_key(DEFAULT_TENANT, DELAY_TASK_INDEX_TOPIC, task_id)
         .await?;
     debug!("Deleted delay task index: task_id={}", task_id);
     Ok(())
@@ -79,7 +80,7 @@ pub(crate) async fn init_inner_topic(
     broker_cache: &Arc<NodeCacheManager>,
 ) -> Result<(), CommonError> {
     if broker_cache
-        .get_topic_by_name(DELAY_TASK_INDEX_TOPIC)
+        .get_topic_by_name(DEFAULT_TENANT, DELAY_TASK_INDEX_TOPIC)
         .is_some()
     {
         info!(
@@ -97,6 +98,7 @@ pub(crate) async fn init_inner_topic(
     let uid = unique_id();
     let topic = Topic {
         topic_id: uid.clone(),
+        tenant: DEFAULT_TENANT.to_string(),
         topic_name: DELAY_TASK_INDEX_TOPIC.to_string(),
         storage_type: StorageType::EngineRocksDB,
         partition: 1,

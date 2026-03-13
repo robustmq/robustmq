@@ -30,6 +30,12 @@ pub struct TopicSubscribeInfo {
     pub path: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
+pub struct ShareSubscribeTopicInfo {
+    pub tenant: String,
+    pub topic: String,
+}
+
 #[derive(Clone, Default)]
 pub struct SubscribeManager {
     //(client_id_path: MqttSubscribe)
@@ -41,8 +47,8 @@ pub struct SubscribeManager {
     // share sub
     // (group_name, BucketsManager)
     pub share_push: DashMap<String, BucketsManager>,
-    // (group_name, Vec<TopicName>)
-    pub share_group_topics: DashMap<String, HashSet<String>>,
+    // (group_name, Vec<ShareSubscribeTopicInfo>)
+    pub share_group_topics: DashMap<String, HashSet<ShareSubscribeTopicInfo>>,
 
     // (topic, Vec<TopicSubscribeInfo>)
     pub topic_subscribes: DashMap<String, HashSet<TopicSubscribeInfo>>,
@@ -79,14 +85,22 @@ impl SubscribeManager {
     }
 
     // directly && share
-    pub fn add_directly_sub(&self, topic: &str, subscriber: &Subscriber) {
-        self.add_topic_subscribe(topic, &subscriber.client_id, &subscriber.sub_path);
+    pub fn add_directly_sub(&self, subscriber: &Subscriber) {
+        self.add_topic_subscribe(
+            &subscriber.topic_name,
+            &subscriber.client_id,
+            &subscriber.sub_path,
+        );
         self.directly_push.add(subscriber);
     }
 
-    pub fn add_share_sub(&self, topic: &str, subscriber: &Subscriber) {
+    pub fn add_share_sub(&self, subscriber: &Subscriber) {
         // topic_subscribes
-        self.add_topic_subscribe(topic, &subscriber.client_id, &subscriber.sub_path);
+        self.add_topic_subscribe(
+            &subscriber.topic_name,
+            &subscriber.client_id,
+            &subscriber.sub_path,
+        );
 
         // share_push
         if let Some(bucket) = self.share_push.get(&subscriber.group_name) {
@@ -100,10 +114,16 @@ impl SubscribeManager {
 
         // share_group_topics
         if let Some(mut list) = self.share_group_topics.get_mut(&subscriber.group_name) {
-            list.insert(topic.to_string());
+            list.insert(ShareSubscribeTopicInfo {
+                tenant: subscriber.tenant.clone(),
+                topic: subscriber.topic_name.clone(),
+            });
         } else {
             let mut set = HashSet::new();
-            set.insert(topic.to_string());
+            set.insert(ShareSubscribeTopicInfo {
+                tenant: subscriber.tenant.clone(),
+                topic: subscriber.topic_name.clone(),
+            });
             self.share_group_topics
                 .insert(subscriber.group_name.to_string(), set);
         }

@@ -35,7 +35,7 @@ use broker_core::tenant::try_init_default_tenant;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_config::broker::broker_config;
 use connector::manager::ConnectorManager;
-use delay_message::manager::{start_delay_message_manager_thread, DelayMessageManager};
+use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
@@ -153,21 +153,6 @@ impl MqttBrokerServer {
 
         if let Err(e) = self.offset_manager.try_comparison_and_save_offset().await {
             error!("Failed to synchronize offset data: {}", e);
-            std::process::exit(1);
-        }
-
-        // delay message
-        let delay_message_manager = self.delay_message_manager.clone();
-        let broker_cache = self.cache_manager.broker_cache.clone();
-        let task_supervisor = self.task_supervisor.clone();
-        if let Err(e) = start_delay_message_manager_thread(
-            &delay_message_manager,
-            &task_supervisor,
-            &broker_cache,
-        )
-        .await
-        {
-            error!("Failed to start delay message manager, error:{}", e);
             std::process::exit(1);
         }
 
