@@ -37,6 +37,9 @@ pub struct AclListReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct CreateAclReq {
+    #[validate(length(min = 1, max = 64, message = "Tenant length must be between 1-64"))]
+    pub tenant: String,
+
     #[validate(length(
         min = 1,
         max = 50,
@@ -106,6 +109,9 @@ fn validate_acl_permission(permission: &str) -> Result<(), validator::Validation
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteAclReq {
+    #[validate(length(min = 1, max = 64, message = "Tenant length must be between 1-64"))]
+    pub tenant: String,
+
     #[validate(length(
         min = 1,
         max = 50,
@@ -240,6 +246,7 @@ async fn acl_create_inner(state: &Arc<HttpState>, params: &CreateAclReq) -> Resu
     };
 
     let mqtt_acl = MqttAcl {
+        tenant: params.tenant.clone(),
         resource_type,
         resource_name: params.resource_name.clone(),
         topic: params.topic.clone(),
@@ -288,6 +295,7 @@ async fn acl_delete_inner(state: &Arc<HttpState>, params: &DeleteAclReq) -> Resu
     };
 
     let mqtt_acl = MqttAcl {
+        tenant: params.tenant.clone(),
         resource_type,
         resource_name: params.resource_name.clone(),
         topic: params.topic.clone(),

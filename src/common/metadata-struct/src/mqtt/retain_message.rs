@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
 pub struct MQTTRetainMessage {
+    pub tenant: String,
     pub topic_name: String,
     pub retain_message: Bytes,
     pub retain_message_expired_at: u64,

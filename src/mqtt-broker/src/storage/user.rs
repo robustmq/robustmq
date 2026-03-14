@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use common_config::broker::broker_config;
-use dashmap::DashMap;
 use grpc_clients::meta::mqtt::call::{
     placement_create_user, placement_delete_user, placement_list_user,
 };
@@ -37,6 +36,7 @@ impl UserStorage {
     pub async fn save_user(&self, user_info: MqttUser) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = CreateUserRequest {
+            tenant: user_info.tenant.clone(),
             user_name: user_info.username.clone(),
             content: user_info.encode()?,
         };
@@ -44,17 +44,22 @@ impl UserStorage {
         Ok(())
     }
 
-    pub async fn delete_user(&self, user_name: String) -> ResultMqttBrokerError {
+    pub async fn delete_user(&self, tenant: String, user_name: String) -> ResultMqttBrokerError {
         let config = broker_config();
-        let request = DeleteUserRequest { user_name };
+        let request = DeleteUserRequest { tenant, user_name };
         placement_delete_user(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }
 
-    pub async fn get_user(&self, username: String) -> Result<Option<MqttUser>, MqttBrokerError> {
+    pub async fn get_user(
+        &self,
+        tenant: String,
+        username: String,
+    ) -> Result<Option<MqttUser>, MqttBrokerError> {
         let config = broker_config();
 
         let request = ListUserRequest {
+            tenant,
             user_name: username.clone(),
         };
 
@@ -69,7 +74,7 @@ impl UserStorage {
         Ok(None)
     }
 
-    pub async fn user_list(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
+    pub async fn user_list(&self) -> Result<Vec<MqttUser>, MqttBrokerError> {
         let config = broker_config();
         let request = ListUserRequest {
             ..Default::default()
@@ -79,10 +84,9 @@ impl UserStorage {
             placement_list_user(&self.client_pool, &config.get_meta_service_addr(), request)
                 .await?;
 
-        let results = DashMap::with_capacity(2);
+        let mut results = Vec::with_capacity(reply.users.len());
         for raw in reply.users {
-            let data = MqttUser::decode(&raw)?;
-            results.insert(data.username.clone(), data);
+            results.push(MqttUser::decode(&raw)?);
         }
         Ok(results)
     }

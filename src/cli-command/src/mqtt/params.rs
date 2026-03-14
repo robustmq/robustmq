@@ -22,6 +22,7 @@ use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackList
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use core::option::Option::Some;
+use metadata_struct::tenant::DEFAULT_TENANT;
 
 // session
 #[derive(clap::Args, Debug)]
@@ -543,6 +544,7 @@ pub fn process_user_args(args: UserArgs) -> MqttActionType {
         UserActionType::List => MqttActionType::ListUser,
         UserActionType::Create(arg) => {
             MqttActionType::CreateUser(admin_server::mqtt::user::CreateUserReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 username: arg.username,
                 password: arg.password,
                 is_superuser: arg.is_superuser,
@@ -550,6 +552,7 @@ pub fn process_user_args(args: UserArgs) -> MqttActionType {
         }
         UserActionType::Delete(arg) => {
             MqttActionType::DeleteUser(admin_server::mqtt::user::DeleteUserReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 username: arg.username,
             })
         }
@@ -561,6 +564,7 @@ pub fn process_acl_args(args: AclArgs) -> Result<MqttActionType, Box<dyn std::er
         AclActionType::List => Ok(MqttActionType::ListAcl),
         AclActionType::Create(arg) => Ok(MqttActionType::CreateAcl(
             admin_server::mqtt::acl::CreateAclReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 resource_type: arg.resource_type.to_string(),
                 resource_name: arg.resource_name,
                 topic: arg.topic,
@@ -571,6 +575,7 @@ pub fn process_acl_args(args: AclArgs) -> Result<MqttActionType, Box<dyn std::er
         )),
         AclActionType::Delete(arg) => Ok(MqttActionType::DeleteAcl(
             admin_server::mqtt::acl::DeleteAclReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 resource_type: arg.resource_type.to_string(),
                 resource_name: arg.resource_name,
                 topic: arg.topic,
@@ -589,6 +594,7 @@ pub fn process_blacklist_args(
         BlackListActionType::List => Ok(MqttActionType::ListBlacklist),
         BlackListActionType::Create(arg) => Ok(MqttActionType::CreateBlacklist(
             admin_server::mqtt::blacklist::CreateBlackListReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: arg.blacklist_type.to_string(),
                 resource_name: arg.resource_name,
                 end_time: arg.end_time,
@@ -597,6 +603,7 @@ pub fn process_blacklist_args(
         )),
         BlackListActionType::Delete(arg) => Ok(MqttActionType::DeleteBlacklist(
             admin_server::mqtt::blacklist::DeleteBlackListReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: arg.blacklist_type.to_string(),
                 resource_name: arg.resource_name,
             },

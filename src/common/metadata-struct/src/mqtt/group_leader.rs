@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct MqttGroupLeader {
+    pub tenant: String,
     pub group_name: String,
     pub broker_id: u64,
     pub create_time: u64,

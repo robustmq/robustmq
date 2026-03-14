@@ -15,13 +15,18 @@
 use crate::core::cache::MQTTCacheManager;
 use std::sync::Arc;
 
+/// Check password by searching across all tenants.
+/// This is intentionally tenant-agnostic because at login time the tenant
+/// is not yet known (the MQTT CONNECT packet only carries username/password).
 pub fn password_check_by_login(
     cache_manager: &Arc<MQTTCacheManager>,
     username: &str,
     password: &str,
 ) -> bool {
-    if let Some(user) = cache_manager.user_info.get(username) {
-        return user.password == password;
+    for tenant_entry in cache_manager.user_info.iter() {
+        if let Some(user) = tenant_entry.value().get(username) {
+            return user.password == password;
+        }
     }
     false
 }

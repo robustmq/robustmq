@@ -25,6 +25,7 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auth::storage::HttpConfig;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use reqwest::Client;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -267,6 +268,7 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
                 continue;
             };
             let user = MqttUser {
+                tenant: DEFAULT_TENANT.to_string(),
                 username: username.clone(),
                 password,
                 salt: Self::parse_string(map.get("salt")),
@@ -342,6 +344,7 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
 
             for topic in topics {
                 acls.push(MqttAcl {
+                    tenant: DEFAULT_TENANT.to_string(),
                     permission,
                     resource_type,
                     resource_name: resource_name.clone(),
@@ -398,6 +401,7 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
             };
 
             blacklists.push(MqttAclBlackList {
+                tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type,
                 resource_name,
                 end_time,

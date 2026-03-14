@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub struct MqttAcl {
+    pub tenant: String,
     pub resource_type: MqttAclResourceType,
     pub resource_name: String,
     pub topic: String,
@@ -30,6 +31,7 @@ pub struct MqttAcl {
 
 impl MqttAcl {
     pub fn build(
+        tenant: String,
         resource_type: MqttAclResourceType,
         resource_name: String,
         topic: String,
@@ -38,6 +40,7 @@ impl MqttAcl {
         permission: MqttAclPermission,
     ) -> Self {
         MqttAcl {
+            tenant,
             resource_type,
             resource_name,
             topic,

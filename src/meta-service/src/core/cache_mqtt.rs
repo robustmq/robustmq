@@ -19,12 +19,13 @@ use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 
 impl MetaCacheManager {
     pub fn add_group_leader(&self, group_info: MqttGroupLeader) {
-        self.group_leader
-            .insert(group_info.group_name.clone(), group_info);
+        let key = format!("{}/{}", group_info.tenant, group_info.group_name);
+        self.group_leader.insert(key, group_info);
     }
 
-    pub fn remove_group_leader(&self, group_name: &str) {
-        self.group_leader.remove(group_name);
+    pub fn remove_group_leader(&self, tenant: &str, group_name: &str) {
+        let key = format!("{}/{}", tenant, group_name);
+        self.group_leader.remove(&key);
     }
 
     pub fn add_connector(&self, connector: MQTTConnector) {

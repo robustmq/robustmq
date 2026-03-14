@@ -335,7 +335,7 @@ async fn add_share_push(
         );
 
         // If the current node is not the Leader, then there is no need to process it and no error needs to be reported.
-        if !is_share_sub_leader(client_pool, &group_name_full).await? {
+        if !is_share_sub_leader(client_pool, &req.tenant, &group_name_full).await? {
             return Ok(());
         }
 

@@ -89,7 +89,7 @@ mod tests {
             .unwrap();
 
         let (result_message, result_message_qt) = topic_storage
-            .get_retain_message(&topic.topic_name)
+            .get_retain_message(&topic.tenant, &topic.topic_name)
             .await
             .unwrap();
         println!("{:?}", result_message);
@@ -106,8 +106,10 @@ mod tests {
             .await
             .unwrap();
 
-        let (result_message, result_message_at) =
-            topic_storage.get_retain_message(&topic_name).await.unwrap();
+        let (result_message, result_message_at) = topic_storage
+            .get_retain_message(&topic.tenant, &topic_name)
+            .await
+            .unwrap();
         assert!(result_message.is_none());
         assert!(result_message_at.is_none());
     }

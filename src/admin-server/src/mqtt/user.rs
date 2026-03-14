@@ -38,6 +38,9 @@ pub struct UserListReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct CreateUserReq {
+    #[validate(length(min = 1, max = 64, message = "Tenant length must be between 1-64"))]
+    pub tenant: String,
+
     #[validate(length(min = 1, max = 64, message = "Username length must be between 1-64"))]
     pub username: String,
 
@@ -49,6 +52,9 @@ pub struct CreateUserReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteUserReq {
+    #[validate(length(min = 1, max = 64, message = "Tenant length must be between 1-64"))]
+    pub tenant: String,
+
     #[validate(length(min = 1, max = 64, message = "Username length must be between 1-64"))]
     pub username: String,
 }
@@ -109,13 +115,15 @@ pub async fn user_list(
     );
 
     let mut users = Vec::new();
-    for ele in state.mqtt_context.cache_manager.user_info.iter() {
-        let user_raw = UserListRow {
-            username: ele.value().username.clone(),
-            is_superuser: ele.value().is_superuser,
-            create_time: ele.value().create_time,
-        };
-        users.push(user_raw);
+    for tenant_entry in state.mqtt_context.cache_manager.user_info.iter() {
+        for ele in tenant_entry.value().iter() {
+            let user_raw = UserListRow {
+                username: ele.value().username.clone(),
+                is_superuser: ele.value().is_superuser,
+                create_time: ele.value().create_time,
+            };
+            users.push(user_raw);
+        }
     }
 
     let filtered = apply_filters(users, &options);
@@ -142,6 +150,7 @@ pub async fn user_create(
     ValidatedJson(params): ValidatedJson<CreateUserReq>,
 ) -> String {
     let user_info = MqttUser {
+        tenant: params.tenant.clone(),
         username: params.username.clone(),
         password: params.password.clone(),
         salt: None,
@@ -161,7 +170,10 @@ pub async fn user_delete(
     ValidatedJson(params): ValidatedJson<DeleteUserReq>,
 ) -> String {
     let user_storage = UserStorage::new(state.client_pool.clone());
-    match user_storage.delete_user(params.username.clone()).await {
+    match user_storage
+        .delete_user(params.tenant.clone(), params.username.clone())
+        .await
+    {
         Ok(_) => success_response("success"),
         Err(e) => error_response(e.to_string()),
     }

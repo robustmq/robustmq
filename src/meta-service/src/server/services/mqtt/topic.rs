@@ -155,7 +155,7 @@ pub async fn get_topic_retain_message_by_req(
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
     let (retain_message, retain_message_expired_at) =
-        match topic_storage.get_retain_message(&req.topic_name)? {
+        match topic_storage.get_retain_message(&req.tenant, &req.topic_name)? {
             Some(message) => (
                 Some(message.retain_message.to_vec()),
                 message.retain_message_expired_at,

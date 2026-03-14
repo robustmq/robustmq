@@ -80,14 +80,14 @@ impl DataRouteMqtt {
         let req = CreateUserRequest::decode(value.as_ref())?;
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
         let user = MqttUser::decode(&req.content)?;
-        storage.save(&req.user_name, user.clone())?;
+        storage.save(&req.tenant, &req.user_name, user.clone())?;
         Ok(())
     }
 
     pub fn delete_user(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteUserRequest::decode(value.as_ref())?;
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&req.user_name)?;
+        storage.delete(&req.tenant, &req.user_name)?;
         Ok(())
     }
 
@@ -118,6 +118,7 @@ impl DataRouteMqtt {
 
         if let Some(retain) = req.retain_message {
             let message = MQTTRetainMessage {
+                tenant: req.tenant,
                 topic_name: req.topic_name,
                 retain_message: Bytes::copy_from_slice(&retain),
                 retain_message_expired_at: req.retain_message_expired_at,
@@ -136,7 +137,7 @@ impl DataRouteMqtt {
         if storage.get(&req.tenant, &req.topic_name)?.is_none() {
             return Ok(());
         }
-        storage.delete_retain_message(&req.topic_name)?;
+        storage.delete_retain_message(&req.tenant, &req.topic_name)?;
         Ok(())
     }
 
@@ -301,7 +302,7 @@ impl DataRouteMqtt {
     pub fn delete_blacklist(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
-        blacklist_storage.delete(&req.blacklist_type, &req.resource_name)?;
+        blacklist_storage.delete(&req.tenant, &req.blacklist_type, &req.resource_name)?;
         Ok(())
     }
 
@@ -309,7 +310,7 @@ impl DataRouteMqtt {
     pub fn create_group_leader(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let leader = MqttGroupLeader::decode(&value)?;
         let storage = MqttGroupLeaderStorage::new(self.rocksdb_engine_handler.clone());
-        storage.save(&leader.group_name, leader.broker_id)?;
+        storage.save(&leader.tenant, &leader.group_name, leader.broker_id)?;
         self.cache_manager.add_group_leader(leader);
         Ok(())
     }
@@ -317,8 +318,9 @@ impl DataRouteMqtt {
     pub fn delete_group_leader(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let leader = MqttGroupLeader::decode(&value)?;
         let storage = MqttGroupLeaderStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&leader.group_name)?;
-        self.cache_manager.remove_group_leader(&leader.group_name);
+        storage.delete(&leader.tenant, &leader.group_name)?;
+        self.cache_manager
+            .remove_group_leader(&leader.tenant, &leader.group_name);
         Ok(())
     }
 

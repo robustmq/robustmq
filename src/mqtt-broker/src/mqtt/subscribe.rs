@@ -100,6 +100,7 @@ impl MqttService {
         if let Err(e) = self
             .retain_message_manager
             .try_send_retain_message(
+                &connection.tenant,
                 &connection.client_id,
                 subscribe,
                 subscribe_properties,

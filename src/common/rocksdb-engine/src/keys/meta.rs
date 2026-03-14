@@ -96,8 +96,13 @@ pub fn storage_key_tenant_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_user(user_name: &str) -> String {
-    format!("{}mqtt/user/{}", PREFIX_META, user_name)
+pub fn storage_key_mqtt_user(tenant: &str, user_name: &str) -> String {
+    format!("{}mqtt/user/{}/{}", PREFIX_META, tenant, user_name)
+}
+
+#[inline]
+pub fn storage_key_mqtt_user_tenant_prefix(tenant: &str) -> String {
+    format!("{}mqtt/user/{}/", PREFIX_META, tenant)
 }
 
 #[inline]
@@ -146,8 +151,16 @@ pub fn storage_key_mqtt_last_will_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_group_leader(group_name: &str) -> String {
-    format!("{}mqtt/sub_group_leader/{}", PREFIX_META, group_name)
+pub fn storage_key_mqtt_group_leader(tenant: &str, group_name: &str) -> String {
+    format!(
+        "{}mqtt/sub_group_leader/{}/{}",
+        PREFIX_META, tenant, group_name
+    )
+}
+
+#[inline]
+pub fn storage_key_mqtt_group_leader_tenant_prefix(tenant: &str) -> String {
+    format!("{}mqtt/sub_group_leader/{}/", PREFIX_META, tenant)
 }
 
 #[inline]
@@ -229,11 +242,16 @@ pub fn storage_key_mqtt_schema_bind_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_acl(resource_type: &str, resource_name: &str) -> String {
+pub fn storage_key_mqtt_acl(tenant: &str, resource_type: &str, resource_name: &str) -> String {
     format!(
-        "{}mqtt/acl/{}/{}",
-        PREFIX_META, resource_type, resource_name
+        "{}mqtt/acl/{}/{}/{}",
+        PREFIX_META, tenant, resource_type, resource_name
     )
+}
+
+#[inline]
+pub fn storage_key_mqtt_acl_tenant_prefix(tenant: &str) -> String {
+    format!("{}mqtt/acl/{}/", PREFIX_META, tenant)
 }
 
 #[inline]
@@ -242,11 +260,20 @@ pub fn storage_key_mqtt_acl_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_blacklist(black_list_type: &str, resource_name: &str) -> String {
+pub fn storage_key_mqtt_blacklist(
+    tenant: &str,
+    black_list_type: &str,
+    resource_name: &str,
+) -> String {
     format!(
-        "{}mqtt/blacklist/{}/{}",
-        PREFIX_META, black_list_type, resource_name
+        "{}mqtt/blacklist/{}/{}/{}",
+        PREFIX_META, tenant, black_list_type, resource_name
     )
+}
+
+#[inline]
+pub fn storage_key_mqtt_blacklist_tenant_prefix(tenant: &str) -> String {
+    format!("{}mqtt/blacklist/{}/", PREFIX_META, tenant)
 }
 
 #[inline]
@@ -295,8 +322,16 @@ pub fn storage_key_mqtt_auto_subscribe_rule_tenant_prefix(tenant: &str) -> Strin
 }
 
 #[inline]
-pub fn storage_key_mqtt_retain_message(topic_name: &str) -> String {
-    format!("{}mqtt/retain_message/{}", PREFIX_META, topic_name)
+pub fn storage_key_mqtt_retain_message(tenant: &str, topic_name: &str) -> String {
+    format!(
+        "{}mqtt/retain_message/{}/{}",
+        PREFIX_META, tenant, topic_name
+    )
+}
+
+#[inline]
+pub fn storage_key_mqtt_retain_message_tenant_prefix(tenant: &str) -> String {
+    format!("{}mqtt/retain_message/{}/", PREFIX_META, tenant)
 }
 
 #[inline]

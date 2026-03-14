@@ -38,6 +38,7 @@ mod tests {
         let password: String = "123456".to_string();
 
         let mqtt_user: MqttUser = MqttUser {
+            tenant: "default".to_string(),
             username: user_name.clone(),
             password: password.clone(),
             salt: None,
@@ -46,6 +47,7 @@ mod tests {
         };
 
         let request: CreateUserRequest = CreateUserRequest {
+            tenant: "default".to_string(),
             user_name: mqtt_user.username.clone(),
             content: mqtt_user.encode().unwrap(),
         };
@@ -54,6 +56,7 @@ mod tests {
             .unwrap();
 
         let request: ListUserRequest = ListUserRequest {
+            tenant: "default".to_string(),
             user_name: mqtt_user.username.clone(),
         };
 
@@ -71,6 +74,7 @@ mod tests {
         assert!(flag);
 
         let request: DeleteUserRequest = DeleteUserRequest {
+            tenant: "default".to_string(),
             user_name: mqtt_user.username.clone(),
         };
 
@@ -79,6 +83,7 @@ mod tests {
             .unwrap();
 
         let request: ListUserRequest = ListUserRequest {
+            tenant: "default".to_string(),
             user_name: mqtt_user.username.clone(),
         };
 

@@ -132,7 +132,7 @@ async fn load_mqtt_cache(
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load users: {}", e)))?;
     for user in user_list.iter() {
-        cache_manager.add_user(user.value().clone());
+        cache_manager.add_user(user.clone());
     }
 
     let acl_storage = AclStorage::new(client_pool.clone());

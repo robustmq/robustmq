@@ -31,6 +31,7 @@ mod tests {
         let addrs = vec![get_placement_addr()];
 
         let acl = MqttAcl {
+            tenant: "default".to_string(),
             resource_type: MqttAclResourceType::User,
             resource_name: "loboxu".to_string(),
             topic: "tp-1".to_string(),
@@ -44,7 +45,9 @@ mod tests {
         };
         create_acl(&client_pool, &addrs, request).await.unwrap();
 
-        let request = ListAclRequest {};
+        let request = ListAclRequest {
+            tenant: "default".to_string(),
+        };
 
         match list_acl(&client_pool, &addrs, request).await {
             Ok(data) => {
@@ -78,7 +81,9 @@ mod tests {
             }
         }
 
-        let request = ListAclRequest {};
+        let request = ListAclRequest {
+            tenant: "default".to_string(),
+        };
 
         match list_acl(&client_pool, &addrs, request).await {
             Ok(data) => {

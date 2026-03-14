@@ -62,7 +62,8 @@ service MqttService {
 }
 
 message GetShareSubLeaderRequest {
-  repeated string group_list = 1;
+  string tenant = 1;
+  repeated string group_list = 2;
 }
 
 message GetShareSubLeaderReply {
@@ -77,6 +78,7 @@ message SubLeaderInfo{
 }
 
 message ListUserRequest {
+  string tenant = 1;
   string user_name = 2;
 }
 
@@ -85,6 +87,7 @@ message ListUserReply {
 }
 
 message CreateUserRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string user_name = 2 [(validate.rules).string.min_len = 1];
   bytes content = 3 [(validate.rules).bytes.min_len = 1];
 }
@@ -92,6 +95,7 @@ message CreateUserRequest {
 message CreateUserReply {}
 
 message DeleteUserRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string user_name = 2 [(validate.rules).string.min_len = 1];
 }
 
@@ -131,6 +135,7 @@ message SetTopicRetainMessageRequest {
 message SetTopicRetainMessageReply {}
 
 message GetTopicRetainMessageRequest {
+  string tenant = 1;
   string topic_name = 2 [(validate.rules).string.min_len = 1];
 }
 
@@ -182,6 +187,7 @@ message GetLastWillMessageReply {
 }
 
 message ListAclRequest {
+  string tenant = 1;
 }
 
 message ListAclReply {
@@ -201,6 +207,7 @@ message CreateAclRequest {
 message CreateAclReply {}
 
 message ListBlacklistRequest {
+  string tenant = 1;
 }
 
 message ListBlacklistReply {
@@ -214,6 +221,7 @@ message CreateBlacklistRequest {
 message CreateBlacklistReply {}
 
 message DeleteBlacklistRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string blacklist_type = 2 [(validate.rules).string.min_len = 1];
   string resource_name = 3 [(validate.rules).string.min_len = 1];
 }

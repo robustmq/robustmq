@@ -43,6 +43,7 @@ pub struct SubscribeListReq {
 
 #[derive(Deserialize, Debug)]
 pub struct SubscribeDetailReq {
+    pub tenant: String,
     pub client_id: String,
     pub path: String,
 }
@@ -227,7 +228,7 @@ pub async fn subscribe_detail(
 ) -> String {
     let leader_id = if is_mqtt_share_subscribe(&params.path) {
         let (group, _) = decode_share_info(&params.path);
-        let leader = match get_share_sub_leader(&state.client_pool, &group).await {
+        let leader = match get_share_sub_leader(&state.client_pool, &params.tenant, &group).await {
             Ok(data) => data,
             Err(e) => {
                 return error_response(e.to_string());

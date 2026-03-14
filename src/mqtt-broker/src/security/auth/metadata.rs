@@ -24,17 +24,18 @@ use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 
 #[derive(Clone)]
 pub struct AclMetadata {
-    // blacklist
-    pub blacklist_user: DashMap<String, MqttAclBlackList>,
-    pub blacklist_client_id: DashMap<String, MqttAclBlackList>,
-    pub blacklist_ip: DashMap<String, MqttAclBlackList>,
+    // blacklist exact match: outer = tenant, inner = resource_name
+    pub blacklist_user: DashMap<String, DashMap<String, MqttAclBlackList>>,
+    pub blacklist_client_id: DashMap<String, DashMap<String, MqttAclBlackList>>,
+    pub blacklist_ip: DashMap<String, DashMap<String, MqttAclBlackList>>,
+    // blacklist wildcard match: outer = tenant, value = list of patterns
     pub blacklist_user_match: DashMap<String, Vec<MqttAclBlackList>>,
     pub blacklist_client_id_match: DashMap<String, Vec<MqttAclBlackList>>,
     pub blacklist_ip_match: DashMap<String, Vec<MqttAclBlackList>>,
 
-    // acl
-    pub acl_user: DashMap<String, Vec<MqttAcl>>,
-    pub acl_client_id: DashMap<String, Vec<MqttAcl>>,
+    // acl: outer = tenant, inner = resource_name
+    pub acl_user: DashMap<String, DashMap<String, Vec<MqttAcl>>>,
+    pub acl_client_id: DashMap<String, DashMap<String, Vec<MqttAcl>>>,
 
     // connection jitter (client_id, FlappingDetectCondition)
     pub flapping_detect_map: DashMap<String, FlappingDetectCondition>,
@@ -47,10 +48,6 @@ impl Default for AclMetadata {
 }
 
 impl AclMetadata {
-    const CLIENT_ID_MATCH_KEY: &'static str = "ClientIdMatch";
-    const USER_MATCH_KEY: &'static str = "UserMatch";
-    const IP_CIDR_KEY: &'static str = "IPCIDR";
-
     pub fn new() -> Self {
         AclMetadata {
             blacklist_user: DashMap::with_capacity(2),
@@ -104,61 +101,50 @@ impl AclMetadata {
 
     // ACL
     pub fn parse_mqtt_acl(&self, acl: MqttAcl) {
-        match acl.resource_type {
-            MqttAclResourceType::ClientId => {
-                if let Some(mut raw) = self.acl_client_id.get_mut(&acl.resource_name) {
-                    raw.push(acl);
-                } else {
-                    self.acl_client_id
-                        .insert(acl.resource_name.clone(), vec![acl]);
-                }
-            }
-            MqttAclResourceType::User => {
-                if let Some(mut raw) = self.acl_user.get_mut(&acl.resource_name) {
-                    raw.push(acl);
-                } else {
-                    self.acl_user.insert(acl.resource_name.clone(), vec![acl]);
-                }
+        let map = match acl.resource_type {
+            MqttAclResourceType::ClientId => &self.acl_client_id,
+            MqttAclResourceType::User => &self.acl_user,
+        };
+        map.entry(acl.tenant.clone()).or_insert_with(DashMap::new);
+        if let Some(tenant_map) = map.get(&acl.tenant) {
+            if let Some(mut list) = tenant_map.get_mut(&acl.resource_name) {
+                list.push(acl);
+            } else {
+                tenant_map.insert(acl.resource_name.clone(), vec![acl]);
             }
         }
     }
 
     pub fn remove_mqtt_acl(&self, acl: MqttAcl) {
-        match acl.resource_type {
-            MqttAclResourceType::ClientId => {
-                let mut remove_key = false;
-                if let Some(mut list) = self.acl_client_id.get_mut(&acl.resource_name) {
-                    if let Some(pos) = list.iter().position(|item| item == &acl) {
-                        list.remove(pos);
-                    }
-                    remove_key = list.is_empty();
+        let map = match acl.resource_type {
+            MqttAclResourceType::ClientId => &self.acl_client_id,
+            MqttAclResourceType::User => &self.acl_user,
+        };
+        if let Some(tenant_map) = map.get(&acl.tenant) {
+            let mut remove_key = false;
+            if let Some(mut list) = tenant_map.get_mut(&acl.resource_name) {
+                if let Some(pos) = list.iter().position(|item| item == &acl) {
+                    list.remove(pos);
                 }
-                if remove_key {
-                    self.acl_client_id.remove(&acl.resource_name);
-                }
+                remove_key = list.is_empty();
             }
-            MqttAclResourceType::User => {
-                let mut remove_key = false;
-                if let Some(mut list) = self.acl_user.get_mut(&acl.resource_name) {
-                    if let Some(pos) = list.iter().position(|item| item == &acl) {
-                        list.remove(pos);
-                    }
-                    remove_key = list.is_empty();
-                }
-                if remove_key {
-                    self.acl_user.remove(&acl.resource_name);
-                }
+            if remove_key {
+                tenant_map.remove(&acl.resource_name);
             }
         }
     }
 
     pub fn get_all_acl(&self) -> Vec<MqttAcl> {
         let mut data: Vec<MqttAcl> = Vec::new();
-        for entry in self.acl_user.iter() {
-            data.extend(entry.value().iter().cloned());
+        for tenant_entry in self.acl_user.iter() {
+            for acl_entry in tenant_entry.value().iter() {
+                data.extend(acl_entry.value().iter().cloned());
+            }
         }
-        for entry in self.acl_client_id.iter() {
-            data.extend(entry.value().iter().cloned());
+        for tenant_entry in self.acl_client_id.iter() {
+            for acl_entry in tenant_entry.value().iter() {
+                data.extend(acl_entry.value().iter().cloned());
+            }
         }
         data.sort_by(|a, b| {
             (
@@ -186,41 +172,45 @@ impl AclMetadata {
         match blacklist.blacklist_type {
             MqttAclBlackListType::ClientId => {
                 self.blacklist_client_id
+                    .entry(blacklist.tenant.clone())
+                    .or_insert_with(DashMap::new)
                     .insert(blacklist.resource_name.clone(), blacklist);
             }
             MqttAclBlackListType::User => {
                 self.blacklist_user
+                    .entry(blacklist.tenant.clone())
+                    .or_insert_with(DashMap::new)
                     .insert(blacklist.resource_name.clone(), blacklist);
             }
             MqttAclBlackListType::Ip => {
                 self.blacklist_ip
+                    .entry(blacklist.tenant.clone())
+                    .or_insert_with(DashMap::new)
                     .insert(blacklist.resource_name.clone(), blacklist);
             }
             MqttAclBlackListType::ClientIdMatch => {
-                let key = self.get_client_id_match_key();
-                if let Some(mut data) = self.blacklist_client_id_match.get_mut(key) {
-                    data.push(blacklist)
+                if let Some(mut data) = self.blacklist_client_id_match.get_mut(&blacklist.tenant) {
+                    data.push(blacklist);
                 } else {
+                    let tenant = blacklist.tenant.clone();
                     self.blacklist_client_id_match
-                        .insert(key.to_string(), vec![blacklist]);
+                        .insert(tenant, vec![blacklist]);
                 }
             }
             MqttAclBlackListType::UserMatch => {
-                let key = self.get_user_match_key();
-                if let Some(mut data) = self.blacklist_user_match.get_mut(key) {
-                    data.push(blacklist)
+                if let Some(mut data) = self.blacklist_user_match.get_mut(&blacklist.tenant) {
+                    data.push(blacklist);
                 } else {
-                    self.blacklist_user_match
-                        .insert(key.to_string(), vec![blacklist]);
+                    let tenant = blacklist.tenant.clone();
+                    self.blacklist_user_match.insert(tenant, vec![blacklist]);
                 }
             }
             MqttAclBlackListType::IPCIDR => {
-                let key = self.get_ip_cidr_key();
-                if let Some(mut data) = self.blacklist_ip_match.get_mut(key) {
-                    data.push(blacklist)
+                if let Some(mut data) = self.blacklist_ip_match.get_mut(&blacklist.tenant) {
+                    data.push(blacklist);
                 } else {
-                    self.blacklist_ip_match
-                        .insert(key.to_string(), vec![blacklist]);
+                    let tenant = blacklist.tenant.clone();
+                    self.blacklist_ip_match.insert(tenant, vec![blacklist]);
                 }
             }
         }
@@ -229,18 +219,23 @@ impl AclMetadata {
     pub fn remove_mqtt_blacklist(&self, blacklist: MqttAclBlackList) {
         match blacklist.blacklist_type {
             MqttAclBlackListType::ClientId => {
-                self.blacklist_client_id.remove(&blacklist.resource_name);
+                if let Some(tenant_map) = self.blacklist_client_id.get(&blacklist.tenant) {
+                    tenant_map.remove(&blacklist.resource_name);
+                }
             }
             MqttAclBlackListType::User => {
-                self.blacklist_user.remove(&blacklist.resource_name);
+                if let Some(tenant_map) = self.blacklist_user.get(&blacklist.tenant) {
+                    tenant_map.remove(&blacklist.resource_name);
+                }
             }
             MqttAclBlackListType::Ip => {
-                self.blacklist_ip.remove(&blacklist.resource_name);
+                if let Some(tenant_map) = self.blacklist_ip.get(&blacklist.tenant) {
+                    tenant_map.remove(&blacklist.resource_name);
+                }
             }
             MqttAclBlackListType::ClientIdMatch => {
-                let key = self.get_client_id_match_key();
                 let mut remove_key = false;
-                if let Some(mut data) = self.blacklist_client_id_match.get_mut(key) {
+                if let Some(mut data) = self.blacklist_client_id_match.get_mut(&blacklist.tenant) {
                     if let Some(pos) = data
                         .iter()
                         .position(|item| item.resource_name == blacklist.resource_name)
@@ -250,13 +245,12 @@ impl AclMetadata {
                     remove_key = data.is_empty();
                 }
                 if remove_key {
-                    self.blacklist_client_id_match.remove(key);
+                    self.blacklist_client_id_match.remove(&blacklist.tenant);
                 }
             }
             MqttAclBlackListType::UserMatch => {
-                let key = self.get_user_match_key();
                 let mut remove_key = false;
-                if let Some(mut data) = self.blacklist_user_match.get_mut(key) {
+                if let Some(mut data) = self.blacklist_user_match.get_mut(&blacklist.tenant) {
                     if let Some(pos) = data
                         .iter()
                         .position(|item| item.resource_name == blacklist.resource_name)
@@ -266,13 +260,12 @@ impl AclMetadata {
                     remove_key = data.is_empty();
                 }
                 if remove_key {
-                    self.blacklist_user_match.remove(key);
+                    self.blacklist_user_match.remove(&blacklist.tenant);
                 }
             }
             MqttAclBlackListType::IPCIDR => {
-                let key = self.get_ip_cidr_key();
                 let mut remove_key = false;
-                if let Some(mut data) = self.blacklist_ip_match.get_mut(key) {
+                if let Some(mut data) = self.blacklist_ip_match.get_mut(&blacklist.tenant) {
                     if let Some(pos) = data
                         .iter()
                         .position(|item| item.resource_name == blacklist.resource_name)
@@ -282,49 +275,47 @@ impl AclMetadata {
                     remove_key = data.is_empty();
                 }
                 if remove_key {
-                    self.blacklist_ip_match.remove(key);
+                    self.blacklist_ip_match.remove(&blacklist.tenant);
                 }
             }
         }
     }
 
-    pub fn get_blacklist_user_match(&self) -> Option<Vec<MqttAclBlackList>> {
-        let key = self.get_user_match_key();
-        if let Some(data) = self.blacklist_user_match.get(key) {
-            return Some(data.clone());
-        }
-        None
+    /// Returns all wildcard user blacklist entries across all tenants.
+    pub fn get_blacklist_user_match(&self) -> Vec<MqttAclBlackList> {
+        self.blacklist_user_match
+            .iter()
+            .flat_map(|entry| entry.value().clone())
+            .collect()
     }
 
-    pub fn get_blacklist_client_id_match(&self) -> Option<Vec<MqttAclBlackList>> {
-        let key = self.get_client_id_match_key();
-        if let Some(data) = self.blacklist_client_id_match.get(key) {
-            return Some(data.clone());
-        }
-        None
+    /// Returns all wildcard client-id blacklist entries across all tenants.
+    pub fn get_blacklist_client_id_match(&self) -> Vec<MqttAclBlackList> {
+        self.blacklist_client_id_match
+            .iter()
+            .flat_map(|entry| entry.value().clone())
+            .collect()
     }
 
-    pub fn get_blacklist_ip_match(&self) -> Option<Vec<MqttAclBlackList>> {
-        let key = self.get_ip_cidr_key();
-        if let Some(data) = self.blacklist_ip_match.get(key) {
-            return Some(data.clone());
-        }
-        None
+    /// Returns all CIDR/wildcard IP blacklist entries across all tenants.
+    pub fn get_blacklist_ip_match(&self) -> Vec<MqttAclBlackList> {
+        self.blacklist_ip_match
+            .iter()
+            .flat_map(|entry| entry.value().clone())
+            .collect()
     }
 
     pub fn get_all_blacklist(&self) -> Vec<MqttAclBlackList> {
         let mut data: Vec<MqttAclBlackList> = Vec::new();
-        data.extend(
-            self.blacklist_user
-                .iter()
-                .map(|entry| entry.value().clone()),
-        );
-        data.extend(
-            self.blacklist_client_id
-                .iter()
-                .map(|entry| entry.value().clone()),
-        );
-        data.extend(self.blacklist_ip.iter().map(|entry| entry.value().clone()));
+        for tenant_entry in self.blacklist_user.iter() {
+            data.extend(tenant_entry.value().iter().map(|e| e.value().clone()));
+        }
+        for tenant_entry in self.blacklist_client_id.iter() {
+            data.extend(tenant_entry.value().iter().map(|e| e.value().clone()));
+        }
+        for tenant_entry in self.blacklist_ip.iter() {
+            data.extend(tenant_entry.value().iter().map(|e| e.value().clone()));
+        }
         for entry in self.blacklist_user_match.iter() {
             data.extend(entry.value().iter().cloned());
         }
@@ -350,18 +341,6 @@ impl AclMetadata {
         });
         data
     }
-
-    fn get_client_id_match_key(&self) -> &'static str {
-        Self::CLIENT_ID_MATCH_KEY
-    }
-
-    fn get_user_match_key(&self) -> &'static str {
-        Self::USER_MATCH_KEY
-    }
-
-    fn get_ip_cidr_key(&self) -> &'static str {
-        Self::IP_CIDR_KEY
-    }
 }
 
 #[cfg(test)]
@@ -376,6 +355,9 @@ mod test {
     use common_config::config::MqttFlappingDetect;
     use metadata_struct::acl::mqtt_acl::MqttAcl;
     use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+    use metadata_struct::tenant::DEFAULT_TENANT;
+
+    const TENANT: &str = DEFAULT_TENANT;
 
     #[tokio::test]
     pub async fn test_mqtt_remove_flapping_detect() {
@@ -392,7 +374,6 @@ mod test {
         };
 
         acl_metadata.add_flapping_detect_condition(condition1);
-
         acl_metadata.add_flapping_detect_condition(condition2);
 
         assert!(acl_metadata.flapping_detect_map.contains_key("test_id_1"));
@@ -418,6 +399,7 @@ mod test {
         let acl_metadata = AclMetadata::new();
         // Test ClientId ACL
         let client_id_acl = MqttAcl {
+            tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::ClientId,
             resource_name: "test_client".to_string(),
             topic: "".to_string(),
@@ -427,18 +409,23 @@ mod test {
         };
         acl_metadata.parse_mqtt_acl(client_id_acl.clone());
 
-        assert!(acl_metadata.acl_client_id.contains_key("test_client"));
+        assert!(acl_metadata
+            .acl_client_id
+            .get(TENANT)
+            .map(|m| m.contains_key("test_client"))
+            .unwrap_or(false));
         assert_eq!(
-            acl_metadata.acl_client_id.get("test_client").unwrap().len(),
+            acl_metadata
+                .acl_client_id
+                .get(TENANT)
+                .and_then(|m| m.get("test_client").map(|v| v.len()))
+                .unwrap_or(0),
             1
-        );
-        assert_eq!(
-            acl_metadata.acl_client_id.get("test_client").unwrap()[0].resource_name,
-            "test_client"
         );
 
         // Test User ACL
         let user_acl = MqttAcl {
+            tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::User,
             resource_name: "test_user".to_string(),
             topic: "".to_string(),
@@ -448,26 +435,45 @@ mod test {
         };
         acl_metadata.parse_mqtt_acl(user_acl.clone());
 
-        assert!(acl_metadata.acl_user.contains_key("test_user"));
-        assert_eq!(acl_metadata.acl_user.get("test_user").unwrap().len(), 1);
+        assert!(acl_metadata
+            .acl_user
+            .get(TENANT)
+            .map(|m| m.contains_key("test_user"))
+            .unwrap_or(false));
         assert_eq!(
-            acl_metadata.acl_user.get("test_user").unwrap()[0].resource_name,
-            "test_user"
+            acl_metadata
+                .acl_user
+                .get(TENANT)
+                .and_then(|m| m.get("test_user").map(|v| v.len()))
+                .unwrap_or(0),
+            1
         );
 
-        // Test multiple ACLs for the same ClientId
+        // Test multiple ACLs for same ClientId
         acl_metadata.parse_mqtt_acl(client_id_acl);
         assert_eq!(
-            acl_metadata.acl_client_id.get("test_client").unwrap().len(),
+            acl_metadata
+                .acl_client_id
+                .get(TENANT)
+                .and_then(|m| m.get("test_client").map(|v| v.len()))
+                .unwrap_or(0),
             2
         );
 
-        // Test multiple ACLs for the same User
+        // Test multiple ACLs for same User
         acl_metadata.parse_mqtt_acl(user_acl);
-        assert_eq!(acl_metadata.acl_user.get("test_user").unwrap().len(), 2);
+        assert_eq!(
+            acl_metadata
+                .acl_user
+                .get(TENANT)
+                .and_then(|m| m.get("test_user").map(|v| v.len()))
+                .unwrap_or(0),
+            2
+        );
 
         // Remove only one acl item, keep the other one
         acl_metadata.remove_mqtt_acl(MqttAcl {
+            tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::User,
             resource_name: "test_user".to_string(),
             topic: "".to_string(),
@@ -475,105 +481,125 @@ mod test {
             action: MqttAclAction::All,
             permission: MqttAclPermission::Allow,
         });
-        assert_eq!(acl_metadata.acl_user.get("test_user").unwrap().len(), 1);
+        assert_eq!(
+            acl_metadata
+                .acl_user
+                .get(TENANT)
+                .and_then(|m| m.get("test_user").map(|v| v.len()))
+                .unwrap_or(0),
+            1
+        );
     }
+
     #[tokio::test]
     pub async fn parse_mqtt_blacklist_test() {
         let acl_metadata = AclMetadata::new();
 
         // Test ClientId blacklist
         let client_id_blacklist = MqttAclBlackList {
+            tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::ClientId,
             resource_name: "test_client".to_string(),
             end_time: now_second() + 100,
             desc: "".to_string(),
         };
         acl_metadata.parse_mqtt_blacklist(client_id_blacklist);
-        assert!(acl_metadata.blacklist_client_id.contains_key("test_client"));
+        assert!(acl_metadata
+            .blacklist_client_id
+            .get(TENANT)
+            .map(|m| m.contains_key("test_client"))
+            .unwrap_or(false));
 
         // Test User blacklist
         let user_blacklist = MqttAclBlackList {
+            tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::User,
             resource_name: "test_user".to_string(),
             end_time: now_second() + 100,
             desc: "".to_string(),
         };
         acl_metadata.parse_mqtt_blacklist(user_blacklist);
-        assert!(acl_metadata.blacklist_user.contains_key("test_user"));
+        assert!(acl_metadata
+            .blacklist_user
+            .get(TENANT)
+            .map(|m| m.contains_key("test_user"))
+            .unwrap_or(false));
 
         // Test IP blacklist
         let ip_blacklist = MqttAclBlackList {
+            tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::Ip,
             resource_name: "192.168.1.1".to_string(),
             end_time: now_second() + 100,
             desc: "".to_string(),
         };
         acl_metadata.parse_mqtt_blacklist(ip_blacklist);
-        assert!(acl_metadata.blacklist_ip.contains_key("192.168.1.1"));
+        assert!(acl_metadata
+            .blacklist_ip
+            .get(TENANT)
+            .map(|m| m.contains_key("192.168.1.1"))
+            .unwrap_or(false));
 
         // Test ClientIdMatch blacklist
         let client_id_match_blacklist = MqttAclBlackList {
+            tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::ClientIdMatch,
             resource_name: "test_client_*".to_string(),
             end_time: now_second() + 100,
             desc: "".to_string(),
         };
         acl_metadata.parse_mqtt_blacklist(client_id_match_blacklist);
-        let client_id_match_key = acl_metadata.get_client_id_match_key();
-        assert!(acl_metadata
-            .blacklist_client_id_match
-            .contains_key(client_id_match_key));
+        assert!(acl_metadata.blacklist_client_id_match.contains_key(TENANT));
         assert_eq!(
             acl_metadata
                 .blacklist_client_id_match
-                .get(client_id_match_key)
-                .unwrap()
-                .len(),
+                .get(TENANT)
+                .map(|v| v.len())
+                .unwrap_or(0),
             1
         );
 
         // Test UserMatch blacklist
         let user_match_blacklist = MqttAclBlackList {
+            tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::UserMatch,
             resource_name: "test_user_*".to_string(),
             end_time: now_second() + 100,
             desc: "".to_string(),
         };
         acl_metadata.parse_mqtt_blacklist(user_match_blacklist);
-        let user_match_key = acl_metadata.get_user_match_key();
-        assert!(acl_metadata
-            .blacklist_user_match
-            .contains_key(user_match_key));
+        assert!(acl_metadata.blacklist_user_match.contains_key(TENANT));
         assert_eq!(
             acl_metadata
                 .blacklist_user_match
-                .get(user_match_key)
-                .unwrap()
-                .len(),
+                .get(TENANT)
+                .map(|v| v.len())
+                .unwrap_or(0),
             1
         );
 
         // Test IPCIDR blacklist
         let ip_cidr_blacklist = MqttAclBlackList {
+            tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::IPCIDR,
             resource_name: "192.168.1.0/24".to_string(),
             end_time: now_second() + 100,
             desc: "".to_string(),
         };
         acl_metadata.parse_mqtt_blacklist(ip_cidr_blacklist);
-        let ip_cidr_key = acl_metadata.get_ip_cidr_key();
-        assert!(acl_metadata.blacklist_ip_match.contains_key(ip_cidr_key));
+        assert!(acl_metadata.blacklist_ip_match.contains_key(TENANT));
         assert_eq!(
             acl_metadata
                 .blacklist_ip_match
-                .get(ip_cidr_key)
-                .unwrap()
-                .len(),
+                .get(TENANT)
+                .map(|v| v.len())
+                .unwrap_or(0),
             1
         );
 
         // Test adding multiple entries for match types
         let another_client_id_match_blacklist = MqttAclBlackList {
+            tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::ClientIdMatch,
             resource_name: "another_client_*".to_string(),
             end_time: now_second() + 100,
@@ -583,9 +609,9 @@ mod test {
         assert_eq!(
             acl_metadata
                 .blacklist_client_id_match
-                .get(client_id_match_key)
-                .unwrap()
-                .len(),
+                .get(TENANT)
+                .map(|v| v.len())
+                .unwrap_or(0),
             2
         );
 
@@ -594,6 +620,7 @@ mod test {
 
         // Remove one match rule should not remove entire match group
         acl_metadata.remove_mqtt_blacklist(MqttAclBlackList {
+            tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::ClientIdMatch,
             resource_name: "test_client_*".to_string(),
             end_time: 0,
@@ -602,9 +629,9 @@ mod test {
         assert_eq!(
             acl_metadata
                 .blacklist_client_id_match
-                .get(client_id_match_key)
-                .unwrap()
-                .len(),
+                .get(TENANT)
+                .map(|v| v.len())
+                .unwrap_or(0),
             1
         );
     }
@@ -613,6 +640,7 @@ mod test {
     pub async fn get_all_acl_test() {
         let acl_metadata = AclMetadata::new();
         acl_metadata.parse_mqtt_acl(MqttAcl {
+            tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::ClientId,
             resource_name: "client-a".to_string(),
             topic: "a/#".to_string(),
@@ -621,6 +649,7 @@ mod test {
             permission: MqttAclPermission::Allow,
         });
         acl_metadata.parse_mqtt_acl(MqttAcl {
+            tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::User,
             resource_name: "user-a".to_string(),
             topic: "b/#".to_string(),

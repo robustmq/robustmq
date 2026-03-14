@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub struct MqttAclBlackList {
+    pub tenant: String,
     pub blacklist_type: MqttAclBlackListType,
     pub resource_name: String,
     pub end_time: u64,

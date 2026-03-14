@@ -25,6 +25,7 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auth::storage::MysqlConfig;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use r2d2_mysql::mysql::prelude::Queryable;
 use r2d2_mysql::mysql::Row;
 use third_driver::mysql::{build_mysql_conn_pool, MysqlPool};
@@ -127,6 +128,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
             })?;
 
             let user = MqttUser {
+                tenant: DEFAULT_TENANT.to_string(),
                 username: username.clone(),
                 password,
                 salt,
@@ -164,6 +166,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 .ok_or_else(|| MqttBrokerError::CommonError("missing column: topic".to_string()))?;
 
             let acl = MqttAcl {
+                tenant: DEFAULT_TENANT.to_string(),
                 permission: match permission {
                     0 => MqttAclPermission::Deny,
                     1 => MqttAclPermission::Allow,
@@ -214,6 +217,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 .ok_or_else(|| MqttBrokerError::CommonError("missing column: desc".to_string()))?;
 
             let blacklist = MqttAclBlackList {
+                tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: get_blacklist_type_by_str(&blacklist_type)?,
                 resource_name,
                 end_time,

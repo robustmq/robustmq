@@ -277,7 +277,9 @@ async fn read_topic_detail(
         HashSet::new()
     };
     let storage = TopicStorage::new(state.client_pool.clone());
-    let (retain_message, retain_message_at) = storage.get_retain_message(&topic.topic_name).await?;
+    let (retain_message, retain_message_at) = storage
+        .get_retain_message(&topic.tenant, &topic.topic_name)
+        .await?;
 
     Ok(TopicDetailResp {
         topic_info: topic,

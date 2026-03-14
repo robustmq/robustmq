@@ -24,6 +24,7 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auth::storage::RedisConfig;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use redis::Commands;
 use std::collections::HashMap;
 use third_driver::redis::{build_redis_conn_pool, RedisPool};
@@ -126,6 +127,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
             match RedisAuthUser::from_redis_hash(username.clone(), fields) {
                 Ok(redis_user) => {
                     let user = MqttUser {
+                        tenant: DEFAULT_TENANT.to_string(),
                         username: redis_user.username.clone(),
                         password: redis_user.password,
                         salt: if redis_user.salt.is_empty() {
@@ -169,6 +171,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
             match RedisAuthAcl::from_redis_hash(acl_id.clone(), fields) {
                 Ok(redis_acl) => {
                     let acl = MqttAcl {
+                        tenant: DEFAULT_TENANT.to_string(),
                         permission: match redis_acl.permission {
                             0 => MqttAclPermission::Deny,
                             1 => MqttAclPermission::Allow,
@@ -228,6 +231,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
             match RedisAuthBlacklist::from_redis_hash(id.clone(), fields) {
                 Ok(raw) => {
                     let blacklist = MqttAclBlackList {
+                        tenant: DEFAULT_TENANT.to_string(),
                         blacklist_type: get_blacklist_type_by_str(&raw.blacklist_type)?,
                         resource_name: raw.resource_name,
                         end_time: raw.end_time,

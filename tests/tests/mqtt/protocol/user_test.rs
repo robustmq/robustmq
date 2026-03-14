@@ -83,6 +83,7 @@ mod tests {
 
     async fn create_user(admin_client: &AdminHttpClient, username: String, password: String) {
         let user = CreateUserReq {
+            tenant: "default".to_string(),
             username: username.clone(),
             password,
             is_superuser: false,
@@ -100,7 +101,10 @@ mod tests {
     }
 
     async fn delete_user(admin_client: &AdminHttpClient, username: String) {
-        let user = DeleteUserReq { username };
+        let user = DeleteUserReq {
+            tenant: "default".to_string(),
+            username,
+        };
         admin_client.delete_user(&user).await.unwrap();
     }
 }

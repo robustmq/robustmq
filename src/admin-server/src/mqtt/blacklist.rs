@@ -37,6 +37,9 @@ pub struct BlackListListReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct CreateBlackListReq {
+    #[validate(length(min = 1, max = 64, message = "Tenant length must be between 1-64"))]
+    pub tenant: String,
+
     #[validate(length(
         min = 1,
         max = 50,
@@ -74,6 +77,9 @@ fn validate_blacklist_type(blacklist_type: &str) -> Result<(), validator::Valida
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteBlackListReq {
+    #[validate(length(min = 1, max = 64, message = "Tenant length must be between 1-64"))]
+    pub tenant: String,
+
     #[validate(length(
         min = 1,
         max = 50,
@@ -169,6 +175,7 @@ pub async fn blacklist_create(
     };
 
     let mqtt_blacklist = MqttAclBlackList {
+        tenant: params.tenant.clone(),
         blacklist_type,
         resource_name: params.resource_name.clone(),
         end_time: params.end_time,
@@ -193,6 +200,7 @@ pub async fn blacklist_delete(
         }
     };
     let mqtt_blacklist = MqttAclBlackList {
+        tenant: params.tenant.clone(),
         blacklist_type,
         resource_name: params.resource_name.clone(),
         end_time: 0,

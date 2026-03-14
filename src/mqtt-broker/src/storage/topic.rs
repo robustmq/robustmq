@@ -150,10 +150,12 @@ impl TopicStorage {
 
     pub async fn get_retain_message(
         &self,
+        tenant: &str,
         topic_name: &str,
     ) -> Result<(Option<MqttMessage>, Option<u64>), MqttBrokerError> {
         let config = broker_config();
         let request = GetTopicRetainMessageRequest {
+            tenant: tenant.to_owned(),
             topic_name: topic_name.to_owned(),
         };
 

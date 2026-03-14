@@ -98,33 +98,35 @@ fn is_user_blacklisted(
         return false;
     }
 
-    if let Some(data) = cache_manager.acl_metadata.blacklist_user.get(&login_user) {
-        if is_active(data.end_time, now) {
-            info!(
-                username = %login_user,
-                end_time = data.end_time,
-                now = now,
-                "Connection blocked by exact user blacklist"
-            );
-            return true;
-        }
-    }
-
-    if let Some(data) = cache_manager.acl_metadata.get_blacklist_user_match() {
-        for raw in data {
-            if !is_active(raw.end_time, now) {
-                continue;
-            }
-            if is_wildcard_pattern_match(&login_user, &raw.resource_name) {
+    // Check exact match across all tenants
+    for tenant_entry in cache_manager.acl_metadata.blacklist_user.iter() {
+        if let Some(data) = tenant_entry.value().get(&login_user) {
+            if is_active(data.end_time, now) {
                 info!(
                     username = %login_user,
-                    pattern = %raw.resource_name,
-                    end_time = raw.end_time,
+                    end_time = data.end_time,
                     now = now,
-                    "Connection blocked by user wildcard blacklist"
+                    "Connection blocked by exact user blacklist"
                 );
                 return true;
             }
+        }
+    }
+
+    // Check wildcard match across all tenants
+    for raw in cache_manager.acl_metadata.get_blacklist_user_match() {
+        if !is_active(raw.end_time, now) {
+            continue;
+        }
+        if is_wildcard_pattern_match(&login_user, &raw.resource_name) {
+            info!(
+                username = %login_user,
+                pattern = %raw.resource_name,
+                end_time = raw.end_time,
+                now = now,
+                "Connection blocked by user wildcard blacklist"
+            );
+            return true;
         }
     }
 
@@ -136,37 +138,35 @@ fn is_client_id_blacklisted(
     client_id: &str,
     now: u64,
 ) -> bool {
-    if let Some(data) = cache_manager
-        .acl_metadata
-        .blacklist_client_id
-        .get(client_id)
-    {
-        if is_active(data.end_time, now) {
-            info!(
-                client_id = %client_id,
-                end_time = data.end_time,
-                now = now,
-                "Connection blocked by exact client_id blacklist"
-            );
-            return true;
-        }
-    }
-
-    if let Some(data) = cache_manager.acl_metadata.get_blacklist_client_id_match() {
-        for raw in data {
-            if !is_active(raw.end_time, now) {
-                continue;
-            }
-            if is_wildcard_pattern_match(client_id, &raw.resource_name) {
+    // Check exact match across all tenants
+    for tenant_entry in cache_manager.acl_metadata.blacklist_client_id.iter() {
+        if let Some(data) = tenant_entry.value().get(client_id) {
+            if is_active(data.end_time, now) {
                 info!(
                     client_id = %client_id,
-                    pattern = %raw.resource_name,
-                    end_time = raw.end_time,
+                    end_time = data.end_time,
                     now = now,
-                    "Connection blocked by client_id wildcard blacklist"
+                    "Connection blocked by exact client_id blacklist"
                 );
                 return true;
             }
+        }
+    }
+
+    // Check wildcard match across all tenants
+    for raw in cache_manager.acl_metadata.get_blacklist_client_id_match() {
+        if !is_active(raw.end_time, now) {
+            continue;
+        }
+        if is_wildcard_pattern_match(client_id, &raw.resource_name) {
+            info!(
+                client_id = %client_id,
+                pattern = %raw.resource_name,
+                end_time = raw.end_time,
+                now = now,
+                "Connection blocked by client_id wildcard blacklist"
+            );
+            return true;
         }
     }
 
@@ -180,40 +180,43 @@ fn is_ip_blacklisted(
 ) -> bool {
     let source_ip = extract_ip_from_addr(source_ip_addr);
 
-    if let Some(data) = cache_manager.acl_metadata.blacklist_ip.get(&source_ip) {
-        if is_active(data.end_time, now) {
-            info!(
-                source_ip_addr = %source_ip_addr,
-                source_ip = %source_ip,
-                end_time = data.end_time,
-                now = now,
-                "Connection blocked by exact IP blacklist"
-            );
-            return true;
-        }
-    }
-
-    if let Some(data) = cache_manager.acl_metadata.get_blacklist_ip_match() {
-        for raw in data {
-            if !is_active(raw.end_time, now) {
-                continue;
-            }
-            if ip_match(&source_ip, &raw.resource_name) {
+    // Check exact match across all tenants
+    for tenant_entry in cache_manager.acl_metadata.blacklist_ip.iter() {
+        if let Some(data) = tenant_entry.value().get(&source_ip) {
+            if is_active(data.end_time, now) {
                 info!(
                     source_ip_addr = %source_ip_addr,
                     source_ip = %source_ip,
-                    pattern = %raw.resource_name,
-                    end_time = raw.end_time,
+                    end_time = data.end_time,
                     now = now,
-                    "Connection blocked by IP pattern blacklist"
+                    "Connection blocked by exact IP blacklist"
                 );
                 return true;
             }
         }
     }
 
+    // Check CIDR/wildcard match across all tenants
+    for raw in cache_manager.acl_metadata.get_blacklist_ip_match() {
+        if !is_active(raw.end_time, now) {
+            continue;
+        }
+        if ip_match(&source_ip, &raw.resource_name) {
+            info!(
+                source_ip_addr = %source_ip_addr,
+                source_ip = %source_ip,
+                pattern = %raw.resource_name,
+                end_time = raw.end_time,
+                now = now,
+                "Connection blocked by IP pattern blacklist"
+            );
+            return true;
+        }
+    }
+
     false
 }
+
 #[cfg(test)]
 mod test {
     use super::{extract_ip_from_addr, is_connection_blacklisted, wildcard_to_regex};
@@ -222,6 +225,7 @@ mod test {
     use common_base::tools::{local_hostname, now_second};
     use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
     use metadata_struct::mqtt::user::MqttUser;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::mqtt::common::Login;
     use regex::Regex;
 
@@ -275,12 +279,14 @@ mod test {
         use super::{
             build_login, is_connection_blacklisted, local_hostname, now_second,
             test_build_mqtt_cache_manager, MqttAclBlackList, MqttAclBlackListType, MqttUser,
+            DEFAULT_TENANT,
         };
 
         #[tokio::test]
         async fn blocks_on_all_blacklist_types() {
             let cache_manager = test_build_mqtt_cache_manager().await;
             let user = MqttUser {
+                tenant: DEFAULT_TENANT.to_string(),
                 username: "loboxu".to_string(),
                 password: "pass123".to_string(),
                 salt: None,
@@ -309,6 +315,7 @@ mod test {
 
             for (blacklist_type, resource_name) in cases {
                 let blacklist = MqttAclBlackList {
+                    tenant: DEFAULT_TENANT.to_string(),
                     blacklist_type,
                     resource_name,
                     end_time: now_second() + 100,
@@ -330,6 +337,7 @@ mod test {
         async fn supports_ip_port_input() {
             let cache_manager = test_build_mqtt_cache_manager().await;
             let user = MqttUser {
+                tenant: DEFAULT_TENANT.to_string(),
                 username: "testuser".to_string(),
                 password: "pass123".to_string(),
                 salt: None,
@@ -350,6 +358,7 @@ mod test {
 
             for (source_ip_addr, blacklist_type, resource_name) in cases {
                 let blacklist = MqttAclBlackList {
+                    tenant: DEFAULT_TENANT.to_string(),
                     blacklist_type,
                     resource_name: resource_name.to_string(),
                     end_time: now_second() + 100,

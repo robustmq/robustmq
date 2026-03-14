@@ -88,7 +88,7 @@ pub async fn update_mqtt_cache_metadata(
             BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let user = serialize::deserialize::<MqttUser>(&record.data)?;
-                cache_manager.del_user(user.username);
+                cache_manager.del_user(&user.tenant, &user.username);
             }
         },
         BrokerUpdateCacheResourceType::Acl => match record.action_type() {

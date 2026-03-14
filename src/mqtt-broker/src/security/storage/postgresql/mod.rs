@@ -25,6 +25,7 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auth::storage::PostgresConfig;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use third_driver::postgresql::{build_postgresql_conn_pool, PostgresPool};
 
 mod schema;
@@ -125,6 +126,7 @@ impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
                 .try_get("created")
                 .map_err(|_| MqttBrokerError::CommonError("missing column: created".to_string()))?;
             let user = MqttUser {
+                tenant: DEFAULT_TENANT.to_string(),
                 username: username.clone(),
                 password,
                 salt,
@@ -162,6 +164,7 @@ impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
                 .map_err(|_| MqttBrokerError::CommonError("missing column: topic".to_string()))?;
 
             let acl = MqttAcl {
+                tenant: DEFAULT_TENANT.to_string(),
                 permission: match permission {
                     0 => MqttAclPermission::Deny,
                     1 => MqttAclPermission::Allow,
@@ -212,6 +215,7 @@ impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
                 .map_err(|_| MqttBrokerError::CommonError("missing column: desc".to_string()))?;
 
             let blacklist = MqttAclBlackList {
+                tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: get_blacklist_type_by_str(&blacklist_type)?,
                 resource_name,
                 end_time: end_time.max(0) as u64,
