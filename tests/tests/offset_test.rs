@@ -16,6 +16,7 @@
 mod tests {
     use common_base::uuid::unique_id;
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::{collections::HashMap, sync::Arc, time::Duration};
     use storage_engine::group::OffsetManager;
@@ -30,11 +31,14 @@ mod tests {
         let mut offset = HashMap::new();
         offset.insert("k1".to_string(), 3);
         offset_manager
-            .commit_offset(&group_name, &offset)
+            .commit_offset(DEFAULT_TENANT, &group_name, &offset)
             .await
             .unwrap();
 
-        let rep_offset = offset_manager.get_offset(&group_name).await.unwrap();
+        let rep_offset = offset_manager
+            .get_offset(DEFAULT_TENANT, &group_name)
+            .await
+            .unwrap();
         assert_eq!(rep_offset.len(), 1);
         let o1 = rep_offset.first().unwrap();
         assert_eq!(o1.offset, 3);
@@ -58,12 +62,15 @@ mod tests {
         let mut offset = HashMap::new();
         offset.insert("k1".to_string(), 3);
         offset_manager
-            .commit_offset(&group_name, &offset)
+            .commit_offset(DEFAULT_TENANT, &group_name, &offset)
             .await
             .unwrap();
 
         sleep(Duration::from_secs(2)).await;
-        let rep_offset = offset_manager.get_offset(&group_name).await.unwrap();
+        let rep_offset = offset_manager
+            .get_offset(DEFAULT_TENANT, &group_name)
+            .await
+            .unwrap();
         assert_eq!(rep_offset.len(), 1);
         let o1 = rep_offset.first().unwrap();
         assert_eq!(o1.offset, 3);

@@ -15,7 +15,7 @@
 use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
-use crate::mqtt::node_extend::NodeExtend;
+use crate::meta::extend::NodeExtend;
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct BrokerNode {

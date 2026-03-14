@@ -161,12 +161,11 @@ pub struct SlowSubscribeListRow {
     pub subscribe_name: String,
 }
 
-use common_base::uuid::unique_id;
 use common_base::{
     http_response::{error_response, success_response},
     utils::time_util::timestamp_to_local_datetime,
 };
-use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use mqtt_broker::storage::{auto_subscribe::AutoSubscribeStorage, local::LocalStorage};
 use protocol::mqtt::common::{qos, retain_forward_rule};
 use std::{collections::HashMap, sync::Arc};
@@ -306,15 +305,18 @@ pub async fn auto_subscribe_list(
         params.exact_match,
     );
     let mut subscriptions = Vec::new();
-    for (_, raw) in state.mqtt_context.cache_manager.auto_subscribe_rule.clone() {
-        subscriptions.push(AutoSubscribeListRow {
-            tenant: raw.tenant.clone(),
-            topic: raw.topic.clone(),
-            qos: format!("{:?}", raw.qos),
-            no_local: raw.no_local,
-            retain_as_published: raw.retain_as_published,
-            retained_handling: format!("{:?}", raw.retained_handling),
-        });
+    for tenant_entry in state.mqtt_context.cache_manager.auto_subscribe_rule.iter() {
+        for rule_entry in tenant_entry.value().iter() {
+            let raw = rule_entry.value();
+            subscriptions.push(AutoSubscribeListRow {
+                tenant: raw.tenant.clone(),
+                topic: raw.topic.clone(),
+                qos: format!("{:?}", raw.qos),
+                no_local: raw.no_local,
+                retain_as_published: raw.retain_as_published,
+                retained_handling: format!("{:?}", raw.retained_handling),
+            });
+        }
     }
 
     let filtered = apply_filters(subscriptions, &options);
@@ -353,7 +355,6 @@ pub async fn auto_subscribe_create(
     };
 
     let auto_subscribe_rule = MqttAutoSubscribeRule {
-        uniq_id: unique_id(),
         tenant: params.tenant.clone(),
         topic: params.topic.clone(),
         qos: qos_new,

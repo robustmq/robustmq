@@ -70,6 +70,7 @@ struct SendSuccessParams<'a> {
 struct BatchCtx<'a> {
     connector_name: &'a str,
     connector_type: &'a str,
+    tenant: &'a str,
     storage_driver_manager: &'a Arc<StorageDriverManager>,
     message_storage: &'a MessageStorage,
     connector_manager: &'a Arc<ConnectorManager>,
@@ -88,21 +89,30 @@ pub async fn run_connector_loop<S: ConnectorSink>(
 
     let mut resource = Some(sink.init_sink().await?);
     let message_storage = MessageStorage::new(storage_driver_manager.clone());
-    let connector_type = connector_manager
-        .get_connector(&connector_name)
+    let connector = connector_manager.get_connector(&connector_name);
+    let connector_type = connector
+        .as_ref()
         .map(|c| c.connector_type.to_string())
         .unwrap_or_else(|| "unknown".to_string());
+    let connector_tenant = connector
+        .as_ref()
+        .map(|c| c.tenant.clone())
+        .unwrap_or_default();
 
     let ctx = BatchCtx {
         connector_name: &connector_name,
         connector_type: &connector_type,
+        tenant: &connector_tenant,
         storage_driver_manager,
         message_storage: &message_storage,
         connector_manager,
     };
 
     let mut run_result: Result<(), CommonError> = Ok(());
-    let mut offsets = match message_storage.get_group_offset(&connector_name).await {
+    let mut offsets = match message_storage
+        .get_group_offset(&connector_tenant, &connector_name)
+        .await
+    {
         Ok(offsets) => offsets,
         Err(e) => {
             run_result = Err(e);
@@ -362,7 +372,7 @@ async fn commit_batch_offsets(
         offsets.insert(k.to_string(), *v);
     }
     ctx.message_storage
-        .commit_group_offset(ctx.connector_name, offsets)
+        .commit_group_offset(ctx.tenant, ctx.connector_name, offsets)
         .await
         .inspect_err(|_| {
             record_connector_offset_commit_failure(

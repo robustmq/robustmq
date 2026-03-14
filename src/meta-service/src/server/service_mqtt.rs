@@ -437,7 +437,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        create_topic_rewrite_rule_by_req(&self.raft_manager, &req)
+        create_topic_rewrite_rule_by_req(&self.raft_manager, &self.call_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)
@@ -450,7 +450,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        delete_topic_rewrite_rule_by_req(&self.raft_manager, &req)
+        delete_topic_rewrite_rule_by_req(&self.raft_manager, &self.call_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)

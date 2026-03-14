@@ -18,6 +18,7 @@ use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterSha
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::shard::EngineShardConfig;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use std::collections::HashMap;
 
 pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
@@ -164,11 +165,18 @@ pub async fn test_consumer_group_offset(adapter: ArcStorageAdapter) {
         .unwrap();
 
     adapter
-        .commit_offset(&g1, &HashMap::from([(s1.clone(), 100), (s2.clone(), 200)]))
+        .commit_offset(
+            DEFAULT_TENANT,
+            &g1,
+            &HashMap::from([(s1.clone(), 100), (s2.clone(), 200)]),
+        )
         .await
         .unwrap();
 
-    let offsets = adapter.get_offset_by_group(&g1).await.unwrap();
+    let offsets = adapter
+        .get_offset_by_group(DEFAULT_TENANT, &g1)
+        .await
+        .unwrap();
     assert_eq!(offsets.len(), 2);
     assert_eq!(
         offsets.iter().find(|o| o.shard_name == s1).unwrap().offset,
@@ -180,25 +188,42 @@ pub async fn test_consumer_group_offset(adapter: ArcStorageAdapter) {
     );
 
     adapter
-        .commit_offset(&g1, &HashMap::from([(s1.clone(), 150)]))
+        .commit_offset(DEFAULT_TENANT, &g1, &HashMap::from([(s1.clone(), 150)]))
         .await
         .unwrap();
-    let offsets = adapter.get_offset_by_group(&g1).await.unwrap();
+    let offsets = adapter
+        .get_offset_by_group(DEFAULT_TENANT, &g1)
+        .await
+        .unwrap();
     assert_eq!(
         offsets.iter().find(|o| o.shard_name == s1).unwrap().offset,
         150
     );
 
     adapter
-        .commit_offset(&g2, &HashMap::from([(s1, 300)]))
+        .commit_offset(DEFAULT_TENANT, &g2, &HashMap::from([(s1, 300)]))
         .await
         .unwrap();
-    assert_eq!(adapter.get_offset_by_group(&g2).await.unwrap().len(), 1);
+    assert_eq!(
+        adapter
+            .get_offset_by_group(DEFAULT_TENANT, &g2)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
 
-    assert_eq!(adapter.get_offset_by_group(&g3).await.unwrap().len(), 0);
+    assert_eq!(
+        adapter
+            .get_offset_by_group(DEFAULT_TENANT, &g3)
+            .await
+            .unwrap()
+            .len(),
+        0
+    );
 
     assert!(adapter
-        .commit_offset(&g1, &HashMap::from([(s3, 100)]))
+        .commit_offset(DEFAULT_TENANT, &g1, &HashMap::from([(s3, 100)]))
         .await
         .is_ok());
 }

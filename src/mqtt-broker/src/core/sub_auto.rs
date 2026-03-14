@@ -47,9 +47,10 @@ pub async fn try_auto_subscribe(
     cache_manager: &Arc<MQTTCacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> ResultMqttBrokerError {
-    if cache_manager.auto_subscribe_rule.is_empty() {
-        return Ok(());
-    }
+    let tenant_rules = match cache_manager.auto_subscribe_rule.get(tenant) {
+        Some(m) if !m.is_empty() => m,
+        _ => return Ok(()),
+    };
 
     let raw_username = login
         .as_ref()
@@ -59,11 +60,8 @@ pub async fn try_auto_subscribe(
 
     let mut filters: Vec<Filter> = Vec::new();
 
-    for rule_entry in cache_manager.auto_subscribe_rule.iter() {
+    for rule_entry in tenant_rules.iter() {
         let rule = rule_entry.value();
-        if rule.tenant != tenant {
-            continue;
-        }
         let topic = replace_topic_placeholders(&rule.topic, &client_id, &username, &remote_addr);
 
         info!(

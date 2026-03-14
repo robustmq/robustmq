@@ -23,10 +23,11 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
-use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::session::MqttSession;
-use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
+use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
+use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use metadata_struct::tenant::Tenant;
@@ -147,7 +148,11 @@ pub async fn update_mqtt_cache_metadata(
             BrokerUpdateCacheActionType::Create => {
                 let topic = serialize::deserialize::<Topic>(&record.data)?;
                 cache_manager.broker_cache.add_topic(&topic);
-                if !cache_manager.topic_rewrite_rule.is_empty() {
+                if cache_manager
+                    .topic_rewrite_rule
+                    .iter()
+                    .any(|e| !e.value().is_empty())
+                {
                     cache_manager.set_re_calc_topic_rewrite(true).await;
                 }
                 subscribe_manager
@@ -239,7 +244,26 @@ pub async fn update_mqtt_cache_metadata(
             BrokerUpdateCacheActionType::Delete => {
                 let rule = MqttAutoSubscribeRule::decode(&record.data)
                     .map_err(|e| crate::core::error::MqttBrokerError::CommonError(e.to_string()))?;
-                cache_manager.delete_auto_subscribe_rule(&rule.uniq_id);
+                cache_manager.delete_auto_subscribe_rule(&rule.tenant, &rule.topic);
+            }
+        },
+        BrokerUpdateCacheResourceType::TopicRewriteRule => match record.action_type() {
+            BrokerUpdateCacheActionType::Create => {
+                let rule = MqttTopicRewriteRule::decode(&record.data)
+                    .map_err(|e| crate::core::error::MqttBrokerError::CommonError(e.to_string()))?;
+                cache_manager.add_topic_rewrite_rule(rule);
+                cache_manager.set_re_calc_topic_rewrite(true).await;
+            }
+            BrokerUpdateCacheActionType::Update => {}
+            BrokerUpdateCacheActionType::Delete => {
+                let rule = MqttTopicRewriteRule::decode(&record.data)
+                    .map_err(|e| crate::core::error::MqttBrokerError::CommonError(e.to_string()))?;
+                cache_manager.delete_topic_rewrite_rule(
+                    &rule.tenant,
+                    &rule.action,
+                    &rule.source_topic,
+                );
+                cache_manager.set_re_calc_topic_rewrite(true).await;
             }
         },
         _ => {}

@@ -42,10 +42,10 @@ pub use connector_type::ConnectorType;
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq)]
 pub struct MQTTConnector {
+    pub tenant: String,
     pub connector_name: String,
     pub connector_type: ConnectorType,
     pub failure_strategy: FailureHandlingStrategy,
-    pub tenant: String,
     pub topic_name: String,
     pub status: MQTTStatus,
     pub etl_rule: ETLRule,

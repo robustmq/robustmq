@@ -30,13 +30,13 @@ pub fn key_resource_config(resource_key: &str) -> String {
 }
 
 #[inline]
-pub fn key_offset(group: &str, shard_name: &str) -> String {
-    format!("{}offset/{}/{}", PREFIX_META, group, shard_name)
+pub fn key_offset(tenant: &str, group: &str, shard_name: &str) -> String {
+    format!("{}offset/{}/{}/{}", PREFIX_META, tenant, group, shard_name)
 }
 
 #[inline]
-pub fn key_offset_by_group(group: &str) -> String {
-    format!("{}offset/{}/", PREFIX_META, group)
+pub fn key_offset_by_group(tenant: &str, group: &str) -> String {
+    format!("{}offset/{}/{}/", PREFIX_META, tenant, group)
 }
 
 #[inline]
@@ -304,10 +304,10 @@ pub fn storage_key_mqtt_topic_rewrite_rule_tenant_prefix(tenant: &str) -> String
 }
 
 #[inline]
-pub fn storage_key_mqtt_auto_subscribe_rule(tenant: &str, uniq_id: &str) -> String {
+pub fn storage_key_mqtt_auto_subscribe_rule(tenant: &str, topic: &str) -> String {
     format!(
         "{}mqtt/auto_subscribe_rule/{}/{}",
-        PREFIX_META, tenant, uniq_id
+        PREFIX_META, tenant, topic
     )
 }
 

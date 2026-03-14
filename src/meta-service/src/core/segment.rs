@@ -278,7 +278,7 @@ fn calc_node_fold(
 mod tests {
     use crate::core::{cache::MetaCacheManager, segment::calc_node_fold};
     use common_base::tools::now_second;
-    use metadata_struct::{meta::node::BrokerNode, mqtt::node_extend::NodeExtend};
+    use metadata_struct::meta::{extend::NodeExtend, node::BrokerNode};
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
 

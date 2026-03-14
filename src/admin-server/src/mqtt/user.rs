@@ -26,6 +26,7 @@ use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct UserListReq {
+    pub tenant: Option<String>,
     pub user_name: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
@@ -61,6 +62,7 @@ pub struct DeleteUserReq {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UserListRow {
+    pub tenant: String,
     pub username: String,
     pub is_superuser: bool,
     pub create_time: u64,
@@ -116,8 +118,14 @@ pub async fn user_list(
 
     let mut users = Vec::new();
     for tenant_entry in state.mqtt_context.cache_manager.user_info.iter() {
+        if let Some(ref t) = params.tenant {
+            if tenant_entry.key() != t {
+                continue;
+            }
+        }
         for ele in tenant_entry.value().iter() {
             let user_raw = UserListRow {
+                tenant: tenant_entry.key().clone(),
                 username: ele.value().username.clone(),
                 is_superuser: ele.value().is_superuser,
                 create_time: ele.value().create_time,
@@ -139,6 +147,7 @@ pub async fn user_list(
 impl Queryable for UserListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "tenant" => Some(self.tenant.clone()),
             "username" => Some(self.username.clone()),
             _ => None,
         }

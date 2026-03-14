@@ -96,28 +96,30 @@ pub async fn session_list(
             });
         }
     } else {
-        for (_, session) in state.mqtt_context.cache_manager.session_info.clone() {
-            let last_will = match storage
-                .get_last_will_message(session.client_id.clone())
-                .await
-            {
-                Ok(data) => data,
-                Err(e) => {
-                    return error_response(e.to_string());
-                }
-            };
-            sessions.push(SessionListRow {
-                client_id: session.client_id.clone(),
-                session_expiry: session.session_expiry_interval,
-                is_contain_last_will: session.is_contain_last_will,
-                last_will_delay_interval: session.last_will_delay_interval,
-                create_time: session.create_time,
-                connection_id: session.connection_id,
-                broker_id: session.broker_id,
-                reconnect_time: session.reconnect_time,
-                distinct_time: session.distinct_time,
-                last_will,
-            });
+        for tenant_entry in state.mqtt_context.cache_manager.session_info.iter() {
+            for (_, session) in tenant_entry.value().clone() {
+                let last_will = match storage
+                    .get_last_will_message(session.client_id.clone())
+                    .await
+                {
+                    Ok(data) => data,
+                    Err(e) => {
+                        return error_response(e.to_string());
+                    }
+                };
+                sessions.push(SessionListRow {
+                    client_id: session.client_id.clone(),
+                    session_expiry: session.session_expiry_interval,
+                    is_contain_last_will: session.is_contain_last_will,
+                    last_will_delay_interval: session.last_will_delay_interval,
+                    create_time: session.create_time,
+                    connection_id: session.connection_id,
+                    broker_id: session.broker_id,
+                    reconnect_time: session.reconnect_time,
+                    distinct_time: session.distinct_time,
+                    last_will,
+                });
+            }
         }
     }
 

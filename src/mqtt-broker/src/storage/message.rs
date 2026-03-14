@@ -71,12 +71,13 @@ impl MessageStorage {
 
     pub async fn get_group_offset(
         &self,
+        tenant: &str,
         group_id: &str,
     ) -> Result<HashMap<String, u64>, CommonError> {
         let resp = self
             .storage_driver_manager
             .offset_manager
-            .get_offset(group_id)
+            .get_offset(tenant, group_id)
             .await?;
         let mut results = HashMap::with_capacity(2);
         for raw in resp {
@@ -87,12 +88,13 @@ impl MessageStorage {
 
     pub async fn commit_group_offset(
         &self,
+        tenant: &str,
         group_id: &str,
         offsets: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         self.storage_driver_manager
             .offset_manager
-            .commit_offset(group_id, offsets)
+            .commit_offset(tenant, group_id, offsets)
             .await
     }
 }

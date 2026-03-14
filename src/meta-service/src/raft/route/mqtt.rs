@@ -31,12 +31,12 @@ use delay_task::{DelayTask, DelayTaskData};
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::connector::MQTTConnector;
-use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::session::MqttSession;
-use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
+use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
@@ -339,7 +339,7 @@ impl DataRouteMqtt {
         if let Some(rule) =
             storage.get_auto_subscribe_rule_by_tenant_topic(&req.tenant, &req.topic)?
         {
-            storage.delete_auto_subscribe_rule(&rule.tenant, &rule.uniq_id)
+            storage.delete_auto_subscribe_rule(&rule.tenant, &rule.topic)
         } else {
             Ok(())
         }

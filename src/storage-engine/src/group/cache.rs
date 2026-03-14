@@ -45,13 +45,14 @@ impl OffsetCacheManager {
 
     pub async fn commit_offset(
         &self,
+        tenant: &str,
         group_name: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         let mut batch = rocksdb::WriteBatch::default();
         let cf = get_cf_handle(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_BROKER)?;
         for (shard_name, offset) in offset.iter() {
-            let key = self.offset_key(group_name, shard_name);
+            let key = self.offset_key(tenant, group_name, shard_name);
             let shard_offset = AdapterConsumerGroupOffset {
                 shard_name: shard_name.to_string(),
                 offset: *offset,
@@ -62,7 +63,8 @@ impl OffsetCacheManager {
             batch.put_cf(&cf, &key, val);
         }
         self.rocksdb_engine_handler.db.write(batch)?;
-        self.group_update_flag.insert(group_name.to_string(), true);
+        self.group_update_flag
+            .insert(format!("{}/{}", tenant, group_name), true);
         Ok(())
     }
 
@@ -71,6 +73,7 @@ impl OffsetCacheManager {
     }
 
     pub async fn try_comparison_and_save_offset(&self) -> Result<(), CommonError> {
+        // key in group_update_flag is "tenant/group"
         let groups: DashMap<String, Vec<AdapterConsumerGroupOffset>> = DashMap::new();
 
         // Only read offsets for groups with pending updates (flag=true)
@@ -78,14 +81,14 @@ impl OffsetCacheManager {
             let cf = get_cf_handle(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_BROKER)?;
 
             for entry in self.group_update_flag.iter() {
-                let group_name = entry.key();
+                let tenant_group = entry.key();
                 let flag = *entry.value();
 
                 if !flag {
                     continue;
                 }
 
-                let key_prefix = self.offset_group_key_prefix(group_name);
+                let key_prefix = self.offset_group_key_prefix_from_tenant_group(tenant_group);
                 let mut group_offsets = Vec::new();
 
                 for (_, val) in self
@@ -97,7 +100,7 @@ impl OffsetCacheManager {
                 }
 
                 if !group_offsets.is_empty() {
-                    groups.insert(group_name.clone(), group_offsets);
+                    groups.insert(tenant_group.clone(), group_offsets);
                 }
             }
         }
@@ -105,9 +108,10 @@ impl OffsetCacheManager {
         let updates: DashMap<String, Vec<AdapterConsumerGroupOffset>> = DashMap::new();
 
         for group_raw in groups.iter() {
-            let group = group_raw.key();
+            let tenant_group = group_raw.key();
             let local_offsets = group_raw.value();
-            let remote_offsets = self.offset_storage.get_offset(group).await?;
+            let (tenant, group) = split_tenant_group(tenant_group);
+            let remote_offsets = self.offset_storage.get_offset(tenant, group).await?;
 
             let mut remote_map = HashMap::new();
             for remote_offset in remote_offsets {
@@ -127,12 +131,27 @@ impl OffsetCacheManager {
             }
 
             if !group_updates.is_empty() {
-                updates.insert(group.clone(), group_updates);
+                updates.insert(tenant_group.clone(), group_updates);
             }
         }
 
         if !updates.is_empty() {
-            self.offset_storage.batch_commit_offset(&updates).await?;
+            // batch_commit_offset takes (tenant, DashMap<group, offsets>)
+            // group by tenant first
+            let by_tenant: DashMap<String, DashMap<String, Vec<AdapterConsumerGroupOffset>>> =
+                DashMap::new();
+            for entry in updates.iter() {
+                let (tenant, group) = split_tenant_group(entry.key());
+                by_tenant
+                    .entry(tenant.to_string())
+                    .or_default()
+                    .insert(group.to_string(), entry.value().clone());
+            }
+            for tenant_entry in by_tenant.iter() {
+                self.offset_storage
+                    .batch_commit_offset(tenant_entry.key(), tenant_entry.value())
+                    .await?;
+            }
         }
 
         Ok(())
@@ -144,18 +163,32 @@ impl OffsetCacheManager {
             return Ok(());
         }
 
-        self.offset_storage.batch_commit_offset(&offsets).await?;
-
-        // Reset flags after successful commit, but preserve flags set during commit
-        // Use compare-and-swap to avoid race conditions
+        // group by tenant
+        let by_tenant: DashMap<String, DashMap<String, Vec<AdapterConsumerGroupOffset>>> =
+            DashMap::new();
         for entry in offsets.iter() {
-            let group_name = entry.key().clone();
-            self.group_update_flag.entry(group_name).and_modify(|flag| {
-                // Only reset if still true (not modified by concurrent commit)
-                if *flag {
-                    *flag = false;
-                }
-            });
+            let (tenant, group) = split_tenant_group(entry.key());
+            by_tenant
+                .entry(tenant.to_string())
+                .or_default()
+                .insert(group.to_string(), entry.value().clone());
+        }
+        for tenant_entry in by_tenant.iter() {
+            self.offset_storage
+                .batch_commit_offset(tenant_entry.key(), tenant_entry.value())
+                .await?;
+        }
+
+        // Reset flags after successful commit
+        for entry in offsets.iter() {
+            let tenant_group = entry.key().clone();
+            self.group_update_flag
+                .entry(tenant_group)
+                .and_modify(|flag| {
+                    if *flag {
+                        *flag = false;
+                    }
+                });
         }
 
         Ok(())
@@ -168,14 +201,14 @@ impl OffsetCacheManager {
         let cf = get_cf_handle(&self.rocksdb_engine_handler, DB_COLUMN_FAMILY_BROKER)?;
 
         for entry in self.group_update_flag.iter() {
-            let group_name = entry.key();
+            let tenant_group = entry.key();
             let flag = *entry.value();
 
             if !flag {
                 continue;
             }
 
-            let key_prefix = self.offset_group_key_prefix(group_name);
+            let key_prefix = self.offset_group_key_prefix_from_tenant_group(tenant_group);
             let mut group_data = Vec::new();
             for (_, val) in self
                 .rocksdb_engine_handler
@@ -186,19 +219,23 @@ impl OffsetCacheManager {
             }
 
             if !group_data.is_empty() {
-                results.insert(group_name.clone(), group_data);
+                results.insert(tenant_group.clone(), group_data);
             }
         }
         Ok(results)
     }
 
-    fn offset_key(&self, group_name: &str, shard_name: &str) -> String {
-        format!("/offset/{group_name}/{shard_name}")
+    fn offset_key(&self, tenant: &str, group_name: &str, shard_name: &str) -> String {
+        format!("/offset/{tenant}/{group_name}/{shard_name}")
     }
 
-    fn offset_group_key_prefix(&self, group_name: &str) -> String {
-        format!("/offset/{group_name}/")
+    fn offset_group_key_prefix_from_tenant_group(&self, tenant_group: &str) -> String {
+        format!("/offset/{tenant_group}/")
     }
+}
+
+fn split_tenant_group(tenant_group: &str) -> (&str, &str) {
+    tenant_group.split_once('/').unwrap_or(("", tenant_group))
 }
 
 #[cfg(test)]
@@ -220,6 +257,7 @@ mod tests {
         // Commit multiple shards for one group
         cache
             .commit_offset(
+                "tenant1",
                 "g1",
                 &HashMap::from([("s1".into(), 100u64), ("s2".into(), 200u64)]),
             )
@@ -227,9 +265,12 @@ mod tests {
             .unwrap();
 
         // Verify flag set and offsets retrievable
-        assert!(cache.group_update_flag.get("g1").is_some_and(|v| *v));
+        assert!(cache
+            .group_update_flag
+            .get("tenant1/g1")
+            .is_some_and(|v| *v));
         let local = cache.get_local_offset().await.unwrap();
-        assert_eq!(local.get("g1").expect("g1 exists").len(), 2);
+        assert_eq!(local.get("tenant1/g1").expect("tenant1/g1 exists").len(), 2);
     }
 
     #[tokio::test]
@@ -237,18 +278,18 @@ mod tests {
         let cache = setup();
 
         cache
-            .commit_offset("g1", &HashMap::from([("s1".into(), 10u64)]))
+            .commit_offset("tenant1", "g1", &HashMap::from([("s1".into(), 10u64)]))
             .await
             .unwrap();
         cache
-            .commit_offset("g2", &HashMap::from([("s2".into(), 20u64)]))
+            .commit_offset("tenant1", "g2", &HashMap::from([("s2".into(), 20u64)]))
             .await
             .unwrap();
 
-        cache.group_update_flag.insert("g2".into(), false);
+        cache.group_update_flag.insert("tenant1/g2".into(), false);
 
         let local = cache.get_local_offset().await.unwrap();
         assert_eq!(local.len(), 1);
-        assert!(local.contains_key("g1"));
+        assert!(local.contains_key("tenant1/g1"));
     }
 }

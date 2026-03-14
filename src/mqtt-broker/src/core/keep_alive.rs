@@ -142,7 +142,7 @@ impl ClientKeepAlive {
         }
 
         for (client_id, _) in self.cache_manager.heartbeat_data.clone() {
-            if !self.cache_manager.session_info.contains_key(&client_id) {
+            if self.cache_manager.get_session_info(&client_id).is_none() {
                 self.cache_manager.heartbeat_data.remove(&client_id);
             }
         }

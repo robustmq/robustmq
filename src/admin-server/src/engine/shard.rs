@@ -83,6 +83,7 @@ pub struct GetOffsetByTimestampResp {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetOffsetByGroupReq {
+    pub tenant: String,
     pub group_name: String,
 }
 
@@ -93,6 +94,7 @@ pub struct GetOffsetByGroupResp {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CommitOffsetReq {
+    pub tenant: String,
     pub group_name: String,
     pub offsets: HashMap<String, u64>,
 }
@@ -277,7 +279,7 @@ pub async fn get_offset_by_group(
     let offsets = match state
         .engine_context
         .engine_adapter_handler
-        .get_offset_by_group(&params.group_name)
+        .get_offset_by_group(&params.tenant, &params.group_name)
         .await
     {
         Ok(data) => data,
@@ -304,7 +306,7 @@ pub async fn commit_offset(
     if let Err(e) = state
         .engine_context
         .engine_adapter_handler
-        .commit_offset(&params.group_name, &params.offsets)
+        .commit_offset(&params.tenant, &params.group_name, &params.offsets)
         .await
     {
         return error_response(e.to_string());

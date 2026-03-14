@@ -92,11 +92,13 @@ pub trait StorageAdapter {
 
     async fn get_offset_by_group(
         &self,
+        tenant: &str,
         group_name: &str,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError>;
 
     async fn commit_offset(
         &self,
+        tenant: &str,
         group_name: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError>;

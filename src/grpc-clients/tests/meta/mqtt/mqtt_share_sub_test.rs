@@ -22,8 +22,8 @@ mod tests {
     use grpc_clients::meta::common::call::register_node;
     use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::meta::extend::NodeExtend;
     use metadata_struct::meta::node::BrokerNode;
-    use metadata_struct::mqtt::node_extend::NodeExtend;
     use protocol::meta::meta_service_common::RegisterNodeRequest;
     use protocol::meta::meta_service_mqtt::GetShareSubLeaderRequest;
 

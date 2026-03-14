@@ -143,21 +143,25 @@ pub async fn save_offset_data_by_req(
 ) -> Result<SaveOffsetDataReply, MetaServiceError> {
     let mut grouped_offsets: BTreeMap<String, Vec<SaveOffsetData>> = BTreeMap::new();
     for offset in &req.offsets {
+        let partition_key = format!("{}/{}", offset.tenant, offset.group);
         grouped_offsets
-            .entry(offset.group.clone())
+            .entry(partition_key)
             .or_default()
             .push(offset.clone());
     }
 
-    for (group, offsets) in grouped_offsets {
+    for (partition_key, offsets) in grouped_offsets {
         let sub_req = SaveOffsetDataRequest { offsets };
         let data = StorageData::new(StorageDataType::OffsetSet, encode_to_bytes(&sub_req));
-        raft_manager.write_offset(&group, data).await.map_err(|e| {
-            MetaServiceError::CommonError(format!(
-                "Failed to write offset group '{}': {}",
-                group, e
-            ))
-        })?;
+        raft_manager
+            .write_offset(&partition_key, data)
+            .await
+            .map_err(|e| {
+                MetaServiceError::CommonError(format!(
+                    "Failed to write offset partition '{}': {}",
+                    partition_key, e
+                ))
+            })?;
     }
 
     Ok(SaveOffsetDataReply::default())
@@ -170,7 +174,7 @@ pub async fn get_offset_data_by_req(
     let offset_storage = OffsetStorage::new(rocksdb_engine_handler.clone());
 
     let offset_data = offset_storage
-        .group_offset(&req.group)
+        .group_offset(&req.tenant, &req.group)
         .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
 
     let offsets = offset_data

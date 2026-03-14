@@ -85,7 +85,11 @@ async fn cluster_overview_by_req(
         connector_num: connector_manager.connector_list.len() as u32,
         connector_thread_num: connector_manager.connector_thread.len() as u32,
         connection_num: cache_manager.connection_info.len() as u32,
-        session_num: cache_manager.session_info.len() as u32,
+        session_num: cache_manager
+            .session_info
+            .iter()
+            .map(|e| e.value().len())
+            .sum::<usize>() as u32,
         subscribe_num: subscribe_manager.subscribe_list.len() as u32,
         exclusive_subscribe_num: subscribe_manager.directly_push.sub_len(),
         exclusive_subscribe_thread_num: subscribe_manager.directly_push.buckets_data_list.len()

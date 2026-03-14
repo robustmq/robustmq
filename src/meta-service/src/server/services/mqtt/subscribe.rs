@@ -26,8 +26,8 @@ use crate::{
 };
 use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
-use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
+use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
     CreateAutoSubscribeRuleReply, CreateAutoSubscribeRuleRequest, DeleteAutoSubscribeRuleReply,

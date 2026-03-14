@@ -20,7 +20,7 @@ use grpc_clients::meta::mqtt::call::{
     placement_list_auto_subscribe_rule,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use protocol::meta::meta_service_mqtt::{
     CreateAutoSubscribeRuleRequest, DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleRequest,
 };

@@ -20,7 +20,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auth::authn_config::AuthnConfig;
-use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
@@ -95,8 +95,8 @@ pub struct MQTTCacheManager {
     // (tenant, (username, User))
     pub user_info: DashMap<String, DashMap<String, MqttUser>>,
 
-    // (client_id, Session)
-    pub session_info: DashMap<String, MqttSession>,
+    // (tenant, (client_id, Session))
+    pub session_info: DashMap<String, DashMap<String, MqttSession>>,
 
     // (connect_id, Connection)
     pub connection_info: DashMap<u64, MQTTConnection>,
@@ -112,15 +112,15 @@ pub struct MQTTCacheManager {
     // pkid manager
     pub pkid_data: PkidManager,
 
-    // All topic rewrite rule
-    pub topic_rewrite_rule: DashMap<String, MqttTopicRewriteRule>,
+    // (tenant, (action_source_topic, rule))
+    pub topic_rewrite_rule: DashMap<String, DashMap<String, MqttTopicRewriteRule>>,
 
     // Topic rewrite new name: outer key = tenant, inner key = original topic_name, value = rewritten topic_name
     pub topic_rewrite_new_name: DashMap<String, DashMap<String, String>>,
     pub re_calc_topic_rewrite: Arc<RwLock<bool>>,
 
-    // All auto subscribe rule
-    pub auto_subscribe_rule: DashMap<String, MqttAutoSubscribeRule>,
+    // All auto subscribe rule: outer key = tenant, inner key = topic
+    pub auto_subscribe_rule: DashMap<String, DashMap<String, MqttAutoSubscribeRule>>,
 
     // Topic is Validator
     pub topic_is_validator: DashMap<String, bool>,
@@ -150,33 +150,54 @@ impl MQTTCacheManager {
     pub fn get_session_client_id_list(&self) -> Vec<String> {
         self.session_info
             .iter()
-            .map(|session| session.client_id.clone())
+            .flat_map(|tenant_entry| {
+                tenant_entry
+                    .value()
+                    .iter()
+                    .map(|session| session.client_id.clone())
+                    .collect::<Vec<_>>()
+            })
             .collect()
     }
 
     pub fn add_session(&self, client_id: &str, session: &MqttSession) {
         self.session_info
+            .entry(session.tenant.clone())
+            .or_default()
             .insert(client_id.to_owned(), session.to_owned());
     }
 
     pub fn get_session_info(&self, client_id: &str) -> Option<MqttSession> {
-        if let Some(session) = self.session_info.get(client_id) {
-            return Some(session.clone());
+        for tenant_entry in self.session_info.iter() {
+            if let Some(session) = tenant_entry.value().get(client_id) {
+                return Some(session.clone());
+            }
         }
         None
     }
 
+    pub fn get_session_info_by_tenant(&self, tenant: &str, client_id: &str) -> Option<MqttSession> {
+        self.session_info
+            .get(tenant)
+            .and_then(|m| m.get(client_id).map(|s| s.clone()))
+    }
+
     pub fn update_session_connect_id(&self, client_id: &str, connect_id: Option<u64>) {
-        if let Some(mut session) = self.session_info.get_mut(client_id) {
-            session.update_connection_id(connect_id);
-            if connect_id.is_none() {
-                session.update_distinct_time()
+        for tenant_entry in self.session_info.iter() {
+            if let Some(mut session) = tenant_entry.value().get_mut(client_id) {
+                session.update_connection_id(connect_id);
+                if connect_id.is_none() {
+                    session.update_distinct_time()
+                }
+                return;
             }
         }
     }
 
     pub fn remove_session(&self, client_id: &str) {
-        self.session_info.remove(client_id);
+        for tenant_entry in self.session_info.iter() {
+            tenant_entry.value().remove(client_id);
+        }
         self.heartbeat_data.remove(client_id);
         self.pkid_data.remove_by_client_id(client_id);
     }
@@ -197,9 +218,12 @@ impl MQTTCacheManager {
 
     // connection
     pub fn add_connection(&self, connect_id: u64, conn: MQTTConnection) {
-        if let Some(mut session) = self.session_info.get_mut(&conn.client_id) {
-            session.connection_id = Some(connect_id);
-            self.connection_info.insert(connect_id, conn);
+        for tenant_entry in self.session_info.iter() {
+            if let Some(mut session) = tenant_entry.value().get_mut(&conn.client_id) {
+                session.connection_id = Some(connect_id);
+                self.connection_info.insert(connect_id, conn);
+                return;
+            }
         }
     }
 
@@ -208,10 +232,8 @@ impl MQTTCacheManager {
     }
 
     pub fn get_connect_id(&self, client_id: &str) -> Option<u64> {
-        if let Some(sess) = self.session_info.get(client_id) {
-            if let Some(conn_id) = sess.connection_id {
-                return Some(conn_id);
-            }
+        if let Some(sess) = self.get_session_info(client_id) {
+            return sess.connection_id;
         }
         None
     }
@@ -230,24 +252,41 @@ impl MQTTCacheManager {
 
     // topic rewrite rule
     pub fn add_topic_rewrite_rule(&self, topic_rewrite_rule: MqttTopicRewriteRule) {
-        let key = self.topic_rewrite_rule_key(
-            &topic_rewrite_rule.tenant,
+        let inner_key = self.topic_rewrite_rule_inner_key(
             &topic_rewrite_rule.action,
             &topic_rewrite_rule.source_topic,
         );
-        self.topic_rewrite_rule.insert(key, topic_rewrite_rule);
+        self.topic_rewrite_rule
+            .entry(topic_rewrite_rule.tenant.clone())
+            .or_default()
+            .insert(inner_key, topic_rewrite_rule);
     }
 
     pub fn delete_topic_rewrite_rule(&self, tenant: &str, action: &str, source_topic: &str) {
-        let key = self.topic_rewrite_rule_key(tenant, action, source_topic);
-        self.topic_rewrite_rule.remove(&key);
+        let inner_key = self.topic_rewrite_rule_inner_key(action, source_topic);
+        if let Some(tenant_map) = self.topic_rewrite_rule.get(tenant) {
+            tenant_map.remove(&inner_key);
+        }
     }
 
     pub fn get_all_topic_rewrite_rule(&self) -> Vec<MqttTopicRewriteRule> {
         self.topic_rewrite_rule
             .iter()
-            .map(|entry| entry.value().clone())
+            .flat_map(|tenant_entry| {
+                tenant_entry
+                    .value()
+                    .iter()
+                    .map(|rule| rule.value().clone())
+                    .collect::<Vec<_>>()
+            })
             .collect()
+    }
+
+    pub fn get_topic_rewrite_rules_by_tenant(&self, tenant: &str) -> Vec<MqttTopicRewriteRule> {
+        self.topic_rewrite_rule
+            .get(tenant)
+            .map(|m| m.iter().map(|entry| entry.value().clone()).collect())
+            .unwrap_or_default()
     }
 
     // topic_rewrite_new_name
@@ -381,17 +420,21 @@ impl MQTTCacheManager {
     }
 
     // key
-    pub fn topic_rewrite_rule_key(&self, tenant: &str, action: &str, source_topic: &str) -> String {
-        format!("{tenant}_{action}_{source_topic}")
+    pub fn topic_rewrite_rule_inner_key(&self, action: &str, source_topic: &str) -> String {
+        format!("{action}_{source_topic}")
     }
 
-    pub fn add_auto_subscribe_rule(&self, auto_subscribe_rule: MqttAutoSubscribeRule) {
+    pub fn add_auto_subscribe_rule(&self, rule: MqttAutoSubscribeRule) {
         self.auto_subscribe_rule
-            .insert(auto_subscribe_rule.uniq_id.clone(), auto_subscribe_rule);
+            .entry(rule.tenant.clone())
+            .or_default()
+            .insert(rule.topic.clone(), rule);
     }
 
-    pub fn delete_auto_subscribe_rule(&self, uniq_id: &str) {
-        self.auto_subscribe_rule.remove(uniq_id);
+    pub fn delete_auto_subscribe_rule(&self, tenant: &str, topic: &str) {
+        if let Some(tenant_map) = self.auto_subscribe_rule.get(tenant) {
+            tenant_map.remove(topic);
+        }
     }
 }
 
@@ -400,11 +443,11 @@ mod tests {
     use crate::core::tool::test_build_mqtt_cache_manager;
 
     use super::*;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
     use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::tools::now_second;
-    use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, uuid::unique_id};
     use metadata_struct::meta::node::BrokerNode;
     use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::mqtt::common::{QoS, RetainHandling};
@@ -492,6 +535,7 @@ mod tests {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let client_id = "test_client_session";
         let session = MqttSession {
+            tenant: DEFAULT_TENANT.to_string(),
             client_id: client_id.to_string(),
             ..Default::default()
         };
@@ -529,6 +573,7 @@ mod tests {
         let connect_id = 12345;
         let client_id = "test_client_connection";
         let session = MqttSession {
+            tenant: DEFAULT_TENANT.to_string(),
             client_id: client_id.to_string(),
             ..Default::default()
         };
@@ -621,7 +666,6 @@ mod tests {
     async fn auto_subscribe_rule_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttAutoSubscribeRule {
-            uniq_id: unique_id(),
             tenant: "tenant-1".to_string(),
             topic: "auto/sub/topic".to_string(),
             qos: QoS::AtLeastOnce,
@@ -634,16 +678,22 @@ mod tests {
         cache_manager.add_auto_subscribe_rule(rule.clone());
 
         // get
-        let rule_info = cache_manager.auto_subscribe_rule.get(&rule.uniq_id);
+        let rule_info = cache_manager
+            .auto_subscribe_rule
+            .get(&rule.tenant)
+            .and_then(|m| m.get(&rule.topic).map(|v| v.clone()));
         println!("{rule_info:?}");
         assert!(rule_info.is_some());
         assert_eq!(rule_info.unwrap().topic, rule.topic);
 
         // remove
-        cache_manager.delete_auto_subscribe_rule(&rule.uniq_id);
+        cache_manager.delete_auto_subscribe_rule(&rule.tenant, &rule.topic);
 
         // get again
-        let rule_info_after_remove = cache_manager.auto_subscribe_rule.get(&rule.uniq_id);
+        let rule_info_after_remove = cache_manager
+            .auto_subscribe_rule
+            .get(&rule.tenant)
+            .and_then(|m| m.get(&rule.topic).map(|v| v.clone()));
         assert!(rule_info_after_remove.is_none());
     }
 
@@ -653,6 +703,7 @@ mod tests {
         let client_id = "test_client_alias";
         let connect_id = 1;
         let session = MqttSession {
+            tenant: DEFAULT_TENANT.to_string(),
             client_id: client_id.to_string(),
             ..Default::default()
         };

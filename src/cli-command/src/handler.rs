@@ -246,9 +246,13 @@ pub enum EngineOffsetAction {
     },
     ByGroup {
         #[arg(long, required = true)]
+        tenant: String,
+        #[arg(long, required = true)]
         group_name: String,
     },
     Commit {
+        #[arg(long, required = true)]
+        tenant: String,
         #[arg(long, required = true)]
         group_name: String,
         #[arg(long, required = true)]
@@ -356,10 +360,11 @@ pub async fn handle_engine(args: EngineArgs) {
                 timestamp,
                 strategy,
             },
-            EngineOffsetAction::ByGroup { group_name } => {
-                EngineActionType::OffsetByGroup { group_name }
+            EngineOffsetAction::ByGroup { tenant, group_name } => {
+                EngineActionType::OffsetByGroup { tenant, group_name }
             }
             EngineOffsetAction::Commit {
+                tenant,
                 group_name,
                 offsets_json,
             } => {
@@ -373,6 +378,7 @@ pub async fn handle_engine(args: EngineArgs) {
                     }
                 };
                 EngineActionType::CommitOffset {
+                    tenant,
                     group_name,
                     offsets,
                 }

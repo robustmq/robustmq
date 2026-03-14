@@ -52,6 +52,7 @@ enum BrokerUpdateCacheResourceType {
   Blacklist = 13;
   Tenant = 14;
   AutoSubscribeRule = 15;
+  TopicRewriteRule = 16;
 }
 
 enum BrokerUpdateCacheActionType {

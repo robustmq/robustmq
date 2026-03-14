@@ -20,7 +20,7 @@ use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::mqtt::call::placement_delete_subscribe;
 use grpc_clients::{meta::mqtt::call::placement_set_subscribe, pool::ClientPool};
-use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
+use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use protocol::meta::meta_service_mqtt::DeleteSubscribeRequest;
 use protocol::mqtt::common::Unsubscribe;
 use protocol::{

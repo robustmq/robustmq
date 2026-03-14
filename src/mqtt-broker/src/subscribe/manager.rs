@@ -18,7 +18,7 @@ use crate::{
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
+use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::{mpsc::Sender, RwLock};
