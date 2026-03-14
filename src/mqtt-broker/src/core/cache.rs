@@ -116,8 +116,8 @@ pub struct MQTTCacheManager {
     // All topic rewrite rule
     pub topic_rewrite_rule: DashMap<String, MqttTopicRewriteRule>,
 
-    // Topic rewrite new name
-    pub topic_rewrite_new_name: DashMap<String, String>,
+    // Topic rewrite new name: outer key = tenant, inner key = original topic_name, value = rewritten topic_name
+    pub topic_rewrite_new_name: DashMap<String, DashMap<String, String>>,
     pub re_calc_topic_rewrite: Arc<RwLock<bool>>,
 
     // All auto subscribe rule
@@ -231,13 +231,16 @@ impl MQTTCacheManager {
 
     // topic rewrite rule
     pub fn add_topic_rewrite_rule(&self, topic_rewrite_rule: MqttTopicRewriteRule) {
-        let key = self
-            .topic_rewrite_rule_key(&topic_rewrite_rule.action, &topic_rewrite_rule.source_topic);
+        let key = self.topic_rewrite_rule_key(
+            &topic_rewrite_rule.tenant,
+            &topic_rewrite_rule.action,
+            &topic_rewrite_rule.source_topic,
+        );
         self.topic_rewrite_rule.insert(key, topic_rewrite_rule);
     }
 
-    pub fn delete_topic_rewrite_rule(&self, action: &str, source_topic: &str) {
-        let key = self.topic_rewrite_rule_key(action, source_topic);
+    pub fn delete_topic_rewrite_rule(&self, tenant: &str, action: &str, source_topic: &str) {
+        let key = self.topic_rewrite_rule_key(tenant, action, source_topic);
         self.topic_rewrite_rule.remove(&key);
     }
 
@@ -249,16 +252,21 @@ impl MQTTCacheManager {
     }
 
     // topic_rewrite_new_name
-    pub fn add_new_rewrite_name(&self, topic_name: &str, new_topic_name: &str) {
+    pub fn add_new_rewrite_name(&self, tenant: &str, topic_name: &str, new_topic_name: &str) {
         self.topic_rewrite_new_name
+            .entry(tenant.to_string())
+            .or_insert_with(DashMap::new)
             .insert(topic_name.to_string(), new_topic_name.to_string());
     }
 
-    pub fn get_new_rewrite_name(&self, topic_name: &str) -> Option<String> {
-        if let Some(new_name) = self.topic_rewrite_new_name.get(topic_name) {
-            return Some(new_name.clone());
-        }
-        None
+    pub fn get_new_rewrite_name(&self, tenant: &str, topic_name: &str) -> Option<String> {
+        self.topic_rewrite_new_name
+            .get(tenant)
+            .and_then(|inner| inner.get(topic_name).map(|v| v.clone()))
+    }
+
+    pub fn clear_rewrite_new_name(&self) {
+        self.topic_rewrite_new_name.clear();
     }
 
     pub async fn is_re_calc_topic_rewrite(&self) -> bool {
@@ -383,8 +391,8 @@ impl MQTTCacheManager {
     }
 
     // key
-    pub fn topic_rewrite_rule_key(&self, action: &str, source_topic: &str) -> String {
-        format!("{action}_{source_topic}")
+    pub fn topic_rewrite_rule_key(&self, tenant: &str, action: &str, source_topic: &str) -> String {
+        format!("{tenant}_{action}_{source_topic}")
     }
 
     pub fn add_auto_subscribe_rule(&self, auto_subscribe_rule: MqttAutoSubscribeRule) {
@@ -408,6 +416,7 @@ mod tests {
     use common_base::tools::now_second;
     use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, uuid::unique_id};
     use metadata_struct::meta::node::BrokerNode;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::mqtt::common::{QoS, RetainHandling};
 
     #[tokio::test]
@@ -585,6 +594,7 @@ mod tests {
     async fn topic_rewrite_rule_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttTopicRewriteRule {
+            tenant: DEFAULT_TENANT.to_string(),
             action: "publish".to_string(),
             source_topic: "source/topic".to_string(),
             dest_topic: "target/topic".to_string(),
@@ -601,7 +611,7 @@ mod tests {
         assert_eq!(rules[0].source_topic, rule.source_topic);
 
         // remove
-        cache_manager.delete_topic_rewrite_rule(&rule.action, &rule.source_topic);
+        cache_manager.delete_topic_rewrite_rule(&rule.tenant, &rule.action, &rule.source_topic);
 
         // get again
         let rules_after_remove = cache_manager.get_all_topic_rewrite_rule();

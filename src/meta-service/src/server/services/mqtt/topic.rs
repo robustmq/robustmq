@@ -198,10 +198,14 @@ pub async fn delete_topic_rewrite_rule_by_req(
 
 pub fn list_topic_rewrite_rule_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    _req: &ListTopicRewriteRuleRequest,
+    req: &ListTopicRewriteRuleRequest,
 ) -> Result<ListTopicRewriteRuleReply, MetaServiceError> {
     let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-    let data = storage.list_all_topic_rewrite_rules()?;
+    let data = if req.tenant.is_empty() {
+        storage.list_all_topic_rewrite_rules()?
+    } else {
+        storage.list_topic_rewrite_rules_by_tenant(&req.tenant)?
+    };
 
     let rules = data
         .into_iter()

@@ -23,6 +23,7 @@ mod tests {
     };
     use admin_server::mqtt::topic::{CreateTopicRewriteReq, DeleteTopicRewriteReq};
     use common_base::uuid::unique_id;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use paho_mqtt::{Message, MessageBuilder};
     use std::time::Duration;
     use tokio::time::sleep;
@@ -61,6 +62,7 @@ mod tests {
 
         // create topic rewrite rule
         let req = CreateTopicRewriteReq {
+            tenant: DEFAULT_TENANT.to_string(),
             action: "All".to_string(),
             source_topic: format!("{prefix}_y/+/z/#"),
             dest_topic: format!("{prefix}_y/z/$2"),
@@ -118,6 +120,7 @@ mod tests {
         distinct_conn(pub2_cli);
 
         let del_req = DeleteTopicRewriteReq {
+            tenant: DEFAULT_TENANT.to_string(),
             action: "All".to_string(),
             source_topic: format!("{prefix}_y/+/z/#"),
         };
@@ -132,6 +135,7 @@ mod tests {
         let source_topic = format!("{prefix}_y/a/z/b");
 
         let req = CreateTopicRewriteReq {
+            tenant: DEFAULT_TENANT.to_string(),
             action: "All".to_string(),
             source_topic: format!("{prefix}_y/+/z/#"),
             dest_topic: format!("{prefix}_y/z/$2"),
@@ -161,6 +165,7 @@ mod tests {
         distinct_conn(cli);
 
         let del_req = DeleteTopicRewriteReq {
+            tenant: DEFAULT_TENANT.to_string(),
             action: "All".to_string(),
             source_topic: format!("{prefix}_y/+/z/#"),
         };

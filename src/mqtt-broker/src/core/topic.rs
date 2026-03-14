@@ -87,6 +87,7 @@ pub fn topic_name_validator(topic_name: &str) -> ResultMqttBrokerError {
 
 pub async fn get_topic_name(
     cache_manager: &Arc<MQTTCacheManager>,
+    tenant: &str,
     connect_id: u64,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
@@ -114,7 +115,7 @@ pub async fn get_topic_name(
         cache_manager.add_topic_is_validator(&topic_name);
     }
 
-    if let Some(new_topic_name) = cache_manager.get_new_rewrite_name(&topic_name) {
+    if let Some(new_topic_name) = cache_manager.get_new_rewrite_name(tenant, &topic_name) {
         topic_name = new_topic_name;
     }
 

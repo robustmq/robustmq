@@ -82,6 +82,9 @@ pub struct TopicRewriteReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct CreateTopicRewriteReq {
+    #[validate(length(min = 1, max = 128, message = "Tenant length must be between 1-128"))]
+    pub tenant: String,
+
     #[validate(length(min = 1, max = 50, message = "Action length must be between 1-50"))]
     #[validate(custom(function = "validate_rewrite_action"))]
     pub action: String,
@@ -119,6 +122,9 @@ fn validate_rewrite_action(action: &str) -> Result<(), validator::ValidationErro
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteTopicRewriteReq {
+    #[validate(length(min = 1, max = 128, message = "Tenant length must be between 1-128"))]
+    pub tenant: String,
+
     #[validate(length(min = 1, max = 50, message = "Action length must be between 1-50"))]
     #[validate(custom(function = "validate_rewrite_action"))]
     pub action: String,
@@ -346,6 +352,7 @@ pub async fn topic_rewrite_create(
     ValidatedJson(params): ValidatedJson<CreateTopicRewriteReq>,
 ) -> String {
     let rule = MqttTopicRewriteRule {
+        tenant: params.tenant.clone(),
         action: params.action.clone(),
         source_topic: params.source_topic.clone(),
         dest_topic: params.dest_topic.clone(),
@@ -377,15 +384,20 @@ pub async fn topic_rewrite_delete(
 ) -> String {
     let topic_storage = TopicStorage::new(state.client_pool.clone());
     if let Err(e) = topic_storage
-        .delete_topic_rewrite_rule(params.action.clone(), params.source_topic.clone())
+        .delete_topic_rewrite_rule(
+            params.tenant.clone(),
+            params.action.clone(),
+            params.source_topic.clone(),
+        )
         .await
     {
         return error_response(e.to_string());
     }
-    state
-        .mqtt_context
-        .cache_manager
-        .delete_topic_rewrite_rule(&params.action, &params.source_topic);
+    state.mqtt_context.cache_manager.delete_topic_rewrite_rule(
+        &params.tenant,
+        &params.action,
+        &params.source_topic,
+    );
     state
         .mqtt_context
         .cache_manager

@@ -166,7 +166,6 @@ pub async fn parse_subscribe_by_new_subscribe(
     subscribe: &MqttSubscribe,
 ) -> ResultMqttBrokerError {
     subscribe_manager.add_subscribe(subscribe);
-    let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.filter.path);
     let topic_count = cache_manager.broker_cache.topic_list.len();
 
     debug!(
@@ -175,6 +174,8 @@ pub async fn parse_subscribe_by_new_subscribe(
     );
 
     for tenant_entry in cache_manager.broker_cache.topic_list.iter() {
+        let tenant = tenant_entry.key().clone();
+        let rewrite_sub_path = cache_manager.get_new_rewrite_name(&tenant, &subscribe.filter.path);
         for topic_entry in tenant_entry.value().iter() {
             let topic = topic_entry.value().clone();
             parse_subscribe(
@@ -218,7 +219,7 @@ pub async fn parse_subscribe_by_new_topic(
         if subscribe.broker_id != broker_id {
             continue;
         }
-        let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.path);
+        let rewrite_sub_path = cache_manager.get_new_rewrite_name(&topic.tenant, &subscribe.path);
 
         parse_subscribe(
             cache_manager,
@@ -281,12 +282,13 @@ async fn parse_subscribe(
         None
     };
 
-    let new_topic_name =
-        if let Some(topic) = cache_manager.get_new_rewrite_name(&context.topic.topic_name) {
-            topic
-        } else {
-            context.topic.topic_name.clone()
-        };
+    let new_topic_name = if let Some(topic) =
+        cache_manager.get_new_rewrite_name(&context.topic.tenant, &context.topic.topic_name)
+    {
+        topic
+    } else {
+        context.topic.topic_name.clone()
+    };
 
     if is_mqtt_share_subscribe(&context.filter.path) {
         add_share_push(

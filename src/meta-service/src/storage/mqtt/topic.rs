@@ -20,7 +20,7 @@ use rocksdb_engine::keys::meta::{
     storage_key_mqtt_retain_message, storage_key_mqtt_retain_message_prefix,
     storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
     storage_key_mqtt_topic_rewrite_rule, storage_key_mqtt_topic_rewrite_rule_prefix,
-    storage_key_mqtt_topic_tenant_prefix,
+    storage_key_mqtt_topic_rewrite_rule_tenant_prefix, storage_key_mqtt_topic_tenant_prefix,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_data::{
@@ -82,21 +82,23 @@ impl MqttTopicStorage {
     // Rewrite Rule
     pub fn save_topic_rewrite_rule(
         &self,
+        tenant: &str,
         action: &str,
         source_topic: &str,
         topic_rewrite_rule: MqttTopicRewriteRule,
     ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_topic_rewrite_rule(action, source_topic);
+        let key = storage_key_mqtt_topic_rewrite_rule(tenant, action, source_topic);
         engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, topic_rewrite_rule)?;
         Ok(())
     }
 
     pub fn delete_topic_rewrite_rule(
         &self,
+        tenant: &str,
         action: &str,
         source_topic: &str,
     ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_topic_rewrite_rule(action, source_topic);
+        let key = storage_key_mqtt_topic_rewrite_rule(tenant, action, source_topic);
         engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)?;
         Ok(())
     }
@@ -105,6 +107,18 @@ impl MqttTopicStorage {
         &self,
     ) -> Result<Vec<MqttTopicRewriteRule>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_topic_rewrite_rule_prefix();
+        let data = engine_prefix_list_by_meta_metadata::<MqttTopicRewriteRule>(
+            &self.rocksdb_engine_handler,
+            &prefix_key,
+        )?;
+        Ok(data.into_iter().map(|raw| raw.data).collect())
+    }
+
+    pub fn list_topic_rewrite_rules_by_tenant(
+        &self,
+        tenant: &str,
+    ) -> Result<Vec<MqttTopicRewriteRule>, MetaServiceError> {
+        let prefix_key = storage_key_mqtt_topic_rewrite_rule_tenant_prefix(tenant);
         let data = engine_prefix_list_by_meta_metadata::<MqttTopicRewriteRule>(
             &self.rocksdb_engine_handler,
             &prefix_key,
@@ -156,6 +170,7 @@ mod tests {
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
     use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use rocksdb_engine::test::test_rocksdb_instance;
 
     fn setup_storage() -> MqttTopicStorage {
@@ -175,6 +190,7 @@ mod tests {
 
     fn create_rewrite_rule(action: &str, source: &str, dest: &str) -> MqttTopicRewriteRule {
         MqttTopicRewriteRule {
+            tenant: DEFAULT_TENANT.to_string(),
             action: action.to_string(),
             source_topic: source.to_string(),
             dest_topic: dest.to_string(),
@@ -225,7 +241,7 @@ mod tests {
         // Save rule
         let rule = create_rewrite_rule("subscribe", "old/+/topic", "new/+/topic");
         storage
-            .save_topic_rewrite_rule("subscribe", "old/+/topic", rule)
+            .save_topic_rewrite_rule(DEFAULT_TENANT, "subscribe", "old/+/topic", rule)
             .unwrap();
 
         // List rules
@@ -235,7 +251,7 @@ mod tests {
 
         // Delete rule
         storage
-            .delete_topic_rewrite_rule("subscribe", "old/+/topic")
+            .delete_topic_rewrite_rule(DEFAULT_TENANT, "subscribe", "old/+/topic")
             .unwrap();
         assert_eq!(storage.list_all_topic_rewrite_rules().unwrap().len(), 0);
     }

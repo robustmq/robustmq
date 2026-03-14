@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct MqttTopicRewriteRule {
+    pub tenant: String,
     pub action: String,
     pub source_topic: String,
     pub dest_topic: String,

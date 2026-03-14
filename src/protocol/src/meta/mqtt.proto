@@ -221,6 +221,7 @@ message DeleteBlacklistRequest {
 message DeleteBlacklistReply {}
 
 message CreateTopicRewriteRuleRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string action = 2 [(validate.rules).string.min_len = 1];
   string source_topic = 3 [(validate.rules).string.min_len = 1];
   string dest_topic = 4 [(validate.rules).string.min_len = 1];
@@ -230,6 +231,7 @@ message CreateTopicRewriteRuleRequest {
 message CreateTopicRewriteRuleReply {}
 
 message DeleteTopicRewriteRuleRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string action = 2 [(validate.rules).string.min_len = 1];
   string source_topic = 3 [(validate.rules).string.min_len = 1];
 }
@@ -237,6 +239,7 @@ message DeleteTopicRewriteRuleRequest {
 message DeleteTopicRewriteRuleReply {}
 
 message ListTopicRewriteRuleRequest {
+  string tenant = 1;
 }
 
 message ListTopicRewriteRuleReply {

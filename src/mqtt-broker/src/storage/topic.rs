@@ -177,8 +177,17 @@ impl TopicStorage {
     pub async fn all_topic_rewrite_rule(
         &self,
     ) -> Result<Vec<MqttTopicRewriteRule>, MqttBrokerError> {
+        self.topic_rewrite_rule_by_tenant("").await
+    }
+
+    pub async fn topic_rewrite_rule_by_tenant(
+        &self,
+        tenant: &str,
+    ) -> Result<Vec<MqttTopicRewriteRule>, MqttBrokerError> {
         let config = broker_config();
-        let request = ListTopicRewriteRuleRequest {};
+        let request = ListTopicRewriteRuleRequest {
+            tenant: tenant.to_string(),
+        };
         let reply = placement_list_topic_rewrite_rule(
             &self.client_pool,
             &config.get_meta_service_addr(),
@@ -199,6 +208,7 @@ impl TopicStorage {
     ) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = CreateTopicRewriteRuleRequest {
+            tenant: req.tenant.clone(),
             action: req.action.clone(),
             source_topic: req.source_topic.clone(),
             dest_topic: req.dest_topic.clone(),
@@ -215,11 +225,13 @@ impl TopicStorage {
 
     pub async fn delete_topic_rewrite_rule(
         &self,
+        tenant: String,
         action: String,
         source_topic: String,
     ) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = DeleteTopicRewriteRuleRequest {
+            tenant,
             action,
             source_topic,
         };
