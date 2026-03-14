@@ -117,8 +117,11 @@ pub struct CreateAutoSubscribeReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteAutoSubscribeReq {
-    #[validate(length(min = 1, max = 256, message = "uniq_id length must be between 1-256"))]
-    pub uniq_id: String,
+    #[validate(length(min = 1, max = 256, message = "Tenant length must be between 1-256"))]
+    pub tenant: String,
+
+    #[validate(length(min = 1, max = 256, message = "Topic length must be between 1-256"))]
+    pub topic: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -139,6 +142,7 @@ pub struct SubscribeListRow {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AutoSubscribeListRow {
+    pub tenant: String,
     pub topic: String,
     pub qos: String,
     pub no_local: bool,
@@ -303,8 +307,9 @@ pub async fn auto_subscribe_list(
     let mut subscriptions = Vec::new();
     for (_, raw) in state.mqtt_context.cache_manager.auto_subscribe_rule.clone() {
         subscriptions.push(AutoSubscribeListRow {
+            tenant: raw.tenant.clone(),
             topic: raw.topic.clone(),
-            qos: format!("{:?}", raw.topic),
+            qos: format!("{:?}", raw.qos),
             no_local: raw.no_local,
             retain_as_published: raw.retain_as_published,
             retained_handling: format!("{:?}", raw.retained_handling),
@@ -373,16 +378,11 @@ pub async fn auto_subscribe_delete(
 ) -> String {
     let auto_subscribe_storage = AutoSubscribeStorage::new(state.client_pool.clone());
     if let Err(e) = auto_subscribe_storage
-        .delete_auto_subscribe_rule(params.uniq_id.clone())
+        .delete_auto_subscribe_rule(params.tenant.clone(), params.topic.clone())
         .await
     {
         return error_response(e.to_string());
     }
-
-    state
-        .mqtt_context
-        .cache_manager
-        .delete_auto_subscribe_rule(&params.uniq_id);
 
     success_response("success")
 }

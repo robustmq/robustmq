@@ -94,7 +94,7 @@ mod tests {
 
         let mut props = Properties::new();
         props
-            .push_val(PropertyCode::MessageExpiryInterval, 30)
+            .push_val(PropertyCode::MessageExpiryInterval, 5)
             .unwrap();
         let message = "message_not_expire_test mqtt message".to_string();
         let msg = MessageBuilder::new()
@@ -105,7 +105,7 @@ mod tests {
             .finalize();
         publish_data(&cli, msg, false);
 
-        sleep(Duration::from_secs(40)).await;
+        sleep(Duration::from_secs(10)).await;
         let call_fn = |msg: Message| {
             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
             payload == message

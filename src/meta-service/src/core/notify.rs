@@ -18,6 +18,7 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
+use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
@@ -406,6 +407,33 @@ pub async fn send_notify_by_set_segment_meta(
         BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::SegmentMeta,
         segment_info.encode()?,
+    )
+    .await
+}
+
+// MQTT Auto Subscribe Rule
+pub async fn send_notify_by_create_auto_subscribe_rule(
+    call_manager: &Arc<NodeCallManager>,
+    rule: MqttAutoSubscribeRule,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::AutoSubscribeRule,
+        rule.encode()?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_auto_subscribe_rule(
+    call_manager: &Arc<NodeCallManager>,
+    rule: MqttAutoSubscribeRule,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::AutoSubscribeRule,
+        rule.encode()?,
     )
     .await
 }

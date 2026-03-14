@@ -134,10 +134,20 @@ impl DirectlyPushManager {
                         processed_count += count;
                     }
                     Err(e) => {
-                        warn!(
-                            "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}],error message: {}",
-                            row.client_id, row.group_name, row.topic_name, row.sub_path, e
-                        );
+                        let err_msg = e.to_string();
+                        if err_msg.contains("does not exist") {
+                            warn!(
+                                "Removing stale subscriber [client_id: {}, sub_path: {}]: shard no longer exists ({})",
+                                row.client_id, row.sub_path, err_msg
+                            );
+                            self.subscribe_manager
+                                .remove_by_sub(&row.client_id, &row.sub_path);
+                        } else {
+                            warn!(
+                                "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}],error message: {}",
+                                row.client_id, row.group_name, row.topic_name, row.sub_path, e
+                            );
+                        }
                     }
                 }
             }

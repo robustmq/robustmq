@@ -16,12 +16,13 @@ use super::{
     cache::MQTTCacheManager,
     subscribe::{save_subscribe, SaveSubscribeContext},
 };
+use crate::core::tenant::try_decode_username;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::common::{Filter, Login, MqttProtocol, Subscribe};
 use std::sync::Arc;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 fn replace_topic_placeholders(
     pattern: &str,
@@ -50,10 +51,11 @@ pub async fn try_auto_subscribe(
         return Ok(());
     }
 
-    let username = login
+    let raw_username = login
         .as_ref()
-        .map(|login_info| login_info.username.as_str())
-        .unwrap_or("");
+        .map(|login_info| login_info.username.clone())
+        .unwrap_or_default();
+    let username = try_decode_username(&raw_username);
 
     let mut filters: Vec<Filter> = Vec::new();
 
@@ -62,9 +64,9 @@ pub async fn try_auto_subscribe(
         if rule.tenant != tenant {
             continue;
         }
-        let topic = replace_topic_placeholders(&rule.topic, &client_id, username, &remote_addr);
+        let topic = replace_topic_placeholders(&rule.topic, &client_id, &username, &remote_addr);
 
-        debug!(
+        info!(
             "Auto-subscribe: client_id={}, original_pattern={}, resolved_topic={}, qos={:?}",
             client_id, rule.topic, topic, rule.qos
         );

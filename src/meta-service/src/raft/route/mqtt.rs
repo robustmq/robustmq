@@ -333,10 +333,10 @@ impl DataRouteMqtt {
 
     pub fn delete_auto_subscribe_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteAutoSubscribeRuleRequest::decode(value.as_ref())?;
-        // uniq_id alone is enough to locate the rule; scan to resolve tenant for the key
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
-        let all = storage.list_all_auto_subscribe_rules()?;
-        if let Some(rule) = all.into_iter().find(|r| r.uniq_id == req.uniq_id) {
+        if let Some(rule) =
+            storage.get_auto_subscribe_rule_by_tenant_topic(&req.tenant, &req.topic)?
+        {
             storage.delete_auto_subscribe_rule(&rule.tenant, &rule.uniq_id)
         } else {
             Ok(())

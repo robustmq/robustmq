@@ -23,6 +23,7 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
+use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
@@ -226,6 +227,19 @@ pub async fn update_mqtt_cache_metadata(
                 cache_manager
                     .broker_cache
                     .remove_tenant(&tenant.tenant_name);
+            }
+        },
+        BrokerUpdateCacheResourceType::AutoSubscribeRule => match record.action_type() {
+            BrokerUpdateCacheActionType::Create => {
+                let rule = MqttAutoSubscribeRule::decode(&record.data)
+                    .map_err(|e| crate::core::error::MqttBrokerError::CommonError(e.to_string()))?;
+                cache_manager.add_auto_subscribe_rule(rule);
+            }
+            BrokerUpdateCacheActionType::Update => {}
+            BrokerUpdateCacheActionType::Delete => {
+                let rule = MqttAutoSubscribeRule::decode(&record.data)
+                    .map_err(|e| crate::core::error::MqttBrokerError::CommonError(e.to_string()))?;
+                cache_manager.delete_auto_subscribe_rule(&rule.uniq_id);
             }
         },
         _ => {}

@@ -315,7 +315,8 @@ message CreateAutoSubscribeRuleRequest {
 message CreateAutoSubscribeRuleReply {}
 
 message DeleteAutoSubscribeRuleRequest {
-  string uniq_id = 1 [(validate.rules).string.min_len = 1];
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string topic = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteAutoSubscribeRuleReply {}

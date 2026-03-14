@@ -607,10 +607,15 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        create_auto_subscribe_rule_by_req(&self.raft_manager, &self.rocksdb_engine_handler, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        create_auto_subscribe_rule_by_req(
+            &self.raft_manager,
+            &self.rocksdb_engine_handler,
+            &self.call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     async fn delete_auto_subscribe_rule(
@@ -620,10 +625,15 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        delete_auto_subscribe_rule_by_req(&self.raft_manager, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        delete_auto_subscribe_rule_by_req(
+            &self.raft_manager,
+            &self.rocksdb_engine_handler,
+            &self.call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     async fn list_auto_subscribe_rule(

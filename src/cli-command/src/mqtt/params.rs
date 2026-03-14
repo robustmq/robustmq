@@ -725,8 +725,10 @@ pub struct CreateAutoSubscribeRuleArgs {
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
 pub struct DeleteAutoSubscribeRuleArgs {
+    #[arg(short = 'T', long, required = true)]
+    pub tenant: String,
     #[arg(short, long, required = true)]
-    pub uniq_id: String,
+    pub topic: String,
 }
 
 pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttActionType {
@@ -744,7 +746,8 @@ pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttAction
         ),
         AutoSubscribeRuleActionType::Delete(arg) => MqttActionType::DeleteAutoSubscribe(
             admin_server::mqtt::subscribe::DeleteAutoSubscribeReq {
-                uniq_id: arg.uniq_id,
+                tenant: arg.tenant,
+                topic: arg.topic,
             },
         ),
     }
