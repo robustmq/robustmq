@@ -32,18 +32,28 @@ mod tests {
         let topic_storage = TopicStorage::new(client_pool);
         let topic_name: String = "test_password".to_string();
         let topic = Topic::build_by_name(&topic_name);
-        topic_storage.create_topic(topic).await.unwrap();
+        topic_storage.create_topic(&topic).await.unwrap();
 
-        let result = topic_storage.get_topic(&topic_name).await.unwrap().unwrap();
+        let result = topic_storage
+            .get_topic(&topic.tenant, &topic_name)
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(result.topic_name, topic_name);
         assert!(!result.topic_name.is_empty());
 
         let result = topic_storage.all().await.unwrap();
         assert!(!result.is_empty());
 
-        topic_storage.delete_topic(&topic_name).await.unwrap();
+        topic_storage
+            .delete_topic(&topic.tenant, &topic_name)
+            .await
+            .unwrap();
 
-        let result = topic_storage.get_topic(&topic_name).await.unwrap();
+        let result = topic_storage
+            .get_topic(&topic.tenant, &topic_name)
+            .await
+            .unwrap();
         assert!(result.is_none());
 
         topic_storage.all().await.unwrap();
@@ -67,14 +77,14 @@ mod tests {
 
         let topic = Topic::build_by_name(&topic_name);
         println!("{:?}", topic);
-        topic_storage.create_topic(topic.clone()).await.unwrap();
+        topic_storage.create_topic(&topic).await.unwrap();
 
         let publish_properties = PublishProperties::default();
         let retain_message =
             MqttMessage::build_message(&client_id, &publish, &Some(publish_properties), 600);
 
         topic_storage
-            .set_retain_message(&topic.topic_name, &retain_message, 1000)
+            .set_retain_message(&topic.tenant, &topic.topic_name, &retain_message, 1000)
             .await
             .unwrap();
 
@@ -92,7 +102,7 @@ mod tests {
         assert_eq!(payload, content);
 
         topic_storage
-            .delete_retain_message(&topic_name)
+            .delete_retain_message(&topic.tenant, &topic_name)
             .await
             .unwrap();
 

@@ -19,6 +19,7 @@ mod tests {
         placement_list_topic_rewrite_rule,
     };
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::meta::meta_service_mqtt::{
         CreateTopicRewriteRuleRequest, DeleteTopicRewriteRuleRequest, ListTopicRewriteRuleRequest,
     };
@@ -34,6 +35,7 @@ mod tests {
         let re: String = "^x/y/(.+)$".to_string();
 
         let req = CreateTopicRewriteRuleRequest {
+            tenant: DEFAULT_TENANT.to_string(),
             action: action.clone(),
             source_topic: source_topic.clone(),
             dest_topic: dest_topic.clone(),
@@ -44,7 +46,9 @@ mod tests {
             .await
             .unwrap();
 
-        let req = ListTopicRewriteRuleRequest {};
+        let req = ListTopicRewriteRuleRequest {
+            tenant: DEFAULT_TENANT.to_string(),
+        };
         let resp = placement_list_topic_rewrite_rule(&client_pool, &addrs, req)
             .await
             .unwrap();
@@ -52,6 +56,7 @@ mod tests {
         assert!(pre_size >= 1);
 
         let req = DeleteTopicRewriteRuleRequest {
+            tenant: DEFAULT_TENANT.to_string(),
             action: action.clone(),
             source_topic: source_topic.clone(),
         };
@@ -59,7 +64,9 @@ mod tests {
             .await
             .unwrap();
 
-        let req = ListTopicRewriteRuleRequest {};
+        let req = ListTopicRewriteRuleRequest {
+            tenant: DEFAULT_TENANT.to_string(),
+        };
         let resp = placement_list_topic_rewrite_rule(&client_pool, &addrs, req)
             .await
             .unwrap();

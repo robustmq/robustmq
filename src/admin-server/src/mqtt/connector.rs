@@ -92,6 +92,9 @@ pub struct CreateConnectorReq {
 
     pub failure_strategy: FailureStrategy,
 
+    #[validate(length(min = 1, max = 256, message = "Tenant length must be between 1-256"))]
+    pub tenant: String,
+
     #[validate(length(
         min = 1,
         max = 256,
@@ -323,7 +326,8 @@ async fn connector_create_inner(
     let connector = MQTTConnector {
         connector_name: params.connector_name.clone(),
         connector_type,
-        failure_strategy: parse_failure_strategy(params.failure_strategy),
+        failure_strategy: parse_failure_strategy(&params.tenant, params.failure_strategy),
+        tenant: params.tenant.clone(),
         topic_name: params.topic_name.clone(),
         status: MQTTStatus::Idle,
         etl_rule: ETLRule::default(),
@@ -427,7 +431,7 @@ fn parse_connector_type(type_str: &str, config: &str) -> Result<ConnectorType, C
     Ok(connector_type)
 }
 
-fn parse_failure_strategy(strategy: FailureStrategy) -> FailureHandlingStrategy {
+fn parse_failure_strategy(tenant: &str, strategy: FailureStrategy) -> FailureHandlingStrategy {
     use metadata_struct::connector::{DeadMessageQueueStrategy, DiscardAfterRetryStrategy};
 
     match strategy.strategy.to_lowercase().as_str() {
@@ -447,6 +451,7 @@ fn parse_failure_strategy(strategy: FailureStrategy) -> FailureHandlingStrategy 
             let retry_total_times = strategy.retry_total_times.unwrap_or(3);
             let wait_time_ms = strategy.wait_time_ms.unwrap_or(1000);
             FailureHandlingStrategy::DeadMessageQueue(DeadMessageQueueStrategy {
+                tenant: tenant.to_string(),
                 topic_name,
                 retry_total_times,
                 wait_time_ms,

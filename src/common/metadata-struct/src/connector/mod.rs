@@ -45,6 +45,7 @@ pub struct MQTTConnector {
     pub connector_name: String,
     pub connector_type: ConnectorType,
     pub failure_strategy: FailureHandlingStrategy,
+    pub tenant: String,
     pub topic_name: String,
     pub status: MQTTStatus,
     pub etl_rule: ETLRule,
@@ -69,6 +70,7 @@ pub struct DiscardAfterRetryStrategy {
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct DeadMessageQueueStrategy {
+    pub tenant: String,
     pub topic_name: String,
     #[serde(default = "default_retry_total_times")]
     pub retry_total_times: u32,

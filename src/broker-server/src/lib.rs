@@ -33,6 +33,7 @@ use common_config::{broker::broker_config, config::BrokerConfig};
 use common_healthy::port::{wait_for_engine_ready, wait_for_grpc_ready};
 use common_metrics::{core::server::register_prometheus_export, init_metrics};
 use connector::start_connector;
+use delay_message::manager::start_delay_message_manager_thread;
 use delay_task::{manager::DelayTaskManager, start_delay_task_manager_thread};
 use grpc_clients::pool::ClientPool;
 use meta_service::{MetaServiceServer, MetaServiceServerParams};
@@ -245,20 +246,15 @@ impl BrokerServer {
         // ── Phase 3: Load Cache ────────────────────────────────────
         self.start_load_cache();
 
-        // ── Phase 4: Engine service ────────────────────────────────────
-        let engine_stop_send = self.start_engine_service();
-
-        // ── Phase 5: MQTT broker  ─────────────
+        // ── Phase 4: NodeCallManager ───────────────────────────────────
         let (app_stop, _) = broadcast::channel::<bool>(2);
-        let mqtt_stop_send = self.start_mqtt_broker(app_stop.clone());
-
-        // ── Phase 6: NodeCallManager ───────────────────────────────────
+        let raw_app_stop = app_stop.clone();
         self.server_runtime.block_on(async {
-            self.start_node_call_manager(app_stop.clone());
+            self.start_node_call_manager(raw_app_stop.clone());
             self.wait_for_node_call_manager_ready().await;
         });
 
-        // ── Phase 7: Register node ─────────────────────────────────────
+        // ── Phase 5: Register node ─────────────────────────────────────
         let client_pool = self.client_pool.clone();
         let broker_cache = self.broker_cache.clone();
         let task_supervisor = self.task_supervisor.clone();
@@ -271,6 +267,12 @@ impl BrokerServer {
             )
             .await;
         });
+
+        // ── Phase 6: Engine service ────────────────────────────────────
+        let engine_stop_send = self.start_engine_service();
+
+        // ── Phase 7: MQTT broker  ─────────────
+        let mqtt_stop_send = self.start_mqtt_broker(app_stop.clone());
 
         // ── Phase 8: Background services ──────────────────────────────
         self.server_runtime.block_on(async {
@@ -466,6 +468,21 @@ impl BrokerServer {
                 std::process::exit(1);
             }
         });
+
+        // delay message
+        let delay_message_manager = self.mqtt_params.delay_message_manager.clone();
+        let broker_cache = self.broker_cache.clone();
+        let task_supervisor = self.task_supervisor.clone();
+        if let Err(e) = start_delay_message_manager_thread(
+            &delay_message_manager,
+            &task_supervisor,
+            &broker_cache,
+        )
+        .await
+        {
+            error!("Failed to start delay message manager, error:{}", e);
+            std::process::exit(1);
+        }
 
         // connection gc
         let connection_manager = self.connection_manager.clone();

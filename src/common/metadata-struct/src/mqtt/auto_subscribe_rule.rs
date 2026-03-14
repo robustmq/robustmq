@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct MqttAutoSubscribeRule {
+    pub uniq_id: String,
+    pub tenant: String,
     pub topic: String,
     pub qos: QoS,
     pub no_local: bool,

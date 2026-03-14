@@ -23,6 +23,7 @@ mod tests {
     };
     use admin_server::mqtt::topic::{CreateTopicRewriteReq, DeleteTopicRewriteReq};
     use common_base::uuid::unique_id;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use paho_mqtt::{Message, MessageBuilder};
     use std::time::Duration;
     use tokio::time::sleep;
@@ -34,6 +35,7 @@ mod tests {
         let expected_topic = format!("{prefix}_y/z/b");
 
         let rules = vec![CreateTopicRewriteReq {
+            tenant: DEFAULT_TENANT.to_string(),
             action: "All".to_string(),
             source_topic: format!("{prefix}_y/+/z/#"),
             dest_topic: format!("{prefix}_y/z/$2"),
@@ -50,6 +52,7 @@ mod tests {
         let expected_topic = format!("{prefix}_y/def");
 
         let rules = vec![CreateTopicRewriteReq {
+            tenant: DEFAULT_TENANT.to_string(),
             action: "All".to_string(),
             source_topic: format!("{prefix}_y/+/z/#"),
             dest_topic: format!("{prefix}_y/z/$2"),
@@ -66,6 +69,7 @@ mod tests {
         let expected_topic = format!("{prefix}_x/1/2");
 
         let rules = vec![CreateTopicRewriteReq {
+            tenant: DEFAULT_TENANT.to_string(),
             action: "All".to_string(),
             source_topic: format!("{prefix}_x/#"),
             dest_topic: format!("{prefix}_z/y/x/$1"),
@@ -83,12 +87,14 @@ mod tests {
 
         let rules = vec![
             CreateTopicRewriteReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 action: "All".to_string(),
                 source_topic: format!("{prefix}_x/y/+"),
                 dest_topic: format!("{prefix}_z/y/$1"),
                 regex: format!("^{prefix}_x/y/(\\d+)$"),
             },
             CreateTopicRewriteReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 action: "All".to_string(),
                 source_topic: format!("{prefix}_x/#"),
                 dest_topic: format!("{prefix}_z/y/x/$1"),
@@ -107,12 +113,14 @@ mod tests {
 
         let rules = vec![
             CreateTopicRewriteReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 action: "All".to_string(),
                 source_topic: format!("{prefix}_x/y/+"),
                 dest_topic: format!("{prefix}_z/y/$1"),
                 regex: format!("^{prefix}_x/y/(\\d+)$"),
             },
             CreateTopicRewriteReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 action: "All".to_string(),
                 source_topic: format!("{prefix}_x/#"),
                 dest_topic: format!("{prefix}_z/y/x/$1"),
@@ -193,6 +201,7 @@ mod tests {
 
         for rule in rules.iter() {
             let del_req = DeleteTopicRewriteReq {
+                tenant: rule.tenant.clone(),
                 action: rule.action.clone(),
                 source_topic: rule.source_topic.clone(),
             };

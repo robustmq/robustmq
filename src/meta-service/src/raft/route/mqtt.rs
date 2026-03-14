@@ -25,7 +25,6 @@ use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
 use broker_core::cache::NodeCacheManager;
 use bytes::Bytes;
-use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use common_base::tools::{now_millis, now_second};
 use delay_task::manager::DelayTaskManager;
 use delay_task::{DelayTask, DelayTaskData};
@@ -43,14 +42,14 @@ use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use prost::Message as _;
 use protocol::meta::meta_service_mqtt::{
-    CreateAclRequest, CreateBlacklistRequest, CreateConnectorRequest, CreateSessionRequest,
-    CreateTopicRequest, CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
+    CreateAclRequest, CreateAutoSubscribeRuleRequest, CreateBlacklistRequest,
+    CreateConnectorRequest, CreateSessionRequest, CreateTopicRequest,
+    CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
     DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
     DeleteSessionRequest, DeleteSubscribeRequest, DeleteTopicRequest,
     DeleteTopicRewriteRuleRequest, DeleteUserRequest, SaveLastWillMessageRequest,
-    SetAutoSubscribeRuleRequest, SetSubscribeRequest, SetTopicRetainMessageRequest,
+    SetSubscribeRequest, SetTopicRetainMessageRequest,
 };
-use protocol::mqtt::common::{qos, retain_forward_rule, QoS, RetainHandling};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
@@ -97,14 +96,14 @@ impl DataRouteMqtt {
         let req = CreateTopicRequest::decode(value.as_ref())?;
         let topic = Topic::decode(&req.content)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        storage.save(&topic.topic_name, topic.clone())?;
+        storage.save(topic.clone())?;
         Ok(())
     }
 
     pub fn delete_topic(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteTopicRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&req.topic_name)?;
+        storage.delete(&req.tenant, &req.topic_name)?;
         Ok(())
     }
 
@@ -113,20 +112,17 @@ impl DataRouteMqtt {
         let req = SetTopicRetainMessageRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        let topic = if let Some(topic) = storage.get(&req.topic_name)? {
-            topic
-        } else {
+        if storage.get(&req.tenant, &req.topic_name)?.is_none() {
             return Ok(());
-        };
+        }
 
         if let Some(retain) = req.retain_message {
             let message = MQTTRetainMessage {
-                topic_name: topic.topic_name,
+                topic_name: req.topic_name,
                 retain_message: Bytes::copy_from_slice(&retain),
                 retain_message_expired_at: req.retain_message_expired_at,
                 create_time: now_second(),
             };
-
             storage.save_retain_message(message)?;
         }
 
@@ -137,12 +133,10 @@ impl DataRouteMqtt {
         let req = SetTopicRetainMessageRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        let topic = if let Some(topic) = storage.get(&req.topic_name)? {
-            topic
-        } else {
+        if storage.get(&req.tenant, &req.topic_name)?.is_none() {
             return Ok(());
-        };
-        storage.delete_retain_message(&topic.topic_name)?;
+        }
+        storage.delete_retain_message(&req.topic_name)?;
         Ok(())
     }
 
@@ -216,19 +210,25 @@ impl DataRouteMqtt {
         let req = CreateTopicRewriteRuleRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         let topic_rewrite_rule = MqttTopicRewriteRule {
+            tenant: req.tenant.clone(),
             action: req.action.clone(),
             source_topic: req.source_topic.clone(),
             dest_topic: req.dest_topic.clone(),
             regex: req.regex.clone(),
             timestamp: now_millis(),
         };
-        storage.save_topic_rewrite_rule(&req.action, &req.source_topic, topic_rewrite_rule)
+        storage.save_topic_rewrite_rule(
+            &req.tenant,
+            &req.action,
+            &req.source_topic,
+            topic_rewrite_rule,
+        )
     }
 
     pub fn delete_topic_rewrite_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteTopicRewriteRuleRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete_topic_rewrite_rule(&req.action, &req.source_topic)
+        storage.delete_topic_rewrite_rule(&req.tenant, &req.action, &req.source_topic)
     }
 
     // Subscribe
@@ -323,46 +323,23 @@ impl DataRouteMqtt {
     }
 
     // AutoSubscribeRule
-    pub fn set_auto_subscribe_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let req = SetAutoSubscribeRuleRequest::decode(value.as_ref())?;
+    pub fn create_auto_subscribe_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = CreateAutoSubscribeRuleRequest::decode(value.as_ref())?;
+        let rule = MqttAutoSubscribeRule::decode(&req.content)
+            .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
-        let mut _qos: Option<QoS> = None;
-        if req.qos <= u8::MAX as u32 {
-            _qos = qos(req.qos as u8);
-        } else {
-            return Err(MetaServiceError::CommonError(
-                MQTTProtocolError::InvalidRemainingLength(req.qos as usize).to_string(),
-            ));
-        };
-
-        let mut _retained_handling: Option<RetainHandling> = None;
-        if req.retained_handling <= u8::MAX as u32 {
-            _retained_handling = retain_forward_rule(req.retained_handling as u8);
-        } else {
-            return Err(MetaServiceError::CommonError(
-                MQTTProtocolError::InvalidRemainingLength(req.retained_handling as usize)
-                    .to_string(),
-            ));
-        };
-
-        let auto_subscribe_rule: MqttAutoSubscribeRule = MqttAutoSubscribeRule {
-            topic: req.topic.clone(),
-            qos: _qos.ok_or(MetaServiceError::CommonError(
-                MQTTProtocolError::InvalidQoS(req.qos as u8).to_string(),
-            ))?,
-            no_local: req.no_local,
-            retain_as_published: req.retain_as_published,
-            retained_handling: _retained_handling.ok_or(MetaServiceError::CommonError(
-                MQTTProtocolError::InvalidRetainForwardRule(req.retained_handling as u8)
-                    .to_string(),
-            ))?,
-        };
-        storage.save_auto_subscribe_rule(&req.topic, auto_subscribe_rule)
+        storage.save_auto_subscribe_rule(&rule)
     }
 
     pub fn delete_auto_subscribe_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteAutoSubscribeRuleRequest::decode(value.as_ref())?;
+        // uniq_id alone is enough to locate the rule; scan to resolve tenant for the key
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete_auto_subscribe_rule(&req.topic)
+        let all = storage.list_all_auto_subscribe_rules()?;
+        if let Some(rule) = all.into_iter().find(|r| r.uniq_id == req.uniq_id) {
+            storage.delete_auto_subscribe_rule(&rule.tenant, &rule.uniq_id)
+        } else {
+            Ok(())
+        }
     }
 }

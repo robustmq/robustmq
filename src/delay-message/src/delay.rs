@@ -24,6 +24,7 @@ use common_config::storage::StorageType;
 use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use storage_adapter::topic::create_topic_full;
@@ -39,7 +40,7 @@ pub(crate) async fn save_delay_message(
 ) -> Result<u64, CommonError> {
     data.key = Some(delay_message_id.to_string());
     let result = storage_driver_manager
-        .write(DELAY_QUEUE_MESSAGE_TOPIC, &[data])
+        .write(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, &[data])
         .await?;
 
     let resp = if let Some(row) = result.first() {
@@ -68,7 +69,7 @@ pub(crate) async fn delete_delay_message(
     unique_id: &str,
 ) -> Result<(), CommonError> {
     storage_driver_manager
-        .delete_by_key(DELAY_QUEUE_MESSAGE_TOPIC, unique_id)
+        .delete_by_key(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, unique_id)
         .await?;
     debug!(
         "Deleted delay message: shard={}, unique_id={}",
@@ -89,7 +90,7 @@ pub async fn save_delay_index_info(
         ..Default::default()
     };
     let result = storage_driver_manager
-        .write(DELAY_QUEUE_INDEX_TOPIC, &[data])
+        .write(DEFAULT_TENANT, DELAY_QUEUE_INDEX_TOPIC, &[data])
         .await?;
 
     let resp = if let Some(row) = result.first() {
@@ -112,7 +113,11 @@ pub(crate) async fn delete_delay_index_info(
     delay_info: &DelayMessageIndexInfo,
 ) -> Result<(), CommonError> {
     storage_driver_manager
-        .delete_by_key(DELAY_QUEUE_INDEX_TOPIC, &delay_info.unique_id)
+        .delete_by_key(
+            DEFAULT_TENANT,
+            DELAY_QUEUE_INDEX_TOPIC,
+            &delay_info.unique_id,
+        )
         .await?;
     debug!(
         "Deleted delay index info: unique_id={}",
@@ -129,7 +134,10 @@ pub(crate) async fn init_inner_topic(
         DELAY_QUEUE_MESSAGE_TOPIC.to_string(),
         DELAY_QUEUE_INDEX_TOPIC.to_string(),
     ] {
-        if broker_cache.topic_list.contains_key(&topic_name) {
+        if broker_cache
+            .get_topic_by_name(DEFAULT_TENANT, &topic_name)
+            .is_some()
+        {
             info!(
                 "Delay task inner topic '{}' already exists, skipping creation",
                 topic_name
@@ -140,6 +148,7 @@ pub(crate) async fn init_inner_topic(
         let uid = unique_id();
         let topic = Topic {
             topic_id: uid.clone(),
+            tenant: DEFAULT_TENANT.to_string(),
             topic_name: topic_name.to_string(),
             storage_type: StorageType::EngineRocksDB,
             partition: 1,

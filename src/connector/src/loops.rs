@@ -122,7 +122,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                 }
             },
 
-            val = message_storage.read_topic_message(&config.topic_name, &offsets, config.record_num) => {
+            val = message_storage.read_topic_message(&config.tenant, &config.topic_name, &offsets, config.record_num) => {
                 match val {
                     Ok(data) => {
                         connector_manager.report_heartbeat(&connector_name);
@@ -392,7 +392,7 @@ async fn stop_connector(
 
 fn should_stop_by_read_error(error: &CommonError) -> bool {
     match error {
-        CommonError::TopicNotFoundInBrokerCache(_) => true,
+        CommonError::TopicNotFoundInBrokerCache(_, _) => true,
         CommonError::CommonError(message) => {
             message.contains("not found in broker cache") && message.contains("Topic")
         }

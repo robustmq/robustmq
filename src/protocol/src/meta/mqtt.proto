@@ -56,7 +56,7 @@ service MqttService {
   rpc ConnectorHeartbeat(ConnectorHeartbeatRequest) returns (ConnectorHeartbeatReply) {}
 
   // Auto Subscribe Rule
-  rpc SetAutoSubscribeRule(SetAutoSubscribeRuleRequest) returns (SetAutoSubscribeRuleReply) {}
+  rpc CreateAutoSubscribeRule(CreateAutoSubscribeRuleRequest) returns (CreateAutoSubscribeRuleReply) {}
   rpc DeleteAutoSubscribeRule(DeleteAutoSubscribeRuleRequest) returns (DeleteAutoSubscribeRuleReply) {}
   rpc ListAutoSubscribeRule(ListAutoSubscribeRuleRequest) returns (ListAutoSubscribeRuleReply) {}
 }
@@ -98,6 +98,7 @@ message DeleteUserRequest {
 message DeleteUserReply {}
 
 message ListTopicRequest {
+  string tenant = 1;
   string topic_name = 2;
 }
 
@@ -106,6 +107,7 @@ message ListTopicReply {
 }
 
 message CreateTopicRequest {
+  string tenant = 1;
   string topic_name = 2 [(validate.rules).string.min_len = 1];
   bytes content = 3 [(validate.rules).bytes.min_len = 1];
 }
@@ -113,12 +115,14 @@ message CreateTopicRequest {
 message CreateTopicReply {}
 
 message DeleteTopicRequest {
+  string tenant = 1;
   string topic_name = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteTopicReply {}
 
 message SetTopicRetainMessageRequest {
+  string tenant = 1;
   string topic_name = 2 [(validate.rules).string.min_len = 1];
   optional bytes retain_message = 3;
   uint64 retain_message_expired_at = 4 [(validate.rules).uint64.gte = 0];
@@ -217,6 +221,7 @@ message DeleteBlacklistRequest {
 message DeleteBlacklistReply {}
 
 message CreateTopicRewriteRuleRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string action = 2 [(validate.rules).string.min_len = 1];
   string source_topic = 3 [(validate.rules).string.min_len = 1];
   string dest_topic = 4 [(validate.rules).string.min_len = 1];
@@ -226,6 +231,7 @@ message CreateTopicRewriteRuleRequest {
 message CreateTopicRewriteRuleReply {}
 
 message DeleteTopicRewriteRuleRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string action = 2 [(validate.rules).string.min_len = 1];
   string source_topic = 3 [(validate.rules).string.min_len = 1];
 }
@@ -233,6 +239,7 @@ message DeleteTopicRewriteRuleRequest {
 message DeleteTopicRewriteRuleReply {}
 
 message ListTopicRewriteRuleRequest {
+  string tenant = 1;
 }
 
 message ListTopicRewriteRuleReply {
@@ -301,23 +308,20 @@ message ConnectorHeartbeatRaw {
 
 message ConnectorHeartbeatReply {}
 
-message SetAutoSubscribeRuleRequest {
-  string topic = 2 [(validate.rules).string.min_len = 1];
-  uint32 qos = 3 [(validate.rules).uint32.lte = 2];
-  bool no_local = 4;
-  bool retain_as_published = 5;
-  uint32 retained_handling = 6 [(validate.rules).uint32.lte = 2];
+message CreateAutoSubscribeRuleRequest {
+  bytes content = 2 [(validate.rules).bytes.min_len = 1];
 }
 
-message SetAutoSubscribeRuleReply {}
+message CreateAutoSubscribeRuleReply {}
 
 message DeleteAutoSubscribeRuleRequest {
-  string topic = 2 [(validate.rules).string.min_len = 1];
+  string uniq_id = 1 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteAutoSubscribeRuleReply {}
 
 message ListAutoSubscribeRuleRequest {
+  string tenant = 1;
 }
 
 message ListAutoSubscribeRuleReply {

@@ -20,6 +20,7 @@ use rocksdb_engine::keys::meta::{
     storage_key_mqtt_retain_message, storage_key_mqtt_retain_message_prefix,
     storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix,
     storage_key_mqtt_topic_rewrite_rule, storage_key_mqtt_topic_rewrite_rule_prefix,
+    storage_key_mqtt_topic_rewrite_rule_tenant_prefix, storage_key_mqtt_topic_tenant_prefix,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_data::{
@@ -44,8 +45,8 @@ impl MqttTopicStorage {
     }
 
     // Topic
-    pub fn save(&self, topic_name: &str, topic: Topic) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_topic(topic_name);
+    pub fn save(&self, topic: Topic) -> Result<(), MetaServiceError> {
+        let key = storage_key_mqtt_topic(&topic.tenant, &topic.topic_name);
         engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, topic)?;
         Ok(())
     }
@@ -57,16 +58,23 @@ impl MqttTopicStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn get(&self, topic_name: &str) -> Result<Option<Topic>, MetaServiceError> {
-        let key = storage_key_mqtt_topic(topic_name);
+    pub fn list_by_tenant(&self, tenant: &str) -> Result<Vec<Topic>, MetaServiceError> {
+        let prefix_key = storage_key_mqtt_topic_tenant_prefix(tenant);
+        let data =
+            engine_prefix_list_by_meta_data::<Topic>(&self.rocksdb_engine_handler, &prefix_key)?;
+        Ok(data.into_iter().map(|raw| raw.data).collect())
+    }
+
+    pub fn get(&self, tenant: &str, topic_name: &str) -> Result<Option<Topic>, MetaServiceError> {
+        let key = storage_key_mqtt_topic(tenant, topic_name);
         Ok(
             engine_get_by_meta_data::<Topic>(&self.rocksdb_engine_handler, &key)?
                 .map(|data| data.data),
         )
     }
 
-    pub fn delete(&self, topic_name: &str) -> Result<(), MetaServiceError> {
-        let key: String = storage_key_mqtt_topic(topic_name);
+    pub fn delete(&self, tenant: &str, topic_name: &str) -> Result<(), MetaServiceError> {
+        let key: String = storage_key_mqtt_topic(tenant, topic_name);
         engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)?;
         Ok(())
     }
@@ -74,21 +82,23 @@ impl MqttTopicStorage {
     // Rewrite Rule
     pub fn save_topic_rewrite_rule(
         &self,
+        tenant: &str,
         action: &str,
         source_topic: &str,
         topic_rewrite_rule: MqttTopicRewriteRule,
     ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_topic_rewrite_rule(action, source_topic);
+        let key = storage_key_mqtt_topic_rewrite_rule(tenant, action, source_topic);
         engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, topic_rewrite_rule)?;
         Ok(())
     }
 
     pub fn delete_topic_rewrite_rule(
         &self,
+        tenant: &str,
         action: &str,
         source_topic: &str,
     ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_topic_rewrite_rule(action, source_topic);
+        let key = storage_key_mqtt_topic_rewrite_rule(tenant, action, source_topic);
         engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)?;
         Ok(())
     }
@@ -97,6 +107,18 @@ impl MqttTopicStorage {
         &self,
     ) -> Result<Vec<MqttTopicRewriteRule>, MetaServiceError> {
         let prefix_key = storage_key_mqtt_topic_rewrite_rule_prefix();
+        let data = engine_prefix_list_by_meta_metadata::<MqttTopicRewriteRule>(
+            &self.rocksdb_engine_handler,
+            &prefix_key,
+        )?;
+        Ok(data.into_iter().map(|raw| raw.data).collect())
+    }
+
+    pub fn list_topic_rewrite_rules_by_tenant(
+        &self,
+        tenant: &str,
+    ) -> Result<Vec<MqttTopicRewriteRule>, MetaServiceError> {
+        let prefix_key = storage_key_mqtt_topic_rewrite_rule_tenant_prefix(tenant);
         let data = engine_prefix_list_by_meta_metadata::<MqttTopicRewriteRule>(
             &self.rocksdb_engine_handler,
             &prefix_key,
@@ -148,6 +170,7 @@ mod tests {
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
     use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use rocksdb_engine::test::test_rocksdb_instance;
 
     fn setup_storage() -> MqttTopicStorage {
@@ -156,8 +179,9 @@ mod tests {
         MqttTopicStorage::new(test_rocksdb_instance())
     }
 
-    fn create_topic(topic_name: &str) -> Topic {
+    fn create_topic(tenant: &str, topic_name: &str) -> Topic {
         Topic {
+            tenant: tenant.to_string(),
             topic_name: topic_name.to_string(),
             create_time: now_second(),
             ..Default::default()
@@ -166,6 +190,7 @@ mod tests {
 
     fn create_rewrite_rule(action: &str, source: &str, dest: &str) -> MqttTopicRewriteRule {
         MqttTopicRewriteRule {
+            tenant: DEFAULT_TENANT.to_string(),
             action: action.to_string(),
             source_topic: source.to_string(),
             dest_topic: dest.to_string(),
@@ -189,21 +214,24 @@ mod tests {
         let storage = setup_storage();
 
         // Save & Get
-        storage
-            .save("sensor/temp", create_topic("sensor/temp"))
-            .unwrap();
-        assert!(storage.get("sensor/temp").unwrap().is_some());
+        storage.save(create_topic("t1", "sensor/temp")).unwrap();
+        assert!(storage.get("t1", "sensor/temp").unwrap().is_some());
 
         // List
-        storage
-            .save("sensor/humidity", create_topic("sensor/humidity"))
-            .unwrap();
+        storage.save(create_topic("t1", "sensor/humidity")).unwrap();
         assert_eq!(storage.list().unwrap().len(), 2);
+        assert_eq!(storage.list_by_tenant("t1").unwrap().len(), 2);
+
+        // Different tenant - no collision
+        storage.save(create_topic("t2", "sensor/temp")).unwrap();
+        assert_eq!(storage.list_by_tenant("t1").unwrap().len(), 2);
+        assert_eq!(storage.list_by_tenant("t2").unwrap().len(), 1);
+        assert_eq!(storage.list().unwrap().len(), 3);
 
         // Delete & Verify
-        storage.delete("sensor/humidity").unwrap();
-        assert!(storage.get("sensor/humidity").unwrap().is_none());
-        assert_eq!(storage.list().unwrap().len(), 1);
+        storage.delete("t1", "sensor/humidity").unwrap();
+        assert!(storage.get("t1", "sensor/humidity").unwrap().is_none());
+        assert_eq!(storage.list_by_tenant("t1").unwrap().len(), 1);
     }
 
     #[test]
@@ -213,7 +241,7 @@ mod tests {
         // Save rule
         let rule = create_rewrite_rule("subscribe", "old/+/topic", "new/+/topic");
         storage
-            .save_topic_rewrite_rule("subscribe", "old/+/topic", rule)
+            .save_topic_rewrite_rule(DEFAULT_TENANT, "subscribe", "old/+/topic", rule)
             .unwrap();
 
         // List rules
@@ -223,7 +251,7 @@ mod tests {
 
         // Delete rule
         storage
-            .delete_topic_rewrite_rule("subscribe", "old/+/topic")
+            .delete_topic_rewrite_rule(DEFAULT_TENANT, "subscribe", "old/+/topic")
             .unwrap();
         assert_eq!(storage.list_all_topic_rewrite_rules().unwrap().len(), 0);
     }
@@ -253,7 +281,7 @@ mod tests {
     #[test]
     fn test_get_nonexistent() {
         let storage = setup_storage();
-        assert!(storage.get("nonexistent").unwrap().is_none());
+        assert!(storage.get("", "nonexistent").unwrap().is_none());
         assert!(storage.get_retain_message("nonexistent").unwrap().is_none());
     }
 }

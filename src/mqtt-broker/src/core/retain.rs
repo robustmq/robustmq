@@ -87,6 +87,7 @@ impl RetainMessageManager {
 
     pub async fn save_retain_message(
         &self,
+        tenant: &str,
         topic_name: &str,
         client_id: &str,
         publish: &Publish,
@@ -100,7 +101,9 @@ impl RetainMessageManager {
         let had_retain = self.contain_retain(topic_name).await?;
 
         if had_retain && publish.payload.is_empty() {
-            topic_storage.delete_retain_message(topic_name).await?;
+            topic_storage
+                .delete_retain_message(tenant, topic_name)
+                .await?;
             record_mqtt_retained_dec();
             self.topic_retain_data.insert(topic_name.to_string(), None);
             self.last_update_time
@@ -117,7 +120,7 @@ impl RetainMessageManager {
             let retain_message =
                 MqttMessage::build_message(client_id, publish, publish_properties, message_expire);
             topic_storage
-                .set_retain_message(topic_name, &retain_message, message_expire)
+                .set_retain_message(tenant, topic_name, &retain_message, message_expire)
                 .await?;
 
             self.topic_retain_data.insert(

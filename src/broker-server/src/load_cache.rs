@@ -71,7 +71,7 @@ async fn load_common_cache(
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load topics: {}", e)))?;
     for topic in topic_list.iter() {
-        broker_cache.add_topic(&topic.topic_name, &topic.clone());
+        broker_cache.add_topic(&topic.clone());
     }
 
     let connector_storage = ConnectorStorage::new(client_pool.clone());
@@ -163,7 +163,7 @@ async fn load_mqtt_cache(
 
     let auto_subscribe_storage = AutoSubscribeStorage::new(client_pool.clone());
     let auto_subscribe_rules = auto_subscribe_storage
-        .list_auto_subscribe_rule()
+        .list_auto_subscribe_rule(None)
         .await
         .map_err(|e| {
             MqttBrokerError::CommonError(format!("Failed to load auto subscribe rules: {}", e))

@@ -145,9 +145,7 @@ pub async fn update_mqtt_cache_metadata(
         BrokerUpdateCacheResourceType::Topic => match record.action_type() {
             BrokerUpdateCacheActionType::Create => {
                 let topic = serialize::deserialize::<Topic>(&record.data)?;
-                cache_manager
-                    .broker_cache
-                    .add_topic(&topic.topic_name, &topic);
+                cache_manager.broker_cache.add_topic(&topic);
                 if !cache_manager.topic_rewrite_rule.is_empty() {
                     cache_manager.set_re_calc_topic_rewrite(true).await;
                 }
@@ -166,6 +164,7 @@ pub async fn update_mqtt_cache_metadata(
                 let topic = serialize::deserialize::<Topic>(&record.data)?;
                 delete_topic(
                     cache_manager,
+                    &topic.tenant,
                     &topic.topic_name,
                     storage_driver_manager,
                     subscribe_manager,

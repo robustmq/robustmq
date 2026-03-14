@@ -94,6 +94,7 @@ pub async fn failure_message_process(
             }
             if let Err(e) = send_to_dead_letter_queue(
                 storage_driver_manager,
+                &dlq_strategy.tenant,
                 &dlq_strategy.topic_name,
                 retry_times,
                 context,
@@ -126,6 +127,7 @@ pub async fn failure_message_process(
 
 async fn send_to_dead_letter_queue(
     storage_driver_manager: &Arc<StorageDriverManager>,
+    tenant: &str,
     dlq_topic: &str,
     retry_times: u32,
     context: &FailureRecordInfo,
@@ -164,7 +166,7 @@ async fn send_to_dead_letter_queue(
 
     let message_storage = MessageStorage::new(storage_driver_manager.clone());
     let offsets = message_storage
-        .append_topic_message(dlq_topic, dlq_records)
+        .append_topic_message(tenant, dlq_topic, dlq_records)
         .await?;
     debug!(
         "Wrote {} dead letter records to topic '{}' for connector '{}', offsets: {:?}",

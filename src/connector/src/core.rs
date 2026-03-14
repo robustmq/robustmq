@@ -41,6 +41,7 @@ use crate::storage::connector::ConnectorStorage;
 
 #[derive(Clone)]
 pub struct BridgePluginReadConfig {
+    pub tenant: String,
     pub topic_name: String,
     pub record_num: u64,
     pub strategy: FailureHandlingStrategy,
@@ -359,7 +360,7 @@ mod tests {
     use crate::manager::ConnectorManager;
     use common_base::uuid::unique_id;
     use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
-    use metadata_struct::connector::FailureHandlingStrategy;
+    use metadata_struct::{connector::FailureHandlingStrategy, tenant::DEFAULT_TENANT};
     use std::time::Duration;
     use storage_adapter::storage::test_build_storage_driver_manager;
     use tokio::time::sleep;
@@ -381,6 +382,7 @@ mod tests {
     #[test]
     fn test_bridge_plugin_read_config_creation() {
         let config = BridgePluginReadConfig {
+            tenant: DEFAULT_TENANT.to_string(),
             topic_name: "test_topic".to_string(),
             record_num: 100,
             strategy: FailureHandlingStrategy::Discard,

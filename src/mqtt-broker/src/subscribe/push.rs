@@ -695,6 +695,7 @@ mod tests {
     use crate::core::tool::test_build_mqtt_cache_manager;
     use crate::subscribe::common::Subscriber;
     use common_base::tools::now_second;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::mqtt::common::{MqttProtocol, QoS, RetainHandling};
     use std::time::Instant;
 
@@ -707,6 +708,7 @@ mod tests {
             client_id: client_id.to_string(),
             sub_path: "/test/topic".to_string(),
             rewrite_sub_path: None,
+            tenant: DEFAULT_TENANT.to_string(),
             topic_name: "/test/topic".to_string(),
             group_name: "test_group".to_string(),
             protocol: MqttProtocol::Mqtt5,

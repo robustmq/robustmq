@@ -153,7 +153,9 @@ impl SharePushManager {
 
         let mut processed_count = 0;
         for topic in topic_list.iter() {
-            let data_list = self.next_message(&self.group_name, topic).await?;
+            let data_list = self
+                .next_message(&self.group_name, &topic.tenant, &topic.topic)
+                .await?;
             if data_list.is_empty() {
                 continue;
             }
@@ -275,13 +277,13 @@ impl SharePushManager {
             if let Some(offsets) = self.group_offsets.get(&self.group_name) {
                 if let Err(e) = self.commit_offset(&self.group_name, &offsets).await {
                     error!(
-                        "Failed to commit offset for subscriber [group: {}, topic: {}]: {}. Messages may be redelivered on next poll",
-                        &self.group_name, topic, e
+                        "Failed to commit offset for subscriber [group: {},tenant:{}, topic: {}]: {}. Messages may be redelivered on next poll",
+                        &self.group_name,topic.tenant, topic.topic, e
                     );
                 } else {
                     debug!(
-                        "Committed offset for share group [group: {}, topic: {}], total processed: {} messages",
-                        self.group_name, topic, processed_count
+                        "Committed offset for share group [group: {}, tenant:{}, topic: {}], total processed: {} messages",
+                        self.group_name,topic.tenant, topic.topic, processed_count
                     );
                 }
             }
@@ -335,6 +337,7 @@ impl SharePushManager {
     async fn next_message(
         &self,
         group: &str,
+        tenant: &str,
         topic_name: &str,
     ) -> Result<Vec<StorageRecord>, MqttBrokerError> {
         let offsets = if let Some(offsets) = self.group_offsets.get(group) {
@@ -348,7 +351,7 @@ impl SharePushManager {
 
         Ok(self
             .message_storage
-            .read_topic_message(topic_name, &offsets, BATCH_SIZE)
+            .read_topic_message(tenant, topic_name, &offsets, BATCH_SIZE)
             .await?)
     }
 

@@ -24,6 +24,7 @@ use futures::StreamExt;
 use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use storage_adapter::driver::StorageDriverManager;
@@ -176,7 +177,11 @@ async fn send_delay_message_to_shard(
 ) -> Result<u64, CommonError> {
     // read data
     let results = storage_driver_manager
-        .read_by_key(DELAY_QUEUE_MESSAGE_TOPIC, &delay_message.unique_id)
+        .read_by_key(
+            DEFAULT_TENANT,
+            DELAY_QUEUE_MESSAGE_TOPIC,
+            &delay_message.unique_id,
+        )
         .await?;
 
     if results.is_empty() {
@@ -218,7 +223,11 @@ async fn send_delay_message_to_shard(
 
     // send to target topic
     let resp = storage_driver_manager
-        .write(&delay_message.target_topic_name, &[send_record])
+        .write(
+            DEFAULT_TENANT,
+            &delay_message.target_topic_name,
+            &[send_record],
+        )
         .await?;
 
     let write_resp = if let Some(data) = resp.first() {

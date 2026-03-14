@@ -59,6 +59,7 @@ pub struct ParseSubscribeContext {
 #[derive(Clone)]
 struct AddDirectlyPushContext {
     pub subscribe_manager: Arc<SubscribeManager>,
+    pub tenant: String,
     pub topic: String,
     pub client_id: String,
     pub protocol: MqttProtocol,
@@ -69,6 +70,7 @@ struct AddDirectlyPushContext {
 
 #[derive(Clone, Deserialize, Serialize)]
 struct AddSharePushContext {
+    pub tenant: String,
     pub topic_name: String,
     pub client_id: String,
     pub protocol: MqttProtocol,
@@ -164,7 +166,6 @@ pub async fn parse_subscribe_by_new_subscribe(
     subscribe: &MqttSubscribe,
 ) -> ResultMqttBrokerError {
     subscribe_manager.add_subscribe(subscribe);
-    let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.filter.path);
     let topic_count = cache_manager.broker_cache.topic_list.len();
 
     debug!(
@@ -172,23 +173,27 @@ pub async fn parse_subscribe_by_new_subscribe(
         subscribe.client_id, subscribe.filter.path, topic_count
     );
 
-    for row in cache_manager.broker_cache.topic_list.iter() {
-        let topic = row.value();
-        parse_subscribe(
-            cache_manager,
-            ParseSubscribeContext {
-                client_pool: client_pool.clone(),
-                subscribe_manager: subscribe_manager.clone(),
-                client_id: subscribe.client_id.clone(),
-                topic: topic.clone(),
-                protocol: subscribe.protocol.clone(),
-                pkid: subscribe.pkid,
-                filter: subscribe.filter.clone(),
-                subscribe_properties: subscribe.subscribe_properties.clone(),
-                rewrite_sub_path: rewrite_sub_path.clone(),
-            },
-        )
-        .await?;
+    for tenant_entry in cache_manager.broker_cache.topic_list.iter() {
+        let tenant = tenant_entry.key().clone();
+        let rewrite_sub_path = cache_manager.get_new_rewrite_name(&tenant, &subscribe.filter.path);
+        for topic_entry in tenant_entry.value().iter() {
+            let topic = topic_entry.value().clone();
+            parse_subscribe(
+                cache_manager,
+                ParseSubscribeContext {
+                    client_pool: client_pool.clone(),
+                    subscribe_manager: subscribe_manager.clone(),
+                    client_id: subscribe.client_id.clone(),
+                    topic,
+                    protocol: subscribe.protocol.clone(),
+                    pkid: subscribe.pkid,
+                    filter: subscribe.filter.clone(),
+                    subscribe_properties: subscribe.subscribe_properties.clone(),
+                    rewrite_sub_path: rewrite_sub_path.clone(),
+                },
+            )
+            .await?;
+        }
     }
     Ok(())
 }
@@ -214,7 +219,7 @@ pub async fn parse_subscribe_by_new_topic(
         if subscribe.broker_id != broker_id {
             continue;
         }
-        let rewrite_sub_path = cache_manager.get_new_rewrite_name(&subscribe.path);
+        let rewrite_sub_path = cache_manager.get_new_rewrite_name(&topic.tenant, &subscribe.path);
 
         parse_subscribe(
             cache_manager,
@@ -240,6 +245,7 @@ pub async fn parse_subscribe_by_new_topic(
 fn create_subscriber(
     protocol: MqttProtocol,
     client_id: String,
+    tenant: String,
     topic_name: String,
     group_name: String,
     filter: &Filter,
@@ -250,6 +256,7 @@ fn create_subscriber(
     Subscriber {
         protocol,
         client_id,
+        tenant,
         topic_name,
         group_name,
         qos: filter.qos,
@@ -275,18 +282,20 @@ async fn parse_subscribe(
         None
     };
 
-    let new_topic_name =
-        if let Some(topic) = cache_manager.get_new_rewrite_name(&context.topic.topic_name) {
-            topic
-        } else {
-            context.topic.topic_name.clone()
-        };
+    let new_topic_name = if let Some(topic) =
+        cache_manager.get_new_rewrite_name(&context.topic.tenant, &context.topic.topic_name)
+    {
+        topic
+    } else {
+        context.topic.topic_name.clone()
+    };
 
     if is_mqtt_share_subscribe(&context.filter.path) {
         add_share_push(
             &context.subscribe_manager,
             &context.client_pool,
             &AddSharePushContext {
+                tenant: context.topic.tenant.clone(),
                 topic_name: new_topic_name,
                 client_id: context.client_id.to_owned(),
                 protocol: context.protocol.clone(),
@@ -299,6 +308,7 @@ async fn parse_subscribe(
     } else {
         add_directly_push(AddDirectlyPushContext {
             subscribe_manager: context.subscribe_manager.clone(),
+            tenant: context.topic.tenant.clone(),
             topic: new_topic_name,
             client_id: context.client_id.clone(),
             protocol: context.protocol.clone(),
@@ -332,6 +342,7 @@ async fn add_share_push(
         let sub = create_subscriber(
             req.protocol.clone(),
             req.client_id.clone(),
+            req.tenant.clone(),
             req.topic_name.clone(),
             group_name_full,
             &req.filter,
@@ -340,7 +351,7 @@ async fn add_share_push(
             None,
         );
 
-        subscribe_manager.add_share_sub(&req.topic_name, &sub);
+        subscribe_manager.add_share_sub(&sub);
     }
     Ok(())
 }
@@ -366,6 +377,7 @@ fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerError {
         let sub = create_subscriber(
             context.protocol,
             context.client_id,
+            context.tenant.clone(),
             context.topic.clone(),
             group_name,
             &context.filter,
@@ -374,9 +386,7 @@ fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerError {
             context.rewrite_sub_path,
         );
 
-        context
-            .subscribe_manager
-            .add_directly_sub(&context.topic, &sub);
+        context.subscribe_manager.add_directly_sub(&sub);
     }
     Ok(())
 }
@@ -384,6 +394,7 @@ fn add_directly_push(context: AddDirectlyPushContext) -> ResultMqttBrokerError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::mqtt::common::{QoS, RetainHandling};
 
     fn create_test_filter(path: &str) -> Filter {
@@ -402,6 +413,7 @@ mod tests {
         let sub = create_subscriber(
             MqttProtocol::Mqtt5,
             "client1".to_string(),
+            DEFAULT_TENANT.to_string(),
             "test/topic".to_string(),
             "group1".to_string(),
             &filter,
@@ -425,6 +437,7 @@ mod tests {
         let topic = "topic".to_string();
         let context = AddDirectlyPushContext {
             subscribe_manager: manager.clone(),
+            tenant: DEFAULT_TENANT.to_string(),
             topic,
             client_id: "client1".to_string(),
             protocol: MqttProtocol::Mqtt5,
@@ -445,6 +458,7 @@ mod tests {
         let topic = "test/topic".to_string();
         let context = AddDirectlyPushContext {
             subscribe_manager: manager.clone(),
+            tenant: DEFAULT_TENANT.to_string(),
             topic,
             client_id: "client1".to_string(),
             protocol: MqttProtocol::Mqtt5,

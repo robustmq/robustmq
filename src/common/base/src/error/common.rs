@@ -159,8 +159,8 @@ pub enum CommonError {
     #[error("RocksDB Family {0} not available")]
     RocksDBFamilyNotAvailable(String),
 
-    #[error("Topic '{0}' not found in broker cache")]
-    TopicNotFoundInBrokerCache(String),
+    #[error("Tenant {0} topic '{1}' not found in broker cache")]
+    TopicNotFoundInBrokerCache(String, String),
 
     #[error("CRC check for the message data failed")]
     CrcCheckByMessage,

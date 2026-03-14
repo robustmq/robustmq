@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::tenant::DEFAULT_TENANT;
 use common_base::{
     error::common::CommonError, tools::now_second, utils::serialize, uuid::unique_id,
 };
@@ -22,6 +23,7 @@ use std::collections::HashMap;
 #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Topic {
     pub topic_id: String,
+    pub tenant: String,
     pub topic_name: String,
     pub storage_type: StorageType,
     pub partition: u32,
@@ -35,6 +37,7 @@ impl Topic {
         let unique_id = unique_id();
         Topic {
             topic_id: unique_id.clone(),
+            tenant: DEFAULT_TENANT.to_string(),
             topic_name: topic_name.to_string(),
             storage_type: StorageType::EngineMemory,
             partition: 1,
@@ -73,6 +76,7 @@ mod tests {
     fn test_encode_decode() {
         let topic = Topic {
             topic_id: "test-id".to_string(),
+            tenant: "test-tenant".to_string(),
             topic_name: "test-topic".to_string(),
             storage_type: StorageType::EngineMemory,
             partition: 3,

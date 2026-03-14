@@ -40,6 +40,7 @@ use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TopicListReq {
+    pub tenant: Option<String>,
     pub topic_name: Option<String>,
     pub topic_type: Option<String>, // "all", "normal", "system"
     pub limit: Option<u32>,
@@ -53,11 +54,13 @@ pub struct TopicListReq {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TopicDetailReq {
+    pub tenant: String,
     pub topic_name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Validate)]
 pub struct TopicDeleteRep {
+    pub tenant: String,
     #[validate(length(
         min = 1,
         max = 256,
@@ -79,6 +82,9 @@ pub struct TopicRewriteReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct CreateTopicRewriteReq {
+    #[validate(length(min = 1, max = 128, message = "Tenant length must be between 1-128"))]
+    pub tenant: String,
+
     #[validate(length(min = 1, max = 50, message = "Action length must be between 1-50"))]
     #[validate(custom(function = "validate_rewrite_action"))]
     pub action: String,
@@ -116,6 +122,9 @@ fn validate_rewrite_action(action: &str) -> Result<(), validator::ValidationErro
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteTopicRewriteReq {
+    #[validate(length(min = 1, max = 128, message = "Tenant length must be between 1-128"))]
+    pub tenant: String,
+
     #[validate(length(min = 1, max = 50, message = "Action length must be between 1-50"))]
     #[validate(custom(function = "validate_rewrite_action"))]
     pub action: String,
@@ -159,41 +168,46 @@ pub async fn topic_list(
         params.exact_match,
     );
 
-    let mut topics: Vec<Topic> = Vec::new();
-    if let Some(tp) = params.topic_name.clone() {
-        if let Some(topic) = state
-            .mqtt_context
-            .cache_manager
-            .broker_cache
-            .get_topic_by_name(&tp)
-        {
-            topics.push(topic.clone());
-        }
+    let broker_cache = &state.mqtt_context.cache_manager.broker_cache;
+    let topics: Vec<Topic> = if let Some(tp) = params.topic_name.clone() {
+        let topic = if let Some(ref t) = params.tenant {
+            broker_cache.get_topic_by_name(t, &tp)
+        } else {
+            broker_cache
+                .topic_list
+                .iter()
+                .find_map(|e| e.value().get(&tp).map(|t| t.clone()))
+        };
+        topic.into_iter().collect()
     } else {
         let topic_type = params.topic_type.as_deref().unwrap_or("all");
-        for entry in state
-            .mqtt_context
-            .cache_manager
-            .broker_cache
-            .topic_list
-            .iter()
-        {
-            let topic = entry.value();
-            let allow = if topic_type == "system" {
-                entry.topic_name.contains("$")
-            } else if topic_type == "normal" {
-                !entry.topic_name.contains("$")
-            } else {
-                true
-            };
-
-            if !allow {
-                continue;
-            }
-
-            topics.push(topic.clone());
-        }
-    }
+        let raw: Vec<Topic> = if let Some(ref t) = params.tenant {
+            broker_cache.list_topics_by_tenant(t)
+        } else {
+            broker_cache
+                .topic_list
+                .iter()
+                .flat_map(|tenant_entry| {
+                    tenant_entry
+                        .value()
+                        .iter()
+                        .map(|topic_entry| topic_entry.value().clone())
+                        .collect::<Vec<_>>()
+                })
+                .collect()
+        };
+        raw.into_iter()
+            .filter(|topic| {
+                if topic_type == "system" {
+                    topic.topic_name.contains('$')
+                } else if topic_type == "normal" {
+                    !topic.topic_name.contains('$')
+                } else {
+                    true
+                }
+            })
+            .collect()
+    };
 
     let filtered = apply_filters(topics, &options);
     let sorted = apply_sorting(filtered, &options);
@@ -209,6 +223,7 @@ impl Queryable for Topic {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
             "topic_name" => Some(self.topic_name.clone()),
+            "tenant" => Some(self.tenant.clone()),
             _ => None,
         }
     }
@@ -236,7 +251,7 @@ async fn read_topic_detail(
         .mqtt_context
         .cache_manager
         .broker_cache
-        .get_topic_by_name(&params.topic_name)
+        .get_topic_by_name(&params.tenant, &params.topic_name)
     {
         topic
     } else {
@@ -248,7 +263,7 @@ async fn read_topic_detail(
     let storage_list = state
         .mqtt_context
         .storage_driver_manager
-        .list_storage_resource(&topic.topic_name)
+        .list_storage_resource(&topic.tenant, &topic.topic_name)
         .await?;
 
     let sub_list = if let Some(list) = state
@@ -278,7 +293,10 @@ pub async fn topic_delete(
     ValidatedJson(params): ValidatedJson<TopicDeleteRep>,
 ) -> String {
     let topic_storage = TopicStorage::new(state.client_pool.clone());
-    if let Err(e) = topic_storage.delete_topic(&params.topic_name).await {
+    if let Err(e) = topic_storage
+        .delete_topic(&params.tenant, &params.topic_name)
+        .await
+    {
         return error_response(e.to_string());
     }
     success_response("success")
@@ -334,6 +352,7 @@ pub async fn topic_rewrite_create(
     ValidatedJson(params): ValidatedJson<CreateTopicRewriteReq>,
 ) -> String {
     let rule = MqttTopicRewriteRule {
+        tenant: params.tenant.clone(),
         action: params.action.clone(),
         source_topic: params.source_topic.clone(),
         dest_topic: params.dest_topic.clone(),
@@ -365,15 +384,20 @@ pub async fn topic_rewrite_delete(
 ) -> String {
     let topic_storage = TopicStorage::new(state.client_pool.clone());
     if let Err(e) = topic_storage
-        .delete_topic_rewrite_rule(params.action.clone(), params.source_topic.clone())
+        .delete_topic_rewrite_rule(
+            params.tenant.clone(),
+            params.action.clone(),
+            params.source_topic.clone(),
+        )
         .await
     {
         return error_response(e.to_string());
     }
-    state
-        .mqtt_context
-        .cache_manager
-        .delete_topic_rewrite_rule(&params.action, &params.source_topic);
+    state.mqtt_context.cache_manager.delete_topic_rewrite_rule(
+        &params.tenant,
+        &params.action,
+        &params.source_topic,
+    );
     state
         .mqtt_context
         .cache_manager

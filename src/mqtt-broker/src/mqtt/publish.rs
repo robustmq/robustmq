@@ -139,6 +139,7 @@ impl MqttService {
     ) -> Result<(String, String), MqttBrokerError> {
         let mut topic_name = get_topic_name(
             &self.cache_manager,
+            &connection.tenant,
             connection.connect_id,
             publish,
             publish_properties,
@@ -159,6 +160,7 @@ impl MqttService {
             .await?;
 
         let topic = try_init_topic(
+            &connection.tenant,
             &topic_name,
             &self.cache_manager,
             &self.storage_driver_manager,

@@ -16,13 +16,13 @@ use std::sync::Arc;
 
 use common_config::broker::broker_config;
 use grpc_clients::meta::mqtt::call::{
-    placement_delete_auto_subscribe_rule, placement_list_auto_subscribe_rule,
-    placement_set_auto_subscribe_rule,
+    placement_create_auto_subscribe_rule, placement_delete_auto_subscribe_rule,
+    placement_list_auto_subscribe_rule,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
 use protocol::meta::meta_service_mqtt::{
-    DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleRequest, SetAutoSubscribeRuleRequest,
+    CreateAutoSubscribeRuleRequest, DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleRequest,
 };
 
 use crate::core::error::MqttBrokerError;
@@ -39,9 +39,12 @@ impl AutoSubscribeStorage {
 
     pub async fn list_auto_subscribe_rule(
         &self,
+        tenant: Option<String>,
     ) -> Result<Vec<MqttAutoSubscribeRule>, MqttBrokerError> {
         let config = broker_config();
-        let request = ListAutoSubscribeRuleRequest {};
+        let request = ListAutoSubscribeRuleRequest {
+            tenant: tenant.unwrap_or_default(),
+        };
         let reply = placement_list_auto_subscribe_rule(
             &self.client_pool,
             &config.get_meta_service_addr(),
@@ -55,19 +58,16 @@ impl AutoSubscribeStorage {
         Ok(list)
     }
 
-    pub async fn set_auto_subscribe_rule(
+    pub async fn create_auto_subscribe_rule(
         &self,
         auto_subscribe_rule: MqttAutoSubscribeRule,
     ) -> ResultMqttBrokerError {
         let config = broker_config();
-        let request = SetAutoSubscribeRuleRequest {
-            topic: auto_subscribe_rule.topic.clone(),
-            qos: Into::<u8>::into(auto_subscribe_rule.qos) as u32,
-            no_local: auto_subscribe_rule.no_local,
-            retain_as_published: auto_subscribe_rule.retain_as_published,
-            retained_handling: Into::<u8>::into(auto_subscribe_rule.retained_handling) as u32,
-        };
-        placement_set_auto_subscribe_rule(
+        let content = auto_subscribe_rule
+            .encode()
+            .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+        let request = CreateAutoSubscribeRuleRequest { content };
+        placement_create_auto_subscribe_rule(
             &self.client_pool,
             &config.get_meta_service_addr(),
             request,
@@ -76,9 +76,9 @@ impl AutoSubscribeStorage {
         Ok(())
     }
 
-    pub async fn delete_auto_subscribe_rule(&self, topic: String) -> ResultMqttBrokerError {
+    pub async fn delete_auto_subscribe_rule(&self, uniq_id: String) -> ResultMqttBrokerError {
         let config = broker_config();
-        let request = DeleteAutoSubscribeRuleRequest { topic };
+        let request = DeleteAutoSubscribeRuleRequest { uniq_id };
         placement_delete_auto_subscribe_rule(
             &self.client_pool,
             &config.get_meta_service_addr(),

@@ -289,6 +289,7 @@ pub fn start_mongodb_connector(
             &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
+                tenant: connector.tenant,
                 topic_name: connector.topic_name,
                 record_num: batch_size,
                 strategy: connector.failure_strategy,

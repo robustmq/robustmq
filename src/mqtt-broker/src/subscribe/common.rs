@@ -38,6 +38,7 @@ pub struct Subscriber {
     pub sub_path: String,
     // Rewrite sub path
     pub rewrite_sub_path: Option<String>,
+    pub tenant: String,
     pub topic_name: String,
     pub group_name: String,
     pub protocol: MqttProtocol,
@@ -151,17 +152,21 @@ pub async fn get_sub_topic_name_list(
     let mut result = Vec::new();
     if is_wildcards(sub_path) {
         if let Ok(regex) = build_sub_path_regex(sub_path) {
-            for row in metadata_cache.broker_cache.topic_list.iter() {
-                if regex.is_match(&row.value().topic_name) {
-                    result.push(row.value().topic_name.clone());
+            for tenant_entry in metadata_cache.broker_cache.topic_list.iter() {
+                for topic_entry in tenant_entry.value().iter() {
+                    if regex.is_match(&topic_entry.value().topic_name) {
+                        result.push(topic_entry.value().topic_name.clone());
+                    }
                 }
             }
         }
     } else {
-        for row in metadata_cache.broker_cache.topic_list.iter() {
-            if row.value().topic_name == *sub_path {
-                result.push(row.value().topic_name.clone());
-                break;
+        'outer: for tenant_entry in metadata_cache.broker_cache.topic_list.iter() {
+            for topic_entry in tenant_entry.value().iter() {
+                if topic_entry.value().topic_name == *sub_path {
+                    result.push(topic_entry.value().topic_name.clone());
+                    break 'outer;
+                }
             }
         }
     }
@@ -371,13 +376,13 @@ mod tests {
         let cache = test_build_mqtt_cache_manager().await;
         cache
             .broker_cache
-            .add_topic("/test/topic1", &Topic::build_by_name("/test/topic1"));
+            .add_topic(&Topic::build_by_name("/test/topic1"));
         cache
             .broker_cache
-            .add_topic("/test/topic2", &Topic::build_by_name("/test/topic2"));
+            .add_topic(&Topic::build_by_name("/test/topic2"));
         cache
             .broker_cache
-            .add_topic("/other/topic", &Topic::build_by_name("/other/topic"));
+            .add_topic(&Topic::build_by_name("/other/topic"));
 
         // Exact match
         let result = get_sub_topic_name_list(&cache, "/test/topic1").await;

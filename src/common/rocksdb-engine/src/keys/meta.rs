@@ -106,8 +106,13 @@ pub fn storage_key_mqtt_user_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_topic(topic_name: &str) -> String {
-    format!("{}mqtt/topic/{}", PREFIX_META, topic_name)
+pub fn storage_key_mqtt_topic(tenant: &str, topic_name: &str) -> String {
+    format!("{}mqtt/topic/{}/{}", PREFIX_META, tenant, topic_name)
+}
+
+#[inline]
+pub fn storage_key_mqtt_topic_tenant_prefix(tenant: &str) -> String {
+    format!("{}mqtt/topic/{}/", PREFIX_META, tenant)
 }
 
 #[inline]
@@ -230,10 +235,14 @@ pub fn storage_key_mqtt_blacklist_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_topic_rewrite_rule(action: &str, source_topic: &str) -> String {
+pub fn storage_key_mqtt_topic_rewrite_rule(
+    tenant: &str,
+    action: &str,
+    source_topic: &str,
+) -> String {
     format!(
-        "{}mqtt/topic_rewrite_rule/{}/{}",
-        PREFIX_META, action, source_topic
+        "{}mqtt/topic_rewrite_rule/{}/{}/{}",
+        PREFIX_META, tenant, action, source_topic
     )
 }
 
@@ -243,13 +252,26 @@ pub fn storage_key_mqtt_topic_rewrite_rule_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_auto_subscribe_rule(topic: &str) -> String {
-    format!("{}mqtt/auto_subscribe_rule/{}", PREFIX_META, topic)
+pub fn storage_key_mqtt_topic_rewrite_rule_tenant_prefix(tenant: &str) -> String {
+    format!("{}mqtt/topic_rewrite_rule/{}/", PREFIX_META, tenant)
+}
+
+#[inline]
+pub fn storage_key_mqtt_auto_subscribe_rule(tenant: &str, uniq_id: &str) -> String {
+    format!(
+        "{}mqtt/auto_subscribe_rule/{}/{}",
+        PREFIX_META, tenant, uniq_id
+    )
 }
 
 #[inline]
 pub fn storage_key_mqtt_auto_subscribe_rule_prefix() -> String {
     format!("{}mqtt/auto_subscribe_rule/", PREFIX_META)
+}
+
+#[inline]
+pub fn storage_key_mqtt_auto_subscribe_rule_tenant_prefix(tenant: &str) -> String {
+    format!("{}mqtt/auto_subscribe_rule/{}/", PREFIX_META, tenant)
 }
 
 #[inline]

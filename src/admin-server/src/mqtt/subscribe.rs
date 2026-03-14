@@ -99,6 +99,9 @@ pub struct AutoSubscribeListReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct CreateAutoSubscribeReq {
+    #[validate(length(min = 1, max = 256, message = "Tenant length must be between 1-256"))]
+    pub tenant: String,
+
     #[validate(length(min = 1, max = 256, message = "Topic length must be between 1-256"))]
     pub topic: String,
 
@@ -114,12 +117,8 @@ pub struct CreateAutoSubscribeReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteAutoSubscribeReq {
-    #[validate(length(
-        min = 1,
-        max = 256,
-        message = "Topic name length must be between 1-256"
-    ))]
-    pub topic_name: String,
+    #[validate(length(min = 1, max = 256, message = "uniq_id length must be between 1-256"))]
+    pub uniq_id: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -157,6 +156,7 @@ pub struct SlowSubscribeListRow {
     pub subscribe_name: String,
 }
 
+use common_base::uuid::unique_id;
 use common_base::{
     http_response::{error_response, success_response},
     utils::time_util::timestamp_to_local_datetime,
@@ -347,6 +347,8 @@ pub async fn auto_subscribe_create(
     };
 
     let auto_subscribe_rule = MqttAutoSubscribeRule {
+        uniq_id: unique_id(),
+        tenant: params.tenant.clone(),
         topic: params.topic.clone(),
         qos: qos_new,
         no_local: params.no_local,
@@ -356,16 +358,11 @@ pub async fn auto_subscribe_create(
 
     let auto_subscribe_storage = AutoSubscribeStorage::new(state.client_pool.clone());
     if let Err(e) = auto_subscribe_storage
-        .set_auto_subscribe_rule(auto_subscribe_rule.clone())
+        .create_auto_subscribe_rule(auto_subscribe_rule.clone())
         .await
     {
         return error_response(e.to_string());
     }
-
-    state
-        .mqtt_context
-        .cache_manager
-        .add_auto_subscribe_rule(auto_subscribe_rule);
 
     success_response("success")
 }
@@ -376,7 +373,7 @@ pub async fn auto_subscribe_delete(
 ) -> String {
     let auto_subscribe_storage = AutoSubscribeStorage::new(state.client_pool.clone());
     if let Err(e) = auto_subscribe_storage
-        .delete_auto_subscribe_rule(params.topic_name.clone())
+        .delete_auto_subscribe_rule(params.uniq_id.clone())
         .await
     {
         return error_response(e.to_string());
@@ -385,7 +382,7 @@ pub async fn auto_subscribe_delete(
     state
         .mqtt_context
         .cache_manager
-        .delete_auto_subscribe_rule(&params.topic_name);
+        .delete_auto_subscribe_rule(&params.uniq_id);
 
     success_response("success")
 }

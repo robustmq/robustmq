@@ -81,6 +81,7 @@ use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -180,6 +181,7 @@ impl SystemTopic {
         for topic_name in results {
             let new_topic_name = replace_topic_name(topic_name);
             if let Err(e) = try_init_topic(
+                DEFAULT_TENANT,
                 &new_topic_name,
                 &self.metadata_cache,
                 &self.storage_driver_manager,
@@ -410,6 +412,7 @@ pub(crate) async fn write_topic_data(
     record: AdapterWriteRecord,
 ) -> Result<Vec<u64>, MqttBrokerError> {
     let topic = try_init_topic(
+        DEFAULT_TENANT,
         &topic_name,
         &metadata_cache.clone(),
         storage_driver_manager,
@@ -419,7 +422,7 @@ pub(crate) async fn write_topic_data(
 
     let message_storage = MessageStorage::new(storage_driver_manager.clone());
     let resp = message_storage
-        .append_topic_message(&topic.topic_name, vec![record])
+        .append_topic_message(DEFAULT_TENANT, &topic.topic_name, vec![record])
         .await?;
     Ok(resp)
 }
@@ -431,8 +434,8 @@ mod test {
     use common_base::{tools::get_local_ip, uuid::unique_id};
     use common_config::broker::{broker_config, default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+    use metadata_struct::{mqtt::message::MqttMessage, tenant::DEFAULT_TENANT};
     use std::collections::HashMap;
     use std::sync::Arc;
     use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
@@ -466,7 +469,7 @@ mod test {
 
         let topic = storage_driver_manager
             .broker_cache
-            .get_topic_by_name(&topic_name)
+            .get_topic_by_name(DEFAULT_TENANT, &topic_name)
             .unwrap();
 
         let read_config = AdapterReadConfig {
@@ -475,7 +478,12 @@ mod test {
         };
 
         let results = storage_driver_manager
-            .read_by_offset(&topic.topic_name, &HashMap::new(), &read_config)
+            .read_by_offset(
+                DEFAULT_TENANT,
+                &topic.topic_name,
+                &HashMap::new(),
+                &read_config,
+            )
             .await
             .unwrap();
         assert_eq!(results.len(), 1);
@@ -517,7 +525,7 @@ mod test {
 
         let mqtt_topic = cache_manger
             .broker_cache
-            .get_topic_by_name(&topic_name)
+            .get_topic_by_name(DEFAULT_TENANT, &topic_name)
             .unwrap();
 
         let read_config = AdapterReadConfig {
@@ -525,7 +533,12 @@ mod test {
             max_size: 1024 * 1024 * 1024,
         };
         let results = storage_driver_manager
-            .read_by_offset(&mqtt_topic.topic_name, &HashMap::new(), &read_config)
+            .read_by_offset(
+                DEFAULT_TENANT,
+                &mqtt_topic.topic_name,
+                &HashMap::new(),
+                &read_config,
+            )
             .await
             .unwrap();
 
