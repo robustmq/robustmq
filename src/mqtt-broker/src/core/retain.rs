@@ -37,7 +37,6 @@ use common_metrics::mqtt::statistics::{record_mqtt_retained_dec, record_mqtt_ret
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
-use metadata_struct::tenant::DEFAULT_TENANT;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{
     MqttPacket, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties,
@@ -49,6 +48,7 @@ use tracing::{debug, error, warn};
 
 #[derive(Clone)]
 struct SendRetainData {
+    pub tenant: String,
     pub topic_name: String,
     pub client_id: String,
     pub no_local: bool,
@@ -61,8 +61,8 @@ pub struct RetainMessageManager {
     cache_manager: Arc<MQTTCacheManager>,
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
-    topic_retain_data: DashMap<String, Option<(MqttMessage, u64)>>,
-    last_update_time: DashMap<String, u64>,
+    topic_retain_data: DashMap<String, DashMap<String, Option<(MqttMessage, u64)>>>,
+    last_update_time: DashMap<String, DashMap<String, u64>>,
     send_retain_message_queue: mpsc::Sender<SendRetainData>,
 }
 
@@ -98,7 +98,6 @@ impl RetainMessageManager {
             return Ok(());
         }
 
-        let cache_key = format!("{}/{}", tenant, topic_name);
         let topic_storage = TopicStorage::new(self.client_pool.clone());
         let had_retain = self.contain_retain(tenant, topic_name).await?;
 
@@ -107,9 +106,14 @@ impl RetainMessageManager {
                 .delete_retain_message(tenant, topic_name)
                 .await?;
             record_mqtt_retained_dec();
-            self.topic_retain_data.insert(cache_key.clone(), None);
+            self.topic_retain_data
+                .entry(tenant.to_string())
+                .or_default()
+                .insert(topic_name.to_string(), None);
             self.last_update_time
-                .insert(cache_key.clone(), now_second());
+                .entry(tenant.to_string())
+                .or_default()
+                .insert(topic_name.to_string(), now_second());
         }
 
         if !publish.payload.is_empty() {
@@ -126,8 +130,16 @@ impl RetainMessageManager {
                 .await?;
 
             self.topic_retain_data
-                .insert(cache_key.clone(), Some((retain_message, message_expire)));
-            self.last_update_time.insert(cache_key, now_second());
+                .entry(tenant.to_string())
+                .or_default()
+                .insert(
+                    topic_name.to_string(),
+                    Some((retain_message, message_expire)),
+                );
+            self.last_update_time
+                .entry(tenant.to_string())
+                .or_default()
+                .insert(topic_name.to_string(), now_second());
         }
 
         Ok(())
@@ -170,6 +182,7 @@ impl RetainMessageManager {
                 }
 
                 let data = SendRetainData {
+                    tenant: tenant.to_string(),
                     client_id: client_id.to_string(),
                     no_local: filter.no_local,
                     preserve_retain: filter.preserve_retain,
@@ -186,11 +199,15 @@ impl RetainMessageManager {
     }
 
     async fn contain_retain(&self, tenant: &str, topic: &str) -> Result<bool, MqttBrokerError> {
-        let cache_key = format!("{}/{}", tenant, topic);
         let current_time = now_second();
 
-        let last_update_time = if let Some(update_time) = self.last_update_time.get(&cache_key) {
-            *update_time
+        let last_update_time = self
+            .last_update_time
+            .get(tenant)
+            .and_then(|m| m.get(topic).map(|v| *v));
+
+        let last_update_time = if let Some(t) = last_update_time {
+            t
         } else {
             self.load_retain_from_storage(tenant, topic).await?;
             current_time
@@ -200,20 +217,19 @@ impl RetainMessageManager {
             self.load_retain_from_storage(tenant, topic).await?;
         }
 
-        let contain = if let Some(data) = self.topic_retain_data.get(&cache_key) {
-            if let Some((_, expire_at)) = data.as_ref() {
-                if current_time >= *expire_at {
-                    drop(data);
-                    self.clear_local_retain_cache(tenant, topic, current_time);
-                    false
-                } else {
-                    true
-                }
-            } else {
+        let expired = self
+            .topic_retain_data
+            .get(tenant)
+            .and_then(|m| m.get(topic).map(|v| v.clone()))
+            .and_then(|entry| entry.map(|(_, expire_at)| current_time >= expire_at));
+
+        let contain = match expired {
+            None => false,
+            Some(true) => {
+                self.clear_local_retain_cache(tenant, topic, current_time);
                 false
             }
-        } else {
-            false
+            Some(false) => true,
         };
         Ok(contain)
     }
@@ -223,27 +239,36 @@ impl RetainMessageManager {
         tenant: &str,
         topic: &str,
     ) -> Result<(), MqttBrokerError> {
-        let cache_key = format!("{}/{}", tenant, topic);
         let topic_storage = TopicStorage::new(self.client_pool.clone());
         let (message, message_at) = topic_storage.get_retain_message(tenant, topic).await?;
 
         let current_time = now_second();
         self.last_update_time
-            .insert(cache_key.clone(), current_time);
+            .entry(tenant.to_string())
+            .or_default()
+            .insert(topic.to_string(), current_time);
 
         let retain_data = match (message, message_at) {
             (Some(msg), Some(msg_at)) => Some((msg, msg_at)),
             _ => None,
         };
-        self.topic_retain_data.insert(cache_key, retain_data);
+        self.topic_retain_data
+            .entry(tenant.to_string())
+            .or_default()
+            .insert(topic.to_string(), retain_data);
 
         Ok(())
     }
 
     fn clear_local_retain_cache(&self, tenant: &str, topic: &str, current_time: u64) {
-        let cache_key = format!("{}/{}", tenant, topic);
-        self.topic_retain_data.insert(cache_key.clone(), None);
-        self.last_update_time.insert(cache_key, current_time);
+        self.topic_retain_data
+            .entry(tenant.to_string())
+            .or_default()
+            .insert(topic.to_string(), None);
+        self.last_update_time
+            .entry(tenant.to_string())
+            .or_default()
+            .insert(topic.to_string(), current_time);
     }
 
     async fn send_retain_message(
@@ -253,7 +278,10 @@ impl RetainMessageManager {
     ) -> ResultMqttBrokerError {
         let mut is_expired = false;
         let msg_data = {
-            let cache_entry = self.topic_retain_data.get(&data.topic_name);
+            let cache_entry = self
+                .topic_retain_data
+                .get(&data.tenant)
+                .and_then(|m| m.get(&data.topic_name).map(|v| v.clone()));
             if let Some(entry) = cache_entry {
                 if let Some((message, message_at)) = entry.as_ref() {
                     if now_second() >= *message_at {
@@ -281,7 +309,7 @@ impl RetainMessageManager {
         };
 
         if is_expired {
-            self.clear_local_retain_cache(DEFAULT_TENANT, &data.topic_name, now_second());
+            self.clear_local_retain_cache(&data.tenant, &data.topic_name, now_second());
             return Ok(());
         }
 
