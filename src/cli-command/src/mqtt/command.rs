@@ -1281,6 +1281,7 @@ impl MqttBrokerCommand {
 
         // Create request for schema list
         let request = admin_server::mqtt::schema::SchemaListReq {
+            tenant: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
@@ -1406,6 +1407,7 @@ impl MqttBrokerCommand {
 
         // Create request for schema bind list
         let request = admin_server::mqtt::schema::SchemaBindListReq {
+            tenant: None,
             resource_name: None,
             schema_name: None,
             limit: Some(params.limit),

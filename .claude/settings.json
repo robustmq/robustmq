@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs ls:*)",
+      "Bash(python3 -m json.tool)",
+      "Read(//dev/**)",
+      "Bash(grep -l \"ListSchemaRequest\" /Users/oker/robustmq/target/debug/build/protocol-*/out/meta.service.common.rs)",
+      "Bash(python3:*)",
+      "Read(//Users/oker/robustmq/**)",
+      "Bash(grep -v \"^\\\\-\\\\-$\")",
+      "Bash(grep -n \"SchemaData {\" /Users/oker/robustmq/src/schema-register/src/*.rs)",
+      "Bash(cat /Users/oker/robustmq/docs/zh/Architect/*.md)"
+    ]
+  }
+}

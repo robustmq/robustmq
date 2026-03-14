@@ -289,7 +289,6 @@ impl MetaServiceService for GrpcPlacementService {
         create_schema_req(
             &self.raft_manager,
             &self.mqtt_call_manager,
-            &self.client_pool,
             &req,
             &self.rocksdb_engine_handler,
         )
@@ -310,7 +309,6 @@ impl MetaServiceService for GrpcPlacementService {
             &self.rocksdb_engine_handler,
             &self.raft_manager,
             &self.mqtt_call_manager,
-            &self.client_pool,
             &req,
         )
         .await
@@ -330,7 +328,6 @@ impl MetaServiceService for GrpcPlacementService {
             &self.rocksdb_engine_handler,
             &self.raft_manager,
             &self.mqtt_call_manager,
-            &self.client_pool,
             &req,
         )
         .await
@@ -360,9 +357,9 @@ impl MetaServiceService for GrpcPlacementService {
         self.validate_request(&req)?;
 
         bind_schema_req(
+            &self.rocksdb_engine_handler,
             &self.raft_manager,
             &self.mqtt_call_manager,
-            &self.client_pool,
             &req,
         )
         .await
@@ -378,14 +375,9 @@ impl MetaServiceService for GrpcPlacementService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        un_bind_schema_req(
-            &self.raft_manager,
-            &self.mqtt_call_manager,
-            &self.client_pool,
-            &req,
-        )
-        .await
-        .map_err(Self::to_status)?;
+        un_bind_schema_req(&self.raft_manager, &self.mqtt_call_manager, &req)
+            .await
+            .map_err(Self::to_status)?;
 
         Ok(Response::new(UnBindSchemaReply {}))
     }

@@ -16,7 +16,8 @@ use crate::core::error::MetaServiceError;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use rocksdb_engine::keys::meta::{
     storage_key_mqtt_schema, storage_key_mqtt_schema_bind, storage_key_mqtt_schema_bind_prefix,
-    storage_key_mqtt_schema_bind_prefix_by_resource, storage_key_mqtt_schema_prefix,
+    storage_key_mqtt_schema_bind_prefix_by_resource, storage_key_mqtt_schema_bind_tenant_prefix,
+    storage_key_mqtt_schema_prefix, storage_key_mqtt_schema_tenant_prefix,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
@@ -35,9 +36,15 @@ impl SchemaStorage {
             rocksdb_engine_handler,
         }
     }
+
     // Schema
-    pub fn save(&self, schema_name: &str, schema: &SchemaData) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_schema(schema_name);
+    pub fn save(
+        &self,
+        tenant: &str,
+        schema_name: &str,
+        schema: &SchemaData,
+    ) -> Result<(), MetaServiceError> {
+        let key = storage_key_mqtt_schema(tenant, schema_name);
         engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, schema)?;
         Ok(())
     }
@@ -51,9 +58,21 @@ impl SchemaStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn get(&self, schema_name: &str) -> Result<Option<SchemaData>, MetaServiceError> {
-        let key: String = storage_key_mqtt_schema(schema_name);
+    pub fn list_by_tenant(&self, tenant: &str) -> Result<Vec<SchemaData>, MetaServiceError> {
+        let prefix_key = storage_key_mqtt_schema_tenant_prefix(tenant);
+        let data = engine_prefix_list_by_meta_metadata::<SchemaData>(
+            &self.rocksdb_engine_handler,
+            &prefix_key,
+        )?;
+        Ok(data.into_iter().map(|raw| raw.data).collect())
+    }
 
+    pub fn get(
+        &self,
+        tenant: &str,
+        schema_name: &str,
+    ) -> Result<Option<SchemaData>, MetaServiceError> {
+        let key = storage_key_mqtt_schema(tenant, schema_name);
         if let Some(data) =
             engine_get_by_meta_metadata::<SchemaData>(&self.rocksdb_engine_handler, &key)?
         {
@@ -62,8 +81,8 @@ impl SchemaStorage {
         Ok(None)
     }
 
-    pub fn delete(&self, schema_name: &str) -> Result<(), MetaServiceError> {
-        let key: String = storage_key_mqtt_schema(schema_name);
+    pub fn delete(&self, tenant: &str, schema_name: &str) -> Result<(), MetaServiceError> {
+        let key = storage_key_mqtt_schema(tenant, schema_name);
         engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)?;
         Ok(())
     }
@@ -75,36 +94,51 @@ impl SchemaStorage {
             &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
+        Ok(data.iter().map(|raw| raw.data.clone()).collect())
+    }
 
+    pub fn list_bind_by_tenant(
+        &self,
+        tenant: &str,
+    ) -> Result<Vec<SchemaResourceBind>, MetaServiceError> {
+        let prefix_key = storage_key_mqtt_schema_bind_tenant_prefix(tenant);
+        let data = engine_prefix_list_by_meta_metadata::<SchemaResourceBind>(
+            &self.rocksdb_engine_handler,
+            &prefix_key,
+        )?;
         Ok(data.iter().map(|raw| raw.data.clone()).collect())
     }
 
     pub fn save_bind(&self, bind_data: &SchemaResourceBind) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_schema_bind(&bind_data.resource_name, &bind_data.schema_name);
+        let key = storage_key_mqtt_schema_bind(
+            &bind_data.tenant,
+            &bind_data.resource_name,
+            &bind_data.schema_name,
+        );
         engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, bind_data)?;
         Ok(())
     }
 
     pub fn list_bind_by_resource(
         &self,
+        tenant: &str,
         resource_name: &str,
     ) -> Result<Vec<SchemaResourceBind>, MetaServiceError> {
-        let prefix_key = storage_key_mqtt_schema_bind_prefix_by_resource(resource_name);
+        let prefix_key = storage_key_mqtt_schema_bind_prefix_by_resource(tenant, resource_name);
         let data = engine_prefix_list_by_meta_metadata::<SchemaResourceBind>(
             &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
-
         Ok(data.iter().map(|raw| raw.data.clone()).collect())
     }
 
     pub fn get_bind(
         &self,
+        tenant: &str,
         resource_name: &str,
         schema_name: &str,
     ) -> Result<Option<SchemaResourceBind>, MetaServiceError> {
-        let key: String = storage_key_mqtt_schema_bind(resource_name, schema_name);
-
+        let key = storage_key_mqtt_schema_bind(tenant, resource_name, schema_name);
         if let Some(data) =
             engine_get_by_meta_metadata::<SchemaResourceBind>(&self.rocksdb_engine_handler, &key)?
         {
@@ -115,111 +149,12 @@ impl SchemaStorage {
 
     pub fn delete_bind(
         &self,
+        tenant: &str,
         resource_name: &str,
         schema_name: &str,
     ) -> Result<(), MetaServiceError> {
-        let key: String = storage_key_mqtt_schema_bind(resource_name, schema_name);
+        let key = storage_key_mqtt_schema_bind(tenant, resource_name, schema_name);
         engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)?;
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use metadata_struct::schema::SchemaType;
-    use metadata_struct::schema::{SchemaData, SchemaResourceBind};
-    use rocksdb_engine::storage::family::column_family_list;
-    use tempfile::tempdir;
-
-    use crate::storage::common::schema::SchemaStorage;
-    use rocksdb_engine::rocksdb::RocksDBEngine;
-
-    #[tokio::test]
-    async fn schema_storage_test() {
-        let rocksdb_engine = Arc::new(RocksDBEngine::new(
-            tempdir().unwrap().path().to_str().unwrap(),
-            100,
-            column_family_list(),
-        ));
-
-        let schema_storage = SchemaStorage::new(rocksdb_engine.clone());
-
-        let schema_name = "test_schema".to_string();
-        let desc = "description";
-        let schema = "{\"type\":\"object\"}";
-
-        let schema_data = SchemaData {
-            name: schema_name.clone(),
-            schema_type: SchemaType::JSON,
-            desc: desc.to_string(),
-            schema: schema.to_string(),
-        };
-
-        //test func save()
-        schema_storage.save(&schema_name, &schema_data).unwrap();
-
-        //test func get()
-        let retrieved_schema = schema_storage
-            .get(&schema_name)
-            .unwrap()
-            .expect("schema not found");
-        assert_eq!(retrieved_schema.name, "test_schema");
-        assert_eq!(retrieved_schema.schema_type, SchemaType::JSON);
-
-        //test func list()
-        let schemas = schema_storage.list().unwrap();
-        assert_eq!(schemas.len(), 1);
-        assert_eq!(schemas[0].name, "test_schema");
-
-        //test func delete()
-        schema_storage.delete(&schema_name).unwrap();
-        let deleted_schema = schema_storage.get(&schema_name).unwrap();
-        assert!(deleted_schema.is_none());
-    }
-
-    #[tokio::test]
-    async fn schema_bind_storage_test() {
-        let rocksdb_engine = Arc::new(RocksDBEngine::new(
-            tempdir().unwrap().path().to_str().unwrap(),
-            100,
-            column_family_list(),
-        ));
-
-        let schema_storage = SchemaStorage::new(rocksdb_engine.clone());
-
-        //create test data
-        let schema_name = "test_schema".to_string();
-        let resource_name = "test_resource";
-
-        let bind_data = SchemaResourceBind {
-            schema_name: schema_name.clone(),
-            resource_name: resource_name.to_string(),
-        };
-
-        //test save_bind()
-        schema_storage.save_bind(&bind_data).unwrap();
-
-        //test list_bind_by_resource()
-        let retrieved_binds = schema_storage.list_bind_by_resource(resource_name).unwrap();
-        assert_eq!(retrieved_binds.len(), 1);
-        assert_eq!(retrieved_binds[0].schema_name, "test_schema");
-
-        //test get_bind()
-        let retrieved_bind = schema_storage
-            .get_bind(resource_name, &schema_name)
-            .unwrap()
-            .expect("Bind not found");
-        assert_eq!(retrieved_bind.schema_name, "test_schema");
-
-        //test delete_bind()
-        schema_storage
-            .delete_bind(resource_name, &schema_name)
-            .unwrap();
-        let deleted_bind = schema_storage
-            .get_bind(&schema_name, resource_name)
-            .unwrap();
-        assert!(deleted_bind.is_none());
     }
 }

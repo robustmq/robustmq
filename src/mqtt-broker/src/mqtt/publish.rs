@@ -174,9 +174,19 @@ impl MqttService {
             delay_info = Some(new_delay_info);
         }
 
-        if self.schema_manager.is_check_schema(&topic_name) {
-            self.schema_manager
-                .validate(&topic_name, &publish.payload)?;
+        if self
+            .schema_manager
+            .is_check_schema(&connection.tenant, &topic_name)
+        {
+            let valid =
+                self.schema_manager
+                    .validate(&connection.tenant, &topic_name, &publish.payload)?;
+            if !valid {
+                return Err(MqttBrokerError::CommonError(format!(
+                    "Payload does not match schema for topic {}",
+                    topic_name
+                )));
+            }
         }
 
         let client_id = connection.client_id.clone();

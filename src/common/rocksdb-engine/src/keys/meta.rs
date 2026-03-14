@@ -181,8 +181,13 @@ pub fn storage_key_mqtt_connector_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_schema(schema_name: &str) -> String {
-    format!("{}mqtt/schema/{}", PREFIX_META, schema_name)
+pub fn storage_key_mqtt_schema(tenant: &str, schema_name: &str) -> String {
+    format!("{}mqtt/schema/{}/{}", PREFIX_META, tenant, schema_name)
+}
+
+#[inline]
+pub fn storage_key_mqtt_schema_tenant_prefix(tenant: &str) -> String {
+    format!("{}mqtt/schema/{}/", PREFIX_META, tenant)
 }
 
 #[inline]
@@ -191,16 +196,31 @@ pub fn storage_key_mqtt_schema_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_schema_bind(resource_name: &str, schema_name: &str) -> String {
+pub fn storage_key_mqtt_schema_bind(
+    tenant: &str,
+    resource_name: &str,
+    schema_name: &str,
+) -> String {
     format!(
-        "{}mqtt/schema_bind/{}/{}",
-        PREFIX_META, resource_name, schema_name
+        "{}mqtt/schema_bind/{}/{}/{}",
+        PREFIX_META, tenant, resource_name, schema_name
     )
 }
 
 #[inline]
-pub fn storage_key_mqtt_schema_bind_prefix_by_resource(resource_name: &str) -> String {
-    format!("{}mqtt/schema_bind/{}/", PREFIX_META, resource_name)
+pub fn storage_key_mqtt_schema_bind_prefix_by_resource(
+    tenant: &str,
+    resource_name: &str,
+) -> String {
+    format!(
+        "{}mqtt/schema_bind/{}/{}/",
+        PREFIX_META, tenant, resource_name
+    )
+}
+
+#[inline]
+pub fn storage_key_mqtt_schema_bind_tenant_prefix(tenant: &str) -> String {
+    format!("{}mqtt/schema_bind/{}/", PREFIX_META, tenant)
 }
 
 #[inline]

@@ -76,6 +76,7 @@ mod test {
         "#;
 
         let schema_data = SchemaData {
+            tenant: "test".to_string(),
             name: "Proto".to_string(),
             schema_type: SchemaType::PROTOBUF,
             desc: "".to_string(),
@@ -120,6 +121,7 @@ mod test {
         "#;
 
         let schema_data = SchemaData {
+            tenant: "test".to_string(),
             name: "MyPackage".to_string(),
             schema_type: SchemaType::PROTOBUF,
             desc: "".to_string(),

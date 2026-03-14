@@ -197,6 +197,7 @@ message GetOffsetDataReplyOffset {
 }
 
 message ListSchemaRequest {
+  string tenant = 1;
   string schema_name = 2;
 }
 
@@ -205,6 +206,7 @@ message ListSchemaReply {
 }
 
 message CreateSchemaRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string schema_name = 2 [(validate.rules).string.min_len = 1];
   bytes schema = 3 [(validate.rules).bytes.min_len = 1];
 }
@@ -212,6 +214,7 @@ message CreateSchemaRequest {
 message CreateSchemaReply {}
 
 message UpdateSchemaRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string schema_name = 2 [(validate.rules).string.min_len = 1];
   bytes schema = 3 [(validate.rules).bytes.min_len = 1];
 }
@@ -219,12 +222,14 @@ message UpdateSchemaRequest {
 message UpdateSchemaReply {}
 
 message DeleteSchemaRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string schema_name = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteSchemaReply {}
 
 message ListBindSchemaRequest {
+  string tenant = 1;
   string schema_name = 2;
   string resource_name = 3;
 }
@@ -234,6 +239,7 @@ message ListBindSchemaReply {
 }
 
 message BindSchemaRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string schema_name = 2 [(validate.rules).string.min_len = 1];
   string resource_name = 3 [(validate.rules).string.min_len = 1];
 }
@@ -241,6 +247,7 @@ message BindSchemaRequest {
 message BindSchemaReply {}
 
 message UnBindSchemaRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string schema_name = 2 [(validate.rules).string.min_len = 1];
   string resource_name = 3 [(validate.rules).string.min_len = 1];
 }

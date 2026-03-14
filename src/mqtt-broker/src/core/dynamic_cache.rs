@@ -201,7 +201,7 @@ pub async fn update_mqtt_cache_metadata(
             BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let schema = serialize::deserialize::<SchemaData>(&record.data)?;
-                schema_manager.remove_schema(&schema.name);
+                schema_manager.remove_schema(&schema.tenant, &schema.name);
             }
         },
         BrokerUpdateCacheResourceType::SchemaResource => match record.action_type() {

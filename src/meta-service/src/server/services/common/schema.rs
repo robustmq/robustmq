@@ -25,7 +25,6 @@ use crate::{
     storage::common::schema::SchemaStorage,
 };
 use common_base::utils::serialize::encode_to_bytes;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use node_call::NodeCallManager;
 use prost_validate::Result;
@@ -85,11 +84,13 @@ pub fn list_schema_req(
 ) -> ListSchemaStream {
     let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
     let list = if !req.schema_name.is_empty() {
-        if let Some(data) = schema_storage.get(&req.schema_name)? {
+        if let Some(data) = schema_storage.get(&req.tenant, &req.schema_name)? {
             vec![data]
         } else {
             vec![]
         }
+    } else if !req.tenant.is_empty() {
+        schema_storage.list_by_tenant(&req.tenant)?
     } else {
         schema_storage.list()?
     };
@@ -111,7 +112,6 @@ pub fn list_schema_req(
 pub async fn create_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     req: &CreateSchemaRequest,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> Result<(), MetaServiceError> {
@@ -120,7 +120,7 @@ pub async fn create_schema_req(
     let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
 
     // Check if schema already exists
-    if schema_storage.get(&req.schema_name)?.is_some() {
+    if schema_storage.get(&req.tenant, &req.schema_name)?.is_some() {
         return Err(MetaServiceError::SchemaAlreadyExist(
             req.schema_name.clone(),
         ));
@@ -139,7 +139,6 @@ pub async fn update_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     req: &UpdateSchemaRequest,
 ) -> Result<(), MetaServiceError> {
     validate_schema_fields(&req.schema_name, &req.schema)?;
@@ -147,7 +146,7 @@ pub async fn update_schema_req(
     let storage = SchemaStorage::new(rocksdb_engine_handler.clone());
 
     // Check if schema exists
-    if storage.get(&req.schema_name)?.is_none() {
+    if storage.get(&req.tenant, &req.schema_name)?.is_none() {
         return Err(MetaServiceError::SchemaNotFound(req.schema_name.clone()));
     }
 
@@ -164,7 +163,6 @@ pub async fn delete_schema_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     req: &DeleteSchemaRequest,
 ) -> Result<(), MetaServiceError> {
     validate_non_empty(&req.schema_name, "schema_name")?;
@@ -173,7 +171,7 @@ pub async fn delete_schema_req(
 
     // Get schema to delete (must exist)
     let schema = storage
-        .get(&req.schema_name)?
+        .get(&req.tenant, &req.schema_name)?
         .ok_or_else(|| MetaServiceError::SchemaDoesNotExist(req.schema_name.clone()))?;
 
     let data = StorageData::new(StorageDataType::SchemaDelete, encode_to_bytes(req));
@@ -193,26 +191,31 @@ pub async fn list_bind_schema_req(
 
     let has_schema = !req.schema_name.is_empty();
     let has_resource = !req.resource_name.is_empty();
+    let has_tenant = !req.tenant.is_empty();
 
-    let schema_binds: Vec<Vec<u8>> = if has_schema && has_resource {
-        match schema_storage.get_bind(&req.schema_name, &req.resource_name)? {
+    let schema_binds: Vec<Vec<u8>> = if has_schema && has_resource && has_tenant {
+        match schema_storage.get_bind(&req.tenant, &req.resource_name, &req.schema_name)? {
             Some(bind) => vec![bind.encode()?],
             None => Vec::new(),
         }
-    } else if !has_schema && !has_resource {
+    } else if has_tenant && has_resource {
+        schema_storage
+            .list_bind_by_resource(&req.tenant, &req.resource_name)?
+            .into_iter()
+            .map(|raw| raw.encode())
+            .collect::<std::result::Result<Vec<_>, _>>()?
+    } else if has_tenant {
+        schema_storage
+            .list_bind_by_tenant(&req.tenant)?
+            .into_iter()
+            .map(|raw| raw.encode())
+            .collect::<std::result::Result<Vec<_>, _>>()?
+    } else {
         schema_storage
             .list_bind()?
             .into_iter()
             .map(|raw| raw.encode())
             .collect::<std::result::Result<Vec<_>, _>>()?
-    } else if !has_schema && has_resource {
-        schema_storage
-            .list_bind_by_resource(&req.resource_name)?
-            .into_iter()
-            .map(|raw| raw.encode())
-            .collect::<std::result::Result<Vec<_>, _>>()?
-    } else {
-        Vec::new()
     };
 
     let output = async_stream::try_stream! {
@@ -225,17 +228,25 @@ pub async fn list_bind_schema_req(
 }
 
 pub async fn bind_schema_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     req: &BindSchemaRequest,
 ) -> Result<(), MetaServiceError> {
     validate_bind_fields(&req.schema_name, &req.resource_name)?;
+
+    let schema_storage = SchemaStorage::new(rocksdb_engine_handler.clone());
+    if schema_storage.get(&req.tenant, &req.schema_name)?.is_none() {
+        return Err(MetaServiceError::SchemaDoesNotExist(
+            req.schema_name.clone(),
+        ));
+    }
 
     let data = StorageData::new(StorageDataType::SchemaBindSet, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
     let schema_data = SchemaResourceBind {
+        tenant: req.tenant.clone(),
         schema_name: req.schema_name.clone(),
         resource_name: req.resource_name.clone(),
     };
@@ -247,7 +258,6 @@ pub async fn bind_schema_req(
 pub async fn un_bind_schema_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     req: &UnBindSchemaRequest,
 ) -> Result<(), MetaServiceError> {
     validate_bind_fields(&req.schema_name, &req.resource_name)?;
@@ -256,6 +266,7 @@ pub async fn un_bind_schema_req(
     raft_manager.write_metadata(data).await?;
 
     let schema_data = SchemaResourceBind {
+        tenant: req.tenant.clone(),
         schema_name: req.schema_name.clone(),
         resource_name: req.resource_name.clone(),
     };

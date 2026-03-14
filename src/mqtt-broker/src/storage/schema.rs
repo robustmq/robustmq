@@ -36,9 +36,16 @@ impl SchemaStorage {
         SchemaStorage { client_pool }
     }
 
-    pub async fn list(&self, schema_name: String) -> Result<Vec<SchemaData>, CommonError> {
+    pub async fn list(
+        &self,
+        tenant: Option<String>,
+        schema_name: Option<String>,
+    ) -> Result<Vec<SchemaData>, CommonError> {
         let config = broker_config();
-        let request = ListSchemaRequest { schema_name };
+        let request = ListSchemaRequest {
+            tenant: tenant.unwrap_or_default(),
+            schema_name: schema_name.unwrap_or_default(),
+        };
 
         let mut stream =
             list_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
@@ -52,6 +59,7 @@ impl SchemaStorage {
     pub async fn create(&self, schema_data: SchemaData) -> ResultCommonError {
         let config = broker_config();
         let request = CreateSchemaRequest {
+            tenant: schema_data.tenant.clone(),
             schema_name: schema_data.name.clone(),
             schema: schema_data.encode()?,
         };
@@ -61,18 +69,27 @@ impl SchemaStorage {
         Ok(())
     }
 
-    pub async fn delete(&self, schema_name: String) -> ResultCommonError {
+    pub async fn delete(&self, tenant: String, schema_name: String) -> ResultCommonError {
         let config = broker_config();
-        let request = DeleteSchemaRequest { schema_name };
+        let request = DeleteSchemaRequest {
+            tenant,
+            schema_name,
+        };
 
         delete_schema(&self.client_pool, &config.get_meta_service_addr(), request).await?;
 
         Ok(())
     }
 
-    pub async fn create_bind(&self, schema_name: &str, resource_name: &str) -> ResultCommonError {
+    pub async fn create_bind(
+        &self,
+        tenant: &str,
+        schema_name: &str,
+        resource_name: &str,
+    ) -> ResultCommonError {
         let config = broker_config();
         let request = BindSchemaRequest {
+            tenant: tenant.to_string(),
             schema_name: schema_name.to_string(),
             resource_name: resource_name.to_string(),
         };
@@ -81,9 +98,15 @@ impl SchemaStorage {
         Ok(())
     }
 
-    pub async fn delete_bind(&self, schema_name: &str, resource_name: &str) -> ResultCommonError {
+    pub async fn delete_bind(
+        &self,
+        tenant: &str,
+        schema_name: &str,
+        resource_name: &str,
+    ) -> ResultCommonError {
         let config = broker_config();
         let request = UnBindSchemaRequest {
+            tenant: tenant.to_string(),
             schema_name: schema_name.to_string(),
             resource_name: resource_name.to_string(),
         };
@@ -93,9 +116,13 @@ impl SchemaStorage {
         Ok(())
     }
 
-    pub async fn list_bind(&self) -> Result<Vec<SchemaResourceBind>, CommonError> {
+    pub async fn list_bind(
+        &self,
+        tenant: Option<String>,
+    ) -> Result<Vec<SchemaResourceBind>, CommonError> {
         let config = broker_config();
         let request = ListBindSchemaRequest {
+            tenant: tenant.unwrap_or_default(),
             ..Default::default()
         };
 

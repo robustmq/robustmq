@@ -450,6 +450,8 @@ pub struct ListSchemaArgs {
 #[command(author="RobustMQ", about="action: create schema", long_about = None)]
 #[command(next_line_help = true)]
 pub struct CreateSchemaArgs {
+    #[arg(short = 'T', long, required = true)]
+    pub tenant: String,
     #[arg(short = 'n', long, required = true)]
     pub schema_name: String,
     #[arg(short = 't', long, required = true)]
@@ -464,6 +466,8 @@ pub struct CreateSchemaArgs {
 #[command(author="RobustMQ", about="action: delete schema", long_about = None)]
 #[command(next_line_help = true)]
 pub struct DeleteSchemaArgs {
+    #[arg(short = 'T', long, required = true)]
+    pub tenant: String,
     #[arg(short, long, required = true)]
     pub schema_name: String,
 }
@@ -482,6 +486,8 @@ pub struct ListBindSchemaArgs {
 #[command(author="RobustMQ", about="action: bind schema", long_about = None)]
 #[command(next_line_help = true)]
 pub struct BindSchemaArgs {
+    #[arg(short = 'T', long, required = true)]
+    pub tenant: String,
     #[arg(short, long, required = true)]
     pub schema_name: String,
     #[arg(short, long, required = true)]
@@ -492,6 +498,8 @@ pub struct BindSchemaArgs {
 #[command(author="RobustMQ", about="action: unbind schema", long_about = None)]
 #[command(next_line_help = true)]
 pub struct UnbindSchemaArgs {
+    #[arg(short = 'T', long, required = true)]
+    pub tenant: String,
     #[arg(short, long, required = true)]
     pub schema_name: String,
     #[arg(short, long, required = true)]
@@ -658,6 +666,7 @@ pub fn process_schema_args(args: SchemaArgs) -> MqttActionType {
     match args.action {
         SchemaActionType::Create(arg) => {
             MqttActionType::CreateSchema(admin_server::mqtt::schema::CreateSchemaReq {
+                tenant: arg.tenant,
                 schema_name: arg.schema_name,
                 schema_type: arg.schema_type,
                 schema: arg.schema,
@@ -667,18 +676,21 @@ pub fn process_schema_args(args: SchemaArgs) -> MqttActionType {
         SchemaActionType::List(_) => MqttActionType::ListSchema,
         SchemaActionType::Delete(arg) => {
             MqttActionType::DeleteSchema(admin_server::mqtt::schema::DeleteSchemaReq {
+                tenant: arg.tenant,
                 schema_name: arg.schema_name,
             })
         }
         SchemaActionType::ListBind(_) => MqttActionType::ListBindSchema,
         SchemaActionType::Bind(arg) => {
             MqttActionType::BindSchema(admin_server::mqtt::schema::CreateSchemaBindReq {
+                tenant: arg.tenant,
                 schema_name: arg.schema_name,
                 resource_name: arg.resource_name,
             })
         }
         SchemaActionType::Unbind(arg) => {
             MqttActionType::UnbindSchema(admin_server::mqtt::schema::DeleteSchemaBindReq {
+                tenant: arg.tenant,
                 schema_name: arg.schema_name,
                 resource_name: arg.resource_name,
             })
