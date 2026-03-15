@@ -199,7 +199,7 @@ pub async fn ban_log_list(
     };
     let results: Vec<BanLogListRaw> = data_list
         .iter()
-        .filter(|entry| params.tenant.as_deref().map_or(true, |t| entry.tenant == t))
+        .filter(|entry| params.tenant.as_deref().is_none_or(|t| entry.tenant == t))
         .map(|entry| BanLogListRaw {
             tenant: entry.tenant.clone(),
             ban_source: entry.ban_source.clone(),
