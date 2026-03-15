@@ -132,7 +132,11 @@ pub async fn update_mqtt_cache_metadata(
             BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let subscribe = serialize::deserialize::<MqttSubscribe>(&record.data)?;
-                subscribe_manager.remove_by_sub(&subscribe.client_id, &subscribe.path);
+                subscribe_manager.remove_by_sub(
+                    &subscribe.tenant,
+                    &subscribe.client_id,
+                    &subscribe.path,
+                );
                 subscribe_manager
                     .add_wait_parse_data(ParseSubscribeData {
                         action_type: BrokerUpdateCacheActionType::Delete,

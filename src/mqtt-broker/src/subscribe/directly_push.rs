@@ -140,8 +140,11 @@ impl DirectlyPushManager {
                                 "Removing stale subscriber [client_id: {}, sub_path: {}]: shard no longer exists ({})",
                                 row.client_id, row.sub_path, err_msg
                             );
-                            self.subscribe_manager
-                                .remove_by_sub(&row.client_id, &row.sub_path);
+                            self.subscribe_manager.remove_by_sub(
+                                &row.tenant,
+                                &row.client_id,
+                                &row.sub_path,
+                            );
                         } else {
                             warn!(
                                 "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}],error message: {}",
@@ -208,6 +211,7 @@ impl DirectlyPushManager {
             };
 
             record_sub_send_metrics(
+                &subscriber.tenant,
                 &subscriber.client_id,
                 &subscriber.sub_path,
                 &subscriber.topic_name,

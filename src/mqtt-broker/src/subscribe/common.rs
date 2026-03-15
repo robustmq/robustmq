@@ -189,17 +189,18 @@ pub fn is_error_by_suback(suback: &SubAck) -> bool {
 }
 
 pub fn record_sub_send_metrics(
+    tenant: &str,
     client_id: &str,
     path: &str,
     topic_name: &str,
     data_size: u64,
     success: bool,
 ) {
-    record_subscribe_bytes_sent(client_id, path, data_size, success);
-    record_subscribe_topic_bytes_sent(client_id, path, topic_name, data_size, success);
+    record_subscribe_bytes_sent(tenant, client_id, path, data_size, success);
+    record_subscribe_topic_bytes_sent(tenant, client_id, path, topic_name, data_size, success);
 
-    record_subscribe_messages_sent(client_id, path, success);
-    record_subscribe_topic_messages_sent(client_id, path, topic_name, success);
+    record_subscribe_messages_sent(tenant, client_id, path, success);
+    record_subscribe_topic_messages_sent(tenant, client_id, path, topic_name, success);
 }
 
 #[cfg(test)]

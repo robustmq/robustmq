@@ -18,7 +18,7 @@
 ```json
 {
   "code": 0,
-  "message": "success", 
+  "message": "success",
   "data": {
     "node_list": [
       {
@@ -70,21 +70,21 @@
 - `cluster_name`: 集群名称
 - `message_in_rate`: 消息接收速率（消息/秒）
 - `message_out_rate`: 消息发送速率（消息/秒）
-- `connection_num`: 总连接数（所有类型连接的总和）
-- `session_num`: 会话总数
-- `topic_num`: 主题总数
+- `connection_num`: 总连接数（所有租户、所有类型连接的总和）
+- `session_num`: 会话总数（所有租户之和）
+- `topic_num`: 主题总数（所有租户之和）
 - `placement_status`: Placement Center 状态（Leader/Follower）
 - `tcp_connection_num`: TCP 连接数
 - `tls_connection_num`: TLS 连接数
 - `websocket_connection_num`: WebSocket 连接数
 - `quic_connection_num`: QUIC 连接数
-- `subscribe_num`: 订阅总数（所有订阅列表的总和）
+- `subscribe_num`: 订阅总数（所有租户所有订阅之和）
 - `exclusive_subscribe_num`: 独占订阅总数
 - `exclusive_subscribe_thread_num`: 独占订阅推送线程数
 - `share_subscribe_group_num`: 共享订阅组数量
 - `share_subscribe_num`: 共享订阅总数
 - `share_subscribe_thread_num`: 共享订阅推送线程数
-- `connector_num`: 连接器总数
+- `connector_num`: 连接器总数（所有租户之和）
 - `connector_thread_num`: 活跃连接器线程数
 
 #### 1.2 监控数据查询
@@ -146,10 +146,6 @@
     {
       "date": 1640995260,
       "value": 1520
-    },
-    {
-      "date": 1640995320,
-      "value": 1485
     }
   ]
 }
@@ -159,33 +155,10 @@
 - `date`: Unix 时间戳（秒）
 - `value`: 该时间点的监控数值
 
-**请求示例**：
-
-查询连接数：
-```json
-{
-  "data_type": "connection_num"
-}
-```
-
-查询指定主题的消息数：
-```json
-{
-  "data_type": "topic_in_num",
-  "topic_name": "sensor/temperature"
-}
-```
-
 **注意事项**：
 - 数据保留时长：默认保留最近 1 小时的数据
 - 数据采样间隔：根据系统配置，通常为 60 秒
-- **参数要求**：
-  - 主题级监控（`topic_in_num`、`topic_out_num`）：必须提供 `topic_name`
-  - 订阅级监控（`subscribe_send_success_num`、`subscribe_send_failure_num`）：必须提供 `client_id` 和 `path`
-  - 订阅主题级监控（`subscribe_topic_send_success_num`、`subscribe_topic_send_failure_num`）：必须提供 `client_id`、`path` 和 `topic_name`
-  - 会话级监控（`session_in_num`、`session_out_num`）：必须提供 `client_id`
-  - 连接器级监控（`connector_send_success`、`connector_send_failure`）：必须提供 `connector_name`
-  - 如果缺少必需参数，将返回空数组
+- 如果缺少必需参数，将返回空数组
 - 返回的数据按时间戳自然排序
 
 ---
@@ -194,21 +167,27 @@
 
 #### 2.1 客户端列表查询
 - **接口**: `GET /api/mqtt/client/list`
-- **描述**: 查询连接到集群的客户端列表
+- **描述**: 查询连接到集群的客户端列表，支持按租户直接查询（O(1)）
 - **请求参数**:
 ```json
 {
+  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
   "source_ip": "192.168.1.1",      // 可选，按源IP过滤
+  "client_id": "client001",         // 可选，按客户端ID前缀过滤
   "connection_id": 12345,           // 可选，按连接ID过滤
-  "limit": 20,                      // 可选，每页大小
+  "limit": 20,                      // 可选，每页大小，最大采样 100 条
   "page": 1,                        // 可选，页码
   "sort_field": "connection_id",    // 可选，排序字段
   "sort_by": "desc",                // 可选，排序方式
-  "filter_field": "client_id",      // 可选，过滤字段（例如："connection_id", "client_id"）
+  "filter_field": "client_id",      // 可选，过滤字段
   "filter_values": ["client001"],   // 可选，过滤值
   "exact_match": "true"             // 可选，精确匹配
 }
 ```
+
+**参数说明**：
+- `tenant`: 指定租户时直接从该租户缓存中查询；未指定时从所有租户中采样（最多 100 条）
+- `client_id`: 支持前缀匹配，例如传入 `"sensor_"` 可匹配所有以 `sensor_` 开头的客户端
 
 - **响应数据结构**:
 ```json
@@ -223,6 +202,7 @@
         "mqtt_connection": {
           "connect_id": 12345,
           "client_id": "client001",
+          "tenant": "default",
           "is_login": true,
           "source_ip_addr": "192.168.1.100",
           "login_user": "user001",
@@ -272,6 +252,7 @@
 - **mqtt_connection**: MQTT 协议层连接信息
   - `connect_id`: 连接ID
   - `client_id`: MQTT 客户端ID
+  - `tenant`: 租户名称
   - `is_login`: 客户端是否已登录
   - `source_ip_addr`: 客户端源IP地址
   - `login_user`: 已认证的用户名
@@ -294,20 +275,14 @@
   - `create_time`: 网络连接创建时间戳
 
 - **session**: MQTT 会话信息（无会话时为 null）
-  - `client_id`: MQTT 客户端ID
-  - `session_expiry`: 会话过期间隔（秒）
-  - `is_contain_last_will`: 会话是否包含遗愿消息
-  - `last_will_delay_interval`: 遗愿消息延迟间隔（秒，可选）
-  - `create_time`: 会话创建时间戳
-  - `connection_id`: 关联的连接ID（可选）
-  - `broker_id`: 托管会话的 Broker 节点ID（可选）
-  - `reconnect_time`: 最后重连时间戳（可选）
-  - `distinct_time`: 最后断开连接时间戳（可选）
+  - 字段同会话管理接口响应
 
 - **heartbeat**: 连接心跳信息（不可用时为 null）
   - `protocol`: MQTT 协议版本（Mqtt3, Mqtt4, Mqtt5）
   - `keep_live`: 保活间隔（秒）
   - `heartbeat`: 最后心跳时间戳
+
+- **total_count**: 该租户（或全集群）的实际连接总数
 
 ---
 
@@ -315,10 +290,11 @@
 
 #### 3.1 会话列表查询
 - **接口**: `GET /api/mqtt/session/list`
-- **描述**: 查询 MQTT 会话列表
+- **描述**: 查询 MQTT 会话列表，支持按租户直接查询（O(1)）
 - **请求参数**:
 ```json
 {
+  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
   "client_id": "client001",         // 可选，按客户端ID过滤
   "limit": 20,
   "page": 1,
@@ -329,6 +305,9 @@
   "exact_match": "false"
 }
 ```
+
+**参数说明**：
+- `tenant`: 指定租户时直接从该租户缓存中查询；未指定时从所有租户中采样（最多 100 条）
 
 - **响应数据结构**:
 ```json
@@ -383,22 +362,15 @@
 - `broker_id`: 托管会话的 Broker 节点ID（可选）
 - `reconnect_time`: 最后重连时间戳（可选）
 - `distinct_time`: 最后断开连接时间戳（可选）
-
-- **last_will**: 遗愿消息信息（无遗愿消息时为 null）
+- `last_will`: 遗愿消息信息（无遗愿消息时为 null）
   - `client_id`: 客户端ID
-  - `last_will`: 遗愿消息内容（可为 null）
-    - `topic`: 遗愿消息主题（Bytes 类型，显示为字符串）
-    - `message`: 遗愿消息内容（Bytes 类型，显示为字符串）
+  - `last_will`: 遗愿消息内容
+    - `topic`: 遗愿消息主题
+    - `message`: 遗愿消息内容
     - `qos`: QoS 级别（`AtMostOnce`/`AtLeastOnce`/`ExactlyOnce`）
     - `retain`: 是否为保留消息
   - `last_will_properties`: 遗愿消息属性（MQTT 5.0，可为 null）
-    - `delay_interval`: 延迟发送间隔（秒，可选）
-    - `payload_format_indicator`: 载荷格式指示器（0=未指定，1=UTF-8，可选）
-    - `message_expiry_interval`: 消息过期间隔（秒，可选）
-    - `content_type`: 内容类型（如 "text/plain"，可选）
-    - `response_topic`: 响应主题（可选）
-    - `correlation_data`: 相关数据（Bytes 类型，可选）
-    - `user_properties`: 用户属性数组（键值对列表）
+- **total_count**: 该租户（或全集群）的实际会话总数
 
 ---
 
@@ -406,15 +378,16 @@
 
 #### 4.1 主题列表查询
 - **接口**: `GET /api/mqtt/topic/list`
-- **描述**: 查询 MQTT 主题列表
+- **描述**: 查询 MQTT 主题列表，支持按租户直接查询
 - **请求参数**:
 ```json
 {
+  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
   "topic_name": "sensor/+",         // 可选，按主题名过滤
   "topic_type": "all",              // 可选，主题类型："all"(全部)、"normal"(普通主题)、"system"(系统主题)，默认为"all"
   "limit": 20,
   "page": 1,
-  "sort_field": "topic_name",       // 可选，排序字段
+  "sort_field": "topic_name",
   "sort_by": "asc",
   "filter_field": "topic_name",
   "filter_values": ["sensor"],
@@ -423,6 +396,7 @@
 ```
 
 **参数说明**：
+- **tenant**: 指定租户时直接从该租户缓存中查询
 - **topic_type**: 主题类型过滤
   - `"all"` - 返回所有主题（默认值）
   - `"normal"` - 只返回普通主题（不以 `$` 开头的主题）
@@ -438,6 +412,7 @@
       {
         "topic_id": "01J9K5FHQP8NWXYZ1234567890",
         "topic_name": "sensor/temperature",
+        "tenant": "default",
         "storage_type": "Memory",
         "partition": 1,
         "replication": 1,
@@ -450,22 +425,14 @@
 }
 ```
 
-**响应字段说明**：
-- `topic_id`: 主题唯一标识符
-- `topic_name`: 主题名称
-- `storage_type`: 存储类型（如 Memory、RocksDB 等）
-- `partition`: 分区数
-- `replication`: 副本数
-- `storage_name_list`: 存储名称列表
-- `create_time`: 主题创建时间（Unix时间戳，秒）
-
 #### 4.2 主题详情查询
 - **接口**: `GET /api/mqtt/topic/detail`
 - **描述**: 查询指定主题的详细信息，包括主题基本信息、保留消息和订阅列表
 - **请求参数**:
 ```json
 {
-  "topic_name": "sensor/temperature"  // 必填，主题名称
+  "tenant": "default",                  // 必填，租户名称
+  "topic_name": "sensor/temperature"    // 必填，主题名称
 }
 ```
 
@@ -478,119 +445,22 @@
     "topic_info": {
       "topic_id": "01J9K5FHQP8NWXYZ1234567890",
       "topic_name": "sensor/temperature",
+      "tenant": "default",
       "storage_type": "Memory",
       "partition": 1,
       "replication": 1,
       "storage_name_list": [],
       "create_time": 1640995200
     },
-    "retain_message": {
-      "client_id": "client001",
-      "dup": false,
-      "qos": "AtLeastOnce",
-      "pkid": 1,
-      "retain": true,
-      "topic": "sensor/temperature",
-      "payload": "eyJ0ZW1wZXJhdHVyZSI6MjUuNX0=",
-      "format_indicator": null,
-      "expiry_interval": 0,
-      "response_topic": null,
-      "correlation_data": null,
-      "user_properties": null,
-      "subscription_identifiers": null,
-      "content_type": null,
-      "create_time": 1640995300
-    },
+    "retain_message": { ... },
     "retain_message_at": 1640995300,
     "sub_list": [
-      {
-        "client_id": "client001",
-        "path": "sensor/temperature"
-      },
-      {
-        "client_id": "client002",
-        "path": "sensor/+"
-      }
+      { "client_id": "client001", "path": "sensor/temperature" }
     ],
-    "storage_list": {
-      "0": {
-        "shard_uid": "shard_01J9K5FHQP8NWXYZ",
-        "shard_name": "sensor_temperature_p0",
-        "start_segment_seq": 0,
-        "active_segment_seq": 1,
-        "last_segment_seq": 1,
-        "status": "Run",
-        "config": {
-          "replica_num": 1,
-          "storage_type": "Memory",
-          "max_segment_size": 104857600,
-          "retention_sec": 86400
-        },
-        "create_time": 1640995200
-      }
-    }
+    "storage_list": { ... }
   }
 }
 ```
-
-**响应字段说明**：
-
-- **topic_info**: 主题完整信息（Topic 对象）
-  - `topic_id`: 主题唯一标识符
-  - `topic_name`: 主题名称
-  - `storage_type`: 存储类型（如 Memory、RocksDB 等）
-  - `partition`: 分区数
-  - `replication`: 副本数
-  - `storage_name_list`: 存储名称列表
-  - `create_time`: 主题创建时间（Unix时间戳，秒）
-
-- **retain_message**: 保留消息完整对象（MqttMessage 或 null）
-  - `client_id`: 发送消息的客户端 ID
-  - `dup`: 是否为重复消息
-  - `qos`: QoS 级别
-  - `pkid`: 消息包标识符
-  - `retain`: 是否为保留消息
-  - `topic`: 消息主题
-  - `payload`: 消息内容（Base64 编码）
-  - `format_indicator`: 格式指示符（可选）
-  - `expiry_interval`: 过期间隔（秒）
-  - `response_topic`: 响应主题（可选）
-  - `correlation_data`: 相关数据（可选）
-  - `user_properties`: 用户属性（可选）
-  - `subscription_identifiers`: 订阅标识符列表（可选）
-  - `content_type`: 内容类型（可选）
-  - `create_time`: 消息创建时间（Unix时间戳，秒）
-
-- **retain_message_at**: 保留消息时间戳
-  - 类型：`u64` 或 `null`
-  - Unix 时间戳（秒）
-  - 如果没有保留消息，则为 `null`
-
-- **sub_list**: 订阅该主题的客户端列表（HashSet）
-  - `client_id`: 订阅客户端 ID
-  - `path`: 订阅路径（可能包含通配符如 `+` 或 `#`）
-
-- **storage_list**: 存储分片映射（HashMap<分区号, EngineShard>）
-  - 键：分区号（u32）
-  - 值：EngineShard 对象
-    - `shard_uid`: 分片唯一标识符
-    - `shard_name`: 分片名称
-    - `start_segment_seq`: 起始段序号
-    - `active_segment_seq`: 活跃段序号
-    - `last_segment_seq`: 最后段序号
-    - `status`: 分片状态（Run、PrepareDelete、Deleting）
-    - `config`: 分片配置
-      - `replica_num`: 副本数
-      - `storage_type`: 存储类型
-      - `max_segment_size`: 最大段大小（字节）
-      - `retention_sec`: 保留时间（秒）
-    - `create_time`: 分片创建时间（Unix时间戳，秒）
-
-**注意事项**：
-- 如果主题不存在，将返回错误响应
-- `sub_list` 显示所有匹配该主题的订阅，包括通配符订阅
-- `storage_list` 提供每个分区的存储引擎分片详细信息
-- 保留消息的 `payload` 字段使用 Base64 编码
 
 #### 4.3 删除主题
 - **接口**: `POST /api/mqtt/topic/delete`
@@ -598,32 +468,34 @@
 - **请求参数**:
 ```json
 {
-  "topic_name": "sensor/temperature"  // 必填，要删除的主题名称
+  "tenant": "default",                  // 必填，租户名称
+  "topic_name": "sensor/temperature"    // 必填，要删除的主题名称
 }
 ```
 
-- **响应数据结构**:
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": "success"
-}
-```
-
-**字段说明**：
-- `topic_name`: 要删除的主题名称
+- **响应**: 成功返回 "success"
 
 **注意事项**：
 - 删除主题会删除该主题的所有数据，包括保留消息
-- 如果主题不存在或删除失败，将返回错误响应
 - 此操作不可逆，请谨慎使用
-- 删除主题不会自动取消该主题的订阅，订阅仍会保留
 
 #### 4.4 主题重写规则列表
 - **接口**: `GET /api/mqtt/topic-rewrite/list`
-- **描述**: 查询主题重写规则列表
-- **请求参数**: 支持通用分页和过滤参数
+- **描述**: 查询主题重写规则列表，支持按租户过滤
+- **请求参数**:
+```json
+{
+  "tenant": "default",              // 可选，按租户过滤
+  "limit": 20,
+  "page": 1,
+  "sort_field": "source_topic",
+  "sort_by": "asc",
+  "filter_field": "action",
+  "filter_values": ["All"],
+  "exact_match": "false"
+}
+```
+
 - **响应数据结构**:
 ```json
 {
@@ -632,8 +504,9 @@
   "data": {
     "data": [
       {
+        "tenant": "default",
         "source_topic": "old/topic/+",
-        "dest_topic": "new/topic/$1", 
+        "dest_topic": "new/topic/$1",
         "regex": "^old/topic/(.+)$",
         "action": "All"
       }
@@ -649,18 +522,13 @@
 - **请求参数**:
 ```json
 {
-  "action": "All",                  // 动作类型：All, Publish, Subscribe
-  "source_topic": "old/topic/+",   // 源主题模式
-  "dest_topic": "new/topic/$1",     // 目标主题模式
-  "regex": "^old/topic/(.+)$"       // 正则表达式
+  "tenant": "default",              // 必填，租户名称，长度 1-128
+  "action": "All",                  // 必填，动作类型：All, Publish, Subscribe
+  "source_topic": "old/topic/+",   // 必填，源主题模式，长度 1-256
+  "dest_topic": "new/topic/$1",    // 必填，目标主题模式，长度 1-256
+  "regex": "^old/topic/(.+)$"      // 必填，正则表达式，长度 1-500
 }
 ```
-
-- **参数验证规则**:
-  - `action`: 长度必须在 1-50 个字符之间，必须是 `All`、`Publish` 或 `Subscribe`
-  - `source_topic`: 长度必须在 1-256 个字符之间
-  - `dest_topic`: 长度必须在 1-256 个字符之间
-  - `regex`: 长度必须在 1-500 个字符之间
 
 - **响应**: 成功返回 "success"
 
@@ -670,6 +538,7 @@
 - **请求参数**:
 ```json
 {
+  "tenant": "default",              // 必填，租户名称
   "action": "All",
   "source_topic": "old/topic/+"
 }
@@ -683,10 +552,11 @@
 
 #### 5.1 订阅列表查询
 - **接口**: `GET /api/mqtt/subscribe/list`
-- **描述**: 查询订阅列表
+- **描述**: 查询订阅列表，支持按租户直接查询
 - **请求参数**:
 ```json
 {
+  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
   "client_id": "client001",         // 可选，按客户端ID过滤
   "limit": 20,
   "page": 1,
@@ -706,6 +576,7 @@
   "data": {
     "data": [
       {
+        "tenant": "default",
         "client_id": "client001",
         "path": "sensor/+",
         "broker_id": 1,
@@ -725,14 +596,18 @@
 }
 ```
 
+**新增字段**：
+- `tenant`: 该订阅所属的租户名称
+
 #### 5.2 订阅详情查询
 - **接口**: `GET /api/mqtt/subscribe/detail`
 - **描述**: 查询订阅详情，支持查询独占订阅和共享订阅的详细信息
 - **请求参数**:
 ```json
 {
-  "client_id": "client001",    // 客户端ID
-  "path": "sensor/temperature" // 订阅路径
+  "tenant": "default",          // 必填，租户名称
+  "client_id": "client001",     // 必填，客户端ID
+  "path": "sensor/temperature"  // 必填，订阅路径
 }
 ```
 
@@ -752,6 +627,7 @@
           "client_id": "client001",
           "sub_path": "sensor/temperature",
           "rewrite_sub_path": null,
+          "tenant": "default",
           "topic_name": "sensor/temperature",
           "group_name": "",
           "protocol": "MQTTv5",
@@ -779,111 +655,6 @@
 }
 ```
 
-**字段说明**：
-- `share_sub`: 是否为共享订阅
-- `group_leader_info`: 共享订阅组 Leader 信息（仅共享订阅时有值）
-  - `broker_id`: Broker 节点 ID
-  - `broker_addr`: Broker 地址
-  - `extend_info`: 扩展信息
-- `sub_data`: 订阅数据详情
-  - `client_id`: 客户端 ID
-  - `path`: 订阅路径
-  - `push_subscribe`: 主题到订阅者的映射（HashMap<主题名, Subscriber>）
-    - `client_id`: 客户端 ID
-    - `sub_path`: 订阅路径
-    - `rewrite_sub_path`: 重写后的订阅路径（可选）
-    - `topic_name`: 主题名称
-    - `group_name`: 组名（共享订阅时有值）
-    - `protocol`: MQTT 协议版本
-    - `qos`: QoS 级别
-    - `no_local`: 是否不接收本地消息
-    - `preserve_retain`: 是否保留 retain 标志
-    - `retain_forward_rule`: Retain 消息转发规则
-    - `subscription_identifier`: 订阅标识符（可选）
-    - `create_time`: 创建时间（Unix时间戳，秒）
-  - `push_thread`: 主题到推送线程数据的映射（HashMap<主题名, 线程数据>）
-    - `push_success_record_num`: 推送成功次数
-    - `push_error_record_num`: 推送失败次数
-    - `last_push_time`: 最后推送时间（Unix时间戳，秒）
-    - `last_run_time`: 最后运行时间（Unix时间戳，秒）
-    - `create_time`: 创建时间（Unix时间戳，秒）
-    - `bucket_id`: Bucket ID
-  - `leader_id`: Leader 节点 ID（共享订阅时有值）
-```
-
-**共享订阅响应示例**:
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": {
-    "share_sub": true,
-    "group_leader_info": {        // 共享订阅组的Leader信息
-      "broker_id": 1,
-      "broker_addr": "127.0.0.1:1883",
-      "extend_info": "{}"
-    },
-    "topic_list": [
-      {
-        "client_id": "client001",
-        "path": "$share/group1/sensor/+",
-        "topic_name": "sensor/temperature",
-        "exclusive_push_data": null,
-        "share_push_data": {      // 共享订阅Leader推送数据
-          "path": "$share/group1/sensor/+",
-          "group_name": "group1",
-          "sub_name": "sensor/+",
-          "topic_name": "sensor/temperature",
-          "sub_list": {           // 共享组内的订阅者列表
-            "client001": {
-              "protocol": "MQTTv5",
-              "client_id": "client001",
-              "sub_path": "$share/group1/sensor/+",
-              "rewrite_sub_path": null,
-              "topic_name": "sensor/temperature",
-              "group_name": "group1",
-              "qos": "AtLeastOnce",
-              "nolocal": false,
-              "preserve_retain": false,
-              "retain_forward_rule": "SendAtSubscribe",
-              "subscription_identifier": null,
-              "create_time": 1704067200000
-            }
-          }
-        },
-        "push_thread": {
-          "push_success_record_num": 2540,
-          "push_error_record_num": 5,
-          "last_push_time": 1704067900000,
-          "last_run_time": 1704067910000,
-          "create_time": 1704067200000
-        }
-      }
-    ]
-  }
-}
-```
-
-**字段说明**:
-- **share_sub**: 布尔值，标识是否为共享订阅
-- **group_leader_info**: 仅共享订阅时返回，包含该共享组的Leader Broker信息
-  - `broker_id`: Leader Broker的ID
-  - `broker_addr`: Leader Broker的地址
-  - `extend_info`: 扩展信息（JSON字符串）
-- **topic_list**: 匹配订阅路径的实际主题列表
-  - `client_id`: 客户端ID
-  - `path`: 订阅路径（可能包含通配符或共享订阅前缀）
-  - `topic_name`: 实际匹配的主题名称
-  - `exclusive_push_data`: 独占订阅的推送数据（共享订阅时为null）
-  - `share_push_data`: 共享订阅的推送数据（独占订阅时为null）
-  - `push_thread`: 推送线程的统计信息（可选）
-
-**注意事项**:
-- 如果订阅路径包含通配符（如 `+` 或 `#`），`topic_list` 可能包含多个实际匹配的主题
-- 独占订阅和共享订阅的数据结构不同，通过 `share_sub` 字段区分
-- 共享订阅的路径格式为 `$share/{group_name}/{topic_filter}`
-- 所有时间戳均为毫秒级Unix时间戳
-
 #### 5.3 自动订阅规则管理
 
 ##### 5.3.1 自动订阅列表
@@ -898,6 +669,7 @@
   "data": {
     "data": [
       {
+        "tenant": "default",
         "topic": "system/+",
         "qos": "QoS1",
         "no_local": false,
@@ -910,26 +682,23 @@
 }
 ```
 
+**新增字段**：
+- `tenant`: 自动订阅规则所属的租户名称
+
 ##### 5.3.2 创建自动订阅规则
 - **接口**: `POST /api/mqtt/auto-subscribe/create`
 - **描述**: 创建新的自动订阅规则
 - **请求参数**:
 ```json
 {
-  "topic": "system/+",              // 主题模式
-  "qos": 1,                         // QoS 级别：0, 1, 2
-  "no_local": false,                // 是否本地
-  "retain_as_published": false,     // 保持发布状态
-  "retained_handling": 0            // 保留消息处理方式：0, 1, 2
+  "tenant": "default",              // 必填，租户名称，长度 1-256
+  "topic": "system/+",              // 必填，主题模式，长度 1-256
+  "qos": 1,                         // 必填，QoS 级别：0, 1, 2
+  "no_local": false,                // 必填，是否本地
+  "retain_as_published": false,     // 必填，保持发布状态
+  "retained_handling": 0            // 必填，保留消息处理方式：0, 1, 2
 }
 ```
-
-- **参数验证规则**:
-  - `topic`: 长度必须在 1-256 个字符之间
-  - `qos`: 必须是 0、1 或 2
-  - `no_local`: 布尔值
-  - `retain_as_published`: 布尔值
-  - `retained_handling`: 必须是 0、1 或 2
 
 - **响应**: 成功返回 "success"
 
@@ -939,7 +708,8 @@
 - **请求参数**:
 ```json
 {
-  "topic_name": "system/+"
+  "tenant": "default",              // 必填，租户名称
+  "topic": "system/+"               // 必填，主题模式
 }
 ```
 
@@ -978,14 +748,15 @@
 
 #### 6.1 用户列表查询
 - **接口**: `GET /api/mqtt/user/list`
-- **描述**: 查询 MQTT 用户列表
+- **描述**: 查询 MQTT 用户列表，支持按租户过滤
 - **请求参数**:
 ```json
 {
+  "tenant": "default",              // 可选，按租户过滤
   "user_name": "admin",             // 可选，按用户名过滤
   "limit": 20,
   "page": 1,
-  "sort_field": "username",         // 可选，排序字段
+  "sort_field": "username",
   "sort_by": "asc",
   "filter_field": "username",
   "filter_values": ["admin"],
@@ -1001,6 +772,7 @@
   "data": {
     "data": [
       {
+        "tenant": "default",
         "username": "admin",
         "is_superuser": true,
         "create_time": 1640995200
@@ -1012,6 +784,7 @@
 ```
 
 **字段说明**：
+- `tenant`: 用户所属租户
 - `username`: 用户名
 - `is_superuser`: 是否为超级用户
 - `create_time`: 用户创建时间戳（秒）
@@ -1022,16 +795,12 @@
 - **请求参数**:
 ```json
 {
-  "username": "newuser",            // 用户名
-  "password": "password123",        // 密码
-  "is_superuser": false             // 是否为超级用户
+  "tenant": "default",              // 必填，租户名称，长度 1-64
+  "username": "newuser",            // 必填，用户名，长度 1-64
+  "password": "password123",        // 必填，密码，长度 1-128
+  "is_superuser": false             // 必填，是否为超级用户
 }
 ```
-
-- **参数验证规则**:
-  - `username`: 长度必须在 1-64 个字符之间
-  - `password`: 长度必须在 1-128 个字符之间
-  - `is_superuser`: 布尔值
 
 - **响应**: 成功返回 "Created successfully!"
 
@@ -1041,7 +810,8 @@
 - **请求参数**:
 ```json
 {
-  "username": "olduser"
+  "tenant": "default",              // 必填，租户名称，长度 1-64
+  "username": "olduser"             // 必填，用户名，长度 1-64
 }
 ```
 
@@ -1053,8 +823,21 @@
 
 #### 7.1 ACL 列表查询
 - **接口**: `GET /api/mqtt/acl/list`
-- **描述**: 查询访问控制列表
-- **请求参数**: 支持通用分页和过滤参数
+- **描述**: 查询访问控制列表，支持按租户直接查询
+- **请求参数**:
+```json
+{
+  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
+  "limit": 20,
+  "page": 1,
+  "sort_field": "resource_name",
+  "sort_by": "asc",
+  "filter_field": "action",
+  "filter_values": ["Publish"],
+  "exact_match": "false"
+}
+```
+
 - **响应数据结构**:
 ```json
 {
@@ -1063,6 +846,7 @@
   "data": {
     "data": [
       {
+        "tenant": "default",
         "resource_type": "ClientId",
         "resource_name": "client001",
         "topic": "sensor/+",
@@ -1076,28 +860,29 @@
 }
 ```
 
+**新增字段**：
+- `tenant`: ACL 规则所属的租户名称
+
 #### 7.2 创建 ACL 规则
 - **接口**: `POST /api/mqtt/acl/create`
 - **描述**: 创建新的 ACL 规则
 - **请求参数**:
 ```json
 {
-  "resource_type": "ClientId",       // 资源类型：ClientId, Username, IpAddress
-  "resource_name": "client001",      // 资源名称
-  "topic": "sensor/+",               // 主题模式
-  "ip": "192.168.1.100",             // IP地址
-  "action": "Publish",               // 动作：Publish, Subscribe, All
-  "permission": "Allow"              // 权限：Allow, Deny
+  "tenant": "default",               // 必填，租户名称，长度 1-64
+  "resource_type": "ClientId",       // 必填，资源类型：ClientId, User, Ip
+  "resource_name": "client001",      // 必填，资源名称，长度 1-256
+  "topic": "sensor/+",               // 必填，主题模式，长度 1-256
+  "ip": "192.168.1.100",             // 必填，IP地址，长度不超过 128
+  "action": "Publish",               // 必填，动作：Publish, Subscribe, All
+  "permission": "Allow"              // 必填，权限：Allow, Deny
 }
 ```
 
 - **参数验证规则**:
-  - `resource_type`: 长度必须在 1-50 个字符之间，必须是 `ClientId`、`Username` 或 `IpAddress`
-  - `resource_name`: 长度必须在 1-256 个字符之间
-  - `topic`: 长度必须在 1-256 个字符之间
-  - `ip`: 长度不能超过 128 个字符
-  - `action`: 长度必须在 1-50 个字符之间，必须是 `Publish`、`Subscribe` 或 `All`
-  - `permission`: 长度必须在 1-50 个字符之间，必须是 `Allow` 或 `Deny`
+  - `resource_type`: 必须是 `ClientId`、`User` 或 `Ip`
+  - `action`: 必须是 `Publish`、`Subscribe` 或 `All`
+  - `permission`: 必须是 `Allow` 或 `Deny`
 
 - **响应**: 成功返回 "Created successfully!"
 
@@ -1107,6 +892,7 @@
 - **请求参数**:
 ```json
 {
+  "tenant": "default",
   "resource_type": "ClientId",
   "resource_name": "client001",
   "topic": "sensor/+",
@@ -1124,8 +910,21 @@
 
 #### 8.1 黑名单列表查询
 - **接口**: `GET /api/mqtt/blacklist/list`
-- **描述**: 查询黑名单列表
-- **请求参数**: 支持通用分页和过滤参数
+- **描述**: 查询黑名单列表，支持按租户直接查询
+- **请求参数**:
+```json
+{
+  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
+  "limit": 20,
+  "page": 1,
+  "sort_field": "resource_name",
+  "sort_by": "asc",
+  "filter_field": "blacklist_type",
+  "filter_values": ["ClientId"],
+  "exact_match": "false"
+}
+```
+
 - **响应数据结构**:
 ```json
 {
@@ -1134,6 +933,7 @@
   "data": {
     "data": [
       {
+        "tenant": "default",
         "blacklist_type": "ClientId",
         "resource_name": "malicious_client",
         "end_time": "2024-12-31 23:59:59",
@@ -1145,24 +945,26 @@
 }
 ```
 
+**新增字段**：
+- `tenant`: 黑名单所属的租户名称
+
 #### 8.2 创建黑名单
 - **接口**: `POST /api/mqtt/blacklist/create`
 - **描述**: 添加新的黑名单项
 - **请求参数**:
 ```json
 {
-  "blacklist_type": "ClientId",        // 黑名单类型：ClientId, IpAddress, Username
-  "resource_name": "bad_client",       // 资源名称
-  "end_time": 1735689599,              // 结束时间（Unix时间戳）
-  "desc": "Blocked for security"       // 描述
+  "tenant": "default",                 // 必填，租户名称，长度 1-64
+  "blacklist_type": "ClientId",        // 必填，黑名单类型（见枚举说明）
+  "resource_name": "bad_client",       // 必填，资源名称，长度 1-256
+  "end_time": 1735689599,              // 必填，结束时间（Unix时间戳），必须大于 0
+  "desc": "Blocked for security"       // 可选，描述，长度不超过 500
 }
 ```
 
 - **参数验证规则**:
-  - `blacklist_type`: 长度必须在 1-50 个字符之间，必须是 `ClientId`、`IpAddress` 或 `Username`
-  - `resource_name`: 长度必须在 1-256 个字符之间
+  - `blacklist_type`: 必须是 `ClientId`、`User`、`Ip`、`ClientIdMatch`、`UserMatch` 或 `IPCIDR`
   - `end_time`: 必须大于 0
-  - `desc`: 长度不能超过 500 个字符
 
 - **响应**: 成功返回 "Created successfully!"
 
@@ -1172,6 +974,7 @@
 - **请求参数**:
 ```json
 {
+  "tenant": "default",
   "blacklist_type": "ClientId",
   "resource_name": "bad_client"
 }
@@ -1185,14 +988,29 @@
 
 > 连接器 API 内容较多，已独立为单独文档，请参考 [连接器管理 HTTP API](Connector.md)。
 
+**主要变更**：连接器的 `list`、`detail`、`delete` 接口均新增 `tenant` 参数，详见 Connector.md。
+
 ---
 
 ### 10. Schema 管理
 
 #### 10.1 Schema 列表查询
 - **接口**: `GET /api/mqtt/schema/list`
-- **描述**: 查询 Schema 列表
-- **请求参数**: 支持通用分页和过滤参数
+- **描述**: 查询 Schema 列表，支持按租户直接查询
+- **请求参数**:
+```json
+{
+  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
+  "limit": 20,
+  "page": 1,
+  "sort_field": "name",
+  "sort_by": "asc",
+  "filter_field": "schema_type",
+  "filter_values": ["json"],
+  "exact_match": "false"
+}
+```
+
 - **响应数据结构**:
 ```json
 {
@@ -1201,10 +1019,11 @@
   "data": {
     "data": [
       {
+        "tenant": "default",
         "name": "temperature_schema",
         "schema_type": "json",
         "desc": "Temperature sensor data schema",
-        "schema": "{\"type\":\"object\",\"properties\":{\"temp\":{\"type\":\"number\"},\"unit\":{\"type\":\"string\"}}}"
+        "schema": "{\"type\":\"object\",\"properties\":{\"temp\":{\"type\":\"number\"}}}"
       }
     ],
     "total_count": 12
@@ -1212,44 +1031,24 @@
 }
 ```
 
+**新增字段**：
+- `tenant`: Schema 所属的租户名称
+
 #### 10.2 创建 Schema
 - **接口**: `POST /api/mqtt/schema/create`
 - **描述**: 创建新的 Schema
 - **请求参数**:
 ```json
 {
-  "schema_name": "sensor_data_schema",   // Schema名称
-  "schema_type": "json",                 // Schema类型：json, avro, protobuf
-  "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"},\"humidity\":{\"type\":\"number\"}}}",  // Schema定义
-  "desc": "Sensor data validation schema"  // 描述
+  "tenant": "default",                   // 必填，租户名称，长度 1-128
+  "schema_name": "sensor_data_schema",   // 必填，Schema名称，长度 1-128
+  "schema_type": "json",                 // 必填，Schema类型：json, avro, protobuf
+  "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"}}}",
+  "desc": "Sensor data validation schema"  // 可选，描述，长度不超过 500
 }
 ```
 
-- **参数验证规则**:
-  - `schema_name`: 长度必须在 1-128 个字符之间
-  - `schema_type`: 长度必须在 1-50 个字符之间，必须是 `json`、`avro` 或 `protobuf`
-  - `schema`: 长度必须在 1-8192 个字符之间
-  - `desc`: 长度不能超过 500 个字符
-
-**Schema 类型示例**：
-
-**JSON Schema**:
-```json
-{
-  "schema_type": "json",
-  "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\",\"minimum\":-50,\"maximum\":100}}}"
-}
-```
-
-**AVRO Schema**:
-```json
-{
-  "schema_type": "avro", 
-  "schema": "{\"type\":\"record\",\"name\":\"SensorData\",\"fields\":[{\"name\":\"temperature\",\"type\":\"double\"}]}"
-}
-```
-
-- **响应**: 成功返回 "Created successfully!"
+- **响应**: 成功返回 "success"
 
 #### 10.3 删除 Schema
 - **接口**: `POST /api/mqtt/schema/delete`
@@ -1257,11 +1056,12 @@
 - **请求参数**:
 ```json
 {
-  "schema_name": "old_schema"
+  "tenant": "default",              // 必填，租户名称
+  "schema_name": "old_schema"       // 必填，Schema名称
 }
 ```
 
-- **响应**: 成功返回 "Deleted successfully!"
+- **响应**: 成功返回 "success"
 
 #### 10.4 Schema 绑定管理
 
@@ -1271,15 +1071,13 @@
 - **请求参数**:
 ```json
 {
-  "resource_name": "sensor/temperature", // 可选，资源名称过滤
-  "schema_name": "temp_schema",          // 可选，Schema名称过滤
+  "tenant": "default",                    // 可选，租户名称
+  "resource_name": "sensor/temperature",  // 可选，资源名称过滤
+  "schema_name": "temp_schema",           // 可选，Schema名称过滤
   "limit": 20,
   "page": 1,
   "sort_field": "data_type",
-  "sort_by": "asc",
-  "filter_field": "data_type",
-  "filter_values": ["resource"],
-  "exact_match": "false"
+  "sort_by": "asc"
 }
 ```
 
@@ -1306,16 +1104,13 @@
 - **请求参数**:
 ```json
 {
-  "schema_name": "sensor_data_schema",  // Schema名称
-  "resource_name": "sensor/temperature" // 资源名称（通常是主题名）
+  "tenant": "default",                   // 必填，租户名称，长度 1-128
+  "schema_name": "sensor_data_schema",   // 必填，Schema名称，长度 1-128
+  "resource_name": "sensor/temperature"  // 必填，资源名称（通常是主题名），长度 1-256
 }
 ```
 
-- **参数验证规则**:
-  - `schema_name`: 长度必须在 1-128 个字符之间
-  - `resource_name`: 长度必须在 1-256 个字符之间
-
-- **响应**: 成功返回 "Created successfully!"
+- **响应**: 成功返回 "success"
 
 ##### 10.4.3 删除 Schema 绑定
 - **接口**: `POST /api/mqtt/schema-bind/delete`
@@ -1323,12 +1118,13 @@
 - **请求参数**:
 ```json
 {
+  "tenant": "default",
   "schema_name": "sensor_data_schema",
   "resource_name": "sensor/temperature"
 }
 ```
 
-- **响应**: 成功返回 "Deleted successfully!"
+- **响应**: 成功返回 "success"
 
 ---
 
@@ -1340,16 +1136,11 @@
 - **请求参数**:
 ```json
 {
-  "topic": "sensor/temperature",  // 必填，主题名称
-  "payload": "25.5",              // 必填，消息内容
+  "topic": "sensor/temperature",  // 必填，主题名称，长度 1-256
+  "payload": "25.5",              // 必填，消息内容，不超过 1MB
   "retain": false                 // 可选，是否保留消息，默认false
 }
 ```
-
-- **参数验证规则**:
-  - `topic`: 长度必须在 1-256 个字符之间
-  - `payload`: 长度不能超过 1MB (1048576字节)
-  - `retain`: 布尔值
 
 - **响应数据结构**:
 ```json
@@ -1357,24 +1148,15 @@
   "code": 0,
   "message": "success",
   "data": {
-    "offsets": [12345]  // 消息在主题中的offset列表
+    "offsets": [12345]
   }
 }
 ```
-
-**字段说明**：
-- `topic`: 消息发送的目标主题
-- `payload`: 消息的内容（字符串格式）
-- `retain`: 是否保留消息
-  - `true`: 消息将作为保留消息存储，新订阅者会收到该消息
-  - `false`: 普通消息，不会保留
-- `offsets`: 消息成功写入后返回的offset数组，表示消息在存储中的位置
 
 **注意事项**：
 - 发送的消息使用QoS 1（至少一次）级别
 - 如果主题不存在，系统会自动创建
 - 消息默认过期时间为3600秒（1小时）
-- 发送者的client_id格式为：`{cluster_name}_{broker_id}`
 
 #### 11.2 读取消息
 - **接口**: `POST /api/mqtt/message/read`
@@ -1398,29 +1180,14 @@
         "offset": 12345,
         "content": "25.5",
         "timestamp": 1640995200000
-      },
-      {
-        "offset": 12346,
-        "content": "26.0",
-        "timestamp": 1640995260000
       }
     ]
   }
 }
 ```
 
-**字段说明**：
-- `topic`: 要读取消息的主题名称
-- `offset`: 起始offset，从该位置开始读取消息
-- `messages`: 消息列表（最多返回100条）
-  - `offset`: 消息的offset
-  - `content`: 消息内容（字符串格式）
-  - `timestamp`: 消息时间戳（毫秒）
-
 **注意事项**：
 - 每次请求最多返回100条消息
-- offset表示消息在主题中的顺序位置
-- 如果指定的offset超出范围，将返回空消息列表
 - 时间戳为毫秒级Unix时间戳
 
 ---
@@ -1474,12 +1241,87 @@
 
 ---
 
+### 13. 租户管理
+
+> MQTT Broker 支持多租户隔离。租户是资源（用户、ACL、主题、订阅等）的顶级命名空间。
+
+#### 13.1 租户列表查询
+- **接口**: `GET /api/mqtt/tenant/list`
+- **描述**: 查询 MQTT 租户列表，支持按租户名直接查询
+- **请求参数**:
+```json
+{
+  "tenant_name": "default",         // 可选，按租户名精确查询
+  "limit": 20,
+  "page": 1,
+  "sort_field": "tenant_name",      // 可选，排序字段
+  "sort_by": "asc",
+  "filter_field": "tenant_name",
+  "filter_values": ["default"],
+  "exact_match": "false"
+}
+```
+
+- **响应数据结构**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "data": [
+      {
+        "tenant_name": "default",
+        "desc": "Default tenant",
+        "create_time": 1640995200
+      }
+    ],
+    "total_count": 3
+  }
+}
+```
+
+**字段说明**：
+- `tenant_name`: 租户名称
+- `desc`: 租户描述
+- `create_time`: 租户创建时间戳（秒）
+
+#### 13.2 创建租户
+- **接口**: `POST /api/mqtt/tenant/create`
+- **描述**: 创建新的 MQTT 租户
+- **请求参数**:
+```json
+{
+  "tenant_name": "new_tenant",       // 必填，租户名称，长度 1-128
+  "desc": "Production environment"   // 可选，租户描述，长度不超过 500
+}
+```
+
+- **响应**: 成功返回 "success"
+
+#### 13.3 删除租户
+- **接口**: `POST /api/mqtt/tenant/delete`
+- **描述**: 删除 MQTT 租户
+- **请求参数**:
+```json
+{
+  "tenant_name": "old_tenant"        // 必填，租户名称，长度 1-128
+}
+```
+
+- **响应**: 成功返回 "success"
+
+**注意事项**：
+- 删除租户前请确认该租户下的用户、ACL、订阅等资源已清理
+- 系统默认租户 `default` 不建议删除
+
+---
+
 ## 枚举值说明
 
 ### ACL 资源类型 (resource_type)
 - `ClientId`: 客户端ID
-- `Username`: 用户名
-- `IpAddress`: IP地址
+- `User`: 用户名
+- `Ip`: IP地址
 
 ### ACL 动作 (action)
 - `Publish`: 发布消息
@@ -1491,9 +1333,12 @@
 - `Deny`: 拒绝
 
 ### 黑名单类型 (blacklist_type)
-- `ClientId`: 客户端ID
-- `IpAddress`: IP地址
-- `Username`: 用户名
+- `ClientId`: 精确匹配客户端ID
+- `User`: 精确匹配用户名
+- `Ip`: 精确匹配IP地址
+- `ClientIdMatch`: 通配符匹配客户端ID（支持 `*` 通配符）
+- `UserMatch`: 通配符匹配用户名（支持 `*` 通配符）
+- `IPCIDR`: CIDR 网段匹配（如 `192.168.1.0/24`）
 
 ### 连接器类型 (connector_type)
 
@@ -1523,42 +1368,29 @@
 curl -X GET http://localhost:8080/api/mqtt/overview
 ```
 
-### 查询监控数据
+### 查询指定租户的客户端
 ```bash
-# 查询连接数监控数据
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connection_num"
-
-# 查询指定主题的消息接收数
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=topic_in_num&topic_name=sensor/temperature"
-
-# 查询订阅发送成功数
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=subscribe_send_success_num&client_id=client001&path=sensor/%2B"
-
-# 查询订阅主题发送失败数
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=subscribe_topic_send_failure_num&client_id=client001&path=sensor/%2B&topic_name=sensor/temperature"
-
-# 查询会话接收消息数
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=session_in_num&client_id=client001"
-
-# 查询会话发送消息数
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=session_out_num&client_id=client001"
-
-# 查询所有连接器发送成功消息总数
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_success_total"
-
-# 查询所有连接器发送失败消息总数
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_failure_total"
-
-# 查询指定连接器发送成功消息数
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_success&connector_name=kafka_connector_01"
-
-# 查询指定连接器发送失败消息数
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_failure&connector_name=kafka_connector_01"
+curl "http://localhost:8080/api/mqtt/client/list?tenant=default&limit=10&page=1"
 ```
 
-### 查询客户端列表
+### 查询指定租户的会话
 ```bash
-curl "http://localhost:8080/api/mqtt/client/list?limit=10&page=1&sort_field=connection_id&sort_by=desc"
+curl "http://localhost:8080/api/mqtt/session/list?tenant=default&limit=20&page=1"
+```
+
+### 查询订阅列表（指定租户）
+```bash
+curl "http://localhost:8080/api/mqtt/subscribe/list?tenant=default&limit=20&page=1"
+```
+
+### 创建租户
+```bash
+curl -X POST http://localhost:8080/api/mqtt/tenant/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant_name": "production",
+    "desc": "Production environment tenant"
+  }'
 ```
 
 ### 删除主题
@@ -1566,6 +1398,7 @@ curl "http://localhost:8080/api/mqtt/client/list?limit=10&page=1&sort_field=conn
 curl -X POST http://localhost:8080/api/mqtt/topic/delete \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "topic_name": "sensor/temperature"
   }'
 ```
@@ -1575,6 +1408,7 @@ curl -X POST http://localhost:8080/api/mqtt/topic/delete \
 curl -X POST http://localhost:8080/api/mqtt/user/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "username": "testuser",
     "password": "testpass123",
     "is_superuser": false
@@ -1586,51 +1420,26 @@ curl -X POST http://localhost:8080/api/mqtt/user/create \
 curl -X POST http://localhost:8080/api/mqtt/acl/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "resource_type": "ClientId",
     "resource_name": "sensor001",
     "topic": "sensor/+",
-    "ip": "192.168.1.100",
+    "ip": "*",
     "action": "Publish",
     "permission": "Allow"
   }'
 ```
 
-### 查询连接器详情
+### 创建黑名单（通配符匹配）
 ```bash
-curl "http://localhost:8080/api/mqtt/connector/detail?connector_name=kafka_bridge"
-```
-
-### 创建连接器
-```bash
-# 创建基础 Kafka 连接器（使用默认配置）
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
   -H "Content-Type: application/json" \
   -d '{
-    "connector_name": "kafka_bridge",
-    "connector_type": "kafka",
-    "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
-    "topic_name": "sensor/+"
-  }'
-
-# 创建带高级配置的 Kafka 连接器
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
-  -H "Content-Type: application/json" \
-  -d '{
-    "connector_name": "kafka_bridge_advanced",
-    "connector_type": "kafka",
-    "config": "{\"bootstrap_servers\":\"kafka1:9092,kafka2:9092,kafka3:9092\",\"topic\":\"mqtt_messages\",\"compression_type\":\"lz4\",\"batch_size\":32768,\"linger_ms\":10,\"acks\":\"all\",\"retries\":5}",
-    "topic_name": "sensor/+"
-  }'
-
-# 创建带重试失败策略的连接器
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
-  -H "Content-Type: application/json" \
-  -d '{
-    "connector_name": "kafka_bridge_retry",
-    "connector_type": "kafka",
-    "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
-    "topic_name": "sensor/+",
-    "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":5,\"wait_time_ms\":2000}}"
+    "tenant": "default",
+    "blacklist_type": "ClientIdMatch",
+    "resource_name": "bad_client_*",
+    "end_time": 1735689599,
+    "desc": "Block all clients matching bad_client_*"
   }'
 ```
 
@@ -1639,11 +1448,21 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/schema/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "schema_name": "sensor_schema",
     "schema_type": "json",
-    "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"},\"humidity\":{\"type\":\"number\"}}}",
+    "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"}}}",
     "desc": "Sensor data validation schema"
   }'
+```
+
+### 查询监控数据
+```bash
+# 查询连接数监控数据
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connection_num"
+
+# 查询指定主题的消息接收数
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=topic_in_num&topic_name=sensor/temperature"
 ```
 
 ### 发送消息
@@ -1657,18 +1476,8 @@ curl -X POST http://localhost:8080/api/mqtt/message/send \
   }'
 ```
 
-### 读取消息
-```bash
-curl -X POST http://localhost:8080/api/mqtt/message/read \
-  -H "Content-Type: application/json" \
-  -d '{
-    "topic": "sensor/temperature",
-    "offset": 0
-  }'
-```
-
 ---
 
-*文档版本: v4.0*  
-*最后更新: 2025-09-20*  
-*基于代码版本: RobustMQ Admin Server v0.1.34*
+*文档版本: v5.0*
+*最后更新: 2026-03-15*
+*基于代码版本: RobustMQ Admin Server v0.1.35*

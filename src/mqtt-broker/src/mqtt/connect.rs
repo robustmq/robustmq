@@ -108,6 +108,7 @@ impl MqttService {
         // flapping detect check
         if cluster.mqtt_flapping_detect.enable {
             if let Err(e) = check_flapping_detect(
+                &tenant.tenant_name,
                 context.connect.client_id.clone(),
                 &self.cache_manager,
                 &self.rocksdb_engine_handler,

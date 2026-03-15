@@ -1019,6 +1019,7 @@ impl MqttBrokerCommand {
 
         // Create request for subscribe list
         let request = admin_server::mqtt::subscribe::SubscribeListReq {
+            tenant: None,
             client_id: None,
             limit: Some(params.limit),
             page: Some(params.page),

@@ -687,6 +687,7 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
+  "tenant": "default",              // Optional, filter by tenant name; if omitted, returns subscriptions across all tenants
   "client_id": "client001",         // Optional, filter by client ID
   "limit": 20,
   "page": 1,
@@ -706,6 +707,7 @@ Query message count for a specific topic:
   "data": {
     "data": [
       {
+        "tenant": "default",
         "client_id": "client001",
         "path": "sensor/+",
         "broker_id": 1,
@@ -724,6 +726,10 @@ Query message count for a specific topic:
   }
 }
 ```
+
+**Field Descriptions**:
+- `tenant`: Tenant name the subscription belongs to
+- `total_count`: Total number of subscriptions across all tenants (when `tenant` is not specified)
 
 #### 5.2 Subscription Detail Query
 - **Endpoint**: `GET /api/mqtt/subscribe/detail`
@@ -1151,7 +1157,7 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
-  "blacklist_type": "ClientId",        // Blacklist type: ClientId, IpAddress, Username
+  "blacklist_type": "ClientId",        // Blacklist type: ClientId, ClientIdMatch, Username, UserMatch, IpAddress, IPCIDR
   "resource_name": "bad_client",       // Resource name
   "end_time": 1735689599,              // End time (Unix timestamp)
   "desc": "Blocked for security"       // Description
@@ -1159,7 +1165,7 @@ Query message count for a specific topic:
 ```
 
 - **Parameter Validation Rules**:
-  - `blacklist_type`: Length must be between 1-50 characters, must be `ClientId`, `IpAddress`, or `Username`
+  - `blacklist_type`: Length must be between 1-50 characters, must be one of `ClientId`, `ClientIdMatch`, `Username`, `UserMatch`, `IpAddress`, `IPCIDR`
   - `resource_name`: Length must be between 1-256 characters
   - `end_time`: Must be greater than 0
   - `desc`: Length cannot exceed 500 characters
@@ -1474,6 +1480,79 @@ Query message count for a specific topic:
 
 ---
 
+### 13. Tenant Management
+
+#### 13.1 Tenant List Query
+- **Endpoint**: `GET /api/mqtt/tenant/list`
+- **Description**: Query MQTT tenant list
+- **Request Parameters**:
+```json
+{
+  "tenant_name": "default",         // Optional, filter by exact tenant name
+  "limit": 20,
+  "page": 1,
+  "sort_field": "tenant_name",      // Optional, sort field
+  "sort_by": "asc",
+  "filter_field": "tenant_name",
+  "filter_values": ["default"],
+  "exact_match": "false"
+}
+```
+
+- **Response Data Structure**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "data": [
+      {
+        "tenant_name": "default",
+        "desc": "Default tenant",
+        "create_time": 1640995200
+      }
+    ],
+    "total_count": 1
+  }
+}
+```
+
+**Field Descriptions**:
+- `tenant_name`: Tenant name
+- `desc`: Tenant description
+- `create_time`: Tenant creation timestamp (seconds)
+
+#### 13.2 Create Tenant
+- **Endpoint**: `POST /api/mqtt/tenant/create`
+- **Description**: Create new MQTT tenant
+- **Request Parameters**:
+```json
+{
+  "tenant_name": "new_tenant",      // Tenant name, length 1-128 characters
+  "desc": "My new tenant"           // Optional, description, length cannot exceed 500 characters
+}
+```
+
+- **Parameter Validation Rules**:
+  - `tenant_name`: Length must be between 1-128 characters
+  - `desc`: Length cannot exceed 500 characters
+
+- **Response**: Returns `"success"` on success
+
+#### 13.3 Delete Tenant
+- **Endpoint**: `POST /api/mqtt/tenant/delete`
+- **Description**: Delete MQTT tenant
+- **Request Parameters**:
+```json
+{
+  "tenant_name": "old_tenant"       // Tenant name, length 1-128 characters
+}
+```
+
+- **Response**: Returns `"success"` on success
+
+---
+
 ## Enumeration Values
 
 ### ACL Resource Type (resource_type)
@@ -1491,9 +1570,15 @@ Query message count for a specific topic:
 - `Deny`: Deny
 
 ### Blacklist Type (blacklist_type)
-- `ClientId`: Client ID
-- `IpAddress`: IP Address
-- `Username`: Username
+
+| Value | Description |
+|-------|-------------|
+| `ClientId` | Exact match by client ID |
+| `ClientIdMatch` | Wildcard/regex match by client ID |
+| `Username` | Exact match by username |
+| `UserMatch` | Wildcard/regex match by username |
+| `IpAddress` | Exact match by IP address |
+| `IPCIDR` | CIDR range match by IP address |
 
 ### Connector Type (connector_type)
 
@@ -1669,6 +1754,6 @@ curl -X POST http://localhost:8080/api/mqtt/message/read \
 
 ---
 
-*Documentation Version: v4.0*  
-*Last Updated: 2025-09-20*  
-*Based on Code Version: RobustMQ Admin Server v0.1.34*
+*Documentation Version: v5.0*
+*Last Updated: 2026-03-15*
+*Based on Code Version: RobustMQ Admin Server v0.3.2*

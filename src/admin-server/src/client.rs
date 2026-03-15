@@ -609,6 +609,37 @@ impl AdminHttpClient {
         self.post_raw(&api_path(TENANT_DELETE_PATH), request).await
     }
 
+    /// Get MQTT tenant list
+    pub async fn get_mqtt_tenant_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.get_with_params(&api_path(MQTT_TENANT_LIST_PATH), request)
+            .await
+    }
+
+    /// Create MQTT tenant
+    pub async fn create_mqtt_tenant<T>(&self, request: &T) -> Result<String, HttpClientError>
+    where
+        T: Serialize,
+    {
+        self.post_raw(&api_path(MQTT_TENANT_CREATE_PATH), request)
+            .await
+    }
+
+    /// Delete MQTT tenant
+    pub async fn delete_mqtt_tenant<T>(&self, request: &T) -> Result<String, HttpClientError>
+    where
+        T: Serialize,
+    {
+        self.post_raw(&api_path(MQTT_TENANT_DELETE_PATH), request)
+            .await
+    }
+
     /// Get flapping detection list
     pub async fn get_flapping_detect_list<T, R>(
         &self,

@@ -249,6 +249,7 @@ async fn handle_send_success(
     .await;
     update_last_active(
         ctx.connector_manager,
+        ctx.tenant,
         ctx.connector_name,
         ctx.connector_type,
         params.start_time,
@@ -266,6 +267,7 @@ async fn handle_send_failure(
     if params.retry_times == 0 {
         update_last_active(
             ctx.connector_manager,
+            ctx.tenant,
             ctx.connector_name,
             ctx.connector_type,
             params.start_time,
@@ -283,6 +285,7 @@ async fn handle_send_failure(
     );
 
     let context = FailureRecordInfo {
+        tenant: ctx.tenant.to_string(),
         connector_name: ctx.connector_name.to_string(),
         connector_type: ctx.connector_type.to_string(),
         source_topic: config.topic_name.clone(),
@@ -313,11 +316,13 @@ async fn handle_read_error(
     error: CommonError,
 ) -> Result<ReadErrorAction, CommonError> {
     record_connector_source_read_failure(
+        ctx.tenant,
         ctx.connector_type.to_string(),
         ctx.connector_name.to_string(),
     );
     update_last_active(
         ctx.connector_manager,
+        ctx.tenant,
         ctx.connector_name,
         ctx.connector_type,
         now_millis(),
@@ -376,6 +381,7 @@ async fn commit_batch_offsets(
         .await
         .inspect_err(|_| {
             record_connector_offset_commit_failure(
+                ctx.tenant,
                 ctx.connector_type.to_string(),
                 ctx.connector_name.to_string(),
             );
@@ -429,23 +435,27 @@ fn extract_max_offsets_and_convert(
 
 pub fn update_last_active(
     connector_manager: &Arc<ConnectorManager>,
+    tenant: &str,
     connector_name: &str,
     connector_type: &str,
     start_time: u128,
     message_count: u64,
     success: bool,
 ) {
+    let tenant = tenant.to_owned();
     connector_manager.update_connector_thread_last_active(connector_name, |thread| {
         thread.last_send_time = now_second();
         if success {
             thread.send_success_total += message_count;
             let duration_ms = (now_millis() - start_time) as f64;
             record_connector_messages_sent_success(
+                &tenant,
                 connector_type.to_owned(),
                 connector_name.to_owned(),
                 message_count,
             );
             record_connector_send_duration(
+                &tenant,
                 connector_type.to_owned(),
                 connector_name.to_owned(),
                 duration_ms,
@@ -453,6 +463,7 @@ pub fn update_last_active(
         } else {
             thread.send_fail_total += message_count;
             record_connector_messages_sent_failure(
+                &tenant,
                 connector_type.to_owned(),
                 connector_name.to_owned(),
                 message_count,

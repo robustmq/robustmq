@@ -22,7 +22,6 @@ use common_base::tools::{convert_seconds, loop_select_ticket, now_second};
 use common_config::config::MqttFlappingDetect;
 use common_metrics::mqtt::event;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use metadata_struct::tenant::DEFAULT_TENANT;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -31,6 +30,7 @@ use tracing::debug;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BanLog {
+    pub tenant: String,
     pub ban_type: String,
     pub resource_name: String,
     pub ban_source: String,
@@ -40,6 +40,7 @@ pub struct BanLog {
 
 #[derive(Clone, Debug)]
 pub struct FlappingDetectCondition {
+    pub tenant: String,
     pub client_id: String,
     pub before_last_window_connections: u64,
     pub first_request_time: u64,
@@ -62,12 +63,13 @@ pub async fn clean_flapping_detect(
 }
 
 pub async fn check_flapping_detect(
+    tenant: &str,
     client_id: String,
     cache_manager: &Arc<MQTTCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) -> ResultMqttBrokerError {
     // get metric
-    let current_counter = event::get_client_connection_counter(client_id.clone());
+    let current_counter = event::get_client_connection_counter(tenant, client_id.clone());
     let current_request_time = now_second();
 
     // get flapping detect info
@@ -78,6 +80,7 @@ pub async fn check_flapping_detect(
         flapping_detect_info
     } else {
         FlappingDetectCondition {
+            tenant: tenant.to_string(),
             client_id: client_id.clone(),
             before_last_window_connections: current_counter + 1,
             first_request_time: current_request_time,
@@ -90,10 +93,10 @@ pub async fn check_flapping_detect(
     );
 
     // incr metric
-    event::incr_client_connection_counter(client_id.clone());
+    event::incr_client_connection_counter(tenant, client_id.clone());
 
     let config = cache_manager.get_flapping_detect_config().await;
-    let current_counter = event::get_client_connection_counter(client_id.clone());
+    let current_counter = event::get_client_connection_counter(tenant, client_id.clone());
     debug!("get current_counter : {current_counter} by client_id: {client_id}");
 
     if is_within_window_time(
@@ -106,8 +109,14 @@ pub async fn check_flapping_detect(
         config.max_client_connections,
     ) {
         debug!("add a new client_id: {client_id} into blacklist.");
-        add_blacklist_4_connection_jitter(cache_manager, rocksdb_engine_handler, config, client_id)
-            .await?;
+        add_blacklist_4_connection_jitter(
+            tenant,
+            cache_manager,
+            rocksdb_engine_handler,
+            config,
+            client_id,
+        )
+        .await?;
     }
 
     cache_manager
@@ -117,6 +126,7 @@ pub async fn check_flapping_detect(
 }
 
 async fn add_blacklist_4_connection_jitter(
+    tenant: &str,
     cache_manager: &Arc<MQTTCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     config: MqttFlappingDetect,
@@ -124,7 +134,7 @@ async fn add_blacklist_4_connection_jitter(
 ) -> ResultMqttBrokerError {
     let end_time = now_second() + convert_seconds(config.ban_time as u64, TimeUnit::Minutes);
     let client_id_blacklist = MqttAclBlackList {
-        tenant: DEFAULT_TENANT.to_string(),
+        tenant: tenant.to_string(),
         blacklist_type: MqttAclBlackListType::ClientId,
         resource_name: client_id.clone(),
         end_time,
@@ -135,6 +145,7 @@ async fn add_blacklist_4_connection_jitter(
 
     let local_storage = LocalStorage::new(rocksdb_engine_handler.clone());
     let log = BanLog {
+        tenant: tenant.to_string(),
         ban_source: "flapping_detect".to_string(),
         ban_type: "client_id".to_string(),
         resource_name: client_id.clone(),

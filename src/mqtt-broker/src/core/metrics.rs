@@ -36,6 +36,7 @@ use protocol::mqtt::{
 };
 
 pub fn record_publish_receive_metrics(
+    tenant: &str,
     client_id: &str,
     connection_id: u64,
     topic_name: &str,
@@ -44,14 +45,15 @@ pub fn record_publish_receive_metrics(
     record_mqtt_messages_received_inc();
     record_mqtt_message_bytes_received(payload_len);
 
-    record_topic_messages_written(topic_name);
-    record_topic_bytes_written(topic_name, payload_len);
+    record_topic_messages_written(tenant, topic_name);
+    record_topic_bytes_written(tenant, topic_name, payload_len);
 
-    record_session_messages_in(client_id);
+    record_session_messages_in(tenant, client_id);
     record_connection_messages_in(connection_id);
 }
 
 pub fn record_publish_send_metrics(
+    tenant: &str,
     client_id: &str,
     connection_id: u64,
     topic_name: &str,
@@ -59,10 +61,10 @@ pub fn record_publish_send_metrics(
 ) {
     record_mqtt_messages_sent_inc();
     record_mqtt_message_bytes_sent(payload_len);
-    record_topic_messages_sent(topic_name);
-    record_topic_bytes_sent(topic_name, payload_len);
+    record_topic_messages_sent(tenant, topic_name);
+    record_topic_bytes_sent(tenant, topic_name, payload_len);
 
-    record_session_messages_out(client_id);
+    record_session_messages_out(tenant, client_id);
     record_connection_messages_out(connection_id);
 }
 

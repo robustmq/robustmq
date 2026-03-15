@@ -249,6 +249,7 @@ impl SharePushManager {
                         };
 
                         record_sub_send_metrics(
+                            &subscriber.tenant,
                             &subscriber.client_id,
                             &subscriber.sub_path,
                             &subscriber.topic_name,

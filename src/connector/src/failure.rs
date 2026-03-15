@@ -41,6 +41,7 @@ pub struct DeadLetterRecord {
 }
 
 pub struct FailureRecordInfo {
+    pub tenant: String,
     pub connector_name: String,
     pub connector_type: String,
     pub source_topic: String,
@@ -57,6 +58,7 @@ pub async fn failure_message_process(
     match strategy {
         FailureHandlingStrategy::Discard => {
             record_connector_messages_discarded(
+                &context.tenant,
                 context.connector_type.to_string(),
                 context.connector_name.to_string(),
                 "discard",
@@ -67,6 +69,7 @@ pub async fn failure_message_process(
         FailureHandlingStrategy::DiscardAfterRetry(discard_strategy) => {
             if retry_times < discard_strategy.retry_total_times {
                 record_connector_retry(
+                    &context.tenant,
                     context.connector_type.to_string(),
                     context.connector_name.to_string(),
                     "discard_after_retry",
@@ -75,6 +78,7 @@ pub async fn failure_message_process(
                 return false;
             }
             record_connector_messages_discarded(
+                &context.tenant,
                 context.connector_type.to_string(),
                 context.connector_name.to_string(),
                 "discard_after_retry",
@@ -85,6 +89,7 @@ pub async fn failure_message_process(
         FailureHandlingStrategy::DeadMessageQueue(dlq_strategy) => {
             if retry_times < dlq_strategy.retry_total_times {
                 record_connector_retry(
+                    &context.tenant,
                     context.connector_type.to_string(),
                     context.connector_name.to_string(),
                     "dead_message_queue",
@@ -102,6 +107,7 @@ pub async fn failure_message_process(
             .await
             {
                 record_connector_dlq_messages(
+                    &context.tenant,
                     context.connector_type.to_string(),
                     context.connector_name.to_string(),
                     "failure",
@@ -115,6 +121,7 @@ pub async fn failure_message_process(
                 return false;
             }
             record_connector_dlq_messages(
+                &context.tenant,
                 context.connector_type.to_string(),
                 context.connector_name.to_string(),
                 "success",

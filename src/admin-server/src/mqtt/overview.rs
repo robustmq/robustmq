@@ -90,7 +90,7 @@ async fn cluster_overview_by_req(
             .iter()
             .map(|e| e.value().len())
             .sum::<usize>() as u32,
-        subscribe_num: subscribe_manager.subscribe_list.len() as u32,
+        subscribe_num: subscribe_manager.subscribe_count() as u32,
         exclusive_subscribe_num: subscribe_manager.directly_push.sub_len(),
         exclusive_subscribe_thread_num: subscribe_manager.directly_push.buckets_data_list.len()
             as u32,

@@ -97,6 +97,7 @@ impl MqttService {
             .add_topic_alias(connection.connect_id, &topic_name, publish_properties);
 
         record_publish_receive_metrics(
+            &connection.tenant,
             &connection.client_id,
             connection.connect_id,
             &topic_name,

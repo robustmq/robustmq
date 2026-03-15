@@ -12,6 +12,7 @@
 - **Request Parameters**:
 ```json
 {
+  "tenant": "default",              // Optional, filter by tenant name; if omitted, returns connectors across all tenants
   "connector_name": "kafka_connector",  // Optional, filter by connector name
   "limit": 20,
   "page": 1,
@@ -31,6 +32,7 @@
   "data": {
     "data": [
       {
+        "tenant": "default",
         "connector_name": "kafka_connector",
         "connector_type": "kafka",
         "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
@@ -47,6 +49,7 @@
 ```
 
 **Field Descriptions**:
+- `tenant`: Tenant the connector belongs to
 - `connector_name`: Connector name
 - `connector_type`: Connector type
 - `config`: Connector configuration (JSON string)
@@ -64,6 +67,7 @@
 - **Request Parameters**:
 ```json
 {
+  "tenant": "default",
   "connector_name": "kafka_connector"
 }
 ```
@@ -117,6 +121,7 @@ or
 - **Request Parameters**:
 ```json
 {
+  "tenant": "default",
   "connector_name": "new_connector",
   "connector_type": "kafka",
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
@@ -131,6 +136,7 @@ or
 ```
 
 **Parameter Validation Rules**:
+- `tenant`: Length 1-256 characters, tenant name
 - `connector_name`: Length 1-128 characters
 - `connector_type`: Length 1-50 characters, must be a supported type (see enum reference below)
 - `config`: Length 1-4096 characters, JSON string
@@ -147,6 +153,7 @@ or
 - **Request Parameters**:
 ```json
 {
+  "tenant": "default",
   "connector_name": "old_connector"
 }
 ```
@@ -810,9 +817,14 @@ Messages written to the dead letter queue are in JSON format as `DeadLetterRecor
 curl "http://localhost:8080/api/mqtt/connector/list?limit=10&page=1"
 ```
 
+### Query Connector List by Tenant
+```bash
+curl "http://localhost:8080/api/mqtt/connector/list?tenant=default&limit=10&page=1"
+```
+
 ### Query Connector Detail
 ```bash
-curl "http://localhost:8080/api/mqtt/connector/detail?connector_name=kafka_bridge"
+curl "http://localhost:8080/api/mqtt/connector/detail?tenant=default&connector_name=kafka_bridge"
 ```
 
 ### Create Kafka Connector
@@ -820,6 +832,7 @@ curl "http://localhost:8080/api/mqtt/connector/detail?connector_name=kafka_bridg
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "kafka_bridge",
     "connector_type": "kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
@@ -835,6 +848,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "kafka_bridge_retry",
     "connector_type": "kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
@@ -852,6 +866,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "kafka_bridge_dlq",
     "connector_type": "kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
@@ -870,6 +885,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "redis_bridge",
     "connector_type": "redis",
     "config": "{\"server\":\"127.0.0.1:6379\",\"command_template\":\"LPUSH mqtt_messages {payload}\"}",
@@ -885,6 +901,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "webhook_bridge",
     "connector_type": "webhook",
     "config": "{\"url\":\"https://example.com/webhook\",\"method\":\"post\",\"auth_type\":\"bearer\",\"bearer_token\":\"my-token\"}",
@@ -900,6 +917,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "influxdb_bridge",
     "connector_type": "influxdb",
     "config": "{\"server\":\"http://localhost:8086\",\"version\":\"v2\",\"token\":\"my-token\",\"org\":\"my-org\",\"bucket\":\"mqtt\",\"measurement\":\"sensor_data\"}",
@@ -915,6 +933,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "s3_bridge",
     "connector_type": "s3",
     "config": "{\"bucket\":\"my-mqtt-bucket\",\"region\":\"us-east-1\",\"object_key_prefix\":\"mqtt\"}",
@@ -930,12 +949,13 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/delete \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "old_connector"
   }'
 ```
 
 ---
 
-*Documentation Version: v1.0*  
-*Last Updated: 2026-03-03*  
+*Documentation Version: v2.0*
+*Last Updated: 2026-03-15*  
 *Based on Code Version: RobustMQ v0.3.2*

@@ -107,7 +107,7 @@ impl ConnectorManager {
             .entry(tenant.to_owned())
             .or_default()
             .insert(connector_name.to_owned(), thread);
-        set_connector_up(connector_type, connector_name.to_owned(), true);
+        set_connector_up(tenant, connector_type, connector_name.to_owned(), true);
     }
 
     pub fn get_connector_thread(&self, connector_name: &str) -> Option<BridgePluginThread> {
@@ -133,11 +133,13 @@ impl ConnectorManager {
     }
 
     pub fn remove_connector_thread(&self, connector_name: &str) {
-        let connector_type = self
-            .get_connector(connector_name)
+        let connector = self.get_connector(connector_name);
+        let connector_type = connector
+            .as_ref()
             .map(|c| c.connector_type.to_string())
             .unwrap_or_else(|| "unknown".to_string());
-        set_connector_up(connector_type, connector_name.to_owned(), false);
+        let tenant = connector.as_ref().map(|c| c.tenant.as_str()).unwrap_or("");
+        set_connector_up(tenant, connector_type, connector_name.to_owned(), false);
         for tenant_entry in self.connector_thread.iter() {
             tenant_entry.value().remove(connector_name);
         }

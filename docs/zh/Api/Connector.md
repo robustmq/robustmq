@@ -12,6 +12,7 @@
 - **请求参数**:
 ```json
 {
+  "tenant": "default",              // 可选，按租户名称过滤；不填则返回所有租户的连接器
   "connector_name": "kafka_connector",  // 可选，按连接器名称过滤
   "limit": 20,
   "page": 1,
@@ -31,6 +32,7 @@
   "data": {
     "data": [
       {
+        "tenant": "default",
         "connector_name": "kafka_connector",
         "connector_type": "kafka",
         "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
@@ -47,6 +49,7 @@
 ```
 
 **字段说明**：
+- `tenant`: 连接器所属租户
 - `connector_name`: 连接器名称
 - `connector_type`: 连接器类型
 - `config`: 连接器配置（JSON 字符串）
@@ -64,6 +67,7 @@
 - **请求参数**:
 ```json
 {
+  "tenant": "default",
   "connector_name": "kafka_connector"
 }
 ```
@@ -117,6 +121,7 @@
 - **请求参数**:
 ```json
 {
+  "tenant": "default",
   "connector_name": "new_connector",
   "connector_type": "kafka",
   "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
@@ -131,6 +136,7 @@
 ```
 
 **参数验证规则**：
+- `tenant`: 长度 1-256 个字符，所属租户名称
 - `connector_name`: 长度 1-128 个字符
 - `connector_type`: 长度 1-50 个字符，必须是支持的类型（见下文枚举）
 - `config`: 长度 1-4096 个字符，JSON 字符串
@@ -147,6 +153,7 @@
 - **请求参数**:
 ```json
 {
+  "tenant": "default",
   "connector_name": "old_connector"
 }
 ```
@@ -810,9 +817,14 @@
 curl "http://localhost:8080/api/mqtt/connector/list?limit=10&page=1"
 ```
 
+### 按租户查询连接器列表
+```bash
+curl "http://localhost:8080/api/mqtt/connector/list?tenant=default&limit=10&page=1"
+```
+
 ### 查询连接器详情
 ```bash
-curl "http://localhost:8080/api/mqtt/connector/detail?connector_name=kafka_bridge"
+curl "http://localhost:8080/api/mqtt/connector/detail?tenant=default&connector_name=kafka_bridge"
 ```
 
 ### 创建 Kafka 连接器
@@ -820,6 +832,7 @@ curl "http://localhost:8080/api/mqtt/connector/detail?connector_name=kafka_bridg
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "kafka_bridge",
     "connector_type": "kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
@@ -835,6 +848,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "kafka_bridge_retry",
     "connector_type": "kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
@@ -852,6 +866,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "kafka_bridge_dlq",
     "connector_type": "kafka",
     "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
@@ -870,6 +885,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "redis_bridge",
     "connector_type": "redis",
     "config": "{\"server\":\"127.0.0.1:6379\",\"command_template\":\"LPUSH mqtt_messages {payload}\"}",
@@ -885,6 +901,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "webhook_bridge",
     "connector_type": "webhook",
     "config": "{\"url\":\"https://example.com/webhook\",\"method\":\"post\",\"auth_type\":\"bearer\",\"bearer_token\":\"my-token\"}",
@@ -900,6 +917,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "influxdb_bridge",
     "connector_type": "influxdb",
     "config": "{\"server\":\"http://localhost:8086\",\"version\":\"v2\",\"token\":\"my-token\",\"org\":\"my-org\",\"bucket\":\"mqtt\",\"measurement\":\"sensor_data\"}",
@@ -915,6 +933,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "s3_bridge",
     "connector_type": "s3",
     "config": "{\"bucket\":\"my-mqtt-bucket\",\"region\":\"us-east-1\",\"object_key_prefix\":\"mqtt\"}",
@@ -930,12 +949,13 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/connector/delete \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "connector_name": "old_connector"
   }'
 ```
 
 ---
 
-*文档版本: v1.0*  
-*最后更新: 2026-03-03*  
+*文档版本: v2.0*
+*最后更新: 2026-03-15*
 *基于代码版本: RobustMQ v0.3.2*

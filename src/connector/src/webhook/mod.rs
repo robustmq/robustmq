@@ -108,6 +108,7 @@ impl WebhookBridgePlugin {
                     Err(e) => {
                         tracing::error!("Failed to apply rule before Webhook send: {}", e);
                         fail_messages.push(FailureRecordInfo {
+                            tenant: self.connector.tenant.clone(),
                             connector_name: self.connector.connector_name.clone(),
                             connector_type: self.connector.connector_type.to_string(),
                             source_topic: self.connector.topic_name.clone(),

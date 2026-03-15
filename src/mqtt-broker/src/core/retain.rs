@@ -160,7 +160,7 @@ impl RetainMessageManager {
             .map(|id| vec![id])
             .unwrap_or_default();
 
-        let is_new_subs = is_new_sub(client_id, subscribe, subscribe_manager);
+        let is_new_subs = is_new_sub(tenant, client_id, subscribe, subscribe_manager);
         for filter in subscribe.filters.iter() {
             if !is_send_retain_msg_by_retain_handling(
                 &filter.path,

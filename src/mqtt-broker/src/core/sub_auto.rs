@@ -91,6 +91,7 @@ pub async fn try_auto_subscribe(
         };
 
         if let Err(e) = save_subscribe(SaveSubscribeContext {
+            tenant: tenant.to_string(),
             client_id: client_id.clone(),
             protocol: protocol.clone(),
             client_pool: client_pool.clone(),

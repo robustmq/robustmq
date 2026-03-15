@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct MqttSubscribe {
+    pub tenant: String,
     pub client_id: String,
     pub path: String,
     pub broker_id: u64,

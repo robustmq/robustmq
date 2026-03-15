@@ -21,6 +21,7 @@ use prometheus_client::encoding::EncodeLabelSet;
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 pub struct ConnectorLabel {
+    pub tenant: String,
     pub connector_type: String,
     pub connector_name: String,
 }
@@ -30,6 +31,7 @@ struct MessageLabel {}
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 pub struct ConnectorStrategyLabel {
+    pub tenant: String,
     pub connector_type: String,
     pub connector_name: String,
     pub strategy: String,
@@ -37,6 +39,7 @@ pub struct ConnectorStrategyLabel {
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 pub struct ConnectorResultLabel {
+    pub tenant: String,
     pub connector_type: String,
     pub connector_name: String,
     pub result: String,
@@ -135,11 +138,13 @@ register_histogram_metric_ms_with_default_buckets!(
 );
 
 pub fn record_connector_messages_sent_success(
+    tenant: &str,
     connector_type: String,
     connector_name: String,
     count: u64,
 ) {
     let label = ConnectorLabel {
+        tenant: tenant.to_string(),
         connector_type,
         connector_name,
     };
@@ -154,11 +159,13 @@ pub fn record_connector_messages_sent_success(
 }
 
 pub fn record_connector_messages_sent_failure(
+    tenant: &str,
     connector_type: String,
     connector_name: String,
     count: u64,
 ) {
     let label = ConnectorLabel {
+        tenant: tenant.to_string(),
         connector_type,
         connector_name,
     };
@@ -173,11 +180,13 @@ pub fn record_connector_messages_sent_failure(
 }
 
 pub fn record_connector_send_duration(
+    tenant: &str,
     connector_type: String,
     connector_name: String,
     duration_ms: f64,
 ) {
     let label = ConnectorLabel {
+        tenant: tenant.to_string(),
         connector_type,
         connector_name,
     };
@@ -192,11 +201,13 @@ pub fn record_connector_send_duration(
 }
 
 pub fn record_connector_retry(
+    tenant: &str,
     connector_type: String,
     connector_name: String,
     strategy: &'static str,
 ) {
     let label = ConnectorStrategyLabel {
+        tenant: tenant.to_string(),
         connector_type,
         connector_name,
         strategy: strategy.to_string(),
@@ -205,12 +216,14 @@ pub fn record_connector_retry(
 }
 
 pub fn record_connector_messages_discarded(
+    tenant: &str,
     connector_type: String,
     connector_name: String,
     strategy: &'static str,
     count: u64,
 ) {
     let label = ConnectorStrategyLabel {
+        tenant: tenant.to_string(),
         connector_type,
         connector_name,
         strategy: strategy.to_string(),
@@ -219,12 +232,14 @@ pub fn record_connector_messages_discarded(
 }
 
 pub fn record_connector_dlq_messages(
+    tenant: &str,
     connector_type: String,
     connector_name: String,
     result: &'static str,
     count: u64,
 ) {
     let label = ConnectorResultLabel {
+        tenant: tenant.to_string(),
         connector_type,
         connector_name,
         result: result.to_string(),
@@ -232,40 +247,61 @@ pub fn record_connector_dlq_messages(
     counter_metric_inc_by!(MQTT_CONNECTOR_DLQ_MESSAGES_TOTAL, label, count);
 }
 
-pub fn record_connector_offset_commit_failure(connector_type: String, connector_name: String) {
+pub fn record_connector_offset_commit_failure(
+    tenant: &str,
+    connector_type: String,
+    connector_name: String,
+) {
     let label = ConnectorLabel {
+        tenant: tenant.to_string(),
         connector_type,
         connector_name,
     };
     counter_metric_inc_by!(MQTT_CONNECTOR_OFFSET_COMMIT_FAILURE_TOTAL, label, 1);
 }
 
-pub fn record_connector_source_read_failure(connector_type: String, connector_name: String) {
+pub fn record_connector_source_read_failure(
+    tenant: &str,
+    connector_type: String,
+    connector_name: String,
+) {
     let label = ConnectorLabel {
+        tenant: tenant.to_string(),
         connector_type,
         connector_name,
     };
     counter_metric_inc_by!(MQTT_CONNECTOR_SOURCE_READ_FAILURE_TOTAL, label, 1);
 }
 
-pub fn set_connector_up(connector_type: String, connector_name: String, up: bool) {
+pub fn set_connector_up(tenant: &str, connector_type: String, connector_name: String, up: bool) {
     let label = ConnectorLabel {
+        tenant: tenant.to_string(),
         connector_type,
         connector_name,
     };
     gauge_metric_set!(MQTT_CONNECTOR_UP, label, if up { 1 } else { 0 });
 }
 
-pub fn get_connector_messages_sent_success(connector_type: &str, connector_name: &str) -> u64 {
+pub fn get_connector_messages_sent_success(
+    tenant: &str,
+    connector_type: &str,
+    connector_name: &str,
+) -> u64 {
     let label = ConnectorLabel {
+        tenant: tenant.to_string(),
         connector_type: connector_type.to_string(),
         connector_name: connector_name.to_string(),
     };
     get_counter_metric_with_label!(MQTT_CONNECTOR_MESSAGES_SENT_SUCCESS, label)
 }
 
-pub fn get_connector_messages_sent_failure(connector_type: &str, connector_name: &str) -> u64 {
+pub fn get_connector_messages_sent_failure(
+    tenant: &str,
+    connector_type: &str,
+    connector_name: &str,
+) -> u64 {
     let label = ConnectorLabel {
+        tenant: tenant.to_string(),
         connector_type: connector_type.to_string(),
         connector_name: connector_name.to_string(),
     };
@@ -288,42 +324,124 @@ mod tests {
 
     #[test]
     fn test_connector_metrics_with_label() {
+        let tenant = "default";
         let connector_type = "kafka".to_string();
         let connector_name = "test_connector".to_string();
 
-        record_connector_messages_sent_success(connector_type.clone(), connector_name.clone(), 10);
-        record_connector_messages_sent_success(connector_type.clone(), connector_name.clone(), 5);
-        record_connector_messages_sent_failure(connector_type.clone(), connector_name.clone(), 2);
-        record_connector_send_duration(connector_type.clone(), connector_name.clone(), 123.45);
-        record_connector_send_duration(connector_type.clone(), connector_name.clone(), 67.89);
+        record_connector_messages_sent_success(
+            tenant,
+            connector_type.clone(),
+            connector_name.clone(),
+            10,
+        );
+        record_connector_messages_sent_success(
+            tenant,
+            connector_type.clone(),
+            connector_name.clone(),
+            5,
+        );
+        record_connector_messages_sent_failure(
+            tenant,
+            connector_type.clone(),
+            connector_name.clone(),
+            2,
+        );
+        record_connector_send_duration(
+            tenant,
+            connector_type.clone(),
+            connector_name.clone(),
+            123.45,
+        );
+        record_connector_send_duration(
+            tenant,
+            connector_type.clone(),
+            connector_name.clone(),
+            67.89,
+        );
         record_connector_retry(
+            tenant,
             connector_type.clone(),
             connector_name.clone(),
             "dead_message_queue",
         );
         record_connector_messages_discarded(
+            tenant,
             connector_type.clone(),
             connector_name.clone(),
             "discard_after_retry",
             2,
         );
-        record_connector_dlq_messages(connector_type.clone(), connector_name.clone(), "success", 2);
-        record_connector_offset_commit_failure(connector_type.clone(), connector_name.clone());
-        record_connector_source_read_failure(connector_type.clone(), connector_name.clone());
-        set_connector_up(connector_type, connector_name, true);
+        record_connector_dlq_messages(
+            tenant,
+            connector_type.clone(),
+            connector_name.clone(),
+            "success",
+            2,
+        );
+        record_connector_offset_commit_failure(
+            tenant,
+            connector_type.clone(),
+            connector_name.clone(),
+        );
+        record_connector_source_read_failure(
+            tenant,
+            connector_type.clone(),
+            connector_name.clone(),
+        );
+        set_connector_up(tenant, connector_type, connector_name, true);
     }
 
     #[test]
     fn test_connector_metrics_aggregate() {
-        record_connector_messages_sent_success("kafka".to_string(), "connector_1".to_string(), 100);
-        record_connector_messages_sent_success("kafka".to_string(), "connector_2".to_string(), 200);
-        record_connector_messages_sent_success("s3".to_string(), "connector_3".to_string(), 300);
+        record_connector_messages_sent_success(
+            "default",
+            "kafka".to_string(),
+            "connector_1".to_string(),
+            100,
+        );
+        record_connector_messages_sent_success(
+            "default",
+            "kafka".to_string(),
+            "connector_2".to_string(),
+            200,
+        );
+        record_connector_messages_sent_success(
+            "default",
+            "s3".to_string(),
+            "connector_3".to_string(),
+            300,
+        );
 
-        record_connector_messages_sent_failure("kafka".to_string(), "connector_1".to_string(), 5);
-        record_connector_messages_sent_failure("s3".to_string(), "connector_2".to_string(), 10);
+        record_connector_messages_sent_failure(
+            "default",
+            "kafka".to_string(),
+            "connector_1".to_string(),
+            5,
+        );
+        record_connector_messages_sent_failure(
+            "default",
+            "s3".to_string(),
+            "connector_2".to_string(),
+            10,
+        );
 
-        record_connector_send_duration("kafka".to_string(), "connector_1".to_string(), 50.0);
-        record_connector_send_duration("kafka".to_string(), "connector_2".to_string(), 100.0);
-        record_connector_send_duration("s3".to_string(), "connector_3".to_string(), 150.0);
+        record_connector_send_duration(
+            "default",
+            "kafka".to_string(),
+            "connector_1".to_string(),
+            50.0,
+        );
+        record_connector_send_duration(
+            "default",
+            "kafka".to_string(),
+            "connector_2".to_string(),
+            100.0,
+        );
+        record_connector_send_duration(
+            "default",
+            "s3".to_string(),
+            "connector_3".to_string(),
+            150.0,
+        );
     }
 }

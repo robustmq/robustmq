@@ -401,11 +401,13 @@ mod test {
     pub async fn test_mqtt_remove_flapping_detect() {
         let acl_metadata = AclMetadata::new();
         let condition1 = FlappingDetectCondition {
+            tenant: "default".to_string(),
             client_id: "test_id_1".to_string(),
             before_last_window_connections: 15,
             first_request_time: now_second() - 10,
         };
         let condition2 = FlappingDetectCondition {
+            tenant: "default".to_string(),
             client_id: "test_id_2".to_string(),
             before_last_window_connections: 15,
             first_request_time: now_second() - 70,

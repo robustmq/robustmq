@@ -31,6 +31,7 @@ use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SubscribeListReq {
+    pub tenant: Option<String>,
     pub client_id: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
@@ -127,6 +128,7 @@ pub struct DeleteAutoSubscribeReq {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SubscribeListRow {
+    pub tenant: String,
     pub client_id: String,
     pub path: String,
     pub broker_id: u64,
@@ -174,6 +176,7 @@ pub async fn subscribe_list(
     State(state): State<Arc<HttpState>>,
     Query(params): Query<SubscribeListReq>,
 ) -> String {
+    let tenant = params.tenant;
     let options = build_query_params(
         params.page,
         params.limit,
@@ -184,24 +187,39 @@ pub async fn subscribe_list(
         params.exact_match,
     );
 
+    let subscribe_list = &state.mqtt_context.subscribe_manager.subscribe_list;
     let mut subscribes = Vec::new();
-    for raw in state.mqtt_context.subscribe_manager.subscribe_list.iter() {
-        let sub = raw.value();
-        subscribes.push(SubscribeListRow {
-            broker_id: sub.broker_id,
-            client_id: sub.client_id.clone(),
-            create_time: timestamp_to_local_datetime(sub.create_time as i64),
-            no_local: if sub.filter.no_local { 1 } else { 0 },
-            path: sub.path.clone(),
-            pk_id: sub.pkid as u32,
-            preserve_retain: if sub.filter.preserve_retain { 1 } else { 0 },
-            properties: serde_json::to_string(&sub.subscribe_properties).unwrap(),
-            protocol: format!("{:?}", sub.protocol),
-            qos: format!("{:?}", sub.filter.qos),
-            retain_handling: format!("{:?}", sub.filter.retain_handling),
-            is_share_sub: is_mqtt_share_subscribe(&sub.path),
-        });
+
+    let build_row = |sub: &metadata_struct::mqtt::subscribe::MqttSubscribe| SubscribeListRow {
+        tenant: sub.tenant.clone(),
+        broker_id: sub.broker_id,
+        client_id: sub.client_id.clone(),
+        create_time: timestamp_to_local_datetime(sub.create_time as i64),
+        no_local: if sub.filter.no_local { 1 } else { 0 },
+        path: sub.path.clone(),
+        pk_id: sub.pkid as u32,
+        preserve_retain: if sub.filter.preserve_retain { 1 } else { 0 },
+        properties: serde_json::to_string(&sub.subscribe_properties).unwrap(),
+        protocol: format!("{:?}", sub.protocol),
+        qos: format!("{:?}", sub.filter.qos),
+        retain_handling: format!("{:?}", sub.filter.retain_handling),
+        is_share_sub: is_mqtt_share_subscribe(&sub.path),
+    };
+
+    if let Some(ref t) = tenant {
+        if let Some(tenant_map) = subscribe_list.get(t) {
+            for entry in tenant_map.iter() {
+                subscribes.push(build_row(entry.value()));
+            }
+        }
+    } else {
+        for tenant_entry in subscribe_list.iter() {
+            for entry in tenant_entry.value().iter() {
+                subscribes.push(build_row(entry.value()));
+            }
+        }
     }
+
     let filtered = apply_filters(subscribes, &options);
     let sorted = apply_sorting(filtered, &options);
     let pagination = apply_pagination(sorted, &options);
@@ -215,6 +233,7 @@ pub async fn subscribe_list(
 impl Queryable for SubscribeListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "tenant" => Some(self.tenant.clone()),
             "client_id" => Some(self.client_id.clone()),
             _ => None,
         }
