@@ -58,6 +58,7 @@ mod test {
                 ..Default::default()
             }),
             topic_name: "test_topic-1".to_string(),
+            tenant: "default".to_string(),
             ..Default::default()
         };
 

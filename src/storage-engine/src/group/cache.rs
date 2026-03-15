@@ -110,7 +110,9 @@ impl OffsetCacheManager {
         for group_raw in groups.iter() {
             let tenant_group = group_raw.key();
             let local_offsets = group_raw.value();
-            let (tenant, group) = split_tenant_group(tenant_group);
+            let Some((tenant, group)) = split_tenant_group(tenant_group) else {
+                continue;
+            };
             let remote_offsets = self.offset_storage.get_offset(tenant, group).await?;
 
             let mut remote_map = HashMap::new();
@@ -141,7 +143,9 @@ impl OffsetCacheManager {
             let by_tenant: DashMap<String, DashMap<String, Vec<AdapterConsumerGroupOffset>>> =
                 DashMap::new();
             for entry in updates.iter() {
-                let (tenant, group) = split_tenant_group(entry.key());
+                let Some((tenant, group)) = split_tenant_group(entry.key()) else {
+                    continue;
+                };
                 by_tenant
                     .entry(tenant.to_string())
                     .or_default()
@@ -167,7 +171,9 @@ impl OffsetCacheManager {
         let by_tenant: DashMap<String, DashMap<String, Vec<AdapterConsumerGroupOffset>>> =
             DashMap::new();
         for entry in offsets.iter() {
-            let (tenant, group) = split_tenant_group(entry.key());
+            let Some((tenant, group)) = split_tenant_group(entry.key()) else {
+                continue;
+            };
             by_tenant
                 .entry(tenant.to_string())
                 .or_default()
@@ -234,8 +240,8 @@ impl OffsetCacheManager {
     }
 }
 
-fn split_tenant_group(tenant_group: &str) -> (&str, &str) {
-    tenant_group.split_once('/').unwrap_or(("", tenant_group))
+fn split_tenant_group(tenant_group: &str) -> Option<(&str, &str)> {
+    tenant_group.split_once('/')
 }
 
 #[cfg(test)]
