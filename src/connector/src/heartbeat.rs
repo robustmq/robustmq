@@ -126,7 +126,9 @@ mod tests {
         // Verify that the heartbeat data still exists
         assert!(connector_manager
             .connector_heartbeat
-            .contains_key("test_connector"));
+            .get("default")
+            .map(|m| m.contains_key("test_connector"))
+            .unwrap_or(false));
 
         // With no data
         let (client_pool, connector_manager) = setup().await;
