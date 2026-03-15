@@ -80,7 +80,7 @@ async fn load_common_cache(
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load connectors: {}", e)))?;
     for connector in connectors.iter() {
-        connector_manager.add_connector(connector);
+        connector_manager.add_connector(&connector);
     }
 
     let schema_storage = SchemaStorage::new(client_pool.clone());
