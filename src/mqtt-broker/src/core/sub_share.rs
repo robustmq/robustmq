@@ -42,9 +42,10 @@ pub fn full_group_name(group_name: &str, sub_name: &str) -> String {
 
 pub async fn is_share_sub_leader(
     client_pool: &Arc<ClientPool>,
+    tenant: &str,
     group_name: &str,
 ) -> Result<bool, CommonError> {
-    let reply = fetch_share_sub_leader(client_pool, vec![group_name.to_string()]).await?;
+    let reply = fetch_share_sub_leader(client_pool, tenant, vec![group_name.to_string()]).await?;
     let conf = broker_config();
     if let Some(raw) = reply.get(group_name) {
         return Ok(raw.broker_id == conf.broker_id);
@@ -56,9 +57,10 @@ pub async fn is_share_sub_leader(
 
 pub async fn get_share_sub_leader(
     client_pool: &Arc<ClientPool>,
+    tenant: &str,
     group_name: &str,
 ) -> Result<u64, CommonError> {
-    let reply = fetch_share_sub_leader(client_pool, vec![group_name.to_string()]).await?;
+    let reply = fetch_share_sub_leader(client_pool, tenant, vec![group_name.to_string()]).await?;
     if let Some(raw) = reply.get(group_name) {
         return Ok(raw.broker_id);
     }
@@ -69,10 +71,12 @@ pub async fn get_share_sub_leader(
 
 pub async fn fetch_share_sub_leader(
     client_pool: &Arc<ClientPool>,
+    tenant: &str,
     group_name: Vec<String>,
 ) -> Result<HashMap<String, SubLeaderInfo>, CommonError> {
     let conf = broker_config();
     let req = GetShareSubLeaderRequest {
+        tenant: tenant.to_owned(),
         group_list: group_name.to_owned(),
     };
     let reply =

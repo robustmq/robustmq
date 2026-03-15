@@ -171,10 +171,18 @@ pub(crate) async fn spawn_task_process(
         .await
         {
             record_delay_task_execute_failed(task_type_str);
-            error!(
-                "Failed to process delay task: task_id={}, task_type={}, error={}",
-                task.task_id, task_type_str, e
-            );
+            let err_str = e.to_string();
+            if err_str.contains("channel closed") || err_str.contains("channel full") {
+                warn!(
+                    "Delay task skipped (broker shutting down): task_id={}, task_type={}, error={}",
+                    task.task_id, task_type_str, e
+                );
+            } else {
+                error!(
+                    "Failed to process delay task: task_id={}, task_type={}, error={}",
+                    task.task_id, task_type_str, e
+                );
+            }
         }
     });
 }

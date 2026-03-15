@@ -303,11 +303,25 @@ impl PushManager {
     }
 
     async fn get_group_leader_list(&self) -> Result<HashMap<String, SubLeaderInfo>, CommonError> {
-        let mut group_list = Vec::new();
+        // Group group names by tenant (read tenant from first subscriber in each bucket)
+        let mut tenant_groups: HashMap<String, Vec<String>> = HashMap::new();
         for raw in self.subscribe_manager.share_push.iter() {
-            group_list.push(raw.key().clone());
+            let group_name = raw.key().clone();
+            let tenant = raw
+                .value()
+                .buckets_data_list
+                .iter()
+                .next()
+                .and_then(|b| b.value().iter().next().map(|s| s.value().tenant.clone()))
+                .unwrap_or_default();
+            tenant_groups.entry(tenant).or_default().push(group_name);
         }
 
-        fetch_share_sub_leader(&self.client_pool, group_list).await
+        let mut results = HashMap::new();
+        for (tenant, group_list) in tenant_groups {
+            let leaders = fetch_share_sub_leader(&self.client_pool, &tenant, group_list).await?;
+            results.extend(leaders);
+        }
+        Ok(results)
     }
 }

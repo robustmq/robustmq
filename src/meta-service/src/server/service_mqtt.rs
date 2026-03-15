@@ -142,7 +142,6 @@ impl MqttService for GrpcMqttService {
         create_user_by_req(
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &self.rocksdb_engine_handler,
             &req,
         )
@@ -161,7 +160,6 @@ impl MqttService for GrpcMqttService {
         delete_user_by_req(
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &self.rocksdb_engine_handler,
             &req,
         )
@@ -439,7 +437,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        create_topic_rewrite_rule_by_req(&self.raft_manager, &req)
+        create_topic_rewrite_rule_by_req(&self.raft_manager, &self.call_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)
@@ -452,7 +450,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        delete_topic_rewrite_rule_by_req(&self.raft_manager, &req)
+        delete_topic_rewrite_rule_by_req(&self.raft_manager, &self.call_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)
@@ -607,10 +605,15 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        create_auto_subscribe_rule_by_req(&self.raft_manager, &self.rocksdb_engine_handler, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        create_auto_subscribe_rule_by_req(
+            &self.raft_manager,
+            &self.rocksdb_engine_handler,
+            &self.call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     async fn delete_auto_subscribe_rule(
@@ -620,10 +623,15 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        delete_auto_subscribe_rule_by_req(&self.raft_manager, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        delete_auto_subscribe_rule_by_req(
+            &self.raft_manager,
+            &self.rocksdb_engine_handler,
+            &self.call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     async fn list_auto_subscribe_rule(

@@ -20,14 +20,13 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auth::authn_config::AuthnConfig;
-use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::mqtt::common::{MqttProtocol, PublishProperties};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
@@ -93,14 +92,14 @@ pub struct MQTTCacheManager {
     // client pool
     pub client_pool: Arc<ClientPool>,
 
-    // (username, User)
-    pub user_info: DashMap<String, MqttUser>,
+    // (tenant, (username, User))
+    pub user_info: DashMap<String, DashMap<String, MqttUser>>,
 
-    // (client_id, Session)
-    pub session_info: DashMap<String, MqttSession>,
+    // (tenant, (client_id, Session))
+    pub session_info: DashMap<String, DashMap<String, MqttSession>>,
 
-    // (connect_id, Connection)
-    pub connection_info: DashMap<u64, MQTTConnection>,
+    // (tenant, (connect_id, Connection))
+    pub connection_info: DashMap<String, DashMap<u64, MQTTConnection>>,
 
     pub authn_list: DashMap<String, AuthnConfig>,
 
@@ -113,15 +112,15 @@ pub struct MQTTCacheManager {
     // pkid manager
     pub pkid_data: PkidManager,
 
-    // All topic rewrite rule
-    pub topic_rewrite_rule: DashMap<String, MqttTopicRewriteRule>,
+    // (tenant, (action_source_topic, rule))
+    pub topic_rewrite_rule: DashMap<String, DashMap<String, MqttTopicRewriteRule>>,
 
     // Topic rewrite new name: outer key = tenant, inner key = original topic_name, value = rewritten topic_name
     pub topic_rewrite_new_name: DashMap<String, DashMap<String, String>>,
     pub re_calc_topic_rewrite: Arc<RwLock<bool>>,
 
-    // All auto subscribe rule
-    pub auto_subscribe_rule: DashMap<String, MqttAutoSubscribeRule>,
+    // All auto subscribe rule: outer key = tenant, inner key = topic
+    pub auto_subscribe_rule: DashMap<String, DashMap<String, MqttAutoSubscribeRule>>,
 
     // Topic is Validator
     pub topic_is_validator: DashMap<String, bool>,
@@ -151,104 +150,153 @@ impl MQTTCacheManager {
     pub fn get_session_client_id_list(&self) -> Vec<String> {
         self.session_info
             .iter()
-            .map(|session| session.client_id.clone())
+            .flat_map(|tenant_entry| {
+                tenant_entry
+                    .value()
+                    .iter()
+                    .map(|session| session.client_id.clone())
+                    .collect::<Vec<_>>()
+            })
             .collect()
     }
 
     pub fn add_session(&self, client_id: &str, session: &MqttSession) {
         self.session_info
+            .entry(session.tenant.clone())
+            .or_default()
             .insert(client_id.to_owned(), session.to_owned());
     }
 
     pub fn get_session_info(&self, client_id: &str) -> Option<MqttSession> {
-        if let Some(session) = self.session_info.get(client_id) {
-            return Some(session.clone());
+        for tenant_entry in self.session_info.iter() {
+            if let Some(session) = tenant_entry.value().get(client_id) {
+                return Some(session.clone());
+            }
         }
         None
     }
 
+    pub fn get_session_info_by_tenant(&self, tenant: &str, client_id: &str) -> Option<MqttSession> {
+        self.session_info
+            .get(tenant)
+            .and_then(|m| m.get(client_id).map(|s| s.clone()))
+    }
+
     pub fn update_session_connect_id(&self, client_id: &str, connect_id: Option<u64>) {
-        if let Some(mut session) = self.session_info.get_mut(client_id) {
-            session.update_connection_id(connect_id);
-            if connect_id.is_none() {
-                session.update_distinct_time()
+        for tenant_entry in self.session_info.iter() {
+            if let Some(mut session) = tenant_entry.value().get_mut(client_id) {
+                session.update_connection_id(connect_id);
+                if connect_id.is_none() {
+                    session.update_distinct_time()
+                }
+                return;
             }
         }
     }
 
     pub fn remove_session(&self, client_id: &str) {
-        self.session_info.remove(client_id);
+        for tenant_entry in self.session_info.iter() {
+            tenant_entry.value().remove(client_id);
+        }
         self.heartbeat_data.remove(client_id);
         self.pkid_data.remove_by_client_id(client_id);
     }
 
     // user
     pub fn add_user(&self, user: MqttUser) {
-        self.user_info.insert(user.username.clone(), user);
-    }
-
-    pub fn del_user(&self, username: String) {
-        self.user_info.remove(&username);
-    }
-
-    pub fn retain_users(&self, usernames: HashSet<String>) {
         self.user_info
-            .retain(|username, _| usernames.contains(username));
+            .entry(user.tenant.clone())
+            .or_insert_with(DashMap::new)
+            .insert(user.username.clone(), user);
+    }
+
+    pub fn del_user(&self, tenant: &str, username: &str) {
+        if let Some(tenant_map) = self.user_info.get(tenant) {
+            tenant_map.remove(username);
+        }
     }
 
     // connection
     pub fn add_connection(&self, connect_id: u64, conn: MQTTConnection) {
-        if let Some(mut session) = self.session_info.get_mut(&conn.client_id) {
-            session.connection_id = Some(connect_id);
-            self.connection_info.insert(connect_id, conn);
+        for tenant_entry in self.session_info.iter() {
+            if let Some(mut session) = tenant_entry.value().get_mut(&conn.client_id) {
+                session.connection_id = Some(connect_id);
+                self.connection_info
+                    .entry(conn.tenant.clone())
+                    .or_default()
+                    .insert(connect_id, conn);
+                return;
+            }
         }
     }
 
     pub fn remove_connection(&self, connect_id: u64) {
-        self.connection_info.remove(&connect_id);
+        for tenant_entry in self.connection_info.iter() {
+            tenant_entry.value().remove(&connect_id);
+        }
     }
 
     pub fn get_connect_id(&self, client_id: &str) -> Option<u64> {
-        if let Some(sess) = self.session_info.get(client_id) {
-            if let Some(conn_id) = sess.connection_id {
-                return Some(conn_id);
-            }
+        if let Some(sess) = self.get_session_info(client_id) {
+            return sess.connection_id;
         }
         None
     }
 
     pub fn get_connection(&self, connect_id: u64) -> Option<MQTTConnection> {
-        if let Some(conn) = self.connection_info.get(&connect_id) {
-            return Some(conn.clone());
+        for tenant_entry in self.connection_info.iter() {
+            if let Some(conn) = tenant_entry.value().get(&connect_id) {
+                return Some(conn.clone());
+            }
         }
         None
     }
 
-    // create a function get the number of connections from connection_info
+    pub fn session_count(&self) -> usize {
+        self.session_info.iter().map(|e| e.value().len()).sum()
+    }
+
     pub fn get_connection_count(&self) -> usize {
-        self.connection_info.len()
+        self.connection_info.iter().map(|e| e.value().len()).sum()
     }
 
     // topic rewrite rule
     pub fn add_topic_rewrite_rule(&self, topic_rewrite_rule: MqttTopicRewriteRule) {
-        let key = self.topic_rewrite_rule_key(
-            &topic_rewrite_rule.tenant,
+        let inner_key = self.topic_rewrite_rule_inner_key(
             &topic_rewrite_rule.action,
             &topic_rewrite_rule.source_topic,
         );
-        self.topic_rewrite_rule.insert(key, topic_rewrite_rule);
+        self.topic_rewrite_rule
+            .entry(topic_rewrite_rule.tenant.clone())
+            .or_default()
+            .insert(inner_key, topic_rewrite_rule);
     }
 
     pub fn delete_topic_rewrite_rule(&self, tenant: &str, action: &str, source_topic: &str) {
-        let key = self.topic_rewrite_rule_key(tenant, action, source_topic);
-        self.topic_rewrite_rule.remove(&key);
+        let inner_key = self.topic_rewrite_rule_inner_key(action, source_topic);
+        if let Some(tenant_map) = self.topic_rewrite_rule.get(tenant) {
+            tenant_map.remove(&inner_key);
+        }
     }
 
     pub fn get_all_topic_rewrite_rule(&self) -> Vec<MqttTopicRewriteRule> {
         self.topic_rewrite_rule
             .iter()
-            .map(|entry| entry.value().clone())
+            .flat_map(|tenant_entry| {
+                tenant_entry
+                    .value()
+                    .iter()
+                    .map(|rule| rule.value().clone())
+                    .collect::<Vec<_>>()
+            })
             .collect()
+    }
+
+    pub fn get_topic_rewrite_rules_by_tenant(&self, tenant: &str) -> Vec<MqttTopicRewriteRule> {
+        self.topic_rewrite_rule
+            .get(tenant)
+            .map(|m| m.iter().map(|entry| entry.value().clone()).collect())
+            .unwrap_or_default()
     }
 
     // topic_rewrite_new_name
@@ -279,33 +327,38 @@ impl MQTTCacheManager {
     }
 
     pub fn login_success(&self, connect_id: u64, user_name: String) {
-        if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
-            conn.login_success(user_name)
+        for tenant_entry in self.connection_info.iter() {
+            if let Some(mut conn) = tenant_entry.value().get_mut(&connect_id) {
+                conn.login_success(user_name);
+                return;
+            }
         }
     }
 
     pub fn is_login(&self, connect_id: u64) -> bool {
-        if let Some(conn) = self.connection_info.get(&connect_id) {
-            return conn.is_login;
+        for tenant_entry in self.connection_info.iter() {
+            if let Some(conn) = tenant_entry.value().get(&connect_id) {
+                return conn.is_login;
+            }
         }
         false
     }
 
     // topic alias
     pub fn get_topic_alias(&self, connect_id: u64, topic_alias: u16) -> Option<String> {
-        if let Some(conn) = self.connection_info.get(&connect_id) {
-            if let Some(topic_name) = conn.topic_alias.get(&topic_alias) {
-                return Some(topic_name.clone());
-            } else {
-                return None;
+        for tenant_entry in self.connection_info.iter() {
+            if let Some(conn) = tenant_entry.value().get(&connect_id) {
+                return conn.topic_alias.get(&topic_alias).map(|v| v.clone());
             }
         }
         None
     }
 
     pub fn topic_alias_exists(&self, connect_id: u64, topic_alias: u16) -> bool {
-        if let Some(conn) = self.connection_info.get(&connect_id) {
-            return conn.topic_alias.contains_key(&topic_alias);
+        for tenant_entry in self.connection_info.iter() {
+            if let Some(conn) = tenant_entry.value().get(&connect_id) {
+                return conn.topic_alias.contains_key(&topic_alias);
+            }
         }
         false
     }
@@ -318,8 +371,11 @@ impl MQTTCacheManager {
     ) {
         if let Some(properties) = publish_properties {
             if let Some(alias) = properties.topic_alias {
-                if let Some(conn) = self.connection_info.get_mut(&connect_id) {
-                    conn.topic_alias.insert(alias, topic_name.to_owned());
+                for tenant_entry in self.connection_info.iter() {
+                    if let Some(conn) = tenant_entry.value().get_mut(&connect_id) {
+                        conn.topic_alias.insert(alias, topic_name.to_owned());
+                        return;
+                    }
                 }
             }
         }
@@ -345,15 +401,6 @@ impl MQTTCacheManager {
 
     pub fn remove_acl(&self, acl: MqttAcl) {
         self.acl_metadata.remove_mqtt_acl(acl);
-    }
-
-    pub fn retain_acls(&self, user_acl: HashSet<String>, client_acl: HashSet<String>) {
-        self.acl_metadata
-            .acl_user
-            .retain(|username, _| user_acl.contains(username));
-        self.acl_metadata
-            .acl_client_id
-            .retain(|client_id, _| client_acl.contains(client_id));
     }
 
     // blacklist
@@ -391,17 +438,21 @@ impl MQTTCacheManager {
     }
 
     // key
-    pub fn topic_rewrite_rule_key(&self, tenant: &str, action: &str, source_topic: &str) -> String {
-        format!("{tenant}_{action}_{source_topic}")
+    pub fn topic_rewrite_rule_inner_key(&self, action: &str, source_topic: &str) -> String {
+        format!("{action}_{source_topic}")
     }
 
-    pub fn add_auto_subscribe_rule(&self, auto_subscribe_rule: MqttAutoSubscribeRule) {
+    pub fn add_auto_subscribe_rule(&self, rule: MqttAutoSubscribeRule) {
         self.auto_subscribe_rule
-            .insert(auto_subscribe_rule.uniq_id.clone(), auto_subscribe_rule);
+            .entry(rule.tenant.clone())
+            .or_default()
+            .insert(rule.topic.clone(), rule);
     }
 
-    pub fn delete_auto_subscribe_rule(&self, uniq_id: &str) {
-        self.auto_subscribe_rule.remove(uniq_id);
+    pub fn delete_auto_subscribe_rule(&self, tenant: &str, topic: &str) {
+        if let Some(tenant_map) = self.auto_subscribe_rule.get(tenant) {
+            tenant_map.remove(topic);
+        }
     }
 }
 
@@ -410,11 +461,11 @@ mod tests {
     use crate::core::tool::test_build_mqtt_cache_manager;
 
     use super::*;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
     use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::tools::now_second;
-    use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, uuid::unique_id};
     use metadata_struct::meta::node::BrokerNode;
     use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::mqtt::common::{QoS, RetainHandling};
@@ -446,10 +497,11 @@ mod tests {
     }
 
     #[tokio::test]
-
     async fn user_info_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
+        let tenant = DEFAULT_TENANT.to_string();
         let user1 = MqttUser {
+            tenant: tenant.clone(),
             username: "user1".to_string(),
             password: "password1".to_string(),
             salt: None,
@@ -457,6 +509,7 @@ mod tests {
             create_time: now_second(),
         };
         let user2 = MqttUser {
+            tenant: tenant.clone(),
             username: "user2".to_string(),
             password: "password2".to_string(),
             salt: None,
@@ -469,22 +522,29 @@ mod tests {
         cache_manager.add_user(user2.clone());
 
         // get
-        let user_info = cache_manager.user_info.get(&user1.username);
+        let user_info = cache_manager
+            .user_info
+            .get(&tenant)
+            .and_then(|m| m.get(&user1.username).map(|u| u.clone()));
         assert!(user_info.is_some());
         assert_eq!(user_info.unwrap().username, user1.username);
 
-        // retain
-        let mut usernames_to_retain = HashSet::new();
-        usernames_to_retain.insert("user1".to_string());
-        cache_manager.retain_users(usernames_to_retain);
-        assert!(cache_manager.user_info.contains_key("user1"));
-        assert!(!cache_manager.user_info.contains_key("user2"));
+        // remove user2
+        cache_manager.del_user(&tenant, &user2.username);
+        let user2_info = cache_manager
+            .user_info
+            .get(&tenant)
+            .and_then(|m| m.get("user2").map(|u| u.clone()));
+        assert!(user2_info.is_none());
 
-        // remove
-        cache_manager.del_user(user1.username.clone());
+        // remove user1
+        cache_manager.del_user(&user1.tenant, &user1.username);
 
         // get again
-        let user_info = cache_manager.user_info.get(&user1.username);
+        let user_info = cache_manager
+            .user_info
+            .get(&tenant)
+            .and_then(|m| m.get(&user1.username).map(|u| u.clone()));
         assert!(user_info.is_none());
     }
 
@@ -493,6 +553,7 @@ mod tests {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let client_id = "test_client_session";
         let session = MqttSession {
+            tenant: DEFAULT_TENANT.to_string(),
             client_id: client_id.to_string(),
             ..Default::default()
         };
@@ -530,6 +591,7 @@ mod tests {
         let connect_id = 12345;
         let client_id = "test_client_connection";
         let session = MqttSession {
+            tenant: DEFAULT_TENANT.to_string(),
             client_id: client_id.to_string(),
             ..Default::default()
         };
@@ -622,7 +684,6 @@ mod tests {
     async fn auto_subscribe_rule_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttAutoSubscribeRule {
-            uniq_id: unique_id(),
             tenant: "tenant-1".to_string(),
             topic: "auto/sub/topic".to_string(),
             qos: QoS::AtLeastOnce,
@@ -635,16 +696,22 @@ mod tests {
         cache_manager.add_auto_subscribe_rule(rule.clone());
 
         // get
-        let rule_info = cache_manager.auto_subscribe_rule.get(&rule.uniq_id);
+        let rule_info = cache_manager
+            .auto_subscribe_rule
+            .get(&rule.tenant)
+            .and_then(|m| m.get(&rule.topic).map(|v| v.clone()));
         println!("{rule_info:?}");
         assert!(rule_info.is_some());
         assert_eq!(rule_info.unwrap().topic, rule.topic);
 
         // remove
-        cache_manager.delete_auto_subscribe_rule(&rule.uniq_id);
+        cache_manager.delete_auto_subscribe_rule(&rule.tenant, &rule.topic);
 
         // get again
-        let rule_info_after_remove = cache_manager.auto_subscribe_rule.get(&rule.uniq_id);
+        let rule_info_after_remove = cache_manager
+            .auto_subscribe_rule
+            .get(&rule.tenant)
+            .and_then(|m| m.get(&rule.topic).map(|v| v.clone()));
         assert!(rule_info_after_remove.is_none());
     }
 
@@ -654,6 +721,7 @@ mod tests {
         let client_id = "test_client_alias";
         let connect_id = 1;
         let session = MqttSession {
+            tenant: DEFAULT_TENANT.to_string(),
             client_id: client_id.to_string(),
             ..Default::default()
         };
@@ -691,7 +759,9 @@ mod tests {
     #[tokio::test]
     async fn acl_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
+        let tenant = DEFAULT_TENANT.to_string();
         let user_acl = MqttAcl {
+            tenant: tenant.clone(),
             resource_type: MqttAclResourceType::User,
             resource_name: "test_user_acl".to_string(),
             topic: "#".to_string(),
@@ -700,6 +770,7 @@ mod tests {
             permission: MqttAclPermission::Allow,
         };
         let client_acl = MqttAcl {
+            tenant: tenant.clone(),
             resource_type: MqttAclResourceType::ClientId,
             resource_name: "test_client_acl".to_string(),
             topic: "test/topic".to_string(),
@@ -714,38 +785,41 @@ mod tests {
         assert!(cache_manager
             .acl_metadata
             .acl_user
-            .contains_key("test_user_acl"));
+            .get(&tenant)
+            .map(|m| m.contains_key("test_user_acl"))
+            .unwrap_or(false));
         assert!(cache_manager
             .acl_metadata
             .acl_client_id
-            .contains_key("test_client_acl"));
+            .get(&tenant)
+            .map(|m| m.contains_key("test_client_acl"))
+            .unwrap_or(false));
 
-        // retain
-        let mut user_to_retain = HashSet::new();
-        user_to_retain.insert("test_user_acl".to_string());
-        let client_to_retain = HashSet::new(); // Retain none
-        cache_manager.retain_acls(user_to_retain, client_to_retain);
-        assert!(cache_manager
-            .acl_metadata
-            .acl_user
-            .contains_key("test_user_acl"));
+        // remove client_acl
+        cache_manager.remove_acl(client_acl);
         assert!(!cache_manager
             .acl_metadata
             .acl_client_id
-            .contains_key("test_client_acl"));
+            .get(&tenant)
+            .map(|m| m.contains_key("test_client_acl"))
+            .unwrap_or(false));
 
-        // remove
+        // remove user_acl
         cache_manager.remove_acl(user_acl);
         assert!(!cache_manager
             .acl_metadata
             .acl_user
-            .contains_key("test_user_acl"));
+            .get(&tenant)
+            .map(|m| m.contains_key("test_user_acl"))
+            .unwrap_or(false));
     }
 
     #[tokio::test]
     async fn blacklist_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
+        let tenant = DEFAULT_TENANT.to_string();
         let blacklist = MqttAclBlackList {
+            tenant: tenant.clone(),
             blacklist_type: MqttAclBlackListType::ClientId,
             resource_name: "blacklist_client".to_string(),
             end_time: 0,
@@ -757,13 +831,17 @@ mod tests {
         assert!(cache_manager
             .acl_metadata
             .blacklist_client_id
-            .contains_key("blacklist_client"));
+            .get(&tenant)
+            .map(|m| m.contains_key("blacklist_client"))
+            .unwrap_or(false));
 
         // remove
         cache_manager.remove_blacklist(blacklist);
         assert!(!cache_manager
             .acl_metadata
             .blacklist_client_id
-            .contains_key("blacklist_client"));
+            .get(&tenant)
+            .map(|m| m.contains_key("blacklist_client"))
+            .unwrap_or(false));
     }
 }

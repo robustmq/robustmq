@@ -23,8 +23,11 @@ use axum::extract::State;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use serde::{Deserialize, Serialize};
 
+const MAX_SAMPLE_SIZE: usize = 100;
+
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct SessionListReq {
+    pub tenant: Option<String>,
     pub client_id: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
@@ -51,6 +54,7 @@ pub struct SessionListRow {
 
 use axum::extract::Query;
 use common_base::http_response::{error_response, success_response};
+use metadata_struct::mqtt::session::MqttSession;
 use mqtt_broker::storage::session::SessionStorage;
 use std::sync::Arc;
 
@@ -58,6 +62,10 @@ pub async fn session_list(
     State(state): State<Arc<HttpState>>,
     Query(params): Query<SessionListReq>,
 ) -> String {
+    // Extract filter params before build_query_params partially moves `params`.
+    let filter_tenant = params.tenant.clone();
+    let filter_client_id = params.client_id.clone();
+
     let options = build_query_params(
         params.page,
         params.limit,
@@ -68,66 +76,81 @@ pub async fn session_list(
         params.exact_match,
     );
 
-    let mut sessions = Vec::new();
-    let storage = SessionStorage::new(state.client_pool.clone());
-    if let Some(client_id) = params.client_id {
-        if let Some(session) = state
-            .mqtt_context
-            .cache_manager
-            .get_session_info(&client_id)
-        {
-            let last_will = match storage.get_last_will_message(client_id.clone()).await {
-                Ok(data) => data,
-                Err(e) => {
-                    return error_response(e.to_string());
-                }
-            };
-            sessions.push(SessionListRow {
-                client_id: session.client_id.clone(),
-                session_expiry: session.session_expiry_interval,
-                is_contain_last_will: session.is_contain_last_will,
-                last_will_delay_interval: session.last_will_delay_interval,
-                create_time: session.create_time,
-                connection_id: session.connection_id,
-                broker_id: session.broker_id,
-                reconnect_time: session.reconnect_time,
-                distinct_time: session.distinct_time,
-                last_will,
-            });
+    let cache = &state.mqtt_context.cache_manager;
+
+    let total_count = cache
+        .session_info
+        .iter()
+        .map(|e| e.value().len())
+        .sum::<usize>();
+
+    let matches = |session: &MqttSession| -> bool {
+        if let Some(ref prefix) = filter_client_id {
+            if !session.client_id.starts_with(prefix.as_str()) {
+                return false;
+            }
+        }
+        true
+    };
+
+    let mut sample: Vec<MqttSession> = Vec::with_capacity(MAX_SAMPLE_SIZE);
+
+    let collect_from_inner = |inner: &dashmap::DashMap<String, MqttSession>,
+                              out: &mut Vec<MqttSession>| {
+        for entry in inner.iter() {
+            if out.len() >= MAX_SAMPLE_SIZE {
+                break;
+            }
+            if matches(entry.value()) {
+                out.push(entry.value().clone());
+            }
+        }
+    };
+
+    if let Some(ref tenant) = filter_tenant {
+        if let Some(inner) = cache.session_info.get(tenant) {
+            collect_from_inner(inner.value(), &mut sample);
         }
     } else {
-        for (_, session) in state.mqtt_context.cache_manager.session_info.clone() {
-            let last_will = match storage
-                .get_last_will_message(session.client_id.clone())
-                .await
-            {
-                Ok(data) => data,
-                Err(e) => {
-                    return error_response(e.to_string());
-                }
-            };
-            sessions.push(SessionListRow {
-                client_id: session.client_id.clone(),
-                session_expiry: session.session_expiry_interval,
-                is_contain_last_will: session.is_contain_last_will,
-                last_will_delay_interval: session.last_will_delay_interval,
-                create_time: session.create_time,
-                connection_id: session.connection_id,
-                broker_id: session.broker_id,
-                reconnect_time: session.reconnect_time,
-                distinct_time: session.distinct_time,
-                last_will,
-            });
+        'outer: for tenant_entry in cache.session_info.iter() {
+            collect_from_inner(tenant_entry.value(), &mut sample);
+            if sample.len() >= MAX_SAMPLE_SIZE {
+                break 'outer;
+            }
         }
     }
 
-    let filtered = apply_filters(sessions, &options);
+    let rows: Vec<SessionListRow> = sample
+        .into_iter()
+        .map(|session| SessionListRow {
+            client_id: session.client_id.clone(),
+            session_expiry: session.session_expiry_interval,
+            is_contain_last_will: session.is_contain_last_will,
+            last_will_delay_interval: session.last_will_delay_interval,
+            create_time: session.create_time,
+            connection_id: session.connection_id,
+            broker_id: session.broker_id,
+            reconnect_time: session.reconnect_time,
+            distinct_time: session.distinct_time,
+            last_will: None,
+        })
+        .collect();
+
+    let filtered = apply_filters(rows, &options);
     let pagination = apply_pagination(filtered, &options);
 
-    success_response(PageReplyData {
-        data: pagination.0,
-        total_count: pagination.1,
-    })
+    let storage = SessionStorage::new(state.client_pool.clone());
+    let mut data = Vec::with_capacity(pagination.0.len());
+    for mut row in pagination.0 {
+        let last_will = match storage.get_last_will_message(row.client_id.clone()).await {
+            Ok(v) => v,
+            Err(e) => return error_response(e.to_string()),
+        };
+        row.last_will = last_will;
+        data.push(row);
+    }
+
+    success_response(PageReplyData { data, total_count })
 }
 
 impl Queryable for SessionListRow {

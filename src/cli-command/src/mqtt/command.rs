@@ -410,6 +410,7 @@ impl MqttBrokerCommand {
 
         // Create request for session list
         let request = admin_server::mqtt::session::SessionListReq {
+            tenant: None,
             client_id: None,
             limit: Some(params.limit),
             page: Some(params.page),
@@ -511,6 +512,7 @@ impl MqttBrokerCommand {
 
         // Create request for user list
         let request = admin_server::mqtt::user::UserListReq {
+            tenant: None,
             user_name: None,
             limit: Some(params.limit),
             page: Some(params.page),
@@ -594,6 +596,7 @@ impl MqttBrokerCommand {
 
         // Create request for acl list
         let request = admin_server::mqtt::acl::AclListReq {
+            tenant: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
@@ -690,6 +693,7 @@ impl MqttBrokerCommand {
 
         // Create request for blacklist list
         let request = admin_server::mqtt::blacklist::BlackListListReq {
+            tenant: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
@@ -1015,6 +1019,7 @@ impl MqttBrokerCommand {
 
         // Create request for subscribe list
         let request = admin_server::mqtt::subscribe::SubscribeListReq {
+            tenant: None,
             client_id: None,
             limit: Some(params.limit),
             page: Some(params.page),
@@ -1086,6 +1091,7 @@ impl MqttBrokerCommand {
 
         // Create request for connector list
         let request = admin_server::mqtt::connector::ConnectorListReq {
+            tenant: None,
             connector_name: None,
             limit: Some(params.limit),
             page: Some(params.page),
@@ -1189,6 +1195,7 @@ impl MqttBrokerCommand {
 
         // Create request for topic rewrite rule list
         let request = admin_server::mqtt::topic::TopicRewriteReq {
+            tenant: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
@@ -1213,6 +1220,7 @@ impl MqttBrokerCommand {
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
+                    "tenant",
                     "source_topic",
                     "dest_topic",
                     "action",
@@ -1220,6 +1228,7 @@ impl MqttBrokerCommand {
                 ]);
                 for rule in page_data.data {
                     table.add_row(row![
+                        rule.tenant,
                         rule.source_topic,
                         rule.dest_topic,
                         rule.action,
@@ -1281,6 +1290,7 @@ impl MqttBrokerCommand {
 
         // Create request for schema list
         let request = admin_server::mqtt::schema::SchemaListReq {
+            tenant: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
@@ -1406,6 +1416,7 @@ impl MqttBrokerCommand {
 
         // Create request for schema bind list
         let request = admin_server::mqtt::schema::SchemaBindListReq {
+            tenant: None,
             resource_name: None,
             schema_name: None,
             limit: Some(params.limit),

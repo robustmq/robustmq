@@ -26,6 +26,7 @@ use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct UserListReq {
+    pub tenant: Option<String>,
     pub user_name: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
@@ -38,6 +39,9 @@ pub struct UserListReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct CreateUserReq {
+    #[validate(length(min = 1, max = 64, message = "Tenant length must be between 1-64"))]
+    pub tenant: String,
+
     #[validate(length(min = 1, max = 64, message = "Username length must be between 1-64"))]
     pub username: String,
 
@@ -49,12 +53,16 @@ pub struct CreateUserReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteUserReq {
+    #[validate(length(min = 1, max = 64, message = "Tenant length must be between 1-64"))]
+    pub tenant: String,
+
     #[validate(length(min = 1, max = 64, message = "Username length must be between 1-64"))]
     pub username: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UserListRow {
+    pub tenant: String,
     pub username: String,
     pub is_superuser: bool,
     pub create_time: u64,
@@ -109,13 +117,21 @@ pub async fn user_list(
     );
 
     let mut users = Vec::new();
-    for ele in state.mqtt_context.cache_manager.user_info.iter() {
-        let user_raw = UserListRow {
-            username: ele.value().username.clone(),
-            is_superuser: ele.value().is_superuser,
-            create_time: ele.value().create_time,
-        };
-        users.push(user_raw);
+    for tenant_entry in state.mqtt_context.cache_manager.user_info.iter() {
+        if let Some(ref t) = params.tenant {
+            if tenant_entry.key() != t {
+                continue;
+            }
+        }
+        for ele in tenant_entry.value().iter() {
+            let user_raw = UserListRow {
+                tenant: tenant_entry.key().clone(),
+                username: ele.value().username.clone(),
+                is_superuser: ele.value().is_superuser,
+                create_time: ele.value().create_time,
+            };
+            users.push(user_raw);
+        }
     }
 
     let filtered = apply_filters(users, &options);
@@ -131,6 +147,7 @@ pub async fn user_list(
 impl Queryable for UserListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "tenant" => Some(self.tenant.clone()),
             "username" => Some(self.username.clone()),
             _ => None,
         }
@@ -142,6 +159,7 @@ pub async fn user_create(
     ValidatedJson(params): ValidatedJson<CreateUserReq>,
 ) -> String {
     let user_info = MqttUser {
+        tenant: params.tenant.clone(),
         username: params.username.clone(),
         password: params.password.clone(),
         salt: None,
@@ -161,7 +179,10 @@ pub async fn user_delete(
     ValidatedJson(params): ValidatedJson<DeleteUserReq>,
 ) -> String {
     let user_storage = UserStorage::new(state.client_pool.clone());
-    match user_storage.delete_user(params.username.clone()).await {
+    match user_storage
+        .delete_user(params.tenant.clone(), params.username.clone())
+        .await
+    {
         Ok(_) => success_response("success"),
         Err(e) => error_response(e.to_string()),
     }

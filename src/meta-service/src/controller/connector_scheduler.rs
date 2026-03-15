@@ -214,8 +214,8 @@ mod tests {
     use metadata_struct::connector::{
         status::MQTTStatus, ConnectorType, FailureHandlingStrategy, MQTTConnector,
     };
+    use metadata_struct::meta::extend::NodeExtend;
     use metadata_struct::meta::node::BrokerNode;
-    use metadata_struct::mqtt::node_extend::NodeExtend;
     use metadata_struct::tenant::DEFAULT_TENANT;
     use rocksdb_engine::test::test_rocksdb_instance;
 

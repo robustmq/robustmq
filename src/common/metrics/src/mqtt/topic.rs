@@ -19,6 +19,7 @@ use prometheus_client::encoding::EncodeLabelSet;
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 pub struct TopicLabel {
+    pub tenant: String,
     pub topic: String,
 }
 
@@ -50,36 +51,41 @@ register_counter_metric!(
     TopicLabel
 );
 
-pub fn record_topic_messages_written(topic: &str) {
+pub fn record_topic_messages_written(tenant: &str, topic: &str) {
     let label = TopicLabel {
+        tenant: tenant.to_string(),
         topic: topic.to_string(),
     };
     counter_metric_inc!(TOPIC_MESSAGES_WRITTEN, label);
 }
 
-pub fn record_topic_bytes_written(topic: &str, bytes: u64) {
+pub fn record_topic_bytes_written(tenant: &str, topic: &str, bytes: u64) {
     let label = TopicLabel {
+        tenant: tenant.to_string(),
         topic: topic.to_string(),
     };
     counter_metric_inc_by!(TOPIC_BYTES_WRITTEN, label, bytes);
 }
 
-pub fn record_topic_messages_sent(topic: &str) {
+pub fn record_topic_messages_sent(tenant: &str, topic: &str) {
     let label = TopicLabel {
+        tenant: tenant.to_string(),
         topic: topic.to_string(),
     };
     counter_metric_inc!(TOPIC_MESSAGES_SENT, label);
 }
 
-pub fn record_topic_bytes_sent(topic: &str, bytes: u64) {
+pub fn record_topic_bytes_sent(tenant: &str, topic: &str, bytes: u64) {
     let label = TopicLabel {
+        tenant: tenant.to_string(),
         topic: topic.to_string(),
     };
     counter_metric_inc_by!(TOPIC_BYTES_SENT, label, bytes);
 }
 
-pub fn get_topic_messages_written(topic: &str) -> u64 {
+pub fn get_topic_messages_written(tenant: &str, topic: &str) -> u64 {
     let label = TopicLabel {
+        tenant: tenant.to_string(),
         topic: topic.to_string(),
     };
     let mut result = 0u64;
@@ -87,8 +93,9 @@ pub fn get_topic_messages_written(topic: &str) -> u64 {
     result
 }
 
-pub fn get_topic_messages_sent(topic: &str) -> u64 {
+pub fn get_topic_messages_sent(tenant: &str, topic: &str) -> u64 {
     let label = TopicLabel {
+        tenant: tenant.to_string(),
         topic: topic.to_string(),
     };
     let mut result = 0u64;
@@ -103,12 +110,12 @@ mod tests {
     #[test]
     fn test_topic_metrics() {
         // Test write metrics
-        record_topic_messages_written("test/topic1");
-        record_topic_bytes_written("test/topic1", 1024);
+        record_topic_messages_written("default", "test/topic1");
+        record_topic_bytes_written("default", "test/topic1", 1024);
 
         // Test send metrics
-        record_topic_messages_sent("test/topic2");
-        record_topic_bytes_sent("test/topic2", 2048);
+        record_topic_messages_sent("default", "test/topic2");
+        record_topic_bytes_sent("default", "test/topic2", 2048);
 
         // Verify metrics are recorded (actual values would need registry access)
         // This is a basic smoke test to ensure functions execute without panic
@@ -117,12 +124,15 @@ mod tests {
     #[test]
     fn test_topic_label_equality() {
         let label1 = TopicLabel {
+            tenant: "default".to_string(),
             topic: "test/topic".to_string(),
         };
         let label2 = TopicLabel {
+            tenant: "default".to_string(),
             topic: "test/topic".to_string(),
         };
         let label3 = TopicLabel {
+            tenant: "default".to_string(),
             topic: "different/topic".to_string(),
         };
 

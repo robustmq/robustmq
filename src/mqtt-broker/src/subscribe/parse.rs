@@ -30,7 +30,7 @@ use crate::{
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::{subscribe_data::MqttSubscribe, topic::Topic};
+use metadata_struct::mqtt::{subscribe::MqttSubscribe, topic::Topic};
 use protocol::{
     broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType},
     mqtt::common::{Filter, MqttProtocol, SubscribeProperties},
@@ -149,7 +149,7 @@ pub async fn start_update_parse_thread(
                     (BrokerUpdateCacheResourceType::Subscribe, BrokerUpdateCacheActionType::Delete) => {
                         if let Some(subscribe) = data.subscribe {
                             info!("Removing subscription: client='{}', path='{}'", subscribe.client_id, subscribe.path);
-                            subscribe_manager.remove_by_sub(&subscribe.client_id, &subscribe.path);
+                            subscribe_manager.remove_by_sub(&subscribe.tenant, &subscribe.client_id, &subscribe.path);
                         }
                     }
                     _ => {}
@@ -207,35 +207,38 @@ pub async fn parse_subscribe_by_new_topic(
     topic: &Topic,
 ) -> ResultMqttBrokerError {
     let broker_id = broker_config().broker_id;
-    let sub_count = subscribe_manager.subscribe_list.len();
+    let sub_count = subscribe_manager.subscribe_count();
 
     debug!(
         "Matching new topic '{}' against {} subscriptions",
         topic.topic_name, sub_count
     );
 
-    for row in subscribe_manager.subscribe_list.iter() {
-        let subscribe = row.value();
-        if subscribe.broker_id != broker_id {
-            continue;
-        }
-        let rewrite_sub_path = cache_manager.get_new_rewrite_name(&topic.tenant, &subscribe.path);
+    for tenant_entry in subscribe_manager.subscribe_list.iter() {
+        for row in tenant_entry.value().iter() {
+            let subscribe = row.value();
+            if subscribe.broker_id != broker_id {
+                continue;
+            }
+            let rewrite_sub_path =
+                cache_manager.get_new_rewrite_name(&topic.tenant, &subscribe.path);
 
-        parse_subscribe(
-            cache_manager,
-            ParseSubscribeContext {
-                client_pool: client_pool.clone(),
-                subscribe_manager: subscribe_manager.clone(),
-                client_id: subscribe.client_id.clone(),
-                topic: topic.clone(),
-                protocol: subscribe.protocol.clone(),
-                pkid: subscribe.pkid,
-                filter: subscribe.filter.clone(),
-                subscribe_properties: subscribe.subscribe_properties.clone(),
-                rewrite_sub_path: rewrite_sub_path.clone(),
-            },
-        )
-        .await?;
+            parse_subscribe(
+                cache_manager,
+                ParseSubscribeContext {
+                    client_pool: client_pool.clone(),
+                    subscribe_manager: subscribe_manager.clone(),
+                    client_id: subscribe.client_id.clone(),
+                    topic: topic.clone(),
+                    protocol: subscribe.protocol.clone(),
+                    pkid: subscribe.pkid,
+                    filter: subscribe.filter.clone(),
+                    subscribe_properties: subscribe.subscribe_properties.clone(),
+                    rewrite_sub_path: rewrite_sub_path.clone(),
+                },
+            )
+            .await?;
+        }
     }
     Ok(())
 }
@@ -335,7 +338,7 @@ async fn add_share_push(
         );
 
         // If the current node is not the Leader, then there is no need to process it and no error needs to be reported.
-        if !is_share_sub_leader(client_pool, &group_name_full).await? {
+        if !is_share_sub_leader(client_pool, &req.tenant, &group_name_full).await? {
             return Ok(());
         }
 

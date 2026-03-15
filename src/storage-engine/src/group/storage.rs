@@ -41,9 +41,11 @@ impl OffsetStorageManager {
 
     pub async fn get_offset(
         &self,
+        tenant: &str,
         group: &str,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
         let request = GetOffsetDataRequest {
+            tenant: tenant.to_owned(),
             group: group.to_owned(),
         };
         let reply = get_offset_data(&self.client_pool, &self.addrs, request).await?;
@@ -61,6 +63,7 @@ impl OffsetStorageManager {
 
     pub async fn commit_offset(
         &self,
+        tenant: &str,
         group_name: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
@@ -74,6 +77,7 @@ impl OffsetStorageManager {
 
         let request = SaveOffsetDataRequest {
             offsets: vec![SaveOffsetData {
+                tenant: tenant.to_string(),
                 group: group_name.to_string(),
                 offsets,
             }],
@@ -84,6 +88,7 @@ impl OffsetStorageManager {
 
     pub async fn batch_commit_offset(
         &self,
+        tenant: &str,
         offset_datas: &DashMap<String, Vec<AdapterConsumerGroupOffset>>,
     ) -> Result<(), CommonError> {
         let mut offsets = Vec::new();
@@ -97,6 +102,7 @@ impl OffsetStorageManager {
                 })
                 .collect();
             offsets.push(SaveOffsetData {
+                tenant: tenant.to_string(),
                 group: data.key().to_string(),
                 offsets: val,
             });

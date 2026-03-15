@@ -18,7 +18,7 @@ use crate::{
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
+use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::{mpsc::Sender, RwLock};
@@ -38,8 +38,8 @@ pub struct ShareSubscribeTopicInfo {
 
 #[derive(Clone, Default)]
 pub struct SubscribeManager {
-    //(client_id_path: MqttSubscribe)
-    pub subscribe_list: DashMap<String, MqttSubscribe>,
+    // (tenant, (client_id#path, MqttSubscribe))
+    pub subscribe_list: DashMap<String, DashMap<String, MqttSubscribe>>,
 
     // directly sub
     pub directly_push: BucketsManager,
@@ -75,13 +75,26 @@ impl SubscribeManager {
     // subscribe_list
     pub fn add_subscribe(&self, subscribe: &MqttSubscribe) {
         let key = self.subscribe_key(&subscribe.client_id, &subscribe.path);
-        self.subscribe_list.insert(key, subscribe.clone());
+        self.subscribe_list
+            .entry(subscribe.tenant.clone())
+            .or_default()
+            .insert(key, subscribe.clone());
     }
 
-    pub fn get_subscribe(&self, client_id: &str, path: &str) -> Option<MqttSubscribe> {
-        self.subscribe_list
-            .get(&self.subscribe_key(client_id, path))
-            .map(|da| da.clone())
+    pub fn get_subscribe(
+        &self,
+        tenant: &str,
+        client_id: &str,
+        path: &str,
+    ) -> Option<MqttSubscribe> {
+        self.subscribe_list.get(tenant).and_then(|m| {
+            m.get(&self.subscribe_key(client_id, path))
+                .map(|v| v.clone())
+        })
+    }
+
+    pub fn subscribe_count(&self) -> usize {
+        self.subscribe_list.iter().map(|e| e.value().len()).sum()
     }
 
     // directly && share
@@ -131,8 +144,12 @@ impl SubscribeManager {
 
     // remove
     pub fn remove_by_client_id(&self, client_id: &str) {
-        self.subscribe_list
-            .retain(|_, subscribe| subscribe.client_id != *client_id);
+        for tenant_entry in self.subscribe_list.iter() {
+            tenant_entry
+                .value()
+                .retain(|_, subscribe| subscribe.client_id != *client_id);
+        }
+        self.subscribe_list.retain(|_, m| !m.is_empty());
 
         // Clean up topic_subscribes and remove empty entries
         self.topic_subscribes.retain(|_, list| {
@@ -148,9 +165,11 @@ impl SubscribeManager {
         }
     }
 
-    pub fn remove_by_sub(&self, client_id: &str, sub_path: &str) {
+    pub fn remove_by_sub(&self, tenant: &str, client_id: &str, sub_path: &str) {
         let key = self.subscribe_key(client_id, sub_path);
-        self.subscribe_list.remove(&key);
+        if let Some(tenant_map) = self.subscribe_list.get(tenant) {
+            tenant_map.remove(&key);
+        }
 
         // Clean up topic_subscribes and remove empty entries
         self.topic_subscribes.retain(|_, list| {
@@ -253,10 +272,12 @@ impl SubscribeManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::mqtt::common::{Filter, MqttProtocol, QoS, RetainHandling};
 
     fn create_subscribe(client_id: &str, path: &str) -> MqttSubscribe {
         MqttSubscribe {
+            tenant: DEFAULT_TENANT.to_string(),
             client_id: client_id.to_string(),
             path: path.to_string(),
             broker_id: 1,
@@ -290,8 +311,8 @@ mod tests {
 
         mgr.add_subscribe(&sub);
 
-        assert!(mgr.get_subscribe("c1", "/t1").is_some());
-        assert!(mgr.get_subscribe("c1", "/t2").is_none());
+        assert!(mgr.get_subscribe(DEFAULT_TENANT, "c1", "/t1").is_some());
+        assert!(mgr.get_subscribe(DEFAULT_TENANT, "c1", "/t2").is_none());
     }
 
     #[test]
@@ -304,7 +325,7 @@ mod tests {
 
         assert_eq!(mgr.topic_subscribes.get("topic1").unwrap().len(), 3);
 
-        mgr.remove_by_sub("c1", "/t1");
+        mgr.remove_by_sub(DEFAULT_TENANT, "c1", "/t1");
 
         let list = mgr.topic_subscribes.get("topic1").unwrap();
         assert_eq!(list.len(), 2);
@@ -336,8 +357,8 @@ mod tests {
 
         mgr.remove_by_client_id("c1");
 
-        assert!(mgr.get_subscribe("c1", "/t1").is_none());
-        assert!(mgr.get_subscribe("c2", "/t2").is_some());
+        assert!(mgr.get_subscribe(DEFAULT_TENANT, "c1", "/t1").is_none());
+        assert!(mgr.get_subscribe(DEFAULT_TENANT, "c2", "/t2").is_some());
 
         let list = mgr.topic_subscribes.get("topic1").unwrap();
         assert!(!list.iter().any(|x| x.client_id == "c1"));

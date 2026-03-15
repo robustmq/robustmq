@@ -70,6 +70,7 @@ struct SendSuccessParams<'a> {
 struct BatchCtx<'a> {
     connector_name: &'a str,
     connector_type: &'a str,
+    tenant: &'a str,
     storage_driver_manager: &'a Arc<StorageDriverManager>,
     message_storage: &'a MessageStorage,
     connector_manager: &'a Arc<ConnectorManager>,
@@ -88,21 +89,30 @@ pub async fn run_connector_loop<S: ConnectorSink>(
 
     let mut resource = Some(sink.init_sink().await?);
     let message_storage = MessageStorage::new(storage_driver_manager.clone());
-    let connector_type = connector_manager
-        .get_connector(&connector_name)
+    let connector = connector_manager.get_connector(&connector_name);
+    let connector_type = connector
+        .as_ref()
         .map(|c| c.connector_type.to_string())
         .unwrap_or_else(|| "unknown".to_string());
+    let connector_tenant = connector
+        .as_ref()
+        .map(|c| c.tenant.clone())
+        .unwrap_or_default();
 
     let ctx = BatchCtx {
         connector_name: &connector_name,
         connector_type: &connector_type,
+        tenant: &connector_tenant,
         storage_driver_manager,
         message_storage: &message_storage,
         connector_manager,
     };
 
     let mut run_result: Result<(), CommonError> = Ok(());
-    let mut offsets = match message_storage.get_group_offset(&connector_name).await {
+    let mut offsets = match message_storage
+        .get_group_offset(&connector_tenant, &connector_name)
+        .await
+    {
         Ok(offsets) => offsets,
         Err(e) => {
             run_result = Err(e);
@@ -125,7 +135,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
             val = message_storage.read_topic_message(&config.tenant, &config.topic_name, &offsets, config.record_num) => {
                 match val {
                     Ok(data) => {
-                        connector_manager.report_heartbeat(&connector_name);
+                        connector_manager.report_heartbeat(&connector_tenant, &connector_name);
 
                         if data.is_empty() {
                             sleep(Duration::from_millis(100)).await;
@@ -239,6 +249,7 @@ async fn handle_send_success(
     .await;
     update_last_active(
         ctx.connector_manager,
+        ctx.tenant,
         ctx.connector_name,
         ctx.connector_type,
         params.start_time,
@@ -256,6 +267,7 @@ async fn handle_send_failure(
     if params.retry_times == 0 {
         update_last_active(
             ctx.connector_manager,
+            ctx.tenant,
             ctx.connector_name,
             ctx.connector_type,
             params.start_time,
@@ -273,6 +285,7 @@ async fn handle_send_failure(
     );
 
     let context = FailureRecordInfo {
+        tenant: ctx.tenant.to_string(),
         connector_name: ctx.connector_name.to_string(),
         connector_type: ctx.connector_type.to_string(),
         source_topic: config.topic_name.clone(),
@@ -303,11 +316,13 @@ async fn handle_read_error(
     error: CommonError,
 ) -> Result<ReadErrorAction, CommonError> {
     record_connector_source_read_failure(
+        ctx.tenant,
         ctx.connector_type.to_string(),
         ctx.connector_name.to_string(),
     );
     update_last_active(
         ctx.connector_manager,
+        ctx.tenant,
         ctx.connector_name,
         ctx.connector_type,
         now_millis(),
@@ -362,10 +377,11 @@ async fn commit_batch_offsets(
         offsets.insert(k.to_string(), *v);
     }
     ctx.message_storage
-        .commit_group_offset(ctx.connector_name, offsets)
+        .commit_group_offset(ctx.tenant, ctx.connector_name, offsets)
         .await
         .inspect_err(|_| {
             record_connector_offset_commit_failure(
+                ctx.tenant,
                 ctx.connector_type.to_string(),
                 ctx.connector_name.to_string(),
             );
@@ -419,24 +435,27 @@ fn extract_max_offsets_and_convert(
 
 pub fn update_last_active(
     connector_manager: &Arc<ConnectorManager>,
+    tenant: &str,
     connector_name: &str,
     connector_type: &str,
     start_time: u128,
     message_count: u64,
     success: bool,
 ) {
-    if let Some(mut thread) = connector_manager.connector_thread.get_mut(connector_name) {
+    let tenant = tenant.to_owned();
+    connector_manager.update_connector_thread_last_active(connector_name, |thread| {
         thread.last_send_time = now_second();
-
         if success {
             thread.send_success_total += message_count;
             let duration_ms = (now_millis() - start_time) as f64;
             record_connector_messages_sent_success(
+                &tenant,
                 connector_type.to_owned(),
                 connector_name.to_owned(),
                 message_count,
             );
             record_connector_send_duration(
+                &tenant,
                 connector_type.to_owned(),
                 connector_name.to_owned(),
                 duration_ms,
@@ -444,10 +463,11 @@ pub fn update_last_active(
         } else {
             thread.send_fail_total += message_count;
             record_connector_messages_sent_failure(
+                &tenant,
                 connector_type.to_owned(),
                 connector_name.to_owned(),
                 message_count,
             );
         }
-    }
+    });
 }

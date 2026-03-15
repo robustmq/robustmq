@@ -22,8 +22,8 @@ mod tests {
     use grpc_clients::meta::common::call::register_node;
     use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::meta::extend::NodeExtend;
     use metadata_struct::meta::node::BrokerNode;
-    use metadata_struct::mqtt::node_extend::NodeExtend;
     use protocol::meta::meta_service_common::RegisterNodeRequest;
     use protocol::meta::meta_service_mqtt::GetShareSubLeaderRequest;
 
@@ -56,6 +56,7 @@ mod tests {
         register_node(&client_pool, &addrs, request).await.unwrap();
 
         let request = GetShareSubLeaderRequest {
+            tenant: "default".to_string(),
             group_list: vec![group_name.clone()],
         };
         let data = placement_get_share_sub_leader(&client_pool, &addrs, request)
@@ -68,6 +69,7 @@ mod tests {
         assert_eq!(leader.broker_addr, node_ip);
 
         let request = GetShareSubLeaderRequest {
+            tenant: "default".to_string(),
             group_list: Vec::new(),
         };
         let data = placement_get_share_sub_leader(&client_pool, &addrs, request)

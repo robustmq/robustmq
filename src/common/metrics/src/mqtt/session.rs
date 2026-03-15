@@ -22,6 +22,7 @@ pub struct NetworkLabel {}
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 pub struct SessionLabel {
+    pub tenant: String,
     pub client_id: String,
 }
 
@@ -87,15 +88,17 @@ pub fn init() {
     counter_metric_touch!(MQTT_SESSION_DELETED, NetworkLabel {});
 }
 
-pub fn record_session_messages_in(client_id: &str) {
+pub fn record_session_messages_in(tenant: &str, client_id: &str) {
     let label = SessionLabel {
+        tenant: tenant.to_string(),
         client_id: client_id.to_string(),
     };
     counter_metric_inc!(SESSION_MESSAGES_IN, label);
 }
 
-pub fn get_session_messages_in(client_id: &str) -> u64 {
+pub fn get_session_messages_in(tenant: &str, client_id: &str) -> u64 {
     let label = SessionLabel {
+        tenant: tenant.to_string(),
         client_id: client_id.to_string(),
     };
     let mut result = 0u64;
@@ -103,15 +106,17 @@ pub fn get_session_messages_in(client_id: &str) -> u64 {
     result
 }
 
-pub fn record_session_messages_out(client_id: &str) {
+pub fn record_session_messages_out(tenant: &str, client_id: &str) {
     let label = SessionLabel {
+        tenant: tenant.to_string(),
         client_id: client_id.to_string(),
     };
     counter_metric_inc!(SESSION_MESSAGES_OUT, label);
 }
 
-pub fn get_session_messages_out(client_id: &str) -> u64 {
+pub fn get_session_messages_out(tenant: &str, client_id: &str) -> u64 {
     let label = SessionLabel {
+        tenant: tenant.to_string(),
         client_id: client_id.to_string(),
     };
     let mut result = 0u64;
@@ -149,22 +154,25 @@ mod tests {
 
     #[test]
     fn test_session_message_metrics() {
-        record_session_messages_in("client001");
-        let _count = get_session_messages_in("client001");
+        record_session_messages_in("default", "client001");
+        let _count = get_session_messages_in("default", "client001");
 
-        record_session_messages_out("client001");
-        let _count = get_session_messages_out("client001");
+        record_session_messages_out("default", "client001");
+        let _count = get_session_messages_out("default", "client001");
     }
 
     #[test]
     fn test_session_label_equality() {
         let label1 = SessionLabel {
+            tenant: "default".to_string(),
             client_id: "client001".to_string(),
         };
         let label2 = SessionLabel {
+            tenant: "default".to_string(),
             client_id: "client001".to_string(),
         };
         let label3 = SessionLabel {
+            tenant: "default".to_string(),
             client_id: "client002".to_string(),
         };
 

@@ -19,16 +19,34 @@ use common_base::{
     utils::time_util::timestamp_to_local_datetime,
 };
 use metadata_struct::connector::{
-    config_cassandra::CassandraConnectorConfig, config_clickhouse::ClickHouseConnectorConfig,
+    config_cassandra::CassandraConnectorConfig,
+    config_clickhouse::ClickHouseConnectorConfig,
     config_elasticsearch::ElasticsearchConnectorConfig,
-    config_greptimedb::GreptimeDBConnectorConfig, config_influxdb::InfluxDBConnectorConfig,
-    config_kafka::KafkaConnectorConfig, config_local_file::LocalFileConnectorConfig,
-    config_mongodb::MongoDBConnectorConfig, config_mqtt::MqttBridgeConnectorConfig,
-    config_mysql::MySQLConnectorConfig, config_opentsdb::OpenTSDBConnectorConfig,
-    config_postgres::PostgresConnectorConfig, config_pulsar::PulsarConnectorConfig,
-    config_rabbitmq::RabbitMQConnectorConfig, config_redis::RedisConnectorConfig,
-    config_s3::S3ConnectorConfig, config_webhook::WebhookConnectorConfig, rule::ETLRule,
-    status::MQTTStatus, ConnectorType, FailureHandlingStrategy, MQTTConnector,
+    config_greptimedb::GreptimeDBConnectorConfig,
+    config_influxdb::InfluxDBConnectorConfig,
+    config_kafka::KafkaConnectorConfig,
+    config_local_file::LocalFileConnectorConfig,
+    config_mongodb::MongoDBConnectorConfig,
+    config_mqtt::MqttBridgeConnectorConfig,
+    config_mysql::MySQLConnectorConfig,
+    config_opentsdb::OpenTSDBConnectorConfig,
+    config_postgres::PostgresConnectorConfig,
+    config_pulsar::PulsarConnectorConfig,
+    config_rabbitmq::RabbitMQConnectorConfig,
+    config_redis::RedisConnectorConfig,
+    config_s3::S3ConnectorConfig,
+    config_webhook::WebhookConnectorConfig,
+    connector_type::{
+        CONNECTOR_TYPE_CASSANDRA, CONNECTOR_TYPE_CLICKHOUSE, CONNECTOR_TYPE_ELASTICSEARCH,
+        CONNECTOR_TYPE_FILE, CONNECTOR_TYPE_GREPTIMEDB, CONNECTOR_TYPE_INFLUXDB,
+        CONNECTOR_TYPE_KAFKA, CONNECTOR_TYPE_MONGODB, CONNECTOR_TYPE_MQTT_BRIDGE,
+        CONNECTOR_TYPE_MYSQL, CONNECTOR_TYPE_OPENTSDB, CONNECTOR_TYPE_POSTGRES,
+        CONNECTOR_TYPE_PULSAR, CONNECTOR_TYPE_RABBITMQ, CONNECTOR_TYPE_REDIS, CONNECTOR_TYPE_S3,
+        CONNECTOR_TYPE_WEBHOOK,
+    },
+    rule::ETLRule,
+    status::MQTTStatus,
+    ConnectorType, FailureHandlingStrategy, MQTTConnector,
 };
 use mqtt_broker::storage::connector::ConnectorStorage;
 use std::sync::Arc;
@@ -47,6 +65,7 @@ use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ConnectorListReq {
+    pub tenant: Option<String>,
     pub connector_name: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
@@ -59,6 +78,7 @@ pub struct ConnectorListReq {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ConnectorDetailReq {
+    pub tenant: String,
     pub connector_name: String,
 }
 
@@ -191,20 +211,23 @@ fn validate_failure_strategy(strategy: &FailureStrategy) -> Result<(), validator
 }
 
 fn validate_connector_type(connector_type: &str) -> Result<(), validator::ValidationError> {
-    match connector_type {
-        "kafka" | "pulsar" | "rabbitmq" | "greptime" | "postgres" | "mysql" | "mongodb"
-        | "file" | "elasticsearch" | "redis" | "webhook" | "opentsdb" | "mqtt" | "clickhouse"
-        | "influxdb" | "cassandra" | "s3" => Ok(()),
-        _ => {
-            let mut err = validator::ValidationError::new("invalid_connector_type");
-            err.message = Some(std::borrow::Cow::from("Connector type must be kafka, pulsar, rabbitmq, greptime, postgres, mysql, mongodb, elasticsearch, redis, webhook, opentsdb, mqtt, clickhouse, influxdb, cassandra, s3 or file"));
-            Err(err)
-        }
+    use std::str::FromStr;
+    if ConnectorType::from_str(connector_type).is_ok() {
+        return Ok(());
     }
+    let mut err = validator::ValidationError::new("invalid_connector_type");
+    err.message = Some(std::borrow::Cow::from(
+        "Connector type must be kafka, pulsar, rabbitmq, greptime, postgres, mysql, mongodb, \
+         elasticsearch, redis, webhook, opentsdb, mqtt, clickhouse, influxdb, cassandra, s3 or file",
+    ));
+    Err(err)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteConnectorReq {
+    #[validate(length(min = 1, max = 64, message = "Tenant length must be between 1-64"))]
+    pub tenant: String,
+
     #[validate(length(
         min = 1,
         max = 256,
@@ -215,6 +238,7 @@ pub struct DeleteConnectorReq {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ConnectorListRow {
+    pub tenant: String,
     pub connector_name: String,
     pub connector_type: String,
     pub config: String,
@@ -239,38 +263,47 @@ pub async fn connector_list(
         params.exact_match,
     );
 
-    let mut results = Vec::new();
-    let connectors = if let Some(connector_name) = params.connector_name {
-        if let Some(connector) = state
+    let filter_tenant = params.tenant.clone();
+    let filter_connector_name = params.connector_name.clone();
+
+    let connectors = match (filter_tenant.as_deref(), filter_connector_name.as_deref()) {
+        (Some(tenant), Some(name)) => state
             .mqtt_context
             .connector_manager
-            .get_connector(&connector_name)
-        {
-            vec![connector]
-        } else {
-            Vec::new()
-        }
-    } else {
-        state.mqtt_context.connector_manager.get_all_connector()
+            .get_connector_by_tenant(tenant, name)
+            .into_iter()
+            .collect::<Vec<_>>(),
+        (Some(tenant), None) => state
+            .mqtt_context
+            .connector_manager
+            .get_connector_by_tenant_list(tenant),
+        (None, Some(name)) => state
+            .mqtt_context
+            .connector_manager
+            .get_connector(name)
+            .into_iter()
+            .collect::<Vec<_>>(),
+        (None, None) => state.mqtt_context.connector_manager.get_all_connector(),
     };
 
-    for connector in connectors {
-        results.push(ConnectorListRow {
+    let results: Vec<ConnectorListRow> = connectors
+        .into_iter()
+        .map(|connector| ConnectorListRow {
+            tenant: connector.tenant.clone(),
             connector_name: connector.connector_name.clone(),
             connector_type: connector.connector_type.to_string(),
             config: serde_json::to_string(&connector.connector_type)
                 .unwrap_or_else(|_| "{}".to_string()),
             topic_name: connector.topic_name.clone(),
             status: connector.status.to_string(),
-            broker_id: if let Some(id) = connector.broker_id {
-                id.to_string()
-            } else {
-                "-".to_string()
-            },
+            broker_id: connector
+                .broker_id
+                .map(|id| id.to_string())
+                .unwrap_or_else(|| "-".to_string()),
             create_time: timestamp_to_local_datetime(connector.create_time as i64),
             update_time: timestamp_to_local_datetime(connector.update_time as i64),
-        });
-    }
+        })
+        .collect();
     let filtered = apply_filters(results, &options);
     let sorted = apply_sorting(filtered, &options);
     let pagination = apply_pagination(sorted, &options);
@@ -284,6 +317,7 @@ pub async fn connector_list(
 impl Queryable for ConnectorListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "tenant" => Some(self.tenant.clone()),
             "connector_name" => Some(self.connector_name.clone()),
             "connector_type" => Some(self.connector_type.clone()),
             "topic_name" => Some(self.topic_name.clone()),
@@ -309,7 +343,10 @@ pub async fn connector_delete(
     ValidatedJson(params): ValidatedJson<DeleteConnectorReq>,
 ) -> String {
     let storage = ConnectorStorage::new(state.client_pool.clone());
-    if let Err(e) = storage.delete_connector(&params.connector_name).await {
+    if let Err(e) = storage
+        .delete_connector(&params.tenant, &params.connector_name)
+        .await
+    {
         return error_response(e.to_string());
     }
 
@@ -340,88 +377,89 @@ async fn connector_create_inner(
 }
 
 fn parse_connector_type(type_str: &str, config: &str) -> Result<ConnectorType, CommonError> {
-    let connector_type = match type_str.to_lowercase().as_str() {
-        "file" => {
+    let t = type_str.to_lowercase();
+    let connector_type = match t.as_str() {
+        CONNECTOR_TYPE_FILE => {
             let c: LocalFileConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::LocalFile(c)
         }
-        "kafka" => {
+        CONNECTOR_TYPE_KAFKA => {
             let c: KafkaConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::Kafka(c)
         }
-        "greptime" => {
+        CONNECTOR_TYPE_GREPTIMEDB => {
             let c: GreptimeDBConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::GreptimeDB(c)
         }
-        "pulsar" => {
+        CONNECTOR_TYPE_PULSAR => {
             let c: PulsarConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::Pulsar(c)
         }
-        "postgres" => {
+        CONNECTOR_TYPE_POSTGRES => {
             let c: PostgresConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::Postgres(c)
         }
-        "mongodb" => {
+        CONNECTOR_TYPE_MONGODB => {
             let c: MongoDBConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::MongoDB(c)
         }
-        "rabbitmq" => {
+        CONNECTOR_TYPE_RABBITMQ => {
             let c: RabbitMQConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::RabbitMQ(c)
         }
-        "mysql" => {
+        CONNECTOR_TYPE_MYSQL => {
             let c: MySQLConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::MySQL(c)
         }
-        "elasticsearch" => {
+        CONNECTOR_TYPE_ELASTICSEARCH => {
             let c: ElasticsearchConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::Elasticsearch(c)
         }
-        "redis" => {
+        CONNECTOR_TYPE_REDIS => {
             let c: RedisConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::Redis(c)
         }
-        "webhook" => {
+        CONNECTOR_TYPE_WEBHOOK => {
             let c: WebhookConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::Webhook(c)
         }
-        "opentsdb" => {
+        CONNECTOR_TYPE_OPENTSDB => {
             let c: OpenTSDBConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::OpenTSDB(c)
         }
-        "mqtt" => {
+        CONNECTOR_TYPE_MQTT_BRIDGE => {
             let c: MqttBridgeConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::MqttBridge(c)
         }
-        "clickhouse" => {
+        CONNECTOR_TYPE_CLICKHOUSE => {
             let c: ClickHouseConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::ClickHouse(c)
         }
-        "influxdb" => {
+        CONNECTOR_TYPE_INFLUXDB => {
             let c: InfluxDBConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::InfluxDB(c)
         }
-        "cassandra" => {
+        CONNECTOR_TYPE_CASSANDRA => {
             let c: CassandraConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::Cassandra(c)
         }
-        "s3" => {
+        CONNECTOR_TYPE_S3 => {
             let c: S3ConnectorConfig = serde_json::from_str(config)?;
             c.validate()?;
             ConnectorType::S3(c)
@@ -471,7 +509,7 @@ pub async fn connector_detail(
     if state
         .mqtt_context
         .connector_manager
-        .get_connector(&params.connector_name)
+        .get_connector_by_tenant(&params.tenant, &params.connector_name)
         .is_none()
     {
         return error_response(format!(

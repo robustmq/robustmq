@@ -85,7 +85,7 @@ async fn load_common_cache(
 
     let schema_storage = SchemaStorage::new(client_pool.clone());
     let schemas = schema_storage
-        .list("".to_string())
+        .list(None, None)
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load schemas: {}", e)))?;
     for schema in schemas.iter() {
@@ -94,7 +94,7 @@ async fn load_common_cache(
 
     let schema_storage = SchemaStorage::new(client_pool.clone());
     let schema_binds = schema_storage
-        .list_bind()
+        .list_bind(None)
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load schema binds: {}", e)))?;
     for schema in schema_binds.iter() {
@@ -132,7 +132,7 @@ async fn load_mqtt_cache(
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load users: {}", e)))?;
     for user in user_list.iter() {
-        cache_manager.add_user(user.value().clone());
+        cache_manager.add_user(user.clone());
     }
 
     let acl_storage = AclStorage::new(client_pool.clone());

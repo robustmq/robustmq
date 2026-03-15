@@ -31,12 +31,12 @@ use delay_task::{DelayTask, DelayTaskData};
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::connector::MQTTConnector;
-use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::session::MqttSession;
-use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
+use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::user::MqttUser;
@@ -80,14 +80,14 @@ impl DataRouteMqtt {
         let req = CreateUserRequest::decode(value.as_ref())?;
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
         let user = MqttUser::decode(&req.content)?;
-        storage.save(&req.user_name, user.clone())?;
+        storage.save(&req.tenant, &req.user_name, user.clone())?;
         Ok(())
     }
 
     pub fn delete_user(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteUserRequest::decode(value.as_ref())?;
         let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&req.user_name)?;
+        storage.delete(&req.tenant, &req.user_name)?;
         Ok(())
     }
 
@@ -118,6 +118,7 @@ impl DataRouteMqtt {
 
         if let Some(retain) = req.retain_message {
             let message = MQTTRetainMessage {
+                tenant: req.tenant,
                 topic_name: req.topic_name,
                 retain_message: Bytes::copy_from_slice(&retain),
                 retain_message_expired_at: req.retain_message_expired_at,
@@ -136,7 +137,7 @@ impl DataRouteMqtt {
         if storage.get(&req.tenant, &req.topic_name)?.is_none() {
             return Ok(());
         }
-        storage.delete_retain_message(&req.topic_name)?;
+        storage.delete_retain_message(&req.tenant, &req.topic_name)?;
         Ok(())
     }
 
@@ -301,7 +302,7 @@ impl DataRouteMqtt {
     pub fn delete_blacklist(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
-        blacklist_storage.delete(&req.blacklist_type, &req.resource_name)?;
+        blacklist_storage.delete(&req.tenant, &req.blacklist_type, &req.resource_name)?;
         Ok(())
     }
 
@@ -309,7 +310,7 @@ impl DataRouteMqtt {
     pub fn create_group_leader(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let leader = MqttGroupLeader::decode(&value)?;
         let storage = MqttGroupLeaderStorage::new(self.rocksdb_engine_handler.clone());
-        storage.save(&leader.group_name, leader.broker_id)?;
+        storage.save(&leader.tenant, &leader.group_name, leader.broker_id)?;
         self.cache_manager.add_group_leader(leader);
         Ok(())
     }
@@ -317,8 +318,9 @@ impl DataRouteMqtt {
     pub fn delete_group_leader(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let leader = MqttGroupLeader::decode(&value)?;
         let storage = MqttGroupLeaderStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&leader.group_name)?;
-        self.cache_manager.remove_group_leader(&leader.group_name);
+        storage.delete(&leader.tenant, &leader.group_name)?;
+        self.cache_manager
+            .remove_group_leader(&leader.tenant, &leader.group_name);
         Ok(())
     }
 
@@ -333,11 +335,11 @@ impl DataRouteMqtt {
 
     pub fn delete_auto_subscribe_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteAutoSubscribeRuleRequest::decode(value.as_ref())?;
-        // uniq_id alone is enough to locate the rule; scan to resolve tenant for the key
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
-        let all = storage.list_all_auto_subscribe_rules()?;
-        if let Some(rule) = all.into_iter().find(|r| r.uniq_id == req.uniq_id) {
-            storage.delete_auto_subscribe_rule(&rule.tenant, &rule.uniq_id)
+        if let Some(rule) =
+            storage.get_auto_subscribe_rule_by_tenant_topic(&req.tenant, &req.topic)?
+        {
+            storage.delete_auto_subscribe_rule(&rule.tenant, &rule.topic)
         } else {
             Ok(())
         }

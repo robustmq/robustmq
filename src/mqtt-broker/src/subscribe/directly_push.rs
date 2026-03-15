@@ -134,10 +134,23 @@ impl DirectlyPushManager {
                         processed_count += count;
                     }
                     Err(e) => {
-                        warn!(
-                            "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}],error message: {}",
-                            row.client_id, row.group_name, row.topic_name, row.sub_path, e
-                        );
+                        let err_msg = e.to_string();
+                        if err_msg.contains("does not exist") {
+                            warn!(
+                                "Removing stale subscriber [client_id: {}, sub_path: {}]: shard no longer exists ({})",
+                                row.client_id, row.sub_path, err_msg
+                            );
+                            self.subscribe_manager.remove_by_sub(
+                                &row.tenant,
+                                &row.client_id,
+                                &row.sub_path,
+                            );
+                        } else {
+                            warn!(
+                                "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}],error message: {}",
+                                row.client_id, row.group_name, row.topic_name, row.sub_path, e
+                            );
+                        }
                     }
                 }
             }
@@ -198,6 +211,7 @@ impl DirectlyPushManager {
             };
 
             record_sub_send_metrics(
+                &subscriber.tenant,
                 &subscriber.client_id,
                 &subscriber.sub_path,
                 &subscriber.topic_name,
@@ -214,7 +228,10 @@ impl DirectlyPushManager {
         }
 
         if let Some(offsets) = self.group_offsets.get(&subscriber.group_name) {
-            if let Err(e) = self.commit_offset(&subscriber.group_name, &offsets).await {
+            if let Err(e) = self
+                .commit_offset(&subscriber.tenant, &subscriber.group_name, &offsets)
+                .await
+            {
                 error!(
                     "Failed to commit offset for subscriber [client_id: {}, group: {}, topic: {}]: {}. Messages may be redelivered on next poll",
                     subscriber.client_id, subscriber.group_name, subscriber.topic_name, e
@@ -299,7 +316,7 @@ impl DirectlyPushManager {
         let offsets = if let Some(offsets) = self.group_offsets.get(group) {
             offsets.clone()
         } else {
-            let offsets = self.message_storage.get_group_offset(group).await?;
+            let offsets = self.message_storage.get_group_offset(tenant, group).await?;
             self.group_offsets
                 .insert(group.to_string(), offsets.clone());
             offsets
@@ -314,11 +331,12 @@ impl DirectlyPushManager {
 
     async fn commit_offset(
         &self,
+        tenant: &str,
         group: &str,
         offsets: &HashMap<String, u64>,
     ) -> ResultMqttBrokerError {
         self.message_storage
-            .commit_group_offset(group, offsets)
+            .commit_group_offset(tenant, group, offsets)
             .await?;
         Ok(())
     }

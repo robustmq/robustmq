@@ -29,24 +29,28 @@ pub async fn get_group_leader(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    tenant: &str,
     group_name: &str,
 ) -> Result<u64, MetaServiceError> {
-    if let Some(leader) = cache_manager.group_leader.get(group_name) {
+    let cache_key = format!("{}/{}", tenant, group_name);
+    if let Some(leader) = cache_manager.group_leader.get(&cache_key) {
         if cache_manager.node_list.contains_key(&leader.broker_id) {
             return Ok(leader.broker_id);
         }
     }
 
     let storage = MqttGroupLeaderStorage::new(rocksdb_engine_handler.clone());
-    let list = storage.list()?;
+    let list = storage.list_by_tenant(tenant)?;
     if let Some(leader) = list.get(group_name) {
         if cache_manager.node_list.contains_key(&leader.broker_id) {
             return Ok(leader.broker_id);
         }
     }
 
-    let target_broker_id = generate_group_leader(cache_manager, rocksdb_engine_handler).await?;
+    let target_broker_id =
+        generate_group_leader(cache_manager, rocksdb_engine_handler, tenant).await?;
     let leader_info = MqttGroupLeader {
+        tenant: tenant.to_string(),
         group_name: group_name.to_string(),
         broker_id: target_broker_id,
         create_time: now_second(),
@@ -56,7 +60,7 @@ pub async fn get_group_leader(
         Bytes::copy_from_slice(&leader_info.encode()?),
     );
     raft_manager.write_data(group_name, data).await?;
-    storage.save(group_name, target_broker_id)?;
+    storage.save(tenant, group_name, target_broker_id)?;
 
     Ok(target_broker_id)
 }
@@ -64,9 +68,10 @@ pub async fn get_group_leader(
 pub async fn generate_group_leader(
     cache_manager: &Arc<MetaCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    tenant: &str,
 ) -> Result<u64, MetaServiceError> {
     let storage = MqttGroupLeaderStorage::new(rocksdb_engine_handler.clone());
-    let list = storage.list()?;
+    let list = storage.list_by_tenant(tenant)?;
     let mut broker_ids: Vec<u64> = cache_manager
         .node_list
         .iter()
@@ -113,6 +118,7 @@ pub async fn get_share_sub_leader_by_req(
             raft_manager,
             cache_manager,
             rocksdb_engine_handler,
+            &req.tenant,
             group_name,
         )
         .await?;
@@ -162,12 +168,13 @@ mod tests {
             ..Default::default()
         });
 
+        let tenant = "test_tenant";
         let storage = MqttGroupLeaderStorage::new(rocksdb_engine_handler.clone());
-        storage.save("g1", 1).unwrap();
-        storage.save("g2", 1).unwrap();
-        storage.save("g3", 2).unwrap();
+        storage.save(tenant, "g1", 1).unwrap();
+        storage.save(tenant, "g2", 1).unwrap();
+        storage.save(tenant, "g3", 2).unwrap();
 
-        let target = generate_group_leader(&cache_manager, &rocksdb_engine_handler)
+        let target = generate_group_leader(&cache_manager, &rocksdb_engine_handler, tenant)
             .await
             .unwrap();
         assert_eq!(target, 3);

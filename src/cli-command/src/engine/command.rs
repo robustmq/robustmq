@@ -54,9 +54,11 @@ pub enum EngineActionType {
         strategy: String,
     },
     OffsetByGroup {
+        tenant: String,
         group_name: String,
     },
     CommitOffset {
+        tenant: String,
         group_name: String,
         offsets: HashMap<String, u64>,
     },
@@ -95,13 +97,17 @@ impl EngineCommand {
                 self.offset_by_timestamp(params, shard_name, timestamp, strategy)
                     .await
             }
-            EngineActionType::OffsetByGroup { group_name } => {
-                self.offset_by_group(params, group_name).await
+            EngineActionType::OffsetByGroup { tenant, group_name } => {
+                self.offset_by_group(params, tenant, group_name).await
             }
             EngineActionType::CommitOffset {
+                tenant,
                 group_name,
                 offsets,
-            } => self.commit_offset(params, group_name, offsets).await,
+            } => {
+                self.commit_offset(params, tenant, group_name, offsets)
+                    .await
+            }
         }
     }
 
@@ -252,9 +258,14 @@ impl EngineCommand {
         }
     }
 
-    async fn offset_by_group(&self, params: EngineCliCommandParam, group_name: String) {
+    async fn offset_by_group(
+        &self,
+        params: EngineCliCommandParam,
+        tenant: String,
+        group_name: String,
+    ) {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
-        let request = GetOffsetByGroupReq { group_name };
+        let request = GetOffsetByGroupReq { tenant, group_name };
         match admin_client
             .get_offset_by_group::<GetOffsetByGroupReq, GetOffsetByGroupResp>(&request)
             .await
@@ -278,11 +289,13 @@ impl EngineCommand {
     async fn commit_offset(
         &self,
         params: EngineCliCommandParam,
+        tenant: String,
         group_name: String,
         offsets: HashMap<String, u64>,
     ) {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
         let request = CommitOffsetReq {
+            tenant,
             group_name,
             offsets,
         };

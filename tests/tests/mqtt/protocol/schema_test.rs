@@ -20,9 +20,14 @@ mod tests {
     };
     use apache_avro::{Schema, Writer};
     use common_base::uuid::unique_id;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use paho_mqtt::{Message, QOS_1};
     use serde::{Deserialize, Serialize};
     use serde_json::json;
+
+    use std::time::Duration;
+
+    use tokio::time::sleep;
 
     use crate::mqtt::protocol::common::{
         broker_addr_by_type, build_client_id, connect_server, create_test_env, distinct_conn,
@@ -56,6 +61,7 @@ mod tests {
             topic_name.clone(),
         )
         .await;
+        sleep(Duration::from_millis(500)).await;
 
         // Publish
         let client_id = build_client_id(format!("schema_json_test_{network}_1").as_str());
@@ -114,6 +120,7 @@ mod tests {
             topic_name.clone(),
         )
         .await;
+        sleep(Duration::from_millis(500)).await;
 
         // Publish
         let client_id = build_client_id(format!("schema_avro_test_{network}_1").as_str());
@@ -162,6 +169,7 @@ mod tests {
         topic_name: String,
     ) {
         let create_request = CreateSchemaReq {
+            tenant: DEFAULT_TENANT.to_string(),
             schema_name: schema_name.clone(),
             schema_type,
             schema,
@@ -171,6 +179,7 @@ mod tests {
         assert!(res.is_ok());
 
         let bind_request = CreateSchemaBindReq {
+            tenant: DEFAULT_TENANT.to_string(),
             schema_name: schema_name.clone(),
             resource_name: topic_name,
         };
@@ -184,6 +193,7 @@ mod tests {
         topic_name: String,
     ) {
         let unbind_request = DeleteSchemaBindReq {
+            tenant: DEFAULT_TENANT.to_string(),
             schema_name: schema_name.clone(),
             resource_name: topic_name,
         };
@@ -191,6 +201,7 @@ mod tests {
         assert!(res.is_ok());
 
         let delete_request = DeleteSchemaReq {
+            tenant: DEFAULT_TENANT.to_string(),
             schema_name: schema_name.clone(),
         };
         let res = admin_client.delete_schema(&delete_request).await;

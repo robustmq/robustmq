@@ -42,7 +42,7 @@ async fn report_heartbeat(
     let conf = broker_config();
     let mut heatbeats = Vec::new();
 
-    for (connector_name, heartbeat_time) in connector_manager.connector_heartbeat.clone() {
+    for (connector_name, heartbeat_time) in connector_manager.get_all_heartbeats() {
         heatbeats.push(ConnectorHeartbeatRaw {
             connector_name,
             heartbeat_time,
@@ -89,8 +89,8 @@ mod tests {
         let (client_pool, connector_manager) = setup().await;
         let (stop_send, _) = broadcast::channel::<bool>(1);
 
-        connector_manager.report_heartbeat("test_connector_1");
-        connector_manager.report_heartbeat("test_connector_2");
+        connector_manager.report_heartbeat("default", "test_connector_1");
+        connector_manager.report_heartbeat("default", "test_connector_2");
 
         let heartbeat_handle = tokio::spawn({
             let client_pool = client_pool.clone();
@@ -113,18 +113,22 @@ mod tests {
     async fn test_report_heartbeat() {
         let (client_pool, connector_manager) = setup().await;
 
-        connector_manager.report_heartbeat("test_connector");
+        connector_manager.report_heartbeat("default", "test_connector");
 
         assert!(connector_manager
             .connector_heartbeat
-            .contains_key("test_connector"));
+            .get("default")
+            .map(|m| m.contains_key("test_connector"))
+            .unwrap_or(false));
 
         report_heartbeat(&client_pool, &connector_manager).await;
 
         // Verify that the heartbeat data still exists
         assert!(connector_manager
             .connector_heartbeat
-            .contains_key("test_connector"));
+            .get("default")
+            .map(|m| m.contains_key("test_connector"))
+            .unwrap_or(false));
 
         // With no data
         let (client_pool, connector_manager) = setup().await;
@@ -132,6 +136,6 @@ mod tests {
         report_heartbeat(&client_pool, &connector_manager).await;
 
         // Verify that no heartbeat data exists
-        assert!(connector_manager.connector_heartbeat.is_empty());
+        assert!(connector_manager.get_all_heartbeats().is_empty());
     }
 }

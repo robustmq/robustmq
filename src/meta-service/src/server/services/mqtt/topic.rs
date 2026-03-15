@@ -13,13 +13,18 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
-use crate::core::notify::{send_notify_by_add_topic, send_notify_by_delete_topic};
+use crate::core::notify::{
+    send_notify_by_add_topic, send_notify_by_create_topic_rewrite_rule,
+    send_notify_by_delete_topic, send_notify_by_delete_topic_rewrite_rule,
+};
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::topic::MqttTopicStorage;
+use common_base::tools::now_millis;
 use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::Topic;
+use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
@@ -155,7 +160,7 @@ pub async fn get_topic_retain_message_by_req(
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
     let (retain_message, retain_message_expired_at) =
-        match topic_storage.get_retain_message(&req.topic_name)? {
+        match topic_storage.get_retain_message(&req.tenant, &req.topic_name)? {
             Some(message) => (
                 Some(message.retain_message.to_vec()),
                 message.retain_message_expired_at,
@@ -172,6 +177,7 @@ pub async fn get_topic_retain_message_by_req(
 // Topic Rewrite Rule Operations
 pub async fn create_topic_rewrite_rule_by_req(
     raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
     req: &CreateTopicRewriteRuleRequest,
 ) -> Result<CreateTopicRewriteRuleReply, MetaServiceError> {
     let data = StorageData::new(
@@ -180,11 +186,22 @@ pub async fn create_topic_rewrite_rule_by_req(
     );
     raft_manager.write_metadata(data).await?;
 
+    let rule = MqttTopicRewriteRule {
+        tenant: req.tenant.clone(),
+        action: req.action.clone(),
+        source_topic: req.source_topic.clone(),
+        dest_topic: req.dest_topic.clone(),
+        regex: req.regex.clone(),
+        timestamp: now_millis(),
+    };
+    send_notify_by_create_topic_rewrite_rule(call_manager, rule).await?;
+
     Ok(CreateTopicRewriteRuleReply {})
 }
 
 pub async fn delete_topic_rewrite_rule_by_req(
     raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
     req: &DeleteTopicRewriteRuleRequest,
 ) -> Result<DeleteTopicRewriteRuleReply, MetaServiceError> {
     let data = StorageData::new(
@@ -192,6 +209,16 @@ pub async fn delete_topic_rewrite_rule_by_req(
         encode_to_bytes(req),
     );
     raft_manager.write_metadata(data).await?;
+
+    let rule = MqttTopicRewriteRule {
+        tenant: req.tenant.clone(),
+        action: req.action.clone(),
+        source_topic: req.source_topic.clone(),
+        dest_topic: String::new(),
+        regex: String::new(),
+        timestamp: 0,
+    };
+    send_notify_by_delete_topic_rewrite_rule(call_manager, rule).await?;
 
     Ok(DeleteTopicRewriteRuleReply {})
 }

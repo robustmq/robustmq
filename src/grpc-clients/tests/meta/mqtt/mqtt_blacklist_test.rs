@@ -33,6 +33,7 @@ mod tests {
         let addrs = vec![get_placement_addr()];
 
         let blacklist = MqttAclBlackList {
+            tenant: "default".to_string(),
             blacklist_type: MqttAclBlackListType::User,
             resource_name: "loboxu".to_string(),
             end_time: now_second() + 100,
@@ -49,7 +50,9 @@ mod tests {
             }
         }
 
-        let request = ListBlacklistRequest {};
+        let request = ListBlacklistRequest {
+            tenant: "default".to_string(),
+        };
 
         match list_blacklist(&client_pool, &addrs, request).await {
             Ok(data) => {
@@ -72,6 +75,7 @@ mod tests {
         }
 
         let request = DeleteBlacklistRequest {
+            tenant: "default".to_string(),
             blacklist_type: blacklist.blacklist_type.to_string(),
             resource_name: blacklist.resource_name.clone(),
         };
@@ -82,7 +86,9 @@ mod tests {
             }
         }
 
-        let request = ListBlacklistRequest {};
+        let request = ListBlacklistRequest {
+            tenant: "default".to_string(),
+        };
 
         match list_blacklist(&client_pool, &addrs, request).await {
             Ok(data) => {

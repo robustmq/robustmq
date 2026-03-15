@@ -14,7 +14,10 @@
 
 use crate::{
     core::error::MetaServiceError,
-    core::notify::{send_notify_by_add_subscribe, send_notify_by_delete_subscribe},
+    core::notify::{
+        send_notify_by_add_subscribe, send_notify_by_create_auto_subscribe_rule,
+        send_notify_by_delete_auto_subscribe_rule, send_notify_by_delete_subscribe,
+    },
     raft::{
         manager::MultiRaftManager,
         route::data::{StorageData, StorageDataType},
@@ -23,8 +26,8 @@ use crate::{
 };
 use common_base::utils::serialize::encode_to_bytes;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
-use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
+use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
     CreateAutoSubscribeRuleReply, CreateAutoSubscribeRuleRequest, DeleteAutoSubscribeRuleReply,
@@ -116,6 +119,7 @@ pub async fn set_subscribe_by_req(
 pub async fn create_auto_subscribe_rule_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    call_manager: &Arc<NodeCallManager>,
     req: &CreateAutoSubscribeRuleRequest,
 ) -> Result<CreateAutoSubscribeRuleReply, MetaServiceError> {
     let rule = MqttAutoSubscribeRule::decode(&req.content)
@@ -139,18 +143,34 @@ pub async fn create_auto_subscribe_rule_by_req(
     );
     raft_manager.write_metadata(data).await?;
 
+    send_notify_by_create_auto_subscribe_rule(call_manager, rule).await?;
+
     Ok(CreateAutoSubscribeRuleReply {})
 }
 
 pub async fn delete_auto_subscribe_rule_by_req(
     raft_manager: &Arc<MultiRaftManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    call_manager: &Arc<NodeCallManager>,
     req: &DeleteAutoSubscribeRuleRequest,
 ) -> Result<DeleteAutoSubscribeRuleReply, MetaServiceError> {
+    let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
+    let rule = storage
+        .get_auto_subscribe_rule_by_tenant_topic(&req.tenant, &req.topic)?
+        .ok_or_else(|| {
+            MetaServiceError::CommonError(format!(
+                "Auto subscribe rule for tenant '{}' and topic '{}' does not exist",
+                req.tenant, req.topic
+            ))
+        })?;
+
     let data = StorageData::new(
         StorageDataType::MqttDeleteAutoSubscribeRule,
         encode_to_bytes(req),
     );
     raft_manager.write_metadata(data).await?;
+
+    send_notify_by_delete_auto_subscribe_rule(call_manager, rule).await?;
 
     Ok(DeleteAutoSubscribeRuleReply {})
 }

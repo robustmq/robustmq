@@ -391,6 +391,7 @@ pub async fn send_message_to_client(
         if let Ok(topic_name) = String::from_utf8(publish.topic.to_vec()) {
             if let Some(connection) = cache_manager.get_connection(resp.connection_id) {
                 record_publish_send_metrics(
+                    &connection.tenant,
                     &connection.client_id,
                     resp.connection_id,
                     &topic_name,

@@ -83,9 +83,14 @@ impl ConnectorStorage {
         Ok(())
     }
 
-    pub async fn delete_connector(&self, connector_name: &str) -> Result<(), CommonError> {
+    pub async fn delete_connector(
+        &self,
+        tenant: &str,
+        connector_name: &str,
+    ) -> Result<(), CommonError> {
         let config = broker_config();
         let request = DeleteConnectorRequest {
+            tenant: tenant.to_owned(),
             connector_name: connector_name.to_owned(),
         };
         placement_delete_connector(&self.client_pool, &config.get_meta_service_addr(), request)

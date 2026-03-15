@@ -103,6 +103,7 @@ mod tests {
 
         // get status
         let request = ConnectorDetailReq {
+            tenant: DEFAULT_TENANT.to_string(),
             connector_name: connector_name.clone(),
         };
         let results = admin_client

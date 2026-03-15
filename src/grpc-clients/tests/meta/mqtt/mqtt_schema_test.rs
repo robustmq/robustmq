@@ -42,7 +42,10 @@ mod test {
 
         let schema_name = unique_id();
 
+        let tenant = "default".to_string();
+
         let mut schema_data = SchemaData {
+            tenant: tenant.clone(),
             name: schema_name.clone(),
             schema_type: SchemaType::JSON,
             schema: r#"{
@@ -62,6 +65,7 @@ mod test {
         };
 
         let create_request = CreateSchemaRequest {
+            tenant: tenant.clone(),
             schema_name: schema_name.clone(),
             schema: schema_data.encode().unwrap(),
         };
@@ -74,6 +78,7 @@ mod test {
         }
 
         let list_request = ListSchemaRequest {
+            tenant: tenant.clone(),
             schema_name: schema_name.clone(),
         };
 
@@ -105,6 +110,7 @@ mod test {
         schema_data.desc = "New schema".to_string();
 
         let update_request = UpdateSchemaRequest {
+            tenant: tenant.clone(),
             schema_name: schema_name.clone(),
             schema: schema_data.encode().unwrap(),
         };
@@ -133,6 +139,7 @@ mod test {
 
         // delete schema
         let delete_request = DeleteSchemaRequest {
+            tenant: tenant.clone(),
             schema_name: schema_name.clone(),
         };
 

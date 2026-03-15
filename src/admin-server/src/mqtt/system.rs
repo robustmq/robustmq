@@ -47,8 +47,21 @@ pub struct FlappingDetectListRaw {
     pub first_request_time: u64,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BanLogListReq {
+    pub tenant: Option<String>,
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BanLogListRaw {
+    pub tenant: String,
     pub ban_type: String,
     pub resource_name: String,
     pub ban_source: String,
@@ -165,7 +178,7 @@ impl Queryable for FlappingDetectListRaw {
 
 pub async fn ban_log_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<SystemAlarmListReq>,
+    Query(params): Query<BanLogListReq>,
 ) -> String {
     let options = build_query_params(
         params.page,
@@ -184,9 +197,11 @@ pub async fn ban_log_list(
             return error_response(e.to_string());
         }
     };
-    let results = data_list
+    let results: Vec<BanLogListRaw> = data_list
         .iter()
+        .filter(|entry| params.tenant.as_deref().is_none_or(|t| entry.tenant == t))
         .map(|entry| BanLogListRaw {
+            tenant: entry.tenant.clone(),
             ban_source: entry.ban_source.clone(),
             ban_type: entry.ban_type.clone(),
             resource_name: entry.resource_name.clone(),
@@ -208,6 +223,7 @@ pub async fn ban_log_list(
 impl Queryable for BanLogListRaw {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "tenant" => Some(self.tenant.clone()),
             "resource_name" => Some(self.resource_name.clone()),
             _ => None,
         }

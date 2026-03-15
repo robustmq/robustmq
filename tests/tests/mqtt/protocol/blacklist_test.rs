@@ -40,6 +40,7 @@ mod tests {
 
         // create
         let blacklist = MqttAclBlackList {
+            tenant: "default".to_string(),
             blacklist_type: MqttAclBlackListType::User,
             resource_name: user.to_string(),
             end_time: 10000,
@@ -51,6 +52,7 @@ mod tests {
 
         // list
         let list_request = BlackListListReq {
+            tenant: None,
             limit: Some(10000),
             page: Some(1),
             sort_field: None,
@@ -100,6 +102,7 @@ mod tests {
 
         // create blacklist
         let blacklist = MqttAclBlackList {
+            tenant: "default".to_string(),
             blacklist_type: MqttAclBlackListType::User,
             resource_name: user.to_string(),
             end_time: now_second() + 10000,
@@ -134,6 +137,7 @@ mod tests {
 
         // create blacklist for client_id
         let blacklist = MqttAclBlackList {
+            tenant: "default".to_string(),
             blacklist_type: MqttAclBlackListType::ClientId,
             resource_name: client_id.clone(),
             end_time: now_second() + 10000,
@@ -169,6 +173,7 @@ mod tests {
 
         // create blacklist for IP (localhost/127.0.0.1)
         let blacklist = MqttAclBlackList {
+            tenant: "default".to_string(),
             blacklist_type: MqttAclBlackListType::Ip,
             resource_name: "127.0.0.1".to_string(),
             end_time: now_second() + 10000,
@@ -205,6 +210,7 @@ mod tests {
 
         // create blacklist with pattern match (e.g., "test_client_*")
         let blacklist = MqttAclBlackList {
+            tenant: "default".to_string(),
             blacklist_type: MqttAclBlackListType::ClientIdMatch,
             resource_name: format!("{}*", client_id_prefix),
             end_time: now_second() + 10000,
@@ -240,6 +246,7 @@ mod tests {
 
         // create blacklist with user pattern match (e.g., "test_user_*")
         let blacklist = MqttAclBlackList {
+            tenant: "default".to_string(),
             blacklist_type: MqttAclBlackListType::UserMatch,
             resource_name: format!("{}*", user_prefix),
             end_time: now_second() + 10000,
@@ -275,6 +282,7 @@ mod tests {
 
         // create blacklist for IP CIDR (127.0.0.0/24 covers 127.0.0.1)
         let blacklist = MqttAclBlackList {
+            tenant: "default".to_string(),
             blacklist_type: MqttAclBlackListType::IPCIDR,
             resource_name: "127.0.0.0/24".to_string(),
             end_time: now_second() + 10000,
@@ -345,6 +353,7 @@ mod tests {
         create_user(admin_client, &blacklist.resource_name, &blacklist.desc).await;
 
         let create_request = CreateBlackListReq {
+            tenant: "default".to_string(),
             blacklist_type: blacklist.blacklist_type.to_string(),
             resource_name: blacklist.resource_name,
             end_time: blacklist.end_time,
@@ -359,6 +368,7 @@ mod tests {
 
     async fn delete_blacklist(admin_client: &AdminHttpClient, blacklist: MqttAclBlackList) {
         let delete_request = DeleteBlackListReq {
+            tenant: "default".to_string(),
             blacklist_type: blacklist.blacklist_type.to_string(),
             resource_name: blacklist.resource_name,
         };
@@ -369,6 +379,7 @@ mod tests {
 
     async fn create_user(admin_client: &AdminHttpClient, username: &str, password: &str) {
         let user = CreateUserReq {
+            tenant: "default".to_string(),
             username: username.to_owned(),
             password: password.to_owned(),
             is_superuser: false,
@@ -380,6 +391,7 @@ mod tests {
 
     async fn delete_user(admin_client: &AdminHttpClient, username: &str) {
         let user = DeleteUserReq {
+            tenant: "default".to_string(),
             username: username.to_owned(),
         };
         let res = admin_client.delete_user(&user).await;
@@ -439,6 +451,7 @@ mod tests {
         blacklist: MqttAclBlackList,
     ) {
         let create_request = CreateBlackListReq {
+            tenant: "default".to_string(),
             blacklist_type: blacklist.blacklist_type.to_string(),
             resource_name: blacklist.resource_name,
             end_time: blacklist.end_time,

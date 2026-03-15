@@ -13,15 +13,14 @@
 // limitations under the License.
 
 pub mod auth;
-pub mod auto_subscribe_rule;
+pub mod auto_subscribe;
 pub mod connection;
 pub mod group_leader;
 pub mod lastwill;
 pub mod message;
-pub mod node_extend;
 pub mod retain_message;
 pub mod session;
-pub mod subscribe_data;
+pub mod subscribe;
 pub mod topic;
 pub mod topic_rewrite_rule;
 pub mod user;

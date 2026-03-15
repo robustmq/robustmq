@@ -20,7 +20,7 @@ use grpc_clients::meta::mqtt::call::{
     placement_list_auto_subscribe_rule,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use protocol::meta::meta_service_mqtt::{
     CreateAutoSubscribeRuleRequest, DeleteAutoSubscribeRuleRequest, ListAutoSubscribeRuleRequest,
 };
@@ -76,9 +76,13 @@ impl AutoSubscribeStorage {
         Ok(())
     }
 
-    pub async fn delete_auto_subscribe_rule(&self, uniq_id: String) -> ResultMqttBrokerError {
+    pub async fn delete_auto_subscribe_rule(
+        &self,
+        tenant: String,
+        topic: String,
+    ) -> ResultMqttBrokerError {
         let config = broker_config();
-        let request = DeleteAutoSubscribeRuleRequest { uniq_id };
+        let request = DeleteAutoSubscribeRuleRequest { tenant, topic };
         placement_delete_auto_subscribe_rule(
             &self.client_pool,
             &config.get_meta_service_addr(),

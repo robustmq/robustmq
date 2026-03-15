@@ -41,19 +41,31 @@ pub fn is_acl_deny(
 ) -> bool {
     let source_ip = normalize_source_ip(&connection.source_ip_addr);
     let user = connection.login_user.clone().unwrap_or_default();
-    let user_deny = cache_manager
-        .acl_metadata
-        .acl_user
-        .get(&user)
-        .map(|acl_list| check_for_deny(&acl_list, &action, topic_name, &source_ip))
-        .unwrap_or(false);
 
-    let client_id_deny = cache_manager
+    let user_deny =
+        if let Some(tenant_map) = cache_manager.acl_metadata.acl_user.get(&connection.tenant) {
+            if let Some(acl_list) = tenant_map.get(&user) {
+                check_for_deny(&acl_list, &action, topic_name, &source_ip)
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+    let client_id_deny = if let Some(tenant_map) = cache_manager
         .acl_metadata
         .acl_client_id
-        .get(&connection.client_id)
-        .map(|acl_list| check_for_deny(&acl_list, &action, topic_name, &source_ip))
-        .unwrap_or(false);
+        .get(&connection.tenant)
+    {
+        if let Some(acl_list) = tenant_map.get(&connection.client_id) {
+            check_for_deny(&acl_list, &action, topic_name, &source_ip)
+        } else {
+            false
+        }
+    } else {
+        false
+    };
 
     user_deny || client_id_deny
 }
@@ -93,6 +105,8 @@ mod test {
     use metadata_struct::mqtt::user::MqttUser;
     use std::sync::Arc;
 
+    const TENANT: &str = "tenant1";
+
     struct TestFixture {
         cache_manager: Arc<MQTTCacheManager>,
         connection: MQTTConnection,
@@ -104,6 +118,7 @@ mod test {
         let topic_name = "tp-1".to_string();
         let cache_manager = test_build_mqtt_cache_manager().await;
         let user = MqttUser {
+            tenant: TENANT.to_string(),
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
             salt: None,
@@ -114,7 +129,7 @@ mod test {
         cache_manager.add_user(user.clone());
         let config = ConnectionConfig {
             connect_id: 1,
-            tenant: "tenant1".to_string(),
+            tenant: TENANT.to_string(),
             client_id: "client_id-1".to_string(),
             receive_maximum: 3,
             max_packet_size: 3,
@@ -147,6 +162,7 @@ mod test {
         };
 
         let acl = MqttAcl {
+            tenant: TENANT.to_string(),
             resource_type,
             resource_name,
             topic: topic.to_string(),
@@ -198,6 +214,7 @@ mod test {
         let fixture = setup().await;
 
         fixture.cache_manager.add_acl(MqttAcl {
+            tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::User,
             resource_name: fixture.user.username.clone(),
             topic: "other/topic".to_string(),
@@ -207,6 +224,7 @@ mod test {
         });
 
         fixture.cache_manager.add_acl(MqttAcl {
+            tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::ClientId,
             resource_name: fixture.connection.client_id.clone(),
             topic: WILDCARD_RESOURCE.to_string(),
@@ -237,6 +255,7 @@ mod test {
         conn.source_ip_addr = "127.0.0.1:1883".to_string();
 
         fixture.cache_manager.add_acl(MqttAcl {
+            tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::ClientId,
             resource_name: conn.client_id.clone(),
             topic: fixture.topic_name.clone(),
@@ -261,6 +280,7 @@ mod test {
         #[test]
         fn check_for_deny_core_cases() {
             let rule = |permission: MqttAclPermission, action: MqttAclAction| MqttAcl {
+                tenant: TENANT.to_string(),
                 permission,
                 action,
                 topic: "test/topic".to_string(),

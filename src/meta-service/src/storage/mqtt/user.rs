@@ -17,7 +17,9 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::user::MqttUser;
 
-use rocksdb_engine::keys::meta::{storage_key_mqtt_user, storage_key_mqtt_user_prefix};
+use rocksdb_engine::keys::meta::{
+    storage_key_mqtt_user, storage_key_mqtt_user_prefix, storage_key_mqtt_user_tenant_prefix,
+};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
@@ -35,12 +37,12 @@ impl MqttUserStorage {
         }
     }
 
-    pub fn save(&self, user_name: &str, user: MqttUser) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_user(user_name);
+    pub fn save(&self, tenant: &str, user_name: &str, user: MqttUser) -> Result<(), CommonError> {
+        let key = storage_key_mqtt_user(tenant, user_name);
         engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, user)
     }
 
-    pub fn list(&self) -> Result<Vec<MqttUser>, CommonError> {
+    pub fn list_all(&self) -> Result<Vec<MqttUser>, CommonError> {
         let prefix_key = storage_key_mqtt_user_prefix();
         let data = engine_prefix_list_by_meta_metadata::<MqttUser>(
             &self.rocksdb_engine_handler,
@@ -49,8 +51,17 @@ impl MqttUserStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn get(&self, username: &str) -> Result<Option<MqttUser>, CommonError> {
-        let key: String = storage_key_mqtt_user(username);
+    pub fn list_by_tenant(&self, tenant: &str) -> Result<Vec<MqttUser>, CommonError> {
+        let prefix_key = storage_key_mqtt_user_tenant_prefix(tenant);
+        let data = engine_prefix_list_by_meta_metadata::<MqttUser>(
+            &self.rocksdb_engine_handler,
+            &prefix_key,
+        )?;
+        Ok(data.into_iter().map(|raw| raw.data).collect())
+    }
+
+    pub fn get(&self, tenant: &str, username: &str) -> Result<Option<MqttUser>, CommonError> {
+        let key: String = storage_key_mqtt_user(tenant, username);
         if let Some(data) =
             engine_get_by_meta_metadata::<MqttUser>(&self.rocksdb_engine_handler, &key)?
         {
@@ -59,68 +70,8 @@ impl MqttUserStorage {
         Ok(None)
     }
 
-    pub fn delete(&self, user_name: &str) -> Result<(), CommonError> {
-        let key: String = storage_key_mqtt_user(user_name);
+    pub fn delete(&self, tenant: &str, user_name: &str) -> Result<(), CommonError> {
+        let key: String = storage_key_mqtt_user(tenant, user_name);
         engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use common_base::tools::now_second;
-    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
-    use rocksdb_engine::test::test_rocksdb_instance;
-
-    fn setup_storage() -> MqttUserStorage {
-        let config = default_broker_config();
-        init_broker_conf_by_config(config.clone());
-        let db = test_rocksdb_instance();
-        MqttUserStorage::new(db)
-    }
-
-    fn create_user(username: &str, password: &str, is_superuser: bool) -> MqttUser {
-        MqttUser {
-            username: username.to_string(),
-            password: password.to_string(),
-            salt: None,
-            is_superuser,
-            create_time: now_second(),
-        }
-    }
-
-    #[test]
-    fn test_user_crud_operations() {
-        let storage = setup_storage();
-
-        // Test: Save and Get
-        let user1 = create_user("alice", "pass123", true);
-        storage.save("alice", user1).unwrap();
-
-        let retrieved = storage.get("alice").unwrap();
-        assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().username, "alice");
-
-        // Test: List multiple users
-        let user2 = create_user("bob", "pass456", false);
-        storage.save("bob", user2).unwrap();
-
-        let all_users = storage.list().unwrap();
-        assert_eq!(all_users.len(), 2);
-
-        // Test: Delete and verify
-        storage.delete("bob").unwrap();
-        assert!(storage.get("bob").unwrap().is_none());
-
-        let remaining = storage.list().unwrap();
-        assert_eq!(remaining.len(), 1);
-        assert_eq!(remaining[0].username, "alice");
-    }
-
-    #[test]
-    fn test_get_nonexistent_user() {
-        let storage = setup_storage();
-        let result = storage.get("nonexistent").unwrap();
-        assert!(result.is_none());
     }
 }

@@ -43,6 +43,7 @@ use crate::{
             subscribe_detail, subscribe_list,
         },
         system::{ban_log_list, flapping_detect_list, system_alarm_list},
+        tenant::{mqtt_tenant_create, mqtt_tenant_delete, mqtt_tenant_list},
         topic::{topic_detail, topic_list, topic_rewrite_create, topic_rewrite_list},
         user::{user_create, user_delete, user_list},
     },
@@ -207,6 +208,10 @@ impl AdminServer {
             .route(MQTT_SCHEMA_BIND_LIST_PATH, get(schema_bind_list))
             .route(MQTT_SCHEMA_BIND_CREATE_PATH, post(schema_bind_create))
             .route(MQTT_SCHEMA_BIND_DELETE_PATH, post(schema_bind_delete))
+            // tenant
+            .route(MQTT_TENANT_LIST_PATH, get(mqtt_tenant_list))
+            .route(MQTT_TENANT_CREATE_PATH, post(mqtt_tenant_create))
+            .route(MQTT_TENANT_DELETE_PATH, post(mqtt_tenant_delete))
             // system alarm
             .route(MQTT_SYSTEM_ALARM_LIST_PATH, get(system_alarm_list))
             .route(MQTT_BAN_LOG_LIST_PATH, get(ban_log_list))

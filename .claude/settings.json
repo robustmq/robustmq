@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs ls:*)",
+      "Bash(python3 -m json.tool)",
+      "Read(//dev/**)",
+      "Bash(grep -l \"ListSchemaRequest\" /Users/oker/robustmq/target/debug/build/protocol-*/out/meta.service.common.rs)",
+      "Bash(python3:*)",
+      "Read(//Users/oker/robustmq/**)",
+      "Bash(grep -v \"^\\\\-\\\\-$\")",
+      "Bash(grep -n \"SchemaData {\" /Users/oker/robustmq/src/schema-register/src/*.rs)",
+      "Bash(cat /Users/oker/robustmq/docs/zh/Architect/*.md)",
+      "Bash(head -10 grep -n \"commit_group_offset\\\\|self\\\\.commit_offset\" /Users/oker/robustmq/src/mqtt-broker/src/subscribe/directly_push.rs)",
+      "Bash(head -10 grep -n \"fn commit_offset\\\\|struct.*Push\\\\|impl.*Push\" /Users/oker/robustmq/src/mqtt-broker/src/subscribe/directly_push.rs)",
+      "Bash(cargo metadata:*)"
+    ]
+  }
+}

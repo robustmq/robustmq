@@ -23,5 +23,6 @@ pub mod schema;
 pub mod session;
 pub mod subscribe;
 pub mod system;
+pub mod tenant;
 pub mod topic;
 pub mod user;

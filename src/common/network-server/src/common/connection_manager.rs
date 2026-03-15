@@ -29,7 +29,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio_util::codec::FramedWrite;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 type TcpWriter =
     Arc<Mutex<FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, RobustMQCodec>>>;
@@ -259,7 +259,7 @@ impl ConnectionManager {
         packet_wrapper: RobustMQPacketWrapper,
     ) -> ResultCommonError {
         if !is_ignore_print(&packet_wrapper.packet) {
-            debug!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
+            info!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
         if packet_wrapper.protocol.is_mqtt() {

@@ -29,6 +29,7 @@ use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::mqtt::auth::storage::MongoDBConfig;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use mongodb::bson::{Bson, Document};
 use mongodb::options::ClientOptions;
 use mongodb::{Client, Collection};
@@ -196,6 +197,7 @@ impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
             };
 
             let user = MqttUser {
+                tenant: DEFAULT_TENANT.to_string(),
                 username: username.clone(),
                 password: password.clone(),
                 salt: doc.get_str("salt").ok().map(|v| v.to_string()),
@@ -262,6 +264,7 @@ impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
 
             for topic in topics {
                 results.push(MqttAcl {
+                    tenant: DEFAULT_TENANT.to_string(),
                     resource_type,
                     resource_name: resource_name.clone(),
                     topic,
@@ -309,6 +312,7 @@ impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
             let desc = doc.get_str("desc").unwrap_or_default().to_string();
 
             let blacklist = MqttAclBlackList {
+                tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: get_blacklist_type_by_str(&blacklist_type)?,
                 resource_name: resource_name.clone(),
                 end_time,

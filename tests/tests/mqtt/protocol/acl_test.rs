@@ -141,6 +141,7 @@ mod tests {
         permission: MqttAclPermission,
     ) -> MqttAcl {
         MqttAcl {
+            tenant: "default".to_string(),
             resource_type,
             resource_name,
             topic,
@@ -156,6 +157,7 @@ mod tests {
         should_exist: bool,
     ) {
         let list_request = AclListReq {
+            tenant: None,
             limit: Some(10000),
             page: Some(1),
             sort_field: None,
@@ -263,6 +265,7 @@ mod tests {
 
     async fn create_user(admin_client: &AdminHttpClient, username: String, password: String) {
         let user = CreateUserReq {
+            tenant: "default".to_string(),
             username,
             password,
             is_superuser: false,
@@ -272,13 +275,17 @@ mod tests {
     }
 
     async fn delete_user(admin_client: &AdminHttpClient, username: String) {
-        let user = DeleteUserReq { username };
+        let user = DeleteUserReq {
+            tenant: "default".to_string(),
+            username,
+        };
         let res = admin_client.delete_user(&user).await;
         assert!(res.is_ok());
     }
 
     async fn create_acl(admin_client: &AdminHttpClient, acl: MqttAcl) {
         let create_request = CreateAclReq {
+            tenant: "default".to_string(),
             resource_type: acl.resource_type.to_string(),
             resource_name: acl.resource_name,
             topic: acl.topic,
@@ -293,6 +300,7 @@ mod tests {
 
     async fn delete_acl(admin_client: &AdminHttpClient, acl: MqttAcl) {
         let delete_request = DeleteAclReq {
+            tenant: "default".to_string(),
             resource_type: acl.resource_type.to_string(),
             resource_name: acl.resource_name,
             topic: acl.topic,

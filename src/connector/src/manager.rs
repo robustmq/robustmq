@@ -20,14 +20,14 @@ use metadata_struct::connector::MQTTConnector;
 
 #[derive(Default)]
 pub struct ConnectorManager {
-    // (connector_name, Connector)
-    pub connector_list: DashMap<String, MQTTConnector>,
+    // (tenant, (connector_name, Connector))
+    pub connector_list: DashMap<String, DashMap<String, MQTTConnector>>,
 
-    // (connector_name, BridgePluginThread)
-    pub connector_thread: DashMap<String, BridgePluginThread>,
+    // (tenant, (connector_name, BridgePluginThread))
+    pub connector_thread: DashMap<String, DashMap<String, BridgePluginThread>>,
 
-    // (connector_name, u64)
-    pub connector_heartbeat: DashMap<String, u64>,
+    // (tenant, (connector_name, u64))
+    pub connector_heartbeat: DashMap<String, DashMap<String, u64>>,
 }
 
 impl ConnectorManager {
@@ -42,69 +42,149 @@ impl ConnectorManager {
     // Connector
     pub fn add_connector(&self, connector: &MQTTConnector) {
         self.connector_list
+            .entry(connector.tenant.clone())
+            .or_default()
             .insert(connector.connector_name.clone(), connector.clone());
     }
 
     pub fn get_connector(&self, connector_name: &str) -> Option<MQTTConnector> {
-        if let Some(thread) = self.connector_list.get(connector_name) {
-            return Some(thread.clone());
+        for tenant_entry in self.connector_list.iter() {
+            if let Some(conn) = tenant_entry.value().get(connector_name) {
+                return Some(conn.clone());
+            }
         }
         None
+    }
+
+    pub fn get_connector_by_tenant(
+        &self,
+        tenant: &str,
+        connector_name: &str,
+    ) -> Option<MQTTConnector> {
+        self.connector_list
+            .get(tenant)
+            .and_then(|m| m.get(connector_name).map(|c| c.clone()))
     }
 
     pub fn get_all_connector(&self) -> Vec<MQTTConnector> {
         self.connector_list
             .iter()
-            .map(|connector| connector.clone())
+            .flat_map(|tenant_entry| {
+                tenant_entry
+                    .value()
+                    .iter()
+                    .map(|e| e.value().clone())
+                    .collect::<Vec<_>>()
+            })
             .collect()
     }
 
+    pub fn get_connector_by_tenant_list(&self, tenant: &str) -> Vec<MQTTConnector> {
+        self.connector_list
+            .get(tenant)
+            .map(|m| m.iter().map(|e| e.value().clone()).collect())
+            .unwrap_or_default()
+    }
+
     pub fn remove_connector(&self, connector_name: &str) {
-        self.connector_list.remove(connector_name);
+        for tenant_entry in self.connector_list.iter() {
+            tenant_entry.value().remove(connector_name);
+        }
     }
 
     // Connector Thread
-    pub fn add_connector_thread(&self, connector_name: &str, thread: BridgePluginThread) {
-        self.connector_thread
-            .insert(connector_name.to_owned(), thread);
+    pub fn add_connector_thread(
+        &self,
+        tenant: &str,
+        connector_name: &str,
+        thread: BridgePluginThread,
+    ) {
         let connector_type = self
-            .connector_list
-            .get(connector_name)
-            .map(|connector| connector.connector_type.to_string())
+            .get_connector_by_tenant(tenant, connector_name)
+            .map(|c| c.connector_type.to_string())
             .unwrap_or_else(|| "unknown".to_string());
-        set_connector_up(connector_type, connector_name.to_owned(), true);
+        self.connector_thread
+            .entry(tenant.to_owned())
+            .or_default()
+            .insert(connector_name.to_owned(), thread);
+        set_connector_up(tenant, connector_type, connector_name.to_owned(), true);
     }
 
     pub fn get_connector_thread(&self, connector_name: &str) -> Option<BridgePluginThread> {
-        if let Some(thread) = self.connector_thread.get(connector_name) {
-            return Some(thread.clone());
+        for tenant_entry in self.connector_thread.iter() {
+            if let Some(thread) = tenant_entry.value().get(connector_name) {
+                return Some(thread.clone());
+            }
         }
-
         None
     }
 
     pub fn get_all_connector_thread(&self) -> Vec<BridgePluginThread> {
-        let mut results = Vec::new();
-        for (_, raw) in self.connector_thread.clone() {
-            results.push(raw);
-        }
-        results
+        self.connector_thread
+            .iter()
+            .flat_map(|tenant_entry| {
+                tenant_entry
+                    .value()
+                    .iter()
+                    .map(|e| e.value().clone())
+                    .collect::<Vec<_>>()
+            })
+            .collect()
     }
 
     pub fn remove_connector_thread(&self, connector_name: &str) {
-        let connector_type = self
-            .connector_list
-            .get(connector_name)
-            .map(|connector| connector.connector_type.to_string())
+        let connector = self.get_connector(connector_name);
+        let connector_type = connector
+            .as_ref()
+            .map(|c| c.connector_type.to_string())
             .unwrap_or_else(|| "unknown".to_string());
-        set_connector_up(connector_type, connector_name.to_owned(), false);
-        self.connector_thread.remove(connector_name);
+        let tenant = connector.as_ref().map(|c| c.tenant.as_str()).unwrap_or("");
+        set_connector_up(tenant, connector_type, connector_name.to_owned(), false);
+        for tenant_entry in self.connector_thread.iter() {
+            tenant_entry.value().remove(connector_name);
+        }
+    }
+
+    pub fn update_connector_thread_last_active(
+        &self,
+        connector_name: &str,
+        f: impl Fn(&mut BridgePluginThread),
+    ) {
+        for tenant_entry in self.connector_thread.iter() {
+            if let Some(mut thread) = tenant_entry.value().get_mut(connector_name) {
+                f(&mut thread);
+                return;
+            }
+        }
     }
 
     // Connector Heartbeat
-    pub fn report_heartbeat(&self, connector_name: &str) {
+    pub fn report_heartbeat(&self, tenant: &str, connector_name: &str) {
         self.connector_heartbeat
+            .entry(tenant.to_owned())
+            .or_default()
             .insert(connector_name.to_owned(), now_second());
+    }
+
+    pub fn get_all_heartbeats(&self) -> Vec<(String, u64)> {
+        self.connector_heartbeat
+            .iter()
+            .flat_map(|tenant_entry| {
+                tenant_entry
+                    .value()
+                    .iter()
+                    .map(|e| (e.key().clone(), *e.value()))
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    }
+
+    pub fn connector_count(&self) -> usize {
+        self.connector_list.iter().map(|e| e.value().len()).sum()
+    }
+
+    pub fn connector_thread_count(&self) -> usize {
+        self.connector_thread.iter().map(|e| e.value().len()).sum()
     }
 }
 
@@ -135,10 +215,10 @@ mod tests {
         }
     }
 
-    fn create_test_thread() -> BridgePluginThread {
+    fn create_test_thread(name: &str) -> BridgePluginThread {
         let (stop_send, _) = mpsc::channel::<bool>(1);
         BridgePluginThread {
-            connector_name: "test_connector".to_string(),
+            connector_name: name.to_string(),
             last_send_time: 0,
             send_fail_total: 0,
             send_success_total: 0,
@@ -161,15 +241,20 @@ mod tests {
         assert_eq!(manager.get_all_connector().len(), 1);
 
         // thread CRUD
-        manager.add_connector_thread("t1", create_test_thread());
+        manager.add_connector(&create_test_connector("t1"));
+        manager.add_connector_thread(DEFAULT_TENANT, "t1", create_test_thread("t1"));
         assert!(manager.get_connector_thread("t1").is_some());
         assert!(manager.get_connector_thread("non_existent").is_none());
         manager.remove_connector_thread("t1");
         assert!(manager.get_all_connector_thread().is_empty());
 
         // heartbeat
-        manager.report_heartbeat("c2");
-        let ts = *manager.connector_heartbeat.get("c2").unwrap();
+        manager.report_heartbeat(DEFAULT_TENANT, "c2");
+        let ts = manager
+            .connector_heartbeat
+            .get(DEFAULT_TENANT)
+            .and_then(|m| m.get("c2").map(|v| *v))
+            .unwrap();
         assert!(ts <= now_second() && ts > now_second() - 10);
     }
 }

@@ -30,6 +30,7 @@ mod tests {
         let password = "test_password".to_string();
         let is_superuser = true;
         let user_info = metadata_struct::mqtt::user::MqttUser {
+            tenant: "default".to_string(),
             username: username.clone(),
             password: password.clone(),
             salt: None,
@@ -39,7 +40,7 @@ mod tests {
         user_storage.save_user(user_info).await.unwrap();
 
         let result = user_storage
-            .get_user(username.clone())
+            .get_user("default".to_string(), username.clone())
             .await
             .unwrap()
             .unwrap();
@@ -51,11 +52,20 @@ mod tests {
         let prev_len = result.len();
         assert!(!result.is_empty());
 
-        user_storage.delete_user(username.clone()).await.unwrap();
-        let result = user_storage.get_user(username.clone()).await.unwrap();
+        user_storage
+            .delete_user("default".to_string(), username.clone())
+            .await
+            .unwrap();
+        let result = user_storage
+            .get_user("default".to_string(), username.clone())
+            .await
+            .unwrap();
         assert!(result.is_none());
 
-        let result = user_storage.get_user(username.clone()).await.unwrap();
+        let result = user_storage
+            .get_user("default".to_string(), username.clone())
+            .await
+            .unwrap();
         assert!(result.is_none());
 
         let result = user_storage.user_list().await.unwrap();

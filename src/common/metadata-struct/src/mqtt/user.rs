@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct MqttUser {
+    pub tenant: String,
     pub username: String,
     pub password: String,
     pub salt: Option<String>,

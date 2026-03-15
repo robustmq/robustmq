@@ -22,6 +22,7 @@ use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackList
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use core::option::Option::Some;
+use metadata_struct::tenant::DEFAULT_TENANT;
 
 // session
 #[derive(clap::Args, Debug)]
@@ -408,6 +409,8 @@ pub struct ListConnectorArgs {
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
 pub struct DeleteConnectorArgs {
+    #[arg(short = 'T', long, default_value = "default")]
+    pub tenant: String,
     #[arg(short, long, required = true)]
     pub connector_name: String,
 }
@@ -450,6 +453,8 @@ pub struct ListSchemaArgs {
 #[command(author="RobustMQ", about="action: create schema", long_about = None)]
 #[command(next_line_help = true)]
 pub struct CreateSchemaArgs {
+    #[arg(short = 'T', long, required = true)]
+    pub tenant: String,
     #[arg(short = 'n', long, required = true)]
     pub schema_name: String,
     #[arg(short = 't', long, required = true)]
@@ -464,6 +469,8 @@ pub struct CreateSchemaArgs {
 #[command(author="RobustMQ", about="action: delete schema", long_about = None)]
 #[command(next_line_help = true)]
 pub struct DeleteSchemaArgs {
+    #[arg(short = 'T', long, required = true)]
+    pub tenant: String,
     #[arg(short, long, required = true)]
     pub schema_name: String,
 }
@@ -482,6 +489,8 @@ pub struct ListBindSchemaArgs {
 #[command(author="RobustMQ", about="action: bind schema", long_about = None)]
 #[command(next_line_help = true)]
 pub struct BindSchemaArgs {
+    #[arg(short = 'T', long, required = true)]
+    pub tenant: String,
     #[arg(short, long, required = true)]
     pub schema_name: String,
     #[arg(short, long, required = true)]
@@ -492,6 +501,8 @@ pub struct BindSchemaArgs {
 #[command(author="RobustMQ", about="action: unbind schema", long_about = None)]
 #[command(next_line_help = true)]
 pub struct UnbindSchemaArgs {
+    #[arg(short = 'T', long, required = true)]
+    pub tenant: String,
     #[arg(short, long, required = true)]
     pub schema_name: String,
     #[arg(short, long, required = true)]
@@ -535,6 +546,7 @@ pub fn process_user_args(args: UserArgs) -> MqttActionType {
         UserActionType::List => MqttActionType::ListUser,
         UserActionType::Create(arg) => {
             MqttActionType::CreateUser(admin_server::mqtt::user::CreateUserReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 username: arg.username,
                 password: arg.password,
                 is_superuser: arg.is_superuser,
@@ -542,6 +554,7 @@ pub fn process_user_args(args: UserArgs) -> MqttActionType {
         }
         UserActionType::Delete(arg) => {
             MqttActionType::DeleteUser(admin_server::mqtt::user::DeleteUserReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 username: arg.username,
             })
         }
@@ -553,6 +566,7 @@ pub fn process_acl_args(args: AclArgs) -> Result<MqttActionType, Box<dyn std::er
         AclActionType::List => Ok(MqttActionType::ListAcl),
         AclActionType::Create(arg) => Ok(MqttActionType::CreateAcl(
             admin_server::mqtt::acl::CreateAclReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 resource_type: arg.resource_type.to_string(),
                 resource_name: arg.resource_name,
                 topic: arg.topic,
@@ -563,6 +577,7 @@ pub fn process_acl_args(args: AclArgs) -> Result<MqttActionType, Box<dyn std::er
         )),
         AclActionType::Delete(arg) => Ok(MqttActionType::DeleteAcl(
             admin_server::mqtt::acl::DeleteAclReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 resource_type: arg.resource_type.to_string(),
                 resource_name: arg.resource_name,
                 topic: arg.topic,
@@ -581,6 +596,7 @@ pub fn process_blacklist_args(
         BlackListActionType::List => Ok(MqttActionType::ListBlacklist),
         BlackListActionType::Create(arg) => Ok(MqttActionType::CreateBlacklist(
             admin_server::mqtt::blacklist::CreateBlackListReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: arg.blacklist_type.to_string(),
                 resource_name: arg.resource_name,
                 end_time: arg.end_time,
@@ -589,6 +605,7 @@ pub fn process_blacklist_args(
         )),
         BlackListActionType::Delete(arg) => Ok(MqttActionType::DeleteBlacklist(
             admin_server::mqtt::blacklist::DeleteBlackListReq {
+                tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: arg.blacklist_type.to_string(),
                 resource_name: arg.resource_name,
             },
@@ -626,6 +643,7 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
         }
         ConnectorActionType::Delete(arg) => {
             MqttActionType::DeleteConnector(admin_server::mqtt::connector::DeleteConnectorReq {
+                tenant: arg.tenant,
                 connector_name: arg.connector_name,
             })
         }
@@ -658,6 +676,7 @@ pub fn process_schema_args(args: SchemaArgs) -> MqttActionType {
     match args.action {
         SchemaActionType::Create(arg) => {
             MqttActionType::CreateSchema(admin_server::mqtt::schema::CreateSchemaReq {
+                tenant: arg.tenant,
                 schema_name: arg.schema_name,
                 schema_type: arg.schema_type,
                 schema: arg.schema,
@@ -667,18 +686,21 @@ pub fn process_schema_args(args: SchemaArgs) -> MqttActionType {
         SchemaActionType::List(_) => MqttActionType::ListSchema,
         SchemaActionType::Delete(arg) => {
             MqttActionType::DeleteSchema(admin_server::mqtt::schema::DeleteSchemaReq {
+                tenant: arg.tenant,
                 schema_name: arg.schema_name,
             })
         }
         SchemaActionType::ListBind(_) => MqttActionType::ListBindSchema,
         SchemaActionType::Bind(arg) => {
             MqttActionType::BindSchema(admin_server::mqtt::schema::CreateSchemaBindReq {
+                tenant: arg.tenant,
                 schema_name: arg.schema_name,
                 resource_name: arg.resource_name,
             })
         }
         SchemaActionType::Unbind(arg) => {
             MqttActionType::UnbindSchema(admin_server::mqtt::schema::DeleteSchemaBindReq {
+                tenant: arg.tenant,
                 schema_name: arg.schema_name,
                 resource_name: arg.resource_name,
             })
@@ -725,8 +747,10 @@ pub struct CreateAutoSubscribeRuleArgs {
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
 pub struct DeleteAutoSubscribeRuleArgs {
+    #[arg(short = 'T', long, required = true)]
+    pub tenant: String,
     #[arg(short, long, required = true)]
-    pub uniq_id: String,
+    pub topic: String,
 }
 
 pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttActionType {
@@ -744,7 +768,8 @@ pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttAction
         ),
         AutoSubscribeRuleActionType::Delete(arg) => MqttActionType::DeleteAutoSubscribe(
             admin_server::mqtt::subscribe::DeleteAutoSubscribeReq {
-                uniq_id: arg.uniq_id,
+                tenant: arg.tenant,
+                topic: arg.topic,
             },
         ),
     }

@@ -19,6 +19,7 @@ use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
 
 pub async fn try_init_system_user(
@@ -27,6 +28,7 @@ pub async fn try_init_system_user(
 ) -> ResultMqttBrokerError {
     let conf = broker_config();
     let system_user_info = MqttUser {
+        tenant: DEFAULT_TENANT.to_string(),
         username: conf.mqtt_runtime.default_user.clone(),
         password: conf.mqtt_runtime.default_password.clone(),
         salt: None,
@@ -35,7 +37,10 @@ pub async fn try_init_system_user(
     };
     let user_storage = UserStorage::new(client_pool.clone());
     let res = user_storage
-        .get_user(system_user_info.username.clone())
+        .get_user(
+            system_user_info.tenant.clone(),
+            system_user_info.username.clone(),
+        )
         .await?;
     if res.is_some() {
         return Ok(());
@@ -45,12 +50,15 @@ pub async fn try_init_system_user(
     Ok(())
 }
 
+/// Check if a username is a super user by searching across all tenants.
 pub fn is_super_user(cache_manager: &Arc<MQTTCacheManager>, username: &str) -> bool {
     if username.is_empty() {
         return false;
     }
-    if let Some(user) = cache_manager.user_info.get(username) {
-        return user.is_superuser;
+    for tenant_entry in cache_manager.user_info.iter() {
+        if let Some(user) = tenant_entry.value().get(username) {
+            return user.is_superuser;
+        }
     }
     false
 }
@@ -61,11 +69,13 @@ mod test {
     use crate::core::tool::test_build_mqtt_cache_manager;
     use common_base::tools::now_second;
     use metadata_struct::mqtt::user::MqttUser;
+    use metadata_struct::tenant::DEFAULT_TENANT;
 
     #[tokio::test]
     pub async fn check_super_user_test() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let user = MqttUser {
+            tenant: DEFAULT_TENANT.to_string(),
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
             salt: None,
@@ -83,6 +93,7 @@ mod test {
         assert!(is_super_user(&cache_manager, &user.username));
 
         let user = MqttUser {
+            tenant: DEFAULT_TENANT.to_string(),
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
             salt: None,

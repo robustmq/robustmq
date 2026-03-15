@@ -20,7 +20,7 @@ use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::mqtt::call::placement_delete_subscribe;
 use grpc_clients::{meta::mqtt::call::placement_set_subscribe, pool::ClientPool};
-use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
+use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use protocol::meta::meta_service_mqtt::DeleteSubscribeRequest;
 use protocol::mqtt::common::Unsubscribe;
 use protocol::{
@@ -31,6 +31,7 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct SaveSubscribeContext {
+    pub tenant: String,
     pub client_id: String,
     pub protocol: MqttProtocol,
     pub client_pool: Arc<ClientPool>,
@@ -41,6 +42,7 @@ pub struct SaveSubscribeContext {
 }
 
 pub fn is_new_sub(
+    tenant: &str,
     client_id: &str,
     subscribe: &Subscribe,
     subscribe_manager: &Arc<SubscribeManager>,
@@ -48,7 +50,7 @@ pub fn is_new_sub(
     let results = DashMap::with_capacity(subscribe.filters.len());
     for filter in subscribe.filters.iter() {
         let is_new = subscribe_manager
-            .get_subscribe(client_id, &filter.path)
+            .get_subscribe(tenant, client_id, &filter.path)
             .is_none();
         results.insert(filter.path.to_owned(), is_new);
     }
@@ -60,6 +62,7 @@ pub async fn save_subscribe(context: SaveSubscribeContext) -> ResultMqttBrokerEr
     let filters = &context.subscribe.filters;
     for filter in filters {
         let subscribe_data = MqttSubscribe {
+            tenant: context.tenant.clone(),
             client_id: context.client_id.to_owned(),
             path: filter.path.clone(),
             broker_id: conf.broker_id,

@@ -77,6 +77,7 @@ impl MqttService {
         );
 
         if let Err(e) = save_subscribe(SaveSubscribeContext {
+            tenant: connection.tenant.clone(),
             client_id: connection.client_id.clone(),
             protocol: self.protocol.clone(),
             client_pool: self.client_pool.clone(),
@@ -100,6 +101,7 @@ impl MqttService {
         if let Err(e) = self
             .retain_message_manager
             .try_send_retain_message(
+                &connection.tenant,
                 &connection.client_id,
                 subscribe,
                 subscribe_properties,
@@ -170,8 +172,12 @@ impl MqttService {
         un_subscribe: &Unsubscribe,
         _: &Option<UnsubscribeProperties>,
     ) -> MqttPacket {
-        let (reason_codes, reason) =
-            un_subscribe_validator(&connection.client_id, &self.subscribe_manager, un_subscribe);
+        let (reason_codes, reason) = un_subscribe_validator(
+            &connection.tenant,
+            &connection.client_id,
+            &self.subscribe_manager,
+            un_subscribe,
+        );
 
         // Check if all validations passed
         let all_success = reason_codes.iter().all(|r| *r == UnsubAckReason::Success);
@@ -404,6 +410,7 @@ async fn subscribe_validator(
 /// - Vec<UnsubAckReason>: One reason code per topic filter
 /// - String: Error message if any validation failed (empty on success)
 fn un_subscribe_validator(
+    tenant: &str,
     client_id: &str,
     subscribe_manager: &Arc<SubscribeManager>,
     un_subscribe: &Unsubscribe,
@@ -440,7 +447,10 @@ fn un_subscribe_validator(
         }
 
         // Check if subscription exists
-        if subscribe_manager.get_subscribe(client_id, path).is_none() {
+        if subscribe_manager
+            .get_subscribe(tenant, client_id, path)
+            .is_none()
+        {
             return_codes.push(UnsubAckReason::NoSubscriptionExisted);
             error_details.push(format!("Subscription not found: {}", path));
             has_error = true;

@@ -249,6 +249,7 @@ impl SharePushManager {
                         };
 
                         record_sub_send_metrics(
+                            &subscriber.tenant,
                             &subscriber.client_id,
                             &subscriber.sub_path,
                             &subscriber.topic_name,
@@ -275,7 +276,10 @@ impl SharePushManager {
             }
 
             if let Some(offsets) = self.group_offsets.get(&self.group_name) {
-                if let Err(e) = self.commit_offset(&self.group_name, &offsets).await {
+                if let Err(e) = self
+                    .commit_offset(&topic.tenant, &self.group_name, &offsets)
+                    .await
+                {
                     error!(
                         "Failed to commit offset for subscriber [group: {},tenant:{}, topic: {}]: {}. Messages may be redelivered on next poll",
                         &self.group_name,topic.tenant, topic.topic, e
@@ -343,7 +347,7 @@ impl SharePushManager {
         let offsets = if let Some(offsets) = self.group_offsets.get(group) {
             offsets.clone()
         } else {
-            let offsets = self.message_storage.get_group_offset(group).await?;
+            let offsets = self.message_storage.get_group_offset(tenant, group).await?;
             self.group_offsets
                 .insert(group.to_string(), offsets.clone());
             offsets
@@ -357,11 +361,12 @@ impl SharePushManager {
 
     async fn commit_offset(
         &self,
+        tenant: &str,
         group: &str,
         offsets: &HashMap<String, u64>,
     ) -> ResultMqttBrokerError {
         self.message_storage
-            .commit_group_offset(group, offsets)
+            .commit_group_offset(tenant, group, offsets)
             .await?;
         Ok(())
     }

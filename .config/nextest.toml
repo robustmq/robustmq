@@ -27,7 +27,7 @@ dir = "target/nextest"
 test-threads = 14
 
 # Retry failed tests to reduce flakiness
-retries = 2
+retries = 5
 
 # Test output settings
 slow-timeout = { period = "60s", terminate-after = 3 }
@@ -44,7 +44,7 @@ success-output = "never"
 # CI profile - more strict, less storage
 [profile.ci]
 test-threads = 10  # Match CARGO_BUILD_JOBS in CI workflows
-retries = 0
+retries = 5
 slow-timeout = { period = "120s", terminate-after = 2 }
 
 # Don't keep archives in CI

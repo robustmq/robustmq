@@ -39,16 +39,20 @@ use std::sync::Arc;
 // ACL Operations
 pub fn list_acl_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    _req: &ListAclRequest,
+    req: &ListAclRequest,
 ) -> Result<ListAclReply, MetaServiceError> {
     let acl_storage = AclStorage::new(rocksdb_engine_handler.clone());
-    let acls = acl_storage
-        .list_all()?
+    let acls = if req.tenant.is_empty() {
+        acl_storage.list_all()?
+    } else {
+        acl_storage.list_by_tenant(&req.tenant)?
+    };
+    let encoded = acls
         .into_iter()
         .map(|acl| acl.encode())
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(ListAclReply { acls })
+    Ok(ListAclReply { acls: encoded })
 }
 
 pub async fn create_acl_by_req(
@@ -80,11 +84,15 @@ pub async fn delete_acl_by_req(
 // Blacklist Operations
 pub fn list_blacklist_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    _req: &ListBlacklistRequest,
+    req: &ListBlacklistRequest,
 ) -> Result<ListBlacklistReply, MetaServiceError> {
     let blacklist_storage = MqttBlackListStorage::new(rocksdb_engine_handler.clone());
-    let blacklists = blacklist_storage
-        .list_all()?
+    let items = if req.tenant.is_empty() {
+        blacklist_storage.list_all()?
+    } else {
+        blacklist_storage.list_by_tenant(&req.tenant)?
+    };
+    let blacklists = items
         .into_iter()
         .map(|item| item.encode())
         .collect::<Result<Vec<_>, _>>()?;
@@ -113,6 +121,7 @@ pub async fn delete_blacklist_by_req(
     let data = StorageData::new(StorageDataType::MqttDeleteBlacklist, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
     let blacklist = MqttAclBlackList {
+        tenant: req.tenant.clone(),
         blacklist_type: get_blacklist_type_by_str(&req.blacklist_type)?,
         resource_name: req.resource_name.clone(),
         end_time: 0,

@@ -71,6 +71,7 @@ pub struct TopicDeleteRep {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TopicRewriteReq {
+    pub tenant: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
@@ -148,6 +149,7 @@ pub struct TopicDetailResp {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TopicRewriteListRow {
+    pub tenant: String,
     pub source_topic: String,
     pub dest_topic: String,
     pub regex: String,
@@ -277,7 +279,9 @@ async fn read_topic_detail(
         HashSet::new()
     };
     let storage = TopicStorage::new(state.client_pool.clone());
-    let (retain_message, retain_message_at) = storage.get_retain_message(&topic.topic_name).await?;
+    let (retain_message, retain_message_at) = storage
+        .get_retain_message(&topic.tenant, &topic.topic_name)
+        .await?;
 
     Ok(TopicDetailResp {
         topic_info: topic,
@@ -316,15 +320,30 @@ pub async fn topic_rewrite_list(
         params.exact_match,
     );
 
+    let rewrite_rule_map = &state.mqtt_context.cache_manager.topic_rewrite_rule;
     let mut topic_rewrite_rules = Vec::new();
-    for entry in state.mqtt_context.cache_manager.topic_rewrite_rule.iter() {
-        let topic_rewrite_rule = entry.value();
-        topic_rewrite_rules.push(TopicRewriteListRow {
-            source_topic: topic_rewrite_rule.source_topic.clone(),
-            dest_topic: topic_rewrite_rule.dest_topic.clone(),
-            action: topic_rewrite_rule.action.clone(),
-            regex: topic_rewrite_rule.regex.clone(),
-        });
+
+    let collect_rules = |tenant: &str, inner: &dashmap::DashMap<String, MqttTopicRewriteRule>| {
+        inner
+            .iter()
+            .map(|rule_entry| TopicRewriteListRow {
+                tenant: tenant.to_string(),
+                source_topic: rule_entry.value().source_topic.clone(),
+                dest_topic: rule_entry.value().dest_topic.clone(),
+                action: rule_entry.value().action.clone(),
+                regex: rule_entry.value().regex.clone(),
+            })
+            .collect::<Vec<_>>()
+    };
+
+    if let Some(ref t) = params.tenant {
+        if let Some(inner) = rewrite_rule_map.get(t) {
+            topic_rewrite_rules = collect_rules(t, inner.value());
+        }
+    } else {
+        for tenant_entry in rewrite_rule_map.iter() {
+            topic_rewrite_rules.extend(collect_rules(tenant_entry.key(), tenant_entry.value()));
+        }
     }
 
     let filtered = apply_filters(topic_rewrite_rules, &options);
@@ -339,6 +358,7 @@ pub async fn topic_rewrite_list(
 impl Queryable for TopicRewriteListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "tenant" => Some(self.tenant.clone()),
             "source_topic" => Some(self.source_topic.clone()),
             "dest_topic" => Some(self.dest_topic.clone()),
             "action" => Some(self.action.clone()),
@@ -368,11 +388,6 @@ pub async fn topic_rewrite_create(
     state
         .mqtt_context
         .cache_manager
-        .add_topic_rewrite_rule(rule);
-
-    state
-        .mqtt_context
-        .cache_manager
         .set_re_calc_topic_rewrite(true)
         .await;
     success_response("success")
@@ -393,11 +408,7 @@ pub async fn topic_rewrite_delete(
     {
         return error_response(e.to_string());
     }
-    state.mqtt_context.cache_manager.delete_topic_rewrite_rule(
-        &params.tenant,
-        &params.action,
-        &params.source_topic,
-    );
+
     state
         .mqtt_context
         .cache_manager

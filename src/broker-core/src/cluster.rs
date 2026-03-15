@@ -22,8 +22,8 @@ use grpc_clients::meta::common::call::{
     register_node, set_resource_config, unregister_node,
 };
 use grpc_clients::pool::ClientPool;
+use metadata_struct::meta::extend::{MqttNodeExtend, NodeExtend};
 use metadata_struct::meta::node::BrokerNode;
-use metadata_struct::mqtt::node_extend::{MqttNodeExtend, NodeExtend};
 use protocol::meta::meta_service_common::{
     ClusterStatusRequest, DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest,
     NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,

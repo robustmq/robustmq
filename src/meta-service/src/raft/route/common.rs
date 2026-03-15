@@ -93,6 +93,7 @@ impl DataRouteCluster {
                 .offsets
                 .iter()
                 .map(|raw| OffsetData {
+                    tenant: offset_data.tenant.clone(),
                     group: offset_data.group.clone(),
                     shard_name: raw.shard_name.clone(),
                     offset: raw.offset,
@@ -110,14 +111,14 @@ impl DataRouteCluster {
         let req = CreateSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
         let schema = SchemaData::decode(&req.schema)?;
-        schema_storage.save(&req.schema_name, &schema)?;
+        schema_storage.save(&req.tenant, &req.schema_name, &schema)?;
         Ok(())
     }
 
     pub fn delete_schema(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
-        schema_storage.delete(&req.schema_name)?;
+        schema_storage.delete(&req.tenant, &req.schema_name)?;
         Ok(())
     }
 
@@ -126,6 +127,7 @@ impl DataRouteCluster {
         let req = BindSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
         let bind_data = SchemaResourceBind {
+            tenant: req.tenant.clone(),
             resource_name: req.resource_name.clone(),
             schema_name: req.schema_name.clone(),
         };
@@ -136,7 +138,7 @@ impl DataRouteCluster {
     pub fn delete_schema_bind(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = UnBindSchemaRequest::decode(value.as_ref())?;
         let schema_storage = SchemaStorage::new(self.rocksdb_engine_handler.clone());
-        schema_storage.delete_bind(&req.resource_name, &req.schema_name)?;
+        schema_storage.delete_bind(&req.tenant, &req.resource_name, &req.schema_name)?;
         Ok(())
     }
 

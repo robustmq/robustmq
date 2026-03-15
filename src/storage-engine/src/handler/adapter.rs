@@ -220,17 +220,21 @@ impl StorageEngineHandler {
 
     pub async fn get_offset_by_group(
         &self,
+        tenant: &str,
         group_name: &str,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
-        self.offset_manager.get_offset(group_name).await
+        self.offset_manager.get_offset(tenant, group_name).await
     }
 
     pub async fn commit_offset(
         &self,
+        tenant: &str,
         group_name: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        self.offset_manager.commit_offset(group_name, offset).await
+        self.offset_manager
+            .commit_offset(tenant, group_name, offset)
+            .await
     }
 
     pub async fn delete_by_key(

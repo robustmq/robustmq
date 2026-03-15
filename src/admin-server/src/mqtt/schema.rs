@@ -14,7 +14,7 @@
 
 use axum::extract::{Query, State};
 use common_base::http_response::{error_response, success_response};
-use metadata_struct::schema::{SchemaData, SchemaResourceBind, SchemaType};
+use metadata_struct::schema::{SchemaData, SchemaType};
 use mqtt_broker::{core::error::MqttBrokerError, storage::schema::SchemaStorage};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -31,6 +31,7 @@ use crate::{
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SchemaListReq {
+    pub tenant: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
@@ -42,6 +43,9 @@ pub struct SchemaListReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct CreateSchemaReq {
+    #[validate(length(min = 1, max = 128, message = "Tenant length must be between 1-128"))]
+    pub tenant: String,
+
     #[validate(length(
         min = 1,
         max = 128,
@@ -75,6 +79,9 @@ fn validate_schema_type(schema_type: &str) -> Result<(), validator::ValidationEr
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteSchemaReq {
+    #[validate(length(min = 1, max = 128, message = "Tenant length must be between 1-128"))]
+    pub tenant: String,
+
     #[validate(length(
         min = 1,
         max = 128,
@@ -85,6 +92,7 @@ pub struct DeleteSchemaReq {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SchemaBindListReq {
+    pub tenant: Option<String>,
     pub resource_name: Option<String>,
     pub schema_name: Option<String>,
     pub limit: Option<u32>,
@@ -98,6 +106,9 @@ pub struct SchemaBindListReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct CreateSchemaBindReq {
+    #[validate(length(min = 1, max = 128, message = "Tenant length must be between 1-128"))]
+    pub tenant: String,
+
     #[validate(length(
         min = 1,
         max = 128,
@@ -115,6 +126,9 @@ pub struct CreateSchemaBindReq {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct DeleteSchemaBindReq {
+    #[validate(length(min = 1, max = 128, message = "Tenant length must be between 1-128"))]
+    pub tenant: String,
+
     #[validate(length(
         min = 1,
         max = 128,
@@ -132,6 +146,7 @@ pub struct DeleteSchemaBindReq {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SchemaListRow {
+    pub tenant: String,
     pub name: String,
     pub schema_type: String,
     pub desc: String,
@@ -158,15 +173,35 @@ pub async fn schema_list(
         params.exact_match,
     );
 
-    let mut schemas = Vec::new();
-    for schema in state.mqtt_context.schema_manager.get_all_schema() {
-        schemas.push(SchemaListRow {
-            name: schema.name.clone(),
-            schema_type: schema.schema_type.to_string(),
-            desc: schema.desc.clone(),
-            schema: schema.schema.clone(),
-        });
-    }
+    let schemas: Vec<SchemaListRow> = if let Some(ref tenant) = params.tenant {
+        state
+            .mqtt_context
+            .schema_manager
+            .get_all_schema(tenant)
+            .into_iter()
+            .map(|schema| SchemaListRow {
+                tenant: tenant.clone(),
+                name: schema.name.clone(),
+                schema_type: schema.schema_type.to_string(),
+                desc: schema.desc.clone(),
+                schema: schema.schema.clone(),
+            })
+            .collect()
+    } else {
+        state
+            .mqtt_context
+            .schema_manager
+            .get_all_schema_all_tenants()
+            .into_iter()
+            .map(|(tenant, schema)| SchemaListRow {
+                tenant,
+                name: schema.name.clone(),
+                schema_type: schema.schema_type.to_string(),
+                desc: schema.desc.clone(),
+                schema: schema.schema.clone(),
+            })
+            .collect()
+    };
 
     let filtered = apply_filters(schemas, &options);
     let sorted = apply_sorting(filtered, &options);
@@ -181,6 +216,7 @@ pub async fn schema_list(
 impl Queryable for SchemaListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "tenant" => Some(self.tenant.clone()),
             "name" => Some(self.name.clone()),
             "schema_type" => Some(self.schema_type.clone()),
             _ => None,
@@ -210,6 +246,7 @@ pub async fn schema_create_inner(
     };
 
     let schema_data = SchemaData {
+        tenant: req.tenant.clone(),
         name: req.schema_name.clone(),
         schema_type,
         schema: req.schema.clone(),
@@ -217,9 +254,7 @@ pub async fn schema_create_inner(
     };
 
     let schema_storage = SchemaStorage::new(state.client_pool.clone());
-    schema_storage.create(schema_data.clone()).await?;
-
-    state.mqtt_context.schema_manager.add_schema(schema_data);
+    schema_storage.create(schema_data).await?;
     Ok(())
 }
 
@@ -228,13 +263,12 @@ pub async fn schema_delete(
     ValidatedJson(params): ValidatedJson<DeleteSchemaReq>,
 ) -> String {
     let schema_storage = SchemaStorage::new(state.client_pool.clone());
-    if let Err(e) = schema_storage.delete(params.schema_name.clone()).await {
+    if let Err(e) = schema_storage
+        .delete(params.tenant.clone(), params.schema_name.clone())
+        .await
+    {
         return error_response(e.to_string());
     }
-    state
-        .mqtt_context
-        .schema_manager
-        .remove_schema(&params.schema_name);
     success_response("success")
 }
 
@@ -252,12 +286,14 @@ pub async fn schema_bind_list(
         params.exact_match,
     );
 
+    let tenant = params.tenant.unwrap_or_default();
+
     let mut schema_bind_list = Vec::new();
     if let Some(resource_name) = params.resource_name {
         let results = state
             .mqtt_context
             .schema_manager
-            .get_bind_schema_by_resource(&resource_name);
+            .get_bind_schema_by_resource(&tenant, &resource_name);
 
         schema_bind_list.push(SchemaBindListRow {
             data_type: "resource".to_string(),
@@ -269,7 +305,7 @@ pub async fn schema_bind_list(
         let results = state
             .mqtt_context
             .schema_manager
-            .get_bind_resource_by_schema(&schema_name);
+            .get_bind_resource_by_schema(&tenant, &schema_name);
         schema_bind_list.push(SchemaBindListRow {
             data_type: "schema".to_string(),
             data: results,
@@ -298,17 +334,11 @@ pub async fn schema_bind_create(
 ) -> String {
     let schema_storage = SchemaStorage::new(state.client_pool.clone());
     if let Err(e) = schema_storage
-        .create_bind(&params.schema_name, &params.resource_name)
+        .create_bind(&params.tenant, &params.schema_name, &params.resource_name)
         .await
     {
         return error_response(e.to_string());
     }
-
-    let bind = SchemaResourceBind {
-        schema_name: params.schema_name,
-        resource_name: params.resource_name,
-    };
-    state.mqtt_context.schema_manager.add_bind(&bind);
     success_response("success")
 }
 
@@ -318,16 +348,10 @@ pub async fn schema_bind_delete(
 ) -> String {
     let schema_storage = SchemaStorage::new(state.client_pool.clone());
     if let Err(e) = schema_storage
-        .delete_bind(&params.schema_name, &params.resource_name)
+        .delete_bind(&params.tenant, &params.schema_name, &params.resource_name)
         .await
     {
         return error_response(e.to_string());
     }
-
-    let bind = SchemaResourceBind {
-        schema_name: params.schema_name,
-        resource_name: params.resource_name,
-    };
-    state.mqtt_context.schema_manager.remove_bind(&bind);
     success_response("success")
 }

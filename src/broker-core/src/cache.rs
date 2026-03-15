@@ -171,6 +171,10 @@ impl NodeCacheManager {
             .collect()
     }
 
+    pub fn topic_count(&self) -> usize {
+        self.topic_list.iter().map(|e| e.value().len()).sum()
+    }
+
     // get start time
     pub fn get_start_time(&self) -> u64 {
         self.start_time

@@ -51,15 +51,18 @@ impl OffsetManager {
 
     pub async fn commit_offset(
         &self,
+        tenant: &str,
         group_name: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         if self.enable_cache {
             self.offset_cache_storage
-                .commit_offset(group_name, offset)
+                .commit_offset(tenant, group_name, offset)
                 .await
         } else {
-            self.offset_storage.commit_offset(group_name, offset).await
+            self.offset_storage
+                .commit_offset(tenant, group_name, offset)
+                .await
         }
     }
 
@@ -94,13 +97,14 @@ impl OffsetManager {
 
     pub async fn get_offset(
         &self,
+        tenant: &str,
         group: &str,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
         // If cache is enabled, flush pending updates before reading to ensure consistency
         if self.enable_cache {
             self.offset_cache_storage.flush().await?;
         }
-        match self.offset_storage.get_offset(group).await {
+        match self.offset_storage.get_offset(tenant, group).await {
             Ok(data) => Ok(data),
             Err(e) => {
                 // Used for compatibility test cases.

@@ -20,6 +20,7 @@ use crate::{
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 struct ClientConnectionLabels {
+    tenant: String,
     client_id: String,
 }
 
@@ -30,13 +31,19 @@ register_counter_metric!(
     ClientConnectionLabels
 );
 
-pub fn incr_client_connection_counter(client_id: String) {
-    let labels = ClientConnectionLabels { client_id };
+pub fn incr_client_connection_counter(tenant: &str, client_id: String) {
+    let labels = ClientConnectionLabels {
+        tenant: tenant.to_string(),
+        client_id,
+    };
     counter_metric_inc!(CLIENT_CONNECTION_COUNTER, labels)
 }
 
-pub fn get_client_connection_counter(client_id: String) -> u64 {
-    let labels = ClientConnectionLabels { client_id };
+pub fn get_client_connection_counter(tenant: &str, client_id: String) -> u64 {
+    let labels = ClientConnectionLabels {
+        tenant: tenant.to_string(),
+        client_id,
+    };
     let mut res = 0;
     counter_metric_get!(CLIENT_CONNECTION_COUNTER, labels, res);
     res
@@ -145,24 +152,24 @@ mod tests {
 
     #[test]
     fn test_incr_client_connection_counter() {
-        event::incr_client_connection_counter("test_client_1".to_string());
+        event::incr_client_connection_counter("default", "test_client_1".to_string());
 
         assert_eq!(
-            event::get_client_connection_counter("test_client_1".to_string()),
+            event::get_client_connection_counter("default", "test_client_1".to_string()),
             1
         );
 
-        event::incr_client_connection_counter("test_client_1".to_string());
+        event::incr_client_connection_counter("default", "test_client_1".to_string());
 
         assert_eq!(
-            event::get_client_connection_counter("test_client_1".to_string()),
+            event::get_client_connection_counter("default", "test_client_1".to_string()),
             2
         );
 
-        event::incr_client_connection_counter("test_client_2".to_string());
+        event::incr_client_connection_counter("default", "test_client_2".to_string());
 
         assert_eq!(
-            event::get_client_connection_counter("test_client_2".to_string()),
+            event::get_client_connection_counter("default", "test_client_2".to_string()),
             1
         );
     }

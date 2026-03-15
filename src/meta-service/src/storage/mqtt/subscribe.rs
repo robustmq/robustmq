@@ -26,8 +26,8 @@
 
 use crate::core::error::MetaServiceError;
 use common_base::error::common::CommonError;
-use metadata_struct::mqtt::auto_subscribe_rule::MqttAutoSubscribeRule;
-use metadata_struct::mqtt::subscribe_data::MqttSubscribe;
+use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use rocksdb_engine::keys::meta::{
     storage_key_mqtt_auto_subscribe_rule, storage_key_mqtt_auto_subscribe_rule_prefix,
     storage_key_mqtt_auto_subscribe_rule_tenant_prefix, storage_key_mqtt_subscribe,
@@ -112,7 +112,7 @@ impl MqttSubscribeStorage {
         &self,
         rule: &MqttAutoSubscribeRule,
     ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_auto_subscribe_rule(&rule.tenant, &rule.uniq_id);
+        let key = storage_key_mqtt_auto_subscribe_rule(&rule.tenant, &rule.topic);
         engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, rule.clone())?;
         Ok(())
     }
@@ -120,9 +120,9 @@ impl MqttSubscribeStorage {
     pub fn delete_auto_subscribe_rule(
         &self,
         tenant: &str,
-        uniq_id: &str,
+        topic: &str,
     ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_auto_subscribe_rule(tenant, uniq_id);
+        let key = storage_key_mqtt_auto_subscribe_rule(tenant, topic);
         engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)?;
         Ok(())
     }
@@ -163,7 +163,6 @@ impl MqttSubscribeStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common_base::uuid::unique_id;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use protocol::mqtt::common::{Filter, QoS, RetainHandling};
     use rocksdb_engine::test::test_rocksdb_instance;
@@ -188,7 +187,6 @@ mod tests {
 
     fn create_auto_subscribe_rule(topic: &str) -> MqttAutoSubscribeRule {
         MqttAutoSubscribeRule {
-            uniq_id: unique_id(),
             tenant: "tenant-1".to_string(),
             topic: topic.to_string(),
             qos: QoS::AtLeastOnce,
@@ -292,7 +290,7 @@ mod tests {
 
         // Delete rule
         storage
-            .delete_auto_subscribe_rule("tenant-1", &rule.uniq_id)
+            .delete_auto_subscribe_rule("tenant-1", topic)
             .unwrap();
         assert!(storage.list_all_auto_subscribe_rules().unwrap().is_empty());
     }

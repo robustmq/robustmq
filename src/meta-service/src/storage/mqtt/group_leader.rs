@@ -20,7 +20,10 @@ use common_base::{
 };
 use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use rocksdb_engine::{
-    keys::meta::{storage_key_mqtt_group_leader, storage_key_mqtt_group_leader_prefix},
+    keys::meta::{
+        storage_key_mqtt_group_leader, storage_key_mqtt_group_leader_prefix,
+        storage_key_mqtt_group_leader_tenant_prefix,
+    },
     rocksdb::RocksDBEngine,
     storage::meta_data::{
         engine_delete_by_meta_data, engine_prefix_list_by_meta_data, engine_save_by_meta_data,
@@ -38,9 +41,10 @@ impl MqttGroupLeaderStorage {
         }
     }
 
-    pub fn save(&self, group_name: &str, broker_id: u64) -> ResultCommonError {
-        let key = storage_key_mqtt_group_leader(group_name);
+    pub fn save(&self, tenant: &str, group_name: &str, broker_id: u64) -> ResultCommonError {
+        let key = storage_key_mqtt_group_leader(tenant, group_name);
         let data = MqttGroupLeader {
+            tenant: tenant.to_string(),
             group_name: group_name.to_string(),
             broker_id,
             create_time: now_second(),
@@ -48,22 +52,37 @@ impl MqttGroupLeaderStorage {
         engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, data)
     }
 
-    pub fn delete(&self, group_name: &str) -> ResultCommonError {
-        let key = storage_key_mqtt_group_leader(group_name);
+    pub fn delete(&self, tenant: &str, group_name: &str) -> ResultCommonError {
+        let key = storage_key_mqtt_group_leader(tenant, group_name);
         engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)
     }
 
-    pub fn list(&self) -> Result<HashMap<String, MqttGroupLeader>, CommonError> {
-        let prefix_key_name = storage_key_mqtt_group_leader_prefix();
+    pub fn list_by_tenant(
+        &self,
+        tenant: &str,
+    ) -> Result<HashMap<String, MqttGroupLeader>, CommonError> {
+        let prefix_key = storage_key_mqtt_group_leader_tenant_prefix(tenant);
         let result = engine_prefix_list_by_meta_data::<MqttGroupLeader>(
             &self.rocksdb_engine_handler,
-            &prefix_key_name,
+            &prefix_key,
         )?;
         let mut results = HashMap::new();
         for item in result {
             results.insert(item.data.group_name.to_string(), item.data.clone());
         }
+        Ok(results)
+    }
 
+    pub fn list_all(&self) -> Result<HashMap<String, MqttGroupLeader>, CommonError> {
+        let prefix_key = storage_key_mqtt_group_leader_prefix();
+        let result = engine_prefix_list_by_meta_data::<MqttGroupLeader>(
+            &self.rocksdb_engine_handler,
+            &prefix_key,
+        )?;
+        let mut results = HashMap::new();
+        for item in result {
+            results.insert(item.data.group_name.to_string(), item.data.clone());
+        }
         Ok(results)
     }
 }

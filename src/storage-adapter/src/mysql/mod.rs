@@ -560,7 +560,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         .map_err(|e| CommonError::CommonError(format!("Failed to get offset by timestamp: {e}")))
     }
 
-    async fn get_offset_by_group(&self, group_name: &str) -> Result<Vec<ShardOffset>, CommonError> {
+    async fn get_offset_by_group(&self, _tenant: &str, group_name: &str) -> Result<Vec<ShardOffset>, CommonError> {
         let mut conn = self.pool.get()?;
 
         let sql = format!(
@@ -586,6 +586,7 @@ impl StorageAdapter for MySQLStorageAdapter {
 
     async fn commit_offset(
         &self,
+        _tenant: &str,
         group_name: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
@@ -831,12 +832,12 @@ mod tests {
         );
 
         mysql_adapter
-            .commit_offset(&group_id, &offset_data)
+            .commit_offset("", &group_id, &offset_data)
             .await
             .unwrap();
 
         // read ms2
-        let offset = mysql_adapter.get_offset_by_group(&group_id).await.unwrap();
+        let offset = mysql_adapter.get_offset_by_group("", &group_id).await.unwrap();
 
         let res = mysql_adapter
             .read_by_offset(
@@ -858,13 +859,13 @@ mod tests {
             res.first().unwrap().metadata.offset,
         );
         mysql_adapter
-            .commit_offset(&group_id, &offset_data)
+            .commit_offset("", &group_id, &offset_data)
             .await
             .unwrap();
 
         // read m3
         let offset: Vec<crate::storage::ShardOffset> =
-            mysql_adapter.get_offset_by_group(&group_id).await.unwrap();
+            mysql_adapter.get_offset_by_group("", &group_id).await.unwrap();
 
         let res = mysql_adapter
             .read_by_offset(
@@ -885,12 +886,12 @@ mod tests {
             res.first().unwrap().metadata.offset,
         );
         mysql_adapter
-            .commit_offset(&group_id, &offset_data)
+            .commit_offset("", &group_id, &offset_data)
             .await
             .unwrap();
 
         // read m4
-        let offset = mysql_adapter.get_offset_by_group(&group_id).await.unwrap();
+        let offset = mysql_adapter.get_offset_by_group("", &group_id).await.unwrap();
 
         let res = mysql_adapter
             .read_by_offset(
@@ -911,7 +912,7 @@ mod tests {
             res.first().unwrap().metadata.offset,
         );
         mysql_adapter
-            .commit_offset(&group_id, &offset_data)
+            .commit_offset("", &group_id, &offset_data)
             .await
             .unwrap();
 
