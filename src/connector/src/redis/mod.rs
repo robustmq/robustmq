@@ -363,7 +363,11 @@ pub fn start_redis_connector(
                 return;
             }
         };
-        connector_manager.add_connector_thread(&connector.connector_name, thread);
+        connector_manager.add_connector_thread(
+            &connector.tenant,
+            &connector.connector_name,
+            thread,
+        );
 
         if let Err(e) = run_connector_loop(
             &bridge,

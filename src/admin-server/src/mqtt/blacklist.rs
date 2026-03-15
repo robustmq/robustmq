@@ -26,6 +26,7 @@ use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BlackListListReq {
+    pub tenant: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
@@ -98,6 +99,7 @@ pub struct DeleteBlackListReq {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BlackListListRow {
+    pub tenant: String,
     pub blacklist_type: String,
     pub resource_name: String,
     pub end_time: String,
@@ -127,21 +129,30 @@ pub async fn blacklist_list(
         params.exact_match,
     );
 
-    let data: Vec<MqttAclBlackList> = state
-        .mqtt_context
-        .cache_manager
-        .acl_metadata
-        .get_all_blacklist();
+    let data: Vec<MqttAclBlackList> = if let Some(ref tenant) = params.tenant {
+        state
+            .mqtt_context
+            .cache_manager
+            .acl_metadata
+            .get_blacklist_by_tenant(tenant)
+    } else {
+        state
+            .mqtt_context
+            .cache_manager
+            .acl_metadata
+            .get_all_blacklist()
+    };
 
-    let mut blacklists = Vec::new();
-    for blacklist in data {
-        blacklists.push(BlackListListRow {
+    let blacklists: Vec<BlackListListRow> = data
+        .into_iter()
+        .map(|blacklist| BlackListListRow {
+            tenant: blacklist.tenant.clone(),
             blacklist_type: blacklist.blacklist_type.to_string(),
             resource_name: blacklist.resource_name,
             end_time: timestamp_to_local_datetime(blacklist.end_time as i64),
             desc: blacklist.desc,
-        });
-    }
+        })
+        .collect();
 
     let filtered = apply_filters(blacklists, &options);
     let sorted = apply_sorting(filtered, &options);
@@ -156,6 +167,7 @@ pub async fn blacklist_list(
 impl Queryable for BlackListListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "tenant" => Some(self.tenant.clone()),
             "blacklist_type" => Some(self.blacklist_type.clone()),
             "resource_name" => Some(self.resource_name.clone()),
             _ => None,

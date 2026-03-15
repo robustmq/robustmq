@@ -280,7 +280,11 @@ pub fn start_mongodb_connector(
         };
         let batch_size = bridge.config.batch_size as u64;
 
-        connector_manager.add_connector_thread(&connector.connector_name, thread);
+        connector_manager.add_connector_thread(
+            &connector.tenant,
+            &connector.connector_name,
+            thread,
+        );
 
         if let Err(e) = run_connector_loop(
             &bridge,

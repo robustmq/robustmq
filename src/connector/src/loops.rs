@@ -135,7 +135,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
             val = message_storage.read_topic_message(&config.tenant, &config.topic_name, &offsets, config.record_num) => {
                 match val {
                     Ok(data) => {
-                        connector_manager.report_heartbeat(&connector_name);
+                        connector_manager.report_heartbeat(&connector_tenant, &connector_name);
 
                         if data.is_empty() {
                             sleep(Duration::from_millis(100)).await;
@@ -435,9 +435,8 @@ pub fn update_last_active(
     message_count: u64,
     success: bool,
 ) {
-    if let Some(mut thread) = connector_manager.connector_thread.get_mut(connector_name) {
+    connector_manager.update_connector_thread_last_active(connector_name, |thread| {
         thread.last_send_time = now_second();
-
         if success {
             thread.send_success_total += message_count;
             let duration_ms = (now_millis() - start_time) as f64;
@@ -459,5 +458,5 @@ pub fn update_last_active(
                 message_count,
             );
         }
-    }
+    });
 }

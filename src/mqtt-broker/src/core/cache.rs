@@ -98,8 +98,8 @@ pub struct MQTTCacheManager {
     // (tenant, (client_id, Session))
     pub session_info: DashMap<String, DashMap<String, MqttSession>>,
 
-    // (connect_id, Connection)
-    pub connection_info: DashMap<u64, MQTTConnection>,
+    // (tenant, (connect_id, Connection))
+    pub connection_info: DashMap<String, DashMap<u64, MQTTConnection>>,
 
     pub authn_list: DashMap<String, AuthnConfig>,
 
@@ -221,14 +221,19 @@ impl MQTTCacheManager {
         for tenant_entry in self.session_info.iter() {
             if let Some(mut session) = tenant_entry.value().get_mut(&conn.client_id) {
                 session.connection_id = Some(connect_id);
-                self.connection_info.insert(connect_id, conn);
+                self.connection_info
+                    .entry(conn.tenant.clone())
+                    .or_default()
+                    .insert(connect_id, conn);
                 return;
             }
         }
     }
 
     pub fn remove_connection(&self, connect_id: u64) {
-        self.connection_info.remove(&connect_id);
+        for tenant_entry in self.connection_info.iter() {
+            tenant_entry.value().remove(&connect_id);
+        }
     }
 
     pub fn get_connect_id(&self, client_id: &str) -> Option<u64> {
@@ -239,15 +244,20 @@ impl MQTTCacheManager {
     }
 
     pub fn get_connection(&self, connect_id: u64) -> Option<MQTTConnection> {
-        if let Some(conn) = self.connection_info.get(&connect_id) {
-            return Some(conn.clone());
+        for tenant_entry in self.connection_info.iter() {
+            if let Some(conn) = tenant_entry.value().get(&connect_id) {
+                return Some(conn.clone());
+            }
         }
         None
     }
 
-    // create a function get the number of connections from connection_info
+    pub fn session_count(&self) -> usize {
+        self.session_info.iter().map(|e| e.value().len()).sum()
+    }
+
     pub fn get_connection_count(&self) -> usize {
-        self.connection_info.len()
+        self.connection_info.iter().map(|e| e.value().len()).sum()
     }
 
     // topic rewrite rule
@@ -317,33 +327,38 @@ impl MQTTCacheManager {
     }
 
     pub fn login_success(&self, connect_id: u64, user_name: String) {
-        if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
-            conn.login_success(user_name)
+        for tenant_entry in self.connection_info.iter() {
+            if let Some(mut conn) = tenant_entry.value().get_mut(&connect_id) {
+                conn.login_success(user_name);
+                return;
+            }
         }
     }
 
     pub fn is_login(&self, connect_id: u64) -> bool {
-        if let Some(conn) = self.connection_info.get(&connect_id) {
-            return conn.is_login;
+        for tenant_entry in self.connection_info.iter() {
+            if let Some(conn) = tenant_entry.value().get(&connect_id) {
+                return conn.is_login;
+            }
         }
         false
     }
 
     // topic alias
     pub fn get_topic_alias(&self, connect_id: u64, topic_alias: u16) -> Option<String> {
-        if let Some(conn) = self.connection_info.get(&connect_id) {
-            if let Some(topic_name) = conn.topic_alias.get(&topic_alias) {
-                return Some(topic_name.clone());
-            } else {
-                return None;
+        for tenant_entry in self.connection_info.iter() {
+            if let Some(conn) = tenant_entry.value().get(&connect_id) {
+                return conn.topic_alias.get(&topic_alias).map(|v| v.clone());
             }
         }
         None
     }
 
     pub fn topic_alias_exists(&self, connect_id: u64, topic_alias: u16) -> bool {
-        if let Some(conn) = self.connection_info.get(&connect_id) {
-            return conn.topic_alias.contains_key(&topic_alias);
+        for tenant_entry in self.connection_info.iter() {
+            if let Some(conn) = tenant_entry.value().get(&connect_id) {
+                return conn.topic_alias.contains_key(&topic_alias);
+            }
         }
         false
     }
@@ -356,8 +371,11 @@ impl MQTTCacheManager {
     ) {
         if let Some(properties) = publish_properties {
             if let Some(alias) = properties.topic_alias {
-                if let Some(conn) = self.connection_info.get_mut(&connect_id) {
-                    conn.topic_alias.insert(alias, topic_name.to_owned());
+                for tenant_entry in self.connection_info.iter() {
+                    if let Some(conn) = tenant_entry.value().get_mut(&connect_id) {
+                        conn.topic_alias.insert(alias, topic_name.to_owned());
+                        return;
+                    }
                 }
             }
         }

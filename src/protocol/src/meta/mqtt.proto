@@ -299,6 +299,7 @@ message UpdateConnectorRequest {
 message UpdateConnectorReply {}
 
 message DeleteConnectorRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
   string connector_name = 2 [(validate.rules).string.min_len = 1];
 }
 

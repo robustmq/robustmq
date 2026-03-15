@@ -151,7 +151,12 @@ impl ClientKeepAlive {
 
     async fn get_expire_connection(&self) -> Vec<u64> {
         let mut expire_connection = Vec::new();
-        for (connect_id, connection) in self.cache_manager.connection_info.clone() {
+        for (connect_id, connection) in self.cache_manager.connection_info.iter().flat_map(|e| {
+            e.value()
+                .iter()
+                .map(|inner| (*inner.key(), inner.value().clone()))
+                .collect::<Vec<_>>()
+        }) {
             if let Some(time) = self.cache_manager.heartbeat_data.get(&connection.client_id) {
                 let max_timeout = keep_live_time(&self.cache_manager, time.keep_live).await as u64;
                 let now = now_second();

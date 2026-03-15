@@ -52,6 +52,7 @@ mod tests {
 
         // list
         let list_request = BlackListListReq {
+            tenant: None,
             limit: Some(10000),
             page: Some(1),
             sort_field: None,

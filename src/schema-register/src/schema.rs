@@ -122,6 +122,21 @@ impl SchemaRegisterManager {
         }
     }
 
+    pub fn get_all_schema_all_tenants(&self) -> Vec<(String, SchemaData)> {
+        self.tenants
+            .iter()
+            .flat_map(|entry| {
+                let tenant = entry.key().clone();
+                entry
+                    .value()
+                    .schema_list
+                    .iter()
+                    .map(move |s| (tenant.clone(), s.value().clone()))
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    }
+
     // Schema Resource Bind
     pub fn add_bind(&self, bind: &SchemaResourceBind) {
         let t = self.get_or_create_tenant(&bind.tenant);

@@ -409,6 +409,8 @@ pub struct ListConnectorArgs {
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
 pub struct DeleteConnectorArgs {
+    #[arg(short = 'T', long, default_value = "default")]
+    pub tenant: String,
     #[arg(short, long, required = true)]
     pub connector_name: String,
 }
@@ -641,6 +643,7 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
         }
         ConnectorActionType::Delete(arg) => {
             MqttActionType::DeleteConnector(admin_server::mqtt::connector::DeleteConnectorReq {
+                tenant: arg.tenant,
                 connector_name: arg.connector_name,
             })
         }

@@ -26,6 +26,7 @@ use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AclListReq {
+    pub tenant: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
@@ -144,6 +145,7 @@ pub struct DeleteAclReq {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct AclListRow {
+    pub tenant: String,
     pub resource_type: String,
     pub resource_name: String,
     pub topic: String,
@@ -177,19 +179,28 @@ pub async fn acl_list(
         params.filter_values,
         params.exact_match,
     );
-    let data: Vec<MqttAcl> = state.mqtt_context.cache_manager.acl_metadata.get_all_acl();
+    let data: Vec<MqttAcl> = if let Some(ref tenant) = params.tenant {
+        state
+            .mqtt_context
+            .cache_manager
+            .acl_metadata
+            .get_acl_by_tenant(tenant)
+    } else {
+        state.mqtt_context.cache_manager.acl_metadata.get_all_acl()
+    };
 
-    let mut acls_list = Vec::new();
-    for acl in data {
-        acls_list.push(AclListRow {
+    let acls_list: Vec<AclListRow> = data
+        .into_iter()
+        .map(|acl| AclListRow {
+            tenant: acl.tenant.clone(),
             resource_type: acl.resource_type.to_string(),
             resource_name: acl.resource_name.to_string(),
             topic: acl.topic.to_string(),
             ip: acl.ip.to_string(),
             action: acl.action.to_string(),
             permission: acl.permission.to_string(),
-        });
-    }
+        })
+        .collect();
 
     let filtered = apply_filters(acls_list, &options);
     let sorted = apply_sorting(filtered, &options);
@@ -204,6 +215,7 @@ pub async fn acl_list(
 impl Queryable for AclListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "tenant" => Some(self.tenant.clone()),
             "resource_type" => Some(self.resource_type.clone()),
             "resource_name" => Some(self.resource_name.clone()),
             "topic" => Some(self.topic.clone()),

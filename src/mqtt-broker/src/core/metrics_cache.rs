@@ -80,8 +80,7 @@ async fn record_basic_metrics(
         .record_connection_num(now, connection_manager.connections.len() as u64)?;
 
     // topic num
-    metrics_cache_manager
-        .record_topic_num(now, cache_manager.broker_cache.topic_list.len() as u64)?;
+    metrics_cache_manager.record_topic_num(now, cache_manager.broker_cache.topic_count() as u64)?;
 
     // subscribe num
     metrics_cache_manager
@@ -89,8 +88,8 @@ async fn record_basic_metrics(
 
     // record metrics
     record_mqtt_connections_set(connection_manager.connections.len() as i64);
-    record_mqtt_sessions_set(cache_manager.session_info.len() as i64);
-    record_mqtt_topics_set(cache_manager.broker_cache.topic_list.len() as i64);
+    record_mqtt_sessions_set(cache_manager.session_count() as i64);
+    record_mqtt_topics_set(cache_manager.broker_cache.topic_count() as i64);
 
     record_mqtt_subscribers_set(subscribe_manager.subscribe_list.len() as i64);
     record_mqtt_subscriptions_exclusive_set(subscribe_manager.directly_push.sub_len() as i64);

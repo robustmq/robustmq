@@ -116,6 +116,7 @@ mod test {
 
         // delete connector
         let delete_request = DeleteConnectorRequest {
+            tenant: connector.tenant.clone(),
             connector_name: connector_name.clone(),
         };
 

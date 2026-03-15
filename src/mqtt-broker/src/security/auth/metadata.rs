@@ -167,6 +167,21 @@ impl AclMetadata {
         data
     }
 
+    pub fn get_acl_by_tenant(&self, tenant: &str) -> Vec<MqttAcl> {
+        let mut data: Vec<MqttAcl> = Vec::new();
+        if let Some(user_map) = self.acl_user.get(tenant) {
+            for acl_entry in user_map.iter() {
+                data.extend(acl_entry.value().iter().cloned());
+            }
+        }
+        if let Some(client_map) = self.acl_client_id.get(tenant) {
+            for acl_entry in client_map.iter() {
+                data.extend(acl_entry.value().iter().cloned());
+            }
+        }
+        data
+    }
+
     // Blacklist
     pub fn parse_mqtt_blacklist(&self, blacklist: MqttAclBlackList) {
         match blacklist.blacklist_type {
@@ -339,6 +354,29 @@ impl AclMetadata {
                     b.desc.clone(),
                 ))
         });
+        data
+    }
+
+    pub fn get_blacklist_by_tenant(&self, tenant: &str) -> Vec<MqttAclBlackList> {
+        let mut data: Vec<MqttAclBlackList> = Vec::new();
+        if let Some(m) = self.blacklist_user.get(tenant) {
+            data.extend(m.iter().map(|e| e.value().clone()));
+        }
+        if let Some(m) = self.blacklist_client_id.get(tenant) {
+            data.extend(m.iter().map(|e| e.value().clone()));
+        }
+        if let Some(m) = self.blacklist_ip.get(tenant) {
+            data.extend(m.iter().map(|e| e.value().clone()));
+        }
+        if let Some(v) = self.blacklist_user_match.get(tenant) {
+            data.extend(v.iter().cloned());
+        }
+        if let Some(v) = self.blacklist_client_id_match.get(tenant) {
+            data.extend(v.iter().cloned());
+        }
+        if let Some(v) = self.blacklist_ip_match.get(tenant) {
+            data.extend(v.iter().cloned());
+        }
         data
     }
 }

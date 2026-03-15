@@ -157,6 +157,7 @@ mod tests {
         should_exist: bool,
     ) {
         let list_request = AclListReq {
+            tenant: None,
             limit: Some(10000),
             page: Some(1),
             sort_field: None,

@@ -146,6 +146,7 @@ pub struct DeleteSchemaBindReq {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SchemaListRow {
+    pub tenant: String,
     pub name: String,
     pub schema_type: String,
     pub desc: String,
@@ -172,17 +173,35 @@ pub async fn schema_list(
         params.exact_match,
     );
 
-    let tenant = params.tenant.unwrap_or_default();
-
-    let mut schemas = Vec::new();
-    for schema in state.mqtt_context.schema_manager.get_all_schema(&tenant) {
-        schemas.push(SchemaListRow {
-            name: schema.name.clone(),
-            schema_type: schema.schema_type.to_string(),
-            desc: schema.desc.clone(),
-            schema: schema.schema.clone(),
-        });
-    }
+    let schemas: Vec<SchemaListRow> = if let Some(ref tenant) = params.tenant {
+        state
+            .mqtt_context
+            .schema_manager
+            .get_all_schema(tenant)
+            .into_iter()
+            .map(|schema| SchemaListRow {
+                tenant: tenant.clone(),
+                name: schema.name.clone(),
+                schema_type: schema.schema_type.to_string(),
+                desc: schema.desc.clone(),
+                schema: schema.schema.clone(),
+            })
+            .collect()
+    } else {
+        state
+            .mqtt_context
+            .schema_manager
+            .get_all_schema_all_tenants()
+            .into_iter()
+            .map(|(tenant, schema)| SchemaListRow {
+                tenant,
+                name: schema.name.clone(),
+                schema_type: schema.schema_type.to_string(),
+                desc: schema.desc.clone(),
+                schema: schema.schema.clone(),
+            })
+            .collect()
+    };
 
     let filtered = apply_filters(schemas, &options);
     let sorted = apply_sorting(filtered, &options);
@@ -197,6 +216,7 @@ pub async fn schema_list(
 impl Queryable for SchemaListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "tenant" => Some(self.tenant.clone()),
             "name" => Some(self.name.clone()),
             "schema_type" => Some(self.schema_type.clone()),
             _ => None,

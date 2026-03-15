@@ -410,6 +410,7 @@ impl MqttBrokerCommand {
 
         // Create request for session list
         let request = admin_server::mqtt::session::SessionListReq {
+            tenant: None,
             client_id: None,
             limit: Some(params.limit),
             page: Some(params.page),
@@ -595,6 +596,7 @@ impl MqttBrokerCommand {
 
         // Create request for acl list
         let request = admin_server::mqtt::acl::AclListReq {
+            tenant: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
@@ -691,6 +693,7 @@ impl MqttBrokerCommand {
 
         // Create request for blacklist list
         let request = admin_server::mqtt::blacklist::BlackListListReq {
+            tenant: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
@@ -1087,6 +1090,7 @@ impl MqttBrokerCommand {
 
         // Create request for connector list
         let request = admin_server::mqtt::connector::ConnectorListReq {
+            tenant: None,
             connector_name: None,
             limit: Some(params.limit),
             page: Some(params.page),
