@@ -89,15 +89,11 @@ pub async fn run_connector_loop<S: ConnectorSink>(
 
     let mut resource = Some(sink.init_sink().await?);
     let message_storage = MessageStorage::new(storage_driver_manager.clone());
-    let connector = connector_manager.get_connector(&connector_name);
-    let connector_type = connector
-        .as_ref()
+    let connector_tenant = config.tenant.clone();
+    let connector_type = connector_manager
+        .get_connector(&connector_name)
         .map(|c| c.connector_type.to_string())
         .unwrap_or_else(|| "unknown".to_string());
-    let connector_tenant = connector
-        .as_ref()
-        .map(|c| c.tenant.clone())
-        .unwrap_or_default();
 
     let ctx = BatchCtx {
         connector_name: &connector_name,

@@ -78,12 +78,6 @@ pub async fn session_list(
 
     let cache = &state.mqtt_context.cache_manager;
 
-    let total_count = cache
-        .session_info
-        .iter()
-        .map(|e| e.value().len())
-        .sum::<usize>();
-
     let matches = |session: &MqttSession| -> bool {
         if let Some(ref prefix) = filter_client_id {
             if !session.client_id.starts_with(prefix.as_str()) {
@@ -93,14 +87,11 @@ pub async fn session_list(
         true
     };
 
-    let mut sample: Vec<MqttSession> = Vec::with_capacity(MAX_SAMPLE_SIZE);
+    let mut all_matched: Vec<MqttSession> = Vec::new();
 
     let collect_from_inner = |inner: &dashmap::DashMap<String, MqttSession>,
                               out: &mut Vec<MqttSession>| {
         for entry in inner.iter() {
-            if out.len() >= MAX_SAMPLE_SIZE {
-                break;
-            }
             if matches(entry.value()) {
                 out.push(entry.value().clone());
             }
@@ -109,16 +100,16 @@ pub async fn session_list(
 
     if let Some(ref tenant) = filter_tenant {
         if let Some(inner) = cache.session_info.get(tenant) {
-            collect_from_inner(inner.value(), &mut sample);
+            collect_from_inner(inner.value(), &mut all_matched);
         }
     } else {
-        'outer: for tenant_entry in cache.session_info.iter() {
-            collect_from_inner(tenant_entry.value(), &mut sample);
-            if sample.len() >= MAX_SAMPLE_SIZE {
-                break 'outer;
-            }
+        for tenant_entry in cache.session_info.iter() {
+            collect_from_inner(tenant_entry.value(), &mut all_matched);
         }
     }
+
+    let total_count = all_matched.len();
+    let sample: Vec<MqttSession> = all_matched.into_iter().take(MAX_SAMPLE_SIZE).collect();
 
     let rows: Vec<SessionListRow> = sample
         .into_iter()

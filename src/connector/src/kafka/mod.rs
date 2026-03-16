@@ -212,10 +212,10 @@ pub fn start_kafka_connector(
             &storage_driver_manager,
             connector.connector_name.clone(),
             BridgePluginReadConfig {
-                tenant: connector.tenant,
-                topic_name: connector.topic_name,
+                tenant: connector.tenant.clone(),
+                topic_name: connector.topic_name.clone(),
                 record_num: 100,
-                strategy: connector.failure_strategy,
+                strategy: connector.failure_strategy.clone(),
             },
             stop_recv,
         )
@@ -223,8 +223,8 @@ pub fn start_kafka_connector(
         {
             connector_manager.remove_connector_thread(&connector.connector_name);
             error!(
-                "Failed to start KafkaBridgePlugin, connector_name='{}', connector_type='{}', error={:?}",
-                connector_name, connector_type, e
+                "Failed to start KafkaBridgePlugin, connector='{:#?}', error={:?}",
+                connector, e
             );
         }
     }));
