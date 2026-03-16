@@ -135,7 +135,7 @@ pub async fn start_update_parse_thread(
                     (BrokerUpdateCacheResourceType::Topic, BrokerUpdateCacheActionType::Delete) => {
                         if let Some(topic) = data.topic {
                             info!("Removing subscriptions for deleted topic '{}'", topic.topic_name);
-                            subscribe_manager.remove_by_topic(&topic.topic_name);
+                            subscribe_manager.remove_by_topic(&topic.tenant, &topic.topic_name);
                         }
                     }
                     (BrokerUpdateCacheResourceType::Subscribe, BrokerUpdateCacheActionType::Create) => {
@@ -451,7 +451,11 @@ mod tests {
 
         // Should not panic
         add_directly_push(context).unwrap();
-        assert!(manager.topic_subscribes.get("topic").is_some());
+        assert!(manager
+            .topic_subscribes
+            .get(DEFAULT_TENANT)
+            .map(|t| t.contains_key("topic"))
+            .unwrap_or(false));
     }
 
     #[test]
@@ -472,6 +476,10 @@ mod tests {
 
         // Should not panic and should match wildcard
         add_directly_push(context).unwrap();
-        assert!(manager.topic_subscribes.get("test/topic").is_some());
+        assert!(manager
+            .topic_subscribes
+            .get(DEFAULT_TENANT)
+            .map(|t| t.contains_key("test/topic"))
+            .unwrap_or(false));
     }
 }

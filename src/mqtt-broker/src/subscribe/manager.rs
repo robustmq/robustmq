@@ -32,7 +32,6 @@ pub struct TopicSubscribeInfo {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub struct ShareSubscribeTopicInfo {
-    pub tenant: String,
     pub topic: String,
 }
 
@@ -45,16 +44,16 @@ pub struct SubscribeManager {
     pub directly_push: BucketsManager,
 
     // share sub
-    // (group_name, BucketsManager)
-    pub share_push: DashMap<String, BucketsManager>,
-    // (group_name, Vec<ShareSubscribeTopicInfo>)
-    pub share_group_topics: DashMap<String, HashSet<ShareSubscribeTopicInfo>>,
+    // (tenant, (group_name, BucketsManager))
+    pub share_push: DashMap<String, DashMap<String, BucketsManager>>,
+    // (tenant, (group_name, HashSet<ShareSubscribeTopicInfo>))
+    pub share_group_topics: DashMap<String, DashMap<String, HashSet<ShareSubscribeTopicInfo>>>,
 
-    // (topic, Vec<TopicSubscribeInfo>)
-    pub topic_subscribes: DashMap<String, HashSet<TopicSubscribeInfo>>,
+    // (tenant, (topic, HashSet<TopicSubscribeInfo>))
+    pub topic_subscribes: DashMap<String, DashMap<String, HashSet<TopicSubscribeInfo>>>,
 
-    //(client_id, TemporaryNotPushClient)
-    pub not_push_client: DashMap<String, u64>,
+    // (tenant, (client_id, last_not_push_time))
+    pub not_push_client: DashMap<String, DashMap<String, u64>>,
 
     pub update_cache_sender: Arc<RwLock<Option<Sender<ParseSubscribeData>>>>,
 }
@@ -100,6 +99,7 @@ impl SubscribeManager {
     // directly && share
     pub fn add_directly_sub(&self, subscriber: &Subscriber) {
         self.add_topic_subscribe(
+            &subscriber.tenant,
             &subscriber.topic_name,
             &subscriber.client_id,
             &subscriber.sub_path,
@@ -110,58 +110,55 @@ impl SubscribeManager {
     pub fn add_share_sub(&self, subscriber: &Subscriber) {
         // topic_subscribes
         self.add_topic_subscribe(
+            &subscriber.tenant,
             &subscriber.topic_name,
             &subscriber.client_id,
             &subscriber.sub_path,
         );
 
         // share_push
-        if let Some(bucket) = self.share_push.get(&subscriber.group_name) {
-            bucket.add(subscriber);
-        } else {
-            let bucket = BucketsManager::new(Some(subscriber.group_name.to_string()), 10000);
-            bucket.add(subscriber);
-            self.share_push
-                .insert(subscriber.group_name.to_string(), bucket);
-        }
+        self.share_push
+            .entry(subscriber.tenant.clone())
+            .or_default()
+            .entry(subscriber.group_name.clone())
+            .or_insert_with(|| BucketsManager::new(Some(subscriber.group_name.clone()), 10000))
+            .add(subscriber);
 
         // share_group_topics
-        if let Some(mut list) = self.share_group_topics.get_mut(&subscriber.group_name) {
-            list.insert(ShareSubscribeTopicInfo {
-                tenant: subscriber.tenant.clone(),
+        self.share_group_topics
+            .entry(subscriber.tenant.clone())
+            .or_default()
+            .entry(subscriber.group_name.clone())
+            .or_default()
+            .insert(ShareSubscribeTopicInfo {
                 topic: subscriber.topic_name.clone(),
             });
-        } else {
-            let mut set = HashSet::new();
-            set.insert(ShareSubscribeTopicInfo {
-                tenant: subscriber.tenant.clone(),
-                topic: subscriber.topic_name.clone(),
-            });
-            self.share_group_topics
-                .insert(subscriber.group_name.to_string(), set);
-        }
     }
 
     // remove
-    pub fn remove_by_client_id(&self, client_id: &str) {
-        for tenant_entry in self.subscribe_list.iter() {
-            tenant_entry
-                .value()
-                .retain(|_, subscribe| subscribe.client_id != *client_id);
+    pub fn remove_by_client_id(&self, tenant: &str, client_id: &str) {
+        if let Some(tenant_map) = self.subscribe_list.get(tenant) {
+            tenant_map.retain(|_, subscribe| subscribe.client_id != *client_id);
         }
         self.subscribe_list.retain(|_, m| !m.is_empty());
 
-        // Clean up topic_subscribes and remove empty entries
-        self.topic_subscribes.retain(|_, list| {
-            list.retain(|x| x.client_id != *client_id);
-            !list.is_empty()
-        });
+        // Clean up topic_subscribes
+        if let Some(tenant_topics) = self.topic_subscribes.get(tenant) {
+            tenant_topics.retain(|_, list| {
+                list.retain(|x| x.client_id != *client_id);
+                !list.is_empty()
+            });
+        }
 
-        self.not_push_client.remove(client_id);
+        if let Some(tenant_map) = self.not_push_client.get(tenant) {
+            tenant_map.remove(client_id);
+        }
         self.directly_push.remove_by_client_id(client_id);
 
-        for row in self.share_push.iter() {
-            row.remove_by_client_id(client_id);
+        if let Some(tenant_share) = self.share_push.get(tenant) {
+            for row in tenant_share.iter() {
+                row.remove_by_client_id(client_id);
+            }
         }
     }
 
@@ -171,26 +168,34 @@ impl SubscribeManager {
             tenant_map.remove(&key);
         }
 
-        // Clean up topic_subscribes and remove empty entries
-        self.topic_subscribes.retain(|_, list| {
-            list.retain(|x| !(x.path == *sub_path && x.client_id == *client_id));
-            !list.is_empty()
-        });
+        // Clean up topic_subscribes
+        if let Some(tenant_topics) = self.topic_subscribes.get(tenant) {
+            tenant_topics.retain(|_, list| {
+                list.retain(|x| !(x.path == *sub_path && x.client_id == *client_id));
+                !list.is_empty()
+            });
+        }
 
         self.directly_push.remove_by_sub(client_id, sub_path);
 
-        for row in self.share_push.iter() {
-            row.remove_by_sub(client_id, sub_path);
+        if let Some(tenant_share) = self.share_push.get(tenant) {
+            for row in tenant_share.iter() {
+                row.remove_by_sub(client_id, sub_path);
+            }
         }
     }
 
-    pub fn remove_by_topic(&self, topic_name: &str) {
-        self.topic_subscribes.remove(topic_name);
+    pub fn remove_by_topic(&self, tenant: &str, topic_name: &str) {
+        if let Some(tenant_topics) = self.topic_subscribes.get(tenant) {
+            tenant_topics.remove(topic_name);
+        }
 
         self.directly_push.remove_by_topic(topic_name);
 
-        for row in self.share_push.iter() {
-            row.remove_by_topic(topic_name);
+        if let Some(tenant_share) = self.share_push.get(tenant) {
+            for row in tenant_share.iter() {
+                row.remove_by_topic(topic_name);
+            }
         }
     }
 
@@ -210,27 +215,33 @@ impl SubscribeManager {
     }
 
     // not push client
-    pub fn add_not_push_client(&self, client_id: &str) {
+    pub fn add_not_push_client(&self, tenant: &str, client_id: &str) {
         self.not_push_client
+            .entry(tenant.to_string())
+            .or_default()
             .insert(client_id.to_string(), now_second());
     }
 
-    pub fn allow_push_client(&self, client_id: &str) -> bool {
-        if let Some(time) = self.not_push_client.get(client_id) {
-            if (now_second() - *time) >= 10 {
-                self.not_push_client.remove(client_id);
-                return true;
-            } else {
-                return false;
+    pub fn allow_push_client(&self, tenant: &str, client_id: &str) -> bool {
+        if let Some(tenant_map) = self.not_push_client.get(tenant) {
+            if let Some(time) = tenant_map.get(client_id) {
+                if (now_second() - *time) >= 10 {
+                    drop(time);
+                    tenant_map.remove(client_id);
+                    return true;
+                } else {
+                    return false;
+                }
             }
         }
-
         true
     }
 
     // topic
-    pub fn add_topic_subscribe(&self, topic_name: &str, client_id: &str, path: &str) {
+    pub fn add_topic_subscribe(&self, tenant: &str, topic_name: &str, client_id: &str, path: &str) {
         self.topic_subscribes
+            .entry(tenant.to_owned())
+            .or_default()
             .entry(topic_name.to_owned())
             .or_default()
             .insert(TopicSubscribeInfo {
@@ -239,15 +250,26 @@ impl SubscribeManager {
             });
     }
 
-    pub fn is_exclusive_subscribe(&self, topic_name: &str) -> bool {
-        self.topic_subscribes
+    pub fn is_exclusive_subscribe(&self, tenant: &str, topic_name: &str) -> bool {
+        let Some(tenant_map) = self.topic_subscribes.get(tenant) else {
+            return false;
+        };
+        tenant_map
             .get(topic_name)
             .map(|list| list.iter().any(|raw| is_exclusive_sub(&raw.path)))
             .unwrap_or(false)
     }
 
-    pub fn is_exclusive_subscribe_by_other(&self, topic_name: &str, client_id: &str) -> bool {
-        self.topic_subscribes
+    pub fn is_exclusive_subscribe_by_other(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+        client_id: &str,
+    ) -> bool {
+        let Some(tenant_map) = self.topic_subscribes.get(tenant) else {
+            return false;
+        };
+        tenant_map
             .get(topic_name)
             .map(|list| {
                 list.iter()
@@ -256,10 +278,16 @@ impl SubscribeManager {
             .unwrap_or(false)
     }
 
+    pub fn share_group_count(&self) -> usize {
+        self.share_push.iter().map(|t| t.value().len()).sum()
+    }
+
     pub fn share_sub_len(&self) -> u64 {
         let mut len = 0;
-        for raw in self.share_push.iter() {
-            len += raw.value().sub_len();
+        for tenant_entry in self.share_push.iter() {
+            for raw in tenant_entry.value().iter() {
+                len += raw.value().sub_len();
+            }
         }
         len
     }
@@ -319,15 +347,24 @@ mod tests {
     fn test_remove_by_sub_logic() {
         let mgr = SubscribeManager::new();
 
-        mgr.add_topic_subscribe("topic1", "c1", "/t1");
-        mgr.add_topic_subscribe("topic1", "c1", "/t2");
-        mgr.add_topic_subscribe("topic1", "c2", "/t1");
+        mgr.add_topic_subscribe(DEFAULT_TENANT, "topic1", "c1", "/t1");
+        mgr.add_topic_subscribe(DEFAULT_TENANT, "topic1", "c1", "/t2");
+        mgr.add_topic_subscribe(DEFAULT_TENANT, "topic1", "c2", "/t1");
 
-        assert_eq!(mgr.topic_subscribes.get("topic1").unwrap().len(), 3);
+        assert_eq!(
+            mgr.topic_subscribes
+                .get(DEFAULT_TENANT)
+                .unwrap()
+                .get("topic1")
+                .unwrap()
+                .len(),
+            3
+        );
 
         mgr.remove_by_sub(DEFAULT_TENANT, "c1", "/t1");
 
-        let list = mgr.topic_subscribes.get("topic1").unwrap();
+        let tenant_map = mgr.topic_subscribes.get(DEFAULT_TENANT).unwrap();
+        let list = tenant_map.get("topic1").unwrap();
         assert_eq!(list.len(), 2);
         assert!(!list.iter().any(|x| x.client_id == "c1" && x.path == "/t1"));
         assert!(list.iter().any(|x| x.client_id == "c1" && x.path == "/t2"));
@@ -337,11 +374,19 @@ mod tests {
     fn test_topic_subscribe_deduplication() {
         let mgr = SubscribeManager::new();
 
-        mgr.add_topic_subscribe("topic1", "c1", "/t1");
-        mgr.add_topic_subscribe("topic1", "c1", "/t1");
-        mgr.add_topic_subscribe("topic1", "c1", "/t1");
+        mgr.add_topic_subscribe(DEFAULT_TENANT, "topic1", "c1", "/t1");
+        mgr.add_topic_subscribe(DEFAULT_TENANT, "topic1", "c1", "/t1");
+        mgr.add_topic_subscribe(DEFAULT_TENANT, "topic1", "c1", "/t1");
 
-        assert_eq!(mgr.topic_subscribes.get("topic1").unwrap().len(), 1);
+        assert_eq!(
+            mgr.topic_subscribes
+                .get(DEFAULT_TENANT)
+                .unwrap()
+                .get("topic1")
+                .unwrap()
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -352,15 +397,16 @@ mod tests {
 
         mgr.add_subscribe(&sub1);
         mgr.add_subscribe(&sub2);
-        mgr.add_topic_subscribe("topic1", "c1", "/t1");
-        mgr.add_topic_subscribe("topic1", "c2", "/t2");
+        mgr.add_topic_subscribe(DEFAULT_TENANT, "topic1", "c1", "/t1");
+        mgr.add_topic_subscribe(DEFAULT_TENANT, "topic1", "c2", "/t2");
 
-        mgr.remove_by_client_id("c1");
+        mgr.remove_by_client_id(DEFAULT_TENANT, "c1");
 
         assert!(mgr.get_subscribe(DEFAULT_TENANT, "c1", "/t1").is_none());
         assert!(mgr.get_subscribe(DEFAULT_TENANT, "c2", "/t2").is_some());
 
-        let list = mgr.topic_subscribes.get("topic1").unwrap();
+        let tenant_map = mgr.topic_subscribes.get(DEFAULT_TENANT).unwrap();
+        let list = tenant_map.get("topic1").unwrap();
         assert!(!list.iter().any(|x| x.client_id == "c1"));
     }
 
@@ -368,28 +414,28 @@ mod tests {
     fn test_is_exclusive_subscribe() {
         let mgr = SubscribeManager::new();
 
-        mgr.add_topic_subscribe("topic1", "c1", "/t1");
-        assert!(!mgr.is_exclusive_subscribe("topic1"));
+        mgr.add_topic_subscribe(DEFAULT_TENANT, "topic1", "c1", "/t1");
+        assert!(!mgr.is_exclusive_subscribe(DEFAULT_TENANT, "topic1"));
 
-        mgr.add_topic_subscribe("topic2", "c2", "$exclusive/t2");
-        assert!(mgr.is_exclusive_subscribe("topic2"));
+        mgr.add_topic_subscribe(DEFAULT_TENANT, "topic2", "c2", "$exclusive/t2");
+        assert!(mgr.is_exclusive_subscribe(DEFAULT_TENANT, "topic2"));
 
-        assert!(!mgr.is_exclusive_subscribe("topic_not_exist"));
+        assert!(!mgr.is_exclusive_subscribe(DEFAULT_TENANT, "topic_not_exist"));
     }
 
     #[test]
     fn test_is_exclusive_subscribe_by_other() {
         let mgr = SubscribeManager::new();
 
-        mgr.add_topic_subscribe("topic1", "c1", "$exclusive/t1");
+        mgr.add_topic_subscribe(DEFAULT_TENANT, "topic1", "c1", "$exclusive/t1");
 
         // Same client should return false
-        assert!(!mgr.is_exclusive_subscribe_by_other("topic1", "c1"));
+        assert!(!mgr.is_exclusive_subscribe_by_other(DEFAULT_TENANT, "topic1", "c1"));
 
         // Different client should return true
-        assert!(mgr.is_exclusive_subscribe_by_other("topic1", "c2"));
+        assert!(mgr.is_exclusive_subscribe_by_other(DEFAULT_TENANT, "topic1", "c2"));
 
         // Non-existent topic should return false
-        assert!(!mgr.is_exclusive_subscribe_by_other("topic_not_exist", "c1"));
+        assert!(!mgr.is_exclusive_subscribe_by_other(DEFAULT_TENANT, "topic_not_exist", "c1"));
     }
 }

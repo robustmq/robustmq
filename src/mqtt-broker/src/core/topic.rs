@@ -207,7 +207,7 @@ pub async fn delete_topic(
         .await?;
     cache_manager.broker_cache.delete_topic(tenant, topic_name);
     metrics_manager.remove_topic(topic_name)?;
-    subscribe_manager.remove_by_topic(topic_name);
+    subscribe_manager.remove_by_topic(tenant, topic_name);
     Ok(())
 }
 

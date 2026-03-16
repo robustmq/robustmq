@@ -372,7 +372,12 @@ async fn subscribe_validator(
         );
     }
 
-    if already_exclusive_subscribe(subscribe_manager, &connection.client_id, subscribe) {
+    if already_exclusive_subscribe(
+        subscribe_manager,
+        &connection.tenant,
+        &connection.client_id,
+        subscribe,
+    ) {
         return (
             vec![SubscribeReasonCode::TopicSubscribed],
             "Topic already has an exclusive subscription".to_string(),

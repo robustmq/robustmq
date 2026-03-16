@@ -52,8 +52,8 @@ use mqtt_broker::storage::connector::ConnectorStorage;
 use std::sync::Arc;
 
 use crate::{
-    tool::extractor::ValidatedJson,
     state::HttpState,
+    tool::extractor::ValidatedJson,
     tool::{
         query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,

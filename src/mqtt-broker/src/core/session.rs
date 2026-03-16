@@ -68,6 +68,7 @@ pub async fn session_process(
         delete_session_by_local(
             &context.cache_manager,
             &context.subscribe_manager,
+            &context.tenant,
             &context.client_id,
         );
         let session = build_new_session(&context).await;
@@ -118,9 +119,10 @@ pub async fn session_process(
 pub fn delete_session_by_local(
     cache_manager: &Arc<MQTTCacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
+    tenant: &str,
     client_id: &str,
 ) {
-    subscribe_manager.remove_by_client_id(client_id);
+    subscribe_manager.remove_by_client_id(tenant, client_id);
     cache_manager.remove_session(client_id);
 }
 

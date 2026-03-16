@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    tool::extractor::ValidatedJson,
     state::HttpState,
+    tool::extractor::ValidatedJson,
     tool::{
         query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
@@ -268,16 +268,13 @@ async fn read_topic_detail(
         .list_storage_resource(&topic.tenant, &topic.topic_name)
         .await?;
 
-    let sub_list = if let Some(list) = state
+    let sub_list = state
         .mqtt_context
         .subscribe_manager
         .topic_subscribes
-        .get(&topic.topic_name)
-    {
-        list.clone()
-    } else {
-        HashSet::new()
-    };
+        .get(&topic.tenant)
+        .and_then(|t| t.get(&topic.topic_name).map(|v| v.clone()))
+        .unwrap_or_default();
     let storage = TopicStorage::new(state.client_pool.clone());
     let (retain_message, retain_message_at) = storage
         .get_retain_message(&topic.tenant, &topic.topic_name)

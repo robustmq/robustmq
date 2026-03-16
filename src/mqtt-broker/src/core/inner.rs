@@ -47,7 +47,11 @@ pub async fn delete_session_by_req(
     }
 
     for client_id in req.client_id.iter() {
-        delete_session_by_local(cache_manager, subscribe_manager, client_id);
+        let tenant = cache_manager
+            .get_session_info(client_id)
+            .map(|s| s.tenant)
+            .unwrap_or_default();
+        delete_session_by_local(cache_manager, subscribe_manager, &tenant, client_id);
     }
     record_mqtt_session_deleted();
     Ok(DeleteSessionReply::default())
