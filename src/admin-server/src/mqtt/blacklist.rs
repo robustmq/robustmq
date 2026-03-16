@@ -211,16 +211,11 @@ pub async fn blacklist_delete(
             return error_response(e.to_string());
         }
     };
-    let mqtt_blacklist = MqttAclBlackList {
-        tenant: params.tenant.clone(),
-        blacklist_type,
-        resource_name: params.resource_name.clone(),
-        end_time: 0,
-        desc: "".to_string(),
-    };
-
     let blacklist_storage = BlackListStorage::new(state.client_pool.clone());
-    match blacklist_storage.delete_blacklist(mqtt_blacklist).await {
+    match blacklist_storage
+        .delete_blacklist(&params.tenant, blacklist_type, &params.resource_name)
+        .await
+    {
         Ok(_) => success_response("success"),
         Err(e) => error_response(e.to_string()),
     }

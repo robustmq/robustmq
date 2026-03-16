@@ -17,6 +17,7 @@ use std::sync::Arc;
 use common_config::broker::broker_config;
 use grpc_clients::meta::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
 use grpc_clients::pool::ClientPool;
+use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use protocol::meta::meta_service_mqtt::{
     CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,
@@ -57,12 +58,17 @@ impl BlackListStorage {
         Ok(())
     }
 
-    pub async fn delete_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
+    pub async fn delete_blacklist(
+        &self,
+        tenant: &str,
+        blacklist_type: MqttAclBlackListType,
+        resource_name: &str,
+    ) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = DeleteBlacklistRequest {
-            tenant: blacklist.tenant.clone(),
-            blacklist_type: blacklist.blacklist_type.to_string(),
-            resource_name: blacklist.resource_name,
+            tenant: tenant.to_string(),
+            blacklist_type: blacklist_type.to_string(),
+            resource_name: resource_name.to_string(),
         };
         delete_blacklist(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
