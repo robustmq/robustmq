@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    extractor::ValidatedJson,
+    tool::extractor::ValidatedJson,
     state::HttpState,
     tool::{
         query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
