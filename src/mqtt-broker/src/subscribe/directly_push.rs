@@ -121,6 +121,8 @@ impl DirectlyPushManager {
 
     pub async fn send_messages(&self, stop_sx: &Sender<bool>) -> Result<usize, MqttBrokerError> {
         let mut processed_count = 0;
+        let mut stale_subs: Vec<(String, String, String)> = Vec::new();
+
         if let Some(data) = self
             .subscribe_manager
             .directly_push
@@ -140,11 +142,11 @@ impl DirectlyPushManager {
                                 "Removing stale subscriber [client_id: {}, sub_path: {}]: shard no longer exists ({})",
                                 row.client_id, row.sub_path, err_msg
                             );
-                            self.subscribe_manager.remove_by_sub(
-                                &row.tenant,
-                                &row.client_id,
-                                &row.sub_path,
-                            );
+                            stale_subs.push((
+                                row.tenant.clone(),
+                                row.client_id.clone(),
+                                row.sub_path.clone(),
+                            ));
                         } else {
                             warn!(
                                 "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}],error message: {}",
@@ -161,6 +163,11 @@ impl DirectlyPushManager {
                     processed_count, subscriber_count, self.uuid
                 );
             }
+        }
+
+        for (tenant, client_id, sub_path) in stale_subs {
+            self.subscribe_manager
+                .remove_by_sub(&tenant, &client_id, &sub_path);
         }
 
         Ok(processed_count)

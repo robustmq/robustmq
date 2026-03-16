@@ -373,8 +373,6 @@ async fn connector_create_inner(
         update_time: now_second(),
     };
 
-    println!("connector:{:?}", connector);
-
     storage.create_connector(connector).await
 }
 
