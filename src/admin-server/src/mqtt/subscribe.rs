@@ -58,6 +58,7 @@ pub struct SubscribeDetailRep {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SubDataRaw {
+    pub tenant: String,
     pub client_id: String,
     pub path: String,
     // (topic, Subscriber)
@@ -153,8 +154,21 @@ pub struct AutoSubscribeListRow {
     pub retained_handling: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SlowSubscribeListReq {
+    pub tenant: Option<String>,
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SlowSubscribeListRow {
+    pub tenant: String,
     pub client_id: String,
     pub topic_name: String,
     pub time_span: u64,
@@ -296,6 +310,7 @@ pub async fn subscribe_detail(
     }
 
     let sub_data = SubDataRaw {
+        tenant: params.tenant.clone(),
         client_id: params.client_id.clone(),
         path: params.path.clone(),
         push_subscribe,
@@ -410,8 +425,9 @@ pub async fn auto_subscribe_delete(
 
 pub async fn slow_subscribe_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<AutoSubscribeListReq>,
+    Query(params): Query<SlowSubscribeListReq>,
 ) -> String {
+    let filter_tenant = params.tenant;
     let options = build_query_params(
         params.page,
         params.limit,
@@ -421,26 +437,30 @@ pub async fn slow_subscribe_list(
         params.filter_values,
         params.exact_match,
     );
-    let mut list_slow_subscribes = Vec::new();
 
     let local_storage = LocalStorage::new(state.rocksdb_engine_handler.clone());
-    let data_list = match local_storage.list_slow_sub_log().await {
+    let data_list = match local_storage
+        .list_slow_sub_log(filter_tenant.as_deref())
+        .await
+    {
         Ok(data) => data,
         Err(e) => {
             return error_response(e.to_string());
         }
     };
 
-    for slow_data in data_list {
-        list_slow_subscribes.push(SlowSubscribeListRow {
+    let list_slow_subscribes = data_list
+        .into_iter()
+        .map(|slow_data| SlowSubscribeListRow {
+            tenant: slow_data.tenant.clone(),
             client_id: slow_data.client_id.clone(),
             topic_name: slow_data.topic_name.clone(),
             time_span: slow_data.time_span,
             node_info: slow_data.node_info.clone(),
             create_time: timestamp_to_local_datetime(slow_data.create_time as i64),
             subscribe_name: slow_data.subscribe_name.clone(),
-        });
-    }
+        })
+        .collect::<Vec<_>>();
 
     let filtered = apply_filters(list_slow_subscribes, &options);
     let sorted = apply_sorting(filtered, &options);
@@ -455,6 +475,7 @@ pub async fn slow_subscribe_list(
 impl Queryable for SlowSubscribeListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "tenant" => Some(self.tenant.clone()),
             "client_id" => Some(self.client_id.clone()),
             "topic_name" => Some(self.topic_name.clone()),
             _ => None,

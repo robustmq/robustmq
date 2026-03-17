@@ -21,7 +21,8 @@ use rocksdb_engine::{
 };
 
 use rocksdb_engine::keys::broker::{
-    ban_log_key, ban_log_prefix_key, slow_sub_log_key, slow_sub_log_prefix_key, system_event_key,
+    ban_log_key, ban_log_prefix_key, ban_log_prefix_key_by_tenant, slow_sub_log_key,
+    slow_sub_log_prefix_key, slow_sub_log_prefix_key_by_tenant, system_event_key,
     system_event_prefix_key,
 };
 
@@ -56,24 +57,38 @@ impl LocalStorage {
     }
 
     pub async fn save_ban_log(&self, log: BanLog) -> ResultCommonError {
-        let key = ban_log_key(&log.ban_type, &log.resource_name, log.create_time as i64);
+        let key = ban_log_key(
+            &log.tenant,
+            &log.ban_type,
+            &log.resource_name,
+            log.create_time as i64,
+        );
         engine_save_by_broker(&self.rocksdb_engine_handler, &key, log)
     }
 
-    pub async fn list_ban_log(&self) -> Result<Vec<BanLog>, MqttBrokerError> {
-        let prefix_key = ban_log_prefix_key();
+    pub async fn list_ban_log(&self, tenant: Option<&str>) -> Result<Vec<BanLog>, MqttBrokerError> {
+        let prefix_key = match tenant {
+            Some(t) => ban_log_prefix_key_by_tenant(t),
+            None => ban_log_prefix_key(),
+        };
         let data =
             engine_prefix_list_by_broker::<BanLog>(&self.rocksdb_engine_handler, &prefix_key)?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
     pub async fn save_slow_sub_log(&self, log: SlowSubscribeData) -> ResultCommonError {
-        let key = slow_sub_log_key(&log.client_id, &log.topic_name);
+        let key = slow_sub_log_key(&log.tenant, &log.client_id, &log.topic_name);
         engine_save_by_broker(&self.rocksdb_engine_handler, &key, log)
     }
 
-    pub async fn list_slow_sub_log(&self) -> Result<Vec<SlowSubscribeData>, MqttBrokerError> {
-        let prefix_key = slow_sub_log_prefix_key();
+    pub async fn list_slow_sub_log(
+        &self,
+        tenant: Option<&str>,
+    ) -> Result<Vec<SlowSubscribeData>, MqttBrokerError> {
+        let prefix_key = match tenant {
+            Some(t) => slow_sub_log_prefix_key_by_tenant(t),
+            None => slow_sub_log_prefix_key(),
+        };
         let data = engine_prefix_list_by_broker::<SlowSubscribeData>(
             &self.rocksdb_engine_handler,
             &prefix_key,
