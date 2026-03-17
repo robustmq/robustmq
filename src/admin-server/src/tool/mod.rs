@@ -14,6 +14,7 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod extractor;
 pub mod query;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

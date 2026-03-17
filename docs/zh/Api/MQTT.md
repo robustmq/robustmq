@@ -719,9 +719,23 @@
 
 ##### 5.4.1 慢订阅列表
 - **接口**: `GET /api/mqtt/slow-subscribe/list`
-- **描述**: 查询慢订阅列表
-- **请求参数**: 支持通用分页和过滤参数
+- **描述**: 查询慢订阅列表，支持按租户过滤
+- **请求参数**:
+```json
+{
+  "tenant": "default",              // 可选，按租户过滤（指定后仅扫描该租户的记录）
+  "limit": 20,
+  "page": 1,
+  "sort_field": "time_span",
+  "sort_by": "desc",
+  "filter_field": "client_id",
+  "filter_values": ["slow_client"],
+  "exact_match": "false"
+}
+```
+
 - **响应数据结构**:
+
 ```json
 {
   "code": 0,
@@ -729,6 +743,7 @@
   "data": {
     "data": [
       {
+        "tenant": "default",
         "client_id": "slow_client",
         "topic_name": "heavy/topic",
         "time_span": 5000,
@@ -741,6 +756,16 @@
   }
 }
 ```
+
+**字段说明**：
+
+- `tenant`: 所属租户
+- `client_id`: 客户端ID
+- `topic_name`: 订阅主题
+- `time_span`: 慢订阅耗时（毫秒）
+- `node_info`: 所在节点信息
+- `create_time`: 记录创建时间（本地时间格式）
+- `subscribe_name`: 订阅名称
 
 ---
 
@@ -1218,10 +1243,26 @@
 ```
 
 #### 12.2 连接抖动检测列表
+
 - **接口**: `GET /api/mqtt/flapping_detect/list`
-- **描述**: 查询连接抖动检测列表
-- **请求参数**: 支持通用分页和过滤参数
+- **描述**: 查询连接抖动检测列表，支持按租户过滤
+- **请求参数**:
+
+```json
+{
+  "tenant": "default",              // 可选，按租户过滤（指定后仅返回该租户数据）
+  "limit": 20,
+  "page": 1,
+  "sort_field": "first_request_time",
+  "sort_by": "desc",
+  "filter_field": "client_id",
+  "filter_values": ["flapping_client"],
+  "exact_match": "false"
+}
+```
+
 - **响应数据结构**:
+
 ```json
 {
   "code": 0,
@@ -1229,8 +1270,9 @@
   "data": {
     "data": [
       {
+        "tenant": "default",
         "client_id": "flapping_client",
-        "before_last_windows_connections": 15,
+        "before_last_window_connections": 15,
         "first_request_time": 1640995200
       }
     ],
@@ -1238,6 +1280,63 @@
   }
 }
 ```
+
+**字段说明**：
+
+- `tenant`: 所属租户
+- `client_id`: 客户端ID
+- `before_last_window_connections`: 上一个统计窗口内的连接次数
+- `first_request_time`: 首次触发时间戳（秒）
+
+#### 12.3 封禁日志列表
+
+- **接口**: `GET /api/mqtt/ban-log/list`
+- **描述**: 查询客户端封禁日志，支持按租户过滤
+- **请求参数**:
+
+```json
+{
+  "tenant": "default",              // 可选，按租户过滤（指定后仅扫描该租户的记录）
+  "limit": 20,
+  "page": 1,
+  "sort_field": "create_time",
+  "sort_by": "desc",
+  "filter_field": "resource_name",
+  "filter_values": ["bad_client"],
+  "exact_match": "false"
+}
+```
+
+- **响应数据结构**:
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "data": [
+      {
+        "tenant": "default",
+        "ban_type": "ClientId",
+        "resource_name": "bad_client_001",
+        "ban_source": "manual",
+        "end_time": "2024-12-31 23:59:59",
+        "create_time": "2024-01-01 10:00:00"
+      }
+    ],
+    "total_count": 5
+  }
+}
+```
+
+**字段说明**：
+
+- `tenant`: 所属租户
+- `ban_type`: 封禁类型（`ClientId` / `User` / `Ip` / `ClientIdMatch` / `UserMatch` / `IPCIDR`）
+- `resource_name`: 被封禁的资源名称（客户端ID、用户名或IP）
+- `ban_source`: 封禁来源（如 `manual` 或 `auto`）
+- `end_time`: 封禁到期时间（本地时间格式）
+- `create_time`: 封禁创建时间（本地时间格式）
 
 ---
 

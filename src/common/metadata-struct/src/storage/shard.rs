@@ -71,12 +71,18 @@ pub struct EngineShardConfig {
     pub retention_sec: u64,
 }
 
+/// 1 GiB (1024 * 1024 * 1024 bytes)
+pub const DEFAULT_MAX_SEGMENT_SIZE: u64 = 1073741824;
+
+/// 24 hours in seconds
+pub const DEFAULT_RETENTION_SEC: u64 = 86400;
+
 impl Default for EngineShardConfig {
     fn default() -> Self {
         Self {
             replica_num: 1,
-            max_segment_size: 1073741824,
-            retention_sec: 86400,
+            max_segment_size: DEFAULT_MAX_SEGMENT_SIZE,
+            retention_sec: DEFAULT_RETENTION_SEC,
             storage_type: StorageType::EngineMemory,
         }
     }

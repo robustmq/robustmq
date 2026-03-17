@@ -80,23 +80,19 @@ async fn cluster_overview_by_req(
 
     let reply = OverViewResp {
         cluster_name: config.cluster_name.clone(),
-        message_in_rate: metrics_manager.get_message_out_rate()?,
+        message_in_rate: metrics_manager.get_message_in_rate()?,
         message_out_rate: metrics_manager.get_message_out_rate()?,
         connector_num: connector_manager.connector_count() as u32,
         connector_thread_num: connector_manager.connector_thread_count() as u32,
         connection_num: cache_manager.get_connection_count() as u32,
-        session_num: cache_manager
-            .session_info
-            .iter()
-            .map(|e| e.value().len())
-            .sum::<usize>() as u32,
+        session_num: cache_manager.session_count() as u32,
         subscribe_num: subscribe_manager.subscribe_count() as u32,
         exclusive_subscribe_num: subscribe_manager.directly_push.sub_len(),
         exclusive_subscribe_thread_num: subscribe_manager.directly_push.buckets_data_list.len()
             as u32,
-        share_subscribe_group_num: subscribe_manager.share_push.len() as u32,
+        share_subscribe_group_num: subscribe_manager.share_group_count() as u32,
         share_subscribe_num: subscribe_manager.share_sub_len(),
-        share_subscribe_thread_num: subscribe_manager.share_push.len() as u32,
+        share_subscribe_thread_num: subscribe_manager.share_group_count() as u32,
         topic_num: cache_manager.broker_cache.topic_count() as u32,
         node_list,
         tcp_connection_num: connection_manager.tcp_write_list.len() as u32,

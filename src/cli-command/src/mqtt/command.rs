@@ -832,7 +832,7 @@ impl MqttBrokerCommand {
                 for raw in page_data.data {
                     table.add_row(row![
                         raw.client_id,
-                        raw.before_last_windows_connections,
+                        raw.before_last_window_connections,
                         raw.first_request_time
                     ]);
                 }

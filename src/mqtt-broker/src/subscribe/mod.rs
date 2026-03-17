@@ -31,7 +31,7 @@ use protocol::meta::meta_service_mqtt::SubLeaderInfo;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 use storage_adapter::driver::StorageDriverManager;
-use tokio::sync::broadcast;
+use tokio::{sync::broadcast, task::JoinSet};
 use tracing::{debug, info, warn};
 
 pub mod buckets;
@@ -198,76 +198,97 @@ impl PushManager {
     }
 
     fn cleanup_empty_share_groups(&self) {
-        let empty_groups: Vec<String> = self
+        // Collect (tenant, group_name) pairs whose BucketsManager is empty
+        let empty_groups: Vec<(String, String)> = self
             .subscribe_manager
             .share_push
             .iter()
-            .filter(|row| row.value().buckets_data_list.is_empty())
-            .map(|row| row.key().clone())
+            .flat_map(|tenant_entry| {
+                let tenant = tenant_entry.key().clone();
+                tenant_entry
+                    .value()
+                    .iter()
+                    .filter(|row| row.value().buckets_data_list.is_empty())
+                    .map(|row| (tenant.clone(), row.key().clone()))
+                    .collect::<Vec<_>>()
+            })
             .collect();
 
-        for group_name in &empty_groups {
-            if let Some((_, thread_data)) = self.share_buckets_push_thread.remove(group_name) {
-                debug!("Stopping thread for empty share group: {}", group_name);
+        for (tenant, group_name) in &empty_groups {
+            let thread_key = share_thread_key(tenant, group_name);
+            if let Some((_, thread_data)) = self.share_buckets_push_thread.remove(&thread_key) {
+                debug!(
+                    "Stopping thread for empty share group: {}/{}",
+                    tenant, group_name
+                );
                 if let Err(e) = thread_data.sender.send(true) {
                     warn!(
-                        "Failed to send stop signal to share group {}: {}",
-                        group_name, e
+                        "Failed to send stop signal to share group {}/{}: {}",
+                        tenant, group_name, e
                     );
                 }
             }
         }
 
-        for group_name in empty_groups {
-            self.subscribe_manager.share_push.remove(&group_name);
-            self.subscribe_manager
-                .share_group_topics
-                .remove(&group_name);
-            debug!("Removed empty share group: {}", group_name);
+        for (tenant, group_name) in empty_groups {
+            if let Some(tenant_map) = self.subscribe_manager.share_push.get(&tenant) {
+                tenant_map.remove(&group_name);
+            }
+            if let Some(tenant_map) = self.subscribe_manager.share_group_topics.get(&tenant) {
+                tenant_map.remove(&group_name);
+            }
+            debug!("Removed empty share group: {}/{}", tenant, group_name);
         }
     }
 
     pub fn start_share_push_thread(&self, group_info_list: &HashMap<String, SubLeaderInfo>) {
         let conf = broker_config();
-        // Start threads for new share groups
-        for row in self.subscribe_manager.share_push.iter() {
-            let group_name = row.key().clone();
+        for tenant_entry in self.subscribe_manager.share_push.iter() {
+            let tenant = tenant_entry.key().clone();
+            for row in tenant_entry.value().iter() {
+                let group_name = row.key().clone();
+                let thread_key = share_thread_key(&tenant, &group_name);
 
-            let is_leader = if let Some(group) = group_info_list.get(&group_name) {
-                group.broker_id == conf.broker_id
-            } else {
-                false
-            };
-
-            if is_leader && !self.share_buckets_push_thread.contains_key(&group_name) {
-                info!("Starting share push thread for group: {}", group_name);
-
-                let (sub_thread_stop_sx, _) = broadcast::channel(1);
-                let thread_data = SubPushThreadData {
-                    push_error_record_num: 0,
-                    push_success_record_num: 0,
-                    last_push_time: 0,
-                    last_run_time: 0,
-                    create_time: now_second(),
-                    sender: sub_thread_stop_sx.clone(),
+                let is_leader = if let Some(group) = group_info_list.get(&group_name) {
+                    group.broker_id == conf.broker_id
+                } else {
+                    false
                 };
 
-                let push_manager = SharePushManager::new(
-                    self.subscribe_manager.clone(),
-                    self.cache_manager.clone(),
-                    self.storage_driver_manager.clone(),
-                    self.connection_manager.clone(),
-                    self.rocksdb_engine_handler.clone(),
-                    group_name.clone(),
-                );
+                if is_leader && !self.share_buckets_push_thread.contains_key(&thread_key) {
+                    info!(
+                        "Starting share push thread for group: {}/{}",
+                        tenant, group_name
+                    );
 
-                let stop_sx = sub_thread_stop_sx.clone();
-                tokio::spawn(async move {
-                    push_manager.start(&stop_sx).await;
-                });
+                    let (sub_thread_stop_sx, _) = broadcast::channel(1);
+                    let thread_data = SubPushThreadData {
+                        push_error_record_num: 0,
+                        push_success_record_num: 0,
+                        last_push_time: 0,
+                        last_run_time: 0,
+                        create_time: now_second(),
+                        sender: sub_thread_stop_sx.clone(),
+                    };
 
-                self.share_buckets_push_thread
-                    .insert(group_name, thread_data);
+                    let push_manager = SharePushManager::new(
+                        self.subscribe_manager.clone(),
+                        self.cache_manager.clone(),
+                        self.storage_driver_manager.clone(),
+                        self.connection_manager.clone(),
+                        self.rocksdb_engine_handler.clone(),
+                        tenant.clone(),
+                        group_name.clone(),
+                    );
+
+                    let stop_sx = sub_thread_stop_sx.clone();
+                    tokio::spawn(async move {
+                        push_manager.start(&stop_sx).await;
+                    });
+
+                    self.share_buckets_push_thread
+                        .insert(thread_key, thread_data);
+                }
             }
         }
     }
@@ -278,24 +299,32 @@ impl PushManager {
             .share_buckets_push_thread
             .iter()
             .filter(|row| {
-                let is_leader = if let Some(group) = group_info_list.get(row.key()) {
+                // thread_key is "tenant#group_name"; extract group_name for leader lookup
+                let group_name = row.key().split_once('#').map(|x| x.1).unwrap_or(row.key());
+                let is_leader = if let Some(group) = group_info_list.get(group_name) {
                     group.broker_id == conf.broker_id
                 } else {
                     false
                 };
-
-                !is_leader || !self.subscribe_manager.share_push.contains_key(row.key())
+                let (tenant, group) = split_thread_key(row.key());
+                !is_leader
+                    || !self
+                        .subscribe_manager
+                        .share_push
+                        .get(tenant)
+                        .map(|t| t.contains_key(group))
+                        .unwrap_or(false)
             })
             .map(|row| row.key().clone())
             .collect();
 
-        for group_name in threads_to_stop {
-            if let Some((_, thread_data)) = self.share_buckets_push_thread.remove(&group_name) {
-                info!("Stopping share push thread for group: {}", group_name);
+        for thread_key in threads_to_stop {
+            if let Some((_, thread_data)) = self.share_buckets_push_thread.remove(&thread_key) {
+                info!("Stopping share push thread for group: {}", thread_key);
                 if let Err(e) = thread_data.sender.send(true) {
                     warn!(
                         "Failed to send stop signal to share group {}: {}",
-                        group_name, e
+                        thread_key, e
                     );
                 }
             }
@@ -303,25 +332,42 @@ impl PushManager {
     }
 
     async fn get_group_leader_list(&self) -> Result<HashMap<String, SubLeaderInfo>, CommonError> {
-        // Group group names by tenant (read tenant from first subscriber in each bucket)
         let mut tenant_groups: HashMap<String, Vec<String>> = HashMap::new();
-        for raw in self.subscribe_manager.share_push.iter() {
-            let group_name = raw.key().clone();
-            let tenant = raw
-                .value()
-                .buckets_data_list
-                .iter()
-                .next()
-                .and_then(|b| b.value().iter().next().map(|s| s.value().tenant.clone()))
-                .unwrap_or_default();
-            tenant_groups.entry(tenant).or_default().push(group_name);
+        for tenant_entry in self.subscribe_manager.share_push.iter() {
+            let tenant = tenant_entry.key().clone();
+            for group_entry in tenant_entry.value().iter() {
+                tenant_groups
+                    .entry(tenant.clone())
+                    .or_default()
+                    .push(group_entry.key().clone());
+            }
+        }
+
+        let mut join_set = JoinSet::new();
+        for (tenant, group_list) in tenant_groups {
+            let client_pool = self.client_pool.clone();
+            join_set.spawn(async move {
+                fetch_share_sub_leader(&client_pool, &tenant, group_list).await
+            });
         }
 
         let mut results = HashMap::new();
-        for (tenant, group_list) in tenant_groups {
-            let leaders = fetch_share_sub_leader(&self.client_pool, &tenant, group_list).await?;
+        while let Some(res) = join_set.join_next().await {
+            let leaders = res.map_err(|e| CommonError::CommonError(e.to_string()))??;
             results.extend(leaders);
         }
         Ok(results)
+    }
+}
+
+fn share_thread_key(tenant: &str, group_name: &str) -> String {
+    format!("{}#{}", tenant, group_name)
+}
+
+fn split_thread_key(key: &str) -> (&str, &str) {
+    if let Some(pos) = key.find('#') {
+        (&key[..pos], &key[pos + 1..])
+    } else {
+        ("", key)
     }
 }

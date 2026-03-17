@@ -41,6 +41,7 @@ pub fn allow_exclusive_subscribe(subscribe: &Subscribe) -> bool {
 
 pub fn already_exclusive_subscribe(
     subscribe_manager: &Arc<SubscribeManager>,
+    tenant: &str,
     client_id: &str,
     subscribe: &Subscribe,
 ) -> bool {
@@ -49,7 +50,7 @@ pub fn already_exclusive_subscribe(
             continue;
         }
         let topic_name = decode_exclusive_sub_path_to_topic_name(&filter.path);
-        if subscribe_manager.is_exclusive_subscribe_by_other(topic_name, client_id) {
+        if subscribe_manager.is_exclusive_subscribe_by_other(tenant, topic_name, client_id) {
             return true;
         }
     }
@@ -70,6 +71,7 @@ mod tests {
         },
         subscribe::manager::SubscribeManager,
     };
+    use metadata_struct::tenant::DEFAULT_TENANT;
 
     #[test]
     fn test_is_exclusive_sub() {
@@ -120,14 +122,16 @@ mod tests {
         let subscribe_manager = Arc::new(SubscribeManager::new());
         assert!(!already_exclusive_subscribe(
             &subscribe_manager,
+            DEFAULT_TENANT,
             &client_id,
             &subscribe
         ));
 
-        subscribe_manager.add_topic_subscribe(topic_name, &client_id, ex_path);
+        subscribe_manager.add_topic_subscribe(DEFAULT_TENANT, topic_name, &client_id, ex_path);
         // Same client can resubscribe
         assert!(!already_exclusive_subscribe(
             &subscribe_manager,
+            DEFAULT_TENANT,
             &client_id,
             &subscribe
         ));
@@ -136,6 +140,7 @@ mod tests {
         let other_client_id = unique_id();
         assert!(already_exclusive_subscribe(
             &subscribe_manager,
+            DEFAULT_TENANT,
             &other_client_id,
             &subscribe
         ))

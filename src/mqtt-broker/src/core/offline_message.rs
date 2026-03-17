@@ -31,8 +31,16 @@ use metadata_struct::mqtt::{message::MqttMessage, topic::Topic};
 use protocol::mqtt::common::{Publish, PublishProperties};
 use storage_adapter::driver::StorageDriverManager;
 
-pub fn is_exist_subscribe(subscribe_manager: &Arc<SubscribeManager>, topic: &str) -> bool {
-    subscribe_manager.topic_subscribes.contains_key(topic)
+pub fn is_exist_subscribe(
+    subscribe_manager: &Arc<SubscribeManager>,
+    tenant: &str,
+    topic: &str,
+) -> bool {
+    subscribe_manager
+        .topic_subscribes
+        .get(tenant)
+        .map(|t| t.contains_key(topic))
+        .unwrap_or(false)
 }
 
 #[derive(Clone)]
@@ -72,8 +80,11 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         .mqtt_offline_message
         .enable;
 
-    let not_exist_subscribe =
-        !is_exist_subscribe(&context.subscribe_manager, &context.topic.topic_name);
+    let not_exist_subscribe = !is_exist_subscribe(
+        &context.subscribe_manager,
+        &context.topic.tenant,
+        &context.topic.topic_name,
+    );
     if offline_message_disabled && not_exist_subscribe {
         record_messages_dropped_no_subscribers_incr();
         return Ok(None);
@@ -85,6 +96,7 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
     if context.delay_info.is_some() {
         return save_delay_message(
             &context.delay_message_manager,
+            &context.topic.tenant,
             &context.publish,
             &context.publish_properties,
             &context.client_id,

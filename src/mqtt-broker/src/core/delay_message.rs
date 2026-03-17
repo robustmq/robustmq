@@ -99,6 +99,7 @@ pub fn decode_delay_topic(topic: &str) -> Result<DelayPublishTopic, MqttBrokerEr
 /// - delay_message_target_ms: Target delivery timestamp
 pub async fn save_delay_message(
     delay_message_manager: &Arc<DelayMessageManager>,
+    tenant: &str,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
     client_id: &str,
@@ -133,7 +134,7 @@ pub async fn save_delay_message(
         .ok_or(MqttBrokerError::MissingTargetShardName)?;
 
     delay_message_manager
-        .send(target_shard_name, trigger_time, record)
+        .send(tenant, target_shard_name, trigger_time, record)
         .await?;
 
     Ok(None)

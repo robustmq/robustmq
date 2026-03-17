@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::sub_option::is_send_msg_by_bo_local;
-use crate::subscribe::common::record_sub_send_metrics;
+use crate::subscribe::common::{record_sub_send_metrics, stale_subscriber_error};
 use crate::subscribe::push::{
     send_message_validator_by_max_message_size, send_message_validator_by_message_expire,
 };
@@ -55,6 +55,7 @@ pub struct SharePushManager {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     group_offsets: DashMap<String, HashMap<String, u64>>,
     message_storage: MessageStorage,
+    tenant: String,
     group_name: String,
     seq: AtomicU64,
 }
@@ -66,6 +67,7 @@ impl SharePushManager {
         storage_driver_manager: Arc<StorageDriverManager>,
         connection_manager: Arc<ConnectionManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        tenant: String,
         group_name: String,
     ) -> Self {
         SharePushManager {
@@ -75,6 +77,7 @@ impl SharePushManager {
             rocksdb_engine_handler,
             connection_manager,
             group_offsets: DashMap::with_capacity(8),
+            tenant,
             group_name,
             seq: AtomicU64::new(0),
         }
@@ -116,6 +119,10 @@ impl SharePushManager {
                             }
                         }
                         Err(e) => {
+                            if stale_subscriber_error(&e) {
+                                info!("SharePushManager[{}] stopping: topic no longer exists ({})", self.group_name, e);
+                                break;
+                            }
                             error!("SharePushManager[{}] send messages failed: {}", self.group_name, e);
                             sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
                         }
@@ -126,24 +133,26 @@ impl SharePushManager {
     }
 
     pub async fn send_messages(&self, stop_sx: &Sender<bool>) -> Result<u64, MqttBrokerError> {
-        let topic_list = if let Some(topic_list) = self
+        let topic_list = self
             .subscribe_manager
             .share_group_topics
-            .get(&self.group_name)
-        {
-            topic_list
-        } else {
-            return Ok(0);
+            .get(&self.tenant)
+            .and_then(|t| t.get(&self.group_name).map(|v| v.clone()));
+
+        let topic_list = match topic_list {
+            Some(list) if !list.is_empty() => list,
+            _ => return Ok(0),
         };
 
-        if topic_list.is_empty() {
-            return Ok(0);
-        }
+        let buckets = self
+            .subscribe_manager
+            .share_push
+            .get(&self.tenant)
+            .and_then(|t| t.get(&self.group_name).map(|v| v.clone()));
 
-        let buckets = if let Some(data) = self.subscribe_manager.share_push.get(&self.group_name) {
-            data.clone()
-        } else {
-            return Ok(0);
+        let buckets = match buckets {
+            Some(b) => b,
+            None => return Ok(0),
         };
 
         let seqs = buckets.get_sub_client_seqs(&self.group_name);
@@ -154,7 +163,7 @@ impl SharePushManager {
         let mut processed_count = 0;
         for topic in topic_list.iter() {
             let data_list = self
-                .next_message(&self.group_name, &topic.tenant, &topic.topic)
+                .next_message(&self.group_name, &self.tenant, &topic.topic)
                 .await?;
             if data_list.is_empty() {
                 continue;
@@ -194,7 +203,7 @@ impl SharePushManager {
                         // check allow send
                         if !self
                             .subscribe_manager
-                            .allow_push_client(&subscriber.client_id)
+                            .allow_push_client(&subscriber.tenant, &subscriber.client_id)
                         {
                             continue;
                         }
@@ -210,8 +219,10 @@ impl SharePushManager {
                             Ok(allow) => allow,
                             Err(e) => {
                                 if !client_unavailable_error(&e) {
-                                    self.subscribe_manager
-                                        .add_not_push_client(&subscriber.client_id);
+                                    self.subscribe_manager.add_not_push_client(
+                                        &subscriber.tenant,
+                                        &subscriber.client_id,
+                                    );
                                 }
                                 continue;
                             }
@@ -240,8 +251,10 @@ impl SharePushManager {
                             }
                             Err(e) => {
                                 if !client_unavailable_error(&e) {
-                                    self.subscribe_manager
-                                        .add_not_push_client(&subscriber.client_id);
+                                    self.subscribe_manager.add_not_push_client(
+                                        &subscriber.tenant,
+                                        &subscriber.client_id,
+                                    );
                                 }
 
                                 continue;
@@ -277,17 +290,17 @@ impl SharePushManager {
 
             if let Some(offsets) = self.group_offsets.get(&self.group_name) {
                 if let Err(e) = self
-                    .commit_offset(&topic.tenant, &self.group_name, &offsets)
+                    .commit_offset(&self.tenant, &self.group_name, &offsets)
                     .await
                 {
                     error!(
-                        "Failed to commit offset for subscriber [group: {},tenant:{}, topic: {}]: {}. Messages may be redelivered on next poll",
-                        &self.group_name,topic.tenant, topic.topic, e
+                        "Failed to commit offset for subscriber [group: {}, tenant:{}, topic: {}]: {}. Messages may be redelivered on next poll",
+                        &self.group_name, &self.tenant, topic.topic, e
                     );
                 } else {
                     debug!(
                         "Committed offset for share group [group: {}, tenant:{}, topic: {}], total processed: {} messages",
-                        self.group_name,topic.tenant, topic.topic, processed_count
+                        self.group_name, &self.tenant, topic.topic, processed_count
                     );
                 }
             }

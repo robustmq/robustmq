@@ -37,8 +37,8 @@ pub struct AclMetadata {
     pub acl_user: DashMap<String, DashMap<String, Vec<MqttAcl>>>,
     pub acl_client_id: DashMap<String, DashMap<String, Vec<MqttAcl>>>,
 
-    // connection jitter (client_id, FlappingDetectCondition)
-    pub flapping_detect_map: DashMap<String, FlappingDetectCondition>,
+    // connection jitter: outer = tenant, inner = (client_id, FlappingDetectCondition)
+    pub flapping_detect_map: DashMap<String, DashMap<String, FlappingDetectCondition>>,
 }
 
 impl Default for AclMetadata {
@@ -66,37 +66,43 @@ impl AclMetadata {
     // Flapping Detects
     pub fn get_flapping_detect_condition(
         &self,
+        tenant: &str,
         client_id: &str,
     ) -> Option<FlappingDetectCondition> {
-        if let Some(flapping_detect_condition) = self.flapping_detect_map.get(client_id) {
-            return Some(flapping_detect_condition.clone());
-        }
-        None
+        self.flapping_detect_map
+            .get(tenant)
+            .and_then(|inner| inner.get(client_id).map(|v| v.clone()))
     }
 
     pub fn add_flapping_detect_condition(
         &self,
         flapping_detect_condition: FlappingDetectCondition,
     ) {
-        self.flapping_detect_map.insert(
-            flapping_detect_condition.client_id.clone(),
-            flapping_detect_condition,
-        );
+        self.flapping_detect_map
+            .entry(flapping_detect_condition.tenant.clone())
+            .or_default()
+            .insert(
+                flapping_detect_condition.client_id.clone(),
+                flapping_detect_condition,
+            );
     }
 
-    pub fn remove_flapping_detect_condition(&self, client_id: &str) {
-        self.flapping_detect_map.remove(client_id);
+    pub fn remove_flapping_detect_condition(&self, tenant: &str, client_id: &str) {
+        if let Some(inner) = self.flapping_detect_map.get(tenant) {
+            inner.remove(client_id);
+        }
     }
 
     pub async fn remove_flapping_detect_conditions(&self, config: MqttFlappingDetect) {
         let current_time = now_second();
         let window_time = convert_seconds(config.window_time as u64, TimeUnit::Minutes);
-        self.flapping_detect_map
-            .retain(|_, flapping_detect_condition| {
+        for tenant_entry in self.flapping_detect_map.iter() {
+            tenant_entry.value().retain(|_, flapping_detect_condition| {
                 // we need retain elements within window_time,
                 // so now_seconds - first_request_time must less than window_time
                 current_time - flapping_detect_condition.first_request_time < window_time
             });
+        }
     }
 
     // ACL
@@ -416,8 +422,16 @@ mod test {
         acl_metadata.add_flapping_detect_condition(condition1);
         acl_metadata.add_flapping_detect_condition(condition2);
 
-        assert!(acl_metadata.flapping_detect_map.contains_key("test_id_1"));
-        assert!(acl_metadata.flapping_detect_map.contains_key("test_id_2"));
+        assert!(acl_metadata
+            .flapping_detect_map
+            .get("default")
+            .map(|m| m.contains_key("test_id_1"))
+            .unwrap_or(false));
+        assert!(acl_metadata
+            .flapping_detect_map
+            .get("default")
+            .map(|m| m.contains_key("test_id_2"))
+            .unwrap_or(false));
 
         let jitter_config = MqttFlappingDetect {
             enable: true,
@@ -430,8 +444,16 @@ mod test {
             .remove_flapping_detect_conditions(jitter_config)
             .await;
 
-        assert!(acl_metadata.flapping_detect_map.contains_key("test_id_1"));
-        assert!(!acl_metadata.flapping_detect_map.contains_key("test_id_2"));
+        assert!(acl_metadata
+            .flapping_detect_map
+            .get("default")
+            .map(|m| m.contains_key("test_id_1"))
+            .unwrap_or(false));
+        assert!(!acl_metadata
+            .flapping_detect_map
+            .get("default")
+            .map(|m| m.contains_key("test_id_2"))
+            .unwrap_or(false));
     }
 
     #[tokio::test]

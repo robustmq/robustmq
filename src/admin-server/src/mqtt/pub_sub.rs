@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{extractor::ValidatedJson, state::HttpState};
+use crate::{state::HttpState, tool::extractor::ValidatedJson};
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use validator::Validate;

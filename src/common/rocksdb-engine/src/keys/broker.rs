@@ -25,10 +25,10 @@ pub fn system_event_prefix_key() -> String {
     format!("{}system_alarm/", PREFIX_BROKER)
 }
 
-pub fn ban_log_key(ban_type: &str, resource_name: &str, create_time: i64) -> String {
+pub fn ban_log_key(tenant: &str, ban_type: &str, resource_name: &str, create_time: i64) -> String {
     format!(
-        "{}ban_log/{}/{}/{}",
-        PREFIX_BROKER, ban_type, resource_name, create_time
+        "{}ban_log/{}/{}/{}/{}",
+        PREFIX_BROKER, tenant, ban_type, resource_name, create_time
     )
 }
 
@@ -36,10 +36,21 @@ pub fn ban_log_prefix_key() -> String {
     format!("{}ban_log/", PREFIX_BROKER)
 }
 
-pub fn slow_sub_log_key(client_id: &str, topic_name: &str) -> String {
-    format!("{}slow_sub_log/{}/{}", PREFIX_BROKER, client_id, topic_name)
+pub fn ban_log_prefix_key_by_tenant(tenant: &str) -> String {
+    format!("{}ban_log/{}/", PREFIX_BROKER, tenant)
+}
+
+pub fn slow_sub_log_key(tenant: &str, client_id: &str, topic_name: &str) -> String {
+    format!(
+        "{}slow_sub_log/{}/{}/{}",
+        PREFIX_BROKER, tenant, client_id, topic_name
+    )
 }
 
 pub fn slow_sub_log_prefix_key() -> String {
     format!("{}slow_sub_log/", PREFIX_BROKER)
+}
+
+pub fn slow_sub_log_prefix_key_by_tenant(tenant: &str) -> String {
+    format!("{}slow_sub_log/{}/", PREFIX_BROKER, tenant)
 }

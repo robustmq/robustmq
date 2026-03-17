@@ -15,7 +15,7 @@
 use crate::{
     state::HttpState,
     tool::{
-        query::{apply_filters, apply_pagination, build_query_params, Queryable},
+        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
     },
 };
@@ -40,6 +40,7 @@ pub struct SessionListReq {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct SessionListRow {
+    pub tenant: String,
     pub client_id: String,
     pub session_expiry: u64,
     pub is_contain_last_will: bool,
@@ -78,42 +79,18 @@ pub async fn session_list(
 
     let cache = &state.mqtt_context.cache_manager;
 
-    let matches = |session: &MqttSession| -> bool {
-        if let Some(ref prefix) = filter_client_id {
-            if !session.client_id.starts_with(prefix.as_str()) {
-                return false;
-            }
-        }
-        true
-    };
+    let sample = sample_sessions_up_to_100(
+        &cache.session_info,
+        filter_tenant.as_deref(),
+        filter_client_id.as_deref(),
+    );
 
-    let mut all_matched: Vec<MqttSession> = Vec::new();
-
-    let collect_from_inner = |inner: &dashmap::DashMap<String, MqttSession>,
-                              out: &mut Vec<MqttSession>| {
-        for entry in inner.iter() {
-            if matches(entry.value()) {
-                out.push(entry.value().clone());
-            }
-        }
-    };
-
-    if let Some(ref tenant) = filter_tenant {
-        if let Some(inner) = cache.session_info.get(tenant) {
-            collect_from_inner(inner.value(), &mut all_matched);
-        }
-    } else {
-        for tenant_entry in cache.session_info.iter() {
-            collect_from_inner(tenant_entry.value(), &mut all_matched);
-        }
-    }
-
-    let total_count = all_matched.len();
-    let sample: Vec<MqttSession> = all_matched.into_iter().take(MAX_SAMPLE_SIZE).collect();
+    let total_count = sample.len();
 
     let rows: Vec<SessionListRow> = sample
         .into_iter()
         .map(|session| SessionListRow {
+            tenant: session.tenant.clone(),
             client_id: session.client_id.clone(),
             session_expiry: session.session_expiry_interval,
             is_contain_last_will: session.is_contain_last_will,
@@ -128,7 +105,8 @@ pub async fn session_list(
         .collect();
 
     let filtered = apply_filters(rows, &options);
-    let pagination = apply_pagination(filtered, &options);
+    let sorted = apply_sorting(filtered, &options);
+    let pagination = apply_pagination(sorted, &options);
 
     let storage = SessionStorage::new(state.client_pool.clone());
     let mut data = Vec::with_capacity(pagination.0.len());
@@ -144,9 +122,59 @@ pub async fn session_list(
     success_response(PageReplyData { data, total_count })
 }
 
+/// Collects up to MAX_SAMPLE_SIZE (100) sessions from the cache, optionally filtered by
+/// tenant and client_id prefix. When no tenant is specified, iterates across all tenants.
+fn sample_sessions_up_to_100(
+    session_info: &dashmap::DashMap<String, dashmap::DashMap<String, MqttSession>>,
+    filter_tenant: Option<&str>,
+    filter_client_id: Option<&str>,
+) -> Vec<MqttSession> {
+    let mut sample = Vec::with_capacity(MAX_SAMPLE_SIZE);
+
+    if let Some(tenant) = filter_tenant {
+        if let Some(inner) = session_info.get(tenant) {
+            collect_sessions(inner.value(), &mut sample, filter_client_id);
+        }
+    } else {
+        for tenant_entry in session_info.iter() {
+            collect_sessions(tenant_entry.value(), &mut sample, filter_client_id);
+            if sample.len() >= MAX_SAMPLE_SIZE {
+                break;
+            }
+        }
+    }
+
+    sample
+}
+
+fn collect_sessions(
+    inner: &dashmap::DashMap<String, MqttSession>,
+    out: &mut Vec<MqttSession>,
+    filter_client_id: Option<&str>,
+) {
+    for entry in inner.iter() {
+        if out.len() >= MAX_SAMPLE_SIZE {
+            break;
+        }
+        if session_matches(entry.value(), filter_client_id) {
+            out.push(entry.value().clone());
+        }
+    }
+}
+
+fn session_matches(session: &MqttSession, filter_client_id: Option<&str>) -> bool {
+    if let Some(prefix) = filter_client_id {
+        if !session.client_id.starts_with(prefix) {
+            return false;
+        }
+    }
+    true
+}
+
 impl Queryable for SessionListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "tenant" => Some(self.tenant.clone()),
             "client_id" => Some(self.client_id.clone()),
             _ => None,
         }

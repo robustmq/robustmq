@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::{
-    extractor::ValidatedJson,
     state::HttpState,
+    tool::extractor::ValidatedJson,
     tool::{
         query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
@@ -38,7 +38,7 @@ use std::{
 };
 use validator::Validate;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct TopicListReq {
     pub tenant: Option<String>,
     pub topic_name: Option<String>,
@@ -171,45 +171,12 @@ pub async fn topic_list(
     );
 
     let broker_cache = &state.mqtt_context.cache_manager.broker_cache;
-    let topics: Vec<Topic> = if let Some(tp) = params.topic_name.clone() {
-        let topic = if let Some(ref t) = params.tenant {
-            broker_cache.get_topic_by_name(t, &tp)
-        } else {
-            broker_cache
-                .topic_list
-                .iter()
-                .find_map(|e| e.value().get(&tp).map(|t| t.clone()))
-        };
-        topic.into_iter().collect()
-    } else {
-        let topic_type = params.topic_type.as_deref().unwrap_or("all");
-        let raw: Vec<Topic> = if let Some(ref t) = params.tenant {
-            broker_cache.list_topics_by_tenant(t)
-        } else {
-            broker_cache
-                .topic_list
-                .iter()
-                .flat_map(|tenant_entry| {
-                    tenant_entry
-                        .value()
-                        .iter()
-                        .map(|topic_entry| topic_entry.value().clone())
-                        .collect::<Vec<_>>()
-                })
-                .collect()
-        };
-        raw.into_iter()
-            .filter(|topic| {
-                if topic_type == "system" {
-                    topic.topic_name.contains('$')
-                } else if topic_type == "normal" {
-                    !topic.topic_name.contains('$')
-                } else {
-                    true
-                }
-            })
-            .collect()
-    };
+    let topics = collect_topics(
+        broker_cache,
+        params.tenant.as_deref(),
+        params.topic_name.as_deref(),
+        params.topic_type.as_deref(),
+    );
 
     let filtered = apply_filters(topics, &options);
     let sorted = apply_sorting(filtered, &options);
@@ -219,6 +186,56 @@ pub async fn topic_list(
         data: pagination.0,
         total_count: pagination.1,
     })
+}
+
+/// Collect topics from cache, optionally filtered by tenant, topic_name, and topic_type.
+/// topic_type: "system" (contains '$'), "normal" (no '$'), or "all" (default).
+fn collect_topics(
+    broker_cache: &broker_core::cache::NodeCacheManager,
+    tenant: Option<&str>,
+    topic_name: Option<&str>,
+    topic_type: Option<&str>,
+) -> Vec<Topic> {
+    // Exact topic_name lookup — return at most one result
+    if let Some(tp) = topic_name {
+        let topic = if let Some(t) = tenant {
+            broker_cache.get_topic_by_name(t, tp)
+        } else {
+            broker_cache
+                .topic_list
+                .iter()
+                .find_map(|e| e.value().get(tp).map(|t| t.clone()))
+        };
+        return topic.into_iter().collect();
+    }
+
+    // Bulk listing, with optional topic_type filter
+    let raw = if let Some(t) = tenant {
+        broker_cache.list_topics_by_tenant(t)
+    } else {
+        broker_cache
+            .topic_list
+            .iter()
+            .flat_map(|e| {
+                e.value()
+                    .iter()
+                    .map(|t| t.value().clone())
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    };
+
+    match topic_type.unwrap_or("all") {
+        "system" => raw
+            .into_iter()
+            .filter(|t| t.topic_name.contains('$'))
+            .collect(),
+        "normal" => raw
+            .into_iter()
+            .filter(|t| !t.topic_name.contains('$'))
+            .collect(),
+        _ => raw,
+    }
 }
 
 impl Queryable for Topic {
@@ -268,16 +285,13 @@ async fn read_topic_detail(
         .list_storage_resource(&topic.tenant, &topic.topic_name)
         .await?;
 
-    let sub_list = if let Some(list) = state
+    let sub_list = state
         .mqtt_context
         .subscribe_manager
         .topic_subscribes
-        .get(&topic.topic_name)
-    {
-        list.clone()
-    } else {
-        HashSet::new()
-    };
+        .get(&topic.tenant)
+        .and_then(|t| t.get(&topic.topic_name).map(|v| v.clone()))
+        .unwrap_or_default();
     let storage = TopicStorage::new(state.client_pool.clone());
     let (retain_message, retain_message_at) = storage
         .get_retain_message(&topic.tenant, &topic.topic_name)

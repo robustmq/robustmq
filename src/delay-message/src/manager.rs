@@ -107,6 +107,7 @@ impl DelayMessageManager {
 
     pub async fn send(
         &self,
+        tenant: &str,
         target_topic: &str,
         target_timestamp: u64,
         data: AdapterWriteRecord,
@@ -119,6 +120,7 @@ impl DelayMessageManager {
 
         let delay_index_info = DelayMessageIndexInfo {
             unique_id: delay_message_id.clone(),
+            tenant: tenant.to_string(),
             target_topic_name: target_topic.to_string(),
             offset,
             target_timestamp,

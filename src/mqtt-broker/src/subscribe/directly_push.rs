@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::sub_option::is_send_msg_by_bo_local;
-use crate::subscribe::common::record_sub_send_metrics;
+use crate::subscribe::common::{record_sub_send_metrics, stale_subscriber_error};
 use crate::subscribe::push::send_message_validator;
 use crate::{core::cache::MQTTCacheManager, storage::message::MessageStorage};
 use crate::{
@@ -136,11 +136,10 @@ impl DirectlyPushManager {
                         processed_count += count;
                     }
                     Err(e) => {
-                        let err_msg = e.to_string();
-                        if err_msg.contains("does not exist") {
+                        if stale_subscriber_error(&e) {
                             warn!(
-                                "Removing stale subscriber [client_id: {}, sub_path: {}]: shard no longer exists ({})",
-                                row.client_id, row.sub_path, err_msg
+                                "Removing stale subscriber [client_id: {}, topic: {}, sub_path: {}]: {}",
+                                row.client_id, row.topic_name, row.sub_path, e
                             );
                             stale_subs.push((
                                 row.tenant.clone(),

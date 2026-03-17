@@ -21,8 +21,8 @@ use std::sync::Arc;
 use validator::Validate;
 
 use crate::{
-    extractor::ValidatedJson,
     state::HttpState,
+    tool::extractor::ValidatedJson,
     tool::{
         query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,

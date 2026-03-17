@@ -179,11 +179,8 @@ impl MqttService {
             un_subscribe,
         );
 
-        // Check if all validations passed
         let all_success = reason_codes.iter().all(|r| *r == UnsubAckReason::Success);
-
         if !all_success {
-            // Validation failed for one or more filters
             return response_packet_mqtt_unsub_ack(
                 &self.cache_manager,
                 connection.connect_id,
@@ -372,7 +369,12 @@ async fn subscribe_validator(
         );
     }
 
-    if already_exclusive_subscribe(subscribe_manager, &connection.client_id, subscribe) {
+    if already_exclusive_subscribe(
+        subscribe_manager,
+        &connection.tenant,
+        &connection.client_id,
+        subscribe,
+    ) {
         return (
             vec![SubscribeReasonCode::TopicSubscribed],
             "Topic already has an exclusive subscription".to_string(),

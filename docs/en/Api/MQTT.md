@@ -954,10 +954,26 @@ Query message count for a specific topic:
 #### 5.4 Slow Subscribe Monitoring
 
 ##### 5.4.1 Slow Subscribe List
+
 - **Endpoint**: `GET /api/mqtt/slow-subscribe/list`
-- **Description**: Query slow subscribe list
-- **Request Parameters**: Supports common pagination and filtering parameters
+- **Description**: Query slow subscribe list, supports filtering by tenant
+- **Request Parameters**:
+
+```json
+{
+  "tenant": "default",              // Optional, filter by tenant (scans only that tenant's records)
+  "limit": 20,
+  "page": 1,
+  "sort_field": "time_span",
+  "sort_by": "desc",
+  "filter_field": "client_id",
+  "filter_values": ["slow_client"],
+  "exact_match": "false"
+}
+```
+
 - **Response Data Structure**:
+
 ```json
 {
   "code": 0,
@@ -965,6 +981,7 @@ Query message count for a specific topic:
   "data": {
     "data": [
       {
+        "tenant": "default",
         "client_id": "slow_client",
         "topic_name": "heavy/topic",
         "time_span": 5000,
@@ -977,6 +994,16 @@ Query message count for a specific topic:
   }
 }
 ```
+
+**Field Descriptions**:
+
+- `tenant`: Tenant name
+- `client_id`: Client ID
+- `topic_name`: Subscription topic
+- `time_span`: Slow subscription latency (milliseconds)
+- `node_info`: Node information
+- `create_time`: Record creation time (local time format)
+- `subscribe_name`: Subscription name
 
 ---
 
@@ -1457,10 +1484,26 @@ Query message count for a specific topic:
 ```
 
 #### 12.2 Flapping Detection List
+
 - **Endpoint**: `GET /api/mqtt/flapping_detect/list`
-- **Description**: Query flapping detection list
-- **Request Parameters**: Supports common pagination and filtering parameters
+- **Description**: Query flapping detection list, supports filtering by tenant
+- **Request Parameters**:
+
+```json
+{
+  "tenant": "default",              // Optional, filter by tenant (returns only that tenant's data)
+  "limit": 20,
+  "page": 1,
+  "sort_field": "first_request_time",
+  "sort_by": "desc",
+  "filter_field": "client_id",
+  "filter_values": ["flapping_client"],
+  "exact_match": "false"
+}
+```
+
 - **Response Data Structure**:
+
 ```json
 {
   "code": 0,
@@ -1468,8 +1511,9 @@ Query message count for a specific topic:
   "data": {
     "data": [
       {
+        "tenant": "default",
         "client_id": "flapping_client",
-        "before_last_windows_connections": 15,
+        "before_last_window_connections": 15,
         "first_request_time": 1640995200
       }
     ],
@@ -1477,6 +1521,63 @@ Query message count for a specific topic:
   }
 }
 ```
+
+**Field Descriptions**:
+
+- `tenant`: Tenant name
+- `client_id`: Client ID
+- `before_last_window_connections`: Number of connections in the previous detection window
+- `first_request_time`: Timestamp of first trigger (seconds)
+
+#### 12.3 Ban Log List
+
+- **Endpoint**: `GET /api/mqtt/ban-log/list`
+- **Description**: Query client ban log, supports filtering by tenant
+- **Request Parameters**:
+
+```json
+{
+  "tenant": "default",              // Optional, filter by tenant (scans only that tenant's records)
+  "limit": 20,
+  "page": 1,
+  "sort_field": "create_time",
+  "sort_by": "desc",
+  "filter_field": "resource_name",
+  "filter_values": ["bad_client"],
+  "exact_match": "false"
+}
+```
+
+- **Response Data Structure**:
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "data": [
+      {
+        "tenant": "default",
+        "ban_type": "ClientId",
+        "resource_name": "bad_client_001",
+        "ban_source": "manual",
+        "end_time": "2024-12-31 23:59:59",
+        "create_time": "2024-01-01 10:00:00"
+      }
+    ],
+    "total_count": 5
+  }
+}
+```
+
+**Field Descriptions**:
+
+- `tenant`: Tenant name
+- `ban_type`: Ban type (`ClientId` / `User` / `Ip` / `ClientIdMatch` / `UserMatch` / `IPCIDR`)
+- `resource_name`: Banned resource name (client ID, username, or IP address)
+- `ban_source`: Ban source (e.g. `manual` or `auto`)
+- `end_time`: Ban expiry time (local time format)
+- `create_time`: Ban creation time (local time format)
 
 ---
 

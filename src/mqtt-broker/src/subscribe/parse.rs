@@ -33,7 +33,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::{subscribe::MqttSubscribe, topic::Topic};
 use protocol::{
     broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType},
-    mqtt::common::{Filter, MqttProtocol, SubscribeProperties},
+    mqtt::common::{Filter, MqttProtocol},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -47,12 +47,8 @@ use tracing::{debug, error, info};
 pub struct ParseSubscribeContext {
     pub client_pool: Arc<ClientPool>,
     pub subscribe_manager: Arc<SubscribeManager>,
-    pub client_id: String,
+    pub subscribe: MqttSubscribe,
     pub topic: Topic,
-    pub protocol: MqttProtocol,
-    pub pkid: u16,
-    pub filter: Filter,
-    pub subscribe_properties: Option<SubscribeProperties>,
     pub rewrite_sub_path: Option<String>,
 }
 
@@ -135,7 +131,7 @@ pub async fn start_update_parse_thread(
                     (BrokerUpdateCacheResourceType::Topic, BrokerUpdateCacheActionType::Delete) => {
                         if let Some(topic) = data.topic {
                             info!("Removing subscriptions for deleted topic '{}'", topic.topic_name);
-                            subscribe_manager.remove_by_topic(&topic.topic_name);
+                            subscribe_manager.remove_by_topic(&topic.tenant, &topic.topic_name);
                         }
                     }
                     (BrokerUpdateCacheResourceType::Subscribe, BrokerUpdateCacheActionType::Create) => {
@@ -165,17 +161,15 @@ pub async fn parse_subscribe_by_new_subscribe(
     client_pool: &Arc<ClientPool>,
     subscribe: &MqttSubscribe,
 ) -> ResultMqttBrokerError {
-    subscribe_manager.add_subscribe(subscribe);
-    let topic_count = cache_manager.broker_cache.topic_list.len();
-
     debug!(
-        "Matching new subscription: client='{}', path='{}' against {} topics",
-        subscribe.client_id, subscribe.filter.path, topic_count
+        "Matching new subscription: client='{}', path='{}' under tenant '{}'",
+        subscribe.client_id, subscribe.filter.path, subscribe.tenant
     );
 
-    for tenant_entry in cache_manager.broker_cache.topic_list.iter() {
-        let tenant = tenant_entry.key().clone();
-        let rewrite_sub_path = cache_manager.get_new_rewrite_name(&tenant, &subscribe.filter.path);
+    let rewrite_sub_path =
+        cache_manager.get_new_rewrite_name(&subscribe.tenant, &subscribe.filter.path);
+
+    if let Some(tenant_entry) = cache_manager.broker_cache.topic_list.get(&subscribe.tenant) {
         for topic_entry in tenant_entry.value().iter() {
             let topic = topic_entry.value().clone();
             parse_subscribe(
@@ -183,12 +177,8 @@ pub async fn parse_subscribe_by_new_subscribe(
                 ParseSubscribeContext {
                     client_pool: client_pool.clone(),
                     subscribe_manager: subscribe_manager.clone(),
-                    client_id: subscribe.client_id.clone(),
+                    subscribe: subscribe.clone(),
                     topic,
-                    protocol: subscribe.protocol.clone(),
-                    pkid: subscribe.pkid,
-                    filter: subscribe.filter.clone(),
-                    subscribe_properties: subscribe.subscribe_properties.clone(),
                     rewrite_sub_path: rewrite_sub_path.clone(),
                 },
             )
@@ -207,33 +197,27 @@ pub async fn parse_subscribe_by_new_topic(
     topic: &Topic,
 ) -> ResultMqttBrokerError {
     let broker_id = broker_config().broker_id;
-    let sub_count = subscribe_manager.subscribe_count();
 
-    debug!(
-        "Matching new topic '{}' against {} subscriptions",
-        topic.topic_name, sub_count
-    );
-
-    for tenant_entry in subscribe_manager.subscribe_list.iter() {
-        for row in tenant_entry.value().iter() {
+    if let Some(tenant_subs) = subscribe_manager.subscribe_list.get(&topic.tenant) {
+        debug!(
+            "Matching new topic '{}' against {} subscriptions under tenant '{}'",
+            topic.topic_name,
+            tenant_subs.len(),
+            topic.tenant
+        );
+        let rewrite_sub_path = cache_manager.get_new_rewrite_name(&topic.tenant, &topic.topic_name);
+        for row in tenant_subs.value().iter() {
             let subscribe = row.value();
             if subscribe.broker_id != broker_id {
                 continue;
             }
-            let rewrite_sub_path =
-                cache_manager.get_new_rewrite_name(&topic.tenant, &subscribe.path);
-
             parse_subscribe(
                 cache_manager,
                 ParseSubscribeContext {
                     client_pool: client_pool.clone(),
                     subscribe_manager: subscribe_manager.clone(),
-                    client_id: subscribe.client_id.clone(),
+                    subscribe: subscribe.clone(),
                     topic: topic.clone(),
-                    protocol: subscribe.protocol.clone(),
-                    pkid: subscribe.pkid,
-                    filter: subscribe.filter.clone(),
-                    subscribe_properties: subscribe.subscribe_properties.clone(),
                     rewrite_sub_path: rewrite_sub_path.clone(),
                 },
             )
@@ -279,44 +263,40 @@ async fn parse_subscribe(
     cache_manager: &Arc<MQTTCacheManager>,
     context: ParseSubscribeContext,
 ) -> ResultMqttBrokerError {
-    let sub_identifier = if let Some(properties) = context.subscribe_properties.clone() {
-        properties.subscription_identifier
-    } else {
-        None
-    };
+    let sub = &context.subscribe;
+    let sub_identifier = sub
+        .subscribe_properties
+        .as_ref()
+        .and_then(|p| p.subscription_identifier);
 
-    let new_topic_name = if let Some(topic) =
-        cache_manager.get_new_rewrite_name(&context.topic.tenant, &context.topic.topic_name)
-    {
-        topic
-    } else {
-        context.topic.topic_name.clone()
-    };
+    let new_topic_name = cache_manager
+        .get_new_rewrite_name(&sub.tenant, &context.topic.topic_name)
+        .unwrap_or_else(|| context.topic.topic_name.clone());
 
-    if is_mqtt_share_subscribe(&context.filter.path) {
+    if is_mqtt_share_subscribe(&sub.filter.path) {
         add_share_push(
             &context.subscribe_manager,
             &context.client_pool,
             &AddSharePushContext {
-                tenant: context.topic.tenant.clone(),
+                tenant: sub.tenant.clone(),
                 topic_name: new_topic_name,
-                client_id: context.client_id.to_owned(),
-                protocol: context.protocol.clone(),
+                client_id: sub.client_id.clone(),
+                protocol: sub.protocol.clone(),
                 sub_identifier,
-                filter: context.filter.clone(),
-                pkid: context.pkid,
+                filter: sub.filter.clone(),
+                pkid: sub.pkid,
             },
         )
         .await?;
     } else {
         add_directly_push(AddDirectlyPushContext {
             subscribe_manager: context.subscribe_manager.clone(),
-            tenant: context.topic.tenant.clone(),
+            tenant: sub.tenant.clone(),
             topic: new_topic_name,
-            client_id: context.client_id.clone(),
-            protocol: context.protocol.clone(),
+            client_id: sub.client_id.clone(),
+            protocol: sub.protocol.clone(),
             sub_identifier,
-            filter: context.filter.clone(),
+            filter: sub.filter.clone(),
             rewrite_sub_path: context.rewrite_sub_path.clone(),
         })?;
     }
@@ -451,7 +431,11 @@ mod tests {
 
         // Should not panic
         add_directly_push(context).unwrap();
-        assert!(manager.topic_subscribes.get("topic").is_some());
+        assert!(manager
+            .topic_subscribes
+            .get(DEFAULT_TENANT)
+            .map(|t| t.contains_key("topic"))
+            .unwrap_or(false));
     }
 
     #[test]
@@ -472,6 +456,10 @@ mod tests {
 
         // Should not panic and should match wildcard
         add_directly_push(context).unwrap();
-        assert!(manager.topic_subscribes.get("test/topic").is_some());
+        assert!(manager
+            .topic_subscribes
+            .get(DEFAULT_TENANT)
+            .map(|t| t.contains_key("test/topic"))
+            .unwrap_or(false));
     }
 }

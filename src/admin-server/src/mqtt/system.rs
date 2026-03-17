@@ -40,10 +40,23 @@ pub struct SystemAlarmListRow {
     pub create_time: u64,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FlappingDetectListReq {
+    pub tenant: Option<String>,
+    pub limit: Option<u32>,
+    pub page: Option<u32>,
+    pub sort_field: Option<String>,
+    pub sort_by: Option<String>,
+    pub filter_field: Option<String>,
+    pub filter_values: Option<Vec<String>>,
+    pub exact_match: Option<String>,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct FlappingDetectListRaw {
+    pub tenant: String,
     pub client_id: String,
-    pub before_last_windows_connections: u64,
+    pub before_last_window_connections: u64,
     pub first_request_time: u64,
 }
 
@@ -129,8 +142,9 @@ impl Queryable for SystemAlarmListRow {
 
 pub async fn flapping_detect_list(
     State(state): State<Arc<HttpState>>,
-    Query(params): Query<SystemAlarmListReq>,
+    Query(params): Query<FlappingDetectListReq>,
 ) -> String {
+    let filter_tenant = params.tenant;
     let options = build_query_params(
         params.page,
         params.limit,
@@ -141,21 +155,38 @@ pub async fn flapping_detect_list(
         params.exact_match,
     );
 
-    let results = state
+    let flapping_detect_map = &state
         .mqtt_context
         .cache_manager
         .acl_metadata
-        .flapping_detect_map
-        .iter()
-        .map(|entry| {
-            let flapping_detect = entry.value();
-            FlappingDetectListRaw {
-                client_id: flapping_detect.client_id.clone(),
-                before_last_windows_connections: flapping_detect.before_last_window_connections,
-                first_request_time: flapping_detect.first_request_time,
+        .flapping_detect_map;
+    let mut results = Vec::new();
+
+    if let Some(ref t) = filter_tenant {
+        if let Some(inner) = flapping_detect_map.get(t) {
+            for entry in inner.iter() {
+                let v = entry.value();
+                results.push(FlappingDetectListRaw {
+                    tenant: v.tenant.clone(),
+                    client_id: v.client_id.clone(),
+                    before_last_window_connections: v.before_last_window_connections,
+                    first_request_time: v.first_request_time,
+                });
             }
-        })
-        .collect();
+        }
+    } else {
+        for tenant_entry in flapping_detect_map.iter() {
+            for entry in tenant_entry.value().iter() {
+                let v = entry.value();
+                results.push(FlappingDetectListRaw {
+                    tenant: v.tenant.clone(),
+                    client_id: v.client_id.clone(),
+                    before_last_window_connections: v.before_last_window_connections,
+                    first_request_time: v.first_request_time,
+                });
+            }
+        }
+    }
 
     let filtered = apply_filters(results, &options);
     let sorted = apply_sorting(filtered, &options);
@@ -170,6 +201,7 @@ pub async fn flapping_detect_list(
 impl Queryable for FlappingDetectListRaw {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "tenant" => Some(self.tenant.clone()),
             "client_id" => Some(self.client_id.clone()),
             _ => None,
         }
@@ -191,7 +223,7 @@ pub async fn ban_log_list(
     );
 
     let log_storage = LocalStorage::new(state.rocksdb_engine_handler.clone());
-    let data_list = match log_storage.list_ban_log().await {
+    let data_list = match log_storage.list_ban_log(params.tenant.as_deref()).await {
         Ok(data) => data,
         Err(e) => {
             return error_response(e.to_string());
@@ -199,7 +231,6 @@ pub async fn ban_log_list(
     };
     let results: Vec<BanLogListRaw> = data_list
         .iter()
-        .filter(|entry| params.tenant.as_deref().is_none_or(|t| entry.tenant == t))
         .map(|entry| BanLogListRaw {
             tenant: entry.tenant.clone(),
             ban_source: entry.ban_source.clone(),

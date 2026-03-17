@@ -25,6 +25,7 @@ use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct SlowSubscribeData {
+    pub tenant: String,
     pub subscribe_name: String,
     pub client_id: String,
     pub topic_name: String,
@@ -35,6 +36,7 @@ pub struct SlowSubscribeData {
 
 impl SlowSubscribeData {
     pub fn build(
+        tenant: String,
         subscribe_name: String,
         client_id: String,
         topic_name: String,
@@ -43,6 +45,7 @@ impl SlowSubscribeData {
         let ip = get_local_ip();
         let node_info = format!("RobustMQ-MQTT@{ip}");
         SlowSubscribeData {
+            tenant,
             subscribe_name,
             client_id,
             topic_name,
@@ -72,6 +75,7 @@ pub async fn record_slow_subscribe_data(
     }
 
     let log = SlowSubscribeData::build(
+        subscriber.tenant.clone(),
         subscriber.sub_path.clone(),
         subscriber.client_id.clone(),
         subscriber.topic_name.clone(),

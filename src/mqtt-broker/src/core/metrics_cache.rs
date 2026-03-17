@@ -94,7 +94,7 @@ async fn record_basic_metrics(
     record_mqtt_subscriptions_exclusive_set(subscribe_manager.directly_push.sub_len() as i64);
 
     record_mqtt_subscriptions_shared_set(subscribe_manager.share_sub_len() as i64);
-    record_mqtt_subscriptions_shared_group_set(subscribe_manager.share_push.len() as i64);
+    record_mqtt_subscriptions_shared_group_set(subscribe_manager.share_group_count() as i64);
 
     // message in
     let num = record_mqtt_messages_received_get();
@@ -391,61 +391,66 @@ async fn record_subscribe_metrics(
         }
     }
 
-    for share_data in subscribe_manager.share_push.iter() {
-        for raw in share_data.value().buckets_data_list.iter() {
-            for sub_entry in raw.iter() {
-                let subscriber = sub_entry.value();
-                let client_id = &subscriber.client_id;
-                record_metric_safe!(
-                    format!(
-                        "shared {}/{}:{}:{}",
-                        subscriber.tenant, client_id, subscriber.sub_path, subscriber.topic_name
-                    ),
-                    {
-                        // send success
-                        let num = get_subscribe_topic_messages_sent(
-                            &subscriber.tenant,
+    for tenant_entry in subscribe_manager.share_push.iter() {
+        for share_data in tenant_entry.value().iter() {
+            for raw in share_data.value().buckets_data_list.iter() {
+                for sub_entry in raw.iter() {
+                    let subscriber = sub_entry.value();
+                    let client_id = &subscriber.client_id;
+                    record_metric_safe!(
+                        format!(
+                            "shared {}/{}:{}:{}",
+                            subscriber.tenant,
                             client_id,
-                            &subscriber.sub_path,
-                            &subscriber.topic_name,
-                            true,
-                        );
-                        record_cumulative_metric!(
-                            metrics_cache_manager,
-                            record_subscribe_topic_send_num,
-                            get_subscribe_topic_send_pre_total,
-                            now,
-                            num,
-                            time_window,
-                            client_id,
-                            &subscriber.sub_path,
-                            &subscriber.topic_name,
-                            true
-                        );
+                            subscriber.sub_path,
+                            subscriber.topic_name
+                        ),
+                        {
+                            // send success
+                            let num = get_subscribe_topic_messages_sent(
+                                &subscriber.tenant,
+                                client_id,
+                                &subscriber.sub_path,
+                                &subscriber.topic_name,
+                                true,
+                            );
+                            record_cumulative_metric!(
+                                metrics_cache_manager,
+                                record_subscribe_topic_send_num,
+                                get_subscribe_topic_send_pre_total,
+                                now,
+                                num,
+                                time_window,
+                                client_id,
+                                &subscriber.sub_path,
+                                &subscriber.topic_name,
+                                true
+                            );
 
-                        // send failure
-                        let num = get_subscribe_topic_messages_sent(
-                            &subscriber.tenant,
-                            client_id,
-                            &subscriber.sub_path,
-                            &subscriber.topic_name,
-                            false,
-                        );
-                        record_cumulative_metric!(
-                            metrics_cache_manager,
-                            record_subscribe_topic_send_num,
-                            get_subscribe_topic_send_pre_total,
-                            now,
-                            num,
-                            time_window,
-                            client_id,
-                            &subscriber.sub_path,
-                            &subscriber.topic_name,
-                            false
-                        );
-                        Ok::<(), common_base::error::common::CommonError>(())
-                    }
-                );
+                            // send failure
+                            let num = get_subscribe_topic_messages_sent(
+                                &subscriber.tenant,
+                                client_id,
+                                &subscriber.sub_path,
+                                &subscriber.topic_name,
+                                false,
+                            );
+                            record_cumulative_metric!(
+                                metrics_cache_manager,
+                                record_subscribe_topic_send_num,
+                                get_subscribe_topic_send_pre_total,
+                                now,
+                                num,
+                                time_window,
+                                client_id,
+                                &subscriber.sub_path,
+                                &subscriber.topic_name,
+                                false
+                            );
+                            Ok::<(), common_base::error::common::CommonError>(())
+                        }
+                    );
+                }
             }
         }
     }

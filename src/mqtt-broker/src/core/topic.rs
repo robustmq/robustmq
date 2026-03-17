@@ -20,9 +20,9 @@ use common_base::tools::now_second;
 use common_base::uuid::unique_id;
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::topic::Topic;
+use metadata_struct::{mqtt::topic::Topic, storage::shard::DEFAULT_MAX_SEGMENT_SIZE};
 
-use metadata_struct::storage::shard::EngineShardConfig;
+use metadata_struct::storage::shard::{EngineShardConfig, DEFAULT_RETENTION_SEC};
 use protocol::mqtt::common::{Publish, PublishProperties};
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
@@ -179,7 +179,8 @@ pub async fn try_init_topic(
         let shard_config = EngineShardConfig {
             replica_num: 1,
             storage_type: StorageType::EngineRocksDB,
-            ..Default::default()
+            max_segment_size: DEFAULT_MAX_SEGMENT_SIZE,
+            retention_sec: DEFAULT_RETENTION_SEC,
         };
         create_topic_full(
             &metadata_cache.broker_cache,
@@ -207,7 +208,7 @@ pub async fn delete_topic(
         .await?;
     cache_manager.broker_cache.delete_topic(tenant, topic_name);
     metrics_manager.remove_topic(topic_name)?;
-    subscribe_manager.remove_by_topic(topic_name);
+    subscribe_manager.remove_by_topic(tenant, topic_name);
     Ok(())
 }
 

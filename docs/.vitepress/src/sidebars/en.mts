@@ -68,6 +68,7 @@ export const sidebar = [
         items: [
             { text: "Overview", link: "/en/RobustMQ-MQTT/Overview" },
             { text: "MQTT Core Concepts", link: "/en/RobustMQ-MQTT/MQTTCoreConcepts" },
+            { text: "Multi-Tenancy", link: "/en/RobustMQ-MQTT/MultiTenant" },
             { text: "Architecture", link: "/en/RobustMQ-MQTT/SystemArchitecture" },
             {
                 text: "Features",

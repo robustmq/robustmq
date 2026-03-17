@@ -210,6 +210,7 @@ pub async fn disconnect_connection(context: DisconnectConnectionContext) -> Resu
         delete_session_by_local(
             &context.cache_manager,
             &context.subscribe_manager,
+            &context.connection.tenant,
             &context.connection.client_id,
         );
     } else {
