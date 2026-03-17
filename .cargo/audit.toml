@@ -29,6 +29,8 @@ ignore = [
     # Security vulnerabilities with known workarounds or pending fixes
     "RUSTSEC-2023-0071", # rsa Marvin Attack - no fix available yet, monitoring upstream
     "RUSTSEC-2024-0421", # idna Punycode issue - indirect dependency via trust-dns-proto, will upgrade when mongodb updates
+    "RUSTSEC-2026-0041", # lz4_flex vulnerability - blocked by clickhouse 0.14.2 (latest), waiting for upstream release
+    "RUSTSEC-2026-0037", # quinn-proto vulnerability - blocked by quinn 0.11.9 (latest), waiting for upstream release
 ]
 
 # Ignore yanked crates
