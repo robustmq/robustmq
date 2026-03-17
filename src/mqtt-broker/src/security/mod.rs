@@ -170,7 +170,7 @@ impl AuthManager {
             .unwrap_or(true)
     }
 
-    pub async fn publish_check(
+    pub async fn publish_acl_check(
         &self,
         connection: &MQTTConnection,
         topic_name: &str,
