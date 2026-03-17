@@ -16,8 +16,9 @@
 mod tests {
     use crate::mqtt::protocol::{
         common::{
-            broker_addr_by_type, build_client_id, build_v5_conn_pros, build_v5_pros, connect_server,
-            create_test_env, distinct_conn, new_client, publish_data, subscribe_data_by_qos,
+            broker_addr_by_type, build_client_id, build_v5_conn_pros, build_v5_pros,
+            connect_server, create_test_env, distinct_conn, new_client, publish_data,
+            subscribe_data_by_qos,
         },
         ClientTestProperties,
     };
@@ -248,7 +249,14 @@ mod tests {
             println!(
                 "[DEBUG] sub_default for client={client_id}: total_count={}, data={:?}",
                 sub_default.total_count,
-                sub_default.data.iter().map(|r| format!("tenant={} client_id={} path={}", r.tenant, r.client_id, r.path)).collect::<Vec<_>>()
+                sub_default
+                    .data
+                    .iter()
+                    .map(|r| format!(
+                        "tenant={} client_id={} path={}",
+                        r.tenant, r.client_id, r.path
+                    ))
+                    .collect::<Vec<_>>()
             );
             assert_eq!(
                 sub_default.total_count, 0,

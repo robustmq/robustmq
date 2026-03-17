@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::sub_option::is_send_msg_by_bo_local;
-use crate::subscribe::common::record_sub_send_metrics;
+use crate::subscribe::common::{record_sub_send_metrics, stale_subscriber_error};
 use crate::subscribe::push::{
     send_message_validator_by_max_message_size, send_message_validator_by_message_expire,
 };
@@ -119,6 +119,10 @@ impl SharePushManager {
                             }
                         }
                         Err(e) => {
+                            if stale_subscriber_error(&e) {
+                                info!("SharePushManager[{}] stopping: topic no longer exists ({})", self.group_name, e);
+                                break;
+                            }
                             error!("SharePushManager[{}] send messages failed: {}", self.group_name, e);
                             sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
                         }

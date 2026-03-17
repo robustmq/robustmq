@@ -80,6 +80,13 @@ pub fn client_unavailable_error(e: &MqttBrokerError) -> bool {
     )
 }
 
+/// Returns true if the error indicates a stale subscriber that should be removed.
+/// This covers cases where the underlying shard or topic no longer exists.
+pub fn stale_subscriber_error(e: &MqttBrokerError) -> bool {
+    let msg = e.to_string();
+    msg.contains("does not exist") || msg.contains("not found in broker cache")
+}
+
 pub fn is_match_sub_and_topic(sub_path: &str, topic: &str) -> ResultMqttBrokerError {
     let path = decode_sub_path(sub_path);
     let topic_name = decode_sub_path(topic);
