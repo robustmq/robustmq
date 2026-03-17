@@ -35,7 +35,7 @@ checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 
 [[package]]
 name = "admin-server"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
@@ -177,7 +177,7 @@ dependencies = [
 
 [[package]]
 name = "amqp-broker"
-version = "0.3.3"
+version = "0.3.4"
 
 [[package]]
 name = "android_system_properties"
@@ -996,7 +996,7 @@ dependencies = [
 
 [[package]]
 name = "broker-core"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "common-base",
  "common-config",
@@ -1012,7 +1012,7 @@ dependencies = [
 
 [[package]]
 name = "broker-server"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "admin-server",
  "axum 0.8.8",
@@ -1370,7 +1370,7 @@ checksum = "3a822ea5bc7590f9d40f1ba12c0dc3c2760f3482c6984db1573ad11031420831"
 
 [[package]]
 name = "cli-bench"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
@@ -1394,7 +1394,7 @@ dependencies = [
 
 [[package]]
 name = "cli-command"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "admin-server",
  "chrono",
@@ -1468,7 +1468,7 @@ dependencies = [
 
 [[package]]
 name = "cmd"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "broker-server",
  "clap",
@@ -1515,7 +1515,7 @@ dependencies = [
 
 [[package]]
 name = "common-base"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "anyhow",
  "apache-avro",
@@ -1562,7 +1562,7 @@ dependencies = [
 
 [[package]]
 name = "common-config"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "common-base",
  "serde",
@@ -1572,7 +1572,7 @@ dependencies = [
 
 [[package]]
 name = "common-healthy"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "common-base",
  "common-config",
@@ -1583,7 +1583,7 @@ dependencies = [
 
 [[package]]
 name = "common-metrics"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "axum 0.8.8",
  "bytes",
@@ -1624,7 +1624,7 @@ dependencies = [
 
 [[package]]
 name = "connector"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "async-trait",
  "bson",
@@ -2127,7 +2127,7 @@ dependencies = [
 
 [[package]]
 name = "delay-message"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "broker-core",
  "bytes",
@@ -2147,7 +2147,7 @@ dependencies = [
 
 [[package]]
 name = "delay-task"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "broker-core",
  "bytes",
@@ -3279,7 +3279,7 @@ dependencies = [
 
 [[package]]
 name = "grpc-clients"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "common-base",
  "common-metrics",
@@ -4055,7 +4055,7 @@ dependencies = [
 
 [[package]]
 name = "kafka-broker"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "async-trait",
  "network-server",
@@ -4234,7 +4234,7 @@ checksum = "6373607a59f0be73a39b6fe456b8192fcc3585f602af20751600e974dd455e77"
 
 [[package]]
 name = "llm-engine"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "common-base",
  "common-config",
@@ -4439,7 +4439,7 @@ dependencies = [
 
 [[package]]
 name = "meta-service"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "async-stream",
  "axum 0.8.8",
@@ -4476,7 +4476,7 @@ dependencies = [
 
 [[package]]
 name = "metadata-struct"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "bytes",
  "common-base",
@@ -4536,7 +4536,7 @@ dependencies = [
 
 [[package]]
 name = "mmap-file"
-version = "0.3.3"
+version = "0.3.4"
 
 [[package]]
 name = "mockall"
@@ -4613,7 +4613,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-broker"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
@@ -4911,7 +4911,7 @@ dependencies = [
 
 [[package]]
 name = "network-server"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "async-channel 2.5.0",
  "async-trait",
@@ -4969,7 +4969,7 @@ dependencies = [
 
 [[package]]
 name = "node-call"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "broker-core",
  "common-base",
@@ -6039,7 +6039,7 @@ dependencies = [
 
 [[package]]
 name = "pprof-monitor"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "axum 0.8.8",
  "bytes",
@@ -6460,7 +6460,7 @@ dependencies = [
 
 [[package]]
 name = "protocol"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "bytes",
  "common-base",
@@ -6839,7 +6839,7 @@ dependencies = [
 
 [[package]]
 name = "rate-limit"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "common-base",
  "dashmap 6.1.0",
@@ -7273,7 +7273,7 @@ checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
 
 [[package]]
 name = "robustmq-macro"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "async-trait",
  "macrotest",
@@ -7287,7 +7287,7 @@ dependencies = [
 
 [[package]]
 name = "robustmq-test"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "admin-server",
  "apache-avro",
@@ -7330,7 +7330,7 @@ dependencies = [
 
 [[package]]
 name = "rocksdb-engine"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "common-base",
  "common-config",
@@ -7364,7 +7364,7 @@ dependencies = [
 
 [[package]]
 name = "rule-engine"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "bytes",
  "cel",
@@ -7713,7 +7713,7 @@ dependencies = [
 
 [[package]]
 name = "schema-register"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "apache-avro",
  "common-base",
@@ -8467,7 +8467,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage-adapter"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
@@ -8495,7 +8495,7 @@ dependencies = [
 
 [[package]]
 name = "storage-engine"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
@@ -8720,7 +8720,7 @@ dependencies = [
 
 [[package]]
 name = "system-info"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "common-base",
  "common-metrics",
@@ -8800,7 +8800,7 @@ checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
 
 [[package]]
 name = "third-driver"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "common-base",
  "mysql 27.0.0",
