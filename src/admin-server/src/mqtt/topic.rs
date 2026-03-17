@@ -38,7 +38,7 @@ use std::{
 };
 use validator::Validate;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct TopicListReq {
     pub tenant: Option<String>,
     pub topic_name: Option<String>,

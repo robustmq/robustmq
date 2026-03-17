@@ -29,7 +29,7 @@ use mqtt_broker::{
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct SubscribeListReq {
     pub tenant: Option<String>,
     pub client_id: Option<String>,
@@ -191,6 +191,7 @@ pub async fn subscribe_list(
     Query(params): Query<SubscribeListReq>,
 ) -> String {
     let tenant = params.tenant;
+    let filter_client_id = params.client_id;
     let options = build_query_params(
         params.page,
         params.limit,
@@ -220,16 +221,27 @@ pub async fn subscribe_list(
         is_share_sub: is_mqtt_share_subscribe(&sub.path),
     };
 
+    let matches_client = |sub: &metadata_struct::mqtt::subscribe::MqttSubscribe| -> bool {
+        filter_client_id
+            .as_deref()
+            .map(|id| sub.client_id == id)
+            .unwrap_or(true)
+    };
+
     if let Some(ref t) = tenant {
         if let Some(tenant_map) = subscribe_list.get(t) {
             for entry in tenant_map.iter() {
-                subscribes.push(build_row(entry.value()));
+                if matches_client(entry.value()) {
+                    subscribes.push(build_row(entry.value()));
+                }
             }
         }
     } else {
         for tenant_entry in subscribe_list.iter() {
             for entry in tenant_entry.value().iter() {
-                subscribes.push(build_row(entry.value()));
+                if matches_client(entry.value()) {
+                    subscribes.push(build_row(entry.value()));
+                }
             }
         }
     }

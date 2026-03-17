@@ -56,7 +56,7 @@ pub struct FlappingDetectListReq {
 pub struct FlappingDetectListRaw {
     pub tenant: String,
     pub client_id: String,
-    pub before_last_windows_connections: u64,
+    pub before_last_window_connections: u64,
     pub first_request_time: u64,
 }
 
@@ -169,7 +169,7 @@ pub async fn flapping_detect_list(
                 results.push(FlappingDetectListRaw {
                     tenant: v.tenant.clone(),
                     client_id: v.client_id.clone(),
-                    before_last_windows_connections: v.before_last_window_connections,
+                    before_last_window_connections: v.before_last_window_connections,
                     first_request_time: v.first_request_time,
                 });
             }
@@ -181,7 +181,7 @@ pub async fn flapping_detect_list(
                 results.push(FlappingDetectListRaw {
                     tenant: v.tenant.clone(),
                     client_id: v.client_id.clone(),
-                    before_last_windows_connections: v.before_last_window_connections,
+                    before_last_window_connections: v.before_last_window_connections,
                     first_request_time: v.first_request_time,
                 });
             }

@@ -96,6 +96,7 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
     if context.delay_info.is_some() {
         return save_delay_message(
             &context.delay_message_manager,
+            &context.topic.tenant,
             &context.publish,
             &context.publish_properties,
             &context.client_id,

@@ -221,10 +221,10 @@ async fn send_delay_message_to_shard(
 
     let send_record = AdapterWriteRecord::from_bytes(msg.encode()?);
 
-    // send to target topic
+    // send to target topic under the original tenant
     let resp = storage_driver_manager
         .write(
-            DEFAULT_TENANT,
+            &delay_message.tenant,
             &delay_message.target_topic_name,
             &[send_record],
         )

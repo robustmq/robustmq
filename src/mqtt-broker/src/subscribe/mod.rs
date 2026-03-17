@@ -31,7 +31,7 @@ use protocol::meta::meta_service_mqtt::SubLeaderInfo;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 use storage_adapter::driver::StorageDriverManager;
-use tokio::sync::broadcast;
+use tokio::{sync::broadcast, task::JoinSet};
 use tracing::{debug, info, warn};
 
 pub mod buckets;
@@ -343,9 +343,17 @@ impl PushManager {
             }
         }
 
-        let mut results = HashMap::new();
+        let mut join_set = JoinSet::new();
         for (tenant, group_list) in tenant_groups {
-            let leaders = fetch_share_sub_leader(&self.client_pool, &tenant, group_list).await?;
+            let client_pool = self.client_pool.clone();
+            join_set.spawn(async move {
+                fetch_share_sub_leader(&client_pool, &tenant, group_list).await
+            });
+        }
+
+        let mut results = HashMap::new();
+        while let Some(res) = join_set.join_next().await {
+            let leaders = res.map_err(|e| CommonError::CommonError(e.to_string()))??;
             results.extend(leaders);
         }
         Ok(results)
