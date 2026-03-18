@@ -14,18 +14,15 @@
 
 use super::default::{
     default_broker_id, default_broker_ip, default_cluster_name, default_engine_runtime,
-    default_grpc_client, default_grpc_port, default_http_port, default_message_storage,
-    default_meta_addrs, default_meta_runtime, default_mqtt_flapping_detect,
-    default_mqtt_keep_alive, default_mqtt_offline_message, default_mqtt_protocol_config,
-    default_mqtt_runtime, default_mqtt_schema, default_mqtt_security, default_mqtt_server,
-    default_mqtt_slow_subscribe_config, default_mqtt_system_monitor, default_mqtt_system_topic,
-    default_network, default_rocksdb, default_roles, default_runtime,
-    default_runtime_worker_threads, default_storage_offset,
+    default_grpc_port, default_http_port, default_meta_addrs, default_meta_runtime,
+    default_mqtt_flapping_detect, default_mqtt_keep_alive, default_mqtt_offline_message,
+    default_mqtt_protocol_config, default_mqtt_runtime, default_mqtt_schema, default_mqtt_server,
+    default_mqtt_slow_subscribe_config, default_mqtt_system_monitor, default_network,
+    default_rocksdb, default_roles, default_runtime, default_runtime_worker_threads,
 };
 use crate::common::Log;
 use crate::common::Prometheus;
 use crate::common::{default_log, default_pprof, default_prometheus};
-use crate::storage::StorageAdapterConfig;
 use common_base::enum_type::delay_type::DelayType;
 use serde::{Deserialize, Serialize};
 use toml::Table;
@@ -85,7 +82,7 @@ impl LLMClientConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct BrokerConfig {
-    // Base
+    // Global
     #[serde(default = "default_cluster_name")]
     pub cluster_name: String,
 
@@ -122,16 +119,14 @@ pub struct BrokerConfig {
     #[serde(default = "default_pprof")]
     pub p_prof: PProf,
 
-    #[serde(default = "default_message_storage")]
-    pub message_storage: StorageAdapterConfig,
+    #[serde(default = "default_rocksdb")]
+    pub rocksdb: Rocksdb,
 
     // meta
     #[serde(default = "default_meta_runtime")]
     pub meta_runtime: MetaRuntime,
 
-    #[serde(default = "default_rocksdb")]
-    pub rocksdb: Rocksdb,
-
+    // Storage Engine
     #[serde(default = "default_engine_runtime")]
     pub storage_runtime: StorageRuntime,
 
@@ -157,31 +152,20 @@ pub struct BrokerConfig {
     #[serde(default = "default_mqtt_protocol_config")]
     pub mqtt_protocol_config: MqttProtocolConfig,
 
-    #[serde(default = "default_mqtt_security")]
-    pub mqtt_security: MqttSecurity,
-
     #[serde(default = "default_mqtt_schema")]
     pub mqtt_schema: MqttSchema,
 
     #[serde(default = "default_mqtt_system_monitor")]
     pub mqtt_system_monitor: MqttSystemMonitor,
 
-    #[serde(default = "default_storage_offset")]
-    pub storage_offset: StorageOffset,
-
-    #[serde(default = "default_grpc_client")]
-    pub grpc_client: GrpcClientConfig,
-
     #[serde(default)]
     pub llm_client: Option<LLMClientConfig>,
-
-    #[serde(default = "default_mqtt_system_topic")]
-    pub mqtt_system_topic: MqttSystemTopic,
 }
 
 impl Default for BrokerConfig {
     fn default() -> Self {
         Self {
+            // Global
             cluster_name: default_cluster_name(),
             broker_id: default_broker_id(),
             broker_ip: default_broker_ip(),
@@ -194,57 +178,27 @@ impl Default for BrokerConfig {
             runtime: default_runtime(),
             network: default_network(),
             p_prof: default_pprof(),
-            message_storage: default_message_storage(),
-            meta_runtime: default_meta_runtime(),
             rocksdb: default_rocksdb(),
+            llm_client: None,
+
+            // Meta Service
+            meta_runtime: default_meta_runtime(),
+
+            // Storage Engine
             storage_runtime: default_engine_runtime(),
+
+            // MQTT Broker
+            mqtt_runtime: default_mqtt_runtime(),
             mqtt_server: default_mqtt_server(),
             mqtt_keep_alive: default_mqtt_keep_alive(),
-            mqtt_runtime: default_mqtt_runtime(),
             mqtt_offline_message: default_mqtt_offline_message(),
             mqtt_slow_subscribe_config: default_mqtt_slow_subscribe_config(),
             mqtt_flapping_detect: default_mqtt_flapping_detect(),
             mqtt_protocol_config: default_mqtt_protocol_config(),
-            mqtt_security: default_mqtt_security(),
             mqtt_schema: default_mqtt_schema(),
             mqtt_system_monitor: default_mqtt_system_monitor(),
-            storage_offset: default_storage_offset(),
-            grpc_client: default_grpc_client(),
-            llm_client: None,
-            mqtt_system_topic: default_mqtt_system_topic(),
         }
     }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct MqttSystemTopic {
-    /// Interval in milliseconds for publishing system topic data. Default: 60000 (60s).
-    pub interval_ms: u64,
-}
-
-impl Default for MqttSystemTopic {
-    fn default() -> Self {
-        default_mqtt_system_topic()
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct GrpcClientConfig {
-    /// Number of HTTP/2 channels (TCP connections) maintained per gRPC server address.
-    /// Each channel supports ~200 concurrent streams via HTTP/2 multiplexing.
-    /// Increase only under extreme concurrency; default of 4 handles ~800 concurrent RPCs.
-    #[serde(default = "default_grpc_channels_per_address")]
-    pub channels_per_address: usize,
-}
-
-impl Default for GrpcClientConfig {
-    fn default() -> Self {
-        default_grpc_client()
-    }
-}
-
-pub fn default_grpc_channels_per_address() -> usize {
-    4
 }
 
 impl BrokerConfig {
@@ -286,6 +240,9 @@ pub struct Runtime {
     /// 0 = auto: num_cpus.  This is the hot-path runtime.
     #[serde(default)]
     pub broker_worker_threads: usize,
+
+    #[serde(default)]
+    pub channels_per_address: usize,
 
     pub tls_cert: String,
 
@@ -381,9 +338,11 @@ pub struct MqttRuntime {
 
     pub default_password: String,
 
-    pub max_connection_num: usize,
-
     pub durable_sessions_enable: bool,
+
+    pub secret_free_login: bool,
+
+    pub is_self_protection_status: bool,
 }
 
 impl Default for MqttRuntime {
@@ -399,22 +358,13 @@ pub struct MqttSystemMonitor {
     pub os_cpu_high_watermark: f32,
 
     pub os_memory_high_watermark: f32,
+
+    pub system_topic_interval_ms: u64,
 }
 
 impl Default for MqttSystemMonitor {
     fn default() -> Self {
         default_mqtt_system_monitor()
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct StorageOffset {
-    pub enable_cache: bool,
-}
-
-impl Default for StorageOffset {
-    fn default() -> Self {
-        default_storage_offset()
     }
 }
 
@@ -457,19 +407,6 @@ impl Default for MqttSchema {
 impl MqttSchema {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).expect("Failed to serialize MqttSchema")
-    }
-}
-
-// MQTT cluster security related dynamic configuration
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct MqttSecurity {
-    pub is_self_protection_status: bool,
-    pub secret_free_login: bool,
-}
-
-impl Default for MqttSecurity {
-    fn default() -> Self {
-        default_mqtt_security()
     }
 }
 
@@ -571,6 +508,7 @@ pub struct StorageRuntime {
     pub max_segment_size: u32,
     pub io_thread_num: u32,
     pub data_path: Vec<String>,
+    pub offset_enable_cache: bool,
 }
 
 impl Default for StorageRuntime {

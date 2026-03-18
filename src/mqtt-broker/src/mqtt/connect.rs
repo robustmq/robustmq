@@ -396,7 +396,7 @@ fn connect_validator(
     last_will_properties: &Option<LastWillProperties>,
     login: &Option<Login>,
 ) -> Option<MqttPacket> {
-    if cluster.mqtt_security.is_self_protection_status {
+    if cluster.mqtt_runtime.is_self_protection_status {
         return Some(build_connect_ack_fail_packet(
             protocol,
             ConnectReturnCode::ServerBusy,

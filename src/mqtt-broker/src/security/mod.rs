@@ -130,7 +130,7 @@ impl AuthManager {
     ) -> Result<bool, MqttBrokerError> {
         let cluster = self.cache_manager.broker_cache.get_cluster_config().await;
 
-        if cluster.mqtt_security.secret_free_login {
+        if cluster.mqtt_runtime.secret_free_login {
             return Ok(true);
         }
 

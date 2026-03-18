@@ -20,7 +20,7 @@ use bytes::Bytes;
 use common_config::broker::broker_config;
 use common_config::config::{
     BrokerConfig, MqttFlappingDetect, MqttOfflineMessage, MqttProtocolConfig, MqttSchema,
-    MqttSecurity, MqttSlowSubscribeConfig, MqttSystemMonitor,
+    MqttSlowSubscribeConfig, MqttSystemMonitor,
 };
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
@@ -33,7 +33,6 @@ pub enum ClusterDynamicConfig {
     MqttFlappingDetect,
     MqttProtocol,
     MqttOfflineMessage,
-    MqttSecurity,
     MqttSystemMonitor,
     MqttSchema,
 }
@@ -113,16 +112,6 @@ impl MQTTCacheManager {
     pub async fn get_schema_config(&self) -> MqttSchema {
         self.broker_cache.get_cluster_config().await.mqtt_schema
     }
-
-    // schema
-    pub async fn update_security_config(&self, security: MqttSecurity) {
-        let mut config = self.broker_cache.cluster_config.write().await;
-        config.mqtt_security = security;
-    }
-
-    pub async fn get_security_config(&self) -> MqttSecurity {
-        self.broker_cache.get_cluster_config().await.mqtt_security
-    }
 }
 
 pub async fn build_cluster_config(
@@ -131,10 +120,6 @@ pub async fn build_cluster_config(
     let mut conf = broker_config().clone();
     if let Some(data) = get_mqtt_protocol_config(client_pool).await? {
         conf.mqtt_protocol_config = data;
-    }
-
-    if let Some(data) = get_security_config(client_pool).await? {
-        conf.mqtt_security = data;
     }
 
     if let Some(data) = get_slow_subscribe_config(client_pool).await? {
@@ -201,10 +186,6 @@ pub async fn update_cluster_dynamic_config(
             let schema_config = serde_json::from_slice(&config)?;
             cache_manager.update_schema_config(schema_config).await;
         }
-        ClusterDynamicConfig::MqttSecurity => {
-            let security_config = serde_json::from_slice(&config)?;
-            cache_manager.update_security_config(security_config).await;
-        }
     }
     Ok(())
 }
@@ -233,19 +214,6 @@ async fn get_mqtt_protocol_config(
         return Ok(Some(serde_json::from_slice::<MqttProtocolConfig>(&data)?));
     }
 
-    Ok(None)
-}
-
-async fn get_security_config(
-    client_pool: &Arc<ClientPool>,
-) -> Result<Option<MqttSecurity>, MqttBrokerError> {
-    let cluster_storage = ClusterStorage::new(client_pool.clone());
-    let data = cluster_storage
-        .get_dynamic_config(&ClusterDynamicConfig::MqttSecurity.to_string())
-        .await?;
-    if !data.is_empty() {
-        return Ok(Some(serde_json::from_slice::<MqttSecurity>(&data)?));
-    }
     Ok(None)
 }
 

@@ -131,6 +131,7 @@ pub async fn tenant_create(
         .create(
             &params.tenant_name,
             params.desc.as_deref().unwrap_or_default(),
+            metadata_struct::tenant::TenantConfig::default(),
         )
         .await
     {

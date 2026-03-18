@@ -13,10 +13,9 @@
 // limitations under the License.
 
 use crate::config::{
-    GrpcClientConfig, MetaRuntime, MqttFlappingDetect, MqttKeepAlive, MqttOfflineMessage,
-    MqttProtocolConfig, MqttRuntime, MqttSchema, MqttSecurity, MqttServer, MqttSlowSubscribeConfig,
-    MqttSystemMonitor, MqttSystemTopic, Network, Rocksdb, Runtime, SchemaFailedOperation,
-    SchemaStrategy, StorageOffset, StorageRuntime,
+    MetaRuntime, MqttFlappingDetect, MqttKeepAlive, MqttOfflineMessage, MqttProtocolConfig,
+    MqttRuntime, MqttSchema, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network,
+    Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy, StorageRuntime,
 };
 use crate::storage::{StorageAdapterConfig, StorageType};
 use common_base::enum_type::delay_type::DelayType;
@@ -68,6 +67,7 @@ pub fn default_runtime() -> Runtime {
         server_worker_threads: 0,
         meta_worker_threads: 0,
         broker_worker_threads: 0,
+        channels_per_address: 4,
         tls_cert: "./config/certs/cert.pem".to_string(),
         tls_key: "./config/certs/key.pem".to_string(),
     }
@@ -128,8 +128,9 @@ pub fn default_mqtt_runtime() -> MqttRuntime {
     MqttRuntime {
         default_user: "admin".to_string(),
         default_password: "robustmq".to_string(),
-        max_connection_num: 1000000,
         durable_sessions_enable: false, // Default: transient sessions (better performance)
+        secret_free_login: false,
+        is_self_protection_status: false,
     }
 }
 
@@ -171,13 +172,6 @@ pub fn default_mqtt_protocol_config() -> MqttProtocolConfig {
     }
 }
 
-pub fn default_mqtt_security() -> MqttSecurity {
-    MqttSecurity {
-        secret_free_login: false,
-        is_self_protection_status: false,
-    }
-}
-
 pub fn default_mqtt_schema() -> MqttSchema {
     MqttSchema {
         enable: true,
@@ -193,15 +187,8 @@ pub fn default_mqtt_system_monitor() -> MqttSystemMonitor {
         enable: false,
         os_cpu_high_watermark: 70.0,
         os_memory_high_watermark: 80.0,
+        system_topic_interval_ms: 60000,
     }
-}
-
-pub fn default_mqtt_system_topic() -> MqttSystemTopic {
-    MqttSystemTopic { interval_ms: 60000 }
-}
-
-pub fn default_storage_offset() -> StorageOffset {
-    StorageOffset { enable_cache: true }
 }
 
 pub fn default_engine_runtime() -> StorageRuntime {
@@ -210,11 +197,6 @@ pub fn default_engine_runtime() -> StorageRuntime {
         max_segment_size: 1073741824,
         data_path: vec![],
         io_thread_num: 8,
-    }
-}
-
-pub fn default_grpc_client() -> GrpcClientConfig {
-    GrpcClientConfig {
-        channels_per_address: 4,
+        offset_enable_cache: true,
     }
 }

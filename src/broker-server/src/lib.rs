@@ -92,7 +92,7 @@ impl BrokerServer {
     pub fn new() -> Self {
         init_metrics();
         let config = broker_config();
-        let client_pool = Arc::new(ClientPool::new(config.grpc_client.channels_per_address));
+        let client_pool = Arc::new(ClientPool::new(config.runtime.channels_per_address));
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.rocksdb.data_path),
             config.rocksdb.max_open_files,
@@ -115,7 +115,7 @@ impl BrokerServer {
         let offset_manager = Arc::new(OffsetManager::new(
             client_pool.clone(),
             rocksdb_engine_handler.clone(),
-            config.storage_offset.enable_cache,
+            config.storage_runtime.offset_enable_cache,
         ));
 
         let node_call_manager = Arc::new(NodeCallManager::new(

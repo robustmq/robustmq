@@ -17,7 +17,7 @@ use common_base::{error::common::CommonError, tools::now_second};
 use common_config::broker::broker_config;
 use grpc_clients::meta::common::call::{create_tenant, delete_tenant, list_tenant};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::tenant::Tenant;
+use metadata_struct::tenant::{Tenant, TenantConfig};
 use protocol::meta::meta_service_common::{
     CreateTenantRequest, DeleteTenantRequest, ListTenantRequest,
 };
@@ -42,12 +42,17 @@ pub async fn try_init_default_tenant(
     }
 
     storage
-        .create(DEFAULT_TENANT_NAME, DEFAULT_TENANT_DESC)
+        .create(
+            DEFAULT_TENANT_NAME,
+            DEFAULT_TENANT_DESC,
+            TenantConfig::default(),
+        )
         .await?;
 
     broker_cache.add_tenant(Tenant {
         tenant_name: DEFAULT_TENANT_NAME.to_string(),
         desc: DEFAULT_TENANT_DESC.to_string(),
+        config: TenantConfig::default(),
         create_time: now_second(),
     });
     Ok(())
@@ -62,11 +67,17 @@ impl TenantStorage {
         TenantStorage { client_pool }
     }
 
-    pub async fn create(&self, tenant_name: &str, desc: &str) -> Result<(), CommonError> {
+    pub async fn create(
+        &self,
+        tenant_name: &str,
+        desc: &str,
+        config: TenantConfig,
+    ) -> Result<(), CommonError> {
         let conf = broker_config();
         let request = CreateTenantRequest {
             tenant_name: tenant_name.to_string(),
             desc: desc.to_string(),
+            config: config.encode()?,
         };
         create_tenant(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
         Ok(())

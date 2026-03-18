@@ -23,6 +23,7 @@ use crate::{
 use axum::extract::{Query, State};
 use broker_core::tenant::TenantStorage;
 use common_base::http_response::{error_response, success_response};
+use metadata_struct::tenant::TenantConfig;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use validator::Validate;
@@ -39,7 +40,7 @@ pub struct MqttTenantListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate, Default)]
 pub struct CreateMqttTenantReq {
     #[validate(length(
         min = 1,
@@ -50,6 +51,11 @@ pub struct CreateMqttTenantReq {
 
     #[validate(length(max = 500, message = "Description length cannot exceed 500"))]
     pub desc: Option<String>,
+
+    pub max_connection_num_per_node: Option<u64>,
+    pub max_topic_total_num: Option<u64>,
+    pub max_session_total_num: Option<u64>,
+    pub max_connector_total_num: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
@@ -67,6 +73,10 @@ pub struct MqttTenantListRow {
     pub tenant_name: String,
     pub desc: String,
     pub create_time: u64,
+    pub max_connection_num_per_node: u64,
+    pub max_topic_total_num: u64,
+    pub max_session_total_num: u64,
+    pub max_connector_total_num: u64,
 }
 
 impl Queryable for MqttTenantListRow {
@@ -75,6 +85,18 @@ impl Queryable for MqttTenantListRow {
             "tenant_name" => Some(self.tenant_name.clone()),
             _ => None,
         }
+    }
+}
+
+fn tenant_to_row(t: &metadata_struct::tenant::Tenant) -> MqttTenantListRow {
+    MqttTenantListRow {
+        tenant_name: t.tenant_name.clone(),
+        desc: t.desc.clone(),
+        create_time: t.create_time,
+        max_connection_num_per_node: t.config.max_connection_num_per_node,
+        max_topic_total_num: t.config.max_topic_total_num,
+        max_session_total_num: t.config.max_session_total_num,
+        max_connector_total_num: t.config.max_connector_total_num,
     }
 }
 
@@ -97,24 +119,14 @@ pub async fn mqtt_tenant_list(
             .broker_cache
             .tenant_list
             .get(name)
-            .map(|t| {
-                vec![MqttTenantListRow {
-                    tenant_name: t.tenant_name.clone(),
-                    desc: t.desc.clone(),
-                    create_time: t.create_time,
-                }]
-            })
+            .map(|t| vec![tenant_to_row(&t)])
             .unwrap_or_default()
     } else {
         state
             .broker_cache
             .tenant_list
             .iter()
-            .map(|entry| MqttTenantListRow {
-                tenant_name: entry.tenant_name.clone(),
-                desc: entry.desc.clone(),
-                create_time: entry.create_time,
-            })
+            .map(|entry| tenant_to_row(&entry))
             .collect()
     };
 
@@ -132,11 +144,27 @@ pub async fn mqtt_tenant_create(
     State(state): State<Arc<HttpState>>,
     ValidatedJson(params): ValidatedJson<CreateMqttTenantReq>,
 ) -> String {
+    let default_config = TenantConfig::default();
+    let config = TenantConfig {
+        max_connection_num_per_node: params
+            .max_connection_num_per_node
+            .unwrap_or(default_config.max_connection_num_per_node),
+        max_topic_total_num: params
+            .max_topic_total_num
+            .unwrap_or(default_config.max_topic_total_num),
+        max_session_total_num: params
+            .max_session_total_num
+            .unwrap_or(default_config.max_session_total_num),
+        max_connector_total_num: params
+            .max_connector_total_num
+            .unwrap_or(default_config.max_connector_total_num),
+    };
     let storage = TenantStorage::new(state.client_pool.clone());
     match storage
         .create(
             &params.tenant_name,
             params.desc.as_deref().unwrap_or_default(),
+            config,
         )
         .await
     {

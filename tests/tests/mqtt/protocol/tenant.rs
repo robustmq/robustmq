@@ -334,6 +334,7 @@ mod tests {
             .create_mqtt_tenant(&CreateMqttTenantReq {
                 tenant_name: tenant_name.to_string(),
                 desc: Some("integration test tenant".to_string()),
+                ..Default::default()
             })
             .await
             .unwrap();

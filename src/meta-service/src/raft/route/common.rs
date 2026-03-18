@@ -16,7 +16,7 @@ use bytes::Bytes;
 use common_base::tools::now_second;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
-use metadata_struct::tenant::Tenant;
+use metadata_struct::tenant::{Tenant, TenantConfig};
 use prost::Message as _;
 use protocol::meta::meta_service_common::{
     BindSchemaRequest, CreateSchemaRequest, CreateTenantRequest, DeleteResourceConfigRequest,
@@ -149,9 +149,15 @@ impl DataRouteCluster {
     // Tenant
     pub fn create_tenant(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = CreateTenantRequest::decode(value.as_ref())?;
+        let config = if req.config.is_empty() {
+            TenantConfig::default()
+        } else {
+            TenantConfig::decode(&req.config)?
+        };
         let tenant = Tenant {
             tenant_name: req.tenant_name.clone(),
             desc: req.desc.clone(),
+            config,
             create_time: now_second(),
         };
         let tenant_storage = TenantStorage::new(self.rocksdb_engine_handler.clone());

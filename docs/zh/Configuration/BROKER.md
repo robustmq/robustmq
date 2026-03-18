@@ -144,6 +144,8 @@ lock_try_mut_sleep_time_ms = 50
 heartbeat_timeout_ms = 30000
 heartbeat_check_time_ms = 1000
 raft_write_timeout_sec = 30
+offset_raft_group_num = 1
+data_raft_group_num = 1
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
@@ -151,6 +153,8 @@ raft_write_timeout_sec = 30
 | `heartbeat_timeout_ms` | `u64` | `30000` | 节点心跳超时时间（毫秒），超时后标记节点不可用 |
 | `heartbeat_check_time_ms` | `u64` | `1000` | 心跳检查间隔（毫秒） |
 | `raft_write_timeout_sec` | `u64` | `30` | Raft 写操作超时时间（秒） |
+| `offset_raft_group_num` | `u32` | `1` | Offset Raft 分组数量 |
+| `data_raft_group_num` | `u32` | `1` | 数据 Raft 分组数量 |
 
 ---
 
@@ -309,16 +313,18 @@ MQTT 运行时基本参数。
 [mqtt_runtime]
 default_user = "admin"
 default_password = "robustmq"
-max_connection_num = 1000000
 durable_sessions_enable = false
+secret_free_login = false
+is_self_protection_status = false
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `default_user` | `string` | `"admin"` | 系统默认用户名 |
 | `default_password` | `string` | `"robustmq"` | 系统默认密码 |
-| `max_connection_num` | `usize` | `1000000` | 单节点最大连接数 |
 | `durable_sessions_enable` | `bool` | `false` | 是否启用持久会话（`false` 为临时会话，性能更好） |
+| `secret_free_login` | `bool` | `false` | 是否允许免密登录 |
+| `is_self_protection_status` | `bool` | `false` | 是否处于自我保护状态（连接过载时拒绝新连接） |
 
 ---
 
@@ -671,6 +677,8 @@ queue_size = 2000
 heartbeat_timeout_ms = 30000
 heartbeat_check_time_ms = 1000
 raft_write_timeout_sec = 30
+offset_raft_group_num = 1
+data_raft_group_num = 1
 
 # ========== RocksDB ==========
 [rocksdb]
@@ -703,8 +711,9 @@ quic_port = 9083
 [mqtt_runtime]
 default_user = "admin"
 default_password = "your_secure_password"
-max_connection_num = 1000000
 durable_sessions_enable = false
+secret_free_login = false
+is_self_protection_status = false
 
 # ========== MQTT Keep Alive ==========
 [mqtt_keep_alive]
