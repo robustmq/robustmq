@@ -9,7 +9,7 @@ Pprof is a built-in performance analysis tool in RobustMQ that generates applica
 Add the following configuration to the `config/server.toml` file:
 
 ```toml
-[p_prof]
+[pprof]
 enable = true      # Enable pprof functionality
 port = 6777        # HTTP service port
 frequency = 1000   # Sampling frequency (Hz)

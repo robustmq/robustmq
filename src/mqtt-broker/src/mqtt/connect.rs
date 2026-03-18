@@ -305,12 +305,12 @@ fn build_connect_ack_success_packet(
 
     let properties = ConnAckProperties {
         session_expiry_interval: Some(context.session_expiry_interval),
-        receive_max: Some(context.cluster.mqtt_protocol_config.receive_max),
-        max_qos: Some(context.cluster.mqtt_protocol_config.max_qos_flight_message),
+        receive_max: Some(context.cluster.mqtt_protocol.receive_max),
+        max_qos: Some(context.cluster.mqtt_protocol.max_qos_flight_message),
         retain_available: Some(1),
-        max_packet_size: Some(context.cluster.mqtt_protocol_config.max_packet_size),
+        max_packet_size: Some(context.cluster.mqtt_protocol.max_packet_size),
         assigned_client_identifier,
-        topic_alias_max: Some(context.cluster.mqtt_protocol_config.topic_alias_max),
+        topic_alias_max: Some(context.cluster.mqtt_protocol.topic_alias_max),
         reason_string: None,
         user_properties: Vec::new(),
         wildcard_subscription_available: Some(1),
@@ -540,10 +540,10 @@ fn connection_max_packet_size(
 ) -> u32 {
     if let Some(properties) = connect_properties {
         if let Some(size) = properties.max_packet_size {
-            return min(size, cluster.mqtt_protocol_config.max_packet_size);
+            return min(size, cluster.mqtt_protocol.max_packet_size);
         }
     }
-    cluster.mqtt_protocol_config.max_packet_size
+    cluster.mqtt_protocol.max_packet_size
 }
 
 #[cfg(test)]

@@ -63,27 +63,27 @@ pub async fn build_connection(
             let client_receive_maximum = if let Some(value) = properties.receive_maximum {
                 value
             } else {
-                config.mqtt_protocol_config.receive_max
+                config.mqtt_protocol.receive_max
             };
 
             let max_packet_size = if let Some(value) = properties.max_packet_size {
                 if value > 0 {
-                    std::cmp::min(value, config.mqtt_protocol_config.max_packet_size)
+                    std::cmp::min(value, config.mqtt_protocol.max_packet_size)
                 } else {
-                    config.mqtt_protocol_config.max_packet_size
+                    config.mqtt_protocol.max_packet_size
                 }
             } else {
-                config.mqtt_protocol_config.max_packet_size
+                config.mqtt_protocol.max_packet_size
             };
 
             let topic_alias_max = if let Some(value) = properties.topic_alias_max {
                 if value > 0 {
-                    std::cmp::min(value, config.mqtt_protocol_config.topic_alias_max)
+                    std::cmp::min(value, config.mqtt_protocol.topic_alias_max)
                 } else {
-                    config.mqtt_protocol_config.topic_alias_max
+                    config.mqtt_protocol.topic_alias_max
                 }
             } else {
-                config.mqtt_protocol_config.topic_alias_max
+                config.mqtt_protocol.topic_alias_max
             };
 
             let request_problem_info = properties.request_problem_info.unwrap_or_default();
@@ -96,9 +96,9 @@ pub async fn build_connection(
             )
         } else {
             (
-                config.mqtt_protocol_config.receive_max,
-                config.mqtt_protocol_config.max_packet_size,
-                config.mqtt_protocol_config.topic_alias_max,
+                config.mqtt_protocol.receive_max,
+                config.mqtt_protocol.max_packet_size,
+                config.mqtt_protocol.topic_alias_max,
                 0,
             )
         };

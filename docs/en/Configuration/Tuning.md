@@ -234,7 +234,7 @@ max_open_files = 10000
 ### 2.6 Message Queue and QoS In-Flight Window
 
 ```toml
-[mqtt_protocol_config]
+[mqtt_protocol]
 max_qos_flight_message = 2    # Per-connection QoS 1/2 in-flight window
 receive_max = 65535           # Receive window advertised to clients
 ```

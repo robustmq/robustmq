@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::MQTTCacheManager;
-use crate::core::error::MqttBrokerError;
-use crate::core::tool::ResultMqttBrokerError;
-use broker_core::cluster::ClusterStorage;
+use crate::cache::NodeCacheManager;
+use crate::cluster::ClusterStorage;
 use bytes::Bytes;
+use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use common_config::config::{
     BrokerConfig, MqttFlappingDetect, MqttOfflineMessage, MqttProtocolConfig, MqttSchema,
@@ -24,9 +23,9 @@ use common_config::config::{
 };
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
-use strum_macros::{Display, EnumString};
+use strum_macros::Display;
 
-#[derive(Default, EnumString, Display)]
+#[derive(Default, Display)]
 pub enum ClusterDynamicConfig {
     #[default]
     MqttSlowSubscribeConfig,
@@ -37,93 +36,16 @@ pub enum ClusterDynamicConfig {
     MqttSchema,
 }
 
-impl MQTTCacheManager {
-    // slow sub
-    pub async fn update_slow_sub_config(&self, slow_sub: MqttSlowSubscribeConfig) {
-        let mut config = self.broker_cache.cluster_config.write().await;
-        config.mqtt_slow_subscribe_config = slow_sub;
-    }
-
-    pub async fn get_slow_sub_config(&self) -> MqttSlowSubscribeConfig {
-        self.broker_cache
-            .get_cluster_config()
-            .await
-            .mqtt_slow_subscribe_config
-    }
-
-    // flapping detect
-    pub async fn update_flapping_detect_config(&self, flapping_detect: MqttFlappingDetect) {
-        let mut config = self.broker_cache.cluster_config.write().await;
-        config.mqtt_flapping_detect = flapping_detect;
-    }
-
-    pub async fn get_flapping_detect_config(&self) -> MqttFlappingDetect {
-        self.broker_cache
-            .get_cluster_config()
-            .await
-            .mqtt_flapping_detect
-    }
-
-    // mqtt protocol config
-    pub async fn update_mqtt_protocol_config(&self, mqtt_protocol_config: MqttProtocolConfig) {
-        let mut config = self.broker_cache.cluster_config.write().await;
-        config.mqtt_protocol_config = mqtt_protocol_config;
-    }
-
-    pub async fn get_mqtt_protocol_config(&self) -> MqttProtocolConfig {
-        self.broker_cache
-            .get_cluster_config()
-            .await
-            .mqtt_protocol_config
-    }
-
-    // offline message
-    pub async fn update_offline_message_config(&self, offline_message: MqttOfflineMessage) {
-        let mut config = self.broker_cache.cluster_config.write().await;
-        config.mqtt_offline_message = offline_message;
-    }
-
-    pub async fn get_offline_message_config(&self) -> MqttOfflineMessage {
-        self.broker_cache
-            .get_cluster_config()
-            .await
-            .mqtt_offline_message
-    }
-
-    // system monitor
-    pub async fn update_system_monitor_config(&self, system_monitor: MqttSystemMonitor) {
-        let mut config = self.broker_cache.cluster_config.write().await;
-        config.mqtt_system_monitor = system_monitor;
-    }
-
-    pub async fn get_system_monitor_config(&self) -> MqttSystemMonitor {
-        self.broker_cache
-            .get_cluster_config()
-            .await
-            .mqtt_system_monitor
-    }
-
-    // schema
-    pub async fn update_schema_config(&self, schema: MqttSchema) {
-        let mut config = self.broker_cache.cluster_config.write().await;
-        config.mqtt_schema = schema;
-    }
-
-    pub async fn get_schema_config(&self) -> MqttSchema {
-        self.broker_cache.get_cluster_config().await.mqtt_schema
-    }
-}
-
 pub async fn build_cluster_config(
     client_pool: &Arc<ClientPool>,
-) -> Result<BrokerConfig, MqttBrokerError> {
+) -> Result<BrokerConfig, CommonError> {
     let mut conf = broker_config().clone();
-    if let Some(data) = get_mqtt_protocol_config(client_pool).await? {
-        conf.mqtt_protocol_config = data;
+    if let Some(data) = get_mqtt_protocol(client_pool).await? {
+        conf.mqtt_protocol = data;
     }
 
     if let Some(data) = get_slow_subscribe_config(client_pool).await? {
-        conf.mqtt_slow_subscribe_config = data;
+        conf.mqtt_slow_subscribe = data;
     }
 
     if let Some(data) = get_flapping_detect(client_pool).await? {
@@ -146,45 +68,45 @@ pub async fn build_cluster_config(
 }
 
 pub async fn update_cluster_dynamic_config(
-    cache_manager: &Arc<MQTTCacheManager>,
+    node_cache: &Arc<NodeCacheManager>,
     resource_type: ClusterDynamicConfig,
     config: Bytes,
-) -> ResultMqttBrokerError {
+) -> Result<(), CommonError> {
     match resource_type {
         ClusterDynamicConfig::MqttSlowSubscribeConfig => {
-            let slow_subscribe_config = serde_json::from_slice(&config)?;
-            cache_manager
-                .update_slow_sub_config(slow_subscribe_config)
-                .await;
+            let data = serde_json::from_slice(&config)?;
+            let mut config = node_cache.cluster_config.write().await;
+            config.mqtt_slow_subscribe = data;
         }
+
         ClusterDynamicConfig::MqttFlappingDetect => {
-            let flapping_detect = serde_json::from_slice(&config)?;
-            cache_manager
-                .update_flapping_detect_config(flapping_detect)
-                .await;
+            let data = serde_json::from_slice(&config)?;
+            let mut config = node_cache.cluster_config.write().await;
+            config.mqtt_flapping_detect = data;
         }
+
         ClusterDynamicConfig::MqttProtocol => {
-            let mqtt_protocol = serde_json::from_slice(&config)?;
-            cache_manager
-                .update_mqtt_protocol_config(mqtt_protocol)
-                .await;
+            let data = serde_json::from_slice(&config)?;
+            let mut config = node_cache.cluster_config.write().await;
+            config.mqtt_protocol = data;
         }
+
         ClusterDynamicConfig::MqttOfflineMessage => {
-            let mqtt_protocol = serde_json::from_slice(&config)?;
-            cache_manager
-                .update_offline_message_config(mqtt_protocol)
-                .await;
+            let data = serde_json::from_slice(&config)?;
+            let mut config = node_cache.cluster_config.write().await;
+            config.mqtt_offline_message = data;
         }
 
         ClusterDynamicConfig::MqttSystemMonitor => {
-            let system_monitor = serde_json::from_slice(&config)?;
-            cache_manager
-                .update_system_monitor_config(system_monitor)
-                .await;
+            let data = serde_json::from_slice(&config)?;
+            let mut config = node_cache.cluster_config.write().await;
+            config.mqtt_system_monitor = data;
         }
+
         ClusterDynamicConfig::MqttSchema => {
-            let schema_config = serde_json::from_slice(&config)?;
-            cache_manager.update_schema_config(schema_config).await;
+            let data = serde_json::from_slice(&config)?;
+            let mut config = node_cache.cluster_config.write().await;
+            config.mqtt_schema = data;
         }
     }
     Ok(())
@@ -194,7 +116,7 @@ pub async fn save_cluster_dynamic_config(
     client_pool: &Arc<ClientPool>,
     resource_config: ClusterDynamicConfig,
     data: Vec<u8>,
-) -> ResultMqttBrokerError {
+) -> Result<(), CommonError> {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     cluster_storage
         .set_dynamic_config(&resource_config.to_string(), data)
@@ -202,9 +124,9 @@ pub async fn save_cluster_dynamic_config(
     Ok(())
 }
 
-async fn get_mqtt_protocol_config(
+async fn get_mqtt_protocol(
     client_pool: &Arc<ClientPool>,
-) -> Result<Option<MqttProtocolConfig>, MqttBrokerError> {
+) -> Result<Option<MqttProtocolConfig>, CommonError> {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
         .get_dynamic_config(&ClusterDynamicConfig::MqttProtocol.to_string())
@@ -219,7 +141,7 @@ async fn get_mqtt_protocol_config(
 
 async fn get_slow_subscribe_config(
     client_pool: &Arc<ClientPool>,
-) -> Result<Option<MqttSlowSubscribeConfig>, MqttBrokerError> {
+) -> Result<Option<MqttSlowSubscribeConfig>, CommonError> {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
         .get_dynamic_config(&ClusterDynamicConfig::MqttSlowSubscribeConfig.to_string())
@@ -234,7 +156,7 @@ async fn get_slow_subscribe_config(
 
 async fn get_flapping_detect(
     client_pool: &Arc<ClientPool>,
-) -> Result<Option<MqttFlappingDetect>, MqttBrokerError> {
+) -> Result<Option<MqttFlappingDetect>, CommonError> {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
         .get_dynamic_config(&ClusterDynamicConfig::MqttFlappingDetect.to_string())
@@ -247,7 +169,7 @@ async fn get_flapping_detect(
 
 async fn get_offline_message(
     client_pool: &Arc<ClientPool>,
-) -> Result<Option<MqttOfflineMessage>, MqttBrokerError> {
+) -> Result<Option<MqttOfflineMessage>, CommonError> {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
         .get_dynamic_config(&ClusterDynamicConfig::MqttOfflineMessage.to_string())
@@ -260,7 +182,7 @@ async fn get_offline_message(
     Ok(None)
 }
 
-async fn get_schema(client_pool: &Arc<ClientPool>) -> Result<Option<MqttSchema>, MqttBrokerError> {
+async fn get_schema(client_pool: &Arc<ClientPool>) -> Result<Option<MqttSchema>, CommonError> {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
         .get_dynamic_config(&ClusterDynamicConfig::MqttSchema.to_string())
@@ -275,7 +197,7 @@ async fn get_schema(client_pool: &Arc<ClientPool>) -> Result<Option<MqttSchema>,
 
 async fn get_system_monitor(
     client_pool: &Arc<ClientPool>,
-) -> Result<Option<MqttSystemMonitor>, MqttBrokerError> {
+) -> Result<Option<MqttSystemMonitor>, CommonError> {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
         .get_dynamic_config(&ClusterDynamicConfig::MqttSystemMonitor.to_string())

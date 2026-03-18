@@ -37,10 +37,10 @@ impl Tenant {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TenantConfig {
-    pub max_connection_num_per_node: u64,
-    pub max_topic_total_num: u64,
-    pub max_session_total_num: u64,
-    pub max_connector_total_num: u64,
+    pub max_connections_per_node: u64,
+    pub max_create_connection_rate_per_second: u32,
+    pub max_topics: u64,
+    pub max_sessions: u64,
 }
 
 impl TenantConfig {
@@ -56,10 +56,10 @@ impl TenantConfig {
 impl Default for TenantConfig {
     fn default() -> Self {
         TenantConfig {
-            max_connection_num_per_node: 1000000,
-            max_topic_total_num: 100000,
-            max_session_total_num: 5000000,
-            max_connector_total_num: 1000,
+            max_connections_per_node: 10000000,
+            max_create_connection_rate_per_second: 10000,
+            max_topics: 5000000,
+            max_sessions: 50000000,
         }
     }
 }

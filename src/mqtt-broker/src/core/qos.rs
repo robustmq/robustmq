@@ -23,7 +23,7 @@ pub async fn check_max_qos_flight_message(
     let current_len = cache_manager
         .pkid_data
         .get_receive_publish_pkid_data_len_by_client_ids(client_id);
-    let config_len = cluster_config.mqtt_protocol_config.max_qos_flight_message as usize;
+    let config_len = cluster_config.mqtt_protocol.max_qos_flight_message as usize;
     if current_len > config_len {
         return Err(MqttBrokerError::CommonError(format!(
             "Receive maximum quota exceeded. Current: {}, Maximum: {}",

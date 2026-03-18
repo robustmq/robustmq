@@ -142,7 +142,7 @@ pub fn default_mqtt_offline_message() -> MqttOfflineMessage {
     }
 }
 
-pub fn default_mqtt_slow_subscribe_config() -> MqttSlowSubscribeConfig {
+pub fn default_mqtt_slow_subscribe() -> MqttSlowSubscribeConfig {
     MqttSlowSubscribeConfig {
         enable: false,
         record_time: 1000,
@@ -159,7 +159,7 @@ pub fn default_mqtt_flapping_detect() -> MqttFlappingDetect {
     }
 }
 
-pub fn default_mqtt_protocol_config() -> MqttProtocolConfig {
+pub fn default_mqtt_protocol() -> MqttProtocolConfig {
     MqttProtocolConfig {
         max_session_expiry_interval: 1800,
         default_session_expiry_interval: 30,

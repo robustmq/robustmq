@@ -329,9 +329,9 @@ impl BrokerServer {
     }
 
     fn start_pprof_server(&self) {
-        let pprof_port = self.config.p_prof.port;
-        let pprof_frequency = self.config.p_prof.frequency;
-        if self.config.p_prof.enable {
+        let pprof_port = self.config.pprof.port;
+        let pprof_frequency = self.config.pprof.frequency;
+        if self.config.pprof.enable {
             self.server_runtime.spawn(async move {
                 start_pprof_monitor(pprof_port, pprof_frequency).await;
             });

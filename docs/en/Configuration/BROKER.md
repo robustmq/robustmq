@@ -347,12 +347,12 @@ default_timeout = 2
 
 ## 12. MQTT Protocol Configuration
 
-### [mqtt_protocol_config]
+### [mqtt_protocol]
 
 MQTT protocol parameter configuration.
 
 ```toml
-[mqtt_protocol_config]
+[mqtt_protocol]
 max_session_expiry_interval = 1800
 default_session_expiry_interval = 30
 topic_alias_max = 65535
@@ -474,12 +474,12 @@ ban_time = 5
 
 ## 17. MQTT Slow Subscribe Detection Configuration
 
-### [mqtt_slow_subscribe_config]
+### [mqtt_slow_subscribe]
 
 Slow subscription monitoring for detecting message delivery delays.
 
 ```toml
-[mqtt_slow_subscribe_config]
+[mqtt_slow_subscribe]
 enable = false
 record_time = 1000
 delay_type = "Whole"
@@ -669,12 +669,12 @@ port = 9090
 | `enable` | `bool` | `true` | Whether to enable Prometheus metrics collection |
 | `port` | `u32` | `9090` | Prometheus metrics exposure port |
 
-### [p_prof]
+### [pprof]
 
 PProf performance profiling configuration.
 
 ```toml
-[p_prof]
+[pprof]
 enable = false
 port = 6060
 frequency = 100
@@ -766,7 +766,7 @@ max_time = 3600
 default_timeout = 2
 
 # ========== MQTT Protocol ==========
-[mqtt_protocol_config]
+[mqtt_protocol]
 max_session_expiry_interval = 1800
 default_session_expiry_interval = 30
 topic_alias_max = 65535
@@ -802,7 +802,7 @@ max_client_connections = 15
 ban_time = 5
 
 # ========== MQTT Slow Subscribe ==========
-[mqtt_slow_subscribe_config]
+[mqtt_slow_subscribe]
 enable = false
 record_time = 1000
 delay_type = "Whole"
@@ -826,7 +826,7 @@ os_memory_high_watermark = 80.0
 enable = true
 port = 9090
 
-[p_prof]
+[pprof]
 enable = false
 port = 6060
 frequency = 100

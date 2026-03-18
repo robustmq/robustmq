@@ -16,9 +16,9 @@ use super::default::{
     default_broker_id, default_broker_ip, default_cluster_name, default_engine_runtime,
     default_grpc_port, default_http_port, default_meta_addrs, default_meta_runtime,
     default_mqtt_flapping_detect, default_mqtt_keep_alive, default_mqtt_offline_message,
-    default_mqtt_protocol_config, default_mqtt_runtime, default_mqtt_schema, default_mqtt_server,
-    default_mqtt_slow_subscribe_config, default_mqtt_system_monitor, default_network,
-    default_rocksdb, default_roles, default_runtime, default_runtime_worker_threads,
+    default_mqtt_protocol, default_mqtt_runtime, default_mqtt_schema, default_mqtt_server,
+    default_mqtt_slow_subscribe, default_mqtt_system_monitor, default_network, default_rocksdb,
+    default_roles, default_runtime, default_runtime_worker_threads,
 };
 use crate::common::Log;
 use crate::common::Prometheus;
@@ -117,10 +117,13 @@ pub struct BrokerConfig {
     pub network: Network,
 
     #[serde(default = "default_pprof")]
-    pub p_prof: PProf,
+    pub pprof: PProf,
 
     #[serde(default = "default_rocksdb")]
     pub rocksdb: Rocksdb,
+
+    #[serde(default)]
+    pub limit: ClusterLimit,
 
     // meta
     #[serde(default = "default_meta_runtime")]
@@ -143,14 +146,14 @@ pub struct BrokerConfig {
     #[serde(default = "default_mqtt_offline_message")]
     pub mqtt_offline_message: MqttOfflineMessage,
 
-    #[serde(default = "default_mqtt_slow_subscribe_config")]
-    pub mqtt_slow_subscribe_config: MqttSlowSubscribeConfig,
+    #[serde(default = "default_mqtt_slow_subscribe")]
+    pub mqtt_slow_subscribe: MqttSlowSubscribeConfig,
 
     #[serde(default = "default_mqtt_flapping_detect")]
     pub mqtt_flapping_detect: MqttFlappingDetect,
 
-    #[serde(default = "default_mqtt_protocol_config")]
-    pub mqtt_protocol_config: MqttProtocolConfig,
+    #[serde(default = "default_mqtt_protocol")]
+    pub mqtt_protocol: MqttProtocolConfig,
 
     #[serde(default = "default_mqtt_schema")]
     pub mqtt_schema: MqttSchema,
@@ -177,8 +180,9 @@ impl Default for BrokerConfig {
             log: default_log(),
             runtime: default_runtime(),
             network: default_network(),
-            p_prof: default_pprof(),
+            pprof: default_pprof(),
             rocksdb: default_rocksdb(),
+            limit: ClusterLimit::default(),
             llm_client: None,
 
             // Meta Service
@@ -192,9 +196,9 @@ impl Default for BrokerConfig {
             mqtt_server: default_mqtt_server(),
             mqtt_keep_alive: default_mqtt_keep_alive(),
             mqtt_offline_message: default_mqtt_offline_message(),
-            mqtt_slow_subscribe_config: default_mqtt_slow_subscribe_config(),
+            mqtt_slow_subscribe: default_mqtt_slow_subscribe(),
             mqtt_flapping_detect: default_mqtt_flapping_detect(),
-            mqtt_protocol_config: default_mqtt_protocol_config(),
+            mqtt_protocol: default_mqtt_protocol(),
             mqtt_schema: default_mqtt_schema(),
             mqtt_system_monitor: default_mqtt_system_monitor(),
         }
@@ -210,11 +214,11 @@ impl BrokerConfig {
     }
 
     pub fn is_enable_slow_subscribe_record(&self) -> bool {
-        self.mqtt_slow_subscribe_config.enable
+        self.mqtt_slow_subscribe.enable
     }
 
     pub fn get_slow_subscribe_delay_type(&self) -> DelayType {
-        self.mqtt_slow_subscribe_config.delay_type
+        self.mqtt_slow_subscribe.delay_type
     }
 }
 
@@ -267,6 +271,39 @@ pub struct Network {
 impl Default for Network {
     fn default() -> Self {
         default_network()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct LimitQuota {
+    pub max_connections_per_node: u64,
+    pub max_create_connection_rate_per_second: u32,
+    pub max_topics: u64,
+    pub max_sessions: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ClusterLimit {
+    pub cluster: LimitQuota,
+    pub tenant: LimitQuota,
+}
+
+impl Default for ClusterLimit {
+    fn default() -> Self {
+        ClusterLimit {
+            cluster: LimitQuota {
+                max_connections_per_node: 10000000,
+                max_create_connection_rate_per_second: 100000,
+                max_topics: 5000000,
+                max_sessions: 50000000,
+            },
+            tenant: LimitQuota {
+                max_connections_per_node: 1000000,
+                max_create_connection_rate_per_second: 10000,
+                max_topics: 500000,
+                max_sessions: 5000000,
+            },
+        }
     }
 }
 
@@ -425,7 +462,7 @@ pub struct MqttProtocolConfig {
 
 impl Default for MqttProtocolConfig {
     fn default() -> Self {
-        default_mqtt_protocol_config()
+        default_mqtt_protocol()
     }
 }
 
@@ -464,7 +501,7 @@ pub struct MqttSlowSubscribeConfig {
 
 impl Default for MqttSlowSubscribeConfig {
     fn default() -> Self {
-        default_mqtt_slow_subscribe_config()
+        default_mqtt_slow_subscribe()
     }
 }
 

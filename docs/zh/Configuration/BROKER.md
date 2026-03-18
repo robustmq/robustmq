@@ -353,12 +353,12 @@ default_timeout = 2
 
 ## 12. MQTT 协议配置
 
-### [mqtt_protocol_config]
+### [mqtt_protocol]
 
 MQTT 协议参数配置。
 
 ```toml
-[mqtt_protocol_config]
+[mqtt_protocol]
 max_session_expiry_interval = 1800
 default_session_expiry_interval = 30
 topic_alias_max = 65535
@@ -428,12 +428,12 @@ ban_time = 5
 
 ## 17. MQTT 慢订阅检测配置
 
-### [mqtt_slow_subscribe_config]
+### [mqtt_slow_subscribe]
 
 慢订阅监控配置，用于检测消息分发延迟。
 
 ```toml
-[mqtt_slow_subscribe_config]
+[mqtt_slow_subscribe]
 enable = false
 record_time = 1000
 delay_type = "Whole"
@@ -623,12 +623,12 @@ port = 9090
 | `enable` | `bool` | `true` | 是否启用 Prometheus 指标收集 |
 | `port` | `u32` | `9090` | Prometheus 指标暴露端口 |
 
-### [p_prof]
+### [pprof]
 
 PProf 性能分析配置。
 
 ```toml
-[p_prof]
+[pprof]
 enable = false
 port = 6060
 frequency = 100
@@ -723,7 +723,7 @@ max_time = 3600
 default_timeout = 2
 
 # ========== MQTT 协议 ==========
-[mqtt_protocol_config]
+[mqtt_protocol]
 max_session_expiry_interval = 1800
 default_session_expiry_interval = 30
 topic_alias_max = 65535
@@ -747,7 +747,7 @@ max_client_connections = 15
 ban_time = 5
 
 # ========== MQTT 慢订阅 ==========
-[mqtt_slow_subscribe_config]
+[mqtt_slow_subscribe]
 enable = false
 record_time = 1000
 delay_type = "Whole"
@@ -771,7 +771,7 @@ os_memory_high_watermark = 80.0
 enable = true
 port = 9090
 
-[p_prof]
+[pprof]
 enable = false
 port = 6060
 frequency = 100

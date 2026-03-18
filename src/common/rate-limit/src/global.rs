@@ -22,7 +22,7 @@ use crate::ArcRateLimiter;
 #[derive(Clone)]
 pub struct GlobalRateLimiterManager {
     http_limits: DashMap<String, ArcRateLimiter>,
-    grpc_limits: DashMap<String, ArcRateLimiter>,
+    network_connection_limit: ArcRateLimiter,
 }
 impl Default for GlobalRateLimiterManager {
     fn default() -> Self {
@@ -32,9 +32,10 @@ impl Default for GlobalRateLimiterManager {
 
 impl GlobalRateLimiterManager {
     pub fn new() -> Self {
+        let non_zero = NonZero::new(42).unwrap();
         GlobalRateLimiterManager {
             http_limits: DashMap::with_capacity(2),
-            grpc_limits: DashMap::with_capacity(2),
+            network_connection_limit: Arc::new(RateLimiter::direct(Quota::per_second(non_zero))),
         }
     }
 
@@ -50,15 +51,8 @@ impl GlobalRateLimiterManager {
         Ok(())
     }
 
-    pub async fn wait_grpc_limit(&self, method: String) -> ResultCommonError {
-        if let Some(limit) = self.grpc_limits.get(&method) {
-            limit.until_ready().await;
-        } else {
-            let non_zero = NonZero::new(42).unwrap();
-            let limit = Arc::new(RateLimiter::direct(Quota::per_second(non_zero)));
-            limit.until_ready().await;
-            self.http_limits.insert(method, limit);
-        }
+    pub async fn wait_network_connection_limit(&self) -> ResultCommonError {
+        self.network_connection_limit.until_ready().await;
         Ok(())
     }
 }

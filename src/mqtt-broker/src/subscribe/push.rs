@@ -226,7 +226,7 @@ pub async fn build_pub_qos(cache_manager: &Arc<MQTTCacheManager>, subscriber: &S
         .broker_cache
         .get_cluster_config()
         .await
-        .mqtt_protocol_config
+        .mqtt_protocol
         .max_qos_flight_message;
 
     let cluster_qos_level = qos(cluster_qos).unwrap_or(QoS::ExactlyOnce);

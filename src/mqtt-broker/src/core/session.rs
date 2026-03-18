@@ -170,13 +170,13 @@ async fn session_expiry_interval(
         .broker_cache
         .get_cluster_config()
         .await
-        .mqtt_protocol_config
+        .mqtt_protocol
         .default_session_expiry_interval;
     let max_session_expiry_interval = cache_manager
         .broker_cache
         .get_cluster_config()
         .await
-        .mqtt_protocol_config
+        .mqtt_protocol
         .max_session_expiry_interval;
 
     let connection_session_expiry_interval = if let Some(properties) = connect_properties {
@@ -236,7 +236,7 @@ mod test {
                 .broker_cache
                 .get_cluster_config()
                 .await
-                .mqtt_protocol_config
+                .mqtt_protocol
                 .default_session_expiry_interval as u64
         );
 

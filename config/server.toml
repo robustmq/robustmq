@@ -24,7 +24,7 @@ meta_addrs = { 1 = "127.0.0.1:1228" }
 data_path = "./data/data"
 max_open_files = 10000
 
-[p_prof]
+[pprof]
 enable = false
 port = 6777
 frequency = 1000

@@ -126,7 +126,7 @@ impl MqttService {
             .broker_cache
             .get_cluster_config()
             .await
-            .mqtt_protocol_config
+            .mqtt_protocol
             .max_qos_flight_message;
         for filter in &subscribe.filters {
             match min_qos(qos(cluster_qos).unwrap(), filter.qos) {

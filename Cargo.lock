@@ -998,6 +998,7 @@ dependencies = [
 name = "broker-core"
 version = "0.3.4"
 dependencies = [
+ "bytes",
  "common-base",
  "common-config",
  "dashmap 6.1.0",
@@ -1006,6 +1007,7 @@ dependencies = [
  "protocol",
  "serde",
  "serde_json",
+ "strum_macros 0.28.0",
  "tokio",
  "tracing",
 ]
