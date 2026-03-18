@@ -376,7 +376,42 @@ client_pkid_persistent = false
 
 ---
 
-## 13. MQTT Security Configuration
+## 13. Rate Limiting Configuration
+
+### [limit]
+
+Cluster and tenant level resource rate limiting configuration.
+
+```toml
+[limit.cluster]
+max_connections_per_node = 10000000
+max_create_connection_rate_per_second = 100000
+max_topics = 5000000
+max_sessions = 50000000
+max_mqtt_qos1_num = 1000
+max_mqtt_qos2_num = 1000
+
+[limit.tenant]
+max_connections_per_node = 1000000
+max_create_connection_rate_per_second = 10000
+max_topics = 500000
+max_sessions = 5000000
+max_mqtt_qos1_num = 1000
+max_mqtt_qos2_num = 1000
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `max_connections_per_node` | `u64` | Maximum connections per node |
+| `max_create_connection_rate_per_second` | `u32` | Maximum new connection rate per second |
+| `max_topics` | `u64` | Maximum number of topics |
+| `max_sessions` | `u64` | Maximum number of sessions |
+| `max_mqtt_qos1_num` | `u64` | Maximum concurrent QoS 1 messages |
+| `max_mqtt_qos2_num` | `u64` | Maximum concurrent QoS 2 messages |
+
+---
+
+## 14. MQTT Security Configuration
 
 ### [mqtt_security]
 
@@ -395,7 +430,7 @@ secret_free_login = false
 
 ---
 
-## 14. MQTT Authentication & Authorization Configuration
+## 15. MQTT Authentication & Authorization Configuration
 
 ### [mqtt_auth_config]
 
@@ -428,7 +463,7 @@ storage_type = "placement"
 
 ---
 
-## 15. MQTT Offline Message Configuration
+## 16. MQTT Offline Message Configuration
 
 ### [mqtt_offline_message]
 
@@ -449,7 +484,7 @@ max_messages_num = 0
 
 ---
 
-## 16. MQTT Flapping Detection Configuration
+## 17. MQTT Flapping Detection Configuration
 
 ### [mqtt_flapping_detect]
 
@@ -472,7 +507,7 @@ ban_time = 5
 
 ---
 
-## 17. MQTT Slow Subscribe Detection Configuration
+## 18. MQTT Slow Subscribe Detection Configuration
 
 ### [mqtt_slow_subscribe]
 
@@ -493,7 +528,7 @@ delay_type = "Whole"
 
 ---
 
-## 18. MQTT Schema Validation Configuration
+## 19. MQTT Schema Validation Configuration
 
 ### [mqtt_schema]
 
@@ -527,7 +562,7 @@ log_level = "info"
 
 ---
 
-## 19. MQTT System Monitor Configuration
+## 20. MQTT System Monitor Configuration
 
 ### [mqtt_system_monitor]
 
@@ -548,7 +583,7 @@ os_memory_high_watermark = 80.0
 
 ---
 
-## 20. gRPC Client Configuration
+## 21. gRPC Client Configuration
 
 ### [grpc_client]
 
@@ -582,7 +617,7 @@ export ROBUST_MQ_SERVER_GRPC_CLIENT_CHANNELS_PER_ADDRESS=8
 
 ---
 
-## 21. LLM Client Configuration
+## 22. LLM Client Configuration
 
 ### [llm_client]
 
@@ -652,7 +687,7 @@ export ROBUST_MQ_SERVER_LLM_CLIENT_TOKEN=your_api_token
 
 ---
 
-## 22. Monitoring Configuration
+## 23. Monitoring Configuration
 
 ### [prometheus]
 
