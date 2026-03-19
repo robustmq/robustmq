@@ -15,6 +15,7 @@
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::packet::RequestPackage;
+use crate::common::tool::check_connection_limit;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
 use axum::response::Response;
@@ -23,6 +24,7 @@ use axum::Router;
 use axum_extra::headers::UserAgent;
 use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
+use broker_core::cache::NodeCacheManager;
 use bytes::{BufMut, BytesMut};
 use common_base::error::ResultCommonError;
 use common_config::broker::broker_config;
@@ -30,6 +32,7 @@ use futures_util::stream::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::robust::RobustMQPacket;
+use rate_limit::global::GlobalRateLimiterManager;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -44,6 +47,8 @@ pub struct WebSocketServerState {
     pub ws_port: u32,
     pub wss_port: u32,
     pub connection_manager: Arc<ConnectionManager>,
+    pub global_limit_manager: Arc<GlobalRateLimiterManager>,
+    pub node_cache: Arc<NodeCacheManager>,
     pub stop_sx: broadcast::Sender<bool>,
     pub request_channel: Arc<RequestChannel>,
 }
@@ -53,6 +58,8 @@ impl WebSocketServerState {
         ws_port: u32,
         wss_port: u32,
         connection_manager: Arc<ConnectionManager>,
+        node_cache: Arc<NodeCacheManager>,
+        global_limit_manager: Arc<GlobalRateLimiterManager>,
         stop_sx: broadcast::Sender<bool>,
         request_channel: Arc<RequestChannel>,
     ) -> Self {
@@ -61,6 +68,8 @@ impl WebSocketServerState {
             wss_port,
             connection_manager,
             stop_sx,
+            node_cache,
+            global_limit_manager,
             request_channel,
         }
     }
@@ -136,6 +145,8 @@ async fn ws_handler(
                 addr,
                 state.connection_manager.clone(),
                 state.request_channel.clone(),
+                state.global_limit_manager.clone(),
+                state.node_cache.clone(),
                 state.stop_sx.clone(),
             )
         })
@@ -146,6 +157,8 @@ async fn handle_socket(
     addr: SocketAddr,
     connection_manager: Arc<ConnectionManager>,
     request_channel: Arc<RequestChannel>,
+    global_limit_manager: Arc<GlobalRateLimiterManager>,
+    node_cache: Arc<NodeCacheManager>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let (sender, mut receiver) = socket.split();
@@ -154,7 +167,14 @@ async fn handle_socket(
     connection_manager.add_websocket_write(connection_id, sender);
     connection_manager.add_connection(connection);
     let mut stop_rx = stop_sx.subscribe();
+
     let mut codec = RobustMQCodec::new();
+    if let Err(e) =
+        check_connection_limit(&global_limit_manager, &node_cache, &connection_manager).await
+    {
+        warn!("{}", e.to_string());
+        return;
+    }
 
     loop {
         select! {

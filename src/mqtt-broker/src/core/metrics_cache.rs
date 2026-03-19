@@ -80,7 +80,7 @@ async fn record_basic_metrics(
         .record_connection_num(now, connection_manager.connections.len() as u64)?;
 
     // topic num
-    metrics_cache_manager.record_topic_num(now, cache_manager.broker_cache.topic_count() as u64)?;
+    metrics_cache_manager.record_topic_num(now, cache_manager.node_cache.topic_count() as u64)?;
 
     // subscribe num
     metrics_cache_manager.record_subscribe_num(now, subscribe_manager.subscribe_count() as u64)?;
@@ -88,7 +88,7 @@ async fn record_basic_metrics(
     // record metrics
     record_mqtt_connections_set(connection_manager.connections.len() as i64);
     record_mqtt_sessions_set(cache_manager.session_count() as i64);
-    record_mqtt_topics_set(cache_manager.broker_cache.topic_count() as i64);
+    record_mqtt_topics_set(cache_manager.node_cache.topic_count() as i64);
 
     record_mqtt_subscribers_set(subscribe_manager.subscribe_count() as i64);
     record_mqtt_subscriptions_exclusive_set(subscribe_manager.directly_push.sub_len() as i64);
@@ -139,7 +139,7 @@ async fn record_topic_metrics(
 ) -> ResultCommonError {
     let now: u64 = now_second();
 
-    for tenant_entry in cache_manager.broker_cache.topic_list.iter() {
+    for tenant_entry in cache_manager.node_cache.topic_list.iter() {
         let tenant = tenant_entry.key().clone();
         for topic_entry in tenant_entry.value().iter() {
             let topic = topic_entry.key().clone();

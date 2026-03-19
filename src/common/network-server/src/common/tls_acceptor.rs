@@ -14,7 +14,7 @@
 
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
-use crate::common::tool::read_packet;
+use crate::common::tool::{check_connection_limit, read_packet};
 use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
@@ -24,6 +24,7 @@ use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::robust::RobustMQPacket;
+use rate_limit::global::GlobalRateLimiterManager;
 use rustls_pemfile::{certs, private_key};
 use std::fs::File;
 use std::io::{self, BufReader};
@@ -37,7 +38,7 @@ use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 pub(crate) fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
     certs(&mut BufReader::new(File::open(path)?)).collect()
@@ -56,8 +57,9 @@ pub async fn acceptor_tls_process(
     stop_sx: broadcast::Sender<bool>,
     network_type: NetworkConnectionType,
     connection_manager: Arc<ConnectionManager>,
-    broker_cache: Arc<NodeCacheManager>,
+    node_cache: Arc<NodeCacheManager>,
     request_channel: Arc<RequestChannel>,
+    global_limit_manager: Arc<GlobalRateLimiterManager>,
     codec: RobustMQCodec,
 ) -> ResultCommonError {
     let tls_acceptor = create_tls_accept()?;
@@ -70,7 +72,8 @@ pub async fn acceptor_tls_process(
         let raw_tls_acceptor = tls_acceptor.clone();
         let network_type = network_type.clone();
         let row_codec = codec.clone();
-        let row_broker_cache = broker_cache.clone();
+        let row_broker_cache = node_cache.clone();
+        let row_global_limit_manager = global_limit_manager.clone();
         tokio::spawn(Box::pin(async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
@@ -116,9 +119,10 @@ pub async fn acceptor_tls_process(
                                 let read_frame_stream = FramedRead::new(r_stream, row_codec.clone());
                                 let write_frame_stream = FramedWrite::new(w_stream, row_codec.clone());
 
-                                // if !tcp_tls_establish_connection_check(&addr,&connection_manager,&mut write_frame_stream).await{
-                                //     continue;
-                                // }
+                                if let Err(e) = check_connection_limit(&row_global_limit_manager, &row_broker_cache, &connection_manager).await{
+                                    warn!("{}",e.to_string());
+                                    continue;
+                                }
 
                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                 let connection = NetworkConnection::new(

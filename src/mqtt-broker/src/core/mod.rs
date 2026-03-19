@@ -19,7 +19,6 @@ pub mod constant;
 pub mod content_type;
 pub mod delay_message;
 pub mod dynamic_cache;
-pub mod dynamic_config;
 pub mod error;
 pub mod flapping_detect;
 pub mod inner;

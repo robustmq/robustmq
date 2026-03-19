@@ -69,7 +69,7 @@
       "lock_max_try_mut_times": 30,
       "lock_try_mut_sleep_time_ms": 50
     },
-    "p_prof": {
+    "pprof": {
       "enable": false,
       "port": 6060,
       "frequency": 100
@@ -157,7 +157,7 @@
       "expire_ms": 0,
       "max_messages_num": 0
     },
-    "mqtt_slow_subscribe_config": {
+    "mqtt_slow_subscribe": {
       "enable": false,
       "record_time": 1000,
       "delay_type": "Whole"
@@ -168,7 +168,7 @@
       "max_client_connections": 15,
       "ban_time": 5
     },
-    "mqtt_protocol_config": {
+    "mqtt_protocol": {
       "max_session_expiry_interval": 1800,
       "default_session_expiry_interval": 30,
       "topic_alias_max": 65535,
@@ -390,7 +390,7 @@
 | `lock_max_try_mut_times` | u64 | 锁最大尝试次数 |
 | `lock_try_mut_sleep_time_ms` | u64 | 锁重试等待时间（毫秒） |
 
-#### p_prof
+#### pprof
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -470,7 +470,7 @@
 | `expire_ms` | u32 | 过期时间（毫秒），0 表示不过期 |
 | `max_messages_num` | u32 | 最大离线消息数量，0 表示不限制 |
 
-#### mqtt_slow_subscribe_config
+#### mqtt_slow_subscribe
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -487,7 +487,7 @@
 | `max_client_connections` | u64 | 窗口内最大连接次数 |
 | `ban_time` | u32 | 封禁时间（分钟） |
 
-#### mqtt_protocol_config
+#### mqtt_protocol
 
 | 字段 | 类型 | 说明 |
 |------|------|------|

@@ -63,14 +63,20 @@ pub async fn record_slow_subscribe_data(
     send_time: u64,
     record_time: u64,
 ) -> ResultCommonError {
-    if !cache_manager.get_slow_sub_config().await.enable {
+    let slow_config = cache_manager
+        .node_cache
+        .get_cluster_config()
+        .await
+        .mqtt_slow_subscribe;
+
+    if !slow_config.enable {
         return Ok(());
     }
 
     let finish_time = now_second();
     let calculate_time = calc_time(send_time, finish_time, record_time);
 
-    if calculate_time <= cache_manager.get_slow_sub_config().await.record_time {
+    if calculate_time <= slow_config.record_time {
         return Ok(());
     }
 

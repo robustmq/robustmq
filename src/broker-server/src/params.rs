@@ -33,6 +33,7 @@ use mqtt_broker::{
 };
 use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
 use node_call::NodeCallManager;
+use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::{metrics::mqtt::MQTTMetricsCache, rocksdb::RocksDBEngine};
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
@@ -107,6 +108,7 @@ pub async fn build_broker_mqtt_params(
     storage_driver_manager: Arc<StorageDriverManager>,
     offset_manager: Arc<OffsetManager>,
     task_supervisor: Arc<TaskSupervisor>,
+    mqtt_global_rate_limiter: Arc<GlobalRateLimiterManager>,
     stop_sx: broadcast::Sender<bool>,
 ) -> Result<MqttBrokerServerParams, CommonError> {
     let cache_manager = Arc::new(MqttCacheManager::new(
@@ -151,11 +153,12 @@ pub async fn build_broker_mqtt_params(
         schema_manager,
         metrics_cache_manager,
         rocksdb_engine_handler,
-        broker_cache,
+        node_cache: broker_cache,
         offset_manager,
         retain_message_manager,
         push_manager,
         task_supervisor,
+        global_limit_manager: mqtt_global_rate_limiter,
     })
 }
 
@@ -166,6 +169,7 @@ pub fn build_storage_engine_params(
     broker_cache: Arc<NodeCacheManager>,
     connection_manager: Arc<NetworkConnectionManager>,
     offset_manager: Arc<OffsetManager>,
+    global_limit_manager: Arc<GlobalRateLimiterManager>,
 ) -> StorageEngineParams {
     let config = broker_config();
 
@@ -208,5 +212,6 @@ pub fn build_storage_engine_params(
         rocksdb_storage_engine,
         write_manager,
         storage_engine_handler,
+        global_limit_manager,
     }
 }

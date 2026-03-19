@@ -30,8 +30,8 @@ pub async fn build_message_expire(
         }
     }
 
-    let cluster = cache_manager.broker_cache.get_cluster_config().await;
-    now_second() + cluster.mqtt_protocol_config.max_message_expiry_interval
+    let cluster = cache_manager.node_cache.get_cluster_config().await;
+    now_second() + cluster.mqtt_protocol.max_message_expiry_interval
 }
 
 #[cfg(test)]
@@ -46,13 +46,13 @@ mod tests {
     async fn build_message_expire_test() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let cluster = BrokerConfig {
-            mqtt_protocol_config: MqttProtocolConfig {
+            mqtt_protocol: MqttProtocolConfig {
                 max_message_expiry_interval: 10,
                 ..Default::default()
             },
             ..Default::default()
         };
-        cache_manager.broker_cache.set_cluster_config(cluster).await;
+        cache_manager.node_cache.set_cluster_config(cluster).await;
 
         let publish_properties = None;
         let res = build_message_expire(&cache_manager, &publish_properties).await;

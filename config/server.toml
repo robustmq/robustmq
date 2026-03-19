@@ -24,7 +24,7 @@ meta_addrs = { 1 = "127.0.0.1:1228" }
 data_path = "./data/data"
 max_open_files = 10000
 
-[p_prof]
+[pprof]
 enable = false
 port = 6777
 frequency = 1000
@@ -95,11 +95,12 @@ broker_worker_threads = 16
 [mqtt_runtime]
 default_user = "admin"
 default_password = "robustmq"
-max_connection_num = 1000000
 # Enable durable sessions (persistent sessions stored in RocksDB + Raft)
 # - false (default): Transient sessions (memory-only, higher performance)
 # - true: Durable sessions (disk-persisted, survive node restarts)
 durable_sessions_enable = false
+secret_free_login = false
+is_self_protection_status = false
 
 [grpc_client]
 # Number of HTTP/2 channels (TCP connections) per gRPC server address.

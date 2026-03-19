@@ -57,7 +57,7 @@ pub async fn update_mqtt_cache_metadata(
                     "Node {} is online. Node information: {:?}",
                     node.node_id, node
                 );
-                cache_manager.broker_cache.add_node(node);
+                cache_manager.node_cache.add_node(node);
             }
             BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
@@ -66,7 +66,7 @@ pub async fn update_mqtt_cache_metadata(
                     "Node {} has been taken offline. Node information: {:?}",
                     node.node_id, node
                 );
-                cache_manager.broker_cache.remove_node(node);
+                cache_manager.node_cache.remove_node(node);
             }
         },
 
@@ -151,7 +151,7 @@ pub async fn update_mqtt_cache_metadata(
         BrokerUpdateCacheResourceType::Topic => match record.action_type() {
             BrokerUpdateCacheActionType::Create => {
                 let topic = serialize::deserialize::<Topic>(&record.data)?;
-                cache_manager.broker_cache.add_topic(&topic);
+                cache_manager.node_cache.add_topic(&topic);
                 if cache_manager
                     .topic_rewrite_rule
                     .iter()
@@ -228,14 +228,12 @@ pub async fn update_mqtt_cache_metadata(
         BrokerUpdateCacheResourceType::Tenant => match record.action_type() {
             BrokerUpdateCacheActionType::Create => {
                 let tenant = serialize::deserialize::<Tenant>(&record.data)?;
-                cache_manager.broker_cache.add_tenant(tenant);
+                cache_manager.node_cache.add_tenant(tenant);
             }
             BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let tenant = serialize::deserialize::<Tenant>(&record.data)?;
-                cache_manager
-                    .broker_cache
-                    .remove_tenant(&tenant.tenant_name);
+                cache_manager.node_cache.remove_tenant(&tenant.tenant_name);
             }
         },
         BrokerUpdateCacheResourceType::AutoSubscribeRule => match record.action_type() {

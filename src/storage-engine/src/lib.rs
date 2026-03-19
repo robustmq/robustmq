@@ -25,6 +25,7 @@ use common_base::task::{TaskKind, TaskSupervisor};
 use core::cache::StorageCacheManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
+use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
@@ -50,6 +51,7 @@ pub struct StorageEngineParams {
     pub memory_storage_engine: Arc<MemoryStorageEngine>,
     pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     pub storage_engine_handler: Arc<StorageEngineHandler>,
+    pub global_limit_manager: Arc<GlobalRateLimiterManager>,
 }
 
 pub struct StorageEngineServer {
@@ -80,6 +82,7 @@ impl StorageEngineServer {
                 memory_storage_engine: params.memory_storage_engine.clone(),
                 rocksdb_storage_engine: params.rocksdb_storage_engine.clone(),
                 client_connection_manager: params.client_connection_manager.clone(),
+                global_limit_manager: params.global_limit_manager.clone(),
             },
             stop.clone(),
         ));

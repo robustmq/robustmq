@@ -29,3 +29,5 @@ serde_json.workspace = true
 dashmap.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+bytes.workspace = true
+strum_macros.workspace = true

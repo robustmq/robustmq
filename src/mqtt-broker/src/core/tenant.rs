@@ -41,7 +41,7 @@ pub fn get_tenant_info(
 ) -> Result<metadata_struct::tenant::Tenant, MqttBrokerError> {
     let tenant_name = decode_tenant_name(client_id, connect_properties, login)?;
     cache_manager
-        .broker_cache
+        .node_cache
         .get_tenant(&tenant_name)
         .ok_or_else(|| MqttBrokerError::TenantNotFound(tenant_name))
 }

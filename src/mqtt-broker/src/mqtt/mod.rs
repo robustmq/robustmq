@@ -24,6 +24,7 @@ use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, LastWill, LastWillProperties, Login, MqttProtocol,
 };
+use rate_limit::mqtt::MQTTRateLimiterManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::net::SocketAddr;
@@ -52,6 +53,7 @@ pub struct MqttService {
     auth_driver: Arc<AuthManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     retain_message_manager: Arc<RetainMessageManager>,
+    limit_manager: Arc<MQTTRateLimiterManager>,
 }
 
 #[derive(Clone)]
@@ -68,6 +70,7 @@ pub struct MqttServiceContext {
     pub auth_driver: Arc<AuthManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub retain_message_manager: Arc<RetainMessageManager>,
+    pub limit_manager: Arc<MQTTRateLimiterManager>,
 }
 
 #[derive(Clone)]
@@ -96,6 +99,7 @@ impl MqttService {
             schema_manager: context.schema_manager,
             rocksdb_engine_handler: context.rocksdb_engine_handler,
             retain_message_manager: context.retain_message_manager,
+            limit_manager: context.limit_manager,
         }
     }
 }

@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use broker_core::cache::NodeCacheManager;
+use broker_core::dynamic_config::build_cluster_config;
 use broker_core::tenant::TenantStorage;
 use connector::manager::ConnectorManager;
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::core::cache::MQTTCacheManager;
-use mqtt_broker::core::dynamic_config::build_cluster_config;
 use mqtt_broker::core::error::MqttBrokerError;
 use mqtt_broker::core::tool::ResultMqttBrokerError;
 use mqtt_broker::storage::acl::AclStorage;
@@ -43,7 +43,7 @@ pub async fn load_metadata_cache(
 ) -> ResultMqttBrokerError {
     info!("Starting to load metadata cache...");
     load_common_cache(
-        &cache_manager.broker_cache,
+        &cache_manager.node_cache,
         client_pool,
         connector_manager,
         schema_manager,

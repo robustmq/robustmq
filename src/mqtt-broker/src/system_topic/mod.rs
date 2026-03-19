@@ -172,7 +172,7 @@ impl SystemTopic {
             Ok(())
         };
 
-        let interval_ms = broker_config().mqtt_system_topic.interval_ms;
+        let interval_ms = broker_config().mqtt_system_monitor.system_topic_interval_ms;
         loop_select_ticket(ac_fn, interval_ms, &stop_send).await;
     }
 
@@ -524,7 +524,7 @@ mod test {
         .await;
 
         let mqtt_topic = cache_manger
-            .broker_cache
+            .node_cache
             .get_topic_by_name(DEFAULT_TENANT, &topic_name)
             .unwrap();
 

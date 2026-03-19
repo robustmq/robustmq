@@ -20,6 +20,7 @@ use crate::core::content_type::payload_format_indicator_check_by_lastwill;
 use crate::core::error::MqttBrokerError;
 use crate::core::flapping_detect::check_flapping_detect;
 use crate::core::last_will::save_last_will_message;
+use crate::core::limit::connection_total_num_limit;
 use crate::core::session::{session_process, BuildSessionContext};
 use crate::core::string_validator::{validate_client_id, validate_password, validate_username};
 use crate::core::sub_auto::try_auto_subscribe;
@@ -38,7 +39,7 @@ use tracing::warn;
 
 impl MqttService {
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
-        let cluster = self.cache_manager.broker_cache.get_cluster_config().await;
+        let cluster = self.cache_manager.node_cache.get_cluster_config().await;
 
         if let Some(res) = connect_validator(
             &self.protocol,
@@ -90,6 +91,13 @@ impl MqttService {
                 );
             }
         };
+
+        if let Some(pkt) = self
+            .check_connection_limit(&tenant.tenant_name, &context.connect_properties)
+            .await
+        {
+            return pkt;
+        }
 
         client_id = try_decode_client_id(&client_id);
 
@@ -270,6 +278,35 @@ impl MqttService {
             connect_properties: context.connect_properties.clone(),
         })
     }
+
+    async fn check_connection_limit(
+        &self,
+        tenant_name: &str,
+        connect_properties: &Option<ConnectProperties>,
+    ) -> Option<MqttPacket> {
+        if connection_total_num_limit(&self.cache_manager, tenant_name).await {
+            return Some(build_connect_ack_fail_packet(
+                &self.protocol,
+                ConnectReturnCode::ConnectionRateExceeded,
+                connect_properties,
+                Some(format!(
+                    "Connection limit exceeded for tenant [{}]",
+                    tenant_name
+                )),
+            ));
+        }
+
+        if let Err(e) = self.limit_manager.connection_rate_limit(tenant_name).await {
+            return Some(build_connect_ack_fail_packet(
+                &self.protocol,
+                ConnectReturnCode::ConnectionRateExceeded,
+                connect_properties,
+                Some(e.to_string()),
+            ));
+        }
+
+        None
+    }
 }
 
 #[derive(Clone)]
@@ -305,12 +342,12 @@ fn build_connect_ack_success_packet(
 
     let properties = ConnAckProperties {
         session_expiry_interval: Some(context.session_expiry_interval),
-        receive_max: Some(context.cluster.mqtt_protocol_config.receive_max),
-        max_qos: Some(context.cluster.mqtt_protocol_config.max_qos_flight_message),
+        receive_max: Some(context.cluster.mqtt_protocol.receive_max),
+        max_qos: Some(context.cluster.mqtt_protocol.max_qos_flight_message),
         retain_available: Some(1),
-        max_packet_size: Some(context.cluster.mqtt_protocol_config.max_packet_size),
+        max_packet_size: Some(context.cluster.mqtt_protocol.max_packet_size),
         assigned_client_identifier,
-        topic_alias_max: Some(context.cluster.mqtt_protocol_config.topic_alias_max),
+        topic_alias_max: Some(context.cluster.mqtt_protocol.topic_alias_max),
         reason_string: None,
         user_properties: Vec::new(),
         wildcard_subscription_available: Some(1),
@@ -396,7 +433,7 @@ fn connect_validator(
     last_will_properties: &Option<LastWillProperties>,
     login: &Option<Login>,
 ) -> Option<MqttPacket> {
-    if cluster.mqtt_security.is_self_protection_status {
+    if cluster.mqtt_runtime.is_self_protection_status {
         return Some(build_connect_ack_fail_packet(
             protocol,
             ConnectReturnCode::ServerBusy,
@@ -540,10 +577,10 @@ fn connection_max_packet_size(
 ) -> u32 {
     if let Some(properties) = connect_properties {
         if let Some(size) = properties.max_packet_size {
-            return min(size, cluster.mqtt_protocol_config.max_packet_size);
+            return min(size, cluster.mqtt_protocol.max_packet_size);
         }
     }
-    cluster.mqtt_protocol_config.max_packet_size
+    cluster.mqtt_protocol.max_packet_size
 }
 
 #[cfg(test)]

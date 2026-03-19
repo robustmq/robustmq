@@ -38,7 +38,7 @@ pub async fn delete_session_by_req(
         "Received request from Meta service to delete expired Session. clientId count: {:?}",
         req.client_id.len()
     );
-    wait_cluster_running(&cache_manager.broker_cache)
+    wait_cluster_running(&cache_manager.node_cache)
         .await
         .map_err(MqttBrokerError::CommonError)?;
 
@@ -64,7 +64,7 @@ pub async fn send_last_will_message_by_req(
     storage_driver_manager: &Arc<StorageDriverManager>,
     req: &SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, MqttBrokerError> {
-    wait_cluster_running(&cache_manager.broker_cache)
+    wait_cluster_running(&cache_manager.node_cache)
         .await
         .map_err(MqttBrokerError::CommonError)?;
 

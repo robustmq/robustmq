@@ -144,6 +144,8 @@ lock_try_mut_sleep_time_ms = 50
 heartbeat_timeout_ms = 30000
 heartbeat_check_time_ms = 1000
 raft_write_timeout_sec = 30
+offset_raft_group_num = 1
+data_raft_group_num = 1
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
@@ -151,6 +153,8 @@ raft_write_timeout_sec = 30
 | `heartbeat_timeout_ms` | `u64` | `30000` | 节点心跳超时时间（毫秒），超时后标记节点不可用 |
 | `heartbeat_check_time_ms` | `u64` | `1000` | 心跳检查间隔（毫秒） |
 | `raft_write_timeout_sec` | `u64` | `30` | Raft 写操作超时时间（秒） |
+| `offset_raft_group_num` | `u32` | `1` | Offset Raft 分组数量 |
+| `data_raft_group_num` | `u32` | `1` | 数据 Raft 分组数量 |
 
 ---
 
@@ -309,16 +313,18 @@ MQTT 运行时基本参数。
 [mqtt_runtime]
 default_user = "admin"
 default_password = "robustmq"
-max_connection_num = 1000000
 durable_sessions_enable = false
+secret_free_login = false
+is_self_protection_status = false
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `default_user` | `string` | `"admin"` | 系统默认用户名 |
 | `default_password` | `string` | `"robustmq"` | 系统默认密码 |
-| `max_connection_num` | `usize` | `1000000` | 单节点最大连接数 |
 | `durable_sessions_enable` | `bool` | `false` | 是否启用持久会话（`false` 为临时会话，性能更好） |
+| `secret_free_login` | `bool` | `false` | 是否允许免密登录 |
+| `is_self_protection_status` | `bool` | `false` | 是否处于自我保护状态（连接过载时拒绝新连接） |
 
 ---
 
@@ -347,12 +353,12 @@ default_timeout = 2
 
 ## 12. MQTT 协议配置
 
-### [mqtt_protocol_config]
+### [mqtt_protocol]
 
 MQTT 协议参数配置。
 
 ```toml
-[mqtt_protocol_config]
+[mqtt_protocol]
 max_session_expiry_interval = 1800
 default_session_expiry_interval = 30
 topic_alias_max = 65535
@@ -373,6 +379,44 @@ client_pkid_persistent = false
 | `receive_max` | `u16` | `65535` | 未确认的 PUBLISH 数据包最大数量 |
 | `max_message_expiry_interval` | `u64` | `3600` | 消息最大过期时间（秒） |
 | `client_pkid_persistent` | `bool` | `false` | 是否持久化客户端 Packet ID |
+
+---
+
+## 13. 限流配置
+
+### [limit]
+
+集群和租户级别的资源限流配置。
+
+```toml
+[limit.cluster]
+max_connections_per_node = 10000000
+max_create_connection_rate_per_second = 100000
+max_topics = 5000000
+max_sessions = 50000000
+max_mqtt_qos1_num = 1000
+max_mqtt_qos2_num = 1000
+max_publish_rate = 10000
+
+[limit.tenant]
+max_connections_per_node = 1000000
+max_create_connection_rate_per_second = 10000
+max_topics = 500000
+max_sessions = 5000000
+max_mqtt_qos1_num = 1000
+max_mqtt_qos2_num = 1000
+max_publish_rate = 10000
+```
+
+| 配置项 | 类型 | 说明 |
+|--------|------|------|
+| `max_connections_per_node` | `u64` | 每节点最大连接数 |
+| `max_create_connection_rate_per_second` | `u32` | 每秒最大新建连接速率 |
+| `max_topics` | `u64` | 最大 Topic 数量 |
+| `max_sessions` | `u64` | 最大 Session 数量 |
+| `max_mqtt_qos1_num` | `u64` | 最大 QoS 1 消息并发数 |
+| `max_mqtt_qos2_num` | `u64` | 最大 QoS 2 消息并发数 |
+| `max_publish_rate` | `u32` | 每秒最大 Publish 消息速率 |
 
 ---
 
@@ -422,12 +466,12 @@ ban_time = 5
 
 ## 17. MQTT 慢订阅检测配置
 
-### [mqtt_slow_subscribe_config]
+### [mqtt_slow_subscribe]
 
 慢订阅监控配置，用于检测消息分发延迟。
 
 ```toml
-[mqtt_slow_subscribe_config]
+[mqtt_slow_subscribe]
 enable = false
 record_time = 1000
 delay_type = "Whole"
@@ -617,12 +661,12 @@ port = 9090
 | `enable` | `bool` | `true` | 是否启用 Prometheus 指标收集 |
 | `port` | `u32` | `9090` | Prometheus 指标暴露端口 |
 
-### [p_prof]
+### [pprof]
 
 PProf 性能分析配置。
 
 ```toml
-[p_prof]
+[pprof]
 enable = false
 port = 6060
 frequency = 100
@@ -671,6 +715,8 @@ queue_size = 2000
 heartbeat_timeout_ms = 30000
 heartbeat_check_time_ms = 1000
 raft_write_timeout_sec = 30
+offset_raft_group_num = 1
+data_raft_group_num = 1
 
 # ========== RocksDB ==========
 [rocksdb]
@@ -703,8 +749,9 @@ quic_port = 9083
 [mqtt_runtime]
 default_user = "admin"
 default_password = "your_secure_password"
-max_connection_num = 1000000
 durable_sessions_enable = false
+secret_free_login = false
+is_self_protection_status = false
 
 # ========== MQTT Keep Alive ==========
 [mqtt_keep_alive]
@@ -714,7 +761,7 @@ max_time = 3600
 default_timeout = 2
 
 # ========== MQTT 协议 ==========
-[mqtt_protocol_config]
+[mqtt_protocol]
 max_session_expiry_interval = 1800
 default_session_expiry_interval = 30
 topic_alias_max = 65535
@@ -738,7 +785,7 @@ max_client_connections = 15
 ban_time = 5
 
 # ========== MQTT 慢订阅 ==========
-[mqtt_slow_subscribe_config]
+[mqtt_slow_subscribe]
 enable = false
 record_time = 1000
 delay_type = "Whole"
@@ -762,7 +809,7 @@ os_memory_high_watermark = 80.0
 enable = true
 port = 9090
 
-[p_prof]
+[pprof]
 enable = false
 port = 6060
 frequency = 100

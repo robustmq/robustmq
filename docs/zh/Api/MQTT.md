@@ -1371,7 +1371,14 @@
       {
         "tenant_name": "default",
         "desc": "Default tenant",
-        "create_time": 1640995200
+        "create_time": 1640995200,
+        "max_connections_per_node": 1000000,
+        "max_create_connection_rate_per_second": 10000,
+        "max_topics": 500000,
+        "max_sessions": 5000000,
+        "max_mqtt_qos1_num": 1000,
+        "max_mqtt_qos2_num": 1000,
+        "max_publish_rate": 10000
       }
     ],
     "total_count": 3
@@ -1383,6 +1390,13 @@
 - `tenant_name`: 租户名称
 - `desc`: 租户描述
 - `create_time`: 租户创建时间戳（秒）
+- `max_connections_per_node`: 每节点最大连接数
+- `max_create_connection_rate_per_second`: 每秒最大新建连接速率
+- `max_topics`: 最大 Topic 数量
+- `max_sessions`: 最大 Session 数量
+- `max_mqtt_qos1_num`: 最大 QoS 1 消息并发数
+- `max_mqtt_qos2_num`: 最大 QoS 2 消息并发数
+- `max_publish_rate`: 每秒最大 Publish 消息速率
 
 #### 13.2 创建租户
 - **接口**: `POST /api/mqtt/tenant/create`
@@ -1390,8 +1404,15 @@
 - **请求参数**:
 ```json
 {
-  "tenant_name": "new_tenant",       // 必填，租户名称，长度 1-128
-  "desc": "Production environment"   // 可选，租户描述，长度不超过 500
+  "tenant_name": "new_tenant",                        // 必填，租户名称，长度 1-128
+  "desc": "Production environment",                   // 可选，租户描述，长度不超过 500
+  "max_connections_per_node": 1000000,                // 可选，每节点最大连接数
+  "max_create_connection_rate_per_second": 10000,     // 可选，每秒最大新建连接速率
+  "max_topics": 500000,                               // 可选，最大 Topic 数量
+  "max_sessions": 5000000,                            // 可选，最大 Session 数量
+  "max_mqtt_qos1_num": 1000,                          // 可选，最大 QoS 1 消息并发数
+  "max_mqtt_qos2_num": 1000,                          // 可选，最大 QoS 2 消息并发数
+  "max_publish_rate": 10000                           // 可选，每秒最大 Publish 消息速率
 }
 ```
 

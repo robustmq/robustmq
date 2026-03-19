@@ -28,7 +28,9 @@ pub enum AvailableFlag {
 // Prometheus
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Prometheus {
+    #[serde(default = "default_prometheus_enable")]
     pub enable: bool,
+    #[serde(default = "default_prometheus_port")]
     pub port: u32,
     #[serde(default = "default_monitor_interval_ms")]
     pub monitor_interval_ms: u64,
@@ -43,7 +45,9 @@ impl Default for Prometheus {
 // Log
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct Log {
+    #[serde(default = "default_log_config")]
     pub log_config: String,
+    #[serde(default = "default_log_path")]
     pub log_path: String,
 }
 
@@ -56,8 +60,11 @@ impl Default for Log {
 // Telemetry
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct Telemetry {
+    #[serde(default)]
     pub enable: bool,
+    #[serde(default)]
     pub exporter_type: String,
+    #[serde(default)]
     pub exporter_endpoint: String,
 }
 
@@ -70,6 +77,20 @@ pub struct Pprof {
     pub port: u16,
     #[serde(default = "default_pprof_frequency")]
     pub frequency: i32,
+}
+
+pub fn default_prometheus_enable() -> bool {
+    true
+}
+pub fn default_prometheus_port() -> u32 {
+    9091
+}
+
+pub fn default_log_config() -> String {
+    "./config/logger.toml".to_string()
+}
+pub fn default_log_path() -> String {
+    "./logs".to_string()
 }
 
 pub fn default_prometheus() -> Prometheus {
@@ -106,8 +127,8 @@ pub fn default_pprof_frequency() -> i32 {
 
 pub fn default_log() -> Log {
     Log {
-        log_path: "./logs".to_string(),
-        log_config: "./config/logger.toml".to_string(),
+        log_path: default_log_path(),
+        log_config: default_log_config(),
     }
 }
 

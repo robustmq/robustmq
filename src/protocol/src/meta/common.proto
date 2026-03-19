@@ -259,6 +259,7 @@ message UnBindSchemaReply {}
 message CreateTenantRequest {
   string tenant_name = 1 [(validate.rules).string.min_len = 1];
   string desc = 2;
+  bytes config = 3;
 }
 
 message CreateTenantReply {}

@@ -19,6 +19,7 @@ use crate::{
 use broker_core::cache::NodeCacheManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
+use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
@@ -32,6 +33,7 @@ pub struct ProcessorConfig {
 #[derive(Clone)]
 pub struct ServerContext {
     pub connection_manager: Arc<ConnectionManager>,
+    pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub client_pool: Arc<ClientPool>,
     pub command: ArcCommandAdapter,
     pub network_type: NetworkConnectionType,

@@ -998,6 +998,7 @@ dependencies = [
 name = "broker-core"
 version = "0.3.4"
 dependencies = [
+ "bytes",
  "common-base",
  "common-config",
  "dashmap 6.1.0",
@@ -1006,6 +1007,7 @@ dependencies = [
  "protocol",
  "serde",
  "serde_json",
+ "strum_macros 0.28.0",
  "tokio",
  "tracing",
 ]
@@ -4673,6 +4675,7 @@ dependencies = [
  "r2d2",
  "r2d2_mysql",
  "r2d2_postgres",
+ "rate-limit",
  "rdkafka",
  "redis",
  "regex",
@@ -4952,6 +4955,7 @@ dependencies = [
  "metadata-struct",
  "protocol",
  "quinn",
+ "rate-limit",
  "rustls-pemfile 2.2.0",
  "tokio",
  "tokio-rustls 0.26.4",
@@ -6879,9 +6883,12 @@ dependencies = [
 name = "rate-limit"
 version = "0.3.4"
 dependencies = [
+ "broker-core",
  "common-base",
+ "common-config",
  "dashmap 6.1.0",
  "governor",
+ "tokio",
 ]
 
 [[package]]
@@ -8551,6 +8558,7 @@ dependencies = [
  "parking_lot",
  "prost 0.14.3",
  "protocol",
+ "rate-limit",
  "rkyv 0.8.15",
  "rocksdb",
  "rocksdb-engine",

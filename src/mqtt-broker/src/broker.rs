@@ -38,6 +38,8 @@ use connector::manager::ConnectorManager;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
+use rate_limit::global::GlobalRateLimiterManager;
+use rate_limit::mqtt::MQTTRateLimiterManager;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
@@ -62,11 +64,12 @@ pub struct MqttBrokerServerParams {
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub metrics_cache_manager: Arc<MQTTMetricsCache>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
-    pub broker_cache: Arc<NodeCacheManager>,
+    pub node_cache: Arc<NodeCacheManager>,
     pub offset_manager: Arc<OffsetManager>,
     pub retain_message_manager: Arc<RetainMessageManager>,
     pub push_manager: Arc<PushManager>,
     pub task_supervisor: Arc<TaskSupervisor>,
+    pub global_limit_manager: Arc<GlobalRateLimiterManager>,
 }
 
 pub struct MqttBrokerServer {
@@ -89,7 +92,21 @@ pub struct MqttBrokerServer {
 }
 
 impl MqttBrokerServer {
-    pub fn new(params: MqttBrokerServerParams, stop: broadcast::Sender<bool>) -> Self {
+    pub async fn new(params: MqttBrokerServerParams, stop: broadcast::Sender<bool>) -> Self {
+        let limit_config = params.node_cache.get_cluster_config().await.mqtt_limit;
+        let limit_manager = Arc::new(
+            match MQTTRateLimiterManager::new(
+                params.node_cache.clone(),
+                limit_config.cluster.max_publish_rate,
+                limit_config.cluster.max_connection_rate,
+            ) {
+                Ok(data) => data,
+                Err(e) => {
+                    panic!("{}", e.to_string());
+                }
+            },
+        );
+
         let server = Arc::new(Server::new(TcpServerContext {
             subscribe_manager: params.subscribe_manager.clone(),
             cache_manager: params.cache_manager.clone(),
@@ -102,8 +119,10 @@ impl MqttBrokerServer {
             stop_sx: stop.clone(),
             auth_driver: params.auth_driver.clone(),
             rocksdb_engine_handler: params.rocksdb_engine_handler.clone(),
-            broker_cache: params.broker_cache.clone(),
+            broker_cache: params.node_cache.clone(),
             retain_message_manager: params.retain_message_manager.clone(),
+            mqtt_limit_manager: limit_manager.clone(),
+            global_limit_manager: params.global_limit_manager.clone(),
         }));
 
         MqttBrokerServer {
@@ -139,7 +158,7 @@ impl MqttBrokerServer {
     async fn start_daemon_thread(&self) {
         // init default tenant
         if let Err(e) =
-            try_init_default_tenant(&self.cache_manager.broker_cache, &self.client_pool).await
+            try_init_default_tenant(&self.cache_manager.node_cache, &self.client_pool).await
         {
             error!("Failed to initialize default tenant: {}", e);
             std::process::exit(1);

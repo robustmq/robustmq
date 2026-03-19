@@ -52,10 +52,10 @@ use crate::{
 };
 use axum::routing::get;
 use axum::{
-    extract::{ConnectInfo, Request},
-    http::{HeaderMap, Method, Uri},
+    extract::{ConnectInfo, Request, State},
+    http::{HeaderMap, Method, StatusCode, Uri},
     middleware::{self, Next},
-    response::Response,
+    response::{IntoResponse, Response},
     routing::post,
     Router,
 };
@@ -85,7 +85,8 @@ impl AdminServer {
         let route = Router::new()
             .merge(self.static_route())
             .nest("/api", self.api_route())
-            .with_state(state)
+            .with_state(state.clone())
+            .layer(middleware::from_fn_with_state(state, rate_limit_middleware))
             .layer(middleware::from_fn(base_middleware))
             .layer(CorsLayer::permissive());
 
@@ -94,12 +95,15 @@ impl AdminServer {
             "Admin HTTP Server started successfully, listening port: {}, access logging and CORS enabled",
             port
         );
-        axum::serve(
+
+        if let Err(e) = axum::serve(
             listener,
             route.into_make_service_with_connect_info::<SocketAddr>(),
         )
         .await
-        .unwrap();
+        {
+            panic!("{}", e.to_string());
+        }
     }
 
     fn static_route(&self) -> Router<Arc<HttpState>> {
@@ -223,6 +227,23 @@ impl AdminServer {
     fn kafka_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
     }
+}
+
+async fn rate_limit_middleware(
+    State(state): State<Arc<HttpState>>,
+    uri: Uri,
+    request: Request,
+    next: Next,
+) -> Response {
+    if let Err(e) = state
+        .rate_limiter
+        .http_uri_rate_limit(uri.path().to_string())
+        .await
+    {
+        warn!("HTTP rate limit exceeded for {}: {}", uri.path(), e);
+        return (StatusCode::TOO_MANY_REQUESTS, e.to_string()).into_response();
+    }
+    next.run(request).await
 }
 
 /// Enhanced HTTP middleware with comprehensive metrics and logging

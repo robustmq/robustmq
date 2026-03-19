@@ -21,6 +21,7 @@ pub const DEFAULT_TENANT: &str = "default";
 pub struct Tenant {
     pub tenant_name: String,
     pub desc: String,
+    pub config: TenantConfig,
     pub create_time: u64,
 }
 
@@ -31,5 +32,40 @@ impl Tenant {
 
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
         serialize::deserialize(data)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct TenantConfig {
+    pub max_connections_per_node: u64,
+    pub max_create_connection_rate_per_second: u32,
+    pub max_topics: u64,
+    pub max_sessions: u64,
+    pub max_mqtt_qos1_num: u64,
+    pub max_mqtt_qos2_num: u64,
+    pub max_publish_rate: u32,
+}
+
+impl TenantConfig {
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
+    }
+}
+
+impl Default for TenantConfig {
+    fn default() -> Self {
+        TenantConfig {
+            max_connections_per_node: 10000000,
+            max_create_connection_rate_per_second: 10000,
+            max_topics: 5000000,
+            max_sessions: 50000000,
+            max_mqtt_qos1_num: 1000,
+            max_mqtt_qos2_num: 1000,
+            max_publish_rate: 10000,
+        }
     }
 }

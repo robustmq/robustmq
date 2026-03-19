@@ -14,20 +14,21 @@
 
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
-use crate::common::tool::read_packet;
+use crate::common::tool::{check_connection_limit, read_packet};
 use broker_core::cache::NodeCacheManager;
 use common_metrics::mqtt::packets::record_received_error_metrics;
 use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::robust::RobustMQPacket;
+use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver};
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 /// The `acceptor_process` function is responsible for accepting incoming TCP connections
 /// in an asynchronous manner. It utilizes multiple threads to handle the incoming connections
@@ -50,6 +51,7 @@ pub async fn acceptor_process(
     stop_sx: broadcast::Sender<bool>,
     listener_arc: Arc<TcpListener>,
     request_channel: Arc<RequestChannel>,
+    global_limit_manager: Arc<GlobalRateLimiterManager>,
     network_type: NetworkConnectionType,
     codec: RobustMQCodec,
 ) {
@@ -61,6 +63,7 @@ pub async fn acceptor_process(
         let network_type = network_type.clone();
         let row_codec = codec.clone();
         let row_broker_cache = broker_cache.clone();
+        let row_global_limit_manager = global_limit_manager.clone();
         tokio::spawn(async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
@@ -100,9 +103,10 @@ pub async fn acceptor_process(
                                 let read_frame_stream = FramedRead::new(r_stream, row_codec.clone());
                                 let write_frame_stream = FramedWrite::new(w_stream, row_codec.clone());
 
-                                // if !tcp_establish_connection_check(&addr, &connection_manager, &mut write_frame_stream).await{
-                                //     continue;
-                                // }
+                                if let Err(e) = check_connection_limit(&row_global_limit_manager, &row_broker_cache, &connection_manager).await{
+                                    warn!("{}",e.to_string());
+                                    continue;
+                                }
 
                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                 let connection = NetworkConnection::new(

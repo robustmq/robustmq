@@ -82,7 +82,7 @@ pub(crate) async fn report_broker_time(
         storage_driver_manager,
         SYSTEM_TOPIC_BROKERS_UPTIME,
         || async {
-            let secs = now_second() - metadata_cache.broker_cache.get_start_time();
+            let secs = now_second() - metadata_cache.node_cache.get_start_time();
             let days = secs / 86400;
             let hours = (secs % 86400) / 3600;
             let minutes = (secs % 3600) / 60;

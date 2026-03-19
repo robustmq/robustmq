@@ -49,7 +49,7 @@ async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMq
     // Clear stale rewrite mappings before recalculating
     cache_manager.clear_rewrite_new_name();
 
-    for tenant_entry in cache_manager.broker_cache.topic_list.iter() {
+    for tenant_entry in cache_manager.node_cache.topic_list.iter() {
         let tenant = tenant_entry.key().clone();
         // Only apply rules that belong to this tenant
         let tenant_rules: Vec<&MqttTopicRewriteRule> =
