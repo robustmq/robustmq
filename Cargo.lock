@@ -6846,6 +6846,7 @@ version = "0.3.4"
 dependencies = [
  "broker-core",
  "common-base",
+ "common-config",
  "dashmap 6.1.0",
  "governor",
  "tokio",
