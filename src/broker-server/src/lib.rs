@@ -41,6 +41,7 @@ use mqtt_broker::broker::{MqttBrokerServer, MqttBrokerServerParams};
 use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
 use node_call::NodeCallManager;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
+use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::family::{column_family_list, storage_data_fold},
@@ -77,6 +78,7 @@ pub struct BrokerServer {
     delay_task_manager: Arc<DelayTaskManager>,
     node_call_manager: Arc<NodeCallManager>,
     task_supervisor: Arc<TaskSupervisor>,
+    global_rate_limiter: Arc<GlobalRateLimiterManager>,
     config: BrokerConfig,
 }
 
@@ -101,7 +103,10 @@ impl BrokerServer {
         let meta_worker_threads = resolve_meta_worker_threads(config.runtime.meta_worker_threads);
         let broker_worker_threads =
             resolve_broker_worker_threads(config.runtime.broker_worker_threads);
-
+        let global_rate_limiter = Arc::new(
+            GlobalRateLimiterManager::new(config.cluster_limit.max_network_connection_rate)
+                .unwrap_or_else(|e| panic!("Failed to create GlobalRateLimiterManager: {e}")),
+        );
         let server_runtime = create_runtime("server-runtime", server_worker_threads);
         let broker_cache = Arc::new(NodeCacheManager::new(config.clone()));
         let connection_manager = Arc::new(NetworkConnectionManager::new());
@@ -216,6 +221,7 @@ impl BrokerServer {
             node_call_manager,
             offset_manager,
             task_supervisor,
+            global_rate_limiter,
         }
     }
 
@@ -318,6 +324,7 @@ impl BrokerServer {
             rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
             broker_cache,
             storage_driver_manager: self.mqtt_params.storage_driver_manager.clone(),
+            rate_limiter: self.global_rate_limiter.clone(),
         });
         let http_port = self.config.http_port;
         self.server_runtime.spawn(async move {

@@ -22,6 +22,7 @@ use mqtt_broker::{
     subscribe::{manager::SubscribeManager, PushManager},
 };
 use network_server::common::connection_manager::ConnectionManager;
+use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::{metrics::mqtt::MQTTMetricsCache, rocksdb::RocksDBEngine};
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::driver::StorageDriverManager;
@@ -36,6 +37,7 @@ pub struct HttpState {
     pub mqtt_context: MQTTContext,
     pub engine_context: StorageEngineContext,
     pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub rate_limiter: Arc<GlobalRateLimiterManager>,
 }
 
 #[derive(Clone)]
