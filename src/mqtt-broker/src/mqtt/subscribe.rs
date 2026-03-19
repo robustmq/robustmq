@@ -31,7 +31,7 @@ use crate::system_topic::event::{
 use common_base::tools::now_second;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
-    qos, MqttPacket, MqttProtocol, SubAck, SubAckProperties, Subscribe, SubscribeProperties,
+    MqttPacket, MqttProtocol, QoS, SubAck, SubAckProperties, Subscribe, SubscribeProperties,
     SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason, Unsubscribe,
     UnsubscribeProperties,
 };
@@ -66,7 +66,7 @@ impl MqttService {
             );
         }
 
-        self.cache_manager.pkid_manager.add_qos2_pkid_data(
+        self.cache_manager.pkid_manager.add_qos_pkid_data(
             &connection.client_id,
             ReceiveQosPkidData {
                 ack_enum: PkidAckEnum::SubAck,
@@ -120,22 +120,15 @@ impl MqttService {
         }
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
-        let cluster_qos = self
-            .cache_manager
-            .node_cache
-            .get_cluster_config()
-            .await
-            .mqtt_protocol
-            .max_qos_flight_message;
         for filter in &subscribe.filters {
-            match min_qos(qos(cluster_qos).unwrap(), filter.qos) {
-                protocol::mqtt::common::QoS::AtMostOnce => {
+            match min_qos(QoS::ExactlyOnce, filter.qos) {
+                QoS::AtMostOnce => {
                     return_codes.push(SubscribeReasonCode::QoS0);
                 }
-                protocol::mqtt::common::QoS::AtLeastOnce => {
+                QoS::AtLeastOnce => {
                     return_codes.push(SubscribeReasonCode::QoS1);
                 }
-                protocol::mqtt::common::QoS::ExactlyOnce => {
+                QoS::ExactlyOnce => {
                     return_codes.push(SubscribeReasonCode::QoS2);
                 }
             }
@@ -143,7 +136,7 @@ impl MqttService {
 
         self.cache_manager
             .pkid_manager
-            .remove_qos2_pkid_data(&connection.client_id, subscribe.packet_identifier);
+            .remove_qos_pkid_data(&connection.client_id, subscribe.packet_identifier);
         st_report_subscribed_event(StReportSubscribedEventContext {
             storage_driver_manager: self.storage_driver_manager.clone(),
             metadata_cache: self.cache_manager.clone(),
@@ -190,7 +183,7 @@ impl MqttService {
             );
         }
 
-        self.cache_manager.pkid_manager.add_qos2_pkid_data(
+        self.cache_manager.pkid_manager.add_qos_pkid_data(
             &connection.client_id,
             ReceiveQosPkidData {
                 ack_enum: PkidAckEnum::SubAck,
@@ -214,7 +207,7 @@ impl MqttService {
 
         self.cache_manager
             .pkid_manager
-            .remove_qos2_pkid_data(&connection.client_id, un_subscribe.pkid);
+            .remove_qos_pkid_data(&connection.client_id, un_subscribe.pkid);
 
         st_report_unsubscribed_event(StReportUnsubscribedEventContext {
             storage_driver_manager: self.storage_driver_manager.clone(),
@@ -325,7 +318,7 @@ async fn subscribe_validator(
 
     if cache_manager
         .pkid_manager
-        .get_qos2_pkid_data(&connection.client_id, subscribe.packet_identifier)
+        .get_qos_pkid_data(&connection.client_id, subscribe.packet_identifier)
         .is_some()
     {
         return (

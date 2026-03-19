@@ -92,28 +92,3 @@ pub async fn topic_total_num_limit(cache_manager: &Arc<MQTTCacheManager>, tenant
 
     false
 }
-
-pub async fn qos2_flight_num_limit(cache_manager: &Arc<MQTTCacheManager>, tenant: &str) -> bool {
-    // cluster
-    let count = cache_manager.node_cache.topic_count();
-    let limit_count = cache_manager
-        .node_cache
-        .get_cluster_config()
-        .await
-        .mqtt_limit
-        .cluster
-        .max_mqtt_qos2_num as usize;
-    if count > limit_count {
-        return true;
-    }
-
-    // tenant
-    if let Some(ten) = cache_manager.node_cache.get_tenant(tenant) {
-        let count = cache_manager.session_count_by_tenant(tenant);
-        if count > ten.config.max_mqtt_qos2_num as usize {
-            return true;
-        }
-    }
-
-    false
-}

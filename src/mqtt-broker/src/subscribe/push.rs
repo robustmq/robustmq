@@ -34,7 +34,6 @@ use network_server::common::packet::build_mqtt_packet_wrapper;
 use network_server::common::packet::ResponsePackage;
 use protocol::mqtt::codec::MqttCodec;
 use protocol::mqtt::codec::MqttPacketWrapper;
-use protocol::mqtt::common::qos;
 use protocol::mqtt::common::{MqttPacket, PubRel, Publish, PublishProperties, QoS};
 use protocol::robust::RobustMQPacket;
 use protocol::robust::RobustMQProtocol;
@@ -110,7 +109,7 @@ pub async fn build_publish_message(
         .map(|p| p.is_mqtt5())
         .unwrap_or(false);
 
-    let qos = build_pub_qos(cache_manager, subscriber).await;
+    let qos = build_pub_qos(subscriber).await;
     let p_kid = cache_manager
         .pkid_manager
         .generate_publish_to_client_pkid(&subscriber.client_id, &qos)
@@ -167,14 +166,16 @@ pub async fn send_publish_packet_to_client(
         QoS::AtLeastOnce => {
             let (wait_puback_sx, wait_ack_rx) = mpsc::channel(1);
             let pkid = sub_pub_param.p_kid;
-            cache_manager.pkid_manager.add_publish_to_client_qos_ack_data(
-                &sub_pub_param.client_id,
-                pkid,
-                QosAckPacketInfo {
-                    sx: wait_puback_sx.clone(),
-                    create_time: now_millis(),
-                },
-            );
+            cache_manager
+                .pkid_manager
+                .add_publish_to_client_qos_ack_data(
+                    &sub_pub_param.client_id,
+                    pkid,
+                    QosAckPacketInfo {
+                        sx: wait_puback_sx.clone(),
+                        create_time: now_millis(),
+                    },
+                );
 
             let result = exclusive_publish_message_qos1(
                 cache_manager,
@@ -195,14 +196,16 @@ pub async fn send_publish_packet_to_client(
         QoS::ExactlyOnce => {
             let (wait_ack_sx, wait_ack_rx) = mpsc::channel(1);
             let pkid = sub_pub_param.p_kid;
-            cache_manager.pkid_manager.add_publish_to_client_qos_ack_data(
-                &sub_pub_param.client_id,
-                pkid,
-                QosAckPacketInfo {
-                    sx: wait_ack_sx.clone(),
-                    create_time: now_millis(),
-                },
-            );
+            cache_manager
+                .pkid_manager
+                .add_publish_to_client_qos_ack_data(
+                    &sub_pub_param.client_id,
+                    pkid,
+                    QosAckPacketInfo {
+                        sx: wait_ack_sx.clone(),
+                        create_time: now_millis(),
+                    },
+                );
 
             let result = exclusive_publish_message_qos2(
                 cache_manager,
@@ -221,16 +224,8 @@ pub async fn send_publish_packet_to_client(
     }
 }
 
-pub async fn build_pub_qos(cache_manager: &Arc<MQTTCacheManager>, subscriber: &Subscriber) -> QoS {
-    let cluster_qos = cache_manager
-        .node_cache
-        .get_cluster_config()
-        .await
-        .mqtt_protocol
-        .max_qos_flight_message;
-
-    let cluster_qos_level = qos(cluster_qos).unwrap_or(QoS::ExactlyOnce);
-    min_qos(cluster_qos_level, subscriber.qos)
+pub async fn build_pub_qos(subscriber: &Subscriber) -> QoS {
+    min_qos(QoS::ExactlyOnce, subscriber.qos)
 }
 
 pub fn build_sub_ids(subscriber: &Subscriber) -> Vec<usize> {
@@ -748,29 +743,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_build_pub_qos() {
-        let cache_manager = test_build_mqtt_cache_manager().await;
         assert!(matches!(
-            build_pub_qos(
-                &cache_manager,
-                &create_test_subscriber("client1", None, QoS::ExactlyOnce)
-            )
-            .await,
+            build_pub_qos(&create_test_subscriber("client1", None, QoS::ExactlyOnce)).await,
             QoS::AtLeastOnce | QoS::ExactlyOnce
         ));
         assert_eq!(
-            build_pub_qos(
-                &cache_manager,
-                &create_test_subscriber("client1", None, QoS::AtMostOnce)
-            )
-            .await,
+            build_pub_qos(&create_test_subscriber("client1", None, QoS::AtMostOnce)).await,
             QoS::AtMostOnce
         );
         assert_eq!(
-            build_pub_qos(
-                &cache_manager,
-                &create_test_subscriber("client1", None, QoS::AtLeastOnce)
-            )
-            .await,
+            build_pub_qos(&create_test_subscriber("client1", None, QoS::AtLeastOnce)).await,
             QoS::AtLeastOnce
         );
     }

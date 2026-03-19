@@ -21,7 +21,6 @@ use crate::core::error::MqttBrokerError;
 use crate::core::metrics::record_publish_receive_metrics;
 use crate::core::offline_message::{save_message, SaveMessageContext};
 use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
-use crate::core::qos::check_max_qos_flight_message;
 use crate::core::topic::{get_topic_name, try_init_topic};
 use common_base::tools::now_second;
 use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
@@ -109,7 +108,7 @@ impl MqttService {
             QoS::AtLeastOnce => {
                 self.cache_manager
                     .pkid_manager
-                    .remove_qos2_pkid_data(&connection.client_id, publish.p_kid);
+                    .remove_qos_pkid_data(&connection.client_id, publish.p_kid);
                 Some(build_pub_ack(
                     &self.cache_manager,
                     connection.connect_id,
@@ -219,28 +218,10 @@ impl MqttService {
             return None;
         }
 
-        // qos flow controller
-        if let Err(e) =
-            check_max_qos_flight_message(&self.cache_manager, &connection.client_id).await
-        {
-            return Some(build_pub_ack_fail(
-                &self.cache_manager,
-                connection.connect_id,
-                &self.protocol,
-                publish.p_kid,
-                (
-                    PubRecReason::QuotaExceeded,
-                    PubAckReason::QuotaExceeded,
-                    e.to_string(),
-                ),
-                publish.qos != QoS::ExactlyOnce,
-            ));
-        }
-
         if let Some(data) = self
             .cache_manager
             .pkid_manager
-            .get_qos2_pkid_data(&connection.client_id, publish.p_kid)
+            .get_qos_pkid_data(&connection.client_id, publish.p_kid)
         {
             if publish.qos == QoS::AtLeastOnce {
                 return Some(build_pub_ack(
@@ -282,29 +263,25 @@ impl MqttService {
         }
 
         if publish.qos == QoS::AtLeastOnce {
-            self.cache_manager
-                .pkid_manager
-                .add_qos2_pkid_data(
-                    &connection.client_id,
-                    ReceiveQosPkidData {
-                        ack_enum: PkidAckEnum::PubAck,
-                        pkid: publish.p_kid,
-                        create_time: now_second(),
-                    },
-                );
+            self.cache_manager.pkid_manager.add_qos_pkid_data(
+                &connection.client_id,
+                ReceiveQosPkidData {
+                    ack_enum: PkidAckEnum::PubAck,
+                    pkid: publish.p_kid,
+                    create_time: now_second(),
+                },
+            );
         }
 
         if publish.qos == QoS::ExactlyOnce {
-            self.cache_manager
-                .pkid_manager
-                .add_qos2_pkid_data(
-                    &connection.client_id,
-                    ReceiveQosPkidData {
-                        ack_enum: PkidAckEnum::PubRec,
-                        pkid: publish.p_kid,
-                        create_time: now_second(),
-                    },
-                );
+            self.cache_manager.pkid_manager.add_qos_pkid_data(
+                &connection.client_id,
+                ReceiveQosPkidData {
+                    ack_enum: PkidAckEnum::PubRec,
+                    pkid: publish.p_kid,
+                    create_time: now_second(),
+                },
+            );
         }
 
         None
@@ -319,7 +296,7 @@ impl MqttService {
         if self
             .cache_manager
             .pkid_manager
-            .get_qos2_pkid_data(&connection.client_id, pub_rel.pkid)
+            .get_qos_pkid_data(&connection.client_id, pub_rel.pkid)
             .is_none()
         {
             return build_pub_comp(
@@ -335,7 +312,7 @@ impl MqttService {
 
         self.cache_manager
             .pkid_manager
-            .remove_qos2_pkid_data(&connection.client_id, pub_rel.pkid);
+            .remove_qos_pkid_data(&connection.client_id, pub_rel.pkid);
 
         build_pub_comp(
             &self.cache_manager,

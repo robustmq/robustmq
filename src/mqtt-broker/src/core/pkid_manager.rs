@@ -43,8 +43,8 @@ pub struct ReceiveQosPkidData {
 
 #[derive(Clone)]
 pub struct PkidManager {
-    // (client_id, (pkid, ReceiveQosPkidData))
-    pub qos2_pkid_data: DashMap<String, DashMap<u64, ReceiveQosPkidData>>,
+    // (client_id, (pkid, ReceiveQosPkidData)) — stores both QoS1 and QoS2 in-flight pkid state
+    pub qos_pkid_data: DashMap<String, DashMap<u64, ReceiveQosPkidData>>,
 
     // publish to client pkid generate
     pub publish_to_client_pkid_generate: Arc<AtomicU64>,
@@ -65,42 +65,39 @@ impl Default for PkidManager {
 impl PkidManager {
     pub fn new() -> Self {
         PkidManager {
-            qos2_pkid_data: DashMap::with_capacity(8),
+            qos_pkid_data: DashMap::with_capacity(8),
 
             publish_to_client_pkid_generate: Arc::new(AtomicU64::new(1)),
             publish_to_client_pkid_cache: DashMap::with_capacity(8),
             publish_to_client_qos_ack_data: DashMap::with_capacity(8),
         }
     }
-    // receive publish pkid data
-    pub fn add_qos2_pkid_data(&self, client_id: &str, data: ReceiveQosPkidData) {
+
+    // qos pkid data (shared for QoS1 and QoS2)
+    pub fn add_qos_pkid_data(&self, client_id: &str, data: ReceiveQosPkidData) {
         let inner = self
-            .qos2_pkid_data
+            .qos_pkid_data
             .entry(client_id.to_string())
             .or_default();
         inner.insert(data.pkid as u64, data);
     }
 
-    pub fn remove_qos2_pkid_data(&self, client_id: &str, pkid: u16) {
+    pub fn remove_qos_pkid_data(&self, client_id: &str, pkid: u16) {
         let pkid_key = pkid as u64;
         let mut remove_outer = false;
-        if let Some(inner) = self.qos2_pkid_data.get(client_id) {
+        if let Some(inner) = self.qos_pkid_data.get(client_id) {
             inner.remove(&pkid_key);
             if inner.is_empty() {
                 remove_outer = true;
             }
         }
         if remove_outer {
-            self.qos2_pkid_data.remove(client_id);
+            self.qos_pkid_data.remove(client_id);
         }
     }
 
-    pub fn get_qos2_pkid_data(
-        &self,
-        client_id: &str,
-        pkid: u16,
-    ) -> Option<ReceiveQosPkidData> {
-        if let Some(inner) = self.qos2_pkid_data.get(client_id) {
+    pub fn get_qos_pkid_data(&self, client_id: &str, pkid: u16) -> Option<ReceiveQosPkidData> {
+        if let Some(inner) = self.qos_pkid_data.get(client_id) {
             if let Some(da) = inner.get(&(pkid as u64)) {
                 return Some(da.clone());
             }
@@ -108,8 +105,8 @@ impl PkidManager {
         None
     }
 
-    pub fn get_qos2_pkid_data_len_by_client_id(&self, client_id: &str) -> usize {
-        if let Some(inner) = self.qos2_pkid_data.get(client_id) {
+    pub fn get_qos_pkid_data_len_by_client_id(&self, client_id: &str) -> usize {
+        if let Some(inner) = self.qos_pkid_data.get(client_id) {
             return inner.len();
         }
         0
