@@ -172,7 +172,6 @@ pub fn default_mqtt_protocol() -> MqttProtocolConfig {
         max_session_expiry_interval: 1800,
         default_session_expiry_interval: 30,
         topic_alias_max: 65535,
-        max_qos_flight_message: 2,
         max_packet_size: 1024 * 1024 * 10,
         receive_max: 65535,
         client_pkid_persistent: false,
@@ -330,9 +329,7 @@ pub fn default_session_expiry_interval() -> u32 {
 pub fn default_topic_alias_max() -> u16 {
     65535
 }
-pub fn default_max_qos_flight_message() -> u8 {
-    2
-}
+
 pub fn default_max_packet_size() -> u32 {
     1024 * 1024 * 10
 }
@@ -408,12 +405,6 @@ pub fn default_limit_max_topics() -> u64 {
 pub fn default_limit_max_sessions() -> u64 {
     5000000
 }
-pub fn default_limit_max_mqtt_qos1_num() -> u64 {
-    1000
-}
-pub fn default_limit_max_mqtt_qos2_num() -> u64 {
-    1000
-}
 pub fn default_limit_max_publish_rate() -> u32 {
     10000
 }
@@ -425,8 +416,6 @@ pub fn default_mqtt_limit_cluster() -> crate::config::LimitQuota {
         max_connection_rate: 100_000,
         max_topics: 5_000_000,
         max_sessions: 50_000_000,
-        max_mqtt_qos1_num: 1_000,
-        max_mqtt_qos2_num: 1_000,
         max_publish_rate: 10_000,
     }
 }
@@ -436,8 +425,6 @@ pub fn default_mqtt_limit_tenant() -> crate::config::LimitQuota {
         max_connection_rate: 10_000,
         max_topics: 500_000,
         max_sessions: 5_000_000,
-        max_mqtt_qos1_num: 1_000,
-        max_mqtt_qos2_num: 1_000,
         max_publish_rate: 10_000,
     }
 }

@@ -343,7 +343,7 @@ fn build_connect_ack_success_packet(
     let properties = ConnAckProperties {
         session_expiry_interval: Some(context.session_expiry_interval),
         receive_max: Some(context.cluster.mqtt_protocol.receive_max),
-        max_qos: Some(context.cluster.mqtt_protocol.max_qos_flight_message),
+        max_qos: Some(2),
         retain_available: Some(1),
         max_packet_size: Some(context.cluster.mqtt_protocol.max_packet_size),
         assigned_client_identifier,

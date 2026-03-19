@@ -19,24 +19,24 @@ use super::default::{
     default_handler_thread_num, default_heartbeat_check_time_ms, default_heartbeat_timeout_ms,
     default_http_port, default_keep_alive_default_time, default_keep_alive_default_timeout,
     default_keep_alive_enable, default_keep_alive_max_time, default_limit_max_connection_rate,
-    default_limit_max_connections_per_node, default_limit_max_mqtt_qos1_num,
-    default_limit_max_mqtt_qos2_num, default_limit_max_publish_rate, default_limit_max_sessions,
-    default_limit_max_topics, default_max_admin_http_uri_rate, default_max_message_expiry_interval,
-    default_max_network_connection, default_max_network_connection_rate, default_max_packet_size,
-    default_max_qos_flight_message, default_max_session_expiry_interval, default_meta_addrs,
-    default_meta_runtime, default_mqtt_flapping_detect, default_mqtt_keep_alive,
-    default_mqtt_limit_cluster, default_mqtt_limit_tenant, default_mqtt_offline_message,
-    default_mqtt_protocol, default_mqtt_quic_port, default_mqtt_runtime,
-    default_mqtt_runtime_password, default_mqtt_runtime_user, default_mqtt_schema,
-    default_mqtt_server, default_mqtt_slow_subscribe, default_mqtt_system_monitor,
-    default_mqtt_tcp_port, default_mqtt_tls_port, default_mqtt_websocket_port,
-    default_mqtt_websockets_port, default_network, default_offline_message_enable,
-    default_offline_message_expire_ms, default_offline_message_max_num, default_pprof_frequency,
-    default_pprof_port, default_queue_size, default_raft_write_timeout_sec, default_receive_max,
-    default_rocksdb, default_rocksdb_data_path, default_rocksdb_max_open_files, default_roles,
-    default_runtime, default_runtime_worker_threads, default_schema_echo_log,
-    default_schema_enable, default_schema_failed_operation, default_schema_log_level,
-    default_schema_strategy, default_session_expiry_interval, default_slow_subscribe_delay_type,
+    default_limit_max_connections_per_node, default_limit_max_publish_rate,
+    default_limit_max_sessions, default_limit_max_topics, default_max_admin_http_uri_rate,
+    default_max_message_expiry_interval, default_max_network_connection,
+    default_max_network_connection_rate, default_max_packet_size,
+    default_max_session_expiry_interval, default_meta_addrs, default_meta_runtime,
+    default_mqtt_flapping_detect, default_mqtt_keep_alive, default_mqtt_limit_cluster,
+    default_mqtt_limit_tenant, default_mqtt_offline_message, default_mqtt_protocol,
+    default_mqtt_quic_port, default_mqtt_runtime, default_mqtt_runtime_password,
+    default_mqtt_runtime_user, default_mqtt_schema, default_mqtt_server,
+    default_mqtt_slow_subscribe, default_mqtt_system_monitor, default_mqtt_tcp_port,
+    default_mqtt_tls_port, default_mqtt_websocket_port, default_mqtt_websockets_port,
+    default_network, default_offline_message_enable, default_offline_message_expire_ms,
+    default_offline_message_max_num, default_pprof_frequency, default_pprof_port,
+    default_queue_size, default_raft_write_timeout_sec, default_receive_max, default_rocksdb,
+    default_rocksdb_data_path, default_rocksdb_max_open_files, default_roles, default_runtime,
+    default_runtime_worker_threads, default_schema_echo_log, default_schema_enable,
+    default_schema_failed_operation, default_schema_log_level, default_schema_strategy,
+    default_session_expiry_interval, default_slow_subscribe_delay_type,
     default_slow_subscribe_record_time, default_storage_io_thread_num,
     default_storage_max_segment_size, default_storage_offset_enable_cache,
     default_storage_tcp_port, default_system_monitor_cpu_watermark,
@@ -336,10 +336,6 @@ pub struct LimitQuota {
     pub max_topics: u64,
     #[serde(default = "default_limit_max_sessions")]
     pub max_sessions: u64,
-    #[serde(default = "default_limit_max_mqtt_qos1_num")]
-    pub max_mqtt_qos1_num: u64,
-    #[serde(default = "default_limit_max_mqtt_qos2_num")]
-    pub max_mqtt_qos2_num: u64,
     #[serde(default = "default_limit_max_publish_rate")]
     pub max_publish_rate: u32,
 }
@@ -351,8 +347,6 @@ impl Default for LimitQuota {
             max_connection_rate: 10000,
             max_topics: 500000,
             max_sessions: 5000000,
-            max_mqtt_qos1_num: 1000,
-            max_mqtt_qos2_num: 1000,
             max_publish_rate: 10000,
         }
     }
@@ -374,8 +368,6 @@ impl Default for MQTTLimit {
                 max_connection_rate: 100000,
                 max_topics: 5000000,
                 max_sessions: 50000000,
-                max_mqtt_qos1_num: 1000,
-                max_mqtt_qos2_num: 1000,
                 max_publish_rate: 10000,
             },
             tenant: LimitQuota {
@@ -383,8 +375,6 @@ impl Default for MQTTLimit {
                 max_connection_rate: 10000,
                 max_topics: 500000,
                 max_sessions: 5000000,
-                max_mqtt_qos1_num: 1000,
-                max_mqtt_qos2_num: 1000,
                 max_publish_rate: 10000,
             },
         }
@@ -571,8 +561,6 @@ pub struct MqttProtocolConfig {
     pub default_session_expiry_interval: u32,
     #[serde(default = "default_topic_alias_max")]
     pub topic_alias_max: u16,
-    #[serde(default = "default_max_qos_flight_message")]
-    pub max_qos_flight_message: u8,
     #[serde(default = "default_max_packet_size")]
     pub max_packet_size: u32,
     #[serde(default = "default_receive_max")]

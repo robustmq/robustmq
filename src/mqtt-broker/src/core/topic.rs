@@ -14,6 +14,7 @@
 
 use super::error::MqttBrokerError;
 use crate::core::cache::MQTTCacheManager;
+use crate::core::limit::topic_total_num_limit;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_second;
@@ -151,19 +152,26 @@ pub async fn get_topic_alias(
 pub async fn try_init_topic(
     tenant: &str,
     topic_name: &str,
-    metadata_cache: &Arc<MQTTCacheManager>,
+    cache_manager: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_pool: &Arc<ClientPool>,
 ) -> Result<Topic, MqttBrokerError> {
     if tenant.is_empty() {
         return Err(MqttBrokerError::TenantIsEmpty);
     }
-    let topic = if let Some(tp) = metadata_cache
+    let topic = if let Some(tp) = cache_manager
         .node_cache
         .get_topic_by_name(tenant, topic_name)
     {
         tp
     } else {
+        if topic_total_num_limit(cache_manager, tenant).await {
+            return Err(MqttBrokerError::CommonError(format!(
+                "Topic creation rejected for topic [{}] in tenant [{}]: the maximum number of topics has been reached",
+                topic_name, tenant
+            )));
+        }
+
         let uid = unique_id();
         let topic = Topic {
             topic_id: uid.clone(),
@@ -183,7 +191,7 @@ pub async fn try_init_topic(
             retention_sec: DEFAULT_RETENTION_SEC,
         };
         create_topic_full(
-            &metadata_cache.node_cache,
+            &cache_manager.node_cache,
             storage_driver_manager,
             client_pool,
             &topic,

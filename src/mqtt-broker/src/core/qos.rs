@@ -12,23 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::{cache::MQTTCacheManager, error::MqttBrokerError};
-use std::sync::Arc;
-
-pub async fn check_max_qos_flight_message(
-    cache_manager: &Arc<MQTTCacheManager>,
-    client_id: &str,
-) -> Result<(), MqttBrokerError> {
-    let cluster_config = cache_manager.node_cache.cluster_config.read().await;
-    let current_len = cache_manager
-        .pkid_data
-        .get_receive_publish_pkid_data_len_by_client_ids(client_id);
-    let config_len = cluster_config.mqtt_protocol.max_qos_flight_message as usize;
-    if current_len > config_len {
-        return Err(MqttBrokerError::CommonError(format!(
-            "Receive maximum quota exceeded. Current: {}, Maximum: {}",
-            current_len, config_len
-        )));
-    }
-    Ok(())
-}
+pub fn try_broadcast_get_pkid() {}

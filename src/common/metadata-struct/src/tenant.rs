@@ -41,8 +41,6 @@ pub struct TenantConfig {
     pub max_create_connection_rate_per_second: u32,
     pub max_topics: u64,
     pub max_sessions: u64,
-    pub max_mqtt_qos1_num: u64,
-    pub max_mqtt_qos2_num: u64,
     pub max_publish_rate: u32,
 }
 
@@ -63,8 +61,6 @@ impl Default for TenantConfig {
             max_create_connection_rate_per_second: 10000,
             max_topics: 5000000,
             max_sessions: 50000000,
-            max_mqtt_qos1_num: 1000,
-            max_mqtt_qos2_num: 1000,
             max_publish_rate: 10000,
         }
     }

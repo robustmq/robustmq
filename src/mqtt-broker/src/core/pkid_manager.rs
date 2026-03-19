@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use crate::core::cache::QosAckPacketInfo;
-use common_base::tools::now_second;
+use common_base::error::ResultCommonError;
+use common_base::tools::{loop_select_ticket, now_millis, now_second};
 use dashmap::DashMap;
 use protocol::mqtt::common::QoS;
 use std::{
@@ -23,6 +24,7 @@ use std::{
     },
     time::Duration,
 };
+use tokio::sync::broadcast;
 use tokio::time::sleep;
 
 #[derive(Clone, PartialEq, PartialOrd)]
@@ -43,8 +45,8 @@ pub struct ReceiveQosPkidData {
 
 #[derive(Clone)]
 pub struct PkidManager {
-    // (client_id, (pkid, ReceiveQosPkidData))
-    pub receive_pkid_data: DashMap<String, DashMap<u64, ReceiveQosPkidData>>,
+    // (client_id, (pkid, ReceiveQosPkidData)) — stores both QoS1 and QoS2 in-flight pkid state
+    pub qos_pkid_data: DashMap<String, DashMap<u64, ReceiveQosPkidData>>,
 
     // publish to client pkid generate
     pub publish_to_client_pkid_generate: Arc<AtomicU64>,
@@ -65,42 +67,36 @@ impl Default for PkidManager {
 impl PkidManager {
     pub fn new() -> Self {
         PkidManager {
-            receive_pkid_data: DashMap::with_capacity(8),
+            qos_pkid_data: DashMap::with_capacity(8),
 
             publish_to_client_pkid_generate: Arc::new(AtomicU64::new(1)),
             publish_to_client_pkid_cache: DashMap::with_capacity(8),
             publish_to_client_qos_ack_data: DashMap::with_capacity(8),
         }
     }
-    // receive publish pkid data
-    pub fn add_receive_publish_pkid_data(&self, client_id: &str, data: ReceiveQosPkidData) {
-        let inner = self
-            .receive_pkid_data
-            .entry(client_id.to_string())
-            .or_default();
+
+    // qos pkid data (shared for QoS1 and QoS2)
+    pub fn add_qos_pkid_data(&self, client_id: &str, data: ReceiveQosPkidData) {
+        let inner = self.qos_pkid_data.entry(client_id.to_string()).or_default();
         inner.insert(data.pkid as u64, data);
     }
 
-    pub fn remove_receive_publish_pkid_data(&self, client_id: &str, pkid: u16) {
+    pub fn remove_qos_pkid_data(&self, client_id: &str, pkid: u16) {
         let pkid_key = pkid as u64;
         let mut remove_outer = false;
-        if let Some(inner) = self.receive_pkid_data.get(client_id) {
+        if let Some(inner) = self.qos_pkid_data.get(client_id) {
             inner.remove(&pkid_key);
             if inner.is_empty() {
                 remove_outer = true;
             }
         }
         if remove_outer {
-            self.receive_pkid_data.remove(client_id);
+            self.qos_pkid_data.remove(client_id);
         }
     }
 
-    pub fn get_receive_publish_pkid_data(
-        &self,
-        client_id: &str,
-        pkid: u16,
-    ) -> Option<ReceiveQosPkidData> {
-        if let Some(inner) = self.receive_pkid_data.get(client_id) {
+    pub fn get_qos_pkid_data(&self, client_id: &str, pkid: u16) -> Option<ReceiveQosPkidData> {
+        if let Some(inner) = self.qos_pkid_data.get(client_id) {
             if let Some(da) = inner.get(&(pkid as u64)) {
                 return Some(da.clone());
             }
@@ -108,8 +104,8 @@ impl PkidManager {
         None
     }
 
-    pub fn get_receive_publish_pkid_data_len_by_client_ids(&self, client_id: &str) -> usize {
-        if let Some(inner) = self.receive_pkid_data.get(client_id) {
+    pub fn get_qos_pkid_data_len_by_client_id(&self, client_id: &str) -> usize {
+        if let Some(inner) = self.qos_pkid_data.get(client_id) {
             return inner.len();
         }
         0
@@ -198,10 +194,51 @@ impl PkidManager {
         self.publish_to_client_qos_ack_data.remove(&key);
     }
 
-    //
-    pub fn remove_by_client_id(&self, _client_id: &str) {}
+    pub fn remove_by_client_id(&self, client_id: &str) {
+        self.qos_pkid_data.remove(client_id);
+        self.publish_to_client_pkid_cache.remove(client_id);
+        let prefix = format!("{client_id}_");
+        self.publish_to_client_qos_ack_data
+            .retain(|k, _| !k.starts_with(&prefix));
+    }
 
     fn key(&self, client_id: &str, pkid: u16) -> String {
         format!("{client_id}_{pkid}")
     }
+
+    pub fn clean_expired_pkid_data(&self, expire_secs: u64) {
+        let now_sec = now_second();
+        let now_ms = now_millis();
+        let expire_ms = expire_secs as u128 * 1000;
+
+        self.qos_pkid_data.retain(|_, inner| {
+            inner.retain(|_, v| now_sec.saturating_sub(v.create_time) < expire_secs);
+            !inner.is_empty()
+        });
+
+        self.publish_to_client_pkid_cache.retain(|_, inner| {
+            inner.retain(|_, ts| now_sec.saturating_sub(*ts) < expire_secs);
+            !inner.is_empty()
+        });
+
+        self.publish_to_client_qos_ack_data
+            .retain(|_, v| now_ms.saturating_sub(v.create_time) < expire_ms);
+    }
+}
+
+const PKID_CLEAN_EXPIRE_SECS: u64 = 60;
+const PKID_CLEAN_INTERVAL_MS: u64 = 60_000;
+
+pub async fn clean_pkid_data(
+    cache_manager: Arc<crate::core::cache::MQTTCacheManager>,
+    stop_send: broadcast::Sender<bool>,
+) {
+    let ac_fn = async || -> ResultCommonError {
+        cache_manager
+            .pkid_manager
+            .clean_expired_pkid_data(PKID_CLEAN_EXPIRE_SECS);
+        Ok(())
+    };
+
+    loop_select_ticket(ac_fn, PKID_CLEAN_INTERVAL_MS, &stop_send).await;
 }

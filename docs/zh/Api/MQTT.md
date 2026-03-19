@@ -1376,8 +1376,6 @@
         "max_create_connection_rate_per_second": 10000,
         "max_topics": 500000,
         "max_sessions": 5000000,
-        "max_mqtt_qos1_num": 1000,
-        "max_mqtt_qos2_num": 1000,
         "max_publish_rate": 10000
       }
     ],
@@ -1394,8 +1392,6 @@
 - `max_create_connection_rate_per_second`: 每秒最大新建连接速率
 - `max_topics`: 最大 Topic 数量
 - `max_sessions`: 最大 Session 数量
-- `max_mqtt_qos1_num`: 最大 QoS 1 消息并发数
-- `max_mqtt_qos2_num`: 最大 QoS 2 消息并发数
 - `max_publish_rate`: 每秒最大 Publish 消息速率
 
 #### 13.2 创建租户
@@ -1410,8 +1406,6 @@
   "max_create_connection_rate_per_second": 10000,     // 可选，每秒最大新建连接速率
   "max_topics": 500000,                               // 可选，最大 Topic 数量
   "max_sessions": 5000000,                            // 可选，最大 Session 数量
-  "max_mqtt_qos1_num": 1000,                          // 可选，最大 QoS 1 消息并发数
-  "max_mqtt_qos2_num": 1000,                          // 可选，最大 QoS 2 消息并发数
   "max_publish_rate": 10000                           // 可选，每秒最大 Publish 消息速率
 }
 ```
