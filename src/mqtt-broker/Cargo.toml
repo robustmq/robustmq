@@ -84,6 +84,7 @@ hmac.workspace = true
 hex.workspace = true
 base64.workspace = true
 jsonwebtoken.workspace = true
+rate-limit.workspace = true
 
 
 [dev-dependencies]

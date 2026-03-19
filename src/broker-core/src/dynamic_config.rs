@@ -34,6 +34,7 @@ pub enum ClusterDynamicConfig {
     MqttOfflineMessage,
     MqttSystemMonitor,
     MqttSchema,
+    ResourceLimit,
 }
 
 pub async fn build_cluster_config(
@@ -107,6 +108,11 @@ pub async fn update_cluster_dynamic_config(
             let data = serde_json::from_slice(&config)?;
             let mut config = node_cache.cluster_config.write().await;
             config.mqtt_schema = data;
+        }
+        ClusterDynamicConfig::ResourceLimit => {
+            let data = serde_json::from_slice(&config)?;
+            let mut config = node_cache.cluster_config.write().await;
+            config.limit = data;
         }
     }
     Ok(())

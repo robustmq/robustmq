@@ -170,7 +170,7 @@ pub async fn topic_list(
         params.exact_match,
     );
 
-    let broker_cache = &state.mqtt_context.cache_manager.broker_cache;
+    let broker_cache = &state.mqtt_context.cache_manager.node_cache;
     let topics = collect_topics(
         broker_cache,
         params.tenant.as_deref(),
@@ -269,7 +269,7 @@ async fn read_topic_detail(
     let topic = if let Some(topic) = state
         .mqtt_context
         .cache_manager
-        .broker_cache
+        .node_cache
         .get_topic_by_name(&params.tenant, &params.topic_name)
     {
         topic

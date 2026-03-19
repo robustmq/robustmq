@@ -43,7 +43,7 @@ pub async fn load_metadata_cache(
 ) -> ResultMqttBrokerError {
     info!("Starting to load metadata cache...");
     load_common_cache(
-        &cache_manager.broker_cache,
+        &cache_manager.node_cache,
         client_pool,
         connector_manager,
         schema_manager,

@@ -43,6 +43,7 @@ pub struct TenantConfig {
     pub max_sessions: u64,
     pub max_mqtt_qos1_num: u64,
     pub max_mqtt_qos2_num: u64,
+    pub max_publish_rate: u32,
 }
 
 impl TenantConfig {
@@ -64,6 +65,7 @@ impl Default for TenantConfig {
             max_sessions: 50000000,
             max_mqtt_qos1_num: 1000,
             max_mqtt_qos2_num: 1000,
+            max_publish_rate: 10000,
         }
     }
 }

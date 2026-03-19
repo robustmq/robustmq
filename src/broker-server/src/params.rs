@@ -151,7 +151,7 @@ pub async fn build_broker_mqtt_params(
         schema_manager,
         metrics_cache_manager,
         rocksdb_engine_handler,
-        broker_cache,
+        node_cache: broker_cache,
         offset_manager,
         retain_message_manager,
         push_manager,

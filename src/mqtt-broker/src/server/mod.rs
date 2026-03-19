@@ -33,6 +33,7 @@ use network_server::context::{ProcessorConfig, ServerContext};
 use network_server::quic::server::QuicServer;
 use network_server::tcp::server::TcpServer;
 use network_server::websocket::server::{WebSocketServer, WebSocketServerState};
+use rate_limit::mqtt::MQTTRateLimiterManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
@@ -70,6 +71,7 @@ pub struct TcpServerContext {
     pub auth_driver: Arc<AuthManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub broker_cache: Arc<NodeCacheManager>,
+    pub limit_manager: Arc<MQTTRateLimiterManager>,
 }
 
 impl Server {
@@ -88,7 +90,9 @@ impl Server {
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
             broker_cache: context.broker_cache.clone(),
             retain_message_manager: context.retain_message_manager.clone(),
+            limit_manager: context.limit_manager.clone(),
         };
+
         let command = create_command(command_context);
 
         let proc_config = ProcessorConfig {

@@ -16,7 +16,6 @@ use super::MqttService;
 use crate::core::cache::MQTTCacheManager;
 use crate::core::connection::is_request_problem_info;
 use crate::core::error::MqttBrokerError;
-use crate::core::limit::is_subscribe_rate_exceeded;
 use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
 use crate::core::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use crate::core::sub_wildcards::sub_path_validator;
@@ -123,7 +122,7 @@ impl MqttService {
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
         let cluster_qos = self
             .cache_manager
-            .broker_cache
+            .node_cache
             .get_cluster_config()
             .await
             .mqtt_protocol
@@ -353,13 +352,6 @@ async fn subscribe_validator(
             format!("Invalid topic filter(s): {}", invalid_paths.join(", "))
         };
         return (return_codes, error_msg);
-    }
-
-    if is_subscribe_rate_exceeded() {
-        return (
-            vec![SubscribeReasonCode::QuotaExceeded],
-            "Subscribe rate limit exceeded".to_string(),
-        );
     }
 
     if !allow_exclusive_subscribe(subscribe) {

@@ -87,7 +87,7 @@ pub struct ClientPkidData {
 #[derive(Clone)]
 pub struct MQTTCacheManager {
     // broker cache
-    pub broker_cache: Arc<NodeCacheManager>,
+    pub node_cache: Arc<NodeCacheManager>,
 
     // client pool
     pub client_pool: Arc<ClientPool>,
@@ -130,7 +130,7 @@ impl MQTTCacheManager {
     pub fn new(client_pool: Arc<ClientPool>, broker_cache: Arc<NodeCacheManager>) -> Self {
         MQTTCacheManager {
             client_pool,
-            broker_cache,
+            node_cache: broker_cache,
             user_info: DashMap::with_capacity(8),
             session_info: DashMap::with_capacity(8),
             connection_info: DashMap::with_capacity(8),
@@ -256,8 +256,22 @@ impl MQTTCacheManager {
         self.session_info.iter().map(|e| e.value().len()).sum()
     }
 
+    pub fn session_count_by_tenant(&self, tenant: &str) -> usize {
+        self.session_info
+            .get(tenant)
+            .map(|e| e.value().len())
+            .unwrap_or(0)
+    }
+
     pub fn get_connection_count(&self) -> usize {
         self.connection_info.iter().map(|e| e.value().len()).sum()
+    }
+
+    pub fn get_connection_count_by_tenant(&self, tenant: &str) -> usize {
+        self.connection_info
+            .get(tenant)
+            .map(|e| e.value().len())
+            .unwrap_or(0)
     }
 
     // topic rewrite rule
@@ -480,19 +494,19 @@ mod tests {
         };
 
         // add
-        cache_manager.broker_cache.add_node(node.clone());
+        cache_manager.node_cache.add_node(node.clone());
 
         // get
-        let nodes = cache_manager.broker_cache.node_list();
+        let nodes = cache_manager.node_cache.node_list();
         assert_eq!(nodes.len(), 1);
         assert_eq!(nodes[0].node_id, node.node_id);
         assert_eq!(nodes[0].node_ip, node.node_ip);
 
         // remove
-        cache_manager.broker_cache.remove_node(node.clone());
+        cache_manager.node_cache.remove_node(node.clone());
 
         // get again
-        let nodes = cache_manager.broker_cache.node_list();
+        let nodes = cache_manager.node_cache.node_list();
         assert!(nodes.is_empty());
     }
 

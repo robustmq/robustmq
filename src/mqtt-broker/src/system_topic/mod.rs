@@ -524,7 +524,7 @@ mod test {
         .await;
 
         let mqtt_topic = cache_manger
-            .broker_cache
+            .node_cache
             .get_topic_by_name(DEFAULT_TENANT, &topic_name)
             .unwrap();
 

@@ -64,7 +64,7 @@ pub async fn record_slow_subscribe_data(
     record_time: u64,
 ) -> ResultCommonError {
     let slow_config = cache_manager
-        .broker_cache
+        .node_cache
         .get_cluster_config()
         .await
         .mqtt_slow_subscribe;

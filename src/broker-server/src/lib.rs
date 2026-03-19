@@ -41,7 +41,6 @@ use mqtt_broker::broker::{MqttBrokerServer, MqttBrokerServerParams};
 use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
 use node_call::NodeCallManager;
 use pprof_monitor::pprof_monitor::start_pprof_monitor;
-use rate_limit::RateLimiterManager;
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::family::{column_family_list, storage_data_fold},
@@ -72,7 +71,6 @@ pub struct BrokerServer {
     engine_params: StorageEngineParams,
     client_pool: Arc<ClientPool>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    rate_limiter_manager: Arc<RateLimiterManager>,
     connection_manager: Arc<NetworkConnectionManager>,
     broker_cache: Arc<NodeCacheManager>,
     offset_manager: Arc<OffsetManager>,
@@ -98,7 +96,6 @@ impl BrokerServer {
             config.rocksdb.max_open_files,
             column_family_list(),
         ));
-        let rate_limiter_manager = Arc::new(RateLimiterManager::new());
         let server_worker_threads =
             resolve_server_worker_threads(config.runtime.server_worker_threads);
         let meta_worker_threads = resolve_meta_worker_threads(config.runtime.meta_worker_threads);
@@ -215,7 +212,6 @@ impl BrokerServer {
             client_pool,
             delay_task_manager,
             rocksdb_engine_handler,
-            rate_limiter_manager,
             connection_manager,
             node_call_manager,
             offset_manager,
@@ -272,7 +268,9 @@ impl BrokerServer {
         let engine_stop_send = self.start_engine_service();
 
         // ── Phase 7: MQTT broker  ─────────────
-        let mqtt_stop_send = self.start_mqtt_broker(app_stop.clone());
+        let mqtt_stop_send = self
+            .server_runtime
+            .block_on(async { self.start_mqtt_broker(app_stop.clone()).await });
 
         // ── Phase 8: Background services ──────────────────────────────
         self.server_runtime.block_on(async {
@@ -319,7 +317,6 @@ impl BrokerServer {
             },
             rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
             broker_cache,
-            rate_limiter_manager: self.rate_limiter_manager.clone(),
             storage_driver_manager: self.mqtt_params.storage_driver_manager.clone(),
         });
         let http_port = self.config.http_port;
@@ -413,12 +410,15 @@ impl BrokerServer {
         Some(stop_handle)
     }
 
-    fn start_mqtt_broker(&self, stop: broadcast::Sender<bool>) -> Option<broadcast::Sender<bool>> {
+    async fn start_mqtt_broker(
+        &self,
+        stop: broadcast::Sender<bool>,
+    ) -> Option<broadcast::Sender<bool>> {
         if !is_broker_node(&self.config.roles) {
             return None;
         }
         let stop_handle = stop.clone();
-        let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop);
+        let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop).await;
         self.broker_runtime.spawn(Box::pin(async move {
             server.start().await;
         }));

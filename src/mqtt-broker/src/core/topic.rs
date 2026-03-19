@@ -159,7 +159,7 @@ pub async fn try_init_topic(
         return Err(MqttBrokerError::TenantIsEmpty);
     }
     let topic = if let Some(tp) = metadata_cache
-        .broker_cache
+        .node_cache
         .get_topic_by_name(tenant, topic_name)
     {
         tp
@@ -183,7 +183,7 @@ pub async fn try_init_topic(
             retention_sec: DEFAULT_RETENTION_SEC,
         };
         create_topic_full(
-            &metadata_cache.broker_cache,
+            &metadata_cache.node_cache,
             storage_driver_manager,
             client_pool,
             &topic,
@@ -206,7 +206,7 @@ pub async fn delete_topic(
     storage_driver_manager
         .delete_storage_resource(tenant, topic_name)
         .await?;
-    cache_manager.broker_cache.delete_topic(tenant, topic_name);
+    cache_manager.node_cache.delete_topic(tenant, topic_name);
     metrics_manager.remove_topic(topic_name)?;
     subscribe_manager.remove_by_topic(tenant, topic_name);
     Ok(())

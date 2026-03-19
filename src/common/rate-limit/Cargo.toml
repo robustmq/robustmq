@@ -22,3 +22,5 @@ license.workspace = true
 governor.workspace = true
 dashmap.workspace = true
 common-base.workspace = true
+tokio.workspace = true
+broker-core.workspace = true

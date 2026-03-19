@@ -396,6 +396,7 @@ max_topics = 5000000
 max_sessions = 50000000
 max_mqtt_qos1_num = 1000
 max_mqtt_qos2_num = 1000
+max_publish_rate = 10000
 
 [limit.tenant]
 max_connections_per_node = 1000000
@@ -404,6 +405,7 @@ max_topics = 500000
 max_sessions = 5000000
 max_mqtt_qos1_num = 1000
 max_mqtt_qos2_num = 1000
+max_publish_rate = 10000
 ```
 
 | 配置项 | 类型 | 说明 |
@@ -414,6 +416,7 @@ max_mqtt_qos2_num = 1000
 | `max_sessions` | `u64` | 最大 Session 数量 |
 | `max_mqtt_qos1_num` | `u64` | 最大 QoS 1 消息并发数 |
 | `max_mqtt_qos2_num` | `u64` | 最大 QoS 2 消息并发数 |
+| `max_publish_rate` | `u32` | 每秒最大 Publish 消息速率 |
 
 ---
 

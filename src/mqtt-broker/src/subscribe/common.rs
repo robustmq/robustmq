@@ -159,7 +159,7 @@ pub async fn get_sub_topic_name_list(
     let mut result = Vec::new();
     if is_wildcards(sub_path) {
         if let Ok(regex) = build_sub_path_regex(sub_path) {
-            for tenant_entry in metadata_cache.broker_cache.topic_list.iter() {
+            for tenant_entry in metadata_cache.node_cache.topic_list.iter() {
                 for topic_entry in tenant_entry.value().iter() {
                     if regex.is_match(&topic_entry.value().topic_name) {
                         result.push(topic_entry.value().topic_name.clone());
@@ -168,7 +168,7 @@ pub async fn get_sub_topic_name_list(
             }
         }
     } else {
-        'outer: for tenant_entry in metadata_cache.broker_cache.topic_list.iter() {
+        'outer: for tenant_entry in metadata_cache.node_cache.topic_list.iter() {
             for topic_entry in tenant_entry.value().iter() {
                 if topic_entry.value().topic_name == *sub_path {
                     result.push(topic_entry.value().topic_name.clone());
@@ -383,13 +383,13 @@ mod tests {
     async fn get_sub_topic_list_test() {
         let cache = test_build_mqtt_cache_manager().await;
         cache
-            .broker_cache
+            .node_cache
             .add_topic(&Topic::build_by_name("/test/topic1"));
         cache
-            .broker_cache
+            .node_cache
             .add_topic(&Topic::build_by_name("/test/topic2"));
         cache
-            .broker_cache
+            .node_cache
             .add_topic(&Topic::build_by_name("/other/topic"));
 
         // Exact match

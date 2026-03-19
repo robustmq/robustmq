@@ -277,11 +277,12 @@ impl Default for Network {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LimitQuota {
     pub max_connections_per_node: u64,
-    pub max_create_connection_rate_per_second: u32,
+    pub max_connection_rate: u32,
     pub max_topics: u64,
     pub max_sessions: u64,
     pub max_mqtt_qos1_num: u64,
     pub max_mqtt_qos2_num: u64,
+    pub max_publish_rate: u32,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -295,19 +296,21 @@ impl Default for ClusterLimit {
         ClusterLimit {
             cluster: LimitQuota {
                 max_connections_per_node: 10000000,
-                max_create_connection_rate_per_second: 100000,
+                max_connection_rate: 100000,
                 max_topics: 5000000,
                 max_sessions: 50000000,
                 max_mqtt_qos1_num: 1000,
                 max_mqtt_qos2_num: 1000,
+                max_publish_rate: 10000,
             },
             tenant: LimitQuota {
                 max_connections_per_node: 1000000,
-                max_create_connection_rate_per_second: 10000,
+                max_connection_rate: 10000,
                 max_topics: 500000,
                 max_sessions: 5000000,
                 max_mqtt_qos1_num: 1000,
                 max_mqtt_qos2_num: 1000,
+                max_publish_rate: 10000,
             },
         }
     }

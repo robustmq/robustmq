@@ -533,7 +533,7 @@ async fn publish_validator(
         }
     }
 
-    let cluster = cache_manager.broker_cache.get_cluster_config().await;
+    let cluster = cache_manager.node_cache.get_cluster_config().await;
 
     let max_packet_size = min(
         cluster.mqtt_protocol.max_packet_size,

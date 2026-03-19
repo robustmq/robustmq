@@ -14,8 +14,7 @@
 
 use governor::RateLimiter;
 use std::sync::Arc;
-
-use crate::{global::GlobalRateLimiterManager, mqtt::MQTTRateLimiterManager};
+use tokio::sync::RwLock;
 
 type ArcRateLimiter = Arc<
     RateLimiter<
@@ -25,26 +24,16 @@ type ArcRateLimiter = Arc<
         governor::middleware::NoOpMiddleware<governor::clock::QuantaInstant>,
     >,
 >;
+
+type ArcLockRateLimiter = Arc<
+    RwLock<
+        RateLimiter<
+            governor::state::NotKeyed,
+            governor::state::InMemoryState,
+            governor::clock::QuantaClock,
+            governor::middleware::NoOpMiddleware<governor::clock::QuantaInstant>,
+        >,
+    >,
+>;
 pub mod global;
 pub mod mqtt;
-
-#[derive(Clone)]
-pub struct RateLimiterManager {
-    pub global: GlobalRateLimiterManager,
-    pub mqtt: MQTTRateLimiterManager,
-}
-
-impl Default for RateLimiterManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl RateLimiterManager {
-    pub fn new() -> Self {
-        RateLimiterManager {
-            global: GlobalRateLimiterManager::new(),
-            mqtt: MQTTRateLimiterManager::new(),
-        }
-    }
-}

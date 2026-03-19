@@ -169,7 +169,7 @@ pub async fn parse_subscribe_by_new_subscribe(
     let rewrite_sub_path =
         cache_manager.get_new_rewrite_name(&subscribe.tenant, &subscribe.filter.path);
 
-    if let Some(tenant_entry) = cache_manager.broker_cache.topic_list.get(&subscribe.tenant) {
+    if let Some(tenant_entry) = cache_manager.node_cache.topic_list.get(&subscribe.tenant) {
         for topic_entry in tenant_entry.value().iter() {
             let topic = topic_entry.value().clone();
             parse_subscribe(

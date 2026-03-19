@@ -4654,6 +4654,7 @@ dependencies = [
  "r2d2",
  "r2d2_mysql",
  "r2d2_postgres",
+ "rate-limit",
  "rdkafka",
  "redis",
  "regex",
@@ -6843,9 +6844,11 @@ dependencies = [
 name = "rate-limit"
 version = "0.3.4"
 dependencies = [
+ "broker-core",
  "common-base",
  "dashmap 6.1.0",
  "governor",
+ "tokio",
 ]
 
 [[package]]

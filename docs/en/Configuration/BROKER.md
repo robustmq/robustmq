@@ -390,6 +390,7 @@ max_topics = 5000000
 max_sessions = 50000000
 max_mqtt_qos1_num = 1000
 max_mqtt_qos2_num = 1000
+max_publish_rate = 10000
 
 [limit.tenant]
 max_connections_per_node = 1000000
@@ -398,6 +399,7 @@ max_topics = 500000
 max_sessions = 5000000
 max_mqtt_qos1_num = 1000
 max_mqtt_qos2_num = 1000
+max_publish_rate = 10000
 ```
 
 | Field | Type | Description |
@@ -408,6 +410,7 @@ max_mqtt_qos2_num = 1000
 | `max_sessions` | `u64` | Maximum number of sessions |
 | `max_mqtt_qos1_num` | `u64` | Maximum concurrent QoS 1 messages |
 | `max_mqtt_qos2_num` | `u64` | Maximum concurrent QoS 2 messages |
+| `max_publish_rate` | `u32` | Maximum publish message rate per second |
 
 ---
 

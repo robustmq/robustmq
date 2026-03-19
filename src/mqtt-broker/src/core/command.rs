@@ -46,6 +46,7 @@ use protocol::mqtt::common::{
     PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use protocol::robust::RobustMQPacket;
+use rate_limit::mqtt::MQTTRateLimiterManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::net::SocketAddr;
@@ -64,6 +65,7 @@ pub struct MQTTHandlerCommand {
     subscribe_manager: Arc<SubscribeManager>,
     pub client_pool: Arc<ClientPool>,
     pub session_batcher: Arc<SessionBatcher>,
+    pub limit_manager: Arc<MQTTRateLimiterManager>,
 }
 
 #[derive(Clone)]
@@ -80,6 +82,7 @@ pub struct CommandContext {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub broker_cache: Arc<NodeCacheManager>,
     pub retain_message_manager: Arc<RetainMessageManager>,
+    pub limit_manager: Arc<MQTTRateLimiterManager>,
 }
 
 #[async_trait]
@@ -674,6 +677,7 @@ impl MQTTHandlerCommand {
             auth_driver: context.auth_driver.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
             retain_message_manager: context.retain_message_manager.clone(),
+            limit_manager: context.limit_manager.clone(),
         };
         let mqtt3_service = MqttService::new(mqtt3_context);
         let mqtt4_context = MqttServiceContext {
@@ -689,6 +693,7 @@ impl MQTTHandlerCommand {
             auth_driver: context.auth_driver.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
             retain_message_manager: context.retain_message_manager.clone(),
+            limit_manager: context.limit_manager.clone(),
         };
         let mqtt4_service = MqttService::new(mqtt4_context);
         let mqtt5_context = MqttServiceContext {
@@ -704,6 +709,7 @@ impl MQTTHandlerCommand {
             auth_driver: context.auth_driver.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
             retain_message_manager: context.retain_message_manager.clone(),
+            limit_manager: context.limit_manager.clone(),
         };
         let mqtt5_service = MqttService::new(mqtt5_context);
         MQTTHandlerCommand {
@@ -713,6 +719,7 @@ impl MQTTHandlerCommand {
             client_pool: context.client_pool.clone(),
             session_batcher: context.session_batcher.clone(),
             subscribe_manager: context.subscribe_manager.clone(),
+            limit_manager: context.limit_manager.clone(),
             cache_manager: context.cache_manager,
             connection_manager: context.connection_manager,
         }

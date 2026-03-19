@@ -19,7 +19,7 @@ pub async fn check_max_qos_flight_message(
     cache_manager: &Arc<MQTTCacheManager>,
     client_id: &str,
 ) -> Result<(), MqttBrokerError> {
-    let cluster_config = cache_manager.broker_cache.cluster_config.read().await;
+    let cluster_config = cache_manager.node_cache.cluster_config.read().await;
     let current_len = cache_manager
         .pkid_data
         .get_receive_publish_pkid_data_len_by_client_ids(client_id);

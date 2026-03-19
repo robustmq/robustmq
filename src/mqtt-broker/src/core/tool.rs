@@ -26,7 +26,7 @@ pub async fn test_build_mqtt_cache_manager() -> Arc<MQTTCacheManager> {
     let broker_cache = Arc::new(NodeCacheManager::new(default_broker_config()));
     let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, broker_cache));
     cache_manager
-        .broker_cache
+        .node_cache
         .set_cluster_config(default_broker_config())
         .await;
     cache_manager
@@ -38,7 +38,7 @@ pub async fn test_build_mqtt_cache_manager0(
     let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
     let cache_manager = Arc::new(MQTTCacheManager::new(client_pool, broker_cache));
     cache_manager
-        .broker_cache
+        .node_cache
         .set_cluster_config(default_broker_config())
         .await;
     cache_manager

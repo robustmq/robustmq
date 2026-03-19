@@ -59,6 +59,7 @@ pub struct CreateMqttTenantReq {
     pub max_sessions: Option<u64>,
     pub max_mqtt_qos1_num: Option<u64>,
     pub max_mqtt_qos2_num: Option<u64>,
+    pub max_publish_rate: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
@@ -82,6 +83,7 @@ pub struct MqttTenantListRow {
     pub max_sessions: u64,
     pub max_mqtt_qos1_num: u64,
     pub max_mqtt_qos2_num: u64,
+    pub max_publish_rate: u32,
 }
 
 impl Queryable for MqttTenantListRow {
@@ -104,6 +106,7 @@ fn tenant_to_row(t: &metadata_struct::tenant::Tenant) -> MqttTenantListRow {
         max_sessions: t.config.max_sessions,
         max_mqtt_qos1_num: t.config.max_mqtt_qos1_num,
         max_mqtt_qos2_num: t.config.max_mqtt_qos2_num,
+        max_publish_rate: t.config.max_publish_rate,
     }
 }
 
@@ -158,7 +161,7 @@ pub async fn mqtt_tenant_create(
             .unwrap_or(tenant_limit.max_connections_per_node),
         max_create_connection_rate_per_second: params
             .max_create_connection_rate_per_second
-            .unwrap_or(tenant_limit.max_create_connection_rate_per_second),
+            .unwrap_or(tenant_limit.max_connection_rate),
         max_topics: params.max_topics.unwrap_or(tenant_limit.max_topics),
         max_sessions: params.max_sessions.unwrap_or(tenant_limit.max_sessions),
         max_mqtt_qos1_num: params
@@ -167,6 +170,9 @@ pub async fn mqtt_tenant_create(
         max_mqtt_qos2_num: params
             .max_mqtt_qos2_num
             .unwrap_or(tenant_limit.max_mqtt_qos2_num),
+        max_publish_rate: params
+            .max_publish_rate
+            .unwrap_or(tenant_limit.max_publish_rate),
     };
     let storage = TenantStorage::new(state.client_pool.clone());
     match storage

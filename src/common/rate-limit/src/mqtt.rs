@@ -12,76 +12,142 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::ResultCommonError;
+use broker_core::cache::NodeCacheManager;
+use common_base::error::{common::CommonError, ResultCommonError};
 use dashmap::DashMap;
 use governor::{Quota, RateLimiter};
 use std::{num::NonZero, sync::Arc};
+use tokio::sync::RwLock;
 
-use crate::ArcRateLimiter;
+use crate::{ArcLockRateLimiter, ArcRateLimiter};
 
 #[derive(Clone)]
 pub struct MQTTRateLimiterManager {
-    http_limits: DashMap<String, ArcRateLimiter>,
-    grpc_limits: DashMap<String, ArcRateLimiter>,
-    mqtt_publish: DashMap<String, ArcRateLimiter>,
-    mqtt_connection: ArcRateLimiter,
-}
-impl Default for MQTTRateLimiterManager {
-    fn default() -> Self {
-        Self::new()
-    }
+    pub node_cache: Arc<NodeCacheManager>,
+    // publish
+    node_publish_message_rate: ArcLockRateLimiter,
+    tenant_publish_message_rate: DashMap<String, ArcRateLimiter>,
+
+    // create connection
+    node_create_connection_rate: ArcLockRateLimiter,
+    tenant_create_connection_rate: DashMap<String, ArcRateLimiter>,
 }
 
 impl MQTTRateLimiterManager {
-    pub fn new() -> Self {
-        let non_zero = NonZero::new(42).unwrap();
-        let mqtt_connection = Arc::new(RateLimiter::direct(Quota::per_second(non_zero)));
-        MQTTRateLimiterManager {
-            http_limits: DashMap::with_capacity(2),
-            grpc_limits: DashMap::with_capacity(2),
-            mqtt_publish: DashMap::with_capacity(2),
-            mqtt_connection,
-        }
+    pub fn new(
+        node_cache: Arc<NodeCacheManager>,
+        publish_rate: u32,
+        create_connection_rate: u32,
+    ) -> Result<Self, Box<CommonError>> {
+        let publish_non_zero = NonZero::new(publish_rate).ok_or_else(|| {
+            Box::new(CommonError::InvalidRateLimitValue(
+                "publish_rate".to_string(),
+            ))
+        })?;
+
+        let create_connection_non_zero = NonZero::new(create_connection_rate).ok_or_else(|| {
+            Box::new(CommonError::InvalidRateLimitValue(
+                "create_connection_rate".to_string(),
+            ))
+        })?;
+
+        Ok(MQTTRateLimiterManager {
+            node_cache,
+            tenant_publish_message_rate: DashMap::with_capacity(2),
+            tenant_create_connection_rate: DashMap::with_capacity(2),
+            node_publish_message_rate: Arc::new(RwLock::new(RateLimiter::direct(
+                Quota::per_second(publish_non_zero),
+            ))),
+            node_create_connection_rate: Arc::new(RwLock::new(RateLimiter::direct(
+                Quota::per_second(create_connection_non_zero),
+            ))),
+        })
     }
 
-    pub async fn wait_http_limit(&self, uri: String) -> ResultCommonError {
-        if let Some(limit) = self.http_limits.get(&uri) {
-            limit.until_ready().await;
-        } else {
-            let non_zero = NonZero::new(42).unwrap();
-            let limit = Arc::new(RateLimiter::direct(Quota::per_second(non_zero)));
-            limit.until_ready().await;
-            self.http_limits.insert(uri, limit);
-        }
+    pub fn set_tenant_publish_message_rate(
+        &self,
+        tenant: &str,
+        rate: u32,
+    ) -> Result<ArcRateLimiter, Box<CommonError>> {
+        let non_zero = NonZero::new(rate).ok_or_else(|| {
+            Box::new(CommonError::InvalidRateLimitValue(
+                "tenant_publish_rate".to_string(),
+            ))
+        })?;
+        let limit = Arc::new(RateLimiter::direct(Quota::per_second(non_zero)));
+        self.tenant_publish_message_rate
+            .insert(tenant.to_string(), limit.clone());
+
+        Ok(limit.clone())
+    }
+
+    pub fn set_tenant_create_connection_rate(
+        &self,
+        tenant: &str,
+        rate: u32,
+    ) -> Result<ArcRateLimiter, Box<CommonError>> {
+        let non_zero = NonZero::new(rate).ok_or_else(|| {
+            Box::new(CommonError::InvalidRateLimitValue(
+                "tenant_create_connection_rate".to_string(),
+            ))
+        })?;
+        let limit = Arc::new(RateLimiter::direct(Quota::per_second(non_zero)));
+        self.tenant_publish_message_rate
+            .insert(tenant.to_string(), limit.clone());
+
+        Ok(limit)
+    }
+
+    pub async fn set_node_publish_message_rate(&self, rate: u32) -> ResultCommonError {
+        let mut write = self.node_publish_message_rate.write().await;
+        let non_zero = NonZero::new(rate)
+            .ok_or_else(|| CommonError::InvalidRateLimitValue("node_publish_rate".to_string()))?;
+        *write = RateLimiter::direct(Quota::per_second(non_zero));
         Ok(())
     }
 
-    pub async fn wait_grpc_limit(&self, method: String) -> ResultCommonError {
-        if let Some(limit) = self.grpc_limits.get(&method) {
-            limit.until_ready().await;
-        } else {
-            let non_zero = NonZero::new(42).unwrap();
-            let limit = Arc::new(RateLimiter::direct(Quota::per_second(non_zero)));
-            limit.until_ready().await;
-            self.http_limits.insert(method, limit);
-        }
+    pub async fn set_node_create_connection_rate(&self, rate: u32) -> ResultCommonError {
+        let mut write = self.node_create_connection_rate.write().await;
+        let non_zero = NonZero::new(rate).ok_or_else(|| {
+            CommonError::InvalidRateLimitValue("node_create_connection_rate".to_string())
+        })?;
+        *write = RateLimiter::direct(Quota::per_second(non_zero));
         Ok(())
     }
 
-    pub async fn wait_mqtt_publish_limit(&self, client_id: String) -> ResultCommonError {
-        if let Some(limit) = self.mqtt_publish.get(&client_id) {
+    pub async fn connection_rate_limit(&self, tenant: &str) -> ResultCommonError {
+        // node
+        let limit = self.node_create_connection_rate.read().await;
+        limit.until_ready().await;
+
+        // tenant
+        if let Some(tenant_limit) = self.tenant_create_connection_rate.get(tenant) {
+            tenant_limit.until_ready().await;
+        } else if let Some(ten) = self.node_cache.get_tenant(tenant) {
+            let limit = self
+                .set_tenant_create_connection_rate(tenant, ten.config.max_publish_rate)
+                .map_err(|e| *e)?;
             limit.until_ready().await;
-        } else {
-            let non_zero = NonZero::new(42).unwrap();
-            let limit = Arc::new(RateLimiter::direct(Quota::per_second(non_zero)));
-            limit.until_ready().await;
-            self.http_limits.insert(client_id, limit);
         }
+
         Ok(())
     }
 
-    pub async fn wait_mqtt_connection_limit(&self) -> ResultCommonError {
-        self.mqtt_connection.until_ready().await;
+    pub async fn publish_message_rate_limit(&self, tenant: &str) -> ResultCommonError {
+        // node
+        let limit = self.node_publish_message_rate.read().await;
+        limit.until_ready().await;
+
+        // tenant
+        if let Some(tenant_limit) = self.tenant_publish_message_rate.get(tenant) {
+            tenant_limit.until_ready().await;
+        } else if let Some(ten) = self.node_cache.get_tenant(tenant) {
+            let limit = self
+                .set_tenant_publish_message_rate(tenant, ten.config.max_publish_rate)
+                .map_err(|e| *e)?;
+            limit.until_ready().await;
+        }
+
         Ok(())
     }
 }

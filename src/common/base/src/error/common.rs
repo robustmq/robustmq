@@ -141,6 +141,9 @@ pub enum CommonError {
     #[error("Invalid parameter format, parameter name: {0}, parameter_value: {1}")]
     InvalidParameterFormat(String, String),
 
+    #[error("Rate limit value must be greater than 0, parameter name: {0}")]
+    InvalidRateLimitValue(String),
+
     #[error("Module {0} does not support this feature {1}")]
     NotSupportFeature(String, String),
 

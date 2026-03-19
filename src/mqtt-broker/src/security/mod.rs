@@ -128,7 +128,7 @@ impl AuthManager {
         login: &Option<Login>,
         _connect_properties: &Option<ConnectProperties>,
     ) -> Result<bool, MqttBrokerError> {
-        let cluster = self.cache_manager.broker_cache.get_cluster_config().await;
+        let cluster = self.cache_manager.node_cache.get_cluster_config().await;
 
         if cluster.mqtt_runtime.secret_free_login {
             return Ok(true);

@@ -1610,7 +1610,14 @@ Query message count for a specific topic:
       {
         "tenant_name": "default",
         "desc": "Default tenant",
-        "create_time": 1640995200
+        "create_time": 1640995200,
+        "max_connections_per_node": 1000000,
+        "max_create_connection_rate_per_second": 10000,
+        "max_topics": 500000,
+        "max_sessions": 5000000,
+        "max_mqtt_qos1_num": 1000,
+        "max_mqtt_qos2_num": 1000,
+        "max_publish_rate": 10000
       }
     ],
     "total_count": 1
@@ -1622,6 +1629,13 @@ Query message count for a specific topic:
 - `tenant_name`: Tenant name
 - `desc`: Tenant description
 - `create_time`: Tenant creation timestamp (seconds)
+- `max_connections_per_node`: Maximum connections per node
+- `max_create_connection_rate_per_second`: Maximum new connection rate per second
+- `max_topics`: Maximum number of topics
+- `max_sessions`: Maximum number of sessions
+- `max_mqtt_qos1_num`: Maximum concurrent QoS 1 messages
+- `max_mqtt_qos2_num`: Maximum concurrent QoS 2 messages
+- `max_publish_rate`: Maximum publish message rate per second
 
 #### 13.2 Create Tenant
 - **Endpoint**: `POST /api/mqtt/tenant/create`
@@ -1629,8 +1643,15 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
-  "tenant_name": "new_tenant",      // Tenant name, length 1-128 characters
-  "desc": "My new tenant"           // Optional, description, length cannot exceed 500 characters
+  "tenant_name": "new_tenant",                        // Required, tenant name, length 1-128 characters
+  "desc": "My new tenant",                            // Optional, description, length cannot exceed 500 characters
+  "max_connections_per_node": 1000000,                // Optional, maximum connections per node
+  "max_create_connection_rate_per_second": 10000,     // Optional, maximum new connection rate per second
+  "max_topics": 500000,                               // Optional, maximum number of topics
+  "max_sessions": 5000000,                            // Optional, maximum number of sessions
+  "max_mqtt_qos1_num": 1000,                          // Optional, maximum concurrent QoS 1 messages
+  "max_mqtt_qos2_num": 1000,                          // Optional, maximum concurrent QoS 2 messages
+  "max_publish_rate": 10000                           // Optional, maximum publish message rate per second
 }
 ```
 

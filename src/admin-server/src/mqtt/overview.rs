@@ -93,7 +93,7 @@ async fn cluster_overview_by_req(
         share_subscribe_group_num: subscribe_manager.share_group_count() as u32,
         share_subscribe_num: subscribe_manager.share_sub_len(),
         share_subscribe_thread_num: subscribe_manager.share_group_count() as u32,
-        topic_num: cache_manager.broker_cache.topic_count() as u32,
+        topic_num: cache_manager.node_cache.topic_count() as u32,
         node_list,
         tcp_connection_num: connection_manager.tcp_write_list.len() as u32,
         tls_connection_num: connection_manager.tcp_tls_write_list.len() as u32,

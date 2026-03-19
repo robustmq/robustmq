@@ -52,7 +52,7 @@ pub async fn clean_flapping_detect(
 ) {
     let ac_fn = async || -> ResultCommonError {
         let config = cache_manager
-            .broker_cache
+            .node_cache
             .get_cluster_config()
             .await
             .mqtt_flapping_detect;
@@ -100,7 +100,7 @@ pub async fn check_flapping_detect(
     event::incr_client_connection_counter(tenant, client_id.clone());
 
     let config = cache_manager
-        .broker_cache
+        .node_cache
         .get_cluster_config()
         .await
         .mqtt_flapping_detect;
