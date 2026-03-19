@@ -154,7 +154,7 @@ pub async fn mqtt_tenant_create(
     State(state): State<Arc<HttpState>>,
     ValidatedJson(params): ValidatedJson<CreateMqttTenantReq>,
 ) -> String {
-    let tenant_limit = broker_config().limit.tenant.clone();
+    let tenant_limit = broker_config().mqtt_limit.tenant.clone();
     let config = TenantConfig {
         max_connections_per_node: params
             .max_connections_per_node

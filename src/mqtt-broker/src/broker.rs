@@ -91,7 +91,7 @@ pub struct MqttBrokerServer {
 
 impl MqttBrokerServer {
     pub async fn new(params: MqttBrokerServerParams, stop: broadcast::Sender<bool>) -> Self {
-        let limit_config = params.node_cache.get_cluster_config().await.limit;
+        let limit_config = params.node_cache.get_cluster_config().await.mqtt_limit;
         let limit_manager = Arc::new(
             match MQTTRateLimiterManager::new(
                 params.node_cache.clone(),

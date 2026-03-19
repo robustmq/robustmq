@@ -123,7 +123,9 @@ pub struct BrokerConfig {
     pub rocksdb: Rocksdb,
 
     #[serde(default)]
-    pub limit: ClusterLimit,
+    pub llm_client: Option<LLMClientConfig>,
+
+    pub cluster_limit: ClusterLimit,
 
     // meta
     #[serde(default = "default_meta_runtime")]
@@ -162,7 +164,7 @@ pub struct BrokerConfig {
     pub mqtt_system_monitor: MqttSystemMonitor,
 
     #[serde(default)]
-    pub llm_client: Option<LLMClientConfig>,
+    pub mqtt_limit: MQTTLimit,
 }
 
 impl Default for BrokerConfig {
@@ -182,8 +184,8 @@ impl Default for BrokerConfig {
             network: default_network(),
             pprof: default_pprof(),
             rocksdb: default_rocksdb(),
-            limit: ClusterLimit::default(),
             llm_client: None,
+            cluster_limit: ClusterLimit::default(),
 
             // Meta Service
             meta_runtime: default_meta_runtime(),
@@ -201,6 +203,7 @@ impl Default for BrokerConfig {
             mqtt_protocol: default_mqtt_protocol(),
             mqtt_schema: default_mqtt_schema(),
             mqtt_system_monitor: default_mqtt_system_monitor(),
+            mqtt_limit: MQTTLimit::default(),
         }
     }
 }
@@ -275,6 +278,23 @@ impl Default for Network {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ClusterLimit {
+    pub max_network_connection: u64,
+    pub max_network_connection_rate: u32,
+    pub max_admin_http_uri_rate: u32,
+}
+
+impl Default for ClusterLimit {
+    fn default() -> Self {
+        ClusterLimit {
+            max_network_connection: 100000000,
+            max_network_connection_rate: 10000,
+            max_admin_http_uri_rate: 50,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LimitQuota {
     pub max_connections_per_node: u64,
     pub max_connection_rate: u32,
@@ -286,14 +306,14 @@ pub struct LimitQuota {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ClusterLimit {
+pub struct MQTTLimit {
     pub cluster: LimitQuota,
     pub tenant: LimitQuota,
 }
 
-impl Default for ClusterLimit {
+impl Default for MQTTLimit {
     fn default() -> Self {
-        ClusterLimit {
+        MQTTLimit {
             cluster: LimitQuota {
                 max_connections_per_node: 10000000,
                 max_connection_rate: 100000,

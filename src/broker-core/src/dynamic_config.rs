@@ -34,7 +34,8 @@ pub enum ClusterDynamicConfig {
     MqttOfflineMessage,
     MqttSystemMonitor,
     MqttSchema,
-    ResourceLimit,
+    MqttLimit,
+    ClusterLimit,
 }
 
 pub async fn build_cluster_config(
@@ -74,6 +75,12 @@ pub async fn update_cluster_dynamic_config(
     config: Bytes,
 ) -> Result<(), CommonError> {
     match resource_type {
+        ClusterDynamicConfig::ClusterLimit => {
+            let data = serde_json::from_slice(&config)?;
+            let mut config = node_cache.cluster_config.write().await;
+            config.cluster_limit = data;
+        }
+
         ClusterDynamicConfig::MqttSlowSubscribeConfig => {
             let data = serde_json::from_slice(&config)?;
             let mut config = node_cache.cluster_config.write().await;
@@ -109,10 +116,10 @@ pub async fn update_cluster_dynamic_config(
             let mut config = node_cache.cluster_config.write().await;
             config.mqtt_schema = data;
         }
-        ClusterDynamicConfig::ResourceLimit => {
+        ClusterDynamicConfig::MqttLimit => {
             let data = serde_json::from_slice(&config)?;
             let mut config = node_cache.cluster_config.write().await;
-            config.limit = data;
+            config.mqtt_limit = data;
         }
     }
     Ok(())

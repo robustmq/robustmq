@@ -25,7 +25,7 @@ pub async fn connection_total_num_limit(
         .node_cache
         .get_cluster_config()
         .await
-        .limit
+        .mqtt_limit
         .cluster
         .max_connections_per_node as usize;
     if count > limit_count {
@@ -50,7 +50,7 @@ pub async fn session_total_num_limit(cache_manager: &Arc<MQTTCacheManager>, tena
         .node_cache
         .get_cluster_config()
         .await
-        .limit
+        .mqtt_limit
         .cluster
         .max_sessions as usize;
     if count > limit_count {
@@ -75,7 +75,7 @@ pub async fn topic_total_num_limit(cache_manager: &Arc<MQTTCacheManager>, tenant
         .node_cache
         .get_cluster_config()
         .await
-        .limit
+        .mqtt_limit
         .cluster
         .max_topics as usize;
     if count > limit_count {
