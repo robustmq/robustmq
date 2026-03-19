@@ -125,6 +125,7 @@ pub struct BrokerConfig {
     #[serde(default)]
     pub llm_client: Option<LLMClientConfig>,
 
+    #[serde(default)]
     pub cluster_limit: ClusterLimit,
 
     // meta
