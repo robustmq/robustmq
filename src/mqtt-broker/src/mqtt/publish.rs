@@ -22,6 +22,7 @@ use crate::core::limit::qos_flight_message_num_limit;
 use crate::core::metrics::record_publish_receive_metrics;
 use crate::core::offline_message::{save_message, SaveMessageContext};
 use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
+use crate::core::qos::try_broadcast_get_pkid;
 use crate::core::topic::{get_topic_name, try_init_topic};
 use common_base::tools::now_second;
 use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
@@ -302,6 +303,7 @@ impl MqttService {
             .get_qos_pkid_data(&connection.client_id, pub_rel.pkid)
             .is_none()
         {
+            try_broadcast_get_pkid();
             return build_pub_comp(
                 &self.cache_manager,
                 connection.connect_id,

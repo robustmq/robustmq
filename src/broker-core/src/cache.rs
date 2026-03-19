@@ -175,6 +175,13 @@ impl NodeCacheManager {
         self.topic_list.iter().map(|e| e.value().len()).sum()
     }
 
+    pub fn topic_count_by_tenant(&self, tenant: &str) -> usize {
+        self.topic_list
+            .get(tenant)
+            .map(|e| e.value().len())
+            .unwrap_or(0)
+    }
+
     // get start time
     pub fn get_start_time(&self) -> u64 {
         self.start_time

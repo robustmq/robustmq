@@ -86,7 +86,7 @@ pub async fn topic_total_num_limit(cache_manager: &Arc<MQTTCacheManager>, tenant
 
     // tenant
     if let Some(ten) = cache_manager.node_cache.get_tenant(tenant) {
-        let count = cache_manager.session_count_by_tenant(tenant);
+        let count = cache_manager.node_cache.topic_count_by_tenant(tenant);
         if count > ten.config.max_topics as usize {
             return true;
         }

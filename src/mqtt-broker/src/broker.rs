@@ -17,6 +17,7 @@ use crate::core::cache::MQTTCacheManager;
 use crate::core::flapping_detect::clean_flapping_detect;
 use crate::core::keep_alive::ClientKeepAlive;
 use crate::core::metrics_cache::metrics_record_thread;
+use crate::core::pkid_manager::clean_pkid_data;
 use crate::core::retain::RetainMessageManager;
 use crate::core::system_alarm::SystemAlarm;
 use crate::core::tool::ResultMqttBrokerError;
@@ -212,6 +213,14 @@ impl MqttBrokerServer {
         self.task_supervisor
             .spawn(TaskKind::MQTTCleanFlappingDetect.to_string(), async move {
                 clean_flapping_detect(cache_manager, stop_send).await;
+            });
+
+        // clean expired pkid data
+        let stop_send = self.stop.clone();
+        let cache_manager = self.cache_manager.clone();
+        self.task_supervisor
+            .spawn(TaskKind::MQTTCleanPkidData.to_string(), async move {
+                clean_pkid_data(cache_manager, stop_send).await;
             });
 
         // report system topic info
