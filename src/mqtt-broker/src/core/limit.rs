@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use metadata_struct::mqtt::connection::MQTTConnection;
+
 use crate::core::cache::MQTTCacheManager;
 use std::sync::Arc;
 
@@ -91,4 +93,14 @@ pub async fn topic_total_num_limit(cache_manager: &Arc<MQTTCacheManager>, tenant
     }
 
     false
+}
+
+pub fn qos_flight_message_num_limit(
+    cache_manager: &Arc<MQTTCacheManager>,
+    connection: &MQTTConnection,
+) -> bool {
+    let len = cache_manager
+        .pkid_manager
+        .get_qos_pkid_data_len_by_client_id(&connection.client_id);
+    len > connection.client_max_receive_maximum as usize
 }

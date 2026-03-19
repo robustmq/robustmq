@@ -18,6 +18,7 @@ use crate::core::connection::is_request_problem_info;
 use crate::core::content_type::payload_format_indicator_check_by_publish;
 use crate::core::delay_message::{decode_delay_topic, is_delay_topic};
 use crate::core::error::MqttBrokerError;
+use crate::core::limit::qos_flight_message_num_limit;
 use crate::core::metrics::record_publish_receive_metrics;
 use crate::core::offline_message::{save_message, SaveMessageContext};
 use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
@@ -218,24 +219,39 @@ impl MqttService {
             return None;
         }
 
-        if let Some(data) = self
-            .cache_manager
-            .pkid_manager
-            .get_qos_pkid_data(&connection.client_id, publish.p_kid)
-        {
+        // flight limit
+        if qos_flight_message_num_limit(&self.cache_manager, connection) {
             if publish.qos == QoS::AtLeastOnce {
                 return Some(build_pub_ack(
                     &self.cache_manager,
                     connection.connect_id,
                     &self.protocol,
                     publish.p_kid,
-                    PubAckReason::Success,
-                    None,
-                    vec![(PUBLISH_QOS_DUMP.to_string(), "true".to_string())],
+                    PubAckReason::QuotaExceeded,
+                    Some("".to_string()),
+                    Vec::new(),
                 ));
             }
-
             if publish.qos == QoS::ExactlyOnce {
+                return Some(build_pub_rec(
+                    &self.cache_manager,
+                    connection.connect_id,
+                    &self.protocol,
+                    publish.p_kid,
+                    PubRecReason::QuotaExceeded,
+                    Some("".to_string()),
+                    Vec::new(),
+                ));
+            }
+        }
+
+        // QOS 2
+        if publish.qos == QoS::ExactlyOnce {
+            if let Some(data) = self
+                .cache_manager
+                .pkid_manager
+                .get_qos_pkid_data(&connection.client_id, publish.p_kid)
+            {
                 if data.ack_enum == PkidAckEnum::PubRec {
                     return Some(build_pub_rec(
                         &self.cache_manager,
@@ -262,27 +278,14 @@ impl MqttService {
             }
         }
 
-        if publish.qos == QoS::AtLeastOnce {
-            self.cache_manager.pkid_manager.add_qos_pkid_data(
-                &connection.client_id,
-                ReceiveQosPkidData {
-                    ack_enum: PkidAckEnum::PubAck,
-                    pkid: publish.p_kid,
-                    create_time: now_second(),
-                },
-            );
-        }
-
-        if publish.qos == QoS::ExactlyOnce {
-            self.cache_manager.pkid_manager.add_qos_pkid_data(
-                &connection.client_id,
-                ReceiveQosPkidData {
-                    ack_enum: PkidAckEnum::PubRec,
-                    pkid: publish.p_kid,
-                    create_time: now_second(),
-                },
-            );
-        }
+        self.cache_manager.pkid_manager.add_qos_pkid_data(
+            &connection.client_id,
+            ReceiveQosPkidData {
+                ack_enum: PkidAckEnum::PubRec,
+                pkid: publish.p_kid,
+                create_time: now_second(),
+            },
+        );
 
         None
     }

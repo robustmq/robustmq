@@ -75,10 +75,7 @@ impl PkidManager {
 
     // qos pkid data (shared for QoS1 and QoS2)
     pub fn add_qos_pkid_data(&self, client_id: &str, data: ReceiveQosPkidData) {
-        let inner = self
-            .qos_pkid_data
-            .entry(client_id.to_string())
-            .or_default();
+        let inner = self.qos_pkid_data.entry(client_id.to_string()).or_default();
         inner.insert(data.pkid as u64, data);
     }
 
