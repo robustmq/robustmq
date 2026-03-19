@@ -112,7 +112,7 @@ pub async fn build_publish_message(
 
     let qos = build_pub_qos(cache_manager, subscriber).await;
     let p_kid = cache_manager
-        .pkid_data
+        .pkid_manager
         .generate_publish_to_client_pkid(&subscriber.client_id, &qos)
         .await;
 
@@ -167,7 +167,7 @@ pub async fn send_publish_packet_to_client(
         QoS::AtLeastOnce => {
             let (wait_puback_sx, wait_ack_rx) = mpsc::channel(1);
             let pkid = sub_pub_param.p_kid;
-            cache_manager.pkid_data.add_publish_to_client_qos_ack_data(
+            cache_manager.pkid_manager.add_publish_to_client_qos_ack_data(
                 &sub_pub_param.client_id,
                 pkid,
                 QosAckPacketInfo {
@@ -186,7 +186,7 @@ pub async fn send_publish_packet_to_client(
             .await;
 
             cache_manager
-                .pkid_data
+                .pkid_manager
                 .remove_publish_to_client_pkid(&sub_pub_param.client_id, pkid);
 
             result
@@ -195,7 +195,7 @@ pub async fn send_publish_packet_to_client(
         QoS::ExactlyOnce => {
             let (wait_ack_sx, wait_ack_rx) = mpsc::channel(1);
             let pkid = sub_pub_param.p_kid;
-            cache_manager.pkid_data.add_publish_to_client_qos_ack_data(
+            cache_manager.pkid_manager.add_publish_to_client_qos_ack_data(
                 &sub_pub_param.client_id,
                 pkid,
                 QosAckPacketInfo {
@@ -214,7 +214,7 @@ pub async fn send_publish_packet_to_client(
             .await;
 
             cache_manager
-                .pkid_data
+                .pkid_manager
                 .remove_publish_to_client_pkid(&sub_pub_param.client_id, pkid);
             result
         }

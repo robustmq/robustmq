@@ -1615,7 +1615,6 @@ Query message count for a specific topic:
         "max_create_connection_rate_per_second": 10000,
         "max_topics": 500000,
         "max_sessions": 5000000,
-        "max_mqtt_qos1_num": 1000,
         "max_mqtt_qos2_num": 1000,
         "max_publish_rate": 10000
       }
@@ -1633,7 +1632,6 @@ Query message count for a specific topic:
 - `max_create_connection_rate_per_second`: Maximum new connection rate per second
 - `max_topics`: Maximum number of topics
 - `max_sessions`: Maximum number of sessions
-- `max_mqtt_qos1_num`: Maximum concurrent QoS 1 messages
 - `max_mqtt_qos2_num`: Maximum concurrent QoS 2 messages
 - `max_publish_rate`: Maximum publish message rate per second
 
@@ -1649,7 +1647,6 @@ Query message count for a specific topic:
   "max_create_connection_rate_per_second": 10000,     // Optional, maximum new connection rate per second
   "max_topics": 500000,                               // Optional, maximum number of topics
   "max_sessions": 5000000,                            // Optional, maximum number of sessions
-  "max_mqtt_qos1_num": 1000,                          // Optional, maximum concurrent QoS 1 messages
   "max_mqtt_qos2_num": 1000,                          // Optional, maximum concurrent QoS 2 messages
   "max_publish_rate": 10000                           // Optional, maximum publish message rate per second
 }

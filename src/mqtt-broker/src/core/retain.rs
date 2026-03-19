@@ -353,7 +353,7 @@ impl RetainMessageManager {
 
         let p_kid = self
             .cache_manager
-            .pkid_data
+            .pkid_manager
             .generate_publish_to_client_pkid(&data.client_id, &data.qos)
             .await;
 

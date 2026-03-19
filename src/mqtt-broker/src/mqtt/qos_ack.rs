@@ -31,7 +31,7 @@ impl MqttService {
         let pkid = pub_ack.pkid;
         if let Some(data) = self
             .cache_manager
-            .pkid_data
+            .pkid_manager
             .get_publish_to_client_qos_ack_data(&connection.client_id, pkid)
         {
             if let Err(e) = data
@@ -67,7 +67,7 @@ impl MqttService {
         let pkid = pub_rec.pkid;
         if let Some(data) = self
             .cache_manager
-            .pkid_data
+            .pkid_manager
             .get_publish_to_client_qos_ack_data(&connection.client_id, pkid)
         {
             if let Err(e) = data
@@ -103,7 +103,7 @@ impl MqttService {
         let pkid = pub_comp.pkid;
         if let Some(data) = self
             .cache_manager
-            .pkid_data
+            .pkid_manager
             .get_publish_to_client_qos_ack_data(&connection.client_id, pkid)
         {
             if let Err(e) = data

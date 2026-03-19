@@ -19,8 +19,7 @@ use super::default::{
     default_handler_thread_num, default_heartbeat_check_time_ms, default_heartbeat_timeout_ms,
     default_http_port, default_keep_alive_default_time, default_keep_alive_default_timeout,
     default_keep_alive_enable, default_keep_alive_max_time, default_limit_max_connection_rate,
-    default_limit_max_connections_per_node, default_limit_max_mqtt_qos1_num,
-    default_limit_max_mqtt_qos2_num, default_limit_max_publish_rate, default_limit_max_sessions,
+    default_limit_max_connections_per_node, default_limit_max_mqtt_qos2_num, default_limit_max_publish_rate, default_limit_max_sessions,
     default_limit_max_topics, default_max_admin_http_uri_rate, default_max_message_expiry_interval,
     default_max_network_connection, default_max_network_connection_rate, default_max_packet_size,
     default_max_qos_flight_message, default_max_session_expiry_interval, default_meta_addrs,
@@ -336,8 +335,6 @@ pub struct LimitQuota {
     pub max_topics: u64,
     #[serde(default = "default_limit_max_sessions")]
     pub max_sessions: u64,
-    #[serde(default = "default_limit_max_mqtt_qos1_num")]
-    pub max_mqtt_qos1_num: u64,
     #[serde(default = "default_limit_max_mqtt_qos2_num")]
     pub max_mqtt_qos2_num: u64,
     #[serde(default = "default_limit_max_publish_rate")]
@@ -351,7 +348,6 @@ impl Default for LimitQuota {
             max_connection_rate: 10000,
             max_topics: 500000,
             max_sessions: 5000000,
-            max_mqtt_qos1_num: 1000,
             max_mqtt_qos2_num: 1000,
             max_publish_rate: 10000,
         }
@@ -374,7 +370,6 @@ impl Default for MQTTLimit {
                 max_connection_rate: 100000,
                 max_topics: 5000000,
                 max_sessions: 50000000,
-                max_mqtt_qos1_num: 1000,
                 max_mqtt_qos2_num: 1000,
                 max_publish_rate: 10000,
             },
@@ -383,7 +378,6 @@ impl Default for MQTTLimit {
                 max_connection_rate: 10000,
                 max_topics: 500000,
                 max_sessions: 5000000,
-                max_mqtt_qos1_num: 1000,
                 max_mqtt_qos2_num: 1000,
                 max_publish_rate: 10000,
             },

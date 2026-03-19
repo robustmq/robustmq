@@ -110,7 +110,7 @@ pub struct MQTTCacheManager {
     pub acl_metadata: AclMetadata,
 
     // pkid manager
-    pub pkid_data: PkidManager,
+    pub pkid_manager: PkidManager,
 
     // (tenant, (action_source_topic, rule))
     pub topic_rewrite_rule: DashMap<String, DashMap<String, MqttTopicRewriteRule>>,
@@ -136,7 +136,7 @@ impl MQTTCacheManager {
             connection_info: DashMap::with_capacity(8),
             heartbeat_data: DashMap::with_capacity(8),
             acl_metadata: AclMetadata::new(),
-            pkid_data: PkidManager::new(),
+            pkid_manager: PkidManager::new(),
             topic_rewrite_rule: DashMap::with_capacity(8),
             auto_subscribe_rule: DashMap::with_capacity(8),
             topic_is_validator: DashMap::with_capacity(8),
@@ -199,7 +199,7 @@ impl MQTTCacheManager {
             tenant_entry.value().remove(client_id);
         }
         self.heartbeat_data.remove(client_id);
-        self.pkid_data.remove_by_client_id(client_id);
+        self.pkid_manager.remove_by_client_id(client_id);
     }
 
     // user

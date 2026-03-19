@@ -108,8 +108,8 @@ impl MqttService {
             QoS::AtMostOnce => None,
             QoS::AtLeastOnce => {
                 self.cache_manager
-                    .pkid_data
-                    .remove_receive_publish_pkid_data(&connection.client_id, publish.p_kid);
+                    .pkid_manager
+                    .remove_qos2_pkid_data(&connection.client_id, publish.p_kid);
                 Some(build_pub_ack(
                     &self.cache_manager,
                     connection.connect_id,
@@ -239,8 +239,8 @@ impl MqttService {
 
         if let Some(data) = self
             .cache_manager
-            .pkid_data
-            .get_receive_publish_pkid_data(&connection.client_id, publish.p_kid)
+            .pkid_manager
+            .get_qos2_pkid_data(&connection.client_id, publish.p_kid)
         {
             if publish.qos == QoS::AtLeastOnce {
                 return Some(build_pub_ack(
@@ -282,25 +282,29 @@ impl MqttService {
         }
 
         if publish.qos == QoS::AtLeastOnce {
-            self.cache_manager.pkid_data.add_receive_publish_pkid_data(
-                &connection.client_id,
-                ReceiveQosPkidData {
-                    ack_enum: PkidAckEnum::PubAck,
-                    pkid: publish.p_kid,
-                    create_time: now_second(),
-                },
-            );
+            self.cache_manager
+                .pkid_manager
+                .add_qos2_pkid_data(
+                    &connection.client_id,
+                    ReceiveQosPkidData {
+                        ack_enum: PkidAckEnum::PubAck,
+                        pkid: publish.p_kid,
+                        create_time: now_second(),
+                    },
+                );
         }
 
         if publish.qos == QoS::ExactlyOnce {
-            self.cache_manager.pkid_data.add_receive_publish_pkid_data(
-                &connection.client_id,
-                ReceiveQosPkidData {
-                    ack_enum: PkidAckEnum::PubRec,
-                    pkid: publish.p_kid,
-                    create_time: now_second(),
-                },
-            );
+            self.cache_manager
+                .pkid_manager
+                .add_qos2_pkid_data(
+                    &connection.client_id,
+                    ReceiveQosPkidData {
+                        ack_enum: PkidAckEnum::PubRec,
+                        pkid: publish.p_kid,
+                        create_time: now_second(),
+                    },
+                );
         }
 
         None
@@ -314,8 +318,8 @@ impl MqttService {
     ) -> MqttPacket {
         if self
             .cache_manager
-            .pkid_data
-            .get_receive_publish_pkid_data(&connection.client_id, pub_rel.pkid)
+            .pkid_manager
+            .get_qos2_pkid_data(&connection.client_id, pub_rel.pkid)
             .is_none()
         {
             return build_pub_comp(
@@ -330,8 +334,8 @@ impl MqttService {
         }
 
         self.cache_manager
-            .pkid_data
-            .remove_receive_publish_pkid_data(&connection.client_id, pub_rel.pkid);
+            .pkid_manager
+            .remove_qos2_pkid_data(&connection.client_id, pub_rel.pkid);
 
         build_pub_comp(
             &self.cache_manager,

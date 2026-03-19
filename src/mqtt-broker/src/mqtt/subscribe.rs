@@ -66,7 +66,7 @@ impl MqttService {
             );
         }
 
-        self.cache_manager.pkid_data.add_receive_publish_pkid_data(
+        self.cache_manager.pkid_manager.add_qos2_pkid_data(
             &connection.client_id,
             ReceiveQosPkidData {
                 ack_enum: PkidAckEnum::SubAck,
@@ -142,8 +142,8 @@ impl MqttService {
         }
 
         self.cache_manager
-            .pkid_data
-            .remove_receive_publish_pkid_data(&connection.client_id, subscribe.packet_identifier);
+            .pkid_manager
+            .remove_qos2_pkid_data(&connection.client_id, subscribe.packet_identifier);
         st_report_subscribed_event(StReportSubscribedEventContext {
             storage_driver_manager: self.storage_driver_manager.clone(),
             metadata_cache: self.cache_manager.clone(),
@@ -190,7 +190,7 @@ impl MqttService {
             );
         }
 
-        self.cache_manager.pkid_data.add_receive_publish_pkid_data(
+        self.cache_manager.pkid_manager.add_qos2_pkid_data(
             &connection.client_id,
             ReceiveQosPkidData {
                 ack_enum: PkidAckEnum::SubAck,
@@ -213,8 +213,8 @@ impl MqttService {
         }
 
         self.cache_manager
-            .pkid_data
-            .remove_receive_publish_pkid_data(&connection.client_id, un_subscribe.pkid);
+            .pkid_manager
+            .remove_qos2_pkid_data(&connection.client_id, un_subscribe.pkid);
 
         st_report_unsubscribed_event(StReportUnsubscribedEventContext {
             storage_driver_manager: self.storage_driver_manager.clone(),
@@ -324,8 +324,8 @@ async fn subscribe_validator(
     }
 
     if cache_manager
-        .pkid_data
-        .get_receive_publish_pkid_data(&connection.client_id, subscribe.packet_identifier)
+        .pkid_manager
+        .get_qos2_pkid_data(&connection.client_id, subscribe.packet_identifier)
         .is_some()
     {
         return (

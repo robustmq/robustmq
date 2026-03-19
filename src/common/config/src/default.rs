@@ -408,9 +408,6 @@ pub fn default_limit_max_topics() -> u64 {
 pub fn default_limit_max_sessions() -> u64 {
     5000000
 }
-pub fn default_limit_max_mqtt_qos1_num() -> u64 {
-    1000
-}
 pub fn default_limit_max_mqtt_qos2_num() -> u64 {
     1000
 }
@@ -425,7 +422,6 @@ pub fn default_mqtt_limit_cluster() -> crate::config::LimitQuota {
         max_connection_rate: 100_000,
         max_topics: 5_000_000,
         max_sessions: 50_000_000,
-        max_mqtt_qos1_num: 1_000,
         max_mqtt_qos2_num: 1_000,
         max_publish_rate: 10_000,
     }
@@ -436,7 +432,6 @@ pub fn default_mqtt_limit_tenant() -> crate::config::LimitQuota {
         max_connection_rate: 10_000,
         max_topics: 500_000,
         max_sessions: 5_000_000,
-        max_mqtt_qos1_num: 1_000,
         max_mqtt_qos2_num: 1_000,
         max_publish_rate: 10_000,
     }

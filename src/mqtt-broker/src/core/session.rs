@@ -15,6 +15,7 @@
 use super::cache::MQTTCacheManager;
 use super::error::MqttBrokerError;
 use super::last_will::last_will_delay_interval;
+use crate::core::limit::session_total_num_limit;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::storage::session::{SessionBatcher, SessionStorage};
 use crate::subscribe::manager::SubscribeManager;
@@ -104,6 +105,13 @@ pub async fn session_process(
         )
         .await?;
         return Ok((session, false));
+    }
+
+    if session_total_num_limit(&context.cache_manager, &context.tenant).await {
+        return Err(MqttBrokerError::CommonError(format!(
+            "Session creation rejected for client [{}] in tenant [{}]: the maximum number of sessions has been reached",
+            context.client_id, context.tenant
+        )));
     }
 
     let session = build_new_session(&context).await;
