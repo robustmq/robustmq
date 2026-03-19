@@ -95,11 +95,12 @@ broker_worker_threads = 16
 [mqtt_runtime]
 default_user = "admin"
 default_password = "robustmq"
-max_connection_num = 1000000
 # Enable durable sessions (persistent sessions stored in RocksDB + Raft)
 # - false (default): Transient sessions (memory-only, higher performance)
 # - true: Durable sessions (disk-persisted, survive node restarts)
 durable_sessions_enable = false
+secret_free_login = false
+is_self_protection_status = false
 
 [grpc_client]
 # Number of HTTP/2 channels (TCP connections) per gRPC server address.

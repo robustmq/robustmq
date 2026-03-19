@@ -124,6 +124,14 @@ pub fn default_message_storage() -> StorageAdapterConfig {
     }
 }
 
+pub fn default_mqtt_runtime_user() -> String {
+    "admin".to_string()
+}
+
+pub fn default_mqtt_runtime_password() -> String {
+    "robustmq".to_string()
+}
+
 pub fn default_mqtt_runtime() -> MqttRuntime {
     MqttRuntime {
         default_user: "admin".to_string(),
@@ -198,5 +206,238 @@ pub fn default_engine_runtime() -> StorageRuntime {
         data_path: vec![],
         io_thread_num: 8,
         offset_enable_cache: true,
+    }
+}
+
+// Runtime
+pub fn default_tls_cert() -> String {
+    "./config/certs/cert.pem".to_string()
+}
+pub fn default_tls_key() -> String {
+    "./config/certs/key.pem".to_string()
+}
+pub fn default_channels_per_address() -> usize {
+    4
+}
+
+// Network
+pub fn default_accept_thread_num() -> usize {
+    1
+}
+pub fn default_handler_thread_num() -> usize {
+    64
+}
+pub fn default_queue_size() -> usize {
+    5000
+}
+
+// Rocksdb
+pub fn default_rocksdb_data_path() -> String {
+    "./data".to_string()
+}
+pub fn default_rocksdb_max_open_files() -> i32 {
+    10000
+}
+
+// MetaRuntime
+pub fn default_heartbeat_timeout_ms() -> u64 {
+    30000
+}
+pub fn default_heartbeat_check_time_ms() -> u64 {
+    1000
+}
+pub fn default_raft_write_timeout_sec() -> u64 {
+    30
+}
+
+// MqttServer
+pub fn default_mqtt_tcp_port() -> u32 {
+    1883
+}
+pub fn default_mqtt_tls_port() -> u32 {
+    1885
+}
+pub fn default_mqtt_websocket_port() -> u32 {
+    8083
+}
+pub fn default_mqtt_websockets_port() -> u32 {
+    8085
+}
+pub fn default_mqtt_quic_port() -> u32 {
+    9083
+}
+
+// MqttKeepAlive
+pub fn default_keep_alive_enable() -> bool {
+    true
+}
+pub fn default_keep_alive_default_time() -> u16 {
+    180
+}
+pub fn default_keep_alive_max_time() -> u16 {
+    3600
+}
+pub fn default_keep_alive_default_timeout() -> u16 {
+    2
+}
+
+// MqttSystemMonitor
+pub fn default_system_monitor_cpu_watermark() -> f32 {
+    70.0
+}
+pub fn default_system_monitor_memory_watermark() -> f32 {
+    80.0
+}
+pub fn default_system_monitor_topic_interval_ms() -> u64 {
+    60000
+}
+
+// MqttOfflineMessage
+pub fn default_offline_message_enable() -> bool {
+    true
+}
+pub fn default_offline_message_expire_ms() -> u32 {
+    3_600_000 // 1 hour; 0 = never expire
+}
+pub fn default_offline_message_max_num() -> u32 {
+    100_000 // 0 = unlimited
+}
+
+// MqttSchema
+pub fn default_schema_enable() -> bool {
+    true
+}
+pub fn default_schema_strategy() -> SchemaStrategy {
+    SchemaStrategy::ALL
+}
+pub fn default_schema_failed_operation() -> SchemaFailedOperation {
+    SchemaFailedOperation::Discard
+}
+pub fn default_schema_echo_log() -> bool {
+    true
+}
+pub fn default_schema_log_level() -> String {
+    "info".to_string()
+}
+
+// MqttProtocolConfig
+pub fn default_max_session_expiry_interval() -> u32 {
+    1800
+}
+pub fn default_session_expiry_interval() -> u32 {
+    30
+}
+pub fn default_topic_alias_max() -> u16 {
+    65535
+}
+pub fn default_max_qos_flight_message() -> u8 {
+    2
+}
+pub fn default_max_packet_size() -> u32 {
+    1024 * 1024 * 10
+}
+pub fn default_receive_max() -> u16 {
+    65535
+}
+pub fn default_max_message_expiry_interval() -> u64 {
+    3600
+}
+
+// MqttFlappingDetect
+pub fn default_flapping_window_time() -> u32 {
+    1
+}
+pub fn default_flapping_max_connections() -> u64 {
+    15
+}
+pub fn default_flapping_ban_time() -> u32 {
+    5
+}
+
+// MqttSlowSubscribeConfig
+pub fn default_slow_subscribe_record_time() -> u64 {
+    1000
+}
+pub fn default_slow_subscribe_delay_type() -> DelayType {
+    DelayType::Whole
+}
+
+// PProf
+pub fn default_pprof_port() -> u16 {
+    9090
+}
+pub fn default_pprof_frequency() -> i32 {
+    100
+}
+
+// StorageRuntime
+pub fn default_storage_tcp_port() -> u32 {
+    1778
+}
+pub fn default_storage_max_segment_size() -> u32 {
+    1073741824
+}
+pub fn default_storage_io_thread_num() -> u32 {
+    8
+}
+pub fn default_storage_offset_enable_cache() -> bool {
+    true
+}
+
+// ClusterLimit
+pub fn default_max_network_connection() -> u64 {
+    100000000
+}
+pub fn default_max_network_connection_rate() -> u32 {
+    10000
+}
+pub fn default_max_admin_http_uri_rate() -> u32 {
+    50
+}
+
+// LimitQuota
+pub fn default_limit_max_connections_per_node() -> u64 {
+    1000000
+}
+pub fn default_limit_max_connection_rate() -> u32 {
+    10000
+}
+pub fn default_limit_max_topics() -> u64 {
+    500000
+}
+pub fn default_limit_max_sessions() -> u64 {
+    5000000
+}
+pub fn default_limit_max_mqtt_qos1_num() -> u64 {
+    1000
+}
+pub fn default_limit_max_mqtt_qos2_num() -> u64 {
+    1000
+}
+pub fn default_limit_max_publish_rate() -> u32 {
+    10000
+}
+
+// MQTTLimit — cluster and tenant have different default quotas
+pub fn default_mqtt_limit_cluster() -> crate::config::LimitQuota {
+    crate::config::LimitQuota {
+        max_connections_per_node: 10_000_000,
+        max_connection_rate: 100_000,
+        max_topics: 5_000_000,
+        max_sessions: 50_000_000,
+        max_mqtt_qos1_num: 1_000,
+        max_mqtt_qos2_num: 1_000,
+        max_publish_rate: 10_000,
+    }
+}
+pub fn default_mqtt_limit_tenant() -> crate::config::LimitQuota {
+    crate::config::LimitQuota {
+        max_connections_per_node: 1_000_000,
+        max_connection_rate: 10_000,
+        max_topics: 500_000,
+        max_sessions: 5_000_000,
+        max_mqtt_qos1_num: 1_000,
+        max_mqtt_qos2_num: 1_000,
+        max_publish_rate: 10_000,
     }
 }
