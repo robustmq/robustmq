@@ -29,6 +29,7 @@ use network_server::{
     context::{ProcessorConfig, ServerContext},
     tcp::server::TcpServer,
 };
+use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -46,6 +47,7 @@ pub struct ServerParams {
     pub memory_storage_engine: Arc<MemoryStorageEngine>,
     pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     pub client_connection_manager: Arc<ClientConnectionManager>,
+    pub global_limit_manager: Arc<GlobalRateLimiterManager>,
 }
 
 pub struct Server {
@@ -88,6 +90,7 @@ impl Server {
             stop_sx: stop_sx.clone(),
             broker_cache: params.broker_cache.clone(),
             request_channel: request_channel.clone(),
+            global_limit_manager: params.global_limit_manager.clone(),
         };
 
         let name = "Storage Engine".to_string();

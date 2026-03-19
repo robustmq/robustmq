@@ -12,10 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::{channel::RequestChannel, packet::RequestPackage};
+use std::sync::Arc;
+
+use crate::common::{
+    channel::RequestChannel, connection_manager::ConnectionManager, packet::RequestPackage,
+};
+use broker_core::cache::NodeCacheManager;
+use common_base::error::common::CommonError;
 use common_metrics::mqtt::packets::record_packet_received_metrics;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::{mqtt::common::MqttPacket, robust::RobustMQPacket};
+use rate_limit::global::GlobalRateLimiterManager;
 use tracing::debug;
 
 pub fn is_ignore_print(packet: &RobustMQPacket) -> bool {
@@ -54,4 +61,20 @@ pub async fn read_packet(
         network_type.clone(),
     );
     request_channel.send(package).await;
+}
+
+pub async fn check_connection_limit(
+    global_limit_manager: &Arc<GlobalRateLimiterManager>,
+    node_cache: &Arc<NodeCacheManager>,
+    connection_manager: &Arc<ConnectionManager>,
+) -> Result<bool, CommonError> {
+    // connection rate limit
+    global_limit_manager.network_connection_rate_limit().await?;
+
+    // connection count limit
+    let limit = node_cache.get_cluster_config().await.cluster_limit;
+    if connection_manager.connections.len() > limit.max_network_connection as usize {
+        return Ok(true);
+    }
+    Ok(false)
 }

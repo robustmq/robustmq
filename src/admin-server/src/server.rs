@@ -95,12 +95,15 @@ impl AdminServer {
             "Admin HTTP Server started successfully, listening port: {}, access logging and CORS enabled",
             port
         );
-        axum::serve(
+
+        if let Err(e) = axum::serve(
             listener,
             route.into_make_service_with_connect_info::<SocketAddr>(),
         )
         .await
-        .unwrap();
+        {
+            panic!("{}", e.to_string());
+        }
     }
 
     fn static_route(&self) -> Router<Arc<HttpState>> {

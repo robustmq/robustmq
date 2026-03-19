@@ -14,7 +14,7 @@
 
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
-use crate::common::tool::read_packet;
+use crate::common::tool::{check_connection_limit, read_packet};
 use crate::quic::stream::{QuicFramedReadStream, QuicFramedWriteStream};
 use broker_core::cache::NodeCacheManager;
 use common_metrics::mqtt::packets::record_received_error_metrics;
@@ -22,11 +22,12 @@ use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::robust::RobustMQPacket;
 use quinn::{ConnectionError, Endpoint};
+use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn acceptor_process(
@@ -36,6 +37,7 @@ pub(crate) async fn acceptor_process(
     endpoint_arc: Arc<Endpoint>,
     request_channel: Arc<RequestChannel>,
     network_type: NetworkConnectionType,
+    global_limit_manager: Arc<GlobalRateLimiterManager>,
     codec: RobustMQCodec,
     stop_sx: broadcast::Sender<bool>,
 ) {
@@ -47,6 +49,7 @@ pub(crate) async fn acceptor_process(
         let network_type = network_type.clone();
         let row_codec = codec.clone();
         let row_broker_cache = broker_cache.clone();
+        let row_global_limit_manager = global_limit_manager.clone();
         tokio::spawn(Box::pin(async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
@@ -73,9 +76,10 @@ pub(crate) async fn acceptor_process(
                                             let codec_write = QuicFramedWriteStream::new(w_stream, row_codec.clone());
                                             let codec_read = QuicFramedReadStream::new(r_stream, row_codec.clone());
 
-                                            // if !tcp_establish_connection_check(&addr, &connection_manager, &mut write_frame_stream).await{
-                                            //     continue;
-                                            // }
+                                            if let Err(e) = check_connection_limit(&row_global_limit_manager, &row_broker_cache, &connection_manager).await{
+                                                warn!("{}",e.to_string());
+                                                continue;
+                                            }
 
                                             let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                             let connection = NetworkConnection::new(

@@ -38,6 +38,7 @@ use connector::manager::ConnectorManager;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
+use rate_limit::global::GlobalRateLimiterManager;
 use rate_limit::mqtt::MQTTRateLimiterManager;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -68,6 +69,7 @@ pub struct MqttBrokerServerParams {
     pub retain_message_manager: Arc<RetainMessageManager>,
     pub push_manager: Arc<PushManager>,
     pub task_supervisor: Arc<TaskSupervisor>,
+    pub global_limit_manager: Arc<GlobalRateLimiterManager>,
 }
 
 pub struct MqttBrokerServer {
@@ -119,7 +121,8 @@ impl MqttBrokerServer {
             rocksdb_engine_handler: params.rocksdb_engine_handler.clone(),
             broker_cache: params.node_cache.clone(),
             retain_message_manager: params.retain_message_manager.clone(),
-            limit_manager: limit_manager.clone(),
+            mqtt_limit_manager: limit_manager.clone(),
+            global_limit_manager: params.global_limit_manager.clone(),
         }));
 
         MqttBrokerServer {

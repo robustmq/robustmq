@@ -49,6 +49,7 @@ impl QuicServer {
             arc_quic_endpoint.clone(),
             self.context.request_channel.clone(),
             NetworkConnectionType::QUIC,
+            self.context.global_limit_manager.clone(),
             codec.clone(),
             self.context.stop_sx.clone(),
         )

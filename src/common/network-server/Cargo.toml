@@ -42,3 +42,4 @@ axum-server.workspace = true
 kafka-protocol.workspace = true
 broker-core.workspace = true
 async-channel.workspace = true
+rate-limit.workspace = true

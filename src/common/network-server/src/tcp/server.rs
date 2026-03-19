@@ -24,6 +24,7 @@ use common_base::error::ResultCommonError;
 use common_metrics::network::record_broker_thread_num;
 use metadata_struct::connection::NetworkConnectionType;
 use protocol::codec::RobustMQCodec;
+use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -39,6 +40,7 @@ pub struct TcpServer {
     request_channel: Arc<RequestChannel>,
     acceptor_stop_send: broadcast::Sender<bool>,
     broker_cache: Arc<NodeCacheManager>,
+    global_limit_manager: Arc<GlobalRateLimiterManager>,
 }
 
 impl TcpServer {
@@ -56,6 +58,7 @@ impl TcpServer {
             request_channel: context.request_channel,
             acceptor_stop_send,
             broker_cache: context.broker_cache.clone(),
+            global_limit_manager: context.global_limit_manager.clone(),
         }
     }
 
@@ -72,6 +75,7 @@ impl TcpServer {
                 self.connection_manager.clone(),
                 self.broker_cache.clone(),
                 self.request_channel.clone(),
+                self.global_limit_manager.clone(),
                 codec,
             )
             .await?;
@@ -83,6 +87,7 @@ impl TcpServer {
                 self.acceptor_stop_send.clone(),
                 arc_listener.clone(),
                 self.request_channel.clone(),
+                self.global_limit_manager.clone(),
                 self.network_type.clone(),
                 codec,
             )

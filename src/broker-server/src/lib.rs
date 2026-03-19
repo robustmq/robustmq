@@ -132,6 +132,7 @@ impl BrokerServer {
             broker_cache.clone(),
             connection_manager.clone(),
             offset_manager.clone(),
+            global_rate_limiter.clone(),
         );
 
         // Create meta_runtime here so that Raft::new() (inside build_meta_service) is
@@ -183,6 +184,7 @@ impl BrokerServer {
         let mqtt_stop = main_stop_send.clone();
         let mqttt_sdm = storage_driver_manager.clone();
         let mqtt_task_supervisor = task_supervisor.clone();
+        let mqtt_global_rate_limiter = global_rate_limiter.clone();
 
         let mqtt_params = broker_runtime.block_on(async move {
             match params::build_broker_mqtt_params(
@@ -193,6 +195,7 @@ impl BrokerServer {
                 mqttt_sdm,
                 mqtt_om,
                 mqtt_task_supervisor,
+                mqtt_global_rate_limiter,
                 mqtt_stop,
             )
             .await
