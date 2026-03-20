@@ -17,6 +17,7 @@ use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_millis, now_second};
 use dashmap::DashMap;
 use protocol::mqtt::common::QoS;
+use serde::{Deserialize, Serialize};
 use std::{
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -27,7 +28,7 @@ use std::{
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 
-#[derive(Clone, PartialEq, PartialOrd)]
+#[derive(Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum PkidAckEnum {
     PubAck,
     PubRec,
@@ -36,7 +37,7 @@ pub enum PkidAckEnum {
     UnSubAck,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ReceiveQosPkidData {
     pub ack_enum: PkidAckEnum,
     pub pkid: u16,

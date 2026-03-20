@@ -19,6 +19,7 @@ package broker.mqtt;
 service BrokerMQTTService {
   rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionReply) {}
   rpc SendLastWillMessage(SendLastWillMessageRequest) returns (SendLastWillMessageReply) {}
+  rpc GetQosDataByClientId(GetQosDataByClientIdRequest) returns (GetQosDataByClientIdReply) {}
 }
 
 message DeleteSessionRequest {
@@ -39,4 +40,17 @@ message SendLastWillMessageRequest {
 message LastWillMessageItem {
   string client_id = 1;
   bytes last_will_message = 2;
+}
+
+message GetQosDataByClientIdRequest {
+  repeated string client_ids = 1;
+}
+
+message GetQosDataByClientIdReply {
+  repeated GetQosDataByClientIdRaw data = 1;
+}
+
+message GetQosDataByClientIdRaw{
+  string client_id = 1;
+  bytes qos_data = 2;
 }
