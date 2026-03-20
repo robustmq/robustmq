@@ -11,11 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-pub mod consumer;
-pub mod dispatcher;
-pub mod handler;
-
 use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
@@ -24,6 +19,10 @@ use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateC
 use protocol::broker::broker_mqtt::LastWillMessageItem;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, RwLock};
+
+pub mod consumer;
+pub mod dispatcher;
+pub mod handler;
 
 pub const GLOBAL_CHANNEL_SIZE: usize = 10000;
 pub const NODE_CHANNEL_SIZE: usize = 5000;

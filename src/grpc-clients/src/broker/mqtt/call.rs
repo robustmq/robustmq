@@ -14,7 +14,8 @@
 
 use common_base::error::common::CommonError;
 use protocol::broker::broker_mqtt::{
-    DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
+    DeleteSessionReply, DeleteSessionRequest, GetQosDataByClientIdReply,
+    GetQosDataByClientIdRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
 };
 
 use crate::pool::ClientPool;
@@ -43,4 +44,11 @@ generate_mqtt_inner_service_call!(
     SendLastWillMessageRequest,
     SendLastWillMessageReply,
     SendLastWillMessage
+);
+
+generate_mqtt_inner_service_call!(
+    get_qos_data_by_client_id,
+    GetQosDataByClientIdRequest,
+    GetQosDataByClientIdReply,
+    GetQosDataByClientId
 );
