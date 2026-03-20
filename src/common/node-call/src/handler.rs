@@ -13,18 +13,24 @@
 // limitations under the License.
 
 use crate::{UpdateCacheData, RPC_MAX_RETRIES, RPC_RETRY_BASE_MS};
+use bytes::Bytes;
 use common_base::error::common::CommonError;
 use grpc_clients::broker::common::call::broker_common_update_cache;
-use grpc_clients::broker::mqtt::call::{broker_mqtt_delete_session, send_last_will_message};
+use grpc_clients::broker::mqtt::call::{
+    broker_mqtt_delete_session, get_qos_data_by_client_id, send_last_will_message,
+};
 use grpc_clients::pool::ClientPool;
+use prost::Message;
 use protocol::broker::broker_common::{UpdateCacheRecord, UpdateCacheRequest};
 use protocol::broker::broker_mqtt::{
-    DeleteSessionRequest, LastWillMessageItem, SendLastWillMessageRequest,
+    DeleteSessionRequest, GetQosDataByClientIdReply, GetQosDataByClientIdRequest,
+    LastWillMessageItem, SendLastWillMessageRequest,
 };
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{debug, error};
+use tokio::sync::oneshot;
+use tracing::{debug, error, warn};
 
 async fn retry_rpc<F, Fut, R>(addr: &str, label: &str, mut rpc_fn: F)
 where
@@ -90,6 +96,56 @@ pub async fn send_delete_session_batch(
         broker_mqtt_delete_session(client_pool, &addrs, request.clone())
     })
     .await;
+}
+
+pub async fn send_get_qos_data_batch(
+    client_pool: &Arc<ClientPool>,
+    addr: &str,
+    items: Vec<(String, Option<oneshot::Sender<Bytes>>)>,
+) {
+    let client_ids: Vec<String> = {
+        let mut seen = std::collections::HashSet::new();
+        items
+            .iter()
+            .filter(|(id, _)| seen.insert(id.as_str()))
+            .map(|(id, _)| id.clone())
+            .collect()
+    };
+    let request = GetQosDataByClientIdRequest { client_ids };
+    let addrs = [addr];
+
+    match get_qos_data_by_client_id(client_pool, &addrs, request).await {
+        Ok(reply) => {
+            // Index the reply by client_id for O(1) lookup per item.
+            let index: std::collections::HashMap<&str, _> = reply
+                .data
+                .iter()
+                .map(|raw| (raw.client_id.as_str(), raw))
+                .collect();
+
+            for (client_id, reply_tx) in items {
+                if let Some(tx) = reply_tx {
+                    let data: Vec<_> = index
+                        .get(client_id.as_str())
+                        .copied()
+                        .cloned()
+                        .into_iter()
+                        .collect();
+                    let scoped_reply = GetQosDataByClientIdReply { data };
+                    let encoded = Bytes::from(scoped_reply.encode_to_vec());
+                    if tx.send(encoded).is_err() {
+                        warn!("get_qos_data oneshot receiver dropped before reply was sent");
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            error!(
+                "Failed to get_qos_data_by_client_id on broker {}: {}",
+                addr, e
+            );
+        }
+    }
 }
 
 pub async fn send_last_will_batch(

@@ -303,16 +303,38 @@ impl MqttService {
             .get_qos_pkid_data(&connection.client_id, pub_rel.pkid)
             .is_none()
         {
-            try_broadcast_get_pkid();
-            return build_pub_comp(
+            match try_broadcast_get_pkid(
+                &self.node_call,
                 &self.cache_manager,
-                connection.connect_id,
-                &self.protocol,
+                &connection.client_id,
                 pub_rel.pkid,
-                PubCompReason::PacketIdentifierNotFound,
-                Some("packet identifier not found".to_string()),
-                Vec::new(),
-            );
+            )
+            .await
+            {
+                Ok(Some(_data)) => {}
+                Ok(None) => {
+                    return build_pub_comp(
+                        &self.cache_manager,
+                        connection.connect_id,
+                        &self.protocol,
+                        pub_rel.pkid,
+                        PubCompReason::PacketIdentifierNotFound,
+                        Some("packet identifier not found".to_string()),
+                        Vec::new(),
+                    );
+                }
+                Err(e) => {
+                    return build_pub_comp(
+                        &self.cache_manager,
+                        connection.connect_id,
+                        &self.protocol,
+                        pub_rel.pkid,
+                        PubCompReason::PacketIdentifierNotFound,
+                        Some(e.to_string()),
+                        Vec::new(),
+                    );
+                }
+            }
         }
 
         self.cache_manager

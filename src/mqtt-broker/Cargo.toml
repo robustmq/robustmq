@@ -85,7 +85,8 @@ hex.workspace = true
 base64.workspace = true
 jsonwebtoken.workspace = true
 rate-limit.workspace = true
-
+node-call.workspace = true
+prost.workspace = true
 
 [dev-dependencies]
 # test

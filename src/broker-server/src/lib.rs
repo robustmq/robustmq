@@ -185,6 +185,7 @@ impl BrokerServer {
         let mqttt_sdm = storage_driver_manager.clone();
         let mqtt_task_supervisor = task_supervisor.clone();
         let mqtt_global_rate_limiter = global_rate_limiter.clone();
+        let mqtt_node_call = node_call_manager.clone();
 
         let mqtt_params = broker_runtime.block_on(async move {
             match params::build_broker_mqtt_params(
@@ -196,6 +197,7 @@ impl BrokerServer {
                 mqtt_om,
                 mqtt_task_supervisor,
                 mqtt_global_rate_limiter,
+                mqtt_node_call.clone(),
                 mqtt_stop,
             )
             .await

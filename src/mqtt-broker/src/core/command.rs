@@ -38,6 +38,7 @@ use metadata_struct::mqtt::connection::MQTTConnection;
 use network_server::command::Command;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
+use node_call::NodeCallManager;
 use protocol::mqtt::common::{
     is_mqtt3, is_mqtt4, is_mqtt5, mqtt_packet_to_string, Connect, ConnectProperties,
     ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
@@ -85,6 +86,7 @@ pub struct CommandContext {
     pub retain_message_manager: Arc<RetainMessageManager>,
     pub mqtt_limit_manager: Arc<MQTTRateLimiterManager>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
+    pub node_call: Arc<NodeCallManager>,
 }
 
 #[async_trait]
@@ -680,6 +682,7 @@ impl MQTTHandlerCommand {
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
             retain_message_manager: context.retain_message_manager.clone(),
             limit_manager: context.mqtt_limit_manager.clone(),
+            node_call: context.node_call.clone(),
         };
         let mqtt3_service = MqttService::new(mqtt3_context);
         let mqtt4_context = MqttServiceContext {
@@ -696,6 +699,7 @@ impl MQTTHandlerCommand {
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
             retain_message_manager: context.retain_message_manager.clone(),
             limit_manager: context.mqtt_limit_manager.clone(),
+            node_call: context.node_call.clone(),
         };
         let mqtt4_service = MqttService::new(mqtt4_context);
         let mqtt5_context = MqttServiceContext {
@@ -712,6 +716,7 @@ impl MQTTHandlerCommand {
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
             retain_message_manager: context.retain_message_manager.clone(),
             limit_manager: context.mqtt_limit_manager.clone(),
+            node_call: context.node_call.clone(),
         };
         let mqtt5_service = MqttService::new(mqtt5_context);
         MQTTHandlerCommand {

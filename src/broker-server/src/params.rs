@@ -108,7 +108,8 @@ pub async fn build_broker_mqtt_params(
     storage_driver_manager: Arc<StorageDriverManager>,
     offset_manager: Arc<OffsetManager>,
     task_supervisor: Arc<TaskSupervisor>,
-    mqtt_global_rate_limiter: Arc<GlobalRateLimiterManager>,
+    global_limit_manager: Arc<GlobalRateLimiterManager>,
+    node_call: Arc<NodeCallManager>,
     stop_sx: broadcast::Sender<bool>,
 ) -> Result<MqttBrokerServerParams, CommonError> {
     let cache_manager = Arc::new(MqttCacheManager::new(
@@ -158,7 +159,8 @@ pub async fn build_broker_mqtt_params(
         retain_message_manager,
         push_manager,
         task_supervisor,
-        global_limit_manager: mqtt_global_rate_limiter,
+        global_limit_manager,
+        node_call,
     })
 }
 
