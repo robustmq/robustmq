@@ -681,6 +681,97 @@ curl -X POST http://localhost:8080/api/tenant/delete \
 
 ---
 
+## 健康检查
+
+### 7. 集群存活检查
+
+- **接口**: `GET /cluster/healthy`
+- **描述**: 检查服务是否存活，返回 `true` 表示正常
+- **请求参数**: 无
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": true
+}
+```
+
+---
+
+### 8. 就绪检查
+
+- **接口**: `GET /health/ready`
+- **描述**: 检查所有配置的端口是否就绪，用于 K8s readiness probe
+- **请求参数**: 无
+- **响应**:
+  - **200 OK** — 所有端口就绪:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "status": "ok",
+    "check_type": "ready",
+    "message": "all configured ports are ready"
+  }
+}
+```
+  - **503 Service Unavailable** — 端口未就绪:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "status": "not_ready",
+    "check_type": "ready",
+    "message": "one or more configured ports are not ready"
+  }
+}
+```
+
+---
+
+### 9. 节点健康检查
+
+- **接口**: `GET /health/node`
+- **描述**: 节点级健康检查（占位实现，始终返回 ok）
+- **请求参数**: 无
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "status": "ok",
+    "check_type": "node",
+    "message": "health check placeholder"
+  }
+}
+```
+
+---
+
+### 10. 集群健康检查
+
+- **接口**: `GET /health/cluster`
+- **描述**: 集群级健康检查（占位实现，始终返回 ok）
+- **请求参数**: 无
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "status": "ok",
+    "check_type": "cluster",
+    "message": "health check placeholder"
+  }
+}
+```
+
+---
+
 ## 注意事项
 
 1. **响应格式**: 成功时 `code` 为 `0`，`error` 为 `null`；失败时 `code` 为 `100`，`error` 包含错误信息

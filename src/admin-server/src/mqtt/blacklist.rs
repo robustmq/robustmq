@@ -69,7 +69,7 @@ fn validate_blacklist_type(blacklist_type: &str) -> Result<(), validator::Valida
         _ => {
             let mut err = validator::ValidationError::new("invalid_blacklist_type");
             err.message = Some(std::borrow::Cow::from(
-                "Blacklist type must be ClientId, User or Ip",
+                "Blacklist type must be ClientId, User, Ip, ClientIdMatch, UserMatch or IPCIDR",
             ));
             Err(err)
         }

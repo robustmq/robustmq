@@ -827,7 +827,7 @@
 }
 ```
 
-- **响应**: 成功返回 "Created successfully!"
+- **响应**: 成功返回 "success"
 
 #### 6.3 删除用户
 - **接口**: `POST /api/mqtt/user/delete`
@@ -840,7 +840,7 @@
 }
 ```
 
-- **响应**: 成功返回 "Deleted successfully!"
+- **响应**: 成功返回 "success"
 
 ---
 
@@ -909,7 +909,7 @@
   - `action`: 必须是 `Publish`、`Subscribe` 或 `All`
   - `permission`: 必须是 `Allow` 或 `Deny`
 
-- **响应**: 成功返回 "Created successfully!"
+- **响应**: 成功返回 "success"
 
 #### 7.3 删除 ACL 规则
 - **接口**: `POST /api/mqtt/acl/delete`
@@ -927,7 +927,7 @@
 }
 ```
 
-- **响应**: 成功返回 "Deleted successfully!"
+- **响应**: 成功返回 "success"
 
 ---
 
@@ -991,7 +991,7 @@
   - `blacklist_type`: 必须是 `ClientId`、`User`、`Ip`、`ClientIdMatch`、`UserMatch` 或 `IPCIDR`
   - `end_time`: 必须大于 0
 
-- **响应**: 成功返回 "Created successfully!"
+- **响应**: 成功返回 "success"
 
 #### 8.3 删除黑名单
 - **接口**: `POST /api/mqtt/blacklist/delete`
@@ -1005,7 +1005,7 @@
 }
 ```
 
-- **响应**: 成功返回 "Deleted successfully!"
+- **响应**: 成功返回 "success"
 
 ---
 
@@ -1161,6 +1161,7 @@
 - **请求参数**:
 ```json
 {
+  "tenant": "default",            // 必填，租户名称，长度 1-256
   "topic": "sensor/temperature",  // 必填，主题名称，长度 1-256
   "payload": "25.5",              // 必填，消息内容，不超过 1MB
   "retain": false                 // 可选，是否保留消息，默认false
@@ -1233,8 +1234,7 @@
       {
         "name": "High Memory Usage",
         "message": "Memory usage exceeded 80% threshold",
-        "activate_at": "2024-01-01 10:00:00",
-        "activated": true
+        "create_time": 1640995200
       }
     ],
     "total_count": 3

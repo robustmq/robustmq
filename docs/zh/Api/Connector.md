@@ -35,7 +35,7 @@
         "tenant": "default",
         "connector_name": "kafka_connector",
         "connector_type": "kafka",
-        "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
+        "config": "{\"Kafka\":{\"bootstrap_servers\":\"localhost:9092\"}}",
         "topic_name": "topic_001",
         "status": "Running",
         "broker_id": "1",
