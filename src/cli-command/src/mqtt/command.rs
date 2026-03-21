@@ -1089,9 +1089,6 @@ impl MqttBrokerCommand {
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client

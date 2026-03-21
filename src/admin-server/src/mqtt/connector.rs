@@ -55,7 +55,7 @@ use crate::{
     state::HttpState,
     tool::extractor::ValidatedJson,
     tool::{
-        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        query::{apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
     },
 };
@@ -71,9 +71,6 @@ pub struct ConnectorListReq {
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
-    pub filter_field: Option<String>,
-    pub filter_values: Option<Vec<String>>,
-    pub exact_match: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -253,41 +250,35 @@ pub async fn connector_list(
     State(state): State<Arc<HttpState>>,
     Query(params): Query<ConnectorListReq>,
 ) -> String {
+    let filter_tenant = params.tenant;
+    let filter_connector_name = params.connector_name;
     let options = build_query_params(
         params.page,
         params.limit,
         params.sort_field,
         params.sort_by,
-        params.filter_field,
-        params.filter_values,
-        params.exact_match,
+        None,
+        None,
+        None,
     );
 
-    let filter_tenant = params.tenant.clone();
-    let filter_connector_name = params.connector_name.clone();
-
-    let connectors = match (filter_tenant.as_deref(), filter_connector_name.as_deref()) {
-        (Some(tenant), Some(name)) => state
+    let all_connectors = if let Some(ref t) = filter_tenant {
+        state
             .mqtt_context
             .connector_manager
-            .get_connector_by_tenant(tenant, name)
-            .into_iter()
-            .collect::<Vec<_>>(),
-        (Some(tenant), None) => state
-            .mqtt_context
-            .connector_manager
-            .get_connector_by_tenant_list(tenant),
-        (None, Some(name)) => state
-            .mqtt_context
-            .connector_manager
-            .get_connector(name)
-            .into_iter()
-            .collect::<Vec<_>>(),
-        (None, None) => state.mqtt_context.connector_manager.get_all_connector(),
+            .get_connector_by_tenant_list(t)
+    } else {
+        state.mqtt_context.connector_manager.get_all_connector()
     };
 
-    let results: Vec<ConnectorListRow> = connectors
+    let results: Vec<ConnectorListRow> = all_connectors
         .into_iter()
+        .filter(|connector| {
+            filter_connector_name
+                .as_deref()
+                .map(|kw| connector.connector_name.contains(kw))
+                .unwrap_or(true)
+        })
         .map(|connector| ConnectorListRow {
             tenant: connector.tenant.clone(),
             connector_name: connector.connector_name.clone(),
@@ -304,8 +295,7 @@ pub async fn connector_list(
             update_time: timestamp_to_local_datetime(connector.update_time as i64),
         })
         .collect();
-    let filtered = apply_filters(results, &options);
-    let sorted = apply_sorting(filtered, &options);
+    let sorted = apply_sorting(results, &options);
     let pagination = apply_pagination(sorted, &options);
 
     success_response(PageReplyData {
