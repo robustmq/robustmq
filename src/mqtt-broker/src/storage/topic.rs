@@ -210,6 +210,8 @@ impl TopicStorage {
     ) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = CreateTopicRewriteRuleRequest {
+            name: req.name.clone(),
+            desc: req.desc.clone(),
             tenant: req.tenant.clone(),
             action: req.action.clone(),
             source_topic: req.source_topic.clone(),
@@ -228,15 +230,10 @@ impl TopicStorage {
     pub async fn delete_topic_rewrite_rule(
         &self,
         tenant: String,
-        action: String,
-        source_topic: String,
+        name: String,
     ) -> ResultMqttBrokerError {
         let config = broker_config();
-        let request = DeleteTopicRewriteRuleRequest {
-            tenant,
-            action,
-            source_topic,
-        };
+        let request = DeleteTopicRewriteRuleRequest { tenant, name };
         placement_delete_topic_rewrite_rule(
             &self.client_pool,
             &config.get_meta_service_addr(),

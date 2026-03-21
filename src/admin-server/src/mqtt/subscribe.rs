@@ -16,7 +16,7 @@ use crate::{
     state::HttpState,
     tool::extractor::ValidatedJson,
     tool::{
-        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        query::{apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
     },
 };
@@ -160,13 +160,11 @@ pub struct AutoSubscribeListRow {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SlowSubscribeListReq {
     pub tenant: Option<String>,
+    pub client_id: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
-    pub filter_field: Option<String>,
-    pub filter_values: Option<Vec<String>>,
-    pub exact_match: Option<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -358,10 +356,18 @@ pub async fn auto_subscribe_list(
     for tenant_entry in state.mqtt_context.cache_manager.auto_subscribe_rule.iter() {
         for rule_entry in tenant_entry.value().iter() {
             let raw = rule_entry.value();
-            if filter_tenant.as_deref().map(|t| !raw.tenant.contains(t)).unwrap_or(false) {
+            if filter_tenant
+                .as_deref()
+                .map(|t| !raw.tenant.contains(t))
+                .unwrap_or(false)
+            {
                 continue;
             }
-            if filter_name.as_deref().map(|n| !raw.name.contains(n)).unwrap_or(false) {
+            if filter_name
+                .as_deref()
+                .map(|n| !raw.name.contains(n))
+                .unwrap_or(false)
+            {
                 continue;
             }
             subscriptions.push(AutoSubscribeListRow {
@@ -455,14 +461,15 @@ pub async fn slow_subscribe_list(
     Query(params): Query<SlowSubscribeListReq>,
 ) -> String {
     let filter_tenant = params.tenant;
+    let filter_client_id = params.client_id;
     let options = build_query_params(
         params.page,
         params.limit,
         params.sort_field,
         params.sort_by,
-        params.filter_field,
-        params.filter_values,
-        params.exact_match,
+        None,
+        None,
+        None,
     );
 
     let local_storage = LocalStorage::new(state.rocksdb_engine_handler.clone());
@@ -478,6 +485,12 @@ pub async fn slow_subscribe_list(
 
     let list_slow_subscribes = data_list
         .into_iter()
+        .filter(|slow_data| {
+            filter_client_id
+                .as_deref()
+                .map(|kw| slow_data.client_id.contains(kw))
+                .unwrap_or(true)
+        })
         .map(|slow_data| SlowSubscribeListRow {
             tenant: slow_data.tenant.clone(),
             client_id: slow_data.client_id.clone(),
@@ -489,8 +502,7 @@ pub async fn slow_subscribe_list(
         })
         .collect::<Vec<_>>();
 
-    let filtered = apply_filters(list_slow_subscribes, &options);
-    let sorted = apply_sorting(filtered, &options);
+    let sorted = apply_sorting(list_slow_subscribes, &options);
     let pagination = apply_pagination(sorted, &options);
 
     success_response(PageReplyData {

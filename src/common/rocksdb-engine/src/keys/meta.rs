@@ -272,15 +272,8 @@ pub fn storage_key_mqtt_blacklist_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_topic_rewrite_rule(
-    tenant: &str,
-    action: &str,
-    source_topic: &str,
-) -> String {
-    format!(
-        "{}mqtt/topic_rewrite_rule/{}/{}/{}",
-        PREFIX_META, tenant, action, source_topic
-    )
+pub fn storage_key_mqtt_topic_rewrite_rule(tenant: &str, name: &str) -> String {
+    format!("{}mqtt/topic_rewrite_rule/{}/{}", PREFIX_META, tenant, name)
 }
 
 #[inline]

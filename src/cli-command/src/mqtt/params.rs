@@ -320,26 +320,29 @@ pub enum TopicRewriteActionType {
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
 pub struct CreateTopicRewriteArgs {
+    #[arg(short, long, required = true)]
+    pub name: String,
+    #[arg(short = 'D', long)]
+    pub desc: Option<String>,
     #[arg(short = 'T', long, required = true)]
     pub tenant: String,
     #[arg(short, long, required = true)]
     pub action: String,
     #[arg(short, long, required = true)]
     pub source_topic: String,
-    #[arg(short, long, required = true)]
+    #[arg(short = 'O', long, required = true)]
     pub dest_topic: String,
     #[arg(short, long, required = true)]
     pub regex: String,
 }
+
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
 pub struct DeleteTopicRewriteArgs {
     #[arg(short = 'T', long, required = true)]
     pub tenant: String,
     #[arg(short, long, required = true)]
-    pub action: String,
-    #[arg(short, long, required = true)]
-    pub source_topic: String,
+    pub name: String,
 }
 
 // connector feat
@@ -630,6 +633,8 @@ pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
         TopicRewriteActionType::List => MqttActionType::ListTopicRewrite,
         TopicRewriteActionType::Create(arg) => {
             MqttActionType::CreateTopicRewrite(admin_server::mqtt::topic::CreateTopicRewriteReq {
+                name: arg.name,
+                desc: arg.desc,
                 tenant: arg.tenant,
                 action: arg.action,
                 source_topic: arg.source_topic,
@@ -640,8 +645,7 @@ pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
         TopicRewriteActionType::Delete(arg) => {
             MqttActionType::DeleteTopicRewrite(admin_server::mqtt::topic::DeleteTopicRewriteReq {
                 tenant: arg.tenant,
-                action: arg.action,
-                source_topic: arg.source_topic,
+                name: arg.name,
             })
         }
     }

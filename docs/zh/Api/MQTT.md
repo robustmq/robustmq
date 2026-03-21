@@ -454,19 +454,17 @@
 
 #### 4.4 主题重写规则列表
 - **接口**: `GET /api/mqtt/topic-rewrite/list`
-- **描述**: 查询主题重写规则列表，支持按租户过滤
+- **描述**: 查询主题重写规则列表，支持按租户和规则名称模糊搜索
 - **请求参数**:
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `tenant` | string | 否 | 按租户精确过滤 |
+| `tenant` | string | 否 | 按租户模糊过滤 |
+| `name` | string | 否 | 按规则名称模糊过滤 |
 | `limit` | u32 | 否 | 每页大小 |
 | `page` | u32 | 否 | 页码，从 1 开始 |
-| `sort_field` | string | 否 | 排序字段，支持 `source_topic`、`dest_topic`、`action`、`tenant` |
+| `sort_field` | string | 否 | 排序字段，支持 `name`、`source_topic`、`dest_topic`、`action`、`tenant` |
 | `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
-| `filter_field` | string | 否 | 过滤字段名 |
-| `filter_values` | string[] | 否 | 过滤值列表 |
-| `exact_match` | string | 否 | 是否精确匹配：`exact` |
 
 
 - **响应数据结构**:
@@ -477,6 +475,8 @@
   "data": {
     "data": [
       {
+        "name": "my-rule",
+        "desc": "rewrite sensor topics",
         "tenant": "default",
         "source_topic": "old/topic/+",
         "dest_topic": "new/topic/$1",
@@ -491,10 +491,12 @@
 
 #### 4.5 创建主题重写规则
 - **接口**: `POST /api/mqtt/topic-rewrite/create`
-- **描述**: 创建新的主题重写规则
+- **描述**: 创建新的主题重写规则，`name` 作为唯一标识符
 - **请求参数**:
 ```json
 {
+  "name": "my-rule",                // 必填，规则名称，全局唯一标识符
+  "desc": "rewrite sensor topics",  // 可选，规则描述
   "tenant": "default",              // 必填，租户名称，长度 1-128
   "action": "All",                  // 必填，动作类型：All, Publish, Subscribe
   "source_topic": "old/topic/+",   // 必填，源主题模式，长度 1-256
@@ -507,13 +509,12 @@
 
 #### 4.6 删除主题重写规则
 - **接口**: `POST /api/mqtt/topic-rewrite/delete`
-- **描述**: 删除主题重写规则
+- **描述**: 按规则名称删除主题重写规则
 - **请求参数**:
 ```json
 {
-  "tenant": "default",              // 必填，租户名称
-  "action": "All",
-  "source_topic": "old/topic/+"
+  "tenant": "default",    // 必填，租户名称
+  "name": "my-rule"       // 必填，规则名称
 }
 ```
 
@@ -700,20 +701,17 @@
 
 ##### 5.4.1 慢订阅列表
 - **接口**: `GET /api/mqtt/slow-subscribe/list`
-- **描述**: 查询慢订阅列表，支持按租户过滤
+- **描述**: 查询慢订阅列表，支持按租户过滤和 client_id 模糊搜索
 - **请求参数**:
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤（指定后仅扫描该租户的记录）
-  "limit": 20,
-  "page": 1,
-  "sort_field": "time_span",
-  "sort_by": "desc",
-  "filter_field": "client_id",
-  "filter_values": ["slow_client"],
-  "exact_match": "false"
-}
-```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户过滤（指定后仅扫描该租户的记录） |
+| `client_id` | string | 否 | 按客户端 ID 模糊搜索（包含匹配） |
+| `limit` | u32 | 否 | 每页大小 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `tenant`、`client_id`、`topic_name` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
 
 - **响应数据结构**:
 
@@ -1158,8 +1156,9 @@
 - **请求参数**:
 ```json
 {
+  "tenant": "default",            // 必填，租户名称
   "topic": "sensor/temperature",  // 必填，主题名称
-  "offset": 0                     // 必填，起始offset
+  "offset": 0                     // 必填，起始 offset，从该位置开始读取
 }
 ```
 
@@ -1213,21 +1212,17 @@
 #### 12.2 连接抖动检测列表
 
 - **接口**: `GET /api/mqtt/flapping_detect/list`
-- **描述**: 查询连接抖动检测列表，支持按租户过滤
+- **描述**: 查询连接抖动检测列表，支持按租户过滤和 client_id 模糊搜索
 - **请求参数**:
 
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤（指定后仅返回该租户数据）
-  "limit": 20,
-  "page": 1,
-  "sort_field": "first_request_time",
-  "sort_by": "desc",
-  "filter_field": "client_id",
-  "filter_values": ["flapping_client"],
-  "exact_match": "false"
-}
-```
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户精确过滤（指定后仅返回该租户数据，性能更好） |
+| `client_id` | string | 否 | 按客户端 ID 模糊搜索（包含匹配） |
+| `limit` | u32 | 否 | 每页大小 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `tenant`、`client_id` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
 
 - **响应数据结构**:
 

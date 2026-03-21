@@ -211,6 +211,8 @@ impl DataRouteMqtt {
         let req = CreateTopicRewriteRuleRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         let topic_rewrite_rule = MqttTopicRewriteRule {
+            name: req.name.clone(),
+            desc: req.desc.clone(),
             tenant: req.tenant.clone(),
             action: req.action.clone(),
             source_topic: req.source_topic.clone(),
@@ -218,18 +220,13 @@ impl DataRouteMqtt {
             regex: req.regex.clone(),
             timestamp: now_millis(),
         };
-        storage.save_topic_rewrite_rule(
-            &req.tenant,
-            &req.action,
-            &req.source_topic,
-            topic_rewrite_rule,
-        )
+        storage.save_topic_rewrite_rule(&topic_rewrite_rule)
     }
 
     pub fn delete_topic_rewrite_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteTopicRewriteRuleRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete_topic_rewrite_rule(&req.tenant, &req.action, &req.source_topic)
+        storage.delete_topic_rewrite_rule(&req.tenant, &req.name)
     }
 
     // Subscribe

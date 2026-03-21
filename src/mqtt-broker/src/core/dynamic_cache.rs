@@ -263,11 +263,7 @@ pub async fn update_mqtt_cache_metadata(
             BrokerUpdateCacheActionType::Delete => {
                 let rule = MqttTopicRewriteRule::decode(&record.data)
                     .map_err(|e| crate::core::error::MqttBrokerError::CommonError(e.to_string()))?;
-                cache_manager.delete_topic_rewrite_rule(
-                    &rule.tenant,
-                    &rule.action,
-                    &rule.source_topic,
-                );
+                cache_manager.delete_topic_rewrite_rule(&rule.tenant, &rule.name);
                 cache_manager.set_re_calc_topic_rewrite(true).await;
             }
         },

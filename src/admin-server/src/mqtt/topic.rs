@@ -16,7 +16,7 @@ use crate::{
     state::HttpState,
     tool::extractor::ValidatedJson,
     tool::{
-        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        query::{apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
     },
 };
@@ -69,17 +69,20 @@ pub struct TopicDeleteRep {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TopicRewriteReq {
     pub tenant: Option<String>,
+    pub name: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
-    pub filter_field: Option<String>,
-    pub filter_values: Option<Vec<String>>,
-    pub exact_match: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct CreateTopicRewriteReq {
+    #[validate(length(min = 1, max = 256, message = "Name length must be between 1-256"))]
+    pub name: String,
+
+    pub desc: Option<String>,
+
     #[validate(length(min = 1, max = 128, message = "Tenant length must be between 1-128"))]
     pub tenant: String,
 
@@ -123,16 +126,8 @@ pub struct DeleteTopicRewriteReq {
     #[validate(length(min = 1, max = 128, message = "Tenant length must be between 1-128"))]
     pub tenant: String,
 
-    #[validate(length(min = 1, max = 50, message = "Action length must be between 1-50"))]
-    #[validate(custom(function = "validate_rewrite_action"))]
-    pub action: String,
-
-    #[validate(length(
-        min = 1,
-        max = 256,
-        message = "Source topic length must be between 1-256"
-    ))]
-    pub source_topic: String,
+    #[validate(length(min = 1, max = 256, message = "Name length must be between 1-256"))]
+    pub name: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -146,11 +141,13 @@ pub struct TopicDetailResp {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TopicRewriteListRow {
+    pub name: String,
+    pub desc: String,
     pub tenant: String,
+    pub action: String,
     pub source_topic: String,
     pub dest_topic: String,
     pub regex: String,
-    pub action: String,
 }
 
 pub async fn topic_list(
@@ -310,44 +307,52 @@ pub async fn topic_rewrite_list(
     State(state): State<Arc<HttpState>>,
     Query(params): Query<TopicRewriteReq>,
 ) -> String {
+    let filter_tenant = params.tenant;
+    let filter_name = params.name;
     let options = build_query_params(
         params.page,
         params.limit,
         params.sort_field,
         params.sort_by,
-        params.filter_field,
-        params.filter_values,
-        params.exact_match,
+        None,
+        None,
+        None,
     );
 
     let rewrite_rule_map = &state.mqtt_context.cache_manager.topic_rewrite_rule;
     let mut topic_rewrite_rules = Vec::new();
 
-    let collect_rules = |tenant: &str, inner: &dashmap::DashMap<String, MqttTopicRewriteRule>| {
-        inner
-            .iter()
-            .map(|rule_entry| TopicRewriteListRow {
-                tenant: tenant.to_string(),
-                source_topic: rule_entry.value().source_topic.clone(),
-                dest_topic: rule_entry.value().dest_topic.clone(),
-                action: rule_entry.value().action.clone(),
-                regex: rule_entry.value().regex.clone(),
-            })
-            .collect::<Vec<_>>()
-    };
-
-    if let Some(ref t) = params.tenant {
-        if let Some(inner) = rewrite_rule_map.get(t) {
-            topic_rewrite_rules = collect_rules(t, inner.value());
+    for tenant_entry in rewrite_rule_map.iter() {
+        let tenant = tenant_entry.key();
+        if filter_tenant
+            .as_deref()
+            .map(|t| !tenant.contains(t))
+            .unwrap_or(false)
+        {
+            continue;
         }
-    } else {
-        for tenant_entry in rewrite_rule_map.iter() {
-            topic_rewrite_rules.extend(collect_rules(tenant_entry.key(), tenant_entry.value()));
+        for rule_entry in tenant_entry.value().iter() {
+            let rule = rule_entry.value();
+            if filter_name
+                .as_deref()
+                .map(|n| !rule.name.contains(n))
+                .unwrap_or(false)
+            {
+                continue;
+            }
+            topic_rewrite_rules.push(TopicRewriteListRow {
+                name: rule.name.clone(),
+                desc: rule.desc.clone(),
+                tenant: rule.tenant.clone(),
+                action: rule.action.clone(),
+                source_topic: rule.source_topic.clone(),
+                dest_topic: rule.dest_topic.clone(),
+                regex: rule.regex.clone(),
+            });
         }
     }
 
-    let filtered = apply_filters(topic_rewrite_rules, &options);
-    let sorted = apply_sorting(filtered, &options);
+    let sorted = apply_sorting(topic_rewrite_rules, &options);
     let pagination = apply_pagination(sorted, &options);
     success_response(PageReplyData {
         data: pagination.0,
@@ -358,6 +363,7 @@ pub async fn topic_rewrite_list(
 impl Queryable for TopicRewriteListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "name" => Some(self.name.clone()),
             "tenant" => Some(self.tenant.clone()),
             "source_topic" => Some(self.source_topic.clone()),
             "dest_topic" => Some(self.dest_topic.clone()),
@@ -372,6 +378,8 @@ pub async fn topic_rewrite_create(
     ValidatedJson(params): ValidatedJson<CreateTopicRewriteReq>,
 ) -> String {
     let rule = MqttTopicRewriteRule {
+        name: params.name.clone(),
+        desc: params.desc.clone().unwrap_or_default(),
         tenant: params.tenant.clone(),
         action: params.action.clone(),
         source_topic: params.source_topic.clone(),
@@ -399,11 +407,7 @@ pub async fn topic_rewrite_delete(
 ) -> String {
     let topic_storage = TopicStorage::new(state.client_pool.clone());
     if let Err(e) = topic_storage
-        .delete_topic_rewrite_rule(
-            params.tenant.clone(),
-            params.action.clone(),
-            params.source_topic.clone(),
-        )
+        .delete_topic_rewrite_rule(params.tenant.clone(), params.name.clone())
         .await
     {
         return error_response(e.to_string());

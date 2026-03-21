@@ -62,6 +62,8 @@ mod tests {
 
         // create topic rewrite rule
         let req = CreateTopicRewriteReq {
+            name: format!("{prefix}_rule1"),
+            desc: None,
             tenant: DEFAULT_TENANT.to_string(),
             action: "All".to_string(),
             source_topic: format!("{prefix}_y/+/z/#"),
@@ -121,8 +123,7 @@ mod tests {
 
         let del_req = DeleteTopicRewriteReq {
             tenant: DEFAULT_TENANT.to_string(),
-            action: "All".to_string(),
-            source_topic: format!("{prefix}_y/+/z/#"),
+            name: format!("{prefix}_rule1"),
         };
         admin_client.delete_topic_rewrite(&del_req).await.unwrap();
     }
@@ -135,6 +136,8 @@ mod tests {
         let source_topic = format!("{prefix}_y/a/z/b");
 
         let req = CreateTopicRewriteReq {
+            name: format!("{prefix}_rule1"),
+            desc: None,
             tenant: DEFAULT_TENANT.to_string(),
             action: "All".to_string(),
             source_topic: format!("{prefix}_y/+/z/#"),
@@ -166,8 +169,7 @@ mod tests {
 
         let del_req = DeleteTopicRewriteReq {
             tenant: DEFAULT_TENANT.to_string(),
-            action: "All".to_string(),
-            source_topic: format!("{prefix}_y/+/z/#"),
+            name: format!("{prefix}_rule1"),
         };
         admin_client.delete_topic_rewrite(&del_req).await.unwrap();
     }

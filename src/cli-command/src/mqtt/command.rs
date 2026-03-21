@@ -1188,13 +1188,11 @@ impl MqttBrokerCommand {
         // Create request for topic rewrite rule list
         let request = admin_server::mqtt::topic::TopicRewriteReq {
             tenant: None,
+            name: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -1212,18 +1210,22 @@ impl MqttBrokerCommand {
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
+                    "name",
+                    "desc",
                     "tenant",
+                    "action",
                     "source_topic",
                     "dest_topic",
-                    "action",
                     "regex",
                 ]);
                 for rule in page_data.data {
                     table.add_row(row![
+                        rule.name,
+                        rule.desc,
                         rule.tenant,
+                        rule.action,
                         rule.source_topic,
                         rule.dest_topic,
-                        rule.action,
                         rule.regex
                     ]);
                 }

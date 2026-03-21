@@ -276,20 +276,15 @@ impl MQTTCacheManager {
 
     // topic rewrite rule
     pub fn add_topic_rewrite_rule(&self, topic_rewrite_rule: MqttTopicRewriteRule) {
-        let inner_key = self.topic_rewrite_rule_inner_key(
-            &topic_rewrite_rule.action,
-            &topic_rewrite_rule.source_topic,
-        );
         self.topic_rewrite_rule
             .entry(topic_rewrite_rule.tenant.clone())
             .or_default()
-            .insert(inner_key, topic_rewrite_rule);
+            .insert(topic_rewrite_rule.name.clone(), topic_rewrite_rule);
     }
 
-    pub fn delete_topic_rewrite_rule(&self, tenant: &str, action: &str, source_topic: &str) {
-        let inner_key = self.topic_rewrite_rule_inner_key(action, source_topic);
+    pub fn delete_topic_rewrite_rule(&self, tenant: &str, name: &str) {
         if let Some(tenant_map) = self.topic_rewrite_rule.get(tenant) {
-            tenant_map.remove(&inner_key);
+            tenant_map.remove(name);
         }
     }
 
@@ -449,11 +444,6 @@ impl MQTTCacheManager {
 
     pub fn remove_authn(&self, uid: &str) {
         self.authn_list.remove(uid);
-    }
-
-    // key
-    pub fn topic_rewrite_rule_inner_key(&self, action: &str, source_topic: &str) -> String {
-        format!("{action}_{source_topic}")
     }
 
     pub fn add_auto_subscribe_rule(&self, rule: MqttAutoSubscribeRule) {
@@ -670,6 +660,8 @@ mod tests {
     async fn topic_rewrite_rule_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttTopicRewriteRule {
+            name: "rule-1".to_string(),
+            desc: String::new(),
             tenant: DEFAULT_TENANT.to_string(),
             action: "publish".to_string(),
             source_topic: "source/topic".to_string(),
@@ -687,7 +679,7 @@ mod tests {
         assert_eq!(rules[0].source_topic, rule.source_topic);
 
         // remove
-        cache_manager.delete_topic_rewrite_rule(&rule.tenant, &rule.action, &rule.source_topic);
+        cache_manager.delete_topic_rewrite_rule(&rule.tenant, &rule.name);
 
         // get again
         let rules_after_remove = cache_manager.get_all_topic_rewrite_rule();

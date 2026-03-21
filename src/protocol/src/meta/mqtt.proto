@@ -229,19 +229,20 @@ message DeleteBlacklistRequest {
 message DeleteBlacklistReply {}
 
 message CreateTopicRewriteRuleRequest {
-  string tenant = 1 [(validate.rules).string.min_len = 1];
-  string action = 2 [(validate.rules).string.min_len = 1];
-  string source_topic = 3 [(validate.rules).string.min_len = 1];
-  string dest_topic = 4 [(validate.rules).string.min_len = 1];
-  string regex = 5 [(validate.rules).string.min_len = 1];
+  string name = 1 [(validate.rules).string.min_len = 1];
+  string desc = 2;
+  string tenant = 3 [(validate.rules).string.min_len = 1];
+  string action = 4 [(validate.rules).string.min_len = 1];
+  string source_topic = 5 [(validate.rules).string.min_len = 1];
+  string dest_topic = 6 [(validate.rules).string.min_len = 1];
+  string regex = 7 [(validate.rules).string.min_len = 1];
 }
 
 message CreateTopicRewriteRuleReply {}
 
 message DeleteTopicRewriteRuleRequest {
   string tenant = 1 [(validate.rules).string.min_len = 1];
-  string action = 2 [(validate.rules).string.min_len = 1];
-  string source_topic = 3 [(validate.rules).string.min_len = 1];
+  string name = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteTopicRewriteRuleReply {}

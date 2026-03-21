@@ -123,13 +123,11 @@ impl MqttSubscribeStorage {
         name: &str,
     ) -> Result<Option<MqttAutoSubscribeRule>, MetaServiceError> {
         let key = storage_key_mqtt_auto_subscribe_rule(tenant, name);
-        Ok(
-            engine_get_by_meta_metadata::<MqttAutoSubscribeRule>(
-                &self.rocksdb_engine_handler,
-                &key,
-            )?
-            .map(|raw| raw.data),
-        )
+        Ok(engine_get_by_meta_metadata::<MqttAutoSubscribeRule>(
+            &self.rocksdb_engine_handler,
+            &key,
+        )?
+        .map(|raw| raw.data))
     }
 
     pub fn delete_auto_subscribe_rule(
@@ -286,9 +284,7 @@ mod tests {
         assert_eq!(tenant_rules.len(), 1);
 
         // Get by name
-        let found = storage
-            .get_auto_subscribe_rule("tenant-1", name)
-            .unwrap();
+        let found = storage.get_auto_subscribe_rule("tenant-1", name).unwrap();
         assert!(found.is_some());
 
         // Get nonexistent name
