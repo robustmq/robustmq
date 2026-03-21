@@ -23,7 +23,7 @@ use crate::{
         cluster_config_get, cluster_config_set, cluster_info,
         health::{health_cluster, health_node, health_ready},
         healthy,
-        tenant::{tenant_create, tenant_delete, tenant_list},
+        tenant::{tenant_create, tenant_delete, tenant_list, tenant_update},
     },
     mqtt::{
         acl::{acl_create, acl_delete, acl_list},
@@ -135,6 +135,7 @@ impl AdminServer {
             // tenant
             .route(TENANT_LIST_PATH, get(tenant_list))
             .route(TENANT_CREATE_PATH, post(tenant_create))
+            .route(TENANT_UPDATE_PATH, post(tenant_update))
             .route(TENANT_DELETE_PATH, post(tenant_delete))
             .route("/", get(index))
     }

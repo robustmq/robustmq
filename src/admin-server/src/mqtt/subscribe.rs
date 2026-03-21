@@ -37,9 +37,6 @@ pub struct SubscribeListReq {
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
-    pub filter_field: Option<String>,
-    pub filter_values: Option<Vec<String>>,
-    pub exact_match: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -197,9 +194,9 @@ pub async fn subscribe_list(
         params.limit,
         params.sort_field,
         params.sort_by,
-        params.filter_field,
-        params.filter_values,
-        params.exact_match,
+        None,
+        None,
+        None,
     );
 
     let subscribe_list = &state.mqtt_context.subscribe_manager.subscribe_list;
@@ -224,7 +221,7 @@ pub async fn subscribe_list(
     let matches_client = |sub: &metadata_struct::mqtt::subscribe::MqttSubscribe| -> bool {
         filter_client_id
             .as_deref()
-            .map(|id| sub.client_id == id)
+            .map(|keyword| sub.client_id.contains(keyword))
             .unwrap_or(true)
     };
 
@@ -246,8 +243,7 @@ pub async fn subscribe_list(
         }
     }
 
-    let filtered = apply_filters(subscribes, &options);
-    let sorted = apply_sorting(filtered, &options);
+    let sorted = apply_sorting(subscribes, &options);
     let pagination = apply_pagination(sorted, &options);
 
     success_response(PageReplyData {

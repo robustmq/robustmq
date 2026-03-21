@@ -15,11 +15,11 @@
 use crate::cache::NodeCacheManager;
 use common_base::{error::common::CommonError, tools::now_second};
 use common_config::broker::broker_config;
-use grpc_clients::meta::common::call::{create_tenant, delete_tenant, list_tenant};
+use grpc_clients::meta::common::call::{create_tenant, delete_tenant, list_tenant, update_tenant};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::tenant::{Tenant, TenantConfig};
 use protocol::meta::meta_service_common::{
-    CreateTenantRequest, DeleteTenantRequest, ListTenantRequest,
+    CreateTenantRequest, DeleteTenantRequest, ListTenantRequest, UpdateTenantRequest,
 };
 use std::sync::Arc;
 
@@ -80,6 +80,26 @@ impl TenantStorage {
             config: config.encode()?,
         };
         create_tenant(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
+        Ok(())
+    }
+
+    pub async fn update(
+        &self,
+        tenant_name: &str,
+        desc: &str,
+        config: Option<TenantConfig>,
+    ) -> Result<(), CommonError> {
+        let conf = broker_config();
+        let config_bytes = match config {
+            Some(c) => c.encode()?,
+            None => vec![],
+        };
+        let request = UpdateTenantRequest {
+            tenant_name: tenant_name.to_string(),
+            desc: desc.to_string(),
+            config: config_bytes,
+        };
+        update_tenant(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
         Ok(())
     }
 

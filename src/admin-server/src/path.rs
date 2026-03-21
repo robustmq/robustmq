@@ -105,6 +105,7 @@ pub const MQTT_SCHEMA_BIND_DELETE_PATH: &str = "/mqtt/schema-bind/delete";
 // Tenant API paths
 pub const TENANT_LIST_PATH: &str = "/tenant/list";
 pub const TENANT_CREATE_PATH: &str = "/tenant/create";
+pub const TENANT_UPDATE_PATH: &str = "/tenant/update";
 pub const TENANT_DELETE_PATH: &str = "/tenant/delete";
 
 // MQTT Tenant API paths

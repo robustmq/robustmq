@@ -15,7 +15,7 @@
 use crate::{
     state::HttpState,
     tool::{
-        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        query::{apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
     },
 };
@@ -33,9 +33,6 @@ pub struct SessionListReq {
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
-    pub filter_field: Option<String>,
-    pub filter_values: Option<Vec<String>>,
-    pub exact_match: Option<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -72,9 +69,9 @@ pub async fn session_list(
         params.limit,
         params.sort_field,
         params.sort_by,
-        params.filter_field,
-        params.filter_values,
-        params.exact_match,
+        None,
+        None,
+        None,
     );
 
     let cache = &state.mqtt_context.cache_manager;
@@ -104,8 +101,7 @@ pub async fn session_list(
         })
         .collect();
 
-    let filtered = apply_filters(rows, &options);
-    let sorted = apply_sorting(filtered, &options);
+    let sorted = apply_sorting(rows, &options);
     let pagination = apply_pagination(sorted, &options);
 
     let storage = SessionStorage::new(state.client_pool.clone());
@@ -163,8 +159,8 @@ fn collect_sessions(
 }
 
 fn session_matches(session: &MqttSession, filter_client_id: Option<&str>) -> bool {
-    if let Some(prefix) = filter_client_id {
-        if !session.client_id.starts_with(prefix) {
+    if let Some(keyword) = filter_client_id {
+        if !session.client_id.contains(keyword) {
             return false;
         }
     }

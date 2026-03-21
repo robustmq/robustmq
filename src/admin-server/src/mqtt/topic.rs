@@ -47,9 +47,6 @@ pub struct TopicListReq {
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
-    pub filter_field: Option<String>,
-    pub filter_values: Option<Vec<String>>,
-    pub exact_match: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -165,9 +162,9 @@ pub async fn topic_list(
         params.limit,
         params.sort_field,
         params.sort_by,
-        params.filter_field,
-        params.filter_values,
-        params.exact_match,
+        None,
+        None,
+        None,
     );
 
     let broker_cache = &state.mqtt_context.cache_manager.node_cache;
@@ -178,8 +175,7 @@ pub async fn topic_list(
         params.topic_type.as_deref(),
     );
 
-    let filtered = apply_filters(topics, &options);
-    let sorted = apply_sorting(filtered, &options);
+    let sorted = apply_sorting(topics, &options);
     let pagination = apply_pagination(sorted, &options);
 
     success_response(PageReplyData {
@@ -188,7 +184,7 @@ pub async fn topic_list(
     })
 }
 
-/// Collect topics from cache, optionally filtered by tenant, topic_name, and topic_type.
+/// Collect topics from cache, optionally filtered by tenant, topic_name (fuzzy), and topic_type.
 /// topic_type: "system" (contains '$'), "normal" (no '$'), or "all" (default).
 fn collect_topics(
     broker_cache: &broker_core::cache::NodeCacheManager,
@@ -196,21 +192,8 @@ fn collect_topics(
     topic_name: Option<&str>,
     topic_type: Option<&str>,
 ) -> Vec<Topic> {
-    // Exact topic_name lookup — return at most one result
-    if let Some(tp) = topic_name {
-        let topic = if let Some(t) = tenant {
-            broker_cache.get_topic_by_name(t, tp)
-        } else {
-            broker_cache
-                .topic_list
-                .iter()
-                .find_map(|e| e.value().get(tp).map(|t| t.clone()))
-        };
-        return topic.into_iter().collect();
-    }
-
-    // Bulk listing, with optional topic_type filter
-    let raw = if let Some(t) = tenant {
+    // Bulk listing with optional tenant filter
+    let raw: Vec<Topic> = if let Some(t) = tenant {
         broker_cache.list_topics_by_tenant(t)
     } else {
         broker_cache
@@ -225,17 +208,20 @@ fn collect_topics(
             .collect()
     };
 
-    match topic_type.unwrap_or("all") {
-        "system" => raw
-            .into_iter()
-            .filter(|t| t.topic_name.contains('$'))
-            .collect(),
-        "normal" => raw
-            .into_iter()
-            .filter(|t| !t.topic_name.contains('$'))
-            .collect(),
-        _ => raw,
-    }
+    raw.into_iter()
+        .filter(|t| {
+            if let Some(keyword) = topic_name {
+                if !t.topic_name.contains(keyword) {
+                    return false;
+                }
+            }
+            match topic_type.unwrap_or("all") {
+                "system" => t.topic_name.contains('$'),
+                "normal" => !t.topic_name.contains('$'),
+                _ => true,
+            }
+        })
+        .collect()
 }
 
 impl Queryable for Topic {

@@ -26,7 +26,8 @@ use protocol::meta::meta_service_common::{
     NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
     SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply, SetResourceConfigRequest,
     SnapshotReply, SnapshotRequest, UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply,
-    UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest, VoteReply, VoteRequest,
+    UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest, UpdateTenantReply,
+    UpdateTenantRequest, VoteReply, VoteRequest,
 };
 use tonic::Streaming;
 
@@ -96,6 +97,13 @@ generate_meta_service_call!(
     CreateTenantRequest,
     CreateTenantReply,
     CreateTenant
+);
+
+generate_meta_service_call!(
+    update_tenant,
+    UpdateTenantRequest,
+    UpdateTenantReply,
+    UpdateTenant
 );
 
 generate_meta_service_call!(

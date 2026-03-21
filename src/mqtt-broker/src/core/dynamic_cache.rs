@@ -230,7 +230,10 @@ pub async fn update_mqtt_cache_metadata(
                 let tenant = serialize::deserialize::<Tenant>(&record.data)?;
                 cache_manager.node_cache.add_tenant(tenant);
             }
-            BrokerUpdateCacheActionType::Update => {}
+            BrokerUpdateCacheActionType::Update => {
+                let tenant = serialize::deserialize::<Tenant>(&record.data)?;
+                cache_manager.node_cache.add_tenant(tenant);
+            }
             BrokerUpdateCacheActionType::Delete => {
                 let tenant = serialize::deserialize::<Tenant>(&record.data)?;
                 cache_manager.node_cache.remove_tenant(&tenant.tenant_name);

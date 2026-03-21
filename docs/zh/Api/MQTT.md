@@ -167,27 +167,17 @@
 
 #### 2.1 客户端列表查询
 - **接口**: `GET /api/mqtt/client/list`
-- **描述**: 查询连接到集群的客户端列表，支持按租户直接查询（O(1)）
+- **描述**: 查询连接到集群的客户端列表，支持按租户过滤和 client_id 模糊搜索
 - **请求参数**:
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
-  "source_ip": "192.168.1.1",      // 可选，按源IP过滤
-  "client_id": "client001",         // 可选，按客户端ID前缀过滤
-  "connection_id": 12345,           // 可选，按连接ID过滤
-  "limit": 20,                      // 可选，每页大小，最大采样 100 条
-  "page": 1,                        // 可选，页码
-  "sort_field": "connection_id",    // 可选，排序字段
-  "sort_by": "desc",                // 可选，排序方式
-  "filter_field": "client_id",      // 可选，过滤字段
-  "filter_values": ["client001"],   // 可选，过滤值
-  "exact_match": "true"             // 可选，精确匹配
-}
-```
 
-**参数说明**：
-- `tenant`: 指定租户时直接从该租户缓存中查询；未指定时从所有租户中采样（最多 100 条）
-- `client_id`: 支持前缀匹配，例如传入 `"sensor_"` 可匹配所有以 `sensor_` 开头的客户端
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户精确过滤，指定时直接查询该租户缓存（性能更好） |
+| `client_id` | string | 否 | 按客户端 ID 模糊搜索（包含匹配） |
+| `limit` | u32 | 否 | 每页大小，最大采样 100 条 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `client_id`、`connection_id` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
 
 - **响应数据结构**:
 ```json
@@ -290,24 +280,17 @@
 
 #### 3.1 会话列表查询
 - **接口**: `GET /api/mqtt/session/list`
-- **描述**: 查询 MQTT 会话列表，支持按租户直接查询（O(1)）
+- **描述**: 查询 MQTT 会话列表，支持按租户过滤和 client_id 模糊搜索
 - **请求参数**:
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
-  "client_id": "client001",         // 可选，按客户端ID过滤
-  "limit": 20,
-  "page": 1,
-  "sort_field": "create_time",      // 可选，排序字段
-  "sort_by": "desc",
-  "filter_field": "client_id",
-  "filter_values": ["client001"],
-  "exact_match": "false"
-}
-```
 
-**参数说明**：
-- `tenant`: 指定租户时直接从该租户缓存中查询；未指定时从所有租户中采样（最多 100 条）
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户精确过滤，指定时直接查询该租户缓存（性能更好） |
+| `client_id` | string | 否 | 按客户端 ID 模糊搜索（包含匹配） |
+| `limit` | u32 | 否 | 每页大小，最大采样 100 条 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `client_id`、`create_time` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
 
 - **响应数据结构**:
 ```json
@@ -317,6 +300,7 @@
   "data": {
     "data": [
       {
+        "tenant": "default",
         "client_id": "client001",
         "session_expiry": 3600,
         "is_contain_last_will": true,
@@ -378,29 +362,18 @@
 
 #### 4.1 主题列表查询
 - **接口**: `GET /api/mqtt/topic/list`
-- **描述**: 查询 MQTT 主题列表，支持按租户直接查询
+- **描述**: 查询 MQTT 主题列表，支持按租户过滤、主题名模糊搜索和主题类型过滤
 - **请求参数**:
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
-  "topic_name": "sensor/+",         // 可选，按主题名过滤
-  "topic_type": "all",              // 可选，主题类型："all"(全部)、"normal"(普通主题)、"system"(系统主题)，默认为"all"
-  "limit": 20,
-  "page": 1,
-  "sort_field": "topic_name",
-  "sort_by": "asc",
-  "filter_field": "topic_name",
-  "filter_values": ["sensor"],
-  "exact_match": "false"
-}
-```
 
-**参数说明**：
-- **tenant**: 指定租户时直接从该租户缓存中查询
-- **topic_type**: 主题类型过滤
-  - `"all"` - 返回所有主题（默认值）
-  - `"normal"` - 只返回普通主题（不以 `$` 开头的主题）
-  - `"system"` - 只返回系统主题（以 `$` 开头的主题，如 `$SYS/...`）
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户精确过滤，指定时直接查询该租户缓存（性能更好） |
+| `topic_name` | string | 否 | 按主题名模糊搜索（包含匹配） |
+| `topic_type` | string | 否 | 主题类型：`all`（默认）、`normal`（普通主题）、`system`（系统主题，含 `$`） |
+| `limit` | u32 | 否 | 每页大小 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `topic_name`、`tenant` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
 
 - **响应数据结构**:
 ```json
@@ -429,12 +402,12 @@
 - **接口**: `GET /api/mqtt/topic/detail`
 - **描述**: 查询指定主题的详细信息，包括主题基本信息、保留消息和订阅列表
 - **请求参数**:
-```json
-{
-  "tenant": "default",                  // 必填，租户名称
-  "topic_name": "sensor/temperature"    // 必填，主题名称
-}
-```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 是 | 租户名称 |
+| `topic_name` | string | 是 | 主题名称（精确匹配） |
+
 
 - **响应数据结构**:
 ```json
@@ -466,12 +439,12 @@
 - **接口**: `POST /api/mqtt/topic/delete`
 - **描述**: 删除指定的主题
 - **请求参数**:
-```json
-{
-  "tenant": "default",                  // 必填，租户名称
-  "topic_name": "sensor/temperature"    // 必填，要删除的主题名称
-}
-```
+
+| 字段 | 类型 | 必填 | 校验 | 说明 |
+|------|------|------|------|------|
+| `tenant` | string | 是 | - | 租户名称 |
+| `topic_name` | string | 是 | 长度 1-256 | 要删除的主题名称 |
+
 
 - **响应**: 成功返回 "success"
 
@@ -483,18 +456,18 @@
 - **接口**: `GET /api/mqtt/topic-rewrite/list`
 - **描述**: 查询主题重写规则列表，支持按租户过滤
 - **请求参数**:
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤
-  "limit": 20,
-  "page": 1,
-  "sort_field": "source_topic",
-  "sort_by": "asc",
-  "filter_field": "action",
-  "filter_values": ["All"],
-  "exact_match": "false"
-}
-```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户精确过滤 |
+| `limit` | u32 | 否 | 每页大小 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `source_topic`、`dest_topic`、`action`、`tenant` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
+| `filter_field` | string | 否 | 过滤字段名 |
+| `filter_values` | string[] | 否 | 过滤值列表 |
+| `exact_match` | string | 否 | 是否精确匹配：`exact` |
+
 
 - **响应数据结构**:
 ```json
@@ -552,21 +525,18 @@
 
 #### 5.1 订阅列表查询
 - **接口**: `GET /api/mqtt/subscribe/list`
-- **描述**: 查询订阅列表，支持按租户直接查询
+- **描述**: 查询订阅列表，支持按租户过滤和 client_id 模糊搜索
 - **请求参数**:
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
-  "client_id": "client001",         // 可选，按客户端ID过滤
-  "limit": 20,
-  "page": 1,
-  "sort_field": "create_time",
-  "sort_by": "desc",
-  "filter_field": "client_id",
-  "filter_values": ["client001"],
-  "exact_match": "false"
-}
-```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户精确过滤，指定时直接查询该租户缓存（性能更好） |
+| `client_id` | string | 否 | 按客户端 ID 模糊搜索（包含匹配） |
+| `limit` | u32 | 否 | 每页大小 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `client_id`、`tenant` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
+
 
 - **响应数据结构**:
 ```json
@@ -773,12 +743,12 @@
 
 #### 6.1 用户列表查询
 - **接口**: `GET /api/mqtt/user/list`
-- **描述**: 查询 MQTT 用户列表，支持按租户过滤
+- **描述**: 查询 MQTT 用户列表，支持按租户过滤、用户名模糊搜索
 - **请求参数**:
 ```json
 {
-  "tenant": "default",              // 可选，按租户过滤
-  "user_name": "admin",             // 可选，按用户名过滤
+  "tenant": "default",              // 可选，按租户精确过滤
+  "user_name": "admin",             // 可选，按用户名模糊搜索（包含匹配）
   "limit": 20,
   "page": 1,
   "sort_field": "username",

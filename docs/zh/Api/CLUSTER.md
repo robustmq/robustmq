@@ -571,7 +571,7 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `tenant_name` | string | 否 | 按租户名称精确查询 |
+| `tenant_name` | string | 否 | 按租户名称模糊查询（包含匹配） |
 | `page` | u32 | 否 | 页码，从 1 开始，默认 1 |
 | `limit` | u32 | 否 | 每页条数，默认 100 |
 | `sort_field` | string | 否 | 排序字段，支持 `tenant_name` |
@@ -589,6 +589,13 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
       {
         "tenant_name": "business-a",
         "desc": "业务 A 租户",
+        "config": {
+          "max_connections_per_node": 10000000,
+          "max_create_connection_rate_per_second": 10000,
+          "max_topics": 5000000,
+          "max_sessions": 50000000,
+          "max_publish_rate": 10000
+        },
         "create_time": 1738800000
       }
     ],
@@ -603,8 +610,8 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
 # 查询所有租户
 curl -X GET "http://localhost:8080/api/tenant/list"
 
-# 查询指定租户
-curl -X GET "http://localhost:8080/api/tenant/list?tenant_name=business-a"
+# 模糊查询租户名包含 "business" 的租户
+curl -X GET "http://localhost:8080/api/tenant/list?tenant_name=business"
 ```
 
 ---
@@ -619,12 +626,24 @@ curl -X GET "http://localhost:8080/api/tenant/list?tenant_name=business-a"
 |------|------|------|------|------|
 | `tenant_name` | string | 是 | 长度 1-128 | 租户名称，全局唯一 |
 | `desc` | string | 否 | 长度 ≤ 500 | 租户描述 |
+| `config` | object | 否 | - | 租户资源配额配置，不填则使用默认值 |
+| `config.max_connections_per_node` | u64 | 否 | - | 每节点最大连接数（默认 10000000） |
+| `config.max_create_connection_rate_per_second` | u32 | 否 | - | 每秒最大新建连接速率（默认 10000） |
+| `config.max_topics` | u64 | 否 | - | 最大主题数（默认 5000000） |
+| `config.max_sessions` | u64 | 否 | - | 最大会话数（默认 50000000） |
+| `config.max_publish_rate` | u32 | 否 | - | 每秒最大发布消息速率（默认 10000） |
 
 - **请求示例**:
 ```json
 {
   "tenant_name": "business-a",
-  "desc": "业务 A 租户"
+  "desc": "业务 A 租户",
+  "config": {
+    "max_connections_per_node": 50000,
+    "max_topics": 100000,
+    "max_sessions": 200000,
+    "max_publish_rate": 5000
+  }
 }
 ```
 
@@ -681,9 +700,65 @@ curl -X POST http://localhost:8080/api/tenant/delete \
 
 ---
 
+### 7. 更新租户
+
+- **接口**: `POST /api/tenant/update`
+- **描述**: 更新租户的描述和资源配额。租户必须已存在。`config` 不传时保持原有配置不变。
+- **请求体**:
+
+| 字段 | 类型 | 必填 | 校验 | 说明 |
+|------|------|------|------|------|
+| `tenant_name` | string | 是 | 长度 1-128 | 要更新的租户名称 |
+| `desc` | string | 否 | 长度 ≤ 500 | 新的租户描述 |
+| `config` | object | 否 | - | 租户资源配额配置，不填则保持原有配置不变 |
+| `config.max_connections_per_node` | u64 | 否 | - | 每节点最大连接数 |
+| `config.max_create_connection_rate_per_second` | u32 | 否 | - | 每秒最大新建连接速率 |
+| `config.max_topics` | u64 | 否 | - | 最大主题数 |
+| `config.max_sessions` | u64 | 否 | - | 最大会话数 |
+| `config.max_publish_rate` | u32 | 否 | - | 每秒最大发布消息速率 |
+
+- **请求示例**:
+```json
+{
+  "tenant_name": "business-a",
+  "desc": "业务 A 租户（已更新）",
+  "config": {
+    "max_connections_per_node": 100000,
+    "max_publish_rate": 20000
+  }
+}
+```
+
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "data": "success",
+  "error": null
+}
+```
+
+- **错误响应**（租户不存在时）:
+```json
+{
+  "code": 1,
+  "message": "Tenant business-a not found",
+  "data": null
+}
+```
+
+- **curl 示例**:
+```bash
+curl -X POST http://localhost:8080/api/tenant/update \
+  -H "Content-Type: application/json" \
+  -d '{"tenant_name": "business-a", "desc": "业务 A 租户（已更新）", "config": {"max_connections_per_node": 100000}}'
+```
+
+---
+
 ## 健康检查
 
-### 7. 集群存活检查
+### 8. 集群存活检查
 
 - **接口**: `GET /cluster/healthy`
 - **描述**: 检查服务是否存活，返回 `true` 表示正常
@@ -699,7 +774,7 @@ curl -X POST http://localhost:8080/api/tenant/delete \
 
 ---
 
-### 8. 就绪检查
+### 9. 就绪检查
 
 - **接口**: `GET /health/ready`
 - **描述**: 检查所有配置的端口是否就绪，用于 K8s readiness probe
@@ -732,7 +807,7 @@ curl -X POST http://localhost:8080/api/tenant/delete \
 
 ---
 
-### 9. 节点健康检查
+### 10. 节点健康检查
 
 - **接口**: `GET /health/node`
 - **描述**: 节点级健康检查（占位实现，始终返回 ok）
@@ -752,7 +827,7 @@ curl -X POST http://localhost:8080/api/tenant/delete \
 
 ---
 
-### 10. 集群健康检查
+### 11. 集群健康检查
 
 - **接口**: `GET /health/cluster`
 - **描述**: 集群级健康检查（占位实现，始终返回 ok）

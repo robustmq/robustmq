@@ -21,7 +21,7 @@ use prost::Message as _;
 use protocol::meta::meta_service_common::{
     BindSchemaRequest, CreateSchemaRequest, CreateTenantRequest, DeleteResourceConfigRequest,
     DeleteSchemaRequest, DeleteTenantRequest, RegisterNodeRequest, SaveOffsetDataRequest,
-    SetResourceConfigRequest, UnBindSchemaRequest, UnRegisterNodeRequest,
+    SetResourceConfigRequest, UnBindSchemaRequest, UnRegisterNodeRequest, UpdateTenantRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -161,6 +161,21 @@ impl DataRouteCluster {
             create_time: now_second(),
         };
         let tenant_storage = TenantStorage::new(self.rocksdb_engine_handler.clone());
+        tenant_storage.save(&tenant)?;
+        self.cluster_cache.add_tenant(tenant);
+        Ok(())
+    }
+
+    pub fn update_tenant(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = UpdateTenantRequest::decode(value.as_ref())?;
+        let tenant_storage = TenantStorage::new(self.rocksdb_engine_handler.clone());
+        let mut tenant = tenant_storage.get(&req.tenant_name)?.ok_or_else(|| {
+            MetaServiceError::CommonError(format!("Tenant {} not found", req.tenant_name))
+        })?;
+        tenant.desc = req.desc.clone();
+        if !req.config.is_empty() {
+            tenant.config = TenantConfig::decode(&req.config)?;
+        }
         tenant_storage.save(&tenant)?;
         self.cluster_cache.add_tenant(tenant);
         Ok(())

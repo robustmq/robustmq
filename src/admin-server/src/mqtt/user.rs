@@ -80,40 +80,14 @@ pub async fn user_list(
     State(state): State<Arc<HttpState>>,
     Query(params): Query<UserListReq>,
 ) -> String {
-    // Backward-compatible shortcut:
-    // If `user_name` is provided, treat it as an exact filter on `username`
-    // unless caller already provided explicit filter_field/filter_values.
-    let (filter_field, filter_values, exact_match) =
-        if let Some(user_name) = params.user_name.clone() {
-            if params.filter_field.is_none() && params.filter_values.is_none() {
-                (
-                    Some("username".to_string()),
-                    Some(vec![user_name]),
-                    Some("exact".to_string()),
-                )
-            } else {
-                (
-                    params.filter_field.clone(),
-                    params.filter_values.clone(),
-                    params.exact_match.clone(),
-                )
-            }
-        } else {
-            (
-                params.filter_field.clone(),
-                params.filter_values.clone(),
-                params.exact_match.clone(),
-            )
-        };
-
     let options = build_query_params(
         params.page,
         params.limit,
         params.sort_field,
         params.sort_by,
-        filter_field,
-        filter_values,
-        exact_match,
+        params.filter_field,
+        params.filter_values,
+        params.exact_match,
     );
 
     let mut users = Vec::new();
@@ -124,6 +98,11 @@ pub async fn user_list(
             }
         }
         for ele in tenant_entry.value().iter() {
+            if let Some(ref name) = params.user_name {
+                if !ele.value().username.contains(name.as_str()) {
+                    continue;
+                }
+            }
             let user_raw = UserListRow {
                 tenant: tenant_entry.key().clone(),
                 username: ele.value().username.clone(),

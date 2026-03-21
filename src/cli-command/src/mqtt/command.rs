@@ -416,9 +416,6 @@ impl MqttBrokerCommand {
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -748,8 +745,6 @@ impl MqttBrokerCommand {
 
         // Create request for client list
         let request = admin_server::mqtt::client::ClientListReq {
-            source_ip: None,
-            connection_id: None,
             limit: Some(params.limit),
             page: Some(params.page),
             ..Default::default()
@@ -916,9 +911,6 @@ impl MqttBrokerCommand {
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -1025,9 +1017,6 @@ impl MqttBrokerCommand {
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client

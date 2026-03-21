@@ -31,7 +31,7 @@ use crate::server::services::common::schema::{
     un_bind_schema_req, update_schema_req,
 };
 use crate::server::services::common::tenant::{
-    create_tenant_by_req, delete_tenant_by_req, list_tenant_by_req,
+    create_tenant_by_req, delete_tenant_by_req, list_tenant_by_req, update_tenant_by_req,
 };
 use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
@@ -51,7 +51,8 @@ use protocol::meta::meta_service_common::{
     ReportMonitorRequest, SaveOffsetDataReply, SaveOffsetDataRequest, SetReply, SetRequest,
     SetResourceConfigReply, SetResourceConfigRequest, SnapshotReply, SnapshotRequest,
     UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
-    UpdateSchemaReply, UpdateSchemaRequest, VoteReply, VoteRequest,
+    UpdateSchemaReply, UpdateSchemaRequest, UpdateTenantReply, UpdateTenantRequest, VoteReply,
+    VoteRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -391,6 +392,24 @@ impl MetaServiceService for GrpcPlacementService {
         self.validate_request(&req)?;
 
         create_tenant_by_req(
+            &self.raft_manager,
+            &self.mqtt_call_manager,
+            &self.rocksdb_engine_handler,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
+    }
+
+    async fn update_tenant(
+        &self,
+        request: Request<UpdateTenantRequest>,
+    ) -> Result<Response<UpdateTenantReply>, Status> {
+        let req = request.into_inner();
+        self.validate_request(&req)?;
+
+        update_tenant_by_req(
             &self.raft_manager,
             &self.mqtt_call_manager,
             &self.rocksdb_engine_handler,

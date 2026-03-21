@@ -32,7 +32,7 @@ use protocol::mqtt::common::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/$sys/request_response";
+pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "$SYS/request_response";
 
 #[derive(Clone)]
 pub struct DisconnectConnectionContext {

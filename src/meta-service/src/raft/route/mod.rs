@@ -124,6 +124,11 @@ impl DataRoute {
                     .create_tenant(storage_data.value.clone())?;
                 Ok(None)
             }
+            StorageDataType::TenantUpdate => {
+                self.route_cluster
+                    .update_tenant(storage_data.value.clone())?;
+                Ok(None)
+            }
             StorageDataType::TenantDelete => {
                 self.route_cluster
                     .delete_tenant(storage_data.value.clone())?;
