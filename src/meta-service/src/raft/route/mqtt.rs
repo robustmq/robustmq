@@ -301,7 +301,7 @@ impl DataRouteMqtt {
     pub fn delete_blacklist(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
-        blacklist_storage.delete(&req.tenant, &req.blacklist_type, &req.resource_name)?;
+        blacklist_storage.delete(&req.tenant, &req.name)?;
         Ok(())
     }
 

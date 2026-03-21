@@ -316,7 +316,9 @@ impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
             };
             let desc = doc.get_str("desc").unwrap_or_default().to_string();
 
+            let name = doc.get_str("name").unwrap_or_default().to_string();
             let blacklist = MqttAclBlackList {
+                name,
                 tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: get_blacklist_type_by_str(&blacklist_type)?,
                 resource_name: resource_name.clone(),

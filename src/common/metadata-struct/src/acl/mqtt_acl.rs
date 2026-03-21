@@ -32,30 +32,6 @@ pub struct MqttAcl {
 }
 
 impl MqttAcl {
-    pub fn build(
-        name: String,
-        desc: String,
-        tenant: String,
-        resource_type: MqttAclResourceType,
-        resource_name: String,
-        topic: String,
-        ip: String,
-        action: MqttAclAction,
-        permission: MqttAclPermission,
-    ) -> Self {
-        MqttAcl {
-            name,
-            desc,
-            tenant,
-            resource_type,
-            resource_name,
-            topic,
-            ip,
-            action,
-            permission,
-        }
-    }
-
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         Ok(serde_json::to_vec(&self)?)
     }

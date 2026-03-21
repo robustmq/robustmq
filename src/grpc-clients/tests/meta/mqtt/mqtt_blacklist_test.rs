@@ -33,6 +33,7 @@ mod tests {
         let addrs = vec![get_placement_addr()];
 
         let blacklist = MqttAclBlackList {
+            name: "test-blacklist-loboxu".to_string(),
             tenant: "default".to_string(),
             blacklist_type: MqttAclBlackListType::User,
             resource_name: "loboxu".to_string(),
@@ -59,11 +60,7 @@ mod tests {
                 let mut flag = false;
                 for raw in data.blacklists {
                     let tmp = MqttAclBlackList::decode(&raw).unwrap();
-                    if tmp.blacklist_type == blacklist.blacklist_type
-                        && tmp.resource_name == blacklist.resource_name
-                        && tmp.end_time == blacklist.end_time
-                        && tmp.desc == blacklist.desc
-                    {
+                    if tmp.name == blacklist.name {
                         flag = true;
                     }
                 }
@@ -76,8 +73,7 @@ mod tests {
 
         let request = DeleteBlacklistRequest {
             tenant: "default".to_string(),
-            blacklist_type: blacklist.blacklist_type.to_string(),
-            resource_name: blacklist.resource_name.clone(),
+            name: blacklist.name.clone(),
         };
         match delete_blacklist(&client_pool, &addrs, request).await {
             Ok(_) => {}
@@ -95,11 +91,7 @@ mod tests {
                 let mut flag = false;
                 for raw in data.blacklists {
                     let tmp = MqttAclBlackList::decode(&raw).unwrap();
-                    if tmp.blacklist_type == blacklist.blacklist_type
-                        && tmp.resource_name == blacklist.resource_name
-                        && tmp.end_time == blacklist.end_time
-                        && tmp.desc == blacklist.desc
-                    {
+                    if tmp.name == blacklist.name {
                         flag = true;
                     }
                 }

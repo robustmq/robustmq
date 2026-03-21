@@ -217,6 +217,8 @@ pub enum BlackListActionType {
 pub struct CreateBlacklistArgs {
     #[arg(short, long, required = true)]
     pub cluster_name: String,
+    #[arg(long, required = true)]
+    pub name: String,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclBlackListType>::new(),
@@ -227,8 +229,8 @@ pub struct CreateBlacklistArgs {
     pub resource_name: String,
     #[arg(long, required = true)]
     pub end_time: u64,
-    #[arg(long, required = true)]
-    pub desc: String,
+    #[arg(long)]
+    pub desc: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -237,14 +239,8 @@ pub struct CreateBlacklistArgs {
 pub struct DeleteBlacklistArgs {
     #[arg(short, long, required = true)]
     pub cluster_name: String,
-    #[arg(
-        long,
-        value_parser = EnumValueParser::<MqttAclBlackListType>::new(),
-        default_missing_value = "ClientId"
-    )]
-    pub blacklist_type: MqttAclBlackListType,
-    #[arg(short, long, required = true)]
-    pub resource_name: String,
+    #[arg(long, required = true)]
+    pub name: String,
 }
 
 // #### observability ####
@@ -575,6 +571,7 @@ pub fn process_blacklist_args(
         BlackListActionType::List => Ok(MqttActionType::ListBlacklist),
         BlackListActionType::Create(arg) => Ok(MqttActionType::CreateBlacklist(
             admin_server::mqtt::blacklist::CreateBlackListReq {
+                name: arg.name,
                 tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: arg.blacklist_type.to_string(),
                 resource_name: arg.resource_name,
@@ -585,8 +582,7 @@ pub fn process_blacklist_args(
         BlackListActionType::Delete(arg) => Ok(MqttActionType::DeleteBlacklist(
             admin_server::mqtt::blacklist::DeleteBlackListReq {
                 tenant: DEFAULT_TENANT.to_string(),
-                blacklist_type: arg.blacklist_type.to_string(),
-                resource_name: arg.resource_name,
+                name: arg.name,
             },
         )),
     }

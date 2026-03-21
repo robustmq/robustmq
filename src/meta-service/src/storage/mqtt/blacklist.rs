@@ -23,8 +23,8 @@ use rocksdb_engine::keys::meta::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
-    engine_delete_by_meta_metadata, engine_prefix_list_by_meta_metadata,
-    engine_save_by_meta_metadata,
+    engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
+    engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
 };
 
 pub struct MqttBlackListStorage {
@@ -39,12 +39,16 @@ impl MqttBlackListStorage {
     }
 
     pub fn save(&self, blacklist: MqttAclBlackList) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_blacklist(
-            &blacklist.tenant,
-            &blacklist.blacklist_type.to_string(),
-            &blacklist.resource_name,
-        );
+        let key = storage_key_mqtt_blacklist(&blacklist.tenant, &blacklist.name);
         engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, blacklist)
+    }
+
+    pub fn get(&self, tenant: &str, name: &str) -> Result<Option<MqttAclBlackList>, CommonError> {
+        let key = storage_key_mqtt_blacklist(tenant, name);
+        Ok(
+            engine_get_by_meta_metadata::<MqttAclBlackList>(&self.rocksdb_engine_handler, &key)?
+                .map(|raw| raw.data),
+        )
     }
 
     pub fn list_all(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
@@ -65,13 +69,8 @@ impl MqttBlackListStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn delete(
-        &self,
-        tenant: &str,
-        blacklist_type: &str,
-        resource_name: &str,
-    ) -> Result<(), CommonError> {
-        let key = storage_key_mqtt_blacklist(tenant, blacklist_type, resource_name);
+    pub fn delete(&self, tenant: &str, name: &str) -> Result<(), CommonError> {
+        let key = storage_key_mqtt_blacklist(tenant, name);
         engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)
     }
 }

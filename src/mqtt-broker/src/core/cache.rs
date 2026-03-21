@@ -837,6 +837,7 @@ mod tests {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let tenant = DEFAULT_TENANT.to_string();
         let blacklist = MqttAclBlackList {
+            name: "bl-cache-test".to_string(),
             tenant: tenant.clone(),
             blacklist_type: MqttAclBlackListType::ClientId,
             resource_name: "blacklist_client".to_string(),

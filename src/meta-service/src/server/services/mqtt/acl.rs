@@ -23,7 +23,6 @@ use crate::{
     raft::route::data::{StorageData, StorageDataType},
     storage::mqtt::acl::AclStorage,
 };
-use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str;
 use common_base::utils::serialize::encode_to_bytes;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
@@ -120,19 +119,18 @@ pub async fn create_blacklist_by_req(
 }
 
 pub async fn delete_blacklist_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
     req: &DeleteBlacklistRequest,
 ) -> Result<DeleteBlacklistReply, MetaServiceError> {
+    let blacklist_storage = MqttBlackListStorage::new(rocksdb_engine_handler.clone());
+    let blacklist = match blacklist_storage.get(&req.tenant, &req.name)? {
+        Some(b) => b,
+        None => return Ok(DeleteBlacklistReply {}),
+    };
     let data = StorageData::new(StorageDataType::MqttDeleteBlacklist, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
-    let blacklist = MqttAclBlackList {
-        tenant: req.tenant.clone(),
-        blacklist_type: get_blacklist_type_by_str(&req.blacklist_type)?,
-        resource_name: req.resource_name.clone(),
-        end_time: 0,
-        desc: String::new(),
-    };
     send_notify_by_delete_blacklist(call_manager, blacklist).await?;
 
     Ok(DeleteBlacklistReply {})

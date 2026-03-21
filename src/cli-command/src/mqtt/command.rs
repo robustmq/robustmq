@@ -694,13 +694,12 @@ impl MqttBrokerCommand {
         // Create request for blacklist list
         let request = admin_server::mqtt::blacklist::BlackListListReq {
             tenant: None,
+            name: None,
+            resource_name: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -718,6 +717,7 @@ impl MqttBrokerCommand {
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
+                    "name",
                     "blacklist_type",
                     "resource_name",
                     "end_time",
@@ -725,6 +725,7 @@ impl MqttBrokerCommand {
                 ]);
                 for blacklist in page_data.data {
                     table.add_row(row![
+                        blacklist.name,
                         blacklist.blacklist_type,
                         blacklist.resource_name,
                         blacklist.end_time,

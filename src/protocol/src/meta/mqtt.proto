@@ -223,8 +223,7 @@ message CreateBlacklistReply {}
 
 message DeleteBlacklistRequest {
   string tenant = 1 [(validate.rules).string.min_len = 1];
-  string blacklist_type = 2 [(validate.rules).string.min_len = 1];
-  string resource_name = 3 [(validate.rules).string.min_len = 1];
+  string name = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteBlacklistReply {}

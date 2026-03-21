@@ -233,6 +233,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
             match RedisAuthBlacklist::from_redis_hash(id.clone(), fields) {
                 Ok(raw) => {
                     let blacklist = MqttAclBlackList {
+                        name: raw.name,
                         tenant: DEFAULT_TENANT.to_string(),
                         blacklist_type: get_blacklist_type_by_str(&raw.blacklist_type)?,
                         resource_name: raw.resource_name,

@@ -900,18 +900,17 @@
 
 #### 8.1 黑名单列表查询
 - **接口**: `GET /api/mqtt/blacklist/list`
-- **描述**: 查询黑名单列表，支持按租户直接查询
+- **描述**: 查询黑名单列表，支持 tenant、name、resource_name 模糊搜索
 - **请求参数**:
 ```json
 {
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
+  "tenant": "default",              // 可选，按租户模糊搜索
+  "name": "bl-bad",                 // 可选，按名称模糊搜索
+  "resource_name": "bad_client",    // 可选，按资源名称模糊搜索
   "limit": 20,
   "page": 1,
   "sort_field": "resource_name",
-  "sort_by": "asc",
-  "filter_field": "blacklist_type",
-  "filter_values": ["ClientId"],
-  "exact_match": "false"
+  "sort_by": "asc"
 }
 ```
 
@@ -923,6 +922,7 @@
   "data": {
     "data": [
       {
+        "name": "bl-malicious-client",
         "tenant": "default",
         "blacklist_type": "ClientId",
         "resource_name": "malicious_client",
@@ -935,15 +935,13 @@
 }
 ```
 
-**新增字段**：
-- `tenant`: 黑名单所属的租户名称
-
 #### 8.2 创建黑名单
 - **接口**: `POST /api/mqtt/blacklist/create`
-- **描述**: 添加新的黑名单项
+- **描述**: 添加新的黑名单项，以 `name` 作为唯一标识
 - **请求参数**:
 ```json
 {
+  "name": "bl-bad-client",            // 必填，唯一名称，长度 1-128
   "tenant": "default",                 // 必填，租户名称，长度 1-64
   "blacklist_type": "ClientId",        // 必填，黑名单类型（见枚举说明）
   "resource_name": "bad_client",       // 必填，资源名称，长度 1-256
@@ -960,13 +958,12 @@
 
 #### 8.3 删除黑名单
 - **接口**: `POST /api/mqtt/blacklist/delete`
-- **描述**: 删除黑名单项
+- **描述**: 按 `name` 删除黑名单项
 - **请求参数**:
 ```json
 {
   "tenant": "default",
-  "blacklist_type": "ClientId",
-  "resource_name": "bad_client"
+  "name": "bl-bad-client"
 }
 ```
 
@@ -1515,6 +1512,7 @@ curl -X POST http://localhost:8080/api/mqtt/acl/create \
 curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
   -H "Content-Type: application/json" \
   -d '{
+    "name": "bl-bad-client-match",
     "tenant": "default",
     "blacklist_type": "ClientIdMatch",
     "resource_name": "bad_client_*",

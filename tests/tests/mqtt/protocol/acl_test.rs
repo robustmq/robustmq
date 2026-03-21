@@ -158,11 +158,7 @@ mod tests {
         }
     }
 
-    async fn check_acl_in_list(
-        admin_client: &AdminHttpClient,
-        acl_name: &str,
-        should_exist: bool,
-    ) {
+    async fn check_acl_in_list(admin_client: &AdminHttpClient, acl_name: &str, should_exist: bool) {
         let list_request = AclListReq {
             tenant: None,
             name: Some(acl_name.to_string()),

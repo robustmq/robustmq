@@ -315,6 +315,7 @@ mod test {
 
             for (blacklist_type, resource_name) in cases {
                 let blacklist = MqttAclBlackList {
+                    name: format!("test-blacklist-{resource_name}"),
                     tenant: DEFAULT_TENANT.to_string(),
                     blacklist_type,
                     resource_name,
@@ -358,6 +359,7 @@ mod test {
 
             for (source_ip_addr, blacklist_type, resource_name) in cases {
                 let blacklist = MqttAclBlackList {
+                    name: format!("test-blacklist-{resource_name}"),
                     tenant: DEFAULT_TENANT.to_string(),
                     blacklist_type,
                     resource_name: resource_name.to_string(),

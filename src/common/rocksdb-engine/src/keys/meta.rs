@@ -257,15 +257,8 @@ pub fn storage_key_mqtt_acl_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_blacklist(
-    tenant: &str,
-    black_list_type: &str,
-    resource_name: &str,
-) -> String {
-    format!(
-        "{}mqtt/blacklist/{}/{}/{}",
-        PREFIX_META, tenant, black_list_type, resource_name
-    )
+pub fn storage_key_mqtt_blacklist(tenant: &str, name: &str) -> String {
+    format!("{}mqtt/blacklist/{}/{}", PREFIX_META, tenant, name)
 }
 
 #[inline]

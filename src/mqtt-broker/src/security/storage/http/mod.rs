@@ -405,7 +405,9 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
                 }
             };
 
+            let name = Self::parse_string(map.get("name")).unwrap_or_default();
             blacklists.push(MqttAclBlackList {
+                name,
                 tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type,
                 resource_name,

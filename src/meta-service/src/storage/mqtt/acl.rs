@@ -62,8 +62,10 @@ impl AclStorage {
 
     pub fn get(&self, tenant: &str, name: &str) -> Result<Option<MqttAcl>, CommonError> {
         let key = storage_key_mqtt_acl(tenant, name);
-        Ok(engine_get_by_meta_metadata::<MqttAcl>(&self.rocksdb_engine_handler, &key)?
-            .map(|raw| raw.data))
+        Ok(
+            engine_get_by_meta_metadata::<MqttAcl>(&self.rocksdb_engine_handler, &key)?
+                .map(|raw| raw.data),
+        )
     }
 
     pub fn delete(&self, tenant: &str, name: &str) -> Result<(), CommonError> {

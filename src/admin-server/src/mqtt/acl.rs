@@ -14,11 +14,11 @@
 
 use crate::{
     state::HttpState,
+    tool::extractor::ValidatedJson,
     tool::{
         query::{apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
     },
-    tool::extractor::ValidatedJson,
 };
 use axum::extract::{Query, State};
 use serde::{Deserialize, Serialize};
