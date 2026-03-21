@@ -29,8 +29,8 @@ use rocksdb_engine::storage::meta_data::{
     engine_save_by_meta_data,
 };
 use rocksdb_engine::storage::meta_metadata::{
-    engine_delete_by_meta_metadata, engine_prefix_list_by_meta_metadata,
-    engine_save_by_meta_metadata,
+    engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
+    engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
 };
 use std::sync::Arc;
 
@@ -83,23 +83,34 @@ impl MqttTopicStorage {
     // Rewrite Rule
     pub fn save_topic_rewrite_rule(
         &self,
-        tenant: &str,
-        action: &str,
-        source_topic: &str,
-        topic_rewrite_rule: MqttTopicRewriteRule,
+        rule: &MqttTopicRewriteRule,
     ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_topic_rewrite_rule(tenant, action, source_topic);
-        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, topic_rewrite_rule)?;
+        let key = storage_key_mqtt_topic_rewrite_rule(&rule.tenant, &rule.name);
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, rule.clone())?;
         Ok(())
+    }
+
+    pub fn get_topic_rewrite_rule(
+        &self,
+        tenant: &str,
+        name: &str,
+    ) -> Result<Option<MqttTopicRewriteRule>, MetaServiceError> {
+        let key = storage_key_mqtt_topic_rewrite_rule(tenant, name);
+        Ok(
+            engine_get_by_meta_metadata::<MqttTopicRewriteRule>(
+                &self.rocksdb_engine_handler,
+                &key,
+            )?
+            .map(|raw| raw.data),
+        )
     }
 
     pub fn delete_topic_rewrite_rule(
         &self,
         tenant: &str,
-        action: &str,
-        source_topic: &str,
+        name: &str,
     ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_topic_rewrite_rule(tenant, action, source_topic);
+        let key = storage_key_mqtt_topic_rewrite_rule(tenant, name);
         engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)?;
         Ok(())
     }
@@ -207,8 +218,15 @@ mod tests {
         }
     }
 
-    fn create_rewrite_rule(action: &str, source: &str, dest: &str) -> MqttTopicRewriteRule {
+    fn create_rewrite_rule(
+        name: &str,
+        action: &str,
+        source: &str,
+        dest: &str,
+    ) -> MqttTopicRewriteRule {
         MqttTopicRewriteRule {
+            name: name.to_string(),
+            desc: String::new(),
             tenant: DEFAULT_TENANT.to_string(),
             action: action.to_string(),
             source_topic: source.to_string(),
@@ -259,10 +277,15 @@ mod tests {
         let storage = setup_storage();
 
         // Save rule
-        let rule = create_rewrite_rule("subscribe", "old/+/topic", "new/+/topic");
-        storage
-            .save_topic_rewrite_rule(DEFAULT_TENANT, "subscribe", "old/+/topic", rule)
+        let rule = create_rewrite_rule("rule-1", "subscribe", "old/+/topic", "new/+/topic");
+        storage.save_topic_rewrite_rule(&rule).unwrap();
+
+        // Get rule
+        let found = storage
+            .get_topic_rewrite_rule(DEFAULT_TENANT, "rule-1")
             .unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().source_topic, "old/+/topic");
 
         // List rules
         let rules = storage.list_all_topic_rewrite_rules().unwrap();
@@ -271,7 +294,7 @@ mod tests {
 
         // Delete rule
         storage
-            .delete_topic_rewrite_rule(DEFAULT_TENANT, "subscribe", "old/+/topic")
+            .delete_topic_rewrite_rule(DEFAULT_TENANT, "rule-1")
             .unwrap();
         assert_eq!(storage.list_all_topic_rewrite_rules().unwrap().len(), 0);
     }

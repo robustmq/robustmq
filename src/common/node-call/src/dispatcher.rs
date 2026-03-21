@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{consumer, NodeCallData, NODE_CHANNEL_SIZE};
+use crate::{consumer, NodeCallRequest, NODE_CHANNEL_SIZE};
 use broker_core::cache::NodeCacheManager;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
@@ -22,9 +22,9 @@ use tokio::sync::{broadcast, mpsc};
 use tracing::{info, warn};
 
 pub async fn run(
-    mut global_receiver: mpsc::Receiver<NodeCallData>,
+    mut global_receiver: mpsc::Receiver<NodeCallRequest>,
     stop_send: broadcast::Sender<bool>,
-    node_channels: Arc<DashMap<u64, mpsc::Sender<NodeCallData>>>,
+    node_channels: Arc<DashMap<u64, mpsc::Sender<NodeCallRequest>>>,
     broker_cache: Arc<NodeCacheManager>,
     client_pool: Arc<ClientPool>,
 ) {
@@ -34,12 +34,29 @@ pub async fn run(
         tokio::select! {
             maybe_data = global_receiver.recv() => {
                 match maybe_data {
-                    Some(data) => {
-                        for node in broker_cache.node_list() {
-                            let sender =
-                                get_or_create_sender(&node_channels, &node, &client_pool, &stop_send);
+                    Some(mut request) => {
+                        // Use the node snapshot bundled in the request (send_with_reply path) so
+                        // that reply_txs slots stay aligned. Fall back to a live lookup for
+                        // fire-and-forget calls where nodes is empty.
+                        let nodes = if request.nodes.is_empty() {
+                            broker_cache.node_list()
+                        } else {
+                            request.nodes.clone()
+                        };
 
-                            if let Err(e) = sender.send(data.clone()).await {
+                        for (idx, node) in nodes.iter().enumerate() {
+                            let sender =
+                                get_or_create_sender(&node_channels, node, &client_pool, &stop_send);
+
+                            // Extract the oneshot sender for this node; other slots remain None.
+                            let reply_tx = request.reply_txs.get_mut(idx).and_then(|s| s.take());
+                            let node_request = NodeCallRequest {
+                                data: request.data.clone(),
+                                nodes: Vec::new(),
+                                reply_txs: vec![reply_tx],
+                            };
+
+                            if let Err(e) = sender.send(node_request).await {
                                 warn!(
                                     "Failed to dispatch to node {}, removing channel: {}",
                                     node.node_id, e
@@ -79,11 +96,11 @@ pub async fn run(
 }
 
 fn get_or_create_sender(
-    node_channels: &Arc<DashMap<u64, mpsc::Sender<NodeCallData>>>,
+    node_channels: &Arc<DashMap<u64, mpsc::Sender<NodeCallRequest>>>,
     node: &BrokerNode,
     client_pool: &Arc<ClientPool>,
     stop_send: &broadcast::Sender<bool>,
-) -> mpsc::Sender<NodeCallData> {
+) -> mpsc::Sender<NodeCallRequest> {
     if let Some(entry) = node_channels.get(&node.node_id) {
         return entry.value().clone();
     }
@@ -101,7 +118,7 @@ fn get_or_create_sender(
 }
 
 fn remove_node_channel(
-    node_channels: &Arc<DashMap<u64, mpsc::Sender<NodeCallData>>>,
+    node_channels: &Arc<DashMap<u64, mpsc::Sender<NodeCallRequest>>>,
     node_id: u64,
 ) {
     node_channels.remove(&node_id);

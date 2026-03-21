@@ -18,8 +18,8 @@ use std::{net::IpAddr, str::FromStr};
 use tracing::warn;
 
 pub fn ip_match(source_ip_addr: &str, ip_role: &str) -> bool {
-    // Check wildcard first
-    if ip_role == WILDCARD_RESOURCE {
+    // Empty string or wildcard means match all IPs
+    if ip_role.is_empty() || ip_role == WILDCARD_RESOURCE {
         return true;
     }
 

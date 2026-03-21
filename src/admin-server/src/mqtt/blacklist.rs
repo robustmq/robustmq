@@ -16,7 +16,7 @@ use crate::{
     state::HttpState,
     tool::extractor::ValidatedJson,
     tool::{
-        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        query::{apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
     },
 };
@@ -27,17 +27,19 @@ use validator::Validate;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BlackListListReq {
     pub tenant: Option<String>,
+    pub name: Option<String>,
+    pub resource_name: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
-    pub filter_field: Option<String>,
-    pub filter_values: Option<Vec<String>>,
-    pub exact_match: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct CreateBlackListReq {
+    #[validate(length(min = 1, max = 128, message = "Name length must be between 1-128"))]
+    pub name: String,
+
     #[validate(length(min = 1, max = 64, message = "Tenant length must be between 1-64"))]
     pub tenant: String,
 
@@ -60,7 +62,7 @@ pub struct CreateBlackListReq {
     pub end_time: u64,
 
     #[validate(length(max = 500, message = "Description length cannot exceed 500 characters"))]
-    pub desc: String,
+    pub desc: Option<String>,
 }
 
 fn validate_blacklist_type(blacklist_type: &str) -> Result<(), validator::ValidationError> {
@@ -69,7 +71,7 @@ fn validate_blacklist_type(blacklist_type: &str) -> Result<(), validator::Valida
         _ => {
             let mut err = validator::ValidationError::new("invalid_blacklist_type");
             err.message = Some(std::borrow::Cow::from(
-                "Blacklist type must be ClientId, User or Ip",
+                "Blacklist type must be ClientId, User, Ip, ClientIdMatch, UserMatch or IPCIDR",
             ));
             Err(err)
         }
@@ -81,24 +83,13 @@ pub struct DeleteBlackListReq {
     #[validate(length(min = 1, max = 64, message = "Tenant length must be between 1-64"))]
     pub tenant: String,
 
-    #[validate(length(
-        min = 1,
-        max = 50,
-        message = "Blacklist type length must be between 1-50"
-    ))]
-    #[validate(custom(function = "validate_blacklist_type"))]
-    pub blacklist_type: String,
-
-    #[validate(length(
-        min = 1,
-        max = 256,
-        message = "Resource name length must be between 1-256"
-    ))]
-    pub resource_name: String,
+    #[validate(length(min = 1, max = 128, message = "Name length must be between 1-128"))]
+    pub name: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BlackListListRow {
+    pub name: String,
     pub tenant: String,
     pub blacklist_type: String,
     pub resource_name: String,
@@ -124,38 +115,48 @@ pub async fn blacklist_list(
         params.limit,
         params.sort_field,
         params.sort_by,
-        params.filter_field,
-        params.filter_values,
-        params.exact_match,
+        None,
+        None,
+        None,
     );
 
-    let data: Vec<MqttAclBlackList> = if let Some(ref tenant) = params.tenant {
-        state
-            .mqtt_context
-            .cache_manager
-            .acl_metadata
-            .get_blacklist_by_tenant(tenant)
-    } else {
-        state
-            .mqtt_context
-            .cache_manager
-            .acl_metadata
-            .get_all_blacklist()
-    };
+    let data: Vec<MqttAclBlackList> = state
+        .mqtt_context
+        .cache_manager
+        .acl_metadata
+        .get_all_blacklist();
 
     let blacklists: Vec<BlackListListRow> = data
         .into_iter()
-        .map(|blacklist| BlackListListRow {
-            tenant: blacklist.tenant.clone(),
-            blacklist_type: blacklist.blacklist_type.to_string(),
-            resource_name: blacklist.resource_name,
-            end_time: timestamp_to_local_datetime(blacklist.end_time as i64),
-            desc: blacklist.desc,
+        .filter(|b| {
+            if let Some(ref tenant) = params.tenant {
+                if !b.tenant.contains(tenant.as_str()) {
+                    return false;
+                }
+            }
+            if let Some(ref name) = params.name {
+                if !b.name.contains(name.as_str()) {
+                    return false;
+                }
+            }
+            if let Some(ref resource_name) = params.resource_name {
+                if !b.resource_name.contains(resource_name.as_str()) {
+                    return false;
+                }
+            }
+            true
+        })
+        .map(|b| BlackListListRow {
+            name: b.name.clone(),
+            tenant: b.tenant.clone(),
+            blacklist_type: b.blacklist_type.to_string(),
+            resource_name: b.resource_name.clone(),
+            end_time: timestamp_to_local_datetime(b.end_time as i64),
+            desc: b.desc.clone(),
         })
         .collect();
 
-    let filtered = apply_filters(blacklists, &options);
-    let sorted = apply_sorting(filtered, &options);
+    let sorted = apply_sorting(blacklists, &options);
     let pagination = apply_pagination(sorted, &options);
 
     success_response(PageReplyData {
@@ -167,6 +168,7 @@ pub async fn blacklist_list(
 impl Queryable for BlackListListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "name" => Some(self.name.clone()),
             "tenant" => Some(self.tenant.clone()),
             "blacklist_type" => Some(self.blacklist_type.clone()),
             "resource_name" => Some(self.resource_name.clone()),
@@ -187,11 +189,12 @@ pub async fn blacklist_create(
     };
 
     let mqtt_blacklist = MqttAclBlackList {
+        name: params.name.clone(),
         tenant: params.tenant.clone(),
         blacklist_type,
         resource_name: params.resource_name.clone(),
         end_time: params.end_time,
-        desc: params.desc.clone(),
+        desc: params.desc.clone().unwrap_or_default(),
     };
 
     let blacklist_storage = BlackListStorage::new(state.client_pool.clone());
@@ -205,15 +208,9 @@ pub async fn blacklist_delete(
     State(state): State<Arc<HttpState>>,
     ValidatedJson(params): ValidatedJson<DeleteBlackListReq>,
 ) -> String {
-    let blacklist_type = match get_blacklist_type_by_str(&params.blacklist_type) {
-        Ok(blacklist_type) => blacklist_type,
-        Err(e) => {
-            return error_response(e.to_string());
-        }
-    };
     let blacklist_storage = BlackListStorage::new(state.client_pool.clone());
     match blacklist_storage
-        .delete_blacklist(&params.tenant, blacklist_type, &params.resource_name)
+        .delete_blacklist(&params.tenant, &params.name)
         .await
     {
         Ok(_) => success_response("success"),

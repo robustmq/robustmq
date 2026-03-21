@@ -384,10 +384,15 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        delete_acl_by_req(&self.raft_manager, &self.call_manager, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        delete_acl_by_req(
+            &self.rocksdb_engine_handler,
+            &self.raft_manager,
+            &self.call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     // Blacklist
@@ -423,10 +428,15 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        delete_blacklist_by_req(&self.raft_manager, &self.call_manager, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        delete_blacklist_by_req(
+            &self.rocksdb_engine_handler,
+            &self.raft_manager,
+            &self.call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     // Topic Rewrite Rule
@@ -437,10 +447,15 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        create_topic_rewrite_rule_by_req(&self.raft_manager, &self.call_manager, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        create_topic_rewrite_rule_by_req(
+            &self.raft_manager,
+            &self.rocksdb_engine_handler,
+            &self.call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     async fn delete_topic_rewrite_rule(
@@ -450,10 +465,15 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        delete_topic_rewrite_rule_by_req(&self.raft_manager, &self.call_manager, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        delete_topic_rewrite_rule_by_req(
+            &self.raft_manager,
+            &self.rocksdb_engine_handler,
+            &self.call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     async fn list_topic_rewrite_rule(

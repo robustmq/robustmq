@@ -15,7 +15,8 @@
 use crate::macros::impl_retriable_request;
 use protocol::broker::broker_mqtt::{
     broker_mqtt_service_client::BrokerMqttServiceClient, DeleteSessionReply, DeleteSessionRequest,
-    SendLastWillMessageReply, SendLastWillMessageRequest,
+    GetQosDataByClientIdReply, GetQosDataByClientIdRequest, SendLastWillMessageReply,
+    SendLastWillMessageRequest,
 };
 use tonic::transport::Channel;
 
@@ -37,4 +38,13 @@ impl_retriable_request!(
     send_last_will_message,
     "MqttBrokerInnerService",
     "SendLastWillMessage"
+);
+
+impl_retriable_request!(
+    GetQosDataByClientIdRequest,
+    BrokerMqttServiceClient<Channel>,
+    GetQosDataByClientIdReply,
+    get_qos_data_by_client_id,
+    "MqttBrokerInnerService",
+    "GetQosDataByClientId"
 );

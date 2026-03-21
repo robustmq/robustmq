@@ -43,13 +43,11 @@ pub struct SystemAlarmListRow {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FlappingDetectListReq {
     pub tenant: Option<String>,
+    pub client_id: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
-    pub filter_field: Option<String>,
-    pub filter_values: Option<Vec<String>>,
-    pub exact_match: Option<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -145,14 +143,15 @@ pub async fn flapping_detect_list(
     Query(params): Query<FlappingDetectListReq>,
 ) -> String {
     let filter_tenant = params.tenant;
+    let filter_client_id = params.client_id;
     let options = build_query_params(
         params.page,
         params.limit,
         params.sort_field,
         params.sort_by,
-        params.filter_field,
-        params.filter_values,
-        params.exact_match,
+        None,
+        None,
+        None,
     );
 
     let flapping_detect_map = &state
@@ -162,34 +161,39 @@ pub async fn flapping_detect_list(
         .flapping_detect_map;
     let mut results = Vec::new();
 
+    let collect =
+        |results: &mut Vec<FlappingDetectListRaw>,
+         v: &mqtt_broker::core::flapping_detect::FlappingDetectCondition| {
+            if filter_client_id
+                .as_deref()
+                .map(|kw| !v.client_id.contains(kw))
+                .unwrap_or(false)
+            {
+                return;
+            }
+            results.push(FlappingDetectListRaw {
+                tenant: v.tenant.clone(),
+                client_id: v.client_id.clone(),
+                before_last_window_connections: v.before_last_window_connections,
+                first_request_time: v.first_request_time,
+            });
+        };
+
     if let Some(ref t) = filter_tenant {
         if let Some(inner) = flapping_detect_map.get(t) {
             for entry in inner.iter() {
-                let v = entry.value();
-                results.push(FlappingDetectListRaw {
-                    tenant: v.tenant.clone(),
-                    client_id: v.client_id.clone(),
-                    before_last_window_connections: v.before_last_window_connections,
-                    first_request_time: v.first_request_time,
-                });
+                collect(&mut results, entry.value());
             }
         }
     } else {
         for tenant_entry in flapping_detect_map.iter() {
             for entry in tenant_entry.value().iter() {
-                let v = entry.value();
-                results.push(FlappingDetectListRaw {
-                    tenant: v.tenant.clone(),
-                    client_id: v.client_id.clone(),
-                    before_last_window_connections: v.before_last_window_connections,
-                    first_request_time: v.first_request_time,
-                });
+                collect(&mut results, entry.value());
             }
         }
     }
 
-    let filtered = apply_filters(results, &options);
-    let sorted = apply_sorting(filtered, &options);
+    let sorted = apply_sorting(results, &options);
     let pagination = apply_pagination(sorted, &options);
 
     success_response(PageReplyData {

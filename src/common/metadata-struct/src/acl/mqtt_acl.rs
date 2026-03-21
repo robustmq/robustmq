@@ -20,6 +20,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub struct MqttAcl {
+    pub name: String,
+    pub desc: String,
     pub tenant: String,
     pub resource_type: MqttAclResourceType,
     pub resource_name: String,
@@ -30,26 +32,6 @@ pub struct MqttAcl {
 }
 
 impl MqttAcl {
-    pub fn build(
-        tenant: String,
-        resource_type: MqttAclResourceType,
-        resource_name: String,
-        topic: String,
-        ip: String,
-        action: MqttAclAction,
-        permission: MqttAclPermission,
-    ) -> Self {
-        MqttAcl {
-            tenant,
-            resource_type,
-            resource_name,
-            topic,
-            ip,
-            action,
-            permission,
-        }
-    }
-
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         Ok(serde_json::to_vec(&self)?)
     }

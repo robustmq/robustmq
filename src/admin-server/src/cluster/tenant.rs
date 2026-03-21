@@ -23,9 +23,36 @@ use crate::{
 use axum::extract::{Query, State};
 use broker_core::tenant::TenantStorage;
 use common_base::http_response::{error_response, success_response};
+use metadata_struct::tenant::TenantConfig;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use validator::Validate;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+pub struct TenantConfigReq {
+    pub max_connections_per_node: Option<u64>,
+    pub max_create_connection_rate_per_second: Option<u32>,
+    pub max_topics: Option<u64>,
+    pub max_sessions: Option<u64>,
+    pub max_publish_rate: Option<u32>,
+}
+
+impl TenantConfigReq {
+    pub fn into_tenant_config(self) -> TenantConfig {
+        let defaults = TenantConfig::default();
+        TenantConfig {
+            max_connections_per_node: self
+                .max_connections_per_node
+                .unwrap_or(defaults.max_connections_per_node),
+            max_create_connection_rate_per_second: self
+                .max_create_connection_rate_per_second
+                .unwrap_or(defaults.max_create_connection_rate_per_second),
+            max_topics: self.max_topics.unwrap_or(defaults.max_topics),
+            max_sessions: self.max_sessions.unwrap_or(defaults.max_sessions),
+            max_publish_rate: self.max_publish_rate.unwrap_or(defaults.max_publish_rate),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct TenantListReq {
@@ -50,6 +77,23 @@ pub struct CreateTenantReq {
 
     #[validate(length(max = 500, message = "Description length cannot exceed 500"))]
     pub desc: Option<String>,
+
+    pub config: Option<TenantConfigReq>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
+pub struct UpdateTenantReq {
+    #[validate(length(
+        min = 1,
+        max = 128,
+        message = "Tenant name length must be between 1-128"
+    ))]
+    pub tenant_name: String,
+
+    #[validate(length(max = 500, message = "Description length cannot exceed 500"))]
+    pub desc: Option<String>,
+
+    pub config: Option<TenantConfigReq>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
@@ -66,6 +110,7 @@ pub struct DeleteTenantReq {
 pub struct TenantListRow {
     pub tenant_name: String,
     pub desc: String,
+    pub config: TenantConfig,
     pub create_time: u64,
 }
 
@@ -98,7 +143,7 @@ pub async fn tenant_list(
         .iter()
         .filter(|entry| {
             if let Some(name) = &params.tenant_name {
-                entry.key() == name
+                entry.key().contains(name.as_str())
             } else {
                 true
             }
@@ -106,6 +151,7 @@ pub async fn tenant_list(
         .map(|entry| TenantListRow {
             tenant_name: entry.tenant_name.clone(),
             desc: entry.desc.clone(),
+            config: entry.config.clone(),
             create_time: entry.create_time,
         })
         .collect();
@@ -126,12 +172,31 @@ pub async fn tenant_create(
     State(state): State<Arc<HttpState>>,
     ValidatedJson(params): ValidatedJson<CreateTenantReq>,
 ) -> String {
+    let config = params.config.unwrap_or_default().into_tenant_config();
     let storage = TenantStorage::new(state.client_pool.clone());
     match storage
         .create(
             &params.tenant_name,
             params.desc.as_deref().unwrap_or_default(),
-            metadata_struct::tenant::TenantConfig::default(),
+            config,
+        )
+        .await
+    {
+        Ok(_) => success_response("success"),
+        Err(e) => error_response(e.to_string()),
+    }
+}
+
+pub async fn tenant_update(
+    State(state): State<Arc<HttpState>>,
+    ValidatedJson(params): ValidatedJson<UpdateTenantReq>,
+) -> String {
+    let storage = TenantStorage::new(state.client_pool.clone());
+    match storage
+        .update(
+            &params.tenant_name,
+            params.desc.as_deref().unwrap_or_default(),
+            params.config.map(|c| c.into_tenant_config()),
         )
         .await
     {

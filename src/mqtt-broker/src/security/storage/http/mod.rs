@@ -342,8 +342,13 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
                 username
             };
 
+            let name = Self::parse_string(map.get("name")).unwrap_or_default();
+            let desc = Self::parse_string(map.get("desc")).unwrap_or_default();
+
             for topic in topics {
                 acls.push(MqttAcl {
+                    name: name.clone(),
+                    desc: desc.clone(),
                     tenant: DEFAULT_TENANT.to_string(),
                     permission,
                     resource_type,
@@ -400,7 +405,9 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
                 }
             };
 
+            let name = Self::parse_string(map.get("name")).unwrap_or_default();
             blacklists.push(MqttAclBlackList {
+                name,
                 tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type,
                 resource_name,

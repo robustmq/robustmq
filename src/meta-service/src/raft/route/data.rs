@@ -47,6 +47,7 @@ pub enum StorageDataType {
 
     // Tenant
     TenantCreate,
+    TenantUpdate,
     TenantDelete,
 
     // Common
@@ -103,6 +104,7 @@ impl fmt::Display for StorageDataType {
             StorageDataType::KvDelete => write!(f, "KvDelete"),
 
             StorageDataType::TenantCreate => write!(f, "TenantCreate"),
+            StorageDataType::TenantUpdate => write!(f, "TenantUpdate"),
             StorageDataType::TenantDelete => write!(f, "TenantDelete"),
 
             StorageDataType::SchemaSet => write!(f, "SchemaSet"),

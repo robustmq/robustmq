@@ -35,6 +35,8 @@ mod tests {
         let re: String = "^x/y/(.+)$".to_string();
 
         let req = CreateTopicRewriteRuleRequest {
+            name: "rule-1".to_string(),
+            desc: String::new(),
             tenant: DEFAULT_TENANT.to_string(),
             action: action.clone(),
             source_topic: source_topic.clone(),
@@ -57,8 +59,7 @@ mod tests {
 
         let req = DeleteTopicRewriteRuleRequest {
             tenant: DEFAULT_TENANT.to_string(),
-            action: action.clone(),
-            source_topic: source_topic.clone(),
+            name: "rule-1".to_string(),
         };
         placement_delete_topic_rewrite_rule(&client_pool, &addrs, req)
             .await

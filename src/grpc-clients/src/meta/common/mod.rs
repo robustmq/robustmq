@@ -26,7 +26,8 @@ use protocol::meta::meta_service_common::{
     NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
     SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply, SetResourceConfigRequest,
     SnapshotReply, SnapshotRequest, UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply,
-    UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest, VoteReply, VoteRequest,
+    UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest, UpdateTenantReply,
+    UpdateTenantRequest, VoteReply, VoteRequest,
 };
 use tonic::transport::Channel;
 use tonic::Streaming;
@@ -142,6 +143,16 @@ impl_retriable_request!(
     create_tenant,
     "PlacementService",
     "CreateTenant",
+    true
+);
+
+impl_retriable_request!(
+    UpdateTenantRequest,
+    MetaServiceServiceClient<Channel>,
+    UpdateTenantReply,
+    update_tenant,
+    "PlacementService",
+    "UpdateTenant",
     true
 );
 

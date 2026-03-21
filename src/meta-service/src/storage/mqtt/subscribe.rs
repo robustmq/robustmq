@@ -112,17 +112,30 @@ impl MqttSubscribeStorage {
         &self,
         rule: &MqttAutoSubscribeRule,
     ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_auto_subscribe_rule(&rule.tenant, &rule.topic);
+        let key = storage_key_mqtt_auto_subscribe_rule(&rule.tenant, &rule.name);
         engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, rule.clone())?;
         Ok(())
+    }
+
+    pub fn get_auto_subscribe_rule(
+        &self,
+        tenant: &str,
+        name: &str,
+    ) -> Result<Option<MqttAutoSubscribeRule>, MetaServiceError> {
+        let key = storage_key_mqtt_auto_subscribe_rule(tenant, name);
+        Ok(engine_get_by_meta_metadata::<MqttAutoSubscribeRule>(
+            &self.rocksdb_engine_handler,
+            &key,
+        )?
+        .map(|raw| raw.data))
     }
 
     pub fn delete_auto_subscribe_rule(
         &self,
         tenant: &str,
-        topic: &str,
+        name: &str,
     ) -> Result<(), MetaServiceError> {
-        let key = storage_key_mqtt_auto_subscribe_rule(tenant, topic);
+        let key = storage_key_mqtt_auto_subscribe_rule(tenant, name);
         engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key)?;
         Ok(())
     }
@@ -148,15 +161,6 @@ impl MqttSubscribeStorage {
             &prefix_key,
         )?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
-    }
-
-    pub fn get_auto_subscribe_rule_by_tenant_topic(
-        &self,
-        tenant: &str,
-        topic: &str,
-    ) -> Result<Option<MqttAutoSubscribeRule>, MetaServiceError> {
-        let rules = self.list_auto_subscribe_rules_by_tenant(tenant)?;
-        Ok(rules.into_iter().find(|r| r.topic == topic))
     }
 }
 
@@ -185,8 +189,10 @@ mod tests {
         }
     }
 
-    fn create_auto_subscribe_rule(topic: &str) -> MqttAutoSubscribeRule {
+    fn create_auto_subscribe_rule(name: &str, topic: &str) -> MqttAutoSubscribeRule {
         MqttAutoSubscribeRule {
+            name: name.to_string(),
+            desc: String::new(),
             tenant: "tenant-1".to_string(),
             topic: topic.to_string(),
             qos: QoS::AtLeastOnce,
@@ -259,10 +265,11 @@ mod tests {
     #[test]
     fn test_auto_subscribe_rule() {
         let storage = setup_storage();
+        let name = "rule-1";
         let topic = "devices/#";
 
         // Save rule
-        let rule = create_auto_subscribe_rule(topic);
+        let rule = create_auto_subscribe_rule(name, topic);
         storage.save_auto_subscribe_rule(&rule).unwrap();
 
         // List all
@@ -276,21 +283,19 @@ mod tests {
             .unwrap();
         assert_eq!(tenant_rules.len(), 1);
 
-        // Uniqueness check: same tenant + same topic
-        let found = storage
-            .get_auto_subscribe_rule_by_tenant_topic("tenant-1", topic)
-            .unwrap();
+        // Get by name
+        let found = storage.get_auto_subscribe_rule("tenant-1", name).unwrap();
         assert!(found.is_some());
 
-        // Uniqueness check: different tenant
+        // Get nonexistent name
         let not_found = storage
-            .get_auto_subscribe_rule_by_tenant_topic("tenant-2", topic)
+            .get_auto_subscribe_rule("tenant-1", "nonexistent")
             .unwrap();
         assert!(not_found.is_none());
 
         // Delete rule
         storage
-            .delete_auto_subscribe_rule("tenant-1", topic)
+            .delete_auto_subscribe_rule("tenant-1", name)
             .unwrap();
         assert!(storage.list_all_auto_subscribe_rules().unwrap().is_empty());
     }

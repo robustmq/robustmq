@@ -15,7 +15,7 @@
 use crate::{
     state::HttpState,
     tool::{
-        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        query::{apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
     },
 };
@@ -33,16 +33,11 @@ const MAX_SAMPLE_SIZE: usize = 100;
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ClientListReq {
     pub tenant: Option<String>,
-    pub source_ip: Option<String>,
     pub client_id: Option<String>,
-    pub connection_id: Option<u64>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
-    pub filter_field: Option<String>,
-    pub filter_values: Option<Vec<String>>,
-    pub exact_match: Option<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -69,19 +64,14 @@ pub async fn client_list(
     State(state): State<Arc<HttpState>>,
     Query(params): Query<ClientListReq>,
 ) -> String {
-    let filter_tenant = params.tenant.clone();
-    let filter_client_id = params.client_id.clone();
-    let filter_connection_id = params.connection_id;
-    let filter_source_ip = params.source_ip.clone();
-
     let options = build_query_params(
         params.page,
         params.limit,
         params.sort_field,
         params.sort_by,
-        params.filter_field,
-        params.filter_values,
-        params.exact_match,
+        None,
+        None,
+        None,
     );
 
     let cache = &state.mqtt_context.cache_manager;
@@ -89,14 +79,11 @@ pub async fn client_list(
 
     let sample = sample_connections_up_to_100(
         &cache.connection_info,
-        filter_tenant.as_deref(),
-        filter_connection_id,
-        filter_client_id.as_deref(),
-        filter_source_ip.as_deref(),
+        params.tenant.as_deref(),
+        params.client_id.as_deref(),
     );
 
-    let filtered = apply_filters(sample, &options);
-    let sorted = apply_sorting(filtered, &options);
+    let sorted = apply_sorting(sample, &options);
     let pagination = apply_pagination(sorted, &options);
 
     let data = pagination
@@ -123,37 +110,20 @@ pub async fn client_list(
     success_response(PageReplyData { data, total_count })
 }
 
-/// Collects up to MAX_SAMPLE_SIZE (100) connections from the cache, optionally filtered by
-/// tenant, connection_id, client_id prefix, and source IP. When no tenant is specified,
-/// iterates across all tenants and stops early once the limit is reached.
 fn sample_connections_up_to_100(
     connection_info: &dashmap::DashMap<String, dashmap::DashMap<u64, MQTTConnection>>,
     filter_tenant: Option<&str>,
-    filter_connection_id: Option<u64>,
     filter_client_id: Option<&str>,
-    filter_source_ip: Option<&str>,
 ) -> Vec<ClientListRowLite> {
     let mut sample = Vec::with_capacity(MAX_SAMPLE_SIZE);
 
     if let Some(tenant) = filter_tenant {
         if let Some(inner) = connection_info.get(tenant) {
-            collect_connections(
-                inner.value(),
-                &mut sample,
-                filter_connection_id,
-                filter_client_id,
-                filter_source_ip,
-            );
+            collect_connections(inner.value(), &mut sample, filter_client_id);
         }
     } else {
         for tenant_entry in connection_info.iter() {
-            collect_connections(
-                tenant_entry.value(),
-                &mut sample,
-                filter_connection_id,
-                filter_client_id,
-                filter_source_ip,
-            );
+            collect_connections(tenant_entry.value(), &mut sample, filter_client_id);
             if sample.len() >= MAX_SAMPLE_SIZE {
                 break;
             }
@@ -166,9 +136,7 @@ fn sample_connections_up_to_100(
 fn collect_connections(
     inner: &dashmap::DashMap<u64, MQTTConnection>,
     out: &mut Vec<ClientListRowLite>,
-    filter_connection_id: Option<u64>,
     filter_client_id: Option<&str>,
-    filter_source_ip: Option<&str>,
 ) {
     for inner_entry in inner.iter() {
         if out.len() >= MAX_SAMPLE_SIZE {
@@ -176,50 +144,17 @@ fn collect_connections(
         }
         let connection_id = *inner_entry.key();
         let mqtt_client = inner_entry.value();
-        if connection_matches(
-            mqtt_client,
+        if let Some(keyword) = filter_client_id {
+            if !mqtt_client.client_id.contains(keyword) {
+                continue;
+            }
+        }
+        out.push(ClientListRowLite {
             connection_id,
-            filter_connection_id,
-            filter_client_id,
-            filter_source_ip,
-        ) {
-            out.push(ClientListRowLite {
-                connection_id,
-                client_id: mqtt_client.client_id.clone(),
-                mqtt_connection: mqtt_client.clone(),
-            });
-        }
+            client_id: mqtt_client.client_id.clone(),
+            mqtt_connection: mqtt_client.clone(),
+        });
     }
-}
-
-fn connection_matches(
-    conn: &MQTTConnection,
-    conn_id: u64,
-    filter_connection_id: Option<u64>,
-    filter_client_id: Option<&str>,
-    filter_source_ip: Option<&str>,
-) -> bool {
-    if let Some(want_conn_id) = filter_connection_id {
-        if conn_id != want_conn_id {
-            return false;
-        }
-    }
-    if let Some(prefix) = filter_client_id {
-        if !conn.client_id.starts_with(prefix) {
-            return false;
-        }
-    }
-    if let Some(want_ip) = filter_source_ip {
-        let ok = if want_ip.contains(':') {
-            conn.source_ip_addr == want_ip
-        } else {
-            conn.source_ip_addr.starts_with(want_ip)
-        };
-        if !ok {
-            return false;
-        }
-    }
-    true
 }
 
 impl Queryable for ClientListRowLite {

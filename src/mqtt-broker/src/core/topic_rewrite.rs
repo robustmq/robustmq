@@ -175,6 +175,8 @@ mod tests {
         let cache_manager = test_build_mqtt_cache_manager().await;
         for rule in rules.iter() {
             let rule = MqttTopicRewriteRule {
+                name: rule.source.to_string(),
+                desc: String::new(),
                 tenant: DEFAULT_TENANT.to_string(),
                 action: TopicRewriteActionEnum::All.to_string(),
                 source_topic: rule.source.to_string(),

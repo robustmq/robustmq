@@ -165,7 +165,12 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 .take("topic")
                 .ok_or_else(|| MqttBrokerError::CommonError("missing column: topic".to_string()))?;
 
+            let name: String = row.take("name").unwrap_or_default();
+            let desc: String = row.take("desc").unwrap_or_default();
+
             let acl = MqttAcl {
+                name,
+                desc,
                 tenant: DEFAULT_TENANT.to_string(),
                 permission: match permission {
                     0 => MqttAclPermission::Deny,
@@ -216,7 +221,9 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 .take("desc")
                 .ok_or_else(|| MqttBrokerError::CommonError("missing column: desc".to_string()))?;
 
+            let name: Option<String> = row.take("name");
             let blacklist = MqttAclBlackList {
+                name: name.unwrap_or_default(),
                 tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: get_blacklist_type_by_str(&blacklist_type)?,
                 resource_name,

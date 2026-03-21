@@ -15,4 +15,5 @@
 pub mod common;
 pub mod engine;
 pub mod mqtt;
+pub mod node_call;
 pub mod offset_test;

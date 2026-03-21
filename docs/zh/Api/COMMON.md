@@ -6,7 +6,7 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 
 - **基础地址**: `http://localhost:8080`
 - **API 前缀**: `/api` (所有管理接口都使用此前缀)
-- **请求方法**: 主要使用 `POST` 方法
+- **请求方法**: 列表/详情查询使用 `GET`，创建/删除操作使用 `POST`
 - **数据格式**: JSON
 - **响应格式**: JSON
 
@@ -14,6 +14,7 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 
 - 📋 **[集群管理 API](CLUSTER.md)** - 集群配置和状态管理
 - 🔧 **[MQTT Broker API](MQTT.md)** - MQTT 代理相关的所有管理接口
+- 🔌 **[连接器 API](Connector.md)** - 连接器管理接口
 
 ---
 
@@ -292,9 +293,9 @@ curl "http://localhost:8080/api/mqtt/user/list?limit=10&page=1&sort_field=userna
 ## 注意事项
 
 1. **请求方法**:
-   - 根路径 `/` 使用 GET 方法
-   - 其他所有接口（包括 `/api/status`）使用 POST 方法
-2. **请求体**: 即使是查询操作，也需要发送 JSON 格式的请求体（可以是空对象 `{}`）
+   - 列表/详情查询（`/list`、`/detail`、`/api/status` 等）使用 `GET`，参数通过 query string 传递
+   - 创建/删除操作（`/create`、`/delete`）使用 `POST`，参数通过 JSON body 传递
+2. **请求体**: POST 接口需要设置 `Content-Type: application/json` 并传递 JSON body；GET 接口参数通过 URL query string 传递
 3. **时间格式**:
    - 输入时间使用 Unix 时间戳（秒）
    - 输出时间使用本地时间格式字符串 "YYYY-MM-DD HH:MM:SS"
@@ -331,6 +332,4 @@ curl -X GET http://localhost:8080/
 
 ---
 
-*文档版本: v4.0*
-*最后更新: 2025-09-20*
-*基于代码版本: RobustMQ Admin Server v0.1.34*
+*最后更新: 2026-03-20*

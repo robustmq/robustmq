@@ -66,6 +66,8 @@ service MetaServiceService {
   // Tenant
   rpc CreateTenant(CreateTenantRequest) returns (CreateTenantReply) {}
 
+  rpc UpdateTenant(UpdateTenantRequest) returns (UpdateTenantReply) {}
+
   rpc DeleteTenant(DeleteTenantRequest) returns (DeleteTenantReply) {}
 
   rpc ListTenant(ListTenantRequest) returns (stream ListTenantReply) {}
@@ -263,6 +265,14 @@ message CreateTenantRequest {
 }
 
 message CreateTenantReply {}
+
+message UpdateTenantRequest {
+  string tenant_name = 1 [(validate.rules).string.min_len = 1];
+  string desc = 2;
+  bytes config = 3;
+}
+
+message UpdateTenantReply {}
 
 message DeleteTenantRequest {
   string tenant_name = 1 [(validate.rules).string.min_len = 1];

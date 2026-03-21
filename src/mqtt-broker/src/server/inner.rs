@@ -14,12 +14,14 @@
 
 use crate::core::cache::MQTTCacheManager;
 use crate::core::inner::{delete_session_by_req, send_last_will_message_by_req};
+use crate::core::qos::get_qos_data_by_req;
 use crate::core::retain::RetainMessageManager;
 use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
 use protocol::broker::broker_mqtt::broker_mqtt_service_server::BrokerMqttService;
 use protocol::broker::broker_mqtt::{
-    DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
+    DeleteSessionReply, DeleteSessionRequest, GetQosDataByClientIdReply,
+    GetQosDataByClientIdRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
 };
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -79,5 +81,16 @@ impl BrokerMqttService for GrpcInnerServices {
         .await
         .map_err(|e| Status::internal(e.to_string()))
         .map(Response::new)
+    }
+
+    async fn get_qos_data_by_client_id(
+        &self,
+        request: Request<GetQosDataByClientIdRequest>,
+    ) -> Result<Response<GetQosDataByClientIdReply>, Status> {
+        let req = request.into_inner();
+        get_qos_data_by_req(&self.cache_manager, &req.client_ids)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
 }

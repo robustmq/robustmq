@@ -125,15 +125,15 @@ pub async fn create_auto_subscribe_rule_by_req(
     let rule = MqttAutoSubscribeRule::decode(&req.content)
         .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
 
-    // Uniqueness: one rule per (tenant, topic)
+    // Uniqueness: one rule per (tenant, name)
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
     if storage
-        .get_auto_subscribe_rule_by_tenant_topic(&rule.tenant, &rule.topic)?
+        .get_auto_subscribe_rule(&rule.tenant, &rule.name)?
         .is_some()
     {
         return Err(MetaServiceError::CommonError(format!(
-            "Auto subscribe rule for tenant '{}' and topic '{}' already exists",
-            rule.tenant, rule.topic
+            "Auto subscribe rule '{}' for tenant '{}' already exists",
+            rule.name, rule.tenant
         )));
     }
 
@@ -156,11 +156,11 @@ pub async fn delete_auto_subscribe_rule_by_req(
 ) -> Result<DeleteAutoSubscribeRuleReply, MetaServiceError> {
     let storage = MqttSubscribeStorage::new(rocksdb_engine_handler.clone());
     let rule = storage
-        .get_auto_subscribe_rule_by_tenant_topic(&req.tenant, &req.topic)?
+        .get_auto_subscribe_rule(&req.tenant, &req.name)?
         .ok_or_else(|| {
             MetaServiceError::CommonError(format!(
-                "Auto subscribe rule for tenant '{}' and topic '{}' does not exist",
-                req.tenant, req.topic
+                "Auto subscribe rule '{}' for tenant '{}' does not exist",
+                req.name, req.tenant
             ))
         })?;
 

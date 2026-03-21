@@ -230,7 +230,10 @@ pub async fn update_mqtt_cache_metadata(
                 let tenant = serialize::deserialize::<Tenant>(&record.data)?;
                 cache_manager.node_cache.add_tenant(tenant);
             }
-            BrokerUpdateCacheActionType::Update => {}
+            BrokerUpdateCacheActionType::Update => {
+                let tenant = serialize::deserialize::<Tenant>(&record.data)?;
+                cache_manager.node_cache.add_tenant(tenant);
+            }
             BrokerUpdateCacheActionType::Delete => {
                 let tenant = serialize::deserialize::<Tenant>(&record.data)?;
                 cache_manager.node_cache.remove_tenant(&tenant.tenant_name);
@@ -246,7 +249,7 @@ pub async fn update_mqtt_cache_metadata(
             BrokerUpdateCacheActionType::Delete => {
                 let rule = MqttAutoSubscribeRule::decode(&record.data)
                     .map_err(|e| crate::core::error::MqttBrokerError::CommonError(e.to_string()))?;
-                cache_manager.delete_auto_subscribe_rule(&rule.tenant, &rule.topic);
+                cache_manager.delete_auto_subscribe_rule(&rule.tenant, &rule.name);
             }
         },
         BrokerUpdateCacheResourceType::TopicRewriteRule => match record.action_type() {
@@ -260,11 +263,7 @@ pub async fn update_mqtt_cache_metadata(
             BrokerUpdateCacheActionType::Delete => {
                 let rule = MqttTopicRewriteRule::decode(&record.data)
                     .map_err(|e| crate::core::error::MqttBrokerError::CommonError(e.to_string()))?;
-                cache_manager.delete_topic_rewrite_rule(
-                    &rule.tenant,
-                    &rule.action,
-                    &rule.source_topic,
-                );
+                cache_manager.delete_topic_rewrite_rule(&rule.tenant, &rule.name);
                 cache_manager.set_re_calc_topic_rewrite(true).await;
             }
         },

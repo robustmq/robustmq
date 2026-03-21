@@ -211,6 +211,8 @@ impl DataRouteMqtt {
         let req = CreateTopicRewriteRuleRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         let topic_rewrite_rule = MqttTopicRewriteRule {
+            name: req.name.clone(),
+            desc: req.desc.clone(),
             tenant: req.tenant.clone(),
             action: req.action.clone(),
             source_topic: req.source_topic.clone(),
@@ -218,18 +220,13 @@ impl DataRouteMqtt {
             regex: req.regex.clone(),
             timestamp: now_millis(),
         };
-        storage.save_topic_rewrite_rule(
-            &req.tenant,
-            &req.action,
-            &req.source_topic,
-            topic_rewrite_rule,
-        )
+        storage.save_topic_rewrite_rule(&topic_rewrite_rule)
     }
 
     pub fn delete_topic_rewrite_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteTopicRewriteRuleRequest::decode(value.as_ref())?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete_topic_rewrite_rule(&req.tenant, &req.action, &req.source_topic)
+        storage.delete_topic_rewrite_rule(&req.tenant, &req.name)
     }
 
     // Subscribe
@@ -285,8 +282,7 @@ impl DataRouteMqtt {
     pub fn delete_acl(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
-        let acl = MqttAcl::decode(&req.acl)?;
-        acl_storage.delete(&acl)?;
+        acl_storage.delete(&req.tenant, &req.name)?;
         Ok(())
     }
 
@@ -302,7 +298,7 @@ impl DataRouteMqtt {
     pub fn delete_blacklist(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
-        blacklist_storage.delete(&req.tenant, &req.blacklist_type, &req.resource_name)?;
+        blacklist_storage.delete(&req.tenant, &req.name)?;
         Ok(())
     }
 
@@ -336,12 +332,6 @@ impl DataRouteMqtt {
     pub fn delete_auto_subscribe_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteAutoSubscribeRuleRequest::decode(value.as_ref())?;
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
-        if let Some(rule) =
-            storage.get_auto_subscribe_rule_by_tenant_topic(&req.tenant, &req.topic)?
-        {
-            storage.delete_auto_subscribe_rule(&rule.tenant, &rule.topic)
-        } else {
-            Ok(())
-        }
+        storage.delete_auto_subscribe_rule(&req.tenant, &req.name)
     }
 }

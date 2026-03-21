@@ -177,9 +177,21 @@ pub async fn get_topic_retain_message_by_req(
 // Topic Rewrite Rule Operations
 pub async fn create_topic_rewrite_rule_by_req(
     raft_manager: &Arc<MultiRaftManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     call_manager: &Arc<NodeCallManager>,
     req: &CreateTopicRewriteRuleRequest,
 ) -> Result<CreateTopicRewriteRuleReply, MetaServiceError> {
+    let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
+    if storage
+        .get_topic_rewrite_rule(&req.tenant, &req.name)?
+        .is_some()
+    {
+        return Err(MetaServiceError::CommonError(format!(
+            "Topic rewrite rule '{}' for tenant '{}' already exists",
+            req.name, req.tenant
+        )));
+    }
+
     let data = StorageData::new(
         StorageDataType::MqttCreateTopicRewriteRule,
         encode_to_bytes(req),
@@ -187,6 +199,8 @@ pub async fn create_topic_rewrite_rule_by_req(
     raft_manager.write_metadata(data).await?;
 
     let rule = MqttTopicRewriteRule {
+        name: req.name.clone(),
+        desc: req.desc.clone(),
         tenant: req.tenant.clone(),
         action: req.action.clone(),
         source_topic: req.source_topic.clone(),
@@ -201,23 +215,26 @@ pub async fn create_topic_rewrite_rule_by_req(
 
 pub async fn delete_topic_rewrite_rule_by_req(
     raft_manager: &Arc<MultiRaftManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     call_manager: &Arc<NodeCallManager>,
     req: &DeleteTopicRewriteRuleRequest,
 ) -> Result<DeleteTopicRewriteRuleReply, MetaServiceError> {
+    let storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
+    let rule = storage
+        .get_topic_rewrite_rule(&req.tenant, &req.name)?
+        .ok_or_else(|| {
+            MetaServiceError::CommonError(format!(
+                "Topic rewrite rule '{}' for tenant '{}' does not exist",
+                req.name, req.tenant
+            ))
+        })?;
+
     let data = StorageData::new(
         StorageDataType::MqttDeleteTopicRewriteRule,
         encode_to_bytes(req),
     );
     raft_manager.write_metadata(data).await?;
 
-    let rule = MqttTopicRewriteRule {
-        tenant: req.tenant.clone(),
-        action: req.action.clone(),
-        source_topic: req.source_topic.clone(),
-        dest_topic: String::new(),
-        regex: String::new(),
-        timestamp: 0,
-    };
     send_notify_by_delete_topic_rewrite_rule(call_manager, rule).await?;
 
     Ok(DeleteTopicRewriteRuleReply {})

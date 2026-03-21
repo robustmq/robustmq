@@ -27,7 +27,6 @@ mod tests {
     use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
     use common_base::tools::now_second;
     use common_base::uuid::unique_id;
-    use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
     use paho_mqtt::MessageBuilder;
     use std::time::Duration;
     use tokio::time::sleep;
@@ -37,60 +36,62 @@ mod tests {
         let admin_client = create_test_env().await;
         let user = unique_id();
         let password: String = unique_id();
+        let blacklist_name = format!("bl-storage-test-{}", unique_id());
 
         // create
-        let blacklist = MqttAclBlackList {
+        let create_request = CreateBlackListReq {
+            name: blacklist_name.clone(),
             tenant: "default".to_string(),
-            blacklist_type: MqttAclBlackListType::User,
-            resource_name: user.to_string(),
-            end_time: 10000,
-            desc: password.to_string(),
+            blacklist_type: MqttAclBlackListType::User.to_string(),
+            resource_name: user.clone(),
+            end_time: now_second() + 10000,
+            desc: Some(password.clone()),
         };
 
-        create_blacklist(&admin_client, blacklist.clone()).await;
+        create_user(&admin_client, &user, &password).await;
+        admin_client
+            .create_blacklist(&create_request)
+            .await
+            .unwrap();
         sleep(Duration::from_secs(3)).await;
 
         // list
         let list_request = BlackListListReq {
             tenant: None,
+            name: Some(blacklist_name.clone()),
+            resource_name: None,
             limit: Some(10000),
             page: Some(1),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
-        let mut flag = false;
         let page_data = admin_client
             .get_blacklist::<BlackListListReq, Vec<BlackListListRow>>(&list_request)
             .await
             .unwrap();
-        for raw in page_data.data {
-            if raw.resource_name == blacklist.resource_name {
-                flag = true;
-                break;
-            }
-        }
-        assert!(flag);
+        let found = page_data.data.iter().any(|r| r.name == blacklist_name);
+        assert!(found);
 
         // delete
-        delete_blacklist(&admin_client, blacklist.clone()).await;
+        let delete_request = DeleteBlackListReq {
+            tenant: "default".to_string(),
+            name: blacklist_name.clone(),
+        };
+        admin_client
+            .delete_blacklist(&delete_request)
+            .await
+            .unwrap();
         sleep(Duration::from_secs(3)).await;
 
-        // list
-        let mut flag = false;
+        // list again
         let page_data = admin_client
             .get_blacklist::<BlackListListReq, Vec<BlackListListRow>>(&list_request)
             .await
             .unwrap();
-        for raw in page_data.data {
-            if raw.resource_name == blacklist.resource_name {
-                flag = true;
-                break;
-            }
-        }
-        assert!(!flag);
+        let found = page_data.data.iter().any(|r| r.name == blacklist_name);
+        assert!(!found);
+
+        delete_user(&admin_client, &user).await;
     }
 
     #[tokio::test]
@@ -99,17 +100,23 @@ mod tests {
 
         let user = unique_id();
         let password: String = unique_id();
+        let blacklist_name = format!("bl-user-auth-{}", unique_id());
+
+        create_user(&admin_client, &user, &password).await;
 
         // create blacklist
-        let blacklist = MqttAclBlackList {
+        let create_request = CreateBlackListReq {
+            name: blacklist_name.clone(),
             tenant: "default".to_string(),
-            blacklist_type: MqttAclBlackListType::User,
-            resource_name: user.to_string(),
+            blacklist_type: MqttAclBlackListType::User.to_string(),
+            resource_name: user.clone(),
             end_time: now_second() + 10000,
-            desc: password.to_string(),
+            desc: None,
         };
-
-        create_blacklist(&admin_client, blacklist.clone()).await;
+        admin_client
+            .create_blacklist(&create_request)
+            .await
+            .unwrap();
 
         let topic = unique_id();
 
@@ -117,11 +124,18 @@ mod tests {
         publish_deny_test(&topic, &user, &password, true).await;
 
         // delete blacklist
-        delete_blacklist(&admin_client, blacklist.clone()).await;
+        let delete_request = DeleteBlackListReq {
+            tenant: "default".to_string(),
+            name: blacklist_name.clone(),
+        };
+        admin_client
+            .delete_blacklist(&delete_request)
+            .await
+            .unwrap();
 
         // push deny false
         publish_deny_test(&topic, &user, &password, false).await;
-        delete_user(&admin_client, &blacklist.resource_name).await;
+        delete_user(&admin_client, &user).await;
     }
 
     #[tokio::test]
@@ -131,30 +145,40 @@ mod tests {
         let user = unique_id();
         let password: String = unique_id();
         let client_id = format!("blacklist_client_{}", unique_id());
+        let blacklist_name = format!("bl-client-id-{}", unique_id());
 
-        // create user first
         create_user(&admin_client, &user, &password).await;
 
         // create blacklist for client_id
-        let blacklist = MqttAclBlackList {
+        let create_request = CreateBlackListReq {
+            name: blacklist_name.clone(),
             tenant: "default".to_string(),
-            blacklist_type: MqttAclBlackListType::ClientId,
+            blacklist_type: MqttAclBlackListType::ClientId.to_string(),
             resource_name: client_id.clone(),
             end_time: now_second() + 10000,
-            desc: "ClientId blacklist test".to_string(),
+            desc: Some("ClientId blacklist test".to_string()),
         };
-
-        create_blacklist_without_user(&admin_client, blacklist.clone()).await;
+        admin_client
+            .create_blacklist(&create_request)
+            .await
+            .unwrap();
 
         let topic = unique_id();
 
-        // publish deny true - should fail with blacklisted client_id
+        // publish deny true
         publish_deny_test_with_client_id(&topic, &user, &password, &client_id, true).await;
 
         // delete blacklist
-        delete_blacklist(&admin_client, blacklist.clone()).await;
+        let delete_request = DeleteBlackListReq {
+            tenant: "default".to_string(),
+            name: blacklist_name.clone(),
+        };
+        admin_client
+            .delete_blacklist(&delete_request)
+            .await
+            .unwrap();
 
-        // publish deny false - should succeed after blacklist removed
+        // publish deny false
         publish_deny_test_with_client_id(&topic, &user, &password, &client_id, false).await;
 
         delete_user(&admin_client, &user).await;
@@ -167,30 +191,37 @@ mod tests {
 
         let user = unique_id();
         let password: String = unique_id();
+        let blacklist_name = format!("bl-ip-{}", unique_id());
 
-        // create user first
         create_user(&admin_client, &user, &password).await;
 
-        // create blacklist for IP (localhost/127.0.0.1)
-        let blacklist = MqttAclBlackList {
+        // create blacklist for IP
+        let create_request = CreateBlackListReq {
+            name: blacklist_name.clone(),
             tenant: "default".to_string(),
-            blacklist_type: MqttAclBlackListType::Ip,
+            blacklist_type: MqttAclBlackListType::Ip.to_string(),
             resource_name: "127.0.0.1".to_string(),
             end_time: now_second() + 10000,
-            desc: "IP blacklist test".to_string(),
+            desc: Some("IP blacklist test".to_string()),
         };
-
-        create_blacklist_without_user(&admin_client, blacklist.clone()).await;
+        admin_client
+            .create_blacklist(&create_request)
+            .await
+            .unwrap();
 
         let topic = unique_id();
 
-        // publish deny true - should fail from blacklisted IP
         publish_deny_test(&topic, &user, &password, true).await;
 
-        // delete blacklist
-        delete_blacklist(&admin_client, blacklist.clone()).await;
+        let delete_request = DeleteBlackListReq {
+            tenant: "default".to_string(),
+            name: blacklist_name.clone(),
+        };
+        admin_client
+            .delete_blacklist(&delete_request)
+            .await
+            .unwrap();
 
-        // publish deny false - should succeed after blacklist removed
         publish_deny_test(&topic, &user, &password, false).await;
 
         delete_user(&admin_client, &user).await;
@@ -203,31 +234,37 @@ mod tests {
         let user = unique_id();
         let password: String = unique_id();
         let client_id_prefix = format!("test_client_{}", unique_id());
-        let client_id = format!("{}_{}", client_id_prefix, "001");
+        let client_id = format!("{}_001", client_id_prefix);
+        let blacklist_name = format!("bl-client-id-match-{}", unique_id());
 
-        // create user first
         create_user(&admin_client, &user, &password).await;
 
-        // create blacklist with pattern match (e.g., "test_client_*")
-        let blacklist = MqttAclBlackList {
+        let create_request = CreateBlackListReq {
+            name: blacklist_name.clone(),
             tenant: "default".to_string(),
-            blacklist_type: MqttAclBlackListType::ClientIdMatch,
+            blacklist_type: MqttAclBlackListType::ClientIdMatch.to_string(),
             resource_name: format!("{}*", client_id_prefix),
             end_time: now_second() + 10000,
-            desc: "ClientId pattern match test".to_string(),
+            desc: Some("ClientId pattern match test".to_string()),
         };
-
-        create_blacklist_without_user(&admin_client, blacklist.clone()).await;
+        admin_client
+            .create_blacklist(&create_request)
+            .await
+            .unwrap();
 
         let topic = unique_id();
 
-        // publish deny true - should fail with matching client_id pattern
         publish_deny_test_with_client_id(&topic, &user, &password, &client_id, true).await;
 
-        // delete blacklist
-        delete_blacklist(&admin_client, blacklist.clone()).await;
+        let delete_request = DeleteBlackListReq {
+            tenant: "default".to_string(),
+            name: blacklist_name.clone(),
+        };
+        admin_client
+            .delete_blacklist(&delete_request)
+            .await
+            .unwrap();
 
-        // publish deny false - should succeed after blacklist removed
         publish_deny_test_with_client_id(&topic, &user, &password, &client_id, false).await;
 
         delete_user(&admin_client, &user).await;
@@ -238,32 +275,38 @@ mod tests {
         let admin_client = create_test_env().await;
 
         let user_prefix = format!("test_user_{}", unique_id());
-        let user = format!("{}_{}", user_prefix, "001");
+        let user = format!("{}_001", user_prefix);
         let password: String = unique_id();
+        let blacklist_name = format!("bl-user-match-{}", unique_id());
 
-        // create user first
         create_user(&admin_client, &user, &password).await;
 
-        // create blacklist with user pattern match (e.g., "test_user_*")
-        let blacklist = MqttAclBlackList {
+        let create_request = CreateBlackListReq {
+            name: blacklist_name.clone(),
             tenant: "default".to_string(),
-            blacklist_type: MqttAclBlackListType::UserMatch,
+            blacklist_type: MqttAclBlackListType::UserMatch.to_string(),
             resource_name: format!("{}*", user_prefix),
             end_time: now_second() + 10000,
-            desc: "User pattern match test".to_string(),
+            desc: Some("User pattern match test".to_string()),
         };
-
-        create_blacklist_without_user(&admin_client, blacklist.clone()).await;
+        admin_client
+            .create_blacklist(&create_request)
+            .await
+            .unwrap();
 
         let topic = unique_id();
 
-        // publish deny true - should fail with matching user pattern
         publish_deny_test(&topic, &user, &password, true).await;
 
-        // delete blacklist
-        delete_blacklist(&admin_client, blacklist.clone()).await;
+        let delete_request = DeleteBlackListReq {
+            tenant: "default".to_string(),
+            name: blacklist_name.clone(),
+        };
+        admin_client
+            .delete_blacklist(&delete_request)
+            .await
+            .unwrap();
 
-        // publish deny false - should succeed after blacklist removed
         publish_deny_test(&topic, &user, &password, false).await;
 
         delete_user(&admin_client, &user).await;
@@ -276,30 +319,36 @@ mod tests {
 
         let user = unique_id();
         let password: String = unique_id();
+        let blacklist_name = format!("bl-ip-cidr-{}", unique_id());
 
-        // create user first
         create_user(&admin_client, &user, &password).await;
 
-        // create blacklist for IP CIDR (127.0.0.0/24 covers 127.0.0.1)
-        let blacklist = MqttAclBlackList {
+        let create_request = CreateBlackListReq {
+            name: blacklist_name.clone(),
             tenant: "default".to_string(),
-            blacklist_type: MqttAclBlackListType::IPCIDR,
+            blacklist_type: MqttAclBlackListType::IPCIDR.to_string(),
             resource_name: "127.0.0.0/24".to_string(),
             end_time: now_second() + 10000,
-            desc: "IP CIDR blacklist test".to_string(),
+            desc: Some("IP CIDR blacklist test".to_string()),
         };
-
-        create_blacklist_without_user(&admin_client, blacklist.clone()).await;
+        admin_client
+            .create_blacklist(&create_request)
+            .await
+            .unwrap();
 
         let topic = unique_id();
 
-        // publish deny true - should fail from IP in blacklisted CIDR
         publish_deny_test(&topic, &user, &password, true).await;
 
-        // delete blacklist
-        delete_blacklist(&admin_client, blacklist.clone()).await;
+        let delete_request = DeleteBlackListReq {
+            tenant: "default".to_string(),
+            name: blacklist_name.clone(),
+        };
+        admin_client
+            .delete_blacklist(&delete_request)
+            .await
+            .unwrap();
 
-        // publish deny false - should succeed after blacklist removed
         publish_deny_test(&topic, &user, &password, false).await;
 
         delete_user(&admin_client, &user).await;
@@ -325,7 +374,6 @@ mod tests {
         };
         let cli = connect_server(&client_properties);
 
-        // publish retain
         let message = "publish_deny_test mqtt message".to_string();
         let msg = MessageBuilder::new()
             .payload(message.clone())
@@ -347,55 +395,6 @@ mod tests {
         }
 
         distinct_conn(cli);
-    }
-
-    async fn create_blacklist(admin_client: &AdminHttpClient, blacklist: MqttAclBlackList) {
-        create_user(admin_client, &blacklist.resource_name, &blacklist.desc).await;
-
-        let create_request = CreateBlackListReq {
-            tenant: "default".to_string(),
-            blacklist_type: blacklist.blacklist_type.to_string(),
-            resource_name: blacklist.resource_name,
-            end_time: blacklist.end_time,
-            desc: blacklist.desc,
-        };
-
-        admin_client
-            .create_blacklist(&create_request)
-            .await
-            .unwrap();
-    }
-
-    async fn delete_blacklist(admin_client: &AdminHttpClient, blacklist: MqttAclBlackList) {
-        let delete_request = DeleteBlackListReq {
-            tenant: "default".to_string(),
-            blacklist_type: blacklist.blacklist_type.to_string(),
-            resource_name: blacklist.resource_name,
-        };
-
-        let res = admin_client.delete_blacklist(&delete_request).await;
-        assert!(res.is_ok());
-    }
-
-    async fn create_user(admin_client: &AdminHttpClient, username: &str, password: &str) {
-        let user = CreateUserReq {
-            tenant: "default".to_string(),
-            username: username.to_owned(),
-            password: password.to_owned(),
-            is_superuser: false,
-        };
-
-        let res = admin_client.create_user(&user).await;
-        assert!(res.is_ok());
-    }
-
-    async fn delete_user(admin_client: &AdminHttpClient, username: &str) {
-        let user = DeleteUserReq {
-            tenant: "default".to_string(),
-            username: username.to_owned(),
-        };
-        let res = admin_client.delete_user(&user).await;
-        assert!(res.is_ok());
     }
 
     async fn publish_deny_test_with_client_id(
@@ -422,7 +421,6 @@ mod tests {
         };
         let cli = connect_server(&client_properties);
 
-        // publish retain
         let message = "publish_deny_test mqtt message".to_string();
         let msg = MessageBuilder::new()
             .payload(message.clone())
@@ -446,21 +444,23 @@ mod tests {
         distinct_conn(cli);
     }
 
-    async fn create_blacklist_without_user(
-        admin_client: &AdminHttpClient,
-        blacklist: MqttAclBlackList,
-    ) {
-        let create_request = CreateBlackListReq {
+    async fn create_user(admin_client: &AdminHttpClient, username: &str, password: &str) {
+        let user = CreateUserReq {
             tenant: "default".to_string(),
-            blacklist_type: blacklist.blacklist_type.to_string(),
-            resource_name: blacklist.resource_name,
-            end_time: blacklist.end_time,
-            desc: blacklist.desc,
+            username: username.to_owned(),
+            password: password.to_owned(),
+            is_superuser: false,
         };
+        let res = admin_client.create_user(&user).await;
+        assert!(res.is_ok());
+    }
 
-        admin_client
-            .create_blacklist(&create_request)
-            .await
-            .unwrap();
+    async fn delete_user(admin_client: &AdminHttpClient, username: &str) {
+        let user = DeleteUserReq {
+            tenant: "default".to_string(),
+            username: username.to_owned(),
+        };
+        let res = admin_client.delete_user(&user).await;
+        assert!(res.is_ok());
     }
 }

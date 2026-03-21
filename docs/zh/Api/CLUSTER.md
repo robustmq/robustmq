@@ -57,46 +57,47 @@
       "log_config": "./config/broker-tracing.toml"
     },
     "runtime": {
-      "runtime_worker_threads": 16,
+      "runtime_worker_threads": 1,
+      "server_worker_threads": 0,
+      "meta_worker_threads": 0,
+      "broker_worker_threads": 0,
+      "channels_per_address": 10,
       "tls_cert": "./config/certs/cert.pem",
       "tls_key": "./config/certs/key.pem"
     },
     "network": {
       "accept_thread_num": 8,
       "handler_thread_num": 32,
-      "response_thread_num": 8,
-      "queue_size": 1000,
-      "lock_max_try_mut_times": 30,
-      "lock_try_mut_sleep_time_ms": 50
+      "queue_size": 1000
     },
     "pprof": {
       "enable": false,
       "port": 6060,
       "frequency": 100
     },
-    "message_storage": {
-      "storage_type": "EngineMemory",
-      "engine_config": null,
-      "memory_config": null,
-      "minio_config": null,
-      "mysql_config": null,
-      "rocksdb_config": null,
-      "s3_config": null
+    "rocksdb": {
+      "data_path": "./data",
+      "max_open_files": 10000
+    },
+    "llm_client": null,
+    "cluster_limit": {
+      "max_network_connection": 100000000,
+      "max_network_connection_rate": 10000,
+      "max_admin_http_uri_rate": 50
     },
     "meta_runtime": {
       "heartbeat_timeout_ms": 30000,
       "heartbeat_check_time_ms": 1000,
-      "raft_write_timeout_sec": 30
-    },
-    "rocksdb": {
-      "data_path": "./data",
-      "max_open_files": 10000
+      "raft_write_timeout_sec": 30,
+      "offset_raft_group_num": 1,
+      "data_raft_group_num": 1
     },
     "storage_runtime": {
       "tcp_port": 1778,
       "max_segment_size": 1073741824,
       "io_thread_num": 8,
-      "data_path": []
+      "data_path": [],
+      "offset_enable_cache": true
     },
     "mqtt_server": {
       "tcp_port": 1883,
@@ -111,46 +112,12 @@
       "max_time": 3600,
       "default_timeout": 2
     },
-    "mqtt_auth_config": {
-      "authn_config": {
-        "authn_type": "password_based",
-        "jwt_config": null,
-        "password_based_config": {
-          "storage_config": {
-            "storage_type": "placement",
-            "placement_config": { "journal_addr": "" },
-            "mysql_config": null,
-            "postgres_config": null,
-            "redis_config": null,
-            "http_config": null
-          },
-          "password_config": {
-            "credential_type": "username",
-            "algorithm": "plain",
-            "salt_position": "disable",
-            "salt_rounds": null,
-            "mac_fun": null,
-            "iterations": null,
-            "dk_length": null
-          }
-        }
-      },
-      "authz_config": {
-        "storage_config": {
-          "storage_type": "placement",
-          "placement_config": { "journal_addr": "" },
-          "mysql_config": null,
-          "postgres_config": null,
-          "redis_config": null,
-          "http_config": null
-        }
-      }
-    },
     "mqtt_runtime": {
       "default_user": "admin",
       "default_password": "robustmq",
-      "max_connection_num": 1000000,
-      "durable_sessions_enable": false
+      "durable_sessions_enable": false,
+      "secret_free_login": false,
+      "is_self_protection_status": false
     },
     "mqtt_offline_message": {
       "enable": true,
@@ -172,15 +139,10 @@
       "max_session_expiry_interval": 1800,
       "default_session_expiry_interval": 30,
       "topic_alias_max": 65535,
-      "max_qos_flight_message": 2,
       "max_packet_size": 10485760,
       "receive_max": 65535,
       "max_message_expiry_interval": 3600,
       "client_pkid_persistent": false
-    },
-    "mqtt_security": {
-      "is_self_protection_status": false,
-      "secret_free_login": false
     },
     "mqtt_schema": {
       "enable": true,
@@ -192,10 +154,24 @@
     "mqtt_system_monitor": {
       "enable": false,
       "os_cpu_high_watermark": 70.0,
-      "os_memory_high_watermark": 80.0
+      "os_memory_high_watermark": 80.0,
+      "system_topic_interval_ms": 60000
     },
-    "storage_offset": {
-      "enable_cache": true
+    "mqtt_limit": {
+      "cluster": {
+        "max_connections_per_node": 10000000,
+        "max_connection_rate": 100000,
+        "max_topics": 5000000,
+        "max_sessions": 50000000,
+        "max_publish_rate": 10000
+      },
+      "tenant": {
+        "max_connections_per_node": 1000000,
+        "max_connection_rate": 10000,
+        "max_topics": 500000,
+        "max_sessions": 5000000,
+        "max_publish_rate": 10000
+      }
     }
   },
   "error": null
@@ -375,7 +351,11 @@
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `runtime_worker_threads` | usize | Tokio 运行时工作线程数 |
+| `runtime_worker_threads` | usize | 兼容旧版全局线程倍数，各运行时字段为 0 时作为回退值 |
+| `server_worker_threads` | usize | Server 运行时线程数（0 = 自动，等于 CPU 核心数） |
+| `meta_worker_threads` | usize | Meta 运行时线程数（0 = 自动） |
+| `broker_worker_threads` | usize | Broker 运行时线程数（0 = 自动，热路径运行时） |
+| `channels_per_address` | usize | 每个地址的 gRPC 连接通道数 |
 | `tls_cert` | string | TLS 证书文件路径 |
 | `tls_key` | string | TLS 私钥文件路径 |
 
@@ -385,10 +365,7 @@
 |------|------|------|
 | `accept_thread_num` | usize | 连接接受线程数 |
 | `handler_thread_num` | usize | 消息处理线程数 |
-| `response_thread_num` | usize | 响应线程数 |
 | `queue_size` | usize | 内部队列大小 |
-| `lock_max_try_mut_times` | u64 | 锁最大尝试次数 |
-| `lock_try_mut_sleep_time_ms` | u64 | 锁重试等待时间（毫秒） |
 
 #### pprof
 
@@ -398,18 +375,6 @@
 | `port` | u16 | pprof HTTP 端口 |
 | `frequency` | i32 | 采样频率 |
 
-#### message_storage
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `storage_type` | string | 存储类型：`EngineMemory`、`EngineSegment`、`EngineRocksDB`、`Mysql`、`MinIO`、`S3` |
-| `engine_config` | object/null | Engine 存储配置 |
-| `memory_config` | object/null | 内存存储配置 |
-| `minio_config` | object/null | MinIO 存储配置 |
-| `mysql_config` | object/null | MySQL 存储配置 |
-| `rocksdb_config` | object/null | RocksDB 存储配置 |
-| `s3_config` | object/null | S3 存储配置 |
-
 #### meta_runtime
 
 | 字段 | 类型 | 说明 |
@@ -417,6 +382,8 @@
 | `heartbeat_timeout_ms` | u64 | 心跳超时时间（毫秒） |
 | `heartbeat_check_time_ms` | u64 | 心跳检查间隔（毫秒） |
 | `raft_write_timeout_sec` | u64 | Raft 写入超时（秒） |
+| `offset_raft_group_num` | u32 | Offset Raft 分片组数量（默认 1） |
+| `data_raft_group_num` | u32 | 数据 Raft 分片组数量（默认 1） |
 
 #### rocksdb
 
@@ -433,6 +400,7 @@
 | `max_segment_size` | u32 | 最大段文件大小（字节） |
 | `io_thread_num` | u32 | IO 线程数 |
 | `data_path` | string[] | 数据存储路径列表 |
+| `offset_enable_cache` | bool | 是否启用 Offset 缓存 |
 
 #### mqtt_server
 
@@ -459,8 +427,9 @@
 |------|------|------|
 | `default_user` | string | 默认用户名 |
 | `default_password` | string | 默认密码 |
-| `max_connection_num` | usize | 最大连接数 |
 | `durable_sessions_enable` | bool | 是否启用持久化会话 |
+| `secret_free_login` | bool | 是否允许免密登录 |
+| `is_self_protection_status` | bool | 是否处于自我保护状态 |
 
 #### mqtt_offline_message
 
@@ -500,13 +469,6 @@
 | `max_message_expiry_interval` | u64 | 最大消息过期间隔（秒） |
 | `client_pkid_persistent` | bool | 客户端 Packet ID 是否持久化 |
 
-#### mqtt_security
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `is_self_protection_status` | bool | 是否处于自我保护状态 |
-| `secret_free_login` | bool | 是否允许免密登录 |
-
 #### mqtt_schema
 
 | 字段 | 类型 | 说明 |
@@ -524,12 +486,38 @@
 | `enable` | bool | 是否启用系统监控 |
 | `os_cpu_high_watermark` | f32 | CPU 高水位线（百分比） |
 | `os_memory_high_watermark` | f32 | 内存高水位线（百分比） |
+| `system_topic_interval_ms` | u64 | 系统 Topic 指标发布间隔（毫秒） |
 
-#### storage_offset
+#### cluster_limit
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `enable_cache` | bool | 是否启用偏移量缓存 |
+| `max_network_connection` | u64 | 集群最大网络连接数 |
+| `max_network_connection_rate` | u32 | 集群每秒最大新建连接速率 |
+| `max_admin_http_uri_rate` | u32 | Admin HTTP 接口每秒最大请求速率 |
+
+#### mqtt_limit
+
+`cluster` 和 `tenant` 均为 `LimitQuota` 结构：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `max_connections_per_node` | u64 | 每节点最大连接数 |
+| `max_connection_rate` | u32 | 每秒最大新建连接速率 |
+| `max_topics` | u64 | 最大主题数 |
+| `max_sessions` | u64 | 最大会话数 |
+| `max_publish_rate` | u32 | 每秒最大发布速率 |
+
+#### llm_client
+
+可选配置，不填时为 `null`。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `platform` | string | LLM 平台，如 `open_ai`、`anthropic`、`ollama` 等 |
+| `model` | string | 模型名称 |
+| `token` | string/null | API Token（Ollama 不需要） |
+| `base_url` | string/null | 自定义 API 地址（需以 `http://` 或 `https://` 开头） |
 
 ---
 
@@ -571,7 +559,7 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `tenant_name` | string | 否 | 按租户名称精确查询 |
+| `tenant_name` | string | 否 | 按租户名称模糊查询（包含匹配） |
 | `page` | u32 | 否 | 页码，从 1 开始，默认 1 |
 | `limit` | u32 | 否 | 每页条数，默认 100 |
 | `sort_field` | string | 否 | 排序字段，支持 `tenant_name` |
@@ -589,6 +577,13 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
       {
         "tenant_name": "business-a",
         "desc": "业务 A 租户",
+        "config": {
+          "max_connections_per_node": 10000000,
+          "max_create_connection_rate_per_second": 10000,
+          "max_topics": 5000000,
+          "max_sessions": 50000000,
+          "max_publish_rate": 10000
+        },
         "create_time": 1738800000
       }
     ],
@@ -603,8 +598,8 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
 # 查询所有租户
 curl -X GET "http://localhost:8080/api/tenant/list"
 
-# 查询指定租户
-curl -X GET "http://localhost:8080/api/tenant/list?tenant_name=business-a"
+# 模糊查询租户名包含 "business" 的租户
+curl -X GET "http://localhost:8080/api/tenant/list?tenant_name=business"
 ```
 
 ---
@@ -619,12 +614,24 @@ curl -X GET "http://localhost:8080/api/tenant/list?tenant_name=business-a"
 |------|------|------|------|------|
 | `tenant_name` | string | 是 | 长度 1-128 | 租户名称，全局唯一 |
 | `desc` | string | 否 | 长度 ≤ 500 | 租户描述 |
+| `config` | object | 否 | - | 租户资源配额配置，不填则使用默认值 |
+| `config.max_connections_per_node` | u64 | 否 | - | 每节点最大连接数（默认 10000000） |
+| `config.max_create_connection_rate_per_second` | u32 | 否 | - | 每秒最大新建连接速率（默认 10000） |
+| `config.max_topics` | u64 | 否 | - | 最大主题数（默认 5000000） |
+| `config.max_sessions` | u64 | 否 | - | 最大会话数（默认 50000000） |
+| `config.max_publish_rate` | u32 | 否 | - | 每秒最大发布消息速率（默认 10000） |
 
 - **请求示例**:
 ```json
 {
   "tenant_name": "business-a",
-  "desc": "业务 A 租户"
+  "desc": "业务 A 租户",
+  "config": {
+    "max_connections_per_node": 50000,
+    "max_topics": 100000,
+    "max_sessions": 200000,
+    "max_publish_rate": 5000
+  }
 }
 ```
 
@@ -677,6 +684,153 @@ curl -X POST http://localhost:8080/api/tenant/create \
 curl -X POST http://localhost:8080/api/tenant/delete \
   -H "Content-Type: application/json" \
   -d '{"tenant_name": "business-a"}'
+```
+
+---
+
+### 7. 更新租户
+
+- **接口**: `POST /api/tenant/update`
+- **描述**: 更新租户的描述和资源配额。租户必须已存在。`config` 不传时保持原有配置不变。
+- **请求体**:
+
+| 字段 | 类型 | 必填 | 校验 | 说明 |
+|------|------|------|------|------|
+| `tenant_name` | string | 是 | 长度 1-128 | 要更新的租户名称 |
+| `desc` | string | 否 | 长度 ≤ 500 | 新的租户描述 |
+| `config` | object | 否 | - | 租户资源配额配置，不填则保持原有配置不变 |
+| `config.max_connections_per_node` | u64 | 否 | - | 每节点最大连接数 |
+| `config.max_create_connection_rate_per_second` | u32 | 否 | - | 每秒最大新建连接速率 |
+| `config.max_topics` | u64 | 否 | - | 最大主题数 |
+| `config.max_sessions` | u64 | 否 | - | 最大会话数 |
+| `config.max_publish_rate` | u32 | 否 | - | 每秒最大发布消息速率 |
+
+- **请求示例**:
+```json
+{
+  "tenant_name": "business-a",
+  "desc": "业务 A 租户（已更新）",
+  "config": {
+    "max_connections_per_node": 100000,
+    "max_publish_rate": 20000
+  }
+}
+```
+
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "data": "success",
+  "error": null
+}
+```
+
+- **错误响应**（租户不存在时）:
+```json
+{
+  "code": 1,
+  "message": "Tenant business-a not found",
+  "data": null
+}
+```
+
+- **curl 示例**:
+```bash
+curl -X POST http://localhost:8080/api/tenant/update \
+  -H "Content-Type: application/json" \
+  -d '{"tenant_name": "business-a", "desc": "业务 A 租户（已更新）", "config": {"max_connections_per_node": 100000}}'
+```
+
+---
+
+## 健康检查
+
+### 8. 集群存活检查
+
+- **接口**: `GET /cluster/healthy`
+- **描述**: 检查服务是否存活，返回 `true` 表示正常
+- **请求参数**: 无
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": true
+}
+```
+
+---
+
+### 9. 就绪检查
+
+- **接口**: `GET /health/ready`
+- **描述**: 检查所有配置的端口是否就绪，用于 K8s readiness probe
+- **请求参数**: 无
+- **响应**:
+  - **200 OK** — 所有端口就绪:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "status": "ok",
+    "check_type": "ready",
+    "message": "all configured ports are ready"
+  }
+}
+```
+  - **503 Service Unavailable** — 端口未就绪:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "status": "not_ready",
+    "check_type": "ready",
+    "message": "one or more configured ports are not ready"
+  }
+}
+```
+
+---
+
+### 10. 节点健康检查
+
+- **接口**: `GET /health/node`
+- **描述**: 节点级健康检查（占位实现，始终返回 ok）
+- **请求参数**: 无
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "status": "ok",
+    "check_type": "node",
+    "message": "health check placeholder"
+  }
+}
+```
+
+---
+
+### 11. 集群健康检查
+
+- **接口**: `GET /health/cluster`
+- **描述**: 集群级健康检查（占位实现，始终返回 ok）
+- **请求参数**: 无
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "status": "ok",
+    "check_type": "cluster",
+    "message": "health check placeholder"
+  }
+}
 ```
 
 ---

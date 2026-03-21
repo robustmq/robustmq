@@ -12,18 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod consumer;
-pub mod dispatcher;
-pub mod handler;
-
 use broker_core::cache::NodeCacheManager;
+use bytes::Bytes;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
+use futures::future::join_all;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::meta::node::BrokerNode;
 use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use protocol::broker::broker_mqtt::LastWillMessageItem;
 use std::sync::Arc;
-use tokio::sync::{broadcast, mpsc, RwLock};
+use tokio::sync::{broadcast, mpsc, oneshot, RwLock};
+use tokio::time::{timeout, Duration};
+
+pub mod consumer;
+pub mod dispatcher;
+pub mod handler;
 
 pub const GLOBAL_CHANNEL_SIZE: usize = 10000;
 pub const NODE_CHANNEL_SIZE: usize = 5000;
@@ -44,6 +48,15 @@ pub enum NodeCallData {
     UpdateCache(UpdateCacheData),
     DeleteSession(String),
     SendLastWillMessage(LastWillMessageItem),
+    GetQosData(String),
+}
+
+pub struct NodeCallRequest {
+    pub data: NodeCallData,
+    // Snapshot of nodes taken at send time; dispatcher uses this list to avoid a second lookup.
+    pub nodes: Vec<BrokerNode>,
+    // One slot per node; the dispatcher pops the matching sender by node index.
+    pub reply_txs: Vec<Option<oneshot::Sender<Bytes>>>,
 }
 
 impl NodeCallData {
@@ -52,14 +65,15 @@ impl NodeCallData {
             NodeCallData::UpdateCache(_) => None,
             NodeCallData::DeleteSession(client_id) => Some(client_id),
             NodeCallData::SendLastWillMessage(item) => Some(&item.client_id),
+            NodeCallData::GetQosData(_) => None,
         }
     }
 }
 
 pub struct NodeCallManager {
-    pub global_sender: RwLock<Option<mpsc::Sender<NodeCallData>>>,
+    pub global_sender: RwLock<Option<mpsc::Sender<NodeCallRequest>>>,
     broker_cache: Arc<NodeCacheManager>,
-    node_channels: Arc<DashMap<u64, mpsc::Sender<NodeCallData>>>,
+    node_channels: Arc<DashMap<u64, mpsc::Sender<NodeCallRequest>>>,
     client_pool: Arc<ClientPool>,
 }
 
@@ -73,10 +87,56 @@ impl NodeCallManager {
         }
     }
 
+    pub async fn send_with_reply(&self, data: NodeCallData) -> Result<Vec<Bytes>, CommonError> {
+        let nodes = self.broker_cache.node_list();
+        let node_count = nodes.len();
+
+        let mut reply_txs = Vec::with_capacity(node_count);
+        let mut reply_rxs = Vec::with_capacity(node_count);
+        for _ in 0..node_count {
+            let (tx, rx) = oneshot::channel();
+            reply_txs.push(Some(tx));
+            reply_rxs.push(rx);
+        }
+
+        let request = NodeCallRequest {
+            data,
+            nodes,
+            reply_txs,
+        };
+
+        {
+            let read = self.global_sender.read().await;
+            if let Some(sender) = read.as_ref() {
+                sender.send(request).await.map_err(|e| {
+                    CommonError::CommonError(format!("Failed to send to global channel: {}", e))
+                })?;
+            } else {
+                return Err(CommonError::CommonError(
+                    "NodeCallManager global sender is not initialized".to_string(),
+                ));
+            }
+        }
+
+        let replies = timeout(Duration::from_secs(5), join_all(reply_rxs))
+            .await
+            .map_err(|_| {
+                CommonError::CommonError("send_with_reply timed out after 5s".to_string())
+            })?;
+
+        let results = replies.into_iter().flatten().collect();
+        Ok(results)
+    }
+
     pub async fn send(&self, data: NodeCallData) -> Result<(), CommonError> {
+        let request = NodeCallRequest {
+            data,
+            nodes: Vec::new(),
+            reply_txs: Vec::new(),
+        };
         let read = self.global_sender.read().await;
-        if let Some(sender) = read.clone() {
-            sender.send(data).await.map_err(|e| {
+        if let Some(sender) = read.as_ref() {
+            sender.send(request).await.map_err(|e| {
                 CommonError::CommonError(format!("Failed to send to global channel: {}", e))
             })?;
             return Ok(());

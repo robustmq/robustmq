@@ -152,6 +152,10 @@ pub enum AclActionType {
 pub struct CreateAclArgs {
     #[arg(short, long, required = true)]
     pub cluster_name: String,
+    #[arg(long, required = true)]
+    pub name: String,
+    #[arg(long)]
+    pub desc: Option<String>,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclResourceType>::new(),
@@ -160,10 +164,10 @@ pub struct CreateAclArgs {
     pub resource_type: MqttAclResourceType,
     #[arg(long, required = true)]
     pub resource_name: String,
-    #[arg(long, required = true)]
-    pub topic: String,
-    #[arg(long, required = true)]
-    pub ip: String,
+    #[arg(long)]
+    pub topic: Option<String>,
+    #[arg(long)]
+    pub ip: Option<String>,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclAction>::new(),
@@ -183,30 +187,8 @@ pub struct CreateAclArgs {
 pub struct DeleteAclArgs {
     #[arg(short, long, required = true)]
     pub cluster_name: String,
-    #[arg(
-        long,
-        value_parser = EnumValueParser::<MqttAclResourceType>::new(),
-        default_missing_value = "ClientId"
-    )]
-    pub resource_type: MqttAclResourceType,
     #[arg(long, required = true)]
-    pub resource_name: String,
-    #[arg(long, required = true)]
-    pub topic: String,
-    #[arg(long, required = true)]
-    pub ip: String,
-    #[arg(
-        long,
-        value_parser = EnumValueParser::<MqttAclAction>::new(),
-        default_missing_value = "All",
-    )]
-    pub action: MqttAclAction,
-    #[arg(
-        long,
-        value_parser = EnumValueParser::<MqttAclPermission>::new(),
-        default_missing_value = "Allow",
-    )]
-    pub permission: MqttAclPermission,
+    pub name: String,
 }
 
 // blacklist feat
@@ -235,6 +217,8 @@ pub enum BlackListActionType {
 pub struct CreateBlacklistArgs {
     #[arg(short, long, required = true)]
     pub cluster_name: String,
+    #[arg(long, required = true)]
+    pub name: String,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclBlackListType>::new(),
@@ -245,8 +229,8 @@ pub struct CreateBlacklistArgs {
     pub resource_name: String,
     #[arg(long, required = true)]
     pub end_time: u64,
-    #[arg(long, required = true)]
-    pub desc: String,
+    #[arg(long)]
+    pub desc: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
@@ -255,14 +239,8 @@ pub struct CreateBlacklistArgs {
 pub struct DeleteBlacklistArgs {
     #[arg(short, long, required = true)]
     pub cluster_name: String,
-    #[arg(
-        long,
-        value_parser = EnumValueParser::<MqttAclBlackListType>::new(),
-        default_missing_value = "ClientId"
-    )]
-    pub blacklist_type: MqttAclBlackListType,
-    #[arg(short, long, required = true)]
-    pub resource_name: String,
+    #[arg(long, required = true)]
+    pub name: String,
 }
 
 // #### observability ####
@@ -342,26 +320,29 @@ pub enum TopicRewriteActionType {
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
 pub struct CreateTopicRewriteArgs {
+    #[arg(short, long, required = true)]
+    pub name: String,
+    #[arg(short = 'D', long)]
+    pub desc: Option<String>,
     #[arg(short = 'T', long, required = true)]
     pub tenant: String,
     #[arg(short, long, required = true)]
     pub action: String,
     #[arg(short, long, required = true)]
     pub source_topic: String,
-    #[arg(short, long, required = true)]
+    #[arg(short = 'O', long, required = true)]
     pub dest_topic: String,
     #[arg(short, long, required = true)]
     pub regex: String,
 }
+
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
 pub struct DeleteTopicRewriteArgs {
     #[arg(short = 'T', long, required = true)]
     pub tenant: String,
     #[arg(short, long, required = true)]
-    pub action: String,
-    #[arg(short, long, required = true)]
-    pub source_topic: String,
+    pub name: String,
 }
 
 // connector feat
@@ -567,6 +548,8 @@ pub fn process_acl_args(args: AclArgs) -> Result<MqttActionType, Box<dyn std::er
         AclActionType::Create(arg) => Ok(MqttActionType::CreateAcl(
             admin_server::mqtt::acl::CreateAclReq {
                 tenant: DEFAULT_TENANT.to_string(),
+                name: arg.name,
+                desc: arg.desc,
                 resource_type: arg.resource_type.to_string(),
                 resource_name: arg.resource_name,
                 topic: arg.topic,
@@ -578,12 +561,7 @@ pub fn process_acl_args(args: AclArgs) -> Result<MqttActionType, Box<dyn std::er
         AclActionType::Delete(arg) => Ok(MqttActionType::DeleteAcl(
             admin_server::mqtt::acl::DeleteAclReq {
                 tenant: DEFAULT_TENANT.to_string(),
-                resource_type: arg.resource_type.to_string(),
-                resource_name: arg.resource_name,
-                topic: arg.topic,
-                ip: arg.ip,
-                action: arg.action.to_string(),
-                permission: arg.permission.to_string(),
+                name: arg.name,
             },
         )),
     }
@@ -596,6 +574,7 @@ pub fn process_blacklist_args(
         BlackListActionType::List => Ok(MqttActionType::ListBlacklist),
         BlackListActionType::Create(arg) => Ok(MqttActionType::CreateBlacklist(
             admin_server::mqtt::blacklist::CreateBlackListReq {
+                name: arg.name,
                 tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: arg.blacklist_type.to_string(),
                 resource_name: arg.resource_name,
@@ -606,8 +585,7 @@ pub fn process_blacklist_args(
         BlackListActionType::Delete(arg) => Ok(MqttActionType::DeleteBlacklist(
             admin_server::mqtt::blacklist::DeleteBlackListReq {
                 tenant: DEFAULT_TENANT.to_string(),
-                blacklist_type: arg.blacklist_type.to_string(),
-                resource_name: arg.resource_name,
+                name: arg.name,
             },
         )),
     }
@@ -655,6 +633,8 @@ pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
         TopicRewriteActionType::List => MqttActionType::ListTopicRewrite,
         TopicRewriteActionType::Create(arg) => {
             MqttActionType::CreateTopicRewrite(admin_server::mqtt::topic::CreateTopicRewriteReq {
+                name: arg.name,
+                desc: arg.desc,
                 tenant: arg.tenant,
                 action: arg.action,
                 source_topic: arg.source_topic,
@@ -665,8 +645,7 @@ pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
         TopicRewriteActionType::Delete(arg) => {
             MqttActionType::DeleteTopicRewrite(admin_server::mqtt::topic::DeleteTopicRewriteReq {
                 tenant: arg.tenant,
-                action: arg.action,
-                source_topic: arg.source_topic,
+                name: arg.name,
             })
         }
     }
@@ -730,13 +709,17 @@ pub enum AutoSubscribeRuleActionType {
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
 pub struct CreateAutoSubscribeRuleArgs {
+    #[arg(short, long, required = true)]
+    pub name: String,
+    #[arg(short, long)]
+    pub desc: Option<String>,
     #[arg(short = 'T', long, required = true)]
     pub tenant: String,
     #[arg(short, long, required = true)]
     pub topic: String,
     #[arg(short, long, default_value_t = 0)]
     pub qos: u8,
-    #[arg(short, long, default_value_t = false)]
+    #[arg(short = 'L', long, default_value_t = false)]
     pub no_local: bool,
     #[arg(short = 'r', long, default_value_t = false)]
     pub retain_as_published: bool,
@@ -750,7 +733,7 @@ pub struct DeleteAutoSubscribeRuleArgs {
     #[arg(short = 'T', long, required = true)]
     pub tenant: String,
     #[arg(short, long, required = true)]
-    pub topic: String,
+    pub name: String,
 }
 
 pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttActionType {
@@ -758,6 +741,8 @@ pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttAction
         AutoSubscribeRuleActionType::List => MqttActionType::ListAutoSubscribe,
         AutoSubscribeRuleActionType::Create(arg) => MqttActionType::CreateAutoSubscribe(
             admin_server::mqtt::subscribe::CreateAutoSubscribeReq {
+                name: arg.name,
+                desc: arg.desc,
                 tenant: arg.tenant,
                 topic: arg.topic,
                 qos: arg.qos as u32,
@@ -769,7 +754,7 @@ pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttAction
         AutoSubscribeRuleActionType::Delete(arg) => MqttActionType::DeleteAutoSubscribe(
             admin_server::mqtt::subscribe::DeleteAutoSubscribeReq {
                 tenant: arg.tenant,
-                topic: arg.topic,
+                name: arg.name,
             },
         ),
     }

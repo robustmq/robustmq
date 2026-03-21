@@ -416,9 +416,6 @@ impl MqttBrokerCommand {
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -597,13 +594,12 @@ impl MqttBrokerCommand {
         // Create request for acl list
         let request = admin_server::mqtt::acl::AclListReq {
             tenant: None,
+            name: None,
+            resource_name: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -621,6 +617,8 @@ impl MqttBrokerCommand {
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
+                    "name",
+                    "desc",
                     "resource_type",
                     "resource_name",
                     "topic",
@@ -630,6 +628,8 @@ impl MqttBrokerCommand {
                 ]);
                 for acl in page_data.data {
                     table.add_row(row![
+                        acl.name,
+                        acl.desc,
                         acl.resource_type,
                         acl.resource_name,
                         acl.topic,
@@ -694,13 +694,12 @@ impl MqttBrokerCommand {
         // Create request for blacklist list
         let request = admin_server::mqtt::blacklist::BlackListListReq {
             tenant: None,
+            name: None,
+            resource_name: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -718,6 +717,7 @@ impl MqttBrokerCommand {
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
+                    "name",
                     "blacklist_type",
                     "resource_name",
                     "end_time",
@@ -725,6 +725,7 @@ impl MqttBrokerCommand {
                 ]);
                 for blacklist in page_data.data {
                     table.add_row(row![
+                        blacklist.name,
                         blacklist.blacklist_type,
                         blacklist.resource_name,
                         blacklist.end_time,
@@ -748,8 +749,6 @@ impl MqttBrokerCommand {
 
         // Create request for client list
         let request = admin_server::mqtt::client::ClientListReq {
-            source_ip: None,
-            connection_id: None,
             limit: Some(params.limit),
             page: Some(params.page),
             ..Default::default()
@@ -860,9 +859,8 @@ impl MqttBrokerCommand {
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
+            tenant: None,
+            name: None,
         };
 
         match admin_client
@@ -916,9 +914,6 @@ impl MqttBrokerCommand {
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -1025,9 +1020,6 @@ impl MqttBrokerCommand {
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -1097,9 +1089,6 @@ impl MqttBrokerCommand {
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -1196,13 +1185,11 @@ impl MqttBrokerCommand {
         // Create request for topic rewrite rule list
         let request = admin_server::mqtt::topic::TopicRewriteReq {
             tenant: None,
+            name: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -1220,18 +1207,22 @@ impl MqttBrokerCommand {
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
+                    "name",
+                    "desc",
                     "tenant",
+                    "action",
                     "source_topic",
                     "dest_topic",
-                    "action",
                     "regex",
                 ]);
                 for rule in page_data.data {
                     table.add_row(row![
+                        rule.name,
+                        rule.desc,
                         rule.tenant,
+                        rule.action,
                         rule.source_topic,
                         rule.dest_topic,
-                        rule.action,
                         rule.regex
                     ]);
                 }
@@ -1291,13 +1282,11 @@ impl MqttBrokerCommand {
         // Create request for schema list
         let request = admin_server::mqtt::schema::SchemaListReq {
             tenant: None,
+            name: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -1503,9 +1492,8 @@ impl MqttBrokerCommand {
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
+            tenant: None,
+            name: None,
         };
 
         match admin_client
@@ -1523,6 +1511,9 @@ impl MqttBrokerCommand {
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
+                    "name",
+                    "desc",
+                    "tenant",
                     "topic",
                     "qos",
                     "no_local",
@@ -1531,6 +1522,9 @@ impl MqttBrokerCommand {
                 ]);
                 for rule in page_data.data {
                     table.add_row(row![
+                        rule.name,
+                        rule.desc,
+                        rule.tenant,
                         rule.topic,
                         rule.qos,
                         rule.no_local,

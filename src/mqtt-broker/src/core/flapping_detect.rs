@@ -142,6 +142,7 @@ async fn add_blacklist_4_connection_jitter(
 ) -> ResultMqttBrokerError {
     let end_time = now_second() + convert_seconds(config.ban_time as u64, TimeUnit::Minutes);
     let client_id_blacklist = MqttAclBlackList {
+        name: format!("flapping-ban-{}-{}", tenant, client_id),
         tenant: tenant.to_string(),
         blacklist_type: MqttAclBlackListType::ClientId,
         resource_name: client_id.clone(),

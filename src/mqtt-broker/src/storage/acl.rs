@@ -56,8 +56,10 @@ impl AclStorage {
 
     pub async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
         let config = broker_config();
-        let value = acl.encode()?;
-        let request = DeleteAclRequest { acl: value };
+        let request = DeleteAclRequest {
+            tenant: acl.tenant,
+            name: acl.name,
+        };
         delete_acl(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         Ok(())
     }

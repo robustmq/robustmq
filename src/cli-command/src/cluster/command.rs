@@ -212,7 +212,11 @@ impl ClusterCommand {
         desc: Option<String>,
     ) {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
-        let request = admin_server::cluster::tenant::CreateTenantReq { tenant_name, desc };
+        let request = admin_server::cluster::tenant::CreateTenantReq {
+            tenant_name,
+            desc,
+            config: None,
+        };
         match admin_client.create_tenant(&request).await {
             Ok(_) => println!("Created successfully!"),
             Err(e) => {

@@ -26,8 +26,8 @@ use std::sync::Arc;
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub struct SlowSubscribeData {
     pub tenant: String,
-    pub subscribe_name: String,
     pub client_id: String,
+    pub subscribe_name: String,
     pub topic_name: String,
     pub node_info: String,
     pub time_span: u64,

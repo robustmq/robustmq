@@ -48,6 +48,19 @@ pub async fn send_notify_by_create_tenant(
     .await
 }
 
+pub async fn send_notify_by_update_tenant(
+    call_manager: &Arc<NodeCallManager>,
+    tenant: Tenant,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Update,
+        BrokerUpdateCacheResourceType::Tenant,
+        serialize::serialize(&tenant)?,
+    )
+    .await
+}
+
 pub async fn send_notify_by_delete_tenant(
     call_manager: &Arc<NodeCallManager>,
     tenant: Tenant,

@@ -167,27 +167,17 @@
 
 #### 2.1 客户端列表查询
 - **接口**: `GET /api/mqtt/client/list`
-- **描述**: 查询连接到集群的客户端列表，支持按租户直接查询（O(1)）
+- **描述**: 查询连接到集群的客户端列表，支持按租户过滤和 client_id 模糊搜索
 - **请求参数**:
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
-  "source_ip": "192.168.1.1",      // 可选，按源IP过滤
-  "client_id": "client001",         // 可选，按客户端ID前缀过滤
-  "connection_id": 12345,           // 可选，按连接ID过滤
-  "limit": 20,                      // 可选，每页大小，最大采样 100 条
-  "page": 1,                        // 可选，页码
-  "sort_field": "connection_id",    // 可选，排序字段
-  "sort_by": "desc",                // 可选，排序方式
-  "filter_field": "client_id",      // 可选，过滤字段
-  "filter_values": ["client001"],   // 可选，过滤值
-  "exact_match": "true"             // 可选，精确匹配
-}
-```
 
-**参数说明**：
-- `tenant`: 指定租户时直接从该租户缓存中查询；未指定时从所有租户中采样（最多 100 条）
-- `client_id`: 支持前缀匹配，例如传入 `"sensor_"` 可匹配所有以 `sensor_` 开头的客户端
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户精确过滤，指定时直接查询该租户缓存（性能更好） |
+| `client_id` | string | 否 | 按客户端 ID 模糊搜索（包含匹配） |
+| `limit` | u32 | 否 | 每页大小，最大采样 100 条 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `client_id`、`connection_id` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
 
 - **响应数据结构**:
 ```json
@@ -290,24 +280,17 @@
 
 #### 3.1 会话列表查询
 - **接口**: `GET /api/mqtt/session/list`
-- **描述**: 查询 MQTT 会话列表，支持按租户直接查询（O(1)）
+- **描述**: 查询 MQTT 会话列表，支持按租户过滤和 client_id 模糊搜索
 - **请求参数**:
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
-  "client_id": "client001",         // 可选，按客户端ID过滤
-  "limit": 20,
-  "page": 1,
-  "sort_field": "create_time",      // 可选，排序字段
-  "sort_by": "desc",
-  "filter_field": "client_id",
-  "filter_values": ["client001"],
-  "exact_match": "false"
-}
-```
 
-**参数说明**：
-- `tenant`: 指定租户时直接从该租户缓存中查询；未指定时从所有租户中采样（最多 100 条）
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户精确过滤，指定时直接查询该租户缓存（性能更好） |
+| `client_id` | string | 否 | 按客户端 ID 模糊搜索（包含匹配） |
+| `limit` | u32 | 否 | 每页大小，最大采样 100 条 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `client_id`、`create_time` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
 
 - **响应数据结构**:
 ```json
@@ -317,6 +300,7 @@
   "data": {
     "data": [
       {
+        "tenant": "default",
         "client_id": "client001",
         "session_expiry": 3600,
         "is_contain_last_will": true,
@@ -378,29 +362,18 @@
 
 #### 4.1 主题列表查询
 - **接口**: `GET /api/mqtt/topic/list`
-- **描述**: 查询 MQTT 主题列表，支持按租户直接查询
+- **描述**: 查询 MQTT 主题列表，支持按租户过滤、主题名模糊搜索和主题类型过滤
 - **请求参数**:
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
-  "topic_name": "sensor/+",         // 可选，按主题名过滤
-  "topic_type": "all",              // 可选，主题类型："all"(全部)、"normal"(普通主题)、"system"(系统主题)，默认为"all"
-  "limit": 20,
-  "page": 1,
-  "sort_field": "topic_name",
-  "sort_by": "asc",
-  "filter_field": "topic_name",
-  "filter_values": ["sensor"],
-  "exact_match": "false"
-}
-```
 
-**参数说明**：
-- **tenant**: 指定租户时直接从该租户缓存中查询
-- **topic_type**: 主题类型过滤
-  - `"all"` - 返回所有主题（默认值）
-  - `"normal"` - 只返回普通主题（不以 `$` 开头的主题）
-  - `"system"` - 只返回系统主题（以 `$` 开头的主题，如 `$SYS/...`）
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户精确过滤，指定时直接查询该租户缓存（性能更好） |
+| `topic_name` | string | 否 | 按主题名模糊搜索（包含匹配） |
+| `topic_type` | string | 否 | 主题类型：`all`（默认）、`normal`（普通主题）、`system`（系统主题，含 `$`） |
+| `limit` | u32 | 否 | 每页大小 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `topic_name`、`tenant` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
 
 - **响应数据结构**:
 ```json
@@ -429,12 +402,12 @@
 - **接口**: `GET /api/mqtt/topic/detail`
 - **描述**: 查询指定主题的详细信息，包括主题基本信息、保留消息和订阅列表
 - **请求参数**:
-```json
-{
-  "tenant": "default",                  // 必填，租户名称
-  "topic_name": "sensor/temperature"    // 必填，主题名称
-}
-```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 是 | 租户名称 |
+| `topic_name` | string | 是 | 主题名称（精确匹配） |
+
 
 - **响应数据结构**:
 ```json
@@ -466,12 +439,12 @@
 - **接口**: `POST /api/mqtt/topic/delete`
 - **描述**: 删除指定的主题
 - **请求参数**:
-```json
-{
-  "tenant": "default",                  // 必填，租户名称
-  "topic_name": "sensor/temperature"    // 必填，要删除的主题名称
-}
-```
+
+| 字段 | 类型 | 必填 | 校验 | 说明 |
+|------|------|------|------|------|
+| `tenant` | string | 是 | - | 租户名称 |
+| `topic_name` | string | 是 | 长度 1-256 | 要删除的主题名称 |
+
 
 - **响应**: 成功返回 "success"
 
@@ -481,20 +454,18 @@
 
 #### 4.4 主题重写规则列表
 - **接口**: `GET /api/mqtt/topic-rewrite/list`
-- **描述**: 查询主题重写规则列表，支持按租户过滤
+- **描述**: 查询主题重写规则列表，支持按租户和规则名称模糊搜索
 - **请求参数**:
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤
-  "limit": 20,
-  "page": 1,
-  "sort_field": "source_topic",
-  "sort_by": "asc",
-  "filter_field": "action",
-  "filter_values": ["All"],
-  "exact_match": "false"
-}
-```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户模糊过滤 |
+| `name` | string | 否 | 按规则名称模糊过滤 |
+| `limit` | u32 | 否 | 每页大小 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `name`、`source_topic`、`dest_topic`、`action`、`tenant` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
+
 
 - **响应数据结构**:
 ```json
@@ -504,6 +475,8 @@
   "data": {
     "data": [
       {
+        "name": "my-rule",
+        "desc": "rewrite sensor topics",
         "tenant": "default",
         "source_topic": "old/topic/+",
         "dest_topic": "new/topic/$1",
@@ -518,10 +491,12 @@
 
 #### 4.5 创建主题重写规则
 - **接口**: `POST /api/mqtt/topic-rewrite/create`
-- **描述**: 创建新的主题重写规则
+- **描述**: 创建新的主题重写规则，`name` 作为唯一标识符
 - **请求参数**:
 ```json
 {
+  "name": "my-rule",                // 必填，规则名称，全局唯一标识符
+  "desc": "rewrite sensor topics",  // 可选，规则描述
   "tenant": "default",              // 必填，租户名称，长度 1-128
   "action": "All",                  // 必填，动作类型：All, Publish, Subscribe
   "source_topic": "old/topic/+",   // 必填，源主题模式，长度 1-256
@@ -534,13 +509,12 @@
 
 #### 4.6 删除主题重写规则
 - **接口**: `POST /api/mqtt/topic-rewrite/delete`
-- **描述**: 删除主题重写规则
+- **描述**: 按规则名称删除主题重写规则
 - **请求参数**:
 ```json
 {
-  "tenant": "default",              // 必填，租户名称
-  "action": "All",
-  "source_topic": "old/topic/+"
+  "tenant": "default",    // 必填，租户名称
+  "name": "my-rule"       // 必填，规则名称
 }
 ```
 
@@ -552,21 +526,18 @@
 
 #### 5.1 订阅列表查询
 - **接口**: `GET /api/mqtt/subscribe/list`
-- **描述**: 查询订阅列表，支持按租户直接查询
+- **描述**: 查询订阅列表，支持按租户过滤和 client_id 模糊搜索
 - **请求参数**:
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
-  "client_id": "client001",         // 可选，按客户端ID过滤
-  "limit": 20,
-  "page": 1,
-  "sort_field": "create_time",
-  "sort_by": "desc",
-  "filter_field": "client_id",
-  "filter_values": ["client001"],
-  "exact_match": "false"
-}
-```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户精确过滤，指定时直接查询该租户缓存（性能更好） |
+| `client_id` | string | 否 | 按客户端 ID 模糊搜索（包含匹配） |
+| `limit` | u32 | 否 | 每页大小 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `client_id`、`tenant` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
+
 
 - **响应数据结构**:
 ```json
@@ -659,8 +630,18 @@
 
 ##### 5.3.1 自动订阅列表
 - **接口**: `GET /api/mqtt/auto-subscribe/list`
-- **描述**: 查询自动订阅规则列表
-- **请求参数**: 支持通用分页和过滤参数
+- **描述**: 查询自动订阅规则列表，支持 tenant、name 模糊搜索
+- **请求参数**:
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| tenant | string | 否 | 按租户模糊搜索 |
+| name | string | 否 | 按规则名称模糊搜索 |
+| limit | number | 否 | 每页条数 |
+| page | number | 否 | 页码 |
+| sort_field | string | 否 | 排序字段 |
+| sort_by | string | 否 | 排序方向 asc/desc |
+
 - **响应数据结构**:
 ```json
 {
@@ -669,6 +650,8 @@
   "data": {
     "data": [
       {
+        "name": "rule-1",
+        "desc": "auto subscribe for system topics",
         "tenant": "default",
         "topic": "system/+",
         "qos": "QoS1",
@@ -682,15 +665,14 @@
 }
 ```
 
-**新增字段**：
-- `tenant`: 自动订阅规则所属的租户名称
-
 ##### 5.3.2 创建自动订阅规则
 - **接口**: `POST /api/mqtt/auto-subscribe/create`
-- **描述**: 创建新的自动订阅规则
+- **描述**: 创建新的自动订阅规则，name 为唯一标识
 - **请求参数**:
 ```json
 {
+  "name": "rule-1",                 // 必填，规则唯一名称，长度 1-256
+  "desc": "optional description",  // 可选，规则描述
   "tenant": "default",              // 必填，租户名称，长度 1-256
   "topic": "system/+",              // 必填，主题模式，长度 1-256
   "qos": 1,                         // 必填，QoS 级别：0, 1, 2
@@ -704,12 +686,12 @@
 
 ##### 5.3.3 删除自动订阅规则
 - **接口**: `POST /api/mqtt/auto-subscribe/delete`
-- **描述**: 删除自动订阅规则
+- **描述**: 按 name 删除自动订阅规则
 - **请求参数**:
 ```json
 {
   "tenant": "default",              // 必填，租户名称
-  "topic": "system/+"               // 必填，主题模式
+  "name": "rule-1"                  // 必填，规则名称
 }
 ```
 
@@ -719,20 +701,17 @@
 
 ##### 5.4.1 慢订阅列表
 - **接口**: `GET /api/mqtt/slow-subscribe/list`
-- **描述**: 查询慢订阅列表，支持按租户过滤
+- **描述**: 查询慢订阅列表，支持按租户过滤和 client_id 模糊搜索
 - **请求参数**:
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤（指定后仅扫描该租户的记录）
-  "limit": 20,
-  "page": 1,
-  "sort_field": "time_span",
-  "sort_by": "desc",
-  "filter_field": "client_id",
-  "filter_values": ["slow_client"],
-  "exact_match": "false"
-}
-```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户过滤（指定后仅扫描该租户的记录） |
+| `client_id` | string | 否 | 按客户端 ID 模糊搜索（包含匹配） |
+| `limit` | u32 | 否 | 每页大小 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `tenant`、`client_id`、`topic_name` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
 
 - **响应数据结构**:
 
@@ -773,12 +752,12 @@
 
 #### 6.1 用户列表查询
 - **接口**: `GET /api/mqtt/user/list`
-- **描述**: 查询 MQTT 用户列表，支持按租户过滤
+- **描述**: 查询 MQTT 用户列表，支持按租户过滤、用户名模糊搜索
 - **请求参数**:
 ```json
 {
-  "tenant": "default",              // 可选，按租户过滤
-  "user_name": "admin",             // 可选，按用户名过滤
+  "tenant": "default",              // 可选，按租户精确过滤
+  "user_name": "admin",             // 可选，按用户名模糊搜索（包含匹配）
   "limit": 20,
   "page": 1,
   "sort_field": "username",
@@ -827,7 +806,7 @@
 }
 ```
 
-- **响应**: 成功返回 "Created successfully!"
+- **响应**: 成功返回 "success"
 
 #### 6.3 删除用户
 - **接口**: `POST /api/mqtt/user/delete`
@@ -840,7 +819,7 @@
 }
 ```
 
-- **响应**: 成功返回 "Deleted successfully!"
+- **响应**: 成功返回 "success"
 
 ---
 
@@ -848,18 +827,17 @@
 
 #### 7.1 ACL 列表查询
 - **接口**: `GET /api/mqtt/acl/list`
-- **描述**: 查询访问控制列表，支持按租户直接查询
+- **描述**: 查询访问控制列表，支持租户、名称、资源名称的模糊搜索（包含匹配）
 - **请求参数**:
 ```json
 {
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
+  "tenant": "default",              // 可选，租户模糊搜索（包含匹配）
+  "name": "sensor",                 // 可选，ACL 名称模糊搜索（包含匹配）
+  "resource_name": "client001",     // 可选，资源名称模糊搜索（包含匹配，适用于 client_id 或 user）
   "limit": 20,
   "page": 1,
-  "sort_field": "resource_name",
-  "sort_by": "asc",
-  "filter_field": "action",
-  "filter_values": ["Publish"],
-  "exact_match": "false"
+  "sort_field": "name",
+  "sort_by": "asc"
 }
 ```
 
@@ -872,6 +850,8 @@
     "data": [
       {
         "tenant": "default",
+        "name": "sensor-publish-rule",
+        "desc": "允许 sensor 设备发布数据",
         "resource_type": "ClientId",
         "resource_name": "client001",
         "topic": "sensor/+",
@@ -885,20 +865,19 @@
 }
 ```
 
-**新增字段**：
-- `tenant`: ACL 规则所属的租户名称
-
 #### 7.2 创建 ACL 规则
 - **接口**: `POST /api/mqtt/acl/create`
-- **描述**: 创建新的 ACL 规则
+- **描述**: 创建新的 ACL 规则，以 `name` 为唯一标识（租户内唯一）
 - **请求参数**:
 ```json
 {
   "tenant": "default",               // 必填，租户名称，长度 1-64
+  "name": "sensor-publish-rule",     // 必填，ACL 规则名称，租户内唯一，长度 1-128
+  "desc": "允许 sensor 设备发布数据", // 可选，描述，长度不超过 256
   "resource_type": "ClientId",       // 必填，资源类型：ClientId, User, Ip
   "resource_name": "client001",      // 必填，资源名称，长度 1-256
-  "topic": "sensor/+",               // 必填，主题模式，长度 1-256
-  "ip": "192.168.1.100",             // 必填，IP地址，长度不超过 128
+  "topic": "sensor/+",               // 可选，主题模式，长度不超过 256
+  "ip": "192.168.1.100",             // 可选，IP地址，长度不超过 128
   "action": "Publish",               // 必填，动作：Publish, Subscribe, All
   "permission": "Allow"              // 必填，权限：Allow, Deny
 }
@@ -909,25 +888,20 @@
   - `action`: 必须是 `Publish`、`Subscribe` 或 `All`
   - `permission`: 必须是 `Allow` 或 `Deny`
 
-- **响应**: 成功返回 "Created successfully!"
+- **响应**: 成功返回 "success"
 
 #### 7.3 删除 ACL 规则
 - **接口**: `POST /api/mqtt/acl/delete`
-- **描述**: 删除 ACL 规则
+- **描述**: 按 `name` 删除 ACL 规则
 - **请求参数**:
 ```json
 {
   "tenant": "default",
-  "resource_type": "ClientId",
-  "resource_name": "client001",
-  "topic": "sensor/+",
-  "ip": "192.168.1.100",
-  "action": "Publish",
-  "permission": "Allow"
+  "name": "sensor-publish-rule"
 }
 ```
 
-- **响应**: 成功返回 "Deleted successfully!"
+- **响应**: 成功返回 "success"
 
 ---
 
@@ -935,18 +909,17 @@
 
 #### 8.1 黑名单列表查询
 - **接口**: `GET /api/mqtt/blacklist/list`
-- **描述**: 查询黑名单列表，支持按租户直接查询
+- **描述**: 查询黑名单列表，支持 tenant、name、resource_name 模糊搜索
 - **请求参数**:
 ```json
 {
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
+  "tenant": "default",              // 可选，按租户模糊搜索
+  "name": "bl-bad",                 // 可选，按名称模糊搜索
+  "resource_name": "bad_client",    // 可选，按资源名称模糊搜索
   "limit": 20,
   "page": 1,
   "sort_field": "resource_name",
-  "sort_by": "asc",
-  "filter_field": "blacklist_type",
-  "filter_values": ["ClientId"],
-  "exact_match": "false"
+  "sort_by": "asc"
 }
 ```
 
@@ -958,6 +931,7 @@
   "data": {
     "data": [
       {
+        "name": "bl-malicious-client",
         "tenant": "default",
         "blacklist_type": "ClientId",
         "resource_name": "malicious_client",
@@ -970,15 +944,13 @@
 }
 ```
 
-**新增字段**：
-- `tenant`: 黑名单所属的租户名称
-
 #### 8.2 创建黑名单
 - **接口**: `POST /api/mqtt/blacklist/create`
-- **描述**: 添加新的黑名单项
+- **描述**: 添加新的黑名单项，以 `name` 作为唯一标识
 - **请求参数**:
 ```json
 {
+  "name": "bl-bad-client",            // 必填，唯一名称，长度 1-128
   "tenant": "default",                 // 必填，租户名称，长度 1-64
   "blacklist_type": "ClientId",        // 必填，黑名单类型（见枚举说明）
   "resource_name": "bad_client",       // 必填，资源名称，长度 1-256
@@ -991,21 +963,20 @@
   - `blacklist_type`: 必须是 `ClientId`、`User`、`Ip`、`ClientIdMatch`、`UserMatch` 或 `IPCIDR`
   - `end_time`: 必须大于 0
 
-- **响应**: 成功返回 "Created successfully!"
+- **响应**: 成功返回 "success"
 
 #### 8.3 删除黑名单
 - **接口**: `POST /api/mqtt/blacklist/delete`
-- **描述**: 删除黑名单项
+- **描述**: 按 `name` 删除黑名单项
 - **请求参数**:
 ```json
 {
   "tenant": "default",
-  "blacklist_type": "ClientId",
-  "resource_name": "bad_client"
+  "name": "bl-bad-client"
 }
 ```
 
-- **响应**: 成功返回 "Deleted successfully!"
+- **响应**: 成功返回 "success"
 
 ---
 
@@ -1021,18 +992,16 @@
 
 #### 10.1 Schema 列表查询
 - **接口**: `GET /api/mqtt/schema/list`
-- **描述**: 查询 Schema 列表，支持按租户直接查询
+- **描述**: 查询 Schema 列表，支持 tenant、name 模糊搜索
 - **请求参数**:
 ```json
 {
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
+  "tenant": "default",              // 可选，按租户模糊搜索
+  "name": "sensor",                 // 可选，按 Schema 名称模糊搜索
   "limit": 20,
   "page": 1,
   "sort_field": "name",
-  "sort_by": "asc",
-  "filter_field": "schema_type",
-  "filter_values": ["json"],
-  "exact_match": "false"
+  "sort_by": "asc"
 }
 ```
 
@@ -1055,9 +1024,6 @@
   }
 }
 ```
-
-**新增字段**：
-- `tenant`: Schema 所属的租户名称
 
 #### 10.2 创建 Schema
 - **接口**: `POST /api/mqtt/schema/create`
@@ -1161,6 +1127,7 @@
 - **请求参数**:
 ```json
 {
+  "tenant": "default",            // 必填，租户名称，长度 1-256
   "topic": "sensor/temperature",  // 必填，主题名称，长度 1-256
   "payload": "25.5",              // 必填，消息内容，不超过 1MB
   "retain": false                 // 可选，是否保留消息，默认false
@@ -1189,8 +1156,9 @@
 - **请求参数**:
 ```json
 {
+  "tenant": "default",            // 必填，租户名称
   "topic": "sensor/temperature",  // 必填，主题名称
-  "offset": 0                     // 必填，起始offset
+  "offset": 0                     // 必填，起始 offset，从该位置开始读取
 }
 ```
 
@@ -1233,8 +1201,7 @@
       {
         "name": "High Memory Usage",
         "message": "Memory usage exceeded 80% threshold",
-        "activate_at": "2024-01-01 10:00:00",
-        "activated": true
+        "create_time": 1640995200
       }
     ],
     "total_count": 3
@@ -1245,21 +1212,17 @@
 #### 12.2 连接抖动检测列表
 
 - **接口**: `GET /api/mqtt/flapping_detect/list`
-- **描述**: 查询连接抖动检测列表，支持按租户过滤
+- **描述**: 查询连接抖动检测列表，支持按租户过滤和 client_id 模糊搜索
 - **请求参数**:
 
-```json
-{
-  "tenant": "default",              // 可选，按租户过滤（指定后仅返回该租户数据）
-  "limit": 20,
-  "page": 1,
-  "sort_field": "first_request_time",
-  "sort_by": "desc",
-  "filter_field": "client_id",
-  "filter_values": ["flapping_client"],
-  "exact_match": "false"
-}
-```
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户精确过滤（指定后仅返回该租户数据，性能更好） |
+| `client_id` | string | 否 | 按客户端 ID 模糊搜索（包含匹配） |
+| `limit` | u32 | 否 | 每页大小 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `tenant`、`client_id` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
 
 - **响应数据结构**:
 
@@ -1535,10 +1498,11 @@ curl -X POST http://localhost:8080/api/mqtt/acl/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
+    "name": "sensor-publish-rule",
+    "desc": "允许 sensor 设备发布数据",
     "resource_type": "ClientId",
     "resource_name": "sensor001",
     "topic": "sensor/+",
-    "ip": "*",
     "action": "Publish",
     "permission": "Allow"
   }'
@@ -1549,6 +1513,7 @@ curl -X POST http://localhost:8080/api/mqtt/acl/create \
 curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
   -H "Content-Type: application/json" \
   -d '{
+    "name": "bl-bad-client-match",
     "tenant": "default",
     "blacklist_type": "ClientIdMatch",
     "resource_name": "bad_client_*",

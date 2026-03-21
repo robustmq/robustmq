@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::{send_delete_session_batch, send_last_will_batch, send_update_cache_batch};
-use crate::{NodeCallData, BATCH_SIZE, WORKER_THREAD_NUM};
+use crate::handler::{
+    send_delete_session_batch, send_get_qos_data_batch, send_last_will_batch,
+    send_update_cache_batch,
+};
+use crate::{NodeCallData, NodeCallRequest, BATCH_SIZE, WORKER_THREAD_NUM};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
 use std::collections::hash_map::DefaultHasher;
@@ -27,7 +30,7 @@ const WORKER_CHANNEL_SIZE: usize = BATCH_SIZE * 4;
 pub fn start_node_consumer_thread(
     node: BrokerNode,
     client_pool: Arc<ClientPool>,
-    receiver: mpsc::Receiver<NodeCallData>,
+    receiver: mpsc::Receiver<NodeCallRequest>,
     stop_send: broadcast::Sender<bool>,
 ) {
     let worker_num = WORKER_THREAD_NUM;
@@ -55,8 +58,8 @@ pub fn start_node_consumer_thread(
 
 fn spawn_router(
     node_id: u64,
-    mut receiver: mpsc::Receiver<NodeCallData>,
-    workers: Vec<mpsc::Sender<NodeCallData>>,
+    mut receiver: mpsc::Receiver<NodeCallRequest>,
+    workers: Vec<mpsc::Sender<NodeCallRequest>>,
     mut stop_receiver: broadcast::Receiver<bool>,
 ) {
     let worker_num = workers.len();
@@ -89,12 +92,16 @@ fn spawn_router(
                 }
             };
 
-            let idx = match data.partition_key() {
-                None => 0,
-                Some(key) => {
-                    let mut hasher = DefaultHasher::new();
-                    key.hash(&mut hasher);
-                    (hasher.finish() as usize % (worker_num - 1)) + 1
+            let idx = if worker_num <= 1 {
+                0
+            } else {
+                match data.data.partition_key() {
+                    None => 0,
+                    Some(key) => {
+                        let mut hasher = DefaultHasher::new();
+                        key.hash(&mut hasher);
+                        (hasher.finish() as usize % (worker_num - 1)) + 1
+                    }
                 }
             };
 
@@ -113,7 +120,7 @@ fn spawn_worker(
     worker_id: usize,
     node: BrokerNode,
     client_pool: Arc<ClientPool>,
-    mut receiver: mpsc::Receiver<NodeCallData>,
+    mut receiver: mpsc::Receiver<NodeCallRequest>,
     mut stop_receiver: broadcast::Receiver<bool>,
 ) {
     tokio::spawn(async move {
@@ -164,28 +171,44 @@ fn spawn_worker(
     });
 }
 
-async fn dispatch_batch(client_pool: &Arc<ClientPool>, addr: &str, batch: Vec<NodeCallData>) {
+async fn dispatch_batch(client_pool: &Arc<ClientPool>, addr: &str, batch: Vec<NodeCallRequest>) {
     let mut cache_updates = Vec::new();
     let mut delete_sessions = Vec::new();
     let mut last_will_messages = Vec::new();
+    let mut get_qos_data = Vec::new();
 
-    for msg in batch {
-        match msg {
+    for req in batch {
+        match req.data {
             NodeCallData::UpdateCache(data) => cache_updates.push(data),
             NodeCallData::DeleteSession(id) => delete_sessions.push(id),
             NodeCallData::SendLastWillMessage(item) => last_will_messages.push(item),
+            NodeCallData::GetQosData(client_id) => {
+                let reply_tx = req.reply_txs.into_iter().flatten().next();
+                get_qos_data.push((client_id, reply_tx));
+            }
         }
     }
 
-    if !cache_updates.is_empty() {
-        send_update_cache_batch(client_pool, addr, &cache_updates).await;
-    }
-
-    if !delete_sessions.is_empty() {
-        send_delete_session_batch(client_pool, addr, &delete_sessions).await;
-    }
-
-    if !last_will_messages.is_empty() {
-        send_last_will_batch(client_pool, addr, &last_will_messages).await;
-    }
+    tokio::join!(
+        async {
+            if !cache_updates.is_empty() {
+                send_update_cache_batch(client_pool, addr, &cache_updates).await;
+            }
+        },
+        async {
+            if !delete_sessions.is_empty() {
+                send_delete_session_batch(client_pool, addr, &delete_sessions).await;
+            }
+        },
+        async {
+            if !last_will_messages.is_empty() {
+                send_last_will_batch(client_pool, addr, &last_will_messages).await;
+            }
+        },
+        async {
+            if !get_qos_data.is_empty() {
+                send_get_qos_data_batch(client_pool, addr, get_qos_data).await;
+            }
+        },
+    );
 }

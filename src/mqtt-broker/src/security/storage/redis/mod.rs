@@ -171,6 +171,8 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
             match RedisAuthAcl::from_redis_hash(acl_id.clone(), fields) {
                 Ok(redis_acl) => {
                     let acl = MqttAcl {
+                        name: redis_acl.name.clone(),
+                        desc: redis_acl.desc.clone(),
                         tenant: DEFAULT_TENANT.to_string(),
                         permission: match redis_acl.permission {
                             0 => MqttAclPermission::Deny,
@@ -231,6 +233,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
             match RedisAuthBlacklist::from_redis_hash(id.clone(), fields) {
                 Ok(raw) => {
                     let blacklist = MqttAclBlackList {
+                        name: raw.name,
                         tenant: DEFAULT_TENANT.to_string(),
                         blacklist_type: get_blacklist_type_by_str(&raw.blacklist_type)?,
                         resource_name: raw.resource_name,

@@ -30,10 +30,16 @@ fn replace_topic_placeholders(
     username: &str,
     remote_addr: &str,
 ) -> String {
+    // Normalize IPv6 loopback to IPv4 loopback for consistency
+    let host = if remote_addr == "::1" {
+        "127.0.0.1"
+    } else {
+        remote_addr
+    };
     pattern
         .replace("${clientid}", client_id)
         .replace("${username}", username)
-        .replace("${host}", remote_addr)
+        .replace("${host}", host)
 }
 
 #[allow(clippy::too_many_arguments)]

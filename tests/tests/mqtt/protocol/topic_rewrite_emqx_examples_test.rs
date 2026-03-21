@@ -35,6 +35,8 @@ mod tests {
         let expected_topic = format!("{prefix}_y/z/b");
 
         let rules = vec![CreateTopicRewriteReq {
+            name: format!("{prefix}_rule1"),
+            desc: None,
             tenant: DEFAULT_TENANT.to_string(),
             action: "All".to_string(),
             source_topic: format!("{prefix}_y/+/z/#"),
@@ -52,6 +54,8 @@ mod tests {
         let expected_topic = format!("{prefix}_y/def");
 
         let rules = vec![CreateTopicRewriteReq {
+            name: format!("{prefix}_rule1"),
+            desc: None,
             tenant: DEFAULT_TENANT.to_string(),
             action: "All".to_string(),
             source_topic: format!("{prefix}_y/+/z/#"),
@@ -69,6 +73,8 @@ mod tests {
         let expected_topic = format!("{prefix}_x/1/2");
 
         let rules = vec![CreateTopicRewriteReq {
+            name: format!("{prefix}_rule1"),
+            desc: None,
             tenant: DEFAULT_TENANT.to_string(),
             action: "All".to_string(),
             source_topic: format!("{prefix}_x/#"),
@@ -87,6 +93,8 @@ mod tests {
 
         let rules = vec![
             CreateTopicRewriteReq {
+                name: format!("{prefix}_rule1"),
+                desc: None,
                 tenant: DEFAULT_TENANT.to_string(),
                 action: "All".to_string(),
                 source_topic: format!("{prefix}_x/y/+"),
@@ -94,6 +102,8 @@ mod tests {
                 regex: format!("^{prefix}_x/y/(\\d+)$"),
             },
             CreateTopicRewriteReq {
+                name: format!("{prefix}_rule2"),
+                desc: None,
                 tenant: DEFAULT_TENANT.to_string(),
                 action: "All".to_string(),
                 source_topic: format!("{prefix}_x/#"),
@@ -113,6 +123,8 @@ mod tests {
 
         let rules = vec![
             CreateTopicRewriteReq {
+                name: format!("{prefix}_rule1"),
+                desc: None,
                 tenant: DEFAULT_TENANT.to_string(),
                 action: "All".to_string(),
                 source_topic: format!("{prefix}_x/y/+"),
@@ -120,6 +132,8 @@ mod tests {
                 regex: format!("^{prefix}_x/y/(\\d+)$"),
             },
             CreateTopicRewriteReq {
+                name: format!("{prefix}_rule2"),
+                desc: None,
                 tenant: DEFAULT_TENANT.to_string(),
                 action: "All".to_string(),
                 source_topic: format!("{prefix}_x/#"),
@@ -202,8 +216,7 @@ mod tests {
         for rule in rules.iter() {
             let del_req = DeleteTopicRewriteReq {
                 tenant: rule.tenant.clone(),
-                action: rule.action.clone(),
-                source_topic: rule.source_topic.clone(),
+                name: rule.name.clone(),
             };
             admin_client.delete_topic_rewrite(&del_req).await.unwrap();
         }

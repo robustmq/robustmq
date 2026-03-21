@@ -63,6 +63,8 @@ impl RedisAuthUser {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct RedisAuthAcl {
     pub id: String,
+    pub name: String,
+    pub desc: String,
     pub username: String,
     pub permission: u8,
     pub ipaddr: String,
@@ -81,6 +83,10 @@ impl RedisAuthAcl {
     }
 
     pub fn from_redis_hash(id: String, fields: HashMap<String, String>) -> Result<Self, String> {
+        let name = fields.get("name").cloned().unwrap_or_else(|| id.clone());
+
+        let desc = fields.get("desc").cloned().unwrap_or_default();
+
         let username = fields.get("username").unwrap_or(&String::new()).clone();
 
         let permission = fields
@@ -103,6 +109,8 @@ impl RedisAuthAcl {
 
         Ok(RedisAuthAcl {
             id,
+            name,
+            desc,
             username,
             permission,
             ipaddr,
@@ -116,6 +124,7 @@ impl RedisAuthAcl {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct RedisAuthBlacklist {
     pub id: String,
+    pub name: String,
     pub blacklist_type: String,
     pub resource_name: String,
     pub end_time: u64,
@@ -149,9 +158,11 @@ impl RedisAuthBlacklist {
             .map_err(|_| "Invalid end_time value")?;
 
         let desc = fields.get("desc").cloned().unwrap_or_default();
+        let name = fields.get("name").cloned().unwrap_or_else(|| id.clone());
 
         Ok(RedisAuthBlacklist {
             id,
+            name,
             blacklist_type,
             resource_name,
             end_time,

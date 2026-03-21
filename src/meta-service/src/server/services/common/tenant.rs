@@ -13,16 +13,19 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
-use crate::core::notify::{send_notify_by_create_tenant, send_notify_by_delete_tenant};
+use crate::core::notify::{
+    send_notify_by_create_tenant, send_notify_by_delete_tenant, send_notify_by_update_tenant,
+};
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::common::tenant::TenantStorage;
+use common_base::tools::now_second;
 use common_base::utils::serialize::encode_to_bytes;
-use metadata_struct::tenant::Tenant;
+use metadata_struct::tenant::{Tenant, TenantConfig};
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_common::{
     CreateTenantReply, CreateTenantRequest, DeleteTenantReply, DeleteTenantRequest,
-    ListTenantReply, ListTenantRequest,
+    ListTenantReply, ListTenantRequest, UpdateTenantReply, UpdateTenantRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -52,14 +55,45 @@ pub async fn create_tenant_by_req(
     let data = StorageData::new(StorageDataType::TenantCreate, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
+    let config = if req.config.is_empty() {
+        TenantConfig::default()
+    } else {
+        TenantConfig::decode(&req.config).unwrap_or_default()
+    };
     let tenant = Tenant {
         tenant_name: req.tenant_name.clone(),
         desc: req.desc.clone(),
-        ..Default::default()
+        config,
+        create_time: now_second(),
     };
     send_notify_by_create_tenant(call_manager, tenant).await?;
 
     Ok(CreateTenantReply {})
+}
+
+pub async fn update_tenant_by_req(
+    raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: &UpdateTenantRequest,
+) -> Result<UpdateTenantReply, MetaServiceError> {
+    let storage = TenantStorage::new(rocksdb_engine_handler.clone());
+    let mut tenant = storage.get(&req.tenant_name)?.ok_or_else(|| {
+        MetaServiceError::CommonError(format!("Tenant {} not found", req.tenant_name))
+    })?;
+
+    tenant.desc = req.desc.clone();
+    if !req.config.is_empty() {
+        tenant.config = TenantConfig::decode(&req.config)
+            .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
+    }
+
+    let data = StorageData::new(StorageDataType::TenantUpdate, encode_to_bytes(req));
+    raft_manager.write_metadata(data).await?;
+
+    send_notify_by_update_tenant(call_manager, tenant).await?;
+
+    Ok(UpdateTenantReply {})
 }
 
 pub async fn delete_tenant_by_req(

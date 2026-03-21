@@ -276,20 +276,15 @@ impl MQTTCacheManager {
 
     // topic rewrite rule
     pub fn add_topic_rewrite_rule(&self, topic_rewrite_rule: MqttTopicRewriteRule) {
-        let inner_key = self.topic_rewrite_rule_inner_key(
-            &topic_rewrite_rule.action,
-            &topic_rewrite_rule.source_topic,
-        );
         self.topic_rewrite_rule
             .entry(topic_rewrite_rule.tenant.clone())
             .or_default()
-            .insert(inner_key, topic_rewrite_rule);
+            .insert(topic_rewrite_rule.name.clone(), topic_rewrite_rule);
     }
 
-    pub fn delete_topic_rewrite_rule(&self, tenant: &str, action: &str, source_topic: &str) {
-        let inner_key = self.topic_rewrite_rule_inner_key(action, source_topic);
+    pub fn delete_topic_rewrite_rule(&self, tenant: &str, name: &str) {
         if let Some(tenant_map) = self.topic_rewrite_rule.get(tenant) {
-            tenant_map.remove(&inner_key);
+            tenant_map.remove(name);
         }
     }
 
@@ -451,21 +446,16 @@ impl MQTTCacheManager {
         self.authn_list.remove(uid);
     }
 
-    // key
-    pub fn topic_rewrite_rule_inner_key(&self, action: &str, source_topic: &str) -> String {
-        format!("{action}_{source_topic}")
-    }
-
     pub fn add_auto_subscribe_rule(&self, rule: MqttAutoSubscribeRule) {
         self.auto_subscribe_rule
             .entry(rule.tenant.clone())
             .or_default()
-            .insert(rule.topic.clone(), rule);
+            .insert(rule.name.clone(), rule);
     }
 
-    pub fn delete_auto_subscribe_rule(&self, tenant: &str, topic: &str) {
+    pub fn delete_auto_subscribe_rule(&self, tenant: &str, name: &str) {
         if let Some(tenant_map) = self.auto_subscribe_rule.get(tenant) {
-            tenant_map.remove(topic);
+            tenant_map.remove(name);
         }
     }
 }
@@ -670,6 +660,8 @@ mod tests {
     async fn topic_rewrite_rule_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttTopicRewriteRule {
+            name: "rule-1".to_string(),
+            desc: String::new(),
             tenant: DEFAULT_TENANT.to_string(),
             action: "publish".to_string(),
             source_topic: "source/topic".to_string(),
@@ -687,7 +679,7 @@ mod tests {
         assert_eq!(rules[0].source_topic, rule.source_topic);
 
         // remove
-        cache_manager.delete_topic_rewrite_rule(&rule.tenant, &rule.action, &rule.source_topic);
+        cache_manager.delete_topic_rewrite_rule(&rule.tenant, &rule.name);
 
         // get again
         let rules_after_remove = cache_manager.get_all_topic_rewrite_rule();
@@ -698,6 +690,8 @@ mod tests {
     async fn auto_subscribe_rule_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttAutoSubscribeRule {
+            name: "rule-1".to_string(),
+            desc: "test rule".to_string(),
             tenant: "tenant-1".to_string(),
             topic: "auto/sub/topic".to_string(),
             qos: QoS::AtLeastOnce,
@@ -713,19 +707,19 @@ mod tests {
         let rule_info = cache_manager
             .auto_subscribe_rule
             .get(&rule.tenant)
-            .and_then(|m| m.get(&rule.topic).map(|v| v.clone()));
+            .and_then(|m| m.get(&rule.name).map(|v| v.clone()));
         println!("{rule_info:?}");
         assert!(rule_info.is_some());
         assert_eq!(rule_info.unwrap().topic, rule.topic);
 
         // remove
-        cache_manager.delete_auto_subscribe_rule(&rule.tenant, &rule.topic);
+        cache_manager.delete_auto_subscribe_rule(&rule.tenant, &rule.name);
 
         // get again
         let rule_info_after_remove = cache_manager
             .auto_subscribe_rule
             .get(&rule.tenant)
-            .and_then(|m| m.get(&rule.topic).map(|v| v.clone()));
+            .and_then(|m| m.get(&rule.name).map(|v| v.clone()));
         assert!(rule_info_after_remove.is_none());
     }
 
@@ -775,6 +769,8 @@ mod tests {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let tenant = DEFAULT_TENANT.to_string();
         let user_acl = MqttAcl {
+            name: "acl-user-test".to_string(),
+            desc: String::new(),
             tenant: tenant.clone(),
             resource_type: MqttAclResourceType::User,
             resource_name: "test_user_acl".to_string(),
@@ -784,6 +780,8 @@ mod tests {
             permission: MqttAclPermission::Allow,
         };
         let client_acl = MqttAcl {
+            name: "acl-client-test".to_string(),
+            desc: String::new(),
             tenant: tenant.clone(),
             resource_type: MqttAclResourceType::ClientId,
             resource_name: "test_client_acl".to_string(),
@@ -833,6 +831,7 @@ mod tests {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let tenant = DEFAULT_TENANT.to_string();
         let blacklist = MqttAclBlackList {
+            name: "bl-cache-test".to_string(),
             tenant: tenant.clone(),
             blacklist_type: MqttAclBlackListType::ClientId,
             resource_name: "blacklist_client".to_string(),

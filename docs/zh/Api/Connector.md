@@ -8,21 +8,17 @@
 
 ### 1. 连接器列表查询
 - **接口**: `GET /api/mqtt/connector/list`
-- **描述**: 查询连接器列表
+- **描述**: 查询连接器列表，支持按租户过滤和连接器名称模糊搜索
 - **请求参数**:
-```json
-{
-  "tenant": "default",              // 可选，按租户名称过滤；不填则返回所有租户的连接器
-  "connector_name": "kafka_connector",  // 可选，按连接器名称过滤
-  "limit": 20,
-  "page": 1,
-  "sort_field": "connector_name",
-  "sort_by": "asc",
-  "filter_field": "connector_type",
-  "filter_values": ["kafka"],
-  "exact_match": "false"
-}
-```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户精确过滤，指定后仅返回该租户的连接器（性能更好） |
+| `connector_name` | string | 否 | 按连接器名称模糊搜索（包含匹配） |
+| `limit` | u32 | 否 | 每页大小 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段，支持 `connector_name`、`tenant` |
+| `sort_by` | string | 否 | 排序方向：`asc` / `desc` |
 
 - **响应数据结构**:
 ```json
@@ -35,7 +31,7 @@
         "tenant": "default",
         "connector_name": "kafka_connector",
         "connector_type": "kafka",
-        "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
+        "config": "{\"Kafka\":{\"bootstrap_servers\":\"localhost:9092\"}}",
         "topic_name": "topic_001",
         "status": "Running",
         "broker_id": "1",
@@ -253,11 +249,11 @@
 **必填参数**：
 - `server`: RabbitMQ 服务器地址
 - `username`: 用户名
+- `password`: 密码
 - `exchange`: 交换机名称
 
 **可选参数**：
 - `port`: 端口（默认 `5672`）
-- `password`: 密码
 - `virtual_host`: 虚拟主机（默认 `"/"`）
 - `routing_key`: 路由键（默认 `""`）
 - `delivery_mode`: 持久化模式（默认 `"NonPersistent"`），可选 `NonPersistent`、`Persistent`
@@ -505,10 +501,10 @@
 **必填参数**：
 - `server_addr`: GreptimeDB 服务器地址
 - `database`: 数据库名称
+- `user`: 用户名（无认证时传空字符串）
+- `password`: 密码（无认证时传空字符串）
 
 **可选参数**：
-- `user`: 用户名
-- `password`: 密码
 - `precision`: 时间精度（默认 `"Second"`）
 
 ---
@@ -525,16 +521,14 @@
 **必填参数**：
 - `server`: InfluxDB 服务器地址，必须以 `http://` 或 `https://` 开头
 - `measurement`: 测量名称
+- `token`: API Token（v2 版本使用，v1 时传空字符串）
+- `org`: 组织名（v2 版本使用，v1 时传空字符串）
+- `bucket`: Bucket 名（v2 版本使用，v1 时传空字符串）
+- `database`: 数据库名称（v1 版本使用，v2 时传空字符串）
+- `username`: 用户名（v1 版本使用，v2 时传空字符串）
+- `password`: 密码（v1 版本使用，v2 时传空字符串）
 
-**v2 版本参数**（`version` 为 `"v2"` 时，默认）：
-- `token`: API Token（必填）
-- `org`: 组织名（必填）
-- `bucket`: Bucket 名（必填）
-
-**v1 版本参数**（`version` 为 `"v1"` 时）：
-- `database`: 数据库名称（必填）
-- `username`: 用户名
-- `password`: 密码
+**说明**：v2 填 `token`/`org`/`bucket`，其余传空字符串；v1 填 `database`/`username`/`password`，其余传空字符串。
 
 **可选参数**：
 - `version`: InfluxDB 版本（默认 `"v2"`），可选 `v1`、`v2`
@@ -601,12 +595,12 @@
 **必填参数**：
 - `bucket`: S3 Bucket 名称
 - `region`: AWS 区域（例如 `us-east-1`）
+- `access_key_id`: Access Key（无认证时传空字符串）
+- `secret_access_key`: Secret Key（无认证时传空字符串）
+- `session_token`: 临时凭证 Session Token（不使用时传空字符串）
 
 **可选参数**：
-- `endpoint`: S3 Endpoint（兼容 MinIO 等对象存储时可配置）
-- `access_key_id`: Access Key（与 `secret_access_key` 成对使用）
-- `secret_access_key`: Secret Key（与 `access_key_id` 成对使用）
-- `session_token`: 临时凭证 Session Token（可选）
+- `endpoint`: S3 Endpoint（兼容 MinIO 等对象存储时可配置，默认 `""`）
 - `root`: 对象存储根路径前缀（默认 `""`）
 - `object_key_prefix`: 对象 key 前缀（默认 `"mqtt"`）
 - `file_extension`: 对象后缀名（默认 `"json"`，仅允许字母数字）

@@ -33,6 +33,7 @@ use network_server::context::{ProcessorConfig, ServerContext};
 use network_server::quic::server::QuicServer;
 use network_server::tcp::server::TcpServer;
 use network_server::websocket::server::{WebSocketServer, WebSocketServerState};
+use node_call::NodeCallManager;
 use rate_limit::global::GlobalRateLimiterManager;
 use rate_limit::mqtt::MQTTRateLimiterManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -74,6 +75,7 @@ pub struct TcpServerContext {
     pub broker_cache: Arc<NodeCacheManager>,
     pub mqtt_limit_manager: Arc<MQTTRateLimiterManager>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
+    pub node_call: Arc<NodeCallManager>,
 }
 
 impl Server {
@@ -94,6 +96,7 @@ impl Server {
             retain_message_manager: context.retain_message_manager.clone(),
             mqtt_limit_manager: context.mqtt_limit_manager.clone(),
             global_limit_manager: context.global_limit_manager.clone(),
+            node_call: context.node_call.clone(),
         };
 
         let command = create_command(command_context);
