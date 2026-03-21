@@ -18,7 +18,7 @@
 ```json
 {
   "code": 0,
-  "message": "success", 
+  "message": "success",
   "data": {
     "node_list": [
       {
@@ -70,21 +70,21 @@
 - `cluster_name`: Cluster name
 - `message_in_rate`: Message receive rate (messages/second)
 - `message_out_rate`: Message send rate (messages/second)
-- `connection_num`: Total number of connections (sum of all connection types)
-- `session_num`: Total number of sessions
-- `topic_num`: Total number of topics
+- `connection_num`: Total number of connections (sum of all tenants, all connection types)
+- `session_num`: Total number of sessions (sum across all tenants)
+- `topic_num`: Total number of topics (sum across all tenants)
 - `placement_status`: Placement Center status (Leader/Follower)
 - `tcp_connection_num`: Number of TCP connections
 - `tls_connection_num`: Number of TLS connections
 - `websocket_connection_num`: Number of WebSocket connections
 - `quic_connection_num`: Number of QUIC connections
-- `subscribe_num`: Total number of subscriptions (sum of all subscription lists)
-- `exclusive_subscribe_num`: Number of exclusive subscriptions
+- `subscribe_num`: Total number of subscriptions (sum of all tenants, all subscriptions)
+- `exclusive_subscribe_num`: Total number of exclusive subscriptions
 - `exclusive_subscribe_thread_num`: Number of exclusive subscription push threads
 - `share_subscribe_group_num`: Number of shared subscription groups
-- `share_subscribe_num`: Number of shared subscriptions
+- `share_subscribe_num`: Total number of shared subscriptions
 - `share_subscribe_thread_num`: Number of shared subscription push threads
-- `connector_num`: Total number of connectors
+- `connector_num`: Total number of connectors (sum across all tenants)
 - `connector_thread_num`: Number of active connector threads
 
 #### 1.2 Monitor Data Query
@@ -146,10 +146,6 @@
     {
       "date": 1640995260,
       "value": 1520
-    },
-    {
-      "date": 1640995320,
-      "value": 1485
     }
   ]
 }
@@ -159,33 +155,10 @@
 - `date`: Unix timestamp (seconds)
 - `value`: Metric value at that time point
 
-**Request Examples**:
-
-Query connection count:
-```json
-{
-  "data_type": "connection_num"
-}
-```
-
-Query message count for a specific topic:
-```json
-{
-  "data_type": "topic_in_num",
-  "topic_name": "sensor/temperature"
-}
-```
-
 **Notes**:
 - Data retention period: By default, data from the last 1 hour is retained
 - Data sampling interval: According to system configuration, typically 60 seconds
-- **Parameter Requirements**:
-  - Topic-level monitoring (`topic_in_num`, `topic_out_num`): Must provide `topic_name`
-  - Subscription-level monitoring (`subscribe_send_success_num`, `subscribe_send_failure_num`): Must provide `client_id` and `path`
-  - Subscription-topic-level monitoring (`subscribe_topic_send_success_num`, `subscribe_topic_send_failure_num`): Must provide `client_id`, `path` and `topic_name`
-  - Session-level monitoring (`session_in_num`, `session_out_num`): Must provide `client_id`
-  - Connector-level monitoring (`connector_send_success`, `connector_send_failure`): Must provide `connector_name`
-  - If required parameters are missing, an empty array will be returned
+- If required parameters are missing, an empty array will be returned
 - Returned data is naturally sorted by timestamp
 
 ---
@@ -194,21 +167,17 @@ Query message count for a specific topic:
 
 #### 2.1 Client List Query
 - **Endpoint**: `GET /api/mqtt/client/list`
-- **Description**: Query list of clients connected to the cluster
+- **Description**: Query the list of clients connected to the cluster, supports filtering by tenant and fuzzy search by client_id
 - **Request Parameters**:
-```json
-{
-  "source_ip": "192.168.1.1",      // Optional, filter by source IP
-  "connection_id": 12345,           // Optional, filter by connection ID
-  "limit": 20,                      // Optional, page size
-  "page": 1,                        // Optional, page number
-  "sort_field": "connection_id",    // Optional, sort field
-  "sort_by": "desc",                // Optional, sort order
-  "filter_field": "client_id",      // Optional, filter field (e.g., "connection_id", "client_id")
-  "filter_values": ["client001"],   // Optional, filter values
-  "exact_match": "true"             // Optional, exact match
-}
-```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tenant` | string | No | Filter exactly by tenant; when specified, queries that tenant's cache directly (better performance) |
+| `client_id` | string | No | Fuzzy search by client ID (contains match) |
+| `limit` | u32 | No | Page size, maximum 100 records sampled |
+| `page` | u32 | No | Page number, starting from 1 |
+| `sort_field` | string | No | Sort field, supports `client_id`, `connection_id` |
+| `sort_by` | string | No | Sort direction: `asc` / `desc` |
 
 - **Response Data Structure**:
 ```json
@@ -223,6 +192,7 @@ Query message count for a specific topic:
         "mqtt_connection": {
           "connect_id": 12345,
           "client_id": "client001",
+          "tenant": "default",
           "is_login": true,
           "source_ip_addr": "192.168.1.100",
           "login_user": "user001",
@@ -272,6 +242,7 @@ Query message count for a specific topic:
 - **mqtt_connection**: MQTT protocol layer connection information
   - `connect_id`: Connection ID
   - `client_id`: MQTT client ID
+  - `tenant`: Tenant name
   - `is_login`: Whether the client is logged in
   - `source_ip_addr`: Source IP address of the client
   - `login_user`: Authenticated username
@@ -294,20 +265,14 @@ Query message count for a specific topic:
   - `create_time`: Network connection creation timestamp
 
 - **session**: MQTT session information (null if no session exists)
-  - `client_id`: MQTT client ID
-  - `session_expiry`: Session expiry interval in seconds
-  - `is_contain_last_will`: Whether the session contains a last will message
-  - `last_will_delay_interval`: Delay interval for last will message in seconds (optional)
-  - `create_time`: Session creation timestamp
-  - `connection_id`: Associated connection ID (optional)
-  - `broker_id`: Broker node ID hosting the session (optional)
-  - `reconnect_time`: Last reconnection timestamp (optional)
-  - `distinct_time`: Last disconnection timestamp (optional)
+  - Same fields as the session management interface response
 
 - **heartbeat**: Connection heartbeat information (null if not available)
   - `protocol`: MQTT protocol version (Mqtt3, Mqtt4, Mqtt5)
   - `keep_live`: Keep-alive interval in seconds
   - `heartbeat`: Last heartbeat timestamp
+
+- **total_count**: Actual total number of connections for that tenant (or the entire cluster)
 
 ---
 
@@ -315,20 +280,17 @@ Query message count for a specific topic:
 
 #### 3.1 Session List Query
 - **Endpoint**: `GET /api/mqtt/session/list`
-- **Description**: Query MQTT session list
+- **Description**: Query MQTT session list, supports filtering by tenant and fuzzy search by client_id
 - **Request Parameters**:
-```json
-{
-  "client_id": "client001",         // Optional, filter by client ID
-  "limit": 20,
-  "page": 1,
-  "sort_field": "create_time",      // Optional, sort field
-  "sort_by": "desc",
-  "filter_field": "client_id",
-  "filter_values": ["client001"],
-  "exact_match": "false"
-}
-```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tenant` | string | No | Filter exactly by tenant; when specified, queries that tenant's cache directly (better performance) |
+| `client_id` | string | No | Fuzzy search by client ID (contains match) |
+| `limit` | u32 | No | Page size, maximum 100 records sampled |
+| `page` | u32 | No | Page number, starting from 1 |
+| `sort_field` | string | No | Sort field, supports `client_id`, `create_time` |
+| `sort_by` | string | No | Sort direction: `asc` / `desc` |
 
 - **Response Data Structure**:
 ```json
@@ -338,6 +300,7 @@ Query message count for a specific topic:
   "data": {
     "data": [
       {
+        "tenant": "default",
         "client_id": "client001",
         "session_expiry": 3600,
         "is_contain_last_will": true,
@@ -383,22 +346,15 @@ Query message count for a specific topic:
 - `broker_id`: Broker node ID hosting the session (optional)
 - `reconnect_time`: Last reconnection timestamp (optional)
 - `distinct_time`: Last disconnection timestamp (optional)
-
-- **last_will**: Last will message information (null if no last will configured)
+- `last_will`: Last will message information (null if no last will configured)
   - `client_id`: Client ID
-  - `last_will`: Last will message content (can be null)
-    - `topic`: Last will message topic (Bytes type, displayed as string)
-    - `message`: Last will message payload (Bytes type, displayed as string)
+  - `last_will`: Last will message content
+    - `topic`: Last will message topic
+    - `message`: Last will message payload
     - `qos`: QoS level (`AtMostOnce`/`AtLeastOnce`/`ExactlyOnce`)
     - `retain`: Whether it's a retained message
   - `last_will_properties`: Last will properties (MQTT 5.0, can be null)
-    - `delay_interval`: Delay interval in seconds before sending (optional)
-    - `payload_format_indicator`: Payload format indicator (0=unspecified, 1=UTF-8, optional)
-    - `message_expiry_interval`: Message expiry interval in seconds (optional)
-    - `content_type`: Content type (e.g., "text/plain", optional)
-    - `response_topic`: Response topic (optional)
-    - `correlation_data`: Correlation data (Bytes type, optional)
-    - `user_properties`: User properties array (list of key-value pairs)
+- **total_count**: Actual total number of sessions for that tenant (or the entire cluster)
 
 ---
 
@@ -406,27 +362,18 @@ Query message count for a specific topic:
 
 #### 4.1 Topic List Query
 - **Endpoint**: `GET /api/mqtt/topic/list`
-- **Description**: Query MQTT topic list
+- **Description**: Query MQTT topic list, supports filtering by tenant, fuzzy search by topic name, and topic type filtering
 - **Request Parameters**:
-```json
-{
-  "topic_name": "sensor/+",         // Optional, filter by topic name
-  "topic_type": "all",              // Optional, topic type: "all"(all topics), "normal"(normal topics), "system"(system topics), defaults to "all"
-  "limit": 20,
-  "page": 1,
-  "sort_field": "topic_name",       // Optional, sort field
-  "sort_by": "asc",
-  "filter_field": "topic_name",
-  "filter_values": ["sensor"],
-  "exact_match": "false"
-}
-```
 
-**Parameter Description**:
-- **topic_type**: Topic type filter
-  - `"all"` - Return all topics (default)
-  - `"normal"` - Return only normal topics (topics not starting with `$`)
-  - `"system"` - Return only system topics (topics starting with `$`, such as `$SYS/...`)
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tenant` | string | No | Filter exactly by tenant; when specified, queries that tenant's cache directly (better performance) |
+| `topic_name` | string | No | Fuzzy search by topic name (contains match) |
+| `topic_type` | string | No | Topic type: `all` (default), `normal` (normal topics), `system` (system topics containing `$`) |
+| `limit` | u32 | No | Page size |
+| `page` | u32 | No | Page number, starting from 1 |
+| `sort_field` | string | No | Sort field, supports `topic_name`, `tenant` |
+| `sort_by` | string | No | Sort direction: `asc` / `desc` |
 
 - **Response Data Structure**:
 ```json
@@ -438,6 +385,7 @@ Query message count for a specific topic:
       {
         "topic_id": "01J9K5FHQP8NWXYZ1234567890",
         "topic_name": "sensor/temperature",
+        "tenant": "default",
         "storage_type": "Memory",
         "partition": 1,
         "replication": 1,
@@ -450,24 +398,16 @@ Query message count for a specific topic:
 }
 ```
 
-**Response Field Description**:
-- `topic_id`: Topic unique identifier
-- `topic_name`: Topic name
-- `storage_type`: Storage type (e.g., Memory, RocksDB, etc.)
-- `partition`: Number of partitions
-- `replication`: Number of replicas
-- `storage_name_list`: List of storage names
-- `create_time`: Topic creation time (Unix timestamp in seconds)
-
 #### 4.2 Topic Detail Query
 - **Endpoint**: `GET /api/mqtt/topic/detail`
-- **Description**: Query detailed information for a specific topic, including basic info, retained message, and subscriber list
+- **Description**: Query detailed information for a specific topic, including basic topic information, retained message, and subscriber list
 - **Request Parameters**:
-```json
-{
-  "topic_name": "sensor/temperature"  // Required, topic name
-}
-```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tenant` | string | Yes | Tenant name |
+| `topic_name` | string | Yes | Topic name (exact match) |
+
 
 - **Response Data Structure**:
 ```json
@@ -478,152 +418,55 @@ Query message count for a specific topic:
     "topic_info": {
       "topic_id": "01J9K5FHQP8NWXYZ1234567890",
       "topic_name": "sensor/temperature",
+      "tenant": "default",
       "storage_type": "Memory",
       "partition": 1,
       "replication": 1,
       "storage_name_list": [],
       "create_time": 1640995200
     },
-    "retain_message": {
-      "client_id": "client001",
-      "dup": false,
-      "qos": "AtLeastOnce",
-      "pkid": 1,
-      "retain": true,
-      "topic": "sensor/temperature",
-      "payload": "eyJ0ZW1wZXJhdHVyZSI6MjUuNX0=",
-      "format_indicator": null,
-      "expiry_interval": 0,
-      "response_topic": null,
-      "correlation_data": null,
-      "user_properties": null,
-      "subscription_identifiers": null,
-      "content_type": null,
-      "create_time": 1640995300
-    },
+    "retain_message": { ... },
     "retain_message_at": 1640995300,
     "sub_list": [
-      {
-        "client_id": "client001",
-        "path": "sensor/temperature"
-      },
-      {
-        "client_id": "client002",
-        "path": "sensor/+"
-      }
+      { "client_id": "client001", "path": "sensor/temperature" }
     ],
-    "storage_list": {
-      "0": {
-        "shard_uid": "shard_01J9K5FHQP8NWXYZ",
-        "shard_name": "sensor_temperature_p0",
-        "start_segment_seq": 0,
-        "active_segment_seq": 1,
-        "last_segment_seq": 1,
-        "status": "Run",
-        "config": {
-          "replica_num": 1,
-          "storage_type": "Memory",
-          "max_segment_size": 104857600,
-          "retention_sec": 86400
-        },
-        "create_time": 1640995200
-      }
-    }
+    "storage_list": { ... }
   }
 }
 ```
-
-**Response Field Description**:
-
-- **topic_info**: Complete topic information (Topic object)
-  - `topic_id`: Topic unique identifier
-  - `topic_name`: Topic name
-  - `storage_type`: Storage type (e.g., Memory, RocksDB, etc.)
-  - `partition`: Number of partitions
-  - `replication`: Number of replicas
-  - `storage_name_list`: List of storage names
-  - `create_time`: Topic creation time (Unix timestamp in seconds)
-
-- **retain_message**: Complete retained message object (MqttMessage or null)
-  - `client_id`: Client ID that sent the message
-  - `dup`: Whether this is a duplicate message
-  - `qos`: QoS level
-  - `pkid`: Packet identifier
-  - `retain`: Whether this is a retained message
-  - `topic`: Message topic
-  - `payload`: Message content (Base64 encoded)
-  - `format_indicator`: Format indicator (optional)
-  - `expiry_interval`: Expiry interval in seconds
-  - `response_topic`: Response topic (optional)
-  - `correlation_data`: Correlation data (optional)
-  - `user_properties`: User properties (optional)
-  - `subscription_identifiers`: List of subscription identifiers (optional)
-  - `content_type`: Content type (optional)
-  - `create_time`: Message creation time (Unix timestamp in seconds)
-
-- **retain_message_at**: Retained message timestamp
-  - Type: `u64` or `null`
-  - Unix timestamp in seconds
-  - Returns `null` if there is no retained message
-
-- **sub_list**: List of clients subscribed to this topic (HashSet)
-  - `client_id`: Subscriber client ID
-  - `path`: Subscription path (may include wildcards like `+` or `#`)
-
-- **storage_list**: Storage shard mapping (HashMap<partition_number, EngineShard>)
-  - Key: Partition number (u32)
-  - Value: EngineShard object
-    - `shard_uid`: Shard unique identifier
-    - `shard_name`: Shard name
-    - `start_segment_seq`: Start segment sequence number
-    - `active_segment_seq`: Active segment sequence number
-    - `last_segment_seq`: Last segment sequence number
-    - `status`: Shard status (Run, PrepareDelete, Deleting)
-    - `config`: Shard configuration
-      - `replica_num`: Number of replicas
-      - `storage_type`: Storage type
-      - `max_segment_size`: Maximum segment size in bytes
-      - `retention_sec`: Retention time in seconds
-    - `create_time`: Shard creation time (Unix timestamp in seconds)
-
-**Notes**:
-- Returns an error response if the topic does not exist
-- `sub_list` shows all subscriptions matching this topic, including wildcard subscriptions
-- `storage_list` provides detailed storage engine shard information for each partition
-- The `payload` field in retained message is Base64 encoded
 
 #### 4.3 Delete Topic
 - **Endpoint**: `POST /api/mqtt/topic/delete`
 - **Description**: Delete a specified topic
 - **Request Parameters**:
-```json
-{
-  "topic_name": "sensor/temperature"  // Required, topic name to delete
-}
-```
 
-- **Response Data Structure**:
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": "success"
-}
-```
+| Field | Type | Required | Validation | Description |
+|-------|------|----------|------------|-------------|
+| `tenant` | string | Yes | - | Tenant name |
+| `topic_name` | string | Yes | Length 1-256 | Name of the topic to delete |
 
-**Field Descriptions**:
-- `topic_name`: Name of the topic to delete
+
+- **Response**: Returns "success" on success
 
 **Notes**:
 - Deleting a topic will remove all data for that topic, including retained messages
-- Returns an error response if the topic does not exist or deletion fails
 - This operation is irreversible, use with caution
-- Deleting a topic does not automatically unsubscribe from it; subscriptions will remain
 
 #### 4.4 Topic Rewrite Rules List
 - **Endpoint**: `GET /api/mqtt/topic-rewrite/list`
-- **Description**: Query topic rewrite rules list
-- **Request Parameters**: Supports common pagination and filtering parameters
+- **Description**: Query topic rewrite rules list, supports fuzzy search by tenant and rule name
+- **Request Parameters**:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tenant` | string | No | Fuzzy filter by tenant |
+| `name` | string | No | Fuzzy filter by rule name |
+| `limit` | u32 | No | Page size |
+| `page` | u32 | No | Page number, starting from 1 |
+| `sort_field` | string | No | Sort field, supports `name`, `source_topic`, `dest_topic`, `action`, `tenant` |
+| `sort_by` | string | No | Sort direction: `asc` / `desc` |
+
+
 - **Response Data Structure**:
 ```json
 {
@@ -632,8 +475,11 @@ Query message count for a specific topic:
   "data": {
     "data": [
       {
+        "name": "my-rule",
+        "desc": "rewrite sensor topics",
+        "tenant": "default",
         "source_topic": "old/topic/+",
-        "dest_topic": "new/topic/$1", 
+        "dest_topic": "new/topic/$1",
         "regex": "^old/topic/(.+)$",
         "action": "All"
       }
@@ -645,33 +491,30 @@ Query message count for a specific topic:
 
 #### 4.5 Create Topic Rewrite Rule
 - **Endpoint**: `POST /api/mqtt/topic-rewrite/create`
-- **Description**: Create new topic rewrite rule
+- **Description**: Create a new topic rewrite rule, `name` is used as the unique identifier
 - **Request Parameters**:
 ```json
 {
-  "action": "All",                  // Action type: All, Publish, Subscribe
-  "source_topic": "old/topic/+",   // Source topic pattern
-  "dest_topic": "new/topic/$1",     // Destination topic pattern
-  "regex": "^old/topic/(.+)$"       // Regular expression
+  "name": "my-rule",                // Required, rule name, globally unique identifier
+  "desc": "rewrite sensor topics",  // Optional, rule description
+  "tenant": "default",              // Required, tenant name, length 1-128
+  "action": "All",                  // Required, action type: All, Publish, Subscribe
+  "source_topic": "old/topic/+",   // Required, source topic pattern, length 1-256
+  "dest_topic": "new/topic/$1",    // Required, destination topic pattern, length 1-256
+  "regex": "^old/topic/(.+)$"      // Required, regular expression, length 1-500
 }
 ```
-
-- **Parameter Validation Rules**:
-  - `action`: Length must be between 1-50 characters, must be `All`, `Publish`, or `Subscribe`
-  - `source_topic`: Length must be between 1-256 characters
-  - `dest_topic`: Length must be between 1-256 characters
-  - `regex`: Length must be between 1-500 characters
 
 - **Response**: Returns "success" on success
 
 #### 4.6 Delete Topic Rewrite Rule
 - **Endpoint**: `POST /api/mqtt/topic-rewrite/delete`
-- **Description**: Delete topic rewrite rule
+- **Description**: Delete topic rewrite rule by rule name
 - **Request Parameters**:
 ```json
 {
-  "action": "All",
-  "source_topic": "old/topic/+"
+  "tenant": "default",    // Required, tenant name
+  "name": "my-rule"       // Required, rule name
 }
 ```
 
@@ -683,21 +526,18 @@ Query message count for a specific topic:
 
 #### 5.1 Subscription List Query
 - **Endpoint**: `GET /api/mqtt/subscribe/list`
-- **Description**: Query subscription list
+- **Description**: Query subscription list, supports filtering by tenant and fuzzy search by client_id
 - **Request Parameters**:
-```json
-{
-  "tenant": "default",              // Optional, filter by tenant name; if omitted, returns subscriptions across all tenants
-  "client_id": "client001",         // Optional, filter by client ID
-  "limit": 20,
-  "page": 1,
-  "sort_field": "create_time",
-  "sort_by": "desc",
-  "filter_field": "client_id",
-  "filter_values": ["client001"],
-  "exact_match": "false"
-}
-```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tenant` | string | No | Filter exactly by tenant; when specified, queries that tenant's cache directly (better performance) |
+| `client_id` | string | No | Fuzzy search by client ID (contains match) |
+| `limit` | u32 | No | Page size |
+| `page` | u32 | No | Page number, starting from 1 |
+| `sort_field` | string | No | Sort field, supports `client_id`, `tenant` |
+| `sort_by` | string | No | Sort direction: `asc` / `desc` |
+
 
 - **Response Data Structure**:
 ```json
@@ -727,9 +567,8 @@ Query message count for a specific topic:
 }
 ```
 
-**Field Descriptions**:
+**New Field**:
 - `tenant`: Tenant name the subscription belongs to
-- `total_count`: Total number of subscriptions across all tenants (when `tenant` is not specified)
 
 #### 5.2 Subscription Detail Query
 - **Endpoint**: `GET /api/mqtt/subscribe/detail`
@@ -737,8 +576,9 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
-  "client_id": "client001",    // Client ID
-  "path": "sensor/temperature" // Subscription path
+  "tenant": "default",          // Required, tenant name
+  "client_id": "client001",     // Required, client ID
+  "path": "sensor/temperature"  // Required, subscription path
 }
 ```
 
@@ -758,6 +598,7 @@ Query message count for a specific topic:
           "client_id": "client001",
           "sub_path": "sensor/temperature",
           "rewrite_sub_path": null,
+          "tenant": "default",
           "topic_name": "sensor/temperature",
           "group_name": "",
           "protocol": "MQTTv5",
@@ -785,117 +626,22 @@ Query message count for a specific topic:
 }
 ```
 
-**Field Descriptions**:
-- `share_sub`: Whether this is a shared subscription
-- `group_leader_info`: Shared subscription group leader information (only for shared subscriptions)
-  - `broker_id`: Broker node ID
-  - `broker_addr`: Broker address
-  - `extend_info`: Extended information
-- `sub_data`: Subscription data details
-  - `client_id`: Client ID
-  - `path`: Subscription path
-  - `push_subscribe`: Mapping of topics to subscribers (HashMap<topic_name, Subscriber>)
-    - `client_id`: Client ID
-    - `sub_path`: Subscription path
-    - `rewrite_sub_path`: Rewritten subscription path (optional)
-    - `topic_name`: Topic name
-    - `group_name`: Group name (for shared subscriptions)
-    - `protocol`: MQTT protocol version
-    - `qos`: QoS level
-    - `no_local`: Whether to exclude local messages
-    - `preserve_retain`: Whether to preserve retain flag
-    - `retain_forward_rule`: Retain message forwarding rule
-    - `subscription_identifier`: Subscription identifier (optional)
-    - `create_time`: Creation time (Unix timestamp in seconds)
-  - `push_thread`: Mapping of topics to push thread data (HashMap<topic_name, thread_data>)
-    - `push_success_record_num`: Successful push count
-    - `push_error_record_num`: Failed push count
-    - `last_push_time`: Last push time (Unix timestamp in seconds)
-    - `last_run_time`: Last run time (Unix timestamp in seconds)
-    - `create_time`: Creation time (Unix timestamp in seconds)
-    - `bucket_id`: Bucket ID
-  - `leader_id`: Leader node ID (for shared subscriptions)
-```
-
-**Shared Subscription Response Example**:
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": {
-    "share_sub": true,
-    "group_leader_info": {        // Leader info for the shared subscription group
-      "broker_id": 1,
-      "broker_addr": "127.0.0.1:1883",
-      "extend_info": "{}"
-    },
-    "topic_list": [
-      {
-        "client_id": "client001",
-        "path": "$share/group1/sensor/+",
-        "topic_name": "sensor/temperature",
-        "exclusive_push_data": null,
-        "share_push_data": {      // Shared subscription leader push data
-          "path": "$share/group1/sensor/+",
-          "group_name": "group1",
-          "sub_name": "sensor/+",
-          "topic_name": "sensor/temperature",
-          "sub_list": {           // Subscriber list in the shared group
-            "client001": {
-              "protocol": "MQTTv5",
-              "client_id": "client001",
-              "sub_path": "$share/group1/sensor/+",
-              "rewrite_sub_path": null,
-              "topic_name": "sensor/temperature",
-              "group_name": "group1",
-              "qos": "AtLeastOnce",
-              "nolocal": false,
-              "preserve_retain": false,
-              "retain_forward_rule": "SendAtSubscribe",
-              "subscription_identifier": null,
-              "create_time": 1704067200000
-            }
-          }
-        },
-        "push_thread": {
-          "push_success_record_num": 2540,
-          "push_error_record_num": 5,
-          "last_push_time": 1704067900000,
-          "last_run_time": 1704067910000,
-          "create_time": 1704067200000
-        }
-      }
-    ]
-  }
-}
-```
-
-**Field Descriptions**:
-- **share_sub**: Boolean value indicating whether this is a shared subscription
-- **group_leader_info**: Only returned for shared subscriptions, contains the leader broker information for the shared group
-  - `broker_id`: Leader broker's ID
-  - `broker_addr`: Leader broker's address
-  - `extend_info`: Extended information (JSON string)
-- **topic_list**: List of actual topics matching the subscription path
-  - `client_id`: Client ID
-  - `path`: Subscription path (may include wildcards or shared subscription prefix)
-  - `topic_name`: Actual matched topic name
-  - `exclusive_push_data`: Push data for exclusive subscriptions (null for shared subscriptions)
-  - `share_push_data`: Push data for shared subscriptions (null for exclusive subscriptions)
-  - `push_thread`: Statistics for push thread (optional)
-
-**Notes**:
-- If the subscription path contains wildcards (like `+` or `#`), `topic_list` may contain multiple actual matched topics
-- Exclusive and shared subscriptions have different data structures, distinguished by the `share_sub` field
-- Shared subscription path format is `$share/{group_name}/{topic_filter}`
-- All timestamps are millisecond Unix timestamps
-
 #### 5.3 Auto Subscribe Rule Management
 
 ##### 5.3.1 Auto Subscribe List
 - **Endpoint**: `GET /api/mqtt/auto-subscribe/list`
-- **Description**: Query auto subscribe rules list
-- **Request Parameters**: Supports common pagination and filtering parameters
+- **Description**: Query auto subscribe rules list, supports fuzzy search by tenant and name
+- **Request Parameters**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| tenant | string | No | Fuzzy search by tenant |
+| name | string | No | Fuzzy search by rule name |
+| limit | number | No | Number of records per page |
+| page | number | No | Page number |
+| sort_field | string | No | Sort field |
+| sort_by | string | No | Sort direction asc/desc |
+
 - **Response Data Structure**:
 ```json
 {
@@ -904,6 +650,9 @@ Query message count for a specific topic:
   "data": {
     "data": [
       {
+        "name": "rule-1",
+        "desc": "auto subscribe for system topics",
+        "tenant": "default",
         "topic": "system/+",
         "qos": "QoS1",
         "no_local": false,
@@ -918,59 +667,51 @@ Query message count for a specific topic:
 
 ##### 5.3.2 Create Auto Subscribe Rule
 - **Endpoint**: `POST /api/mqtt/auto-subscribe/create`
-- **Description**: Create new auto subscribe rule
+- **Description**: Create a new auto subscribe rule, name is the unique identifier
 - **Request Parameters**:
 ```json
 {
-  "topic": "system/+",              // Topic pattern
-  "qos": 1,                         // QoS level: 0, 1, 2
-  "no_local": false,                // No local
-  "retain_as_published": false,     // Retain as published
-  "retained_handling": 0            // Retained message handling: 0, 1, 2
+  "name": "rule-1",                 // Required, unique rule name, length 1-256
+  "desc": "optional description",  // Optional, rule description
+  "tenant": "default",              // Required, tenant name, length 1-256
+  "topic": "system/+",              // Required, topic pattern, length 1-256
+  "qos": 1,                         // Required, QoS level: 0, 1, 2
+  "no_local": false,                // Required, no local
+  "retain_as_published": false,     // Required, retain as published
+  "retained_handling": 0            // Required, retained message handling: 0, 1, 2
 }
 ```
 
-- **Parameter Validation Rules**:
-  - `topic`: Length must be between 1-256 characters
-  - `qos`: Must be 0, 1, or 2
-  - `no_local`: Boolean value
-  - `retain_as_published`: Boolean value
-  - `retained_handling`: Must be 0, 1, or 2
-
-- **Response**: Returns "Created successfully!" on success
+- **Response**: Returns "success" on success
 
 ##### 5.3.3 Delete Auto Subscribe Rule
 - **Endpoint**: `POST /api/mqtt/auto-subscribe/delete`
-- **Description**: Delete auto subscribe rule
+- **Description**: Delete auto subscribe rule by name
 - **Request Parameters**:
 ```json
 {
-  "topic_name": "system/+"
+  "tenant": "default",              // Required, tenant name
+  "name": "rule-1"                  // Required, rule name
 }
 ```
 
-- **Response**: Returns "Deleted successfully!" on success
+- **Response**: Returns "success" on success
 
 #### 5.4 Slow Subscribe Monitoring
 
 ##### 5.4.1 Slow Subscribe List
-
 - **Endpoint**: `GET /api/mqtt/slow-subscribe/list`
-- **Description**: Query slow subscribe list, supports filtering by tenant
+- **Description**: Query slow subscribe list, supports filtering by tenant and fuzzy search by client_id
 - **Request Parameters**:
 
-```json
-{
-  "tenant": "default",              // Optional, filter by tenant (scans only that tenant's records)
-  "limit": 20,
-  "page": 1,
-  "sort_field": "time_span",
-  "sort_by": "desc",
-  "filter_field": "client_id",
-  "filter_values": ["slow_client"],
-  "exact_match": "false"
-}
-```
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tenant` | string | No | Filter by tenant (when specified, only that tenant's records are scanned) |
+| `client_id` | string | No | Fuzzy search by client ID (contains match) |
+| `limit` | u32 | No | Page size |
+| `page` | u32 | No | Page number, starting from 1 |
+| `sort_field` | string | No | Sort field, supports `tenant`, `client_id`, `topic_name` |
+| `sort_by` | string | No | Sort direction: `asc` / `desc` |
 
 - **Response Data Structure**:
 
@@ -1011,14 +752,15 @@ Query message count for a specific topic:
 
 #### 6.1 User List Query
 - **Endpoint**: `GET /api/mqtt/user/list`
-- **Description**: Query MQTT user list
+- **Description**: Query MQTT user list, supports filtering by tenant and fuzzy search by username
 - **Request Parameters**:
 ```json
 {
-  "user_name": "admin",             // Optional, filter by username
+  "tenant": "default",              // Optional, filter exactly by tenant
+  "user_name": "admin",             // Optional, fuzzy search by username (contains match)
   "limit": 20,
   "page": 1,
-  "sort_field": "username",         // Optional, sort field
+  "sort_field": "username",
   "sort_by": "asc",
   "filter_field": "username",
   "filter_values": ["admin"],
@@ -1034,6 +776,7 @@ Query message count for a specific topic:
   "data": {
     "data": [
       {
+        "tenant": "default",
         "username": "admin",
         "is_superuser": true,
         "create_time": 1640995200
@@ -1045,6 +788,7 @@ Query message count for a specific topic:
 ```
 
 **Field Descriptions**:
+- `tenant`: Tenant the user belongs to
 - `username`: Username
 - `is_superuser`: Whether it's a superuser
 - `create_time`: User creation timestamp (seconds)
@@ -1055,18 +799,14 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
-  "username": "newuser",            // Username
-  "password": "password123",        // Password
-  "is_superuser": false             // Whether it's a superuser
+  "tenant": "default",              // Required, tenant name, length 1-64
+  "username": "newuser",            // Required, username, length 1-64
+  "password": "password123",        // Required, password, length 1-128
+  "is_superuser": false             // Required, whether it's a superuser
 }
 ```
 
-- **Parameter Validation Rules**:
-  - `username`: Length must be between 1-64 characters
-  - `password`: Length must be between 1-128 characters
-  - `is_superuser`: Boolean value
-
-- **Response**: Returns "Created successfully!" on success
+- **Response**: Returns "success" on success
 
 #### 6.3 Delete User
 - **Endpoint**: `POST /api/mqtt/user/delete`
@@ -1074,11 +814,12 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
-  "username": "olduser"
+  "tenant": "default",              // Required, tenant name, length 1-64
+  "username": "olduser"             // Required, username, length 1-64
 }
 ```
 
-- **Response**: Returns "Deleted successfully!" on success
+- **Response**: Returns "success" on success
 
 ---
 
@@ -1086,8 +827,20 @@ Query message count for a specific topic:
 
 #### 7.1 ACL List Query
 - **Endpoint**: `GET /api/mqtt/acl/list`
-- **Description**: Query access control list
-- **Request Parameters**: Supports common pagination and filtering parameters
+- **Description**: Query access control list, supports fuzzy search by tenant, name, and resource name (contains match)
+- **Request Parameters**:
+```json
+{
+  "tenant": "default",              // Optional, fuzzy search by tenant (contains match)
+  "name": "sensor",                 // Optional, fuzzy search by ACL name (contains match)
+  "resource_name": "client001",     // Optional, fuzzy search by resource name (contains match, applies to client_id or user)
+  "limit": 20,
+  "page": 1,
+  "sort_field": "name",
+  "sort_by": "asc"
+}
+```
+
 - **Response Data Structure**:
 ```json
 {
@@ -1096,6 +849,9 @@ Query message count for a specific topic:
   "data": {
     "data": [
       {
+        "tenant": "default",
+        "name": "sensor-publish-rule",
+        "desc": "Allow sensor devices to publish data",
         "resource_type": "ClientId",
         "resource_name": "client001",
         "topic": "sensor/+",
@@ -1111,45 +867,41 @@ Query message count for a specific topic:
 
 #### 7.2 Create ACL Rule
 - **Endpoint**: `POST /api/mqtt/acl/create`
-- **Description**: Create new ACL rule
+- **Description**: Create new ACL rule, `name` is the unique identifier (unique within a tenant)
 - **Request Parameters**:
 ```json
 {
-  "resource_type": "ClientId",       // Resource type: ClientId, Username, IpAddress
-  "resource_name": "client001",      // Resource name
-  "topic": "sensor/+",               // Topic pattern
-  "ip": "192.168.1.100",             // IP address
-  "action": "Publish",               // Action: Publish, Subscribe, All
-  "permission": "Allow"              // Permission: Allow, Deny
+  "tenant": "default",               // Required, tenant name, length 1-64
+  "name": "sensor-publish-rule",     // Required, ACL rule name, unique within tenant, length 1-128
+  "desc": "Allow sensor devices to publish data", // Optional, description, length no more than 256
+  "resource_type": "ClientId",       // Required, resource type: ClientId, User, Ip
+  "resource_name": "client001",      // Required, resource name, length 1-256
+  "topic": "sensor/+",               // Optional, topic pattern, length no more than 256
+  "ip": "192.168.1.100",             // Optional, IP address, length no more than 128
+  "action": "Publish",               // Required, action: Publish, Subscribe, All
+  "permission": "Allow"              // Required, permission: Allow, Deny
 }
 ```
 
 - **Parameter Validation Rules**:
-  - `resource_type`: Length must be between 1-50 characters, must be `ClientId`, `Username`, or `IpAddress`
-  - `resource_name`: Length must be between 1-256 characters
-  - `topic`: Length must be between 1-256 characters
-  - `ip`: Length cannot exceed 128 characters
-  - `action`: Length must be between 1-50 characters, must be `Publish`, `Subscribe`, or `All`
-  - `permission`: Length must be between 1-50 characters, must be `Allow` or `Deny`
+  - `resource_type`: Must be `ClientId`, `User`, or `Ip`
+  - `action`: Must be `Publish`, `Subscribe`, or `All`
+  - `permission`: Must be `Allow` or `Deny`
 
-- **Response**: Returns "Created successfully!" on success
+- **Response**: Returns "success" on success
 
 #### 7.3 Delete ACL Rule
 - **Endpoint**: `POST /api/mqtt/acl/delete`
-- **Description**: Delete ACL rule
+- **Description**: Delete ACL rule by `name`
 - **Request Parameters**:
 ```json
 {
-  "resource_type": "ClientId",
-  "resource_name": "client001",
-  "topic": "sensor/+",
-  "ip": "192.168.1.100",
-  "action": "Publish",
-  "permission": "Allow"
+  "tenant": "default",
+  "name": "sensor-publish-rule"
 }
 ```
 
-- **Response**: Returns "Deleted successfully!" on success
+- **Response**: Returns "success" on success
 
 ---
 
@@ -1157,8 +909,20 @@ Query message count for a specific topic:
 
 #### 8.1 Blacklist List Query
 - **Endpoint**: `GET /api/mqtt/blacklist/list`
-- **Description**: Query blacklist
-- **Request Parameters**: Supports common pagination and filtering parameters
+- **Description**: Query blacklist, supports fuzzy search by tenant, name, and resource name
+- **Request Parameters**:
+```json
+{
+  "tenant": "default",              // Optional, fuzzy search by tenant
+  "name": "bl-bad",                 // Optional, fuzzy search by name
+  "resource_name": "bad_client",    // Optional, fuzzy search by resource name
+  "limit": 20,
+  "page": 1,
+  "sort_field": "resource_name",
+  "sort_by": "asc"
+}
+```
+
 - **Response Data Structure**:
 ```json
 {
@@ -1167,6 +931,8 @@ Query message count for a specific topic:
   "data": {
     "data": [
       {
+        "name": "bl-malicious-client",
+        "tenant": "default",
         "blacklist_type": "ClientId",
         "resource_name": "malicious_client",
         "end_time": "2024-12-31 23:59:59",
@@ -1180,43 +946,45 @@ Query message count for a specific topic:
 
 #### 8.2 Create Blacklist Entry
 - **Endpoint**: `POST /api/mqtt/blacklist/create`
-- **Description**: Add new blacklist entry
+- **Description**: Add new blacklist entry, `name` is the unique identifier
 - **Request Parameters**:
 ```json
 {
-  "blacklist_type": "ClientId",        // Blacklist type: ClientId, ClientIdMatch, Username, UserMatch, IpAddress, IPCIDR
-  "resource_name": "bad_client",       // Resource name
-  "end_time": 1735689599,              // End time (Unix timestamp)
-  "desc": "Blocked for security"       // Description
+  "name": "bl-bad-client",            // Required, unique name, length 1-128
+  "tenant": "default",                 // Required, tenant name, length 1-64
+  "blacklist_type": "ClientId",        // Required, blacklist type (see enum description)
+  "resource_name": "bad_client",       // Required, resource name, length 1-256
+  "end_time": 1735689599,              // Required, end time (Unix timestamp), must be greater than 0
+  "desc": "Blocked for security"       // Optional, description, length no more than 500
 }
 ```
 
 - **Parameter Validation Rules**:
-  - `blacklist_type`: Length must be between 1-50 characters, must be one of `ClientId`, `ClientIdMatch`, `Username`, `UserMatch`, `IpAddress`, `IPCIDR`
-  - `resource_name`: Length must be between 1-256 characters
+  - `blacklist_type`: Must be `ClientId`, `User`, `Ip`, `ClientIdMatch`, `UserMatch`, or `IPCIDR`
   - `end_time`: Must be greater than 0
-  - `desc`: Length cannot exceed 500 characters
 
-- **Response**: Returns "Created successfully!" on success
+- **Response**: Returns "success" on success
 
 #### 8.3 Delete Blacklist Entry
 - **Endpoint**: `POST /api/mqtt/blacklist/delete`
-- **Description**: Delete blacklist entry
+- **Description**: Delete blacklist entry by `name`
 - **Request Parameters**:
 ```json
 {
-  "blacklist_type": "ClientId",
-  "resource_name": "bad_client"
+  "tenant": "default",
+  "name": "bl-bad-client"
 }
 ```
 
-- **Response**: Returns "Deleted successfully!" on success
+- **Response**: Returns "success" on success
 
 ---
 
 ### 9. Connector Management
 
-> Connector API documentation has been moved to a dedicated document. Please refer to [Connector Management HTTP API](Connector.md).
+> The Connector API has extensive content and has been extracted into a separate document. Please refer to [Connector Management HTTP API](Connector.md).
+
+**Key Changes**: The connector `list`, `detail`, and `delete` interfaces all have a new `tenant` parameter added. See Connector.md for details.
 
 ---
 
@@ -1224,8 +992,19 @@ Query message count for a specific topic:
 
 #### 10.1 Schema List Query
 - **Endpoint**: `GET /api/mqtt/schema/list`
-- **Description**: Query Schema list
-- **Request Parameters**: Supports common pagination and filtering parameters
+- **Description**: Query Schema list, supports fuzzy search by tenant and name
+- **Request Parameters**:
+```json
+{
+  "tenant": "default",              // Optional, fuzzy search by tenant
+  "name": "sensor",                 // Optional, fuzzy search by Schema name
+  "limit": 20,
+  "page": 1,
+  "sort_field": "name",
+  "sort_by": "asc"
+}
+```
+
 - **Response Data Structure**:
 ```json
 {
@@ -1234,10 +1013,11 @@ Query message count for a specific topic:
   "data": {
     "data": [
       {
+        "tenant": "default",
         "name": "temperature_schema",
         "schema_type": "json",
         "desc": "Temperature sensor data schema",
-        "schema": "{\"type\":\"object\",\"properties\":{\"temp\":{\"type\":\"number\"},\"unit\":{\"type\":\"string\"}}}"
+        "schema": "{\"type\":\"object\",\"properties\":{\"temp\":{\"type\":\"number\"}}}"
       }
     ],
     "total_count": 12
@@ -1251,38 +1031,15 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
-  "schema_name": "sensor_data_schema",   // Schema name
-  "schema_type": "json",                 // Schema type: json, avro, protobuf
-  "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"},\"humidity\":{\"type\":\"number\"}}}",  // Schema definition
-  "desc": "Sensor data validation schema"  // Description
+  "tenant": "default",                   // Required, tenant name, length 1-128
+  "schema_name": "sensor_data_schema",   // Required, Schema name, length 1-128
+  "schema_type": "json",                 // Required, Schema type: json, avro, protobuf
+  "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"}}}",
+  "desc": "Sensor data validation schema"  // Optional, description, length no more than 500
 }
 ```
 
-- **Parameter Validation Rules**:
-  - `schema_name`: Length must be between 1-128 characters
-  - `schema_type`: Length must be between 1-50 characters, must be `json`, `avro`, or `protobuf`
-  - `schema`: Length must be between 1-8192 characters
-  - `desc`: Length cannot exceed 500 characters
-
-**Schema Type Examples**：
-
-**JSON Schema**:
-```json
-{
-  "schema_type": "json",
-  "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\",\"minimum\":-50,\"maximum\":100}}}"
-}
-```
-
-**AVRO Schema**:
-```json
-{
-  "schema_type": "avro", 
-  "schema": "{\"type\":\"record\",\"name\":\"SensorData\",\"fields\":[{\"name\":\"temperature\",\"type\":\"double\"}]}"
-}
-```
-
-- **Response**: Returns "Created successfully!" on success
+- **Response**: Returns "success" on success
 
 #### 10.3 Delete Schema
 - **Endpoint**: `POST /api/mqtt/schema/delete`
@@ -1290,11 +1047,12 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
-  "schema_name": "old_schema"
+  "tenant": "default",              // Required, tenant name
+  "schema_name": "old_schema"       // Required, Schema name
 }
 ```
 
-- **Response**: Returns "Deleted successfully!" on success
+- **Response**: Returns "success" on success
 
 #### 10.4 Schema Binding Management
 
@@ -1304,15 +1062,13 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
-  "resource_name": "sensor/temperature", // Optional, resource name filter
-  "schema_name": "temp_schema",          // Optional, Schema name filter
+  "tenant": "default",                    // Optional, tenant name
+  "resource_name": "sensor/temperature",  // Optional, resource name filter
+  "schema_name": "temp_schema",           // Optional, Schema name filter
   "limit": 20,
   "page": 1,
   "sort_field": "data_type",
-  "sort_by": "asc",
-  "filter_field": "data_type",
-  "filter_values": ["resource"],
-  "exact_match": "false"
+  "sort_by": "asc"
 }
 ```
 
@@ -1339,16 +1095,13 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
-  "schema_name": "sensor_data_schema",  // Schema name
-  "resource_name": "sensor/temperature" // Resource name (usually topic name)
+  "tenant": "default",                   // Required, tenant name, length 1-128
+  "schema_name": "sensor_data_schema",   // Required, Schema name, length 1-128
+  "resource_name": "sensor/temperature"  // Required, resource name (usually topic name), length 1-256
 }
 ```
 
-- **Parameter Validation Rules**:
-  - `schema_name`: Length must be between 1-128 characters
-  - `resource_name`: Length must be between 1-256 characters
-
-- **Response**: Returns "Created successfully!" on success
+- **Response**: Returns "success" on success
 
 ##### 10.4.3 Delete Schema Binding
 - **Endpoint**: `POST /api/mqtt/schema-bind/delete`
@@ -1356,12 +1109,13 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
+  "tenant": "default",
   "schema_name": "sensor_data_schema",
   "resource_name": "sensor/temperature"
 }
 ```
 
-- **Response**: Returns "Deleted successfully!" on success
+- **Response**: Returns "success" on success
 
 ---
 
@@ -1373,16 +1127,12 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
-  "topic": "sensor/temperature",  // Required, topic name
-  "payload": "25.5",              // Required, message content
+  "tenant": "default",            // Required, tenant name, length 1-256
+  "topic": "sensor/temperature",  // Required, topic name, length 1-256
+  "payload": "25.5",              // Required, message content, no more than 1MB
   "retain": false                 // Optional, whether to retain message, default false
 }
 ```
-
-- **Parameter Validation Rules**:
-  - `topic`: Length must be between 1-256 characters
-  - `payload`: Length cannot exceed 1MB (1048576 bytes)
-  - `retain`: Boolean value
 
 - **Response Data Structure**:
 ```json
@@ -1390,24 +1140,15 @@ Query message count for a specific topic:
   "code": 0,
   "message": "success",
   "data": {
-    "offsets": [12345]  // Offset list of messages in the topic
+    "offsets": [12345]
   }
 }
 ```
-
-**Field Descriptions**:
-- `topic`: Target topic for message delivery
-- `payload`: Message content (string format)
-- `retain`: Whether to retain message
-  - `true`: Message will be stored as retained message, new subscribers will receive it
-  - `false`: Regular message, will not be retained
-- `offsets`: Array of offsets returned after message is successfully written, indicating message position in storage
 
 **Notes**:
 - Messages are sent with QoS 1 (at least once) level
 - Topic will be automatically created if it doesn't exist
 - Default message expiry time is 3600 seconds (1 hour)
-- Sender's client_id format: `{cluster_name}_{broker_id}`
 
 #### 11.2 Read Messages
 - **Endpoint**: `POST /api/mqtt/message/read`
@@ -1415,8 +1156,9 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
+  "tenant": "default",            // Required, tenant name
   "topic": "sensor/temperature",  // Required, topic name
-  "offset": 0                     // Required, starting offset
+  "offset": 0                     // Required, starting offset, reads from this position
 }
 ```
 
@@ -1431,29 +1173,14 @@ Query message count for a specific topic:
         "offset": 12345,
         "content": "25.5",
         "timestamp": 1640995200000
-      },
-      {
-        "offset": 12346,
-        "content": "26.0",
-        "timestamp": 1640995260000
       }
     ]
   }
 }
 ```
 
-**Field Descriptions**:
-- `topic`: Topic name to read messages from
-- `offset`: Starting offset to begin reading messages
-- `messages`: Message list (maximum 100 messages returned)
-  - `offset`: Message offset
-  - `content`: Message content (string format)
-  - `timestamp`: Message timestamp (milliseconds)
-
 **Notes**:
 - Maximum of 100 messages returned per request
-- Offset represents the sequential position of messages in the topic
-- Empty message list will be returned if specified offset is out of range
 - Timestamp is in millisecond Unix timestamp format
 
 ---
@@ -1474,8 +1201,7 @@ Query message count for a specific topic:
       {
         "name": "High Memory Usage",
         "message": "Memory usage exceeded 80% threshold",
-        "activate_at": "2024-01-01 10:00:00",
-        "activated": true
+        "create_time": 1640995200
       }
     ],
     "total_count": 3
@@ -1486,21 +1212,17 @@ Query message count for a specific topic:
 #### 12.2 Flapping Detection List
 
 - **Endpoint**: `GET /api/mqtt/flapping_detect/list`
-- **Description**: Query flapping detection list, supports filtering by tenant
+- **Description**: Query flapping detection list, supports filtering by tenant and fuzzy search by client_id
 - **Request Parameters**:
 
-```json
-{
-  "tenant": "default",              // Optional, filter by tenant (returns only that tenant's data)
-  "limit": 20,
-  "page": 1,
-  "sort_field": "first_request_time",
-  "sort_by": "desc",
-  "filter_field": "client_id",
-  "filter_values": ["flapping_client"],
-  "exact_match": "false"
-}
-```
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tenant` | string | No | Filter exactly by tenant (when specified, returns only that tenant's data, better performance) |
+| `client_id` | string | No | Fuzzy search by client ID (contains match) |
+| `limit` | u32 | No | Page size |
+| `page` | u32 | No | Page number, starting from 1 |
+| `sort_field` | string | No | Sort field, supports `tenant`, `client_id` |
+| `sort_by` | string | No | Sort direction: `asc` / `desc` |
 
 - **Response Data Structure**:
 
@@ -1537,7 +1259,7 @@ Query message count for a specific topic:
 
 ```json
 {
-  "tenant": "default",              // Optional, filter by tenant (scans only that tenant's records)
+  "tenant": "default",              // Optional, filter by tenant (when specified, scans only that tenant's records)
   "limit": 20,
   "page": 1,
   "sort_field": "create_time",
@@ -1583,13 +1305,15 @@ Query message count for a specific topic:
 
 ### 13. Tenant Management
 
+> MQTT Broker supports multi-tenant isolation. A tenant is the top-level namespace for resources (users, ACLs, topics, subscriptions, etc.).
+
 #### 13.1 Tenant List Query
 - **Endpoint**: `GET /api/mqtt/tenant/list`
-- **Description**: Query MQTT tenant list
+- **Description**: Query MQTT tenant list, supports direct query by tenant name
 - **Request Parameters**:
 ```json
 {
-  "tenant_name": "default",         // Optional, filter by exact tenant name
+  "tenant_name": "default",         // Optional, exact query by tenant name
   "limit": 20,
   "page": 1,
   "sort_field": "tenant_name",      // Optional, sort field
@@ -1618,7 +1342,7 @@ Query message count for a specific topic:
         "max_publish_rate": 10000
       }
     ],
-    "total_count": 1
+    "total_count": 3
   }
 }
 ```
@@ -1639,8 +1363,8 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
-  "tenant_name": "new_tenant",                        // Required, tenant name, length 1-128 characters
-  "desc": "My new tenant",                            // Optional, description, length cannot exceed 500 characters
+  "tenant_name": "new_tenant",                        // Required, tenant name, length 1-128
+  "desc": "Production environment",                   // Optional, tenant description, length no more than 500
   "max_connections_per_node": 1000000,                // Optional, maximum connections per node
   "max_create_connection_rate_per_second": 10000,     // Optional, maximum new connection rate per second
   "max_topics": 500000,                               // Optional, maximum number of topics
@@ -1649,11 +1373,7 @@ Query message count for a specific topic:
 }
 ```
 
-- **Parameter Validation Rules**:
-  - `tenant_name`: Length must be between 1-128 characters
-  - `desc`: Length cannot exceed 500 characters
-
-- **Response**: Returns `"success"` on success
+- **Response**: Returns "success" on success
 
 #### 13.3 Delete Tenant
 - **Endpoint**: `POST /api/mqtt/tenant/delete`
@@ -1661,11 +1381,15 @@ Query message count for a specific topic:
 - **Request Parameters**:
 ```json
 {
-  "tenant_name": "old_tenant"       // Tenant name, length 1-128 characters
+  "tenant_name": "old_tenant"        // Required, tenant name, length 1-128
 }
 ```
 
-- **Response**: Returns `"success"` on success
+- **Response**: Returns "success" on success
+
+**Notes**:
+- Before deleting a tenant, ensure users, ACLs, subscriptions, and other resources under that tenant have been cleaned up
+- It is not recommended to delete the system default tenant `default`
 
 ---
 
@@ -1673,8 +1397,8 @@ Query message count for a specific topic:
 
 ### ACL Resource Type (resource_type)
 - `ClientId`: Client ID
-- `Username`: Username
-- `IpAddress`: IP Address
+- `User`: Username
+- `Ip`: IP Address
 
 ### ACL Action (action)
 - `Publish`: Publish message
@@ -1686,15 +1410,12 @@ Query message count for a specific topic:
 - `Deny`: Deny
 
 ### Blacklist Type (blacklist_type)
-
-| Value | Description |
-|-------|-------------|
-| `ClientId` | Exact match by client ID |
-| `ClientIdMatch` | Wildcard/regex match by client ID |
-| `Username` | Exact match by username |
-| `UserMatch` | Wildcard/regex match by username |
-| `IpAddress` | Exact match by IP address |
-| `IPCIDR` | CIDR range match by IP address |
+- `ClientId`: Exact match by client ID
+- `User`: Exact match by username
+- `Ip`: Exact match by IP address
+- `ClientIdMatch`: Wildcard match by client ID (supports `*` wildcard)
+- `UserMatch`: Wildcard match by username (supports `*` wildcard)
+- `IPCIDR`: CIDR range match (e.g. `192.168.1.0/24`)
 
 ### Connector Type (connector_type)
 
@@ -1724,42 +1445,29 @@ Query message count for a specific topic:
 curl -X GET http://localhost:8080/api/mqtt/overview
 ```
 
-### Query Monitor Data
+### Query Clients for a Specific Tenant
 ```bash
-# Query connection count monitoring data
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connection_num"
-
-# Query message received count for a specific topic
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=topic_in_num&topic_name=sensor/temperature"
-
-# Query subscription send success count
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=subscribe_send_success_num&client_id=client001&path=sensor/%2B"
-
-# Query subscription topic send failure count
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=subscribe_topic_send_failure_num&client_id=client001&path=sensor/%2B&topic_name=sensor/temperature"
-
-# Query session received message count
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=session_in_num&client_id=client001"
-
-# Query session sent message count
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=session_out_num&client_id=client001"
-
-# Query total successful messages sent by all connectors
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_success_total"
-
-# Query total failed messages sent by all connectors
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_failure_total"
-
-# Query successful messages sent by a specific connector
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_success&connector_name=kafka_connector_01"
-
-# Query failed messages sent by a specific connector
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connector_send_failure&connector_name=kafka_connector_01"
+curl "http://localhost:8080/api/mqtt/client/list?tenant=default&limit=10&page=1"
 ```
 
-### Query Client List
+### Query Sessions for a Specific Tenant
 ```bash
-curl "http://localhost:8080/api/mqtt/client/list?limit=10&page=1&sort_field=connection_id&sort_by=desc"
+curl "http://localhost:8080/api/mqtt/session/list?tenant=default&limit=20&page=1"
+```
+
+### Query Subscription List (Specific Tenant)
+```bash
+curl "http://localhost:8080/api/mqtt/subscribe/list?tenant=default&limit=20&page=1"
+```
+
+### Create Tenant
+```bash
+curl -X POST http://localhost:8080/api/mqtt/tenant/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant_name": "production",
+    "desc": "Production environment tenant"
+  }'
 ```
 
 ### Delete Topic
@@ -1767,6 +1475,7 @@ curl "http://localhost:8080/api/mqtt/client/list?limit=10&page=1&sort_field=conn
 curl -X POST http://localhost:8080/api/mqtt/topic/delete \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "topic_name": "sensor/temperature"
   }'
 ```
@@ -1776,6 +1485,7 @@ curl -X POST http://localhost:8080/api/mqtt/topic/delete \
 curl -X POST http://localhost:8080/api/mqtt/user/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "username": "testuser",
     "password": "testpass123",
     "is_superuser": false
@@ -1787,51 +1497,28 @@ curl -X POST http://localhost:8080/api/mqtt/user/create \
 curl -X POST http://localhost:8080/api/mqtt/acl/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
+    "name": "sensor-publish-rule",
+    "desc": "Allow sensor devices to publish data",
     "resource_type": "ClientId",
     "resource_name": "sensor001",
     "topic": "sensor/+",
-    "ip": "192.168.1.100",
     "action": "Publish",
     "permission": "Allow"
   }'
 ```
 
-### Query Connector Detail
+### Create Blacklist Entry (Wildcard Match)
 ```bash
-curl "http://localhost:8080/api/mqtt/connector/detail?connector_name=kafka_bridge"
-```
-
-### Create Connector
-```bash
-# Create basic Kafka connector (uses default settings)
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
   -H "Content-Type: application/json" \
   -d '{
-    "connector_name": "kafka_bridge",
-    "connector_type": "kafka",
-    "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
-    "topic_name": "sensor/+"
-  }'
-
-# Create Kafka connector with advanced configuration
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
-  -H "Content-Type: application/json" \
-  -d '{
-    "connector_name": "kafka_bridge_advanced",
-    "connector_type": "kafka",
-    "config": "{\"bootstrap_servers\":\"kafka1:9092,kafka2:9092,kafka3:9092\",\"topic\":\"mqtt_messages\",\"compression_type\":\"lz4\",\"batch_size\":32768,\"linger_ms\":10,\"acks\":\"all\",\"retries\":5}",
-    "topic_name": "sensor/+"
-  }'
-
-# Create connector with retry failure strategy
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
-  -H "Content-Type: application/json" \
-  -d '{
-    "connector_name": "kafka_bridge_retry",
-    "connector_type": "kafka",
-    "config": "{\"bootstrap_servers\":\"localhost:9092\",\"topic\":\"mqtt_messages\"}",
-    "topic_name": "sensor/+",
-    "failure_strategy": "{\"DiscardAfterRetry\":{\"retry_total_times\":5,\"wait_time_ms\":2000}}"
+    "name": "bl-bad-client-match",
+    "tenant": "default",
+    "blacklist_type": "ClientIdMatch",
+    "resource_name": "bad_client_*",
+    "end_time": 1735689599,
+    "desc": "Block all clients matching bad_client_*"
   }'
 ```
 
@@ -1840,11 +1527,21 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 curl -X POST http://localhost:8080/api/mqtt/schema/create \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "schema_name": "sensor_schema",
     "schema_type": "json",
-    "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"},\"humidity\":{\"type\":\"number\"}}}",
+    "schema": "{\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"}}}",
     "desc": "Sensor data validation schema"
   }'
+```
+
+### Query Monitor Data
+```bash
+# Query connection count monitoring data
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connection_num"
+
+# Query message received count for a specific topic
+curl "http://localhost:8080/api/mqtt/monitor/data?data_type=topic_in_num&topic_name=sensor/temperature"
 ```
 
 ### Send Message
@@ -1858,18 +1555,8 @@ curl -X POST http://localhost:8080/api/mqtt/message/send \
   }'
 ```
 
-### Read Messages
-```bash
-curl -X POST http://localhost:8080/api/mqtt/message/read \
-  -H "Content-Type: application/json" \
-  -d '{
-    "topic": "sensor/temperature",
-    "offset": 0
-  }'
-```
-
 ---
 
 *Documentation Version: v5.0*
 *Last Updated: 2026-03-15*
-*Based on Code Version: RobustMQ Admin Server v0.3.2*
+*Based on Code Version: RobustMQ Admin Server v0.1.35*

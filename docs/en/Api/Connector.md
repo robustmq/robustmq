@@ -8,21 +8,17 @@
 
 ### 1. Connector List Query
 - **Endpoint**: `GET /api/mqtt/connector/list`
-- **Description**: Query connector list
+- **Description**: Query connector list, supports filtering by tenant and fuzzy search by connector name
 - **Request Parameters**:
-```json
-{
-  "tenant": "default",              // Optional, filter by tenant name; if omitted, returns connectors across all tenants
-  "connector_name": "kafka_connector",  // Optional, filter by connector name
-  "limit": 20,
-  "page": 1,
-  "sort_field": "connector_name",
-  "sort_by": "asc",
-  "filter_field": "connector_type",
-  "filter_values": ["kafka"],
-  "exact_match": "false"
-}
-```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tenant` | string | No | Filter by tenant (exact match); when specified, only connectors belonging to that tenant are returned (better performance) |
+| `connector_name` | string | No | Fuzzy search by connector name (contains match) |
+| `limit` | u32 | No | Page size |
+| `page` | u32 | No | Page number, starting from 1 |
+| `sort_field` | string | No | Sort field, supports `connector_name`, `tenant` |
+| `sort_by` | string | No | Sort direction: `asc` / `desc` |
 
 - **Response Data Structure**:
 ```json
@@ -35,7 +31,7 @@
         "tenant": "default",
         "connector_name": "kafka_connector",
         "connector_type": "kafka",
-        "config": "{\"bootstrap_servers\":\"localhost:9092\"}",
+        "config": "{\"Kafka\":{\"bootstrap_servers\":\"localhost:9092\"}}",
         "topic_name": "topic_001",
         "status": "Running",
         "broker_id": "1",
@@ -253,11 +249,11 @@ or
 **Required Parameters**:
 - `server`: RabbitMQ server address
 - `username`: Username
+- `password`: Password
 - `exchange`: Exchange name
 
 **Optional Parameters**:
 - `port`: Port (default `5672`)
-- `password`: Password
 - `virtual_host`: Virtual host (default `"/"`)
 - `routing_key`: Routing key (default `""`)
 - `delivery_mode`: Persistence mode (default `"NonPersistent"`), options: `NonPersistent`, `Persistent`
@@ -505,10 +501,10 @@ or
 **Required Parameters**:
 - `server_addr`: GreptimeDB server address
 - `database`: Database name
+- `user`: Username (pass empty string if no authentication)
+- `password`: Password (pass empty string if no authentication)
 
 **Optional Parameters**:
-- `user`: Username
-- `password`: Password
 - `precision`: Time precision (default `"Second"`)
 
 ---
@@ -525,16 +521,14 @@ or
 **Required Parameters**:
 - `server`: InfluxDB server address, must start with `http://` or `https://`
 - `measurement`: Measurement name
+- `token`: API Token (used for v2; pass empty string for v1)
+- `org`: Organization name (used for v2; pass empty string for v1)
+- `bucket`: Bucket name (used for v2; pass empty string for v1)
+- `database`: Database name (used for v1; pass empty string for v2)
+- `username`: Username (used for v1; pass empty string for v2)
+- `password`: Password (used for v1; pass empty string for v2)
 
-**v2 Parameters** (when `version` is `"v2"`, default):
-- `token`: API Token (required)
-- `org`: Organization name (required)
-- `bucket`: Bucket name (required)
-
-**v1 Parameters** (when `version` is `"v1"`):
-- `database`: Database name (required)
-- `username`: Username
-- `password`: Password
+**Note**: For v2, fill in `token`/`org`/`bucket` and pass empty strings for the rest; for v1, fill in `database`/`username`/`password` and pass empty strings for the rest.
 
 **Optional Parameters**:
 - `version`: InfluxDB version (default `"v2"`), options: `v1`, `v2`
@@ -601,12 +595,12 @@ or
 **Required Parameters**:
 - `bucket`: S3 bucket name
 - `region`: AWS region (for example `us-east-1`)
+- `access_key_id`: Access key (pass empty string if no authentication)
+- `secret_access_key`: Secret key (pass empty string if no authentication)
+- `session_token`: Session token for temporary credentials (pass empty string if not used)
 
 **Optional Parameters**:
-- `endpoint`: S3 endpoint (for MinIO and other S3-compatible storage)
-- `access_key_id`: Access key (must be used together with `secret_access_key`)
-- `secret_access_key`: Secret key (must be used together with `access_key_id`)
-- `session_token`: Session token for temporary credentials
+- `endpoint`: S3 endpoint (for MinIO and other S3-compatible storage, default `""`)
 - `root`: Root path prefix in object storage (default `""`)
 - `object_key_prefix`: Object key prefix (default `"mqtt"`)
 - `file_extension`: Object suffix (default `"json"`, alphanumeric only)
@@ -957,5 +951,5 @@ curl -X POST http://localhost:8080/api/mqtt/connector/delete \
 ---
 
 *Documentation Version: v2.0*
-*Last Updated: 2026-03-15*  
+*Last Updated: 2026-03-15*
 *Based on Code Version: RobustMQ v0.3.2*
