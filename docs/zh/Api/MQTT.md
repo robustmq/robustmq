@@ -629,8 +629,18 @@
 
 ##### 5.3.1 自动订阅列表
 - **接口**: `GET /api/mqtt/auto-subscribe/list`
-- **描述**: 查询自动订阅规则列表
-- **请求参数**: 支持通用分页和过滤参数
+- **描述**: 查询自动订阅规则列表，支持 tenant、name 模糊搜索
+- **请求参数**:
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| tenant | string | 否 | 按租户模糊搜索 |
+| name | string | 否 | 按规则名称模糊搜索 |
+| limit | number | 否 | 每页条数 |
+| page | number | 否 | 页码 |
+| sort_field | string | 否 | 排序字段 |
+| sort_by | string | 否 | 排序方向 asc/desc |
+
 - **响应数据结构**:
 ```json
 {
@@ -639,6 +649,8 @@
   "data": {
     "data": [
       {
+        "name": "rule-1",
+        "desc": "auto subscribe for system topics",
         "tenant": "default",
         "topic": "system/+",
         "qos": "QoS1",
@@ -652,15 +664,14 @@
 }
 ```
 
-**新增字段**：
-- `tenant`: 自动订阅规则所属的租户名称
-
 ##### 5.3.2 创建自动订阅规则
 - **接口**: `POST /api/mqtt/auto-subscribe/create`
-- **描述**: 创建新的自动订阅规则
+- **描述**: 创建新的自动订阅规则，name 为唯一标识
 - **请求参数**:
 ```json
 {
+  "name": "rule-1",                 // 必填，规则唯一名称，长度 1-256
+  "desc": "optional description",  // 可选，规则描述
   "tenant": "default",              // 必填，租户名称，长度 1-256
   "topic": "system/+",              // 必填，主题模式，长度 1-256
   "qos": 1,                         // 必填，QoS 级别：0, 1, 2
@@ -674,12 +685,12 @@
 
 ##### 5.3.3 删除自动订阅规则
 - **接口**: `POST /api/mqtt/auto-subscribe/delete`
-- **描述**: 删除自动订阅规则
+- **描述**: 按 name 删除自动订阅规则
 - **请求参数**:
 ```json
 {
   "tenant": "default",              // 必填，租户名称
-  "topic": "system/+"               // 必填，主题模式
+  "name": "rule-1"                  // 必填，规则名称
 }
 ```
 
@@ -983,18 +994,16 @@
 
 #### 10.1 Schema 列表查询
 - **接口**: `GET /api/mqtt/schema/list`
-- **描述**: 查询 Schema 列表，支持按租户直接查询
+- **描述**: 查询 Schema 列表，支持 tenant、name 模糊搜索
 - **请求参数**:
 ```json
 {
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
+  "tenant": "default",              // 可选，按租户模糊搜索
+  "name": "sensor",                 // 可选，按 Schema 名称模糊搜索
   "limit": 20,
   "page": 1,
   "sort_field": "name",
-  "sort_by": "asc",
-  "filter_field": "schema_type",
-  "filter_values": ["json"],
-  "exact_match": "false"
+  "sort_by": "asc"
 }
 ```
 
@@ -1017,9 +1026,6 @@
   }
 }
 ```
-
-**新增字段**：
-- `tenant`: Schema 所属的租户名称
 
 #### 10.2 创建 Schema
 - **接口**: `POST /api/mqtt/schema/create`

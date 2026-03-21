@@ -460,12 +460,12 @@ impl MQTTCacheManager {
         self.auto_subscribe_rule
             .entry(rule.tenant.clone())
             .or_default()
-            .insert(rule.topic.clone(), rule);
+            .insert(rule.name.clone(), rule);
     }
 
-    pub fn delete_auto_subscribe_rule(&self, tenant: &str, topic: &str) {
+    pub fn delete_auto_subscribe_rule(&self, tenant: &str, name: &str) {
         if let Some(tenant_map) = self.auto_subscribe_rule.get(tenant) {
-            tenant_map.remove(topic);
+            tenant_map.remove(name);
         }
     }
 }
@@ -698,6 +698,8 @@ mod tests {
     async fn auto_subscribe_rule_operations() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let rule = MqttAutoSubscribeRule {
+            name: "rule-1".to_string(),
+            desc: "test rule".to_string(),
             tenant: "tenant-1".to_string(),
             topic: "auto/sub/topic".to_string(),
             qos: QoS::AtLeastOnce,
@@ -713,19 +715,19 @@ mod tests {
         let rule_info = cache_manager
             .auto_subscribe_rule
             .get(&rule.tenant)
-            .and_then(|m| m.get(&rule.topic).map(|v| v.clone()));
+            .and_then(|m| m.get(&rule.name).map(|v| v.clone()));
         println!("{rule_info:?}");
         assert!(rule_info.is_some());
         assert_eq!(rule_info.unwrap().topic, rule.topic);
 
         // remove
-        cache_manager.delete_auto_subscribe_rule(&rule.tenant, &rule.topic);
+        cache_manager.delete_auto_subscribe_rule(&rule.tenant, &rule.name);
 
         // get again
         let rule_info_after_remove = cache_manager
             .auto_subscribe_rule
             .get(&rule.tenant)
-            .and_then(|m| m.get(&rule.topic).map(|v| v.clone()));
+            .and_then(|m| m.get(&rule.name).map(|v| v.clone()));
         assert!(rule_info_after_remove.is_none());
     }
 

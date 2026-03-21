@@ -705,13 +705,17 @@ pub enum AutoSubscribeRuleActionType {
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
 pub struct CreateAutoSubscribeRuleArgs {
+    #[arg(short, long, required = true)]
+    pub name: String,
+    #[arg(short, long)]
+    pub desc: Option<String>,
     #[arg(short = 'T', long, required = true)]
     pub tenant: String,
     #[arg(short, long, required = true)]
     pub topic: String,
     #[arg(short, long, default_value_t = 0)]
     pub qos: u8,
-    #[arg(short, long, default_value_t = false)]
+    #[arg(short = 'L', long, default_value_t = false)]
     pub no_local: bool,
     #[arg(short = 'r', long, default_value_t = false)]
     pub retain_as_published: bool,
@@ -725,7 +729,7 @@ pub struct DeleteAutoSubscribeRuleArgs {
     #[arg(short = 'T', long, required = true)]
     pub tenant: String,
     #[arg(short, long, required = true)]
-    pub topic: String,
+    pub name: String,
 }
 
 pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttActionType {
@@ -733,6 +737,8 @@ pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttAction
         AutoSubscribeRuleActionType::List => MqttActionType::ListAutoSubscribe,
         AutoSubscribeRuleActionType::Create(arg) => MqttActionType::CreateAutoSubscribe(
             admin_server::mqtt::subscribe::CreateAutoSubscribeReq {
+                name: arg.name,
+                desc: arg.desc,
                 tenant: arg.tenant,
                 topic: arg.topic,
                 qos: arg.qos as u32,
@@ -744,7 +750,7 @@ pub fn process_auto_subscribe_args(args: AutoSubscribeRuleCommand) -> MqttAction
         AutoSubscribeRuleActionType::Delete(arg) => MqttActionType::DeleteAutoSubscribe(
             admin_server::mqtt::subscribe::DeleteAutoSubscribeReq {
                 tenant: arg.tenant,
-                topic: arg.topic,
+                name: arg.name,
             },
         ),
     }

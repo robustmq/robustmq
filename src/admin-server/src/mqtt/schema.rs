@@ -32,13 +32,11 @@ use crate::{
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SchemaListReq {
     pub tenant: Option<String>,
+    pub name: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
-    pub filter_field: Option<String>,
-    pub filter_values: Option<Vec<String>>,
-    pub exact_match: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
@@ -168,43 +166,39 @@ pub async fn schema_list(
         params.limit,
         params.sort_field,
         params.sort_by,
-        params.filter_field,
-        params.filter_values,
-        params.exact_match,
+        None,
+        None,
+        None,
     );
 
-    let schemas: Vec<SchemaListRow> = if let Some(ref tenant) = params.tenant {
-        state
-            .mqtt_context
-            .schema_manager
-            .get_all_schema(tenant)
-            .into_iter()
-            .map(|schema| SchemaListRow {
-                tenant: tenant.clone(),
-                name: schema.name.clone(),
-                schema_type: schema.schema_type.to_string(),
-                desc: schema.desc.clone(),
-                schema: schema.schema.clone(),
-            })
-            .collect()
-    } else {
-        state
-            .mqtt_context
-            .schema_manager
-            .get_all_schema_all_tenants()
-            .into_iter()
-            .map(|(tenant, schema)| SchemaListRow {
-                tenant,
-                name: schema.name.clone(),
-                schema_type: schema.schema_type.to_string(),
-                desc: schema.desc.clone(),
-                schema: schema.schema.clone(),
-            })
-            .collect()
-    };
+    let schemas: Vec<SchemaListRow> = state
+        .mqtt_context
+        .schema_manager
+        .get_all_schema_all_tenants()
+        .into_iter()
+        .filter(|(tenant, schema)| {
+            if let Some(ref t) = params.tenant {
+                if !tenant.contains(t.as_str()) {
+                    return false;
+                }
+            }
+            if let Some(ref n) = params.name {
+                if !schema.name.contains(n.as_str()) {
+                    return false;
+                }
+            }
+            true
+        })
+        .map(|(tenant, schema)| SchemaListRow {
+            tenant,
+            name: schema.name.clone(),
+            schema_type: schema.schema_type.to_string(),
+            desc: schema.desc.clone(),
+            schema: schema.schema.clone(),
+        })
+        .collect();
 
-    let filtered = apply_filters(schemas, &options);
-    let sorted = apply_sorting(filtered, &options);
+    let sorted = apply_sorting(schemas, &options);
     let pagination = apply_pagination(sorted, &options);
 
     success_response(PageReplyData {

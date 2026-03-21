@@ -79,10 +79,10 @@ impl AutoSubscribeStorage {
     pub async fn delete_auto_subscribe_rule(
         &self,
         tenant: String,
-        topic: String,
+        name: String,
     ) -> ResultMqttBrokerError {
         let config = broker_config();
-        let request = DeleteAutoSubscribeRuleRequest { tenant, topic };
+        let request = DeleteAutoSubscribeRuleRequest { tenant, name };
         placement_delete_auto_subscribe_rule(
             &self.client_pool,
             &config.get_meta_service_addr(),

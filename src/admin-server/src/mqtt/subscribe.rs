@@ -86,19 +86,23 @@ pub struct SubPushThreadDataRaw {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SubPushThreadRaw {}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct AutoSubscribeListReq {
+    pub tenant: Option<String>,
+    pub name: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
-    pub filter_field: Option<String>,
-    pub filter_values: Option<Vec<String>>,
-    pub exact_match: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct CreateAutoSubscribeReq {
+    #[validate(length(min = 1, max = 256, message = "Name length must be between 1-256"))]
+    pub name: String,
+
+    pub desc: Option<String>,
+
     #[validate(length(min = 1, max = 256, message = "Tenant length must be between 1-256"))]
     pub tenant: String,
 
@@ -120,8 +124,8 @@ pub struct DeleteAutoSubscribeReq {
     #[validate(length(min = 1, max = 256, message = "Tenant length must be between 1-256"))]
     pub tenant: String,
 
-    #[validate(length(min = 1, max = 256, message = "Topic length must be between 1-256"))]
-    pub topic: String,
+    #[validate(length(min = 1, max = 256, message = "Name length must be between 1-256"))]
+    pub name: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -143,6 +147,8 @@ pub struct SubscribeListRow {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AutoSubscribeListRow {
+    pub name: String,
+    pub desc: String,
     pub tenant: String,
     pub topic: String,
     pub qos: String,
@@ -337,20 +343,30 @@ pub async fn auto_subscribe_list(
     State(state): State<Arc<HttpState>>,
     Query(params): Query<AutoSubscribeListReq>,
 ) -> String {
+    let filter_tenant = params.tenant;
+    let filter_name = params.name;
     let options = build_query_params(
         params.page,
         params.limit,
         params.sort_field,
         params.sort_by,
-        params.filter_field,
-        params.filter_values,
-        params.exact_match,
+        None,
+        None,
+        None,
     );
     let mut subscriptions = Vec::new();
     for tenant_entry in state.mqtt_context.cache_manager.auto_subscribe_rule.iter() {
         for rule_entry in tenant_entry.value().iter() {
             let raw = rule_entry.value();
+            if filter_tenant.as_deref().map(|t| !raw.tenant.contains(t)).unwrap_or(false) {
+                continue;
+            }
+            if filter_name.as_deref().map(|n| !raw.name.contains(n)).unwrap_or(false) {
+                continue;
+            }
             subscriptions.push(AutoSubscribeListRow {
+                name: raw.name.clone(),
+                desc: raw.desc.clone(),
                 tenant: raw.tenant.clone(),
                 topic: raw.topic.clone(),
                 qos: format!("{:?}", raw.qos),
@@ -361,8 +377,7 @@ pub async fn auto_subscribe_list(
         }
     }
 
-    let filtered = apply_filters(subscriptions, &options);
-    let sorted = apply_sorting(filtered, &options);
+    let sorted = apply_sorting(subscriptions, &options);
     let pagination = apply_pagination(sorted, &options);
 
     success_response(PageReplyData {
@@ -374,6 +389,8 @@ pub async fn auto_subscribe_list(
 impl Queryable for AutoSubscribeListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "name" => Some(self.name.clone()),
+            "tenant" => Some(self.tenant.clone()),
             "topic" => Some(self.topic.clone()),
             _ => None,
         }
@@ -397,6 +414,8 @@ pub async fn auto_subscribe_create(
     };
 
     let auto_subscribe_rule = MqttAutoSubscribeRule {
+        name: params.name.clone(),
+        desc: params.desc.clone().unwrap_or_default(),
         tenant: params.tenant.clone(),
         topic: params.topic.clone(),
         qos: qos_new,
@@ -422,7 +441,7 @@ pub async fn auto_subscribe_delete(
 ) -> String {
     let auto_subscribe_storage = AutoSubscribeStorage::new(state.client_pool.clone());
     if let Err(e) = auto_subscribe_storage
-        .delete_auto_subscribe_rule(params.tenant.clone(), params.topic.clone())
+        .delete_auto_subscribe_rule(params.tenant.clone(), params.name.clone())
         .await
     {
         return error_response(e.to_string());

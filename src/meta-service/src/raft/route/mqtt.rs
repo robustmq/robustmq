@@ -335,12 +335,6 @@ impl DataRouteMqtt {
     pub fn delete_auto_subscribe_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteAutoSubscribeRuleRequest::decode(value.as_ref())?;
         let storage = MqttSubscribeStorage::new(self.rocksdb_engine_handler.clone());
-        if let Some(rule) =
-            storage.get_auto_subscribe_rule_by_tenant_topic(&req.tenant, &req.topic)?
-        {
-            storage.delete_auto_subscribe_rule(&rule.tenant, &rule.topic)
-        } else {
-            Ok(())
-        }
+        storage.delete_auto_subscribe_rule(&req.tenant, &req.name)
     }
 }

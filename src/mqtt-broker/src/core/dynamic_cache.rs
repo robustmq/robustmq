@@ -249,7 +249,7 @@ pub async fn update_mqtt_cache_metadata(
             BrokerUpdateCacheActionType::Delete => {
                 let rule = MqttAutoSubscribeRule::decode(&record.data)
                     .map_err(|e| crate::core::error::MqttBrokerError::CommonError(e.to_string()))?;
-                cache_manager.delete_auto_subscribe_rule(&rule.tenant, &rule.topic);
+                cache_manager.delete_auto_subscribe_rule(&rule.tenant, &rule.name);
             }
         },
         BrokerUpdateCacheResourceType::TopicRewriteRule => match record.action_type() {

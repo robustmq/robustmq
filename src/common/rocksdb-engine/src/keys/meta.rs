@@ -294,10 +294,10 @@ pub fn storage_key_mqtt_topic_rewrite_rule_tenant_prefix(tenant: &str) -> String
 }
 
 #[inline]
-pub fn storage_key_mqtt_auto_subscribe_rule(tenant: &str, topic: &str) -> String {
+pub fn storage_key_mqtt_auto_subscribe_rule(tenant: &str, name: &str) -> String {
     format!(
         "{}mqtt/auto_subscribe_rule/{}/{}",
-        PREFIX_META, tenant, topic
+        PREFIX_META, tenant, name
     )
 }
 
