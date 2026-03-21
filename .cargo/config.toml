@@ -58,6 +58,11 @@ rustflags = [
     "--cfg", "tokio_unstable",          # Enable Tokio RuntimeMetrics
 ]
 
+[target.aarch64-unknown-linux-gnu]
+rustflags = [
+    "--cfg", "tokio_unstable",          # Enable Tokio RuntimeMetrics
+]
+
 # Network settings
 [net]
 # Use git CLI for better performance with large repositories
