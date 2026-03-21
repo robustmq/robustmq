@@ -162,6 +162,8 @@ mod test {
         };
 
         let acl = MqttAcl {
+            name: format!("acl-deny-{}-{:?}", topic, action),
+            desc: String::new(),
             tenant: TENANT.to_string(),
             resource_type,
             resource_name,
@@ -214,6 +216,8 @@ mod test {
         let fixture = setup().await;
 
         fixture.cache_manager.add_acl(MqttAcl {
+            name: "acl-user-other-topic".to_string(),
+            desc: String::new(),
             tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::User,
             resource_name: fixture.user.username.clone(),
@@ -224,6 +228,8 @@ mod test {
         });
 
         fixture.cache_manager.add_acl(MqttAcl {
+            name: "acl-client-wildcard".to_string(),
+            desc: String::new(),
             tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::ClientId,
             resource_name: fixture.connection.client_id.clone(),
@@ -255,6 +261,8 @@ mod test {
         conn.source_ip_addr = "127.0.0.1:1883".to_string();
 
         fixture.cache_manager.add_acl(MqttAcl {
+            name: "acl-client-ip-deny".to_string(),
+            desc: String::new(),
             tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::ClientId,
             resource_name: conn.client_id.clone(),
@@ -280,6 +288,8 @@ mod test {
         #[test]
         fn check_for_deny_core_cases() {
             let rule = |permission: MqttAclPermission, action: MqttAclAction| MqttAcl {
+                name: format!("rule-{:?}-{:?}", permission, action),
+                desc: String::new(),
                 tenant: TENANT.to_string(),
                 permission,
                 action,

@@ -31,6 +31,8 @@ mod tests {
         let addrs = vec![get_placement_addr()];
 
         let acl = MqttAcl {
+            name: "test-acl-loboxu".to_string(),
+            desc: String::new(),
             tenant: "default".to_string(),
             resource_type: MqttAclResourceType::User,
             resource_name: "loboxu".to_string(),
@@ -54,13 +56,7 @@ mod tests {
                 let mut flag = false;
                 for raw in data.acls {
                     let tmp = MqttAcl::decode(&raw).unwrap();
-                    if tmp.resource_type == acl.resource_type
-                        && tmp.resource_name == acl.resource_name
-                        && tmp.topic == acl.topic
-                        && tmp.ip == acl.ip
-                        && tmp.action == acl.action
-                        && tmp.permission == acl.permission
-                    {
+                    if tmp.name == acl.name {
                         flag = true;
                     }
                 }
@@ -72,7 +68,8 @@ mod tests {
         }
 
         let request = DeleteAclRequest {
-            acl: acl.encode().unwrap(),
+            tenant: acl.tenant.clone(),
+            name: acl.name.clone(),
         };
         match delete_acl(&client_pool, &addrs, request).await {
             Ok(_) => {}
@@ -90,13 +87,7 @@ mod tests {
                 let mut flag = false;
                 for raw in data.acls {
                     let tmp = MqttAcl::decode(&raw).unwrap();
-                    if tmp.resource_type == acl.resource_type
-                        && tmp.resource_name == acl.resource_name
-                        && tmp.topic == acl.topic
-                        && tmp.ip == acl.ip
-                        && tmp.action == acl.action
-                        && tmp.permission == acl.permission
-                    {
+                    if tmp.name == acl.name {
                         flag = true;
                     }
                 }

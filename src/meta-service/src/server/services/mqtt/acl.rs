@@ -69,13 +69,19 @@ pub async fn create_acl_by_req(
 }
 
 pub async fn delete_acl_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
     req: &DeleteAclRequest,
 ) -> Result<DeleteAclReply, MetaServiceError> {
+    let acl_storage = AclStorage::new(rocksdb_engine_handler.clone());
+    let acl = match acl_storage.get(&req.tenant, &req.name)? {
+        Some(acl) => acl,
+        None => return Ok(DeleteAclReply {}),
+    };
+
     let data = StorageData::new(StorageDataType::MqttDeleteAcl, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
-    let acl = MqttAcl::decode(&req.acl)?;
     send_notify_by_delete_acl(call_manager, acl).await?;
 
     Ok(DeleteAclReply {})

@@ -171,6 +171,8 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
             match RedisAuthAcl::from_redis_hash(acl_id.clone(), fields) {
                 Ok(redis_acl) => {
                     let acl = MqttAcl {
+                        name: redis_acl.name.clone(),
+                        desc: redis_acl.desc.clone(),
                         tenant: DEFAULT_TENANT.to_string(),
                         permission: match redis_acl.permission {
                             0 => MqttAclPermission::Deny,

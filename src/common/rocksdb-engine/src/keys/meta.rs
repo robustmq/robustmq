@@ -242,11 +242,8 @@ pub fn storage_key_mqtt_schema_bind_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mqtt_acl(tenant: &str, resource_type: &str, resource_name: &str) -> String {
-    format!(
-        "{}mqtt/acl/{}/{}/{}",
-        PREFIX_META, tenant, resource_type, resource_name
-    )
+pub fn storage_key_mqtt_acl(tenant: &str, name: &str) -> String {
+    format!("{}mqtt/acl/{}/{}", PREFIX_META, tenant, name)
 }
 
 #[inline]

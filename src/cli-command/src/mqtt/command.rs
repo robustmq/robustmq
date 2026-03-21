@@ -594,13 +594,12 @@ impl MqttBrokerCommand {
         // Create request for acl list
         let request = admin_server::mqtt::acl::AclListReq {
             tenant: None,
+            name: None,
+            resource_name: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -618,6 +617,8 @@ impl MqttBrokerCommand {
                 // format table
                 let mut table = Table::new();
                 table.set_titles(row![
+                    "name",
+                    "desc",
                     "resource_type",
                     "resource_name",
                     "topic",
@@ -627,6 +628,8 @@ impl MqttBrokerCommand {
                 ]);
                 for acl in page_data.data {
                     table.add_row(row![
+                        acl.name,
+                        acl.desc,
                         acl.resource_type,
                         acl.resource_name,
                         acl.topic,

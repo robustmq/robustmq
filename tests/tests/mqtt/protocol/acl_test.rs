@@ -28,14 +28,15 @@ mod tests {
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::uuid::unique_id;
-    use metadata_struct::acl::mqtt_acl::MqttAcl;
     use paho_mqtt::MessageBuilder;
     use tokio::time::sleep;
 
     #[tokio::test]
     async fn acl_storage_test() {
         let admin_client = create_test_env().await;
+        let acl_name = format!("acl-storage-test-{}", unique_id());
         let acl = create_test_acl(
+            acl_name.clone(),
             MqttAclResourceType::User,
             "acl_storage_test".to_string(),
             "tp-1".to_string(),
@@ -45,12 +46,12 @@ mod tests {
         create_acl(&admin_client, acl.clone()).await;
 
         sleep(Duration::from_secs(2)).await;
-        check_acl_in_list(&admin_client, &acl, true).await;
+        check_acl_in_list(&admin_client, &acl_name, true).await;
         sleep(Duration::from_secs(2)).await;
         delete_acl(&admin_client, acl.clone()).await;
 
         sleep(Duration::from_secs(2)).await;
-        check_acl_in_list(&admin_client, &acl, false).await;
+        check_acl_in_list(&admin_client, &acl_name, false).await;
     }
 
     #[tokio::test]
@@ -87,8 +88,10 @@ mod tests {
         }
 
         // Create ACL rule
+        let acl_name = format!("acl-auth-test-{}", unique_id());
         let acl = match resource_type {
             MqttAclResourceType::User => create_test_acl(
+                acl_name.clone(),
                 resource_type,
                 username.clone(),
                 topic.clone(),
@@ -96,6 +99,7 @@ mod tests {
                 MqttAclPermission::Deny,
             ),
             MqttAclResourceType::ClientId => create_test_acl(
+                acl_name.clone(),
                 resource_type,
                 client_id.clone(),
                 topic.clone(),
@@ -134,37 +138,39 @@ mod tests {
     }
 
     fn create_test_acl(
+        name: String,
         resource_type: MqttAclResourceType,
         resource_name: String,
         topic: String,
         action: MqttAclAction,
         permission: MqttAclPermission,
-    ) -> MqttAcl {
-        MqttAcl {
+    ) -> CreateAclReq {
+        CreateAclReq {
             tenant: "default".to_string(),
-            resource_type,
+            name,
+            desc: None,
+            resource_type: resource_type.to_string(),
             resource_name,
-            topic,
-            ip: "*".to_string(),
-            action,
-            permission,
+            topic: Some(topic),
+            ip: None,
+            action: action.to_string(),
+            permission: permission.to_string(),
         }
     }
 
     async fn check_acl_in_list(
         admin_client: &AdminHttpClient,
-        expected_acl: &MqttAcl,
+        acl_name: &str,
         should_exist: bool,
     ) {
         let list_request = AclListReq {
             tenant: None,
+            name: Some(acl_name.to_string()),
+            resource_name: None,
             limit: Some(10000),
             page: Some(1),
             sort_field: None,
             sort_by: None,
-            filter_field: None,
-            filter_values: None,
-            exact_match: None,
         };
 
         match admin_client
@@ -172,19 +178,7 @@ mod tests {
             .await
         {
             Ok(page_data) => {
-                let mut found = false;
-                for acl_row in page_data.data {
-                    if acl_row.resource_type == expected_acl.resource_type.to_string()
-                        && acl_row.resource_name == expected_acl.resource_name
-                        && acl_row.topic == expected_acl.topic
-                        && acl_row.ip == expected_acl.ip
-                        && acl_row.action == expected_acl.action.to_string()
-                        && acl_row.permission == expected_acl.permission.to_string()
-                    {
-                        found = true;
-                        break;
-                    }
-                }
+                let found = page_data.data.iter().any(|row| row.name == acl_name);
                 assert_eq!(
                     found,
                     should_exist,
@@ -283,30 +277,15 @@ mod tests {
         assert!(res.is_ok());
     }
 
-    async fn create_acl(admin_client: &AdminHttpClient, acl: MqttAcl) {
-        let create_request = CreateAclReq {
-            tenant: "default".to_string(),
-            resource_type: acl.resource_type.to_string(),
-            resource_name: acl.resource_name,
-            topic: acl.topic,
-            ip: acl.ip,
-            action: acl.action.to_string(),
-            permission: acl.permission.to_string(),
-        };
-
-        let res = admin_client.create_acl(&create_request).await;
+    async fn create_acl(admin_client: &AdminHttpClient, acl: CreateAclReq) {
+        let res = admin_client.create_acl(&acl).await;
         assert!(res.is_ok());
     }
 
-    async fn delete_acl(admin_client: &AdminHttpClient, acl: MqttAcl) {
+    async fn delete_acl(admin_client: &AdminHttpClient, acl: CreateAclReq) {
         let delete_request = DeleteAclReq {
-            tenant: "default".to_string(),
-            resource_type: acl.resource_type.to_string(),
-            resource_name: acl.resource_name,
-            topic: acl.topic,
-            ip: acl.ip,
-            action: acl.action.to_string(),
-            permission: acl.permission.to_string(),
+            tenant: acl.tenant,
+            name: acl.name,
         };
 
         let res = admin_client.delete_acl(&delete_request).await;

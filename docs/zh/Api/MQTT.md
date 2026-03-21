@@ -818,18 +818,17 @@
 
 #### 7.1 ACL 列表查询
 - **接口**: `GET /api/mqtt/acl/list`
-- **描述**: 查询访问控制列表，支持按租户直接查询
+- **描述**: 查询访问控制列表，支持租户、名称、资源名称的模糊搜索（包含匹配）
 - **请求参数**:
 ```json
 {
-  "tenant": "default",              // 可选，按租户过滤（直接查询，性能更好）
+  "tenant": "default",              // 可选，租户模糊搜索（包含匹配）
+  "name": "sensor",                 // 可选，ACL 名称模糊搜索（包含匹配）
+  "resource_name": "client001",     // 可选，资源名称模糊搜索（包含匹配，适用于 client_id 或 user）
   "limit": 20,
   "page": 1,
-  "sort_field": "resource_name",
-  "sort_by": "asc",
-  "filter_field": "action",
-  "filter_values": ["Publish"],
-  "exact_match": "false"
+  "sort_field": "name",
+  "sort_by": "asc"
 }
 ```
 
@@ -842,6 +841,8 @@
     "data": [
       {
         "tenant": "default",
+        "name": "sensor-publish-rule",
+        "desc": "允许 sensor 设备发布数据",
         "resource_type": "ClientId",
         "resource_name": "client001",
         "topic": "sensor/+",
@@ -855,20 +856,19 @@
 }
 ```
 
-**新增字段**：
-- `tenant`: ACL 规则所属的租户名称
-
 #### 7.2 创建 ACL 规则
 - **接口**: `POST /api/mqtt/acl/create`
-- **描述**: 创建新的 ACL 规则
+- **描述**: 创建新的 ACL 规则，以 `name` 为唯一标识（租户内唯一）
 - **请求参数**:
 ```json
 {
   "tenant": "default",               // 必填，租户名称，长度 1-64
+  "name": "sensor-publish-rule",     // 必填，ACL 规则名称，租户内唯一，长度 1-128
+  "desc": "允许 sensor 设备发布数据", // 可选，描述，长度不超过 256
   "resource_type": "ClientId",       // 必填，资源类型：ClientId, User, Ip
   "resource_name": "client001",      // 必填，资源名称，长度 1-256
-  "topic": "sensor/+",               // 必填，主题模式，长度 1-256
-  "ip": "192.168.1.100",             // 必填，IP地址，长度不超过 128
+  "topic": "sensor/+",               // 可选，主题模式，长度不超过 256
+  "ip": "192.168.1.100",             // 可选，IP地址，长度不超过 128
   "action": "Publish",               // 必填，动作：Publish, Subscribe, All
   "permission": "Allow"              // 必填，权限：Allow, Deny
 }
@@ -883,17 +883,12 @@
 
 #### 7.3 删除 ACL 规则
 - **接口**: `POST /api/mqtt/acl/delete`
-- **描述**: 删除 ACL 规则
+- **描述**: 按 `name` 删除 ACL 规则
 - **请求参数**:
 ```json
 {
   "tenant": "default",
-  "resource_type": "ClientId",
-  "resource_name": "client001",
-  "topic": "sensor/+",
-  "ip": "192.168.1.100",
-  "action": "Publish",
-  "permission": "Allow"
+  "name": "sensor-publish-rule"
 }
 ```
 
@@ -1505,10 +1500,11 @@ curl -X POST http://localhost:8080/api/mqtt/acl/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
+    "name": "sensor-publish-rule",
+    "desc": "允许 sensor 设备发布数据",
     "resource_type": "ClientId",
     "resource_name": "sensor001",
     "topic": "sensor/+",
-    "ip": "*",
     "action": "Publish",
     "permission": "Allow"
   }'

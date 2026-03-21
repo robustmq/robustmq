@@ -775,6 +775,8 @@ mod tests {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let tenant = DEFAULT_TENANT.to_string();
         let user_acl = MqttAcl {
+            name: "acl-user-test".to_string(),
+            desc: String::new(),
             tenant: tenant.clone(),
             resource_type: MqttAclResourceType::User,
             resource_name: "test_user_acl".to_string(),
@@ -784,6 +786,8 @@ mod tests {
             permission: MqttAclPermission::Allow,
         };
         let client_acl = MqttAcl {
+            name: "acl-client-test".to_string(),
+            desc: String::new(),
             tenant: tenant.clone(),
             resource_type: MqttAclResourceType::ClientId,
             resource_name: "test_client_acl".to_string(),

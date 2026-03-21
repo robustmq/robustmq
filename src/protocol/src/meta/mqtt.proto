@@ -195,7 +195,8 @@ message ListAclReply {
 }
 
 message DeleteAclRequest {
-  bytes acl = 2 [(validate.rules).bytes.min_len = 1];
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string name = 2 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteAclReply {}

@@ -122,20 +122,18 @@ impl AclMetadata {
     }
 
     pub fn remove_mqtt_acl(&self, acl: MqttAcl) {
-        let map = match acl.resource_type {
-            MqttAclResourceType::ClientId => &self.acl_client_id,
-            MqttAclResourceType::User => &self.acl_user,
-        };
-        if let Some(tenant_map) = map.get(&acl.tenant) {
-            let mut remove_key = false;
-            if let Some(mut list) = tenant_map.get_mut(&acl.resource_name) {
-                if let Some(pos) = list.iter().position(|item| item == &acl) {
-                    list.remove(pos);
+        for map in [&self.acl_client_id, &self.acl_user] {
+            if let Some(tenant_map) = map.get(&acl.tenant) {
+                let mut keys_to_clean = Vec::new();
+                for mut entry in tenant_map.iter_mut() {
+                    entry.value_mut().retain(|item| item.name != acl.name);
+                    if entry.value().is_empty() {
+                        keys_to_clean.push(entry.key().clone());
+                    }
                 }
-                remove_key = list.is_empty();
-            }
-            if remove_key {
-                tenant_map.remove(&acl.resource_name);
+                for key in keys_to_clean {
+                    tenant_map.remove(&key);
+                }
             }
         }
     }
@@ -461,6 +459,8 @@ mod test {
         let acl_metadata = AclMetadata::new();
         // Test ClientId ACL
         let client_id_acl = MqttAcl {
+            name: "acl-client-1".to_string(),
+            desc: String::new(),
             tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::ClientId,
             resource_name: "test_client".to_string(),
@@ -487,6 +487,8 @@ mod test {
 
         // Test User ACL
         let user_acl = MqttAcl {
+            name: "acl-user-1".to_string(),
+            desc: String::new(),
             tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::User,
             resource_name: "test_user".to_string(),
@@ -512,7 +514,11 @@ mod test {
         );
 
         // Test multiple ACLs for same ClientId
-        acl_metadata.parse_mqtt_acl(client_id_acl);
+        let client_id_acl2 = MqttAcl {
+            name: "acl-client-2".to_string(),
+            ..client_id_acl
+        };
+        acl_metadata.parse_mqtt_acl(client_id_acl2);
         assert_eq!(
             acl_metadata
                 .acl_client_id
@@ -523,7 +529,11 @@ mod test {
         );
 
         // Test multiple ACLs for same User
-        acl_metadata.parse_mqtt_acl(user_acl);
+        let user_acl2 = MqttAcl {
+            name: "acl-user-2".to_string(),
+            ..user_acl.clone()
+        };
+        acl_metadata.parse_mqtt_acl(user_acl2);
         assert_eq!(
             acl_metadata
                 .acl_user
@@ -533,8 +543,10 @@ mod test {
             2
         );
 
-        // Remove only one acl item, keep the other one
+        // Remove only one acl item by name, keep the other one
         acl_metadata.remove_mqtt_acl(MqttAcl {
+            name: "acl-user-1".to_string(),
+            desc: String::new(),
             tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::User,
             resource_name: "test_user".to_string(),
@@ -702,6 +714,8 @@ mod test {
     pub async fn get_all_acl_test() {
         let acl_metadata = AclMetadata::new();
         acl_metadata.parse_mqtt_acl(MqttAcl {
+            name: "acl-get-all-1".to_string(),
+            desc: String::new(),
             tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::ClientId,
             resource_name: "client-a".to_string(),
@@ -711,6 +725,8 @@ mod test {
             permission: MqttAclPermission::Allow,
         });
         acl_metadata.parse_mqtt_acl(MqttAcl {
+            name: "acl-get-all-2".to_string(),
+            desc: String::new(),
             tenant: TENANT.to_string(),
             resource_type: MqttAclResourceType::User,
             resource_name: "user-a".to_string(),

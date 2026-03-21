@@ -285,8 +285,7 @@ impl DataRouteMqtt {
     pub fn delete_acl(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
-        let acl = MqttAcl::decode(&req.acl)?;
-        acl_storage.delete(&acl)?;
+        acl_storage.delete(&req.tenant, &req.name)?;
         Ok(())
     }
 

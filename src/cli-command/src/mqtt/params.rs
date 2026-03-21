@@ -152,6 +152,10 @@ pub enum AclActionType {
 pub struct CreateAclArgs {
     #[arg(short, long, required = true)]
     pub cluster_name: String,
+    #[arg(long, required = true)]
+    pub name: String,
+    #[arg(long)]
+    pub desc: Option<String>,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclResourceType>::new(),
@@ -160,10 +164,10 @@ pub struct CreateAclArgs {
     pub resource_type: MqttAclResourceType,
     #[arg(long, required = true)]
     pub resource_name: String,
-    #[arg(long, required = true)]
-    pub topic: String,
-    #[arg(long, required = true)]
-    pub ip: String,
+    #[arg(long)]
+    pub topic: Option<String>,
+    #[arg(long)]
+    pub ip: Option<String>,
     #[arg(
         long,
         value_parser = EnumValueParser::<MqttAclAction>::new(),
@@ -183,30 +187,8 @@ pub struct CreateAclArgs {
 pub struct DeleteAclArgs {
     #[arg(short, long, required = true)]
     pub cluster_name: String,
-    #[arg(
-        long,
-        value_parser = EnumValueParser::<MqttAclResourceType>::new(),
-        default_missing_value = "ClientId"
-    )]
-    pub resource_type: MqttAclResourceType,
     #[arg(long, required = true)]
-    pub resource_name: String,
-    #[arg(long, required = true)]
-    pub topic: String,
-    #[arg(long, required = true)]
-    pub ip: String,
-    #[arg(
-        long,
-        value_parser = EnumValueParser::<MqttAclAction>::new(),
-        default_missing_value = "All",
-    )]
-    pub action: MqttAclAction,
-    #[arg(
-        long,
-        value_parser = EnumValueParser::<MqttAclPermission>::new(),
-        default_missing_value = "Allow",
-    )]
-    pub permission: MqttAclPermission,
+    pub name: String,
 }
 
 // blacklist feat
@@ -567,6 +549,8 @@ pub fn process_acl_args(args: AclArgs) -> Result<MqttActionType, Box<dyn std::er
         AclActionType::Create(arg) => Ok(MqttActionType::CreateAcl(
             admin_server::mqtt::acl::CreateAclReq {
                 tenant: DEFAULT_TENANT.to_string(),
+                name: arg.name,
+                desc: arg.desc,
                 resource_type: arg.resource_type.to_string(),
                 resource_name: arg.resource_name,
                 topic: arg.topic,
@@ -578,12 +562,7 @@ pub fn process_acl_args(args: AclArgs) -> Result<MqttActionType, Box<dyn std::er
         AclActionType::Delete(arg) => Ok(MqttActionType::DeleteAcl(
             admin_server::mqtt::acl::DeleteAclReq {
                 tenant: DEFAULT_TENANT.to_string(),
-                resource_type: arg.resource_type.to_string(),
-                resource_name: arg.resource_name,
-                topic: arg.topic,
-                ip: arg.ip,
-                action: arg.action.to_string(),
-                permission: arg.permission.to_string(),
+                name: arg.name,
             },
         )),
     }

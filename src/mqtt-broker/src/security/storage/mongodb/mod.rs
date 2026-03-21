@@ -262,8 +262,13 @@ impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
                 username.clone()
             };
 
+            let name = doc.get_str("name").unwrap_or_default().to_string();
+            let desc = doc.get_str("desc").unwrap_or_default().to_string();
+
             for topic in topics {
                 results.push(MqttAcl {
+                    name: name.clone(),
+                    desc: desc.clone(),
                     tenant: DEFAULT_TENANT.to_string(),
                     resource_type,
                     resource_name: resource_name.clone(),

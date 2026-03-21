@@ -14,11 +14,11 @@
 
 use crate::{
     state::HttpState,
-    tool::extractor::ValidatedJson,
     tool::{
-        query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
+        query::{apply_pagination, apply_sorting, build_query_params, Queryable},
         PageReplyData,
     },
+    tool::extractor::ValidatedJson,
 };
 use axum::extract::{Query, State};
 use serde::{Deserialize, Serialize};
@@ -27,19 +27,24 @@ use validator::Validate;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AclListReq {
     pub tenant: Option<String>,
+    pub name: Option<String>,
+    pub resource_name: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
-    pub filter_field: Option<String>,
-    pub filter_values: Option<Vec<String>>,
-    pub exact_match: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
 pub struct CreateAclReq {
     #[validate(length(min = 1, max = 64, message = "Tenant length must be between 1-64"))]
     pub tenant: String,
+
+    #[validate(length(min = 1, max = 128, message = "Name length must be between 1-128"))]
+    pub name: String,
+
+    #[validate(length(max = 256, message = "Desc length cannot exceed 256"))]
+    pub desc: Option<String>,
 
     #[validate(length(
         min = 1,
@@ -56,11 +61,11 @@ pub struct CreateAclReq {
     ))]
     pub resource_name: String,
 
-    #[validate(length(min = 1, max = 256, message = "Topic length must be between 1-256"))]
-    pub topic: String,
+    #[validate(length(max = 256, message = "Topic length cannot exceed 256"))]
+    pub topic: Option<String>,
 
     #[validate(length(max = 128, message = "IP length cannot exceed 128"))]
-    pub ip: String,
+    pub ip: Option<String>,
 
     #[validate(length(min = 1, max = 50, message = "Action length must be between 1-50"))]
     #[validate(custom(function = "validate_acl_action"))]
@@ -113,39 +118,15 @@ pub struct DeleteAclReq {
     #[validate(length(min = 1, max = 64, message = "Tenant length must be between 1-64"))]
     pub tenant: String,
 
-    #[validate(length(
-        min = 1,
-        max = 50,
-        message = "Resource type length must be between 1-50"
-    ))]
-    #[validate(custom(function = "validate_acl_resource_type"))]
-    pub resource_type: String,
-
-    #[validate(length(
-        min = 1,
-        max = 256,
-        message = "Resource name length must be between 1-256"
-    ))]
-    pub resource_name: String,
-
-    #[validate(length(min = 1, max = 256, message = "Topic length must be between 1-256"))]
-    pub topic: String,
-
-    #[validate(length(max = 128, message = "IP length cannot exceed 128"))]
-    pub ip: String,
-
-    #[validate(length(min = 1, max = 50, message = "Action length must be between 1-50"))]
-    #[validate(custom(function = "validate_acl_action"))]
-    pub action: String,
-
-    #[validate(length(min = 1, max = 50, message = "Permission length must be between 1-50"))]
-    #[validate(custom(function = "validate_acl_permission"))]
-    pub permission: String,
+    #[validate(length(min = 1, max = 128, message = "Name length must be between 1-128"))]
+    pub name: String,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct AclListRow {
     pub tenant: String,
+    pub name: String,
+    pub desc: String,
     pub resource_type: String,
     pub resource_name: String,
     pub topic: String,
@@ -175,24 +156,36 @@ pub async fn acl_list(
         params.limit,
         params.sort_field,
         params.sort_by,
-        params.filter_field,
-        params.filter_values,
-        params.exact_match,
+        None,
+        None,
+        None,
     );
-    let data: Vec<MqttAcl> = if let Some(ref tenant) = params.tenant {
-        state
-            .mqtt_context
-            .cache_manager
-            .acl_metadata
-            .get_acl_by_tenant(tenant)
-    } else {
-        state.mqtt_context.cache_manager.acl_metadata.get_all_acl()
-    };
+    let data: Vec<MqttAcl> = state.mqtt_context.cache_manager.acl_metadata.get_all_acl();
 
     let acls_list: Vec<AclListRow> = data
         .into_iter()
+        .filter(|acl| {
+            if let Some(ref tenant) = params.tenant {
+                if !acl.tenant.contains(tenant.as_str()) {
+                    return false;
+                }
+            }
+            if let Some(ref name) = params.name {
+                if !acl.name.contains(name.as_str()) {
+                    return false;
+                }
+            }
+            if let Some(ref resource_name) = params.resource_name {
+                if !acl.resource_name.contains(resource_name.as_str()) {
+                    return false;
+                }
+            }
+            true
+        })
         .map(|acl| AclListRow {
             tenant: acl.tenant.clone(),
+            name: acl.name.clone(),
+            desc: acl.desc.clone(),
             resource_type: acl.resource_type.to_string(),
             resource_name: acl.resource_name.to_string(),
             topic: acl.topic.to_string(),
@@ -202,8 +195,7 @@ pub async fn acl_list(
         })
         .collect();
 
-    let filtered = apply_filters(acls_list, &options);
-    let sorted = apply_sorting(filtered, &options);
+    let sorted = apply_sorting(acls_list, &options);
     let pagination = apply_pagination(sorted, &options);
 
     success_response(PageReplyData {
@@ -216,6 +208,7 @@ impl Queryable for AclListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
             "tenant" => Some(self.tenant.clone()),
+            "name" => Some(self.name.clone()),
             "resource_type" => Some(self.resource_type.clone()),
             "resource_name" => Some(self.resource_name.clone()),
             "topic" => Some(self.topic.clone()),
@@ -258,11 +251,13 @@ async fn acl_create_inner(state: &Arc<HttpState>, params: &CreateAclReq) -> Resu
     };
 
     let mqtt_acl = MqttAcl {
+        name: params.name.clone(),
+        desc: params.desc.clone().unwrap_or_default(),
         tenant: params.tenant.clone(),
         resource_type,
         resource_name: params.resource_name.clone(),
-        topic: params.topic.clone(),
-        ip: params.ip.clone(),
+        topic: params.topic.clone().unwrap_or_default(),
+        ip: params.ip.clone().unwrap_or_default(),
         action,
         permission,
     };
@@ -285,35 +280,16 @@ pub async fn acl_delete(
 }
 
 async fn acl_delete_inner(state: &Arc<HttpState>, params: &DeleteAclReq) -> ResultCommonError {
-    let resource_type = match MqttAclResourceType::from_str(&params.resource_type) {
-        Ok(data) => data,
-        Err(e) => {
-            return Err(CommonError::CommonError(e));
-        }
-    };
-
-    let action = match MqttAclAction::from_str(&params.action) {
-        Ok(data) => data,
-        Err(e) => {
-            return Err(CommonError::CommonError(e));
-        }
-    };
-
-    let permission = match MqttAclPermission::from_str(&params.permission) {
-        Ok(data) => data,
-        Err(e) => {
-            return Err(CommonError::CommonError(e));
-        }
-    };
-
     let mqtt_acl = MqttAcl {
+        name: params.name.clone(),
+        desc: String::new(),
         tenant: params.tenant.clone(),
-        resource_type,
-        resource_name: params.resource_name.clone(),
-        topic: params.topic.clone(),
-        ip: params.ip.clone(),
-        action,
-        permission,
+        resource_type: MqttAclResourceType::ClientId,
+        resource_name: String::new(),
+        topic: String::new(),
+        ip: String::new(),
+        action: MqttAclAction::All,
+        permission: MqttAclPermission::Allow,
     };
 
     let acl_storage = AclStorage::new(state.client_pool.clone());
