@@ -157,7 +157,13 @@ impl ClientKeepAlive {
                 .map(|inner| (*inner.key(), inner.value().clone()))
                 .collect::<Vec<_>>()
         }) {
-            if let Some(time) = self.cache_manager.heartbeat_data.get(&connection.client_id) {
+            if let Some(time) = self
+                .cache_manager
+                .heartbeat_data
+                .get(&connection.client_id)
+                .map(|r| r.clone())
+            {
+                // Clone releases the DashMap shard lock before .await
                 let max_timeout = keep_live_time(&self.cache_manager, time.keep_live).await as u64;
                 let now = now_second();
                 if (now - time.heartbeat) >= max_timeout {

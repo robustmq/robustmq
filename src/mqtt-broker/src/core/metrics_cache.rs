@@ -139,37 +139,48 @@ async fn record_topic_metrics(
 ) -> ResultCommonError {
     let now: u64 = now_second();
 
-    for tenant_entry in cache_manager.node_cache.topic_list.iter() {
-        let tenant = tenant_entry.key().clone();
-        for topic_entry in tenant_entry.value().iter() {
-            let topic = topic_entry.key().clone();
-            record_metric_safe!(format!("topic {}/{}", tenant, topic), {
-                // topic in
-                let num = get_topic_messages_written(&tenant, &topic);
-                record_cumulative_metric!(
-                    metrics_cache_manager,
-                    record_topic_in_num,
-                    get_topic_in_pre_total,
-                    now,
-                    num,
-                    time_window,
-                    &topic
-                );
+    // Collect (tenant, topic) pairs first to release all DashMap shard locks before .await
+    let pairs: Vec<(String, String)> = cache_manager
+        .node_cache
+        .topic_list
+        .iter()
+        .flat_map(|tenant_entry| {
+            let tenant = tenant_entry.key().clone();
+            tenant_entry
+                .value()
+                .iter()
+                .map(|topic_entry| (tenant.clone(), topic_entry.key().clone()))
+                .collect::<Vec<_>>()
+        })
+        .collect();
 
-                // topic out
-                let num = get_topic_messages_sent(&tenant, &topic);
-                record_cumulative_metric!(
-                    metrics_cache_manager,
-                    record_topic_out_num,
-                    get_topic_out_pre_total,
-                    now,
-                    num,
-                    time_window,
-                    &topic
-                );
-                Ok::<(), common_base::error::common::CommonError>(())
-            });
-        }
+    for (tenant, topic) in pairs {
+        record_metric_safe!(format!("topic {}/{}", tenant, topic), {
+            // topic in
+            let num = get_topic_messages_written(&tenant, &topic);
+            record_cumulative_metric!(
+                metrics_cache_manager,
+                record_topic_in_num,
+                get_topic_in_pre_total,
+                now,
+                num,
+                time_window,
+                &topic
+            );
+
+            // topic out
+            let num = get_topic_messages_sent(&tenant, &topic);
+            record_cumulative_metric!(
+                metrics_cache_manager,
+                record_topic_out_num,
+                get_topic_out_pre_total,
+                now,
+                num,
+                time_window,
+                &topic
+            );
+            Ok::<(), common_base::error::common::CommonError>(())
+        });
     }
 
     Ok(())
@@ -182,37 +193,47 @@ async fn record_session_metrics(
 ) -> ResultCommonError {
     let now: u64 = now_second();
 
-    for tenant_entry in cache_manager.session_info.iter() {
-        let tenant = tenant_entry.key().clone();
-        for session_entry in tenant_entry.value().iter() {
-            let client_id = session_entry.key().clone();
-            record_metric_safe!(format!("session {}/{}", tenant, client_id), {
-                // session in
-                let num = get_session_messages_in(&tenant, &client_id);
-                record_cumulative_metric!(
-                    metrics_cache_manager,
-                    record_session_in_num,
-                    get_session_in_pre_total,
-                    now,
-                    num,
-                    time_window,
-                    &client_id
-                );
+    // Collect (tenant, client_id) pairs first to release all DashMap shard locks before .await
+    let pairs: Vec<(String, String)> = cache_manager
+        .session_info
+        .iter()
+        .flat_map(|tenant_entry| {
+            let tenant = tenant_entry.key().clone();
+            tenant_entry
+                .value()
+                .iter()
+                .map(|session_entry| (tenant.clone(), session_entry.key().clone()))
+                .collect::<Vec<_>>()
+        })
+        .collect();
 
-                // session out
-                let num = get_session_messages_out(&tenant, &client_id);
-                record_cumulative_metric!(
-                    metrics_cache_manager,
-                    record_session_out_num,
-                    get_session_out_pre_total,
-                    now,
-                    num,
-                    time_window,
-                    &client_id
-                );
-                Ok::<(), common_base::error::common::CommonError>(())
-            });
-        }
+    for (tenant, client_id) in pairs {
+        record_metric_safe!(format!("session {}/{}", tenant, client_id), {
+            // session in
+            let num = get_session_messages_in(&tenant, &client_id);
+            record_cumulative_metric!(
+                metrics_cache_manager,
+                record_session_in_num,
+                get_session_in_pre_total,
+                now,
+                num,
+                time_window,
+                &client_id
+            );
+
+            // session out
+            let num = get_session_messages_out(&tenant, &client_id);
+            record_cumulative_metric!(
+                metrics_cache_manager,
+                record_session_out_num,
+                get_session_out_pre_total,
+                now,
+                num,
+                time_window,
+                &client_id
+            );
+            Ok::<(), common_base::error::common::CommonError>(())
+        });
     }
 
     Ok(())
@@ -288,6 +309,19 @@ async fn record_connector_metrics(
     Ok(())
 }
 
+struct SubMetricKey {
+    tenant: String,
+    client_id: String,
+    path: String,
+}
+
+struct SubTopicMetricKey {
+    tenant: String,
+    client_id: String,
+    sub_path: String,
+    topic_name: String,
+}
+
 async fn record_subscribe_metrics(
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     subscribe_manager: Arc<SubscribeManager>,
@@ -295,164 +329,204 @@ async fn record_subscribe_metrics(
 ) -> ResultCommonError {
     let now: u64 = now_second();
 
-    for tenant_entry in subscribe_manager.subscribe_list.iter() {
-        for raw in tenant_entry.value().iter() {
-            let sub = raw.value();
-            record_metric_safe!(
-                format!("subscribe {}/{}:{}", sub.tenant, sub.client_id, sub.path),
-                {
-                    // send success
-                    let num =
-                        get_subscribe_messages_sent(&sub.tenant, &sub.client_id, &sub.path, true);
-                    record_cumulative_metric!(
-                        metrics_cache_manager,
-                        record_subscribe_send_num,
-                        get_subscribe_send_pre_total,
-                        now,
-                        num,
-                        time_window,
-                        &sub.client_id,
-                        &sub.path,
-                        true
-                    );
+    // Collect all keys first to release DashMap shard locks before any .await
+    let sub_keys: Vec<SubMetricKey> = subscribe_manager
+        .subscribe_list
+        .iter()
+        .flat_map(|tenant_entry| {
+            tenant_entry
+                .value()
+                .iter()
+                .map(|raw| SubMetricKey {
+                    tenant: raw.value().tenant.clone(),
+                    client_id: raw.value().client_id.clone(),
+                    path: raw.value().path.clone(),
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
 
-                    // send failure
-                    let num =
-                        get_subscribe_messages_sent(&sub.tenant, &sub.client_id, &sub.path, false);
-                    record_cumulative_metric!(
-                        metrics_cache_manager,
-                        record_subscribe_send_num,
-                        get_subscribe_send_pre_total,
-                        now,
-                        num,
-                        time_window,
-                        &sub.client_id,
-                        &sub.path,
-                        false
-                    );
-                    Ok::<(), common_base::error::common::CommonError>(())
-                }
-            );
-        }
-    }
+    let exclusive_keys: Vec<SubTopicMetricKey> = subscribe_manager
+        .directly_push
+        .buckets_data_list
+        .iter()
+        .flat_map(|row1| {
+            row1.value()
+                .iter()
+                .map(|sub| SubTopicMetricKey {
+                    tenant: sub.tenant.clone(),
+                    client_id: sub.client_id.clone(),
+                    sub_path: sub.sub_path.clone(),
+                    topic_name: sub.topic_name.clone(),
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
 
-    for row1 in subscribe_manager.directly_push.buckets_data_list.iter() {
-        for sub in row1.value().iter() {
-            record_metric_safe!(
-                format!(
-                    "exclusive {}/{}:{}:{}",
-                    sub.tenant, sub.client_id, sub.sub_path, sub.topic_name
-                ),
-                {
-                    // send success
-                    let num = get_subscribe_topic_messages_sent(
-                        &sub.tenant,
-                        &sub.client_id,
-                        &sub.sub_path,
-                        &sub.topic_name,
-                        true,
-                    );
-                    record_cumulative_metric!(
-                        metrics_cache_manager,
-                        record_subscribe_topic_send_num,
-                        get_subscribe_topic_send_pre_total,
-                        now,
-                        num,
-                        time_window,
-                        &sub.client_id,
-                        &sub.sub_path,
-                        &sub.topic_name,
-                        true
-                    );
+    let shared_keys: Vec<SubTopicMetricKey> = subscribe_manager
+        .share_push
+        .iter()
+        .flat_map(|tenant_entry| {
+            tenant_entry
+                .value()
+                .iter()
+                .flat_map(|share_data| {
+                    share_data
+                        .value()
+                        .buckets_data_list
+                        .iter()
+                        .flat_map(|raw| {
+                            raw.iter()
+                                .map(|sub_entry| SubTopicMetricKey {
+                                    tenant: sub_entry.value().tenant.clone(),
+                                    client_id: sub_entry.value().client_id.clone(),
+                                    sub_path: sub_entry.value().sub_path.clone(),
+                                    topic_name: sub_entry.value().topic_name.clone(),
+                                })
+                                .collect::<Vec<_>>()
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
 
-                    // send failure
-                    let num = get_subscribe_topic_messages_sent(
-                        &sub.tenant,
-                        &sub.client_id,
-                        &sub.sub_path,
-                        &sub.topic_name,
-                        false,
-                    );
-                    record_cumulative_metric!(
-                        metrics_cache_manager,
-                        record_subscribe_topic_send_num,
-                        get_subscribe_topic_send_pre_total,
-                        now,
-                        num,
-                        time_window,
-                        &sub.client_id,
-                        &sub.sub_path,
-                        &sub.topic_name,
-                        false
-                    );
-                    Ok::<(), common_base::error::common::CommonError>(())
-                }
-            );
-        }
-    }
+    // All locks released — now safe to .await
+    for sub in sub_keys {
+        record_metric_safe!(
+            format!("subscribe {}/{}:{}", sub.tenant, sub.client_id, sub.path),
+            {
+                let num = get_subscribe_messages_sent(&sub.tenant, &sub.client_id, &sub.path, true);
+                record_cumulative_metric!(
+                    metrics_cache_manager,
+                    record_subscribe_send_num,
+                    get_subscribe_send_pre_total,
+                    now,
+                    num,
+                    time_window,
+                    &sub.client_id,
+                    &sub.path,
+                    true
+                );
 
-    for tenant_entry in subscribe_manager.share_push.iter() {
-        for share_data in tenant_entry.value().iter() {
-            for raw in share_data.value().buckets_data_list.iter() {
-                for sub_entry in raw.iter() {
-                    let subscriber = sub_entry.value();
-                    let client_id = &subscriber.client_id;
-                    record_metric_safe!(
-                        format!(
-                            "shared {}/{}:{}:{}",
-                            subscriber.tenant,
-                            client_id,
-                            subscriber.sub_path,
-                            subscriber.topic_name
-                        ),
-                        {
-                            // send success
-                            let num = get_subscribe_topic_messages_sent(
-                                &subscriber.tenant,
-                                client_id,
-                                &subscriber.sub_path,
-                                &subscriber.topic_name,
-                                true,
-                            );
-                            record_cumulative_metric!(
-                                metrics_cache_manager,
-                                record_subscribe_topic_send_num,
-                                get_subscribe_topic_send_pre_total,
-                                now,
-                                num,
-                                time_window,
-                                client_id,
-                                &subscriber.sub_path,
-                                &subscriber.topic_name,
-                                true
-                            );
-
-                            // send failure
-                            let num = get_subscribe_topic_messages_sent(
-                                &subscriber.tenant,
-                                client_id,
-                                &subscriber.sub_path,
-                                &subscriber.topic_name,
-                                false,
-                            );
-                            record_cumulative_metric!(
-                                metrics_cache_manager,
-                                record_subscribe_topic_send_num,
-                                get_subscribe_topic_send_pre_total,
-                                now,
-                                num,
-                                time_window,
-                                client_id,
-                                &subscriber.sub_path,
-                                &subscriber.topic_name,
-                                false
-                            );
-                            Ok::<(), common_base::error::common::CommonError>(())
-                        }
-                    );
-                }
+                let num =
+                    get_subscribe_messages_sent(&sub.tenant, &sub.client_id, &sub.path, false);
+                record_cumulative_metric!(
+                    metrics_cache_manager,
+                    record_subscribe_send_num,
+                    get_subscribe_send_pre_total,
+                    now,
+                    num,
+                    time_window,
+                    &sub.client_id,
+                    &sub.path,
+                    false
+                );
+                Ok::<(), common_base::error::common::CommonError>(())
             }
-        }
+        );
+    }
+
+    for sub in exclusive_keys {
+        record_metric_safe!(
+            format!(
+                "exclusive {}/{}:{}:{}",
+                sub.tenant, sub.client_id, sub.sub_path, sub.topic_name
+            ),
+            {
+                let num = get_subscribe_topic_messages_sent(
+                    &sub.tenant,
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    true,
+                );
+                record_cumulative_metric!(
+                    metrics_cache_manager,
+                    record_subscribe_topic_send_num,
+                    get_subscribe_topic_send_pre_total,
+                    now,
+                    num,
+                    time_window,
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    true
+                );
+
+                let num = get_subscribe_topic_messages_sent(
+                    &sub.tenant,
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    false,
+                );
+                record_cumulative_metric!(
+                    metrics_cache_manager,
+                    record_subscribe_topic_send_num,
+                    get_subscribe_topic_send_pre_total,
+                    now,
+                    num,
+                    time_window,
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    false
+                );
+                Ok::<(), common_base::error::common::CommonError>(())
+            }
+        );
+    }
+
+    for sub in shared_keys {
+        record_metric_safe!(
+            format!(
+                "shared {}/{}:{}:{}",
+                sub.tenant, sub.client_id, sub.sub_path, sub.topic_name
+            ),
+            {
+                let num = get_subscribe_topic_messages_sent(
+                    &sub.tenant,
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    true,
+                );
+                record_cumulative_metric!(
+                    metrics_cache_manager,
+                    record_subscribe_topic_send_num,
+                    get_subscribe_topic_send_pre_total,
+                    now,
+                    num,
+                    time_window,
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    true
+                );
+
+                let num = get_subscribe_topic_messages_sent(
+                    &sub.tenant,
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    false,
+                );
+                record_cumulative_metric!(
+                    metrics_cache_manager,
+                    record_subscribe_topic_send_num,
+                    get_subscribe_topic_send_pre_total,
+                    now,
+                    num,
+                    time_window,
+                    &sub.client_id,
+                    &sub.sub_path,
+                    &sub.topic_name,
+                    false
+                );
+                Ok::<(), common_base::error::common::CommonError>(())
+            }
+        );
     }
 
     Ok(())

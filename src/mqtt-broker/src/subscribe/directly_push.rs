@@ -233,7 +233,12 @@ impl DirectlyPushManager {
             }
         }
 
-        if let Some(offsets) = self.group_offsets.get(&subscriber.group_name) {
+        if let Some(offsets) = self
+            .group_offsets
+            .get(&subscriber.group_name)
+            .map(|r| r.clone())
+        {
+            // Clone releases the DashMap shard lock before .await
             if let Err(e) = self
                 .commit_offset(&subscriber.tenant, &subscriber.group_name, &offsets)
                 .await

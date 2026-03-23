@@ -22,7 +22,7 @@ use crate::subscribe::manager::SubscribeManager;
 use grpc_clients::pool::ClientPool;
 use protocol::mqtt::common::{Filter, Login, MqttProtocol, Subscribe};
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::debug;
 
 fn replace_topic_placeholders(
     pattern: &str,
@@ -70,7 +70,7 @@ pub async fn try_auto_subscribe(
         let rule = rule_entry.value();
         let topic = replace_topic_placeholders(&rule.topic, &client_id, &username, &remote_addr);
 
-        info!(
+        debug!(
             "Auto-subscribe: client_id={}, original_pattern={}, resolved_topic={}, qos={:?}",
             client_id, rule.topic, topic, rule.qos
         );
@@ -85,7 +85,7 @@ pub async fn try_auto_subscribe(
     }
 
     if !filters.is_empty() {
-        info!(
+        debug!(
             "Applying {} auto-subscription rule(s) for client: {}",
             filters.len(),
             client_id
@@ -96,7 +96,7 @@ pub async fn try_auto_subscribe(
             filters,
         };
 
-        if let Err(e) = save_subscribe(SaveSubscribeContext {
+        save_subscribe(SaveSubscribeContext {
             tenant: tenant.to_string(),
             client_id: client_id.clone(),
             protocol: protocol.clone(),
@@ -106,14 +106,7 @@ pub async fn try_auto_subscribe(
             subscribe,
             subscribe_properties: None,
         })
-        .await
-        {
-            error!(
-                "Failed to apply auto-subscription for client {}: {:?}",
-                client_id, e
-            );
-            return Err(e);
-        }
+        .await?;
     }
 
     Ok(())

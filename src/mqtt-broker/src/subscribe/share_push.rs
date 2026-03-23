@@ -288,7 +288,8 @@ impl SharePushManager {
                 }
             }
 
-            if let Some(offsets) = self.group_offsets.get(&self.group_name) {
+            if let Some(offsets) = self.group_offsets.get(&self.group_name).map(|r| r.clone()) {
+                // Clone releases the DashMap shard lock before .await
                 if let Err(e) = self
                     .commit_offset(&self.tenant, &self.group_name, &offsets)
                     .await
