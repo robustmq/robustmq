@@ -76,22 +76,14 @@ pub async fn cluster_config_set(
 
     let config_bytes = Bytes::from(params.config.into_bytes());
 
-    if let Err(e) = save_cluster_dynamic_config(
-        &state.client_pool,
-        resource_type,
-        config_bytes.to_vec(),
-    )
-    .await
+    if let Err(e) =
+        save_cluster_dynamic_config(&state.client_pool, resource_type, config_bytes.to_vec()).await
     {
         return error_response(format!("Failed to save config: {e}"));
     }
 
-    if let Err(e) = update_cluster_dynamic_config(
-        &state.broker_cache,
-        resource_type,
-        config_bytes,
-    )
-    .await
+    if let Err(e) =
+        update_cluster_dynamic_config(&state.broker_cache, resource_type, config_bytes).await
     {
         return error_response(format!("Failed to update in-memory config: {e}"));
     }
