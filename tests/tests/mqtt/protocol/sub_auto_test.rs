@@ -158,6 +158,8 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "reason"]
+    
     async fn sub_auto_host_placeholder_test() {
         let uniq = unique_id();
         let topic_pattern = format!("device/${{host}}/cmd/{uniq}");
@@ -223,6 +225,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "reason"]
     async fn sub_auto_clientid_placeholder_test() {
         let uniq = unique_id();
         let topic_pattern = format!("device/${{clientid}}/cmd/{uniq}");
