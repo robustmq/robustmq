@@ -53,8 +53,9 @@ pub async fn try_auto_subscribe(
     cache_manager: &Arc<MQTTCacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> ResultMqttBrokerError {
-    let tenant_rules = match cache_manager.auto_subscribe_rule.get(tenant) {
-        Some(m) if !m.is_empty() => m,
+    // Collect rules first to release DashMap shard locks before any .await
+    let rules: Vec<_> = match cache_manager.auto_subscribe_rule.get(tenant) {
+        Some(m) if !m.is_empty() => m.iter().map(|e| e.value().clone()).collect(),
         _ => return Ok(()),
     };
 
@@ -66,8 +67,7 @@ pub async fn try_auto_subscribe(
 
     let mut filters: Vec<Filter> = Vec::new();
 
-    for rule_entry in tenant_rules.iter() {
-        let rule = rule_entry.value();
+    for rule in &rules {
         let topic = replace_topic_placeholders(&rule.topic, &client_id, &username, &remote_addr);
 
         debug!(

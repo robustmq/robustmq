@@ -120,8 +120,12 @@ impl MQTTRateLimiterManager {
         let limit = self.node_create_connection_rate.read().await;
         limit.until_ready().await;
 
-        // tenant
-        if let Some(tenant_limit) = self.tenant_create_connection_rate.get(tenant) {
+        // tenant — clone Arc to release DashMap shard lock before .await
+        if let Some(tenant_limit) = self
+            .tenant_create_connection_rate
+            .get(tenant)
+            .map(|r| r.clone())
+        {
             tenant_limit.until_ready().await;
         } else if let Some(ten) = self.node_cache.get_tenant(tenant) {
             let limit = self
@@ -138,8 +142,12 @@ impl MQTTRateLimiterManager {
         let limit = self.node_publish_message_rate.read().await;
         limit.until_ready().await;
 
-        // tenant
-        if let Some(tenant_limit) = self.tenant_publish_message_rate.get(tenant) {
+        // tenant — clone Arc to release DashMap shard lock before .await
+        if let Some(tenant_limit) = self
+            .tenant_publish_message_rate
+            .get(tenant)
+            .map(|r| r.clone())
+        {
             tenant_limit.until_ready().await;
         } else if let Some(ten) = self.node_cache.get_tenant(tenant) {
             let limit = self

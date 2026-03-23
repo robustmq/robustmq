@@ -98,12 +98,17 @@ impl DelayTaskManager {
             }
         };
 
-        let queue_arc = self.delay_queue_list.get(&shard_no).ok_or_else(|| {
-            CommonError::CommonError(format!(
-                "Delay task queue shard {} not found when deleting task_id={}",
-                shard_no, task_id
-            ))
-        })?;
+        // Clone Arc to release DashMap shard lock before .await
+        let queue_arc = self
+            .delay_queue_list
+            .get(&shard_no)
+            .map(|r| r.clone())
+            .ok_or_else(|| {
+                CommonError::CommonError(format!(
+                    "Delay task queue shard {} not found when deleting task_id={}",
+                    shard_no, task_id
+                ))
+            })?;
 
         let mut delay_queue = queue_arc.lock().await;
         let task = delay_queue.remove(&key).into_inner();
