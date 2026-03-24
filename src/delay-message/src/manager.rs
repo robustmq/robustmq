@@ -149,7 +149,7 @@ impl DelayMessageManager {
     }
 
     /// Send delay message to appropriate queue shard.
-    /// 
+    ///
     /// This method uses lazy initialization to ensure queue shards are created on-demand,
     /// preventing message loss even if initialization is incomplete or concurrent with startup.
     /// Messages are already persisted in storage before this method is called,
@@ -229,13 +229,16 @@ mod test {
     #[tokio::test]
     async fn test_delay_queue_basic_operations() {
         let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
-        
+
         let delay_info = create_test_delay_info("test_1", now_second() + 3600);
         {
             let mut queue = delay_queue.lock().await;
-            queue.insert_at(delay_info.clone(), Instant::now() + Duration::from_secs(3600));
+            queue.insert_at(
+                delay_info.clone(),
+                Instant::now() + Duration::from_secs(3600),
+            );
         }
-        
+
         {
             let queue = delay_queue.lock().await;
             assert_eq!(queue.len(), 1);
@@ -245,13 +248,13 @@ mod test {
     #[tokio::test]
     async fn test_delay_queue_expired_message() {
         let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
-        
+
         let delay_info = create_test_delay_info("expired_test", now_second() - 10);
         {
             let mut queue = delay_queue.lock().await;
             queue.insert_at(delay_info.clone(), Instant::now());
         }
-        
+
         {
             let queue = delay_queue.lock().await;
             assert_eq!(queue.len(), 1);
@@ -261,13 +264,13 @@ mod test {
     #[tokio::test]
     async fn test_delay_queue_multiple_messages() {
         let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
-        
+
         for i in 0..5 {
             let delay_info = create_test_delay_info(&format!("test_{}", i), now_second() + 3600);
             let mut queue = delay_queue.lock().await;
             queue.insert_at(delay_info, Instant::now() + Duration::from_secs(3600));
         }
-        
+
         {
             let queue = delay_queue.lock().await;
             assert_eq!(queue.len(), 5);
