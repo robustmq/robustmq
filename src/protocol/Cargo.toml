@@ -32,6 +32,9 @@ common-base.workspace = true
 serde.workspace = true
 prost-validate = { workspace = true, features = ["derive"] }
 kafka-protocol.workspace = true
+amq-protocol.workspace = true
+cookie-factory.workspace = true
+nom.workspace = true
 rkyv.workspace = true
 
 [dev-dependencies]

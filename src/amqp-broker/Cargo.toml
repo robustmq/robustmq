@@ -20,3 +20,14 @@ license.workspace = true
 
 
 [dependencies]
+async-trait.workspace = true
+network-server.workspace = true
+protocol.workspace = true
+amq-protocol.workspace = true
+broker-core.workspace = true
+grpc-clients.workspace = true
+rate-limit.workspace = true
+metadata-struct.workspace = true
+common-base.workspace = true
+tokio.workspace = true
+tracing.workspace = true

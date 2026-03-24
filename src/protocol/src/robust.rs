@@ -14,6 +14,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use amq_protocol::frame::AMQPFrame;
+
 use crate::{
     kafka::packet::KafkaPacketWrapper,
     mqtt::{
@@ -29,6 +31,7 @@ pub enum RobustMQProtocol {
     MQTT4,
     MQTT5,
     KAFKA,
+    AMQP,
     StorageEngine,
 }
 
@@ -47,6 +50,10 @@ impl RobustMQProtocol {
         *self == RobustMQProtocol::KAFKA
     }
 
+    pub fn is_amqp(&self) -> bool {
+        *self == RobustMQProtocol::AMQP
+    }
+
     pub fn is_engine(&self) -> bool {
         *self == RobustMQProtocol::StorageEngine
     }
@@ -57,6 +64,7 @@ impl RobustMQProtocol {
             RobustMQProtocol::MQTT4 => 4,
             RobustMQProtocol::MQTT5 => 5,
             RobustMQProtocol::KAFKA => 0,
+            RobustMQProtocol::AMQP => 11,
             RobustMQProtocol::StorageEngine => 10,
         }
     }
@@ -67,6 +75,7 @@ impl RobustMQProtocol {
             RobustMQProtocol::MQTT4 => "MQTT4".to_string(),
             RobustMQProtocol::MQTT5 => "MQTT5".to_string(),
             RobustMQProtocol::KAFKA => "KAFKA".to_string(),
+            RobustMQProtocol::AMQP => "AMQP".to_string(),
             RobustMQProtocol::StorageEngine => "StorageEngine".to_string(),
         }
     }
@@ -77,6 +86,7 @@ impl RobustMQProtocol {
             RobustMQProtocol::MQTT4 => MqttProtocol::Mqtt4,
             RobustMQProtocol::MQTT5 => MqttProtocol::Mqtt5,
             RobustMQProtocol::KAFKA => MqttProtocol::Mqtt3,
+            RobustMQProtocol::AMQP => MqttProtocol::Mqtt3,
             RobustMQProtocol::StorageEngine => MqttProtocol::Mqtt3,
         }
     }
@@ -99,12 +109,16 @@ pub struct MqttWrapperExtend {
 pub struct KafkaWrapperExtend {}
 
 #[derive(Clone, Debug, Default)]
+pub struct AmqpWrapperExtend {}
+
+#[derive(Clone, Debug, Default)]
 pub struct StorageEngineWrapperExtend {}
 
 #[derive(Clone, Debug)]
 pub enum RobustMQWrapperExtend {
     MQTT(MqttWrapperExtend),
     KAFKA(KafkaWrapperExtend),
+    AMQP(AmqpWrapperExtend),
     StorageEngine(StorageEngineWrapperExtend),
 }
 
@@ -113,6 +127,7 @@ impl RobustMQWrapperExtend {
         match self.clone() {
             RobustMQWrapperExtend::MQTT(extend) => extend.protocol_version,
             RobustMQWrapperExtend::KAFKA(_) => 3,
+            RobustMQWrapperExtend::AMQP(_) => 3,
             RobustMQWrapperExtend::StorageEngine(_) => 3,
         }
     }
@@ -148,6 +163,7 @@ impl RobustMQPacketWrapper {
 pub enum RobustMQPacket {
     MQTT(MqttPacket),
     KAFKA(KafkaPacketWrapper),
+    AMQP(AMQPFrame),
     StorageEngine(StorageEnginePacket),
 }
 
@@ -155,14 +171,20 @@ impl RobustMQPacket {
     pub fn get_mqtt_packet(&self) -> Option<MqttPacket> {
         match self.clone() {
             RobustMQPacket::MQTT(pack) => Some(pack),
-            RobustMQPacket::KAFKA(_) => None,
-            RobustMQPacket::StorageEngine(_) => None,
+            _ => None,
         }
     }
 
     pub fn get_kafka_packet(&self) -> Option<KafkaPacketWrapper> {
         match self.clone() {
             RobustMQPacket::KAFKA(pack) => Some(pack),
+            _ => None,
+        }
+    }
+
+    pub fn get_amqp_packet(&self) -> Option<AMQPFrame> {
+        match self.clone() {
+            RobustMQPacket::AMQP(frame) => Some(frame),
             _ => None,
         }
     }

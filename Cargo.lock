@@ -178,6 +178,19 @@ dependencies = [
 [[package]]
 name = "amqp-broker"
 version = "0.3.5"
+dependencies = [
+ "amq-protocol",
+ "async-trait",
+ "broker-core",
+ "common-base",
+ "grpc-clients",
+ "metadata-struct",
+ "network-server",
+ "protocol",
+ "rate-limit",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "android_system_properties"
@@ -1759,6 +1772,9 @@ name = "cookie-factory"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9885fa71e26b8ab7855e2ec7cae6e9b380edff76cd052e07c683a0319d51b3a2"
+dependencies = [
+ "futures",
+]
 
 [[package]]
 name = "core-foundation"
@@ -6501,10 +6517,13 @@ dependencies = [
 name = "protocol"
 version = "0.3.5"
 dependencies = [
+ "amq-protocol",
  "bytes",
  "common-base",
+ "cookie-factory",
  "futures",
  "kafka-protocol",
+ "nom",
  "prost 0.14.3",
  "prost-build 0.14.3",
  "prost-validate",
@@ -8822,6 +8841,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "495b0abdce3dc1f8fd27240651c9e68890c14e9d9c61527b1ce44d8a5a7bd3d5"
 dependencies = [
  "cfg-if",
+ "native-tls",
  "p12-keystore",
  "rustls-connector",
  "rustls-pemfile 2.2.0",
