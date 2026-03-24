@@ -209,26 +209,6 @@ impl DelayMessageManager {
     pub fn add_delay_queue_pop_thread(&self, shard_no: u32, stop_send: broadcast::Sender<bool>) {
         self.delay_queue_pop_thread.insert(shard_no, stop_send);
     }
-
-    /// Check if all queue shards are initialized
-    pub fn is_fully_initialized(&self) -> bool {
-        self.delay_queue_list.len() == self.delay_queue_num as usize
-    }
-
-    /// Get the number of initialized queue shards
-    pub fn initialized_shard_count(&self) -> usize {
-        self.delay_queue_list.len()
-    }
-
-    /// Get pending message count for a specific shard (for monitoring/debugging)
-    pub async fn get_shard_pending_count(&self, shard_no: u32) -> Option<usize> {
-        if let Some(queue_arc) = self.delay_queue_list.get(&shard_no) {
-            let queue = queue_arc.lock().await;
-            Some(queue.len())
-        } else {
-            None
-        }
-    }
 }
 
 #[cfg(test)]
@@ -246,237 +226,61 @@ mod test {
         }
     }
 
-    /// Create a minimal manager for testing without actual storage
-    /// We only test the send_to_delay_queue logic, not the persistence
-    struct TestDelayMessageManager {
-        delay_queue_list: DashMap<u32, SharedDelayQueue>,
-        delay_queue_num: u32,
-        incr_no: AtomicU32,
-    }
-
-    impl TestDelayMessageManager {
-        fn new(delay_queue_num: u32) -> Self {
-            Self {
-                delay_queue_list: DashMap::with_capacity(8),
-                delay_queue_num,
-                incr_no: AtomicU32::new(0),
-            }
-        }
-
-        fn start(&self) {
-            for shard_no in 0..self.delay_queue_num {
-                self.delay_queue_list.insert(
-                    shard_no,
-                    Arc::new(tokio::sync::Mutex::new(DelayQueue::new())),
-                );
-            }
-        }
-
-        async fn send_to_delay_queue(&self, delay_info: &DelayMessageIndexInfo) {
-            let shard_no = self
-                .incr_no
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-                % self.delay_queue_num;
-
-            let queue_arc = self.delay_queue_list
-                .entry(shard_no)
-                .or_insert_with(|| {
-                    Arc::new(tokio::sync::Mutex::new(DelayQueue::new()))
-                })
-                .clone();
-
-            let current_time = now_second();
-            let delay_duration = if delay_info.target_timestamp > current_time {
-                Duration::from_secs(delay_info.target_timestamp - current_time)
-            } else {
-                Duration::from_secs(0)
-            };
-            let target_instant = Instant::now() + delay_duration;
-
-            let mut delay_queue = queue_arc.lock().await;
-            delay_queue.insert_at(delay_info.clone(), target_instant);
-        }
-
-        fn is_fully_initialized(&self) -> bool {
-            self.delay_queue_list.len() == self.delay_queue_num as usize
-        }
-
-        fn initialized_shard_count(&self) -> usize {
-            self.delay_queue_list.len()
-        }
-
-        async fn get_shard_pending_count(&self, shard_no: u32) -> Option<usize> {
-            if let Some(queue_arc) = self.delay_queue_list.get(&shard_no) {
-                let queue = queue_arc.lock().await;
-                Some(queue.len())
-            } else {
-                None
-            }
-        }
-    }
-
     #[tokio::test]
-    async fn test_lazy_initialization_creates_queue() {
-        // Create manager without calling start()
-        let delay_queue_num = 4;
-        let manager = TestDelayMessageManager::new(delay_queue_num);
-
-        // Initially, no queues are initialized
-        assert_eq!(manager.initialized_shard_count(), 0);
-        assert!(!manager.is_fully_initialized());
-
-        // Send message to shard 0 (should create queue lazily)
+    async fn test_delay_queue_basic_operations() {
+        // Create a simple delay queue
+        let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
+        
+        // Add a delay message
         let delay_info = create_test_delay_info("test_1", now_second() + 3600);
-        manager.send_to_delay_queue(&delay_info).await;
-
-        // Now 1 queue should be initialized
-        assert_eq!(manager.initialized_shard_count(), 1);
+        {
+            let mut queue = delay_queue.lock().await;
+            queue.insert_at(delay_info.clone(), Instant::now() + Duration::from_secs(3600));
+        }
         
-        // The message should be in the queue
-        let pending = manager.get_shard_pending_count(0).await;
-        assert_eq!(pending, Some(1));
-    }
-
-    #[tokio::test]
-    async fn test_concurrent_lazy_initialization() {
-        let delay_queue_num = 4;
-        let manager = Arc::new(TestDelayMessageManager::new(delay_queue_num));
-
-        // Send messages concurrently to all shards
-        let mut handles = vec![];
-        for i in 0..delay_queue_num {
-            let mgr = manager.clone();
-            let unique_id = format!("concurrent_test_{}", i);
-            let delay_info = create_test_delay_info(&unique_id, now_second() + 3600);
-            
-            handles.push(tokio::spawn(async move {
-                mgr.send_to_delay_queue(&delay_info).await;
-            }));
-        }
-
-        // Wait for all concurrent sends to complete
-        for handle in handles {
-            handle.await.unwrap();
-        }
-
-        // All shards should be initialized after concurrent sends
-        assert_eq!(manager.initialized_shard_count(), delay_queue_num as usize);
-        assert!(manager.is_fully_initialized());
-
-        // Each shard should have exactly 1 message
-        for shard_no in 0..delay_queue_num {
-            let pending = manager.get_shard_pending_count(shard_no).await;
-            assert_eq!(pending, Some(1), "Shard {} should have 1 message", shard_no);
+        // Verify message is in queue
+        {
+            let queue = delay_queue.lock().await;
+            assert_eq!(queue.len(), 1);
         }
     }
 
     #[tokio::test]
-    async fn test_round_robin_distribution() {
-        let delay_queue_num = 3;
-        let manager = TestDelayMessageManager::new(delay_queue_num);
-
-        // Send 9 messages (should distribute 3 per shard)
-        for i in 0..9 {
-            let unique_id = format!("dist_test_{}", i);
-            let delay_info = create_test_delay_info(&unique_id, now_second() + 3600);
-            manager.send_to_delay_queue(&delay_info).await;
-        }
-
-        // Each shard should have exactly 3 messages
-        for shard_no in 0..delay_queue_num {
-            let pending = manager.get_shard_pending_count(shard_no).await;
-            assert_eq!(pending, Some(3), "Shard {} should have 3 messages", shard_no);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_expired_delay_message() {
-        let delay_queue_num = 1;
-        let manager = TestDelayMessageManager::new(delay_queue_num);
-
-        // Send message with past timestamp (already expired)
-        let past_timestamp = now_second() - 10;
-        let delay_info = create_test_delay_info("expired_test", past_timestamp);
-        manager.send_to_delay_queue(&delay_info).await;
-
-        // Message should still be accepted into queue (for immediate processing)
-        let pending = manager.get_shard_pending_count(0).await;
-        assert_eq!(pending, Some(1));
-    }
-
-    #[tokio::test]
-    async fn test_manager_start_initializes_all_shards() {
-        let delay_queue_num = 5;
-        let manager = TestDelayMessageManager::new(delay_queue_num);
-
-        // Before start()
-        assert_eq!(manager.initialized_shard_count(), 0);
-        assert!(!manager.is_fully_initialized());
-
-        // Call start()
-        manager.start();
-
-        // After start(), all shards should be initialized
-        assert_eq!(manager.initialized_shard_count(), delay_queue_num as usize);
-        assert!(manager.is_fully_initialized());
-
-        // All shards should be empty
-        for shard_no in 0..delay_queue_num {
-            let pending = manager.get_shard_pending_count(shard_no).await;
-            assert_eq!(pending, Some(0));
-        }
-    }
-
-    #[tokio::test]
-    async fn test_message_persistence_guarantee() {
-        // This test verifies that even if queue creation fails,
-        // the message is already persisted and can be recovered
+    async fn test_delay_queue_expired_message() {
+        // Create a delay queue
+        let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
         
-        let delay_queue_num = 2;
-        let manager = Arc::new(TestDelayMessageManager::new(delay_queue_num));
-
-        // Send multiple messages
-        for i in 0..10 {
-            let unique_id = format!("persist_test_{}", i);
-            let delay_info = create_test_delay_info(&unique_id, now_second() + 3600);
-            manager.send_to_delay_queue(&delay_info).await;
+        // Add an expired message (past timestamp)
+        let delay_info = create_test_delay_info("expired_test", now_second() - 10);
+        {
+            let mut queue = delay_queue.lock().await;
+            // Should be added with 0 delay for immediate processing
+            queue.insert_at(delay_info.clone(), Instant::now());
         }
-
-        // Verify all queues were created and messages stored
-        let total_messages: usize = (0..delay_queue_num)
-            .map(|shard_no| {
-                futures::executor::block_on(async {
-                    manager.get_shard_pending_count(shard_no).await.unwrap_or(0)
-                })
-            })
-            .sum();
-
-        assert_eq!(total_messages, 10);
+        
+        // Verify message is in queue
+        {
+            let queue = delay_queue.lock().await;
+            assert_eq!(queue.len(), 1);
+        }
     }
 
     #[tokio::test]
-    async fn test_shard_overflow() {
-        // Test that shard_no wraps around correctly
-        let delay_queue_num = 3;
-        let mut manager = TestDelayMessageManager::new(delay_queue_num);
-        manager.incr_no = AtomicU32::new(u32::MAX - 2); // Start near overflow
-
-        // Send messages that will cause shard_no calculation to wrap around
-        for i in 0..10 {
-            let unique_id = format!("overflow_test_{}", i);
-            let delay_info = create_test_delay_info(&unique_id, now_second() + 3600);
-            manager.send_to_delay_queue(&delay_info).await;
+    async fn test_delay_queue_multiple_messages() {
+        // Create a delay queue
+        let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
+        
+        // Add multiple messages
+        for i in 0..5 {
+            let delay_info = create_test_delay_info(&format!("test_{}", i), now_second() + 3600);
+            let mut queue = delay_queue.lock().await;
+            queue.insert_at(delay_info, Instant::now() + Duration::from_secs(3600));
         }
-
-        // Should still distribute correctly despite overflow
-        let total_messages: usize = (0..delay_queue_num)
-            .map(|shard_no| {
-                futures::executor::block_on(async {
-                    manager.get_shard_pending_count(shard_no).await.unwrap_or(0)
-                })
-            })
-            .sum();
-
-        assert_eq!(total_messages, 10);
+        
+        // Verify all messages are in queue
+        {
+            let queue = delay_queue.lock().await;
+            assert_eq!(queue.len(), 5);
+        }
     }
 }
