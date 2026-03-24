@@ -164,6 +164,15 @@ export const sidebar = [
   },
 
   {
+    text: "RobustMQ AMQP",
+    collapsed: true,
+    items: [
+      { text: "概览", link: "/zh/RobustMQ-AMQP/Overview" },
+      { text: "协议支持", link: "/zh/RobustMQ-AMQP/Protocol" },
+    ],
+  },
+
+  {
     text: "RobustMQ 数据处理",
     collapsed: true,
     items: [

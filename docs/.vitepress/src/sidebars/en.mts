@@ -154,6 +154,14 @@ export const sidebar = [
     ],
   },
   {
+    text: "RobustMQ AMQP",
+    collapsed: true,
+    items: [
+      { text: "Overview", link: "/en/RobustMQ-AMQP/Overview" },
+      { text: "Protocol Support", link: "/en/RobustMQ-AMQP/Protocol" },
+    ],
+  },
+  {
     text: "Data Processing",
     collapsed: true,
     items: [
