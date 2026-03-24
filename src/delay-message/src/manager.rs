@@ -228,17 +228,14 @@ mod test {
 
     #[tokio::test]
     async fn test_delay_queue_basic_operations() {
-        // Create a simple delay queue
         let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
         
-        // Add a delay message
         let delay_info = create_test_delay_info("test_1", now_second() + 3600);
         {
             let mut queue = delay_queue.lock().await;
             queue.insert_at(delay_info.clone(), Instant::now() + Duration::from_secs(3600));
         }
         
-        // Verify message is in queue
         {
             let queue = delay_queue.lock().await;
             assert_eq!(queue.len(), 1);
@@ -247,18 +244,14 @@ mod test {
 
     #[tokio::test]
     async fn test_delay_queue_expired_message() {
-        // Create a delay queue
         let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
         
-        // Add an expired message (past timestamp)
         let delay_info = create_test_delay_info("expired_test", now_second() - 10);
         {
             let mut queue = delay_queue.lock().await;
-            // Should be added with 0 delay for immediate processing
             queue.insert_at(delay_info.clone(), Instant::now());
         }
         
-        // Verify message is in queue
         {
             let queue = delay_queue.lock().await;
             assert_eq!(queue.len(), 1);
@@ -267,17 +260,14 @@ mod test {
 
     #[tokio::test]
     async fn test_delay_queue_multiple_messages() {
-        // Create a delay queue
         let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
         
-        // Add multiple messages
         for i in 0..5 {
             let delay_info = create_test_delay_info(&format!("test_{}", i), now_second() + 3600);
             let mut queue = delay_queue.lock().await;
             queue.insert_at(delay_info, Instant::now() + Duration::from_secs(3600));
         }
         
-        // Verify all messages are in queue
         {
             let queue = delay_queue.lock().await;
             assert_eq!(queue.len(), 5);
