@@ -38,7 +38,7 @@ use std::{
 use storage_adapter::driver::StorageDriverManager;
 use tokio::{sync::broadcast, time::Instant};
 use tokio_util::time::DelayQueue;
-use tracing::{error, info};
+use tracing::info;
 
 pub type SharedDelayQueue = Arc<tokio::sync::Mutex<DelayQueue<DelayMessageIndexInfo>>>;
 
@@ -148,25 +148,30 @@ impl DelayMessageManager {
         Ok(())
     }
 
+    /// Send delay message to appropriate queue shard.
+    ///
+    /// This method uses lazy initialization to ensure queue shards are created on-demand,
+    /// preventing message loss even if initialization is incomplete or concurrent with startup.
+    /// Messages are already persisted in storage before this method is called,
+    /// so even on queue creation failure, messages can be recovered later.
     pub async fn send_to_delay_queue(&self, delay_info: &DelayMessageIndexInfo) {
         let shard_no = self
             .incr_no
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
             % self.delay_queue_num;
 
-        let queue_arc = if let Some(q) = self.delay_queue_list.get(&shard_no) {
-            q.clone()
-        } else {
-            error!(
-                "Failed to send to delay queue: shard {} not found, message will be lost: \
-                target={}, offset={}, delay_timestamp={}",
-                shard_no,
-                delay_info.target_topic_name,
-                delay_info.offset,
-                delay_info.target_timestamp
-            );
-            return;
-        };
+        // Lazy initialization: create queue shard if it doesn't exist
+        // This prevents message loss during startup or recovery scenarios
+        let queue_arc = self.delay_queue_list
+            .entry(shard_no)
+            .or_insert_with(|| {
+                info!(
+                    "Delay queue shard {} not found, initializing lazily. Message may be recovered from storage.",
+                    shard_no
+                );
+                Arc::new(tokio::sync::Mutex::new(DelayQueue::new()))
+            })
+            .clone();
 
         let current_time = now_second();
         let delay_duration = if delay_info.target_timestamp > current_time {
@@ -207,4 +212,68 @@ impl DelayMessageManager {
 }
 
 #[cfg(test)]
-mod test {}
+mod test {
+    use super::*;
+    use common_base::tools::now_second;
+
+    fn create_test_delay_info(unique_id: &str, target_timestamp: u64) -> DelayMessageIndexInfo {
+        DelayMessageIndexInfo {
+            unique_id: unique_id.to_string(),
+            tenant: "test_tenant".to_string(),
+            target_topic_name: "test_topic".to_string(),
+            offset: 12345,
+            target_timestamp,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delay_queue_basic_operations() {
+        let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
+
+        let delay_info = create_test_delay_info("test_1", now_second() + 3600);
+        {
+            let mut queue = delay_queue.lock().await;
+            queue.insert_at(
+                delay_info.clone(),
+                Instant::now() + Duration::from_secs(3600),
+            );
+        }
+
+        {
+            let queue = delay_queue.lock().await;
+            assert_eq!(queue.len(), 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delay_queue_expired_message() {
+        let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
+
+        let delay_info = create_test_delay_info("expired_test", now_second() - 10);
+        {
+            let mut queue = delay_queue.lock().await;
+            queue.insert_at(delay_info.clone(), Instant::now());
+        }
+
+        {
+            let queue = delay_queue.lock().await;
+            assert_eq!(queue.len(), 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delay_queue_multiple_messages() {
+        let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
+
+        for i in 0..5 {
+            let delay_info = create_test_delay_info(&format!("test_{}", i), now_second() + 3600);
+            let mut queue = delay_queue.lock().await;
+            queue.insert_at(delay_info, Instant::now() + Duration::from_secs(3600));
+        }
+
+        {
+            let queue = delay_queue.lock().await;
+            assert_eq!(queue.len(), 5);
+        }
+    }
+}
