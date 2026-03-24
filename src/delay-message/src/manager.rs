@@ -38,7 +38,7 @@ use std::{
 use storage_adapter::driver::StorageDriverManager;
 use tokio::{sync::broadcast, time::Instant};
 use tokio_util::time::DelayQueue;
-use tracing::{error, info};
+use tracing::info;
 
 pub type SharedDelayQueue = Arc<tokio::sync::Mutex<DelayQueue<DelayMessageIndexInfo>>>;
 
