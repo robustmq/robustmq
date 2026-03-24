@@ -12,7 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker;
-pub mod handler;
-pub mod kafka;
-pub mod server;
+pub mod acl;
+pub mod admin;
+pub mod auth;
+pub mod config;
+pub mod consumer_group;
+pub mod consumer_group_next;
+pub mod core;
+pub mod delegation_token;
+pub mod quota;
+pub mod share_group;
+pub mod telemetry;
+pub mod topic;
+pub mod transaction;

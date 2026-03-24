@@ -12,7 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker;
-pub mod handler;
-pub mod kafka;
-pub mod server;
+use kafka_protocol::messages::{FetchRequest, ListOffsetsRequest, MetadataRequest, ProduceRequest};
+use protocol::kafka::packet::KafkaPacket;
+
+pub fn process_produce(_req: &ProduceRequest) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_fetch(_req: &FetchRequest) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_list_offsets(_req: &ListOffsetsRequest) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_metadata(_req: &MetadataRequest) -> Option<KafkaPacket> {
+    None
+}

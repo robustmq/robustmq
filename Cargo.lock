@@ -4081,7 +4081,16 @@ name = "kafka-broker"
 version = "0.3.5"
 dependencies = [
  "async-trait",
+ "broker-core",
+ "common-base",
+ "grpc-clients",
+ "kafka-protocol",
+ "metadata-struct",
  "network-server",
+ "protocol",
+ "rate-limit",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

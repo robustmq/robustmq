@@ -12,7 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker;
-pub mod handler;
-pub mod kafka;
-pub mod server;
+use kafka_protocol::messages::{SaslAuthenticateRequest, SaslHandshakeRequest};
+use protocol::kafka::packet::KafkaPacket;
+
+pub fn process_sasl_handshake(_req: &SaslHandshakeRequest) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_sasl_authenticate(_req: &SaslAuthenticateRequest) -> Option<KafkaPacket> {
+    None
+}

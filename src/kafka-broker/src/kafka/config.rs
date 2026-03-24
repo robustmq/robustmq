@@ -12,7 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker;
-pub mod handler;
-pub mod kafka;
-pub mod server;
+use kafka_protocol::messages::{
+    AlterConfigsRequest, DescribeConfigsRequest, IncrementalAlterConfigsRequest,
+};
+use protocol::kafka::packet::KafkaPacket;
+
+pub fn process_describe_configs(_req: &DescribeConfigsRequest) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_alter_configs(_req: &AlterConfigsRequest) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_incremental_alter_configs(
+    _req: &IncrementalAlterConfigsRequest,
+) -> Option<KafkaPacket> {
+    None
+}

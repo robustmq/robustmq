@@ -12,7 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker;
-pub mod handler;
-pub mod kafka;
-pub mod server;
+use kafka_protocol::messages::{
+    GetTelemetrySubscriptionsRequest, ListConfigResourcesRequest, PushTelemetryRequest,
+};
+use protocol::kafka::packet::KafkaPacket;
+
+pub fn process_get_telemetry_subscriptions(
+    _req: &GetTelemetrySubscriptionsRequest,
+) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_push_telemetry(_req: &PushTelemetryRequest) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_list_config_resources(_req: &ListConfigResourcesRequest) -> Option<KafkaPacket> {
+    None
+}

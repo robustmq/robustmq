@@ -12,7 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker;
-pub mod handler;
-pub mod kafka;
-pub mod server;
+use kafka_protocol::messages::{ConsumerGroupDescribeRequest, ConsumerGroupHeartbeatRequest};
+use protocol::kafka::packet::KafkaPacket;
+
+pub fn process_consumer_group_heartbeat(
+    _req: &ConsumerGroupHeartbeatRequest,
+) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_consumer_group_describe(_req: &ConsumerGroupDescribeRequest) -> Option<KafkaPacket> {
+    None
+}

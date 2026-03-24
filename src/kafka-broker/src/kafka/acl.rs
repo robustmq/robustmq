@@ -12,7 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker;
-pub mod handler;
-pub mod kafka;
-pub mod server;
+use kafka_protocol::messages::{CreateAclsRequest, DeleteAclsRequest, DescribeAclsRequest};
+use protocol::kafka::packet::KafkaPacket;
+
+pub fn process_describe_acls(_req: &DescribeAclsRequest) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_create_acls(_req: &CreateAclsRequest) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_delete_acls(_req: &DeleteAclsRequest) -> Option<KafkaPacket> {
+    None
+}

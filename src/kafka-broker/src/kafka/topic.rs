@@ -12,7 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker;
-pub mod handler;
-pub mod kafka;
-pub mod server;
+use kafka_protocol::messages::{
+    CreatePartitionsRequest, CreateTopicsRequest, DeleteRecordsRequest, DeleteTopicsRequest,
+};
+use protocol::kafka::packet::KafkaPacket;
+
+pub fn process_create_topics(_req: &CreateTopicsRequest) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_delete_topics(_req: &DeleteTopicsRequest) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_delete_records(_req: &DeleteRecordsRequest) -> Option<KafkaPacket> {
+    None
+}
+
+pub fn process_create_partitions(_req: &CreatePartitionsRequest) -> Option<KafkaPacket> {
+    None
+}

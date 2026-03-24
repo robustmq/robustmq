@@ -193,7 +193,7 @@ async fn handle_socket(
                                 Ok(Some(packet)) => {
                                     let robust_packet = match packet {
                                         RobustMQCodecWrapper::MQTT(pkg) => RobustMQPacket::MQTT(pkg.packet),
-                                        RobustMQCodecWrapper::KAFKA(pkg) => RobustMQPacket::KAFKA(pkg.packet),
+                                        RobustMQCodecWrapper::KAFKA(pkg) => RobustMQPacket::KAFKA(pkg),
                                         RobustMQCodecWrapper::StorageEngine(pkg) => RobustMQPacket::StorageEngine(pkg),
                                     };
                                     let package = RequestPackage::new(

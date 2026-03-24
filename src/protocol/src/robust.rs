@@ -15,7 +15,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    kafka::packet::KafkaPacket,
+    kafka::packet::KafkaPacketWrapper,
     mqtt::{
         codec::MqttPacketWrapper,
         common::{MqttPacket, MqttProtocol},
@@ -147,7 +147,7 @@ impl RobustMQPacketWrapper {
 #[derive(Clone, Debug, PartialEq)]
 pub enum RobustMQPacket {
     MQTT(MqttPacket),
-    KAFKA(KafkaPacket),
+    KAFKA(KafkaPacketWrapper),
     StorageEngine(StorageEnginePacket),
 }
 
@@ -157,6 +157,13 @@ impl RobustMQPacket {
             RobustMQPacket::MQTT(pack) => Some(pack),
             RobustMQPacket::KAFKA(_) => None,
             RobustMQPacket::StorageEngine(_) => None,
+        }
+    }
+
+    pub fn get_kafka_packet(&self) -> Option<KafkaPacketWrapper> {
+        match self.clone() {
+            RobustMQPacket::KAFKA(pack) => Some(pack),
+            _ => None,
         }
     }
 }
