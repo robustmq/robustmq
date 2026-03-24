@@ -148,7 +148,10 @@ export const sidebar = [
   {
     text: "RobustMQ Kafka",
     collapsed: true,
-    items: [{ text: "Overview", link: "/en/RobustMQ-Kafka/Overview" }],
+    items: [
+      { text: "Overview", link: "/en/RobustMQ-Kafka/Overview" },
+      { text: "Protocol Support", link: "/en/RobustMQ-Kafka/Protocol" },
+    ],
   },
   {
     text: "Data Processing",

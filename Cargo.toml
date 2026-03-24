@@ -194,7 +194,7 @@ memmap2 = "0.9.10"
 # Message Queue & Streaming
 # ====================
 rdkafka = "0.39.0"
-kafka-protocol = "0.15.1"
+kafka-protocol = "0.17.0"
 pulsar = { version = "6.7.1", default-features = false, features = [
     "tokio-runtime",
     "auth-oauth2",

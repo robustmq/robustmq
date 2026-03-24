@@ -33,16 +33,7 @@ mod tests {
         sleep(Duration::from_secs(2)).await;
     }
 
-    // All auto-subscribe tests run sequentially in a single test function to prevent
-    // rule pollution: concurrent tests share DEFAULT_TENANT, so rules from one test
-    // would be applied to clients in other tests.
     #[tokio::test]
-    async fn sub_auto_all_tests() {
-        sub_auto_basic().await;
-        sub_auto_username_placeholder().await;
-        sub_auto_host_placeholder().await;
-    }
-
     async fn sub_auto_basic() {
         let topic = format!("sub_auto_basic/{}", unique_id());
         let name = format!("rule_sub_auto_basic_{}", unique_id());
@@ -80,15 +71,23 @@ mod tests {
         let mut received = false;
         while start.elapsed() < Duration::from_secs(10) {
             if let Ok(Some(msg)) = rx.recv_timeout(Duration::from_secs(1)) {
-                if msg.topic() == topic
-                    && String::from_utf8(msg.payload().to_vec()).unwrap_or_default() == message
-                {
+                let payload = String::from_utf8(msg.payload().to_vec()).unwrap_or_default();
+                println!(
+                    "[sub_auto_basic] client={} recv topic={} payload={}",
+                    client_id,
+                    msg.topic(),
+                    payload
+                );
+                if msg.topic() == topic && payload == message {
                     received = true;
                     break;
                 }
             }
         }
-        assert!(received, "sub_auto_basic: did not receive message on topic {topic}");
+        assert!(
+            received,
+            "sub_auto_basic: did not receive message on topic {topic}"
+        );
 
         distinct_conn(cli);
 
@@ -103,6 +102,7 @@ mod tests {
         wait_for_cache_sync().await;
     }
 
+    #[tokio::test]
     async fn sub_auto_username_placeholder() {
         let uniq = unique_id();
         let topic_pattern = format!("device/${{username}}/cmd/{uniq}");
@@ -146,15 +146,23 @@ mod tests {
         let mut received = false;
         while start.elapsed() < Duration::from_secs(10) {
             if let Ok(Some(msg)) = rx.recv_timeout(Duration::from_secs(1)) {
-                if msg.topic() == actual_topic
-                    && String::from_utf8(msg.payload().to_vec()).unwrap_or_default() == message
-                {
+                let payload = String::from_utf8(msg.payload().to_vec()).unwrap_or_default();
+                println!(
+                    "[sub_auto_username] client={} recv topic={} payload={}",
+                    client_id,
+                    msg.topic(),
+                    payload
+                );
+                if msg.topic() == actual_topic && payload == message {
                     received = true;
                     break;
                 }
             }
         }
-        assert!(received, "sub_auto_username: did not receive message on topic {actual_topic}");
+        assert!(
+            received,
+            "sub_auto_username: did not receive message on topic {actual_topic}"
+        );
 
         distinct_conn(cli);
 
@@ -169,6 +177,7 @@ mod tests {
         wait_for_cache_sync().await;
     }
 
+    #[tokio::test]
     async fn sub_auto_host_placeholder() {
         let uniq = unique_id();
         let topic_pattern = format!("device/${{host}}/cmd/{uniq}");
@@ -212,15 +221,23 @@ mod tests {
         let mut received = false;
         while start.elapsed() < Duration::from_secs(10) {
             if let Ok(Some(msg)) = rx.recv_timeout(Duration::from_secs(1)) {
-                if msg.topic() == actual_topic
-                    && String::from_utf8(msg.payload().to_vec()).unwrap_or_default() == message
-                {
+                let payload = String::from_utf8(msg.payload().to_vec()).unwrap_or_default();
+                println!(
+                    "[sub_auto_host] client={} recv topic={} payload={}",
+                    client_id,
+                    msg.topic(),
+                    payload
+                );
+                if msg.topic() == actual_topic && payload == message {
                     received = true;
                     break;
                 }
             }
         }
-        assert!(received, "sub_auto_host: did not receive message on topic {actual_topic}");
+        assert!(
+            received,
+            "sub_auto_host: did not receive message on topic {actual_topic}"
+        );
 
         distinct_conn(cli);
 
