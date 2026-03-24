@@ -102,9 +102,9 @@ impl Server {
         let command = create_command(command_context);
 
         let proc_config = ProcessorConfig {
-            accept_thread_num: conf.network.accept_thread_num,
-            handler_process_num: conf.network.handler_thread_num,
-            channel_size: conf.network.queue_size,
+            accept_thread_num: conf.mqtt_runtime.network.accept_thread_num,
+            handler_process_num: conf.mqtt_runtime.network.handler_thread_num,
+            channel_size: conf.mqtt_runtime.network.queue_size,
         };
 
         // One shared request channel for all protocol acceptors.

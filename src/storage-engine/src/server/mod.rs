@@ -74,9 +74,9 @@ impl Server {
         let command = Arc::new(storage);
 
         let proc_config = ProcessorConfig {
-            accept_thread_num: conf.network.accept_thread_num,
-            handler_process_num: conf.network.handler_thread_num,
-            channel_size: conf.network.queue_size,
+            accept_thread_num: conf.storage_runtime.network.accept_thread_num,
+            handler_process_num: conf.storage_runtime.network.handler_thread_num,
+            channel_size: conf.storage_runtime.network.queue_size,
         };
 
         let request_channel = Arc::new(RequestChannel::new(proc_config.channel_size));

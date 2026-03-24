@@ -1030,6 +1030,7 @@ name = "broker-server"
 version = "0.3.5"
 dependencies = [
  "admin-server",
+ "amqp-broker",
  "axum 0.8.8",
  "broker-core",
  "common-base",
@@ -1040,6 +1041,7 @@ dependencies = [
  "delay-message",
  "delay-task",
  "grpc-clients",
+ "kafka-broker",
  "meta-service",
  "metadata-struct",
  "mqtt-broker",

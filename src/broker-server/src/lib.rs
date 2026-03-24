@@ -17,6 +17,7 @@ use admin_server::{
     server::AdminServer,
     state::{HttpState, MQTTContext, StorageEngineContext},
 };
+use amqp_broker::broker::{AmqpBrokerServer, AmqpBrokerServerParams};
 use broker_core::{
     cache::NodeCacheManager,
     heartbeat::{check_meta_service_status, register_node_and_start_heartbeat},
@@ -36,6 +37,7 @@ use connector::start_connector;
 use delay_message::manager::start_delay_message_manager_thread;
 use delay_task::{manager::DelayTaskManager, start_delay_task_manager_thread};
 use grpc_clients::pool::ClientPool;
+use kafka_broker::broker::{KafkaBrokerServer, KafkaBrokerServerParams};
 use meta_service::{MetaServiceServer, MetaServiceServerParams};
 use mqtt_broker::broker::{MqttBrokerServer, MqttBrokerServerParams};
 use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
@@ -69,6 +71,8 @@ pub struct BrokerServer {
     broker_runtime: Runtime,
     place_params: MetaServiceServerParams,
     mqtt_params: MqttBrokerServerParams,
+    kafka_params: KafkaBrokerServerParams,
+    amqp_params: AmqpBrokerServerParams,
     engine_params: StorageEngineParams,
     client_pool: Arc<ClientPool>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -210,6 +214,32 @@ impl BrokerServer {
             }
         });
 
+        let kafka_params = KafkaBrokerServerParams {
+            connection_manager: connection_manager.clone(),
+            client_pool: client_pool.clone(),
+            broker_cache: broker_cache.clone(),
+            global_limit_manager: global_rate_limiter.clone(),
+            stop_sx: main_stop_send.clone(),
+            proc_config: network_server::context::ProcessorConfig {
+                accept_thread_num: config.kafka_runtime.network.accept_thread_num,
+                handler_process_num: config.kafka_runtime.network.handler_thread_num,
+                channel_size: config.kafka_runtime.network.queue_size,
+            },
+        };
+
+        let amqp_params = AmqpBrokerServerParams {
+            connection_manager: connection_manager.clone(),
+            client_pool: client_pool.clone(),
+            broker_cache: broker_cache.clone(),
+            global_limit_manager: global_rate_limiter.clone(),
+            stop_sx: main_stop_send.clone(),
+            proc_config: network_server::context::ProcessorConfig {
+                accept_thread_num: config.amqp_runtime.network.accept_thread_num,
+                handler_process_num: config.amqp_runtime.network.handler_thread_num,
+                channel_size: config.amqp_runtime.network.queue_size,
+            },
+        };
+
         BrokerServer {
             broker_cache,
             server_runtime,
@@ -219,6 +249,8 @@ impl BrokerServer {
             engine_params,
             config: config.clone(),
             mqtt_params,
+            kafka_params,
+            amqp_params,
             client_pool,
             delay_task_manager,
             rocksdb_engine_handler,
@@ -278,10 +310,12 @@ impl BrokerServer {
         // ── Phase 6: Engine service ────────────────────────────────────
         let engine_stop_send = self.start_engine_service();
 
-        // ── Phase 7: MQTT broker  ─────────────
+        // ── Phase 7: Broker protocols ─────────────────────────────────
         let mqtt_stop_send = self
             .server_runtime
             .block_on(async { self.start_mqtt_broker(app_stop.clone()).await });
+        self.start_kafka_broker(app_stop.clone());
+        self.start_amqp_broker(app_stop.clone());
 
         // ── Phase 8: Background services ──────────────────────────────
         self.server_runtime.block_on(async {
@@ -435,6 +469,30 @@ impl BrokerServer {
             server.start().await;
         }));
         Some(stop_handle)
+    }
+
+    fn start_kafka_broker(&self, stop: broadcast::Sender<bool>) {
+        if !is_broker_node(&self.config.roles) {
+            return;
+        }
+        let mut params = self.kafka_params.clone();
+        params.stop_sx = stop;
+        let server = KafkaBrokerServer::new(params);
+        self.broker_runtime.spawn(Box::pin(async move {
+            server.start().await;
+        }));
+    }
+
+    fn start_amqp_broker(&self, stop: broadcast::Sender<bool>) {
+        if !is_broker_node(&self.config.roles) {
+            return;
+        }
+        let mut params = self.amqp_params.clone();
+        params.stop_sx = stop;
+        let server = AmqpBrokerServer::new(params);
+        self.broker_runtime.spawn(Box::pin(async move {
+            server.start().await;
+        }));
     }
 
     fn start_node_call_manager(&self, stop: broadcast::Sender<bool>) {

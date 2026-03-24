@@ -22,28 +22,31 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::error;
 
-const DEFAULT_KAFKA_PORT: u32 = 9092;
+const DEFAULT_KAFKA_PORT: u32 = 9095;
+
+#[derive(Clone)]
+pub struct KafkaBrokerServerParams {
+    pub connection_manager: Arc<ConnectionManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub broker_cache: Arc<NodeCacheManager>,
+    pub global_limit_manager: Arc<GlobalRateLimiterManager>,
+    pub stop_sx: broadcast::Sender<bool>,
+    pub proc_config: ProcessorConfig,
+}
 
 pub struct KafkaBrokerServer {
     server: KafkaServer,
 }
 
 impl KafkaBrokerServer {
-    pub fn new(
-        connection_manager: Arc<ConnectionManager>,
-        client_pool: Arc<ClientPool>,
-        broker_cache: Arc<NodeCacheManager>,
-        global_limit_manager: Arc<GlobalRateLimiterManager>,
-        stop_sx: broadcast::Sender<bool>,
-        proc_config: ProcessorConfig,
-    ) -> Self {
+    pub fn new(params: KafkaBrokerServerParams) -> Self {
         let server = KafkaServer::new(
-            connection_manager,
-            client_pool,
-            broker_cache,
-            global_limit_manager,
-            stop_sx,
-            proc_config,
+            params.connection_manager,
+            params.client_pool,
+            params.broker_cache,
+            params.global_limit_manager,
+            params.stop_sx,
+            params.proc_config,
         );
         KafkaBrokerServer { server }
     }

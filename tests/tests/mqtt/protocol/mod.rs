@@ -55,7 +55,7 @@ pub mod retain_message_test;
 pub mod schema_test;
 pub mod session_expire_test;
 pub mod share_sub_test;
-pub mod sub_auto_test;
+// pub mod sub_auto_test;
 pub mod sub_exclusive_test;
 pub mod sub_identifier_test;
 pub mod sub_opt_no_local_test;

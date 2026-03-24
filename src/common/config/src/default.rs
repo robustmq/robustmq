@@ -13,9 +13,10 @@
 // limitations under the License.
 
 use crate::config::{
-    MetaRuntime, MqttFlappingDetect, MqttKeepAlive, MqttOfflineMessage, MqttProtocolConfig,
-    MqttRuntime, MqttSchema, MqttServer, MqttSlowSubscribeConfig, MqttSystemMonitor, Network,
-    Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy, StorageRuntime,
+    AmqpRuntime, KafkaRuntime, MetaRuntime, MqttFlappingDetect, MqttKeepAlive, MqttOfflineMessage,
+    MqttProtocolConfig, MqttRuntime, MqttSchema, MqttServer, MqttSlowSubscribeConfig,
+    MqttSystemMonitor, Network, Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
+    StorageRuntime,
 };
 use crate::storage::{StorageAdapterConfig, StorageType};
 use common_base::enum_type::delay_type::DelayType;
@@ -139,6 +140,7 @@ pub fn default_mqtt_runtime() -> MqttRuntime {
         durable_sessions_enable: false, // Default: transient sessions (better performance)
         secret_free_login: false,
         is_self_protection_status: false,
+        network: default_network(),
     }
 }
 
@@ -205,6 +207,19 @@ pub fn default_engine_runtime() -> StorageRuntime {
         data_path: vec![],
         io_thread_num: 8,
         offset_enable_cache: true,
+        network: default_network(),
+    }
+}
+
+pub fn default_kafka_runtime() -> KafkaRuntime {
+    KafkaRuntime {
+        network: default_network(),
+    }
+}
+
+pub fn default_amqp_runtime() -> AmqpRuntime {
+    AmqpRuntime {
+        network: default_network(),
     }
 }
 

@@ -13,12 +13,13 @@
 // limitations under the License.
 
 use super::default::{
-    default_accept_thread_num, default_broker_id, default_broker_ip, default_channels_per_address,
-    default_cluster_name, default_engine_runtime, default_flapping_ban_time,
-    default_flapping_max_connections, default_flapping_window_time, default_grpc_port,
-    default_handler_thread_num, default_heartbeat_check_time_ms, default_heartbeat_timeout_ms,
-    default_http_port, default_keep_alive_default_time, default_keep_alive_default_timeout,
-    default_keep_alive_enable, default_keep_alive_max_time, default_limit_max_connection_rate,
+    default_accept_thread_num, default_amqp_runtime, default_broker_id, default_broker_ip,
+    default_channels_per_address, default_cluster_name, default_engine_runtime,
+    default_flapping_ban_time, default_flapping_max_connections, default_flapping_window_time,
+    default_grpc_port, default_handler_thread_num, default_heartbeat_check_time_ms,
+    default_heartbeat_timeout_ms, default_http_port, default_kafka_runtime,
+    default_keep_alive_default_time, default_keep_alive_default_timeout, default_keep_alive_enable,
+    default_keep_alive_max_time, default_limit_max_connection_rate,
     default_limit_max_connections_per_node, default_limit_max_publish_rate,
     default_limit_max_sessions, default_limit_max_topics, default_max_admin_http_uri_rate,
     default_max_message_expiry_interval, default_max_network_connection,
@@ -136,9 +137,6 @@ pub struct BrokerConfig {
     #[serde(default = "default_runtime")]
     pub runtime: Runtime,
 
-    #[serde(default = "default_network")]
-    pub network: Network,
-
     #[serde(default = "default_pprof")]
     pub pprof: PProf,
 
@@ -189,6 +187,14 @@ pub struct BrokerConfig {
 
     #[serde(default)]
     pub mqtt_limit: MQTTLimit,
+
+    // Kafka
+    #[serde(default = "default_kafka_runtime")]
+    pub kafka_runtime: KafkaRuntime,
+
+    // AMQP
+    #[serde(default = "default_amqp_runtime")]
+    pub amqp_runtime: AmqpRuntime,
 }
 
 impl Default for BrokerConfig {
@@ -205,7 +211,6 @@ impl Default for BrokerConfig {
             prometheus: default_prometheus(),
             log: default_log(),
             runtime: default_runtime(),
-            network: default_network(),
             pprof: default_pprof(),
             rocksdb: default_rocksdb(),
             llm_client: None,
@@ -228,6 +233,12 @@ impl Default for BrokerConfig {
             mqtt_schema: default_mqtt_schema(),
             mqtt_system_monitor: default_mqtt_system_monitor(),
             mqtt_limit: MQTTLimit::default(),
+
+            // Kafka
+            kafka_runtime: default_kafka_runtime(),
+
+            // AMQP
+            amqp_runtime: default_amqp_runtime(),
         }
     }
 }
@@ -473,6 +484,9 @@ pub struct MqttRuntime {
 
     #[serde(default)]
     pub is_self_protection_status: bool,
+
+    #[serde(default = "default_network")]
+    pub network: Network,
 }
 
 impl Default for MqttRuntime {
@@ -672,10 +686,36 @@ pub struct StorageRuntime {
     pub data_path: Vec<String>,
     #[serde(default = "default_storage_offset_enable_cache")]
     pub offset_enable_cache: bool,
+    #[serde(default = "default_network")]
+    pub network: Network,
 }
 
 impl Default for StorageRuntime {
     fn default() -> Self {
         default_engine_runtime()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct KafkaRuntime {
+    #[serde(default = "default_network")]
+    pub network: Network,
+}
+
+impl Default for KafkaRuntime {
+    fn default() -> Self {
+        default_kafka_runtime()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AmqpRuntime {
+    #[serde(default = "default_network")]
+    pub network: Network,
+}
+
+impl Default for AmqpRuntime {
+    fn default() -> Self {
+        default_amqp_runtime()
     }
 }
