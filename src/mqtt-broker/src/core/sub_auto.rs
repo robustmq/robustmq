@@ -23,7 +23,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use protocol::mqtt::common::{Filter, Login, MqttProtocol, Subscribe};
 use std::sync::Arc;
-use tracing::debug;
+use tracing::info;
 
 fn replace_topic_placeholders(
     pattern: &str,
@@ -52,7 +52,7 @@ pub fn build_auto_subscribe_filters(
         .iter()
         .map(|rule| {
             let topic = replace_topic_placeholders(&rule.topic, client_id, username, remote_addr);
-            debug!(
+            info!(
                 "Auto-subscribe: client_id={}, original_pattern={}, resolved_topic={}, qos={:?}",
                 client_id, rule.topic, topic, rule.qos
             );
@@ -92,7 +92,7 @@ pub async fn try_auto_subscribe(
     let filters = build_auto_subscribe_filters(&rules, &client_id, &username, &remote_addr);
 
     if !filters.is_empty() {
-        debug!(
+        info!(
             "Applying {} auto-subscription rule(s) for client: {}",
             filters.len(),
             client_id

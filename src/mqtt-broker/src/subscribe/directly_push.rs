@@ -277,10 +277,6 @@ impl DirectlyPushManager {
         }
 
         if !is_send_msg_by_bo_local(subscriber.no_local, &subscriber.client_id, &msg.client_id) {
-            debug!(
-                "Message dropping: no_local constraint, client_id: {}, topic: {}",
-                subscriber.client_id, subscriber.topic_name
-            );
             return Ok(false);
         }
         let sub_pub_param = if let Some(params) = build_publish_message(
@@ -293,7 +289,6 @@ impl DirectlyPushManager {
         {
             params
         } else {
-            // Message skipped (expired, no_local, packet too large, etc.)
             return Ok(false);
         };
 
