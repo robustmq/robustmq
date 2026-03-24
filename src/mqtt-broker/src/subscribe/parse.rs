@@ -169,21 +169,32 @@ pub async fn parse_subscribe_by_new_subscribe(
     let rewrite_sub_path =
         cache_manager.get_new_rewrite_name(&subscribe.tenant, &subscribe.filter.path);
 
-    if let Some(tenant_entry) = cache_manager.node_cache.topic_list.get(&subscribe.tenant) {
-        for topic_entry in tenant_entry.value().iter() {
-            let topic = topic_entry.value().clone();
-            parse_subscribe(
-                cache_manager,
-                ParseSubscribeContext {
-                    client_pool: client_pool.clone(),
-                    subscribe_manager: subscribe_manager.clone(),
-                    subscribe: subscribe.clone(),
-                    topic,
-                    rewrite_sub_path: rewrite_sub_path.clone(),
-                },
-            )
-            .await?;
-        }
+    // Collect topics first to release DashMap shard locks before any .await
+    let topics: Vec<_> = cache_manager
+        .node_cache
+        .topic_list
+        .get(&subscribe.tenant)
+        .map(|tenant_entry| {
+            tenant_entry
+                .value()
+                .iter()
+                .map(|e| e.value().clone())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    for topic in topics {
+        parse_subscribe(
+            cache_manager,
+            ParseSubscribeContext {
+                client_pool: client_pool.clone(),
+                subscribe_manager: subscribe_manager.clone(),
+                subscribe: subscribe.clone(),
+                topic,
+                rewrite_sub_path: rewrite_sub_path.clone(),
+            },
+        )
+        .await?;
     }
     Ok(())
 }
@@ -198,31 +209,39 @@ pub async fn parse_subscribe_by_new_topic(
 ) -> ResultMqttBrokerError {
     let broker_id = broker_config().broker_id;
 
-    if let Some(tenant_subs) = subscribe_manager.subscribe_list.get(&topic.tenant) {
-        debug!(
-            "Matching new topic '{}' against {} subscriptions under tenant '{}'",
-            topic.topic_name,
-            tenant_subs.len(),
-            topic.tenant
-        );
-        let rewrite_sub_path = cache_manager.get_new_rewrite_name(&topic.tenant, &topic.topic_name);
-        for row in tenant_subs.value().iter() {
-            let subscribe = row.value();
-            if subscribe.broker_id != broker_id {
-                continue;
-            }
-            parse_subscribe(
-                cache_manager,
-                ParseSubscribeContext {
-                    client_pool: client_pool.clone(),
-                    subscribe_manager: subscribe_manager.clone(),
-                    subscribe: subscribe.clone(),
-                    topic: topic.clone(),
-                    rewrite_sub_path: rewrite_sub_path.clone(),
-                },
-            )
-            .await?;
-        }
+    // Collect subscriptions first to release DashMap shard locks before any .await
+    let subscribes: Vec<_> = subscribe_manager
+        .subscribe_list
+        .get(&topic.tenant)
+        .map(|tenant_subs| {
+            debug!(
+                "Matching new topic '{}' against {} subscriptions under tenant '{}'",
+                topic.topic_name,
+                tenant_subs.len(),
+                topic.tenant
+            );
+            tenant_subs
+                .value()
+                .iter()
+                .filter(|row| row.value().broker_id == broker_id)
+                .map(|row| row.value().clone())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let rewrite_sub_path = cache_manager.get_new_rewrite_name(&topic.tenant, &topic.topic_name);
+    for subscribe in subscribes {
+        parse_subscribe(
+            cache_manager,
+            ParseSubscribeContext {
+                client_pool: client_pool.clone(),
+                subscribe_manager: subscribe_manager.clone(),
+                subscribe,
+                topic: topic.clone(),
+                rewrite_sub_path: rewrite_sub_path.clone(),
+            },
+        )
+        .await?;
     }
     Ok(())
 }

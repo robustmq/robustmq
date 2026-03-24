@@ -183,30 +183,170 @@
 ### 2. 设置集群配置
 
 - **接口**: `POST /api/cluster/config/set`
-- **描述**: 动态更新集群的部分配置
+- **描述**: 动态更新集群配置，修改立即生效并持久化到 Meta 存储
 - **请求参数**:
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `config_type` | string | 是 | 功能类型，见下方可选值 |
-| `config` | string | 是 | 对应功能的配置 JSON 字符串 |
+| `config_type` | string | 是 | 配置类型，见下方可选值 |
+| `config` | string | 是 | 对应类型的配置 JSON 字符串 |
 
-`config_type` 可选值：
+`config_type` 可选值及对应 `config` 字段结构：
 
-| 值 | 说明 |
-|----|------|
-| `SlowSubscribe` | 慢订阅检测 |
-| `OfflineMessage` | 离线消息 |
-| `SystemAlarm` | 系统告警 |
-| `FlappingDetect` | 连接抖动检测 |
+---
 
-- **请求示例**:
+#### `MqttSlowSubscribeConfig` — 慢订阅检测
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `enable` | bool | `false` | 是否启用 |
+| `record_time` | u64 | `1000` | 慢订阅阈值（ms），超过该时间的订阅推送将被记录 |
+| `delay_type` | string | `"CreateTime"` | 延迟统计方式：`"CreateTime"` 或 `"PublishTime"` |
+
 ```json
 {
-  "config_type": "OfflineMessage",
-  "config": "{\"enable\":true,\"expire_ms\":60000,\"max_messages_num\":5000}"
+  "config_type": "MqttSlowSubscribeConfig",
+  "config": "{\"enable\":true,\"record_time\":500,\"delay_type\":\"CreateTime\"}"
 }
 ```
+
+---
+
+#### `MqttFlappingDetect` — 连接抖动检测
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `enable` | bool | `false` | 是否启用 |
+| `window_time` | u32 | `60` | 检测窗口时间（秒） |
+| `max_client_connections` | u64 | `5` | 窗口内最大允许连接次数，超过则触发封禁 |
+| `ban_time` | u32 | `300` | 封禁时长（秒） |
+
+```json
+{
+  "config_type": "MqttFlappingDetect",
+  "config": "{\"enable\":true,\"window_time\":60,\"max_client_connections\":5,\"ban_time\":300}"
+}
+```
+
+---
+
+#### `MqttProtocol` — MQTT 协议参数
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `max_session_expiry_interval` | u32 | `2592000` | 最大 Session 过期时间（秒） |
+| `default_session_expiry_interval` | u32 | `3600` | 默认 Session 过期时间（秒） |
+| `topic_alias_max` | u16 | `65535` | 最大 Topic Alias 数量 |
+| `max_packet_size` | u32 | `10485760` | 最大报文大小（字节，默认 10MB） |
+| `receive_max` | u16 | `65535` | 接收窗口大小 |
+| `max_message_expiry_interval` | u64 | `86400` | 消息最大过期时间（秒） |
+| `client_pkid_persistent` | bool | `false` | 是否持久化客户端 Packet ID |
+
+```json
+{
+  "config_type": "MqttProtocol",
+  "config": "{\"max_session_expiry_interval\":2592000,\"default_session_expiry_interval\":3600,\"topic_alias_max\":65535,\"max_packet_size\":10485760,\"receive_max\":65535,\"max_message_expiry_interval\":86400,\"client_pkid_persistent\":false}"
+}
+```
+
+---
+
+#### `MqttOfflineMessage` — 离线消息
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `enable` | bool | `false` | 是否启用 |
+| `expire_ms` | u32 | `86400000` | 离线消息过期时间（ms） |
+| `max_messages_num` | u32 | `1000` | 每个客户端最多保存的离线消息数 |
+
+```json
+{
+  "config_type": "MqttOfflineMessage",
+  "config": "{\"enable\":true,\"expire_ms\":86400000,\"max_messages_num\":1000}"
+}
+```
+
+---
+
+#### `MqttSystemMonitor` — 系统监控
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `enable` | bool | `false` | 是否启用系统监控 |
+| `os_cpu_high_watermark` | f32 | `0.7` | CPU 使用率高水位（0~1） |
+| `os_memory_high_watermark` | f32 | `0.8` | 内存使用率高水位（0~1） |
+| `system_topic_interval_ms` | u64 | `60000` | 系统 Topic 上报间隔（ms） |
+
+```json
+{
+  "config_type": "MqttSystemMonitor",
+  "config": "{\"enable\":true,\"os_cpu_high_watermark\":0.7,\"os_memory_high_watermark\":0.8,\"system_topic_interval_ms\":60000}"
+}
+```
+
+---
+
+#### `MqttSchema` — Schema 校验
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `enable` | bool | `false` | 是否启用 Schema 校验 |
+| `strategy` | string | `"Forward"` | 校验策略：`"Forward"`（透传）或 `"Strict"` |
+| `failed_operation` | string | `"Disconnect"` | 校验失败操作：`"Disconnect"` 或 `"Ignore"` |
+| `echo_log` | bool | `false` | 是否打印 Schema 校验日志 |
+| `log_level` | string | `"info"` | 日志级别 |
+
+```json
+{
+  "config_type": "MqttSchema",
+  "config": "{\"enable\":true,\"strategy\":\"Strict\",\"failed_operation\":\"Disconnect\",\"echo_log\":false,\"log_level\":\"info\"}"
+}
+```
+
+---
+
+#### `MqttLimit` — MQTT 流量限制
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `cluster` | object | 集群级别限制，见 `LimitQuota` |
+| `tenant` | object | 租户默认限制，见 `LimitQuota` |
+
+**`LimitQuota` 字段**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `max_connections_per_node` | u64 | 每节点最大连接数 |
+| `max_connection_rate` | u32 | 最大连接速率（连接/秒） |
+| `max_topics` | u64 | 最大 Topic 数 |
+| `max_sessions` | u64 | 最大 Session 数 |
+| `max_publish_rate` | u32 | 最大发布速率（消息/秒） |
+
+```json
+{
+  "config_type": "MqttLimit",
+  "config": "{\"cluster\":{\"max_connections_per_node\":10000000,\"max_connection_rate\":100000,\"max_topics\":5000000,\"max_sessions\":50000000,\"max_publish_rate\":10000},\"tenant\":{\"max_connections_per_node\":1000000,\"max_connection_rate\":10000,\"max_topics\":500000,\"max_sessions\":5000000,\"max_publish_rate\":10000}}"
+}
+```
+
+---
+
+#### `ClusterLimit` — 集群接入限制
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `max_network_connection` | u64 | `100000000` | 最大网络连接总数 |
+| `max_network_connection_rate` | u32 | `10000` | 最大网络连接速率（连接/秒） |
+| `max_admin_http_uri_rate` | u32 | `50` | Admin HTTP 接口最大请求速率（次/秒） |
+
+```json
+{
+  "config_type": "ClusterLimit",
+  "config": "{\"max_network_connection\":100000000,\"max_network_connection_rate\":10000,\"max_admin_http_uri_rate\":50}"
+}
+```
+
+---
 
 - **响应示例**:
 ```json
@@ -216,8 +356,6 @@
   "error": null
 }
 ```
-
-> **注意**: 此接口目前部分功能尚在开发中，`SlowSubscribe` 和 `OfflineMessage` 的实际更新逻辑暂未启用。
 
 ---
 

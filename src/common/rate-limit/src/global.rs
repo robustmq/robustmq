@@ -63,7 +63,8 @@ impl GlobalRateLimiterManager {
     }
 
     pub async fn http_uri_rate_limit(&self, uri: String) -> Result<(), Box<CommonError>> {
-        if let Some(limit) = self.http_limits.get(&uri) {
+        // Clone Arc to release DashMap shard lock before .await
+        if let Some(limit) = self.http_limits.get(&uri).map(|r| r.clone()) {
             limit.until_ready().await;
         } else {
             let config = broker_config();

@@ -32,7 +32,8 @@ use metadata_struct::connection::NetworkConnectionType;
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::robust::{
-    RobustMQPacket, RobustMQPacketWrapper, RobustMQWrapperExtend, StorageEngineWrapperExtend,
+    AmqpWrapperExtend, KafkaWrapperExtend, RobustMQPacket, RobustMQPacketWrapper,
+    RobustMQWrapperExtend, StorageEngineWrapperExtend,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -201,9 +202,16 @@ async fn write_response(
                 record_packet_send_metrics(&mqtt_wrapper, network_type.to_string());
                 build_mqtt_packet_wrapper(protocol.clone(), packet)
             }
-            RobustMQPacket::KAFKA(_packet) => {
-                return;
-            }
+            RobustMQPacket::KAFKA(packet) => RobustMQPacketWrapper {
+                protocol: protocol.clone(),
+                extend: RobustMQWrapperExtend::KAFKA(KafkaWrapperExtend {}),
+                packet: RobustMQPacket::KAFKA(packet),
+            },
+            RobustMQPacket::AMQP(packet) => RobustMQPacketWrapper {
+                protocol: protocol.clone(),
+                extend: RobustMQWrapperExtend::AMQP(AmqpWrapperExtend {}),
+                packet: RobustMQPacket::AMQP(packet),
+            },
             RobustMQPacket::StorageEngine(packet) => RobustMQPacketWrapper {
                 protocol: protocol.clone(),
                 extend: RobustMQWrapperExtend::StorageEngine(StorageEngineWrapperExtend {}),
@@ -268,9 +276,8 @@ async fn write_websocket_response(
             packet: pkg,
         }),
         RobustMQPacket::StorageEngine(pkg) => RobustMQCodecWrapper::StorageEngine(pkg),
-        RobustMQPacket::KAFKA(_) => {
-            return Ok(());
-        }
+        RobustMQPacket::KAFKA(pkg) => RobustMQCodecWrapper::KAFKA(pkg),
+        RobustMQPacket::AMQP(pkg) => RobustMQCodecWrapper::AMQP(pkg),
     };
 
     codec.encode_data(codec_wrapper, &mut response_buf)?;

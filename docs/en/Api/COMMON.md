@@ -6,7 +6,7 @@ RobustMQ Admin Server is an HTTP management interface service, providing compreh
 
 - **Base URL**: `http://localhost:8080`
 - **API Prefix**: `/api` (all management interfaces use this prefix)
-- **Request Method**: Mainly uses `POST` method
+- **Request Method**: Use `GET` for list/detail queries, `POST` for create/delete operations
 - **Data Format**: JSON
 - **Response Format**: JSON
 
@@ -14,6 +14,7 @@ RobustMQ Admin Server is an HTTP management interface service, providing compreh
 
 - 📋 **[Cluster Management API](CLUSTER.md)** - Cluster configuration and status management
 - 🔧 **[MQTT Broker API](MQTT.md)** - All MQTT broker related management interfaces
+- 🔌 **[Connector API](Connector.md)** - Connector management interfaces
 
 ---
 
@@ -292,9 +293,9 @@ curl "http://localhost:8080/api/mqtt/user/list?limit=10&page=1&sort_field=userna
 ## Notes
 
 1. **Request Method**:
-   - Root path `/` uses GET method
-   - All other interfaces (including `/api/status`) use POST method
-2. **Request Body**: Even for query operations, a JSON format request body needs to be sent (can be an empty object `{}`)
+   - List/detail queries (`/list`, `/detail`, `/api/status`, etc.) use `GET`, with parameters passed via query string
+   - Create/delete operations (`/create`, `/delete`) use `POST`, with parameters passed as JSON body
+2. **Request Body**: POST interfaces require `Content-Type: application/json` and a JSON body; GET interfaces pass parameters via URL query string
 3. **Time Format**:
    - Input time uses Unix timestamp (seconds)
    - Output time uses local time format string "YYYY-MM-DD HH:MM:SS"
@@ -331,6 +332,4 @@ The service outputs detailed log information during runtime, including:
 
 ---
 
-*Documentation Version: v4.0*
-*Last Updated: 2025-09-20*
-*Based on Code Version: RobustMQ Admin Server v0.1.34*
+*Last Updated: 2026-03-21*

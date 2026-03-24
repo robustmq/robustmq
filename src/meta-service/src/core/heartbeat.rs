@@ -55,36 +55,86 @@ impl BrokerHeartbeat {
     }
 
     pub async fn start(&self) {
-        for node in self.cluster_cache.node_list.iter() {
-            if let Some(heart_data) = self.cluster_cache.get_broker_heart(node.node_id) {
-                let now_time = now_second();
-                if now_time - heart_data.time >= self.timeout_ms / 1000 {
-                    let req = UnRegisterNodeRequest {
-                        node_id: node.node_id,
-                    };
+        // Collect decisions first to release the DashMap iter lock before any .await.
+        // Holding iter() across an .await that triggers remove() on the same map causes
+        // a deadlock: the read shard lock is never released, so write lock can't proceed.
+        let actions = self.collect_expired_nodes();
+        self.process_expired_nodes(actions).await;
+    }
 
-                    if let Err(e) = un_register_node_by_req(
-                        &self.cluster_cache,
-                        &self.raft_manager,
-                        &self.client_pool,
-                        &self.node_call_manager,
-                        req,
-                    )
-                    .await
-                    {
-                        error!("Heartbeat timeout, failed to delete node {} , error message :{},now time:{},report time:{}",
-                             node.node_id,e,now_time,heart_data.time);
-                        continue;
+    // Step 1: snapshot node states while holding iter() lock, then release immediately.
+    fn collect_expired_nodes(&self) -> Vec<NodeAction> {
+        let now_time = now_second();
+        self.cluster_cache
+            .node_list
+            .iter()
+            .map(|entry| {
+                let node_id = entry.node_id;
+                let node_ip = entry.node_ip.clone();
+                if let Some(heart_data) = self.cluster_cache.get_broker_heart(node_id) {
+                    NodeAction {
+                        node_id,
+                        node_ip,
+                        expired: now_time - heart_data.time >= self.timeout_ms / 1000,
+                        now_time,
+                        report_time: heart_data.time,
                     }
-
-                    info!(
-                            "Heartbeat of the Node times out and is deleted from the cluster. Node ID: {}, node IP: {},now time:{},report time:{}, diff:{}, time_ms:{}",
-                            node.node_id, node.node_ip, now_time, heart_data.time, (now_time - heart_data.time), self.timeout_ms
-                        );
+                } else {
+                    NodeAction {
+                        node_id,
+                        node_ip,
+                        expired: false,
+                        now_time,
+                        report_time: 0,
+                    }
                 }
-            } else {
-                self.cluster_cache.report_broker_heart(node.node_id);
+            })
+            .collect()
+    }
+
+    // Step 2: iter() lock already released; safe to .await and mutate node_list.
+    async fn process_expired_nodes(&self, actions: Vec<NodeAction>) {
+        for action in actions {
+            if action.report_time == 0 {
+                self.cluster_cache.report_broker_heart(action.node_id);
+                continue;
+            }
+
+            if action.expired {
+                let req = UnRegisterNodeRequest {
+                    node_id: action.node_id,
+                };
+
+                if let Err(e) = un_register_node_by_req(
+                    &self.cluster_cache,
+                    &self.raft_manager,
+                    &self.client_pool,
+                    &self.node_call_manager,
+                    req,
+                )
+                .await
+                {
+                    error!(
+                        "Heartbeat timeout, failed to delete node {} , error message :{},now time:{},report time:{}",
+                        action.node_id, e, action.now_time, action.report_time
+                    );
+                    continue;
+                }
+
+                info!(
+                    "Heartbeat of the Node times out and is deleted from the cluster. Node ID: {}, node IP: {},now time:{},report time:{}, diff:{}, time_ms:{}",
+                    action.node_id, action.node_ip, action.now_time, action.report_time,
+                    (action.now_time - action.report_time), self.timeout_ms
+                );
             }
         }
     }
+}
+
+struct NodeAction {
+    node_id: u64,
+    node_ip: String,
+    expired: bool,
+    now_time: u64,
+    report_time: u64,
 }

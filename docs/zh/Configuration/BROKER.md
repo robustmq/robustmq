@@ -106,33 +106,6 @@ tls_key = "./config/certs/key.pem"
 
 ---
 
-## 3. 网络配置
-
-### [network]
-
-网络层线程与队列配置。
-
-```toml
-[network]
-accept_thread_num = 8
-handler_thread_num = 32
-response_thread_num = 8
-queue_size = 1000
-lock_max_try_mut_times = 30
-lock_try_mut_sleep_time_ms = 50
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `accept_thread_num` | `usize` | `8` | 接受新连接的线程数 |
-| `handler_thread_num` | `usize` | `32` | 请求处理线程数 |
-| `response_thread_num` | `usize` | `8` | 响应发送线程数 |
-| `queue_size` | `usize` | `1000` | 内部消息队列大小 |
-| `lock_max_try_mut_times` | `u64` | `30` | 锁获取最大重试次数 |
-| `lock_try_mut_sleep_time_ms` | `u64` | `50` | 锁重试间隔时间（毫秒） |
-
----
-
 ## 4. Meta 运行时配置
 
 ### [meta_runtime]
@@ -189,6 +162,12 @@ tcp_port = 1778
 max_segment_size = 1073741824
 io_thread_num = 8
 data_path = []
+
+[storage_runtime.network]
+accept_thread_num = 2
+handler_thread_num = 16
+response_thread_num = 4
+queue_size = 1000
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
@@ -197,6 +176,65 @@ data_path = []
 | `max_segment_size` | `u32` | `1073741824` (1 GB) | 单个 Segment 文件最大大小（字节） |
 | `io_thread_num` | `u32` | `8` | IO 处理线程数 |
 | `data_path` | `array` | `[]` | 数据存储路径列表 |
+
+**[storage_runtime.network] 网络线程配置：**
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `accept_thread_num` | `usize` | `2` | 接受连接的线程数 |
+| `handler_thread_num` | `usize` | `16` | 请求处理线程数 |
+| `response_thread_num` | `usize` | `4` | 响应线程数 |
+| `queue_size` | `usize` | `1000` | 内部处理队列大小 |
+
+---
+
+## 6a. Kafka 运行时配置
+
+### [kafka_runtime]
+
+Kafka 协议服务网络线程配置。
+
+```toml
+[kafka_runtime.network]
+accept_thread_num = 2
+handler_thread_num = 16
+response_thread_num = 4
+queue_size = 1000
+```
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `accept_thread_num` | `usize` | `2` | 接受连接的线程数 |
+| `handler_thread_num` | `usize` | `16` | 请求处理线程数 |
+| `response_thread_num` | `usize` | `4` | 响应线程数 |
+| `queue_size` | `usize` | `1000` | 内部处理队列大小 |
+
+> Kafka Broker 固定监听端口 `9095`。
+
+---
+
+## 6b. AMQP 运行时配置
+
+### [amqp_runtime]
+
+AMQP 协议服务网络线程配置。
+
+```toml
+[amqp_runtime.network]
+accept_thread_num = 2
+handler_thread_num = 16
+response_thread_num = 4
+queue_size = 1000
+```
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `accept_thread_num` | `usize` | `2` | 接受连接的线程数 |
+| `handler_thread_num` | `usize` | `16` | 请求处理线程数 |
+| `response_thread_num` | `usize` | `4` | 响应线程数 |
+| `queue_size` | `usize` | `1000` | 内部处理队列大小 |
+
+> AMQP Broker 固定监听端口 `5672`。
 
 ---
 
@@ -316,6 +354,12 @@ default_password = "robustmq"
 durable_sessions_enable = false
 secret_free_login = false
 is_self_protection_status = false
+
+[mqtt_runtime.network]
+accept_thread_num = 2
+handler_thread_num = 16
+response_thread_num = 4
+queue_size = 1000
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
@@ -325,6 +369,15 @@ is_self_protection_status = false
 | `durable_sessions_enable` | `bool` | `false` | 是否启用持久会话（`false` 为临时会话，性能更好） |
 | `secret_free_login` | `bool` | `false` | 是否允许免密登录 |
 | `is_self_protection_status` | `bool` | `false` | 是否处于自我保护状态（连接过载时拒绝新连接） |
+
+**[mqtt_runtime.network] 网络线程配置：**
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `accept_thread_num` | `usize` | `2` | 接受连接的线程数 |
+| `handler_thread_num` | `usize` | `16` | 请求处理线程数 |
+| `response_thread_num` | `usize` | `4` | 响应线程数 |
+| `queue_size` | `usize` | `1000` | 内部处理队列大小 |
 
 ---
 
@@ -697,13 +750,6 @@ tls_key = "./config/certs/key.pem"
 # meta_worker_threads = 0
 # broker_worker_threads = 0
 
-# ========== 网络 ==========
-[network]
-accept_thread_num = 8
-handler_thread_num = 32
-response_thread_num = 8
-queue_size = 2000
-
 # ========== Meta ==========
 [meta_runtime]
 heartbeat_timeout_ms = 30000
@@ -722,6 +768,26 @@ max_open_files = 20000
 tcp_port = 1778
 max_segment_size = 1073741824
 io_thread_num = 8
+
+[storage_runtime.network]
+accept_thread_num = 2
+handler_thread_num = 16
+response_thread_num = 4
+queue_size = 1000
+
+# ========== Kafka 运行时 ==========
+[kafka_runtime.network]
+accept_thread_num = 2
+handler_thread_num = 16
+response_thread_num = 4
+queue_size = 1000
+
+# ========== AMQP 运行时 ==========
+[amqp_runtime.network]
+accept_thread_num = 2
+handler_thread_num = 16
+response_thread_num = 4
+queue_size = 1000
 
 # ========== 消息存储 ==========
 [message_storage]
@@ -746,6 +812,12 @@ default_password = "your_secure_password"
 durable_sessions_enable = false
 secret_free_login = false
 is_self_protection_status = false
+
+[mqtt_runtime.network]
+accept_thread_num = 2
+handler_thread_num = 16
+response_thread_num = 4
+queue_size = 1000
 
 # ========== MQTT Keep Alive ==========
 [mqtt_keep_alive]

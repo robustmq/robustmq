@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use amq_protocol::frame::AMQPFrame;
+
 use crate::{
+    amqp::codec::AmqpCodec,
     kafka::{codec::KafkaCodec, packet::KafkaPacketWrapper},
     mqtt::{
         codec::{MqttCodec, MqttPacketWrapper},
@@ -31,6 +34,7 @@ pub enum RobustMQCodecWrapper {
     StorageEngine(StorageEnginePacket),
     KAFKA(KafkaPacketWrapper),
     MQTT(MqttPacketWrapper),
+    AMQP(AMQPFrame),
 }
 
 impl fmt::Display for RobustMQCodecWrapper {
@@ -50,6 +54,9 @@ impl fmt::Display for RobustMQCodecWrapper {
             RobustMQCodecWrapper::StorageEngine(packet) => {
                 write!(f, "StorageEngine({})", packet)
             }
+            RobustMQCodecWrapper::AMQP(frame) => {
+                write!(f, "AMQP({frame})")
+            }
         }
     }
 }
@@ -57,6 +64,7 @@ impl fmt::Display for RobustMQCodecWrapper {
 pub enum RobustMQCodecEnum {
     MQTT(MqttCodec),
     KAFKA(KafkaCodec),
+    AMQP(AmqpCodec),
     StorageEngine(StorageEngineCodec),
 }
 
@@ -65,6 +73,7 @@ pub struct RobustMQCodec {
     pub protocol: Option<RobustMQProtocol>,
     pub mqtt_codec: MqttCodec,
     pub kafka_codec: KafkaCodec,
+    pub amqp_codec: AmqpCodec,
     pub storage_engine_codec: StorageEngineCodec,
 }
 
@@ -74,6 +83,7 @@ impl RobustMQCodec {
             protocol: None,
             mqtt_codec: MqttCodec::new(None),
             kafka_codec: KafkaCodec::new(),
+            amqp_codec: AmqpCodec::new(),
             storage_engine_codec: StorageEngineCodec::new(),
         }
     }
@@ -116,6 +126,14 @@ impl RobustMQCodec {
                 }
             }
 
+            if protoc.is_amqp() {
+                let res = self.amqp_codec.decode_data(stream);
+                if let Ok(Some(pkg)) = res {
+                    self.protocol = Some(RobustMQProtocol::AMQP);
+                    return Ok(Some(RobustMQCodecWrapper::AMQP(pkg)));
+                }
+            }
+
             if protoc.is_engine() {
                 let res = self.storage_engine_codec.decode_data(stream);
                 if let Ok(Some(pkg)) = res {
@@ -152,6 +170,13 @@ impl RobustMQCodec {
                 self.protocol = Some(RobustMQProtocol::KAFKA);
                 return Ok(Some(RobustMQCodecWrapper::KAFKA(pkg)));
             }
+
+            // try decode amqp
+            let res = self.amqp_codec.decode_data(stream);
+            if let Ok(Some(pkg)) = res {
+                self.protocol = Some(RobustMQProtocol::AMQP);
+                return Ok(Some(RobustMQCodecWrapper::AMQP(pkg)));
+            }
         }
 
         Ok(None)
@@ -172,6 +197,11 @@ impl RobustMQCodec {
             }
             RobustMQCodecWrapper::StorageEngine(wrapper) => {
                 if let Err(e) = self.storage_engine_codec.encode_data(wrapper, buffer) {
+                    return Err(CommonError::CommonError(e.to_string()));
+                }
+            }
+            RobustMQCodecWrapper::AMQP(frame) => {
+                if let Err(e) = self.amqp_codec.encode_data(frame, buffer) {
                     return Err(CommonError::CommonError(e.to_string()));
                 }
             }

@@ -12,16 +12,53 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub struct KafkaBrokerServer {}
+use crate::server::KafkaServer;
+use broker_core::cache::NodeCacheManager;
+use grpc_clients::pool::ClientPool;
+use network_server::common::connection_manager::ConnectionManager;
+use network_server::context::ProcessorConfig;
+use rate_limit::global::GlobalRateLimiterManager;
+use std::sync::Arc;
+use tokio::sync::broadcast;
+use tracing::error;
+
+const DEFAULT_KAFKA_PORT: u32 = 9095;
+
+#[derive(Clone)]
+pub struct KafkaBrokerServerParams {
+    pub connection_manager: Arc<ConnectionManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub broker_cache: Arc<NodeCacheManager>,
+    pub global_limit_manager: Arc<GlobalRateLimiterManager>,
+    pub stop_sx: broadcast::Sender<bool>,
+    pub proc_config: ProcessorConfig,
+}
+
+pub struct KafkaBrokerServer {
+    server: KafkaServer,
+}
 
 impl KafkaBrokerServer {
-    pub fn new() -> Self {
-        KafkaBrokerServer {}
+    pub fn new(params: KafkaBrokerServerParams) -> Self {
+        let server = KafkaServer::new(
+            params.connection_manager,
+            params.client_pool,
+            params.broker_cache,
+            params.global_limit_manager,
+            params.stop_sx,
+            params.proc_config,
+        );
+        KafkaBrokerServer { server }
     }
 
     pub async fn start(&self) {
-        self.start_server();
+        if let Err(e) = self.server.start(DEFAULT_KAFKA_PORT).await {
+            error!("Kafka broker server failed to start: {}", e);
+            std::process::exit(1);
+        }
     }
 
-    fn start_server(&self) {}
+    pub async fn stop(&self) {
+        self.server.stop().await;
+    }
 }

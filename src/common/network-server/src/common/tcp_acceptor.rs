@@ -187,7 +187,10 @@ fn read_frame_process(
                                         read_packet(RobustMQPacket::MQTT(pk.packet), &request_channel, &connection, &network_type).await;
                                     }
                                     RobustMQCodecWrapper::KAFKA(pk) => {
-                                        read_packet(RobustMQPacket::KAFKA(pk.packet), &request_channel, &connection, &network_type).await;
+                                        read_packet(RobustMQPacket::KAFKA(pk), &request_channel, &connection, &network_type).await;
+                                    }
+                                    RobustMQCodecWrapper::AMQP(pk) => {
+                                        read_packet(RobustMQPacket::AMQP(pk), &request_channel, &connection, &network_type).await;
                                     }
                                     RobustMQCodecWrapper::StorageEngine(pk) => {
                                         read_packet(RobustMQPacket::StorageEngine(pk), &request_channel, &connection, &network_type).await;

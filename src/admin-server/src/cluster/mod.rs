@@ -17,6 +17,16 @@ use std::sync::Arc;
 
 use crate::state::HttpState;
 use axum::{extract::State, Json};
+use broker_core::{
+    cache::NodeCacheManager,
+    cluster::ClusterStorage,
+    dynamic_config::{
+        save_cluster_dynamic_config, update_cluster_dynamic_config, ClusterDynamicConfig,
+    },
+};
+use bytes::Bytes;
+use common_base::http_response::{error_response, success_response};
+use common_base::version::version;
 use metadata_struct::meta::{node::BrokerNode, status::MetaStatus};
 use serde::{Deserialize, Serialize};
 
@@ -38,13 +48,6 @@ pub struct ClusterInfoResp {
     pub meta: HashMap<String, MetaStatus>,
     pub nodes: HashSet<String>,
 }
-use broker_core::{cache::NodeCacheManager, cluster::ClusterStorage};
-use common_base::{
-    enum_type::feature_type::FeatureType,
-    http_response::{error_response, success_response},
-    version::version,
-};
-use std::str::FromStr;
 
 pub mod health;
 pub mod tenant;
@@ -54,42 +57,37 @@ pub async fn index(State(_state): State<Arc<HttpState>>) -> String {
 }
 
 pub async fn cluster_config_set(
-    State(_state): State<Arc<HttpState>>,
+    State(state): State<Arc<HttpState>>,
     Json(params): Json<ClusterConfigSetReq>,
 ) -> String {
-    match FeatureType::from_str(params.config_type.as_str()) {
-        Ok(FeatureType::SlowSubscribe) => {
-            // let mut config = cache_manager.get_slow_sub_config();
-            // config.enable = request.is_enable;
-            // cache_manager.update_slow_sub_config(config.clone());
-            // save_cluster_dynamic_config(
-            //     client_pool,
-            //     ClusterDynamicConfig::MqttFlappingDetect,
-            //     config.encode(),
-            // )
-            // .await?;
+    let resource_type = match params.config_type.as_str() {
+        "MqttSlowSubscribeConfig" => ClusterDynamicConfig::MqttSlowSubscribeConfig,
+        "MqttFlappingDetect" => ClusterDynamicConfig::MqttFlappingDetect,
+        "MqttProtocol" => ClusterDynamicConfig::MqttProtocol,
+        "MqttOfflineMessage" => ClusterDynamicConfig::MqttOfflineMessage,
+        "MqttSystemMonitor" => ClusterDynamicConfig::MqttSystemMonitor,
+        "MqttSchema" => ClusterDynamicConfig::MqttSchema,
+        "MqttLimit" => ClusterDynamicConfig::MqttLimit,
+        "ClusterLimit" => ClusterDynamicConfig::ClusterLimit,
+        other => {
+            return error_response(format!("Unknown config_type: {other}"));
         }
+    };
 
-        Ok(FeatureType::OfflineMessage) => {
-            // let mut config = cache_manager.get_offline_message_config();
-            // config.enable = request.is_enable;
-            // cache_manager.update_offline_message_config(config.clone());
-            // save_cluster_dynamic_config(
-            //     client_pool,
-            //     ClusterDynamicConfig::MqttOfflineMessage,
-            //     config.encode(),
-            // )
-            // .await?;
-        }
+    let config_bytes = Bytes::from(params.config.into_bytes());
 
-        Ok(FeatureType::SystemAlarm) => {}
-
-        Ok(FeatureType::FlappingDetect) => {}
-
-        Err(e) => {
-            return error_response(format!("Failed to parse feature type: {e}"));
-        }
+    if let Err(e) =
+        save_cluster_dynamic_config(&state.client_pool, resource_type, config_bytes.to_vec()).await
+    {
+        return error_response(format!("Failed to save config: {e}"));
     }
+
+    if let Err(e) =
+        update_cluster_dynamic_config(&state.broker_cache, resource_type, config_bytes).await
+    {
+        return error_response(format!("Failed to update in-memory config: {e}"));
+    }
+
     success_response("success")
 }
 
