@@ -12,24 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::tool::is_ignore_print;
 use crate::quic::stream::QuicFramedWriteStream;
 use axum::extract::ws::{Message, WebSocket};
-use common_base::error::{common::CommonError, ResultCommonError};
-use common_base::network::broker_not_available;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
-use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
-use protocol::mqtt::codec::MqttPacketWrapper;
-use protocol::robust::{RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol};
+use protocol::codec::RobustMQCodec;
+use protocol::robust::RobustMQProtocol;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio_util::codec::FramedWrite;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 type TcpWriter =
     Arc<Mutex<FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, RobustMQCodec>>>;
@@ -44,7 +40,7 @@ type TcpTlsWriter = Arc<
 type WebSocketWriter = Arc<Mutex<SplitSink<WebSocket, Message>>>;
 type QuicWriter = Arc<Mutex<QuicFramedWriteStream>>;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ConnectionManager {
     pub connections: DashMap<u64, NetworkConnection>,
     pub tcp_write_list: DashMap<u64, TcpWriter>,
@@ -53,12 +49,7 @@ pub struct ConnectionManager {
     pub quic_write_list: DashMap<u64, QuicWriter>,
 }
 
-impl Default for ConnectionManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
+// connection manager
 impl ConnectionManager {
     pub fn new() -> ConnectionManager {
         let connections = DashMap::with_capacity(64);
@@ -88,82 +79,6 @@ impl ConnectionManager {
     pub async fn mark_close_connect(&self, connection_id: u64) {
         if let Some(mut conn) = self.connections.get_mut(&connection_id) {
             conn.mark_close = now_second();
-        }
-    }
-
-    pub async fn close_all_connect(&self) {
-        for (connect_id, _) in self.connections.clone() {
-            self.close_connect(connect_id).await;
-        }
-    }
-
-    const CLOSE_TIMEOUT: Duration = Duration::from_secs(1);
-
-    pub async fn close_connect(&self, connection_id: u64) {
-        self.connections.remove(&connection_id);
-
-        if let Some((id, writer)) = self.tcp_write_list.remove(&connection_id) {
-            match tokio::time::timeout(Self::CLOSE_TIMEOUT, async {
-                let mut stream = writer.lock().await;
-                stream.close().await
-            })
-            .await
-            {
-                Ok(Ok(())) => debug!(
-                    "server closes the tcp connection actively, connection id [{}]",
-                    id
-                ),
-                Ok(Err(e)) => debug!("tcp close error for connection id [{}]: {}", id, e),
-                Err(_) => warn!(
-                    "tcp close timed out for connection id [{}], forcing drop",
-                    id
-                ),
-            }
-        }
-
-        if let Some((id, writer)) = self.tcp_tls_write_list.remove(&connection_id) {
-            match tokio::time::timeout(Self::CLOSE_TIMEOUT, async {
-                let mut stream = writer.lock().await;
-                stream.close().await
-            })
-            .await
-            {
-                Ok(Ok(())) => debug!(
-                    "server closes the tls connection actively, connection id [{}]",
-                    id
-                ),
-                Ok(Err(e)) => debug!("tls close error for connection id [{}]: {}", id, e),
-                Err(_) => warn!(
-                    "tls close timed out for connection id [{}], forcing drop",
-                    id
-                ),
-            }
-        }
-
-        if let Some((id, writer)) = self.websocket_write_list.remove(&connection_id) {
-            match tokio::time::timeout(Self::CLOSE_TIMEOUT, async {
-                let mut stream = writer.lock().await;
-                stream.close().await
-            })
-            .await
-            {
-                Ok(Ok(())) => debug!(
-                    "server closes the websocket connection actively, connection id [{}]",
-                    id
-                ),
-                Ok(Err(e)) => debug!("websocket close error for connection id [{}]: {}", id, e),
-                Err(_) => warn!(
-                    "websocket close timed out for connection id [{}], forcing drop",
-                    id
-                ),
-            }
-        }
-
-        if let Some((id, _writer)) = self.quic_write_list.remove(&connection_id) {
-            debug!(
-                "server closes the quic connection actively, connection id [{}]",
-                id
-            );
         }
     }
 
@@ -202,129 +117,14 @@ impl ConnectionManager {
         None
     }
 
-    pub fn get_tcp_connect_num_check(&self) -> u64 {
-        0
-    }
-
     pub fn report_heartbeat(&self, connect_id: u64, time: u64) {
         if let Some(mut connect) = self.connections.get_mut(&connect_id) {
             connect.set_heartbeat_time(time);
         }
     }
-
-    pub async fn connection_gc(&self) {
-        let now = now_second();
-        let gc_ids: Vec<u64> = self
-            .connections
-            .iter()
-            .filter_map(|entry| {
-                let conn = entry.value();
-                // Connection was explicitly marked for closure and the grace period (5s) has elapsed.
-                let marked_and_expired = conn.mark_close > 0 && (now - conn.mark_close) > 5;
-                // No heartbeat received for over 180s — treat as dead.
-                let heartbeat_timeout = now - conn.last_heartbeat_time > 180;
-                // Protocol handshake never completed within 30s — invalid connection.
-                let stale_no_protocol = conn.protocol.is_none() && (now - conn.create_time) > 30;
-                if marked_and_expired || heartbeat_timeout || stale_no_protocol {
-                    Some(conn.connection_id)
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        for id in gc_ids {
-            self.close_connect(id).await;
-        }
-    }
 }
 
-impl ConnectionManager {
-    pub async fn write_websocket_frame(
-        &self,
-        connection_id: u64,
-        packet_wrapper: RobustMQPacketWrapper,
-        resp: Message,
-    ) -> ResultCommonError {
-        if !is_ignore_print(&packet_wrapper.packet) {
-            debug!("WebSockets response packet:{packet_wrapper:?},connection_id:{connection_id}");
-        }
-
-        self.write_websocket_frame0(connection_id, resp).await
-    }
-
-    pub async fn write_tcp_frame(
-        &self,
-        connection_id: u64,
-        packet_wrapper: RobustMQPacketWrapper,
-    ) -> ResultCommonError {
-        if !is_ignore_print(&packet_wrapper.packet) {
-            info!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
-        }
-
-        if packet_wrapper.protocol.is_mqtt() {
-            if let RobustMQPacket::MQTT(pack) = packet_wrapper.packet {
-                let mqtt_packet = MqttPacketWrapper {
-                    protocol_version: packet_wrapper.protocol.to_u8(),
-                    packet: pack,
-                };
-
-                self.write_tcp_frame0(connection_id, RobustMQCodecWrapper::MQTT(mqtt_packet))
-                    .await?;
-                return Ok(());
-            }
-        }
-
-        if packet_wrapper.protocol.is_kafka() {
-            // todo
-        }
-
-        if packet_wrapper.protocol.is_engine() {
-            if let RobustMQPacket::StorageEngine(pack) = packet_wrapper.packet {
-                self.write_tcp_frame0(connection_id, RobustMQCodecWrapper::StorageEngine(pack))
-                    .await?;
-                return Ok(());
-            }
-        }
-        Ok(())
-    }
-
-    pub async fn write_quic_frame(
-        &self,
-        connection_id: u64,
-        packet_wrapper: RobustMQPacketWrapper,
-    ) -> ResultCommonError {
-        if !is_ignore_print(&packet_wrapper.packet) {
-            debug!("QUIC response packet:{packet_wrapper:?},connection_id:{connection_id}");
-        }
-
-        if packet_wrapper.protocol.is_mqtt() {
-            if let RobustMQPacket::MQTT(pack) = packet_wrapper.packet {
-                let mqtt_packet = MqttPacketWrapper {
-                    protocol_version: packet_wrapper.protocol.to_u8(),
-                    packet: pack,
-                };
-                self.write_quic_frame0(connection_id, RobustMQCodecWrapper::MQTT(mqtt_packet))
-                    .await?;
-                return Ok(());
-            }
-        }
-
-        if packet_wrapper.protocol.is_kafka() {
-            // todo
-        }
-
-        if packet_wrapper.protocol.is_engine() {
-            if let RobustMQPacket::StorageEngine(pack) = packet_wrapper.packet {
-                self.write_quic_frame0(connection_id, RobustMQCodecWrapper::StorageEngine(pack))
-                    .await?;
-                return Ok(());
-            }
-        }
-        Ok(())
-    }
-}
-
+// Add Write
 impl ConnectionManager {
     pub fn add_tcp_write(
         &self,
@@ -362,163 +162,10 @@ impl ConnectionManager {
             Arc::new(Mutex::new(quic_framed_write_stream)),
         );
     }
+}
 
-    async fn write_websocket_frame0(&self, connection_id: u64, resp: Message) -> ResultCommonError {
-        let writer = self
-            .websocket_write_list
-            .get(&connection_id)
-            .map(|entry| entry.value().clone());
-
-        match writer {
-            Some(writer) => {
-                let mut stream = writer.lock().await;
-                match stream.send(resp).await {
-                    Ok(_) => Ok(()),
-                    Err(e) => {
-                        if broker_not_available(&e.to_string()) {
-                            return Err(CommonError::CommonError(e.to_string()));
-                        }
-                        self.close_connect(connection_id).await;
-                        Err(CommonError::FailedToWriteClient(
-                            "websocket".to_string(),
-                            e.to_string(),
-                        ))
-                    }
-                }
-            }
-            None => {
-                debug!(
-                    "Write to websocket failed: connection {} not found, message: {:?}",
-                    connection_id, resp
-                );
-                Err(CommonError::NotObtainAvailableConnection(
-                    "websocket".to_string(),
-                    connection_id,
-                ))
-            }
-        }
-    }
-
-    async fn write_tcp_frame0(
-        &self,
-        connection_id: u64,
-        resp: RobustMQCodecWrapper,
-    ) -> ResultCommonError {
-        if let Some(connection) = self.get_connect(connection_id) {
-            if connection.connection_type == NetworkConnectionType::Tls {
-                return self.write_tcp_tls_frame(connection_id, resp).await;
-            }
-        }
-
-        let writer = self
-            .tcp_write_list
-            .get(&connection_id)
-            .map(|entry| entry.value().clone());
-
-        match writer {
-            Some(writer) => {
-                let mut stream = writer.lock().await;
-                match stream.send(resp).await {
-                    Ok(_) => Ok(()),
-                    Err(e) => {
-                        if broker_not_available(&e.to_string()) {
-                            return Err(CommonError::CommonError(e.to_string()));
-                        }
-                        self.close_connect(connection_id).await;
-                        Err(CommonError::FailedToWriteClient(
-                            "tcp".to_string(),
-                            e.to_string(),
-                        ))
-                    }
-                }
-            }
-            None => {
-                debug!(
-                    "Write to tcp skipped: connection {} not found, packet: {}",
-                    connection_id, resp
-                );
-                Err(CommonError::NotObtainAvailableConnection(
-                    "tcp".to_string(),
-                    connection_id,
-                ))
-            }
-        }
-    }
-
-    async fn write_tcp_tls_frame(
-        &self,
-        connection_id: u64,
-        resp: RobustMQCodecWrapper,
-    ) -> ResultCommonError {
-        let writer = self
-            .tcp_tls_write_list
-            .get(&connection_id)
-            .map(|entry| entry.value().clone());
-
-        match writer {
-            Some(writer) => {
-                let mut stream = writer.lock().await;
-                match stream.send(resp).await {
-                    Ok(_) => Ok(()),
-                    Err(e) => {
-                        self.close_connect(connection_id).await;
-                        Err(CommonError::FailedToWriteClient(
-                            "tls".to_string(),
-                            e.to_string(),
-                        ))
-                    }
-                }
-            }
-            None => {
-                debug!(
-                    "Write to tls skipped: connection {} not found, packet: {}",
-                    connection_id, resp
-                );
-                Err(CommonError::NotObtainAvailableConnection(
-                    "tls".to_string(),
-                    connection_id,
-                ))
-            }
-        }
-    }
-
-    async fn write_quic_frame0(
-        &self,
-        connection_id: u64,
-        resp: RobustMQCodecWrapper,
-    ) -> ResultCommonError {
-        let writer = self
-            .quic_write_list
-            .get(&connection_id)
-            .map(|entry| entry.value().clone());
-
-        match writer {
-            Some(writer) => {
-                let mut stream = writer.lock().await;
-                match stream.send(resp).await {
-                    Ok(_) => Ok(()),
-                    Err(e) => {
-                        self.close_connect(connection_id).await;
-                        Err(CommonError::FailedToWriteClient(
-                            "quic".to_string(),
-                            e.to_string(),
-                        ))
-                    }
-                }
-            }
-            None => {
-                debug!(
-                    "Write to quic skipped: connection {} not found, packet: {}",
-                    connection_id, resp
-                );
-                Err(CommonError::NotObtainAvailableConnection(
-                    "quic".to_string(),
-                    connection_id,
-                ))
-            }
-        }
-    }
-
+// Set Protocol
+impl ConnectionManager {
     pub fn set_mqtt_connect_protocol(&self, connect_id: u64, protocol: u8) {
         if let Some(mut connect) = self.connections.get_mut(&connect_id) {
             match protocol {
@@ -537,6 +184,113 @@ impl ConnectionManager {
             if connect.protocol.is_none() {
                 connect.set_protocol(RobustMQProtocol::StorageEngine);
             }
+        }
+    }
+}
+
+// close connect
+const CLOSE_TIMEOUT: Duration = Duration::from_secs(1);
+impl ConnectionManager {
+    pub async fn close_all_connect(&self) {
+        for (connect_id, _) in self.connections.clone() {
+            self.close_connect(connect_id).await;
+        }
+    }
+
+    pub async fn close_connect(&self, connection_id: u64) {
+        self.connections.remove(&connection_id);
+
+        if let Some((id, writer)) = self.tcp_write_list.remove(&connection_id) {
+            match tokio::time::timeout(CLOSE_TIMEOUT, async {
+                let mut stream = writer.lock().await;
+                stream.close().await
+            })
+            .await
+            {
+                Ok(Ok(())) => debug!(
+                    "server closes the tcp connection actively, connection id [{}]",
+                    id
+                ),
+                Ok(Err(e)) => debug!("tcp close error for connection id [{}]: {}", id, e),
+                Err(_) => warn!(
+                    "tcp close timed out for connection id [{}], forcing drop",
+                    id
+                ),
+            }
+        }
+
+        if let Some((id, writer)) = self.tcp_tls_write_list.remove(&connection_id) {
+            match tokio::time::timeout(CLOSE_TIMEOUT, async {
+                let mut stream = writer.lock().await;
+                stream.close().await
+            })
+            .await
+            {
+                Ok(Ok(())) => debug!(
+                    "server closes the tls connection actively, connection id [{}]",
+                    id
+                ),
+                Ok(Err(e)) => debug!("tls close error for connection id [{}]: {}", id, e),
+                Err(_) => warn!(
+                    "tls close timed out for connection id [{}], forcing drop",
+                    id
+                ),
+            }
+        }
+
+        if let Some((id, writer)) = self.websocket_write_list.remove(&connection_id) {
+            match tokio::time::timeout(CLOSE_TIMEOUT, async {
+                let mut stream = writer.lock().await;
+                stream.close().await
+            })
+            .await
+            {
+                Ok(Ok(())) => debug!(
+                    "server closes the websocket connection actively, connection id [{}]",
+                    id
+                ),
+                Ok(Err(e)) => debug!("websocket close error for connection id [{}]: {}", id, e),
+                Err(_) => warn!(
+                    "websocket close timed out for connection id [{}], forcing drop",
+                    id
+                ),
+            }
+        }
+
+        if let Some((id, _writer)) = self.quic_write_list.remove(&connection_id) {
+            debug!(
+                "server closes the quic connection actively, connection id [{}]",
+                id
+            );
+        }
+    }
+}
+
+// connection gc
+impl ConnectionManager {
+    pub async fn connection_gc(&self) {
+        let now = now_second();
+        let gc_ids: Vec<u64> = self
+            .connections
+            .iter()
+            .filter_map(|entry| {
+                let conn = entry.value();
+                // Connection was explicitly marked for closure and the grace period (5s) has elapsed.
+                let marked_and_expired = conn.mark_close > 0 && (now - conn.mark_close) > 5;
+                // No heartbeat received for over 180s — treat as dead.
+                let heartbeat_timeout = now - conn.last_heartbeat_time > 180;
+                // Protocol handshake never completed within 30s — invalid connection.
+                let stale_no_protocol = conn.protocol.is_none() && (now - conn.create_time) > 30;
+                if marked_and_expired || heartbeat_timeout || stale_no_protocol {
+                    Some(conn.connection_id)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for id in gc_ids {
+            self.close_connect(id).await;
         }
     }
 }
