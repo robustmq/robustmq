@@ -96,6 +96,22 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
                     return;
                 }
             }
+            if matches!(mode, ConnMode::Create) {
+                // release permit immediately after ConnAck so next connection can start
+                drop(permit);
+                let _ = client.disconnect().await;
+                // drain until disconnect is confirmed or error
+                let _ = tokio::time::timeout(Duration::from_secs(5), async {
+                    loop {
+                        match event_loop.poll().await {
+                            Ok(_) => {}
+                            Err(_) => return,
+                        }
+                    }
+                })
+                .await;
+                return;
+            }
             drop(permit);
             if matches!(mode, ConnMode::Hold) {
                 let _ = tokio::time::timeout(hold_duration_each, async {

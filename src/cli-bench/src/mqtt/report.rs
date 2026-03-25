@@ -156,6 +156,14 @@ impl BenchReport {
             format!("{:.3}", self.snapshot.latency_ms_p99)
         ]);
         table.add_row(row![
+            "🟣 latency_p999(ms)",
+            format!("{:.3}", self.snapshot.latency_ms_p999)
+        ]);
+        table.add_row(row![
+            "⚫ latency_p9999(ms)",
+            format!("{:.3}", self.snapshot.latency_ms_p9999)
+        ]);
+        table.add_row(row![
             "latency_min(ms)",
             format!("{:.3}", self.snapshot.latency_ms_min)
         ]);
@@ -182,7 +190,7 @@ pub fn print_realtime_line(
     snapshot: &StatsSnapshot,
 ) {
     println!(
-        "[{}] sec={} | ops/s={} | total={} | success={} | failed={} | timeout={} | recv={} | p95={:.3}ms p99={:.3}ms",
+        "[{}] sec={} | ops/s={} | total={} | success={} | failed={} | timeout={} | recv={} | p95={:.3}ms p99={:.3}ms p999={:.3}ms p9999={:.3}ms",
         stage,
         elapsed.as_secs(),
         delta_ops,
@@ -192,7 +200,9 @@ pub fn print_realtime_line(
         snapshot.timeout,
         snapshot.received,
         snapshot.latency_ms_p95,
-        snapshot.latency_ms_p99
+        snapshot.latency_ms_p99,
+        snapshot.latency_ms_p999,
+        snapshot.latency_ms_p9999
     );
 }
 

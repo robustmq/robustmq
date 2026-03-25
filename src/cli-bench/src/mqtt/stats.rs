@@ -83,21 +83,23 @@ impl SharedStats {
         let timeout = self.counters.timeout.load(Ordering::Relaxed);
         let received = self.counters.received.load(Ordering::Relaxed);
 
-        let (min, p50, p95, p99, max, mean) = if let Ok(h) = self.latency_us.lock() {
+        let (min, p50, p95, p99, p999, p9999, max, mean) = if let Ok(h) = self.latency_us.lock() {
             if h.is_empty() {
-                (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+                (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
             } else {
                 (
                     h.min() as f64 / 1000.0,
                     h.value_at_quantile(0.50) as f64 / 1000.0,
                     h.value_at_quantile(0.95) as f64 / 1000.0,
                     h.value_at_quantile(0.99) as f64 / 1000.0,
+                    h.value_at_quantile(0.999) as f64 / 1000.0,
+                    h.value_at_quantile(0.9999) as f64 / 1000.0,
                     h.max() as f64 / 1000.0,
                     h.mean() / 1000.0,
                 )
             }
         } else {
-            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
         };
 
         let errors = self.errors.lock().map(|m| m.clone()).unwrap_or_default();
@@ -111,6 +113,8 @@ impl SharedStats {
             latency_ms_p50: p50,
             latency_ms_p95: p95,
             latency_ms_p99: p99,
+            latency_ms_p999: p999,
+            latency_ms_p9999: p9999,
             latency_ms_max: max,
             latency_ms_avg: mean,
             errors,
@@ -134,6 +138,8 @@ pub struct StatsSnapshot {
     pub latency_ms_p50: f64,
     pub latency_ms_p95: f64,
     pub latency_ms_p99: f64,
+    pub latency_ms_p999: f64,
+    pub latency_ms_p9999: f64,
     pub latency_ms_max: f64,
     pub latency_ms_avg: f64,
     pub errors: BTreeMap<String, u64>,
