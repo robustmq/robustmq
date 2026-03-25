@@ -95,7 +95,7 @@ impl Default for BrokerServer {
 impl BrokerServer {
     pub fn new() -> Self {
         init_metrics();
-        let config = broker_config();
+        let config: &BrokerConfig = broker_config();
         let client_pool = Arc::new(ClientPool::new(config.runtime.channels_per_address));
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.rocksdb.data_path),
@@ -167,7 +167,6 @@ impl BrokerServer {
         // (core loop, log IO, state machine worker, etc.) are isolated from the
         // gRPC server_runtime, eliminating task-scheduler contention.
         let meta_params = meta_runtime.block_on(params::build_meta_service(
-            client_pool.clone(),
             rocksdb_engine_handler.clone(),
             delay_task_manager.clone(),
             node_call_manager.clone(),

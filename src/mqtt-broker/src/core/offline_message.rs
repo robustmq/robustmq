@@ -21,14 +21,15 @@ use super::{
     message::build_message_expire,
 };
 use crate::{
-    core::retain::RetainMessageManager, storage::message::MessageStorage,
+    core::{qos::save_temporary_qos2_message, retain::RetainMessageManager},
+    storage::message::MessageStorage,
     subscribe::manager::SubscribeManager,
 };
 use common_metrics::mqtt::publish::record_messages_dropped_no_subscribers_incr;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::{message::MqttMessage, topic::Topic};
-use protocol::mqtt::common::{Publish, PublishProperties};
+use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use storage_adapter::driver::StorageDriverManager;
 
 pub fn is_exist_subscribe(
@@ -128,10 +129,23 @@ async fn save_simple_message(
     if let Some(record) =
         MqttMessage::build_record(client_id, publish, publish_properties, message_expire)
     {
-        let message_storage = MessageStorage::new(storage_driver_manager.clone());
-        let offsets = message_storage
-            .append_topic_message(&topic.tenant, &topic.topic_name, vec![record])
-            .await?;
+        let offsets = if publish.qos == QoS::ExactlyOnce {
+            save_temporary_qos2_message(
+                storage_driver_manager,
+                &record,
+                &topic.tenant,
+                &topic.topic_name,
+                client_id,
+                publish.p_kid,
+            )
+            .await?
+        } else {
+            let message_storage = MessageStorage::new(storage_driver_manager.clone());
+            message_storage
+                .append_topic_message(&topic.tenant, &topic.topic_name, vec![record])
+                .await?
+        };
+
         return Ok(Some(format!("{offsets:?}")));
     }
 
