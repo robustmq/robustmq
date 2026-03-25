@@ -19,6 +19,7 @@ use crate::{command::ArcCommandAdapter, common::channel::RequestChannel};
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::error::client_unavailable_error_by_str;
+use common_base::task::TaskSupervisor;
 use common_base::tools::now_millis;
 use common_metrics::mqtt::packets::record_packet_send_metrics;
 use common_metrics::network::{
@@ -44,10 +45,12 @@ use tracing::{debug, error, warn};
 const HANDLER_APPLY_TIMEOUT_SECS: u64 = 30;
 
 pub fn handler_process(
+    handler_module: &str,
     handler_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
     command: ArcCommandAdapter,
     request_channel: Arc<RequestChannel>,
+    task_supervisor: Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     for index in 1..=handler_process_num {
@@ -57,7 +60,7 @@ pub fn handler_process(
         let receiver = request_channel.receiver.clone();
         let channel_size = request_channel.channel_size;
 
-        tokio::spawn(async move {
+        task_supervisor.spawn(format!("{}-{}",handler_module, index),async move {
             debug!(
                 "Server handler process thread {} start successfully.",
                 index

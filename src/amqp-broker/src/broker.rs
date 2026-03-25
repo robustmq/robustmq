@@ -14,6 +14,7 @@
 
 use crate::server::AmqpServer;
 use broker_core::cache::NodeCacheManager;
+use common_base::task::TaskSupervisor;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::context::ProcessorConfig;
@@ -30,6 +31,7 @@ pub struct AmqpBrokerServerParams {
     pub client_pool: Arc<ClientPool>,
     pub broker_cache: Arc<NodeCacheManager>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
+    pub task_supervisor: Arc<TaskSupervisor>,
     pub stop_sx: broadcast::Sender<bool>,
     pub proc_config: ProcessorConfig,
 }
@@ -42,6 +44,7 @@ impl AmqpBrokerServer {
     pub fn new(params: AmqpBrokerServerParams) -> Self {
         let server = AmqpServer::new(
             params.connection_manager,
+            params.task_supervisor.clone(),
             params.client_pool,
             params.broker_cache,
             params.global_limit_manager,

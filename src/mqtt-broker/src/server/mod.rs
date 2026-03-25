@@ -22,6 +22,7 @@ use crate::{
     subscribe::manager::SubscribeManager,
 };
 use broker_core::cache::NodeCacheManager;
+use common_base::task::TaskSupervisor;
 use common_config::broker::broker_config;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -54,6 +55,8 @@ pub struct Server {
     handler_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
     command: network_server::command::ArcCommandAdapter,
+
+    task_supervisor: Arc<TaskSupervisor>,
     request_channel: Arc<RequestChannel>,
     stop_sx: broadcast::Sender<bool>,
 }
@@ -74,6 +77,7 @@ pub struct TcpServerContext {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub broker_cache: Arc<NodeCacheManager>,
     pub mqtt_limit_manager: Arc<MQTTRateLimiterManager>,
+    pub task_supervisor: Arc<TaskSupervisor>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub node_call: Arc<NodeCallManager>,
 }
@@ -120,6 +124,7 @@ impl Server {
             broker_cache: context.broker_cache.clone(),
             request_channel: request_channel.clone(),
             global_limit_manager: context.global_limit_manager.clone(),
+            task_supervisor: context.task_supervisor.clone(),
         };
 
         let name = "MQTT".to_string();
@@ -153,6 +158,7 @@ impl Server {
             connection_manager: context.connection_manager,
             command,
             request_channel,
+            task_supervisor: context.task_supervisor.clone(),
             stop_sx: context.stop_sx,
         }
     }
@@ -162,10 +168,12 @@ impl Server {
 
         // Start the shared handler pool once for all protocols.
         handler_process(
+            "mqtt-broker-handler",
             self.handler_process_num,
             self.connection_manager.clone(),
             self.command.clone(),
             self.request_channel.clone(),
+            self.task_supervisor.clone(),
             self.stop_sx.clone(),
         );
 

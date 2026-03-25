@@ -177,6 +177,7 @@ pub fn build_storage_engine_params(
     connection_manager: Arc<NetworkConnectionManager>,
     offset_manager: Arc<OffsetManager>,
     global_limit_manager: Arc<GlobalRateLimiterManager>,
+    task_supervisor: Arc<TaskSupervisor>,
 ) -> StorageEngineParams {
     let config = broker_config();
 
@@ -212,6 +213,7 @@ pub fn build_storage_engine_params(
     StorageEngineParams {
         cache_manager,
         client_pool,
+        task_supervisor,
         rocksdb_engine_handler,
         connection_manager,
         client_connection_manager,

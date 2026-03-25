@@ -17,6 +17,7 @@ use crate::{
     common::{channel::RequestChannel, connection_manager::ConnectionManager},
 };
 use broker_core::cache::NodeCacheManager;
+use common_base::task::TaskSupervisor;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use rate_limit::global::GlobalRateLimiterManager;
@@ -42,4 +43,5 @@ pub struct ServerContext {
     pub stop_sx: broadcast::Sender<bool>,
     /// Shared request channel for all protocol acceptors.
     pub request_channel: Arc<RequestChannel>,
+    pub task_supervisor: Arc<TaskSupervisor>,
 }

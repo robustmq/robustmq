@@ -16,6 +16,7 @@ use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::tool::{check_connection_limit, read_packet};
 use broker_core::cache::NodeCacheManager;
+use common_base::task::TaskSupervisor;
 use common_metrics::mqtt::packets::record_received_error_metrics;
 use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
@@ -30,41 +31,31 @@ use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, error, info, warn};
 
-/// The `acceptor_process` function is responsible for accepting incoming TCP connections
-/// in an asynchronous manner. It utilizes multiple threads to handle the incoming connections
-/// concurrently, improving the server's ability to manage a high volume of connections.
-///
-/// # Parameters
-/// - `accept_thread_num`: The number of threads to spawn for accepting connections.
-/// - `connection_manager`: An `Arc`-wrapped `ConnectionManager` instance for managing all network connections.
-/// - `stop_sx`: A `broadcast::Sender` used to send stop signals to all acceptor threads.
-/// - `listener_arc`: An `Arc`-wrapped `TcpListener` for listening to and accepting TCP connections.
-/// - `request_queue_sx`: A `Sender` for sending `RequestPackage` instances to a processing queue.
-/// - `cache_manager`: An `Arc`-wrapped `CacheManager` for managing cache operations.
-/// - `network_connection_type`: An enum indicating the type of network connection.
-///
-#[allow(clippy::too_many_arguments)]
-pub async fn acceptor_process(
-    accept_thread_num: usize,
-    connection_manager: Arc<ConnectionManager>,
-    broker_cache: Arc<NodeCacheManager>,
-    stop_sx: broadcast::Sender<bool>,
-    listener_arc: Arc<TcpListener>,
-    request_channel: Arc<RequestChannel>,
-    global_limit_manager: Arc<GlobalRateLimiterManager>,
-    network_type: NetworkConnectionType,
-    codec: RobustMQCodec,
-) {
-    for index in 1..=accept_thread_num {
-        let listener = listener_arc.clone();
-        let connection_manager = connection_manager.clone();
-        let mut stop_rx = stop_sx.subscribe();
-        let request_channel = request_channel.clone();
-        let network_type = network_type.clone();
-        let row_codec = codec.clone();
-        let row_broker_cache = broker_cache.clone();
-        let row_global_limit_manager = global_limit_manager.clone();
-        tokio::spawn(async move {
+pub struct TcpAcceptorContext {
+    pub accept_thread_num: usize,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub broker_cache: Arc<NodeCacheManager>,
+    pub stop_sx: broadcast::Sender<bool>,
+    pub listener: Arc<TcpListener>,
+    pub request_channel: Arc<RequestChannel>,
+    pub global_limit_manager: Arc<GlobalRateLimiterManager>,
+    pub network_type: NetworkConnectionType,
+    pub codec: RobustMQCodec,
+    pub task_supervisor: Arc<TaskSupervisor>,
+}
+
+pub async fn acceptor_process(module_name: &str, ctx: TcpAcceptorContext) {
+    for index in 1..=ctx.accept_thread_num {
+        let listener = ctx.listener.clone();
+        let connection_manager = ctx.connection_manager.clone();
+        let mut stop_rx = ctx.stop_sx.subscribe();
+        let request_channel = ctx.request_channel.clone();
+        let network_type = ctx.network_type.clone();
+        let row_codec = ctx.codec.clone();
+        let row_broker_cache = ctx.broker_cache.clone();
+        let row_global_limit_manager = ctx.global_limit_manager.clone();
+        let task_name = format!("{}-{}-acceptor-{}", module_name, ctx.network_type, index);
+        ctx.task_supervisor.spawn(task_name, async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
                 network_type, index

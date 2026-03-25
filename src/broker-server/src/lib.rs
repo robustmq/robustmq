@@ -137,6 +137,7 @@ impl BrokerServer {
             connection_manager.clone(),
             offset_manager.clone(),
             global_rate_limiter.clone(),
+            task_supervisor.clone(),
         );
 
         // Create meta_runtime here so that Raft::new() (inside build_meta_service) is
@@ -219,6 +220,7 @@ impl BrokerServer {
             broker_cache: broker_cache.clone(),
             global_limit_manager: global_rate_limiter.clone(),
             stop_sx: main_stop_send.clone(),
+            task_supervisor: task_supervisor.clone(),
             proc_config: network_server::context::ProcessorConfig {
                 accept_thread_num: config.kafka_runtime.network.accept_thread_num,
                 handler_process_num: config.kafka_runtime.network.handler_thread_num,
@@ -231,6 +233,7 @@ impl BrokerServer {
             client_pool: client_pool.clone(),
             broker_cache: broker_cache.clone(),
             global_limit_manager: global_rate_limiter.clone(),
+            task_supervisor: task_supervisor.clone(),
             stop_sx: main_stop_send.clone(),
             proc_config: network_server::context::ProcessorConfig {
                 accept_thread_num: config.amqp_runtime.network.accept_thread_num,

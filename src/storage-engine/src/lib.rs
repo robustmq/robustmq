@@ -52,6 +52,7 @@ pub struct StorageEngineParams {
     pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     pub storage_engine_handler: Arc<StorageEngineHandler>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
+    pub task_supervisor: Arc<TaskSupervisor>,
 }
 
 pub struct StorageEngineServer {
@@ -83,9 +84,11 @@ impl StorageEngineServer {
                 rocksdb_storage_engine: params.rocksdb_storage_engine.clone(),
                 client_connection_manager: params.client_connection_manager.clone(),
                 global_limit_manager: params.global_limit_manager.clone(),
+                task_supervisor: params.task_supervisor.clone(),
             },
             stop.clone(),
         ));
+
         StorageEngineServer {
             client_pool: params.client_pool,
             cache_manager: params.cache_manager,

@@ -18,6 +18,7 @@ use crate::{
     filesegment::write::WriteManager, handler::command::StorageEngineHandlerCommand,
 };
 use broker_core::cache::NodeCacheManager;
+use common_base::task::TaskSupervisor;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
@@ -47,6 +48,7 @@ pub struct ServerParams {
     pub memory_storage_engine: Arc<MemoryStorageEngine>,
     pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     pub client_connection_manager: Arc<ClientConnectionManager>,
+    pub task_supervisor: Arc<TaskSupervisor>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
 }
 
@@ -56,6 +58,7 @@ pub struct Server {
     connection_manager: Arc<ConnectionManager>,
     command: ArcCommandAdapter,
     request_channel: Arc<RequestChannel>,
+    task_supervisor: Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
 }
 
@@ -91,6 +94,7 @@ impl Server {
             broker_cache: params.broker_cache.clone(),
             request_channel: request_channel.clone(),
             global_limit_manager: params.global_limit_manager.clone(),
+            task_supervisor: params.task_supervisor.clone(),
         };
 
         let name = "Storage Engine".to_string();
@@ -101,6 +105,7 @@ impl Server {
             connection_manager: params.connection_manager,
             command,
             request_channel,
+            task_supervisor: params.task_supervisor.clone(),
             stop_sx,
         }
     }
@@ -109,10 +114,12 @@ impl Server {
         let conf = broker_config();
 
         handler_process(
+            "storage-engine-handler",
             self.handler_process_num,
             self.connection_manager.clone(),
             self.command.clone(),
             self.request_channel.clone(),
+            self.task_supervisor.clone(),
             self.stop_sx.clone(),
         );
 

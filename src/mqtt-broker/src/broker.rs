@@ -128,6 +128,7 @@ impl MqttBrokerServer {
             mqtt_limit_manager: limit_manager.clone(),
             global_limit_manager: params.global_limit_manager.clone(),
             node_call: params.node_call.clone(),
+            task_supervisor: params.task_supervisor.clone(),
         }));
 
         MqttBrokerServer {

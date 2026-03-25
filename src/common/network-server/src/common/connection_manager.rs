@@ -276,19 +276,7 @@ impl ConnectionManager {
         }
 
         if packet_wrapper.protocol.is_kafka() {
-            if let RobustMQPacket::KAFKA(pack) = packet_wrapper.packet {
-                self.write_tcp_frame0(connection_id, RobustMQCodecWrapper::KAFKA(pack))
-                    .await?;
-                return Ok(());
-            }
-        }
-
-        if packet_wrapper.protocol.is_amqp() {
-            if let RobustMQPacket::AMQP(pack) = packet_wrapper.packet {
-                self.write_tcp_frame0(connection_id, RobustMQCodecWrapper::AMQP(pack))
-                    .await?;
-                return Ok(());
-            }
+            // todo
         }
 
         if packet_wrapper.protocol.is_engine() {
@@ -323,19 +311,7 @@ impl ConnectionManager {
         }
 
         if packet_wrapper.protocol.is_kafka() {
-            if let RobustMQPacket::KAFKA(pack) = packet_wrapper.packet {
-                self.write_quic_frame0(connection_id, RobustMQCodecWrapper::KAFKA(pack))
-                    .await?;
-                return Ok(());
-            }
-        }
-
-        if packet_wrapper.protocol.is_amqp() {
-            if let RobustMQPacket::AMQP(pack) = packet_wrapper.packet {
-                self.write_quic_frame0(connection_id, RobustMQCodecWrapper::AMQP(pack))
-                    .await?;
-                return Ok(());
-            }
+            // todo
         }
 
         if packet_wrapper.protocol.is_engine() {
