@@ -55,7 +55,6 @@ pub struct MqttService {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     retain_message_manager: Arc<RetainMessageManager>,
     limit_manager: Arc<MQTTRateLimiterManager>,
-    node_call: Arc<NodeCallManager>,
 }
 
 #[derive(Clone)]
@@ -103,7 +102,6 @@ impl MqttService {
             rocksdb_engine_handler: context.rocksdb_engine_handler,
             retain_message_manager: context.retain_message_manager,
             limit_manager: context.limit_manager,
-            node_call: context.node_call,
         }
     }
 }

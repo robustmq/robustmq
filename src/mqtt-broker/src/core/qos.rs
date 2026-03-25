@@ -20,7 +20,6 @@ use common_base::utils::serialize;
 use common_base::{tools::now_second, uuid::unique_id};
 use common_config::storage::StorageType;
 use connector::storage::message::MessageStorage;
-use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     mqtt::topic::Topic,
@@ -39,10 +38,10 @@ use tracing::info;
 pub const DELAY_QUEUE_MESSAGE_TOPIC: &str = "$sys/qos2-inner-topic";
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
-struct Qos2TemporaryMessage {
-    tenant: String,
-    topic: String,
-    record: AdapterWriteRecord,
+pub struct Qos2TemporaryMessage {
+    pub tenant: String,
+    pub topic: String,
+    pub record: AdapterWriteRecord,
 }
 
 pub async fn init_qos2_inner_topic(
@@ -113,23 +112,21 @@ pub async fn save_temporary_qos2_message(
     let offsets = message_storage
         .append_topic_message(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, vec![new_record])
         .await?;
-    return Ok(offsets);
+    Ok(offsets)
 }
 
-pub async fn persistent_save_qos2_message(
+pub async fn get_temporary_qos2_message(
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_id: &str,
     pkid: u16,
-) -> Result<u64, MqttBrokerError> {
+) -> Result<Option<Qos2TemporaryMessage>, MqttBrokerError> {
     let key = uniq_key(client_id, pkid);
     let results = storage_driver_manager
         .read_by_key(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, &key)
         .await?;
 
     if results.is_empty() {
-        return Err(MqttBrokerError::CommonError(format!(
-            "No temporary QoS2 message found for client_id: {client_id}, pkid: {pkid}"
-        )));
+        return Ok(None);
     }
 
     // Find the record with the largest offset (most recent re-publish)
@@ -146,6 +143,13 @@ pub async fn persistent_save_qos2_message(
     let qos2_msg: Qos2TemporaryMessage = serialize::deserialize(&record.data)
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
 
+    Ok(Some(qos2_msg))
+}
+
+pub async fn persistent_save_qos2_message(
+    storage_driver_manager: &Arc<StorageDriverManager>,
+    qos2_msg: Qos2TemporaryMessage,
+) -> Result<u64, MqttBrokerError> {
     let resp = storage_driver_manager
         .write(&qos2_msg.tenant, &qos2_msg.topic, &[qos2_msg.record])
         .await?;
@@ -166,7 +170,7 @@ pub async fn persistent_save_qos2_message(
     Ok(write_resp.offset)
 }
 
-pub async fn try_broadcast_get_pkid(
+pub async fn _try_broadcast_get_pkid(
     node_call: &Arc<NodeCallManager>,
     cache_manager: &Arc<MQTTCacheManager>,
     client_id: &str,
