@@ -341,6 +341,10 @@ impl MqttService {
             );
         }
 
+        self.cache_manager
+            .pkid_manager
+            .remove_qos_pkid_data(&connection.client_id, pub_rel.pkid);
+
         build_pub_comp(
             &self.cache_manager,
             connection.connect_id,
