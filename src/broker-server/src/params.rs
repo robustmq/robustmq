@@ -54,7 +54,6 @@ use tracing::error;
 /// Build [`MetaServiceServerParams`] on the caller's runtime so that all
 /// openraft internal tasks (spawned during `Raft::new`) land on that runtime.
 pub async fn build_meta_service(
-    client_pool: Arc<ClientPool>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     delay_task_manager: Arc<DelayTaskManager>,
     node_call_manager: Arc<NodeCallManager>,
@@ -62,7 +61,13 @@ pub async fn build_meta_service(
     task_supervisor: Arc<TaskSupervisor>,
 ) -> MetaServiceServerParams {
     let cache_manager = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
-
+    // network channels for interaction between raft state machines are independent and should not be crowded with other communications;
+    // otherwise, it will cause channel congestion.
+    // 1. When the client writes to the raft state machine, the state machine processes it slowly
+    // 2. Requests are piled up in grpc and cannot be sent out in raft state
+    // 3. The client writes more slowly, and raft cannot be sent out even more
+    let config = broker_config();
+    let client_pool = Arc::new(ClientPool::new(config.runtime.channels_per_address));
     let data_route = Arc::new(DataRoute::new(
         rocksdb_engine_handler.clone(),
         cache_manager.clone(),
@@ -172,6 +177,7 @@ pub fn build_storage_engine_params(
     connection_manager: Arc<NetworkConnectionManager>,
     offset_manager: Arc<OffsetManager>,
     global_limit_manager: Arc<GlobalRateLimiterManager>,
+    task_supervisor: Arc<TaskSupervisor>,
 ) -> StorageEngineParams {
     let config = broker_config();
 
@@ -207,6 +213,7 @@ pub fn build_storage_engine_params(
     StorageEngineParams {
         cache_manager,
         client_pool,
+        task_supervisor,
         rocksdb_engine_handler,
         connection_manager,
         client_connection_manager,

@@ -18,6 +18,7 @@ use crate::core::flapping_detect::clean_flapping_detect;
 use crate::core::keep_alive::ClientKeepAlive;
 use crate::core::metrics_cache::metrics_record_thread;
 use crate::core::pkid_manager::clean_pkid_data;
+use crate::core::qos::init_qos2_inner_topic;
 use crate::core::retain::RetainMessageManager;
 use crate::core::system_alarm::SystemAlarm;
 use crate::core::tool::ResultMqttBrokerError;
@@ -127,6 +128,7 @@ impl MqttBrokerServer {
             mqtt_limit_manager: limit_manager.clone(),
             global_limit_manager: params.global_limit_manager.clone(),
             node_call: params.node_call.clone(),
+            task_supervisor: params.task_supervisor.clone(),
         }));
 
         MqttBrokerServer {
@@ -165,6 +167,18 @@ impl MqttBrokerServer {
             try_init_default_tenant(&self.cache_manager.node_cache, &self.client_pool).await
         {
             error!("Failed to initialize default tenant: {}", e);
+            std::process::exit(1);
+        }
+
+        // init qos inner topic
+        if let Err(e) = init_qos2_inner_topic(
+            &self.client_pool,
+            &self.storage_driver_manager,
+            &self.cache_manager.node_cache,
+        )
+        .await
+        {
+            error!("Failed to initialize qot inner topic: {}", e);
             std::process::exit(1);
         }
 

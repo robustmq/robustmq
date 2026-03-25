@@ -15,6 +15,7 @@
 use crate::handler::command::create_command;
 use broker_core::cache::NodeCacheManager;
 use common_base::error::ResultCommonError;
+use common_base::task::TaskSupervisor;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::common::channel::RequestChannel;
@@ -31,6 +32,7 @@ pub struct KafkaServer {
     handler_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
     command: network_server::command::ArcCommandAdapter,
+    task_supervisor: Arc<TaskSupervisor>,
     request_channel: Arc<RequestChannel>,
     stop_sx: broadcast::Sender<bool>,
 }
@@ -41,6 +43,7 @@ impl KafkaServer {
         client_pool: Arc<ClientPool>,
         broker_cache: Arc<NodeCacheManager>,
         global_limit_manager: Arc<GlobalRateLimiterManager>,
+        task_supervisor: Arc<TaskSupervisor>,
         stop_sx: broadcast::Sender<bool>,
         proc_config: ProcessorConfig,
     ) -> Self {
@@ -57,6 +60,7 @@ impl KafkaServer {
             broker_cache,
             request_channel: request_channel.clone(),
             global_limit_manager,
+            task_supervisor: task_supervisor.clone(),
         };
 
         let tcp_server = TcpServer::new("KAFKA".to_string(), server_context);
@@ -66,6 +70,7 @@ impl KafkaServer {
             handler_process_num: proc_config.handler_process_num,
             connection_manager,
             command,
+            task_supervisor,
             request_channel,
             stop_sx,
         }
@@ -73,10 +78,12 @@ impl KafkaServer {
 
     pub async fn start(&self, port: u32) -> ResultCommonError {
         handler_process(
+            "kafka-broker-handler",
             self.handler_process_num,
             self.connection_manager.clone(),
             self.command.clone(),
             self.request_channel.clone(),
+            self.task_supervisor.clone(),
             self.stop_sx.clone(),
         );
 

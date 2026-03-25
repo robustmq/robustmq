@@ -19,6 +19,7 @@ use crate::{command::ArcCommandAdapter, common::channel::RequestChannel};
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::error::client_unavailable_error_by_str;
+use common_base::task::TaskSupervisor;
 use common_base::tools::now_millis;
 use common_metrics::mqtt::packets::record_packet_send_metrics;
 use common_metrics::network::{
@@ -44,10 +45,12 @@ use tracing::{debug, error, warn};
 const HANDLER_APPLY_TIMEOUT_SECS: u64 = 30;
 
 pub fn handler_process(
+    handler_module: &str,
     handler_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
     command: ArcCommandAdapter,
     request_channel: Arc<RequestChannel>,
+    task_supervisor: Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     for index in 1..=handler_process_num {
@@ -55,9 +58,10 @@ pub fn handler_process(
         let raw_command = command.clone();
         let mut raw_stop_rx = stop_sx.subscribe();
         let receiver = request_channel.receiver.clone();
+        let raw_handler_module = handler_module.to_string();
         let channel_size = request_channel.channel_size;
 
-        tokio::spawn(async move {
+        task_supervisor.spawn(format!("{}-{}",handler_module, index),async move {
             debug!(
                 "Server handler process thread {} start successfully.",
                 index
@@ -97,7 +101,7 @@ pub fn handler_process(
                                 let network_type = &packet.network_type;
                                 metrics_handler_queue_wait_ms(network_type, queue_wait_ms as f64);
 
-                                match tokio::time::timeout(
+                                if tokio::time::timeout(
                                     Duration::from_secs(HANDLER_APPLY_TIMEOUT_SECS),
                                     handle_packet(
                                         &raw_connect_manager,
@@ -108,24 +112,22 @@ pub fn handler_process(
                                     ),
                                 )
                                 .await
+                                .is_err()
                                 {
-                                    Ok(()) => {}
-                                    Err(_) => {
-                                        metrics_handler_timeout_count(network_type);
-                                        error!(
-                                            connection_id = packet.connection_id,
-                                            addr = %packet.addr,
-                                            timeout_secs = HANDLER_APPLY_TIMEOUT_SECS,
-                                            "Handler apply timeout: packet processing exceeded {}s",
-                                            HANDLER_APPLY_TIMEOUT_SECS
-                                        );
-                                    }
+                                    metrics_handler_timeout_count(network_type);
+                                    error!(
+                                        connection_id = packet.connection_id,
+                                        addr = %packet.addr,
+                                        timeout_secs = HANDLER_APPLY_TIMEOUT_SECS,
+                                        "Handler apply timeout: packet processing exceeded {}s",
+                                        HANDLER_APPLY_TIMEOUT_SECS
+                                    );
                                 }
                             }
                             Err(_) => {
                                 debug!(
-                                    "Server handler process thread {} request channel closed, exiting.",
-                                    index
+                                    "{} server handler process thread {} request channel closed, exiting.",
+                                    raw_handler_module, index
                                 );
                                 break;
                             }

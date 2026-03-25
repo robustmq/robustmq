@@ -95,7 +95,7 @@ impl Default for BrokerServer {
 impl BrokerServer {
     pub fn new() -> Self {
         init_metrics();
-        let config = broker_config();
+        let config: &BrokerConfig = broker_config();
         let client_pool = Arc::new(ClientPool::new(config.runtime.channels_per_address));
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.rocksdb.data_path),
@@ -137,6 +137,7 @@ impl BrokerServer {
             connection_manager.clone(),
             offset_manager.clone(),
             global_rate_limiter.clone(),
+            task_supervisor.clone(),
         );
 
         // Create meta_runtime here so that Raft::new() (inside build_meta_service) is
@@ -167,7 +168,6 @@ impl BrokerServer {
         // (core loop, log IO, state machine worker, etc.) are isolated from the
         // gRPC server_runtime, eliminating task-scheduler contention.
         let meta_params = meta_runtime.block_on(params::build_meta_service(
-            client_pool.clone(),
             rocksdb_engine_handler.clone(),
             delay_task_manager.clone(),
             node_call_manager.clone(),
@@ -220,6 +220,7 @@ impl BrokerServer {
             broker_cache: broker_cache.clone(),
             global_limit_manager: global_rate_limiter.clone(),
             stop_sx: main_stop_send.clone(),
+            task_supervisor: task_supervisor.clone(),
             proc_config: network_server::context::ProcessorConfig {
                 accept_thread_num: config.kafka_runtime.network.accept_thread_num,
                 handler_process_num: config.kafka_runtime.network.handler_thread_num,
@@ -232,6 +233,7 @@ impl BrokerServer {
             client_pool: client_pool.clone(),
             broker_cache: broker_cache.clone(),
             global_limit_manager: global_rate_limiter.clone(),
+            task_supervisor: task_supervisor.clone(),
             stop_sx: main_stop_send.clone(),
             proc_config: network_server::context::ProcessorConfig {
                 accept_thread_num: config.amqp_runtime.network.accept_thread_num,

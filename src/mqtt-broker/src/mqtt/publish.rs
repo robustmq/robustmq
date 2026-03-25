@@ -22,7 +22,7 @@ use crate::core::limit::qos_flight_message_num_limit;
 use crate::core::metrics::record_publish_receive_metrics;
 use crate::core::offline_message::{save_message, SaveMessageContext};
 use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
-use crate::core::qos::try_broadcast_get_pkid;
+use crate::core::qos::{get_temporary_qos2_message, persistent_save_qos2_message};
 use crate::core::topic::{get_topic_name, try_init_topic};
 use common_base::tools::now_second;
 use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
@@ -297,44 +297,48 @@ impl MqttService {
         pub_rel: &PubRel,
         _: &Option<PubRelProperties>,
     ) -> MqttPacket {
-        if self
-            .cache_manager
-            .pkid_manager
-            .get_qos_pkid_data(&connection.client_id, pub_rel.pkid)
-            .is_none()
+        let data = match get_temporary_qos2_message(
+            &self.storage_driver_manager,
+            &connection.client_id,
+            pub_rel.pkid,
+        )
+        .await
         {
-            match try_broadcast_get_pkid(
-                &self.node_call,
-                &self.cache_manager,
-                &connection.client_id,
-                pub_rel.pkid,
-            )
-            .await
-            {
-                Ok(Some(_data)) => {}
-                Ok(None) => {
-                    return build_pub_comp(
-                        &self.cache_manager,
-                        connection.connect_id,
-                        &self.protocol,
-                        pub_rel.pkid,
-                        PubCompReason::PacketIdentifierNotFound,
-                        Some("packet identifier not found".to_string()),
-                        Vec::new(),
-                    );
-                }
-                Err(e) => {
-                    return build_pub_comp(
-                        &self.cache_manager,
-                        connection.connect_id,
-                        &self.protocol,
-                        pub_rel.pkid,
-                        PubCompReason::PacketIdentifierNotFound,
-                        Some(e.to_string()),
-                        Vec::new(),
-                    );
-                }
+            Ok(Some(data)) => data,
+            Ok(None) => {
+                return build_pub_comp(
+                    &self.cache_manager,
+                    connection.connect_id,
+                    &self.protocol,
+                    pub_rel.pkid,
+                    PubCompReason::PacketIdentifierNotFound,
+                    Some("packet identifier not found".to_string()),
+                    Vec::new(),
+                );
             }
+            Err(e) => {
+                return build_pub_comp(
+                    &self.cache_manager,
+                    connection.connect_id,
+                    &self.protocol,
+                    pub_rel.pkid,
+                    PubCompReason::PacketIdentifierNotFound,
+                    Some(e.to_string()),
+                    Vec::new(),
+                );
+            }
+        };
+
+        if let Err(e) = persistent_save_qos2_message(&self.storage_driver_manager, data).await {
+            return build_pub_comp(
+                &self.cache_manager,
+                connection.connect_id,
+                &self.protocol,
+                pub_rel.pkid,
+                PubCompReason::PacketIdentifierNotFound,
+                Some(e.to_string()),
+                Vec::new(),
+            );
         }
 
         self.cache_manager

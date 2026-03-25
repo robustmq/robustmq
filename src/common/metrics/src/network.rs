@@ -108,6 +108,20 @@ register_gauge_metric!(
     NetworkLabel
 );
 
+register_gauge_metric!(
+    WRITE_TIMEOUT_TOTAL,
+    "write_timeout_total",
+    "Total number of write timeouts: socket send blocked beyond the deadline, connection closed",
+    NetworkLabel
+);
+
+register_histogram_metric_ms_with_default_buckets!(
+    WRITE_CLIENT_MS,
+    "write_client_ms",
+    "Time spent writing a response to the client socket (ms)",
+    NetworkLabel
+);
+
 // ── Per-handler-instance metrics ────────────────────────────────────────────
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
@@ -218,6 +232,20 @@ pub fn metrics_handler_instance_apply_ms(handler_index: usize, ms: f64) {
     histogram_metric_observe!(HANDLER_INSTANCE_APPLY_MS, ms, label);
 }
 
+pub fn metrics_write_timeout_count(network: &NetworkConnectionType) {
+    let label = NetworkLabel {
+        network: network.to_string(),
+    };
+    gauge_metric_inc_by!(WRITE_TIMEOUT_TOTAL, label, 1);
+}
+
+pub fn metrics_write_client_ms(network: &NetworkConnectionType, ms: f64) {
+    let label = NetworkLabel {
+        network: network.to_string(),
+    };
+    histogram_metric_observe!(WRITE_CLIENT_MS, ms, label);
+}
+
 /// Pre-register all network metrics (Gauges + Histograms) for every known
 /// `NetworkConnectionType` so they appear in `/metrics` on startup.
 pub fn init() {
@@ -234,6 +262,16 @@ pub fn init() {
             network: net.to_string(),
         };
         gauge_metric_set!(HANDLER_TIMEOUT_TOTAL, label, 0);
+        let label = NetworkLabel {
+            network: net.to_string(),
+        };
+        gauge_metric_set!(WRITE_TIMEOUT_TOTAL, label, 0);
+        histogram_metric_touch!(
+            WRITE_CLIENT_MS,
+            NetworkLabel {
+                network: net.to_string()
+            }
+        );
 
         // Latency histograms — pre-register so bucket series exist from startup
         histogram_metric_touch!(

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 pub mod delay;
-pub mod driver;
 pub mod handler;
 pub mod manager;
 pub mod pop;

@@ -15,6 +15,7 @@
 use crate::handler::command::create_command;
 use broker_core::cache::NodeCacheManager;
 use common_base::error::ResultCommonError;
+use common_base::task::TaskSupervisor;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::common::channel::RequestChannel;
@@ -31,6 +32,7 @@ pub struct AmqpServer {
     handler_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
     command: network_server::command::ArcCommandAdapter,
+    task_supervisor: Arc<TaskSupervisor>,
     request_channel: Arc<RequestChannel>,
     stop_sx: broadcast::Sender<bool>,
 }
@@ -38,6 +40,7 @@ pub struct AmqpServer {
 impl AmqpServer {
     pub fn new(
         connection_manager: Arc<ConnectionManager>,
+        task_supervisor: Arc<TaskSupervisor>,
         client_pool: Arc<ClientPool>,
         broker_cache: Arc<NodeCacheManager>,
         global_limit_manager: Arc<GlobalRateLimiterManager>,
@@ -57,6 +60,7 @@ impl AmqpServer {
             broker_cache,
             request_channel: request_channel.clone(),
             global_limit_manager,
+            task_supervisor: task_supervisor.clone(),
         };
 
         let tcp_server = TcpServer::new("AMQP".to_string(), server_context);
@@ -67,16 +71,19 @@ impl AmqpServer {
             connection_manager,
             command,
             request_channel,
+            task_supervisor,
             stop_sx,
         }
     }
 
     pub async fn start(&self, port: u32) -> ResultCommonError {
         handler_process(
+            "amqp-broker-handler",
             self.handler_process_num,
             self.connection_manager.clone(),
             self.command.clone(),
             self.request_channel.clone(),
+            self.task_supervisor.clone(),
             self.stop_sx.clone(),
         );
 

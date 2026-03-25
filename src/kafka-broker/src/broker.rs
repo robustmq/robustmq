@@ -14,6 +14,7 @@
 
 use crate::server::KafkaServer;
 use broker_core::cache::NodeCacheManager;
+use common_base::task::TaskSupervisor;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::context::ProcessorConfig;
@@ -30,6 +31,7 @@ pub struct KafkaBrokerServerParams {
     pub client_pool: Arc<ClientPool>,
     pub broker_cache: Arc<NodeCacheManager>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
+    pub task_supervisor: Arc<TaskSupervisor>,
     pub stop_sx: broadcast::Sender<bool>,
     pub proc_config: ProcessorConfig,
 }
@@ -45,6 +47,7 @@ impl KafkaBrokerServer {
             params.client_pool,
             params.broker_cache,
             params.global_limit_manager,
+            params.task_supervisor,
             params.stop_sx,
             params.proc_config,
         );

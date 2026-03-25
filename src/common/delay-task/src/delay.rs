@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::driver::build_delay_task_shard_config;
 use crate::manager::DelayTaskManager;
 use crate::{DelayTask, DELAY_TASK_INDEX_TOPIC};
 use broker_core::cache::NodeCacheManager;
@@ -24,6 +23,7 @@ use common_base::uuid::unique_id;
 use common_config::storage::StorageType;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::shard::EngineShardConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -106,7 +106,12 @@ pub(crate) async fn init_inner_topic(
         storage_name_list: Topic::create_partition_name(&uid, 1),
         create_time: now_second(),
     };
-    let shard_config = build_delay_task_shard_config(&StorageType::EngineRocksDB)?;
+    let shard_config = EngineShardConfig {
+        replica_num: 1,
+        retention_sec: 86400,
+        storage_type: StorageType::EngineRocksDB,
+        max_segment_size: 1025 * 1024 * 1024,
+    };
     create_topic_full(
         broker_cache,
         &delay_task_manager.storage_driver_manager,
