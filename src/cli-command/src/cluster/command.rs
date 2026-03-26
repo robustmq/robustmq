@@ -16,8 +16,9 @@ use crate::mqtt::pub_sub::error_info;
 use crate::output::OutputFormat;
 use admin_server::{
     client::AdminHttpClient,
-    cluster::{tenant::TenantListRow, ClusterConfigSetReq},
+    cluster::{tenant::TenantListRow, ClusterConfigSetReq, ClusterInfoResp},
 };
+use chrono::{Local, TimeZone};
 use common_config::config::BrokerConfig;
 use prettytable::{row, Table};
 use serde::Serialize;
@@ -162,8 +163,85 @@ impl ClusterCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
         match admin_client.get_status().await {
             Ok(raw) => {
-                let _ = params.output;
-                println!("{raw}");
+                if matches!(params.output, OutputFormat::Json) {
+                    match serde_json::from_str::<serde_json::Value>(&raw) {
+                        Ok(v) => println!("{}", serde_json::to_string_pretty(&v).unwrap_or(raw)),
+                        Err(_) => println!("{raw}"),
+                    }
+                    return;
+                }
+                // Parse into ClusterInfoResp for table output
+                let info: ClusterInfoResp = match serde_json::from_str::<serde_json::Value>(&raw)
+                    .ok()
+                    .and_then(|v| v.get("data").cloned())
+                    .and_then(|d| serde_json::from_value(d).ok())
+                {
+                    Some(v) => v,
+                    None => {
+                        println!("{raw}");
+                        return;
+                    }
+                };
+
+                // ── Cluster Info ──────────────────────────────────────────
+                println!("Cluster: {}", info.cluster_name);
+                println!("Version: {}", info.version);
+                println!("Started: {}", format_timestamp(info.start_time),);
+                let mut nodes: Vec<String> = info.nodes.into_iter().collect();
+                nodes.sort();
+                println!("Nodes:   {}", nodes.join(", "));
+                println!();
+
+                // ── Broker Nodes ──────────────────────────────────────────
+                println!("=== Broker Nodes ===");
+                let mut node_table = Table::new();
+                node_table.set_titles(row![
+                    "node_id",
+                    "ip",
+                    "roles",
+                    "grpc_addr",
+                    "mqtt_addr",
+                    "start_time"
+                ]);
+                for node in &info.broker_node_list {
+                    let roles = node.roles.join(",");
+                    let mqtt_addr = node.extend.mqtt.mqtt_addr.as_str();
+                    node_table.add_row(row![
+                        node.node_id,
+                        node.node_ip,
+                        roles,
+                        node.grpc_addr,
+                        mqtt_addr,
+                        format_timestamp(node.start_time),
+                    ]);
+                }
+                node_table.printstd();
+                println!();
+
+                // ── Raft Shards ───────────────────────────────────────────
+                println!("=== Raft Shards ===");
+                let mut raft_table = Table::new();
+                raft_table.set_titles(row![
+                    "shard",
+                    "state",
+                    "leader",
+                    "term",
+                    "log_index",
+                    "applied"
+                ]);
+                let mut shards: Vec<(&String, _)> = info.meta.iter().collect();
+                shards.sort_by_key(|(k, _)| *k);
+                for (shard, status) in shards {
+                    raft_table.add_row(row![
+                        shard,
+                        status.state,
+                        status.current_leader,
+                        status.current_term,
+                        status.last_log_index,
+                        status.last_applied.index,
+                    ]);
+                }
+                raft_table.printstd();
             }
             Err(e) => error_info(e.to_string()),
         }
@@ -236,5 +314,12 @@ impl ClusterCommand {
                 error_info(e.to_string());
             }
         }
+    }
+}
+
+fn format_timestamp(secs: u64) -> String {
+    match Local.timestamp_opt(secs as i64, 0) {
+        chrono::LocalResult::Single(dt) => dt.format("%Y-%m-%d %H:%M:%S").to_string(),
+        _ => secs.to_string(),
     }
 }
