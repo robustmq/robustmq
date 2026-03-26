@@ -15,7 +15,7 @@
 use crate::core::pkid_manager::PkidManager;
 use crate::security::auth::metadata::AclMetadata;
 use broker_core::cache::NodeCacheManager;
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
@@ -95,11 +95,17 @@ pub struct MQTTCacheManager {
     // (tenant, (username, User))
     pub user_info: DashMap<String, DashMap<String, MqttUser>>,
 
-    // (tenant, (client_id, Session))
-    pub session_info: DashMap<String, DashMap<String, MqttSession>>,
+    // (client_id, Session)
+    pub session_info: DashMap<String, MqttSession>,
 
-    // (tenant, (connect_id, Connection))
-    pub connection_info: DashMap<String, DashMap<u64, MQTTConnection>>,
+    // (tenant, Set<client_id>) — index for O(1) tenant-scoped queries
+    pub tenant_session_index: DashMap<String, DashSet<String>>,
+
+    // (connect_id, Connection)
+    pub connection_info: DashMap<u64, MQTTConnection>,
+
+    // (tenant, Set<connect_id>) — index for O(1) tenant-scoped queries
+    pub tenant_connection_index: DashMap<String, DashSet<u64>>,
 
     pub authn_list: DashMap<String, AuthnConfig>,
 
@@ -132,8 +138,10 @@ impl MQTTCacheManager {
             client_pool,
             node_cache: broker_cache,
             user_info: DashMap::with_capacity(8),
-            session_info: DashMap::with_capacity(8),
-            connection_info: DashMap::with_capacity(8),
+            session_info: DashMap::with_capacity(1024),
+            tenant_session_index: DashMap::with_capacity(8),
+            connection_info: DashMap::with_capacity(1024),
+            tenant_connection_index: DashMap::with_capacity(8),
             heartbeat_data: DashMap::with_capacity(8),
             acl_metadata: AclMetadata::new(),
             pkid_manager: PkidManager::new(),
@@ -148,55 +156,43 @@ impl MQTTCacheManager {
 
     // session
     pub fn get_session_client_id_list(&self) -> Vec<String> {
-        self.session_info
-            .iter()
-            .flat_map(|tenant_entry| {
-                tenant_entry
-                    .value()
-                    .iter()
-                    .map(|session| session.client_id.clone())
-                    .collect::<Vec<_>>()
-            })
-            .collect()
+        self.session_info.iter().map(|e| e.key().clone()).collect()
     }
 
     pub fn add_session(&self, client_id: &str, session: &MqttSession) {
-        self.session_info
+        self.tenant_session_index
             .entry(session.tenant.clone())
             .or_default()
+            .insert(client_id.to_owned());
+        self.session_info
             .insert(client_id.to_owned(), session.to_owned());
     }
 
     pub fn get_session_info(&self, client_id: &str) -> Option<MqttSession> {
-        for tenant_entry in self.session_info.iter() {
-            if let Some(session) = tenant_entry.value().get(client_id) {
-                return Some(session.clone());
-            }
-        }
-        None
+        self.session_info.get(client_id).map(|s| s.clone())
     }
 
     pub fn get_session_info_by_tenant(&self, tenant: &str, client_id: &str) -> Option<MqttSession> {
         self.session_info
-            .get(tenant)
-            .and_then(|m| m.get(client_id).map(|s| s.clone()))
+            .get(client_id)
+            .filter(|s| s.tenant == tenant)
+            .map(|s| s.clone())
     }
 
     pub fn update_session_connect_id(&self, client_id: &str, connect_id: Option<u64>) {
-        for tenant_entry in self.session_info.iter() {
-            if let Some(mut session) = tenant_entry.value().get_mut(client_id) {
-                session.update_connection_id(connect_id);
-                if connect_id.is_none() {
-                    session.update_distinct_time()
-                }
-                return;
+        if let Some(mut session) = self.session_info.get_mut(client_id) {
+            session.update_connection_id(connect_id);
+            if connect_id.is_none() {
+                session.update_distinct_time()
             }
         }
     }
 
     pub fn remove_session(&self, client_id: &str) {
-        for tenant_entry in self.session_info.iter() {
-            tenant_entry.value().remove(client_id);
+        if let Some((_, session)) = self.session_info.remove(client_id) {
+            if let Some(set) = self.tenant_session_index.get(&session.tenant) {
+                set.remove(client_id);
+            }
         }
         self.heartbeat_data.remove(client_id);
         self.pkid_manager.remove_by_client_id(client_id);
@@ -218,21 +214,21 @@ impl MQTTCacheManager {
 
     // connection
     pub fn add_connection(&self, connect_id: u64, conn: MQTTConnection) {
-        for tenant_entry in self.session_info.iter() {
-            if let Some(mut session) = tenant_entry.value().get_mut(&conn.client_id) {
-                session.connection_id = Some(connect_id);
-                self.connection_info
-                    .entry(conn.tenant.clone())
-                    .or_default()
-                    .insert(connect_id, conn);
-                return;
-            }
+        self.tenant_connection_index
+            .entry(conn.tenant.clone())
+            .or_default()
+            .insert(connect_id);
+        if let Some(mut session) = self.session_info.get_mut(&conn.client_id) {
+            session.update_connection_id(Some(connect_id));
         }
+        self.connection_info.insert(connect_id, conn);
     }
 
     pub fn remove_connection(&self, connect_id: u64) {
-        for tenant_entry in self.connection_info.iter() {
-            tenant_entry.value().remove(&connect_id);
+        if let Some((_, conn)) = self.connection_info.remove(&connect_id) {
+            if let Some(set) = self.tenant_connection_index.get(&conn.tenant) {
+                set.remove(&connect_id);
+            }
         }
     }
 
@@ -244,33 +240,28 @@ impl MQTTCacheManager {
     }
 
     pub fn get_connection(&self, connect_id: u64) -> Option<MQTTConnection> {
-        for tenant_entry in self.connection_info.iter() {
-            if let Some(conn) = tenant_entry.value().get(&connect_id) {
-                return Some(conn.clone());
-            }
-        }
-        None
+        self.connection_info.get(&connect_id).map(|c| c.clone())
     }
 
     pub fn session_count(&self) -> usize {
-        self.session_info.iter().map(|e| e.value().len()).sum()
+        self.session_info.len()
     }
 
     pub fn session_count_by_tenant(&self, tenant: &str) -> usize {
-        self.session_info
+        self.tenant_session_index
             .get(tenant)
-            .map(|e| e.value().len())
+            .map(|s| s.len())
             .unwrap_or(0)
     }
 
     pub fn get_connection_count(&self) -> usize {
-        self.connection_info.iter().map(|e| e.value().len()).sum()
+        self.connection_info.len()
     }
 
     pub fn get_connection_count_by_tenant(&self, tenant: &str) -> usize {
-        self.connection_info
+        self.tenant_connection_index
             .get(tenant)
-            .map(|e| e.value().len())
+            .map(|s| s.len())
             .unwrap_or(0)
     }
 
@@ -336,40 +327,30 @@ impl MQTTCacheManager {
     }
 
     pub fn login_success(&self, connect_id: u64, user_name: String) {
-        for tenant_entry in self.connection_info.iter() {
-            if let Some(mut conn) = tenant_entry.value().get_mut(&connect_id) {
-                conn.login_success(user_name);
-                return;
-            }
+        if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
+            conn.login_success(user_name);
         }
     }
 
     pub fn is_login(&self, connect_id: u64) -> bool {
-        for tenant_entry in self.connection_info.iter() {
-            if let Some(conn) = tenant_entry.value().get(&connect_id) {
-                return conn.is_login;
-            }
-        }
-        false
+        self.connection_info
+            .get(&connect_id)
+            .map(|c| c.is_login)
+            .unwrap_or(false)
     }
 
     // topic alias
     pub fn get_topic_alias(&self, connect_id: u64, topic_alias: u16) -> Option<String> {
-        for tenant_entry in self.connection_info.iter() {
-            if let Some(conn) = tenant_entry.value().get(&connect_id) {
-                return conn.topic_alias.get(&topic_alias).map(|v| v.clone());
-            }
-        }
-        None
+        self.connection_info
+            .get(&connect_id)
+            .and_then(|c| c.topic_alias.get(&topic_alias).map(|v| v.clone()))
     }
 
     pub fn topic_alias_exists(&self, connect_id: u64, topic_alias: u16) -> bool {
-        for tenant_entry in self.connection_info.iter() {
-            if let Some(conn) = tenant_entry.value().get(&connect_id) {
-                return conn.topic_alias.contains_key(&topic_alias);
-            }
-        }
-        false
+        self.connection_info
+            .get(&connect_id)
+            .map(|c| c.topic_alias.contains_key(&topic_alias))
+            .unwrap_or(false)
     }
 
     pub fn add_topic_alias(
@@ -380,11 +361,8 @@ impl MQTTCacheManager {
     ) {
         if let Some(properties) = publish_properties {
             if let Some(alias) = properties.topic_alias {
-                for tenant_entry in self.connection_info.iter() {
-                    if let Some(conn) = tenant_entry.value().get_mut(&connect_id) {
-                        conn.topic_alias.insert(alias, topic_name.to_owned());
-                        return;
-                    }
+                if let Some(conn) = self.connection_info.get_mut(&connect_id) {
+                    conn.topic_alias.insert(alias, topic_name.to_owned());
                 }
             }
         }

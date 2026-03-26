@@ -51,6 +51,7 @@ pub struct ClientListRow {
     pub heartbeat: Option<ConnectionLiveTime>,
 }
 use axum::extract::Query;
+use mqtt_broker::core::cache::MQTTCacheManager;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -75,13 +76,14 @@ pub async fn client_list(
     );
 
     let cache = &state.mqtt_context.cache_manager;
-    let total_count = cache.get_connection_count();
+    let total_count = if let Some(tenant) = params.tenant.as_deref() {
+        cache.get_connection_count_by_tenant(tenant)
+    } else {
+        cache.get_connection_count()
+    };
 
-    let sample = sample_connections_up_to_100(
-        &cache.connection_info,
-        params.tenant.as_deref(),
-        params.client_id.as_deref(),
-    );
+    let sample =
+        sample_connections_up_to_100(cache, params.tenant.as_deref(), params.client_id.as_deref());
 
     let sorted = apply_sorting(sample, &options);
     let pagination = apply_pagination(sorted, &options);
@@ -111,50 +113,53 @@ pub async fn client_list(
 }
 
 fn sample_connections_up_to_100(
-    connection_info: &dashmap::DashMap<String, dashmap::DashMap<u64, MQTTConnection>>,
+    cache: &MQTTCacheManager,
     filter_tenant: Option<&str>,
     filter_client_id: Option<&str>,
 ) -> Vec<ClientListRowLite> {
     let mut sample = Vec::with_capacity(MAX_SAMPLE_SIZE);
 
     if let Some(tenant) = filter_tenant {
-        if let Some(inner) = connection_info.get(tenant) {
-            collect_connections(inner.value(), &mut sample, filter_client_id);
+        // Use the index to iterate only over connect_ids belonging to this tenant
+        if let Some(id_set) = cache.tenant_connection_index.get(tenant) {
+            for connect_id in id_set.iter() {
+                if sample.len() >= MAX_SAMPLE_SIZE {
+                    break;
+                }
+                if let Some(conn) = cache.connection_info.get(&*connect_id) {
+                    if let Some(keyword) = filter_client_id {
+                        if !conn.client_id.contains(keyword) {
+                            continue;
+                        }
+                    }
+                    sample.push(ClientListRowLite {
+                        connection_id: *connect_id,
+                        client_id: conn.client_id.clone(),
+                        mqtt_connection: conn.clone(),
+                    });
+                }
+            }
         }
     } else {
-        for tenant_entry in connection_info.iter() {
-            collect_connections(tenant_entry.value(), &mut sample, filter_client_id);
+        for entry in cache.connection_info.iter() {
             if sample.len() >= MAX_SAMPLE_SIZE {
                 break;
             }
+            let conn = entry.value();
+            if let Some(keyword) = filter_client_id {
+                if !conn.client_id.contains(keyword) {
+                    continue;
+                }
+            }
+            sample.push(ClientListRowLite {
+                connection_id: *entry.key(),
+                client_id: conn.client_id.clone(),
+                mqtt_connection: conn.clone(),
+            });
         }
     }
 
     sample
-}
-
-fn collect_connections(
-    inner: &dashmap::DashMap<u64, MQTTConnection>,
-    out: &mut Vec<ClientListRowLite>,
-    filter_client_id: Option<&str>,
-) {
-    for inner_entry in inner.iter() {
-        if out.len() >= MAX_SAMPLE_SIZE {
-            break;
-        }
-        let connection_id = *inner_entry.key();
-        let mqtt_client = inner_entry.value();
-        if let Some(keyword) = filter_client_id {
-            if !mqtt_client.client_id.contains(keyword) {
-                continue;
-            }
-        }
-        out.push(ClientListRowLite {
-            connection_id,
-            client_id: mqtt_client.client_id.clone(),
-            mqtt_connection: mqtt_client.clone(),
-        });
-    }
 }
 
 impl Queryable for ClientListRowLite {

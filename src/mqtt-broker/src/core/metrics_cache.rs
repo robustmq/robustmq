@@ -197,14 +197,7 @@ async fn record_session_metrics(
     let pairs: Vec<(String, String)> = cache_manager
         .session_info
         .iter()
-        .flat_map(|tenant_entry| {
-            let tenant = tenant_entry.key().clone();
-            tenant_entry
-                .value()
-                .iter()
-                .map(|session_entry| (tenant.clone(), session_entry.key().clone()))
-                .collect::<Vec<_>>()
-        })
+        .map(|e| (e.value().tenant.clone(), e.key().clone()))
         .collect();
 
     for (tenant, client_id) in pairs {

@@ -76,11 +76,8 @@ pub async fn session_list(
 
     let cache = &state.mqtt_context.cache_manager;
 
-    let sample = sample_sessions_up_to_100(
-        &cache.session_info,
-        filter_tenant.as_deref(),
-        filter_client_id.as_deref(),
-    );
+    let sample =
+        sample_sessions_up_to_100(cache, filter_tenant.as_deref(), filter_client_id.as_deref());
 
     let total_count = sample.len();
 
@@ -119,43 +116,39 @@ pub async fn session_list(
 }
 
 /// Collects up to MAX_SAMPLE_SIZE (100) sessions from the cache, optionally filtered by
-/// tenant and client_id prefix. When no tenant is specified, iterates across all tenants.
+/// tenant and client_id prefix. When tenant is specified, uses the index for O(1) lookup.
 fn sample_sessions_up_to_100(
-    session_info: &dashmap::DashMap<String, dashmap::DashMap<String, MqttSession>>,
+    cache: &mqtt_broker::core::cache::MQTTCacheManager,
     filter_tenant: Option<&str>,
     filter_client_id: Option<&str>,
 ) -> Vec<MqttSession> {
     let mut sample = Vec::with_capacity(MAX_SAMPLE_SIZE);
 
     if let Some(tenant) = filter_tenant {
-        if let Some(inner) = session_info.get(tenant) {
-            collect_sessions(inner.value(), &mut sample, filter_client_id);
+        if let Some(id_set) = cache.tenant_session_index.get(tenant) {
+            for client_id in id_set.iter() {
+                if sample.len() >= MAX_SAMPLE_SIZE {
+                    break;
+                }
+                if let Some(session) = cache.session_info.get(&*client_id) {
+                    if session_matches(session.value(), filter_client_id) {
+                        sample.push(session.clone());
+                    }
+                }
+            }
         }
     } else {
-        for tenant_entry in session_info.iter() {
-            collect_sessions(tenant_entry.value(), &mut sample, filter_client_id);
+        for entry in cache.session_info.iter() {
             if sample.len() >= MAX_SAMPLE_SIZE {
                 break;
+            }
+            if session_matches(entry.value(), filter_client_id) {
+                sample.push(entry.value().clone());
             }
         }
     }
 
     sample
-}
-
-fn collect_sessions(
-    inner: &dashmap::DashMap<String, MqttSession>,
-    out: &mut Vec<MqttSession>,
-    filter_client_id: Option<&str>,
-) {
-    for entry in inner.iter() {
-        if out.len() >= MAX_SAMPLE_SIZE {
-            break;
-        }
-        if session_matches(entry.value(), filter_client_id) {
-            out.push(entry.value().clone());
-        }
-    }
 }
 
 fn session_matches(session: &MqttSession, filter_client_id: Option<&str>) -> bool {

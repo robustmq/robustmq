@@ -22,6 +22,16 @@ pub mod subscribe;
 use crate::error::BenchMarkError;
 use clap::{Parser, Subcommand, ValueEnum};
 
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum MqttVersion {
+    /// MQTT v3.1.1
+    #[value(name = "4")]
+    V4,
+    /// MQTT v5.0
+    #[value(name = "5")]
+    V5,
+}
+
 #[derive(Debug, Parser)]
 pub struct MqttBenchArgs {
     #[command(subcommand)]
@@ -59,6 +69,8 @@ pub struct CommonMqttBenchArgs {
     pub password: Option<String>,
     #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
     pub output: OutputFormat,
+    #[arg(long, value_enum, default_value_t = MqttVersion::V4)]
+    pub mqtt_version: MqttVersion,
 }
 
 #[derive(Debug, Clone, ValueEnum)]

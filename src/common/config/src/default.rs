@@ -242,7 +242,7 @@ pub fn default_handler_thread_num() -> usize {
     64
 }
 pub fn default_queue_size() -> usize {
-    5000
+    2000
 }
 
 // Rocksdb
