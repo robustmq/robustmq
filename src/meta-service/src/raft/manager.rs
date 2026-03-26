@@ -22,7 +22,7 @@ use crate::raft::route::DataRoute;
 use crate::raft::type_config::Node;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
-use common_metrics::meta::raft::record_raft_apply_lag;
+use common_metrics::meta::raft::{init_raft_shards, record_raft_apply_lag};
 use grpc_clients::pool::ClientPool;
 use openraft::raft::ClientWriteResponse;
 use openraft::{Config, Raft};
@@ -101,6 +101,8 @@ impl MultiRaftManager {
             "Initializing Multi-Raft: metadata=1, offset={}, data={}",
             meta_rt.offset_raft_group_num, meta_rt.data_raft_group_num
         );
+        init_raft_shards(meta_rt.offset_raft_group_num, meta_rt.data_raft_group_num);
+
         let metadata = RaftGroup::new(
             "metadata",
             1,

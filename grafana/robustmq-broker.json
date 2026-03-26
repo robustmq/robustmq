@@ -5217,35 +5217,11 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "raft_apply_lag{machine=\"metadata\"}",
+              "expr": "raft_apply_lag",
               "instant": false,
-              "legendFormat": "metadata",
+              "legendFormat": "{{machine}}",
               "range": true,
               "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "raft_apply_lag{machine=\"mqtt\"}",
-              "instant": false,
-              "legendFormat": "mqtt",
-              "range": true,
-              "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "raft_apply_lag{machine=\"offset\"}",
-              "instant": false,
-              "legendFormat": "offset",
-              "range": true,
-              "refId": "C"
             }
           ],
           "title": "Raft Apply Lag (log - applied)",
