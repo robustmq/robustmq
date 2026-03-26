@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::storage::local::LocalStorage;
-use crate::system_topic::sysmon::st_report_system_alarm_alert;
+use crate::system_topic::report_system_data;
 use crate::{core::cache::MQTTCacheManager, core::tool::ResultMqttBrokerError};
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
@@ -26,6 +26,9 @@ use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use system_info::{process_cpu_usage, process_memory_usage};
 use tokio::sync::broadcast;
+
+// System alarm
+pub const SYSTEM_TOPIC_BROKERS_ALARMS_ALERT: &str = "$SYS/brokers/alarms/alert";
 
 #[allow(clippy::enum_variant_names)]
 enum AlarmType {
@@ -115,13 +118,16 @@ impl SystemAlarm {
                 create_time: now_second(),
                 activated: true,
             };
-            st_report_system_alarm_alert(
+
+            let raw_message = message.clone();
+            report_system_data(
                 &self.client_pool,
                 &self.metadata_cache,
                 &self.storage_driver_manager,
-                &message,
+                SYSTEM_TOPIC_BROKERS_ALARMS_ALERT,
+                || async move { raw_message.clone() },
             )
-            .await?;
+            .await;
             let log_storage = LocalStorage::new(self.rocksdb_engine_handler.clone());
             log_storage.save_system_event(message).await?;
         }

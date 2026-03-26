@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-
+use crate::core::cache::MQTTCacheManager;
+use crate::system_topic::{
+    build_system_topic_payload, write_topic_data, SYSTEM_TOPIC_BROKERS_CONNECTED,
+    SYSTEM_TOPIC_BROKERS_DISCONNECTED, SYSTEM_TOPIC_BROKERS_SUBSCRIBED,
+    SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED,
+};
 use common_base::tools::now_millis;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::MQTTConnection;
@@ -23,15 +26,10 @@ use metadata_struct::mqtt::session::MqttSession;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{DisconnectReasonCode, Subscribe, Unsubscribe};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::{error, warn};
-
-use super::{
-    build_system_topic_payload, write_topic_data, SYSTEM_TOPIC_BROKERS_CONNECTED,
-    SYSTEM_TOPIC_BROKERS_DISCONNECTED, SYSTEM_TOPIC_BROKERS_SUBSCRIBED,
-    SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED,
-};
-use crate::core::cache::MQTTCacheManager;
 
 #[derive(Clone)]
 pub struct StReportDisconnectedEventContext {

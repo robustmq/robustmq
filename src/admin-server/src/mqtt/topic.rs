@@ -196,12 +196,7 @@ fn collect_topics(
         broker_cache
             .topic_list
             .iter()
-            .flat_map(|e| {
-                e.value()
-                    .iter()
-                    .map(|t| t.value().clone())
-                    .collect::<Vec<_>>()
-            })
+            .map(|e| e.value().clone())
             .collect()
     };
 

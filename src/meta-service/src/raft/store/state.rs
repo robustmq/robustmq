@@ -32,6 +32,7 @@ use rocksdb::{BoundColumnFamily, DB};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::sync::Arc;
 use std::time::Instant;
+use tracing::warn;
 
 fn sto_read(e: &(impl std::error::Error + 'static)) -> StorageError<NodeId> {
     StorageIOError::<NodeId>::read(e).into()
@@ -190,27 +191,36 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         let entries = entries.into_iter();
         let mut replies = Vec::with_capacity(entries.size_hint().0);
 
+        let mut total_route_ms = 0.0f64;
+        let mut total_membership_ms = 0.0f64;
+
         for ent in entries {
             let mut resp_value = None;
 
             match ent.payload {
                 EntryPayload::Blank => {}
-                EntryPayload::Normal(req) => match self.data.route.route(&req).await {
-                    Ok(data) => {
-                        resp_value = data;
+                EntryPayload::Normal(req) => {
+                    let t = Instant::now();
+                    match self.data.route.route(&req).await {
+                        Ok(data) => {
+                            resp_value = data;
+                        }
+                        Err(e) => {
+                            use tracing::error;
+                            error!(
+                                "[{}] Failed to apply log {}: {}, req type: {:?}",
+                                self.machine, ent.log_id.index, e, req.data_type
+                            );
+                            return Err(sto_write(&e));
+                        }
                     }
-                    Err(e) => {
-                        use tracing::error;
-                        error!(
-                            "[{}] Failed to apply log {}: {}, req type: {:?}",
-                            self.machine, ent.log_id.index, e, req.data_type
-                        );
-                        return Err(sto_write(&e));
-                    }
-                },
+                    total_route_ms += t.elapsed().as_secs_f64() * 1000.0;
+                }
                 EntryPayload::Membership(mem) => {
+                    let t = Instant::now();
                     self.data.last_membership = StoredMembership::new(Some(ent.log_id), mem);
                     self.set_last_membership_(&self.data.last_membership)?;
+                    total_membership_ms += t.elapsed().as_secs_f64() * 1000.0;
                 }
             }
 
@@ -218,12 +228,21 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
             replies.push(AppResponseData { value: resp_value });
         }
 
+        let t = Instant::now();
         if let Some(last_log_id) = self.data.last_applied_log_id {
             self.set_last_applied_(Some(last_log_id))?;
         }
+        let set_last_applied_ms = t.elapsed().as_secs_f64() * 1000.0;
 
         let batch_ms = batch_start.elapsed().as_secs_f64() * 1000.0;
         record_apply_batch_duration(&self.machine, batch_ms);
+
+        if batch_ms > 20.0 {
+            warn!(
+                "[{}] apply batch slow: total={:.2}ms route={:.2}ms membership={:.2}ms set_last_applied={:.2}ms",
+                self.machine, batch_ms, total_route_ms, total_membership_ms, set_last_applied_ms
+            );
+        }
 
         Ok(replies)
     }

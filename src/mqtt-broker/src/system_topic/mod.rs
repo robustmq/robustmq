@@ -101,15 +101,9 @@ pub const SYSTEM_TOPIC_BROKERS_DISCONNECTED: &str = "$SYS/brokers/clients/discon
 pub const SYSTEM_TOPIC_BROKERS_SUBSCRIBED: &str = "$SYS/brokers/clients/subscribed";
 pub const SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED: &str = "$SYS/brokers/clients/unsubscribed";
 
-// System alarm
-pub const SYSTEM_TOPIC_BROKERS_ALARMS_ALERT: &str = "$SYS/brokers/alarms/alert";
-pub const SYSTEM_TOPIC_BROKERS_ALARMS_CLEAR: &str = "$SYS/brokers/alarms/clear";
-
 pub mod broker;
-pub mod event;
 pub mod packet;
 pub mod stats;
-pub mod sysmon;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SystemTopicEnvelope<T> {
@@ -272,9 +266,6 @@ impl SystemTopic {
             // topics stats (missing from original)
             SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT.to_string(),
             SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX.to_string(),
-            // ALARM
-            SYSTEM_TOPIC_BROKERS_ALARMS_ALERT.to_string(),
-            SYSTEM_TOPIC_BROKERS_ALARMS_CLEAR.to_string(),
         ]
     }
 }

@@ -14,7 +14,7 @@
 
 use common_base::{node_status::NodeStatus, tools::now_second};
 use common_config::config::BrokerConfig;
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use metadata_struct::{
     meta::node::BrokerNode,
     mqtt::{session::MqttSession, topic::Topic},
@@ -39,11 +39,15 @@ pub struct NodeCacheManager {
     // (cluster_name, Cluster)
     pub cluster_config: Arc<RwLock<BrokerConfig>>,
 
-    // (tenant, (topic_name, Topic))
-    pub topic_list: DashMap<String, DashMap<String, Topic>>,
+    // ("{tenant}/{topic_name}", Topic)
+    pub topic_list: DashMap<String, Topic>,
+    // tenant -> {"{tenant}/{topic_name}"}
+    pub topic_tenant_index: DashMap<String, DashSet<String>>,
 
-    // (tenant, (client_id, MqttSession))
-    pub session_list: DashMap<String, DashMap<String, MqttSession>>,
+    // ("{tenant}/{client_id}", MqttSession)
+    pub session_list: DashMap<String, MqttSession>,
+    // tenant -> {"{tenant}/{client_id}"}
+    pub session_tenant_index: DashMap<String, DashSet<String>>,
 
     // (cluster_name, Status)
     pub status: Arc<RwLock<NodeStatus>>,
@@ -57,8 +61,10 @@ impl NodeCacheManager {
             node_lists: DashMap::with_capacity(2),
             cluster_config: Arc::new(RwLock::new(cluster)),
             status: Arc::new(RwLock::new(NodeStatus::Starting)),
-            session_list: DashMap::with_capacity(8),
-            topic_list: DashMap::with_capacity(2),
+            session_list: DashMap::new(),
+            session_tenant_index: DashMap::with_capacity(8),
+            topic_list: DashMap::new(),
+            topic_tenant_index: DashMap::with_capacity(8),
         }
     }
 
@@ -97,88 +103,92 @@ impl NodeCacheManager {
 
     // Session
     pub fn add_session(&self, session: MqttSession) {
-        self.session_list
+        let key = format!("{}/{}", session.tenant, session.client_id);
+        self.session_tenant_index
             .entry(session.tenant.clone())
             .or_default()
-            .insert(session.client_id.clone(), session);
+            .insert(key.clone());
+        self.session_list.insert(key, session);
     }
 
     pub fn delete_session(&self, tenant: &str, client_id: &str) {
-        if let Some(tenant_map) = self.session_list.get(tenant) {
-            tenant_map.remove(client_id);
+        let key = format!("{tenant}/{client_id}");
+        self.session_list.remove(&key);
+        if let Some(set) = self.session_tenant_index.get(tenant) {
+            set.remove(&key);
         }
     }
 
     pub fn get_session(&self, tenant: &str, client_id: &str) -> Option<MqttSession> {
-        self.session_list
-            .get(tenant)?
-            .get(client_id)
-            .map(|s| s.clone())
+        let key = format!("{tenant}/{client_id}");
+        self.session_list.get(&key).map(|s| s.clone())
     }
 
     pub fn list_sessions_by_tenant(&self, tenant: &str) -> Vec<MqttSession> {
-        self.session_list
+        self.session_tenant_index
             .get(tenant)
-            .map(|tenant_map| tenant_map.iter().map(|e| e.value().clone()).collect())
+            .map(|keys| {
+                keys.iter()
+                    .filter_map(|k| self.session_list.get(k.as_str()).map(|s| s.clone()))
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
     // Topic
     pub fn add_topic(&self, topic: &Topic) {
-        self.topic_list
+        let key = format!("{}/{}", topic.tenant, topic.topic_name);
+        self.topic_tenant_index
             .entry(topic.tenant.clone())
             .or_default()
-            .insert(topic.topic_name.clone(), topic.clone());
+            .insert(key.clone());
+        self.topic_list.insert(key, topic.clone());
     }
 
     pub fn delete_topic(&self, tenant: &str, topic_name: &str) {
-        if let Some(tenant_map) = self.topic_list.get(tenant) {
-            tenant_map.remove(topic_name);
+        let key = format!("{tenant}/{topic_name}");
+        self.topic_list.remove(&key);
+        if let Some(set) = self.topic_tenant_index.get(tenant) {
+            set.remove(&key);
         }
     }
 
     pub fn topic_exists(&self, tenant: &str, topic_name: &str) -> bool {
-        self.topic_list
-            .get(tenant)
-            .map(|m| m.contains_key(topic_name))
-            .unwrap_or(false)
+        let key = format!("{tenant}/{topic_name}");
+        self.topic_list.contains_key(&key)
     }
 
     pub fn get_topic_by_name(&self, tenant: &str, topic_name: &str) -> Option<Topic> {
-        self.topic_list
-            .get(tenant)?
-            .get(topic_name)
-            .map(|t| t.clone())
+        let key = format!("{tenant}/{topic_name}");
+        self.topic_list.get(&key).map(|t| t.clone())
     }
 
     pub fn list_topics_by_tenant(&self, tenant: &str) -> Vec<Topic> {
-        self.topic_list
+        self.topic_tenant_index
             .get(tenant)
-            .map(|m| m.iter().map(|e| e.value().clone()).collect())
+            .map(|keys| {
+                keys.iter()
+                    .filter_map(|k| self.topic_list.get(k.as_str()).map(|t| t.clone()))
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
     pub fn get_all_topic_name(&self) -> Vec<String> {
         self.topic_list
             .iter()
-            .flat_map(|entry| {
-                entry
-                    .value()
-                    .iter()
-                    .map(|t| t.topic_name.clone())
-                    .collect::<Vec<_>>()
-            })
+            .map(|e| e.value().topic_name.clone())
             .collect()
     }
 
     pub fn topic_count(&self) -> usize {
-        self.topic_list.iter().map(|e| e.value().len()).sum()
+        self.topic_list.len()
     }
 
     pub fn topic_count_by_tenant(&self, tenant: &str) -> usize {
-        self.topic_list
+        self.topic_tenant_index
             .get(tenant)
-            .map(|e| e.value().len())
+            .map(|s| s.len())
             .unwrap_or(0)
     }
 

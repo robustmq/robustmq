@@ -159,21 +159,17 @@ pub async fn get_sub_topic_name_list(
     let mut result = Vec::new();
     if is_wildcards(sub_path) {
         if let Ok(regex) = build_sub_path_regex(sub_path) {
-            for tenant_entry in metadata_cache.node_cache.topic_list.iter() {
-                for topic_entry in tenant_entry.value().iter() {
-                    if regex.is_match(&topic_entry.value().topic_name) {
-                        result.push(topic_entry.value().topic_name.clone());
-                    }
+            for entry in metadata_cache.node_cache.topic_list.iter() {
+                if regex.is_match(&entry.value().topic_name) {
+                    result.push(entry.value().topic_name.clone());
                 }
             }
         }
     } else {
-        'outer: for tenant_entry in metadata_cache.node_cache.topic_list.iter() {
-            for topic_entry in tenant_entry.value().iter() {
-                if topic_entry.value().topic_name == *sub_path {
-                    result.push(topic_entry.value().topic_name.clone());
-                    break 'outer;
-                }
+        for entry in metadata_cache.node_cache.topic_list.iter() {
+            if entry.value().topic_name == *sub_path {
+                result.push(entry.value().topic_name.clone());
+                break;
             }
         }
     }

@@ -20,6 +20,7 @@ pub mod content_type;
 pub mod delay_message;
 pub mod dynamic_cache;
 pub mod error;
+pub mod event;
 pub mod flapping_detect;
 pub mod inner;
 pub mod keep_alive;

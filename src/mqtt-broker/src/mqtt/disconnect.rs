@@ -17,7 +17,7 @@ use crate::core::cache::MQTTCacheManager;
 use crate::core::connection::{
     disconnect_connection, is_request_problem_info, DisconnectConnectionContext,
 };
-use crate::system_topic::event::{st_report_disconnected_event, StReportDisconnectedEventContext};
+use crate::core::event::{st_report_disconnected_event, StReportDisconnectedEventContext};
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
     Disconnect, DisconnectProperties, DisconnectReasonCode, MqttPacket, MqttProtocol,

@@ -26,7 +26,7 @@ use crate::core::string_validator::{validate_client_id, validate_password, valid
 use crate::core::sub_auto::try_auto_subscribe;
 use crate::core::tenant::{get_tenant_info, try_decode_client_id};
 use crate::core::topic::topic_name_validator;
-use crate::system_topic::event::{st_report_connected_event, StReportConnectedEventContext};
+use crate::core::event::{st_report_connected_event, StReportConnectedEventContext};
 use common_base::tools::now_second;
 use common_config::config::BrokerConfig;
 use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
@@ -35,11 +35,17 @@ use protocol::mqtt::common::{
     LastWillProperties, Login, MqttPacket, MqttProtocol,
 };
 use std::cmp::min;
+use std::time::Instant;
 use tracing::warn;
 
 impl MqttService {
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
+        let start = Instant::now();
+        let connect_id = context.connect_id;
+
+        let t = Instant::now();
         let cluster = self.cache_manager.node_cache.get_cluster_config().await;
+        let get_cluster_ms = t.elapsed().as_secs_f64() * 1000.0;
 
         if let Some(res) = connect_validator(
             &self.protocol,
@@ -92,16 +98,19 @@ impl MqttService {
             }
         };
 
+        let t = Instant::now();
         if let Some(pkt) = self
             .check_connection_limit(&tenant.tenant_name, &context.connect_properties)
             .await
         {
             return pkt;
         }
+        let check_limit_ms = t.elapsed().as_secs_f64() * 1000.0;
 
         client_id = try_decode_client_id(&client_id);
 
         // build connection
+        let t = Instant::now();
         let connection = build_connection(
             &tenant.tenant_name,
             context.connect_id,
@@ -112,8 +121,10 @@ impl MqttService {
             &context.addr,
         )
         .await;
+        let build_connection_ms = t.elapsed().as_secs_f64() * 1000.0;
 
         // flapping detect check
+        let t = Instant::now();
         if cluster.mqtt_flapping_detect.enable {
             if let Err(e) = check_flapping_detect(
                 &tenant.tenant_name,
@@ -131,8 +142,10 @@ impl MqttService {
                 );
             }
         }
+        let flapping_ms = t.elapsed().as_secs_f64() * 1000.0;
 
         // auth check
+        let t = Instant::now();
         if self
             .auth_driver
             .connect_check(
@@ -149,8 +162,10 @@ impl MqttService {
                 Some("client is banned".to_string()),
             );
         }
+        let connect_check_ms = t.elapsed().as_secs_f64() * 1000.0;
 
         // login check
+        let t = Instant::now();
         match self
             .auth_driver
             .login_check(&context.login, &context.connect_properties)
@@ -177,8 +192,10 @@ impl MqttService {
                 );
             }
         }
+        let login_check_ms = t.elapsed().as_secs_f64() * 1000.0;
 
         // session process
+        let t = Instant::now();
         let (session, new_session) = match session_process(
             &self.protocol,
             BuildSessionContext {
@@ -207,7 +224,9 @@ impl MqttService {
                 );
             }
         };
+        let session_process_ms = t.elapsed().as_secs_f64() * 1000.0;
 
+        let t = Instant::now();
         if let Err(e) = save_last_will_message(
             client_id.clone(),
             &context.last_will,
@@ -223,7 +242,9 @@ impl MqttService {
                 Some(e.to_string()),
             );
         }
+        let last_will_ms = t.elapsed().as_secs_f64() * 1000.0;
 
+        let t = Instant::now();
         if let Err(e) = try_auto_subscribe(
             client_id.clone(),
             &tenant.tenant_name,
@@ -243,7 +264,9 @@ impl MqttService {
                 Some(e.to_string()),
             );
         }
+        let auto_subscribe_ms = t.elapsed().as_secs_f64() * 1000.0;
 
+        let t = Instant::now();
         let live_time = ConnectionLiveTime {
             protocol: self.protocol.clone(),
             keep_live: context.connect.keep_alive,
@@ -251,21 +274,33 @@ impl MqttService {
         };
         self.cache_manager
             .report_heartbeat(client_id.clone(), live_time);
-
         self.cache_manager.add_session(&client_id, &session);
         self.cache_manager
             .add_connection(context.connect_id, connection.clone());
+        let add_cache_ms = t.elapsed().as_secs_f64() * 1000.0;
 
-        st_report_connected_event(StReportConnectedEventContext {
-            storage_driver_manager: self.storage_driver_manager.clone(),
-            metadata_cache: self.cache_manager.clone(),
-            client_pool: self.client_pool.clone(),
-            session: session.clone(),
-            connection: connection.clone(),
-            connect_id: context.connect_id,
-            connection_manager: self.connection_manager.clone(),
-        })
-        .await;
+        let t = Instant::now();
+        // st_report_connected_event(StReportConnectedEventContext {
+        //     storage_driver_manager: self.storage_driver_manager.clone(),
+        //     metadata_cache: self.cache_manager.clone(),
+        //     client_pool: self.client_pool.clone(),
+        //     session: session.clone(),
+        //     connection: connection.clone(),
+        //     connect_id: context.connect_id,
+        //     connection_manager: self.connection_manager.clone(),
+        // })
+        // .await;
+        let st_report_ms = t.elapsed().as_secs_f64() * 1000.0;
+
+        let total_ms = start.elapsed().as_secs_f64() * 1000.0;
+        if total_ms > 30.0 {
+            warn!(
+                "[connect] slow connect_id={} total={:.2}ms get_cluster={:.2}ms check_limit={:.2}ms build_conn={:.2}ms flapping={:.2}ms connect_check={:.2}ms login_check={:.2}ms session_process={:.2}ms last_will={:.2}ms auto_subscribe={:.2}ms add_cache={:.2}ms st_report={:.2}ms",
+                connect_id, total_ms, get_cluster_ms, check_limit_ms, build_connection_ms,
+                flapping_ms, connect_check_ms, login_check_ms, session_process_ms,
+                last_will_ms, auto_subscribe_ms, add_cache_ms, st_report_ms
+            );
+        }
 
         build_connect_ack_success_packet(ResponsePacketMqttConnectSuccessContext {
             protocol: self.protocol.clone(),

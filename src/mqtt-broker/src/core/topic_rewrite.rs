@@ -49,8 +49,9 @@ async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMq
     // Clear stale rewrite mappings before recalculating
     cache_manager.clear_rewrite_new_name();
 
-    for tenant_entry in cache_manager.node_cache.topic_list.iter() {
-        let tenant = tenant_entry.key().clone();
+    for topic_entry in cache_manager.node_cache.topic_list.iter() {
+        let tenant = topic_entry.value().tenant.clone();
+        let topic_name = topic_entry.value().topic_name.clone();
         // Only apply rules that belong to this tenant
         let tenant_rules: Vec<&MqttTopicRewriteRule> =
             rules.iter().filter(|r| r.tenant == tenant).collect();
@@ -59,10 +60,7 @@ async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMq
             continue;
         }
 
-        for topic_entry in tenant_entry.value().iter() {
-            let topic_name = topic_entry.value().topic_name.clone();
-
-            for rule in tenant_rules.iter() {
+        for rule in tenant_rules.iter() {
                 let allow = rule.action == TopicRewriteActionEnum::All.to_string()
                     || rule.action == TopicRewriteActionEnum::Publish.to_string();
 
@@ -99,7 +97,6 @@ async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMq
                     }
                 }
             }
-        }
     }
 
     cache_manager.set_re_calc_topic_rewrite(false).await;
