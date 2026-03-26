@@ -239,7 +239,7 @@ pub fn default_accept_thread_num() -> usize {
     1
 }
 pub fn default_handler_thread_num() -> usize {
-    4
+    64
 }
 pub fn default_queue_size() -> usize {
     2000
