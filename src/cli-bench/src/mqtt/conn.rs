@@ -39,6 +39,9 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
     let total_connections = args.common.count as u64;
     let effective_concurrency = args.concurrency.min(args.common.count.max(1));
     let semaphore = Arc::new(Semaphore::new(effective_concurrency));
+    let host: Arc<str> = Arc::from(args.common.host.as_str());
+    let username: Arc<Option<String>> = Arc::new(args.common.username.clone());
+    let password: Arc<Option<String>> = Arc::new(args.common.password.clone());
     let mut join_set = JoinSet::new();
 
     let progress_stats = stats.clone();
@@ -67,10 +70,10 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
             .await
             .map_err(|e| BenchMarkError::ExecutionError(format!("semaphore closed: {e}")))?;
         let client_id = format!("robust-bench-conn-{i}");
-        let host = args.common.host.clone();
+        let host = host.clone();
         let port = args.common.port;
-        let username = args.common.username.clone();
-        let password = args.common.password.clone();
+        let username = username.clone();
+        let password = password.clone();
         let local_stats = stats.clone();
         let mode = mode.clone();
         let hold_duration_each = hold_duration;

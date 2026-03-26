@@ -181,63 +181,100 @@ pub fn record_rpc_duration(machine: &str, rpc_type: &str, duration_ms: f64) {
     histogram_metric_observe!(RAFT_RPC_DURATION, duration_ms, label);
 }
 
-/// Pre-register Raft metrics (Gauges, Counters, Histograms) for all known
-/// state machines so they appear in Prometheus output immediately on startup.
+/// Pre-register Raft metrics for all known state machines (called at broker init).
+/// Only registers the static `metadata_0` shard; dynamic shard counts are registered
+/// via `init_raft_shards` once the config is available.
 pub fn init() {
-    for machine in &["mqtt", "offset", "metadata"] {
-        // Gauge metrics
+    init_raft_shards(1, 1);
+}
+
+/// Pre-register Raft metrics for all shards based on configured shard counts.
+/// Call this from MultiRaftManager::new() after reading config.
+/// Shard names: metadata_0, offset_0..offset_{n-1}, data_0..data_{n-1}
+pub fn init_raft_shards(offset_group_num: u32, data_group_num: u32) {
+    let mut shards: Vec<String> = Vec::new();
+    shards.push("metadata_0".to_string());
+    for i in 0..offset_group_num {
+        shards.push(format!("offset_{}", i));
+    }
+    for i in 0..data_group_num {
+        shards.push(format!("data_{}", i));
+    }
+
+    for shard in &shards {
         let label = RaftLabel {
-            machine: machine.to_string(),
+            machine: shard.clone(),
         };
         gauge_metric_set!(RAFT_APPLY_LAG, label, 0);
         let label = RaftLabel {
-            machine: machine.to_string(),
+            machine: shard.clone(),
         };
         gauge_metric_set!(RAFT_LAST_LOG_INDEX, label, 0);
         let label = RaftLabel {
-            machine: machine.to_string(),
+            machine: shard.clone(),
         };
         gauge_metric_set!(RAFT_LAST_APPLIED, label, 0);
 
-        // Counter metrics
         counter_metric_touch!(
             RAFT_WRITE_REQUESTS_TOTAL,
             RaftLabel {
-                machine: machine.to_string()
+                machine: shard.clone()
             }
         );
         counter_metric_touch!(
             RAFT_WRITE_SUCCESS_TOTAL,
             RaftLabel {
-                machine: machine.to_string()
+                machine: shard.clone()
             }
         );
         counter_metric_touch!(
             RAFT_WRITE_FAILURES_TOTAL,
             RaftLabel {
-                machine: machine.to_string()
+                machine: shard.clone()
             }
         );
 
-        // Histogram metrics
         histogram_metric_touch!(
             RAFT_WRITE_DURATION,
             RaftLabel {
-                machine: machine.to_string()
+                machine: shard.clone()
             }
         );
         histogram_metric_touch!(
             RAFT_APPLY_BATCH_DURATION,
             RaftLabel {
-                machine: machine.to_string()
+                machine: shard.clone()
             }
         );
         histogram_metric_touch!(
             RAFT_LOG_APPEND_BATCH_DURATION,
             RaftLabel {
-                machine: machine.to_string()
+                machine: shard.clone()
             }
         );
+
+        for rpc_type in &["append_entries", "install_snapshot", "vote"] {
+            let label = RaftRpcLabel {
+                machine: shard.clone(),
+                rpc_type: rpc_type.to_string(),
+            };
+            counter_metric_touch!(RAFT_RPC_REQUESTS_TOTAL, label);
+            let label = RaftRpcLabel {
+                machine: shard.clone(),
+                rpc_type: rpc_type.to_string(),
+            };
+            counter_metric_touch!(RAFT_RPC_SUCCESS_TOTAL, label);
+            let label = RaftRpcLabel {
+                machine: shard.clone(),
+                rpc_type: rpc_type.to_string(),
+            };
+            counter_metric_touch!(RAFT_RPC_FAILURES_TOTAL, label);
+            let label = RaftRpcLabel {
+                machine: shard.clone(),
+                rpc_type: rpc_type.to_string(),
+            };
+            histogram_metric_touch!(RAFT_RPC_DURATION, label);
+        }
     }
 }
 
