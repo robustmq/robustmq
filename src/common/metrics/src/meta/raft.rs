@@ -202,29 +202,77 @@ pub fn init_raft_shards(offset_group_num: u32, data_group_num: u32) {
     }
 
     for shard in &shards {
-        let label = RaftLabel { machine: shard.clone() };
+        let label = RaftLabel {
+            machine: shard.clone(),
+        };
         gauge_metric_set!(RAFT_APPLY_LAG, label, 0);
-        let label = RaftLabel { machine: shard.clone() };
+        let label = RaftLabel {
+            machine: shard.clone(),
+        };
         gauge_metric_set!(RAFT_LAST_LOG_INDEX, label, 0);
-        let label = RaftLabel { machine: shard.clone() };
+        let label = RaftLabel {
+            machine: shard.clone(),
+        };
         gauge_metric_set!(RAFT_LAST_APPLIED, label, 0);
 
-        counter_metric_touch!(RAFT_WRITE_REQUESTS_TOTAL, RaftLabel { machine: shard.clone() });
-        counter_metric_touch!(RAFT_WRITE_SUCCESS_TOTAL, RaftLabel { machine: shard.clone() });
-        counter_metric_touch!(RAFT_WRITE_FAILURES_TOTAL, RaftLabel { machine: shard.clone() });
+        counter_metric_touch!(
+            RAFT_WRITE_REQUESTS_TOTAL,
+            RaftLabel {
+                machine: shard.clone()
+            }
+        );
+        counter_metric_touch!(
+            RAFT_WRITE_SUCCESS_TOTAL,
+            RaftLabel {
+                machine: shard.clone()
+            }
+        );
+        counter_metric_touch!(
+            RAFT_WRITE_FAILURES_TOTAL,
+            RaftLabel {
+                machine: shard.clone()
+            }
+        );
 
-        histogram_metric_touch!(RAFT_WRITE_DURATION, RaftLabel { machine: shard.clone() });
-        histogram_metric_touch!(RAFT_APPLY_BATCH_DURATION, RaftLabel { machine: shard.clone() });
-        histogram_metric_touch!(RAFT_LOG_APPEND_BATCH_DURATION, RaftLabel { machine: shard.clone() });
+        histogram_metric_touch!(
+            RAFT_WRITE_DURATION,
+            RaftLabel {
+                machine: shard.clone()
+            }
+        );
+        histogram_metric_touch!(
+            RAFT_APPLY_BATCH_DURATION,
+            RaftLabel {
+                machine: shard.clone()
+            }
+        );
+        histogram_metric_touch!(
+            RAFT_LOG_APPEND_BATCH_DURATION,
+            RaftLabel {
+                machine: shard.clone()
+            }
+        );
 
         for rpc_type in &["append_entries", "install_snapshot", "vote"] {
-            let label = RaftRpcLabel { machine: shard.clone(), rpc_type: rpc_type.to_string() };
+            let label = RaftRpcLabel {
+                machine: shard.clone(),
+                rpc_type: rpc_type.to_string(),
+            };
             counter_metric_touch!(RAFT_RPC_REQUESTS_TOTAL, label);
-            let label = RaftRpcLabel { machine: shard.clone(), rpc_type: rpc_type.to_string() };
+            let label = RaftRpcLabel {
+                machine: shard.clone(),
+                rpc_type: rpc_type.to_string(),
+            };
             counter_metric_touch!(RAFT_RPC_SUCCESS_TOTAL, label);
-            let label = RaftRpcLabel { machine: shard.clone(), rpc_type: rpc_type.to_string() };
+            let label = RaftRpcLabel {
+                machine: shard.clone(),
+                rpc_type: rpc_type.to_string(),
+            };
             counter_metric_touch!(RAFT_RPC_FAILURES_TOTAL, label);
-            let label = RaftRpcLabel { machine: shard.clone(), rpc_type: rpc_type.to_string() };
+            let label = RaftRpcLabel {
+                machine: shard.clone(),
+                rpc_type: rpc_type.to_string(),
+            };
             histogram_metric_touch!(RAFT_RPC_DURATION, label);
         }
     }

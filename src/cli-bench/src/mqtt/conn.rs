@@ -82,7 +82,7 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
             let permit = permit;
             let start = Instant::now();
             let (client, mut event_loop) =
-                build_client(&client_id, &*host, port, &*username, &*password);
+                build_client(&client_id, &host, port, &username, &password);
             match wait_connack(&mut event_loop, 60_000).await {
                 Ok(_) => {
                     local_stats.incr_success();
