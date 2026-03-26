@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use crate::error::BenchMarkError;
-use crate::mqtt::common::{build_client, qos_from_u8, wait_connack_v4, wait_connack_v5, ClientHandle};
+use crate::mqtt::common::{
+    build_client, qos_from_u8, wait_connack_v4, wait_connack_v5, ClientHandle,
+};
 use crate::mqtt::report::{print_realtime_line, BenchReport, BenchReportInput, ThroughputSample};
 use crate::mqtt::stats::SharedStats;
 use crate::mqtt::{OutputFormat, PublishBenchArgs};
@@ -59,7 +61,10 @@ pub async fn run_publish_bench(args: PublishBenchArgs) -> Result<(), BenchMarkEr
                         let now = tokio::time::Instant::now();
                         if now >= next_publish {
                             let start = Instant::now();
-                            match client.publish(topic.clone(), qos, false, payload.clone()).await {
+                            match client
+                                .publish(topic.clone(), qos, false, payload.clone())
+                                .await
+                            {
                                 Ok(_) => {
                                     local_stats.incr_success();
                                     local_stats.record_latency(start.elapsed());
@@ -95,7 +100,10 @@ pub async fn run_publish_bench(args: PublishBenchArgs) -> Result<(), BenchMarkEr
                         let now = tokio::time::Instant::now();
                         if now >= next_publish {
                             let start = Instant::now();
-                            match client.publish(topic.clone(), v5_qos, false, payload.clone()).await {
+                            match client
+                                .publish(topic.clone(), v5_qos, false, payload.clone())
+                                .await
+                            {
                                 Ok(_) => {
                                     local_stats.incr_success();
                                     local_stats.record_latency(start.elapsed());

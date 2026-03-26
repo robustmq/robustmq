@@ -218,6 +218,9 @@ impl MQTTCacheManager {
             .entry(conn.tenant.clone())
             .or_default()
             .insert(connect_id);
+        if let Some(mut session) = self.session_info.get_mut(&conn.client_id) {
+            session.update_connection_id(Some(connect_id));
+        }
         self.connection_info.insert(connect_id, conn);
     }
 

@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use crate::error::BenchMarkError;
-use crate::mqtt::common::{build_client, qos_from_u8, wait_connack_v4, wait_connack_v5, ClientHandle};
+use crate::mqtt::common::{
+    build_client, qos_from_u8, wait_connack_v4, wait_connack_v5, ClientHandle,
+};
 use crate::mqtt::report::{print_realtime_line, BenchReport, BenchReportInput, ThroughputSample};
 use crate::mqtt::stats::SharedStats;
 use crate::mqtt::{OutputFormat, SubscribeBenchArgs};
@@ -57,7 +59,9 @@ pub async fn run_subscribe_bench(args: SubscribeBenchArgs) -> Result<(), BenchMa
                         return;
                     }
                     while tokio::time::Instant::now() < deadline {
-                        match tokio::time::timeout(Duration::from_millis(200), event_loop.poll()).await {
+                        match tokio::time::timeout(Duration::from_millis(200), event_loop.poll())
+                            .await
+                        {
                             Ok(Ok(Event::Incoming(Incoming::Publish(_)))) => {
                                 local_stats.incr_received();
                                 local_stats.incr_success();
@@ -92,7 +96,9 @@ pub async fn run_subscribe_bench(args: SubscribeBenchArgs) -> Result<(), BenchMa
                     }
                     while tokio::time::Instant::now() < deadline {
                         use rumqttc::v5::{Event as EventV5, Incoming as IncomingV5};
-                        match tokio::time::timeout(Duration::from_millis(200), event_loop.poll()).await {
+                        match tokio::time::timeout(Duration::from_millis(200), event_loop.poll())
+                            .await
+                        {
                             Ok(Ok(EventV5::Incoming(IncomingV5::Publish(_)))) => {
                                 local_stats.incr_received();
                                 local_stats.incr_success();

@@ -14,13 +14,15 @@
 
 use crate::mqtt::MqttVersion;
 use rumqttc::v5::mqttbytes::v5::ConnectReturnCode as V5ConnectReturnCode;
-use rumqttc::v5::{AsyncClient as AsyncClientV5, EventLoop as EventLoopV5, MqttOptions as MqttOptionsV5};
+use rumqttc::v5::{
+    AsyncClient as AsyncClientV5, EventLoop as EventLoopV5, MqttOptions as MqttOptionsV5,
+};
 use rumqttc::{AsyncClient, Event, EventLoop, Incoming, MqttOptions, QoS};
 use std::time::Duration;
 
 pub enum ClientHandle {
-    V4(AsyncClient, EventLoop),
-    V5(AsyncClientV5, EventLoopV5),
+    V4(AsyncClient, Box<EventLoop>),
+    V5(AsyncClientV5, Box<EventLoopV5>),
 }
 
 pub fn build_client(
@@ -39,7 +41,7 @@ pub fn build_client(
                 opts.set_credentials(u.clone(), p.clone());
             }
             let (client, event_loop) = AsyncClientV5::new(opts, 1000);
-            ClientHandle::V5(client, event_loop)
+            ClientHandle::V5(client, Box::new(event_loop))
         }
         MqttVersion::V4 => {
             let mut opts = MqttOptions::new(client_id, host, port);
@@ -48,7 +50,7 @@ pub fn build_client(
                 opts.set_credentials(u.clone(), p.clone());
             }
             let (client, event_loop) = AsyncClient::new(opts, 1000);
-            ClientHandle::V4(client, event_loop)
+            ClientHandle::V4(client, Box::new(event_loop))
         }
     }
 }
