@@ -13,11 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::MQTTCacheManager;
-use crate::system_topic::{
-    build_system_topic_payload, write_topic_data, SYSTEM_TOPIC_BROKERS_CONNECTED,
-    SYSTEM_TOPIC_BROKERS_DISCONNECTED, SYSTEM_TOPIC_BROKERS_SUBSCRIBED,
-    SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED,
-};
+use crate::system_topic::{build_system_topic_payload, write_topic_data};
 use common_base::tools::now_millis;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::MQTTConnection;
@@ -30,6 +26,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::{error, warn};
+
+// Event
+pub const SYSTEM_TOPIC_BROKERS_CONNECTED: &str = "$SYS/brokers/clients/connected";
+pub const SYSTEM_TOPIC_BROKERS_DISCONNECTED: &str = "$SYS/brokers/clients/disconnected";
+pub const SYSTEM_TOPIC_BROKERS_SUBSCRIBED: &str = "$SYS/brokers/clients/subscribed";
+pub const SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED: &str = "$SYS/brokers/clients/unsubscribed";
 
 #[derive(Clone)]
 pub struct StReportDisconnectedEventContext {

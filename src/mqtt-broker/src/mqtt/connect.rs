@@ -18,6 +18,7 @@ use crate::core::connection::response_information;
 use crate::core::connection::{build_connection, get_client_id};
 use crate::core::content_type::payload_format_indicator_check_by_lastwill;
 use crate::core::error::MqttBrokerError;
+use crate::core::event::{st_report_connected_event, StReportConnectedEventContext};
 use crate::core::flapping_detect::check_flapping_detect;
 use crate::core::last_will::save_last_will_message;
 use crate::core::limit::connection_total_num_limit;
@@ -26,7 +27,6 @@ use crate::core::string_validator::{validate_client_id, validate_password, valid
 use crate::core::sub_auto::try_auto_subscribe;
 use crate::core::tenant::{get_tenant_info, try_decode_client_id};
 use crate::core::topic::topic_name_validator;
-use crate::core::event::{st_report_connected_event, StReportConnectedEventContext};
 use common_base::tools::now_second;
 use common_config::config::BrokerConfig;
 use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
@@ -44,7 +44,7 @@ impl MqttService {
         let connect_id = context.connect_id;
 
         let t = Instant::now();
-        let cluster = self.cache_manager.node_cache.get_cluster_config().await;
+        let cluster = self.cache_manager.node_cache.get_cluster_config();
         let get_cluster_ms = t.elapsed().as_secs_f64() * 1000.0;
 
         if let Some(res) = connect_validator(
@@ -280,16 +280,18 @@ impl MqttService {
         let add_cache_ms = t.elapsed().as_secs_f64() * 1000.0;
 
         let t = Instant::now();
-        // st_report_connected_event(StReportConnectedEventContext {
-        //     storage_driver_manager: self.storage_driver_manager.clone(),
-        //     metadata_cache: self.cache_manager.clone(),
-        //     client_pool: self.client_pool.clone(),
-        //     session: session.clone(),
-        //     connection: connection.clone(),
-        //     connect_id: context.connect_id,
-        //     connection_manager: self.connection_manager.clone(),
-        // })
-        // .await;
+
+        st_report_connected_event(StReportConnectedEventContext {
+            storage_driver_manager: self.storage_driver_manager.clone(),
+            metadata_cache: self.cache_manager.clone(),
+            client_pool: self.client_pool.clone(),
+            session: session.clone(),
+            connection: connection.clone(),
+            connect_id: context.connect_id,
+            connection_manager: self.connection_manager.clone(),
+        })
+        .await;
+
         let st_report_ms = t.elapsed().as_secs_f64() * 1000.0;
 
         let total_ms = start.elapsed().as_secs_f64() * 1000.0;

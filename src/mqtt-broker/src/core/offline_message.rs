@@ -77,7 +77,6 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         .cache_manager
         .node_cache
         .get_cluster_config()
-        .await
         .mqtt_offline_message
         .enable;
 

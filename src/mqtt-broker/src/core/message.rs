@@ -30,7 +30,7 @@ pub async fn build_message_expire(
         }
     }
 
-    let cluster = cache_manager.node_cache.get_cluster_config().await;
+    let cluster = cache_manager.node_cache.get_cluster_config();
     now_second() + cluster.mqtt_protocol.max_message_expiry_interval
 }
 
@@ -52,7 +52,7 @@ mod tests {
             },
             ..Default::default()
         };
-        cache_manager.node_cache.set_cluster_config(cluster).await;
+        cache_manager.node_cache.set_cluster_config(cluster);
 
         let publish_properties = None;
         let res = build_message_expire(&cache_manager, &publish_properties).await;

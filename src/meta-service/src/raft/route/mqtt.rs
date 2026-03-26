@@ -194,7 +194,7 @@ impl DataRouteMqtt {
                     );
 
                     let t = Instant::now();
-                    self.delay_task_manager.create_task(task).await?;
+                    // self.delay_task_manager.create_task(task).await?;
                     create_task_ms += t.elapsed().as_secs_f64() * 1000.0;
                 }
             } else if self.delay_task_manager.contains_task(&session.client_id) {

@@ -61,42 +61,42 @@ async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMq
         }
 
         for rule in tenant_rules.iter() {
-                let allow = rule.action == TopicRewriteActionEnum::All.to_string()
-                    || rule.action == TopicRewriteActionEnum::Publish.to_string();
+            let allow = rule.action == TopicRewriteActionEnum::All.to_string()
+                || rule.action == TopicRewriteActionEnum::Publish.to_string();
 
-                if !allow {
-                    continue;
-                }
+            if !allow {
+                continue;
+            }
 
-                if is_match_sub_and_topic(&rule.source_topic, &topic_name).is_ok() {
-                    match gen_rewrite_topic(topic_name.clone(), &rule.regex, &rule.dest_topic) {
-                        Ok(new_topic_name) => {
-                            if new_topic_name != topic_name {
-                                tracing::info!(
-                                    "Topic rewritten: {} -> {}, tenant: {}, rule: {}",
-                                    topic_name,
-                                    new_topic_name,
-                                    tenant,
-                                    rule.source_topic
-                                );
-                                cache_manager.add_new_rewrite_name(
-                                    &tenant,
-                                    &topic_name,
-                                    &new_topic_name,
-                                );
-                            }
-                            break;
-                        }
-                        Err(e) => {
-                            warn!(
-                                "Failed to compile regex for rule, topic:{}, pattern:{}, error:{}",
-                                topic_name, rule.regex, e
+            if is_match_sub_and_topic(&rule.source_topic, &topic_name).is_ok() {
+                match gen_rewrite_topic(topic_name.clone(), &rule.regex, &rule.dest_topic) {
+                    Ok(new_topic_name) => {
+                        if new_topic_name != topic_name {
+                            tracing::info!(
+                                "Topic rewritten: {} -> {}, tenant: {}, rule: {}",
+                                topic_name,
+                                new_topic_name,
+                                tenant,
+                                rule.source_topic
                             );
-                            continue;
+                            cache_manager.add_new_rewrite_name(
+                                &tenant,
+                                &topic_name,
+                                &new_topic_name,
+                            );
                         }
+                        break;
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to compile regex for rule, topic:{}, pattern:{}, error:{}",
+                            topic_name, rule.regex, e
+                        );
+                        continue;
                     }
                 }
             }
+        }
     }
 
     cache_manager.set_re_calc_topic_rewrite(false).await;

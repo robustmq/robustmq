@@ -72,7 +72,7 @@ pub async fn check_connection_limit(
     global_limit_manager.network_connection_rate_limit().await?;
 
     // connection count limit
-    let limit = node_cache.get_cluster_config().await.cluster_limit;
+    let limit = node_cache.get_cluster_config().cluster_limit;
     if connection_manager.connections.len() > limit.max_network_connection as usize {
         return Ok(true);
     }

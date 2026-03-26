@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use arc_swap::ArcSwap;
 use common_base::{node_status::NodeStatus, tools::now_second};
 use common_config::config::BrokerConfig;
 use dashmap::{DashMap, DashSet};
@@ -37,7 +38,7 @@ pub struct NodeCacheManager {
     pub cluster_name: String,
 
     // (cluster_name, Cluster)
-    pub cluster_config: Arc<RwLock<BrokerConfig>>,
+    pub cluster_config: ArcSwap<BrokerConfig>,
 
     // ("{tenant}/{topic_name}", Topic)
     pub topic_list: DashMap<String, Topic>,
@@ -59,7 +60,7 @@ impl NodeCacheManager {
             start_time: now_second(),
             tenant_list: DashMap::with_capacity(8),
             node_lists: DashMap::with_capacity(2),
-            cluster_config: Arc::new(RwLock::new(cluster)),
+            cluster_config: ArcSwap::new(Arc::new(cluster)),
             status: Arc::new(RwLock::new(NodeStatus::Starting)),
             session_list: DashMap::new(),
             session_tenant_index: DashMap::with_capacity(8),
@@ -212,13 +213,12 @@ impl NodeCacheManager {
     }
 
     // cluster config
-    pub async fn set_cluster_config(&self, config: BrokerConfig) {
-        let mut data = self.cluster_config.write().await;
-        *data = config;
+    pub fn set_cluster_config(&self, config: BrokerConfig) {
+        self.cluster_config.store(Arc::new(config));
     }
 
-    pub async fn get_cluster_config(&self) -> BrokerConfig {
-        self.cluster_config.read().await.clone()
+    pub fn get_cluster_config(&self) -> BrokerConfig {
+        self.cluster_config.load().as_ref().clone()
     }
 }
 

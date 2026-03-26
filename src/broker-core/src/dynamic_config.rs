@@ -69,59 +69,39 @@ pub async fn build_cluster_config(
     Ok(conf)
 }
 
-pub async fn update_cluster_dynamic_config(
+pub fn update_cluster_dynamic_config(
     node_cache: &Arc<NodeCacheManager>,
     resource_type: ClusterDynamicConfig,
     config: Bytes,
 ) -> Result<(), CommonError> {
+    let mut new_config = node_cache.get_cluster_config();
     match resource_type {
         ClusterDynamicConfig::ClusterLimit => {
-            let data = serde_json::from_slice(&config)?;
-            let mut config = node_cache.cluster_config.write().await;
-            config.cluster_limit = data;
+            new_config.cluster_limit = serde_json::from_slice(&config)?;
         }
-
         ClusterDynamicConfig::MqttSlowSubscribeConfig => {
-            let data = serde_json::from_slice(&config)?;
-            let mut config = node_cache.cluster_config.write().await;
-            config.mqtt_slow_subscribe = data;
+            new_config.mqtt_slow_subscribe = serde_json::from_slice(&config)?;
         }
-
         ClusterDynamicConfig::MqttFlappingDetect => {
-            let data = serde_json::from_slice(&config)?;
-            let mut config = node_cache.cluster_config.write().await;
-            config.mqtt_flapping_detect = data;
+            new_config.mqtt_flapping_detect = serde_json::from_slice(&config)?;
         }
-
         ClusterDynamicConfig::MqttProtocol => {
-            let data = serde_json::from_slice(&config)?;
-            let mut config = node_cache.cluster_config.write().await;
-            config.mqtt_protocol = data;
+            new_config.mqtt_protocol = serde_json::from_slice(&config)?;
         }
-
         ClusterDynamicConfig::MqttOfflineMessage => {
-            let data = serde_json::from_slice(&config)?;
-            let mut config = node_cache.cluster_config.write().await;
-            config.mqtt_offline_message = data;
+            new_config.mqtt_offline_message = serde_json::from_slice(&config)?;
         }
-
         ClusterDynamicConfig::MqttSystemMonitor => {
-            let data = serde_json::from_slice(&config)?;
-            let mut config = node_cache.cluster_config.write().await;
-            config.mqtt_system_monitor = data;
+            new_config.mqtt_system_monitor = serde_json::from_slice(&config)?;
         }
-
         ClusterDynamicConfig::MqttSchema => {
-            let data = serde_json::from_slice(&config)?;
-            let mut config = node_cache.cluster_config.write().await;
-            config.mqtt_schema = data;
+            new_config.mqtt_schema = serde_json::from_slice(&config)?;
         }
         ClusterDynamicConfig::MqttLimit => {
-            let data = serde_json::from_slice(&config)?;
-            let mut config = node_cache.cluster_config.write().await;
-            config.mqtt_limit = data;
+            new_config.mqtt_limit = serde_json::from_slice(&config)?;
         }
     }
+    node_cache.set_cluster_config(new_config);
     Ok(())
 }
 

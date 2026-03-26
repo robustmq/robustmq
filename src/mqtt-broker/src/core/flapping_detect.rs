@@ -54,7 +54,6 @@ pub async fn clean_flapping_detect(
         let config = cache_manager
             .node_cache
             .get_cluster_config()
-            .await
             .mqtt_flapping_detect;
         cache_manager
             .acl_metadata
@@ -102,7 +101,6 @@ pub async fn check_flapping_detect(
     let config = cache_manager
         .node_cache
         .get_cluster_config()
-        .await
         .mqtt_flapping_detect;
     let current_counter = event::get_client_connection_counter(tenant, client_id.clone());
     debug!("get current_counter : {current_counter} by client_id: {client_id}");

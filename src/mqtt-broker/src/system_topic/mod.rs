@@ -95,12 +95,6 @@ pub const SYSTEM_TOPIC_BROKERS_UPTIME: &str = "$SYS/brokers/uptime";
 pub const SYSTEM_TOPIC_BROKERS_DATETIME: &str = "$SYS/brokers/datetime";
 pub const SYSTEM_TOPIC_BROKERS_SYSDESCR: &str = "$SYS/brokers/sysdescr";
 
-// Event
-pub const SYSTEM_TOPIC_BROKERS_CONNECTED: &str = "$SYS/brokers/clients/connected";
-pub const SYSTEM_TOPIC_BROKERS_DISCONNECTED: &str = "$SYS/brokers/clients/disconnected";
-pub const SYSTEM_TOPIC_BROKERS_SUBSCRIBED: &str = "$SYS/brokers/clients/subscribed";
-pub const SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED: &str = "$SYS/brokers/clients/unsubscribed";
-
 pub mod broker;
 pub mod packet;
 pub mod stats;
@@ -199,11 +193,6 @@ impl SystemTopic {
             SYSTEM_TOPIC_BROKERS_UPTIME.to_string(),
             SYSTEM_TOPIC_BROKERS_DATETIME.to_string(),
             SYSTEM_TOPIC_BROKERS_SYSDESCR.to_string(),
-            // event
-            SYSTEM_TOPIC_BROKERS_CONNECTED.to_string(),
-            SYSTEM_TOPIC_BROKERS_DISCONNECTED.to_string(),
-            SYSTEM_TOPIC_BROKERS_SUBSCRIBED.to_string(),
-            SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED.to_string(),
             // stats
             SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT.to_string(),
             SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX.to_string(),

@@ -26,7 +26,6 @@ pub async fn connection_total_num_limit(
     let limit_count = cache_manager
         .node_cache
         .get_cluster_config()
-        .await
         .mqtt_limit
         .cluster
         .max_connections_per_node as usize;
@@ -51,7 +50,6 @@ pub async fn session_total_num_limit(cache_manager: &Arc<MQTTCacheManager>, tena
     let limit_count = cache_manager
         .node_cache
         .get_cluster_config()
-        .await
         .mqtt_limit
         .cluster
         .max_sessions as usize;
@@ -76,7 +74,6 @@ pub async fn topic_total_num_limit(cache_manager: &Arc<MQTTCacheManager>, tenant
     let limit_count = cache_manager
         .node_cache
         .get_cluster_config()
-        .await
         .mqtt_limit
         .cluster
         .max_topics as usize;
