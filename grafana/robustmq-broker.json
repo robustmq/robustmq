@@ -552,7 +552,7 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 170
+            "y": 3196
           },
           "id": 212,
           "options": {
@@ -747,7 +747,7 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 170
+            "y": 3196
           },
           "id": 213,
           "options": {
@@ -931,7 +931,7 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 170
+            "y": 3196
           },
           "id": 226,
           "options": {
@@ -1099,7 +1099,7 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 178
+            "y": 3204
           },
           "id": 807,
           "options": {
@@ -1267,7 +1267,7 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 178
+            "y": 3204
           },
           "id": 808,
           "options": {
@@ -1451,7 +1451,7 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 178
+            "y": 3204
           },
           "id": 809,
           "options": {
@@ -1563,7 +1563,7 @@
             "h": 4,
             "w": 6,
             "x": 0,
-            "y": 763
+            "y": 2
           },
           "id": 1001,
           "options": {
@@ -1639,7 +1639,7 @@
             "h": 4,
             "w": 6,
             "x": 6,
-            "y": 763
+            "y": 2
           },
           "id": 1002,
           "options": {
@@ -1715,7 +1715,7 @@
             "h": 4,
             "w": 6,
             "x": 12,
-            "y": 763
+            "y": 2
           },
           "id": 1003,
           "options": {
@@ -1791,7 +1791,7 @@
             "h": 4,
             "w": 6,
             "x": 18,
-            "y": 763
+            "y": 2
           },
           "id": 1004,
           "options": {
@@ -1897,7 +1897,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 767
+            "y": 2866
           },
           "id": 1005,
           "options": {
@@ -2013,7 +2013,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 767
+            "y": 2866
           },
           "id": 1006,
           "options": {
@@ -2142,7 +2142,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 3
+            "y": 2875
           },
           "id": 1101,
           "options": {
@@ -2258,7 +2258,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 176
+            "y": 2993
           },
           "id": 1102,
           "options": {
@@ -2374,7 +2374,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 176
+            "y": 2993
           },
           "id": 1103,
           "options": {
@@ -2666,7 +2666,7 @@
                 "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
-                "axisLabel": "req/s",
+                "axisLabel": "requests/s",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "barWidthFactor": 0.6,
@@ -2714,7 +2714,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 60
+            "y": 2810
           },
           "id": 308,
           "options": {
@@ -2743,7 +2743,7 @@
               },
               "editorMode": "code",
               "expr": "rate(handler_requests_total[1m])",
-              "legendFormat": "QPS ({{network}})",
+              "legendFormat": "Count ({{network}})",
               "range": true,
               "refId": "A"
             }
@@ -2845,7 +2845,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 60
+            "y": 2810
           },
           "id": 310,
           "options": {
@@ -2987,7 +2987,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 69
+            "y": 2819
           },
           "id": 303,
           "options": {
@@ -3098,7 +3098,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 78
+            "y": 2828
           },
           "id": 304,
           "options": {
@@ -3231,7 +3231,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 78
+            "y": 2828
           },
           "id": 305,
           "options": {
@@ -3364,7 +3364,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 87
+            "y": 2837
           },
           "id": 306,
           "options": {
@@ -3376,7 +3376,9 @@
               ],
               "displayMode": "table",
               "placement": "bottom",
-              "showLegend": true
+              "showLegend": true,
+              "sortBy": "Name",
+              "sortDesc": true
             },
             "tooltip": {
               "hideZeros": false,
@@ -3497,7 +3499,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 87
+            "y": 2837
           },
           "id": 307,
           "options": {
@@ -3572,206 +3574,6 @@
             "type": "prometheus",
             "uid": "dfdi3tx61jshsa"
           },
-          "description": "QPS per individual handler thread. Uneven distribution indicates load imbalance; a handler near 0 may be stuck.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "req/s",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 5,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 0,
-            "y": 96
-          },
-          "id": 311,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "right",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": true,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(handler_instance_requests_total[1m])",
-              "legendFormat": "handler-{{handler}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Handler Instance QPS",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "P99 apply latency per individual handler thread. A handler with significantly higher P99 than others is likely stuck on a slow gRPC call or blocking I/O.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "ms",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 5,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "ms"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 96
-          },
-          "id": 312,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "right",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": true,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.99, rate(handler_instance_apply_ms_bucket[5m]))",
-              "legendFormat": "handler-{{handler}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Handler Instance Apply P99 Latency",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
           "description": "Latency of writing a response to the client socket (TCP/TLS/QUIC), measured from lock acquired to send() complete. High P99 indicates slow clients or network back-pressure.",
           "fieldConfig": {
             "defaults": {
@@ -3830,7 +3632,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 105
+            "y": 2846
           },
           "id": 313,
           "options": {
@@ -3945,8 +3747,7 @@
                   "mode": "line+area",
                   "steps": [
                     {
-                      "color": "transparent",
-                      "value": null
+                      "color": "transparent"
                     },
                     {
                       "color": "red",
@@ -3977,7 +3778,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 105
+            "y": 2846
           },
           "id": 314,
           "options": {
@@ -4013,27 +3814,13 @@
           ],
           "title": "Write Timeout Rate",
           "type": "timeseries"
-        }
-      ],
-      "title": "🌐 Network",
-      "type": "row"
-    },
-    {
-      "collapsed": true,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 4
-      },
-      "id": 200,
-      "panels": [
+        },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "dfdi3tx61jshsa"
           },
-          "description": "Processing rate (requests per second) for each MQTT packet type",
+          "description": "QPS per individual handler thread. Uneven distribution indicates load imbalance; a handler near 0 may be stuck.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4043,12 +3830,12 @@
                 "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
-                "axisLabel": "reqps",
+                "axisLabel": "requests/s",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "barWidthFactor": 0.6,
                 "drawStyle": "line",
-                "fillOpacity": 10,
+                "fillOpacity": 5,
                 "gradientMode": "none",
                 "hideFrom": {
                   "legend": false,
@@ -4057,7 +3844,7 @@
                 },
                 "insertNulls": false,
                 "lineInterpolation": "linear",
-                "lineWidth": 2,
+                "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
                   "type": "linear"
@@ -4091,9 +3878,9 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 1556
+            "y": 2855
           },
-          "id": 812,
+          "id": 311,
           "options": {
             "legend": {
               "calcs": [
@@ -4102,11 +3889,11 @@
                 "max"
               ],
               "displayMode": "table",
-              "placement": "bottom",
+              "placement": "right",
               "showLegend": true
             },
             "tooltip": {
-              "hideZeros": false,
+              "hideZeros": true,
               "mode": "multi",
               "sort": "desc"
             }
@@ -4119,13 +3906,13 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "sum(rate(mqtt_packet_process_duration_ms_count[5m])) by (packet)",
-              "legendFormat": "{{packet}}",
+              "expr": "rate(handler_instance_requests_total[1m])",
+              "legendFormat": "handler-{{handler}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "MQTT Packet Process QPS by Type",
+          "title": "Handler Instance QPS",
           "type": "timeseries"
         },
         {
@@ -4133,7 +3920,7 @@
             "type": "prometheus",
             "uid": "dfdi3tx61jshsa"
           },
-          "description": "Average processing latency for each MQTT packet type",
+          "description": "P99 apply latency per individual handler thread. A handler with significantly higher P99 than others is likely stuck on a slow gRPC call or blocking I/O.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4144,6 +3931,120 @@
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "ms",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 5,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "ms"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 2855
+          },
+          "id": 312,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": true,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, rate(handler_instance_apply_ms_bucket[5m]))",
+              "legendFormat": "handler-{{handler}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Handler Instance Apply P99 Latency",
+          "type": "timeseries"
+        }
+      ],
+      "title": "🌐 Network",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
+      "id": 200,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "MQTT total received packet rate (QPS)",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "packets/s",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "barWidthFactor": 0.6,
@@ -4183,17 +4084,17 @@
                   }
                 ]
               },
-              "unit": "ms"
+              "unit": "none"
             },
             "overrides": []
           },
           "gridPos": {
             "h": 9,
             "w": 12,
-            "x": 12,
-            "y": 1556
+            "x": 0,
+            "y": 5
           },
-          "id": 813,
+          "id": 224,
           "options": {
             "legend": {
               "calcs": [
@@ -4219,13 +4120,13 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "sum(rate(mqtt_packet_process_duration_ms_sum[5m])) by (packet) / sum(rate(mqtt_packet_process_duration_ms_count[5m])) by (packet)",
-              "legendFormat": "{{packet}}",
+              "expr": "rate(mqtt_packets_received_total[1m])",
+              "legendFormat": "Total Received ({{network}})",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "MQTT Packet Process Avg Latency by Type",
+          "title": "MQTT Total Received Packet Rate (QPS)",
           "type": "timeseries"
         },
         {
@@ -4336,8 +4237,8 @@
           "gridPos": {
             "h": 9,
             "w": 12,
-            "x": 0,
-            "y": 1577
+            "x": 12,
+            "y": 5
           },
           "id": 810,
           "options": {
@@ -4394,6 +4295,106 @@
             }
           ],
           "title": "MQTT Packet Process Latency Percentiles",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "Processing rate (requests per second) for each MQTT packet type",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "reqps",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 81
+          },
+          "id": 812,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(mqtt_packet_process_duration_ms_count[1m])) by (packet)",
+              "legendFormat": "{{packet}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "MQTT Packet Process QPS by Type",
           "type": "timeseries"
         },
         {
@@ -4459,7 +4460,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 1577
+            "y": 81
           },
           "id": 811,
           "options": {
@@ -4501,7 +4502,7 @@
             "type": "prometheus",
             "uid": "dfdi3tx61jshsa"
           },
-          "description": "MQTT total received packet rate (QPS)",
+          "description": "MQTT total sent packet rate (QPS)",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4559,9 +4560,9 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 1586
+            "y": 90
           },
-          "id": 224,
+          "id": 211,
           "options": {
             "legend": {
               "calcs": [
@@ -4587,13 +4588,212 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "rate(mqtt_packets_received_total[1m])",
-              "legendFormat": "Total Received ({{network}})",
+              "expr": "rate(mqtt_packets_sent_total[1m])",
+              "legendFormat": "Total Sent ({{network}}, QoS={{qos}})",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "MQTT Total Received Packet Rate (QPS)",
+          "title": "MQTT Total Sent Packet Rate (QPS)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "MQTT sent packet rate by packet type and QoS (QPS)",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "packets/s",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 90
+          },
+          "id": 225,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "rate(mqtt_packets_connack_sent_total[1m])",
+              "legendFormat": "CONNACK ({{network}}, QoS={{qos}})",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "rate(mqtt_packets_publish_sent_total[1m])",
+              "legendFormat": "PUBLISH ({{network}}, QoS={{qos}})",
+              "range": true,
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "rate(mqtt_packets_puback_sent_total[1m])",
+              "legendFormat": "PUBACK ({{network}}, QoS={{qos}})",
+              "range": true,
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "rate(mqtt_packets_pubrec_sent_total[1m])",
+              "legendFormat": "PUBREC ({{network}}, QoS={{qos}})",
+              "range": true,
+              "refId": "E"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "rate(mqtt_packets_pubrel_sent_total[1m])",
+              "legendFormat": "PUBREL ({{network}}, QoS={{qos}})",
+              "range": true,
+              "refId": "F"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "rate(mqtt_packets_pubcomp_sent_total[1m])",
+              "legendFormat": "PUBCOMP ({{network}}, QoS={{qos}})",
+              "range": true,
+              "refId": "G"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "rate(mqtt_packets_suback_sent_total[1m])",
+              "legendFormat": "SUBACK ({{network}}, QoS={{qos}})",
+              "range": true,
+              "refId": "H"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "rate(mqtt_packets_unsuback_sent_total[1m])",
+              "legendFormat": "UNSUBACK ({{network}}, QoS={{qos}})",
+              "range": true,
+              "refId": "I"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "rate(mqtt_packets_pingresp_sent_total[1m])",
+              "legendFormat": "PINGRESP ({{network}}, QoS={{qos}})",
+              "range": true,
+              "refId": "J"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "rate(mqtt_packets_disconnect_sent_total[1m])",
+              "legendFormat": "DISCONNECT ({{network}}, QoS={{qos}})",
+              "range": true,
+              "refId": "K"
+            }
+          ],
+          "title": "MQTT Sent Packet Rate by Type (QPS)",
           "type": "timeseries"
         },
         {
@@ -4658,8 +4858,8 @@
           "gridPos": {
             "h": 9,
             "w": 12,
-            "x": 12,
-            "y": 1586
+            "x": 0,
+            "y": 99
           },
           "id": 210,
           "options": {
@@ -4816,305 +5016,6 @@
           ],
           "title": "MQTT Received Packet Rate by Type (QPS)",
           "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "MQTT total sent packet rate (QPS)",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "packets/s",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "none"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 0,
-            "y": 1595
-          },
-          "id": 211,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(mqtt_packets_sent_total[1m])",
-              "legendFormat": "Total Sent ({{network}}, QoS={{qos}})",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "MQTT Total Sent Packet Rate (QPS)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "MQTT sent packet rate by packet type and QoS (QPS)",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "packets/s",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "none"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 1595
-          },
-          "id": 225,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(mqtt_packets_connack_sent_total[1m])",
-              "legendFormat": "CONNACK ({{network}}, QoS={{qos}})",
-              "range": true,
-              "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(mqtt_packets_publish_sent_total[1m])",
-              "legendFormat": "PUBLISH ({{network}}, QoS={{qos}})",
-              "range": true,
-              "refId": "C"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(mqtt_packets_puback_sent_total[1m])",
-              "legendFormat": "PUBACK ({{network}}, QoS={{qos}})",
-              "range": true,
-              "refId": "D"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(mqtt_packets_pubrec_sent_total[1m])",
-              "legendFormat": "PUBREC ({{network}}, QoS={{qos}})",
-              "range": true,
-              "refId": "E"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(mqtt_packets_pubrel_sent_total[1m])",
-              "legendFormat": "PUBREL ({{network}}, QoS={{qos}})",
-              "range": true,
-              "refId": "F"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(mqtt_packets_pubcomp_sent_total[1m])",
-              "legendFormat": "PUBCOMP ({{network}}, QoS={{qos}})",
-              "range": true,
-              "refId": "G"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(mqtt_packets_suback_sent_total[1m])",
-              "legendFormat": "SUBACK ({{network}}, QoS={{qos}})",
-              "range": true,
-              "refId": "H"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(mqtt_packets_unsuback_sent_total[1m])",
-              "legendFormat": "UNSUBACK ({{network}}, QoS={{qos}})",
-              "range": true,
-              "refId": "I"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(mqtt_packets_pingresp_sent_total[1m])",
-              "legendFormat": "PINGRESP ({{network}}, QoS={{qos}})",
-              "range": true,
-              "refId": "J"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(mqtt_packets_disconnect_sent_total[1m])",
-              "legendFormat": "DISCONNECT ({{network}}, QoS={{qos}})",
-              "range": true,
-              "refId": "K"
-            }
-          ],
-          "title": "MQTT Sent Packet Rate by Type (QPS)",
-          "type": "timeseries"
         }
       ],
       "title": "📈 MQTT Protocol",
@@ -5145,8 +5046,10 @@
                 "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
+                "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 10,
                 "gradientMode": "none",
@@ -5163,6 +5066,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -5191,7 +5095,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 0
+            "y": 6
           },
           "id": 609,
           "options": {
@@ -5205,6 +5109,7 @@
               "showLegend": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "none"
             }
@@ -5226,278 +5131,6 @@
           ],
           "title": "Raft Apply Lag (log - applied)",
           "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "Raft write requests per second by machine",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 6,
-            "x": 0,
-            "y": 2007
-          },
-          "id": 601,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(raft_write_requests_total[5m])) by (machine)",
-              "legendFormat": "{{machine}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Raft Write Rate (req/s)",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "Raft write success per second by machine",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 6,
-            "x": 6,
-            "y": 2007
-          },
-          "id": 602,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(raft_write_success_total[5m])) by (machine)",
-              "legendFormat": "{{machine}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Raft Write Success Rate (req/s)",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "Raft write failures per second by machine",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 1
-                  },
-                  {
-                    "color": "red",
-                    "value": 5
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 6,
-            "x": 12,
-            "y": 2007
-          },
-          "id": 603,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(raft_write_failures_total[5m])) by (machine)",
-              "legendFormat": "{{machine}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Raft Write Failure Rate (/s)",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "Raft RPC requests per second by machine",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 6,
-            "x": 18,
-            "y": 2007
-          },
-          "id": 604,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(raft_rpc_requests_total[5m])) by (machine)",
-              "legendFormat": "{{machine}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Raft RPC Rate (req/s)",
-          "type": "stat"
         },
         {
           "datasource": {
@@ -5562,7 +5195,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 2038
+            "y": 81
           },
           "id": 605,
           "options": {
@@ -5590,7 +5223,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "sum(rate(raft_write_requests_total[5m])) by (machine)",
+              "expr": "rate(raft_write_requests_total[1m])",
               "legendFormat": "{{machine}} Requests",
               "range": true,
               "refId": "A"
@@ -5601,7 +5234,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "sum(rate(raft_write_success_total[5m])) by (machine)",
+              "expr": "rate(raft_write_success_total[1m])",
               "legendFormat": "{{machine}} Success",
               "range": true,
               "refId": "B"
@@ -5612,7 +5245,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "sum(rate(raft_write_failures_total[5m])) by (machine)",
+              "expr": "rate(raft_write_failures_total[1m])",
               "legendFormat": "{{machine}} Failures",
               "range": true,
               "refId": "C"
@@ -5684,7 +5317,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 2038
+            "y": 81
           },
           "id": 606,
           "options": {
@@ -5817,7 +5450,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 2047
+            "y": 90
           },
           "id": 700,
           "options": {
@@ -5950,7 +5583,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 2047
+            "y": 90
           },
           "id": 701,
           "options": {
@@ -6035,7 +5668,7 @@
                 "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
-                "axisLabel": "rpc/s",
+                "axisLabel": "requests/s",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "barWidthFactor": 0.6,
@@ -6083,7 +5716,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 2056
+            "y": 99
           },
           "id": 607,
           "options": {
@@ -6111,7 +5744,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "sum(rate(raft_rpc_requests_total[5m])) by (machine, rpc_type)",
+              "expr": "sum(rate(raft_rpc_requests_total[1m])) by (machine, rpc_type)",
               "legendFormat": "{{machine}}/{{rpc_type}} Requests",
               "range": true,
               "refId": "A"
@@ -6194,7 +5827,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 2056
+            "y": 99
           },
           "id": 608,
           "options": {
@@ -6330,7 +5963,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 2008
+            "y": 7
           },
           "id": 805,
           "options": {
@@ -6430,7 +6063,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 2017
+            "y": 56
           },
           "id": 801,
           "options": {
@@ -6530,7 +6163,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 2017
+            "y": 56
           },
           "id": 802,
           "options": {
@@ -6676,7 +6309,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 2026
+            "y": 65
           },
           "id": 803,
           "options": {
@@ -6844,7 +6477,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 2026
+            "y": 65
           },
           "id": 804,
           "options": {
@@ -6917,220 +6550,6 @@
       },
       "id": 400,
       "panels": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "gRPC requests per second (all services/methods combined)",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 8,
-            "x": 0,
-            "y": 8
-          },
-          "id": 401,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(grpc_requests_total[5m]))",
-              "legendFormat": "Requests Rate",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "gRPC Requests Rate (req/s)",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "gRPC total errors (all non-OK statuses)",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 10
-                  },
-                  {
-                    "color": "red",
-                    "value": 100
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 8,
-            "x": 8,
-            "y": 8
-          },
-          "id": 402,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "sum(grpc_errors_total)",
-              "legendFormat": "Total Errors",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "gRPC Total Errors",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "gRPC error rate = errors / requests * 100%",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 1
-                  },
-                  {
-                    "color": "red",
-                    "value": 5
-                  }
-                ]
-              },
-              "unit": "percent"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 8,
-            "x": 16,
-            "y": 8
-          },
-          "id": 403,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(grpc_errors_total[1m])) / sum(rate(grpc_requests_total[1m])) * 100",
-              "legendFormat": "Error Rate",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "gRPC Error Rate (%)",
-          "type": "stat"
-        },
         {
           "datasource": {
             "type": "prometheus",
@@ -7214,7 +6633,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 12
+            "y": 8
           },
           "id": 404,
           "options": {
@@ -7325,7 +6744,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 12
+            "y": 8
           },
           "id": 405,
           "options": {
@@ -7497,7 +6916,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 21
+            "y": 35
           },
           "id": 406,
           "options": {
@@ -7630,7 +7049,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 21
+            "y": 35
           },
           "id": 407,
           "options": {
@@ -7672,7 +7091,7 @@
       "type": "row"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -7680,347 +7099,346 @@
         "y": 8
       },
       "id": 900,
-      "panels": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "P99 latency of outgoing gRPC client calls grouped by service/method",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "ms",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "ms"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 24,
-            "x": 0,
-            "y": 1202
-          },
-          "id": 901,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Mean",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le, service, method))",
-              "legendFormat": "{{service}}/{{method}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "gRPC Client Call P99 Latency by Method",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "Overall latency percentiles of all outgoing gRPC client calls",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "ms",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "ms"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 0,
-            "y": 1211
-          },
-          "id": 902,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.5, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
-              "legendFormat": "P50",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.95, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
-              "legendFormat": "P95",
-              "range": true,
-              "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
-              "legendFormat": "P99",
-              "range": true,
-              "refId": "C"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.999, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
-              "legendFormat": "P999",
-              "range": true,
-              "refId": "D"
-            }
-          ],
-          "title": "gRPC Client Call Latency Percentiles",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "QPS of outgoing gRPC client calls grouped by service/method",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "req/s",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 1211
-          },
-          "id": 903,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Mean",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(grpc_client_call_duration_ms_count[5m])) by (service, method)",
-              "legendFormat": "{{service}}/{{method}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "gRPC Client Call QPS by Method",
-          "type": "timeseries"
-        }
-      ],
+      "panels": [],
       "title": "📡 gRPC Client",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "P99 latency of outgoing gRPC client calls grouped by service/method",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 901,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le, service, method))",
+          "legendFormat": "{{service}}/{{method}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "gRPC Client Call P99 Latency by Method",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "Overall latency percentiles of all outgoing gRPC client calls",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 902,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.5, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
+          "legendFormat": "P50",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
+          "legendFormat": "P95",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
+          "legendFormat": "P99",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.999, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
+          "legendFormat": "P999",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "gRPC Client Call Latency Percentiles",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "QPS of outgoing gRPC client calls grouped by service/method",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "req/s",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 903,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(grpc_client_call_duration_ms_count[5m])) by (service, method)",
+          "legendFormat": "{{service}}/{{method}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "gRPC Client Call QPS by Method",
+      "type": "timeseries"
     },
     {
       "collapsed": true,
@@ -8028,7 +7446,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 27
       },
       "id": 500,
       "panels": [
@@ -8061,7 +7479,7 @@
             "h": 4,
             "w": 8,
             "x": 0,
-            "y": 2486
+            "y": 5862
           },
           "id": 501,
           "options": {
@@ -8135,7 +7553,7 @@
             "h": 4,
             "w": 8,
             "x": 8,
-            "y": 2486
+            "y": 5862
           },
           "id": 502,
           "options": {
@@ -8209,7 +7627,7 @@
             "h": 4,
             "w": 8,
             "x": 16,
-            "y": 2486
+            "y": 5862
           },
           "id": 503,
           "options": {
@@ -8329,7 +7747,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 2490
+            "y": 5866
           },
           "id": 504,
           "options": {
@@ -8440,7 +7858,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 2490
+            "y": 5866
           },
           "id": 505,
           "options": {
@@ -8612,7 +8030,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 2596
+            "y": 5972
           },
           "id": 506,
           "options": {
@@ -8745,7 +8163,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 2596
+            "y": 5972
           },
           "id": 507,
           "options": {
@@ -8792,7 +8210,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 10
+        "y": 28
       },
       "id": 215,
       "panels": [
@@ -8825,9 +8243,9 @@
             "h": 4,
             "w": 6,
             "x": 0,
-            "y": 2910
+            "y": 6286
           },
-          "id": 700,
+          "id": 1104,
           "options": {
             "colorMode": "value",
             "graphMode": "area",
@@ -8891,9 +8309,9 @@
             "h": 4,
             "w": 6,
             "x": 6,
-            "y": 2910
+            "y": 6286
           },
-          "id": 701,
+          "id": 1105,
           "options": {
             "colorMode": "value",
             "graphMode": "area",
@@ -8965,7 +8383,7 @@
             "h": 4,
             "w": 6,
             "x": 12,
-            "y": 2910
+            "y": 6286
           },
           "id": 702,
           "options": {
@@ -9031,7 +8449,7 @@
             "h": 4,
             "w": 6,
             "x": 18,
-            "y": 2910
+            "y": 6286
           },
           "id": 703,
           "options": {
@@ -9094,7 +8512,7 @@
                 "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
-                "axisLabel": "msg/s",
+                "axisLabel": "messages/s",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "barWidthFactor": 0.6,
@@ -9188,7 +8606,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 2941
+            "y": 6317
           },
           "id": 704,
           "options": {
@@ -9356,7 +8774,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 2941
+            "y": 6317
           },
           "id": 705,
           "options": {
@@ -9524,7 +8942,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 2950
+            "y": 6326
           },
           "id": 706,
           "options": {
@@ -9692,7 +9110,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 2950
+            "y": 6326
           },
           "id": 707,
           "options": {
@@ -9761,9 +9179,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 2960
+        "y": 29
       },
-      "id": 901,
+      "id": 1106,
       "panels": [
         {
           "datasource": {
@@ -9824,9 +9242,9 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 1
+            "y": 3377
           },
-          "id": 902,
+          "id": 1107,
           "options": {
             "legend": {
               "calcs": [
@@ -9918,9 +9336,9 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 1
+            "y": 3377
           },
-          "id": 903,
+          "id": 1108,
           "options": {
             "legend": {
               "calcs": [
@@ -10024,7 +9442,7 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 1
+            "y": 3377
           },
           "id": 904,
           "options": {
@@ -10097,6 +9515,7 @@
                 "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
+                "axisLabel": "events/s",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "drawStyle": "line",
@@ -10141,7 +9560,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 9
+            "y": 3385
           },
           "id": 905,
           "options": {
@@ -10214,6 +9633,7 @@
                 "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
+                "axisLabel": "errors/s",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "drawStyle": "line",
@@ -10258,7 +9678,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 9
+            "y": 3385
           },
           "id": 906,
           "options": {
@@ -10337,12 +9757,12 @@
     ]
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "RobustMQ MQTT Broker Dashboard",
   "uid": "robustmq-mqtt-broker",
-  "version": 4
+  "version": 6
 }
