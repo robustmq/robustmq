@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::error::BenchMarkError;
-use crate::mqtt::common::{build_client, wait_connack};
+use crate::mqtt::common::{build_client, wait_connack_v4, wait_connack_v5, ClientHandle};
 use crate::mqtt::report::{
     print_conn_progress_line, print_realtime_line, BenchReport, BenchReportInput, ThroughputSample,
 };
@@ -42,6 +42,7 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
     let host: Arc<str> = Arc::from(args.common.host.as_str());
     let username: Arc<Option<String>> = Arc::new(args.common.username.clone());
     let password: Arc<Option<String>> = Arc::new(args.common.password.clone());
+    let mqtt_version = args.common.mqtt_version;
     let mut join_set = JoinSet::new();
 
     let progress_stats = stats.clone();
@@ -81,52 +82,98 @@ pub async fn run_conn_bench(args: ConnBenchArgs) -> Result<(), BenchMarkError> {
         join_set.spawn(async move {
             let permit = permit;
             let start = Instant::now();
-            let (client, mut event_loop) =
-                build_client(&client_id, &host, port, &username, &password);
-            match wait_connack(&mut event_loop, 60_000).await {
-                Ok(_) => {
-                    local_stats.incr_success();
-                    local_stats.record_latency(start.elapsed());
-                }
-                Err(e) => {
-                    local_stats.record_latency(start.elapsed());
-                    if e.contains("connect timeout") {
-                        local_stats.incr_timeout();
-                    } else {
-                        local_stats.incr_failed();
-                    }
-                    local_stats.record_error(&format!("connect:{e}"));
-                    return;
-                }
-            }
-            if matches!(mode, ConnMode::Create) {
-                // release permit immediately after ConnAck so next connection can start
-                drop(permit);
-                let _ = client.disconnect().await;
-                // drain until disconnect is confirmed or error
-                let _ = tokio::time::timeout(Duration::from_secs(5), async {
-                    loop {
-                        match event_loop.poll().await {
-                            Ok(_) => {}
-                            Err(_) => return,
+            let handle = build_client(&client_id, &host, port, &username, &password, mqtt_version);
+            match handle {
+                ClientHandle::V4(client, mut event_loop) => {
+                    match wait_connack_v4(&mut event_loop, 60_000).await {
+                        Ok(_) => {
+                            local_stats.incr_success();
+                            local_stats.record_latency(start.elapsed());
+                        }
+                        Err(e) => {
+                            local_stats.record_latency(start.elapsed());
+                            if e.contains("connect timeout") {
+                                local_stats.incr_timeout();
+                            } else {
+                                local_stats.incr_failed();
+                            }
+                            local_stats.record_error(&format!("connect:{e}"));
+                            return;
                         }
                     }
-                })
-                .await;
-                return;
-            }
-            drop(permit);
-            if matches!(mode, ConnMode::Hold) {
-                let _ = tokio::time::timeout(hold_duration_each, async {
-                    loop {
-                        match event_loop.poll().await {
-                            Ok(_) => {}
-                            Err(_) => return,
+                    if matches!(mode, ConnMode::Create) {
+                        drop(permit);
+                        let _ = client.disconnect().await;
+                        let _ = tokio::time::timeout(Duration::from_secs(5), async {
+                            loop {
+                                match event_loop.poll().await {
+                                    Ok(_) => {}
+                                    Err(_) => return,
+                                }
+                            }
+                        })
+                        .await;
+                        return;
+                    }
+                    drop(permit);
+                    if matches!(mode, ConnMode::Hold) {
+                        let _ = tokio::time::timeout(hold_duration_each, async {
+                            loop {
+                                match event_loop.poll().await {
+                                    Ok(_) => {}
+                                    Err(_) => return,
+                                }
+                            }
+                        })
+                        .await;
+                        let _ = client.disconnect().await;
+                    }
+                }
+                ClientHandle::V5(client, mut event_loop) => {
+                    match wait_connack_v5(&mut event_loop, 60_000).await {
+                        Ok(_) => {
+                            local_stats.incr_success();
+                            local_stats.record_latency(start.elapsed());
+                        }
+                        Err(e) => {
+                            local_stats.record_latency(start.elapsed());
+                            if e.contains("connect timeout") {
+                                local_stats.incr_timeout();
+                            } else {
+                                local_stats.incr_failed();
+                            }
+                            local_stats.record_error(&format!("connect:{e}"));
+                            return;
                         }
                     }
-                })
-                .await;
-                let _ = client.disconnect().await;
+                    if matches!(mode, ConnMode::Create) {
+                        drop(permit);
+                        let _ = client.disconnect().await;
+                        let _ = tokio::time::timeout(Duration::from_secs(5), async {
+                            loop {
+                                match event_loop.poll().await {
+                                    Ok(_) => {}
+                                    Err(_) => return,
+                                }
+                            }
+                        })
+                        .await;
+                        return;
+                    }
+                    drop(permit);
+                    if matches!(mode, ConnMode::Hold) {
+                        let _ = tokio::time::timeout(hold_duration_each, async {
+                            loop {
+                                match event_loop.poll().await {
+                                    Ok(_) => {}
+                                    Err(_) => return,
+                                }
+                            }
+                        })
+                        .await;
+                        let _ = client.disconnect().await;
+                    }
+                }
             }
         });
     }

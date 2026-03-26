@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::error::BenchMarkError;
-use crate::mqtt::common::{build_client, qos_from_u8, wait_connack};
+use crate::mqtt::common::{build_client, qos_from_u8, wait_connack_v4, wait_connack_v5, ClientHandle};
 use crate::mqtt::report::{print_realtime_line, BenchReport, BenchReportInput, ThroughputSample};
 use crate::mqtt::stats::SharedStats;
 use crate::mqtt::{OutputFormat, PublishBenchArgs};
@@ -28,6 +28,7 @@ pub async fn run_publish_bench(args: PublishBenchArgs) -> Result<(), BenchMarkEr
     let payload = vec![b'x'; args.payload_size];
     let stats = SharedStats::new();
     let mut handles: Vec<JoinHandle<()>> = Vec::with_capacity(args.common.count);
+    let mqtt_version = args.common.mqtt_version;
 
     for i in 0..args.common.count {
         if args.common.interval_ms > 0 {
@@ -45,42 +46,76 @@ pub async fn run_publish_bench(args: PublishBenchArgs) -> Result<(), BenchMarkEr
 
         handles.push(tokio::spawn(async move {
             let client_id = format!("robust-bench-pub-{i}");
-            let (client, mut event_loop) =
-                build_client(&client_id, &host, port, &username, &password);
-            if let Err(e) = wait_connack(&mut event_loop, 10_000).await {
-                local_stats.incr_failed();
-                local_stats.record_error(&format!("connect:{e}"));
-                return;
-            }
-
-            let mut next_publish = tokio::time::Instant::now();
-            while tokio::time::Instant::now() < deadline {
-                let now = tokio::time::Instant::now();
-                if now >= next_publish {
-                    let start = Instant::now();
-                    match client
-                        .publish(topic.clone(), qos, false, payload.clone())
-                        .await
-                    {
-                        Ok(_) => {
-                            local_stats.incr_success();
-                            local_stats.record_latency(start.elapsed());
+            let handle = build_client(&client_id, &host, port, &username, &password, mqtt_version);
+            match handle {
+                ClientHandle::V4(client, mut event_loop) => {
+                    if let Err(e) = wait_connack_v4(&mut event_loop, 10_000).await {
+                        local_stats.incr_failed();
+                        local_stats.record_error(&format!("connect:{e}"));
+                        return;
+                    }
+                    let mut next_publish = tokio::time::Instant::now();
+                    while tokio::time::Instant::now() < deadline {
+                        let now = tokio::time::Instant::now();
+                        if now >= next_publish {
+                            let start = Instant::now();
+                            match client.publish(topic.clone(), qos, false, payload.clone()).await {
+                                Ok(_) => {
+                                    local_stats.incr_success();
+                                    local_stats.record_latency(start.elapsed());
+                                }
+                                Err(e) => {
+                                    local_stats.incr_failed();
+                                    local_stats.record_error(&format!("publish:{e}"));
+                                }
+                            }
+                            next_publish += publish_interval;
                         }
-                        Err(e) => {
-                            local_stats.incr_failed();
-                            local_stats.record_error(&format!("publish:{e}"));
+                        if let Ok(Err(e)) =
+                            tokio::time::timeout(Duration::from_millis(5), event_loop.poll()).await
+                        {
+                            local_stats.record_error(&format!("poll:{e}"));
                         }
                     }
-                    next_publish += publish_interval;
+                    let _ = client.disconnect().await;
                 }
-
-                if let Ok(Err(e)) =
-                    tokio::time::timeout(Duration::from_millis(5), event_loop.poll()).await
-                {
-                    local_stats.record_error(&format!("poll:{e}"));
+                ClientHandle::V5(client, mut event_loop) => {
+                    if let Err(e) = wait_connack_v5(&mut event_loop, 10_000).await {
+                        local_stats.incr_failed();
+                        local_stats.record_error(&format!("connect:{e}"));
+                        return;
+                    }
+                    let v5_qos = match qos {
+                        rumqttc::QoS::AtMostOnce => rumqttc::v5::mqttbytes::QoS::AtMostOnce,
+                        rumqttc::QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
+                        rumqttc::QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
+                    };
+                    let mut next_publish = tokio::time::Instant::now();
+                    while tokio::time::Instant::now() < deadline {
+                        let now = tokio::time::Instant::now();
+                        if now >= next_publish {
+                            let start = Instant::now();
+                            match client.publish(topic.clone(), v5_qos, false, payload.clone()).await {
+                                Ok(_) => {
+                                    local_stats.incr_success();
+                                    local_stats.record_latency(start.elapsed());
+                                }
+                                Err(e) => {
+                                    local_stats.incr_failed();
+                                    local_stats.record_error(&format!("publish:{e}"));
+                                }
+                            }
+                            next_publish += publish_interval;
+                        }
+                        if let Ok(Err(e)) =
+                            tokio::time::timeout(Duration::from_millis(5), event_loop.poll()).await
+                        {
+                            local_stats.record_error(&format!("poll:{e}"));
+                        }
+                    }
+                    let _ = client.disconnect().await;
                 }
             }
-            let _ = client.disconnect().await;
         }));
     }
 
@@ -155,16 +190,3 @@ pub async fn run_publish_bench(args: PublishBenchArgs) -> Result<(), BenchMarkEr
 
     Ok(())
 }
-// Copyright 2023 RobustMQ Team
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.

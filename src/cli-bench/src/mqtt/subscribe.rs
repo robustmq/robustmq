@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::error::BenchMarkError;
-use crate::mqtt::common::{build_client, qos_from_u8, wait_connack};
+use crate::mqtt::common::{build_client, qos_from_u8, wait_connack_v4, wait_connack_v5, ClientHandle};
 use crate::mqtt::report::{print_realtime_line, BenchReport, BenchReportInput, ThroughputSample};
 use crate::mqtt::stats::SharedStats;
 use crate::mqtt::{OutputFormat, SubscribeBenchArgs};
@@ -28,6 +28,7 @@ pub async fn run_subscribe_bench(args: SubscribeBenchArgs) -> Result<(), BenchMa
     let qos = qos_from_u8(args.common.qos);
     let stats = SharedStats::new();
     let mut handles: Vec<JoinHandle<()>> = Vec::with_capacity(args.common.count);
+    let mqtt_version = args.common.mqtt_version;
 
     for i in 0..args.common.count {
         if args.common.interval_ms > 0 {
@@ -42,36 +43,73 @@ pub async fn run_subscribe_bench(args: SubscribeBenchArgs) -> Result<(), BenchMa
 
         handles.push(tokio::spawn(async move {
             let client_id = format!("robust-bench-sub-{i}");
-            let (client, mut event_loop) =
-                build_client(&client_id, &host, port, &username, &password);
-            if let Err(e) = wait_connack(&mut event_loop, 10_000).await {
-                local_stats.incr_failed();
-                local_stats.record_error(&format!("connect:{e}"));
-                return;
-            }
-            if let Err(e) = client.subscribe(topic, qos).await {
-                local_stats.incr_failed();
-                local_stats.record_error(&format!("subscribe:{e}"));
-                return;
-            }
-
-            while tokio::time::Instant::now() < deadline {
-                match tokio::time::timeout(Duration::from_millis(200), event_loop.poll()).await {
-                    Ok(Ok(Event::Incoming(Incoming::Publish(_)))) => {
-                        local_stats.incr_received();
-                        local_stats.incr_success();
-                    }
-                    Ok(Ok(_)) => {}
-                    Ok(Err(e)) => {
+            let handle = build_client(&client_id, &host, port, &username, &password, mqtt_version);
+            match handle {
+                ClientHandle::V4(client, mut event_loop) => {
+                    if let Err(e) = wait_connack_v4(&mut event_loop, 10_000).await {
                         local_stats.incr_failed();
-                        local_stats.record_error(&format!("poll:{e}"));
+                        local_stats.record_error(&format!("connect:{e}"));
+                        return;
                     }
-                    Err(_) => {
-                        local_stats.incr_timeout();
+                    if let Err(e) = client.subscribe(topic, qos).await {
+                        local_stats.incr_failed();
+                        local_stats.record_error(&format!("subscribe:{e}"));
+                        return;
                     }
+                    while tokio::time::Instant::now() < deadline {
+                        match tokio::time::timeout(Duration::from_millis(200), event_loop.poll()).await {
+                            Ok(Ok(Event::Incoming(Incoming::Publish(_)))) => {
+                                local_stats.incr_received();
+                                local_stats.incr_success();
+                            }
+                            Ok(Ok(_)) => {}
+                            Ok(Err(e)) => {
+                                local_stats.incr_failed();
+                                local_stats.record_error(&format!("poll:{e}"));
+                            }
+                            Err(_) => {
+                                local_stats.incr_timeout();
+                            }
+                        }
+                    }
+                    let _ = client.disconnect().await;
+                }
+                ClientHandle::V5(client, mut event_loop) => {
+                    if let Err(e) = wait_connack_v5(&mut event_loop, 10_000).await {
+                        local_stats.incr_failed();
+                        local_stats.record_error(&format!("connect:{e}"));
+                        return;
+                    }
+                    let v5_qos = match qos {
+                        rumqttc::QoS::AtMostOnce => rumqttc::v5::mqttbytes::QoS::AtMostOnce,
+                        rumqttc::QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
+                        rumqttc::QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
+                    };
+                    if let Err(e) = client.subscribe(topic, v5_qos).await {
+                        local_stats.incr_failed();
+                        local_stats.record_error(&format!("subscribe:{e}"));
+                        return;
+                    }
+                    while tokio::time::Instant::now() < deadline {
+                        use rumqttc::v5::{Event as EventV5, Incoming as IncomingV5};
+                        match tokio::time::timeout(Duration::from_millis(200), event_loop.poll()).await {
+                            Ok(Ok(EventV5::Incoming(IncomingV5::Publish(_)))) => {
+                                local_stats.incr_received();
+                                local_stats.incr_success();
+                            }
+                            Ok(Ok(_)) => {}
+                            Ok(Err(e)) => {
+                                local_stats.incr_failed();
+                                local_stats.record_error(&format!("poll:{e}"));
+                            }
+                            Err(_) => {
+                                local_stats.incr_timeout();
+                            }
+                        }
+                    }
+                    let _ = client.disconnect().await;
                 }
             }
-            let _ = client.disconnect().await;
         }));
     }
 
@@ -140,16 +178,3 @@ pub async fn run_subscribe_bench(args: SubscribeBenchArgs) -> Result<(), BenchMa
     }
     Ok(())
 }
-// Copyright 2023 RobustMQ Team
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
