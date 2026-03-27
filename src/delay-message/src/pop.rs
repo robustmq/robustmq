@@ -14,7 +14,6 @@
 
 use crate::delay::{delete_delay_index_info, delete_delay_message, DELAY_QUEUE_MESSAGE_TOPIC};
 use crate::manager::{DelayMessageManager, ShardCmd, DELAY_MESSAGE_SAVE_MS};
-use tokio_util::time::delay_queue;
 use common_base::error::common::CommonError;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::tools::now_second;
@@ -91,11 +90,16 @@ async fn run_shard_loop(
                 }
             }
 
-            // Command from manager (Insert)
+            // Command from manager (Insert / Delete)
             cmd = rx.recv() => {
                 match cmd {
-                    Some(ShardCmd::Insert(delay_info, target_instant)) => {
-                        delay_queue.insert_at(delay_info, target_instant);
+                    Some(ShardCmd::Insert(delay_info, target_instant, key_tx)) => {
+                        let key = delay_queue.insert_at(delay_info, target_instant);
+                        let _ = key_tx.send(key);
+                    }
+                    Some(ShardCmd::Delete(key, done_tx)) => {
+                        delay_queue.remove(&key);
+                        let _ = done_tx.send(());
                     }
                     None => {
                         // Channel closed — manager dropped, exit.
@@ -107,6 +111,7 @@ async fn run_shard_loop(
             // Expired message
             Some(expired) = delay_queue.next() => {
                 let delay_message = expired.into_inner();
+                manager.remove_message_key(&delay_message.unique_id);
                 let storage = manager.storage_driver_manager.clone();
                 tokio::spawn(async move {
                     if let Err(e) = delay_message_process(

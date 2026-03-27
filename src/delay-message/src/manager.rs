@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::delay::{
-    delete_delay_index_info, delete_delay_message, save_delay_index_info,
-};
+use crate::delay::{delete_delay_index_info, delete_delay_message, save_delay_index_info};
 use crate::{
     delay::{init_inner_topic, save_delay_message},
     pop::spawn_delay_message_pop_threads,
@@ -38,7 +36,7 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio::time::Instant;
 use tokio_util::time::delay_queue;
-use tracing::{debug, warn};
+use tracing::debug;
 
 /// Command sent from the manager to the per-shard pop thread.
 pub(crate) enum ShardCmd {
@@ -157,7 +155,7 @@ impl DelayMessageManager {
         let entry = match self.message_key_map.remove(unique_id) {
             Some(e) => e,
             None => {
-                warn!(
+                debug!(
                     "Delay message not found when cancelling, may have already been delivered: unique_id={}",
                     unique_id
                 );
@@ -187,7 +185,10 @@ impl DelayMessageManager {
         // Clean up persistent storage.
         let delay_info = DelayMessageIndexInfo {
             unique_id: unique_id.to_string(),
-            ..Default::default()
+            tenant: String::new(),
+            target_topic_name: String::new(),
+            offset: 0,
+            target_timestamp: 0,
         };
         delete_delay_index_info(&self.storage_driver_manager, &delay_info).await?;
         delete_delay_message(&self.storage_driver_manager, unique_id).await?;

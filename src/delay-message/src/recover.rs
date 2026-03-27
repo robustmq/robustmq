@@ -143,8 +143,11 @@ async fn process_delay_index_record(
         return false;
     }
 
-    if let Err(e) = delay_message_manager.send_to_delay_queue(&delay_info) {
-        error!("Failed to enqueue delay message during recovery: unique_id={}, error={}", delay_info.unique_id, e);
+    if let Err(e) = delay_message_manager.send_to_delay_queue(&delay_info).await {
+        error!(
+            "Failed to enqueue delay message during recovery: unique_id={}, error={}",
+            delay_info.unique_id, e
+        );
         return false;
     }
     record_delay_msg_recover();
