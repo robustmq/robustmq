@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::delay::{delete_delay_index_info, delete_delay_message, DELAY_QUEUE_MESSAGE_TOPIC};
-use crate::manager::{DelayMessageManager, SharedDelayQueue, DELAY_MESSAGE_SAVE_MS};
+use crate::manager::{DelayMessageManager, ShardCmd, DELAY_MESSAGE_SAVE_MS};
 use common_base::error::common::CommonError;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::tools::now_second;
@@ -26,112 +26,110 @@ use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use storage_adapter::driver::StorageDriverManager;
-use tokio::time::sleep;
-use tokio::{select, sync::broadcast};
+use tokio::sync::{broadcast, mpsc};
+use tokio::{select, sync::broadcast as bc};
+use tokio_util::time::DelayQueue;
 use tracing::{debug, error, info, warn};
-
-const POP_LOCK_TIMEOUT_MS: u64 = 100;
 
 pub(crate) fn spawn_delay_message_pop_threads(
     delay_message_manager: &Arc<DelayMessageManager>,
     task_supervisor: &Arc<TaskSupervisor>,
     delay_queue_num: u32,
 ) {
+    info!("Starting delay message pop threads ({})", delay_queue_num);
+
     for shard_no in 0..delay_queue_num {
-        let new_delay_message_manager = delay_message_manager.clone();
+        let manager = delay_message_manager.clone();
+
+        // Create command channel for this shard.
+        let (tx, rx) = mpsc::unbounded_channel::<ShardCmd>();
+        delay_message_manager.register_shard_cmd_tx(shard_no, tx);
 
         let (stop_send, _) = broadcast::channel(2);
         delay_message_manager.add_delay_queue_pop_thread(shard_no, stop_send.clone());
 
-        task_supervisor.spawn(format!("{}_{}",TaskKind::DelayMessagePop, shard_no), async move {
-            let mut recv = stop_send.subscribe();
-            loop {
-                select! {
-                    val = recv.recv() =>{
-                        match val {
-                            Ok(flag) if flag => {
-                                info!("Delay message pop thread stopped for shard {}", shard_no);
-                                break;
-                            }
-                            Err(_) => {
-                                warn!("Broadcast channel closed, stopping pop thread for shard {}", shard_no);
-                                break;
-                            }
-                            _ => {}
-                        }
+        task_supervisor.spawn(
+            format!("{}_{}", TaskKind::DelayMessagePop, shard_no),
+            async move {
+                run_shard_loop(shard_no, rx, stop_send, manager).await;
+            },
+        );
+    }
+}
+
+/// Per-shard event loop.
+/// Owns the DelayQueue exclusively — no Mutex needed.
+/// Uses select! to react to either:
+///   - a command from the manager (Insert)
+///   - a message expiring in the DelayQueue
+async fn run_shard_loop(
+    shard_no: u32,
+    mut rx: mpsc::UnboundedReceiver<ShardCmd>,
+    stop_send: bc::Sender<bool>,
+    manager: Arc<DelayMessageManager>,
+) {
+    let mut delay_queue: DelayQueue<DelayMessageIndexInfo> = DelayQueue::new();
+    let mut stop_recv = stop_send.subscribe();
+
+    loop {
+        select! {
+            // Stop signal
+            val = stop_recv.recv() => {
+                match val {
+                    Ok(flag) if flag => {
+                        info!("Delay message pop thread stopped for shard {}", shard_no);
+                        break;
                     }
-                    res =  pop_delay_queue(
-                        &new_delay_message_manager,
-                        shard_no,
-                    ) => {
-                        if let Err(e) = res{
-                            error!("{}",e);
-                            break;
-                        }
+                    Err(_) => {
+                        warn!("Broadcast channel closed, stopping pop thread for shard {}", shard_no);
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+
+            // Command from manager (Insert / Delete)
+            cmd = rx.recv() => {
+                match cmd {
+                    Some(ShardCmd::Insert(delay_info, target_instant, key_tx)) => {
+                        let key = delay_queue.insert_at(delay_info, target_instant);
+                        let _ = key_tx.send(key);
+                    }
+                    Some(ShardCmd::Delete(key, done_tx)) => {
+                        delay_queue.remove(&key);
+                        let _ = done_tx.send(());
+                    }
+                    None => {
+                        // Channel closed — manager dropped, exit.
+                        break;
                     }
                 }
             }
-        });
-    }
-}
-pub async fn pop_delay_queue(
-    delay_message_manager: &Arc<DelayMessageManager>,
-    shard_no: u32,
-) -> Result<(), CommonError> {
-    let queue_arc: SharedDelayQueue =
-        if let Some(q) = delay_message_manager.delay_queue_list.get(&shard_no) {
-            q.clone()
-        } else {
-            return Err(CommonError::CommonError(format!(
-                "Delay queue shard {} not found",
-                shard_no
-            )));
-        };
 
-    let mut delay_queue = queue_arc.lock().await;
-
-    match tokio::time::timeout(
-        Duration::from_millis(POP_LOCK_TIMEOUT_MS),
-        delay_queue.next(),
-    )
-    .await
-    {
-        Ok(Some(expired)) => {
-            let delay_message = expired.into_inner();
-            drop(delay_queue);
-
-            let raw_delay_message_manager = delay_message_manager.clone();
-            tokio::spawn(async move {
-                if let Err(e) = delay_message_process(
-                    &raw_delay_message_manager.storage_driver_manager,
-                    &delay_message,
-                    now_second(),
-                )
-                .await
-                {
-                    error!(
-                        "Failed to process delay message: offset={}, target={}, error={}",
-                        delay_message.offset, delay_message.target_topic_name, e
-                    );
-                }
-            });
-        }
-        Ok(None) => {
-            debug!(
-                "Delay queue shard {} returned None from next() - queue may be empty or closed",
-                shard_no
-            );
-            drop(delay_queue);
-            sleep(Duration::from_millis(10)).await;
-        }
-        Err(_) => {
-            drop(delay_queue);
+            // Expired message
+            Some(expired) = delay_queue.next() => {
+                let delay_message = expired.into_inner();
+                manager.remove_message_key(&delay_message.unique_id);
+                let storage = manager.storage_driver_manager.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = delay_message_process(
+                        &storage,
+                        &delay_message,
+                        now_second(),
+                    )
+                    .await
+                    {
+                        error!(
+                            "Failed to process delay message: offset={}, target={}, error={}",
+                            delay_message.offset, delay_message.target_topic_name, e
+                        );
+                    }
+                });
+            }
         }
     }
-
-    Ok(())
 }
 
 pub async fn delay_message_process(
@@ -250,133 +248,4 @@ async fn send_delay_message_to_shard(
 }
 
 #[cfg(test)]
-mod test {
-    // use crate::{
-    //     delay::{save_delay_index_info, save_delay_message},
-    //     pop::{delay_message_process, send_delay_message_to_shard},
-    // };
-    // use common_base::uuid::unique_id;
-    // use metadata_struct::{
-    //     delay_info::DelayMessageIndexInfo,
-    //     storage::{adapter_offset::AdapterShardInfo, adapter_record::AdapterWriteRecord},
-    // };
-    // use std::sync::Arc;
-
-    // #[tokio::test]
-    // async fn send_delay_message_test() {
-    //     let adapter = test_build_memory_storage_driver();
-    //     let delay_shard = unique_id();
-    //     let target_shard = unique_id();
-    //     let manager = Arc::new(crate::manager::DelayMessageManager::new_for_test(
-    //         adapter.clone(),
-    //         1,
-    //     ));
-
-    //     adapter
-    //         .create_shard(&AdapterShardInfo {
-    //             shard_name: delay_shard.clone(),
-    //             ..Default::default()
-    //         })
-    //         .await
-    //         .unwrap();
-    //     adapter
-    //         .create_shard(&AdapterShardInfo {
-    //             shard_name: target_shard.clone(),
-    //             ..Default::default()
-    //         })
-    //         .await
-    //         .unwrap();
-
-    //     let data = AdapterWriteRecord::from_string("test_data".to_string());
-    //     let delay_offset = save_delay_message(&adapter, &delay_shard, data)
-    //         .await
-    //         .unwrap();
-
-    //     let delay_info = DelayMessageIndexInfo {
-    //         unique_id: unique_id(),
-    //         target_topic_name: target_shard.clone(),
-    //         offset: delay_offset,
-    //         delay_timestamp: 0,
-    //         shard_no: 0,
-    //     };
-
-    //     let target_offset = send_delay_message_to_shard(&manager, &adapter, &delay_info)
-    //         .await
-    //         .unwrap();
-
-    //     let record = read_offset_data(&adapter, &target_shard, target_offset)
-    //         .await
-    //         .unwrap()
-    //         .unwrap();
-    //     assert_eq!(
-    //         String::from_utf8(record.data.to_vec()).unwrap(),
-    //         "test_data"
-    //     );
-    // }
-
-    // #[tokio::test]
-    // async fn delay_message_process_test() {
-    //     let adapter = test_build_memory_storage_driver();
-    //     let delay_shard = unique_id();
-    //     let target_shard = unique_id();
-    //     let manager = Arc::new(crate::manager::DelayMessageManager::new_for_test(
-    //         adapter.clone(),
-    //         1,
-    //     ));
-
-    //     adapter
-    //         .create_shard(&AdapterShardInfo {
-    //             shard_name: delay_shard.clone(),
-    //             ..Default::default()
-    //         })
-    //         .await
-    //         .unwrap();
-    //     adapter
-    //         .create_shard(&AdapterShardInfo {
-    //             shard_name: target_shard.clone(),
-    //             ..Default::default()
-    //         })
-    //         .await
-    //         .unwrap();
-    //     adapter
-    //         .create_shard(&AdapterShardInfo {
-    //             shard_name: crate::delay::DELAY_QUEUE_INFO_SHARD_NAME.to_string(),
-    //             ..Default::default()
-    //         })
-    //         .await
-    //         .unwrap();
-
-    //     let data = AdapterWriteRecord::from_string("test_data".to_string());
-    //     let delay_offset = save_delay_message(&adapter, &delay_shard, data)
-    //         .await
-    //         .unwrap();
-
-    //     let delay_info = DelayMessageIndexInfo {
-    //         unique_id: unique_id(),
-    //         delay_shard_name: delay_shard.clone(),
-    //         target_topic_name: target_shard.clone(),
-    //         offset: delay_offset,
-    //         delay_timestamp: 0,
-    //         shard_no: 0,
-    //     };
-
-    //     save_delay_index_info(&adapter, &delay_info).await.unwrap();
-
-    //     delay_message_process(&manager, &adapter, &delay_info)
-    //         .await
-    //         .unwrap();
-
-    //     let target_record = read_offset_data(&adapter, &target_shard, 0)
-    //         .await
-    //         .unwrap()
-    //         .unwrap();
-    //     assert_eq!(
-    //         String::from_utf8(target_record.data.to_vec()).unwrap(),
-    //         "test_data"
-    //     );
-
-    //     let delay_record = read_offset_data(&adapter, &delay_shard, delay_offset).await;
-    //     assert!(delay_record.is_ok());
-    //     assert!(delay_record.unwrap().is_none());
-    // }
-}
+mod test {}
