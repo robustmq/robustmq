@@ -33,6 +33,7 @@ use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
 use crate::core::cache::MQTTCacheManager;
+use crate::core::event::EventReportManager;
 use crate::core::retain::RetainMessageManager;
 use crate::security::AuthManager;
 use crate::storage::session::SessionBatcher;
@@ -55,6 +56,7 @@ pub struct MqttService {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     retain_message_manager: Arc<RetainMessageManager>,
     limit_manager: Arc<MQTTRateLimiterManager>,
+    event_manager: Arc<EventReportManager>,
 }
 
 #[derive(Clone)]
@@ -73,6 +75,7 @@ pub struct MqttServiceContext {
     pub retain_message_manager: Arc<RetainMessageManager>,
     pub limit_manager: Arc<MQTTRateLimiterManager>,
     pub node_call: Arc<NodeCallManager>,
+    pub event_manager: Arc<EventReportManager>,
 }
 
 #[derive(Clone)]
@@ -102,6 +105,7 @@ impl MqttService {
             rocksdb_engine_handler: context.rocksdb_engine_handler,
             retain_message_manager: context.retain_message_manager,
             limit_manager: context.limit_manager,
+            event_manager: context.event_manager,
         }
     }
 }

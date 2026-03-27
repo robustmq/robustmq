@@ -87,13 +87,7 @@ fn read_not_persist_session(
     let sessions = broker_cache_manager
         .session_list
         .iter()
-        .flat_map(|entry| {
-            entry
-                .value()
-                .iter()
-                .map(|e| e.value().encode())
-                .collect::<Vec<_>>()
-        })
+        .map(|e| e.value().encode())
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(sessions)

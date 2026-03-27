@@ -49,8 +49,9 @@ async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMq
     // Clear stale rewrite mappings before recalculating
     cache_manager.clear_rewrite_new_name();
 
-    for tenant_entry in cache_manager.node_cache.topic_list.iter() {
-        let tenant = tenant_entry.key().clone();
+    for topic_entry in cache_manager.node_cache.topic_list.iter() {
+        let tenant = topic_entry.value().tenant.clone();
+        let topic_name = topic_entry.value().topic_name.clone();
         // Only apply rules that belong to this tenant
         let tenant_rules: Vec<&MqttTopicRewriteRule> =
             rules.iter().filter(|r| r.tenant == tenant).collect();
@@ -59,43 +60,39 @@ async fn convert_rewrite_topic(cache_manager: Arc<MQTTCacheManager>) -> ResultMq
             continue;
         }
 
-        for topic_entry in tenant_entry.value().iter() {
-            let topic_name = topic_entry.value().topic_name.clone();
+        for rule in tenant_rules.iter() {
+            let allow = rule.action == TopicRewriteActionEnum::All.to_string()
+                || rule.action == TopicRewriteActionEnum::Publish.to_string();
 
-            for rule in tenant_rules.iter() {
-                let allow = rule.action == TopicRewriteActionEnum::All.to_string()
-                    || rule.action == TopicRewriteActionEnum::Publish.to_string();
+            if !allow {
+                continue;
+            }
 
-                if !allow {
-                    continue;
-                }
-
-                if is_match_sub_and_topic(&rule.source_topic, &topic_name).is_ok() {
-                    match gen_rewrite_topic(topic_name.clone(), &rule.regex, &rule.dest_topic) {
-                        Ok(new_topic_name) => {
-                            if new_topic_name != topic_name {
-                                tracing::info!(
-                                    "Topic rewritten: {} -> {}, tenant: {}, rule: {}",
-                                    topic_name,
-                                    new_topic_name,
-                                    tenant,
-                                    rule.source_topic
-                                );
-                                cache_manager.add_new_rewrite_name(
-                                    &tenant,
-                                    &topic_name,
-                                    &new_topic_name,
-                                );
-                            }
-                            break;
-                        }
-                        Err(e) => {
-                            warn!(
-                                "Failed to compile regex for rule, topic:{}, pattern:{}, error:{}",
-                                topic_name, rule.regex, e
+            if is_match_sub_and_topic(&rule.source_topic, &topic_name).is_ok() {
+                match gen_rewrite_topic(topic_name.clone(), &rule.regex, &rule.dest_topic) {
+                    Ok(new_topic_name) => {
+                        if new_topic_name != topic_name {
+                            tracing::info!(
+                                "Topic rewritten: {} -> {}, tenant: {}, rule: {}",
+                                topic_name,
+                                new_topic_name,
+                                tenant,
+                                rule.source_topic
                             );
-                            continue;
+                            cache_manager.add_new_rewrite_name(
+                                &tenant,
+                                &topic_name,
+                                &new_topic_name,
+                            );
                         }
+                        break;
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to compile regex for rule, topic:{}, pattern:{}, error:{}",
+                            topic_name, rule.regex, e
+                        );
+                        continue;
                     }
                 }
             }

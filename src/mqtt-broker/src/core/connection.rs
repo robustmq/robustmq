@@ -56,7 +56,7 @@ pub async fn build_connection(
     connect_properties: &Option<ConnectProperties>,
     addr: &SocketAddr,
 ) -> MQTTConnection {
-    let config = cache_manager.node_cache.get_cluster_config().await;
+    let config = cache_manager.node_cache.get_cluster_config();
     let keep_alive = client_keep_live_time(cache_manager, connect.keep_alive).await;
     let (client_receive_maximum, max_packet_size, topic_alias_max, request_problem_info) =
         if let Some(properties) = connect_properties {

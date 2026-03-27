@@ -172,7 +172,7 @@ impl DataRouteMqtt {
             if is_session_expire {
                 if let Some(distinct_time) = session.distinct_time {
                     let target_time = session.session_expiry_interval + distinct_time;
-                    let task = DelayTask::build_persistent(
+                    let task = DelayTask::build_ephemeral(
                         session.client_id.clone(),
                         DelayTaskData::MQTTSessionExpire(
                             session.tenant.clone(),

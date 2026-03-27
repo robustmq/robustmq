@@ -83,7 +83,7 @@ impl ClientKeepAlive {
     }
 
     async fn keep_alive(&self) -> ResultCommonError {
-        let config = self.cache_manager.node_cache.get_cluster_config().await;
+        let config = self.cache_manager.node_cache.get_cluster_config();
         if !config.mqtt_keep_alive.enable {
             return Ok(());
         }
@@ -253,7 +253,7 @@ async fn close_connect(context: &TrySendDistinctPacketContext) -> Result<(), Mqt
 }
 
 pub async fn keep_live_time(cache_manager: &Arc<MQTTCacheManager>, keep_alive: u16) -> u16 {
-    let config = cache_manager.node_cache.get_cluster_config().await;
+    let config = cache_manager.node_cache.get_cluster_config();
     keep_alive * config.mqtt_keep_alive.default_timeout
 }
 
@@ -261,7 +261,7 @@ pub async fn client_keep_live_time(
     cache_manager: &Arc<MQTTCacheManager>,
     mut keep_alive: u16,
 ) -> u16 {
-    let config = cache_manager.node_cache.get_cluster_config().await;
+    let config = cache_manager.node_cache.get_cluster_config();
     if keep_alive == 0 {
         keep_alive = config.mqtt_keep_alive.default_time;
     }

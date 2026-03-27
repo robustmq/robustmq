@@ -33,7 +33,7 @@ use tokio::sync::{broadcast, RwLock};
 use tracing::info;
 
 pub const DEFAULT_RAFT_WRITE_TIMEOUT_SEC: u64 = 30;
-pub const SLOW_RAFT_WRITE_WARN_THRESHOLD_MS: f64 = 1000.0;
+pub const SLOW_RAFT_WRITE_WARN_THRESHOLD_MS: f64 = 5.0;
 type RaftShardNodes = Vec<(String, Raft<TypeConfig>)>;
 type MetricsGroups = Vec<(String, RaftShardNodes)>;
 

@@ -172,16 +172,7 @@ pub async fn parse_subscribe_by_new_subscribe(
     // Collect topics first to release DashMap shard locks before any .await
     let topics: Vec<_> = cache_manager
         .node_cache
-        .topic_list
-        .get(&subscribe.tenant)
-        .map(|tenant_entry| {
-            tenant_entry
-                .value()
-                .iter()
-                .map(|e| e.value().clone())
-                .collect()
-        })
-        .unwrap_or_default();
+        .list_topics_by_tenant(&subscribe.tenant);
 
     for topic in topics {
         parse_subscribe(

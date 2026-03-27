@@ -177,13 +177,11 @@ async fn session_expiry_interval(
     let default_session_expiry_interval = cache_manager
         .node_cache
         .get_cluster_config()
-        .await
         .mqtt_protocol
         .default_session_expiry_interval;
     let max_session_expiry_interval = cache_manager
         .node_cache
         .get_cluster_config()
-        .await
         .mqtt_protocol
         .max_session_expiry_interval;
 
@@ -235,15 +233,13 @@ mod test {
         let cache_manager = test_build_mqtt_cache_manager().await;
         cache_manager
             .node_cache
-            .set_cluster_config(default_broker_config())
-            .await;
+            .set_cluster_config(default_broker_config());
         let res = session_expiry_interval(&cache_manager, &None).await;
         assert_eq!(
             res,
             cache_manager
                 .node_cache
                 .get_cluster_config()
-                .await
                 .mqtt_protocol
                 .default_session_expiry_interval as u64
         );

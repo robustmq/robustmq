@@ -17,7 +17,7 @@ use crate::core::cache::MQTTCacheManager;
 use crate::core::connection::{
     disconnect_connection, is_request_problem_info, DisconnectConnectionContext,
 };
-use crate::system_topic::event::{st_report_disconnected_event, StReportDisconnectedEventContext};
+use crate::core::event::st_report_disconnected_event;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
     Disconnect, DisconnectProperties, DisconnectReasonCode, MqttPacket, MqttProtocol,
@@ -34,16 +34,14 @@ impl MqttService {
     ) -> Option<MqttPacket> {
         let session =
             if let Some(session) = self.cache_manager.get_session_info(&connection.client_id) {
-                st_report_disconnected_event(StReportDisconnectedEventContext {
-                    storage_driver_manager: self.storage_driver_manager.clone(),
-                    metadata_cache: self.cache_manager.clone(),
-                    client_pool: self.client_pool.clone(),
-                    session: session.clone(),
-                    connection: connection.clone(),
-                    connect_id: connection.connect_id,
-                    connection_manager: self.connection_manager.clone(),
-                    reason: disconnect.reason_code,
-                })
+                st_report_disconnected_event(
+                    &self.event_manager,
+                    &self.connection_manager,
+                    connection.connect_id,
+                    connection,
+                    &session,
+                    disconnect.reason_code,
+                )
                 .await;
                 session
             } else {

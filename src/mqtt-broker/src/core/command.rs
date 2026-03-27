@@ -15,6 +15,7 @@
 use crate::core::cache::MQTTCacheManager;
 use crate::core::connection::{build_server_disconnect_conn_context, disconnect_connection};
 use crate::core::error::MqttBrokerError;
+use crate::core::event::EventReportManager;
 use crate::core::retain::RetainMessageManager;
 use crate::mqtt::connect::build_connect_ack_fail_packet;
 use crate::mqtt::disconnect::build_distinct_packet;
@@ -87,6 +88,7 @@ pub struct CommandContext {
     pub mqtt_limit_manager: Arc<MQTTRateLimiterManager>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub node_call: Arc<NodeCallManager>,
+    pub event_manager: Arc<EventReportManager>,
 }
 
 #[async_trait]
@@ -683,6 +685,7 @@ impl MQTTHandlerCommand {
             retain_message_manager: context.retain_message_manager.clone(),
             limit_manager: context.mqtt_limit_manager.clone(),
             node_call: context.node_call.clone(),
+            event_manager: context.event_manager.clone(),
         };
         let mqtt3_service = MqttService::new(mqtt3_context);
         let mqtt4_context = MqttServiceContext {
@@ -700,6 +703,7 @@ impl MQTTHandlerCommand {
             retain_message_manager: context.retain_message_manager.clone(),
             limit_manager: context.mqtt_limit_manager.clone(),
             node_call: context.node_call.clone(),
+            event_manager: context.event_manager.clone(),
         };
         let mqtt4_service = MqttService::new(mqtt4_context);
         let mqtt5_context = MqttServiceContext {
@@ -717,6 +721,7 @@ impl MQTTHandlerCommand {
             retain_message_manager: context.retain_message_manager.clone(),
             limit_manager: context.mqtt_limit_manager.clone(),
             node_call: context.node_call.clone(),
+            event_manager: context.event_manager.clone(),
         };
         let mqtt5_service = MqttService::new(mqtt5_context);
         MQTTHandlerCommand {

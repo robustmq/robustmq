@@ -27,6 +27,7 @@ protocol.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 dashmap.workspace = true
+arc-swap.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 bytes.workspace = true

@@ -27,14 +27,11 @@ use protocol::meta::meta_service_mqtt::{
     ListSessionRequest, SaveLastWillMessageRequest,
 };
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
-use tokio::time::Instant;
 use tracing::{error, info};
 
 const SESSION_BATCH_CHANNEL_SIZE: usize = 5000;
 const SESSION_BATCH_SIZE: usize = 100;
-const SESSION_BATCH_MAX_WAIT_MS: u64 = 100;
 
 struct SessionBatchItem {
     raw: CreateSessionRaw,
@@ -90,8 +87,6 @@ async fn session_batch_consumer(
     mut rx: mpsc::Receiver<SessionBatchItem>,
     client_pool: Arc<ClientPool>,
 ) {
-    let max_wait = Duration::from_millis(SESSION_BATCH_MAX_WAIT_MS);
-
     loop {
         let first = match rx.recv().await {
             Some(item) => item,
@@ -102,24 +97,19 @@ async fn session_batch_consumer(
         };
 
         let mut batch = vec![first];
-        let deadline = Instant::now() + max_wait;
 
         loop {
             if batch.len() >= SESSION_BATCH_SIZE {
                 break;
             }
-            let remaining = deadline.saturating_duration_since(Instant::now());
-            if remaining.is_zero() {
-                break;
-            }
-            match tokio::time::timeout(remaining, rx.recv()).await {
-                Ok(Some(item)) => batch.push(item),
-                Ok(None) => {
+            match rx.try_recv() {
+                Ok(item) => batch.push(item),
+                Err(mpsc::error::TryRecvError::Empty) => break,
+                Err(mpsc::error::TryRecvError::Disconnected) => {
                     info!("SessionBatcher channel closed during batch collection");
                     flush_batch(batch, &client_pool).await;
                     return;
                 }
-                Err(_) => break,
             }
         }
 

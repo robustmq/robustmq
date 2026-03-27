@@ -552,7 +552,7 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 3196
+            "y": 6463
           },
           "id": 212,
           "options": {
@@ -747,7 +747,7 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 3196
+            "y": 6463
           },
           "id": 213,
           "options": {
@@ -931,7 +931,7 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 3196
+            "y": 6463
           },
           "id": 226,
           "options": {
@@ -1099,7 +1099,7 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 3204
+            "y": 6471
           },
           "id": 807,
           "options": {
@@ -1267,7 +1267,7 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 3204
+            "y": 6471
           },
           "id": 808,
           "options": {
@@ -1451,7 +1451,7 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 3204
+            "y": 6471
           },
           "id": 809,
           "options": {
@@ -1897,7 +1897,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2866
+            "y": 6133
           },
           "id": 1005,
           "options": {
@@ -2013,7 +2013,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2866
+            "y": 6133
           },
           "id": 1006,
           "options": {
@@ -2065,7 +2065,7 @@
       "type": "row"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2073,1951 +2073,1949 @@
         "y": 2
       },
       "id": 1100,
-      "panels": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "max": 100,
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "percent"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 24,
-            "x": 0,
-            "y": 2875
-          },
-          "id": 1101,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "expr": "tokio_runtime_busy_ratio{runtime=\"server\"}",
-              "legendFormat": "server",
-              "refId": "S"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "expr": "tokio_runtime_busy_ratio{runtime=\"meta\"}",
-              "legendFormat": "meta",
-              "refId": "M"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "expr": "tokio_runtime_busy_ratio{runtime=\"broker\"}",
-              "legendFormat": "broker",
-              "refId": "B"
-            }
-          ],
-          "title": "Runtime Busy Ratio (%)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 2993
-          },
-          "id": 1102,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "expr": "tokio_runtime_queue_depth{runtime=\"server\"}",
-              "legendFormat": "server",
-              "refId": "S"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "expr": "tokio_runtime_queue_depth{runtime=\"meta\"}",
-              "legendFormat": "meta",
-              "refId": "M"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "expr": "tokio_runtime_queue_depth{runtime=\"broker\"}",
-              "legendFormat": "broker",
-              "refId": "B"
-            }
-          ],
-          "title": "Global Queue Depth",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 2993
-          },
-          "id": 1103,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "expr": "tokio_runtime_alive_tasks{runtime=\"server\"}",
-              "legendFormat": "server",
-              "refId": "S"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "expr": "tokio_runtime_alive_tasks{runtime=\"meta\"}",
-              "legendFormat": "meta",
-              "refId": "M"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "expr": "tokio_runtime_alive_tasks{runtime=\"broker\"}",
-              "legendFormat": "broker",
-              "refId": "B"
-            }
-          ],
-          "title": "Alive Tasks",
-          "type": "timeseries"
-        }
-      ],
+      "panels": [],
       "title": "⚙️ Tokio Runtimes",
       "type": "row"
     },
     {
-      "collapsed": true,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
       "gridPos": {
-        "h": 1,
+        "h": 8,
         "w": 24,
         "x": 0,
         "y": 3
       },
-      "id": 300,
-      "panels": [
+      "id": 1101,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "dfdi3tx61jshsa"
           },
-          "description": "Total handler requests per second (all network types)",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 8,
-            "x": 0,
-            "y": 4
-          },
-          "id": 301,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(handler_requests_total[1m]))",
-              "legendFormat": "req/s",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Total QPS",
-          "type": "stat"
+          "expr": "tokio_runtime_busy_ratio{runtime=\"server\"}",
+          "legendFormat": "server",
+          "refId": "S"
         },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "dfdi3tx61jshsa"
           },
-          "description": "Cumulative count of slow requests (processing time > 1s)",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 10
-                  },
-                  {
-                    "color": "red",
-                    "value": 100
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 8,
-            "x": 8,
-            "y": 4
-          },
-          "id": 302,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "sum(handler_slow_requests_total)",
-              "legendFormat": "slow",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Slow Requests Total (>1s)",
-          "type": "stat"
+          "expr": "tokio_runtime_busy_ratio{runtime=\"meta\"}",
+          "legendFormat": "meta",
+          "refId": "M"
         },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "dfdi3tx61jshsa"
           },
-          "description": "Cumulative count of handler apply timeouts (processing time > 30s hard deadline)",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "orange",
-                    "value": 1
-                  },
-                  {
-                    "color": "red",
-                    "value": 10
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 8,
-            "x": 16,
-            "y": 4
-          },
-          "id": 309,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "sum(handler_timeout_total)",
-              "legendFormat": "timeout",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Handler Timeouts Total (>30s)",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "Handler request throughput per second, broken down by network type (TCP/WebSocket/TLS/QUIC)",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "requests/s",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 0,
-            "y": 2810
-          },
-          "id": 308,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(handler_requests_total[1m])",
-              "legendFormat": "Count ({{network}})",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Handler QPS by Network",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "Rate of slow requests (>1s) and hard-deadline timeouts (>30s) per second by network type",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "req/s",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byRegexp",
-                  "options": ".*Timeout.*"
-                },
-                "properties": [
-                  {
-                    "id": "color",
-                    "value": {
-                      "fixedColor": "red",
-                      "mode": "fixed"
-                    }
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byRegexp",
-                  "options": ".*Slow.*"
-                },
-                "properties": [
-                  {
-                    "id": "color",
-                    "value": {
-                      "fixedColor": "orange",
-                      "mode": "fixed"
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 2810
-          },
-          "id": 310,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(handler_slow_requests_total[1m])",
-              "legendFormat": "Slow ({{network}})",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(handler_timeout_total[1m])",
-              "legendFormat": "Timeout ({{network}})",
-              "range": true,
-              "refId": "B"
-            }
-          ],
-          "title": "Slow & Timeout Rate by Network",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "Handler queue depth (used vs remaining capacity). High used + low remaining indicates handler backpressure.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 20,
-                "gradientMode": "opacity",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byRegexp",
-                  "options": ".*Used.*"
-                },
-                "properties": [
-                  {
-                    "id": "color",
-                    "value": {
-                      "fixedColor": "orange",
-                      "mode": "fixed"
-                    }
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byRegexp",
-                  "options": ".*Remaining.*"
-                },
-                "properties": [
-                  {
-                    "id": "color",
-                    "value": {
-                      "fixedColor": "green",
-                      "mode": "fixed"
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 24,
-            "x": 0,
-            "y": 2819
-          },
-          "id": 303,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "right",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "handler_queue_size",
-              "legendFormat": "Used ({{label}})",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "handler_queue_remaining",
-              "legendFormat": "Remaining ({{label}})",
-              "range": true,
-              "refId": "B"
-            }
-          ],
-          "title": "Handler Queue Depth",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "End-to-end latency from request arrival to response written (includes queue wait + apply + write)",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "ms",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "ms"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 0,
-            "y": 2828
-          },
-          "id": 304,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.50, rate(handler_total_ms_bucket[5m]))",
-              "legendFormat": "P50 ({{network}})",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.95, rate(handler_total_ms_bucket[5m]))",
-              "legendFormat": "P95 ({{network}})",
-              "range": true,
-              "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.99, rate(handler_total_ms_bucket[5m]))",
-              "legendFormat": "P99 ({{network}})",
-              "range": true,
-              "refId": "C"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.999, rate(handler_total_ms_bucket[5m]))",
-              "legendFormat": "P999 ({{network}})",
-              "range": true,
-              "refId": "D"
-            }
-          ],
-          "title": "Handler Total Latency",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "Time a request spent waiting in the channel queue before a handler picked it up",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "ms",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "ms"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 2828
-          },
-          "id": 305,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.50, rate(handler_queue_wait_ms_bucket[5m]))",
-              "legendFormat": "P50 ({{network}})",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.95, rate(handler_queue_wait_ms_bucket[5m]))",
-              "legendFormat": "P95 ({{network}})",
-              "range": true,
-              "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.99, rate(handler_queue_wait_ms_bucket[5m]))",
-              "legendFormat": "P99 ({{network}})",
-              "range": true,
-              "refId": "C"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.999, rate(handler_queue_wait_ms_bucket[5m]))",
-              "legendFormat": "P999 ({{network}})",
-              "range": true,
-              "refId": "D"
-            }
-          ],
-          "title": "Queue Wait Latency",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "Time spent in command.apply() — the core business logic (auth, session, gRPC calls, etc.)",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "ms",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "ms"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 0,
-            "y": 2837
-          },
-          "id": 306,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Name",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.50, rate(handler_apply_ms_bucket[5m]))",
-              "legendFormat": "P50 ({{network}})",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.95, rate(handler_apply_ms_bucket[5m]))",
-              "legendFormat": "P95 ({{network}})",
-              "range": true,
-              "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.99, rate(handler_apply_ms_bucket[5m]))",
-              "legendFormat": "P99 ({{network}})",
-              "range": true,
-              "refId": "C"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.999, rate(handler_apply_ms_bucket[5m]))",
-              "legendFormat": "P999 ({{network}})",
-              "range": true,
-              "refId": "D"
-            }
-          ],
-          "title": "Apply Latency (Business Logic)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "Time spent writing the response packet back to the client over TCP/WebSocket/QUIC",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "ms",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "ms"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 2837
-          },
-          "id": 307,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.50, rate(handler_write_ms_bucket[5m]))",
-              "legendFormat": "P50 ({{network}})",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.95, rate(handler_write_ms_bucket[5m]))",
-              "legendFormat": "P95 ({{network}})",
-              "range": true,
-              "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.99, rate(handler_write_ms_bucket[5m]))",
-              "legendFormat": "P99 ({{network}})",
-              "range": true,
-              "refId": "C"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.999, rate(handler_write_ms_bucket[5m]))",
-              "legendFormat": "P999 ({{network}})",
-              "range": true,
-              "refId": "D"
-            }
-          ],
-          "title": "Response Write Latency",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "Latency of writing a response to the client socket (TCP/TLS/QUIC), measured from lock acquired to send() complete. High P99 indicates slow clients or network back-pressure.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "ms",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "ms"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 0,
-            "y": 2846
-          },
-          "id": 313,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.50, rate(write_client_ms_bucket[5m]))",
-              "legendFormat": "P50 ({{network}})",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.95, rate(write_client_ms_bucket[5m]))",
-              "legendFormat": "P95 ({{network}})",
-              "range": true,
-              "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.99, rate(write_client_ms_bucket[5m]))",
-              "legendFormat": "P99 ({{network}})",
-              "range": true,
-              "refId": "C"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.999, rate(write_client_ms_bucket[5m]))",
-              "legendFormat": "P999 ({{network}})",
-              "range": true,
-              "refId": "D"
-            }
-          ],
-          "title": "Write Client Latency",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "Rate of write timeouts per second by network type. A timeout means the client socket send buffer was full for 30s — connection was forcibly closed.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "timeouts/s",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "line+area",
-                  "steps": [
-                    {
-                      "color": "transparent"
-                    },
-                    {
-                      "color": "red",
-                      "value": 1
-                    }
-                  ]
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 1
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 2846
-          },
-          "id": 314,
-          "options": {
-            "legend": {
-              "calcs": [
-                "sum",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": true,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(write_timeout_total[1m])",
-              "legendFormat": "{{network}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Write Timeout Rate",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "QPS per individual handler thread. Uneven distribution indicates load imbalance; a handler near 0 may be stuck.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "requests/s",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 5,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 0,
-            "y": 2855
-          },
-          "id": 311,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "right",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": true,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(handler_instance_requests_total[1m])",
-              "legendFormat": "handler-{{handler}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Handler Instance QPS",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "P99 apply latency per individual handler thread. A handler with significantly higher P99 than others is likely stuck on a slow gRPC call or blocking I/O.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "ms",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 5,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "ms"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 2855
-          },
-          "id": 312,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "right",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": true,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.99, rate(handler_instance_apply_ms_bucket[5m]))",
-              "legendFormat": "handler-{{handler}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Handler Instance Apply P99 Latency",
-          "type": "timeseries"
+          "expr": "tokio_runtime_busy_ratio{runtime=\"broker\"}",
+          "legendFormat": "broker",
+          "refId": "B"
         }
       ],
+      "title": "Runtime Busy Ratio (%)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "id": 1102,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "expr": "tokio_runtime_queue_depth{runtime=\"server\"}",
+          "legendFormat": "server",
+          "refId": "S"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "expr": "tokio_runtime_queue_depth{runtime=\"meta\"}",
+          "legendFormat": "meta",
+          "refId": "M"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "expr": "tokio_runtime_queue_depth{runtime=\"broker\"}",
+          "legendFormat": "broker",
+          "refId": "B"
+        }
+      ],
+      "title": "Global Queue Depth",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "id": 1103,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "expr": "tokio_runtime_alive_tasks{runtime=\"server\"}",
+          "legendFormat": "server",
+          "refId": "S"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "expr": "tokio_runtime_alive_tasks{runtime=\"meta\"}",
+          "legendFormat": "meta",
+          "refId": "M"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "expr": "tokio_runtime_alive_tasks{runtime=\"broker\"}",
+          "legendFormat": "broker",
+          "refId": "B"
+        }
+      ],
+      "title": "Alive Tasks",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "id": 300,
+      "panels": [],
       "title": "🌐 Network",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "Total handler requests per second (all network types)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 20
+      },
+      "id": 301,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(handler_requests_total[1m]))",
+          "legendFormat": "req/s",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Total QPS",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "Cumulative count of slow requests (processing time > 1s)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 20
+      },
+      "id": 302,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "sum(handler_slow_requests_total)",
+          "legendFormat": "slow",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Slow Requests Total (>1s)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "Cumulative count of handler apply timeouts (processing time > 30s hard deadline)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 20
+      },
+      "id": 309,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "sum(handler_timeout_total)",
+          "legendFormat": "timeout",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Handler Timeouts Total (>30s)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "Handler request throughput per second, broken down by network type (TCP/WebSocket/TLS/QUIC)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "requests/s",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 308,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "rate(handler_requests_total[1m])",
+          "legendFormat": "Count ({{network}})",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Handler QPS by Network",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "Rate of slow requests (>1s) and hard-deadline timeouts (>30s) per second by network type",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "req/s",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*Timeout.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*Slow.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "id": 310,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "rate(handler_slow_requests_total[1m])",
+          "legendFormat": "Slow ({{network}})",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "rate(handler_timeout_total[1m])",
+          "legendFormat": "Timeout ({{network}})",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Slow & Timeout Rate by Network",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "Handler queue depth (used vs remaining capacity). High used + low remaining indicates handler backpressure.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*Used.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*Remaining.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "id": 303,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "handler_queue_size",
+          "legendFormat": "Used ({{label}})",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "handler_queue_remaining",
+          "legendFormat": "Remaining ({{label}})",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Handler Queue Depth",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "End-to-end latency from request arrival to response written (includes queue wait + apply + write)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 42
+      },
+      "id": 304,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, rate(handler_total_ms_bucket[5m]))",
+          "legendFormat": "P50 ({{network}})",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, rate(handler_total_ms_bucket[5m]))",
+          "legendFormat": "P95 ({{network}})",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, rate(handler_total_ms_bucket[5m]))",
+          "legendFormat": "P99 ({{network}})",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.999, rate(handler_total_ms_bucket[5m]))",
+          "legendFormat": "P999 ({{network}})",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "Handler Total Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "Time a request spent waiting in the channel queue before a handler picked it up",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 42
+      },
+      "id": 305,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, rate(handler_queue_wait_ms_bucket[5m]))",
+          "legendFormat": "P50 ({{network}})",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, rate(handler_queue_wait_ms_bucket[5m]))",
+          "legendFormat": "P95 ({{network}})",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, rate(handler_queue_wait_ms_bucket[5m]))",
+          "legendFormat": "P99 ({{network}})",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.999, rate(handler_queue_wait_ms_bucket[5m]))",
+          "legendFormat": "P999 ({{network}})",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "Queue Wait Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "Time spent in command.apply() — the core business logic (auth, session, gRPC calls, etc.)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 51
+      },
+      "id": 306,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Name",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, rate(handler_apply_ms_bucket[5m]))",
+          "legendFormat": "P50 ({{network}})",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, rate(handler_apply_ms_bucket[5m]))",
+          "legendFormat": "P95 ({{network}})",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, rate(handler_apply_ms_bucket[5m]))",
+          "legendFormat": "P99 ({{network}})",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.999, rate(handler_apply_ms_bucket[5m]))",
+          "legendFormat": "P999 ({{network}})",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "Apply Latency (Business Logic)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "Time spent writing the response packet back to the client over TCP/WebSocket/QUIC",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 51
+      },
+      "id": 307,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, rate(handler_write_ms_bucket[5m]))",
+          "legendFormat": "P50 ({{network}})",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, rate(handler_write_ms_bucket[5m]))",
+          "legendFormat": "P95 ({{network}})",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, rate(handler_write_ms_bucket[5m]))",
+          "legendFormat": "P99 ({{network}})",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.999, rate(handler_write_ms_bucket[5m]))",
+          "legendFormat": "P999 ({{network}})",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "Response Write Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "Latency of writing a response to the client socket (TCP/TLS/QUIC), measured from lock acquired to send() complete. High P99 indicates slow clients or network back-pressure.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 60
+      },
+      "id": 313,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, rate(write_client_ms_bucket[5m]))",
+          "legendFormat": "P50 ({{network}})",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, rate(write_client_ms_bucket[5m]))",
+          "legendFormat": "P95 ({{network}})",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, rate(write_client_ms_bucket[5m]))",
+          "legendFormat": "P99 ({{network}})",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.999, rate(write_client_ms_bucket[5m]))",
+          "legendFormat": "P999 ({{network}})",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "Write Client Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "Rate of write timeouts per second by network type. A timeout means the client socket send buffer was full for 30s — connection was forcibly closed.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "timeouts/s",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area",
+              "steps": [
+                {
+                  "color": "transparent"
+                },
+                {
+                  "color": "red",
+                  "value": 1
+                }
+              ]
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 60
+      },
+      "id": 314,
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": true,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "rate(write_timeout_total[1m])",
+          "legendFormat": "{{network}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Write Timeout Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "QPS per individual handler thread. Uneven distribution indicates load imbalance; a handler near 0 may be stuck.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "requests/s",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 69
+      },
+      "id": 311,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": true,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "rate(handler_instance_requests_total[1m])",
+          "legendFormat": "handler-{{handler}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Handler Instance QPS",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "dfdi3tx61jshsa"
+      },
+      "description": "P99 apply latency per individual handler thread. A handler with significantly higher P99 than others is likely stuck on a slow gRPC call or blocking I/O.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 69
+      },
+      "id": 312,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": true,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, rate(handler_instance_apply_ms_bucket[5m]))",
+          "legendFormat": "handler-{{handler}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Handler Instance Apply P99 Latency",
+      "type": "timeseries"
     },
     {
       "collapsed": true,
@@ -4025,7 +4023,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 4
+        "y": 78
       },
       "id": 200,
       "panels": [
@@ -4092,7 +4090,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 5
+            "y": 3272
           },
           "id": 224,
           "options": {
@@ -4238,7 +4236,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 5
+            "y": 3272
           },
           "id": 810,
           "options": {
@@ -4360,7 +4358,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 81
+            "y": 3348
           },
           "id": 812,
           "options": {
@@ -4460,7 +4458,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 81
+            "y": 3348
           },
           "id": 811,
           "options": {
@@ -4560,7 +4558,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 90
+            "y": 3357
           },
           "id": 211,
           "options": {
@@ -4660,7 +4658,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 90
+            "y": 3357
           },
           "id": 225,
           "options": {
@@ -4859,7 +4857,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 99
+            "y": 3366
           },
           "id": 210,
           "options": {
@@ -5027,7 +5025,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 79
       },
       "id": 600,
       "panels": [
@@ -5095,7 +5093,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 6
+            "y": 80
           },
           "id": 609,
           "options": {
@@ -5195,7 +5193,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 81
+            "y": 88
           },
           "id": 605,
           "options": {
@@ -5317,7 +5315,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 81
+            "y": 88
           },
           "id": 606,
           "options": {
@@ -5450,7 +5448,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 90
+            "y": 97
           },
           "id": 700,
           "options": {
@@ -5583,7 +5581,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 90
+            "y": 97
           },
           "id": 701,
           "options": {
@@ -5716,7 +5714,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 99
+            "y": 106
           },
           "id": 607,
           "options": {
@@ -5827,7 +5825,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 99
+            "y": 106
           },
           "id": 608,
           "options": {
@@ -5896,7 +5894,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 6
+        "y": 80
       },
       "id": 800,
       "panels": [
@@ -5963,7 +5961,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 7
+            "y": 81
           },
           "id": 805,
           "options": {
@@ -6063,7 +6061,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 56
+            "y": 90
           },
           "id": 801,
           "options": {
@@ -6163,7 +6161,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 56
+            "y": 90
           },
           "id": 802,
           "options": {
@@ -6309,7 +6307,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 65
+            "y": 99
           },
           "id": 803,
           "options": {
@@ -6337,8 +6335,8 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.50, sum(rate(rocksdb_operation_ms_bucket{operation=\"save\"}[5m])) by (le))",
-              "legendFormat": "Save P50",
+              "expr": "histogram_quantile(0.90, sum(rate(rocksdb_operation_ms_bucket{operation=\"save\"}[5m])) by (le))",
+              "legendFormat": "Save P90",
               "range": true,
               "refId": "A"
             },
@@ -6348,8 +6346,8 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.95, sum(rate(rocksdb_operation_ms_bucket{operation=\"save\"}[5m])) by (le))",
-              "legendFormat": "Save P95",
+              "expr": "histogram_quantile(0.999, sum(rate(rocksdb_operation_ms_bucket{operation=\"save\"}[5m])) by (le))",
+              "legendFormat": "Save P999",
               "range": true,
               "refId": "B"
             },
@@ -6359,8 +6357,8 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum(rate(rocksdb_operation_ms_bucket{operation=\"save\"}[5m])) by (le))",
-              "legendFormat": "Save P99",
+              "expr": "histogram_quantile(0.9999, sum(rate(rocksdb_operation_ms_bucket{operation=\"save\"}[5m])) by (le))",
+              "legendFormat": "Save P9999",
               "range": true,
               "refId": "C"
             }
@@ -6477,7 +6475,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 65
+            "y": 99
           },
           "id": 804,
           "options": {
@@ -6546,252 +6544,10 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 7
+        "y": 81
       },
       "id": 400,
       "panels": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "gRPC QPS: total QPS and QPS grouped by service/method",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "req/s",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Total QPS"
-                },
-                "properties": [
-                  {
-                    "id": "color",
-                    "value": {
-                      "fixedColor": "blue",
-                      "mode": "fixed"
-                    }
-                  },
-                  {
-                    "id": "custom.lineWidth",
-                    "value": 3
-                  }
-                ]
-              }
-            ]
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 0,
-            "y": 8
-          },
-          "id": 404,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(grpc_requests_total[1m]))",
-              "legendFormat": "Total QPS",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(grpc_requests_total[1m])",
-              "legendFormat": "{{service}}/{{method}}",
-              "range": true,
-              "refId": "B"
-            }
-          ],
-          "title": "gRPC QPS (req/s)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "description": "gRPC error QPS grouped by service/method/status_code",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "errors/s",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 8
-          },
-          "id": 405,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(grpc_errors_total[1m]))",
-              "legendFormat": "Total Error QPS",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "dfdi3tx61jshsa"
-              },
-              "editorMode": "code",
-              "expr": "rate(grpc_errors_total[1m])",
-              "legendFormat": "{{service}}/{{method}} [{{status_code}}]",
-              "range": true,
-              "refId": "B"
-            }
-          ],
-          "title": "gRPC Error QPS",
-          "type": "timeseries"
-        },
         {
           "datasource": {
             "type": "prometheus",
@@ -6914,9 +6670,9 @@
           },
           "gridPos": {
             "h": 9,
-            "w": 12,
+            "w": 24,
             "x": 0,
-            "y": 35
+            "y": 82
           },
           "id": 406,
           "options": {
@@ -6991,7 +6747,7 @@
             "type": "prometheus",
             "uid": "dfdi3tx61jshsa"
           },
-          "description": "gRPC P99 latency by method, useful for identifying slow endpoints",
+          "description": "gRPC P999 latency by method, useful for identifying slow endpoints",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7048,8 +6804,8 @@
           "gridPos": {
             "h": 9,
             "w": 12,
-            "x": 12,
-            "y": 35
+            "x": 0,
+            "y": 91
           },
           "id": 407,
           "options": {
@@ -7077,13 +6833,255 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum(rate(grpc_request_duration_ms_bucket[5m])) by (le, service, method))",
+              "expr": "histogram_quantile(0.999, sum(rate(grpc_request_duration_ms_bucket[5m])) by (le, service, method))",
               "legendFormat": "{{service}}/{{method}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "gRPC P99 Latency by Method",
+          "title": "gRPC P999 Latency by Method",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "gRPC QPS: total QPS and QPS grouped by service/method",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "req/s",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Total QPS"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "blue",
+                      "mode": "fixed"
+                    }
+                  },
+                  {
+                    "id": "custom.lineWidth",
+                    "value": 3
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 91
+          },
+          "id": 404,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(grpc_requests_total[1m]))",
+              "legendFormat": "Total QPS",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "rate(grpc_requests_total[1m])",
+              "legendFormat": "{{service}}/{{method}}",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "gRPC QPS (req/s)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "gRPC error QPS grouped by service/method/status_code",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "errors/s",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 100
+          },
+          "id": 405,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(grpc_errors_total[1m]))",
+              "legendFormat": "Total Error QPS",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "rate(grpc_errors_total[1m])",
+              "legendFormat": "{{service}}/{{method}} [{{status_code}}]",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "gRPC Error QPS",
           "type": "timeseries"
         }
       ],
@@ -7091,354 +7089,355 @@
       "type": "row"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 82
       },
       "id": 900,
-      "panels": [],
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "Overall latency percentiles of all outgoing gRPC client calls",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "ms",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "ms"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 24,
+            "x": 0,
+            "y": 83
+          },
+          "id": 902,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.5, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
+              "legendFormat": "P50",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.95, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
+              "legendFormat": "P95",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
+              "legendFormat": "P99",
+              "range": true,
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.999, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
+              "legendFormat": "P999",
+              "range": true,
+              "refId": "D"
+            }
+          ],
+          "title": "gRPC Client Call Latency Percentiles",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "P999 latency of outgoing gRPC client calls grouped by service/method",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "ms",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "ms"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 92
+          },
+          "id": 901,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Mean",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.999, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le, service, method))",
+              "legendFormat": "{{service}}/{{method}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "gRPC Client Call P999 Latency by Method",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "QPS of outgoing gRPC client calls grouped by service/method",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "req/s",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 92
+          },
+          "id": 903,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Mean",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "dfdi3tx61jshsa"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(grpc_client_call_duration_ms_count[5m])) by (service, method)",
+              "legendFormat": "{{service}}/{{method}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "gRPC Client Call QPS by Method",
+          "type": "timeseries"
+        }
+      ],
       "title": "📡 gRPC Client",
       "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "dfdi3tx61jshsa"
-      },
-      "description": "P99 latency of outgoing gRPC client calls grouped by service/method",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "ms",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 24,
-        "x": 0,
-        "y": 9
-      },
-      "id": 901,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Mean",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le, service, method))",
-          "legendFormat": "{{service}}/{{method}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "gRPC Client Call P99 Latency by Method",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "dfdi3tx61jshsa"
-      },
-      "description": "Overall latency percentiles of all outgoing gRPC client calls",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "ms",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 18
-      },
-      "id": 902,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.5, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
-          "legendFormat": "P50",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
-          "legendFormat": "P95",
-          "range": true,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
-          "legendFormat": "P99",
-          "range": true,
-          "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.999, sum(rate(grpc_client_call_duration_ms_bucket[5m])) by (le))",
-          "legendFormat": "P999",
-          "range": true,
-          "refId": "D"
-        }
-      ],
-      "title": "gRPC Client Call Latency Percentiles",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "dfdi3tx61jshsa"
-      },
-      "description": "QPS of outgoing gRPC client calls grouped by service/method",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "req/s",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "reqps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 18
-      },
-      "id": 903,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Mean",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "dfdi3tx61jshsa"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(grpc_client_call_duration_ms_count[5m])) by (service, method)",
-          "legendFormat": "{{service}}/{{method}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "gRPC Client Call QPS by Method",
-      "type": "timeseries"
     },
     {
       "collapsed": true,
@@ -7446,7 +7445,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 83
       },
       "id": 500,
       "panels": [
@@ -7479,7 +7478,7 @@
             "h": 4,
             "w": 8,
             "x": 0,
-            "y": 5862
+            "y": 9129
           },
           "id": 501,
           "options": {
@@ -7553,7 +7552,7 @@
             "h": 4,
             "w": 8,
             "x": 8,
-            "y": 5862
+            "y": 9129
           },
           "id": 502,
           "options": {
@@ -7627,7 +7626,7 @@
             "h": 4,
             "w": 8,
             "x": 16,
-            "y": 5862
+            "y": 9129
           },
           "id": 503,
           "options": {
@@ -7747,7 +7746,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 5866
+            "y": 9133
           },
           "id": 504,
           "options": {
@@ -7858,7 +7857,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 5866
+            "y": 9133
           },
           "id": 505,
           "options": {
@@ -8030,7 +8029,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 5972
+            "y": 9239
           },
           "id": 506,
           "options": {
@@ -8163,7 +8162,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 5972
+            "y": 9239
           },
           "id": 507,
           "options": {
@@ -8210,7 +8209,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 84
       },
       "id": 215,
       "panels": [
@@ -8243,7 +8242,7 @@
             "h": 4,
             "w": 6,
             "x": 0,
-            "y": 6286
+            "y": 9553
           },
           "id": 1104,
           "options": {
@@ -8309,7 +8308,7 @@
             "h": 4,
             "w": 6,
             "x": 6,
-            "y": 6286
+            "y": 9553
           },
           "id": 1105,
           "options": {
@@ -8383,7 +8382,7 @@
             "h": 4,
             "w": 6,
             "x": 12,
-            "y": 6286
+            "y": 9553
           },
           "id": 702,
           "options": {
@@ -8449,7 +8448,7 @@
             "h": 4,
             "w": 6,
             "x": 18,
-            "y": 6286
+            "y": 9553
           },
           "id": 703,
           "options": {
@@ -8606,7 +8605,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 6317
+            "y": 9584
           },
           "id": 704,
           "options": {
@@ -8774,7 +8773,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 6317
+            "y": 9584
           },
           "id": 705,
           "options": {
@@ -8942,7 +8941,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 6326
+            "y": 9593
           },
           "id": 706,
           "options": {
@@ -9110,7 +9109,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 6326
+            "y": 9593
           },
           "id": 707,
           "options": {
@@ -9179,7 +9178,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 85
       },
       "id": 1106,
       "panels": [
@@ -9242,7 +9241,7 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 3377
+            "y": 6644
           },
           "id": 1107,
           "options": {
@@ -9336,7 +9335,7 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 3377
+            "y": 6644
           },
           "id": 1108,
           "options": {
@@ -9442,7 +9441,7 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 3377
+            "y": 6644
           },
           "id": 904,
           "options": {
@@ -9560,7 +9559,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3385
+            "y": 6652
           },
           "id": 905,
           "options": {
@@ -9678,7 +9677,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3385
+            "y": 6652
           },
           "id": 906,
           "options": {
@@ -9757,12 +9756,12 @@
     ]
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "RobustMQ MQTT Broker Dashboard",
   "uid": "robustmq-mqtt-broker",
-  "version": 6
+  "version": 13
 }

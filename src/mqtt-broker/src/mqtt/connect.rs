@@ -18,6 +18,7 @@ use crate::core::connection::response_information;
 use crate::core::connection::{build_connection, get_client_id};
 use crate::core::content_type::payload_format_indicator_check_by_lastwill;
 use crate::core::error::MqttBrokerError;
+use crate::core::event::st_report_connected_event;
 use crate::core::flapping_detect::check_flapping_detect;
 use crate::core::last_will::save_last_will_message;
 use crate::core::limit::connection_total_num_limit;
@@ -26,7 +27,6 @@ use crate::core::string_validator::{validate_client_id, validate_password, valid
 use crate::core::sub_auto::try_auto_subscribe;
 use crate::core::tenant::{get_tenant_info, try_decode_client_id};
 use crate::core::topic::topic_name_validator;
-use crate::system_topic::event::{st_report_connected_event, StReportConnectedEventContext};
 use common_base::tools::now_second;
 use common_config::config::BrokerConfig;
 use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
@@ -39,7 +39,7 @@ use tracing::warn;
 
 impl MqttService {
     pub async fn connect(&self, context: MqttServiceConnectContext) -> MqttPacket {
-        let cluster = self.cache_manager.node_cache.get_cluster_config().await;
+        let cluster = self.cache_manager.node_cache.get_cluster_config();
 
         if let Some(res) = connect_validator(
             &self.protocol,
@@ -131,7 +131,6 @@ impl MqttService {
                 );
             }
         }
-
         // auth check
         if self
             .auth_driver
@@ -149,7 +148,6 @@ impl MqttService {
                 Some("client is banned".to_string()),
             );
         }
-
         // login check
         match self
             .auth_driver
@@ -177,7 +175,6 @@ impl MqttService {
                 );
             }
         }
-
         // session process
         let (session, new_session) = match session_process(
             &self.protocol,
@@ -207,7 +204,6 @@ impl MqttService {
                 );
             }
         };
-
         if let Err(e) = save_last_will_message(
             client_id.clone(),
             &context.last_will,
@@ -223,7 +219,6 @@ impl MqttService {
                 Some(e.to_string()),
             );
         }
-
         if let Err(e) = try_auto_subscribe(
             client_id.clone(),
             &tenant.tenant_name,
@@ -243,7 +238,6 @@ impl MqttService {
                 Some(e.to_string()),
             );
         }
-
         let live_time = ConnectionLiveTime {
             protocol: self.protocol.clone(),
             keep_live: context.connect.keep_alive,
@@ -251,20 +245,16 @@ impl MqttService {
         };
         self.cache_manager
             .report_heartbeat(client_id.clone(), live_time);
-
         self.cache_manager.add_session(&client_id, &session);
         self.cache_manager
             .add_connection(context.connect_id, connection.clone());
-
-        st_report_connected_event(StReportConnectedEventContext {
-            storage_driver_manager: self.storage_driver_manager.clone(),
-            metadata_cache: self.cache_manager.clone(),
-            client_pool: self.client_pool.clone(),
-            session: session.clone(),
-            connection: connection.clone(),
-            connect_id: context.connect_id,
-            connection_manager: self.connection_manager.clone(),
-        })
+        st_report_connected_event(
+            &self.event_manager,
+            &self.connection_manager,
+            context.connect_id,
+            &connection,
+            &session,
+        )
         .await;
 
         build_connect_ack_success_packet(ResponsePacketMqttConnectSuccessContext {

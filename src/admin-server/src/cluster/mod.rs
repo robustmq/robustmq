@@ -82,8 +82,7 @@ pub async fn cluster_config_set(
         return error_response(format!("Failed to save config: {e}"));
     }
 
-    if let Err(e) =
-        update_cluster_dynamic_config(&state.broker_cache, resource_type, config_bytes).await
+    if let Err(e) = update_cluster_dynamic_config(&state.broker_cache, resource_type, config_bytes)
     {
         return error_response(format!("Failed to update in-memory config: {e}"));
     }
@@ -92,7 +91,7 @@ pub async fn cluster_config_set(
 }
 
 pub async fn cluster_config_get(State(state): State<Arc<HttpState>>) -> String {
-    let broker_config = state.broker_cache.get_cluster_config().await;
+    let broker_config = state.broker_cache.get_cluster_config();
     success_response(broker_config)
 }
 

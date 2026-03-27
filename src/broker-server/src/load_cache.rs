@@ -63,7 +63,7 @@ async fn load_common_cache(
     let cluster = build_cluster_config(client_pool).await.map_err(|e| {
         MqttBrokerError::CommonError(format!("Failed to load cluster config: {}", e))
     })?;
-    broker_cache.set_cluster_config(cluster).await;
+    broker_cache.set_cluster_config(cluster);
 
     let topic_storage = TopicStorage::new(client_pool.clone());
     let topic_list = topic_storage

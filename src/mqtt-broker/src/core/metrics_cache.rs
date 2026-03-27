@@ -144,14 +144,7 @@ async fn record_topic_metrics(
         .node_cache
         .topic_list
         .iter()
-        .flat_map(|tenant_entry| {
-            let tenant = tenant_entry.key().clone();
-            tenant_entry
-                .value()
-                .iter()
-                .map(|topic_entry| (tenant.clone(), topic_entry.key().clone()))
-                .collect::<Vec<_>>()
-        })
+        .map(|e| (e.value().tenant.clone(), e.value().topic_name.clone()))
         .collect();
 
     for (tenant, topic) in pairs {

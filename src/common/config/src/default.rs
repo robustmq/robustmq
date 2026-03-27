@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use crate::config::{
-    AmqpRuntime, KafkaRuntime, MetaRuntime, MqttFlappingDetect, MqttKeepAlive, MqttOfflineMessage,
-    MqttProtocolConfig, MqttRuntime, MqttSchema, MqttServer, MqttSlowSubscribeConfig,
-    MqttSystemMonitor, Network, Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
-    StorageRuntime,
+    AmqpRuntime, DelayTask, KafkaRuntime, MetaRuntime, MqttFlappingDetect, MqttKeepAlive,
+    MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema, MqttServer,
+    MqttSlowSubscribeConfig, MqttSystemMonitor, Network, Rocksdb, Runtime, SchemaFailedOperation,
+    SchemaStrategy, StorageRuntime,
 };
 use crate::storage::{StorageAdapterConfig, StorageType};
 use common_base::enum_type::delay_type::DelayType;
@@ -442,4 +442,22 @@ pub fn default_mqtt_limit_tenant() -> crate::config::LimitQuota {
         max_sessions: 5_000_000,
         max_publish_rate: 10_000,
     }
+}
+
+// DelayTask
+pub fn default_delay_task() -> DelayTask {
+    DelayTask {
+        delay_task_queue_num: default_delay_task_queue_num(),
+        delay_task_handler_concurrency: default_delay_task_handler_concurrency(),
+    }
+}
+
+pub fn default_delay_task_queue_num() -> usize {
+    8
+}
+
+pub fn default_delay_task_handler_concurrency() -> usize {
+    std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
 }
