@@ -52,8 +52,6 @@ use protocol::meta::meta_service_mqtt::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
-use std::time::Instant;
-use tracing::warn;
 
 #[derive(Clone)]
 pub struct DataRouteMqtt {
@@ -154,26 +152,16 @@ impl DataRouteMqtt {
 
     // Session
     pub async fn create_session(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let start = Instant::now();
-
-        let t = Instant::now();
         let req = CreateSessionRequest::decode(value.as_ref())?;
-        let decode_ms = t.elapsed().as_secs_f64() * 1000.0;
-
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
 
         let mut persist_sessions = Vec::new();
-        let mut add_cache_ms = 0.0f64;
-        let mut create_task_ms = 0.0f64;
-        let mut delete_task_ms = 0.0f64;
         for raw in &req.sessions {
             let session = MqttSession::decode(&raw.session)?;
             if session.is_persist_session {
                 persist_sessions.push(session.clone());
             } else {
-                let t = Instant::now();
                 self.broker_cache.add_session(session.clone());
-                add_cache_ms += t.elapsed().as_secs_f64() * 1000.0;
             }
 
             let is_session_expire = session.connection_id.is_none()
@@ -193,32 +181,17 @@ impl DataRouteMqtt {
                         target_time,
                     );
 
-                    let t = Instant::now();
-                    // self.delay_task_manager.create_task(task).await?;
-                    create_task_ms += t.elapsed().as_secs_f64() * 1000.0;
+                    self.delay_task_manager.create_task(task).await?;
                 }
             } else if self.delay_task_manager.contains_task(&session.client_id) {
-                let t = Instant::now();
                 self.delay_task_manager
                     .delete_task(&session.client_id)
                     .await?;
-                delete_task_ms += t.elapsed().as_secs_f64() * 1000.0;
             }
         }
 
-        let t = Instant::now();
         if !persist_sessions.is_empty() {
             storage.save_batch(&persist_sessions)?;
-        }
-        let save_batch_ms = t.elapsed().as_secs_f64() * 1000.0;
-
-        let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
-        if elapsed_ms > 10.0 {
-            warn!(
-                "create_session slow: total={:.2}ms decode={:.2}ms add_cache={:.2}ms create_task={:.2}ms delete_task={:.2}ms save_batch={:.2}ms sessions={}",
-                elapsed_ms, decode_ms, add_cache_ms, create_task_ms, delete_task_ms, save_batch_ms,
-                req.sessions.len()
-            );
         }
 
         Ok(())

@@ -27,8 +27,7 @@ use meta_service::{
 use mqtt_broker::{
     broker::MqttBrokerServerParams,
     core::{
-        cache::MQTTCacheManager as MqttCacheManager,
-        event::EventReportManager,
+        cache::MQTTCacheManager as MqttCacheManager, event::EventReportManager,
         retain::RetainMessageManager,
     },
     security::AuthManager,

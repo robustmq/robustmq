@@ -160,8 +160,8 @@ impl BrokerServer {
         let delay_task_manager: Arc<DelayTaskManager> = Arc::new(DelayTaskManager::new(
             client_pool.clone(),
             storage_driver_manager.clone(),
-            1,
-            10,
+            config.delay_task.delay_task_queue_num as u32,
+            config.delay_task.delay_task_handler_concurrency,
         ));
 
         // Run build_meta_service on meta_runtime so all openraft internal tasks

@@ -40,6 +40,7 @@ use super::default::{
     default_session_expiry_interval, default_slow_subscribe_delay_type,
     default_slow_subscribe_record_time, default_storage_io_thread_num,
     default_storage_max_segment_size, default_storage_offset_enable_cache,
+    default_delay_task, default_delay_task_handler_concurrency, default_delay_task_queue_num,
     default_storage_tcp_port, default_system_monitor_cpu_watermark,
     default_system_monitor_memory_watermark, default_system_monitor_topic_interval_ms,
     default_tls_cert, default_tls_key, default_topic_alias_max,
@@ -149,6 +150,9 @@ pub struct BrokerConfig {
     #[serde(default)]
     pub cluster_limit: ClusterLimit,
 
+    #[serde(default = "default_delay_task")]
+    pub delay_task: DelayTask,
+
     // meta
     #[serde(default = "default_meta_runtime")]
     pub meta_runtime: MetaRuntime,
@@ -215,6 +219,7 @@ impl Default for BrokerConfig {
             rocksdb: default_rocksdb(),
             llm_client: None,
             cluster_limit: ClusterLimit::default(),
+            delay_task: default_delay_task(),
 
             // Meta Service
             meta_runtime: default_meta_runtime(),
@@ -537,6 +542,23 @@ impl Default for MqttOfflineMessage {
 impl MqttOfflineMessage {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).expect("Failed to serialize MqttOfflineMessage")
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct DelayTask {
+    /// Number of sharded delay queues. 0 = auto: number of CPUs.
+    #[serde(default = "default_delay_task_queue_num")]
+    pub delay_task_queue_num: usize,
+
+    /// Max concurrent delay message handler tasks. 0 = auto: number of CPUs.
+    #[serde(default = "default_delay_task_handler_concurrency")]
+    pub delay_task_handler_concurrency: usize,
+}
+
+impl Default for DelayTask {
+    fn default() -> Self {
+        default_delay_task()
     }
 }
 
