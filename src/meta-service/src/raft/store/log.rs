@@ -246,7 +246,13 @@ impl RaftLogStorage<TypeConfig> for LogStore {
         }
 
         if has_entries {
+            let t = Instant::now();
             self.db.write(batch).map_err(|e| sto_write_logs(&e))?;
+            let write_ms = t.elapsed().as_secs_f64() * 1000.0;
+            if write_ms > 2.0 {
+                use tracing::warn;
+                warn!("[{}] log append db.write slow: {:.2}ms", self.machine, write_ms);
+            }
         }
 
         let batch_ms = batch_start.elapsed().as_secs_f64() * 1000.0;

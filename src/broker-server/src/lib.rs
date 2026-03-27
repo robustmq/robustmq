@@ -69,7 +69,7 @@ pub struct BrokerServer {
     /// inside broker_runtime.block_on() so tasks spawned during construction
     /// (e.g. RetainMessageManager's send thread) land here, not on server_runtime.
     broker_runtime: Runtime,
-    place_params: MetaServiceServerParams,
+    meta_params: MetaServiceServerParams,
     mqtt_params: MqttBrokerServerParams,
     kafka_params: KafkaBrokerServerParams,
     amqp_params: AmqpBrokerServerParams,
@@ -247,7 +247,7 @@ impl BrokerServer {
             server_runtime,
             meta_runtime,
             broker_runtime,
-            place_params: meta_params,
+            meta_params,
             engine_params,
             config: config.clone(),
             mqtt_params,
@@ -329,7 +329,7 @@ impl BrokerServer {
     }
 
     fn start_grpc_server(&self) {
-        let place_params = self.place_params.clone();
+        let place_params = self.meta_params.clone();
         let mqtt_params = self.mqtt_params.clone();
         let engine_params = self.engine_params.clone();
         let grpc_port = self.config.grpc_port;
@@ -428,7 +428,7 @@ impl BrokerServer {
             return None;
         }
         let (stop_send, _) = broadcast::channel(2);
-        let place_params = self.place_params.clone();
+        let place_params = self.meta_params.clone();
         let tx = stop_send.clone();
         self.meta_runtime.spawn(Box::pin(async move {
             MetaServiceServer::new(place_params, tx).start().await;

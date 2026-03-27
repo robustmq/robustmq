@@ -109,9 +109,14 @@ impl StateMachineStore {
         match log_id {
             Some(id) => {
                 let data = serialize(&id).map_err(|e| sto_write(&*e))?;
+                let t = Instant::now();
                 self.db
                     .put_cf(&self.store(), key_last_applied(&self.machine), data)
                     .map_err(|e| sto_write(&e))?;
+                let elapsed_ms = t.elapsed().as_secs_f64() * 1000.0;
+                if elapsed_ms > 2.0 {
+                    warn!("[{}] put_cf slow: {:.2}ms", self.machine, elapsed_ms);
+                }
                 Ok(())
             }
             None => {
@@ -237,7 +242,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         let batch_ms = batch_start.elapsed().as_secs_f64() * 1000.0;
         record_apply_batch_duration(&self.machine, batch_ms);
 
-        if batch_ms > 20.0 {
+        if batch_ms > 5.0 {
             warn!(
                 "[{}] apply batch slow: total={:.2}ms route={:.2}ms membership={:.2}ms set_last_applied={:.2}ms",
                 self.machine, batch_ms, total_route_ms, total_membership_ms, set_last_applied_ms
