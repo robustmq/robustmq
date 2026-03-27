@@ -18,7 +18,7 @@ use crate::core::connection::response_information;
 use crate::core::connection::{build_connection, get_client_id};
 use crate::core::content_type::payload_format_indicator_check_by_lastwill;
 use crate::core::error::MqttBrokerError;
-use crate::core::event::{st_report_connected_event, StReportConnectedEventContext};
+use crate::core::event::st_report_connected_event;
 use crate::core::flapping_detect::check_flapping_detect;
 use crate::core::last_will::save_last_will_message;
 use crate::core::limit::connection_total_num_limit;
@@ -281,15 +281,13 @@ impl MqttService {
 
         let t = Instant::now();
 
-        st_report_connected_event(StReportConnectedEventContext {
-            storage_driver_manager: self.storage_driver_manager.clone(),
-            metadata_cache: self.cache_manager.clone(),
-            client_pool: self.client_pool.clone(),
-            session: session.clone(),
-            connection: connection.clone(),
-            connect_id: context.connect_id,
-            connection_manager: self.connection_manager.clone(),
-        })
+        st_report_connected_event(
+            &self.event_manager,
+            &self.connection_manager,
+            context.connect_id,
+            &connection,
+            &session,
+        )
         .await;
 
         let st_report_ms = t.elapsed().as_secs_f64() * 1000.0;

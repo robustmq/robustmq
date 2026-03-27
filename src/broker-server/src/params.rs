@@ -26,7 +26,11 @@ use meta_service::{
 };
 use mqtt_broker::{
     broker::MqttBrokerServerParams,
-    core::{cache::MQTTCacheManager as MqttCacheManager, retain::RetainMessageManager},
+    core::{
+        cache::MQTTCacheManager as MqttCacheManager,
+        event::EventReportManager,
+        retain::RetainMessageManager,
+    },
     security::AuthManager,
     storage::session::SessionBatcher,
     subscribe::{manager::SubscribeManager, PushManager},
@@ -145,11 +149,13 @@ pub async fn build_broker_mqtt_params(
     ));
 
     let session_batcher = SessionBatcher::new();
+    let event_manager = EventReportManager::new();
 
     Ok(MqttBrokerServerParams {
         cache_manager,
         client_pool,
         session_batcher,
+        event_manager,
         storage_driver_manager,
         subscribe_manager,
         connection_manager,

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::core::command::create_command;
+use crate::core::event::EventReportManager;
 use crate::core::retain::RetainMessageManager;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::storage::session::SessionBatcher;
@@ -80,6 +81,7 @@ pub struct TcpServerContext {
     pub task_supervisor: Arc<TaskSupervisor>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub node_call: Arc<NodeCallManager>,
+    pub event_manager: Arc<EventReportManager>,
 }
 
 impl Server {
@@ -101,6 +103,7 @@ impl Server {
             mqtt_limit_manager: context.mqtt_limit_manager.clone(),
             global_limit_manager: context.global_limit_manager.clone(),
             node_call: context.node_call.clone(),
+            event_manager: context.event_manager.clone(),
         };
 
         let command = create_command(command_context);

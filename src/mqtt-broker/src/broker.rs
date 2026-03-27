@@ -14,6 +14,7 @@
 
 #![allow(clippy::result_large_err)]
 use crate::core::cache::MQTTCacheManager;
+use crate::core::event::EventReportManager;
 use crate::core::flapping_detect::clean_flapping_detect;
 use crate::core::keep_alive::ClientKeepAlive;
 use crate::core::metrics_cache::metrics_record_thread;
@@ -74,12 +75,14 @@ pub struct MqttBrokerServerParams {
     pub task_supervisor: Arc<TaskSupervisor>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub node_call: Arc<NodeCallManager>,
+    pub event_manager: Arc<EventReportManager>,
 }
 
 pub struct MqttBrokerServer {
     cache_manager: Arc<MQTTCacheManager>,
     client_pool: Arc<ClientPool>,
     session_batcher: Arc<SessionBatcher>,
+    event_manager: Arc<EventReportManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
@@ -129,6 +132,7 @@ impl MqttBrokerServer {
             global_limit_manager: params.global_limit_manager.clone(),
             node_call: params.node_call.clone(),
             task_supervisor: params.task_supervisor.clone(),
+            event_manager: params.event_manager.clone(),
         }));
 
         MqttBrokerServer {
@@ -136,6 +140,7 @@ impl MqttBrokerServer {
             cache_manager: params.cache_manager,
             client_pool: params.client_pool,
             session_batcher: params.session_batcher,
+            event_manager: params.event_manager,
             storage_driver_manager: params.storage_driver_manager,
             subscribe_manager: params.subscribe_manager,
             connector_manager: params.connector_manager,
@@ -199,6 +204,18 @@ impl MqttBrokerServer {
         self.task_supervisor
             .spawn(TaskKind::MQTTSessionBatchSend.to_string(), async move {
                 session_batcher.start(client_pool.clone()).await;
+            });
+
+        // event report consumer
+        let event_manager = self.event_manager.clone();
+        let cache_manager = self.cache_manager.clone();
+        let storage_driver_manager = self.storage_driver_manager.clone();
+        let client_pool = self.client_pool.clone();
+        self.task_supervisor
+            .spawn(TaskKind::MQTTEventReport.to_string(), async move {
+                event_manager
+                    .start(cache_manager, storage_driver_manager, client_pool)
+                    .await;
             });
 
         // client keep alive
@@ -350,6 +367,7 @@ impl MqttBrokerServer {
                 {
                     error!("Failed to stop broker components: {}", e);
                 }
+
                 info!("Service has been stopped successfully. Exiting the process.");
             }
             Err(e) => {

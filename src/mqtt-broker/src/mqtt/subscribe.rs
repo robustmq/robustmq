@@ -16,10 +16,7 @@ use super::MqttService;
 use crate::core::cache::MQTTCacheManager;
 use crate::core::connection::is_request_problem_info;
 use crate::core::error::MqttBrokerError;
-use crate::core::event::{
-    st_report_subscribed_event, st_report_unsubscribed_event, StReportSubscribedEventContext,
-    StReportUnsubscribedEventContext,
-};
+use crate::core::event::{st_report_subscribed_event, st_report_unsubscribed_event};
 use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
 use crate::core::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use crate::core::sub_wildcards::sub_path_validator;
@@ -137,15 +134,13 @@ impl MqttService {
         self.cache_manager
             .pkid_manager
             .remove_qos_pkid_data(&connection.client_id, subscribe.packet_identifier);
-        st_report_subscribed_event(StReportSubscribedEventContext {
-            storage_driver_manager: self.storage_driver_manager.clone(),
-            metadata_cache: self.cache_manager.clone(),
-            client_pool: self.client_pool.clone(),
-            connection: connection.clone(),
-            connect_id: connection.connect_id,
-            connection_manager: self.connection_manager.clone(),
-            subscribe: subscribe.clone(),
-        })
+        st_report_subscribed_event(
+            &self.event_manager,
+            &self.connection_manager,
+            connection.connect_id,
+            connection,
+            subscribe,
+        )
         .await;
 
         response_packet_mqtt_sub_ack(
@@ -209,15 +204,13 @@ impl MqttService {
             .pkid_manager
             .remove_qos_pkid_data(&connection.client_id, un_subscribe.pkid);
 
-        st_report_unsubscribed_event(StReportUnsubscribedEventContext {
-            storage_driver_manager: self.storage_driver_manager.clone(),
-            metadata_cache: self.cache_manager.clone(),
-            client_pool: self.client_pool.clone(),
-            connection: connection.clone(),
-            connect_id: connection.connect_id,
-            connection_manager: self.connection_manager.clone(),
-            un_subscribe: un_subscribe.clone(),
-        })
+        st_report_unsubscribed_event(
+            &self.event_manager,
+            &self.connection_manager,
+            connection.connect_id,
+            connection,
+            un_subscribe,
+        )
         .await;
 
         response_packet_mqtt_unsub_ack(
