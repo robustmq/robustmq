@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{delay::save_delay_index_info, recover::recover_delay_queue};
+use crate::delay::{
+    delete_delay_index_info, delete_delay_message, save_delay_index_info,
+};
 use crate::{
     delay::{init_inner_topic, save_delay_message},
     pop::spawn_delay_message_pop_threads,
+    recover::recover_delay_queue,
 };
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
 use common_base::uuid::unique_id;
 use common_base::{error::common::CommonError, tools::now_second};
 use common_metrics::mqtt::delay::{record_delay_msg_enqueue, record_delay_msg_enqueue_duration};
-use common_metrics::mqtt::statistics::{
-    record_mqtt_delay_queue_remaining_capacity_set, record_mqtt_delay_queue_total_capacity_set,
-    record_mqtt_delay_queue_used_capacity_set,
-};
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
@@ -36,11 +35,25 @@ use std::{
     time::Duration,
 };
 use storage_adapter::driver::StorageDriverManager;
-use tokio::{sync::broadcast, time::Instant};
-use tokio_util::time::DelayQueue;
-use tracing::info;
+use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio::time::Instant;
+use tokio_util::time::delay_queue;
+use tracing::{debug, warn};
 
-pub type SharedDelayQueue = Arc<tokio::sync::Mutex<DelayQueue<DelayMessageIndexInfo>>>;
+/// Command sent from the manager to the per-shard pop thread.
+pub(crate) enum ShardCmd {
+    /// Insert a new message at the given instant. Pop thread replies with the queue Key.
+    Insert(
+        DelayMessageIndexInfo,
+        Instant,
+        oneshot::Sender<delay_queue::Key>,
+    ),
+    /// Remove a message by its queue key. Pop thread sends () when done.
+    Delete(delay_queue::Key, oneshot::Sender<()>),
+}
+
+/// Sender half kept in the manager; pop thread owns the receiver.
+pub(crate) type ShardCmdTx = mpsc::UnboundedSender<ShardCmd>;
 
 pub const DELAY_MESSAGE_FLAG: &str = "delay_message_flag";
 pub const DELAY_MESSAGE_RECV_MS: &str = "delay_message_recv_ms";
@@ -52,8 +65,6 @@ pub async fn start_delay_message_manager_thread(
     task_supervisor: &Arc<TaskSupervisor>,
     broker_cache: &Arc<NodeCacheManager>,
 ) -> Result<(), CommonError> {
-    delay_message_manager.start();
-
     init_inner_topic(delay_message_manager, broker_cache).await?;
 
     spawn_delay_message_pop_threads(
@@ -73,10 +84,13 @@ pub async fn start_delay_message_manager_thread(
 pub struct DelayMessageManager {
     pub client_pool: Arc<ClientPool>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
-    pub delay_queue_list: DashMap<u32, SharedDelayQueue>,
+    /// Per-shard command channel senders.
+    pub(crate) shard_cmd_tx: DashMap<u32, ShardCmdTx>,
     pub delay_queue_pop_thread: DashMap<u32, broadcast::Sender<bool>>,
     pub delay_queue_num: u32,
     pub incr_no: AtomicU32,
+    /// unique_id → (shard_no, queue key).
+    message_key_map: DashMap<String, (u32, delay_queue::Key)>,
 }
 
 impl DelayMessageManager {
@@ -88,21 +102,22 @@ impl DelayMessageManager {
         let driver = DelayMessageManager {
             client_pool,
             storage_driver_manager,
-            delay_queue_list: DashMap::with_capacity(8),
+            shard_cmd_tx: DashMap::with_capacity(8),
             delay_queue_pop_thread: DashMap::with_capacity(8),
             incr_no: AtomicU32::new(0),
             delay_queue_num,
+            message_key_map: DashMap::new(),
         };
         Ok(driver)
     }
 
-    pub fn start(&self) {
-        for shard_no in 0..self.delay_queue_num {
-            self.delay_queue_list.insert(
-                shard_no,
-                Arc::new(tokio::sync::Mutex::new(DelayQueue::new())),
-            );
-        }
+    /// Called by pop.rs to register the command-channel sender for a shard.
+    pub(crate) fn register_shard_cmd_tx(&self, shard_no: u32, tx: ShardCmdTx) {
+        self.shard_cmd_tx.insert(shard_no, tx);
+    }
+
+    pub(crate) fn remove_message_key(&self, unique_id: &str) {
+        self.message_key_map.remove(unique_id);
     }
 
     pub async fn send(
@@ -128,12 +143,57 @@ impl DelayMessageManager {
 
         save_delay_index_info(&self.storage_driver_manager, &delay_index_info).await?;
 
-        self.send_to_delay_queue(&delay_index_info).await;
+        self.send_to_delay_queue(&delay_index_info).await?;
 
         record_delay_msg_enqueue();
         record_delay_msg_enqueue_duration(start.elapsed().as_secs_f64() * 1000.0);
 
         Ok(delay_message_id)
+    }
+
+    /// Cancel a previously scheduled delay message by its unique_id.
+    /// Removes the entry from the in-memory queue and deletes it from persistent storage.
+    pub async fn cancel(&self, unique_id: &str) -> Result<(), CommonError> {
+        let entry = match self.message_key_map.remove(unique_id) {
+            Some(e) => e,
+            None => {
+                warn!(
+                    "Delay message not found when cancelling, may have already been delivered: unique_id={}",
+                    unique_id
+                );
+                return Ok(());
+            }
+        };
+        let (_, (shard_no, key)) = entry;
+
+        let tx = self
+            .shard_cmd_tx
+            .get(&shard_no)
+            .map(|r| r.clone())
+            .ok_or_else(|| {
+                CommonError::CommonError(format!(
+                    "Delay message shard {} cmd channel not found when cancelling unique_id={}",
+                    shard_no, unique_id
+                ))
+            })?;
+
+        let (done_tx, done_rx) = oneshot::channel();
+        tx.send(ShardCmd::Delete(key, done_tx))
+            .map_err(|e| CommonError::CommonError(format!("shard cmd send error: {}", e)))?;
+
+        // Wait until pop thread has actually removed the entry from the DelayQueue.
+        let _ = done_rx.await;
+
+        // Clean up persistent storage.
+        let delay_info = DelayMessageIndexInfo {
+            unique_id: unique_id.to_string(),
+            ..Default::default()
+        };
+        delete_delay_index_info(&self.storage_driver_manager, &delay_info).await?;
+        delete_delay_message(&self.storage_driver_manager, unique_id).await?;
+
+        debug!("Delay message cancelled: unique_id={}", unique_id);
+        Ok(())
     }
 
     pub async fn stop(&self) -> Result<(), CommonError> {
@@ -148,30 +208,27 @@ impl DelayMessageManager {
         Ok(())
     }
 
-    /// Send delay message to appropriate queue shard.
-    ///
-    /// This method uses lazy initialization to ensure queue shards are created on-demand,
-    /// preventing message loss even if initialization is incomplete or concurrent with startup.
-    /// Messages are already persisted in storage before this method is called,
-    /// so even on queue creation failure, messages can be recovered later.
-    pub async fn send_to_delay_queue(&self, delay_info: &DelayMessageIndexInfo) {
+    /// Send delay message to appropriate queue shard via channel — non-blocking, no Mutex.
+    /// Awaits the queue Key reply so that a subsequent cancel() will never miss the entry.
+    pub async fn send_to_delay_queue(
+        &self,
+        delay_info: &DelayMessageIndexInfo,
+    ) -> Result<(), CommonError> {
         let shard_no = self
             .incr_no
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
             % self.delay_queue_num;
 
-        // Lazy initialization: create queue shard if it doesn't exist
-        // This prevents message loss during startup or recovery scenarios
-        let queue_arc = self.delay_queue_list
-            .entry(shard_no)
-            .or_insert_with(|| {
-                info!(
-                    "Delay queue shard {} not found, initializing lazily. Message may be recovered from storage.",
-                    shard_no
-                );
-                Arc::new(tokio::sync::Mutex::new(DelayQueue::new()))
-            })
-            .clone();
+        let tx = self
+            .shard_cmd_tx
+            .get(&shard_no)
+            .map(|r| r.clone())
+            .ok_or_else(|| {
+                CommonError::CommonError(format!(
+                    "Delay message shard {} cmd channel not found: unique_id={}",
+                    shard_no, delay_info.unique_id
+                ))
+            })?;
 
         let current_time = now_second();
         let delay_duration = if delay_info.target_timestamp > current_time {
@@ -180,30 +237,30 @@ impl DelayMessageManager {
             Duration::from_secs(0)
         };
         let target_instant = Instant::now() + delay_duration;
-        let expected_trigger_time = current_time + delay_duration.as_secs();
 
-        info!(
-            "Insert delay message to queue. unique_id={}, target_topic={}, shard_no={}, target_timestamp={}, current_time={}, delay_duration={}s, expected_trigger_time={}, time_match={}",
-            delay_info.unique_id,
-            delay_info.target_topic_name,
-            shard_no,
-            delay_info.target_timestamp,
-            current_time,
-            delay_duration.as_secs(),
-            expected_trigger_time,
-            expected_trigger_time == delay_info.target_timestamp
-        );
+        let (key_tx, key_rx) = oneshot::channel();
+        tx.send(ShardCmd::Insert(delay_info.clone(), target_instant, key_tx))
+            .map_err(|e| {
+                CommonError::CommonError(format!(
+                    "Failed to send Insert cmd to delay message shard {}: unique_id={}, error={}",
+                    shard_no, delay_info.unique_id, e
+                ))
+            })?;
 
-        let mut delay_queue = queue_arc.lock().await;
-        delay_queue.insert_at(delay_info.clone(), target_instant);
+        match key_rx.await {
+            Ok(key) => {
+                self.message_key_map
+                    .insert(delay_info.unique_id.clone(), (shard_no, key));
+            }
+            Err(_) => {
+                return Err(CommonError::CommonError(format!(
+                    "Pop thread dropped before replying with key: unique_id={}",
+                    delay_info.unique_id
+                )));
+            }
+        }
 
-        let capacity = delay_queue.capacity() as i64;
-        let used = delay_queue.len() as i64;
-        drop(delay_queue);
-
-        record_mqtt_delay_queue_total_capacity_set(shard_no, capacity);
-        record_mqtt_delay_queue_used_capacity_set(shard_no, used);
-        record_mqtt_delay_queue_remaining_capacity_set(shard_no, capacity - used);
+        Ok(())
     }
 
     pub fn add_delay_queue_pop_thread(&self, shard_no: u32, stop_send: broadcast::Sender<bool>) {
@@ -228,52 +285,39 @@ mod test {
 
     #[tokio::test]
     async fn test_delay_queue_basic_operations() {
-        let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
+        use tokio_util::time::DelayQueue;
+        let mut delay_queue: DelayQueue<DelayMessageIndexInfo> = DelayQueue::new();
 
         let delay_info = create_test_delay_info("test_1", now_second() + 3600);
-        {
-            let mut queue = delay_queue.lock().await;
-            queue.insert_at(
-                delay_info.clone(),
-                Instant::now() + Duration::from_secs(3600),
-            );
-        }
+        delay_queue.insert_at(
+            delay_info.clone(),
+            Instant::now() + Duration::from_secs(3600),
+        );
 
-        {
-            let queue = delay_queue.lock().await;
-            assert_eq!(queue.len(), 1);
-        }
+        assert_eq!(delay_queue.len(), 1);
     }
 
     #[tokio::test]
     async fn test_delay_queue_expired_message() {
-        let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
+        use tokio_util::time::DelayQueue;
+        let mut delay_queue: DelayQueue<DelayMessageIndexInfo> = DelayQueue::new();
 
         let delay_info = create_test_delay_info("expired_test", now_second() - 10);
-        {
-            let mut queue = delay_queue.lock().await;
-            queue.insert_at(delay_info.clone(), Instant::now());
-        }
+        delay_queue.insert_at(delay_info.clone(), Instant::now());
 
-        {
-            let queue = delay_queue.lock().await;
-            assert_eq!(queue.len(), 1);
-        }
+        assert_eq!(delay_queue.len(), 1);
     }
 
     #[tokio::test]
     async fn test_delay_queue_multiple_messages() {
-        let delay_queue: SharedDelayQueue = Arc::new(tokio::sync::Mutex::new(DelayQueue::new()));
+        use tokio_util::time::DelayQueue;
+        let mut delay_queue: DelayQueue<DelayMessageIndexInfo> = DelayQueue::new();
 
         for i in 0..5 {
             let delay_info = create_test_delay_info(&format!("test_{}", i), now_second() + 3600);
-            let mut queue = delay_queue.lock().await;
-            queue.insert_at(delay_info, Instant::now() + Duration::from_secs(3600));
+            delay_queue.insert_at(delay_info, Instant::now() + Duration::from_secs(3600));
         }
 
-        {
-            let queue = delay_queue.lock().await;
-            assert_eq!(queue.len(), 5);
-        }
+        assert_eq!(delay_queue.len(), 5);
     }
 }
