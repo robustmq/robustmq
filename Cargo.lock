@@ -8592,6 +8592,7 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
+ "common-metrics",
  "dashmap 6.1.0",
  "futures",
  "futures-util",

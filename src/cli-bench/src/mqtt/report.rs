@@ -172,6 +172,16 @@ impl BenchReport {
             format!("{:.3}", self.snapshot.latency_ms_max)
         ]);
         table.printstd();
+
+        if !self.snapshot.errors.is_empty() {
+            println!("\n=== Errors ===");
+            let mut err_table = Table::new();
+            err_table.set_titles(row!["error", "count"]);
+            for (msg, count) in &self.snapshot.errors {
+                err_table.add_row(row![msg, count]);
+            }
+            err_table.printstd();
+        }
     }
 
     pub fn print_json(&self) {
@@ -204,6 +214,11 @@ pub fn print_realtime_line(
         snapshot.latency_ms_p999,
         snapshot.latency_ms_p9999
     );
+    if !snapshot.errors.is_empty() {
+        for (msg, count) in &snapshot.errors {
+            println!("  [error] {} x{}", msg, count);
+        }
+    }
 }
 
 pub fn print_conn_progress_line(

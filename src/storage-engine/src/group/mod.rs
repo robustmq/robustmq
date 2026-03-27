@@ -17,6 +17,9 @@ use common_base::{
     error::{common::CommonError, ResultCommonError},
     tools::loop_select_ticket,
 };
+use common_metrics::storage_engine::{
+    record_storage_engine_ops, record_storage_engine_ops_duration, record_storage_engine_ops_fail,
+};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::AdapterConsumerGroupOffset;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -55,7 +58,8 @@ impl OffsetManager {
         group_name: &str,
         offset: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
-        if self.enable_cache {
+        let start = std::time::Instant::now();
+        let result = if self.enable_cache {
             self.offset_cache_storage
                 .commit_offset(tenant, group_name, offset)
                 .await
@@ -63,7 +67,14 @@ impl OffsetManager {
             self.offset_storage
                 .commit_offset(tenant, group_name, offset)
                 .await
+        };
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_storage_engine_ops("commit_offset");
+        record_storage_engine_ops_duration("commit_offset", duration_ms);
+        if result.is_err() {
+            record_storage_engine_ops_fail("commit_offset");
         }
+        result
     }
 
     pub async fn flush(&self) -> Result<(), CommonError> {
@@ -100,11 +111,12 @@ impl OffsetManager {
         tenant: &str,
         group: &str,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
+        let start = std::time::Instant::now();
         // If cache is enabled, flush pending updates before reading to ensure consistency
         if self.enable_cache {
             self.offset_cache_storage.flush().await?;
         }
-        match self.offset_storage.get_offset(tenant, group).await {
+        let result = match self.offset_storage.get_offset(tenant, group).await {
             Ok(data) => Ok(data),
             Err(e) => {
                 // Used for compatibility test cases.
@@ -114,6 +126,13 @@ impl OffsetManager {
                 }
                 Err(e)
             }
+        };
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_storage_engine_ops("get_offset_by_group");
+        record_storage_engine_ops_duration("get_offset_by_group", duration_ms);
+        if result.is_err() {
+            record_storage_engine_ops_fail("get_offset_by_group");
         }
+        result
     }
 }

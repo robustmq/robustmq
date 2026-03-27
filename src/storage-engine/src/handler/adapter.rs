@@ -30,6 +30,9 @@ use crate::{
 };
 use common_base::error::common::CommonError;
 use common_config::storage::StorageType;
+use common_metrics::storage_engine::{
+    record_storage_engine_ops, record_storage_engine_ops_duration, record_storage_engine_ops_fail,
+};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_offset::{
     AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
@@ -80,7 +83,13 @@ impl StorageEngineHandler {
     }
 
     pub async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError> {
-        if let Err(e) = create_shard_to_place(&self.cache_manager, &self.client_pool, shard).await {
+        let start = std::time::Instant::now();
+        let result = create_shard_to_place(&self.cache_manager, &self.client_pool, shard).await;
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_storage_engine_ops("create_shard");
+        record_storage_engine_ops_duration("create_shard", duration_ms);
+        if let Err(e) = result {
+            record_storage_engine_ops_fail("create_shard");
             return Err(CommonError::CommonError(e.to_string()));
         }
         Ok(())
@@ -105,7 +114,13 @@ impl StorageEngineHandler {
     }
 
     pub async fn delete_shard(&self, shard_name: &str) -> Result<(), CommonError> {
-        if let Err(e) = delete_shard_to_place(&self.client_pool, shard_name).await {
+        let start = std::time::Instant::now();
+        let result = delete_shard_to_place(&self.client_pool, shard_name).await;
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_storage_engine_ops("delete_shard");
+        record_storage_engine_ops_duration("delete_shard", duration_ms);
+        if let Err(e) = result {
+            record_storage_engine_ops_fail("delete_shard");
             return Err(CommonError::CommonError(e.to_string()));
         }
         Ok(())
@@ -116,7 +131,8 @@ impl StorageEngineHandler {
         shard: &str,
         records: &[AdapterWriteRecord],
     ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
-        match batch_write(
+        let start = std::time::Instant::now();
+        let result = batch_write(
             &self.write_manager,
             &self.cache_manager,
             &self.memory_storage_engine,
@@ -125,10 +141,16 @@ impl StorageEngineHandler {
             shard,
             records,
         )
-        .await
-        {
+        .await;
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_storage_engine_ops("write");
+        record_storage_engine_ops_duration("write", duration_ms);
+        match result {
             Ok(offsets) => Ok(offsets),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
+            Err(e) => {
+                record_storage_engine_ops_fail("write");
+                Err(CommonError::CommonError(e.to_string()))
+            }
         }
     }
 
@@ -138,7 +160,8 @@ impl StorageEngineHandler {
         offset: u64,
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
-        match read_by_offset(ReadByOffsetParams {
+        let start = std::time::Instant::now();
+        let result = read_by_offset(ReadByOffsetParams {
             rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
             cache_manager: self.cache_manager.clone(),
             memory_storage_engine: self.memory_storage_engine.clone(),
@@ -148,10 +171,16 @@ impl StorageEngineHandler {
             offset,
             read_config: read_config.clone(),
         })
-        .await
-        {
+        .await;
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_storage_engine_ops("read_offset");
+        record_storage_engine_ops_duration("read_offset", duration_ms);
+        match result {
             Ok(data) => Ok(data),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
+            Err(e) => {
+                record_storage_engine_ops_fail("read_offset");
+                Err(CommonError::CommonError(e.to_string()))
+            }
         }
     }
 
@@ -162,7 +191,8 @@ impl StorageEngineHandler {
         start_offset: Option<u64>,
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
-        match read_by_tag(ReadByTagParams {
+        let start = std::time::Instant::now();
+        let result = read_by_tag(ReadByTagParams {
             rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
             cache_manager: self.cache_manager.clone(),
             memory_storage_engine: self.memory_storage_engine.clone(),
@@ -174,10 +204,16 @@ impl StorageEngineHandler {
             batch_call_source: false,
             read_config: read_config.clone(),
         })
-        .await
-        {
+        .await;
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_storage_engine_ops("read_tag");
+        record_storage_engine_ops_duration("read_tag", duration_ms);
+        match result {
             Ok(data) => Ok(data),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
+            Err(e) => {
+                record_storage_engine_ops_fail("read_tag");
+                Err(CommonError::CommonError(e.to_string()))
+            }
         }
     }
 
@@ -186,7 +222,8 @@ impl StorageEngineHandler {
         shard: &str,
         key: &str,
     ) -> Result<Vec<StorageRecord>, CommonError> {
-        match read_by_key(ReadByKeyParams {
+        let start = std::time::Instant::now();
+        let result = read_by_key(ReadByKeyParams {
             rocksdb_engine_handler: self.rocksdb_engine_handler.clone(),
             cache_manager: self.cache_manager.clone(),
             memory_storage_engine: self.memory_storage_engine.clone(),
@@ -196,10 +233,16 @@ impl StorageEngineHandler {
             batch_call_source: false,
             key: key.to_string(),
         })
-        .await
-        {
+        .await;
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_storage_engine_ops("read_key");
+        record_storage_engine_ops_duration("read_key", duration_ms);
+        match result {
             Ok(data) => Ok(data),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
+            Err(e) => {
+                record_storage_engine_ops_fail("read_key");
+                Err(CommonError::CommonError(e.to_string()))
+            }
         }
     }
 
@@ -209,12 +252,19 @@ impl StorageEngineHandler {
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
     ) -> Result<u64, CommonError> {
-        match self
+        let start = std::time::Instant::now();
+        let result = self
             .get_offset_by_timestamp0(shard, timestamp, strategy)
-            .await
-        {
+            .await;
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_storage_engine_ops("get_offset_by_timestamp");
+        record_storage_engine_ops_duration("get_offset_by_timestamp", duration_ms);
+        match result {
             Ok(offset) => Ok(offset),
-            Err(e) => Err(CommonError::CommonError(e.to_string())),
+            Err(e) => {
+                record_storage_engine_ops_fail("get_offset_by_timestamp");
+                Err(CommonError::CommonError(e.to_string()))
+            }
         }
     }
 
@@ -238,6 +288,22 @@ impl StorageEngineHandler {
     }
 
     pub async fn delete_by_key(
+        &self,
+        shard_name: &str,
+        key: &str,
+    ) -> Result<(), StorageEngineError> {
+        let start = std::time::Instant::now();
+        let result = self.delete_by_key_inner(shard_name, key).await;
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_storage_engine_ops("delete_by_key");
+        record_storage_engine_ops_duration("delete_by_key", duration_ms);
+        if result.is_err() {
+            record_storage_engine_ops_fail("delete_by_key");
+        }
+        result
+    }
+
+    async fn delete_by_key_inner(
         &self,
         shard_name: &str,
         key: &str,
@@ -276,6 +342,22 @@ impl StorageEngineHandler {
     }
 
     pub async fn delete_by_offset(
+        &self,
+        shard_name: &str,
+        offset: u64,
+    ) -> Result<(), StorageEngineError> {
+        let start = std::time::Instant::now();
+        let result = self.delete_by_offset_inner(shard_name, offset).await;
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_storage_engine_ops("delete_by_offset");
+        record_storage_engine_ops_duration("delete_by_offset", duration_ms);
+        if result.is_err() {
+            record_storage_engine_ops_fail("delete_by_offset");
+        }
+        result
+    }
+
+    async fn delete_by_offset_inner(
         &self,
         shard_name: &str,
         offset: u64,

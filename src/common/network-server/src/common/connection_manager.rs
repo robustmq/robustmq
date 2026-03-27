@@ -25,7 +25,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio_util::codec::FramedWrite;
-use tracing::{debug, warn};
+use tracing::debug;
 
 type TcpWriter =
     Arc<Mutex<FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, RobustMQCodec>>>;
@@ -212,7 +212,7 @@ impl ConnectionManager {
                     id
                 ),
                 Ok(Err(e)) => debug!("tcp close error for connection id [{}]: {}", id, e),
-                Err(_) => warn!(
+                Err(_) => debug!(
                     "tcp close timed out for connection id [{}], forcing drop",
                     id
                 ),
@@ -231,7 +231,7 @@ impl ConnectionManager {
                     id
                 ),
                 Ok(Err(e)) => debug!("tls close error for connection id [{}]: {}", id, e),
-                Err(_) => warn!(
+                Err(_) => debug!(
                     "tls close timed out for connection id [{}], forcing drop",
                     id
                 ),
@@ -250,7 +250,7 @@ impl ConnectionManager {
                     id
                 ),
                 Ok(Err(e)) => debug!("websocket close error for connection id [{}]: {}", id, e),
-                Err(_) => warn!(
+                Err(_) => debug!(
                     "websocket close timed out for connection id [{}], forcing drop",
                     id
                 ),

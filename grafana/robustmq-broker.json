@@ -1511,7 +1511,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "📊 Resource",
+      "title": "\ud83d\udcca Resource",
       "type": "row"
     },
     {
@@ -2061,7 +2061,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "🖥 System Resources",
+      "title": "\ud83d\udda5 System Resources",
       "type": "row"
     },
     {
@@ -2074,7 +2074,7 @@
       },
       "id": 1100,
       "panels": [],
-      "title": "⚙️ Tokio Runtimes",
+      "title": "\u2699\ufe0f Tokio Runtimes",
       "type": "row"
     },
     {
@@ -2436,7 +2436,7 @@
       },
       "id": 300,
       "panels": [],
-      "title": "🌐 Network",
+      "title": "\ud83c\udf10 Network",
       "type": "row"
     },
     {
@@ -3308,7 +3308,7 @@
         "type": "prometheus",
         "uid": "dfdi3tx61jshsa"
       },
-      "description": "Time spent in command.apply() — the core business logic (auth, session, gRPC calls, etc.)",
+      "description": "Time spent in command.apply() \u2014 the core business logic (auth, session, gRPC calls, etc.)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3709,7 +3709,7 @@
         "type": "prometheus",
         "uid": "dfdi3tx61jshsa"
       },
-      "description": "Rate of write timeouts per second by network type. A timeout means the client socket send buffer was full for 30s — connection was forcibly closed.",
+      "description": "Rate of write timeouts per second by network type. A timeout means the client socket send buffer was full for 30s \u2014 connection was forcibly closed.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -5016,7 +5016,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "📈 MQTT Protocol",
+      "title": "\ud83d\udcc8 MQTT Protocol",
       "type": "row"
     },
     {
@@ -5885,7 +5885,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "📦 Raft Machine",
+      "title": "\ud83d\udce6 Raft Machine",
       "type": "row"
     },
     {
@@ -6535,7 +6535,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "📖 RocksDB",
+      "title": "\ud83d\udcd6 RocksDB",
       "type": "row"
     },
     {
@@ -7085,7 +7085,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "🔗 gRPC Server",
+      "title": "\ud83d\udd17 gRPC Server",
       "type": "row"
     },
     {
@@ -7436,7 +7436,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "📡 gRPC Client",
+      "title": "\ud83d\udce1 gRPC Client",
       "type": "row"
     },
     {
@@ -8200,7 +8200,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "🌍 HTTP Admin",
+      "title": "\ud83c\udf0d HTTP Admin",
       "type": "row"
     },
     {
@@ -9169,7 +9169,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "⏱ Delay Message",
+      "title": "\u23f1 Delay Message",
       "type": "row"
     },
     {
@@ -9725,7 +9725,354 @@
           "type": "timeseries"
         }
       ],
-      "title": "🔌 Connector",
+      "title": "\ud83d\udd0c Connector",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 86
+      },
+      "id": 1114,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "Read and Write QPS (write, read_offset, read_key, read_tag)",
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "ops/s",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }] },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9604 },
+          "id": 1111,
+          "options": {
+            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "rate(storage_engine_ops_total{operation=\"write\"}[1m])", "legendFormat": "Write", "range": true, "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "rate(storage_engine_ops_total{operation=\"read_offset\"}[1m])", "legendFormat": "Read Offset", "range": true, "refId": "B" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "rate(storage_engine_ops_total{operation=\"read_key\"}[1m])", "legendFormat": "Read Key", "range": true, "refId": "C" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "rate(storage_engine_ops_total{operation=\"read_tag\"}[1m])", "legendFormat": "Read Tag", "range": true, "refId": "D" }
+          ],
+          "title": "Read / Write QPS",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "P99.9 and P99.99 latency for read/write operations (ms)",
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "ms",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }] },
+              "unit": "ms"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9604 },
+          "id": 1112,
+          "options": {
+            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.999, rate(storage_engine_ops_duration_ms_bucket{operation=\"write\"}[1m]))", "legendFormat": "Write P99.9", "range": true, "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.9999, rate(storage_engine_ops_duration_ms_bucket{operation=\"write\"}[1m]))", "legendFormat": "Write P99.99", "range": true, "refId": "B" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.999, rate(storage_engine_ops_duration_ms_bucket{operation=\"read_offset\"}[1m]))", "legendFormat": "Read Offset P99.9", "range": true, "refId": "C" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.9999, rate(storage_engine_ops_duration_ms_bucket{operation=\"read_offset\"}[1m]))", "legendFormat": "Read Offset P99.99", "range": true, "refId": "D" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.999, rate(storage_engine_ops_duration_ms_bucket{operation=\"read_key\"}[1m]))", "legendFormat": "Read Key P99.9", "range": true, "refId": "E" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.9999, rate(storage_engine_ops_duration_ms_bucket{operation=\"read_key\"}[1m]))", "legendFormat": "Read Key P99.99", "range": true, "refId": "F" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.999, rate(storage_engine_ops_duration_ms_bucket{operation=\"read_tag\"}[1m]))", "legendFormat": "Read Tag P99.9", "range": true, "refId": "G" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.9999, rate(storage_engine_ops_duration_ms_bucket{operation=\"read_tag\"}[1m]))", "legendFormat": "Read Tag P99.99", "range": true, "refId": "H" }
+          ],
+          "title": "Read / Write Latency (P99.9 / P99.99)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "Offset-related operation QPS (get_offset_by_timestamp)",
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "ops/s",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }] },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9612 },
+          "id": 1113,
+          "options": {
+            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "rate(storage_engine_ops_total{operation=\"get_offset_by_timestamp\"}[1m])", "legendFormat": "Get Offset by Timestamp", "range": true, "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "rate(storage_engine_ops_total{operation=\"get_offset_by_group\"}[1m])", "legendFormat": "Get Offset by Group", "range": true, "refId": "B" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "rate(storage_engine_ops_total{operation=\"commit_offset\"}[1m])", "legendFormat": "Commit Offset", "range": true, "refId": "C" }
+          ],
+          "title": "Offset QPS",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "P99.9 and P99.99 latency for offset operations (ms)",
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "ms",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }] },
+              "unit": "ms"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9612 },
+          "id": 1115,
+          "options": {
+            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.999, rate(storage_engine_ops_duration_ms_bucket{operation=\"get_offset_by_timestamp\"}[1m]))", "legendFormat": "Get Offset by Timestamp P99.9", "range": true, "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.9999, rate(storage_engine_ops_duration_ms_bucket{operation=\"get_offset_by_timestamp\"}[1m]))", "legendFormat": "Get Offset by Timestamp P99.99", "range": true, "refId": "B" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.999, rate(storage_engine_ops_duration_ms_bucket{operation=\"get_offset_by_group\"}[1m]))", "legendFormat": "Get Offset by Group P99.9", "range": true, "refId": "C" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.9999, rate(storage_engine_ops_duration_ms_bucket{operation=\"get_offset_by_group\"}[1m]))", "legendFormat": "Get Offset by Group P99.99", "range": true, "refId": "D" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.999, rate(storage_engine_ops_duration_ms_bucket{operation=\"commit_offset\"}[1m]))", "legendFormat": "Commit Offset P99.9", "range": true, "refId": "E" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.9999, rate(storage_engine_ops_duration_ms_bucket{operation=\"commit_offset\"}[1m]))", "legendFormat": "Commit Offset P99.99", "range": true, "refId": "F" }
+          ],
+          "title": "Offset Latency (P99.9 / P99.99)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "Shard and delete operation QPS (create_shard, delete_shard, delete_by_key, delete_by_offset)",
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "ops/s",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }] },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9620 },
+          "id": 1116,
+          "options": {
+            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "rate(storage_engine_ops_total{operation=\"create_shard\"}[1m])", "legendFormat": "Create Shard", "range": true, "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "rate(storage_engine_ops_total{operation=\"delete_shard\"}[1m])", "legendFormat": "Delete Shard", "range": true, "refId": "B" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "rate(storage_engine_ops_total{operation=\"delete_by_key\"}[1m])", "legendFormat": "Delete by Key", "range": true, "refId": "C" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "rate(storage_engine_ops_total{operation=\"delete_by_offset\"}[1m])", "legendFormat": "Delete by Offset", "range": true, "refId": "D" }
+          ],
+          "title": "Shard / Delete QPS",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "dfdi3tx61jshsa"
+          },
+          "description": "P99.9 and P99.99 latency for shard/delete operations (ms)",
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "ms",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }] },
+              "unit": "ms"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9620 },
+          "id": 1117,
+          "options": {
+            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "pluginVersion": "12.3.3",
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.999, rate(storage_engine_ops_duration_ms_bucket{operation=\"create_shard\"}[1m]))", "legendFormat": "Create Shard P99.9", "range": true, "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.9999, rate(storage_engine_ops_duration_ms_bucket{operation=\"create_shard\"}[1m]))", "legendFormat": "Create Shard P99.99", "range": true, "refId": "B" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.999, rate(storage_engine_ops_duration_ms_bucket{operation=\"delete_shard\"}[1m]))", "legendFormat": "Delete Shard P99.9", "range": true, "refId": "C" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.9999, rate(storage_engine_ops_duration_ms_bucket{operation=\"delete_shard\"}[1m]))", "legendFormat": "Delete Shard P99.99", "range": true, "refId": "D" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.999, rate(storage_engine_ops_duration_ms_bucket{operation=\"delete_by_key\"}[1m]))", "legendFormat": "Delete by Key P99.9", "range": true, "refId": "E" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.9999, rate(storage_engine_ops_duration_ms_bucket{operation=\"delete_by_key\"}[1m]))", "legendFormat": "Delete by Key P99.99", "range": true, "refId": "F" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.999, rate(storage_engine_ops_duration_ms_bucket{operation=\"delete_by_offset\"}[1m]))", "legendFormat": "Delete by Offset P99.9", "range": true, "refId": "G" },
+            { "datasource": { "type": "prometheus", "uid": "dfdi3tx61jshsa" }, "editorMode": "code", "expr": "histogram_quantile(0.9999, rate(storage_engine_ops_duration_ms_bucket{operation=\"delete_by_offset\"}[1m]))", "legendFormat": "Delete by Offset P99.99", "range": true, "refId": "H" }
+          ],
+          "title": "Shard / Delete Latency (P99.9 / P99.99)",
+          "type": "timeseries"
+        }
+      ],
+      "title": "\ud83d\udcbe Storage Engine",
       "type": "row"
     }
   ],
