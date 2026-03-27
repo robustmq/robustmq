@@ -453,9 +453,7 @@ pub fn default_delay_task() -> DelayTask {
 }
 
 pub fn default_delay_task_queue_num() -> usize {
-    std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(4)
+    8
 }
 
 pub fn default_delay_task_handler_concurrency() -> usize {

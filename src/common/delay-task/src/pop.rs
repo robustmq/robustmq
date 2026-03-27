@@ -15,7 +15,7 @@
 use crate::delay::delete_delay_task_index;
 use crate::handler::lastwill_expire::handle_lastwill_expire;
 use crate::handler::session_expire::handle_session_expire;
-use crate::manager::{DelayTaskManager, SharedDelayQueue};
+use crate::manager::{DelayTaskManager, ShardCmd};
 use crate::{DelayTask, DelayTaskData};
 use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
@@ -29,12 +29,10 @@ use futures::StreamExt;
 use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::time::sleep;
-use tokio::{select, sync::broadcast};
+use tokio::sync::{broadcast, mpsc};
+use tokio::{select, sync::broadcast as bc};
+use tokio_util::time::DelayQueue;
 use tracing::{debug, error, info, warn};
-
-const POP_LOCK_TIMEOUT_MS: u64 = 100;
 
 pub(crate) fn spawn_delay_task_pop_threads(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -49,90 +47,103 @@ pub(crate) fn spawn_delay_task_pop_threads(
     for shard_no in 0..delay_queue_num {
         let manager = delay_task_manager.clone();
 
+        // Create command channel for this shard.
+        let (tx, rx) = mpsc::unbounded_channel::<ShardCmd>();
+        delay_task_manager.register_shard_cmd_tx(shard_no, tx);
+
         let (stop_send, _) = broadcast::channel(2);
         delay_task_manager.add_delay_queue_pop_thread(shard_no, stop_send.clone());
+
         let raw_rocksdb_engine_handler = rocksdb_engine_handler.clone();
         let raw_node_call_manager = node_call_manager.clone();
         let raw_broker_cache = broker_cache.clone();
-        task_supervisor.spawn(format!("{}_{}",TaskKind::DelayTaskPop, shard_no), async move {
-            let mut recv = stop_send.subscribe();
-            loop {
-                select! {
-                    val = recv.recv() => {
-                        match val {
-                            Ok(flag) if flag => {
-                                info!("Delay task pop thread stopped for shard {}", shard_no);
-                                break;
-                            }
-                            Err(_) => {
-                                warn!("Broadcast channel closed, stopping pop thread for shard {}", shard_no);
-                                break;
-                            }
-                            _ => {}
-                        }
-                    }
-                    res = pop_delay_queue(&raw_rocksdb_engine_handler, &manager, &raw_node_call_manager, &raw_broker_cache, shard_no) => {
-                        if let Err(e) = res {
-                            error!("Delay task pop error on shard {}: {}", shard_no, e);
-                        }
-                    }
-                }
-            }
-        });
+
+        task_supervisor.spawn(
+            format!("{}_{}", TaskKind::DelayTaskPop, shard_no),
+            async move {
+                run_shard_loop(
+                    shard_no,
+                    rx,
+                    stop_send,
+                    manager,
+                    raw_rocksdb_engine_handler,
+                    raw_node_call_manager,
+                    raw_broker_cache,
+                )
+                .await;
+            },
+        );
     }
 }
 
-async fn pop_delay_queue(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    delay_task_manager: &Arc<DelayTaskManager>,
-    node_call_manager: &Arc<NodeCallManager>,
-    broker_cache: &Arc<NodeCacheManager>,
+/// Per-shard event loop.
+/// Owns the DelayQueue exclusively — no Mutex needed.
+/// Uses select! to react to either:
+///   - a command from the manager (Insert / Delete)
+///   - a task expiring in the DelayQueue
+async fn run_shard_loop(
     shard_no: u32,
-) -> Result<(), CommonError> {
-    let queue_arc: SharedDelayQueue =
-        if let Some(q) = delay_task_manager.delay_queue_list.get(&shard_no) {
-            q.clone()
-        } else {
-            return Err(CommonError::CommonError(format!(
-                "Delay task queue shard {} not found",
-                shard_no
-            )));
-        };
+    mut rx: mpsc::UnboundedReceiver<ShardCmd>,
+    stop_send: bc::Sender<bool>,
+    manager: Arc<DelayTaskManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    node_call_manager: Arc<NodeCallManager>,
+    broker_cache: Arc<NodeCacheManager>,
+) {
+    let mut delay_queue: DelayQueue<DelayTask> = DelayQueue::new();
+    let mut stop_recv = stop_send.subscribe();
 
-    let mut delay_queue = queue_arc.lock().await;
+    loop {
+        select! {
+            // Stop signal
+            val = stop_recv.recv() => {
+                match val {
+                    Ok(flag) if flag => {
+                        info!("Delay task pop thread stopped for shard {}", shard_no);
+                        break;
+                    }
+                    Err(_) => {
+                        warn!("Broadcast channel closed, stopping pop thread for shard {}", shard_no);
+                        break;
+                    }
+                    _ => {}
+                }
+            }
 
-    match tokio::time::timeout(
-        Duration::from_millis(POP_LOCK_TIMEOUT_MS),
-        delay_queue.next(),
-    )
-    .await
-    {
-        Ok(Some(expired)) => {
-            let task = expired.into_inner();
-            drop(delay_queue);
-            spawn_task_process(
-                rocksdb_engine_handler.clone(),
-                delay_task_manager.clone(),
-                node_call_manager.clone(),
-                broker_cache.clone(),
-                task,
-            )
-            .await;
-        }
-        Ok(None) => {
-            debug!(
-                "Delay task queue shard {} returned None - queue may be empty or closed",
-                shard_no
-            );
-            drop(delay_queue);
-            sleep(Duration::from_millis(10)).await;
-        }
-        Err(_) => {
-            drop(delay_queue);
+            // Command from manager (Insert or Delete)
+            cmd = rx.recv() => {
+                match cmd {
+                    Some(ShardCmd::Insert(task, target_instant, key_tx)) => {
+                        let key = delay_queue.insert_at(task.clone(), target_instant);
+                        // Reply with the key so manager can record it in task_key_map.
+                        let _ = key_tx.send(key);
+                    }
+                    Some(ShardCmd::Delete(key, done_tx)) => {
+                        delay_queue.remove(&key);
+                        // Notify manager that the entry is gone from the queue.
+                        let _ = done_tx.send(());
+                    }
+                    None => {
+                        // Channel closed — manager dropped, exit.
+                        break;
+                    }
+                }
+            }
+
+            // Expired task
+            Some(expired) = delay_queue.next() => {
+                let task = expired.into_inner();
+                spawn_task_process(
+                    rocksdb_engine_handler.clone(),
+                    manager.clone(),
+                    node_call_manager.clone(),
+                    broker_cache.clone(),
+                    task,
+                )
+                .await;
+            }
         }
     }
-
-    Ok(())
 }
 
 pub(crate) async fn spawn_task_process(

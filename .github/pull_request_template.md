@@ -17,6 +17,8 @@ Please explain IN DETAIL what the changes are in this PR and why they are needed
 - [ ]  I have added the necessary unit tests and integration tests.
 - [ ]  This PR does not require documentation updates.
 
+By submitting this pull request, you agree to the terms of the [Contributor License Agreement (CLA)](../CLA.md).
+
 ## Refer to a related PR or issue link
 
 <!--

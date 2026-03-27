@@ -98,8 +98,6 @@ pub async fn start_delay_task_manager_thread(
     node_call_manager: &Arc<NodeCallManager>,
     task_supervisor: &Arc<TaskSupervisor>,
 ) -> Result<(), CommonError> {
-    delay_task_manager.start();
-
     init_inner_topic(delay_task_manager, broker_cache).await?;
     spawn_delay_task_pop_threads(
         rocksdb_engine_handler,

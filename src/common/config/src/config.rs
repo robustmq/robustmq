@@ -14,7 +14,8 @@
 
 use super::default::{
     default_accept_thread_num, default_amqp_runtime, default_broker_id, default_broker_ip,
-    default_channels_per_address, default_cluster_name, default_engine_runtime,
+    default_channels_per_address, default_cluster_name, default_delay_task,
+    default_delay_task_handler_concurrency, default_delay_task_queue_num, default_engine_runtime,
     default_flapping_ban_time, default_flapping_max_connections, default_flapping_window_time,
     default_grpc_port, default_handler_thread_num, default_heartbeat_check_time_ms,
     default_heartbeat_timeout_ms, default_http_port, default_kafka_runtime,
@@ -40,7 +41,6 @@ use super::default::{
     default_session_expiry_interval, default_slow_subscribe_delay_type,
     default_slow_subscribe_record_time, default_storage_io_thread_num,
     default_storage_max_segment_size, default_storage_offset_enable_cache,
-    default_delay_task, default_delay_task_handler_concurrency, default_delay_task_queue_num,
     default_storage_tcp_port, default_system_monitor_cpu_watermark,
     default_system_monitor_memory_watermark, default_system_monitor_topic_interval_ms,
     default_tls_cert, default_tls_key, default_topic_alias_max,

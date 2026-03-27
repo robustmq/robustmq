@@ -22,24 +22,34 @@ use grpc_clients::pool::ClientPool;
 use std::sync::{atomic::AtomicU32, Arc};
 use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
-use tokio::sync::{broadcast, Mutex, Semaphore};
+use tokio::sync::{broadcast, mpsc, oneshot, Semaphore};
 use tokio::time::Instant;
 use tokio_util::time::delay_queue;
-use tokio_util::time::DelayQueue;
 use tracing::{debug, error, warn};
 
-pub type SharedDelayQueue = Arc<Mutex<DelayQueue<DelayTask>>>;
+/// Command sent from enqueue_task / delete_task to the per-shard pop thread.
+pub(crate) enum ShardCmd {
+    /// Insert a new task. Pop thread replies with the queue Key via the oneshot sender.
+    Insert(DelayTask, Instant, oneshot::Sender<delay_queue::Key>),
+    /// Remove a task by its queue key. Pop thread sends () when done.
+    Delete(delay_queue::Key, oneshot::Sender<()>),
+}
+
+/// Sender half kept in the manager; pop thread owns the receiver.
+pub(crate) type ShardCmdTx = mpsc::UnboundedSender<ShardCmd>;
 
 #[derive(Clone)]
 pub struct DelayTaskManager {
     pub client_pool: Arc<ClientPool>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
-    pub delay_queue_list: DashMap<u32, SharedDelayQueue>,
+    /// Per-shard command channel senders (Insert / Delete).
+    pub(crate) shard_cmd_tx: DashMap<u32, ShardCmdTx>,
     pub delay_queue_pop_thread: DashMap<u32, broadcast::Sender<bool>>,
     pub delay_queue_num: u32,
     pub handler_semaphore: Arc<Semaphore>,
     incr_no: Arc<AtomicU32>,
-    task_key_map: DashMap<String, (u32, delay_queue::Key)>,
+    /// task_id → (shard_no, queue key, persistent).
+    task_key_map: DashMap<String, (u32, delay_queue::Key, bool)>,
 }
 
 impl DelayTaskManager {
@@ -52,7 +62,7 @@ impl DelayTaskManager {
         DelayTaskManager {
             client_pool,
             storage_driver_manager,
-            delay_queue_list: DashMap::with_capacity(8),
+            shard_cmd_tx: DashMap::with_capacity(8),
             delay_queue_pop_thread: DashMap::with_capacity(8),
             incr_no: Arc::new(AtomicU32::new(0)),
             delay_queue_num,
@@ -61,11 +71,13 @@ impl DelayTaskManager {
         }
     }
 
-    pub fn start(&self) {
-        for shard_no in 0..self.delay_queue_num {
-            self.delay_queue_list
-                .insert(shard_no, Arc::new(Mutex::new(DelayQueue::new())));
-        }
+    /// Called by pop.rs to register the command-channel sender for a shard.
+    pub(crate) fn register_shard_cmd_tx(&self, shard_no: u32, tx: ShardCmdTx) {
+        self.shard_cmd_tx.insert(shard_no, tx);
+    }
+
+    pub(crate) fn remove_task_key(&self, task_id: &str) {
+        self.task_key_map.remove(task_id);
     }
 
     pub async fn create_task(&self, task: DelayTask) -> Result<String, CommonError> {
@@ -81,14 +93,16 @@ impl DelayTaskManager {
         if task.persistent {
             save_delay_task_index(&self.storage_driver_manager, &task).await?;
         }
+
         self.enqueue_task(&task).await;
+
         record_delay_task_created();
         Ok(task.task_id.clone())
     }
 
     pub async fn delete_task(&self, task_id: &str) -> Result<(), CommonError> {
-        let (_, (shard_no, key)) = match self.task_key_map.remove(task_id) {
-            Some(entry) => entry,
+        let entry = match self.task_key_map.remove(task_id) {
+            Some(e) => e,
             None => {
                 warn!(
                     "Delay task not found when deleting, may have already been executed: task_id={}",
@@ -97,32 +111,32 @@ impl DelayTaskManager {
                 return Ok(());
             }
         };
+        let (_, (shard_no, key, persistent)) = entry;
 
-        // Clone Arc to release DashMap shard lock before .await
-        let queue_arc = self
-            .delay_queue_list
+        let tx = self
+            .shard_cmd_tx
             .get(&shard_no)
             .map(|r| r.clone())
             .ok_or_else(|| {
                 CommonError::CommonError(format!(
-                    "Delay task queue shard {} not found when deleting task_id={}",
+                    "Delay task shard {} cmd channel not found when deleting task_id={}",
                     shard_no, task_id
                 ))
             })?;
 
-        let mut delay_queue = queue_arc.lock().await;
-        let task = delay_queue.remove(&key).into_inner();
-        drop(delay_queue);
+        let (done_tx, done_rx) = oneshot::channel();
+        tx.send(ShardCmd::Delete(key, done_tx))
+            .map_err(|e| CommonError::CommonError(format!("shard cmd send error: {}", e)))?;
 
-        if task.persistent {
+        // Wait until pop thread has actually removed the entry from the DelayQueue.
+        // This prevents a race where delete completes but the task still fires.
+        let _ = done_rx.await;
+
+        if persistent {
             delete_delay_task_index(&self.storage_driver_manager, task_id).await?;
         }
 
-        debug!(
-            "Delay task deleted: task_id={}, task_type={}",
-            task_id,
-            task.task_type_name()
-        );
+        debug!("Delay task deleted: task_id={}", task_id);
         Ok(())
     }
 
@@ -136,17 +150,20 @@ impl DelayTaskManager {
         Ok(())
     }
 
+    /// Sends Insert command to the shard's channel and awaits the queue Key reply.
+    /// Returns only after the pop thread has inserted the task and the key is
+    /// recorded in task_key_map, so a subsequent delete_task will never miss it.
     pub(crate) async fn enqueue_task(&self, task: &DelayTask) {
         let shard_no = self
             .incr_no
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
             % self.delay_queue_num;
 
-        let queue_arc = if let Some(q) = self.delay_queue_list.get(&shard_no) {
-            q.clone()
+        let tx = if let Some(t) = self.shard_cmd_tx.get(&shard_no) {
+            t.clone()
         } else {
             error!(
-                "Failed to enqueue delay task: shard {} not found, task will be lost: \
+                "Failed to enqueue delay task: shard {} cmd channel not found, task will be lost: \
                 task_id={}, task_type={}",
                 shard_no,
                 task.task_id,
@@ -164,7 +181,7 @@ impl DelayTaskManager {
         let target_instant = Instant::now() + delay_duration;
 
         debug!(
-            "Insert delay task to queue. task_id={}, task_type={}, shard_no={}, \
+            "Enqueue delay task. task_id={}, task_type={}, shard_no={}, \
             delay_target_time={}, current_time={}, delay_duration={}s",
             task.task_id,
             task.task_type_name(),
@@ -174,20 +191,31 @@ impl DelayTaskManager {
             delay_duration.as_secs(),
         );
 
-        let mut delay_queue = queue_arc.lock().await;
-        let key = delay_queue.insert_at(task.clone(), target_instant);
-        drop(delay_queue);
+        let (key_tx, key_rx) = oneshot::channel();
+        if let Err(e) = tx.send(ShardCmd::Insert(task.clone(), target_instant, key_tx)) {
+            error!(
+                "Failed to send Insert cmd to shard {}: task_id={}, error={}",
+                shard_no, task.task_id, e
+            );
+            return;
+        }
 
-        self.task_key_map
-            .insert(task.task_id.clone(), (shard_no, key));
+        match key_rx.await {
+            Ok(key) => {
+                self.task_key_map
+                    .insert(task.task_id.clone(), (shard_no, key, task.persistent));
+            }
+            Err(_) => {
+                error!(
+                    "Pop thread dropped before replying with key: task_id={}",
+                    task.task_id
+                );
+            }
+        }
     }
 
     pub fn contains_task(&self, task_id: &str) -> bool {
         self.task_key_map.contains_key(task_id)
-    }
-
-    pub(crate) fn remove_task_key(&self, task_id: &str) {
-        self.task_key_map.remove(task_id);
     }
 
     pub fn add_delay_queue_pop_thread(&self, shard_no: u32, stop_send: broadcast::Sender<bool>) {
