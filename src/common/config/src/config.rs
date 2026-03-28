@@ -203,6 +203,10 @@ pub struct BrokerConfig {
     // NATS
     #[serde(default = "default_nats_runtime")]
     pub nats_runtime: NatsRuntime,
+
+    // Shared broker network config (handler pool + request channel)
+    #[serde(default = "default_network")]
+    pub broker_network: Network,
 }
 
 impl Default for BrokerConfig {
@@ -251,6 +255,9 @@ impl Default for BrokerConfig {
 
             // NATS
             nats_runtime: default_nats_runtime(),
+
+            // Shared broker network config
+            broker_network: default_network(),
         }
     }
 }

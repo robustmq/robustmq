@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::command::ProtocolKey;
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::metric::SLOW_REQUEST_THRESHOLD_MS;
 use crate::common::packet::{build_mqtt_packet_wrapper, ResponsePackage};
-use crate::{command::ArcCommandAdapter, common::channel::RequestChannel};
+use crate::{command::CommandRegistry, common::channel::RequestChannel};
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::error::client_unavailable_error_by_str;
@@ -48,14 +49,14 @@ pub fn handler_process(
     handler_module: &str,
     handler_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
-    command: ArcCommandAdapter,
+    commands: CommandRegistry,
     request_channel: Arc<RequestChannel>,
     task_supervisor: Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     for index in 1..=handler_process_num {
         let raw_connect_manager = connection_manager.clone();
-        let raw_command = command.clone();
+        let raw_command = commands.clone();
         let mut raw_stop_rx = stop_sx.subscribe();
         let receiver = request_channel.receiver.clone();
         let raw_handler_module = handler_module.to_string();
@@ -141,7 +142,7 @@ pub fn handler_process(
 
 async fn handle_packet(
     connection_manager: &Arc<ConnectionManager>,
-    command: &ArcCommandAdapter,
+    commands: &CommandRegistry,
     packet: &crate::common::packet::RequestPackage,
     queue_wait_ms: u128,
     handler_index: usize,
@@ -150,7 +151,13 @@ async fn handle_packet(
     if let Some(connect) = connection_manager.get_connect(packet.connection_id) {
         // apply
         let apply_start = now_millis();
-        let response_data = command.apply(&connect, &packet.addr, &packet.packet).await;
+        let key = ProtocolKey::from_packet(&packet.packet);
+        let response_data = if let Some(cmd) = commands.get(&key) {
+            cmd.apply(&connect, &packet.addr, &packet.packet).await
+        } else {
+            error!("No command registered for protocol key {:?}", key);
+            return;
+        };
         let apply_ms = now_millis().saturating_sub(apply_start);
         metrics_handler_apply_ms(network_type, apply_ms as f64);
         metrics_handler_instance_apply_ms(handler_index, apply_ms as f64);

@@ -30,7 +30,6 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
-use network_server::common::handler::handler_process;
 use network_server::context::{ProcessorConfig, ServerContext};
 use network_server::quic::server::QuicServer;
 use network_server::tcp::server::TcpServer;
@@ -52,14 +51,6 @@ pub struct Server {
     tls_server: TcpServer,
     ws_server: WebSocketServer,
     quic_server: QuicServer,
-    // shared handler pool state
-    handler_process_num: usize,
-    connection_manager: Arc<ConnectionManager>,
-    command: network_server::command::ArcCommandAdapter,
-
-    task_supervisor: Arc<TaskSupervisor>,
-    request_channel: Arc<RequestChannel>,
-    stop_sx: broadcast::Sender<bool>,
 }
 
 #[derive(Clone)]
@@ -85,7 +76,10 @@ pub struct TcpServerContext {
 }
 
 impl Server {
-    pub fn new(context: TcpServerContext) -> Self {
+    pub fn new(
+        context: TcpServerContext,
+        request_channel: Arc<RequestChannel>,
+    ) -> (Self, network_server::command::ArcCommandAdapter) {
         let conf = broker_config();
         let command_context = CommandContext {
             cache_manager: context.cache_manager.clone(),
@@ -114,13 +108,9 @@ impl Server {
             channel_size: conf.mqtt_runtime.network.queue_size,
         };
 
-        // One shared request channel for all protocol acceptors.
-        let request_channel = Arc::new(RequestChannel::new(proc_config.channel_size));
-
         let mut server_context = ServerContext {
             connection_manager: context.connection_manager.clone(),
             client_pool: context.client_pool.clone(),
-            command: command.clone(),
             network_type: NetworkConnectionType::Tcp,
             proc_config,
             stop_sx: context.stop_sx.clone(),
@@ -152,33 +142,17 @@ impl Server {
         server_context.network_type = NetworkConnectionType::QUIC;
         let quic_server = QuicServer::new(name.clone(), server_context);
 
-        Server {
+        let server = Server {
             tcp_server,
             tls_server,
             ws_server,
             quic_server,
-            handler_process_num: proc_config.handler_process_num,
-            connection_manager: context.connection_manager,
-            command,
-            request_channel,
-            task_supervisor: context.task_supervisor.clone(),
-            stop_sx: context.stop_sx,
-        }
+        };
+        (server, command)
     }
 
     pub async fn start(&self) -> ResultMqttBrokerError {
         let conf = broker_config();
-
-        // Start the shared handler pool once for all protocols.
-        handler_process(
-            "mqtt-broker-handler",
-            self.handler_process_num,
-            self.connection_manager.clone(),
-            self.command.clone(),
-            self.request_channel.clone(),
-            self.task_supervisor.clone(),
-            self.stop_sx.clone(),
-        );
 
         self.tcp_server
             .start(false, conf.mqtt_server.tcp_port)

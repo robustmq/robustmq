@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::server::NatsServer;
+use crate::server::{NatsServer, NatsServerParams};
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
 use grpc_clients::pool::ClientPool;
+use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::context::ProcessorConfig;
 use rate_limit::global::GlobalRateLimiterManager;
@@ -34,6 +35,7 @@ pub struct NatsBrokerServerParams {
     pub task_supervisor: Arc<TaskSupervisor>,
     pub stop_sx: broadcast::Sender<bool>,
     pub proc_config: ProcessorConfig,
+    pub request_channel: Arc<RequestChannel>,
 }
 
 pub struct NatsBrokerServer {
@@ -43,15 +45,16 @@ pub struct NatsBrokerServer {
 
 impl NatsBrokerServer {
     pub fn new(params: NatsBrokerServerParams) -> Self {
-        let server = NatsServer::new(
-            params.connection_manager,
-            params.client_pool,
-            params.broker_cache,
-            params.global_limit_manager,
-            params.task_supervisor,
-            params.stop_sx.clone(),
-            params.proc_config,
-        );
+        let server = NatsServer::new(NatsServerParams {
+            connection_manager: params.connection_manager,
+            client_pool: params.client_pool,
+            broker_cache: params.broker_cache,
+            global_limit_manager: params.global_limit_manager,
+            task_supervisor: params.task_supervisor,
+            stop_sx: params.stop_sx.clone(),
+            proc_config: params.proc_config,
+            request_channel: params.request_channel,
+        });
         NatsBrokerServer {
             server,
             stop_sx: params.stop_sx,
