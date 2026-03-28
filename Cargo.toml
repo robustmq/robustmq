@@ -20,6 +20,7 @@ members = [
     "src/mqtt-broker",
     "src/amqp-broker",
     "src/kafka-broker",
+    "src/nats-broker",
     "src/meta-service",
     "src/cli-command",
     "src/cli-bench",
@@ -312,6 +313,7 @@ trybuild = "1.0"
 mqtt-broker = { path = "src/mqtt-broker" }
 amqp-broker = { path = "src/amqp-broker" }
 kafka-broker = { path = "src/kafka-broker" }
+nats-broker = { path = "src/nats-broker" }
 broker-server = { path = "src/broker-server" }
 broker-core = { path = "src/broker-core" }
 

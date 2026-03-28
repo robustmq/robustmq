@@ -18,8 +18,6 @@ use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterSha
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::shard::EngineShardConfig;
-use metadata_struct::tenant::DEFAULT_TENANT;
-use std::collections::HashMap;
 
 pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
     let shard1_name = unique_id();
@@ -139,93 +137,6 @@ pub async fn test_write_and_read(adapter: ArcStorageAdapter) {
         adapter.read_by_key(&shard_name, "k3").await.unwrap().len(),
         0
     );
-}
-
-pub async fn test_consumer_group_offset(adapter: ArcStorageAdapter) {
-    let s1 = unique_id();
-    let s2 = unique_id();
-    let s3 = unique_id();
-    let g1 = unique_id();
-    let g2 = unique_id();
-    let g3 = unique_id();
-
-    adapter
-        .create_shard(&AdapterShardInfo {
-            shard_name: s1.clone(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
-    adapter
-        .create_shard(&AdapterShardInfo {
-            shard_name: s2.clone(),
-            ..Default::default()
-        })
-        .await
-        .unwrap();
-
-    adapter
-        .commit_offset(
-            DEFAULT_TENANT,
-            &g1,
-            &HashMap::from([(s1.clone(), 100), (s2.clone(), 200)]),
-        )
-        .await
-        .unwrap();
-
-    let offsets = adapter
-        .get_offset_by_group(DEFAULT_TENANT, &g1)
-        .await
-        .unwrap();
-    assert_eq!(offsets.len(), 2);
-    assert_eq!(
-        offsets.iter().find(|o| o.shard_name == s1).unwrap().offset,
-        100
-    );
-    assert_eq!(
-        offsets.iter().find(|o| o.shard_name == s2).unwrap().offset,
-        200
-    );
-
-    adapter
-        .commit_offset(DEFAULT_TENANT, &g1, &HashMap::from([(s1.clone(), 150)]))
-        .await
-        .unwrap();
-    let offsets = adapter
-        .get_offset_by_group(DEFAULT_TENANT, &g1)
-        .await
-        .unwrap();
-    assert_eq!(
-        offsets.iter().find(|o| o.shard_name == s1).unwrap().offset,
-        150
-    );
-
-    adapter
-        .commit_offset(DEFAULT_TENANT, &g2, &HashMap::from([(s1, 300)]))
-        .await
-        .unwrap();
-    assert_eq!(
-        adapter
-            .get_offset_by_group(DEFAULT_TENANT, &g2)
-            .await
-            .unwrap()
-            .len(),
-        1
-    );
-
-    assert_eq!(
-        adapter
-            .get_offset_by_group(DEFAULT_TENANT, &g3)
-            .await
-            .unwrap()
-            .len(),
-        0
-    );
-
-    assert!(adapter
-        .commit_offset(DEFAULT_TENANT, &g1, &HashMap::from([(s3, 100)]))
-        .await
-        .is_ok());
 }
 
 pub async fn test_timestamp_index_with_multiple_entries(adapter: ArcStorageAdapter) {

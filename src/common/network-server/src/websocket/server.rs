@@ -196,6 +196,7 @@ async fn handle_socket(
                                         RobustMQCodecWrapper::KAFKA(pkg) => RobustMQPacket::KAFKA(pkg),
                                         RobustMQCodecWrapper::AMQP(pkg) => RobustMQPacket::AMQP(pkg),
                                         RobustMQCodecWrapper::StorageEngine(pkg) => RobustMQPacket::StorageEngine(pkg),
+                                        RobustMQCodecWrapper::NATS(pkt) => RobustMQPacket::NATS(pkt),
                                     };
                                     let package = RequestPackage::new(
                                         connection_id,

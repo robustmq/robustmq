@@ -24,6 +24,7 @@ axum.workspace = true
 mqtt-broker.workspace = true
 kafka-broker.workspace = true
 amqp-broker.workspace = true
+nats-broker.workspace = true
 meta-service.workspace = true
 tonic.workspace = true
 tower-http = { workspace = true, features = ["cors"] }

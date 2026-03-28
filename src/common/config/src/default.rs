@@ -15,8 +15,8 @@
 use crate::config::{
     AmqpRuntime, DelayTask, KafkaRuntime, MetaRuntime, MqttFlappingDetect, MqttKeepAlive,
     MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema, MqttServer,
-    MqttSlowSubscribeConfig, MqttSystemMonitor, Network, Rocksdb, Runtime, SchemaFailedOperation,
-    SchemaStrategy, StorageRuntime,
+    MqttSlowSubscribeConfig, MqttSystemMonitor, NatsRuntime, Network, Rocksdb, Runtime,
+    SchemaFailedOperation, SchemaStrategy, StorageRuntime,
 };
 use crate::storage::{StorageAdapterConfig, StorageType};
 use common_base::enum_type::delay_type::DelayType;
@@ -219,6 +219,12 @@ pub fn default_kafka_runtime() -> KafkaRuntime {
 
 pub fn default_amqp_runtime() -> AmqpRuntime {
     AmqpRuntime {
+        network: default_network(),
+    }
+}
+
+pub fn default_nats_runtime() -> NatsRuntime {
+    NatsRuntime {
         network: default_network(),
     }
 }

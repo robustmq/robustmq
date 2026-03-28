@@ -22,6 +22,7 @@ use crate::{
         codec::MqttPacketWrapper,
         common::{MqttPacket, MqttProtocol},
     },
+    nats::packet::NatsPacket,
     storage::codec::StorageEnginePacket,
 };
 
@@ -33,6 +34,7 @@ pub enum RobustMQProtocol {
     KAFKA,
     AMQP,
     StorageEngine,
+    NATS,
 }
 
 impl RobustMQProtocol {
@@ -58,6 +60,10 @@ impl RobustMQProtocol {
         *self == RobustMQProtocol::StorageEngine
     }
 
+    pub fn is_nats(&self) -> bool {
+        *self == RobustMQProtocol::NATS
+    }
+
     pub fn to_u8(&self) -> u8 {
         match *self {
             RobustMQProtocol::MQTT3 => 3,
@@ -66,6 +72,7 @@ impl RobustMQProtocol {
             RobustMQProtocol::KAFKA => 0,
             RobustMQProtocol::AMQP => 11,
             RobustMQProtocol::StorageEngine => 10,
+            RobustMQProtocol::NATS => 12,
         }
     }
 
@@ -77,6 +84,7 @@ impl RobustMQProtocol {
             RobustMQProtocol::KAFKA => "KAFKA".to_string(),
             RobustMQProtocol::AMQP => "AMQP".to_string(),
             RobustMQProtocol::StorageEngine => "StorageEngine".to_string(),
+            RobustMQProtocol::NATS => "NATS".to_string(),
         }
     }
 
@@ -88,6 +96,7 @@ impl RobustMQProtocol {
             RobustMQProtocol::KAFKA => MqttProtocol::Mqtt3,
             RobustMQProtocol::AMQP => MqttProtocol::Mqtt3,
             RobustMQProtocol::StorageEngine => MqttProtocol::Mqtt3,
+            RobustMQProtocol::NATS => MqttProtocol::Mqtt3,
         }
     }
 
@@ -95,6 +104,7 @@ impl RobustMQProtocol {
         match protocol {
             4 => RobustMQProtocol::MQTT4,
             5 => RobustMQProtocol::MQTT5,
+            12 => RobustMQProtocol::NATS,
             _ => RobustMQProtocol::MQTT3,
         }
     }
@@ -114,12 +124,16 @@ pub struct AmqpWrapperExtend {}
 #[derive(Clone, Debug, Default)]
 pub struct StorageEngineWrapperExtend {}
 
+#[derive(Clone, Debug, Default)]
+pub struct NatsWrapperExtend {}
+
 #[derive(Clone, Debug)]
 pub enum RobustMQWrapperExtend {
     MQTT(MqttWrapperExtend),
     KAFKA(KafkaWrapperExtend),
     AMQP(AmqpWrapperExtend),
     StorageEngine(StorageEngineWrapperExtend),
+    NATS(NatsWrapperExtend),
 }
 
 impl RobustMQWrapperExtend {
@@ -129,6 +143,7 @@ impl RobustMQWrapperExtend {
             RobustMQWrapperExtend::KAFKA(_) => 3,
             RobustMQWrapperExtend::AMQP(_) => 3,
             RobustMQWrapperExtend::StorageEngine(_) => 3,
+            RobustMQWrapperExtend::NATS(_) => 3,
         }
     }
 }
@@ -165,6 +180,7 @@ pub enum RobustMQPacket {
     KAFKA(KafkaPacketWrapper),
     AMQP(AMQPFrame),
     StorageEngine(StorageEnginePacket),
+    NATS(NatsPacket),
 }
 
 impl RobustMQPacket {
@@ -185,6 +201,13 @@ impl RobustMQPacket {
     pub fn get_amqp_packet(&self) -> Option<AMQPFrame> {
         match self.clone() {
             RobustMQPacket::AMQP(frame) => Some(frame),
+            _ => None,
+        }
+    }
+
+    pub fn get_nats_packet(&self) -> Option<NatsPacket> {
+        match self.clone() {
+            RobustMQPacket::NATS(pkt) => Some(pkt),
             _ => None,
         }
     }
