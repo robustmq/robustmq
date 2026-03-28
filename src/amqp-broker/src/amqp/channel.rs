@@ -18,19 +18,15 @@ use amq_protocol::protocol::channel::AMQPMethod;
 pub fn process_channel(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Open(_) => process_open(channel_id),
-        AMQPMethod::OpenOk(_) => process_open_ok(channel_id),
         AMQPMethod::Flow(_) => process_flow(channel_id),
         AMQPMethod::FlowOk(_) => process_flow_ok(channel_id),
         AMQPMethod::Close(_) => process_close(channel_id),
         AMQPMethod::CloseOk(_) => process_close_ok(channel_id),
+        _ => None,
     }
 }
 
 fn process_open(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_open_ok(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 

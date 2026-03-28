@@ -23,42 +23,28 @@ pub fn process_heartbeat(channel_id: u16) -> Option<AMQPFrame> {
     Some(AMQPFrame::Heartbeat(channel_id))
 }
 
+/// Handle connection-level methods sent by the client to the server.
+/// Server-initiated methods (Start, Tune, OpenOk, UpdateSecret) are not listed here.
 pub fn process_connection(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
-        AMQPMethod::Start(_) => process_start(channel_id),
         AMQPMethod::StartOk(_) => process_start_ok(channel_id),
-        AMQPMethod::Secure(_) => process_secure(channel_id),
         AMQPMethod::SecureOk(_) => process_secure_ok(channel_id),
-        AMQPMethod::Tune(_) => process_tune(channel_id),
         AMQPMethod::TuneOk(_) => process_tune_ok(channel_id),
         AMQPMethod::Open(_) => process_open(channel_id),
-        AMQPMethod::OpenOk(_) => process_open_ok(channel_id),
         AMQPMethod::Close(_) => process_close(channel_id),
         AMQPMethod::CloseOk(_) => process_close_ok(channel_id),
         AMQPMethod::Blocked(_) => process_blocked(channel_id),
         AMQPMethod::Unblocked(_) => process_unblocked(channel_id),
-        AMQPMethod::UpdateSecret(_) => process_update_secret(channel_id),
         AMQPMethod::UpdateSecretOk(_) => process_update_secret_ok(channel_id),
+        _ => None,
     }
-}
-
-fn process_start(_channel_id: u16) -> Option<AMQPFrame> {
-    None
 }
 
 fn process_start_ok(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
-fn process_secure(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
 fn process_secure_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_tune(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
@@ -67,10 +53,6 @@ fn process_tune_ok(_channel_id: u16) -> Option<AMQPFrame> {
 }
 
 fn process_open(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_open_ok(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
@@ -87,10 +69,6 @@ fn process_blocked(_channel_id: u16) -> Option<AMQPFrame> {
 }
 
 fn process_unblocked(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_update_secret(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 

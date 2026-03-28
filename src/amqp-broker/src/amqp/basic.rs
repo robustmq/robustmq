@@ -19,30 +19,23 @@ use amq_protocol::protocol::confirm;
 pub fn process_basic(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Qos(_) => process_qos(channel_id),
-        AMQPMethod::QosOk(_) => process_qos_ok(channel_id),
         AMQPMethod::Consume(_) => process_consume(channel_id),
-        AMQPMethod::ConsumeOk(_) => process_consume_ok(channel_id),
         AMQPMethod::Cancel(_) => process_cancel(channel_id),
-        AMQPMethod::CancelOk(_) => process_cancel_ok(channel_id),
         AMQPMethod::Publish(_) => process_publish(channel_id),
-        AMQPMethod::Return(_) => process_return(channel_id),
-        AMQPMethod::Deliver(_) => process_deliver(channel_id),
         AMQPMethod::Get(_) => process_get(channel_id),
-        AMQPMethod::GetOk(_) => process_get_ok(channel_id),
-        AMQPMethod::GetEmpty(_) => process_get_empty(channel_id),
         AMQPMethod::Ack(_) => process_ack(channel_id),
         AMQPMethod::Reject(_) => process_reject(channel_id),
         AMQPMethod::RecoverAsync(_) => process_recover_async(channel_id),
         AMQPMethod::Recover(_) => process_recover(channel_id),
-        AMQPMethod::RecoverOk(_) => process_recover_ok(channel_id),
         AMQPMethod::Nack(_) => process_nack(channel_id),
+        _ => None,
     }
 }
 
 pub fn process_confirm(channel_id: u16, method: &confirm::AMQPMethod) -> Option<AMQPFrame> {
     match method {
         confirm::AMQPMethod::Select(_) => process_confirm_select(channel_id),
-        confirm::AMQPMethod::SelectOk(_) => process_confirm_select_ok(channel_id),
+        _ => None,
     }
 }
 
@@ -70,15 +63,7 @@ fn process_consume(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
-fn process_consume_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
 fn process_cancel(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_cancel_ok(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
@@ -86,23 +71,7 @@ fn process_publish(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
-fn process_return(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_deliver(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
 fn process_get(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_get_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_get_empty(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
@@ -122,18 +91,10 @@ fn process_recover(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
-fn process_recover_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
 fn process_nack(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
 fn process_confirm_select(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_confirm_select_ok(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }

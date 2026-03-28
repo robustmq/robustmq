@@ -18,15 +18,11 @@ use amq_protocol::protocol::queue::AMQPMethod;
 pub fn process_queue(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Declare(_) => process_declare(channel_id),
-        AMQPMethod::DeclareOk(_) => process_declare_ok(channel_id),
         AMQPMethod::Bind(_) => process_bind(channel_id),
-        AMQPMethod::BindOk(_) => process_bind_ok(channel_id),
         AMQPMethod::Purge(_) => process_purge(channel_id),
-        AMQPMethod::PurgeOk(_) => process_purge_ok(channel_id),
         AMQPMethod::Delete(_) => process_delete(channel_id),
-        AMQPMethod::DeleteOk(_) => process_delete_ok(channel_id),
         AMQPMethod::Unbind(_) => process_unbind(channel_id),
-        AMQPMethod::UnbindOk(_) => process_unbind_ok(channel_id),
+        _ => None,
     }
 }
 
@@ -34,15 +30,7 @@ fn process_declare(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
-fn process_declare_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
 fn process_bind(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_bind_ok(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
@@ -50,22 +38,10 @@ fn process_purge(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
-fn process_purge_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
 fn process_delete(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
-fn process_delete_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
 fn process_unbind(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_unbind_ok(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }

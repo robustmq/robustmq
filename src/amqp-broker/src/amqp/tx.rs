@@ -18,11 +18,9 @@ use amq_protocol::protocol::tx::AMQPMethod;
 pub fn process_tx(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Select(_) => process_select(channel_id),
-        AMQPMethod::SelectOk(_) => process_select_ok(channel_id),
         AMQPMethod::Commit(_) => process_commit(channel_id),
-        AMQPMethod::CommitOk(_) => process_commit_ok(channel_id),
         AMQPMethod::Rollback(_) => process_rollback(channel_id),
-        AMQPMethod::RollbackOk(_) => process_rollback_ok(channel_id),
+        _ => None,
     }
 }
 
@@ -30,22 +28,10 @@ fn process_select(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
-fn process_select_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
 fn process_commit(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
-fn process_commit_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
 fn process_rollback(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_rollback_ok(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }

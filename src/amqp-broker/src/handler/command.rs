@@ -21,7 +21,7 @@ use network_server::common::packet::ResponsePackage;
 use protocol::robust::RobustMQPacket;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tracing::warn;
+use tracing::{debug, warn};
 
 use crate::amqp::{basic, channel, connection, exchange, queue, tx};
 
@@ -70,7 +70,7 @@ impl Command for AmqpHandlerCommand {
 
 impl AmqpHandlerCommand {
     fn process_frame(&self, frame: &AMQPFrame) -> Option<AMQPFrame> {
-        match frame {
+        let result = match frame {
             AMQPFrame::Method(channel_id, class) => self.process_method(*channel_id, class),
             AMQPFrame::ProtocolHeader(_) => connection::process_protocol_header(),
             AMQPFrame::Heartbeat(channel_id) => connection::process_heartbeat(*channel_id),
@@ -78,27 +78,27 @@ impl AmqpHandlerCommand {
                 basic::process_header(*channel_id, *class_id, header)
             }
             AMQPFrame::Body(channel_id, data) => basic::process_body(*channel_id, data),
+        };
+        if result.is_none() {
+            debug!("AMQP frame has no response: {:?}", frame);
         }
+        result
     }
 
     fn process_method(&self, channel_id: u16, class: &AMQPClass) -> Option<AMQPFrame> {
-        match class {
-            // Connection class
+        let result = match class {
             AMQPClass::Connection(method) => connection::process_connection(channel_id, method),
-            // Channel class
             AMQPClass::Channel(method) => channel::process_channel(channel_id, method),
-            // Exchange class
             AMQPClass::Exchange(method) => exchange::process_exchange(channel_id, method),
-            // Queue class
             AMQPClass::Queue(method) => queue::process_queue(channel_id, method),
-            // Basic class
             AMQPClass::Basic(method) => basic::process_basic(channel_id, method),
-            // Tx class
             AMQPClass::Tx(method) => tx::process_tx(channel_id, method),
-            // Access class (legacy, minimal support)
             AMQPClass::Access(_) => None,
-            // Confirm class
             AMQPClass::Confirm(method) => basic::process_confirm(channel_id, method),
+        };
+        if result.is_none() {
+            warn!("AMQP method not yet implemented: channel={} class={:?}", channel_id, class);
         }
+        result
     }
 }
