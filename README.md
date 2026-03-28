@@ -163,9 +163,9 @@ We welcome contributions! Check out our [Contribution Guide](https://robustmq.co
   <div align="center">
     <img src="docs/images/wechat.jpg" alt="WeChat Official Account QR Code" width="200" />
   </div>
-## 📄 License
+## License
 
-RobustMQ is licensed under the [Apache License 2.0](LICENSE), which  strikes a balance between open collaboration and allowing you to use the software in your projects, whether open source or proprietary.
+RobustMQ is licensed under the [Apache License 2.0](LICENSE). See [LICENSING.md](LICENSING.md) for our licensing philosophy and future plans.
 
 ---
 
