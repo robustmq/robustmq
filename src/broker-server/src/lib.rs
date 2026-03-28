@@ -34,7 +34,7 @@ use kafka_broker::broker::KafkaBrokerServerParams;
 use meta_service::MetaServiceServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
 use nats_broker::broker::NatsBrokerServerParams;
-use network_server::command::ProtocolKey;
+use network_server::command::CommandRegistry;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
 use node_call::NodeCallManager;
@@ -43,7 +43,6 @@ use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::family::{column_family_list, storage_data_fold},
 };
-use std::collections::HashMap;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use storage_engine::{group::OffsetManager, StorageEngineParams};
@@ -393,25 +392,24 @@ impl BrokerServer {
             .server_runtime
             .block_on(async { self.start_mqtt_broker(app_stop.clone()).await });
         let mqtt_stop_send = mqtt_result.as_ref().map(|(sx, _)| sx.clone());
-        let mut commands_map = HashMap::new();
-        if let Some((_, cmd)) = mqtt_result {
-            commands_map.insert(ProtocolKey::MQTT, cmd);
-        }
-        if is_broker_node(&self.config.roles) {
-            commands_map.insert(
-                ProtocolKey::KAFKA,
-                kafka_broker::handler::command::create_command(),
-            );
-            commands_map.insert(
-                ProtocolKey::AMQP,
-                amqp_broker::handler::command::create_command(),
-            );
-            commands_map.insert(
-                ProtocolKey::NATS,
-                nats_broker::handler::command::create_command(),
-            );
-        }
-        self.start_broker_handler_pool(Arc::new(commands_map), app_stop.clone());
+        let mqtt_cmd = mqtt_result.map(|(_, cmd)| cmd);
+        let (kafka_cmd, amqp_cmd, nats_cmd) = if is_broker_node(&self.config.roles) {
+            (
+                Some(kafka_broker::handler::command::create_command()),
+                Some(amqp_broker::handler::command::create_command()),
+                Some(nats_broker::handler::command::create_command()),
+            )
+        } else {
+            (None, None, None)
+        };
+        let commands = CommandRegistry {
+            mqtt: mqtt_cmd,
+            kafka: kafka_cmd,
+            amqp: amqp_cmd,
+            nats: nats_cmd,
+            storage_engine: None,
+        };
+        self.start_broker_handler_pool(commands, app_stop.clone());
 
         // Phase 8: Broker protocol acceptors
         self.start_kafka_broker(app_stop.clone());

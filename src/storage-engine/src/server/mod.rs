@@ -23,7 +23,7 @@ use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::{
-    command::{ArcCommandAdapter, Command, CommandRegistry, ProtocolKey},
+    command::{ArcCommandAdapter, Command, CommandRegistry},
     common::{
         channel::RequestChannel, connection_manager::ConnectionManager, handler::handler_process,
     },
@@ -32,7 +32,6 @@ use network_server::{
 };
 use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::error;
@@ -76,8 +75,10 @@ impl Server {
             params.connection_manager.clone(),
         ));
         let command: ArcCommandAdapter = Arc::new(storage);
-        let commands: CommandRegistry =
-            Arc::new(HashMap::from([(ProtocolKey::StorageEngine, command)]));
+        let commands = CommandRegistry {
+            storage_engine: Some(command),
+            ..Default::default()
+        };
 
         let proc_config = ProcessorConfig {
             accept_thread_num: conf.storage_runtime.network.accept_thread_num,

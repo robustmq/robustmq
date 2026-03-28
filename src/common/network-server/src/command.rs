@@ -16,7 +16,6 @@ use crate::common::packet::ResponsePackage;
 use async_trait::async_trait;
 use metadata_struct::connection::NetworkConnection;
 use protocol::robust::RobustMQPacket;
-use std::collections::HashMap;
 use std::{net::SocketAddr, sync::Arc};
 
 #[async_trait]
@@ -30,25 +29,26 @@ pub trait Command {
 }
 pub type ArcCommandAdapter = Arc<Box<dyn Command + Send + Sync>>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ProtocolKey {
-    MQTT,
-    KAFKA,
-    AMQP,
-    NATS,
-    StorageEngine,
+/// Routes incoming packets to the registered command handler for each protocol.
+/// Each field corresponds to one protocol; `None` means that protocol is not
+/// active on this node.
+#[derive(Clone, Default)]
+pub struct CommandRegistry {
+    pub mqtt: Option<ArcCommandAdapter>,
+    pub kafka: Option<ArcCommandAdapter>,
+    pub amqp: Option<ArcCommandAdapter>,
+    pub nats: Option<ArcCommandAdapter>,
+    pub storage_engine: Option<ArcCommandAdapter>,
 }
 
-impl ProtocolKey {
-    pub fn from_packet(packet: &RobustMQPacket) -> Self {
+impl CommandRegistry {
+    pub fn get(&self, packet: &RobustMQPacket) -> Option<&ArcCommandAdapter> {
         match packet {
-            RobustMQPacket::MQTT(_) => ProtocolKey::MQTT,
-            RobustMQPacket::KAFKA(_) => ProtocolKey::KAFKA,
-            RobustMQPacket::AMQP(_) => ProtocolKey::AMQP,
-            RobustMQPacket::NATS(_) => ProtocolKey::NATS,
-            RobustMQPacket::StorageEngine(_) => ProtocolKey::StorageEngine,
+            RobustMQPacket::MQTT(_) => self.mqtt.as_ref(),
+            RobustMQPacket::KAFKA(_) => self.kafka.as_ref(),
+            RobustMQPacket::AMQP(_) => self.amqp.as_ref(),
+            RobustMQPacket::NATS(_) => self.nats.as_ref(),
+            RobustMQPacket::StorageEngine(_) => self.storage_engine.as_ref(),
         }
     }
 }
-
-pub type CommandRegistry = Arc<HashMap<ProtocolKey, ArcCommandAdapter>>;

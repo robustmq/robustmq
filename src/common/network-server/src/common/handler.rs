@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::command::ProtocolKey;
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::metric::SLOW_REQUEST_THRESHOLD_MS;
 use crate::common::packet::{build_mqtt_packet_wrapper, ResponsePackage};
@@ -151,11 +150,10 @@ async fn handle_packet(
     if let Some(connect) = connection_manager.get_connect(packet.connection_id) {
         // apply
         let apply_start = now_millis();
-        let key = ProtocolKey::from_packet(&packet.packet);
-        let response_data = if let Some(cmd) = commands.get(&key) {
+        let response_data = if let Some(cmd) = commands.get(&packet.packet) {
             cmd.apply(&connect, &packet.addr, &packet.packet).await
         } else {
-            error!("No command registered for protocol key {:?}", key);
+            error!("No command registered for packet: {:?}", &packet.packet);
             return;
         };
         let apply_ms = now_millis().saturating_sub(apply_start);
