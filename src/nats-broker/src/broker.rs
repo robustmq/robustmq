@@ -21,7 +21,7 @@ use network_server::context::ProcessorConfig;
 use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::error;
+use tracing::{error, info};
 
 const DEFAULT_NATS_PORT: u32 = 4222;
 
@@ -38,6 +38,7 @@ pub struct NatsBrokerServerParams {
 
 pub struct NatsBrokerServer {
     server: NatsServer,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 impl NatsBrokerServer {
@@ -48,10 +49,13 @@ impl NatsBrokerServer {
             params.broker_cache,
             params.global_limit_manager,
             params.task_supervisor,
-            params.stop_sx,
+            params.stop_sx.clone(),
             params.proc_config,
         );
-        NatsBrokerServer { server }
+        NatsBrokerServer {
+            server,
+            stop_sx: params.stop_sx,
+        }
     }
 
     pub async fn start(&self) {
@@ -59,9 +63,24 @@ impl NatsBrokerServer {
             error!("NATS broker server failed to start: {}", e);
             std::process::exit(1);
         }
+        self.awaiting_stop().await;
     }
 
     pub async fn stop(&self) {
         self.server.stop().await;
+    }
+
+    pub async fn awaiting_stop(&self) {
+        let mut recv = self.stop_sx.subscribe();
+        match recv.recv().await {
+            Ok(_) => {
+                info!("NATS broker has stopped.");
+                self.server.stop().await;
+                info!("NATS broker service stopped successfully.");
+            }
+            Err(e) => {
+                error!("NATS broker stop channel error: {}", e);
+            }
+        }
     }
 }

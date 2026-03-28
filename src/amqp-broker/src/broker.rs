@@ -21,7 +21,7 @@ use network_server::context::ProcessorConfig;
 use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::error;
+use tracing::{error, info};
 
 const DEFAULT_AMQP_PORT: u32 = 5672;
 
@@ -38,6 +38,7 @@ pub struct AmqpBrokerServerParams {
 
 pub struct AmqpBrokerServer {
     server: AmqpServer,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 impl AmqpBrokerServer {
@@ -48,10 +49,13 @@ impl AmqpBrokerServer {
             params.client_pool,
             params.broker_cache,
             params.global_limit_manager,
-            params.stop_sx,
+            params.stop_sx.clone(),
             params.proc_config,
         );
-        AmqpBrokerServer { server }
+        AmqpBrokerServer {
+            server,
+            stop_sx: params.stop_sx,
+        }
     }
 
     pub async fn start(&self) {
@@ -59,9 +63,24 @@ impl AmqpBrokerServer {
             error!("AMQP broker server failed to start: {}", e);
             std::process::exit(1);
         }
+        self.awaiting_stop().await;
     }
 
     pub async fn stop(&self) {
         self.server.stop().await;
+    }
+
+    pub async fn awaiting_stop(&self) {
+        let mut recv = self.stop_sx.subscribe();
+        match recv.recv().await {
+            Ok(_) => {
+                info!("AMQP broker has stopped.");
+                self.server.stop().await;
+                info!("AMQP broker service stopped successfully.");
+            }
+            Err(e) => {
+                error!("AMQP broker stop channel error: {}", e);
+            }
+        }
     }
 }

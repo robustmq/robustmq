@@ -125,7 +125,7 @@ pub fn handler_process(
                                 }
                             }
                             Err(_) => {
-                                debug!(
+                                warn!(
                                     "{} server handler process thread {} request channel closed, exiting.",
                                     raw_handler_module, index
                                 );
