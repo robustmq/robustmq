@@ -248,7 +248,6 @@ async fn write_response(
                     connection_manager,
                     response_package.connection_id,
                     &packet_wrapper,
-                    &protocol,
                 )
                 .await
                 {
@@ -277,14 +276,13 @@ async fn write_websocket_response(
     connection_manager: &Arc<ConnectionManager>,
     connection_id: u64,
     packet_wrapper: &RobustMQPacketWrapper,
-    protocol: &protocol::robust::RobustMQProtocol,
 ) -> common_base::error::ResultCommonError {
     let mut codec = RobustMQCodec::new();
     let mut response_buf = BytesMut::new();
 
     let codec_wrapper = match packet_wrapper.packet.clone() {
         RobustMQPacket::MQTT(pkg) => RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
-            protocol_version: protocol.to_u8(),
+            protocol_version: packet_wrapper.protocol.to_u8(),
             packet: pkg,
         }),
         RobustMQPacket::StorageEngine(pkg) => RobustMQCodecWrapper::StorageEngine(pkg),

@@ -21,6 +21,7 @@ use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::context::{ProcessorConfig, ServerContext};
 use network_server::tcp::server::TcpServer;
+use protocol::robust::RobustMQProtocol;
 use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -54,7 +55,7 @@ impl NatsServer {
             task_supervisor: params.task_supervisor,
         };
 
-        let tcp_server = TcpServer::new("NATS".to_string(), server_context);
+        let tcp_server = TcpServer::new(RobustMQProtocol::NATS, server_context);
 
         NatsServer { tcp_server }
     }

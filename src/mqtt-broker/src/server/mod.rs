@@ -34,6 +34,7 @@ use network_server::context::{ProcessorConfig, ServerContext};
 use network_server::quic::server::QuicServer;
 use network_server::tcp::server::TcpServer;
 use network_server::websocket::server::{WebSocketServer, WebSocketServerState};
+use protocol::robust::RobustMQProtocol;
 use node_call::NodeCallManager;
 use rate_limit::global::GlobalRateLimiterManager;
 use rate_limit::mqtt::MQTTRateLimiterManager;
@@ -121,13 +122,12 @@ impl Server {
         };
 
         let name = "MQTT".to_string();
-        let tcp_server = TcpServer::new(name.clone(), server_context.clone());
+        let tcp_server = TcpServer::new(RobustMQProtocol::MQTT4, server_context.clone());
 
         server_context.network_type = NetworkConnectionType::Tls;
-        let tls_server = TcpServer::new(name.clone(), server_context.clone());
+        let tls_server = TcpServer::new(RobustMQProtocol::MQTT4, server_context.clone());
 
         let ws_server = WebSocketServer::new(
-            name.clone(),
             WebSocketServerState::new(
                 conf.mqtt_server.websocket_port,
                 conf.mqtt_server.websockets_port,

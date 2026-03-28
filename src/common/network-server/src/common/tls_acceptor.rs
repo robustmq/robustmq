@@ -15,6 +15,7 @@
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::tool::{check_connection_limit, read_packet};
+use crate::protocol::nats::send_nats_info;
 use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
@@ -24,7 +25,7 @@ use common_metrics::mqtt::packets::record_received_error_metrics;
 use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
-use protocol::robust::RobustMQPacket;
+use protocol::robust::{RobustMQPacket, RobustMQProtocol};
 use rate_limit::global::GlobalRateLimiterManager;
 use rustls_pemfile::{certs, private_key};
 use std::fs::File;
@@ -46,6 +47,7 @@ pub struct TlsAcceptorContext {
     pub listener: Arc<TcpListener>,
     pub stop_sx: broadcast::Sender<bool>,
     pub network_type: NetworkConnectionType,
+    pub protocol: RobustMQProtocol,
     pub connection_manager: Arc<ConnectionManager>,
     pub broker_cache: Arc<NodeCacheManager>,
     pub request_channel: Arc<RequestChannel>,
@@ -64,7 +66,7 @@ pub(crate) fn load_key(path: &Path) -> io::Result<PrivateKeyDer<'static>> {
         .ok_or(io::Error::other("no private key found".to_string()))
 }
 
-pub async fn acceptor_tls_process(module_name: &str, ctx: TlsAcceptorContext) -> ResultCommonError {
+pub async fn acceptor_tls_process(ctx: TlsAcceptorContext) -> ResultCommonError {
     let tls_acceptor = create_tls_accept()?;
 
     for index in 1..=ctx.accept_thread_num {
@@ -74,10 +76,11 @@ pub async fn acceptor_tls_process(module_name: &str, ctx: TlsAcceptorContext) ->
         let request_channel = ctx.request_channel.clone();
         let raw_tls_acceptor = tls_acceptor.clone();
         let network_type = ctx.network_type.clone();
+        let protocol = ctx.protocol.clone();
         let row_codec = ctx.codec.clone();
         let row_broker_cache = ctx.broker_cache.clone();
         let row_global_limit_manager = ctx.global_limit_manager.clone();
-        let task_name = format!("{}-{}-acceptor-{}", module_name, ctx.network_type, index);
+        let task_name = format!("{:?}-{}-tls-acceptor-{}", ctx.protocol, ctx.network_type, index);
         ctx.task_supervisor.spawn(task_name, async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
@@ -136,6 +139,10 @@ pub async fn acceptor_tls_process(module_name: &str, ctx: TlsAcceptorContext) ->
                                 );
                                 connection_manager.add_connection(connection.clone());
                                 connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
+
+                                if protocol.is_nats() {
+                                    send_nats_info(connection.connection_id, &connection_manager).await;
+                                }
 
                                 read_tls_frame_process(row_broker_cache.clone(), connection_manager.clone(),read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone());
                             }

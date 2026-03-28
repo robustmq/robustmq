@@ -14,6 +14,7 @@
 
 use bytes::Bytes;
 use protocol::nats::packet::NatsPacket;
+use tracing::info;
 
 /// Handle a PUB packet from the client.
 ///
@@ -23,9 +24,15 @@ use protocol::nats::packet::NatsPacket;
 /// - Fan-out: deliver MSG to each matching subscriber connection
 /// - If reply_to is set, include it in the delivered MSG
 pub fn process_pub(
-    _subject: &str,
-    _reply_to: Option<&str>,
-    _payload: &Bytes,
+    subject: &str,
+    reply_to: Option<&str>,
+    payload: &Bytes,
 ) -> Option<NatsPacket> {
+    info!(
+        subject,
+        reply_to,
+        payload = %String::from_utf8_lossy(payload),
+        "PUB received"
+    );
     None
 }

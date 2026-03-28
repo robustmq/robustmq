@@ -409,7 +409,9 @@ impl BrokerServer {
             nats: nats_cmd,
             storage_engine: None,
         };
-        self.start_broker_handler_pool(commands, app_stop.clone());
+        self.server_runtime.block_on(async {
+            self.start_broker_handler_pool(commands, app_stop.clone());
+        });
 
         // Phase 8: Broker protocol acceptors
         self.start_kafka_broker(app_stop.clone());

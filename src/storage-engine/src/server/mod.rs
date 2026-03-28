@@ -30,6 +30,7 @@ use network_server::{
     context::{ProcessorConfig, ServerContext},
     tcp::server::TcpServer,
 };
+use protocol::robust::RobustMQProtocol;
 use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -100,8 +101,7 @@ impl Server {
             task_supervisor: params.task_supervisor.clone(),
         };
 
-        let name = "Storage Engine".to_string();
-        let tcp_server = TcpServer::new(name.clone(), context);
+        let tcp_server = TcpServer::new(RobustMQProtocol::StorageEngine, context);
         Server {
             tcp_server,
             handler_process_num: proc_config.handler_process_num,

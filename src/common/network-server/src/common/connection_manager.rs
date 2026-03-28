@@ -186,6 +186,12 @@ impl ConnectionManager {
             }
         }
     }
+
+    pub fn set_nats_protocol(&self, connect_id: u64) {
+        if let Some(mut connect) = self.connections.get_mut(&connect_id) {
+            connect.set_protocol(RobustMQProtocol::NATS);
+        }
+    }
 }
 
 // close connect
