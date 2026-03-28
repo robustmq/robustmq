@@ -106,7 +106,7 @@ The overarching theme for the year is **code quality, performance, and stability
 
 ### AI MQ (Feature Enhancement)
 1. Intelligent prefetching: predict access patterns and preload data from object storage into memory/SSD
-2. Multi-tenant AI Channels: Namespace-based isolation supporting concurrent AI training workloads
+2. Multi-tenant AI Channels: Namespace-based isolation supporting concurrent AI Agent workloads
 3. GPU-friendly batch read interface (large batch, low latency)
 
 ### MQTT Broker (Ecosystem)

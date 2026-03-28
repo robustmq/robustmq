@@ -36,7 +36,7 @@ Specifically, RobustMQ aims to:
 
 **Million-scale Topics.** RocksDB-based KV storage frees Topic counts from file system constraints. Each AI Agent gets its own isolated communication channel. A million Agents is not a problem.
 
-**AI-native design.** Topics connect directly to object storage (S3/MinIO). RobustMQ acts as an intelligent cache layer so GPUs don't wait for data. Shared subscriptions decouple consumer concurrency from Partition count, enabling elastic training clusters to scale freely.
+**AI-native design.** Topics connect directly to object storage (S3/MinIO). RobustMQ acts as an intelligent cache layer so GPUs don't wait for data. Shared subscriptions decouple consumer concurrency from Partition count, enabling elastic Agent clusters to scale freely.
 
 **Built with Rust.** Zero-cost abstractions, memory safety, no GC pauses. Communication infrastructure demands stable latency above all else. Rust is the right language for this domain.
 
