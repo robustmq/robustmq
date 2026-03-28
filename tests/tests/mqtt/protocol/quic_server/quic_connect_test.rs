@@ -74,6 +74,7 @@ mod tests {
             kafka_codec: Default::default(),
             amqp_codec: Default::default(),
             storage_engine_codec: Default::default(),
+            nats_codec: Default::default(),
         };
         let mut write_stream = QuicFramedWriteStream::new(send, mqtt_codec.clone());
         let mqtt_wrapper = RobustMQCodecWrapper::MQTT(mqtt_4_wrapper);
@@ -89,6 +90,7 @@ mod tests {
             RobustMQCodecWrapper::KAFKA(_) => {}
             RobustMQCodecWrapper::AMQP(_) => {}
             RobustMQCodecWrapper::StorageEngine(_) => {}
+            RobustMQCodecWrapper::NATS(_) => {}
             RobustMQCodecWrapper::MQTT(packet) => {
                 assert_eq!(packet.protocol_version, 4);
             }

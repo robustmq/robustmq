@@ -60,6 +60,7 @@ impl ConnectionManager {
             RobustMQPacket::KAFKA(pack) => RobustMQCodecWrapper::KAFKA(pack),
             RobustMQPacket::AMQP(frame) => RobustMQCodecWrapper::AMQP(frame),
             RobustMQPacket::StorageEngine(pack) => RobustMQCodecWrapper::StorageEngine(pack),
+            RobustMQPacket::NATS(pkt) => RobustMQCodecWrapper::NATS(pkt),
         };
 
         self.write_tcp_frame0(connection_id, codec).await
@@ -82,6 +83,7 @@ impl ConnectionManager {
             RobustMQPacket::KAFKA(pack) => RobustMQCodecWrapper::KAFKA(pack),
             RobustMQPacket::AMQP(frame) => RobustMQCodecWrapper::AMQP(frame),
             RobustMQPacket::StorageEngine(pack) => RobustMQCodecWrapper::StorageEngine(pack),
+            RobustMQPacket::NATS(pkt) => RobustMQCodecWrapper::NATS(pkt),
         };
 
         self.write_quic_frame0(connection_id, codec).await

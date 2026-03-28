@@ -48,7 +48,7 @@ impl From<std::io::Error> for NatsCodecError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum DecodeState {
     /// Waiting for the first `\r\n`-terminated control line.
     ReadingControl,
@@ -60,7 +60,7 @@ enum DecodeState {
 }
 
 /// Holds the parsed control-line fields for packets that carry a payload.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum PartialPacket {
     Pub {
         subject: String,
@@ -75,6 +75,7 @@ enum PartialPacket {
 
 const MAX_PAYLOAD: usize = 1024 * 1024 * 8; // 8 MiB default
 
+#[derive(Clone)]
 pub struct NatsCodec {
     state: DecodeState,
     max_payload: usize,
@@ -176,7 +177,7 @@ impl codec::Decoder for NatsCodec {
                             };
                         }
                         // All other packets are complete after the control line
-                        ParsedControl::Complete(packet) => return Ok(Some(packet)),
+                        ParsedControl::Complete(packet) => return Ok(Some(*packet)),
                     }
                 }
 
@@ -193,7 +194,10 @@ impl codec::Decoder for NatsCodec {
                     // Swap state out so we can consume `packet` by value
                     let prev = std::mem::replace(&mut self.state, DecodeState::ReadingControl);
                     let (partial, len) = match prev {
-                        DecodeState::ReadingPayload { packet, payload_len } => (packet, payload_len),
+                        DecodeState::ReadingPayload {
+                            packet,
+                            payload_len,
+                        } => (packet, payload_len),
                         _ => unreachable!(),
                     };
 
@@ -265,8 +269,7 @@ impl codec::Encoder<NatsPacket> for NatsCodec {
             }
 
             NatsPacket::Connect(connect) => {
-                let json =
-                    serde_json::to_string(&connect).map_err(NatsCodecError::InvalidJson)?;
+                let json = serde_json::to_string(&connect).map_err(NatsCodecError::InvalidJson)?;
                 dst.reserve(8 + json.len() + 2);
                 dst.put_slice(b"CONNECT ");
                 dst.put_slice(json.as_bytes());
@@ -314,7 +317,7 @@ impl codec::Encoder<NatsPacket> for NatsCodec {
 }
 
 enum ParsedControl {
-    Complete(NatsPacket),
+    Complete(Box<NatsPacket>),
     Pub {
         subject: String,
         reply_to: Option<String>,
@@ -334,15 +337,17 @@ fn parse_control_line(line: &str) -> Result<ParsedControl, NatsCodecError> {
 
     match verb.to_uppercase().as_str() {
         "INFO" => {
-            let info: ServerInfo = serde_json::from_str(rest.trim())
-                .map_err(NatsCodecError::InvalidJson)?;
-            Ok(ParsedControl::Complete(NatsPacket::Info(info)))
+            let info: ServerInfo =
+                serde_json::from_str(rest.trim()).map_err(NatsCodecError::InvalidJson)?;
+            Ok(ParsedControl::Complete(Box::new(NatsPacket::Info(info))))
         }
 
         "CONNECT" => {
-            let connect: ClientConnect = serde_json::from_str(rest.trim())
-                .map_err(NatsCodecError::InvalidJson)?;
-            Ok(ParsedControl::Complete(NatsPacket::Connect(connect)))
+            let connect: ClientConnect =
+                serde_json::from_str(rest.trim()).map_err(NatsCodecError::InvalidJson)?;
+            Ok(ParsedControl::Complete(Box::new(NatsPacket::Connect(
+                connect,
+            ))))
         }
 
         "PUB" => {
@@ -379,16 +384,16 @@ fn parse_control_line(line: &str) -> Result<ParsedControl, NatsCodecError> {
             // SUB <subject> [queue group] <sid>
             let parts: Vec<&str> = rest.split_whitespace().collect();
             match parts.len() {
-                2 => Ok(ParsedControl::Complete(NatsPacket::Sub {
+                2 => Ok(ParsedControl::Complete(Box::new(NatsPacket::Sub {
                     subject: parts[0].to_string(),
                     queue_group: None,
                     sid: parts[1].to_string(),
-                })),
-                3 => Ok(ParsedControl::Complete(NatsPacket::Sub {
+                }))),
+                3 => Ok(ParsedControl::Complete(Box::new(NatsPacket::Sub {
                     subject: parts[0].to_string(),
                     queue_group: Some(parts[1].to_string()),
                     sid: parts[2].to_string(),
-                })),
+                }))),
                 _ => Err(NatsCodecError::MalformedCommand(format!(
                     "SUB expects 2 or 3 args, got: {}",
                     line
@@ -400,16 +405,16 @@ fn parse_control_line(line: &str) -> Result<ParsedControl, NatsCodecError> {
             // UNSUB <sid> [max_msgs]
             let parts: Vec<&str> = rest.split_whitespace().collect();
             match parts.len() {
-                1 => Ok(ParsedControl::Complete(NatsPacket::Unsub {
+                1 => Ok(ParsedControl::Complete(Box::new(NatsPacket::Unsub {
                     sid: parts[0].to_string(),
                     max_msgs: None,
-                })),
+                }))),
                 2 => {
                     let max_msgs = parse_u32(parts[1], "UNSUB")?;
-                    Ok(ParsedControl::Complete(NatsPacket::Unsub {
+                    Ok(ParsedControl::Complete(Box::new(NatsPacket::Unsub {
                         sid: parts[0].to_string(),
                         max_msgs: Some(max_msgs),
-                    }))
+                    })))
                 }
                 _ => Err(NatsCodecError::MalformedCommand(format!(
                     "UNSUB expects 1 or 2 args, got: {}",
@@ -452,14 +457,14 @@ fn parse_control_line(line: &str) -> Result<ParsedControl, NatsCodecError> {
             }
         }
 
-        "PING" => Ok(ParsedControl::Complete(NatsPacket::Ping)),
-        "PONG" => Ok(ParsedControl::Complete(NatsPacket::Pong)),
-        "+OK" => Ok(ParsedControl::Complete(NatsPacket::Ok)),
+        "PING" => Ok(ParsedControl::Complete(Box::new(NatsPacket::Ping))),
+        "PONG" => Ok(ParsedControl::Complete(Box::new(NatsPacket::Pong))),
+        "+OK" => Ok(ParsedControl::Complete(Box::new(NatsPacket::Ok))),
 
         "-ERR" => {
             // -ERR 'message'  — strip surrounding quotes if present
             let msg = rest.trim().trim_matches('\'').to_string();
-            Ok(ParsedControl::Complete(NatsPacket::Err(msg)))
+            Ok(ParsedControl::Complete(Box::new(NatsPacket::Err(msg))))
         }
 
         other => Err(NatsCodecError::UnknownCommand(other.to_string())),
@@ -479,19 +484,13 @@ fn split_verb(line: &str) -> (&str, &str) {
 
 fn parse_usize(s: &str, cmd: &str) -> Result<usize, NatsCodecError> {
     s.parse::<usize>().map_err(|_| {
-        NatsCodecError::MalformedCommand(format!(
-            "{}: expected integer, got '{}'",
-            cmd, s
-        ))
+        NatsCodecError::MalformedCommand(format!("{}: expected integer, got '{}'", cmd, s))
     })
 }
 
 fn parse_u32(s: &str, cmd: &str) -> Result<u32, NatsCodecError> {
     s.parse::<u32>().map_err(|_| {
-        NatsCodecError::MalformedCommand(format!(
-            "{}: expected integer, got '{}'",
-            cmd, s
-        ))
+        NatsCodecError::MalformedCommand(format!("{}: expected integer, got '{}'", cmd, s))
     })
 }
 

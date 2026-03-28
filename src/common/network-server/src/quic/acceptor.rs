@@ -165,6 +165,9 @@ fn read_frame_process(
                                     RobustMQCodecWrapper::StorageEngine(p) => {
                                         read_packet(RobustMQPacket::StorageEngine(p), &request_channel, &connection, &network_type).await;
                                     }
+                                    RobustMQCodecWrapper::NATS(pkt) => {
+                                        read_packet(RobustMQPacket::NATS(pkt), &request_channel, &connection, &network_type).await;
+                                    }
                                 }
                             }
                         }

@@ -1046,6 +1046,7 @@ dependencies = [
  "meta-service",
  "metadata-struct",
  "mqtt-broker",
+ "nats-broker",
  "network-server",
  "node-call",
  "pprof-monitor",
@@ -4932,6 +4933,23 @@ dependencies = [
  "security-framework 2.11.1",
  "security-framework-sys",
  "tempfile",
+]
+
+[[package]]
+name = "nats-broker"
+version = "0.3.6"
+dependencies = [
+ "async-trait",
+ "broker-core",
+ "bytes",
+ "common-base",
+ "grpc-clients",
+ "metadata-struct",
+ "network-server",
+ "protocol",
+ "rate-limit",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
