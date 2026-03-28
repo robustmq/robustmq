@@ -66,24 +66,6 @@ impl fmt::Display for RobustMQCodecWrapper {
     }
 }
 
-pub enum RobustMQCodecEnum {
-    MQTT(MqttCodec),
-    KAFKA(KafkaCodec),
-    AMQP(AmqpCodec),
-    StorageEngine(StorageEngineCodec),
-    NATS(NatsCodec),
-}
-
-/// Canonical probe order used when the protocol has not yet been detected.
-/// Must stay in sync with the variants of `RobustMQCodecEnum` / `RobustMQProtocol`.
-pub const PROTOCOL_PROBE_ORDER: &[RobustMQProtocol] = &[
-    RobustMQProtocol::StorageEngine,
-    RobustMQProtocol::MQTT4,
-    RobustMQProtocol::KAFKA,
-    RobustMQProtocol::AMQP,
-    RobustMQProtocol::NATS,
-];
-
 #[derive(Clone)]
 pub struct RobustMQCodec {
     pub protocol: Option<RobustMQProtocol>,
@@ -103,6 +85,14 @@ impl RobustMQCodec {
             amqp_codec: AmqpCodec::new(),
             storage_engine_codec: StorageEngineCodec::new(),
             nats_codec: NatsCodec::new(),
+        }
+    }
+
+    /// Create a codec with the protocol pre-set, skipping probe on first packet.
+    pub fn new_with_protocol(protocol: RobustMQProtocol) -> Self {
+        RobustMQCodec {
+            protocol: Some(protocol),
+            ..Self::new()
         }
     }
 }
@@ -155,16 +145,16 @@ impl RobustMQCodec {
                 }
             }
             None => {
-                // Protocol not yet detected — probe each in the canonical order.
-                // When a new protocol is added, add it here AND in the Some(_) arms above;
-                // the exhaustive match on Some(_) will catch any omission at compile time.
-                for candidate in PROTOCOL_PROBE_ORDER {
-                    self.protocol = Some(candidate.clone());
-                    if let Some(wrapper) = self.decode_data(stream)? {
-                        return Ok(Some(wrapper));
-                    }
+                if let Ok(Some(pkg)) = self.mqtt_codec.decode_data(stream) {
+                    self.protocol = self
+                        .mqtt_codec
+                        .protocol_version
+                        .map(RobustMQProtocol::from_u8);
+                    return Ok(Some(RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
+                        protocol_version: self.mqtt_codec.protocol_version.unwrap_or(4),
+                        packet: pkg,
+                    })));
                 }
-                self.protocol = None;
             }
         }
 

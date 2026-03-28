@@ -187,9 +187,9 @@ impl ConnectionManager {
         }
     }
 
-    pub fn set_nats_protocol(&self, connect_id: u64) {
+    pub fn set_connect_protocol(&self, connect_id: u64, protocol: RobustMQProtocol) {
         if let Some(mut connect) = self.connections.get_mut(&connect_id) {
-            connect.set_protocol(RobustMQProtocol::NATS);
+            connect.set_protocol(protocol);
         }
     }
 }

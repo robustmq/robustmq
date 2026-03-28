@@ -34,8 +34,8 @@ use network_server::context::{ProcessorConfig, ServerContext};
 use network_server::quic::server::QuicServer;
 use network_server::tcp::server::TcpServer;
 use network_server::websocket::server::{WebSocketServer, WebSocketServerState};
-use protocol::robust::RobustMQProtocol;
 use node_call::NodeCallManager;
+use protocol::robust::RobustMQProtocol;
 use rate_limit::global::GlobalRateLimiterManager;
 use rate_limit::mqtt::MQTTRateLimiterManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -127,17 +127,15 @@ impl Server {
         server_context.network_type = NetworkConnectionType::Tls;
         let tls_server = TcpServer::new(RobustMQProtocol::MQTT4, server_context.clone());
 
-        let ws_server = WebSocketServer::new(
-            WebSocketServerState::new(
-                conf.mqtt_server.websocket_port,
-                conf.mqtt_server.websockets_port,
-                context.connection_manager.clone(),
-                context.broker_cache.clone(),
-                context.global_limit_manager.clone(),
-                context.stop_sx.clone(),
-                request_channel.clone(),
-            ),
-        );
+        let ws_server = WebSocketServer::new(WebSocketServerState::new(
+            conf.mqtt_server.websocket_port,
+            conf.mqtt_server.websockets_port,
+            context.connection_manager.clone(),
+            context.broker_cache.clone(),
+            context.global_limit_manager.clone(),
+            context.stop_sx.clone(),
+            request_channel.clone(),
+        ));
 
         server_context.network_type = NetworkConnectionType::QUIC;
         let quic_server = QuicServer::new(name.clone(), server_context);

@@ -34,9 +34,7 @@ pub async fn send_nats_info(connection_id: u64, connection_manager: &Arc<Connect
         .await
     {
         error!(connection_id, "Failed to send NATS INFO: {}", e);
-        return;
     }
-    connection_manager.set_nats_protocol(connection_id);
 }
 
 /// Build the INFO packet sent to a NATS client immediately after connection.

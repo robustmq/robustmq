@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bytes::Bytes;
 use protocol::nats::packet::NatsPacket;
 
-/// Handle a SUB packet from the client.
-///
-/// Responsibilities (all TODO):
-/// - Validate subject name and sid uniqueness on this connection
-/// - Register the (subject, queue_group, sid) triple in the subscription store
-/// - If queue_group is set, join the named queue group for load-balanced delivery
-pub fn process_sub(_subject: &str, _queue_group: Option<&str>, _sid: &str) -> Option<NatsPacket> {
-    None
+pub fn process_sub(subject: &str, _queue_group: Option<&str>, sid: &str) -> Option<NatsPacket> {
+    Some(NatsPacket::Msg {
+        subject: subject.to_string(),
+        sid: sid.to_string(),
+        reply_to: None,
+        payload: Bytes::from("hello from robustmq"),
+    })
 }
 
 /// Handle an UNSUB packet from the client.

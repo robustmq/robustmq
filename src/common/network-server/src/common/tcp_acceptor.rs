@@ -92,16 +92,25 @@ pub async fn acceptor_process(ctx: TcpAcceptorContext) {
                         match val{
                             Ok((stream, addr)) => {
                                 info!("Accept {} connection:{:?}", network_type, addr);
-
-                                let (r_stream, w_stream) = io::split(stream);
-                                let read_frame_stream = FramedRead::new(r_stream, row_codec.clone());
-                                let write_frame_stream = FramedWrite::new(w_stream, row_codec.clone());
-
+                                // check connection
                                 if let Err(e) = check_connection_limit(&row_global_limit_manager, &row_broker_cache, &connection_manager).await{
                                     warn!("{}",e.to_string());
                                     continue;
                                 }
 
+                                // create stream
+                                let (r_stream, w_stream) = io::split(stream);
+                                let conn_codec = match protocol {
+                                    RobustMQProtocol::MQTT3
+                                    | RobustMQProtocol::MQTT4
+                                    | RobustMQProtocol::MQTT5 => row_codec.clone(),
+                                    _ => RobustMQCodec::new_with_protocol(protocol.clone()),
+                                };
+
+                                let read_frame_stream = FramedRead::new(r_stream, conn_codec.clone());
+                                let write_frame_stream = FramedWrite::new(w_stream, conn_codec);
+
+                                // create connection
                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                 let connection = NetworkConnection::new(
                                     NetworkConnectionType::Tcp,
@@ -112,10 +121,20 @@ pub async fn acceptor_process(ctx: TcpAcceptorContext) {
                                 connection_manager.add_connection(connection.clone());
                                 connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
 
+                                match protocol {
+                                    RobustMQProtocol::MQTT3
+                                    | RobustMQProtocol::MQTT4
+                                    | RobustMQProtocol::MQTT5 => {}
+                                    _ => connection_manager
+                                        .set_connect_protocol(connection.connection_id, protocol.clone()),
+                                }
+
+                                // nats special logic
                                 if protocol.is_nats() {
                                     send_nats_info(connection.connection_id, &connection_manager).await;
                                 }
 
+                                // process connection
                                 read_frame_process(
                                     row_broker_cache.clone(),
                                     read_frame_stream,

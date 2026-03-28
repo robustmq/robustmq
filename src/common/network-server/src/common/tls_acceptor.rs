@@ -80,7 +80,10 @@ pub async fn acceptor_tls_process(ctx: TlsAcceptorContext) -> ResultCommonError 
         let row_codec = ctx.codec.clone();
         let row_broker_cache = ctx.broker_cache.clone();
         let row_global_limit_manager = ctx.global_limit_manager.clone();
-        let task_name = format!("{:?}-{}-tls-acceptor-{}", ctx.protocol, ctx.network_type, index);
+        let task_name = format!(
+            "{:?}-{}-tls-acceptor-{}",
+            ctx.protocol, ctx.network_type, index
+        );
         ctx.task_supervisor.spawn(task_name, async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",

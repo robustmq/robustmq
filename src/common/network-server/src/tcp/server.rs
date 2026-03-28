@@ -76,38 +76,34 @@ impl TcpServer {
         let arc_listener = Arc::new(listener);
         let codec = RobustMQCodec::new();
         if tls {
-            acceptor_tls_process(
-                TlsAcceptorContext {
-                    accept_thread_num: self.proc_config.accept_thread_num,
-                    listener: arc_listener.clone(),
-                    stop_sx: self.acceptor_stop_send.clone(),
-                    network_type: self.network_type.clone(),
-                    protocol: self.protocol.clone(),
-                    connection_manager: self.connection_manager.clone(),
-                    broker_cache: self.broker_cache.clone(),
-                    request_channel: self.request_channel.clone(),
-                    global_limit_manager: self.global_limit_manager.clone(),
-                    codec,
-                    task_supervisor: self.task_supervisor.clone(),
-                },
-            )
+            acceptor_tls_process(TlsAcceptorContext {
+                accept_thread_num: self.proc_config.accept_thread_num,
+                listener: arc_listener.clone(),
+                stop_sx: self.acceptor_stop_send.clone(),
+                network_type: self.network_type.clone(),
+                protocol: self.protocol.clone(),
+                connection_manager: self.connection_manager.clone(),
+                broker_cache: self.broker_cache.clone(),
+                request_channel: self.request_channel.clone(),
+                global_limit_manager: self.global_limit_manager.clone(),
+                codec,
+                task_supervisor: self.task_supervisor.clone(),
+            })
             .await?;
         } else {
-            acceptor_process(
-                TcpAcceptorContext {
-                    accept_thread_num: self.proc_config.accept_thread_num,
-                    connection_manager: self.connection_manager.clone(),
-                    broker_cache: self.broker_cache.clone(),
-                    stop_sx: self.acceptor_stop_send.clone(),
-                    listener: arc_listener.clone(),
-                    request_channel: self.request_channel.clone(),
-                    global_limit_manager: self.global_limit_manager.clone(),
-                    network_type: self.network_type.clone(),
-                    protocol: self.protocol.clone(),
-                    codec,
-                    task_supervisor: self.task_supervisor.clone(),
-                },
-            )
+            acceptor_process(TcpAcceptorContext {
+                accept_thread_num: self.proc_config.accept_thread_num,
+                connection_manager: self.connection_manager.clone(),
+                broker_cache: self.broker_cache.clone(),
+                stop_sx: self.acceptor_stop_send.clone(),
+                listener: arc_listener.clone(),
+                request_channel: self.request_channel.clone(),
+                global_limit_manager: self.global_limit_manager.clone(),
+                network_type: self.network_type.clone(),
+                protocol: self.protocol.clone(),
+                codec,
+                task_supervisor: self.task_supervisor.clone(),
+            })
             .await;
         }
 
