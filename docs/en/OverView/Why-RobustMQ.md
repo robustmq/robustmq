@@ -14,7 +14,7 @@ This project was never about commercial gain. It was about doing something **tec
 
 Having worked in the messaging queue space for years, the structural problems in this field were clear — long-standing issues that had never been fundamentally solved.
 
-**Too much historical baggage.** Kafka was born in 2011, with an architecture built on the file system. Topic counts are bounded by file descriptor limits, with tens of thousands as a practical ceiling. RabbitMQ is written in Erlang with a unique concurrency model but limited performance headroom. These systems were never designed with the AI era in mind. Later improvements were patches on top of old architectures — high complexity, low return, and increasingly difficult to keep in sync with upstream communities.
+**Too much historical baggage.** Kafka was born in 2011, with an architecture built on the file system. Topic counts are bounded by file descriptor limits, with tens of thousands as a practical ceiling. RabbitMQ is written in Erlang with a unique concurrency model but limited performance headroom. These systems were never designed with AI Agent communication in mind. Later improvements were patches on top of old architectures — high complexity, low return, and increasingly difficult to keep in sync with upstream communities.
 
 **Fragmented by scenario.** IoT uses MQTT. Big data uses Kafka. Enterprise systems use AMQP. Three protocols, three systems, three operations teams. Data flowing between systems requires bridge layers at every hop — each one adding latency and introducing failure points. No single system has ever truly unified these scenarios.
 
@@ -26,7 +26,7 @@ These are not minor issues. They are architectural flaws. Patching them is futil
 
 ## What We Set Out to Build
 
-A communication infrastructure **designed from the ground up for AI, IoT, and big data** — not adapted from aging architectures.
+A communication infrastructure **designed from the ground up for AI Agent communication, IoT, and big data** — not adapted from aging architectures.
 
 Specifically, RobustMQ aims to:
 
@@ -56,7 +56,7 @@ There are no shortcuts here. One step at a time. Eyes on the horizon, feet on th
 
 ## Where We Are Now
 
-From the first line of code in October 2023 to version 0.3.0 today: the architecture has been redesigned, MQTT core features are nearly complete, and the monitoring, CLI, and Dashboard tooling is in place. There is still much to do — Kafka protocol is under development, AI data caching is not yet complete, and performance and stability have significant room for improvement.
+From the first line of code in October 2023 to version 0.3.0 today: the architecture has been redesigned, MQTT core features are nearly complete, and the monitoring, CLI, and Dashboard tooling is in place. There is still much to do — Kafka protocol is under development, AI Agent communication and data caching is not yet complete, and performance and stability have significant room for improvement.
 
 But the direction is clear, the architecture is solid, and the original intent has not changed.
 

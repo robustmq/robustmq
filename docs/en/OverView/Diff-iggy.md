@@ -44,7 +44,7 @@ RobustMQ and Apache Iggy are modern message queue systems built with Rust, empha
 | **Data Integration** | Not supported | 8+ connectors (Kafka/Pulsar/MySQL/MongoDB, etc.) |
 | **Distribution** | Experimental clustering, master-slave replication | Raft metadata, automatic failover, elastic scaling |
 | **Cloud-Native** | Basic container support | Single binary deployment<br>K8s Operator + Helm + Serverless |
-| **AI Scenarios** | Basic stream processing | AI workflow optimization, training pipelines, real-time inference |
+| **AI Scenarios** | Basic stream processing | AI Agent communication, real-time inference, multi-Agent orchestration |
 
 ---
 
@@ -82,7 +82,7 @@ RobustMQ and Apache Iggy are modern message queue systems built with Rust, empha
 | **Edge Computing** | Single binary, low latency, suitable | Suitable, supports pluggable storage and multi-protocol |
 | **IoT Platform** | Requires custom integration | Native MQTT support, direct use |
 | **Microservices Messaging** | Requires custom SDK | Can directly use Kafka/AMQP SDK |
-| **Streaming Analytics** | Basic support | Suitable, supports connectors and AI workflows |
+| **Streaming Analytics** | Basic support | Suitable, supports connectors and AI Agent communication workflows |
 | **Multi-Cloud Deployment** | Requires custom adaptation | Native support for S3/HDFS/MinIO |
 
 ---
@@ -110,7 +110,7 @@ RobustMQ and Apache Iggy are modern message queue systems built with Rust, empha
 
 **Apache Iggy** features extreme performance (sub-millisecond latency), deployment simplicity (single binary, no dependencies), and development-friendly. Implemented in Rust, it provides predictable performance and low resource consumption. The custom protocol design provides flexibility but brings migration costs, suitable for new projects and edge scenarios. Currently in the Apache incubation stage, distributed capabilities are being enhanced.
 
-**RobustMQ** features multi-protocol unification (MQTT/Kafka/AMQP), compute-storage separation architecture, pluggable storage, and cloud-native support. Implemented in Rust, leveraging memory safety and high concurrency advantages. Uses community standard SDKs, providing zero migration cost, suitable for enterprises requiring integrated management of multiple message queue protocols. The data integration and AI optimization features provide significant value for IoT and AI scenarios.
+**RobustMQ** features multi-protocol unification (MQTT/Kafka/AMQP), compute-storage separation architecture, pluggable storage, and cloud-native support. Implemented in Rust, leveraging memory safety and high concurrency advantages. Uses community standard SDKs, providing zero migration cost, suitable for enterprises requiring integrated management of multiple message queue protocols. The data integration and AI Agent communication features provide significant value for IoT and AI Agent scenarios.
 
 **Recommended Scenarios**
 

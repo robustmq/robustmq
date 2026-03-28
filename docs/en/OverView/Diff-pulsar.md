@@ -10,7 +10,7 @@ Apache Pulsar is a distributed, multi-tenant, high-performance messaging and str
 
 **Apache Pulsar** is positioned as an enterprise-grade distributed messaging and streaming platform, providing complete multi-tenancy, geo-replication, and stream processing capabilities. As an Apache top-level project, Pulsar has broad enterprise-level applications and a mature ecosystem. The project adopts a layered architecture (Broker/BookKeeper/ZooKeeper), implementing compute-storage separation, enabling independent scaling of compute and storage layers. Pulsar provides flexible message models (streaming + queueing) and rich subscription modes (Exclusive/Shared/Failover/Key_Shared). It is suitable for large-scale data streaming, IoT platforms, financial trading, and other scenarios requiring high reliability and high throughput.
 
-**RobustMQ** is positioned as a cloud-native, multi-protocol unified message middleware. The project is implemented in Rust, leveraging Rust's memory safety, zero-cost abstraction, and high-performance features to achieve zero GC and low resource consumption. RobustMQ's core goal is to solve the protocol fragmentation problem, by supporting MQTT, Kafka, AMQP and other protocols in a single system, eliminating the complexity of maintaining multiple message queue systems. Single-binary deployment, with no external dependencies, makes deployment extremely simple. The layered architecture design enables independent scaling of compute and storage layers, while pluggable storage supports flexible adaptation from edge to cloud scenarios. RobustMQ is suitable for IoT platforms, microservices communication, and AI data pipelines.
+**RobustMQ** is positioned as a cloud-native, multi-protocol unified message middleware. The project is implemented in Rust, leveraging Rust's memory safety, zero-cost abstraction, and high-performance features to achieve zero GC and low resource consumption. RobustMQ's core goal is to solve the protocol fragmentation problem, by supporting MQTT, Kafka, AMQP and other protocols in a single system, eliminating the complexity of maintaining multiple message queue systems. Single-binary deployment, with no external dependencies, makes deployment extremely simple. The layered architecture design enables independent scaling of compute and storage layers, while pluggable storage supports flexible adaptation from edge to cloud scenarios. RobustMQ is suitable for IoT platforms, microservices communication, and AI Agent communication pipelines.
 
 ---
 
@@ -44,7 +44,7 @@ Apache Pulsar is a distributed, multi-tenant, high-performance messaging and str
 | **Enterprise Features** | Mature multi-tenancy + geo-replication | Basic multi-tenancy in development / geo-replication planned |
 | **Data Integration** | Pulsar IO + Functions + SQL | 8+ Bridge connectors (Kafka/MySQL/MongoDB, etc.) |
 | **Cloud-Native** | K8s Operator + Helm<br>High resource consumption | Single binary deployment<br>K8s Operator + Helm + Serverless |
-| **AI Scenarios** | General messaging platform | AI workflow optimization, training pipelines, real-time inference |
+| **AI Scenarios** | General messaging platform | AI Agent communication, real-time inference, multi-Agent orchestration |
 
 ---
 
@@ -111,7 +111,7 @@ Apache Pulsar is a distributed, multi-tenant, high-performance messaging and str
 
 **Apache Pulsar** features mature enterprise-grade capabilities, including multi-tenancy, geo-replication, tiered storage, and stream processing. As an Apache top-level project, Pulsar has a large community and rich ecosystem. The layered architecture (Broker/BookKeeper/ZooKeeper) implements compute-storage separation, enabling independent scaling. Provides Pulsar Functions, Pulsar SQL and other advanced features. Suitable for large enterprises requiring complete distributed messaging solutions.
 
-**RobustMQ** features multi-protocol unification (MQTT/Kafka/AMQP), compute-storage separation architecture, pluggable storage, and cloud-native support. Implemented in Rust, leveraging memory safety and high concurrency advantages, achieving zero GC and low resource consumption. Single-binary deployment, with no external dependencies, simplifies operations. The data integration and AI optimization features provide significant value for IoT and AI scenarios. Suitable for startups, edge computing, and scenarios requiring multi-protocol support.
+**RobustMQ** features multi-protocol unification (MQTT/Kafka/AMQP), compute-storage separation architecture, pluggable storage, and cloud-native support. Implemented in Rust, leveraging memory safety and high concurrency advantages, achieving zero GC and low resource consumption. Single-binary deployment, with no external dependencies, simplifies operations. The data integration and AI Agent communication features provide significant value for IoT and AI Agent scenarios. Suitable for startups, edge computing, and scenarios requiring multi-protocol support.
 
 **Recommended Scenarios**
 

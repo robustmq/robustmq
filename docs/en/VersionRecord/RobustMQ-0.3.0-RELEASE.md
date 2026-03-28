@@ -160,7 +160,7 @@ cargo build --release
 |-----------|---------|
 | Performance & Stability | MQTT connection path optimization, Raft write throughput, storage engine deep tuning |
 | MQTT completeness | Full rule engine, Webhook integration, complete operations API |
-| AI MQ | Topic direct object storage (S3/MinIO), three-tier intelligent cache, predictive prefetch |
+| AI Agent Communication | Topic direct object storage (S3/MinIO), three-tier intelligent cache, predictive prefetch |
 | Kafka Protocol | Full Kafka protocol implementation, compatible with Flink, Spark, Kafka Connect |
 
 See [2026 RoadMap](../OverView/RoadMap-2026.md) for details.

@@ -10,7 +10,7 @@ The overarching theme for the year is **code quality, performance, and stability
 |-----------|------|
 | MQTT Broker — Production Ready | Stable cluster operation, passing stress benchmarks, complete observability and ops tooling |
 | Kafka — Basic Functionality | Core read/write path functional; mainstream Kafka clients connect without code changes |
-| AI MQ — Initial Exploration | Object storage data source, intelligent cache layer, and AI Agent communication channels available in preview |
+| AI Agent Communication — Initial Exploration | Object storage data source, intelligent cache layer, and AI Agent communication channels available in preview |
 
 ---
 
@@ -66,7 +66,7 @@ The overarching theme for the year is **code quality, performance, and stability
 
 ## v0.5.0 (Target: September 2026)
 
-> Goal: Kafka basic functionality available. AI MQ initial shape. Continued MQTT enhancements.
+> Goal: Kafka basic functionality available. AI Agent Communication initial shape. Continued MQTT enhancements.
 
 ### Kafka Basic Functionality
 1. **Producer protocol**: Parse Produce requests, write messages to Journal Engine
@@ -75,11 +75,11 @@ The overarching theme for the year is **code quality, performance, and stability
 4. **Compatibility testing**: Java Kafka Client, kafka-console-producer/consumer direct connection
 5. Admin API support for Kafka Topic query and management
 
-### AI MQ (Exploration Phase)
+### AI Agent Communication (Exploration Phase)
 1. **Object storage data source**: Topics can directly mount S3 / MinIO paths and support sequential reads
 2. **Intelligent cache layer (prototype)**: Three-tier cache framework (memory → SSD → object storage)
 3. **AI Agent Channels**: Best practices and examples for isolated inter-Agent communication via MQTT shared subscriptions
-4. Publish AI MQ technical design document and collect community feedback
+4. Publish AI Agent Communication technical design document and collect community feedback
 
 ### MQTT Broker (Capability Enhancement)
 1. Rule engine: enhanced SQL filter capabilities, more downstream targets (HTTP Webhook, Kafka, GreptimeDB)
@@ -97,14 +97,14 @@ The overarching theme for the year is **code quality, performance, and stability
 
 ## v0.6.0 (Target: December 2026)
 
-> Goal: Kafka functionality continues to mature. AI MQ feature enhancements.
+> Goal: Kafka functionality continues to mature. AI Agent Communication feature enhancements.
 
 ### Kafka — Continued Improvements
 1. Full Consumer Group Rebalance implementation
 2. Transactional Producer basic support
 3. Kafka Streams and Kafka Connect compatibility testing
 
-### AI MQ (Feature Enhancement)
+### AI Agent Communication (Feature Enhancement)
 1. Intelligent prefetching: predict access patterns and preload data from object storage into memory/SSD
 2. Multi-tenant AI Channels: Namespace-based isolation supporting concurrent AI Agent workloads
 3. GPU-friendly batch read interface (large batch, low latency)
@@ -147,6 +147,6 @@ The following goals apply across all versions throughout the year:
 
 ```
 May 2026       ──►  v0.4.0  MQTT Production Ready
-September 2026 ──►  v0.5.0  Kafka basic functionality + AI MQ initial shape
-December 2026  ──►  v0.6.0  Kafka continued improvements + AI MQ enhancements
+September 2026 ──►  v0.5.0  Kafka basic functionality + AI Agent Communication initial shape
+December 2026  ──►  v0.6.0  Kafka continued improvements + AI Agent Communication enhancements
 ```

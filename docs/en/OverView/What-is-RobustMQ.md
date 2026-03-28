@@ -16,7 +16,7 @@ Fully compatible with Kafka and MQTT 3.1/3.1.1/5.0 protocols — existing applic
 
 ## Core Scenarios
 
-### AI: Intelligent Data Scheduling and Caching Layer
+### AI: Agent Communication and Intelligent Data Caching
 
 Direct object storage (S3/MinIO) integration with three-tier intelligent caching eliminates the need to pre-import data, removes I/O bottlenecks, and dramatically improves GPU utilization. A single cluster supports million-scale lightweight Topics, providing each AI Agent with an independent communication channel, fine-grained isolation, and per-Agent cost tracing. Shared subscriptions allow Agent and GPU nodes to scale elastically without being constrained by Partition count.
 
@@ -124,7 +124,7 @@ Full documentation: [Quick Start Guide](../QuickGuide/Quick-Install.md)
 
 RobustMQ is a **non-commercial open source project** with no corporate backing and no paid edition — all core features are fully open source.
 
-This is a project driven by technical conviction — the belief that rebuilding communication infrastructure in Rust is the right direction, that the AI era needs a messaging system truly designed for new scenarios, and that excellent infrastructure software should belong to the entire community.
+This is a project driven by technical conviction — the belief that rebuilding communication infrastructure in Rust is the right direction, that the AI era needs a messaging system truly designed for Agent communication and new scenarios, and that excellent infrastructure software should belong to the entire community.
 
 The long-term goal is to become an **Apache Top-Level Project** and build a global developer community that continuously drives the project forward.
 
