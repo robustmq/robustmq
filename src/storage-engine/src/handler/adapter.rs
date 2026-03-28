@@ -34,15 +34,12 @@ use common_metrics::storage_engine::{
     record_storage_engine_ops, record_storage_engine_ops_duration, record_storage_engine_ops_fail,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
-};
+use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::shard::EngineShard;
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 pub struct StorageEngineHandlerParams {
@@ -266,25 +263,6 @@ impl StorageEngineHandler {
                 Err(CommonError::CommonError(e.to_string()))
             }
         }
-    }
-
-    pub async fn get_offset_by_group(
-        &self,
-        tenant: &str,
-        group_name: &str,
-    ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
-        self.offset_manager.get_offset(tenant, group_name).await
-    }
-
-    pub async fn commit_offset(
-        &self,
-        tenant: &str,
-        group_name: &str,
-        offset: &HashMap<String, u64>,
-    ) -> Result<(), CommonError> {
-        self.offset_manager
-            .commit_offset(tenant, group_name, offset)
-            .await
     }
 
     pub async fn delete_by_key(

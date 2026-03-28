@@ -80,7 +80,10 @@ pub fn init() {
         "get_offset_by_group",
         "commit_offset",
     ] {
-        counter_metric_touch!(STORAGE_ENGINE_OPS_TOTAL, StorageEngineLabel { operation: op });
+        counter_metric_touch!(
+            STORAGE_ENGINE_OPS_TOTAL,
+            StorageEngineLabel { operation: op }
+        );
         counter_metric_touch!(
             STORAGE_ENGINE_OPS_FAIL_TOTAL,
             StorageEngineLabel { operation: op }
