@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::server::KafkaServer;
+use crate::server::{KafkaServer, KafkaServerParams};
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
 use grpc_clients::pool::ClientPool;
+use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::context::ProcessorConfig;
 use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::error;
+use tracing::{error, info};
 
 const DEFAULT_KAFKA_PORT: u32 = 9095;
 
@@ -34,24 +35,30 @@ pub struct KafkaBrokerServerParams {
     pub task_supervisor: Arc<TaskSupervisor>,
     pub stop_sx: broadcast::Sender<bool>,
     pub proc_config: ProcessorConfig,
+    pub request_channel: Arc<RequestChannel>,
 }
 
 pub struct KafkaBrokerServer {
     server: KafkaServer,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 impl KafkaBrokerServer {
     pub fn new(params: KafkaBrokerServerParams) -> Self {
-        let server = KafkaServer::new(
-            params.connection_manager,
-            params.client_pool,
-            params.broker_cache,
-            params.global_limit_manager,
-            params.task_supervisor,
-            params.stop_sx,
-            params.proc_config,
-        );
-        KafkaBrokerServer { server }
+        let server = KafkaServer::new(KafkaServerParams {
+            connection_manager: params.connection_manager,
+            client_pool: params.client_pool,
+            broker_cache: params.broker_cache,
+            global_limit_manager: params.global_limit_manager,
+            task_supervisor: params.task_supervisor,
+            stop_sx: params.stop_sx.clone(),
+            proc_config: params.proc_config,
+            request_channel: params.request_channel,
+        });
+        KafkaBrokerServer {
+            server,
+            stop_sx: params.stop_sx,
+        }
     }
 
     pub async fn start(&self) {
@@ -59,9 +66,24 @@ impl KafkaBrokerServer {
             error!("Kafka broker server failed to start: {}", e);
             std::process::exit(1);
         }
+        self.awaiting_stop().await;
     }
 
     pub async fn stop(&self) {
         self.server.stop().await;
+    }
+
+    pub async fn awaiting_stop(&self) {
+        let mut recv = self.stop_sx.subscribe();
+        match recv.recv().await {
+            Ok(_) => {
+                info!("Kafka broker has stopped.");
+                self.server.stop().await;
+                info!("Kafka broker service stopped successfully.");
+            }
+            Err(e) => {
+                error!("Kafka broker stop channel error: {}", e);
+            }
+        }
     }
 }

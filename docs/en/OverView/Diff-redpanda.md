@@ -35,7 +35,7 @@ Redpanda is a modern streaming data platform implemented in C++, focusing on Kaf
 
 **Redpanda** features high performance, with per-core 1GB/s write throughput and p99.999 latency of 16ms. Fully compatible with Kafka API (producer, consumer, admin API), existing Kafka clients and tools can be directly used. Eliminates ZooKeeper dependency, uses built-in Raft consensus for cluster metadata management, simplifying deployment and operations. Adopts thread-per-core model and zero-copy technology to fully utilize modern multi-core CPUs and NVMe SSDs. Provides rich monitoring and observability tools including Prometheus metrics, Grafana dashboards. Redpanda's advantages include high performance, simple deployment (no JVM/ZooKeeper), Kafka API compatibility. Its main challenges include: compared to Kafka, ecosystem is relatively young; C++ implementation requires specialized expertise for maintenance; multi-protocol support requires additional development.
 
-**RobustMQ** features multi-protocol unification, achieving MQTT, Kafka, AMQP and other protocols within a single system, using standard open-source SDKs to ensure protocol compatibility. Implements compute-storage separation, allowing independent scaling of Broker and Storage; pluggable storage supporting memory, SSD, S3, HDFS and other backends. The project is implemented in Rust, achieving zero GC and predictable latency. Provides over 8 data integration connectors (Kafka/Pulsar/MySQL/MongoDB, etc.), supporting complex data workflow orchestration. Optimized for AI scenarios, including AI training pipelines, real-time inference, and multi-modal data processing. Offers complete cloud-native support including single-binary deployment, Kubernetes Operator, Helm charts, and Serverless architecture. RobustMQ's advantages are multi-protocol unified management, reduced operational complexity; compute-storage separation architecture enabling elastic scaling; zero GC, low resource consumption. Its main challenges include: the project is in active development, Kafka protocol support is being implemented; the community size is smaller compared to Redpanda; production case accumulation is ongoing.
+**RobustMQ** features multi-protocol unification, achieving MQTT, Kafka, AMQP and other protocols within a single system, using standard open-source SDKs to ensure protocol compatibility. Implements compute-storage separation, allowing independent scaling of Broker and Storage; pluggable storage supporting memory, SSD, S3, HDFS and other backends. The project is implemented in Rust, achieving zero GC and predictable latency. Provides over 8 data integration connectors (Kafka/Pulsar/MySQL/MongoDB, etc.), supporting complex data workflow orchestration. Optimized for AI scenarios, including AI communication pipelines, real-time inference, and multi-modal data processing. Offers complete cloud-native support including single-binary deployment, Kubernetes Operator, Helm charts, and Serverless architecture. RobustMQ's advantages are multi-protocol unified management, reduced operational complexity; compute-storage separation architecture enabling elastic scaling; zero GC, low resource consumption. Its main challenges include: the project is in active development, Kafka protocol support is being implemented; the community size is smaller compared to Redpanda; production case accumulation is ongoing.
 
 | Feature Dimension | Redpanda | RobustMQ |
 |------|----------|----------|
@@ -46,7 +46,7 @@ Redpanda is a modern streaming data platform implemented in C++, focusing on Kaf
 | **Data Integration** | Fully compatible with Kafka Connect | 8+ connectors (Kafka/Pulsar/MySQL/MongoDB, etc.) |
 | **Distribution** | Built-in Raft, self-healing cluster | Raft metadata, automatic failover, elastic scaling |
 | **Cloud-Native** | Single binary, container-friendly<br>K8s Operator | Single binary deployment, no dependencies<br>K8s Operator + Helm + Serverless |
-| **AI Scenarios** | General streaming platform | AI workflow optimization, training pipelines, real-time inference |
+| **AI Scenarios** | General streaming platform | AI Agent communication, real-time inference, multi-Agent orchestration |
 
 ---
 
@@ -77,14 +77,14 @@ Redpanda is a modern streaming data platform implemented in C++, focusing on Kaf
 
 **Redpanda** is suitable for scenarios requiring Kafka API compatibility and high performance, especially enterprises migrating from Kafka to simplified architecture and improved performance. Single-binary deployment and elimination of ZooKeeper dependency greatly simplify operations, making it particularly suitable for scenarios requiring Kafka compatibility. However, multi-protocol support requires additional development, suitable for scenarios primarily using Kafka protocol.
 
-**RobustMQ** is suitable for production environments requiring multi-protocol support (MQTT/Kafka/AMQP), particularly enterprises operating MQTT, Kafka, AMQP and other systems simultaneously. The compute-storage separation architecture and pluggable storage make it adaptable from edge to cloud, suitable for enterprises requiring flexible scaling. Additionally, RobustMQ's data integration capabilities make it suitable for IoT data pipelines and AI training scenarios.
+**RobustMQ** is suitable for production environments requiring multi-protocol support (MQTT/Kafka/AMQP), particularly enterprises operating MQTT, Kafka, AMQP and other systems simultaneously. The compute-storage separation architecture and pluggable storage make it adaptable from edge to cloud, suitable for enterprises requiring flexible scaling. Additionally, RobustMQ's data integration capabilities make it suitable for IoT data pipelines and AI Agent communication scenarios.
 
 | Scenario | Redpanda | RobustMQ |
 |------|----------|----------|
 | **Kafka Migration** | Fully compatible, direct use | Kafka protocol in development |
 | **IoT Platform** | Requires additional MQTT support | Native MQTT support, direct use |
 | **Microservices Messaging** | Kafka API compatible | Suitable, supports multi-protocol |
-| **Streaming Analytics** | Suitable, Kafka Connect compatible | Suitable, supports connectors and AI workflows |
+| **Streaming Analytics** | Suitable, Kafka Connect compatible | Suitable, supports connectors and AI Agent communication workflows |
 | **Edge Computing** | Suitable, high performance | Suitable, supports pluggable storage and low resource consumption |
 | **Multi-Cloud Deployment** | Local storage | Native support for S3/HDFS/MinIO |
 
@@ -113,13 +113,13 @@ Redpanda is a modern streaming data platform implemented in C++, focusing on Kaf
 
 **Redpanda** is positioned as a high-performance, Kafka API-compatible streaming data platform, featuring Kafka compatibility, high performance (per-core 1GB/s write), simplified deployment (no JVM/ZooKeeper). The project is implemented in C++, adopting thread-per-core model and zero-copy technology, optimized for modern multi-core CPUs and NVMe SSDs. Built-in Raft consensus manages cluster metadata, eliminating the need for external coordination services. Suitable for enterprises migrating from Kafka to simplified architecture and improved performance.
 
-**RobustMQ** is positioned as a cloud-native, multi-protocol unified message middleware, featuring MQTT/Kafka/AMQP multi-protocol support, compute-storage separation, pluggable storage, and cloud-native support. Implemented in Rust, leveraging memory safety and high concurrency advantages, achieving zero GC and low resource consumption. Single-binary deployment, with no external dependencies, simplifies operations. The data integration and AI optimization features provide significant value for IoT and AI scenarios. Suitable for production environments requiring multi-protocol support, particularly enterprises operating multiple message queue systems simultaneously.
+**RobustMQ** is positioned as a cloud-native, multi-protocol unified message middleware, featuring MQTT/Kafka/AMQP multi-protocol support, compute-storage separation, pluggable storage, and cloud-native support. Implemented in Rust, leveraging memory safety and high concurrency advantages, achieving zero GC and low resource consumption. Single-binary deployment, with no external dependencies, simplifies operations. The data integration and AI Agent communication features provide significant value for IoT and AI Agent scenarios. Suitable for production environments requiring multi-protocol support, particularly enterprises operating multiple message queue systems simultaneously.
 
 **Recommended Scenarios**
 
 - **Redpanda**: Kafka migration, scenarios requiring Kafka API compatibility and high performance, scenarios requiring simplified architecture (no JVM/ZooKeeper). Suitable for enterprises primarily using Kafka protocol and hoping to improve performance and simplify operations.
 
-- **RobustMQ**: Production environments requiring multi-protocol support (MQTT/Kafka/AMQP), enterprises needing flexible scaling (edge to cloud), IoT platforms and AI training pipelines. Suitable for enterprises with high system stability requirements and hoping to unify the management of multiple message queue systems.
+- **RobustMQ**: Production environments requiring multi-protocol support (MQTT/Kafka/AMQP), enterprises needing flexible scaling (edge to cloud), IoT platforms and AI communication pipelines. Suitable for enterprises with high system stability requirements and hoping to unify the management of multiple message queue systems.
 
 ---
 

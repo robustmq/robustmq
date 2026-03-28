@@ -35,7 +35,7 @@ NATS is a lightweight cloud-native messaging system focused on extreme simplicit
 
 **NATS** features extreme simplicity and high performance. Core NATS provides three modes: pub/sub, request-response, and queue subscription, with message delivery being pure in-memory, extremely low latency (microsecond level). Flexible message routing is achieved through topic wildcards (`*` and `>`). After JetStream was introduced, it provides message persistence, message replay, consumer management, message acknowledgment and other features, supporting "at least once" and "exactly once" semantics. NATS advantages include simple deployment (single binary, no dependencies), excellent performance (sub-millisecond latency), low operational cost (self-healing cluster). NATS main challenges include: uses proprietary protocol, migrating from existing systems requires rewriting clients; compared to Kafka/Pulsar, JetStream's stream processing capabilities are relatively basic; single protocol limits applicability in multi-scenario use.
 
-**RobustMQ** features multi-protocol unification, achieving MQTT, Kafka, AMQP and other protocols within a single system, using standard open-source SDKs to ensure protocol compatibility. Implements compute-storage separation, allowing independent scaling of Broker and Storage; pluggable storage supporting memory, SSD, S3, HDFS and other backends. The project is implemented in Rust, achieving zero GC and predictable latency. Provides over 8 data integration connectors (Kafka/Pulsar/MySQL/MongoDB, etc.), supporting complex data workflow orchestration. Optimized for AI scenarios, including AI training pipelines, real-time inference, and multi-modal data processing. Offers complete cloud-native support including single-binary deployment, Kubernetes Operator, Helm charts, and Serverless architecture. RobustMQ's advantages are multi-protocol unified management, reduced operational complexity; compute-storage separation architecture enabling elastic scaling; zero GC, low resource consumption. Its main challenges include: the project is in active development, some advanced features are being implemented; the community size is smaller compared to NATS; production case accumulation is ongoing.
+**RobustMQ** features multi-protocol unification, achieving MQTT, Kafka, AMQP and other protocols within a single system, using standard open-source SDKs to ensure protocol compatibility. Implements compute-storage separation, allowing independent scaling of Broker and Storage; pluggable storage supporting memory, SSD, S3, HDFS and other backends. The project is implemented in Rust, achieving zero GC and predictable latency. Provides over 8 data integration connectors (Kafka/Pulsar/MySQL/MongoDB, etc.), supporting complex data workflow orchestration. Optimized for AI scenarios, including AI communication pipelines, real-time inference, and multi-modal data processing. Offers complete cloud-native support including single-binary deployment, Kubernetes Operator, Helm charts, and Serverless architecture. RobustMQ's advantages are multi-protocol unified management, reduced operational complexity; compute-storage separation architecture enabling elastic scaling; zero GC, low resource consumption. Its main challenges include: the project is in active development, some advanced features are being implemented; the community size is smaller compared to NATS; production case accumulation is ongoing.
 
 | Feature Dimension | NATS | RobustMQ |
 |------|------|----------|
@@ -46,7 +46,7 @@ NATS is a lightweight cloud-native messaging system focused on extreme simplicit
 | **Data Integration** | NATS Streaming basic connectors | 8+ connectors (Kafka/Pulsar/MySQL/MongoDB, etc.) |
 | **Distribution** | Full mesh cluster (self-healing)<br>JetStream Raft-based | Raft metadata, automatic failover, elastic scaling |
 | **Cloud-Native** | Single binary, container-friendly<br>K8s Operator | Single binary deployment, no dependencies<br>K8s Operator + Helm + Serverless |
-| **AI Scenarios** | Basic messaging | AI workflow optimization, training pipelines, real-time inference |
+| **AI Scenarios** | Basic messaging | AI Agent communication, real-time inference, multi-Agent orchestration |
 
 ---
 
@@ -77,14 +77,14 @@ NATS is a lightweight cloud-native messaging system focused on extreme simplicit
 
 **NATS** is suitable for scenarios pursuing extreme simplicity and high performance, especially microservices communication, edge computing, and service mesh. Single-binary, no-dependency deployment model makes it very convenient for cloud-native scenarios. Core NATS is suitable for scenarios requiring extremely low latency, while JetStream is suitable for scenarios requiring message persistence and replay. However, migrating from existing Kafka/MQTT systems requires rewriting client code, suitable for new projects or scenarios accepting NATS protocol.
 
-**RobustMQ** is suitable for production environments requiring multi-protocol support, particularly enterprises operating MQTT, Kafka, AMQP and other systems simultaneously. The compute-storage separation architecture and pluggable storage make it adaptable from edge to cloud, suitable for enterprises requiring flexible scaling. Additionally, RobustMQ's data integration capabilities make it suitable for IoT data pipelines and AI training scenarios.
+**RobustMQ** is suitable for production environments requiring multi-protocol support, particularly enterprises operating MQTT, Kafka, AMQP and other systems simultaneously. The compute-storage separation architecture and pluggable storage make it adaptable from edge to cloud, suitable for enterprises requiring flexible scaling. Additionally, RobustMQ's data integration capabilities make it suitable for IoT data pipelines and AI Agent communication scenarios.
 
 | Scenario | NATS | RobustMQ |
 |------|------|----------|
 | **Microservices Messaging** | Simple deployment, low latency, suitable | Suitable, supports multi-protocol |
 | **Edge Computing** | Single binary, low resource consumption, suitable | Suitable, supports pluggable storage |
 | **IoT Platform** | Requires custom integration | Native MQTT support, direct use |
-| **Streaming Analytics** | JetStream basic support | Suitable, supports connectors and AI workflows |
+| **Streaming Analytics** | JetStream basic support | Suitable, supports connectors and AI Agent communication workflows |
 | **Multi-Cloud Deployment** | Suitable, supports S3 | Native support for S3/HDFS/MinIO |
 | **Service Mesh** | Suitable, CNCF ecosystem integration | Suitable, cloud-native design |
 
@@ -113,13 +113,13 @@ NATS is a lightweight cloud-native messaging system focused on extreme simplicit
 
 **NATS** is positioned as a lightweight cloud-native messaging system, featuring extreme simplicity and high performance (microsecond latency). The project is implemented in Go, with single-binary deployment and no external dependencies. NATS provides two modes: core NATS (in-memory messaging) and JetStream (persistent streams), suitable for microservices communication, edge computing, and service mesh scenarios. NATS advantages include simple deployment, excellent performance, and low operational cost, but uses proprietary protocol, migration cost is high, and stream processing capabilities are relatively basic.
 
-**RobustMQ** is positioned as a cloud-native, multi-protocol unified message middleware, featuring MQTT/Kafka/AMQP multi-protocol support, compute-storage separation, pluggable storage, and cloud-native support. Implemented in Rust, leveraging memory safety and high concurrency advantages, achieving zero GC and low resource consumption. Single-binary deployment, with no external dependencies, simplifies operations. The data integration and AI optimization features provide significant value for IoT and AI scenarios. Suitable for production environments requiring multi-protocol support, particularly enterprises operating multiple message queue systems simultaneously.
+**RobustMQ** is positioned as a cloud-native, multi-protocol unified message middleware, featuring MQTT/Kafka/AMQP multi-protocol support, compute-storage separation, pluggable storage, and cloud-native support. Implemented in Rust, leveraging memory safety and high concurrency advantages, achieving zero GC and low resource consumption. Single-binary deployment, with no external dependencies, simplifies operations. The data integration and AI Agent communication features provide significant value for IoT and AI Agent scenarios. Suitable for production environments requiring multi-protocol support, particularly enterprises operating multiple message queue systems simultaneously.
 
 **Recommended Scenarios**
 
 - **NATS**: Microservices communication, edge computing, service mesh, scenarios pursuing extreme simplicity and high performance. Suitable for new projects or scenarios accepting NATS protocol and willing to use NATS client libraries.
 
-- **RobustMQ**: Production environments requiring multi-protocol support (MQTT/Kafka/AMQP), enterprises needing flexible scaling (edge to cloud), IoT platforms and AI training pipelines. Suitable for enterprises with high system stability requirements and hoping to unify the management of multiple message queue systems.
+- **RobustMQ**: Production environments requiring multi-protocol support (MQTT/Kafka/AMQP), enterprises needing flexible scaling (edge to cloud), IoT platforms and AI communication pipelines. Suitable for enterprises with high system stability requirements and hoping to unify the management of multiple message queue systems.
 
 ---
 

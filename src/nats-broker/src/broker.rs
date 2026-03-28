@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::server::NatsServer;
+use crate::server::{NatsServer, NatsServerParams};
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
 use grpc_clients::pool::ClientPool;
+use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::context::ProcessorConfig;
 use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::error;
+use tracing::{error, info};
 
 const DEFAULT_NATS_PORT: u32 = 4222;
 
@@ -34,24 +35,30 @@ pub struct NatsBrokerServerParams {
     pub task_supervisor: Arc<TaskSupervisor>,
     pub stop_sx: broadcast::Sender<bool>,
     pub proc_config: ProcessorConfig,
+    pub request_channel: Arc<RequestChannel>,
 }
 
 pub struct NatsBrokerServer {
     server: NatsServer,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 impl NatsBrokerServer {
     pub fn new(params: NatsBrokerServerParams) -> Self {
-        let server = NatsServer::new(
-            params.connection_manager,
-            params.client_pool,
-            params.broker_cache,
-            params.global_limit_manager,
-            params.task_supervisor,
-            params.stop_sx,
-            params.proc_config,
-        );
-        NatsBrokerServer { server }
+        let server = NatsServer::new(NatsServerParams {
+            connection_manager: params.connection_manager,
+            client_pool: params.client_pool,
+            broker_cache: params.broker_cache,
+            global_limit_manager: params.global_limit_manager,
+            task_supervisor: params.task_supervisor,
+            stop_sx: params.stop_sx.clone(),
+            proc_config: params.proc_config,
+            request_channel: params.request_channel,
+        });
+        NatsBrokerServer {
+            server,
+            stop_sx: params.stop_sx,
+        }
     }
 
     pub async fn start(&self) {
@@ -59,9 +66,24 @@ impl NatsBrokerServer {
             error!("NATS broker server failed to start: {}", e);
             std::process::exit(1);
         }
+        self.awaiting_stop().await;
     }
 
     pub async fn stop(&self) {
         self.server.stop().await;
+    }
+
+    pub async fn awaiting_stop(&self) {
+        let mut recv = self.stop_sx.subscribe();
+        match recv.recv().await {
+            Ok(_) => {
+                info!("NATS broker has stopped.");
+                self.server.stop().await;
+                info!("NATS broker service stopped successfully.");
+            }
+            Err(e) => {
+                error!("NATS broker stop channel error: {}", e);
+            }
+        }
     }
 }

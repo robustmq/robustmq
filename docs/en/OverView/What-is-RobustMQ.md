@@ -6,9 +6,9 @@
 
 **Positioning: Next-generation unified communication infrastructure for AI, IoT, and Big Data.**
 
-**Vision: Let data flow freely across AI training clusters, millions of Agents, IoT devices, and the cloud — at the optimal path, lowest latency, and minimum cost.**
+**Vision: Let data flow freely across AI Agents, millions of IoT devices, and the cloud — at the optimal path, lowest latency, and minimum cost.**
 
-RobustMQ is a next-generation unified messaging platform built with Rust. Through Kafka and MQTT dual-protocol compatibility, intelligent object storage caching, million-scale lightweight Topics, shared subscriptions, and a multi-mode storage engine, it enables data from AI training clusters, millions of Agents, IoT devices, and the cloud to flow freely at optimal paths, lowest latency, and minimum cost.
+RobustMQ is a next-generation unified messaging platform built with Rust. Through Kafka and MQTT dual-protocol compatibility, intelligent object storage caching, million-scale lightweight Topics, shared subscriptions, and a multi-mode storage engine, it enables data from AI Agents, millions of IoT devices, and the cloud to flow freely at optimal paths, lowest latency, and minimum cost.
 
 Fully compatible with Kafka and MQTT 3.1/3.1.1/5.0 protocols — existing applications can connect using standard Kafka SDKs with zero migration cost to gain all of RobustMQ's capabilities.
 
@@ -16,9 +16,9 @@ Fully compatible with Kafka and MQTT 3.1/3.1.1/5.0 protocols — existing applic
 
 ## Core Scenarios
 
-### AI: Intelligent Data Scheduling and Caching Layer
+### AI: Agent Communication and Intelligent Data Caching
 
-Direct object storage (S3/MinIO) integration with three-tier intelligent caching eliminates the need to pre-import training data, removes I/O bottlenecks, and dramatically improves GPU utilization. A single cluster supports million-scale lightweight Topics, providing each AI Agent with an independent communication channel, fine-grained isolation, and per-Agent cost tracing. Shared subscriptions allow GPU training nodes to scale elastically without being constrained by Partition count.
+Direct object storage (S3/MinIO) integration with three-tier intelligent caching eliminates the need to pre-import data, removes I/O bottlenecks, and dramatically improves GPU utilization. A single cluster supports million-scale lightweight Topics, providing each AI Agent with an independent communication channel, fine-grained isolation, and per-Agent cost tracing. Shared subscriptions allow Agent and GPU nodes to scale elastically without being constrained by Partition count.
 
 ### IoT: MQTT in / Kafka out — Unified Pipeline
 
@@ -34,9 +34,9 @@ RobustMQ is compatible with and enhances the Kafka protocol. The intelligent sto
 
 - 🚀 **Extreme Performance**: Built with Rust — microsecond latency, zero GC pauses, million-level QPS on a single node, tiny memory footprint for edge deployment
 - 🔌 **Dual-Protocol Unification**: Fully compatible with MQTT 3.1/3.1.1/5.0 and Kafka. Unified storage layer enables MQTT in / Kafka out — one system replaces the dual-broker architecture
-- 🎯 **AI Training Acceleration**: Direct object storage (S3/MinIO) integration, three-tier intelligent caching (memory/SSD/S3), no data pre-import needed — eliminates I/O bottlenecks and dramatically improves GPU utilization
+- 🎯 **AI Data Caching**: Direct object storage (S3/MinIO) integration, three-tier intelligent caching (memory/SSD/S3), no data pre-import needed — eliminates I/O bottlenecks and dramatically improves GPU utilization
 - 🤖 **Agent Communication**: Million-scale lightweight Topics per cluster, each Agent gets an independent channel, fine-grained isolation and monitoring, per-Agent cost tracing
-- 🔄 **Elastic Consumption**: Shared subscriptions break the Kafka "concurrency = Partition count" limit — GPU nodes scale freely without modifying Topic configurations
+- 🔄 **Elastic Consumption**: Shared subscriptions break the Kafka "concurrency = Partition count" limit — Agent and GPU nodes scale freely without modifying Topic configurations
 - 💾 **Intelligent Storage Engine**: Four modes — memory / hybrid / persistent / tiered — configurable per Topic. Hot data at full speed, cold data auto-tiered to S3. Balance performance and cost
 - 🌐 **Edge to Cloud**: Minimal memory footprint enables unified deployment from edge gateways to cloud clusters. Offline caching + auto-sync covers the full IoT pipeline
 - 🛠️ **Zero-Dependency Deployment**: Single binary, no external dependencies, built-in Raft consensus, ready to run out of the box with minimal operational overhead
@@ -80,7 +80,7 @@ Deliver a stable, high-performance MQTT Broker with full MQTT 3.x/5.0 protocol s
 
 **Phase 3: Kafka Protocol & AI Capabilities (In Progress)**
 
-Building on the completed MQTT Broker, this phase initiates Kafka protocol adaptation and AI capability development. Priority is placed on validating AI training data cache acceleration and million-scale lightweight Topics; Kafka protocol implementation is driven by AI scenario requirements, with standard Kafka protocol capabilities progressively completed.
+Building on the completed MQTT Broker, this phase initiates Kafka protocol adaptation and AI capability development. Priority is placed on validating AI Agent data caching and million-scale lightweight Topics; Kafka protocol implementation is driven by AI scenario requirements, with standard Kafka protocol capabilities progressively completed.
 
 ---
 
@@ -96,7 +96,7 @@ Building on the completed MQTT Broker, this phase initiates Kafka protocol adapt
 | Grafana + Prometheus monitoring | ✅ Available |
 | Web management console | ✅ Available |
 | Kafka protocol | 🚧 In progress |
-| AI training data cache | 🚧 In progress |
+| AI Agent data cache | 🚧 In progress |
 
 > **Notice**: The current version (0.3.0) is still in early stage and not recommended for production use. Version 0.4.0 (expected May 2025) is planned to reach production-ready status.
 
@@ -124,7 +124,7 @@ Full documentation: [Quick Start Guide](../QuickGuide/Quick-Install.md)
 
 RobustMQ is a **non-commercial open source project** with no corporate backing and no paid edition — all core features are fully open source.
 
-This is a project driven by technical conviction — the belief that rebuilding communication infrastructure in Rust is the right direction, that the AI era needs a messaging system truly designed for new scenarios, and that excellent infrastructure software should belong to the entire community.
+This is a project driven by technical conviction — the belief that rebuilding communication infrastructure in Rust is the right direction, that the AI era needs a messaging system truly designed for Agent communication and new scenarios, and that excellent infrastructure software should belong to the entire community.
 
 The long-term goal is to become an **Apache Top-Level Project** and build a global developer community that continuously drives the project forward.
 

@@ -12,10 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod command;
-pub mod common;
-pub mod context;
-pub mod protocol;
-pub mod quic;
-pub mod tcp;
-pub mod websocket;
+pub mod nats;

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::command::create_command;
 use broker_core::cache::NodeCacheManager;
 use common_base::error::ResultCommonError;
 use common_base::task::TaskSupervisor;
@@ -20,73 +19,48 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
-use network_server::common::handler::handler_process;
 use network_server::context::{ProcessorConfig, ServerContext};
 use network_server::tcp::server::TcpServer;
+use protocol::robust::RobustMQProtocol;
 use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
+pub struct KafkaServerParams {
+    pub connection_manager: Arc<ConnectionManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub broker_cache: Arc<NodeCacheManager>,
+    pub global_limit_manager: Arc<GlobalRateLimiterManager>,
+    pub task_supervisor: Arc<TaskSupervisor>,
+    pub stop_sx: broadcast::Sender<bool>,
+    pub proc_config: ProcessorConfig,
+    pub request_channel: Arc<RequestChannel>,
+}
+
 pub struct KafkaServer {
     tcp_server: TcpServer,
-    handler_process_num: usize,
-    connection_manager: Arc<ConnectionManager>,
-    command: network_server::command::ArcCommandAdapter,
-    task_supervisor: Arc<TaskSupervisor>,
-    request_channel: Arc<RequestChannel>,
-    stop_sx: broadcast::Sender<bool>,
 }
 
 impl KafkaServer {
-    pub fn new(
-        connection_manager: Arc<ConnectionManager>,
-        client_pool: Arc<ClientPool>,
-        broker_cache: Arc<NodeCacheManager>,
-        global_limit_manager: Arc<GlobalRateLimiterManager>,
-        task_supervisor: Arc<TaskSupervisor>,
-        stop_sx: broadcast::Sender<bool>,
-        proc_config: ProcessorConfig,
-    ) -> Self {
-        let command = create_command();
-        let request_channel = Arc::new(RequestChannel::new(proc_config.channel_size));
-
+    pub fn new(params: KafkaServerParams) -> Self {
         let server_context = ServerContext {
-            connection_manager: connection_manager.clone(),
-            client_pool,
-            command: command.clone(),
+            connection_manager: params.connection_manager.clone(),
+            client_pool: params.client_pool,
             network_type: NetworkConnectionType::Tcp,
-            proc_config,
-            stop_sx: stop_sx.clone(),
-            broker_cache,
-            request_channel: request_channel.clone(),
-            global_limit_manager,
-            task_supervisor: task_supervisor.clone(),
+            proc_config: params.proc_config,
+            stop_sx: params.stop_sx,
+            broker_cache: params.broker_cache,
+            request_channel: params.request_channel,
+            global_limit_manager: params.global_limit_manager,
+            task_supervisor: params.task_supervisor,
         };
 
-        let tcp_server = TcpServer::new("KAFKA".to_string(), server_context);
+        let tcp_server = TcpServer::new(RobustMQProtocol::KAFKA, server_context);
 
-        KafkaServer {
-            tcp_server,
-            handler_process_num: proc_config.handler_process_num,
-            connection_manager,
-            command,
-            task_supervisor,
-            request_channel,
-            stop_sx,
-        }
+        KafkaServer { tcp_server }
     }
 
     pub async fn start(&self, port: u32) -> ResultCommonError {
-        handler_process(
-            "kafka-broker-handler",
-            self.handler_process_num,
-            self.connection_manager.clone(),
-            self.command.clone(),
-            self.request_channel.clone(),
-            self.task_supervisor.clone(),
-            self.stop_sx.clone(),
-        );
-
         self.tcp_server.start(false, port).await
     }
 

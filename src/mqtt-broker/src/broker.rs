@@ -40,6 +40,8 @@ use common_config::broker::broker_config;
 use connector::manager::ConnectorManager;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
+use network_server::command::ArcCommandAdapter;
+use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
 use node_call::NodeCallManager;
 use rate_limit::global::GlobalRateLimiterManager;
@@ -76,6 +78,7 @@ pub struct MqttBrokerServerParams {
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub node_call: Arc<NodeCallManager>,
     pub event_manager: Arc<EventReportManager>,
+    pub request_channel: Arc<RequestChannel>,
 }
 
 pub struct MqttBrokerServer {
@@ -96,10 +99,12 @@ pub struct MqttBrokerServer {
     task_supervisor: Arc<TaskSupervisor>,
     server: Arc<Server>,
     stop: broadcast::Sender<bool>,
+    pub command: ArcCommandAdapter,
 }
 
 impl MqttBrokerServer {
     pub async fn new(params: MqttBrokerServerParams, stop: broadcast::Sender<bool>) -> Self {
+        let request_channel = params.request_channel.clone();
         let limit_config = params.node_cache.get_cluster_config().mqtt_limit;
         let limit_manager = Arc::new(
             match MQTTRateLimiterManager::new(
@@ -114,26 +119,30 @@ impl MqttBrokerServer {
             },
         );
 
-        let server = Arc::new(Server::new(TcpServerContext {
-            subscribe_manager: params.subscribe_manager.clone(),
-            cache_manager: params.cache_manager.clone(),
-            connection_manager: params.connection_manager.clone(),
-            storage_driver_manager: params.storage_driver_manager.clone(),
-            delay_message_manager: params.delay_message_manager.clone(),
-            schema_manager: params.schema_manager.clone(),
-            client_pool: params.client_pool.clone(),
-            session_batcher: params.session_batcher.clone(),
-            stop_sx: stop.clone(),
-            auth_driver: params.auth_driver.clone(),
-            rocksdb_engine_handler: params.rocksdb_engine_handler.clone(),
-            broker_cache: params.node_cache.clone(),
-            retain_message_manager: params.retain_message_manager.clone(),
-            mqtt_limit_manager: limit_manager.clone(),
-            global_limit_manager: params.global_limit_manager.clone(),
-            node_call: params.node_call.clone(),
-            task_supervisor: params.task_supervisor.clone(),
-            event_manager: params.event_manager.clone(),
-        }));
+        let (server, command) = Server::new(
+            TcpServerContext {
+                subscribe_manager: params.subscribe_manager.clone(),
+                cache_manager: params.cache_manager.clone(),
+                connection_manager: params.connection_manager.clone(),
+                storage_driver_manager: params.storage_driver_manager.clone(),
+                delay_message_manager: params.delay_message_manager.clone(),
+                schema_manager: params.schema_manager.clone(),
+                client_pool: params.client_pool.clone(),
+                session_batcher: params.session_batcher.clone(),
+                stop_sx: stop.clone(),
+                auth_driver: params.auth_driver.clone(),
+                rocksdb_engine_handler: params.rocksdb_engine_handler.clone(),
+                broker_cache: params.node_cache.clone(),
+                retain_message_manager: params.retain_message_manager.clone(),
+                mqtt_limit_manager: limit_manager.clone(),
+                global_limit_manager: params.global_limit_manager.clone(),
+                node_call: params.node_call.clone(),
+                task_supervisor: params.task_supervisor.clone(),
+                event_manager: params.event_manager.clone(),
+            },
+            request_channel,
+        );
+        let server = Arc::new(server);
 
         MqttBrokerServer {
             stop,
@@ -153,6 +162,7 @@ impl MqttBrokerServer {
             offset_manager: params.offset_manager,
             push_manager: params.push_manager,
             task_supervisor: params.task_supervisor,
+            command,
         }
     }
 

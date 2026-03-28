@@ -16,7 +16,7 @@
 
 RobustMQ 0.3.0 is a significant milestone — not just a feature iteration, but a fundamental re-alignment of the project's positioning and architecture.
 
-Starting from 0.3.0, RobustMQ's positioning is clear: **Next-generation unified communication infrastructure for AI, IoT, and Big Data**. Through dual Kafka/MQTT protocol compatibility, million-scale Topics, direct object storage (S3/MinIO) integration, multi-mode storage engine, and intelligent data caching, RobustMQ provides high-performance, low-cost, stable communication infrastructure for AI training, Agent communication, IoT devices, and big data processing.
+Starting from 0.3.0, RobustMQ's positioning is clear: **Next-generation unified communication infrastructure for AI, IoT, and Big Data**. Through dual Kafka/MQTT protocol compatibility, million-scale Topics, direct object storage (S3/MinIO) integration, multi-mode storage engine, and intelligent data caching, RobustMQ provides high-performance, low-cost, stable communication infrastructure for AI Agent communication, Agent communication, IoT devices, and big data processing.
 
 ---
 
@@ -160,7 +160,7 @@ cargo build --release
 |-----------|---------|
 | Performance & Stability | MQTT connection path optimization, Raft write throughput, storage engine deep tuning |
 | MQTT completeness | Full rule engine, Webhook integration, complete operations API |
-| AI MQ | Topic direct object storage (S3/MinIO), three-tier intelligent cache, predictive prefetch |
+| AI Agent Communication | Topic direct object storage (S3/MinIO), three-tier intelligent cache, predictive prefetch |
 | Kafka Protocol | Full Kafka protocol implementation, compatible with Flink, Spark, Kafka Connect |
 
 See [2026 RoadMap](../OverView/RoadMap-2026.md) for details.

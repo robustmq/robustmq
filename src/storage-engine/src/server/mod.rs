@@ -23,13 +23,14 @@ use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::{
-    command::{ArcCommandAdapter, Command},
+    command::{ArcCommandAdapter, Command, CommandRegistry},
     common::{
         channel::RequestChannel, connection_manager::ConnectionManager, handler::handler_process,
     },
     context::{ProcessorConfig, ServerContext},
     tcp::server::TcpServer,
 };
+use protocol::robust::RobustMQProtocol;
 use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -56,7 +57,7 @@ pub struct Server {
     tcp_server: TcpServer,
     handler_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
-    command: ArcCommandAdapter,
+    commands: CommandRegistry,
     request_channel: Arc<RequestChannel>,
     task_supervisor: Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
@@ -74,7 +75,11 @@ impl Server {
             params.client_connection_manager.clone(),
             params.connection_manager.clone(),
         ));
-        let command = Arc::new(storage);
+        let command: ArcCommandAdapter = Arc::new(storage);
+        let commands = CommandRegistry {
+            storage_engine: Some(command),
+            ..Default::default()
+        };
 
         let proc_config = ProcessorConfig {
             accept_thread_num: conf.storage_runtime.network.accept_thread_num,
@@ -87,7 +92,6 @@ impl Server {
         let context: ServerContext = ServerContext {
             connection_manager: params.connection_manager.clone(),
             client_pool: params.client_pool.clone(),
-            command: command.clone(),
             network_type: NetworkConnectionType::Tcp,
             proc_config,
             stop_sx: stop_sx.clone(),
@@ -97,13 +101,12 @@ impl Server {
             task_supervisor: params.task_supervisor.clone(),
         };
 
-        let name = "Storage Engine".to_string();
-        let tcp_server = TcpServer::new(name.clone(), context);
+        let tcp_server = TcpServer::new(RobustMQProtocol::StorageEngine, context);
         Server {
             tcp_server,
             handler_process_num: proc_config.handler_process_num,
             connection_manager: params.connection_manager,
-            command,
+            commands,
             request_channel,
             task_supervisor: params.task_supervisor.clone(),
             stop_sx,
@@ -117,7 +120,7 @@ impl Server {
             "storage-engine-handler",
             self.handler_process_num,
             self.connection_manager.clone(),
-            self.command.clone(),
+            self.commands.clone(),
             self.request_channel.clone(),
             self.task_supervisor.clone(),
             self.stop_sx.clone(),

@@ -33,7 +33,7 @@ mod tests {
         let node_id = 1;
         broker_cache.add_node(BrokerNode {
             node_id,
-            engine_addr: "127.0.0.1:1778".to_string(),
+            engine_addr: "127.0.0.1:1779".to_string(),
             ..Default::default()
         });
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));

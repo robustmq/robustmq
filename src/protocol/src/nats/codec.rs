@@ -123,7 +123,6 @@ impl codec::Decoder for NatsCodec {
                     let line = std::str::from_utf8(&line_bytes)
                         .map_err(NatsCodecError::InvalidUtf8)?
                         .trim();
-
                     if line.is_empty() {
                         continue;
                     }

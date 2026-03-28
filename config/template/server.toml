@@ -29,7 +29,7 @@ log_config = "./config/logger.toml"
 log_path = "./data/broker/logs"
 
 [storage_runtime]
-tcp_port = 1778
+tcp_port = 1779
 max_segment_size = 1073741824
 data_path = ["./data/broker/engine"]
 io_thread_num = 4

@@ -28,3 +28,27 @@ pub trait Command {
     ) -> Option<ResponsePackage>;
 }
 pub type ArcCommandAdapter = Arc<Box<dyn Command + Send + Sync>>;
+
+/// Routes incoming packets to the registered command handler for each protocol.
+/// Each field corresponds to one protocol; `None` means that protocol is not
+/// active on this node.
+#[derive(Clone, Default)]
+pub struct CommandRegistry {
+    pub mqtt: Option<ArcCommandAdapter>,
+    pub kafka: Option<ArcCommandAdapter>,
+    pub amqp: Option<ArcCommandAdapter>,
+    pub nats: Option<ArcCommandAdapter>,
+    pub storage_engine: Option<ArcCommandAdapter>,
+}
+
+impl CommandRegistry {
+    pub fn get(&self, packet: &RobustMQPacket) -> Option<&ArcCommandAdapter> {
+        match packet {
+            RobustMQPacket::MQTT(_) => self.mqtt.as_ref(),
+            RobustMQPacket::KAFKA(_) => self.kafka.as_ref(),
+            RobustMQPacket::AMQP(_) => self.amqp.as_ref(),
+            RobustMQPacket::NATS(_) => self.nats.as_ref(),
+            RobustMQPacket::StorageEngine(_) => self.storage_engine.as_ref(),
+        }
+    }
+}
