@@ -390,7 +390,7 @@ pub fn default_pprof_frequency() -> i32 {
 
 // StorageRuntime
 pub fn default_storage_tcp_port() -> u32 {
-    1778
+    1779
 }
 pub fn default_storage_max_segment_size() -> u32 {
     1073741824
