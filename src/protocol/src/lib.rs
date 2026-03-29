@@ -18,5 +18,6 @@ pub mod codec;
 pub mod kafka;
 pub mod meta;
 pub mod mqtt;
+pub mod nats;
 pub mod robust;
 pub mod storage;

@@ -1046,6 +1046,7 @@ dependencies = [
  "meta-service",
  "metadata-struct",
  "mqtt-broker",
+ "nats-broker",
  "network-server",
  "node-call",
  "pprof-monitor",
@@ -4935,6 +4936,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "nats-broker"
+version = "0.3.6"
+dependencies = [
+ "async-trait",
+ "broker-core",
+ "bytes",
+ "common-base",
+ "grpc-clients",
+ "metadata-struct",
+ "network-server",
+ "protocol",
+ "rate-limit",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "neli"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6540,6 +6558,7 @@ dependencies = [
  "rkyv 0.8.15",
  "robustmq-test",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
@@ -8592,6 +8611,7 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
+ "common-metrics",
  "dashmap 6.1.0",
  "futures",
  "futures-util",

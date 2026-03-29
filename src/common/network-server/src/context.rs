@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    command::ArcCommandAdapter,
-    common::{channel::RequestChannel, connection_manager::ConnectionManager},
-};
+use crate::common::{channel::RequestChannel, connection_manager::ConnectionManager};
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
 use grpc_clients::pool::ClientPool;
@@ -36,7 +33,6 @@ pub struct ServerContext {
     pub connection_manager: Arc<ConnectionManager>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub client_pool: Arc<ClientPool>,
-    pub command: ArcCommandAdapter,
     pub network_type: NetworkConnectionType,
     pub proc_config: ProcessorConfig,
     pub broker_cache: Arc<NodeCacheManager>,

@@ -15,14 +15,11 @@
 use crate::storage::StorageAdapter;
 use async_trait::async_trait;
 use common_base::error::common::CommonError;
-use metadata_struct::storage::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
-};
+use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::shard::EngineShard;
 use metadata_struct::storage::storage_record::StorageRecord;
-use std::collections::HashMap;
 use std::sync::Arc;
 use storage_engine::handler::adapter::StorageEngineHandler;
 pub struct EngineStorageAdapter {
@@ -128,23 +125,6 @@ impl StorageAdapter for EngineStorageAdapter {
         self.adapter
             .get_offset_by_timestamp(shard, timestamp, strategy)
             .await
-    }
-
-    async fn get_offset_by_group(
-        &self,
-        tenant: &str,
-        group: &str,
-    ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
-        self.adapter.get_offset_by_group(tenant, group).await
-    }
-
-    async fn commit_offset(
-        &self,
-        tenant: &str,
-        group_name: &str,
-        offset: &HashMap<String, u64>,
-    ) -> Result<(), CommonError> {
-        self.adapter.commit_offset(tenant, group_name, offset).await
     }
 
     async fn close(&self) -> Result<(), CommonError> {

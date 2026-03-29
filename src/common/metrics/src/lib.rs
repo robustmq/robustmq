@@ -21,6 +21,7 @@ pub mod meta;
 pub mod mqtt;
 pub mod network;
 pub mod rocksdb;
+pub mod storage_engine;
 
 /// Pre-register all static-label gauge metrics to 0 so that they appear in
 /// the Prometheus `/metrics` output immediately on startup, even before any
@@ -30,4 +31,5 @@ pub fn init_metrics() {
     broker::init();
     meta::raft::init();
     network::init();
+    storage_engine::init();
 }

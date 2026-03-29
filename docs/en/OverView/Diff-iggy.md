@@ -34,7 +34,7 @@ RobustMQ and Apache Iggy are modern message queue systems built with Rust, empha
 
 **Apache Iggy** features extreme performance with millions of messages per second throughput and microsecond-level latency. Uses zero-copy serialization and memory-mapped files to optimize I/O performance. Supports multiple network protocols (QUIC/TCP/HTTP), TLS encryption, and token-based authentication. Implements Kafka-style features including partitions, consumer groups, and offset management. The project is in active development, with experimental distributed cluster support and multi-tenancy features planned. Iggy's advantages are deployment simplicity (single binary, no dependencies) and performance excellence (sub-millisecond P99 latency). Its main challenges include: custom protocol requiring proprietary SDK, migrating from existing systems requires rewriting client code; distributed capabilities are immature and unsuitable for large-scale clusters; single protocol limits applicability in multi-scenario use.
 
-**RobustMQ** features multi-protocol unification, achieving MQTT, Kafka, AMQP and other protocols within a single system, and using standard open-source SDKs to ensure protocol compatibility. Implements compute-storage separation, allowing independent scaling of Broker and Storage; pluggable storage supporting memory, SSD, S3, HDFS and other backends. The project is implemented in Rust, achieving zero GC and predictable latency. Provides over 8 data integration connectors (Kafka/Pulsar/MySQL/MongoDB, etc.), supporting complex data workflow orchestration. Optimized for AI scenarios, including AI training pipelines, real-time inference, and multi-modal data processing. Offers complete cloud-native support including single-binary deployment, Kubernetes Operator, Helm charts, and Serverless architecture. RobustMQ's advantages are multi-protocol unified management, reduced operational complexity; compute-storage separation architecture enabling elastic scaling; pluggable storage adapting from edge to cloud scenarios; complete distributed capabilities and enterprise-level support. Its main challenges include: the project is in active development, some advanced features are being implemented; the community size is smaller compared to established projects; production case accumulation is ongoing.
+**RobustMQ** features multi-protocol unification, achieving MQTT, Kafka, AMQP and other protocols within a single system, and using standard open-source SDKs to ensure protocol compatibility. Implements compute-storage separation, allowing independent scaling of Broker and Storage; pluggable storage supporting memory, SSD, S3, HDFS and other backends. The project is implemented in Rust, achieving zero GC and predictable latency. Provides over 8 data integration connectors (Kafka/Pulsar/MySQL/MongoDB, etc.), supporting complex data workflow orchestration. Optimized for AI scenarios, including AI communication pipelines, real-time inference, and multi-modal data processing. Offers complete cloud-native support including single-binary deployment, Kubernetes Operator, Helm charts, and Serverless architecture. RobustMQ's advantages are multi-protocol unified management, reduced operational complexity; compute-storage separation architecture enabling elastic scaling; pluggable storage adapting from edge to cloud scenarios; complete distributed capabilities and enterprise-level support. Its main challenges include: the project is in active development, some advanced features are being implemented; the community size is smaller compared to established projects; production case accumulation is ongoing.
 
 | Feature Dimension | Apache Iggy | RobustMQ |
 |------|------------|----------|
@@ -44,7 +44,7 @@ RobustMQ and Apache Iggy are modern message queue systems built with Rust, empha
 | **Data Integration** | Not supported | 8+ connectors (Kafka/Pulsar/MySQL/MongoDB, etc.) |
 | **Distribution** | Experimental clustering, master-slave replication | Raft metadata, automatic failover, elastic scaling |
 | **Cloud-Native** | Basic container support | Single binary deployment<br>K8s Operator + Helm + Serverless |
-| **AI Scenarios** | Basic stream processing | AI workflow optimization, training pipelines, real-time inference |
+| **AI Scenarios** | Basic stream processing | AI Agent communication, real-time inference, multi-Agent orchestration |
 
 ---
 
@@ -75,14 +75,14 @@ RobustMQ and Apache Iggy are modern message queue systems built with Rust, empha
 
 **Apache Iggy** is suitable for scenarios pursuing extreme performance and simple deployment, especially edge computing and embedded devices. Its single-binary, no-dependency deployment model and proprietary protocol make it very convenient for edge scenarios. However, migrating from existing Kafka/MQTT systems requires significant development investment, suitable for new projects or scenarios accepting custom protocols.
 
-**RobustMQ** is suitable for production environments requiring multi-protocol support, particularly enterprises operating MQTT, Kafka, AMQP and other systems simultaneously. The compute-storage separation architecture and pluggable storage make it adaptable from edge to cloud, suitable for enterprises requiring flexible scaling. Additionally, RobustMQ's data integration capabilities make it suitable for IoT data pipelines and AI training scenarios.
+**RobustMQ** is suitable for production environments requiring multi-protocol support, particularly enterprises operating MQTT, Kafka, AMQP and other systems simultaneously. The compute-storage separation architecture and pluggable storage make it adaptable from edge to cloud, suitable for enterprises requiring flexible scaling. Additionally, RobustMQ's data integration capabilities make it suitable for IoT data pipelines and AI Agent communication scenarios.
 
 | Scenario | Apache Iggy | RobustMQ |
 |------|------------|----------|
 | **Edge Computing** | Single binary, low latency, suitable | Suitable, supports pluggable storage and multi-protocol |
 | **IoT Platform** | Requires custom integration | Native MQTT support, direct use |
 | **Microservices Messaging** | Requires custom SDK | Can directly use Kafka/AMQP SDK |
-| **Streaming Analytics** | Basic support | Suitable, supports connectors and AI workflows |
+| **Streaming Analytics** | Basic support | Suitable, supports connectors and AI Agent communication workflows |
 | **Multi-Cloud Deployment** | Requires custom adaptation | Native support for S3/HDFS/MinIO |
 
 ---
@@ -110,13 +110,13 @@ RobustMQ and Apache Iggy are modern message queue systems built with Rust, empha
 
 **Apache Iggy** features extreme performance (sub-millisecond latency), deployment simplicity (single binary, no dependencies), and development-friendly. Implemented in Rust, it provides predictable performance and low resource consumption. The custom protocol design provides flexibility but brings migration costs, suitable for new projects and edge scenarios. Currently in the Apache incubation stage, distributed capabilities are being enhanced.
 
-**RobustMQ** features multi-protocol unification (MQTT/Kafka/AMQP), compute-storage separation architecture, pluggable storage, and cloud-native support. Implemented in Rust, leveraging memory safety and high concurrency advantages. Uses community standard SDKs, providing zero migration cost, suitable for enterprises requiring integrated management of multiple message queue protocols. The data integration and AI optimization features provide significant value for IoT and AI scenarios.
+**RobustMQ** features multi-protocol unification (MQTT/Kafka/AMQP), compute-storage separation architecture, pluggable storage, and cloud-native support. Implemented in Rust, leveraging memory safety and high concurrency advantages. Uses community standard SDKs, providing zero migration cost, suitable for enterprises requiring integrated management of multiple message queue protocols. The data integration and AI Agent communication features provide significant value for IoT and AI Agent scenarios.
 
 **Recommended Scenarios**
 
 - **Apache Iggy**: Edge computing, embedded devices, new projects, scenarios pursuing extreme performance and simple deployment. Suitable for development teams willing to use custom protocols and proprietary SDKs, and can accept distributed feature limitations.
 
-- **RobustMQ**: Production environments requiring multi-protocol support (MQTT/Kafka/AMQP), enterprises needing flexible scaling (edge to cloud), IoT platforms and AI training pipelines. Suitable for enterprises with high system stability requirements and hoping to unify the management of multiple message queue systems.
+- **RobustMQ**: Production environments requiring multi-protocol support (MQTT/Kafka/AMQP), enterprises needing flexible scaling (edge to cloud), IoT platforms and AI communication pipelines. Suitable for enterprises with high system stability requirements and hoping to unify the management of multiple message queue systems.
 
 ---
 

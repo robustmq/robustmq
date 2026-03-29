@@ -15,8 +15,8 @@
 use crate::config::{
     AmqpRuntime, DelayTask, KafkaRuntime, MetaRuntime, MqttFlappingDetect, MqttKeepAlive,
     MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema, MqttServer,
-    MqttSlowSubscribeConfig, MqttSystemMonitor, Network, Rocksdb, Runtime, SchemaFailedOperation,
-    SchemaStrategy, StorageRuntime,
+    MqttSlowSubscribeConfig, MqttSystemMonitor, NatsRuntime, Network, Rocksdb, Runtime,
+    SchemaFailedOperation, SchemaStrategy, StorageRuntime,
 };
 use crate::storage::{StorageAdapterConfig, StorageType};
 use common_base::enum_type::delay_type::DelayType;
@@ -223,6 +223,12 @@ pub fn default_amqp_runtime() -> AmqpRuntime {
     }
 }
 
+pub fn default_nats_runtime() -> NatsRuntime {
+    NatsRuntime {
+        network: default_network(),
+    }
+}
+
 // Runtime
 pub fn default_tls_cert() -> String {
     "./config/certs/cert.pem".to_string()
@@ -384,7 +390,7 @@ pub fn default_pprof_frequency() -> i32 {
 
 // StorageRuntime
 pub fn default_storage_tcp_port() -> u32 {
-    1778
+    1779
 }
 pub fn default_storage_max_segment_size() -> u32 {
     1073741824

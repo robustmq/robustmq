@@ -21,6 +21,7 @@ use crate::{
         codec::{MqttCodec, MqttPacketWrapper},
         common::mqtt_packet_to_string,
     },
+    nats::{codec::NatsCodec, packet::NatsPacket},
     robust::RobustMQProtocol,
     storage::codec::{StorageEngineCodec, StorageEnginePacket},
 };
@@ -35,6 +36,7 @@ pub enum RobustMQCodecWrapper {
     KAFKA(KafkaPacketWrapper),
     MQTT(MqttPacketWrapper),
     AMQP(AMQPFrame),
+    NATS(NatsPacket),
 }
 
 impl fmt::Display for RobustMQCodecWrapper {
@@ -57,15 +59,11 @@ impl fmt::Display for RobustMQCodecWrapper {
             RobustMQCodecWrapper::AMQP(frame) => {
                 write!(f, "AMQP({frame})")
             }
+            RobustMQCodecWrapper::NATS(pkt) => {
+                write!(f, "NATS({pkt:?})")
+            }
         }
     }
-}
-
-pub enum RobustMQCodecEnum {
-    MQTT(MqttCodec),
-    KAFKA(KafkaCodec),
-    AMQP(AmqpCodec),
-    StorageEngine(StorageEngineCodec),
 }
 
 #[derive(Clone)]
@@ -75,6 +73,7 @@ pub struct RobustMQCodec {
     pub kafka_codec: KafkaCodec,
     pub amqp_codec: AmqpCodec,
     pub storage_engine_codec: StorageEngineCodec,
+    pub nats_codec: NatsCodec,
 }
 
 impl RobustMQCodec {
@@ -85,6 +84,15 @@ impl RobustMQCodec {
             kafka_codec: KafkaCodec::new(),
             amqp_codec: AmqpCodec::new(),
             storage_engine_codec: StorageEngineCodec::new(),
+            nats_codec: NatsCodec::new(),
+        }
+    }
+
+    /// Create a codec with the protocol pre-set, skipping probe on first packet.
+    pub fn new_with_protocol(protocol: RobustMQProtocol) -> Self {
+        RobustMQCodec {
+            protocol: Some(protocol),
+            ..Self::new()
         }
     }
 }
@@ -101,81 +109,52 @@ impl RobustMQCodec {
         &mut self,
         stream: &mut BytesMut,
     ) -> Result<Option<RobustMQCodecWrapper>, CommonError> {
-        if let Some(protoc) = self.protocol.clone() {
-            if protoc.is_kafka() {
-                let res = self.kafka_codec.decode_data(stream);
-                if let Ok(Some(pkg)) = res {
-                    self.protocol = Some(RobustMQProtocol::KAFKA);
-                    return Ok(Some(RobustMQCodecWrapper::KAFKA(pkg)));
-                }
-            }
-
-            if protoc.is_mqtt() {
-                let res = self.mqtt_codec.decode_data(stream);
-                if let Ok(Some(pkg)) = res {
-                    if self.protocol.is_none() {
-                        self.protocol = self
-                            .mqtt_codec
-                            .protocol_version
-                            .map(RobustMQProtocol::from_u8);
-                    }
+        match self.protocol.clone() {
+            Some(RobustMQProtocol::MQTT3 | RobustMQProtocol::MQTT4 | RobustMQProtocol::MQTT5) => {
+                if let Ok(Some(pkg)) = self.mqtt_codec.decode_data(stream) {
+                    self.protocol = self
+                        .mqtt_codec
+                        .protocol_version
+                        .map(RobustMQProtocol::from_u8)
+                        .or(self.protocol.clone());
                     return Ok(Some(RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
                         protocol_version: self.mqtt_codec.protocol_version.unwrap_or(4),
                         packet: pkg,
                     })));
                 }
             }
-
-            if protoc.is_amqp() {
-                let res = self.amqp_codec.decode_data(stream);
-                if let Ok(Some(pkg)) = res {
-                    self.protocol = Some(RobustMQProtocol::AMQP);
+            Some(RobustMQProtocol::KAFKA) => {
+                if let Ok(Some(pkg)) = self.kafka_codec.decode_data(stream) {
+                    return Ok(Some(RobustMQCodecWrapper::KAFKA(pkg)));
+                }
+            }
+            Some(RobustMQProtocol::AMQP) => {
+                if let Ok(Some(pkg)) = self.amqp_codec.decode_data(stream) {
                     return Ok(Some(RobustMQCodecWrapper::AMQP(pkg)));
                 }
             }
-
-            if protoc.is_engine() {
-                let res = self.storage_engine_codec.decode_data(stream);
-                if let Ok(Some(pkg)) = res {
-                    self.protocol = Some(RobustMQProtocol::StorageEngine);
+            Some(RobustMQProtocol::StorageEngine) => {
+                if let Ok(Some(pkg)) = self.storage_engine_codec.decode_data(stream) {
                     return Ok(Some(RobustMQCodecWrapper::StorageEngine(pkg)));
                 }
             }
-        } else {
-            // try decode storage engine
-            let res = self.storage_engine_codec.decode_data(stream);
-            if let Ok(Some(pkg)) = res {
-                self.protocol = Some(RobustMQProtocol::StorageEngine);
-                return Ok(Some(RobustMQCodecWrapper::StorageEngine(pkg)));
+            Some(RobustMQProtocol::NATS) => {
+                use tokio_util::codec::Decoder;
+                if let Ok(Some(pkt)) = self.nats_codec.decode(stream) {
+                    return Ok(Some(RobustMQCodecWrapper::NATS(pkt)));
+                }
             }
-
-            // try decode mqtt
-            let res = self.mqtt_codec.decode_data(stream);
-            if let Ok(Some(pkg)) = res {
-                if self.protocol.is_none() {
+            None => {
+                if let Ok(Some(pkg)) = self.mqtt_codec.decode_data(stream) {
                     self.protocol = self
                         .mqtt_codec
                         .protocol_version
                         .map(RobustMQProtocol::from_u8);
+                    return Ok(Some(RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
+                        protocol_version: self.mqtt_codec.protocol_version.unwrap_or(4),
+                        packet: pkg,
+                    })));
                 }
-                return Ok(Some(RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
-                    protocol_version: self.mqtt_codec.protocol_version.unwrap_or(4),
-                    packet: pkg,
-                })));
-            }
-
-            // try decode kafka
-            let res = self.kafka_codec.decode_data(stream);
-            if let Ok(Some(pkg)) = res {
-                self.protocol = Some(RobustMQProtocol::KAFKA);
-                return Ok(Some(RobustMQCodecWrapper::KAFKA(pkg)));
-            }
-
-            // try decode amqp
-            let res = self.amqp_codec.decode_data(stream);
-            if let Ok(Some(pkg)) = res {
-                self.protocol = Some(RobustMQProtocol::AMQP);
-                return Ok(Some(RobustMQCodecWrapper::AMQP(pkg)));
             }
         }
 
@@ -204,6 +183,12 @@ impl RobustMQCodec {
                 if let Err(e) = self.amqp_codec.encode_data(frame, buffer) {
                     return Err(CommonError::CommonError(e.to_string()));
                 }
+            }
+            RobustMQCodecWrapper::NATS(pkt) => {
+                use tokio_util::codec::Encoder;
+                self.nats_codec
+                    .encode(pkt, buffer)
+                    .map_err(|e| CommonError::CommonError(e.to_string()))?;
             }
         }
 

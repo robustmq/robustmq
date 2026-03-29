@@ -76,7 +76,7 @@ max_messages_num = 100000
 enable_cache = true
 
 [storage_runtime]
-tcp_port = 1778
+tcp_port = 1779
 max_segment_size = 1073741824
 data_path = ["./data/engine"]
 io_thread_num = 4

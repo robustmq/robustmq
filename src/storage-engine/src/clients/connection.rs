@@ -18,6 +18,7 @@ use common_base::tools::now_second;
 use futures::{SinkExt, StreamExt};
 use parking_lot::Mutex;
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
+use protocol::robust::RobustMQProtocol;
 use protocol::storage::codec::StorageEnginePacket;
 use std::sync::Arc;
 use std::time::Duration;
@@ -176,7 +177,10 @@ impl NodeConnection {
         };
         let addr = node.engine_addr.clone();
         let socket = TcpStream::connect(&addr).await?;
-        Ok(Framed::new(socket, RobustMQCodec::new()))
+        Ok(Framed::new(
+            socket,
+            RobustMQCodec::new_with_protocol(RobustMQProtocol::StorageEngine),
+        ))
     }
 
     pub async fn connect(&self) -> Result<(), StorageEngineError> {

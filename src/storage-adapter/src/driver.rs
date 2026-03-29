@@ -20,7 +20,7 @@ use dashmap::DashMap;
 use metadata_struct::{
     mqtt::topic::Topic,
     storage::{
-        adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo},
+        adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo},
         adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow},
         adapter_record::AdapterWriteRecord,
         shard::{EngineShard, EngineShardConfig},
@@ -221,6 +221,25 @@ impl StorageDriverManager {
         }
 
         Ok(results.iter().min().copied().unwrap_or(0))
+    }
+
+    pub async fn get_offset_by_group(
+        &self,
+        tenant: &str,
+        group_name: &str,
+    ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
+        self.offset_manager.get_offset(tenant, group_name).await
+    }
+
+    pub async fn commit_offset(
+        &self,
+        tenant: &str,
+        group_name: &str,
+        offset: &HashMap<String, u64>,
+    ) -> Result<(), CommonError> {
+        self.offset_manager
+            .commit_offset(tenant, group_name, offset)
+            .await
     }
 
     async fn build_driver(

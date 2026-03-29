@@ -76,8 +76,7 @@ impl MessageStorage {
     ) -> Result<HashMap<String, u64>, CommonError> {
         let resp = self
             .storage_driver_manager
-            .offset_manager
-            .get_offset(tenant, group_id)
+            .get_offset_by_group(tenant, group_id)
             .await?;
         let mut results = HashMap::with_capacity(2);
         for raw in resp {
@@ -93,7 +92,6 @@ impl MessageStorage {
         offsets: &HashMap<String, u64>,
     ) -> Result<(), CommonError> {
         self.storage_driver_manager
-            .offset_manager
             .commit_offset(tenant, group_id, offsets)
             .await
     }

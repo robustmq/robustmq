@@ -15,13 +15,14 @@
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::tool::{check_connection_limit, read_packet};
+use crate::protocol::nats::send_nats_info;
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
 use common_metrics::mqtt::packets::record_received_error_metrics;
 use futures_util::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
-use protocol::robust::RobustMQPacket;
+use protocol::robust::{RobustMQPacket, RobustMQProtocol};
 use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -40,21 +41,23 @@ pub struct TcpAcceptorContext {
     pub request_channel: Arc<RequestChannel>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub network_type: NetworkConnectionType,
+    pub protocol: RobustMQProtocol,
     pub codec: RobustMQCodec,
     pub task_supervisor: Arc<TaskSupervisor>,
 }
 
-pub async fn acceptor_process(module_name: &str, ctx: TcpAcceptorContext) {
+pub async fn acceptor_process(ctx: TcpAcceptorContext) {
     for index in 1..=ctx.accept_thread_num {
         let listener = ctx.listener.clone();
         let connection_manager = ctx.connection_manager.clone();
         let mut stop_rx = ctx.stop_sx.subscribe();
         let request_channel = ctx.request_channel.clone();
         let network_type = ctx.network_type.clone();
+        let protocol = ctx.protocol.clone();
         let row_codec = ctx.codec.clone();
         let row_broker_cache = ctx.broker_cache.clone();
         let row_global_limit_manager = ctx.global_limit_manager.clone();
-        let task_name = format!("{}-{}-acceptor-{}", module_name, ctx.network_type, index);
+        let task_name = format!("{:?}-{}-acceptor-{}", ctx.protocol, ctx.network_type, index);
         ctx.task_supervisor.spawn(task_name, async move {
             debug!(
                 "{} Server acceptor thread {} start successfully.",
@@ -88,17 +91,26 @@ pub async fn acceptor_process(module_name: &str, ctx: TcpAcceptorContext) {
                     val = listener.accept()=>{
                         match val{
                             Ok((stream, addr)) => {
-                                debug!("Accept {} connection:{:?}", network_type, addr);
-
-                                let (r_stream, w_stream) = io::split(stream);
-                                let read_frame_stream = FramedRead::new(r_stream, row_codec.clone());
-                                let write_frame_stream = FramedWrite::new(w_stream, row_codec.clone());
-
+                                info!("Accept {} connection:{:?}", network_type, addr);
+                                // check connection
                                 if let Err(e) = check_connection_limit(&row_global_limit_manager, &row_broker_cache, &connection_manager).await{
                                     warn!("{}",e.to_string());
                                     continue;
                                 }
 
+                                // create stream
+                                let (r_stream, w_stream) = io::split(stream);
+                                let conn_codec = match protocol {
+                                    RobustMQProtocol::MQTT3
+                                    | RobustMQProtocol::MQTT4
+                                    | RobustMQProtocol::MQTT5 => row_codec.clone(),
+                                    _ => RobustMQCodec::new_with_protocol(protocol.clone()),
+                                };
+
+                                let read_frame_stream = FramedRead::new(r_stream, conn_codec.clone());
+                                let write_frame_stream = FramedWrite::new(w_stream, conn_codec);
+
+                                // create connection
                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                 let connection = NetworkConnection::new(
                                     NetworkConnectionType::Tcp,
@@ -108,6 +120,21 @@ pub async fn acceptor_process(module_name: &str, ctx: TcpAcceptorContext) {
 
                                 connection_manager.add_connection(connection.clone());
                                 connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
+
+                                match protocol {
+                                    RobustMQProtocol::MQTT3
+                                    | RobustMQProtocol::MQTT4
+                                    | RobustMQProtocol::MQTT5 => {}
+                                    _ => connection_manager
+                                        .set_connect_protocol(connection.connection_id, protocol.clone()),
+                                }
+
+                                // nats special logic
+                                if protocol.is_nats() {
+                                    send_nats_info(connection.connection_id, &connection_manager).await;
+                                }
+
+                                // process connection
                                 read_frame_process(
                                     row_broker_cache.clone(),
                                     read_frame_stream,
@@ -185,6 +212,9 @@ fn read_frame_process(
                                     }
                                     RobustMQCodecWrapper::StorageEngine(pk) => {
                                         read_packet(RobustMQPacket::StorageEngine(pk), &request_channel, &connection, &network_type).await;
+                                    }
+                                    RobustMQCodecWrapper::NATS(pkt) => {
+                                        read_packet(RobustMQPacket::NATS(pkt), &request_channel, &connection, &network_type).await;
                                     }
                                 }
 

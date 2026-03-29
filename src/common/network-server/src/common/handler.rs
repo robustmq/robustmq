@@ -15,7 +15,7 @@
 use crate::common::connection_manager::ConnectionManager;
 use crate::common::metric::SLOW_REQUEST_THRESHOLD_MS;
 use crate::common::packet::{build_mqtt_packet_wrapper, ResponsePackage};
-use crate::{command::ArcCommandAdapter, common::channel::RequestChannel};
+use crate::{command::CommandRegistry, common::channel::RequestChannel};
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::error::client_unavailable_error_by_str;
@@ -33,8 +33,8 @@ use metadata_struct::connection::NetworkConnectionType;
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::robust::{
-    AmqpWrapperExtend, KafkaWrapperExtend, RobustMQPacket, RobustMQPacketWrapper,
-    RobustMQWrapperExtend, StorageEngineWrapperExtend,
+    AmqpWrapperExtend, KafkaWrapperExtend, NatsWrapperExtend, RobustMQPacket,
+    RobustMQPacketWrapper, RobustMQWrapperExtend, StorageEngineWrapperExtend,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -48,14 +48,14 @@ pub fn handler_process(
     handler_module: &str,
     handler_process_num: usize,
     connection_manager: Arc<ConnectionManager>,
-    command: ArcCommandAdapter,
+    commands: CommandRegistry,
     request_channel: Arc<RequestChannel>,
     task_supervisor: Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     for index in 1..=handler_process_num {
         let raw_connect_manager = connection_manager.clone();
-        let raw_command = command.clone();
+        let raw_command = commands.clone();
         let mut raw_stop_rx = stop_sx.subscribe();
         let receiver = request_channel.receiver.clone();
         let raw_handler_module = handler_module.to_string();
@@ -125,7 +125,7 @@ pub fn handler_process(
                                 }
                             }
                             Err(_) => {
-                                debug!(
+                                warn!(
                                     "{} server handler process thread {} request channel closed, exiting.",
                                     raw_handler_module, index
                                 );
@@ -141,7 +141,7 @@ pub fn handler_process(
 
 async fn handle_packet(
     connection_manager: &Arc<ConnectionManager>,
-    command: &ArcCommandAdapter,
+    commands: &CommandRegistry,
     packet: &crate::common::packet::RequestPackage,
     queue_wait_ms: u128,
     handler_index: usize,
@@ -150,7 +150,12 @@ async fn handle_packet(
     if let Some(connect) = connection_manager.get_connect(packet.connection_id) {
         // apply
         let apply_start = now_millis();
-        let response_data = command.apply(&connect, &packet.addr, &packet.packet).await;
+        let response_data = if let Some(cmd) = commands.get(&packet.packet) {
+            cmd.apply(&connect, &packet.addr, &packet.packet).await
+        } else {
+            error!("No command registered for packet: {:?}", &packet.packet);
+            return;
+        };
         let apply_ms = now_millis().saturating_sub(apply_start);
         metrics_handler_apply_ms(network_type, apply_ms as f64);
         metrics_handler_instance_apply_ms(handler_index, apply_ms as f64);
@@ -219,6 +224,11 @@ async fn write_response(
                 extend: RobustMQWrapperExtend::StorageEngine(StorageEngineWrapperExtend {}),
                 packet: RobustMQPacket::StorageEngine(packet),
             },
+            RobustMQPacket::NATS(packet) => RobustMQPacketWrapper {
+                protocol: protocol.clone(),
+                extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
+                packet: RobustMQPacket::NATS(packet),
+            },
         };
 
         match network_type.clone() {
@@ -238,7 +248,6 @@ async fn write_response(
                     connection_manager,
                     response_package.connection_id,
                     &packet_wrapper,
-                    &protocol,
                 )
                 .await
                 {
@@ -267,19 +276,19 @@ async fn write_websocket_response(
     connection_manager: &Arc<ConnectionManager>,
     connection_id: u64,
     packet_wrapper: &RobustMQPacketWrapper,
-    protocol: &protocol::robust::RobustMQProtocol,
 ) -> common_base::error::ResultCommonError {
     let mut codec = RobustMQCodec::new();
     let mut response_buf = BytesMut::new();
 
     let codec_wrapper = match packet_wrapper.packet.clone() {
         RobustMQPacket::MQTT(pkg) => RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
-            protocol_version: protocol.to_u8(),
+            protocol_version: packet_wrapper.protocol.to_u8(),
             packet: pkg,
         }),
         RobustMQPacket::StorageEngine(pkg) => RobustMQCodecWrapper::StorageEngine(pkg),
         RobustMQPacket::KAFKA(pkg) => RobustMQCodecWrapper::KAFKA(pkg),
         RobustMQPacket::AMQP(pkg) => RobustMQCodecWrapper::AMQP(pkg),
+        RobustMQPacket::NATS(pkt) => RobustMQCodecWrapper::NATS(pkt),
     };
 
     codec.encode_data(codec_wrapper, &mut response_buf)?;

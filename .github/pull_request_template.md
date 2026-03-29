@@ -17,7 +17,7 @@ Please explain IN DETAIL what the changes are in this PR and why they are needed
 - [ ]  I have added the necessary unit tests and integration tests.
 - [ ]  This PR does not require documentation updates.
 
-By submitting this pull request, you agree to the terms of the [Contributor License Agreement (CLA)](../CLA.md).
+By submitting this pull request, you agree to the terms of the [Apache License 2.0](https://github.com/robustmq/robustmq/blob/main/LICENSE), the [LICENSE](https://github.com/robustmq/robustmq/blob/main/LICENSING.md), and the [Contributor License Agreement (CLA)](https://github.com/robustmq/robustmq/blob/main/CLA.md).
 
 ## Refer to a related PR or issue link
 

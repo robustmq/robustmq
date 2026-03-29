@@ -22,9 +22,7 @@ use common_config::storage::memory::StorageDriverMemoryConfig;
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::Topic;
-use metadata_struct::storage::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
-};
+use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::segment::EngineSegment;
@@ -32,7 +30,7 @@ use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
 use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::test::test_rocksdb_instance;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use storage_engine::clients::manager::ClientConnectionManager;
 use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
 use storage_engine::commitlog::offset::CommitLogOffset;
@@ -89,19 +87,6 @@ pub trait StorageAdapter {
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
     ) -> Result<u64, CommonError>;
-
-    async fn get_offset_by_group(
-        &self,
-        tenant: &str,
-        group_name: &str,
-    ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError>;
-
-    async fn commit_offset(
-        &self,
-        tenant: &str,
-        group_name: &str,
-        offset: &HashMap<String, u64>,
-    ) -> Result<(), CommonError>;
 
     async fn close(&self) -> Result<(), CommonError>;
 }
