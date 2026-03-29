@@ -21,6 +21,7 @@ use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
+use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
 
 use crate::BrokerServer;
@@ -33,6 +34,7 @@ pub fn build_nats_params(
     task_supervisor: Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
     shared_request_channel: Arc<RequestChannel>,
+    storage_driver_manager: Arc<StorageDriverManager>,
 ) -> NatsBrokerServerParams {
     let config = broker_config();
     NatsBrokerServerParams {
@@ -48,6 +50,7 @@ pub fn build_nats_params(
             channel_size: 0,
         },
         request_channel: shared_request_channel,
+        storage_driver_manager,
     }
 }
 

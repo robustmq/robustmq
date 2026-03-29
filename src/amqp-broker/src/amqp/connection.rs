@@ -13,10 +13,22 @@
 // limitations under the License.
 
 use amq_protocol::frame::AMQPFrame;
-use amq_protocol::protocol::connection::AMQPMethod;
+use amq_protocol::protocol::connection::{AMQPMethod, Start, Tune};
+use amq_protocol::protocol::AMQPClass;
+use amq_protocol::types::{FieldTable, LongString};
 
 pub fn process_protocol_header() -> Option<AMQPFrame> {
-    None
+    // Respond with Connection.Start
+    Some(AMQPFrame::Method(
+        0,
+        AMQPClass::Connection(AMQPMethod::Start(Start {
+            version_major: 0,
+            version_minor: 9,
+            server_properties: FieldTable::default(),
+            mechanisms: LongString::from("PLAIN"),
+            locales: LongString::from("en_US"),
+        })),
+    ))
 }
 
 pub fn process_heartbeat(channel_id: u16) -> Option<AMQPFrame> {
@@ -24,7 +36,6 @@ pub fn process_heartbeat(channel_id: u16) -> Option<AMQPFrame> {
 }
 
 /// Handle connection-level methods sent by the client to the server.
-/// Server-initiated methods (Start, Tune, OpenOk, UpdateSecret) are not listed here.
 pub fn process_connection(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::StartOk(_) => process_start_ok(channel_id),
@@ -41,7 +52,15 @@ pub fn process_connection(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFr
 }
 
 fn process_start_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+    // Respond with Connection.Tune
+    Some(AMQPFrame::Method(
+        0,
+        AMQPClass::Connection(AMQPMethod::Tune(Tune {
+            channel_max: 2047,
+            frame_max: 131072,
+            heartbeat: 60,
+        })),
+    ))
 }
 
 fn process_secure_ok(_channel_id: u16) -> Option<AMQPFrame> {
@@ -49,15 +68,24 @@ fn process_secure_ok(_channel_id: u16) -> Option<AMQPFrame> {
 }
 
 fn process_tune_ok(_channel_id: u16) -> Option<AMQPFrame> {
+    // TuneOk has no response
     None
 }
 
 fn process_open(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+    use amq_protocol::protocol::connection::OpenOk;
+    Some(AMQPFrame::Method(
+        0,
+        AMQPClass::Connection(AMQPMethod::OpenOk(OpenOk {})),
+    ))
 }
 
 fn process_close(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+    use amq_protocol::protocol::connection::CloseOk;
+    Some(AMQPFrame::Method(
+        0,
+        AMQPClass::Connection(AMQPMethod::CloseOk(CloseOk {})),
+    ))
 }
 
 fn process_close_ok(_channel_id: u16) -> Option<AMQPFrame> {

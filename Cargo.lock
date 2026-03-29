@@ -182,12 +182,15 @@ dependencies = [
  "amq-protocol",
  "async-trait",
  "broker-core",
+ "bytes",
  "common-base",
+ "dashmap 6.1.0",
  "grpc-clients",
  "metadata-struct",
  "network-server",
  "protocol",
  "rate-limit",
+ "storage-adapter",
  "tokio",
  "tracing",
 ]
@@ -4948,6 +4951,7 @@ dependencies = [
  "network-server",
  "protocol",
  "rate-limit",
+ "storage-adapter",
  "tokio",
  "tracing",
 ]

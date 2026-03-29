@@ -24,6 +24,7 @@ use network_server::tcp::server::TcpServer;
 use protocol::robust::RobustMQProtocol;
 use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
+use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
 
 pub struct NatsServerParams {
@@ -35,6 +36,7 @@ pub struct NatsServerParams {
     pub stop_sx: broadcast::Sender<bool>,
     pub proc_config: ProcessorConfig,
     pub request_channel: Arc<RequestChannel>,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
 }
 
 pub struct NatsServer {

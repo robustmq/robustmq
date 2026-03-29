@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use amq_protocol::frame::AMQPFrame;
-use amq_protocol::protocol::queue::AMQPMethod;
+use amq_protocol::protocol::queue::{AMQPMethod, BindOk, DeclareOk, DeleteOk, PurgeOk, UnbindOk};
+use amq_protocol::protocol::AMQPClass;
 
 pub fn process_queue(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
@@ -26,22 +27,41 @@ pub fn process_queue(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> 
     }
 }
 
-fn process_declare(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_declare(channel_id: u16) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Queue(AMQPMethod::DeclareOk(DeclareOk {
+            queue: "".into(),
+            message_count: 0,
+            consumer_count: 0,
+        })),
+    ))
 }
 
-fn process_bind(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_bind(channel_id: u16) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Queue(AMQPMethod::BindOk(BindOk {})),
+    ))
 }
 
-fn process_purge(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_purge(channel_id: u16) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Queue(AMQPMethod::PurgeOk(PurgeOk { message_count: 0 })),
+    ))
 }
 
-fn process_delete(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_delete(channel_id: u16) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Queue(AMQPMethod::DeleteOk(DeleteOk { message_count: 0 })),
+    ))
 }
 
-fn process_unbind(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_unbind(channel_id: u16) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Queue(AMQPMethod::UnbindOk(UnbindOk {})),
+    ))
 }

@@ -318,6 +318,7 @@ impl BrokerServer {
             base.task_supervisor.clone(),
             main_stop_send.clone(),
             shared_request_channel.clone(),
+            storage_driver_manager.clone(),
         );
         let nats_params = nats::build_nats_params(
             base.connection_manager.clone(),
@@ -327,6 +328,7 @@ impl BrokerServer {
             base.task_supervisor.clone(),
             main_stop_send,
             shared_request_channel.clone(),
+            storage_driver_manager.clone(),
         );
 
         (
@@ -396,8 +398,14 @@ impl BrokerServer {
         let (kafka_cmd, amqp_cmd, nats_cmd) = if is_broker_node(&self.config.roles) {
             (
                 Some(kafka_broker::handler::command::create_command()),
-                Some(amqp_broker::handler::command::create_command()),
-                Some(nats_broker::handler::command::create_command()),
+                Some(amqp_broker::handler::command::create_command_with_state(
+                    self.connection_manager.clone(),
+                    self.amqp_params.storage_driver_manager.clone(),
+                )),
+                Some(nats_broker::handler::command::create_command(
+                    self.connection_manager.clone(),
+                    self.nats_params.storage_driver_manager.clone(),
+                )),
             )
         } else {
             (None, None, None)

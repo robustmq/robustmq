@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use amq_protocol::frame::AMQPFrame;
-use amq_protocol::protocol::channel::AMQPMethod;
+use amq_protocol::protocol::channel::{AMQPMethod, CloseOk, OpenOk};
+use amq_protocol::protocol::AMQPClass;
 
 pub fn process_channel(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
@@ -26,8 +27,11 @@ pub fn process_channel(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame
     }
 }
 
-fn process_open(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_open(channel_id: u16) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Channel(AMQPMethod::OpenOk(OpenOk {})),
+    ))
 }
 
 fn process_flow(_channel_id: u16) -> Option<AMQPFrame> {
@@ -38,8 +42,11 @@ fn process_flow_ok(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
-fn process_close(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_close(channel_id: u16) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Channel(AMQPMethod::CloseOk(CloseOk {})),
+    ))
 }
 
 fn process_close_ok(_channel_id: u16) -> Option<AMQPFrame> {
