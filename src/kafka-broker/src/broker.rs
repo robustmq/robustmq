@@ -25,7 +25,7 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
 use tracing::{error, info};
 
-const DEFAULT_KAFKA_PORT: u32 = 9095;
+const DEFAULT_KAFKA_PORT: u32 = 9092;
 
 #[derive(Clone)]
 pub struct KafkaBrokerServerParams {

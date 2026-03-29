@@ -505,7 +505,10 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 24px;
+  justify-items: stretch;
 }
+
+/* 6 cards fill evenly in 3-column grid (3 + 3) */
 
 .scenario-card {
   position: relative;

@@ -5,6 +5,7 @@ export const sidebar = [
         items: [
             { text: "什么是 RobustMQ", link: "/zh/OverView/What-is-RobustMQ" },
             { text: "为什么有 RobustMQ", link: "/zh/OverView/Why-RobustMQ" },
+            { text: "我们在路上", link: "/zh/OverView/TechnicalConcept" },
             {
                 text: "和主流MQ的对比",
                 collapsed: true,
