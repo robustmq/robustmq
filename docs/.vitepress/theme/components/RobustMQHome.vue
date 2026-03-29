@@ -364,7 +364,7 @@ const features = computed(() => [
       <div class="section-inner">
         <div class="section-header">
           <div class="section-tag">{{ t('核心场景', 'Core Scenarios') }}</div>
-          <h2 class="section-title">{{ t('六大场景，一套系统', 'Six Scenarios, One System') }}</h2>
+          <h2 class="section-title">{{ t('六大场景，一个二进制', 'Six Scenarios, One Binary') }}</h2>
           <p class="section-desc">{{ t('不是协议孤岛的拼接，是从架构底层统一解决', 'Not protocol silos stitched together — unified at the architectural level') }}</p>
         </div>
 
@@ -553,7 +553,7 @@ const features = computed(() => [
           <a href="/en/OverView/What-is-RobustMQ">{{ t('文档', 'Docs') }}</a>
           <a href="/en/Blogs/">{{ t('博客', 'Blog') }}</a>
         </div>
-        <p class="footer-note">{{ t('目标成为 Apache 顶级项目 · 永久开源 · 非商业化', 'Aiming for Apache TLP · Forever Open Source · Non-Commercial') }}</p>
+        <p class="footer-note">{{ t('目标成为 Apache 顶级项目 · Apache 2.0', 'Aiming for Apache TLP · Apache 2.0') }}</p>
       </div>
     </footer>
 
