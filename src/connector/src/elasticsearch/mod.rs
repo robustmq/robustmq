@@ -23,8 +23,8 @@ use elasticsearch::{
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
-    connector::config_elasticsearch::ElasticsearchConnectorConfig, connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
+    connector::{config_elasticsearch::ElasticsearchConnectorConfig, MQTTConnector},
+    storage::storage_record::StorageRecord,
 };
 use rule_engine::apply_rule_engine;
 use serde_json::{json, Value};
@@ -98,18 +98,18 @@ impl ElasticsearchBridgePlugin {
     }
 
     #[allow(clippy::result_large_err)]
-    async fn record_to_json(&self, record: &AdapterWriteRecord) -> Result<Value, CommonError> {
+    async fn record_to_json(&self, record: &StorageRecord) -> Result<Value, CommonError> {
         let processed_data = apply_rule_engine(&self.connector.etl_rule, &record.data).await?;
         let payload_str = String::from_utf8_lossy(&processed_data).to_string();
 
         let mut doc = json!({
-            "key": record.key,
-            "timestamp": record.timestamp,
+            "key": record.metadata.key,
+            "timestamp": record.metadata.create_t,
             "payload": payload_str,
             "data": processed_data,
         });
 
-        if let Some(headers) = &record.header {
+        if let Some(headers) = &record.metadata.header {
             if !headers.is_empty() {
                 let headers_vec: Vec<Value> = headers
                     .iter()
@@ -138,7 +138,7 @@ impl ConnectorSink for ElasticsearchBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         client: &mut Elasticsearch,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {

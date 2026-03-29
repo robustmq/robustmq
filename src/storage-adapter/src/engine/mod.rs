@@ -15,9 +15,9 @@
 use crate::storage::StorageAdapter;
 use async_trait::async_trait;
 use common_base::error::common::CommonError;
-use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
-use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::adapter::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
+use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::shard::EngineShard;
 use metadata_struct::storage::storage_record::StorageRecord;
 use std::sync::Arc;

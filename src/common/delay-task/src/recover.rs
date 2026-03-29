@@ -18,7 +18,7 @@ use crate::{DelayTask, DELAY_TASK_INDEX_TOPIC};
 use broker_core::cache::NodeCacheManager;
 use common_base::tools::now_second;
 use common_base::utils::serialize;
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;

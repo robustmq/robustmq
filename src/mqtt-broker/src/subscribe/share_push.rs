@@ -29,7 +29,7 @@ use crate::{
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::mqtt::message::MqttRecordMeta;
 use metadata_struct::storage::convert::convert_engine_record_to_adapter;
 use metadata_struct::storage::storage_record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
@@ -171,7 +171,7 @@ impl SharePushManager {
 
             for record in data_list {
                 let new_record = convert_engine_record_to_adapter(record.clone());
-                let msg = MqttMessage::decode_record(new_record.clone())?;
+                let msg = MqttRecordMeta::decode_record(new_record.clone())?;
 
                 // If the message has expired, it will not be delivered.
                 if !send_message_validator_by_message_expire(&msg) {
@@ -313,7 +313,7 @@ impl SharePushManager {
     async fn push_data(
         &self,
         subscriber: &Subscriber,
-        msg: &MqttMessage,
+        msg: &MqttRecordMeta,
         stop_sx: &Sender<bool>,
     ) -> Result<bool, MqttBrokerError> {
         let sub_pub_param = if let Some(params) = build_publish_message(

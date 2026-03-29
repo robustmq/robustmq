@@ -36,7 +36,6 @@ use common_metrics::mqtt::packets::{record_retain_recv_metrics, record_retain_se
 use common_metrics::mqtt::statistics::{record_mqtt_retained_dec, record_mqtt_retained_inc};
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::message::MqttMessage;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{
     MqttPacket, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties,
@@ -61,7 +60,7 @@ pub struct RetainMessageManager {
     cache_manager: Arc<MQTTCacheManager>,
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
-    topic_retain_data: DashMap<String, DashMap<String, Option<(MqttMessage, u64)>>>,
+    topic_retain_data: DashMap<String, DashMap<String, Option<(MqttRecordMeta, u64)>>>,
     last_update_time: DashMap<String, DashMap<String, u64>>,
     send_retain_message_queue: mpsc::Sender<SendRetainData>,
 }
@@ -123,8 +122,12 @@ impl RetainMessageManager {
             }
             let message_expire =
                 build_message_expire(&self.cache_manager, publish_properties).await;
-            let retain_message =
-                MqttMessage::build_message(client_id, publish, publish_properties, message_expire);
+            let retain_message = MqttRecordMeta::build_message(
+                client_id,
+                publish,
+                publish_properties,
+                message_expire,
+            );
             topic_storage
                 .set_retain_message(tenant, topic_name, &retain_message, message_expire)
                 .await?;

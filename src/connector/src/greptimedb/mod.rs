@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_greptimedb::GreptimeDBConnectorConfig, connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
+    storage::storage_record::StorageRecord,
 };
 
 use rule_engine::apply_rule_engine;
@@ -71,7 +71,7 @@ impl ConnectorSink for GreptimeDBBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         sender: &mut sender::Sender,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         let mut processed_records = Vec::with_capacity(records.len());

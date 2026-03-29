@@ -65,7 +65,7 @@ use common_base::{
     tools::now_second,
 };
 use common_config::broker::broker_config;
-use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::mqtt::message::MqttRecordMeta;
 use mqtt_broker::{core::topic::try_init_topic, storage::message::MessageStorage};
 use protocol::mqtt::common::{Publish, PublishProperties};
 use std::{collections::HashMap, sync::Arc};
@@ -128,7 +128,7 @@ async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64
     let mut offset = Vec::new();
     let message_expire = now_second() + 3600;
     if let Some(record) =
-        MqttMessage::build_record(&client_id, &publish, &publish_properties, message_expire)
+        MqttRecordMeta::build_record(&client_id, &publish, &publish_properties, message_expire)
     {
         offset = message_storage
             .append_topic_message(&params.tenant, &params.topic.clone(), vec![record])
@@ -159,7 +159,7 @@ pub async fn read_inner(
         .await?;
 
     for row in data {
-        let message = MqttMessage::decode(&row.data)?;
+        let message = MqttRecordMeta::decode(&row.data)?;
         let content = String::from_utf8_lossy(&message.payload).to_string();
         results.push(ReadMessageRow {
             offset: row.metadata.offset,

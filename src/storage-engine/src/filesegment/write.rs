@@ -26,7 +26,7 @@ use bytes::Bytes;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_read_config::AdapterWriteRespRow;
+use metadata_struct::adapter::adapter_read_config::AdapterWriteRespRow;
 use metadata_struct::storage::storage_record::{StorageRecord, StorageRecordMetadata};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;

@@ -125,8 +125,9 @@ impl RocksDBStorageEngine {
             }
 
             // timestamp index
-            if msg.timestamp > 0 && offset % 5000 == 0 {
-                let timestamp_index_key = timestamp_index_key(shard_name, msg.timestamp, offset);
+            let msg_timestamp = now_second();
+            if msg_timestamp > 0 && offset % 5000 == 0 {
+                let timestamp_index_key = timestamp_index_key(shard_name, msg_timestamp, offset);
                 batch.put_cf(
                     &cf,
                     timestamp_index_key.as_bytes(),
@@ -207,8 +208,8 @@ mod tests {
     use bytes::Bytes;
     use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
-    use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
-    use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+    use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+    use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 
     #[tokio::test]
     async fn test_write_and_delete() {
@@ -228,7 +229,6 @@ mod tests {
                 key: Some(format!("key{}", i)),
                 tags: Some(vec![format!("tag{}", i)]),
                 data: Bytes::from(format!("data{}", i)),
-                timestamp: 1000 + i * 100,
                 ..Default::default()
             })
             .collect();

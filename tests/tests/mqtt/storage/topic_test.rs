@@ -18,7 +18,7 @@ mod tests {
     use common_base::uuid::unique_id;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::mqtt::message::MqttMessage;
+    use metadata_struct::mqtt::message::MqttRecordMeta;
     use metadata_struct::mqtt::topic::Topic;
     use mqtt_broker::storage::topic::TopicStorage;
     use protocol::mqtt::common::{Publish, PublishProperties};
@@ -81,7 +81,7 @@ mod tests {
 
         let publish_properties = PublishProperties::default();
         let retain_message =
-            MqttMessage::build_message(&client_id, &publish, &Some(publish_properties), 600);
+            MqttRecordMeta::build_message(&client_id, &publish, &Some(publish_properties), 600);
 
         topic_storage
             .set_retain_message(&topic.tenant, &topic.topic_name, &retain_message, 1000)

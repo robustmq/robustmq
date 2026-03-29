@@ -106,8 +106,8 @@ pub async fn save_temporary_qos2_message(
     };
 
     let data = serialize::serialize(&qos2_message)?;
-    let mut new_record = AdapterWriteRecord::from_bytes(data);
-    new_record.key = Some(uniq_key(client_id, pkid));
+    let new_record = AdapterWriteRecord::new(DELAY_QUEUE_MESSAGE_TOPIC.to_string(), data)
+        .with_key(uniq_key(client_id, pkid));
 
     let offsets = message_storage
         .append_topic_message(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, vec![new_record])

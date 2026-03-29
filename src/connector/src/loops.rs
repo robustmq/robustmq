@@ -28,9 +28,7 @@ use common_metrics::mqtt::connector::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connector::status::MQTTStatus;
 use metadata_struct::connector::FailureHandlingStrategy;
-use metadata_struct::storage::{
-    adapter_record::AdapterWriteRecord, convert::convert_engine_record_to_adapter,
-};
+use metadata_struct::storage::storage_record::StorageRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -49,7 +47,7 @@ enum ReadErrorAction {
 }
 
 struct SendFailureParams<'a> {
-    data_list: &'a [AdapterWriteRecord],
+    data_list: &'a [StorageRecord],
     max_offsets: &'a HashMap<String, u64>,
     offsets: &'a mut HashMap<String, u64>,
     start_time: u128,
@@ -142,11 +140,11 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                         let message_count = data.len() as u64;
                         let mut retry_times: u32 = 0;
 
-                        let (data_list, max_offsets) = extract_max_offsets_and_convert(data);
+                        let  max_offsets = extract_max_offsets(&data);
 
                         loop {
                             match sink.send_batch(
-                                &data_list,
+                                &data,
                                 resource
                                     .as_mut()
                                     .expect("sink resource must exist during connector loop"),
@@ -177,7 +175,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                                         &ctx,
                                         &config,
                                         SendFailureParams {
-                                            data_list: &data_list,
+                                            data_list: &data,
                                             max_offsets: &max_offsets,
                                             offsets: &mut offsets,
                                             start_time,
@@ -412,21 +410,17 @@ fn should_stop_by_read_error(error: &CommonError) -> bool {
     }
 }
 
-fn extract_max_offsets_and_convert(
-    data: Vec<metadata_struct::storage::storage_record::StorageRecord>,
-) -> (Vec<AdapterWriteRecord>, HashMap<String, u64>) {
-    let mut data_list = Vec::with_capacity(data.len());
+fn extract_max_offsets(data: &Vec<StorageRecord>) -> HashMap<String, u64> {
     let mut max_offsets = HashMap::new();
-
     for record in data {
         let shard = record.metadata.shard.clone();
         let offset = record.metadata.offset;
-        data_list.push(convert_engine_record_to_adapter(record));
+
         let current_offset = max_offsets.get(&shard).copied().unwrap_or(0);
         max_offsets.insert(shard, current_offset.max(offset + 1));
     }
 
-    (data_list, max_offsets)
+    max_offsets
 }
 
 pub fn update_last_active(

@@ -28,7 +28,7 @@ use crate::{
 use common_metrics::mqtt::publish::record_messages_dropped_no_subscribers_incr;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::{message::MqttMessage, topic::Topic};
+use metadata_struct::{mqtt::topic::Topic, storage::adapter_record::AdapterWriteRecord};
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use storage_adapter::driver::StorageDriverManager;
 
@@ -97,10 +97,7 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         return save_delay_message(
             &context.delay_message_manager,
             &context.topic.tenant,
-            &context.publish,
-            &context.publish_properties,
-            &context.client_id,
-            message_expire,
+            &context.publish.payload,
             context.delay_info.as_ref().unwrap(),
         )
         .await;
@@ -109,7 +106,6 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
     save_simple_message(
         &context.storage_driver_manager,
         &context.publish,
-        &context.publish_properties,
         &context.client_id,
         &context.topic,
         message_expire,
@@ -120,33 +116,28 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
 async fn save_simple_message(
     storage_driver_manager: &Arc<StorageDriverManager>,
     publish: &Publish,
-    publish_properties: &Option<PublishProperties>,
     client_id: &str,
     topic: &Topic,
-    message_expire: u64,
+    _message_expire: u64,
 ) -> Result<Option<String>, MqttBrokerError> {
-    if let Some(record) =
-        MqttMessage::build_record(client_id, publish, publish_properties, message_expire)
-    {
-        let offsets = if publish.qos == QoS::ExactlyOnce {
-            save_temporary_qos2_message(
-                storage_driver_manager,
-                &record,
-                &topic.tenant,
-                &topic.topic_name,
-                client_id,
-                publish.p_kid,
-            )
+    let record = AdapterWriteRecord::new(topic.topic_name.clone(), publish.payload.clone());
+
+    let offsets = if publish.qos == QoS::ExactlyOnce {
+        save_temporary_qos2_message(
+            storage_driver_manager,
+            &record,
+            &topic.tenant,
+            &topic.topic_name,
+            client_id,
+            publish.p_kid,
+        )
+        .await?
+    } else {
+        let message_storage = MessageStorage::new(storage_driver_manager.clone());
+        message_storage
+            .append_topic_message(&topic.tenant, &topic.topic_name, vec![record])
             .await?
-        } else {
-            let message_storage = MessageStorage::new(storage_driver_manager.clone());
-            message_storage
-                .append_topic_message(&topic.tenant, &topic.topic_name, vec![record])
-                .await?
-        };
+    };
 
-        return Ok(Some(format!("{offsets:?}")));
-    }
-
-    Err(MqttBrokerError::FailedToBuildMessage)
+    return Ok(Some(format!("{offsets:?}")));
 }

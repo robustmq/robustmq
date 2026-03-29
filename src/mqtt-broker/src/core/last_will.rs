@@ -22,7 +22,7 @@ use crate::storage::session::SessionStorage;
 use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
-use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -69,20 +69,20 @@ pub async fn send_last_will_message(
         .await?;
 
     // Persisting stores message data
-    let message_storage = MessageStorage::new(storage_driver_manager.clone());
 
-    let message_expire = build_message_expire(cache_manager, &publish_properties).await;
-    if let Some(record) =
-        MqttMessage::build_record(client_id, &publish, &publish_properties, message_expire)
-    {
-        message_storage
-            .append_topic_message(&topic.tenant, &topic.topic_name, vec![record])
-            .await?;
-        debug!(
-            "Last will message saved successfully. client_id={}, topic={}",
-            client_id, topic.topic_name
-        );
-    }
+    let _message_expire = build_message_expire(cache_manager, &publish_properties).await;
+    let record = AdapterWriteRecord::new(topic.topic_name.to_string(), publish.payload.clone());
+
+    let message_storage = MessageStorage::new(storage_driver_manager.clone());
+    message_storage
+        .append_topic_message(&topic.tenant, &topic.topic_name, vec![record])
+        .await?;
+
+    debug!(
+        "Last will message saved successfully. client_id={}, topic={}",
+        client_id, topic.topic_name
+    );
+
     Ok(())
 }
 

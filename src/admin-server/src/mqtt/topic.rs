@@ -25,7 +25,7 @@ use common_base::{
     http_response::{error_response, success_response},
     tools::now_millis,
 };
-use metadata_struct::mqtt::{message::MqttMessage, topic::Topic};
+use metadata_struct::mqtt::{message::MqttRecordMeta, topic::Topic};
 use metadata_struct::{
     mqtt::topic_rewrite_rule::MqttTopicRewriteRule, storage::shard::EngineShard,
 };
@@ -133,7 +133,7 @@ pub struct DeleteTopicRewriteReq {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TopicDetailResp {
     pub topic_info: Topic,
-    pub retain_message: Option<MqttMessage>,
+    pub retain_message: Option<MqttRecordMeta>,
     pub retain_message_at: Option<u64>,
     pub sub_list: HashSet<TopicSubscribeInfo>,
     pub storage_list: HashMap<u32, EngineShard>,

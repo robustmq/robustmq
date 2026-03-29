@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::{
     adapter_read_config::AdapterReadConfig, storage_record::StorageRecord,
 };

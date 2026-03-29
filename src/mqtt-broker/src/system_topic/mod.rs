@@ -75,11 +75,11 @@ use crate::system_topic::stats::subscription::{
 use crate::system_topic::stats::topics::{
     SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX,
 };
+use bytes::Bytes;
 use common_base::error::ResultCommonError;
 use common_base::tools::{get_local_ip, loop_select_ticket, now_millis};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use serde::{Deserialize, Serialize};
@@ -358,21 +358,19 @@ pub(crate) async fn report_system_data<F, Fut, T>(
         }
     };
 
-    if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data) {
-        if let Err(e) = write_topic_data(
-            storage_driver_manager,
-            metadata_cache,
-            client_pool,
-            topic_name.clone(),
-            record,
-        )
-        .await
-        {
-            warn!(
-                "Failed to write system topic data to topic {}: {:?}",
-                topic_name, e
-            );
-        }
+    if let Err(e) = write_topic_data(
+        storage_driver_manager,
+        metadata_cache,
+        client_pool,
+        topic_name.clone(),
+        Bytes::from(data),
+    )
+    .await
+    {
+        warn!(
+            "Failed to write system topic data to topic {}: {:?}",
+            topic_name, e
+        );
     }
 }
 
@@ -389,7 +387,7 @@ pub(crate) async fn write_topic_data(
     metadata_cache: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     topic_name: String,
-    record: AdapterWriteRecord,
+    payload: Bytes,
 ) -> Result<Vec<u64>, MqttBrokerError> {
     let topic = try_init_topic(
         DEFAULT_TENANT,
@@ -400,6 +398,7 @@ pub(crate) async fn write_topic_data(
     )
     .await?;
 
+    let record = AdapterWriteRecord::new(topic_name, payload);
     let message_storage = MessageStorage::new(storage_driver_manager.clone());
     let resp = message_storage
         .append_topic_message(DEFAULT_TENANT, &topic.topic_name, vec![record])
@@ -411,11 +410,12 @@ pub(crate) async fn write_topic_data(
 mod test {
     use crate::core::tool::test_build_mqtt_cache_manager0;
     use crate::system_topic::write_topic_data;
+    use bytes::Bytes;
     use common_base::{tools::get_local_ip, uuid::unique_id};
     use common_config::broker::{broker_config, default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
-    use metadata_struct::{mqtt::message::MqttMessage, tenant::DEFAULT_TENANT};
+    use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use std::collections::HashMap;
     use std::sync::Arc;
     use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
@@ -431,16 +431,13 @@ mod test {
 
         test_add_topic(&storage_driver_manager, &topic_name);
 
-        let data = "test_write_topic_data".to_string();
-        let topic_message =
-            MqttMessage::build_system_topic_message(topic_name.clone(), data).unwrap();
-
+        let data = Bytes::from("test_write_topic_data");
         let resp = write_topic_data(
             &storage_driver_manager,
             &cache_manger,
             &client_pool,
             topic_name.clone(),
-            topic_message.clone(),
+            data.clone(),
         )
         .await
         .unwrap();
@@ -467,7 +464,7 @@ mod test {
             .await
             .unwrap();
         assert_eq!(results.len(), 1);
-        assert_eq!(topic_message.data, results[0].data)
+        assert_eq!(data, results[0].data)
     }
 
     #[tokio::test]
@@ -524,10 +521,9 @@ mod test {
 
         assert_eq!(results.len(), 1);
 
-        let message: MqttMessage =
-            common_base::utils::serialize::deserialize(&results[0].data).unwrap();
+        let payload = results[0].data.clone();
         let payload: super::SystemTopicEnvelope<String> =
-            serde_json::from_str(&String::from_utf8_lossy(&message.payload)).unwrap();
+            serde_json::from_str(&String::from_utf8_lossy(&payload)).unwrap();
         assert_eq!(payload.value, "test_data");
         assert_eq!(payload.node_id, broker_config().broker_id);
     }

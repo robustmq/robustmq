@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::{
     adapter_read_config::AdapterReadConfig, storage_record::StorageRecord,
 };
@@ -101,7 +101,6 @@ impl MessageStorage {
 mod tests {
     use super::*;
     use common_base::uuid::unique_id;
-
     use metadata_struct::{storage::adapter_record::AdapterWriteRecord, tenant::DEFAULT_TENANT};
     use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
 
@@ -115,7 +114,7 @@ mod tests {
         // Test basic append and read
         let records: Vec<AdapterWriteRecord> = (0..10)
             .map(|i| {
-                AdapterWriteRecord::from_string(format!("Message {}", i))
+                AdapterWriteRecord::new(topic_name.to_string(), format!("Message {}", i))
                     .with_key(format!("key{}", i))
                     .with_tags(vec![format!("tag{}", i)])
             })

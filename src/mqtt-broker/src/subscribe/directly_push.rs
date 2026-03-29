@@ -28,7 +28,7 @@ use crate::{
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::mqtt::message::MqttRecordMeta;
 use metadata_struct::storage::convert::convert_engine_record_to_adapter;
 use metadata_struct::storage::storage_record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
@@ -271,7 +271,7 @@ impl DirectlyPushManager {
     ) -> Result<bool, MqttBrokerError> {
         let new_record = convert_engine_record_to_adapter(record.clone());
 
-        let msg = MqttMessage::decode_record(new_record)?;
+        let msg = MqttRecordMeta::decode_record(new_record)?;
         if !send_message_validator(&self.cache_manager, &subscriber.client_id, &msg).await? {
             return Ok(false);
         }

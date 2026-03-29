@@ -166,7 +166,7 @@ mod tests {
     use bytes::Bytes;
     use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
-    use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+    use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
 
     #[tokio::test]
     async fn test_try_remove_old_data() {
@@ -188,7 +188,6 @@ mod tests {
                 pkid: i,
                 key: Some(format!("key{}", i)),
                 tags: Some(vec![format!("tag{}", i % 3)]),
-                timestamp: 1000 + i * 100,
                 ..Default::default()
             })
             .collect();
@@ -198,7 +197,6 @@ mod tests {
             pkid: 100,
             key: Some("key100".to_string()),
             tags: Some(vec!["tag100".to_string()]),
-            timestamp: 2000,
             ..Default::default()
         };
         engine.write(&shard_name, &new_message).await.unwrap();
@@ -239,7 +237,6 @@ mod tests {
                 key: Some(format!("key{}", i)),
                 tags: Some(vec![format!("tag{}", i)]),
                 data: Bytes::from(format!("data{}", i)),
-                timestamp: 1000 + i * 100,
                 ..Default::default()
             })
             .collect();

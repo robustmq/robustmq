@@ -19,7 +19,7 @@ use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_clickhouse::ClickHouseConnectorConfig, connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
+    storage::storage_record::StorageRecord,
 };
 use rule_engine::apply_rule_engine;
 use serde::Serialize;
@@ -111,7 +111,7 @@ impl ConnectorSink for ClickHouseBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         client: &mut Client,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
@@ -144,8 +144,8 @@ impl ConnectorSink for ClickHouseBridgePlugin {
                 };
             let row = MqttMessageRow {
                 data: String::from_utf8_lossy(&processed_data).to_string(),
-                key: record.key.clone().unwrap_or_default(),
-                timestamp: record.timestamp,
+                key: record.metadata.key.clone().unwrap_or_default(),
+                timestamp: record.metadata.create_t,
             };
 
             insert.write(&row).await.map_err(|e| {

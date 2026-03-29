@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use broker_core::cluster::ClusterStorage;
+use bytes::Bytes;
 use chrono::DateTime;
 use common_base::tools::now_second;
 use common_base::version::version;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::message::MqttMessage;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::{error, warn};
 
@@ -37,13 +35,13 @@ pub(crate) async fn report_cluster_status(
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS.to_string());
-    if let Some(record) = build_node_cluster(&topic_name, client_pool).await {
+    if let Some(payload) = build_node_cluster(&topic_name, client_pool).await {
         if let Err(e) = write_topic_data(
             storage_driver_manager,
             metadata_cache,
             client_pool,
             topic_name.clone(),
-            record,
+            payload,
         )
         .await
         {
@@ -123,10 +121,7 @@ pub(crate) async fn report_broker_sysdescr(
     .await;
 }
 
-async fn build_node_cluster(
-    topic_name: &str,
-    client_pool: &Arc<ClientPool>,
-) -> Option<AdapterWriteRecord> {
+async fn build_node_cluster(topic_name: &str, client_pool: &Arc<ClientPool>) -> Option<Bytes> {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let node_list = match cluster_storage.node_list().await {
         Ok(data) => data,
@@ -144,7 +139,7 @@ async fn build_node_cluster(
         }
     };
 
-    MqttMessage::build_system_topic_message(topic_name.to_string(), content)
+    Some(Bytes::from(content))
 }
 
 #[cfg(test)]

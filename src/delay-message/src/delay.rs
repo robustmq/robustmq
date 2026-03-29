@@ -14,14 +14,13 @@
 
 use crate::manager::DelayMessageManager;
 use broker_core::cache::NodeCacheManager;
-use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use common_base::utils::serialize::serialize;
 use common_base::uuid::unique_id;
 use common_config::storage::StorageType;
 use metadata_struct::mqtt::topic::Topic;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use metadata_struct::{delay_info::DelayMessageIndexInfo, storage::shard::EngineShardConfig};
 use std::sync::Arc;
@@ -82,12 +81,9 @@ pub async fn save_delay_index_info(
     delay_info: &DelayMessageIndexInfo,
 ) -> Result<(), CommonError> {
     let data = serialize(&delay_info)?;
-    let data = AdapterWriteRecord {
-        key: Some(delay_info.unique_id.clone()),
-        data: Bytes::copy_from_slice(&data),
-        timestamp: now_second(),
-        ..Default::default()
-    };
+    let data = AdapterWriteRecord::new(DELAY_QUEUE_INDEX_TOPIC, data)
+        .with_key(delay_info.unique_id.clone())
+        .with_pkid(now_second());
     let result = storage_driver_manager
         .write(DEFAULT_TENANT, DELAY_QUEUE_INDEX_TOPIC, &[data])
         .await?;

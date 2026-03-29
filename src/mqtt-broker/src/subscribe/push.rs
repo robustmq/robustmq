@@ -28,7 +28,7 @@ use bytes::{Bytes, BytesMut};
 use common_base::network::broker_not_available;
 use common_base::tools::now_millis;
 use common_base::tools::now_second;
-use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::mqtt::message::MqttRecordMeta;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::build_mqtt_packet_wrapper;
 use network_server::common::packet::ResponsePackage;
@@ -56,7 +56,7 @@ const QOS_ACK_RESEND_MAX_RETRIES: usize = 3;
 pub async fn send_message_validator(
     cache_manager: &Arc<MQTTCacheManager>,
     client_id: &str,
-    msg: &MqttMessage,
+    msg: &MqttRecordMeta,
 ) -> Result<bool, MqttBrokerError> {
     // Check if message has expired
     if !send_message_validator_by_message_expire(msg) {
@@ -68,7 +68,7 @@ pub async fn send_message_validator(
 
 /// Returns true if message has NOT expired (can be sent)
 /// Returns false if message has expired (should be skipped)
-pub fn send_message_validator_by_message_expire(message: &MqttMessage) -> bool {
+pub fn send_message_validator_by_message_expire(message: &MqttRecordMeta) -> bool {
     message.expiry_interval >= now_second()
 }
 
@@ -77,7 +77,7 @@ pub fn send_message_validator_by_message_expire(message: &MqttMessage) -> bool {
 pub async fn send_message_validator_by_max_message_size(
     cache_manager: &Arc<MQTTCacheManager>,
     client_id: &str,
-    msg: &MqttMessage,
+    msg: &MqttRecordMeta,
 ) -> Result<bool, MqttBrokerError> {
     let connect_id = cache_manager
         .get_connect_id(client_id)
@@ -94,7 +94,7 @@ pub async fn send_message_validator_by_max_message_size(
 pub async fn build_publish_message(
     cache_manager: &Arc<MQTTCacheManager>,
     connection_manager: &Arc<ConnectionManager>,
-    msg: &MqttMessage,
+    msg: &MqttRecordMeta,
     subscriber: &Subscriber,
 ) -> Result<Option<SubPublishParam>, MqttBrokerError> {
     let connect_id = cache_manager
@@ -793,7 +793,7 @@ mod tests {
 
     #[test]
     fn test_send_message_validator_by_message_expire_not_expired() {
-        let msg = MqttMessage {
+        let msg = MqttRecordMeta {
             client_id: "test_client".to_string(),
             expiry_interval: now_second() + 3600,
             ..Default::default()
@@ -803,7 +803,7 @@ mod tests {
 
     #[test]
     fn test_send_message_validator_by_message_expire_expired() {
-        let msg = MqttMessage {
+        let msg = MqttRecordMeta {
             client_id: "test_client".to_string(),
             expiry_interval: now_second() - 3600,
             ..Default::default()
@@ -814,7 +814,7 @@ mod tests {
     #[tokio::test]
     async fn test_send_message_validator_by_max_message_size_no_connection() {
         let cache_manager = test_build_mqtt_cache_manager().await;
-        let msg = MqttMessage {
+        let msg = MqttRecordMeta {
             client_id: "test_client".to_string(),
             payload: Bytes::from(vec![0u8; 100]),
             ..Default::default()
@@ -827,7 +827,7 @@ mod tests {
     #[tokio::test]
     async fn test_send_message_validator_expired() {
         let cache_manager = test_build_mqtt_cache_manager().await;
-        let msg = MqttMessage {
+        let msg = MqttRecordMeta {
             client_id: "test_client".to_string(),
             expiry_interval: now_second() - 3600,
             ..Default::default()

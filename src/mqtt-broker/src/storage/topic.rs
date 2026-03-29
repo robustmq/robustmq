@@ -22,7 +22,6 @@ use grpc_clients::meta::mqtt::call::{
     placement_list_topic_rewrite_rule, placement_set_topic_retain_message,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::meta::meta_service_mqtt::{
@@ -108,7 +107,7 @@ impl TopicStorage {
         &self,
         tenant: &str,
         topic_name: &str,
-        retain_message: &MqttMessage,
+        retain_message: &MqttRecordMeta,
         retain_message_expired_at: u64,
     ) -> ResultMqttBrokerError {
         let config = broker_config();
@@ -152,7 +151,7 @@ impl TopicStorage {
         &self,
         tenant: &str,
         topic_name: &str,
-    ) -> Result<(Option<MqttMessage>, Option<u64>), MqttBrokerError> {
+    ) -> Result<(Option<MqttRecordMeta>, Option<u64>), MqttBrokerError> {
         let config = broker_config();
         let request = GetTopicRetainMessageRequest {
             tenant: tenant.to_owned(),
@@ -168,7 +167,7 @@ impl TopicStorage {
 
         if let Some(data) = reply.retain_message {
             Ok((
-                Some(MqttMessage::decode(&data)?),
+                Some(MqttRecordMeta::decode(&data)?),
                 Some(reply.retain_message_expired_at),
             ))
         } else {

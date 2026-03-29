@@ -17,7 +17,8 @@ use common_base::{error::common::CommonError, tools::now_millis, uuid::unique_id
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::{config_s3::S3ConnectorConfig, MQTTConnector},
-    storage::adapter_record::{AdapterWriteRecord, AdapterWriteRecordHeader},
+    storage::adapter_record::RecordHeader,
+    storage::storage_record::StorageRecord,
 };
 use opendal::{services::S3, Operator};
 use rule_engine::apply_rule_engine;
@@ -39,7 +40,7 @@ use super::{
 struct S3MessageRecord {
     pkid: u64,
     key: Option<String>,
-    headers: Option<Vec<AdapterWriteRecordHeader>>,
+    headers: Option<Vec<RecordHeader>>,
     tags: Option<Vec<String>>,
     data: Vec<u8>,
     timestamp: u64,
@@ -120,7 +121,7 @@ impl ConnectorSink for S3BridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         operator: &mut Operator,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
@@ -147,13 +148,18 @@ impl ConnectorSink for S3BridgePlugin {
                     }
                 };
 
+            let headers = record.metadata.header.as_ref().map(|hs| {
+                hs.iter()
+                    .map(|h| RecordHeader { name: h.name.clone(), value: h.value.clone() })
+                    .collect()
+            });
             payload.push(S3MessageRecord {
-                pkid: record.pkid,
-                key: record.key.clone(),
-                headers: record.header.clone(),
-                tags: record.tags.clone(),
+                pkid: record.metadata.offset,
+                key: record.metadata.key.clone(),
+                headers,
+                tags: record.metadata.tags.clone(),
                 data: processed_data.to_vec(),
-                timestamp: record.timestamp,
+                timestamp: record.metadata.create_t,
             });
         }
 

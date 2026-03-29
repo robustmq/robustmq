@@ -19,7 +19,7 @@ use common_base::tools::now_second;
 use common_base::utils::serialize::{self};
 use common_metrics::mqtt::delay::{record_delay_msg_recover, record_delay_msg_recover_expired};
 use metadata_struct::delay_info::DelayMessageIndexInfo;
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use std::collections::HashMap;
 use std::sync::Arc;

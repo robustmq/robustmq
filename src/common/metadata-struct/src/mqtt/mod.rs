@@ -17,7 +17,6 @@ pub mod auto_subscribe;
 pub mod connection;
 pub mod group_leader;
 pub mod lastwill;
-pub mod message;
 pub mod retain_message;
 pub mod session;
 pub mod subscribe;

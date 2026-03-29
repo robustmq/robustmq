@@ -21,7 +21,7 @@ use crate::{
     },
 };
 use common_base::tools::now_second;
-use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
+use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 

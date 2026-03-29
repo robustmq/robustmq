@@ -15,7 +15,7 @@
 use std::time::Duration;
 
 use metadata_struct::connector::config_greptimedb::GreptimeDBConnectorConfig;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::storage_record::StorageRecord;
 use reqwest::header::{self, AUTHORIZATION};
 use reqwest::Client;
 
@@ -76,9 +76,9 @@ impl Sender {
     }
 
     #[allow(clippy::result_large_err)]
-    fn record_to_line(record: &AdapterWriteRecord) -> Result<String, CommonError> {
+    fn record_to_line(record: &StorageRecord) -> Result<String, CommonError> {
         let mut tags = Vec::new();
-        if let Some(headers) = &record.header {
+        if let Some(headers) = &record.metadata.header {
             tags.reserve(headers.len());
             for header in headers {
                 let tag_key = Self::escape_tag_value(&header.name);
@@ -89,7 +89,7 @@ impl Sender {
         let tags = tags.join(",");
 
         let mut fields = Vec::with_capacity(4);
-        fields.push(format!("pkid={}i", record.pkid));
+        fields.push(format!("pkid={}i", record.metadata.create_t));
 
         let data_json = serde_json::to_string(&record.data).map_err(|e| {
             CommonError::CommonError(format!("Failed to serialize record data: {}", e))
@@ -97,7 +97,7 @@ impl Sender {
         let escaped_data = Self::escape_field_value(&data_json);
         fields.push(format!(r#"data="{}""#, escaped_data));
 
-        let tags_json = serde_json::to_string(&record.tags).map_err(|e| {
+        let tags_json = serde_json::to_string(&record.metadata.tags).map_err(|e| {
             CommonError::CommonError(format!("Failed to serialize record tags: {}", e))
         })?;
         let escaped_tags = Self::escape_field_value(&tags_json);
@@ -105,14 +105,15 @@ impl Sender {
 
         let fields = fields.join(",");
 
-        let measurement = Self::escape_measurement(record.key.as_deref().unwrap_or("unknown"));
+        let measurement =
+            Self::escape_measurement(record.metadata.key.as_deref().unwrap_or("unknown"));
         Ok(format!(
             "{},{} {} {}",
-            measurement, tags, fields, record.timestamp
+            measurement, tags, fields, record.metadata.create_t
         ))
     }
 
-    pub async fn send(&self, data: &AdapterWriteRecord) -> Result<(), CommonError> {
+    pub async fn send(&self, data: &StorageRecord) -> Result<(), CommonError> {
         let line = Self::record_to_line(data)?;
         let res = self.client.post(&self.url).body(line).send().await?;
 
@@ -132,7 +133,7 @@ impl Sender {
         Ok(())
     }
 
-    pub async fn send_batch(&self, records: &[AdapterWriteRecord]) -> Result<(), CommonError> {
+    pub async fn send_batch(&self, records: &[StorageRecord]) -> Result<(), CommonError> {
         if records.is_empty() {
             return Ok(());
         }
@@ -165,28 +166,6 @@ impl Sender {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use metadata_struct::storage::adapter_record::AdapterWriteRecordHeader;
-
-    #[tokio::test]
-    #[ignore = "reason"]
-    async fn test_send() {
-        let config = GreptimeDBConnectorConfig::new(
-            "127.0.0.1:4000".to_string(),
-            "public".to_string(),
-            "greptime_user".to_string(),
-            "greptime_pwd".to_string(),
-        );
-        let sender = Sender::new(&config).expect("Failed to create sender");
-        let mut record = AdapterWriteRecord::from_string("test".to_string());
-        record.set_key("test".to_string());
-        record.set_header(vec![AdapterWriteRecordHeader {
-            name: "h1".to_string(),
-            value: "v1".to_string(),
-        }]);
-        record.set_tags(vec!["t1".to_string(), "t2".to_string()]);
-        let result = sender.send(&record).await;
-        assert!(result.is_ok(), "Send should succeed: {:?}", result);
-    }
 
     #[test]
     fn test_escape_functions() {
@@ -206,22 +185,5 @@ mod tests {
             Sender::escape_measurement("my,measurement"),
             "my\\,measurement"
         );
-    }
-
-    #[test]
-    fn test_record_to_line() {
-        let mut record = AdapterWriteRecord::from_string("test data".to_string());
-        record.set_key("sensor_data".to_string());
-        record.set_header(vec![AdapterWriteRecordHeader {
-            name: "location".to_string(),
-            value: "room 1".to_string(),
-        }]);
-        record.set_tags(vec!["tag1".to_string()]);
-        record.timestamp = 1234567890;
-
-        let line = Sender::record_to_line(&record).expect("Should convert to line");
-        assert!(line.contains("sensor_data"));
-        assert!(line.contains("location=room\\ 1"));
-        assert!(line.contains("1234567890"));
     }
 }

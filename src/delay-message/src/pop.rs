@@ -22,8 +22,7 @@ use common_metrics::mqtt::delay::{
 };
 use futures::StreamExt;
 use metadata_struct::delay_info::DelayMessageIndexInfo;
-use metadata_struct::mqtt::message::MqttMessage;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::adapter::adapter_record::{AdapterWriteRecord, RecordHeader};
 use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
 use std::time::Instant;
@@ -206,18 +205,15 @@ async fn send_delay_message_to_shard(
         )));
     };
 
-    let mut msg = MqttMessage::decode(&record.data)?;
-    let user_properties = if let Some(mut properties) = msg.user_properties.clone() {
-        properties.push((DELAY_MESSAGE_SAVE_MS.to_string(), trigger_time.to_string()));
-        properties
-    } else {
-        return Err(CommonError::CommonError(
-            "Delay message user_properties is None; cannot append delay timestamp".to_string(),
-        ));
+    let trigger_header = RecordHeader {
+        name: DELAY_MESSAGE_SAVE_MS.to_string(),
+        value: trigger_time.to_string(),
     };
-    msg.user_properties = Some(user_properties);
 
-    let send_record = AdapterWriteRecord::from_bytes(msg.encode()?);
+    let send_record =
+        AdapterWriteRecord::new(delay_message.target_topic_name.clone(), record.data.clone())
+            .with_key(delay_message.unique_id.clone())
+            .with_header(vec![trigger_header]);
 
     // send to target topic under the original tenant
     let resp = storage_driver_manager

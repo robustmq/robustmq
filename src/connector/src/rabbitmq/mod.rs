@@ -23,7 +23,7 @@ use lapin::{
 };
 use metadata_struct::{
     connector::config_rabbitmq::RabbitMQConnectorConfig, connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
+    storage::storage_record::StorageRecord,
 };
 use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;
@@ -147,7 +147,7 @@ impl ConnectorSink for RabbitMQBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         channel: &mut Channel,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
@@ -173,7 +173,7 @@ impl ConnectorSink for RabbitMQBridgePlugin {
                             "Failed to apply rule for record {}/{} (key: '{:?}'): {}",
                             idx + 1,
                             records.len(),
-                            record.key,
+                            record.metadata.key,
                             e
                         );
                         failed_records.push((idx, e.to_string()));
@@ -191,7 +191,7 @@ impl ConnectorSink for RabbitMQBridgePlugin {
                         "Failed to serialize record {}/{} (key: '{:?}'): {}",
                         idx + 1,
                         records.len(),
-                        record.key,
+                        record.metadata.key,
                         e
                     );
                     failed_records.push((idx, e.to_string()));
@@ -229,7 +229,7 @@ impl ConnectorSink for RabbitMQBridgePlugin {
                         "Failed to publish record {}/{} (key: '{:?}') to exchange {}: {}",
                         idx + 1,
                         records.len(),
-                        record.key,
+                        record.metadata.key,
                         self.config.exchange,
                         e
                     );

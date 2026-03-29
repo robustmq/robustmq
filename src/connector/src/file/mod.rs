@@ -12,22 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::failure::FailureRecordInfo;
-
 use super::core::{BridgePluginReadConfig, BridgePluginThread};
 use super::loops::run_connector_loop;
 use super::manager::ConnectorManager;
 use super::traits::ConnectorSink;
+use crate::failure::FailureRecordInfo;
 use async_trait::async_trait;
 use bytes::Bytes;
 use chrono::{DateTime, Local, Timelike};
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connector::config_local_file::RotationStrategy;
-use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::storage::storage_record::StorageRecord;
 use metadata_struct::{
     connector::config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
 };
 use rule_engine::apply_rule_engine;
 use std::path::{Path, PathBuf};
@@ -186,8 +184,7 @@ impl FileBridgePlugin {
     }
 
     async fn process_data(&self, data: &Bytes) -> Result<String, CommonError> {
-        let msg = MqttMessage::decode(data)?;
-        let processed_data = apply_rule_engine(&self.connector.etl_rule, &msg.payload).await?;
+        let processed_data = apply_rule_engine(&self.connector.etl_rule, data).await?;
         let data = serde_json::to_string(&processed_data)?;
         Ok(data)
     }
@@ -216,7 +213,7 @@ impl ConnectorSink for FileBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         writer: &mut FileWriter,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         let mut fail_messages = Vec::new();
@@ -303,6 +300,7 @@ pub fn start_local_file_connector(
 
 #[cfg(test)]
 mod tests {
+    use crate::{file::FileBridgePlugin, traits::ConnectorSink};
     use bytes::Bytes;
     use common_base::tools::now_second;
     use common_base::uuid::unique_id;
@@ -311,51 +309,21 @@ mod tests {
             config_local_file::LocalFileConnectorConfig, rule::ETLRule, ConnectorType,
             FailureHandlingStrategy, MQTTConnector,
         },
-        mqtt::message::MqttMessage,
-        storage::adapter_record::{AdapterWriteRecord, AdapterWriteRecordHeader},
+        storage::storage_record::{StorageRecord, StorageRecordMetadata},
         tenant::DEFAULT_TENANT,
     };
-    use protocol::mqtt::common::QoS;
     use std::{fs, path::PathBuf};
-    use tokio::{fs::File, io::AsyncReadExt};
-
-    use crate::{file::FileBridgePlugin, traits::ConnectorSink};
     use tempfile::tempdir;
+    use tokio::{fs::File, io::AsyncReadExt};
 
     #[tokio::test]
     async fn file_bridge_plugin_test() {
         let mut test_data = vec![];
 
-        for i in 0..1000 {
-            let record = AdapterWriteRecord {
-                pkid: i,
-                header: Some(vec![AdapterWriteRecordHeader {
-                    name: "test_name".to_string(),
-                    value: "test_value".to_string(),
-                }]),
-                key: Some(format!("test_key_{i}")),
-                data: MqttMessage {
-                    client_id: "test-client".to_string(),
-                    dup: false,
-                    qos: QoS::AtMostOnce,
-                    pkid: 0,
-                    retain: false,
-                    topic: Bytes::from("test/topic"),
-                    payload: Bytes::from(format!("test_data_{i}")),
-                    format_indicator: None,
-                    expiry_interval: 0,
-                    response_topic: None,
-                    correlation_data: None,
-                    user_properties: None,
-                    subscription_identifiers: None,
-                    content_type: None,
-                    create_time: now_second(),
-                }
-                .encode()
-                .unwrap()
-                .into(),
-                tags: Some(vec![]),
-                timestamp: now_second(),
+        for i in 0..1000u64 {
+            let record = StorageRecord {
+                metadata: StorageRecordMetadata::default(),
+                data: Bytes::from(format!("test_data_{i}")),
             };
 
             test_data.push(record);
@@ -407,8 +375,10 @@ mod tests {
         file.read_to_string(&mut res).await.unwrap();
 
         let expected = test_data.iter().fold(String::new(), |mut acc, record| {
-            let msg = MqttMessage::decode(&record.data).unwrap();
-            let data = serde_json::to_string(&msg.payload).unwrap();
+            let data = serde_json::to_string(&serde_json::Value::String(
+                String::from_utf8_lossy(&record.data).into_owned(),
+            ))
+            .unwrap();
             acc.push_str(&data);
             acc.push('\n');
             acc

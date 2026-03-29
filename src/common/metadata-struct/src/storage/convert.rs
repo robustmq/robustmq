@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::adapter_record::{
-    AdapterWriteRecord, AdapterWriteRecordHeader as AdapterHeader,
-};
+use common_base::tools::now_second;
+
+use crate::adapter::adapter_record::{AdapterWriteRecord, RecordHeader};
 use crate::storage::storage_record::{
     Header as StorageHeader, StorageRecord, StorageRecordMetadata,
 };
 
 pub fn convert_adapter_headers_to_storage(
-    headers: Option<Vec<AdapterHeader>>,
+    headers: Option<Vec<RecordHeader>>,
 ) -> Option<Vec<StorageHeader>> {
     headers.map(|hs| {
         hs.into_iter()
@@ -41,7 +41,7 @@ pub fn convert_adapter_record_to_engine(
         .with_header(convert_adapter_headers_to_storage(record.header))
         .with_key(record.key)
         .with_tags(record.tags)
-        .with_timestamp(record.timestamp)
+        .with_timestamp(now_second())
         .with_crc_from_data(&record.data);
 
     StorageRecord {
@@ -51,21 +51,29 @@ pub fn convert_adapter_record_to_engine(
 }
 
 pub fn convert_engine_record_to_adapter(record: StorageRecord) -> AdapterWriteRecord {
-    let header = record.metadata.header.map(|hs| {
-        hs.into_iter()
-            .map(|h| AdapterHeader {
+    let mut result = AdapterWriteRecord::new(
+        record.metadata.shard.clone(),
+        record.data,
+    );
+
+    if let Some(key) = record.metadata.key {
+        result = result.with_key(key);
+    }
+
+    if let Some(tags) = record.metadata.tags {
+        result = result.with_tags(tags);
+    }
+
+    if let Some(hs) = record.metadata.header {
+        let headers = hs
+            .into_iter()
+            .map(|h| RecordHeader {
                 name: h.name,
                 value: h.value,
             })
-            .collect()
-    });
-
-    AdapterWriteRecord {
-        pkid: record.metadata.offset,
-        header,
-        key: record.metadata.key,
-        data: record.data,
-        tags: record.metadata.tags,
-        timestamp: record.metadata.create_t,
+            .collect();
+        result = result.with_header(headers);
     }
+
+    result
 }

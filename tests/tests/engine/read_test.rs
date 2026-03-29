@@ -23,7 +23,7 @@ mod tests {
     use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
     use metadata_struct::meta::node::BrokerNode;
-    use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+    use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
     use metadata_struct::storage::storage_record::StorageRecord;
     use protocol::storage::codec::StorageEnginePacket;
     use protocol::storage::protocol::{

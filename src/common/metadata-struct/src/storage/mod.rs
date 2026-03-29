@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod adapter_offset;
-pub mod adapter_read_config;
-pub mod adapter_record;
 pub mod convert;
 pub mod segment;
 pub mod segment_meta;
 pub mod shard;
 pub mod storage_record;
+
+pub use crate::adapter::adapter_offset as adapter_offset;
+pub use crate::adapter::adapter_read_config as adapter_read_config;
+pub use crate::adapter::adapter_record as adapter_record;

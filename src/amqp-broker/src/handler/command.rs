@@ -22,8 +22,7 @@ use amq_protocol::protocol::AMQPClass;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use metadata_struct::connection::NetworkConnection;
-use metadata_struct::mqtt::message::MqttMessage;
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use network_server::command::{ArcCommandAdapter, Command};
 use network_server::common::connection_manager::ConnectionManager;
@@ -239,10 +238,7 @@ impl AmqpHandlerCommand {
                             shard_offsets
                                 .insert(record.metadata.shard.clone(), record.metadata.offset + 1);
 
-                            let body = match MqttMessage::decode(&record.data) {
-                                Ok(msg) => msg.payload.to_vec(),
-                                Err(_) => record.data.to_vec(),
-                            };
+                            let body = record.data.to_vec();
                             let body_size = body.len() as u64;
 
                             // Deliver method frame
@@ -343,10 +339,7 @@ impl AmqpHandlerCommand {
                 offsets.insert(record.metadata.shard.clone(), record.metadata.offset + 1);
                 self.shard_offsets.insert(key, offsets);
 
-                let body = match MqttMessage::decode(&record.data) {
-                    Ok(msg) => msg.payload.to_vec(),
-                    Err(_) => record.data.to_vec(),
-                };
+                let body = record.data.to_vec();
                 let body_size = body.len() as u64;
 
                 // Send Header and Body directly; return GetOk as the method frame

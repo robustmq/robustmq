@@ -23,7 +23,9 @@ pub struct Header {
     pub value: String,
 }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Serialize, Deserialize)]
+#[derive(
+    Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Serialize, Deserialize, Default,
+)]
 pub struct StorageRecordMetadata {
     pub offset: u64,
     pub shard: String,

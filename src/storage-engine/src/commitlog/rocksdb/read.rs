@@ -304,8 +304,8 @@ mod tests {
     use broker_core::cache::NodeCacheManager;
     use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
-    use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
-    use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+    use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
+    use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 
     #[tokio::test]
     async fn test_batch_write_and_read_by_offset() {
@@ -324,7 +324,6 @@ mod tests {
                 pkid: i,
                 key: Some(format!("key{}", i)),
                 tags: Some(vec![format!("tag{}", i % 3)]),
-                timestamp: 1000 + i * 100,
                 ..Default::default()
             })
             .collect();

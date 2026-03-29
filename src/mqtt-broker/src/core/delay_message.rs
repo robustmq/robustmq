@@ -15,12 +15,12 @@
 use std::sync::Arc;
 
 use super::error::MqttBrokerError;
+use bytes::Bytes;
 use common_base::tools::now_second;
 use delay_message::manager::{
     DelayMessageManager, DELAY_MESSAGE_FLAG, DELAY_MESSAGE_RECV_MS, DELAY_MESSAGE_TARGET_MS,
 };
-use metadata_struct::mqtt::message::MqttMessage;
-use protocol::mqtt::common::{Publish, PublishProperties};
+use metadata_struct::storage::adapter_record::{AdapterWriteRecord, RecordHeader};
 
 const DELAY_PUBLISH_MESSAGE_PREFIXED: &str = "$delayed/";
 const MAX_DELAY_SECONDS: u64 = 42949669;
@@ -100,38 +100,34 @@ pub fn decode_delay_topic(topic: &str) -> Result<DelayPublishTopic, MqttBrokerEr
 pub async fn save_delay_message(
     delay_message_manager: &Arc<DelayMessageManager>,
     tenant: &str,
-    publish: &Publish,
-    publish_properties: &Option<PublishProperties>,
-    client_id: &str,
-    message_expire: u64,
+    payload: &Bytes,
     delay_info: &DelayPublishTopic,
 ) -> Result<Option<String>, MqttBrokerError> {
     let recv_time = now_second();
     let trigger_time = now_second() + delay_info.delay_timestamp;
-    let user_properties = vec![
-        (DELAY_MESSAGE_FLAG.to_string(), "true".to_string()),
-        (DELAY_MESSAGE_RECV_MS.to_string(), recv_time.to_string()),
-        (
-            DELAY_MESSAGE_TARGET_MS.to_string(),
-            trigger_time.to_string(),
-        ),
+
+    let headers = vec![
+        RecordHeader {
+            name: DELAY_MESSAGE_FLAG.to_string(),
+            value: "true".to_string(),
+        },
+        RecordHeader {
+            name: DELAY_MESSAGE_RECV_MS.to_string(),
+            value: recv_time.to_string(),
+        },
+        RecordHeader {
+            name: DELAY_MESSAGE_TARGET_MS.to_string(),
+            value: trigger_time.to_string(),
+        },
     ];
-
-    let mut new_publish_properties = publish_properties.clone().unwrap_or_default();
-    new_publish_properties.user_properties = user_properties;
-
-    let record = MqttMessage::build_record(
-        client_id,
-        publish,
-        &Some(new_publish_properties),
-        message_expire,
-    )
-    .ok_or(MqttBrokerError::FailedToBuildMessage)?;
-
+    
     let target_shard_name = delay_info
         .target_shard_name
         .as_ref()
         .ok_or(MqttBrokerError::MissingTargetShardName)?;
+
+    let record = AdapterWriteRecord::new(target_shard_name.to_string(), payload.clone())
+        .with_header(headers);
 
     delay_message_manager
         .send(tenant, target_shard_name, trigger_time, record)
