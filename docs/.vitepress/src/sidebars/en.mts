@@ -5,6 +5,7 @@ export const sidebar = [
         items: [
             { text: "What is RobustMQ", link: "/en/OverView/What-is-RobustMQ" },
             { text: "Why RobustMQ", link: "/en/OverView/Why-RobustMQ" },
+            { text: "We're on the Way", link: "/en/OverView/TechnicalConcept" },
             {
                 text: "MQ Comparison",
                 collapsed: true,

@@ -12,24 +12,86 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bytes::Bytes;
-use protocol::nats::packet::NatsPacket;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
 
-pub fn process_sub(subject: &str, _queue_group: Option<&str>, sid: &str) -> Option<NatsPacket> {
-    Some(NatsPacket::Msg {
-        subject: subject.to_string(),
-        sid: sid.to_string(),
-        reply_to: None,
-        payload: Bytes::from("hello from robustmq"),
-    })
+use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::tenant::DEFAULT_TENANT;
+use network_server::common::connection_manager::ConnectionManager;
+use protocol::nats::packet::NatsPacket;
+use protocol::robust::{
+    NatsWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol,
+    RobustMQWrapperExtend,
+};
+use storage_adapter::driver::StorageDriverManager;
+use tokio::time::sleep;
+use tracing::error;
+
+pub fn process_sub(
+    connection_id: u64,
+    subject: &str,
+    _queue_group: Option<&str>,
+    sid: &str,
+    connection_manager: Arc<ConnectionManager>,
+    storage_driver_manager: Arc<StorageDriverManager>,
+) -> Option<NatsPacket> {
+    let subject = subject.to_string();
+    let sid = sid.to_string();
+    let read_config = AdapterReadConfig::new();
+
+    tokio::spawn(async move {
+        // key: shard_name (matches StorageRecord.metadata.shard), value: next offset to read
+        let mut shard_offsets: HashMap<String, u64> = HashMap::new();
+        loop {
+            match storage_driver_manager
+                .read_by_offset(DEFAULT_TENANT, &subject, &shard_offsets, &read_config)
+                .await
+            {
+                Ok(records) if records.is_empty() => {
+                    sleep(Duration::from_millis(100)).await;
+                }
+                Ok(records) => {
+                    for record in &records {
+                        shard_offsets
+                            .insert(record.metadata.shard.clone(), record.metadata.offset + 1);
+                        let payload = match MqttMessage::decode(&record.data) {
+                            Ok(mqtt_msg) => mqtt_msg.payload,
+                            Err(_) => record.data.clone(),
+                        };
+                        let msg = NatsPacket::Msg {
+                            subject: subject.clone(),
+                            sid: sid.clone(),
+                            reply_to: None,
+                            payload,
+                        };
+                        let wrapper = RobustMQPacketWrapper {
+                            protocol: RobustMQProtocol::NATS,
+                            extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
+                            packet: RobustMQPacket::NATS(msg),
+                        };
+                        if let Err(e) = connection_manager
+                            .write_tcp_frame(connection_id, wrapper)
+                            .await
+                        {
+                            error!(connection_id, "NATS subscribe push failed: {}", e);
+                            return;
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("NATS subscribe storage read error on {}: {}", subject, e);
+                    sleep(Duration::from_millis(100)).await;
+                }
+            }
+        }
+    });
+
+    // SUB has no immediate response
+    None
 }
 
-/// Handle an UNSUB packet from the client.
-///
-/// Responsibilities (all TODO):
-/// - Look up the subscription by sid on this connection
-/// - If max_msgs is None: remove the subscription immediately
-/// - If max_msgs is Some(n): schedule auto-unsubscribe after n more messages are delivered
 pub fn process_unsub(_sid: &str, _max_msgs: Option<u32>) -> Option<NatsPacket> {
     None
 }

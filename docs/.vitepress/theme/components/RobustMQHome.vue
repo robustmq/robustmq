@@ -158,70 +158,118 @@ onUnmounted(() => {
 
 const scenarios = computed(() => [
   {
-    icon: '⬡',
-    color: '#a855f7',
-    title: t('AI 训练加速', 'AI Training Acceleration'),
-    subtitle: t('消灭 GPU 等待', 'Eliminate GPU Idle Time'),
+    icon: '🤖',
+    color: '#d946ef',
+    title: t('AI Agent 通信', 'AI Agent Communication'),
+    subtitle: t('原生 Agent 基础设施', 'Native Agent Infrastructure'),
     points: [
-      t('S3/MinIO 直连 + 三级缓存（内存/SSD/S3）', 'S3/MinIO direct connect + 3-tier cache'),
-      t('训练数据无需预导入，消除 I/O 瓶颈', 'No data pre-import, eliminates I/O bottleneck'),
-      t('百万级轻量 Topic，Agent 独立通道', 'Million-scale Topics for Agent isolation'),
+      t('$AI.API.* Subject 空间，Agent 注册、发现、调用', '$AI.API.* subjects for Agent register, discover, and invoke'),
+      t('百万级轻量 Topic，每个 Agent 独立通道', 'Million-scale Topics — each Agent gets its own isolated channel'),
+      t('NATS Queue Group 原生负载均衡，零学习成本', 'NATS Queue Group load balancing, zero learning overhead'),
     ]
   },
   {
-    icon: '◈',
+    icon: '📡',
     color: '#7c3aed',
-    title: t('IoT 全链路', 'IoT Full Pipeline'),
-    subtitle: t('边缘到云端统一', 'Edge to Cloud Unified'),
+    title: t('IoT 设备接入', 'IoT Device Ingestion'),
+    subtitle: t('MQTT in / Kafka out', 'MQTT in / Kafka out'),
     points: [
-      t('MQTT 接入 / Kafka 消费，一套系统替代双架构', 'MQTT in / Kafka out, one system replaces two'),
-      t('极小内存占用，支持边缘网关部署', 'Tiny memory footprint for edge gateways'),
-      t('断网缓存 + 自动同步，覆盖全链路', 'Offline cache + auto-sync full pipeline'),
+      t('设备 MQTT 接入，AI 平台 Kafka 消费同一份数据', 'Devices publish MQTT; AI platforms consume Kafka — same data'),
+      t('一套系统替代 MQTT Broker + Kafka 双架构', 'One system replaces the MQTT + Kafka dual-broker setup'),
+      t('极小内存，支持边缘网关部署', 'Tiny memory footprint for edge gateway deployment'),
     ]
   },
   {
-    icon: '⬡',
-    color: '#c084fc',
-    title: t('大数据管道', 'Big Data Pipeline'),
-    subtitle: t('Kafka 协议兼容', 'Kafka Protocol Compatible'),
+    icon: '⚡',
+    color: '#a855f7',
+    title: t('实时流数据管道', 'Real-Time Streaming'),
+    subtitle: t('Kafka 协议完整兼容', 'Full Kafka Compatibility'),
     points: [
-      t('完全兼容 Kafka 协议，现有应用零迁移', 'Full Kafka protocol compat, zero migration'),
-      t('四模式存储引擎，Topic 级独立配置', '4-mode storage engine, per-Topic config'),
-      t('冷数据自动分层到 S3，成本降低 95%', 'Auto-tier cold data to S3, 95% cost reduction'),
+      t('标准 Kafka SDK 无缝接入，零迁移成本', 'Standard Kafka SDK connects directly — zero migration cost'),
+      t('百万级轻量 Topic，满足大规模数据分区', 'Million-scale lightweight Topics for large-scale partitioning'),
+      t('冷数据自动分层到对象存储', 'Automatic cold data tiering to object storage'),
     ]
-  }
+  },
+  {
+    icon: '🌐',
+    color: '#6d28d9',
+    title: t('边缘到云端同步', 'Edge-to-Cloud Sync'),
+    subtitle: t('统一边缘与云端', 'Unified Edge and Cloud'),
+    points: [
+      t('单二进制极小内存占用，边缘节点零依赖部署', 'Single binary, tiny footprint — deploy on edge nodes with zero dependencies'),
+      t('断网本地缓存，网络恢复后自动同步云端', 'Offline local buffering, auto-sync to cloud on reconnect'),
+      t('工厂、零售、车载场景统一数据通路', 'Unified data path for factory, retail, and vehicle scenarios'),
+    ]
+  },
+  {
+    icon: '⚡',
+    color: '#f59e0b',
+    title: t('超低延迟实时分发', 'Ultra-Low-Latency Dispatch'),
+    subtitle: t('NATS 纯内存路由', 'NATS Pure In-Memory Routing'),
+    points: [
+      t('消息不落盘，直接内存路由推送，毫秒到亚毫秒延迟', 'No disk writes — in-memory routing, millisecond to sub-millisecond latency'),
+      t('金融行情、游戏状态同步、工业控制、AI 推理分发', 'Financial feeds, game sync, industrial control, AI inference distribution'),
+      t('需持久化时切换 JetStream 模式，统一存储层接管', 'Switch to JetStream mode for persistence — unified storage takes over'),
+    ]
+  },
+  {
+    icon: '🏢',
+    color: '#c084fc',
+    title: t('传统消息分发', 'Traditional Messaging'),
+    subtitle: t('AMQP 原生支持', 'Native AMQP Support'),
+    points: [
+      t('完整 AMQP 协议，Exchange / Queue / Binding 原生实现', 'Full AMQP protocol — Exchange, Queue, Binding natively implemented'),
+      t('现有 RabbitMQ 应用低成本迁移', 'Existing RabbitMQ applications migrate at low cost'),
+      t('同时获得多协议互通能力', 'Gain multi-protocol interoperability at the same time'),
+    ]
+  },
 ])
 
 const features = computed(() => [
   {
-    icon: '⚡',
-    title: t('极致性能', 'Extreme Performance'),
-    desc: t('Rust 构建，微秒延迟，无 GC 停顿，单节点百万级 QPS', 'Rust built, microsecond latency, zero GC pauses, million QPS'),
+    icon: '🦀',
+    title: t('Rust 构建', 'Rust-Native'),
+    desc: t('无 GC，内存稳定可预测，无周期性波动，极小内存占用，从边缘设备到云端集群统一部署', 'No GC, stable and predictable memory, no periodic spikes — consistent from edge devices to cloud clusters'),
   },
   {
-    icon: '⚙',
-    title: t('双协议统一', 'Dual Protocol'),
-    desc: t('MQTT 3.1/3.1.1/5.0 与 Kafka 完全兼容，统一存储层', 'Full MQTT 3.1/3.1.1/5.0 & Kafka compat, unified storage'),
+    icon: '🗄️',
+    title: t('统一存储层', 'Unified Storage Layer'),
+    desc: t('所有协议共享同一存储引擎，数据只写一份，按协议语义消费，无数据复制', 'All protocols share one storage engine — data written once, consumed by any protocol, no duplication'),
   },
   {
-    icon: '◈',
-    title: t('插件化存储', 'Pluggable Storage'),
-    desc: t('Memory / RocksDB / File Segment / S3，Topic 级粒度配置', 'Memory/RocksDB/FileSegment/S3, per-Topic granularity'),
+    icon: '🔌',
+    title: t('多协议原生支持', 'Native Multi-Protocol'),
+    desc: t('MQTT 3.1/3.1.1/5.0、Kafka、NATS、AMQP 原生实现，各自保持完整协议语义', 'MQTT 3.1/3.1.1/5.0, Kafka, NATS, AMQP natively implemented — full protocol semantics, not emulated'),
   },
   {
-    icon: '⬡',
-    title: t('零外部依赖', 'Zero Dependencies'),
-    desc: t('单二进制，内置 Raft 共识，无需 ZooKeeper / etcd', 'Single binary, built-in Raft consensus, no ZooKeeper'),
+    icon: '🌐',
+    title: t('边缘到云端', 'Edge-to-Cloud'),
+    desc: t('单二进制零依赖，断网缓冲自动同步，从边缘网关到云端集群极简部署', 'Single binary, zero dependencies, offline buffering with auto-sync — same runtime from edge to cloud'),
   },
   {
-    icon: '◎',
-    title: t('存算分离', 'Compute-Storage Sep.'),
-    desc: t('Broker 无状态水平扩展，存储独立演进，弹性自如', 'Stateless Broker scales horizontally, storage evolves independently'),
+    icon: '🤖',
+    title: t('AI Agent 通信', 'AI Agent Communication'),
+    desc: t('基于 NATS 的 $AI.API.* 扩展，原生支持 Agent 注册、发现、调用和编排', 'NATS-based $AI.API.* extension — native Agent registration, discovery, invocation, and orchestration'),
   },
   {
-    icon: '✦',
-    title: t('ISR 强一致', 'ISR Consistency'),
-    desc: t('ISR 副本机制，Active/Sealed Segment 分层，无迁移扩容', 'ISR replication, Active/Sealed Segment tiering, scale without migration'),
+    icon: '💾',
+    title: t('多模式存储引擎', 'Multi-Mode Storage'),
+    desc: t('内存 / RocksDB / 文件三种形态，Topic 级独立配置，冷数据自动分层到 S3', 'Memory / RocksDB / File, per-Topic configuration, automatic cold data tiering to S3'),
+  },
+  {
+    icon: '🔄',
+    title: t('共享订阅', 'Shared Subscription'),
+    desc: t('突破"并发度 = Partition 数量"的限制，消费者随时弹性伸缩', 'Break the "concurrency = partition count" limit — consumers scale elastically at any time'),
+  },
+  {
+    icon: '🏢',
+    title: t('原生多租户', 'Native Multi-Tenancy'),
+    desc: t('所有协议统一的多租户支持，客户端无感知，租户间数据完全隔离，权限独立管理', 'Unified multi-tenancy across all protocols — full data isolation and independent permissions per tenant'),
+  },
+  {
+    icon: '🛠️',
+    title: t('极简运维', 'Minimal Operations'),
+    desc: t('单二进制，零外部依赖，内置 Raft 共识，开箱即用', 'Single binary, zero external dependencies, built-in Raft consensus, ready out of the box'),
   },
 ])
 </script>
@@ -247,7 +295,7 @@ const features = computed(() => [
       <div class="hero-inner">
         <div class="hero-badge">
           <span class="badge-dot"></span>
-          {{ t('目标 Apache 顶级项目 · Rust 构建', 'Targeting Apache TLP · Built with Rust') }}
+          {{ t('目标 Apache 顶级项目 · Rust 构建 · 多协议原生支持', 'Targeting Apache TLP · Built with Rust · Multi-Protocol Native') }}
         </div>
 
         <h1 class="hero-title">
@@ -255,13 +303,13 @@ const features = computed(() => [
         </h1>
 
         <p class="hero-sub">
-          {{ t('下一代 AI 数据通信基础设施', 'Next-Generation AI Data Communication Infrastructure') }}
+          {{ t('AI 时代的数据通信基础设施', 'Communication Infrastructure for the AI Era') }}
         </p>
 
         <p class="hero-desc">
           {{ t(
-            '为 AI 训练集群、百万 Agent、IoT 设备与云端之间的数据流动，提供统一、高性能、低成本的通信底座。',
-            'A unified, high-performance, low-cost communication substrate for data flowing between AI training clusters, millions of Agents, IoT devices, and the cloud.'
+            '一个二进制，一个 Broker，无外部依赖。原生支持 MQTT、Kafka、NATS、AMQP，统一存储层，一份数据，任意协议消费分发。',
+            'One binary, one broker, no external dependencies. Native MQTT, Kafka, NATS, and AMQP on a unified storage layer — one message, consumed by any protocol.'
           ) }}
         </p>
 
@@ -316,8 +364,8 @@ const features = computed(() => [
       <div class="section-inner">
         <div class="section-header">
           <div class="section-tag">{{ t('核心场景', 'Core Scenarios') }}</div>
-          <h2 class="section-title">{{ t('为三大场景深度优化', 'Deeply Optimized for Three Scenarios') }}</h2>
-          <p class="section-desc">{{ t('不是通用消息队列的简单堆叠，每个场景都经过专项设计', 'Not a generic MQ stack — each scenario is purpose-designed') }}</p>
+          <h2 class="section-title">{{ t('六大场景，一套系统', 'Six Scenarios, One System') }}</h2>
+          <p class="section-desc">{{ t('不是协议孤岛的拼接，是从架构底层统一解决', 'Not protocol silos stitched together — unified at the architectural level') }}</p>
         </div>
 
         <div class="scenario-cards">
@@ -376,7 +424,7 @@ const features = computed(() => [
               <div class="node-icon">⬡</div>
               <div class="node-name">Broker</div>
               <div class="node-desc">{{ t('协议解析 · 消息路由 · 无状态', 'Protocol · Routing · Stateless') }}</div>
-              <div class="node-tech">MQTT · Kafka · TCP/TLS/QUIC</div>
+              <div class="node-tech">MQTT · Kafka · NATS · AMQP</div>
             </div>
 
             <div class="arch-connector">

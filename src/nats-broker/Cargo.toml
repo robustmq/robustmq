@@ -31,3 +31,4 @@ common-base.workspace = true
 tokio.workspace = true
 bytes.workspace = true
 tracing.workspace = true
+storage-adapter.workspace = true

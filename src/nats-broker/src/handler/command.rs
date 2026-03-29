@@ -16,24 +16,29 @@ use crate::nats::{connect, ping, publish, subscribe};
 use async_trait::async_trait;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
+use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
 use protocol::nats::packet::NatsPacket;
 use protocol::robust::RobustMQPacket;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use storage_adapter::driver::StorageDriverManager;
 
 #[derive(Clone)]
-pub struct NatsHandlerCommand {}
-
-impl NatsHandlerCommand {
-    pub fn new() -> Self {
-        NatsHandlerCommand {}
-    }
+pub struct NatsHandlerCommand {
+    pub connection_manager: Arc<ConnectionManager>,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
 }
 
-impl Default for NatsHandlerCommand {
-    fn default() -> Self {
-        Self::new()
+impl NatsHandlerCommand {
+    pub fn new(
+        connection_manager: Arc<ConnectionManager>,
+        storage_driver_manager: Arc<StorageDriverManager>,
+    ) -> Self {
+        NatsHandlerCommand {
+            connection_manager,
+            storage_driver_manager,
+        }
     }
 }
 
@@ -59,7 +64,14 @@ impl Command for NatsHandlerCommand {
                 subject,
                 queue_group,
                 sid,
-            } => subscribe::process_sub(subject, queue_group.as_deref(), sid),
+            } => subscribe::process_sub(
+                connection_id,
+                subject,
+                queue_group.as_deref(),
+                sid,
+                self.connection_manager.clone(),
+                self.storage_driver_manager.clone(),
+            ),
             NatsPacket::Unsub { sid, max_msgs } => subscribe::process_unsub(sid, *max_msgs),
             NatsPacket::Ping => ping::process_ping(),
             NatsPacket::Pong => ping::process_pong(),
@@ -76,6 +88,12 @@ impl Command for NatsHandlerCommand {
     }
 }
 
-pub fn create_command() -> Arc<Box<dyn Command + Send + Sync>> {
-    Arc::new(Box::new(NatsHandlerCommand::new()))
+pub fn create_command(
+    connection_manager: Arc<ConnectionManager>,
+    storage_driver_manager: Arc<StorageDriverManager>,
+) -> Arc<Box<dyn Command + Send + Sync>> {
+    Arc::new(Box::new(NatsHandlerCommand::new(
+        connection_manager,
+        storage_driver_manager,
+    )))
 }

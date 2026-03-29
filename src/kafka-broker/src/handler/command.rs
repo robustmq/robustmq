@@ -12,28 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use async_trait::async_trait;
+use dashmap::DashMap;
+use kafka_protocol::messages::fetch_response::{FetchableTopicResponse, PartitionData};
+use kafka_protocol::messages::find_coordinator_response::Coordinator;
+use kafka_protocol::messages::metadata_response::{
+    MetadataResponseBroker, MetadataResponsePartition, MetadataResponseTopic,
+};
 use kafka_protocol::messages::{
     api_versions_request::ApiVersionsRequest, api_versions_response::ApiVersion,
     create_topics_request::CreateTopicsRequest, delete_topics_request::DeleteTopicsRequest,
     describe_groups_request::DescribeGroupsRequest, fetch_request::FetchRequest,
-    find_coordinator_request::FindCoordinatorRequest, heartbeat_request::HeartbeatRequest,
+    find_coordinator_request::FindCoordinatorRequest,
+    find_coordinator_response::FindCoordinatorResponse, heartbeat_request::HeartbeatRequest,
     join_group_request::JoinGroupRequest, leave_group_request::LeaveGroupRequest,
     list_groups_request::ListGroupsRequest, list_offsets_request::ListOffsetsRequest,
-    metadata_request::MetadataRequest, offset_commit_request::OffsetCommitRequest,
-    offset_fetch_request::OffsetFetchRequest, produce_request::ProduceRequest,
-    sasl_authenticate_request::SaslAuthenticateRequest,
+    metadata_request::MetadataRequest, metadata_response::MetadataResponse,
+    offset_commit_request::OffsetCommitRequest, offset_fetch_request::OffsetFetchRequest,
+    produce_request::ProduceRequest, sasl_authenticate_request::SaslAuthenticateRequest,
     sasl_handshake_request::SaslHandshakeRequest, sync_group_request::SyncGroupRequest, ApiKey,
-    ApiVersionsResponse, ResponseHeader,
+    ApiVersionsResponse, FetchResponse, ResponseHeader,
 };
 use kafka_protocol::protocol::Message;
+use kafka_protocol::records::{
+    Compression, Record, RecordBatchEncoder, RecordEncodeOptions, TimestampType,
+};
 use metadata_struct::connection::NetworkConnection;
+use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use network_server::command::Command;
 use network_server::common::packet::ResponsePackage;
 use protocol::kafka::packet::{KafkaHeader, KafkaPacket, KafkaPacketWrapper};
 use protocol::robust::RobustMQPacket;
 use std::net::SocketAddr;
-use std::sync::Arc;
+use storage_adapter::driver::StorageDriverManager;
 use tracing::warn;
 
 use crate::kafka::{
@@ -42,11 +58,25 @@ use crate::kafka::{
 };
 
 #[derive(Clone)]
-pub struct KafkaHandlerCommand {}
+pub struct KafkaHandlerCommand {
+    storage_driver_manager: Option<Arc<StorageDriverManager>>,
+    // (connection_id, topic) -> per-shard offsets
+    shard_offsets: Arc<DashMap<(u64, String), HashMap<String, u64>>>,
+}
 
 impl KafkaHandlerCommand {
     pub fn new() -> Self {
-        KafkaHandlerCommand {}
+        KafkaHandlerCommand {
+            storage_driver_manager: None,
+            shard_offsets: Arc::new(DashMap::new()),
+        }
+    }
+
+    pub fn new_with_storage(storage_driver_manager: Arc<StorageDriverManager>) -> Self {
+        KafkaHandlerCommand {
+            storage_driver_manager: Some(storage_driver_manager),
+            shard_offsets: Arc::new(DashMap::new()),
+        }
     }
 }
 
@@ -75,13 +105,13 @@ impl Command for KafkaHandlerCommand {
         let resp_packet = match &wrapper.packet {
             // Core Data Plane
             KafkaPacket::ProduceReq(req) => core::process_produce(req),
-            KafkaPacket::FetchReq(req) => core::process_fetch(req),
+            KafkaPacket::FetchReq(req) => self.process_fetch(req, connection_id).await,
             KafkaPacket::ListOffsetsReq(req) => core::process_list_offsets(req),
-            KafkaPacket::MetadataReq(req) => core::process_metadata(req),
+            KafkaPacket::MetadataReq(req) => self.process_metadata(req),
             // Consumer Group Management
             KafkaPacket::OffsetCommitReq(req) => consumer_group::process_offset_commit(req),
             KafkaPacket::OffsetFetchReq(req) => consumer_group::process_offset_fetch(req),
-            KafkaPacket::FindCoordinatorReq(req) => consumer_group::process_find_coordinator(req),
+            KafkaPacket::FindCoordinatorReq(req) => self.process_find_coordinator(req),
             KafkaPacket::JoinGroupReq(req) => consumer_group::process_join_group(req),
             KafkaPacket::HeartbeatReq(req) => consumer_group::process_heartbeat(req),
             KafkaPacket::LeaveGroupReq(req) => consumer_group::process_leave_group(req),
@@ -303,8 +333,155 @@ impl KafkaHandlerCommand {
 
         Some(KafkaPacket::ApiVersionResponse(resp))
     }
+
+    fn process_metadata(&self, req: &MetadataRequest) -> Option<KafkaPacket> {
+        let mut topics = Vec::new();
+        if let Some(req_topics) = &req.topics {
+            for topic in req_topics {
+                let topic_name = match &topic.name {
+                    Some(n) => n.clone(),
+                    None => continue,
+                };
+                topics.push(
+                    MetadataResponseTopic::default()
+                        .with_error_code(0)
+                        .with_name(Some(topic_name))
+                        .with_is_internal(false)
+                        .with_partitions(vec![MetadataResponsePartition::default()
+                            .with_error_code(0)
+                            .with_partition_index(0)
+                            .with_leader_id(0.into())
+                            .with_replica_nodes(vec![0.into()])
+                            .with_isr_nodes(vec![0.into()])]),
+                );
+            }
+        }
+
+        let broker = MetadataResponseBroker::default()
+            .with_node_id(0.into())
+            .with_host("127.0.0.1".into())
+            .with_port(9095);
+
+        let resp = MetadataResponse::default()
+            .with_brokers(vec![broker])
+            .with_controller_id(0.into())
+            .with_topics(topics);
+
+        Some(KafkaPacket::MetadataResponse(resp))
+    }
+
+    fn process_find_coordinator(&self, _req: &FindCoordinatorRequest) -> Option<KafkaPacket> {
+        let resp = FindCoordinatorResponse::default()
+            .with_error_code(0)
+            .with_node_id(0.into())
+            .with_host("127.0.0.1".into())
+            .with_port(9095)
+            .with_coordinators(vec![Coordinator::default()
+                .with_error_code(0)
+                .with_node_id(0.into())
+                .with_host("127.0.0.1".into())
+                .with_port(9095)]);
+
+        Some(KafkaPacket::FindCoordinatorResponse(resp))
+    }
+
+    async fn process_fetch(&self, req: &FetchRequest, connection_id: u64) -> Option<KafkaPacket> {
+        let sdm = self.storage_driver_manager.as_ref()?;
+
+        let read_config = AdapterReadConfig::new();
+        let mut topic_responses = Vec::new();
+
+        for fetch_topic in &req.topics {
+            let topic_name = fetch_topic.topic.to_string();
+            let key = (connection_id, topic_name.clone());
+
+            let mut offsets = self
+                .shard_offsets
+                .get(&key)
+                .map(|r| r.clone())
+                .unwrap_or_default();
+
+            let records_bytes = match sdm
+                .read_by_offset(DEFAULT_TENANT, &topic_name, &offsets, &read_config)
+                .await
+            {
+                Ok(records) if records.is_empty() => None,
+                Ok(records) => {
+                    let mut kafka_records = Vec::new();
+                    for (i, record) in records.iter().enumerate() {
+                        offsets.insert(record.metadata.shard.clone(), record.metadata.offset + 1);
+                        let value = match MqttMessage::decode(&record.data) {
+                            Ok(msg) => msg.payload,
+                            Err(_) => record.data.clone(),
+                        };
+                        kafka_records.push(Record {
+                            transactional: false,
+                            control: false,
+                            partition_leader_epoch: 0,
+                            producer_id: -1,
+                            producer_epoch: -1,
+                            timestamp_type: TimestampType::Creation,
+                            offset: record.metadata.offset as i64,
+                            sequence: i as i32,
+                            timestamp: 0,
+                            key: None,
+                            value: Some(value),
+                            headers: Default::default(),
+                        });
+                    }
+                    self.shard_offsets.insert(key, offsets);
+
+                    let mut buf = bytes::BytesMut::new();
+                    let opts = RecordEncodeOptions {
+                        version: 2,
+                        compression: Compression::None,
+                    };
+                    RecordBatchEncoder::encode(&mut buf, kafka_records.iter(), &opts).ok()?;
+                    Some(buf.freeze())
+                }
+                Err(e) => {
+                    warn!("Kafka Fetch storage error for {}: {}", topic_name, e);
+                    None
+                }
+            };
+
+            let mut partition_responses = Vec::new();
+            for fetch_partition in &fetch_topic.partitions {
+                partition_responses.push(
+                    PartitionData::default()
+                        .with_partition_index(fetch_partition.partition)
+                        .with_error_code(0)
+                        .with_high_watermark(i64::MAX)
+                        .with_last_stable_offset(-1)
+                        .with_log_start_offset(0)
+                        .with_records(records_bytes.clone()),
+                );
+            }
+
+            topic_responses.push(
+                FetchableTopicResponse::default()
+                    .with_topic(fetch_topic.topic.clone())
+                    .with_partitions(partition_responses),
+            );
+        }
+
+        let resp = FetchResponse::default()
+            .with_error_code(0)
+            .with_session_id(0)
+            .with_responses(topic_responses);
+
+        Some(KafkaPacket::FetchResponse(resp))
+    }
 }
 
 pub fn create_command() -> Arc<Box<dyn Command + Send + Sync>> {
     Arc::new(Box::new(KafkaHandlerCommand::new()))
+}
+
+pub fn create_command_with_storage(
+    storage_driver_manager: Arc<StorageDriverManager>,
+) -> Arc<Box<dyn Command + Send + Sync>> {
+    Arc::new(Box::new(KafkaHandlerCommand::new_with_storage(
+        storage_driver_manager,
+    )))
 }

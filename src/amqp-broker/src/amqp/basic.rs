@@ -13,36 +13,32 @@
 // limitations under the License.
 
 use amq_protocol::frame::{AMQPContentHeader, AMQPFrame};
-use amq_protocol::protocol::basic::AMQPMethod;
+use amq_protocol::protocol::basic::{AMQPMethod, CancelOk, ConsumeOk, QosOk, RecoverOk};
 use amq_protocol::protocol::confirm;
+use amq_protocol::protocol::AMQPClass;
 
+/// Handle Basic class methods from client.
+/// Basic.Get is handled in command.rs where storage access is available.
 pub fn process_basic(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Qos(_) => process_qos(channel_id),
-        AMQPMethod::QosOk(_) => process_qos_ok(channel_id),
-        AMQPMethod::Consume(_) => process_consume(channel_id),
-        AMQPMethod::ConsumeOk(_) => process_consume_ok(channel_id),
-        AMQPMethod::Cancel(_) => process_cancel(channel_id),
-        AMQPMethod::CancelOk(_) => process_cancel_ok(channel_id),
-        AMQPMethod::Publish(_) => process_publish(channel_id),
-        AMQPMethod::Return(_) => process_return(channel_id),
-        AMQPMethod::Deliver(_) => process_deliver(channel_id),
-        AMQPMethod::Get(_) => process_get(channel_id),
-        AMQPMethod::GetOk(_) => process_get_ok(channel_id),
-        AMQPMethod::GetEmpty(_) => process_get_empty(channel_id),
-        AMQPMethod::Ack(_) => process_ack(channel_id),
-        AMQPMethod::Reject(_) => process_reject(channel_id),
-        AMQPMethod::RecoverAsync(_) => process_recover_async(channel_id),
+        AMQPMethod::Consume(m) => process_consume(channel_id, m.consumer_tag.as_str()),
+        AMQPMethod::Cancel(m) => process_cancel(channel_id, m.consumer_tag.as_str()),
+        AMQPMethod::Publish(_) => None, // fire-and-forget, no response
+        AMQPMethod::Get(_) => None,     // handled in command.rs
+        AMQPMethod::Ack(_) => None,     // no response
+        AMQPMethod::Reject(_) => None,  // no response
+        AMQPMethod::RecoverAsync(_) => None,
         AMQPMethod::Recover(_) => process_recover(channel_id),
-        AMQPMethod::RecoverOk(_) => process_recover_ok(channel_id),
-        AMQPMethod::Nack(_) => process_nack(channel_id),
+        AMQPMethod::Nack(_) => None, // no response
+        _ => None,
     }
 }
 
 pub fn process_confirm(channel_id: u16, method: &confirm::AMQPMethod) -> Option<AMQPFrame> {
     match method {
         confirm::AMQPMethod::Select(_) => process_confirm_select(channel_id),
-        confirm::AMQPMethod::SelectOk(_) => process_confirm_select_ok(channel_id),
+        _ => None,
     }
 }
 
@@ -58,82 +54,42 @@ pub fn process_body(_channel_id: u16, _data: &[u8]) -> Option<AMQPFrame> {
     None
 }
 
-fn process_qos(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_qos(channel_id: u16) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Basic(AMQPMethod::QosOk(QosOk {})),
+    ))
 }
 
-fn process_qos_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_consume(channel_id: u16, consumer_tag: &str) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Basic(AMQPMethod::ConsumeOk(ConsumeOk {
+            consumer_tag: consumer_tag.into(),
+        })),
+    ))
 }
 
-fn process_consume(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_cancel(channel_id: u16, consumer_tag: &str) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Basic(AMQPMethod::CancelOk(CancelOk {
+            consumer_tag: consumer_tag.into(),
+        })),
+    ))
 }
 
-fn process_consume_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_recover(channel_id: u16) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Basic(AMQPMethod::RecoverOk(RecoverOk {})),
+    ))
 }
 
-fn process_cancel(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_cancel_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_publish(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_return(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_deliver(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_get(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_get_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_get_empty(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_ack(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_reject(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_recover_async(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_recover(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_recover_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_nack(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_confirm_select(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_confirm_select_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_confirm_select(channel_id: u16) -> Option<AMQPFrame> {
+    use amq_protocol::protocol::confirm::{AMQPMethod as ConfirmMethod, SelectOk};
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Confirm(ConfirmMethod::SelectOk(SelectOk {})),
+    ))
 }

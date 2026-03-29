@@ -31,3 +31,6 @@ metadata-struct.workspace = true
 common-base.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+storage-adapter.workspace = true
+dashmap.workspace = true
+bytes.workspace = true
