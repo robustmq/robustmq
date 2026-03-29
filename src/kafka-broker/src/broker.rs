@@ -21,6 +21,7 @@ use network_server::common::connection_manager::ConnectionManager;
 use network_server::context::ProcessorConfig;
 use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
+use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
 use tracing::{error, info};
 
@@ -36,6 +37,7 @@ pub struct KafkaBrokerServerParams {
     pub stop_sx: broadcast::Sender<bool>,
     pub proc_config: ProcessorConfig,
     pub request_channel: Arc<RequestChannel>,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
 }
 
 pub struct KafkaBrokerServer {

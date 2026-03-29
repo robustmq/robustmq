@@ -16,23 +16,26 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use amq_protocol::frame::{AMQPContentHeader, AMQPFrame};
+use amq_protocol::protocol::basic::AMQPMethod as BasicMethod;
 use amq_protocol::protocol::basic::{AMQPProperties, ConsumeOk, Deliver, GetEmpty, GetOk};
 use amq_protocol::protocol::AMQPClass;
-use amq_protocol::protocol::basic::AMQPMethod as BasicMethod;
-use metadata_struct::mqtt::message::MqttMessage;
-use std::time::Duration;
-use tokio::time::sleep;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use metadata_struct::connection::NetworkConnection;
+use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use network_server::command::{ArcCommandAdapter, Command};
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
-use protocol::robust::{AmqpWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol, RobustMQWrapperExtend};
-use storage_adapter::driver::StorageDriverManager;
+use protocol::robust::{
+    AmqpWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol,
+    RobustMQWrapperExtend,
+};
 use std::net::SocketAddr;
+use std::time::Duration;
+use storage_adapter::driver::StorageDriverManager;
+use tokio::time::sleep;
 use tracing::{debug, error, warn};
 
 use crate::amqp::{basic, channel, connection, exchange, queue, tx};
@@ -142,9 +145,7 @@ impl AmqpHandlerCommand {
             AMQPClass::Channel(method) => channel::process_channel(channel_id, method),
             AMQPClass::Exchange(method) => exchange::process_exchange(channel_id, method),
             AMQPClass::Queue(method) => queue::process_queue(channel_id, method),
-            AMQPClass::Basic(method) => {
-                self.process_basic(channel_id, method, connection_id).await
-            }
+            AMQPClass::Basic(method) => self.process_basic(channel_id, method, connection_id).await,
             AMQPClass::Tx(method) => tx::process_tx(channel_id, method),
             AMQPClass::Access(_) => None,
             AMQPClass::Confirm(method) => basic::process_confirm(channel_id, method),
@@ -158,9 +159,7 @@ impl AmqpHandlerCommand {
                 ) | AMQPClass::Connection(
                     amq_protocol::protocol::connection::AMQPMethod::TuneOk(_)
                         | amq_protocol::protocol::connection::AMQPMethod::CloseOk(_)
-                ) | AMQPClass::Channel(
-                    amq_protocol::protocol::channel::AMQPMethod::CloseOk(_)
-                )
+                ) | AMQPClass::Channel(amq_protocol::protocol::channel::AMQPMethod::CloseOk(_))
             );
             if !is_no_reply {
                 warn!(
@@ -237,10 +236,8 @@ impl AmqpHandlerCommand {
                     }
                     Ok(records) => {
                         for record in &records {
-                            shard_offsets.insert(
-                                record.metadata.shard.clone(),
-                                record.metadata.offset + 1,
-                            );
+                            shard_offsets
+                                .insert(record.metadata.shard.clone(), record.metadata.offset + 1);
 
                             let body = match MqttMessage::decode(&record.data) {
                                 Ok(msg) => msg.payload.to_vec(),
@@ -278,13 +275,8 @@ impl AmqpHandlerCommand {
                                     extend: RobustMQWrapperExtend::AMQP(AmqpWrapperExtend {}),
                                     packet: RobustMQPacket::AMQP(frame),
                                 };
-                                if let Err(e) =
-                                    cm.write_tcp_frame(connection_id, wrapper).await
-                                {
-                                    error!(
-                                        connection_id,
-                                        "AMQP Deliver write failed: {}", e
-                                    );
+                                if let Err(e) = cm.write_tcp_frame(connection_id, wrapper).await {
+                                    error!(connection_id, "AMQP Deliver write failed: {}", e);
                                     return;
                                 }
                             }
@@ -293,10 +285,7 @@ impl AmqpHandlerCommand {
                         }
                     }
                     Err(e) => {
-                        error!(
-                            "AMQP Basic.Consume storage read error on {}: {}",
-                            queue, e
-                        );
+                        error!("AMQP Basic.Consume storage read error on {}: {}", queue, e);
                         sleep(Duration::from_millis(100)).await;
                     }
                 }

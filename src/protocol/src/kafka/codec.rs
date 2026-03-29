@@ -707,7 +707,15 @@ impl KafkaCodec {
                 }
             }
             KafkaHeader::Response(header) => {
-                header.encode(&mut header_bytes, 1)?;
+                // ApiVersions response header must always be version 0 (no tagged fields),
+                // regardless of the request api_version. All other responses use version 1.
+                let resp_header_version =
+                    if matches!(wrapper.packet, KafkaPacket::ApiVersionResponse(_)) {
+                        0
+                    } else {
+                        1
+                    };
+                header.encode(&mut header_bytes, resp_header_version)?;
                 match wrapper.packet {
                     KafkaPacket::ProduceResponse(rep) => {
                         rep.encode(&mut body_bytes, wrapper.api_version)?

@@ -4105,13 +4105,16 @@ version = "0.3.6"
 dependencies = [
  "async-trait",
  "broker-core",
+ "bytes",
  "common-base",
+ "dashmap 6.1.0",
  "grpc-clients",
  "kafka-protocol",
  "metadata-struct",
  "network-server",
  "protocol",
  "rate-limit",
+ "storage-adapter",
  "tokio",
  "tracing",
 ]

@@ -26,31 +26,33 @@ use tokio::sync::broadcast;
 
 use crate::BrokerServer;
 
-pub fn build_amqp_params(
-    connection_manager: Arc<ConnectionManager>,
-    client_pool: Arc<ClientPool>,
-    broker_cache: Arc<NodeCacheManager>,
-    global_limit_manager: Arc<GlobalRateLimiterManager>,
-    task_supervisor: Arc<TaskSupervisor>,
-    stop_sx: broadcast::Sender<bool>,
-    shared_request_channel: Arc<RequestChannel>,
-    storage_driver_manager: Arc<StorageDriverManager>,
-) -> AmqpBrokerServerParams {
+pub struct AmqpBuildParams {
+    pub connection_manager: Arc<ConnectionManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub broker_cache: Arc<NodeCacheManager>,
+    pub global_limit_manager: Arc<GlobalRateLimiterManager>,
+    pub task_supervisor: Arc<TaskSupervisor>,
+    pub stop_sx: broadcast::Sender<bool>,
+    pub shared_request_channel: Arc<RequestChannel>,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
+}
+
+pub fn build_amqp_params(p: AmqpBuildParams) -> AmqpBrokerServerParams {
     let config = broker_config();
     AmqpBrokerServerParams {
-        connection_manager,
-        client_pool,
-        broker_cache,
-        global_limit_manager,
-        task_supervisor,
-        stop_sx,
+        connection_manager: p.connection_manager,
+        client_pool: p.client_pool,
+        broker_cache: p.broker_cache,
+        global_limit_manager: p.global_limit_manager,
+        task_supervisor: p.task_supervisor,
+        stop_sx: p.stop_sx,
         proc_config: network_server::context::ProcessorConfig {
             accept_thread_num: config.amqp_runtime.network.accept_thread_num,
             handler_process_num: 0,
             channel_size: 0,
         },
-        request_channel: shared_request_channel,
-        storage_driver_manager,
+        request_channel: p.shared_request_channel,
+        storage_driver_manager: p.storage_driver_manager,
     }
 }
 

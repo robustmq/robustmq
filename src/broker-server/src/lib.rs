@@ -301,35 +301,36 @@ impl BrokerServer {
             broker_runtime,
         );
 
-        let kafka_params = kafka::build_kafka_params(
-            base.connection_manager.clone(),
-            base.client_pool.clone(),
-            base.broker_cache.clone(),
-            base.global_rate_limiter.clone(),
-            base.task_supervisor.clone(),
-            main_stop_send.clone(),
-            shared_request_channel.clone(),
-        );
-        let amqp_params = amqp::build_amqp_params(
-            base.connection_manager.clone(),
-            base.client_pool.clone(),
-            base.broker_cache.clone(),
-            base.global_rate_limiter.clone(),
-            base.task_supervisor.clone(),
-            main_stop_send.clone(),
-            shared_request_channel.clone(),
-            storage_driver_manager.clone(),
-        );
-        let nats_params = nats::build_nats_params(
-            base.connection_manager.clone(),
-            base.client_pool.clone(),
-            base.broker_cache.clone(),
-            base.global_rate_limiter.clone(),
-            base.task_supervisor.clone(),
-            main_stop_send,
-            shared_request_channel.clone(),
-            storage_driver_manager.clone(),
-        );
+        let kafka_params = kafka::build_kafka_params(kafka::KafkaBuildParams {
+            connection_manager: base.connection_manager.clone(),
+            client_pool: base.client_pool.clone(),
+            broker_cache: base.broker_cache.clone(),
+            global_limit_manager: base.global_rate_limiter.clone(),
+            task_supervisor: base.task_supervisor.clone(),
+            stop_sx: main_stop_send.clone(),
+            shared_request_channel: shared_request_channel.clone(),
+            storage_driver_manager: storage_driver_manager.clone(),
+        });
+        let amqp_params = amqp::build_amqp_params(amqp::AmqpBuildParams {
+            connection_manager: base.connection_manager.clone(),
+            client_pool: base.client_pool.clone(),
+            broker_cache: base.broker_cache.clone(),
+            global_limit_manager: base.global_rate_limiter.clone(),
+            task_supervisor: base.task_supervisor.clone(),
+            stop_sx: main_stop_send.clone(),
+            shared_request_channel: shared_request_channel.clone(),
+            storage_driver_manager: storage_driver_manager.clone(),
+        });
+        let nats_params = nats::build_nats_params(nats::NatsBuildParams {
+            connection_manager: base.connection_manager.clone(),
+            client_pool: base.client_pool.clone(),
+            broker_cache: base.broker_cache.clone(),
+            global_limit_manager: base.global_rate_limiter.clone(),
+            task_supervisor: base.task_supervisor.clone(),
+            stop_sx: main_stop_send,
+            shared_request_channel: shared_request_channel.clone(),
+            storage_driver_manager: storage_driver_manager.clone(),
+        });
 
         (
             mqtt_params,
@@ -397,7 +398,9 @@ impl BrokerServer {
         let mqtt_cmd = mqtt_result.map(|(_, cmd)| cmd);
         let (kafka_cmd, amqp_cmd, nats_cmd) = if is_broker_node(&self.config.roles) {
             (
-                Some(kafka_broker::handler::command::create_command()),
+                Some(kafka_broker::handler::command::create_command_with_storage(
+                    self.kafka_params.storage_driver_manager.clone(),
+                )),
                 Some(amqp_broker::handler::command::create_command_with_state(
                     self.connection_manager.clone(),
                     self.amqp_params.storage_driver_manager.clone(),
