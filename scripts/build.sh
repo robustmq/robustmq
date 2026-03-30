@@ -136,6 +136,9 @@ detect_current_platform() {
         Linux)
             os_type="linux"
             ;;
+        FreeBSD)
+            os_type="freebsd"
+            ;;
         *)
             log_error "Unsupported OS: $(uname -s)"
             return 1
@@ -165,6 +168,7 @@ get_rust_target() {
         "linux-arm64") echo "aarch64-unknown-linux-gnu" ;;
         "darwin-amd64") echo "x86_64-apple-darwin" ;;
         "darwin-arm64") echo "aarch64-apple-darwin" ;;
+        "freebsd-amd64") echo "x86_64-unknown-freebsd" ;;
         *) 
             log_error "Unsupported platform: $platform"
             return 1
