@@ -96,7 +96,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_bytes = "0.11"
 bincode = "1.3.3"
-toml = "1.0.6"
+toml = "1.1.0"
 rkyv = { version = "0.8.15" }
 
 # ====================
@@ -176,7 +176,7 @@ jsonwebtoken = { version = "10.0.0", default-features = false, features = [
 # ====================
 rocksdb = { version = "0.22.0", default-features = false, features = ["multi-threaded-cf", "lz4", "zstd"] }
 mysql = { version = "27.0.0", default-features = false }
-redis = { version = "1.0.5", default-features = false, features = ["r2d2", "tokio-comp", "connection-manager"] }
+redis = { version = "1.1.0", default-features = false, features = ["r2d2", "tokio-comp", "connection-manager"] }
 mongodb = { version = "2.8", default-features = false, features = ["tokio-runtime"] }
 sqlx = { version = "0.8", default-features = false }
 r2d2 = "0.8.10"
@@ -263,10 +263,10 @@ apache-avro = "0.17.0"
 anyhow = "1.0.102"
 thiserror = "2.0"
 bytes = { version = "1", features = ["serde"] }
-uuid = { version = "1.22.0", default-features = false, features = ["v4"] }
+uuid = { version = "1.23.0", default-features = false, features = ["v4"] }
 xid = "1.1"
 dashmap = { version = "6.1.0", default-features = false, features = ["serde"] }
-arc-swap = "1.7"
+arc-swap = "1.9"
 rand = "0.8.5"
 regex = "1.10.4"
 grep = "0.3.2"
