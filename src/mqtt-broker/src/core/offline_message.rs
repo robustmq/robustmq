@@ -95,6 +95,22 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         return Ok(None);
     }
 
+    let mqtt_data = build_mqtt_protocol_data(
+        &context.cache_manager,
+        &context.client_id,
+        &context.publish,
+        &context.publish_properties,
+    )
+    .await;
+
+    let record = AdapterWriteRecord::new(
+        context.topic.topic_name.clone(),
+        context.publish.payload.clone(),
+    )
+    .with_protocol_data(Some(StorageRecordProtocolData {
+        mqtt: Some(mqtt_data),
+    }));
+
     if context.delay_info.is_some() {
         return save_delay_message(
             &context.delay_message_manager,
@@ -106,36 +122,26 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
     }
 
     save_simple_message(
-        &context.cache_manager,
         &context.storage_driver_manager,
         &context.client_id,
         &context.topic,
         &context.publish,
-        &context.publish_properties,
+        &record,
     )
     .await
 }
 
 async fn save_simple_message(
-    cache_manager: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_id: &str,
     topic: &Topic,
     publish: &Publish,
-    publish_properties: &Option<PublishProperties>,
+    record: &AdapterWriteRecord,
 ) -> Result<Option<String>, MqttBrokerError> {
-    let mqtt_data =
-        build_mqtt_protocol_data(cache_manager, client_id, publish, publish_properties).await;
-
-    let record = AdapterWriteRecord::new(topic.topic_name.clone(), publish.payload.clone())
-        .with_protocol_data(StorageRecordProtocolData {
-            mqtt: Some(mqtt_data),
-        });
-
     let offsets = if publish.qos == QoS::ExactlyOnce {
         save_temporary_qos2_message(
             storage_driver_manager,
-            &record,
+            record,
             &topic.tenant,
             &topic.topic_name,
             client_id,
@@ -145,7 +151,7 @@ async fn save_simple_message(
     } else {
         let message_storage = MessageStorage::new(storage_driver_manager.clone());
         message_storage
-            .append_topic_message(&topic.tenant, &topic.topic_name, vec![record])
+            .append_topic_message(&topic.tenant, &topic.topic_name, vec![record.clone()])
             .await?
     };
 

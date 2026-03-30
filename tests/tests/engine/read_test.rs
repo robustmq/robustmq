@@ -80,7 +80,6 @@ mod tests {
         let mut messages = Vec::new();
         for i in 0..10 {
             let record = AdapterWriteRecord {
-                pkid: 100 + i,
                 key: Some(format!("key-{}", i)),
                 tags: Some(vec![format!("tag-{}", i % 3)]),
                 data: Bytes::from(format!("data-{}", i)),

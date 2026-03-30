@@ -161,6 +161,13 @@ fn build_publish_properties(
         return None;
     }
 
+    let mut user_properties = Vec::new();
+    if let Some(header) = msg.metadata.header.clone() {
+        for row in header {
+            user_properties.push((row.name, row.value));
+        }
+    }
+
     if let Some(protocol_data) = msg.protocol_data.clone() {
         if let Some(mqtt_data) = protocol_data.mqtt {
             return Some(PublishProperties {
@@ -169,6 +176,7 @@ fn build_publish_properties(
                 response_topic: mqtt_data.response_topic.clone(),
                 correlation_data: mqtt_data.correlation_data.clone(),
                 content_type: mqtt_data.content_type.clone(),
+                user_properties,
                 ..Default::default()
             });
         }

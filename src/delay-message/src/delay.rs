@@ -81,11 +81,11 @@ pub async fn save_delay_index_info(
     delay_info: &DelayMessageIndexInfo,
 ) -> Result<(), CommonError> {
     let data = serialize(&delay_info)?;
-    let data = AdapterWriteRecord::new(DELAY_QUEUE_INDEX_TOPIC, data)
-        .with_key(delay_info.unique_id.clone())
-        .with_pkid(now_second());
+    let record = AdapterWriteRecord::new(DELAY_QUEUE_INDEX_TOPIC, data)
+        .with_key(delay_info.unique_id.clone());
+
     let result = storage_driver_manager
-        .write(DEFAULT_TENANT, DELAY_QUEUE_INDEX_TOPIC, &[data])
+        .write(DEFAULT_TENANT, DELAY_QUEUE_INDEX_TOPIC, &[record])
         .await?;
 
     let resp = if let Some(row) = result.first() {

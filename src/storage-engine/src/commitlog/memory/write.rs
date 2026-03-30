@@ -135,7 +135,7 @@ impl MemoryStorageEngine {
         let mut offset = self.commit_log_offset.get_latest_offset(shard_name)?;
         for msg in messages.iter() {
             offset_res.push(AdapterWriteRespRow {
-                pkid: msg.pkid,
+                pkid: msg.record_id,
                 offset,
                 ..Default::default()
             });
@@ -185,7 +185,6 @@ mod tests {
 
         let messages: Vec<AdapterWriteRecord> = (0..10)
             .map(|i| AdapterWriteRecord {
-                pkid: i,
                 key: Some(format!("key{}", i)),
                 tags: Some(vec![format!("tag{}", i % 3)]),
                 ..Default::default()
@@ -194,7 +193,6 @@ mod tests {
 
         engine.batch_write(&shard_name, &messages).await.unwrap();
         let new_message = AdapterWriteRecord {
-            pkid: 100,
             key: Some("key100".to_string()),
             tags: Some(vec!["tag100".to_string()]),
             ..Default::default()
@@ -233,7 +231,6 @@ mod tests {
 
         let messages: Vec<AdapterWriteRecord> = (0..5)
             .map(|i| AdapterWriteRecord {
-                pkid: i,
                 key: Some(format!("key{}", i)),
                 tags: Some(vec![format!("tag{}", i)]),
                 data: Bytes::from(format!("data{}", i)),

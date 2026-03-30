@@ -52,7 +52,7 @@ pub struct WriteChannelData {
 #[derive(Debug, Clone)]
 pub struct WriteChannelDataRecord {
     pub pkid: u64,
-    pub header: Option<Vec<metadata_struct::storage::record::Header>>,
+    pub header: Option<Vec<metadata_struct::storage::record::StorageHeader>>,
     pub key: Option<String>,
     pub value: Bytes,
     pub tags: Option<Vec<String>>,

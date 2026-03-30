@@ -23,6 +23,7 @@ use common_metrics::mqtt::delay::{
 use futures::StreamExt;
 use metadata_struct::adapter::adapter_record::{AdapterWriteRecord, RecordHeader};
 use metadata_struct::delay_info::DelayMessageIndexInfo;
+use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
 use std::time::Instant;
@@ -205,15 +206,7 @@ async fn send_delay_message_to_shard(
         )));
     };
 
-    let trigger_header = RecordHeader {
-        name: DELAY_MESSAGE_SAVE_MS.to_string(),
-        value: trigger_time.to_string(),
-    };
-
-    let send_record =
-        AdapterWriteRecord::new(delay_message.target_topic_name.clone(), record.data.clone())
-            .with_key(delay_message.unique_id.clone())
-            .with_header(vec![trigger_header]);
+    let send_record = build_new_record(delay_message, &record, trigger_time);
 
     // send to target topic under the original tenant
     let resp = storage_driver_manager
@@ -243,5 +236,49 @@ async fn send_delay_message_to_shard(
     Ok(write_resp.offset)
 }
 
+fn build_new_record(
+    delay_message: &DelayMessageIndexInfo,
+    record: &StorageRecord,
+    trigger_time: u64,
+) -> AdapterWriteRecord {
+    let trigger_header = RecordHeader {
+        name: DELAY_MESSAGE_SAVE_MS.to_string(),
+        value: trigger_time.to_string(),
+    };
+
+    let mut send_record =
+        AdapterWriteRecord::new(delay_message.target_topic_name.clone(), record.data.clone())
+            .with_protocol_data(record.protocol_data.clone());
+
+    // header
+    let header = if let Some(header) = record.metadata.header.clone() {
+        let mut new_header = Vec::new();
+        for raw in header {
+            new_header.push(RecordHeader {
+                name: raw.name,
+                value: raw.value,
+            });
+        }
+        new_header.push(trigger_header);
+        new_header
+    } else {
+        vec![trigger_header]
+    };
+    send_record = send_record.with_header(header);
+
+    // key
+    if let Some(key) = record.metadata.key.clone() {
+        send_record = send_record.with_key(key);
+    }
+
+    // tags
+    if let Some(tags) = record.metadata.tags.clone() {
+        send_record = send_record.with_tags(tags);
+    }
+
+    // protocol_data
+    send_record = send_record.with_protocol_data(record.protocol_data.clone());
+    send_record
+}
 #[cfg(test)]
 mod test {}

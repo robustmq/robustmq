@@ -220,7 +220,6 @@ mod tests {
 
         let messages: Vec<AdapterWriteRecord> = (0..10)
             .map(|i| AdapterWriteRecord {
-                pkid: i,
                 key: Some(format!("key{}", i)),
                 tags: Some(vec![format!("tag{}", i % 3)]),
                 ..Default::default()

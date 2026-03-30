@@ -154,8 +154,7 @@ pub async fn test_timestamp_index_with_multiple_entries(adapter: ArcStorageAdapt
 
     let mut records = Vec::new();
     for i in 0..15000u64 {
-        let r = AdapterWriteRecord::new(&shard_name, format!("msg{}", i).into_bytes())
-            .with_pkid(1000 + i);
+        let r = AdapterWriteRecord::new(&shard_name, format!("msg{}", i).into_bytes());
         records.push(r);
     }
 

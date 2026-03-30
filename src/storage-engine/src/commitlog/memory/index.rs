@@ -63,7 +63,6 @@ mod tests {
         let engine = test_build_memory_engine();
         let shard_name = unique_id();
         let msg = AdapterWriteRecord {
-            pkid: 1,
             key: Some("test_key".to_string()),
             tags: Some(vec!["test_tag".to_string()]),
             ..Default::default()

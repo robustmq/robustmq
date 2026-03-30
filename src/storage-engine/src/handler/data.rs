@@ -280,15 +280,12 @@ mod tests {
             Arc::new(ClientConnectionManager::new(cache_manager.clone(), 8));
         let mut messages = Vec::new();
         for i in 0..10 {
-            let record = AdapterWriteRecord {
-                pkid: 100 + i,
-                header: None,
-                key: Some(format!("key-{}", i)),
-                tags: Some(vec![format!("tag-{}", i)]),
-                data: Bytes::from("dsfsfsdfsf"),
-                topic: segment_iden.shard_name.to_string(),
-                protocol_data: None,
-            };
+            let record = AdapterWriteRecord::new(
+                segment_iden.shard_name.to_string(),
+                Bytes::from("dsfsfsdfsf"),
+            )
+            .with_key(format!("key-{}", i))
+            .with_tags(vec![format!("tag-{}", i)]);
             messages.push(serialize::serialize(&record).unwrap());
         }
         write_data_req(

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use bytes::Bytes;
 use common_base::utils::serialize;
 use pulsar::{producer, Error as PulsarError, SerializeMessage};
@@ -27,8 +29,8 @@ pub struct RecordHeader {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct AdapterWriteRecord {
+    pub record_id: u64,
     pub topic: String,
-    pub pkid: u64,
     pub header: Option<Vec<RecordHeader>>,
     pub key: Option<String>,
     pub tags: Option<Vec<String>>,
@@ -36,9 +38,12 @@ pub struct AdapterWriteRecord {
     pub protocol_data: Option<StorageRecordProtocolData>,
 }
 
+static PACKET_ID_GENERATOR: AtomicU64 = AtomicU64::new(0);
+
 impl AdapterWriteRecord {
     pub fn new(topic: impl Into<String>, data: impl Into<Bytes>) -> Self {
         Self {
+            record_id: PACKET_ID_GENERATOR.fetch_add(1, Ordering::Relaxed),
             topic: topic.into(),
             data: data.into(),
             ..Default::default()
@@ -55,18 +60,13 @@ impl AdapterWriteRecord {
         self
     }
 
-    pub fn with_pkid(mut self, pkid: u64) -> Self {
-        self.pkid = pkid;
-        self
-    }
-
     pub fn with_header(mut self, header: Vec<RecordHeader>) -> Self {
         self.header = Some(header);
         self
     }
 
-    pub fn with_protocol_data(mut self, protocol_data: StorageRecordProtocolData) -> Self {
-        self.protocol_data = Some(protocol_data);
+    pub fn with_protocol_data(mut self, protocol_data: Option<StorageRecordProtocolData>) -> Self {
+        self.protocol_data = protocol_data;
         self
     }
 
@@ -121,7 +121,6 @@ mod tests {
     #[test]
     fn test_builder_chain() {
         let record = AdapterWriteRecord::new("test/topic", b"hello".as_ref())
-            .with_pkid(42)
             .with_key("my-key")
             .with_tags(vec!["tag1".to_string()])
             .with_header(vec![RecordHeader {
@@ -130,7 +129,6 @@ mod tests {
             }]);
 
         assert_eq!(record.topic, "test/topic");
-        assert_eq!(record.pkid, 42);
         assert_eq!(record.key(), Some("my-key"));
         assert_eq!(record.tags(), &["tag1"]);
         assert_eq!(record.header()[0].name, "x-source");
@@ -138,16 +136,13 @@ mod tests {
 
     #[test]
     fn test_serialization() {
-        let record = AdapterWriteRecord::new("test/topic", b"payload".as_ref())
-            .with_pkid(7)
-            .with_key("k");
+        let record = AdapterWriteRecord::new("test/topic", b"payload".as_ref()).with_key("k");
 
         let serialized = serialize::serialize(&record).expect("serialize failed");
         let decoded: AdapterWriteRecord =
             serialize::deserialize(&serialized).expect("deserialize failed");
 
         assert_eq!(decoded.topic, record.topic);
-        assert_eq!(decoded.pkid, record.pkid);
         assert_eq!(decoded.key, record.key);
         assert_eq!(decoded.data.as_ref(), record.data.as_ref());
     }

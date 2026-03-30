@@ -89,7 +89,7 @@ impl RocksDBStorageEngine {
 
         for msg in messages {
             results.push(AdapterWriteRespRow {
-                pkid: msg.pkid,
+                pkid: msg.record_id,
                 offset,
                 ..Default::default()
             });
@@ -224,7 +224,6 @@ mod tests {
 
         let messages: Vec<AdapterWriteRecord> = (0..5)
             .map(|i| AdapterWriteRecord {
-                pkid: i,
                 key: Some(format!("key{}", i)),
                 tags: Some(vec![format!("tag{}", i)]),
                 data: Bytes::from(format!("data{}", i)),

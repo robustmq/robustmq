@@ -147,11 +147,11 @@ async fn write_segment_to_local(
     let data_list = records
         .iter()
         .map(|record| WriteChannelDataRecord {
-            pkid: record.pkid,
+            pkid: record.record_id,
             header: record.header.as_ref().map(|headers| {
                 headers
                     .iter()
-                    .map(|h| metadata_struct::storage::record::Header {
+                    .map(|h| metadata_struct::storage::record::StorageHeader {
                         name: h.name.clone(),
                         value: h.value.clone(),
                     })
