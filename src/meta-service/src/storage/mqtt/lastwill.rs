@@ -68,6 +68,7 @@ impl MqttLastWillStorage {
 mod tests {
     use super::*;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use rocksdb_engine::test::test_rocksdb_instance;
 
     fn setup_storage() -> MqttLastWillStorage {
@@ -81,6 +82,7 @@ mod tests {
         use protocol::mqtt::common::{LastWill, QoS};
 
         MqttLastWillData {
+            tenant: DEFAULT_TENANT.to_string(),
             client_id: client_id.to_string(),
             last_will: Some(LastWill {
                 topic: Bytes::from(topic.to_string()),

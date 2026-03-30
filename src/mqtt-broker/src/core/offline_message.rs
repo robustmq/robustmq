@@ -78,6 +78,7 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         )
         .await?;
 
+    // offline message
     let offline_message_disabled = !context
         .cache_manager
         .node_cache
@@ -95,6 +96,18 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         return Ok(None);
     }
 
+    // save delay message
+    if context.delay_info.is_some() {
+        return save_delay_message(
+            &context.delay_message_manager,
+            &context.topic.tenant,
+            &context.publish.payload,
+            context.delay_info.as_ref().unwrap(),
+        )
+        .await;
+    }
+
+    // save message
     let mqtt_data = build_mqtt_protocol_data(
         &context.cache_manager,
         &context.client_id,
@@ -110,16 +123,6 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
     .with_protocol_data(Some(StorageRecordProtocolData {
         mqtt: Some(mqtt_data),
     }));
-
-    if context.delay_info.is_some() {
-        return save_delay_message(
-            &context.delay_message_manager,
-            &context.topic.tenant,
-            &context.publish.payload,
-            context.delay_info.as_ref().unwrap(),
-        )
-        .await;
-    }
 
     save_simple_message(
         &context.storage_driver_manager,
@@ -158,7 +161,7 @@ async fn save_simple_message(
     Ok(Some(format!("{offsets:?}")))
 }
 
-async fn build_mqtt_protocol_data(
+pub async fn build_mqtt_protocol_data(
     cache_manager: &Arc<MQTTCacheManager>,
     client_id: &str,
     publish: &Publish,

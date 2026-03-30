@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct MqttLastWillData {
+    pub tenant: String,
     pub client_id: String,
     pub last_will: Option<LastWill>,
     pub last_will_properties: Option<LastWillProperties>,

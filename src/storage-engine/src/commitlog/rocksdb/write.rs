@@ -24,7 +24,7 @@ use common_base::{
 };
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
-    convert::convert_adapter_record_to_engine,
+    convert::convert_adapter_record_to_storage,
 };
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::storage::{
@@ -95,7 +95,7 @@ impl RocksDBStorageEngine {
             });
 
             // Convert StorageAdapterRecord to StorageEngineRecord
-            let engine_record = convert_adapter_record_to_engine(msg.clone(), shard_name, offset);
+            let engine_record = convert_adapter_record_to_storage(msg.clone(), shard_name, offset);
 
             // save message (now storing StorageEngineRecord)
             let shard_record_key = shard_record_key(shard_name, offset);

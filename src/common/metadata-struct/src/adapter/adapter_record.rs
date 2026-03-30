@@ -11,15 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-use std::sync::atomic::{AtomicU64, Ordering};
-
+use crate::storage::record::StorageRecordProtocolData;
 use bytes::Bytes;
 use common_base::utils::serialize;
 use pulsar::{producer, Error as PulsarError, SerializeMessage};
 use serde::{Deserialize, Serialize};
-
-use crate::storage::record::StorageRecordProtocolData;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct RecordHeader {

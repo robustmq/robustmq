@@ -276,8 +276,6 @@ fn build_new_record(
         send_record = send_record.with_tags(tags);
     }
 
-    // protocol_data
-    send_record = send_record.with_protocol_data(record.protocol_data.clone());
     send_record
 }
 #[cfg(test)]

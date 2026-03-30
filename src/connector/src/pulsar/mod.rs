@@ -24,7 +24,7 @@ use crate::{
 use async_trait::async_trait;
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::convert::convert_engine_record_to_adapter;
+use metadata_struct::storage::convert::convert_storage_record_to_adapter;
 use metadata_struct::{
     connector::config_pulsar::PulsarConnectorConfig, connector::MQTTConnector,
     storage::record::StorageRecord,
@@ -92,7 +92,7 @@ impl ConnectorSink for PulsarBridgePlugin {
                         continue;
                     }
                 };
-            let mut write_record = convert_engine_record_to_adapter(record.clone());
+            let mut write_record = convert_storage_record_to_adapter(record.clone());
             write_record.data = processed_data;
             producer.send_non_blocking(write_record).await?;
         }

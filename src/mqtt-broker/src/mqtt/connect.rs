@@ -205,7 +205,8 @@ impl MqttService {
             }
         };
         if let Err(e) = save_last_will_message(
-            client_id.clone(),
+            &tenant.tenant_name,
+            &client_id,
             &context.last_will,
             &context.last_will_properties,
             &self.client_pool,

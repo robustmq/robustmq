@@ -16,7 +16,7 @@ use crate::{commitlog::memory::engine::MemoryStorageEngine, core::error::Storage
 use dashmap::DashMap;
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
-    convert::convert_adapter_record_to_engine,
+    convert::convert_adapter_record_to_storage,
 };
 use std::sync::Arc;
 
@@ -140,7 +140,7 @@ impl MemoryStorageEngine {
                 ..Default::default()
             });
 
-            let engine_record = convert_adapter_record_to_engine(msg.clone(), shard_name, offset);
+            let engine_record = convert_adapter_record_to_storage(msg.clone(), shard_name, offset);
 
             current_shard_data_list.insert(offset, engine_record);
 
