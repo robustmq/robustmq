@@ -15,7 +15,7 @@
 use crate::{commitlog::offset::CommitLogOffset, core::cache::StorageCacheManager};
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
-use metadata_struct::storage::storage_record::StorageRecord;
+use metadata_struct::storage::record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 

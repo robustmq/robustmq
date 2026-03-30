@@ -25,7 +25,7 @@ use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
 use broker_core::cache::NodeCacheManager;
 use bytes::Bytes;
-use common_base::tools::{now_millis, now_second};
+use common_base::tools::now_millis;
 use delay_task::manager::DelayTaskManager;
 use delay_task::{DelayTask, DelayTaskData};
 use metadata_struct::acl::mqtt_acl::MqttAcl;
@@ -117,13 +117,7 @@ impl DataRouteMqtt {
         }
 
         if let Some(retain) = req.retain_message {
-            let message = MQTTRetainMessage {
-                tenant: req.tenant,
-                topic_name: req.topic_name,
-                retain_message: Bytes::copy_from_slice(&retain),
-                retain_message_expired_at: req.retain_message_expired_at,
-                create_time: now_second(),
-            };
+            let message = MQTTRetainMessage::decode(&retain)?;
             storage.save_retain_message(message)?;
         }
 

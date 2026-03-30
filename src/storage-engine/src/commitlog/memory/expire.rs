@@ -14,7 +14,7 @@
 
 use crate::{commitlog::memory::engine::MemoryStorageEngine, core::error::StorageEngineError};
 use dashmap::DashMap;
-use metadata_struct::storage::storage_record::StorageRecord;
+use metadata_struct::storage::record::StorageRecord;
 
 impl MemoryStorageEngine {
     pub fn try_remove_old_data(

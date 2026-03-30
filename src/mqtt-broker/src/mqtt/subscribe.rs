@@ -100,7 +100,6 @@ impl MqttService {
                 &connection.tenant,
                 &connection.client_id,
                 subscribe,
-                subscribe_properties,
                 &self.cache_manager,
                 &self.subscribe_manager,
             )

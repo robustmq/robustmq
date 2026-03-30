@@ -59,16 +59,8 @@ pub async fn send_last_will_message(
     .await?;
 
     retain_message_manager
-        .save_retain_message(
-            tenant,
-            &topic_name,
-            client_id,
-            &publish,
-            &publish_properties,
-        )
+        .save_retain_message(tenant, &topic_name, &publish, &publish_properties)
         .await?;
-
-    // Persisting stores message data
 
     let _message_expire = build_message_expire(cache_manager, &publish_properties).await;
     let record = AdapterWriteRecord::new(topic.topic_name.to_string(), publish.payload.clone());

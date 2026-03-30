@@ -18,8 +18,8 @@ use crate::pop::delay_message_process;
 use common_base::tools::now_second;
 use common_base::utils::serialize::{self};
 use common_metrics::mqtt::delay::{record_delay_msg_recover, record_delay_msg_recover_expired};
-use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -85,7 +85,7 @@ async fn read_delay_index_batch(
     offsets: &HashMap<String, u64>,
     read_config: &AdapterReadConfig,
     retry_count: &mut u32,
-) -> Option<Vec<metadata_struct::storage::storage_record::StorageRecord>> {
+) -> Option<Vec<metadata_struct::storage::record::StorageRecord>> {
     match delay_message_manager
         .storage_driver_manager
         .read_by_offset(
@@ -123,7 +123,7 @@ async fn read_delay_index_batch(
 
 async fn process_delay_index_record(
     delay_message_manager: &Arc<DelayMessageManager>,
-    record: &metadata_struct::storage::storage_record::StorageRecord,
+    record: &metadata_struct::storage::record::StorageRecord,
     total_num: &mut u64,
 ) -> bool {
     let delay_info = match serialize::deserialize::<DelayMessageIndexInfo>(&record.data) {
@@ -183,7 +183,7 @@ async fn handle_expired_delay_message(
 }
 
 fn update_offsets_from_records(
-    data: &[metadata_struct::storage::storage_record::StorageRecord],
+    data: &[metadata_struct::storage::record::StorageRecord],
     offsets: &mut HashMap<String, u64>,
 ) {
     for record in data {

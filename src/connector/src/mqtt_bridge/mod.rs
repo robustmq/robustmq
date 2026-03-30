@@ -17,7 +17,7 @@ use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_mqtt::MqttBridgeConnectorConfig, connector::config_mqtt::MqttProtocolVersion,
-    connector::MQTTConnector, storage::storage_record::StorageRecord,
+    connector::MQTTConnector, storage::record::StorageRecord,
 };
 use paho_mqtt as mqtt;
 use rule_engine::apply_rule_engine;
@@ -55,7 +55,11 @@ impl MqttBridgePlugin {
     }
 
     fn build_target_topic(&self, record: &StorageRecord) -> String {
-        let original_topic = record.metadata.key.as_deref().unwrap_or("robustmq/bridge/default");
+        let original_topic = record
+            .metadata
+            .key
+            .as_deref()
+            .unwrap_or("robustmq/bridge/default");
 
         if let Some(prefix) = &self.config.topic_prefix {
             format!("{}/{}", prefix.trim_end_matches('/'), original_topic)

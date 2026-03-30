@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use metadata_struct::storage::{
-    adapter_read_config::AdapterWriteRespRow, storage_record::StorageRecord,
+    adapter_read_config::AdapterWriteRespRow, record::StorageRecord,
 };
 use protocol::storage::protocol::{
     ApiKey, ReadReq, ReadReqBody, ReadReqMessage, ReadResp, ReadRespBody, ReqHeader, RespHeader,

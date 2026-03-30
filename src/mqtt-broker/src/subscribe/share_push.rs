@@ -29,9 +29,7 @@ use crate::{
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::mqtt::message::MqttRecordMeta;
-use metadata_struct::storage::convert::convert_engine_record_to_adapter;
-use metadata_struct::storage::storage_record::StorageRecord;
+use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
@@ -170,11 +168,8 @@ impl SharePushManager {
             }
 
             for record in data_list {
-                let new_record = convert_engine_record_to_adapter(record.clone());
-                let msg = MqttRecordMeta::decode_record(new_record.clone())?;
-
                 // If the message has expired, it will not be delivered.
-                if !send_message_validator_by_message_expire(&msg) {
+                if !send_message_validator_by_message_expire(&record) {
                     if let Some(mut offsets) = self.group_offsets.get_mut(&self.group_name) {
                         offsets.insert(record.metadata.shard.to_string(), record.metadata.offset);
                     }
@@ -212,7 +207,7 @@ impl SharePushManager {
                         let allow = match send_message_validator_by_max_message_size(
                             &self.cache_manager,
                             &subscriber.client_id,
-                            &msg,
+                            &record,
                         )
                         .await
                         {
@@ -233,16 +228,12 @@ impl SharePushManager {
                         }
 
                         // If the message cannot be sent to the entire client group, try the next client.
-                        if !is_send_msg_by_bo_local(
-                            subscriber.no_local,
-                            &subscriber.client_id,
-                            &msg.client_id,
-                        ) {
+                        if !is_send_msg_by_bo_local(&subscriber, &record) {
                             continue;
                         }
 
                         // Push data
-                        let success = match self.push_data(&subscriber, &msg, stop_sx).await {
+                        let success = match self.push_data(&subscriber, &record, stop_sx).await {
                             Ok(pushed) => {
                                 if pushed {
                                     processed_count += 1;
@@ -313,7 +304,7 @@ impl SharePushManager {
     async fn push_data(
         &self,
         subscriber: &Subscriber,
-        msg: &MqttRecordMeta,
+        msg: &StorageRecord,
         stop_sx: &Sender<bool>,
     ) -> Result<bool, MqttBrokerError> {
         let sub_pub_param = if let Some(params) = build_publish_message(
@@ -345,7 +336,7 @@ impl SharePushManager {
             &self.rocksdb_engine_handler,
             subscriber,
             send_time,
-            msg.create_time,
+            msg.metadata.create_t,
         )
         .await?;
 

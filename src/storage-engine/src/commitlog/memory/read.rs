@@ -15,7 +15,7 @@
 use crate::{commitlog::memory::engine::MemoryStorageEngine, core::error::StorageEngineError};
 use metadata_struct::storage::{
     adapter_offset::AdapterOffsetStrategy, adapter_read_config::AdapterReadConfig,
-    storage_record::StorageRecord,
+    record::StorageRecord,
 };
 
 impl MemoryStorageEngine {

@@ -213,7 +213,7 @@ mod tests {
     use common_config::storage::StorageType;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
-    use metadata_struct::storage::storage_record::StorageRecord;
+    use metadata_struct::storage::record::StorageRecord;
     use protocol::storage::protocol::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
     };
@@ -287,6 +287,7 @@ mod tests {
                 tags: Some(vec![format!("tag-{}", i)]),
                 data: Bytes::from("dsfsfsdfsf"),
                 topic: segment_iden.shard_name.to_string(),
+                protocol_data: None,
             };
             messages.push(serialize::serialize(&record).unwrap());
         }

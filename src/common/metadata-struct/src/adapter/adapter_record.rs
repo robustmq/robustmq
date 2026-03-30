@@ -17,6 +17,8 @@ use common_base::utils::serialize;
 use pulsar::{producer, Error as PulsarError, SerializeMessage};
 use serde::{Deserialize, Serialize};
 
+use crate::storage::record::StorageRecordProtocolData;
+
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct RecordHeader {
     pub name: String,
@@ -31,6 +33,7 @@ pub struct AdapterWriteRecord {
     pub key: Option<String>,
     pub tags: Option<Vec<String>>,
     pub data: Bytes,
+    pub protocol_data: Option<StorageRecordProtocolData>,
 }
 
 impl AdapterWriteRecord {
@@ -59,6 +62,11 @@ impl AdapterWriteRecord {
 
     pub fn with_header(mut self, header: Vec<RecordHeader>) -> Self {
         self.header = Some(header);
+        self
+    }
+
+    pub fn with_protocol_data(mut self, protocol_data: StorageRecordProtocolData) -> Self {
+        self.protocol_data = Some(protocol_data);
         self
     }
 

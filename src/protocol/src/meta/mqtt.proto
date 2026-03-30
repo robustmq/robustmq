@@ -129,7 +129,6 @@ message SetTopicRetainMessageRequest {
   string tenant = 1;
   string topic_name = 2 [(validate.rules).string.min_len = 1];
   optional bytes retain_message = 3;
-  uint64 retain_message_expired_at = 4 [(validate.rules).uint64.gte = 0];
 }
 
 message SetTopicRetainMessageReply {}
@@ -141,7 +140,6 @@ message GetTopicRetainMessageRequest {
 
 message GetTopicRetainMessageReply {
   optional bytes retain_message = 1;
-  uint64 retain_message_expired_at = 2;
 }
 
 message ListSessionRequest {

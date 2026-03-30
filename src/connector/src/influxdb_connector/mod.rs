@@ -18,7 +18,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_influxdb::{InfluxDBConnectorConfig, InfluxDBVersion},
     connector::MQTTConnector,
-    storage::storage_record::StorageRecord,
+    storage::record::StorageRecord,
 };
 use reqwest::Client;
 use rule_engine::apply_rule_engine;

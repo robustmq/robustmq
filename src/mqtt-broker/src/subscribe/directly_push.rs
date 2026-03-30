@@ -28,9 +28,7 @@ use crate::{
 };
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::mqtt::message::MqttRecordMeta;
-use metadata_struct::storage::convert::convert_engine_record_to_adapter;
-use metadata_struct::storage::storage_record::StorageRecord;
+use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
@@ -269,20 +267,18 @@ impl DirectlyPushManager {
         record: &StorageRecord,
         stop_sx: &Sender<bool>,
     ) -> Result<bool, MqttBrokerError> {
-        let new_record = convert_engine_record_to_adapter(record.clone());
-
-        let msg = MqttRecordMeta::decode_record(new_record)?;
-        if !send_message_validator(&self.cache_manager, &subscriber.client_id, &msg).await? {
+        if !send_message_validator(&self.cache_manager, &subscriber.client_id, record).await? {
             return Ok(false);
         }
 
-        if !is_send_msg_by_bo_local(subscriber.no_local, &subscriber.client_id, &msg.client_id) {
+        if !is_send_msg_by_bo_local(subscriber, record) {
             return Ok(false);
         }
+
         let sub_pub_param = if let Some(params) = build_publish_message(
             &self.cache_manager,
             &self.connection_manager,
-            &msg,
+            record,
             subscriber,
         )
         .await?

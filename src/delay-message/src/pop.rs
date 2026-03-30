@@ -21,8 +21,8 @@ use common_metrics::mqtt::delay::{
     record_delay_msg_deliver, record_delay_msg_deliver_duration, record_delay_msg_deliver_fail,
 };
 use futures::StreamExt;
-use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::adapter::adapter_record::{AdapterWriteRecord, RecordHeader};
+use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
 use std::time::Instant;

@@ -19,7 +19,9 @@ use bytes::{Bytes, BytesMut};
 use common_base::tools::{file_exists, try_create_fold};
 use common_config::broker::broker_config;
 use memmap2::Mmap;
-use metadata_struct::storage::storage_record::{StorageRecord, StorageRecordMetadata};
+use metadata_struct::storage::record::{
+    StorageRecord, StorageRecordMetadata, StorageRecordProtocolData,
+};
 use std::collections::HashMap;
 use std::fs::remove_file;
 use std::io::ErrorKind;
@@ -172,24 +174,32 @@ impl SegmentFile {
         let file = OpenOptions::new().append(true).open(segment_file).await?;
         let mut writer = tokio::io::BufWriter::new(file);
 
-        // offset + total_len + metadata_len + metadata + data_len + data
+        // offset + total_len + metadata_len + metadata + protocol_data_len + protocol_data + data_len + data
         let mut offset_positions = HashMap::new();
         for record in records {
             let metadata_bytes = record.metadata.encode();
             let metadata_bytes_len = metadata_bytes.len();
+            let protocol_data_bytes = match &record.protocol_data {
+                Some(pd) => serde_json::to_vec(pd).unwrap_or_default(),
+                None => Vec::new(),
+            };
+            let protocol_data_len = protocol_data_bytes.len();
             let data_len = record.data.len();
-            let total_len = data_len + metadata_bytes_len;
+            let total_len = metadata_bytes_len + protocol_data_len + data_len;
             offset_positions.insert(record.metadata.offset, self.position);
 
             writer.write_u64(record.metadata.offset).await?;
             writer.write_u32(total_len as u32).await?;
             writer.write_u32(metadata_bytes_len as u32).await?;
             writer.write_all(metadata_bytes.as_ref()).await?;
+            writer.write_u32(protocol_data_len as u32).await?;
+            writer.write_all(protocol_data_bytes.as_ref()).await?;
             writer.write_u32(data_len as u32).await?;
             writer.write_all(record.data.as_ref()).await?;
 
-            // record len
-            self.position += (8 + 4 + 4 + metadata_bytes_len + 4 + data_len) as u64;
+            // record len: offset(8) + total_len(4) + metadata_len(4) + metadata + protocol_data_len(4) + protocol_data + data_len(4) + data
+            self.position +=
+                (8 + 4 + 4 + metadata_bytes_len + 4 + protocol_data_len + 4 + data_len) as u64;
         }
         writer.flush().await?;
         Ok(offset_positions)
@@ -276,16 +286,17 @@ impl SegmentFile {
             let total_len = mmap.read_u32_at(pos + 8)?;
 
             if offset < start_offset {
-                pos += 20 + total_len as u64;
+                // Fixed header: offset(8) + total_len(4) + metadata_len(4) + protocol_data_len(4) + data_len(4) = 24
+                pos += 24 + total_len as u64;
                 continue;
             }
 
             // Check if we can read the full record.
-            // File format: offset(8) + total_len(4) + metadata_len(4) + metadata + data_len(4) + data
-            // total_len = metadata_len + data_len
-            // So full record size = 8 + 4 + 4 + total_len + 4 = 20 + total_len
-            // Boundary check: pos + 16 (offset+total_len+metadata_len) + total_len <= file_size
-            if pos + 16 + total_len as u64 > file_size {
+            // File format: offset(8) + total_len(4) + metadata_len(4) + metadata
+            //              + protocol_data_len(4) + protocol_data + data_len(4) + data
+            // total_len = metadata_len + protocol_data_len + data_len
+            // Full record size = 24 + total_len
+            if pos + 24 + total_len as u64 > file_size {
                 break;
             }
 
@@ -303,7 +314,7 @@ impl SegmentFile {
                 position: pos,
             });
 
-            pos += 20 + total_len as u64;
+            pos += 24 + total_len as u64;
         }
 
         Ok(results)
@@ -350,8 +361,9 @@ impl SegmentFile {
             let total_len = reader.read_u32().await?;
 
             if offset < start_offset {
+                // Skip: metadata_len(4) + metadata + protocol_data_len(4) + protocol_data + data_len(4) = total_len + 12
                 reader
-                    .seek(std::io::SeekFrom::Current(total_len as i64 + 8))
+                    .seek(std::io::SeekFrom::Current(total_len as i64 + 12))
                     .await?;
                 continue;
             }
@@ -431,13 +443,28 @@ impl SegmentFile {
         })?;
         pos += metadata_len as u64;
 
+        let protocol_data_len = mmap.read_u32_at(pos)? as usize;
+        pos += 4;
+
+        let protocol_data = if protocol_data_len > 0 {
+            let pd_bytes = mmap.read_at(pos, protocol_data_len)?;
+            serde_json::from_slice::<StorageRecordProtocolData>(pd_bytes).ok()
+        } else {
+            None
+        };
+        pos += protocol_data_len as u64;
+
         let data_len = mmap.read_u32_at(pos)? as usize;
         pos += 4;
 
         let data_bytes = mmap.read_at(pos, data_len)?;
         let data = Bytes::copy_from_slice(data_bytes);
 
-        Ok(StorageRecord { metadata, data })
+        Ok(StorageRecord {
+            metadata,
+            protocol_data,
+            data,
+        })
     }
 
     /// read a list of records by their byte positions in the segment file
@@ -533,6 +560,18 @@ impl SegmentFile {
             }
         };
 
+        // read protocol_data len
+        let protocol_data_len = reader.read_u32().await?;
+
+        // read protocol_data
+        let protocol_data = if protocol_data_len > 0 {
+            let mut pd_buf = BytesMut::with_capacity(protocol_data_len as usize);
+            reader.read_buf(&mut pd_buf).await?;
+            serde_json::from_slice::<StorageRecordProtocolData>(&pd_buf).ok()
+        } else {
+            None
+        };
+
         // read data len
         let data_len = reader.read_u32().await?;
 
@@ -542,6 +581,7 @@ impl SegmentFile {
 
         Ok(Some(StorageRecord {
             metadata,
+            protocol_data,
             data: data_buf.into(),
         }))
     }
@@ -571,7 +611,9 @@ mod tests {
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use common_config::config::BrokerConfig;
     use metadata_struct::storage::segment::{EngineSegment, Replica};
-    use metadata_struct::storage::storage_record::{StorageRecord, StorageRecordMetadata};
+    use metadata_struct::storage::record::{
+        StorageRecord, StorageRecordMetadata, StorageRecordProtocolData,
+    };
     use std::sync::Arc;
 
     #[tokio::test]
@@ -664,6 +706,7 @@ mod tests {
                     &data,
                 ),
                 data,
+                protocol_data: None,
             };
             match segment.write(std::slice::from_ref(&record)).await {
                 Ok(_) => {}
@@ -708,6 +751,7 @@ mod tests {
                     &None,
                     &data,
                 ),
+                protocol_data: None,
                 data,
             };
             let positions = segment.write(std::slice::from_ref(&record)).await.unwrap();
@@ -763,6 +807,7 @@ mod tests {
                     &None,
                     &data,
                 ),
+                protocol_data: None,
                 data,
             };
             segment.write(std::slice::from_ref(&record)).await.unwrap();
@@ -825,12 +870,30 @@ mod tests {
             .with_timestamp(12345)
             .with_crc_from_data(&data),
             data,
+            protocol_data: None,
         };
 
         segment.write(&[record]).await.unwrap();
+
+        // Write a second record with non-None protocol_data
+        let data2 = Bytes::from("test-data-with-protocol");
+        let protocol_data = StorageRecordProtocolData::default();
+        let record2 = StorageRecord {
+            metadata: StorageRecordMetadata::build(
+                101,
+                segment_iden.shard_name.to_string(),
+                segment_iden.segment,
+            )
+            .with_timestamp(99999)
+            .with_crc_from_data(&data2),
+            data: data2,
+            protocol_data: Some(protocol_data),
+        };
+        segment.write(&[record2]).await.unwrap();
+
         let res = segment.read_by_offset(0, 0, 10000, 10).await.unwrap();
 
-        assert_eq!(res.len(), 1);
+        assert_eq!(res.len(), 2);
         assert_eq!(res[0].record.metadata.offset, 100);
         assert_eq!(res[0].record.metadata.key, Some("test-key".to_string()));
         assert_eq!(
@@ -839,6 +902,11 @@ mod tests {
         );
         assert_eq!(res[0].record.data.as_ref(), b"test-data-content");
         assert_eq!(res[0].record.metadata.create_t, 12345);
+        assert!(res[0].record.protocol_data.is_none());
+
+        assert_eq!(res[1].record.metadata.offset, 101);
+        assert_eq!(res[1].record.data.as_ref(), b"test-data-with-protocol");
+        assert!(res[1].record.protocol_data.is_some());
     }
 
     #[tokio::test]
@@ -909,6 +977,7 @@ mod tests {
                     &data,
                 ),
                 data,
+                protocol_data: None,
             };
             let pos_map = segment.write(std::slice::from_ref(&record)).await.unwrap();
             if let Some(pos) = pos_map.get(&(i as u64)) {

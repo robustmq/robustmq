@@ -19,7 +19,7 @@ use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_clickhouse::ClickHouseConnectorConfig, connector::MQTTConnector,
-    storage::storage_record::StorageRecord,
+    storage::record::StorageRecord,
 };
 use rule_engine::apply_rule_engine;
 use serde::Serialize;

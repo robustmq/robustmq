@@ -26,7 +26,7 @@ use crate::{
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{
-    adapter_read_config::AdapterReadConfig, shard::EngineShard, storage_record::StorageRecord,
+    adapter_read_config::AdapterReadConfig, shard::EngineShard, record::StorageRecord,
 };
 use protocol::storage::{
     codec::StorageEnginePacket,

@@ -20,7 +20,7 @@ use common_base::{
 };
 use futures::stream::StreamExt;
 use metadata_struct::storage::{
-    adapter_offset::AdapterOffsetStrategy, shard::EngineShard, storage_record::StorageRecord,
+    adapter_offset::AdapterOffsetStrategy, shard::EngineShard, record::StorageRecord,
 };
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::storage::{
@@ -156,7 +156,7 @@ mod tests {
     };
     use broker_core::cache::NodeCacheManager;
     use bytes::Bytes;
-    use common_base::{tools::now_second, uuid::unique_id};
+    use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
     use metadata_struct::storage::{
         adapter_read_config::AdapterReadConfig, adapter_record::AdapterWriteRecord,

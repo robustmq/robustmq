@@ -28,7 +28,7 @@ use common_metrics::mqtt::connector::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connector::status::MQTTStatus;
 use metadata_struct::connector::FailureHandlingStrategy;
-use metadata_struct::storage::storage_record::StorageRecord;
+use metadata_struct::storage::record::StorageRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;

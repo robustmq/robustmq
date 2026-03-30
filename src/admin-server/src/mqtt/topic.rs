@@ -25,7 +25,7 @@ use common_base::{
     http_response::{error_response, success_response},
     tools::now_millis,
 };
-use metadata_struct::mqtt::{message::MqttRecordMeta, topic::Topic};
+use metadata_struct::mqtt::{retain_message::MQTTRetainMessage, topic::Topic};
 use metadata_struct::{
     mqtt::topic_rewrite_rule::MqttTopicRewriteRule, storage::shard::EngineShard,
 };
@@ -133,8 +133,7 @@ pub struct DeleteTopicRewriteReq {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TopicDetailResp {
     pub topic_info: Topic,
-    pub retain_message: Option<MqttRecordMeta>,
-    pub retain_message_at: Option<u64>,
+    pub retain_message: Option<MQTTRetainMessage>,
     pub sub_list: HashSet<TopicSubscribeInfo>,
     pub storage_list: HashMap<u32, EngineShard>,
 }
@@ -271,14 +270,13 @@ async fn read_topic_detail(
         .and_then(|t| t.get(&topic.topic_name).map(|v| v.clone()))
         .unwrap_or_default();
     let storage = TopicStorage::new(state.client_pool.clone());
-    let (retain_message, retain_message_at) = storage
+    let retain_message = storage
         .get_retain_message(&topic.tenant, &topic.topic_name)
         .await?;
 
     Ok(TopicDetailResp {
         topic_info: topic,
         retain_message,
-        retain_message_at,
         sub_list,
         storage_list,
     })

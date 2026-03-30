@@ -23,7 +23,7 @@ use chrono::{DateTime, Local, Timelike};
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connector::config_local_file::RotationStrategy;
-use metadata_struct::storage::storage_record::StorageRecord;
+use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::{
     connector::config_local_file::LocalFileConnectorConfig, connector::MQTTConnector,
 };
@@ -309,7 +309,7 @@ mod tests {
             config_local_file::LocalFileConnectorConfig, rule::ETLRule, ConnectorType,
             FailureHandlingStrategy, MQTTConnector,
         },
-        storage::storage_record::{StorageRecord, StorageRecordMetadata},
+        storage::record::{StorageRecord, StorageRecordMetadata},
         tenant::DEFAULT_TENANT,
     };
     use std::{fs, path::PathBuf};
@@ -324,6 +324,7 @@ mod tests {
             let record = StorageRecord {
                 metadata: StorageRecordMetadata::default(),
                 data: Bytes::from(format!("test_data_{i}")),
+                protocol_data: None,
             };
 
             test_data.push(record);

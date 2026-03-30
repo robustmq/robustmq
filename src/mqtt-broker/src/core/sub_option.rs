@@ -13,27 +13,22 @@
 // limitations under the License.
 
 use dashmap::DashMap;
+use metadata_struct::storage::record::StorageRecord;
 use protocol::mqtt::common::RetainHandling;
+
+use crate::subscribe::common::Subscriber;
 
 // No Local
 // The only values available for No Local are 0 and 1, where 1 means that the server cannot forward the message to the client that posted it, and 0 is the opposite.
-pub fn is_send_msg_by_bo_local(no_local: bool, client_id: &str, msg_client_id: &str) -> bool {
-    if no_local && client_id == msg_client_id {
-        return false;
+pub fn is_send_msg_by_bo_local(subscriber: &Subscriber, record: &StorageRecord) -> bool {
+    if let Some(protocol_data) = record.protocol_data.clone() {
+        if let Some(mqtt_data) = protocol_data.mqtt {
+            if subscriber.no_local && subscriber.client_id == mqtt_data.client_id {
+                return false;
+            }
+        }
     }
     true
-}
-
-// Retain As Published
-// Again, the only values that can be assigned to Retain As Published are 0 and 1, where 1 indicates that the server needs to keep the Retain flag when forwarding application messages to the subscription, and 0 indicates that it must be removed.
-pub fn get_retain_flag_by_retain_as_published(
-    retain_as_published: bool,
-    msg_retain_flag: bool,
-) -> bool {
-    if retain_as_published {
-        return msg_retain_flag;
-    }
-    false
 }
 
 // Retain Handling
@@ -67,106 +62,132 @@ pub fn is_send_retain_msg_by_retain_handling(
 
 #[cfg(test)]
 mod tests {
+    use bytes::Bytes;
     use dashmap::DashMap;
-    use protocol::mqtt::common::RetainHandling;
-
-    use crate::core::sub_option::{
-        get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local,
-        is_send_retain_msg_by_retain_handling,
+    use metadata_struct::storage::record::{
+        StorageRecord, StorageRecordMetadata, StorageRecordProtocolData,
+        StorageRecordProtocolDataMqtt,
     };
+    use protocol::mqtt::common::{MqttProtocol, QoS, RetainHandling};
 
-    #[tokio::test]
-    async fn is_send_msg_by_bo_local_test() {
-        let no_local = true;
-        let client_id = "client_id";
-        let msg_client_id = "client_id";
-        assert!(!is_send_msg_by_bo_local(no_local, client_id, msg_client_id));
+    use crate::core::sub_option::{is_send_msg_by_bo_local, is_send_retain_msg_by_retain_handling};
+    use crate::subscribe::common::Subscriber;
 
-        let no_local = true;
-        let client_id = "client_id";
-        let msg_client_id = "client_id_1";
-        assert!(is_send_msg_by_bo_local(no_local, client_id, msg_client_id));
-
-        let no_local = false;
-        let client_id = "client_id";
-        let msg_client_id = "client_id";
-        assert!(is_send_msg_by_bo_local(no_local, client_id, msg_client_id));
-
-        let no_local = false;
-        let client_id = "client_id";
-        let msg_client_id = "client_id_1";
-        assert!(is_send_msg_by_bo_local(no_local, client_id, msg_client_id));
+    fn build_subscriber(client_id: &str, no_local: bool) -> Subscriber {
+        Subscriber {
+            client_id: client_id.to_string(),
+            sub_path: "/test".to_string(),
+            rewrite_sub_path: None,
+            tenant: "default".to_string(),
+            topic_name: "/test".to_string(),
+            group_name: "g".to_string(),
+            protocol: MqttProtocol::Mqtt5,
+            qos: QoS::AtLeastOnce,
+            no_local,
+            preserve_retain: false,
+            retain_forward_rule: RetainHandling::OnEverySubscribe,
+            subscription_identifier: None,
+            create_time: 0,
+        }
     }
 
-    #[tokio::test]
-    async fn get_retain_flag_by_retain_as_published_test() {
-        let retain_as_published = true;
-        let msg_retain_flag = true;
-        assert!(get_retain_flag_by_retain_as_published(
-            retain_as_published,
-            msg_retain_flag
+    fn build_record_with_client(client_id: &str) -> StorageRecord {
+        StorageRecord {
+            metadata: StorageRecordMetadata::build(0, "shard".to_string(), 0),
+            protocol_data: Some(StorageRecordProtocolData {
+                mqtt: Some(StorageRecordProtocolDataMqtt {
+                    client_id: client_id.to_string(),
+                    retain: false,
+                    format_indicator: None,
+                    response_topic: None,
+                    correlation_data: None,
+                    content_type: None,
+                    expire_at: 0,
+                }),
+            }),
+            data: Bytes::new(),
+        }
+    }
+
+    #[test]
+    fn is_send_msg_by_bo_local_test() {
+        // no_local=true, same client_id → should NOT send
+        assert!(!is_send_msg_by_bo_local(
+            &build_subscriber("client_id", true),
+            &build_record_with_client("client_id")
         ));
 
-        let retain_as_published = true;
-        let msg_retain_flag = false;
-        assert!(!get_retain_flag_by_retain_as_published(
-            retain_as_published,
-            msg_retain_flag
+        // no_local=true, different client_id → should send
+        assert!(is_send_msg_by_bo_local(
+            &build_subscriber("client_id", true),
+            &build_record_with_client("client_id_1")
         ));
 
-        let retain_as_published = false;
-        let msg_retain_flag = true;
-        assert!(!get_retain_flag_by_retain_as_published(
-            retain_as_published,
-            msg_retain_flag
+        // no_local=false, same client_id → should send
+        assert!(is_send_msg_by_bo_local(
+            &build_subscriber("client_id", false),
+            &build_record_with_client("client_id")
         ));
 
-        let retain_as_published = false;
-        let msg_retain_flag = false;
-        assert!(!get_retain_flag_by_retain_as_published(
-            retain_as_published,
-            msg_retain_flag
+        // no_local=false, different client_id → should send
+        assert!(is_send_msg_by_bo_local(
+            &build_subscriber("client_id", false),
+            &build_record_with_client("client_id_1")
+        ));
+
+        // no protocol_data → should send regardless of no_local
+        let record_no_protocol = StorageRecord {
+            metadata: StorageRecordMetadata::build(0, "shard".to_string(), 0),
+            protocol_data: None,
+            data: Bytes::new(),
+        };
+        assert!(is_send_msg_by_bo_local(
+            &build_subscriber("client_id", true),
+            &record_no_protocol
         ));
     }
 
-    #[tokio::test]
-    async fn is_send_retain_msg_by_retain_handling_test() {
+    #[test]
+    fn is_send_retain_msg_by_retain_handling_test() {
         let path = "path";
-        let retain_handling = RetainHandling::OnEverySubscribe;
-        let is_new_subs = DashMap::new();
+
+        // OnEverySubscribe → always send
         assert!(is_send_retain_msg_by_retain_handling(
             path,
-            &retain_handling,
-            &is_new_subs
+            &RetainHandling::OnEverySubscribe,
+            &DashMap::new()
         ));
 
-        let path = "path";
-        let retain_handling = RetainHandling::Never;
-        let is_new_subs = DashMap::new();
+        // Never → never send
         assert!(!is_send_retain_msg_by_retain_handling(
             path,
-            &retain_handling,
-            &is_new_subs
+            &RetainHandling::Never,
+            &DashMap::new()
         ));
 
-        let path = "path";
-        let retain_handling = RetainHandling::OnNewSubscribe;
+        // OnNewSubscribe + is_new=true → send
         let is_new_subs = DashMap::new();
         is_new_subs.insert(path.to_string(), true);
         assert!(is_send_retain_msg_by_retain_handling(
             path,
-            &retain_handling,
+            &RetainHandling::OnNewSubscribe,
             &is_new_subs
         ));
 
-        let path = "path";
-        let retain_handling = RetainHandling::OnNewSubscribe;
+        // OnNewSubscribe + is_new=false → don't send
         let is_new_subs = DashMap::new();
         is_new_subs.insert(path.to_string(), false);
         assert!(!is_send_retain_msg_by_retain_handling(
             path,
-            &retain_handling,
+            &RetainHandling::OnNewSubscribe,
             &is_new_subs
+        ));
+
+        // OnNewSubscribe + path not in map → treat as new, send
+        assert!(is_send_retain_msg_by_retain_handling(
+            path,
+            &RetainHandling::OnNewSubscribe,
+            &DashMap::new()
         ));
     }
 }

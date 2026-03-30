@@ -17,7 +17,7 @@ use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_opentsdb::OpenTSDBConnectorConfig, connector::MQTTConnector,
-    storage::storage_record::StorageRecord,
+    storage::record::StorageRecord,
 };
 use reqwest::Client;
 use rule_engine::apply_rule_engine;
@@ -64,10 +64,7 @@ impl OpenTSDBBridgePlugin {
     }
 
     #[allow(clippy::result_large_err)]
-    async fn record_to_data_point(
-        &self,
-        record: &StorageRecord,
-    ) -> Result<Value, CommonError> {
+    async fn record_to_data_point(&self, record: &StorageRecord) -> Result<Value, CommonError> {
         let processed_data = apply_rule_engine(&self.connector.etl_rule, &record.data).await?;
         let payload_str = String::from_utf8_lossy(&processed_data);
         let payload: Value = serde_json::from_str(&payload_str).map_err(|e| {

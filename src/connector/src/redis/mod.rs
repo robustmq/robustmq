@@ -20,7 +20,7 @@ use async_trait::async_trait;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_redis::RedisConnectorConfig, connector::config_redis::RedisMode,
-    connector::MQTTConnector, storage::storage_record::StorageRecord,
+    connector::MQTTConnector, storage::record::StorageRecord,
 };
 use redis::aio::ConnectionManager;
 use redis::{Client, Cmd, RedisError};
@@ -139,10 +139,7 @@ impl RedisBridgePlugin {
         let mut rendered = self.config.command_template.clone();
 
         let mut replacements = HashMap::new();
-        replacements.insert(
-            "client_id",
-            record.metadata.key.clone().unwrap_or_default(),
-        );
+        replacements.insert("client_id", record.metadata.key.clone().unwrap_or_default());
         replacements.insert("topic", record.metadata.shard.clone());
         replacements.insert(
             "payload",

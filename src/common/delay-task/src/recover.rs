@@ -31,7 +31,7 @@ const MAX_READ_RETRY: u32 = 3;
 const PROGRESS_LOG_INTERVAL: u64 = 1000;
 
 enum ReadBatch {
-    Data(Vec<metadata_struct::storage::storage_record::StorageRecord>),
+    Data(Vec<metadata_struct::storage::record::StorageRecord>),
     Retry,
     Abort,
 }
@@ -156,7 +156,7 @@ async fn process_delay_task_record(
     delay_task_manager: &Arc<DelayTaskManager>,
     node_call_manager: &Arc<NodeCallManager>,
     broker_cache: &Arc<NodeCacheManager>,
-    record: &metadata_struct::storage::storage_record::StorageRecord,
+    record: &metadata_struct::storage::record::StorageRecord,
 ) -> RecoverResult {
     let task = match serialize::deserialize::<DelayTask>(&record.data) {
         Ok(t) => t,
@@ -215,7 +215,7 @@ async fn handle_expired_delay_task(
 }
 
 fn update_offsets_from_records(
-    data: &[metadata_struct::storage::storage_record::StorageRecord],
+    data: &[metadata_struct::storage::record::StorageRecord],
     offsets: &mut HashMap<String, u64>,
 ) {
     for record in data {

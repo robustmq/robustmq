@@ -241,8 +241,8 @@ mod tests {
         MQTTRetainMessage {
             tenant: tenant.to_string(),
             topic_name: topic.to_string(),
-            retain_message: Bytes::from(message.to_vec()),
-            retain_message_expired_at: now_second() + 3600,
+            payload: Bytes::from(message.to_vec()),
+            expired_at: now_second() + 3600,
             create_time: now_second(),
         }
     }
@@ -312,10 +312,7 @@ mod tests {
         // Get message
         let retrieved = storage.get_retain_message(tenant, topic).unwrap();
         assert!(retrieved.is_some());
-        assert_eq!(
-            retrieved.unwrap().retain_message.as_ref(),
-            b"temperature:25"
-        );
+        assert_eq!(retrieved.unwrap().payload.as_ref(), b"temperature:25");
 
         // Delete message
         storage.delete_retain_message(tenant, topic).unwrap();

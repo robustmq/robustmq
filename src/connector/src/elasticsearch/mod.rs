@@ -24,7 +24,7 @@ use elasticsearch::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::{config_elasticsearch::ElasticsearchConnectorConfig, MQTTConnector},
-    storage::storage_record::StorageRecord,
+    storage::record::StorageRecord,
 };
 use rule_engine::apply_rule_engine;
 use serde_json::{json, Value};

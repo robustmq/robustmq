@@ -20,7 +20,6 @@ use crate::core::cache::{
 use crate::core::error::MqttBrokerError;
 use crate::core::metrics::record_publish_send_metrics;
 use crate::core::metrics::record_send_metrics;
-use crate::core::sub_option::get_retain_flag_by_retain_as_published;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::subscribe::common::{client_unavailable_error, SubPublishParam};
 use axum::extract::ws::Message;
@@ -28,7 +27,7 @@ use bytes::{Bytes, BytesMut};
 use common_base::network::broker_not_available;
 use common_base::tools::now_millis;
 use common_base::tools::now_second;
-use metadata_struct::mqtt::message::MqttRecordMeta;
+use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::build_mqtt_packet_wrapper;
 use network_server::common::packet::ResponsePackage;
@@ -56,7 +55,7 @@ const QOS_ACK_RESEND_MAX_RETRIES: usize = 3;
 pub async fn send_message_validator(
     cache_manager: &Arc<MQTTCacheManager>,
     client_id: &str,
-    msg: &MqttRecordMeta,
+    msg: &StorageRecord,
 ) -> Result<bool, MqttBrokerError> {
     // Check if message has expired
     if !send_message_validator_by_message_expire(msg) {
@@ -68,8 +67,13 @@ pub async fn send_message_validator(
 
 /// Returns true if message has NOT expired (can be sent)
 /// Returns false if message has expired (should be skipped)
-pub fn send_message_validator_by_message_expire(message: &MqttRecordMeta) -> bool {
-    message.expiry_interval >= now_second()
+pub fn send_message_validator_by_message_expire(message: &StorageRecord) -> bool {
+    if let Some(protocol_data) = message.protocol_data.clone() {
+        if let Some(mqtt_data) = protocol_data.mqtt {
+            return mqtt_data.expire_at < now_second();
+        }
+    }
+    false
 }
 
 /// Returns true if message size is within client's max packet size limit (can be sent)
@@ -77,14 +81,14 @@ pub fn send_message_validator_by_message_expire(message: &MqttRecordMeta) -> boo
 pub async fn send_message_validator_by_max_message_size(
     cache_manager: &Arc<MQTTCacheManager>,
     client_id: &str,
-    msg: &MqttRecordMeta,
+    msg: &StorageRecord,
 ) -> Result<bool, MqttBrokerError> {
     let connect_id = cache_manager
         .get_connect_id(client_id)
         .ok_or_else(|| MqttBrokerError::ConnectionNullSkipPushMessage(client_id.to_owned()))?;
 
     if let Some(conn) = cache_manager.get_connection(connect_id) {
-        if msg.payload.len() > (conn.max_packet_size as usize) {
+        if msg.data.len() > (conn.max_packet_size as usize) {
             return Ok(false);
         }
     }
@@ -94,7 +98,7 @@ pub async fn send_message_validator_by_max_message_size(
 pub async fn build_publish_message(
     cache_manager: &Arc<MQTTCacheManager>,
     connection_manager: &Arc<ConnectionManager>,
-    msg: &MqttRecordMeta,
+    msg: &StorageRecord,
     subscriber: &Subscriber,
 ) -> Result<Option<SubPublishParam>, MqttBrokerError> {
     let connect_id = cache_manager
@@ -103,45 +107,23 @@ pub async fn build_publish_message(
             MqttBrokerError::ConnectionNullSkipPushMessage(subscriber.client_id.to_owned())
         })?;
 
-    // Determine if MQTT5 properties should be included
-    let contain_properties = connection_manager
-        .get_connect_protocol(connect_id)
-        .map(|p| p.is_mqtt5())
-        .unwrap_or(false);
-
     let qos = build_pub_qos(subscriber).await;
     let p_kid = cache_manager
         .pkid_manager
         .generate_publish_to_client_pkid(&subscriber.client_id, &qos)
         .await;
 
-    let retain = get_retain_flag_by_retain_as_published(subscriber.preserve_retain, msg.retain);
-    let sub_ids = build_sub_ids(subscriber);
-
+    let retain = build_retain_flag(msg, subscriber.preserve_retain);
     let publish = Publish {
         dup: false,
         qos,
         p_kid,
         retain,
         topic: Bytes::copy_from_slice(subscriber.topic_name.as_bytes()),
-        payload: msg.payload.clone(),
+        payload: msg.data.clone(),
     };
 
-    let properties = if contain_properties {
-        Some(PublishProperties {
-            payload_format_indicator: msg.format_indicator,
-            message_expiry_interval: Some(msg.expiry_interval as u32),
-            topic_alias: None,
-            response_topic: msg.response_topic.clone(),
-            correlation_data: msg.correlation_data.clone(),
-            user_properties: msg.user_properties.clone().unwrap_or_default(),
-            subscription_identifiers: sub_ids,
-            content_type: msg.content_type.clone(),
-        })
-    } else {
-        None
-    };
-
+    let properties = build_publish_properties(connection_manager, msg, connect_id);
     let packet = MqttPacket::Publish(publish, properties);
     Ok(Some(SubPublishParam {
         packet,
@@ -150,6 +132,49 @@ pub async fn build_publish_message(
         p_kid,
         qos,
     }))
+}
+
+fn build_retain_flag(msg: &StorageRecord, preserve_retain: bool) -> bool {
+    if !preserve_retain {
+        return false;
+    }
+
+    if let Some(protocol_data) = msg.protocol_data.clone() {
+        if let Some(mqtt_data) = protocol_data.mqtt {
+            return mqtt_data.retain;
+        }
+    }
+
+    false
+}
+
+fn build_publish_properties(
+    connection_manager: &Arc<ConnectionManager>,
+    msg: &StorageRecord,
+    connect_id: u64,
+) -> Option<PublishProperties> {
+    let contain_properties = connection_manager
+        .get_connect_protocol(connect_id)
+        .map(|p| p.is_mqtt5())
+        .unwrap_or(false);
+    if !contain_properties {
+        return None;
+    }
+
+    if let Some(protocol_data) = msg.protocol_data.clone() {
+        if let Some(mqtt_data) = protocol_data.mqtt {
+            return Some(PublishProperties {
+                payload_format_indicator: mqtt_data.format_indicator,
+                topic_alias: None,
+                response_topic: mqtt_data.response_topic.clone(),
+                correlation_data: mqtt_data.correlation_data.clone(),
+                content_type: mqtt_data.content_type.clone(),
+                ..Default::default()
+            });
+        }
+    }
+
+    None
 }
 
 pub async fn send_publish_packet_to_client(
@@ -691,14 +716,15 @@ mod tests {
     use crate::core::tool::test_build_mqtt_cache_manager;
     use crate::subscribe::common::Subscriber;
     use common_base::tools::now_second;
+    use metadata_struct::storage::record::{StorageRecord, StorageRecordMetadata};
     use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::mqtt::common::{MqttProtocol, QoS, RetainHandling};
     use std::time::Instant;
 
-    fn create_test_subscriber(
+    fn build_subscriber(
         client_id: &str,
-        subscription_identifier: Option<usize>,
         qos: QoS,
+        subscription_identifier: Option<usize>,
     ) -> Subscriber {
         Subscriber {
             client_id: client_id.to_string(),
@@ -717,48 +743,81 @@ mod tests {
         }
     }
 
+    fn build_record(data: &[u8]) -> StorageRecord {
+        StorageRecord {
+            metadata: StorageRecordMetadata::build(0, "shard".to_string(), 0),
+            protocol_data: None,
+            data: Bytes::copy_from_slice(data),
+        }
+    }
+
     #[test]
     fn test_build_sub_ids() {
         assert_eq!(
-            build_sub_ids(&create_test_subscriber(
-                "client1",
-                Some(123),
-                QoS::AtLeastOnce
-            )),
+            build_sub_ids(&build_subscriber("client1", QoS::AtLeastOnce, Some(123))),
             vec![123]
         );
         assert_eq!(
-            build_sub_ids(&create_test_subscriber("client1", None, QoS::AtLeastOnce)),
+            build_sub_ids(&build_subscriber("client1", QoS::AtLeastOnce, None)),
             Vec::<usize>::new()
         );
         assert_eq!(
-            build_sub_ids(&create_test_subscriber(
-                "client1",
-                Some(0),
-                QoS::AtLeastOnce
-            )),
+            build_sub_ids(&build_subscriber("client1", QoS::AtLeastOnce, Some(0))),
             vec![0]
         );
     }
 
     #[tokio::test]
     async fn test_build_pub_qos() {
-        assert!(matches!(
-            build_pub_qos(&create_test_subscriber("client1", None, QoS::ExactlyOnce)).await,
-            QoS::AtLeastOnce | QoS::ExactlyOnce
-        ));
         assert_eq!(
-            build_pub_qos(&create_test_subscriber("client1", None, QoS::AtMostOnce)).await,
+            build_pub_qos(&build_subscriber("client1", QoS::ExactlyOnce, None)).await,
+            QoS::ExactlyOnce
+        );
+        assert_eq!(
+            build_pub_qos(&build_subscriber("client1", QoS::AtMostOnce, None)).await,
             QoS::AtMostOnce
         );
         assert_eq!(
-            build_pub_qos(&create_test_subscriber("client1", None, QoS::AtLeastOnce)).await,
+            build_pub_qos(&build_subscriber("client1", QoS::AtLeastOnce, None)).await,
             QoS::AtLeastOnce
         );
     }
 
+    #[test]
+    fn test_send_message_validator_by_message_expire() {
+        // not expired
+        assert!(send_message_validator_by_message_expire(&build_record(&[])));
+        // expired
+        assert!(!send_message_validator_by_message_expire(
+            &build_record(&[])
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_send_message_validator_by_max_message_size_no_connection() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        // client has no connection → expect Err
+        let result = send_message_validator_by_max_message_size(
+            &cache_manager,
+            "test_client",
+            &build_record(&vec![0u8; 100]),
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_send_message_validator_expired() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        // message expired → validate returns Ok(false) without checking connection
+        let result =
+            send_message_validator(&cache_manager, "test_client", &build_record(&[])).await;
+        assert_eq!(result.unwrap(), false);
+    }
+
     #[tokio::test]
     async fn test_interruptible_sleep() {
+        // No stop signal → sleeps full duration
         let (_stop_sx, mut stop_rx) = broadcast::channel(1);
         let start = Instant::now();
         assert!(interruptible_sleep(&mut stop_rx, RETRY_SLEEP_ITERATIONS)
@@ -766,6 +825,7 @@ mod tests {
             .is_ok());
         assert!(start.elapsed().as_millis() >= 1000);
 
+        // Stop signal sent early → returns Err before full duration
         let (stop_sx, mut stop_rx) = broadcast::channel(1);
         let start = Instant::now();
         tokio::spawn(async move {
@@ -777,6 +837,7 @@ mod tests {
             .is_err());
         assert!(start.elapsed().as_millis() < 500);
 
+        // false signal → not treated as stop, completes normally
         let (stop_sx, mut stop_rx) = broadcast::channel(1);
         tokio::spawn(async move {
             sleep(Duration::from_millis(100)).await;
@@ -787,52 +848,9 @@ mod tests {
 
     #[test]
     fn test_retry_sleep_iterations_constant() {
-        let total_ms = (RETRY_SLEEP_ITERATIONS as u64) * RETRY_SLEEP_INTERVAL_MS;
-        assert_eq!(total_ms, 1000);
-    }
-
-    #[test]
-    fn test_send_message_validator_by_message_expire_not_expired() {
-        let msg = MqttRecordMeta {
-            client_id: "test_client".to_string(),
-            expiry_interval: now_second() + 3600,
-            ..Default::default()
-        };
-        assert!(send_message_validator_by_message_expire(&msg));
-    }
-
-    #[test]
-    fn test_send_message_validator_by_message_expire_expired() {
-        let msg = MqttRecordMeta {
-            client_id: "test_client".to_string(),
-            expiry_interval: now_second() - 3600,
-            ..Default::default()
-        };
-        assert!(!send_message_validator_by_message_expire(&msg));
-    }
-
-    #[tokio::test]
-    async fn test_send_message_validator_by_max_message_size_no_connection() {
-        let cache_manager = test_build_mqtt_cache_manager().await;
-        let msg = MqttRecordMeta {
-            client_id: "test_client".to_string(),
-            payload: Bytes::from(vec![0u8; 100]),
-            ..Default::default()
-        };
-        let result =
-            send_message_validator_by_max_message_size(&cache_manager, "test_client", &msg).await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_send_message_validator_expired() {
-        let cache_manager = test_build_mqtt_cache_manager().await;
-        let msg = MqttRecordMeta {
-            client_id: "test_client".to_string(),
-            expiry_interval: now_second() - 3600,
-            ..Default::default()
-        };
-        let result = send_message_validator(&cache_manager, "test_client", &msg).await;
-        assert!(!result.unwrap());
+        assert_eq!(
+            (RETRY_SLEEP_ITERATIONS as u64) * RETRY_SLEEP_INTERVAL_MS,
+            1000
+        );
     }
 }

@@ -147,5 +147,24 @@ impl StorageRecordMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageRecord {
     pub metadata: StorageRecordMetadata,
+    pub protocol_data: Option<StorageRecordProtocolData>,
     pub data: Bytes,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct StorageRecordProtocolData {
+    pub mqtt: Option<StorageRecordProtocolDataMqtt>,
+}
+
+impl StorageRecordProtocolData {}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct StorageRecordProtocolDataMqtt {
+    pub client_id: String,
+    pub retain: bool,
+    pub expire_at: u64,
+    pub format_indicator: Option<u8>,
+    pub response_topic: Option<String>,
+    pub correlation_data: Option<Bytes>,
+    pub content_type: Option<String>,
 }

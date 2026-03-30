@@ -21,8 +21,8 @@ use amq_protocol::protocol::basic::{AMQPProperties, ConsumeOk, Deliver, GetEmpty
 use amq_protocol::protocol::AMQPClass;
 use async_trait::async_trait;
 use dashmap::DashMap;
-use metadata_struct::connection::NetworkConnection;
 use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+use metadata_struct::connection::NetworkConnection;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use network_server::command::{ArcCommandAdapter, Command};
 use network_server::common::connection_manager::ConnectionManager;

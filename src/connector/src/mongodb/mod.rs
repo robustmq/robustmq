@@ -20,7 +20,7 @@ use bson::Document;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_mongodb::MongoDBConnectorConfig, connector::MQTTConnector,
-    storage::storage_record::StorageRecord,
+    storage::record::StorageRecord,
 };
 use mongodb::{
     options::{ClientOptions, InsertManyOptions, WriteConcern},
@@ -108,10 +108,7 @@ impl MongoDBBridgePlugin {
     }
 
     #[allow(clippy::result_large_err)]
-    async fn record_to_document(
-        &self,
-        record: &StorageRecord,
-    ) -> Result<Document, CommonError> {
+    async fn record_to_document(&self, record: &StorageRecord) -> Result<Document, CommonError> {
         let processed_data = apply_rule_engine(&self.connector.etl_rule, &record.data).await?;
         let mut processed_record = record.clone();
         processed_record.data = processed_data;

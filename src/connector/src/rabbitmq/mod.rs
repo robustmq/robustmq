@@ -23,7 +23,7 @@ use lapin::{
 };
 use metadata_struct::{
     connector::config_rabbitmq::RabbitMQConnectorConfig, connector::MQTTConnector,
-    storage::storage_record::StorageRecord,
+    storage::record::StorageRecord,
 };
 use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;

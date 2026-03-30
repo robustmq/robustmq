@@ -133,22 +133,20 @@ pub async fn set_topic_retain_message_by_req(
 ) -> Result<SetTopicRetainMessageReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
-    // Verify topic exists
     topic_storage
         .get(&req.tenant, &req.topic_name)?
         .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
 
-    let (data_type, data) = if req.retain_message.is_none() {
-        (
+    if req.retain_message.is_none() {
+        let data = StorageData::new(
             StorageDataType::MqttDeleteRetainMessage,
             encode_to_bytes(req),
-        )
+        );
+        raft_manager.write_data(&req.topic_name, data).await?;
     } else {
-        (StorageDataType::MqttSetRetainMessage, encode_to_bytes(req))
+        let data = StorageData::new(StorageDataType::MqttSetRetainMessage, encode_to_bytes(req));
+        raft_manager.write_data(&req.topic_name, data).await?;
     };
-
-    let data = StorageData::new(data_type, data);
-    raft_manager.write_data(&req.topic_name, data).await?;
 
     Ok(SetTopicRetainMessageReply {})
 }
@@ -159,18 +157,14 @@ pub async fn get_topic_retain_message_by_req(
 ) -> Result<GetTopicRetainMessageReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
 
-    let (retain_message, retain_message_expired_at) =
-        match topic_storage.get_retain_message(&req.tenant, &req.topic_name)? {
-            Some(message) => (
-                Some(message.retain_message.to_vec()),
-                message.retain_message_expired_at,
-            ),
-            None => (None, 0),
-        };
+    if let Some(message) = topic_storage.get_retain_message(&req.tenant, &req.topic_name)? {
+        return Ok(GetTopicRetainMessageReply {
+            retain_message: Some(message.encode()?),
+        });
+    }
 
     Ok(GetTopicRetainMessageReply {
-        retain_message,
-        retain_message_expired_at,
+        retain_message: None,
     })
 }
 

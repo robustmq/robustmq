@@ -151,7 +151,7 @@ async fn write_segment_to_local(
             header: record.header.as_ref().map(|headers| {
                 headers
                     .iter()
-                    .map(|h| metadata_struct::storage::storage_record::Header {
+                    .map(|h| metadata_struct::storage::record::Header {
                         name: h.name.clone(),
                         value: h.value.clone(),
                     })
@@ -160,6 +160,7 @@ async fn write_segment_to_local(
             key: record.key.clone(),
             tags: record.tags.clone(),
             value: record.data.clone(),
+            protocol_data: record.protocol_data.clone(),
         })
         .collect();
     let resp = write_manager.write(&segment_iden, data_list).await?;

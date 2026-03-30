@@ -14,7 +14,7 @@
 
 use async_trait::async_trait;
 use common_base::error::common::CommonError;
-use metadata_struct::storage::storage_record::StorageRecord;
+use metadata_struct::storage::record::StorageRecord;
 
 use crate::failure::FailureRecordInfo;
 

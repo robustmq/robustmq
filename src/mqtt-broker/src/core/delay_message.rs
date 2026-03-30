@@ -120,7 +120,7 @@ pub async fn save_delay_message(
             value: trigger_time.to_string(),
         },
     ];
-    
+
     let target_shard_name = delay_info
         .target_shard_name
         .as_ref()

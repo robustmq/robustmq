@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_postgres::PostgresConnectorConfig, connector::MQTTConnector,
-    storage::storage_record::StorageRecord,
+    storage::record::StorageRecord,
 };
 use rule_engine::apply_rule_engine;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};

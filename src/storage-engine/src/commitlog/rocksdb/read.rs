@@ -19,7 +19,7 @@ use crate::{
 use common_base::utils::serialize::deserialize;
 use metadata_struct::storage::{
     adapter_offset::AdapterOffsetStrategy, adapter_read_config::AdapterReadConfig,
-    storage_record::StorageRecord,
+    record::StorageRecord,
 };
 use rocksdb_engine::keys::storage::{
     key_index_key, shard_record_key, shard_record_key_prefix, tag_index_tag_prefix,

@@ -19,7 +19,7 @@ use metadata_struct::adapter::adapter_offset::{AdapterOffsetStrategy, AdapterSha
 use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::shard::EngineShard;
-use metadata_struct::storage::storage_record::StorageRecord;
+use metadata_struct::storage::record::StorageRecord;
 use std::sync::Arc;
 use storage_engine::handler::adapter::StorageEngineHandler;
 pub struct EngineStorageAdapter {

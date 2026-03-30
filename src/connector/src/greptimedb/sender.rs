@@ -15,7 +15,7 @@
 use std::time::Duration;
 
 use metadata_struct::connector::config_greptimedb::GreptimeDBConnectorConfig;
-use metadata_struct::storage::storage_record::StorageRecord;
+use metadata_struct::storage::record::StorageRecord;
 use reqwest::header::{self, AUTHORIZATION};
 use reqwest::Client;
 

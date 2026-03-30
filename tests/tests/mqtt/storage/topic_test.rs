@@ -15,11 +15,13 @@
 #[cfg(test)]
 mod tests {
     use bytes::Bytes;
-    use common_base::uuid::unique_id;
+    use common_base::{tools::now_second, uuid::unique_id};
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::mqtt::message::MqttRecordMeta;
-    use metadata_struct::mqtt::topic::Topic;
+    use metadata_struct::{
+        mqtt::{retain_message::MQTTRetainMessage, topic::Topic},
+        tenant::DEFAULT_TENANT,
+    };
     use mqtt_broker::storage::topic::TopicStorage;
     use protocol::mqtt::common::{Publish, PublishProperties};
     use std::sync::Arc;
@@ -68,34 +70,31 @@ mod tests {
         let topic_storage = TopicStorage::new(client_pool);
 
         let topic_name: String = unique_id();
-        let client_id = unique_id();
         let content = "Robust Data".to_string();
-        let publish = Publish {
-            payload: Bytes::from(content.clone()),
-            ..Default::default()
-        };
 
         let topic = Topic::build_by_name(&topic_name);
         println!("{:?}", topic);
         topic_storage.create_topic(&topic).await.unwrap();
 
-        let publish_properties = PublishProperties::default();
-        let retain_message =
-            MqttRecordMeta::build_message(&client_id, &publish, &Some(publish_properties), 600);
+        let retain_message = MQTTRetainMessage {
+            tenant: DEFAULT_TENANT.to_string(),
+            topic_name: topic_name.clone(),
+            payload: Bytes::from(content.clone()),
+            expired_at: 0,
+            create_time: now_second(),
+        };
 
         topic_storage
-            .set_retain_message(&topic.tenant, &topic.topic_name, &retain_message, 1000)
+            .set_retain_message(&topic.tenant, &topic.topic_name, &retain_message)
             .await
             .unwrap();
 
-        let (result_message, result_message_qt) = topic_storage
+        let result_message = topic_storage
             .get_retain_message(&topic.tenant, &topic.topic_name)
             .await
             .unwrap();
         println!("{:?}", result_message);
-        println!("{:?}", result_message_qt);
         assert!(result_message.is_some());
-        assert!(result_message_qt.is_some());
 
         let msg = result_message.unwrap();
         let payload = msg.payload;
@@ -106,11 +105,10 @@ mod tests {
             .await
             .unwrap();
 
-        let (result_message, result_message_at) = topic_storage
+        let result_message = topic_storage
             .get_retain_message(&topic.tenant, &topic_name)
             .await
             .unwrap();
         assert!(result_message.is_none());
-        assert!(result_message_at.is_none());
     }
 }

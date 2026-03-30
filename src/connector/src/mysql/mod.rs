@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_mysql::MySQLConnectorConfig, connector::MQTTConnector,
-    storage::storage_record::StorageRecord,
+    storage::record::StorageRecord,
 };
 use rule_engine::apply_rule_engine;
 use sqlx::{mysql::MySqlPoolOptions, MySql, Pool};
@@ -117,7 +117,11 @@ impl MySQLBridgePlugin {
         for record in records {
             values_placeholders.push("(?, ?, ?)");
             let payload = serde_json::to_string(record)?;
-            bindings.push((record.metadata.key.clone(), payload, record.metadata.create_t as i64));
+            bindings.push((
+                record.metadata.key.clone(),
+                payload,
+                record.metadata.create_t as i64,
+            ));
         }
 
         let base_sql = format!(

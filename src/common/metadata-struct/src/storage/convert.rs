@@ -15,7 +15,7 @@
 use common_base::tools::now_second;
 
 use crate::adapter::adapter_record::{AdapterWriteRecord, RecordHeader};
-use crate::storage::storage_record::{
+use crate::storage::record::{
     Header as StorageHeader, StorageRecord, StorageRecordMetadata,
 };
 
@@ -46,15 +46,13 @@ pub fn convert_adapter_record_to_engine(
 
     StorageRecord {
         metadata,
+        protocol_data: record.protocol_data.clone(),
         data: record.data,
     }
 }
 
 pub fn convert_engine_record_to_adapter(record: StorageRecord) -> AdapterWriteRecord {
-    let mut result = AdapterWriteRecord::new(
-        record.metadata.shard.clone(),
-        record.data,
-    );
+    let mut result = AdapterWriteRecord::new(record.metadata.shard.clone(), record.data);
 
     if let Some(key) = record.metadata.key {
         result = result.with_key(key);

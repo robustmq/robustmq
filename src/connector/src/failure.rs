@@ -18,7 +18,7 @@ use common_metrics::mqtt::connector::{
     record_connector_dlq_messages, record_connector_messages_discarded, record_connector_retry,
 };
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
-use metadata_struct::{connector::FailureHandlingStrategy, storage::storage_record::StorageRecord};
+use metadata_struct::{connector::FailureHandlingStrategy, storage::record::StorageRecord};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;

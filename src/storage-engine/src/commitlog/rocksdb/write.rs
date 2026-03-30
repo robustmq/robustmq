@@ -163,7 +163,7 @@ impl RocksDBStorageEngine {
 
         let record = match self
             .rocksdb_engine_handler
-            .read::<metadata_struct::storage::storage_record::StorageRecord>(
+            .read::<metadata_struct::storage::record::StorageRecord>(
             cf.clone(),
             &record_key,
         )? {

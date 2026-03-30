@@ -14,6 +14,7 @@
 
 use crate::{state::HttpState, tool::extractor::ValidatedJson};
 use axum::{extract::State, Json};
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -62,10 +63,7 @@ use bytes::Bytes;
 use common_base::{
     error::common::CommonError,
     http_response::{error_response, success_response},
-    tools::now_second,
 };
-use common_config::broker::broker_config;
-use metadata_struct::mqtt::message::MqttRecordMeta;
 use mqtt_broker::{core::topic::try_init_topic, storage::message::MessageStorage};
 use protocol::mqtt::common::{Publish, PublishProperties};
 use std::{collections::HashMap, sync::Arc};
@@ -82,8 +80,6 @@ pub async fn send(
 
 async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64>, CommonError> {
     let message_storage = MessageStorage::new(state.storage_driver_manager.clone());
-    let config = broker_config();
-    let client_id = format!("{}_{}", config.cluster_name, config.broker_id);
 
     if let Err(e) = try_init_topic(
         &params.tenant,
@@ -112,28 +108,17 @@ async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64
         if let Err(e) = state
             .mqtt_context
             .retain_message_manager
-            .save_retain_message(
-                &params.tenant,
-                &params.topic,
-                &client_id,
-                &publish,
-                &publish_properties,
-            )
+            .save_retain_message(&params.tenant, &params.topic, &publish, &publish_properties)
             .await
         {
             return Err(CommonError::CommonError(e.to_string()));
         }
     }
 
-    let mut offset = Vec::new();
-    let message_expire = now_second() + 3600;
-    if let Some(record) =
-        MqttRecordMeta::build_record(&client_id, &publish, &publish_properties, message_expire)
-    {
-        offset = message_storage
-            .append_topic_message(&params.tenant, &params.topic.clone(), vec![record])
-            .await?;
-    }
+    let record = AdapterWriteRecord::new(params.topic.clone(), Bytes::from(params.payload));
+    let offset = message_storage
+        .append_topic_message(&params.tenant, &params.topic.clone(), vec![record])
+        .await?;
 
     Ok(offset)
 }
@@ -159,8 +144,7 @@ pub async fn read_inner(
         .await?;
 
     for row in data {
-        let message = MqttRecordMeta::decode(&row.data)?;
-        let content = String::from_utf8_lossy(&message.payload).to_string();
+        let content = String::from_utf8_lossy(&row.data).to_string();
         results.push(ReadMessageRow {
             offset: row.metadata.offset,
             content,

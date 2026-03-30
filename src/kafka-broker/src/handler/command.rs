@@ -40,8 +40,8 @@ use kafka_protocol::protocol::Message;
 use kafka_protocol::records::{
     Compression, Record, RecordBatchEncoder, RecordEncodeOptions, TimestampType,
 };
-use metadata_struct::connection::NetworkConnection;
 use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+use metadata_struct::connection::NetworkConnection;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use network_server::command::Command;
 use network_server::common::packet::ResponsePackage;

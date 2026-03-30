@@ -18,7 +18,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::{config_s3::S3ConnectorConfig, MQTTConnector},
     storage::adapter_record::RecordHeader,
-    storage::storage_record::StorageRecord,
+    storage::record::StorageRecord,
 };
 use opendal::{services::S3, Operator};
 use rule_engine::apply_rule_engine;
@@ -150,7 +150,10 @@ impl ConnectorSink for S3BridgePlugin {
 
             let headers = record.metadata.header.as_ref().map(|hs| {
                 hs.iter()
-                    .map(|h| RecordHeader { name: h.name.clone(), value: h.value.clone() })
+                    .map(|h| RecordHeader {
+                        name: h.name.clone(),
+                        value: h.value.clone(),
+                    })
                     .collect()
             });
             payload.push(S3MessageRecord {
