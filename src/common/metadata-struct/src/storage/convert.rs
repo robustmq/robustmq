@@ -15,9 +15,7 @@
 use common_base::tools::now_second;
 
 use crate::adapter::adapter_record::{AdapterWriteRecord, RecordHeader};
-use crate::storage::record::{
-    Header as StorageHeader, StorageRecord, StorageRecordMetadata,
-};
+use crate::storage::record::{Header as StorageHeader, StorageRecord, StorageRecordMetadata};
 
 pub fn convert_adapter_headers_to_storage(
     headers: Option<Vec<RecordHeader>>,

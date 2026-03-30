@@ -25,10 +25,10 @@ use metadata_struct::adapter::adapter_offset::{AdapterOffsetStrategy, AdapterSha
 use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mqtt::topic::Topic;
+use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
-use metadata_struct::storage::record::StorageRecord;
 use rocksdb_engine::test::test_rocksdb_instance;
 use std::sync::Arc;
 use storage_engine::clients::manager::ClientConnectionManager;

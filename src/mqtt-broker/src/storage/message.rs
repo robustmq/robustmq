@@ -14,9 +14,7 @@
 
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
-use metadata_struct::storage::{
-    adapter_read_config::AdapterReadConfig, record::StorageRecord,
-};
+use metadata_struct::storage::{adapter_read_config::AdapterReadConfig, record::StorageRecord};
 use std::{collections::HashMap, sync::Arc};
 use storage_adapter::driver::StorageDriverManager;
 

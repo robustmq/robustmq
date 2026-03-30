@@ -149,7 +149,7 @@ async fn save_simple_message(
             .await?
     };
 
-    return Ok(Some(format!("{offsets:?}")));
+    Ok(Some(format!("{offsets:?}")))
 }
 
 async fn build_mqtt_protocol_data(

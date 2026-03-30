@@ -161,15 +161,14 @@ impl RocksDBStorageEngine {
         let cf = self.get_cf()?;
         let record_key = shard_record_key(shard, offset);
 
-        let record = match self
-            .rocksdb_engine_handler
-            .read::<metadata_struct::storage::record::StorageRecord>(
-            cf.clone(),
-            &record_key,
-        )? {
-            Some(r) => r,
-            None => return Ok(()),
-        };
+        let record =
+            match self
+                .rocksdb_engine_handler
+                .read::<metadata_struct::storage::record::StorageRecord>(cf.clone(), &record_key)?
+            {
+                Some(r) => r,
+                None => return Ok(()),
+            };
 
         let mut batch = WriteBatch::default();
 

@@ -37,8 +37,8 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
-use metadata_struct::storage::shard::EngineShard;
 use metadata_struct::storage::record::StorageRecord;
+use metadata_struct::storage::shard::EngineShard;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 

@@ -23,8 +23,8 @@ use metadata_struct::{
         adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo},
         adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow},
         adapter_record::AdapterWriteRecord,
-        shard::{EngineShard, EngineShardConfig},
         record::StorageRecord,
+        shard::{EngineShard, EngineShardConfig},
     },
 };
 use std::{

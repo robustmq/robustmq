@@ -743,11 +743,11 @@ mod tests {
         }
     }
 
-    fn build_record(data: &[u8]) -> StorageRecord {
+    fn build_record(data: String) -> StorageRecord {
         StorageRecord {
             metadata: StorageRecordMetadata::build(0, "shard".to_string(), 0),
             protocol_data: None,
-            data: Bytes::copy_from_slice(data),
+            data: Bytes::from(data),
         }
     }
 
@@ -786,11 +786,13 @@ mod tests {
     #[test]
     fn test_send_message_validator_by_message_expire() {
         // not expired
-        assert!(send_message_validator_by_message_expire(&build_record(&[])));
+        assert!(send_message_validator_by_message_expire(&build_record(
+            "messag1".to_string()
+        )));
         // expired
-        assert!(!send_message_validator_by_message_expire(
-            &build_record(&[])
-        ));
+        assert!(!send_message_validator_by_message_expire(&build_record(
+            "messag1".to_string()
+        )));
     }
 
     #[tokio::test]
@@ -800,7 +802,7 @@ mod tests {
         let result = send_message_validator_by_max_message_size(
             &cache_manager,
             "test_client",
-            &build_record(&vec![0u8; 100]),
+            &build_record("messag1".to_string()),
         )
         .await;
         assert!(result.is_err());
@@ -810,9 +812,13 @@ mod tests {
     async fn test_send_message_validator_expired() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         // message expired → validate returns Ok(false) without checking connection
-        let result =
-            send_message_validator(&cache_manager, "test_client", &build_record(&[])).await;
-        assert_eq!(result.unwrap(), false);
+        let result = send_message_validator(
+            &cache_manager,
+            "test_client",
+            &build_record("messag1".to_string()),
+        )
+        .await;
+        assert!(!result.unwrap());
     }
 
     #[tokio::test]

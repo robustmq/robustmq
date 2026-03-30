@@ -13,10 +13,10 @@
 // limitations under the License.
 
 pub mod convert;
+pub mod record;
 pub mod segment;
 pub mod segment_meta;
 pub mod shard;
-pub mod record;
 
 pub use crate::adapter::adapter_offset;
 pub use crate::adapter::adapter_read_config;

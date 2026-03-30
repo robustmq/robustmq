@@ -198,7 +198,7 @@ impl RetainMessageManager {
             .and_then(|m| m.get(topic).map(|v| current_time.saturating_sub(*v)));
 
         // Load from storage if never cached or cache is stale (>= 5s)
-        if cache_age.map_or(true, |age| age >= 5) {
+        if cache_age.is_none_or(|age| age >= 5) {
             self.load_retain_from_storage(tenant, topic).await?;
         }
 
@@ -304,7 +304,7 @@ impl RetainMessageManager {
             create_time: now_second(),
             client_id: data.client_id.clone(),
             p_kid,
-            qos: qos.clone(),
+            qos,
         };
 
         send_publish_packet_to_client(

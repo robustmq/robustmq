@@ -23,7 +23,6 @@ mod tests {
         tenant::DEFAULT_TENANT,
     };
     use mqtt_broker::storage::topic::TopicStorage;
-    use protocol::mqtt::common::{Publish, PublishProperties};
     use std::sync::Arc;
 
     #[tokio::test]

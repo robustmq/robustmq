@@ -20,7 +20,7 @@ use common_base::{
 };
 use futures::stream::StreamExt;
 use metadata_struct::storage::{
-    adapter_offset::AdapterOffsetStrategy, shard::EngineShard, record::StorageRecord,
+    adapter_offset::AdapterOffsetStrategy, record::StorageRecord, shard::EngineShard,
 };
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::storage::{
