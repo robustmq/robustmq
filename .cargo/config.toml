@@ -32,6 +32,11 @@ incremental = true     # Enable incremental compilation
 # Uncomment after installing zld:
 # rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/bin/zld"]
 
+# Universal fallback for all platforms (including FreeBSD)
+rustflags = [
+    "--cfg", "tokio_unstable",          # Enable Tokio RuntimeMetrics
+]
+
 # macOS-specific optimizations
 [target.x86_64-apple-darwin]
 # Use split debuginfo + faster linking
