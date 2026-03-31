@@ -17,7 +17,7 @@ mod tests {
     use crate::mqtt::protocol::{
         common::{
             broker_addr_by_type, build_client_id, connect_server, distinct_conn, publish_data,
-            ssl_by_type, subscribe_data_with_options, uniq_topic, ws_by_type, SubscribeTestData,
+            subscribe_data_with_options, uniq_topic, SubscribeTestData,
         },
         ClientTestProperties,
     };
@@ -45,7 +45,7 @@ mod tests {
 
     fn verify_delay_message(msg: &Message, expected_content: &str, expected_delay: u64) -> bool {
         let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-        if msg.properties().len() != 5 {
+        if msg.properties().len() != 4 {
             println!("properties:{:?}", msg.properties());
             println!("payload:{payload}");
             return false;
@@ -55,7 +55,7 @@ mod tests {
             return false;
         }
 
-        assert_eq!(msg.properties().len(), 5);
+        assert_eq!(msg.properties().len(), 4);
         let flag = msg
             .properties()
             .get_string_pair_at(PropertyCode::UserProperty, 0)
@@ -134,107 +134,18 @@ mod tests {
 
     #[tokio::test]
     async fn delay_publish_test() {
-        let network = "tcp";
-        let qos = 1;
-
-        for t in [10, 20, 30] {
+        for t in [10u64, 20, 30] {
             let uniq_tp = uniq_topic();
-            let topic = format!("$delayed/{}/{}", t, &uniq_tp[1..]);
-
-            // publish
-            let client_id = build_client_id(format!("delay_publish_test_{network}_{qos}").as_str());
-            let client_properties = ClientTestProperties {
-                mqtt_version: 5,
-                client_id: client_id.to_string(),
-                addr: broker_addr_by_type(network),
-                ..Default::default()
-            };
-            let cli = connect_server(&client_properties);
-
+            let delay_topic = format!("$delayed/{}/{}", t, &uniq_tp[1..]);
             let message_content = format!("delay_publish_test mqtt message,{uniq_tp},{t}");
-            let msg = Message::new(topic.clone(), message_content.clone(), QOS_1);
-            publish_data(&cli, msg, false);
-            distinct_conn(cli);
-
-            // subscribe +
-            let client_id = build_client_id(format!("delay_publish_test_{network}_{qos}").as_str());
-
-            let client_properties = ClientTestProperties {
-                mqtt_version: 5,
-                client_id: client_id.to_string(),
-                addr: broker_addr_by_type(network),
-                ws: ws_by_type(network),
-                ssl: ssl_by_type(network),
-                ..Default::default()
-            };
-            let cli = connect_server(&client_properties);
-
-            let sub_topic = uniq_tp;
-
-            let call_fn = |msg: Message| {
-                let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                // Avoid auto-subscribe to subscribe to data
-                if msg.properties().len() != 5 {
-                    println!("properties:{:?}", msg.properties());
-                    println!("payload:{payload}");
-                    return false;
-                }
-
-                if payload != message_content {
-                    return false;
-                }
-
-                assert_eq!(msg.properties().len(), 5);
-                let flag = msg
-                    .properties()
-                    .get_string_pair_at(PropertyCode::UserProperty, 0)
-                    .unwrap();
-
-                let recv_ms = msg
-                    .properties()
-                    .get_string_pair_at(PropertyCode::UserProperty, 1)
-                    .unwrap();
-
-                let target_ms = msg
-                    .properties()
-                    .get_string_pair_at(PropertyCode::UserProperty, 2)
-                    .unwrap();
-
-                let save_ms = msg
-                    .properties()
-                    .get_string_pair_at(PropertyCode::UserProperty, 3)
-                    .unwrap();
-
-                assert_eq!(flag.0, *"delay_message_flag");
-                assert_eq!(flag.1, *"true");
-
-                let recv_ms1 = recv_ms.1.parse::<i64>().unwrap();
-                let target_ms1 = target_ms.1.parse::<i64>().unwrap();
-                let save_ms1 = save_ms.1.parse::<i64>().unwrap();
-
-                let drift = save_ms1 - target_ms1;
-                println!(
-                    "t:{},now:{},recv_ms1:{},target_ms1:{},save_ms1:{},drift:{}s",
-                    t,
-                    now_second(),
-                    recv_ms1,
-                    target_ms1,
-                    save_ms1,
-                    drift
-                );
-                save_ms1 >= target_ms1 && drift <= 2
-            };
-
-            let subscribe_test_data = SubscribeTestData {
-                sub_topic: sub_topic.clone(),
-                sub_qos: qos,
-                subscribe_options: SubscribeOptions::default(),
-                subscribe_properties: None,
-            };
-
-            let res = subscribe_data_with_options(&cli, subscribe_test_data, call_fn).await;
-            assert!(res.is_ok(), "subscribe_data_with_options failed: {:?}", res);
-            distinct_conn(cli);
+            test_delay_publish(
+                &delay_topic,
+                &uniq_tp,
+                &message_content,
+                t,
+                &format!("delay_publish_test_{t}"),
+            )
+            .await;
         }
     }
 

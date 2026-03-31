@@ -35,6 +35,10 @@ pub fn is_ignore_print(packet: &RobustMQPacket) -> bool {
         }
     }
 
+    if let RobustMQPacket::KAFKA(_) = packet {
+        return true;
+    }
+
     false
 }
 

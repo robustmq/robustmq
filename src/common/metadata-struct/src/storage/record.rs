@@ -167,4 +167,5 @@ pub struct StorageRecordProtocolDataMqtt {
     pub response_topic: Option<String>,
     pub correlation_data: Option<Bytes>,
     pub content_type: Option<String>,
+    pub user_properties: Vec<(String, String)>,
 }

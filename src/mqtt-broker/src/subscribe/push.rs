@@ -121,7 +121,7 @@ pub async fn build_publish_message(
         payload: msg.data.clone(),
     };
 
-    let properties = build_publish_properties(connection_manager, msg, connect_id);
+    let properties = build_publish_properties(connection_manager, msg, connect_id, subscriber);
     let packet = MqttPacket::Publish(publish, properties);
     Ok(Some(SubPublishParam {
         packet,
@@ -150,6 +150,7 @@ fn build_publish_properties(
     connection_manager: &Arc<ConnectionManager>,
     msg: &StorageRecord,
     connect_id: u64,
+    subscriber: &Subscriber,
 ) -> Option<PublishProperties> {
     let contain_properties = connection_manager
         .get_connect_protocol(connect_id)
@@ -166,21 +167,25 @@ fn build_publish_properties(
         }
     }
 
+    let mut properties = PublishProperties::default();
     if let Some(protocol_data) = msg.protocol_data.clone() {
         if let Some(mqtt_data) = protocol_data.mqtt {
-            return Some(PublishProperties {
+            user_properties.extend(mqtt_data.user_properties);
+            properties = PublishProperties {
                 payload_format_indicator: mqtt_data.format_indicator,
                 topic_alias: None,
                 response_topic: mqtt_data.response_topic.clone(),
                 correlation_data: mqtt_data.correlation_data.clone(),
                 content_type: mqtt_data.content_type.clone(),
-                user_properties,
+                user_properties: user_properties.clone(),
                 ..Default::default()
-            });
+            };
         }
     }
+    properties.user_properties = user_properties;
+    properties.subscription_identifiers = subscriber.subscription_identifier.into_iter().collect();
 
-    None
+    Some(properties)
 }
 
 pub async fn send_publish_packet_to_client(

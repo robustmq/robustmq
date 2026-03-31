@@ -74,9 +74,8 @@ pub fn process_sub(
                         }
                     }
                 }
-                Err(e) => {
-                    error!("NATS subscribe storage read error on {}: {}", subject, e);
-                    sleep(Duration::from_millis(100)).await;
+                Err(_) => {
+                    sleep(Duration::from_millis(1000)).await;
                 }
             }
         }

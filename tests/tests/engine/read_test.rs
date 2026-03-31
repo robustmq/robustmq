@@ -79,12 +79,9 @@ mod tests {
 
         let mut messages = Vec::new();
         for i in 0..10 {
-            let record = AdapterWriteRecord {
-                key: Some(format!("key-{}", i)),
-                tags: Some(vec![format!("tag-{}", i % 3)]),
-                data: Bytes::from(format!("data-{}", i)),
-                ..Default::default()
-            };
+            let record = AdapterWriteRecord::new("", Bytes::from(format!("data-{}", i)))
+                .with_key(format!("key-{}", i))
+                .with_tags(vec![format!("tag-{}", i % 3)]);
             messages.push(serialize::serialize(&record).unwrap());
         }
 

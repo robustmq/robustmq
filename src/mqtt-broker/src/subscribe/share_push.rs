@@ -188,7 +188,10 @@ impl SharePushManager {
         for record in data_list {
             if message_is_expire(&record) {
                 if let Some(mut offsets) = self.group_offsets.get_mut(&self.group_name) {
-                    offsets.insert(record.metadata.shard.to_string(), record.metadata.offset);
+                    offsets.insert(
+                        record.metadata.shard.to_string(),
+                        record.metadata.offset + 1,
+                    );
                 }
                 continue;
             }
@@ -266,7 +269,7 @@ impl SharePushManager {
         )
         .await
         {
-            Ok(false) => return Ok(false),
+            Ok(true) => return Ok(false),
             Err(e) => {
                 if !client_unavailable_error(&e) {
                     self.subscribe_manager
@@ -274,10 +277,10 @@ impl SharePushManager {
                 }
                 return Ok(false);
             }
-            Ok(true) => {}
+            Ok(false) => {}
         }
 
-        if !message_is_same_client(subscriber, record) {
+        if message_is_same_client(subscriber, record) {
             return Ok(false);
         }
 
