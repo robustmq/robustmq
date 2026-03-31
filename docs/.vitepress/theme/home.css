@@ -1113,3 +1113,31 @@
 
   .t-cmd { font-size: 11px; }
 }
+
+
+/* ── Demo Video ── */
+.demo-section { background: transparent; }
+
+.demo-video-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(168,85,247,0.2), 0 8px 48px rgba(109,40,217,0.25);
+  background: #0a0a0f;
+}
+
+.demo-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 16px;
+}
+
+@media (max-width: 768px) {
+  .demo-video-wrapper {
+    border-radius: 10px;
+  }
+}
