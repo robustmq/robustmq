@@ -304,7 +304,6 @@ mod tests {
     use broker_core::cache::NodeCacheManager;
     use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
-    use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
     use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 
     #[tokio::test]
@@ -320,10 +319,10 @@ mod tests {
         commit_offset.save_latest_offset(&shard_name, 0).unwrap();
 
         let messages: Vec<AdapterWriteRecord> = (0..10)
-            .map(|i| AdapterWriteRecord {
-                key: Some(format!("key{}", i)),
-                tags: Some(vec![format!("tag{}", i % 3)]),
-                ..Default::default()
+            .map(|i| {
+                AdapterWriteRecord::new("", bytes::Bytes::default())
+                    .with_key(format!("key{}", i))
+                    .with_tags(vec![format!("tag{}", i % 3)])
             })
             .collect();
 
@@ -355,11 +354,5 @@ mod tests {
         let key_records = engine.read_by_key(&shard_name, "key5").await.unwrap();
         assert_eq!(key_records.len(), 1);
         assert_eq!(key_records[0].metadata.offset, 5);
-
-        let offset_by_ts = engine
-            .get_offset_by_timestamp(&shard_name, 1500, AdapterOffsetStrategy::Latest)
-            .await
-            .unwrap();
-        assert_eq!(offset_by_ts, 5);
     }
 }

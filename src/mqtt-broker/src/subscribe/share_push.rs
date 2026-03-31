@@ -160,144 +160,164 @@ impl SharePushManager {
             return Ok(0);
         }
 
-        let mut processed_count = 0;
+        let mut total = 0;
         for topic in topic_list.iter() {
-            let data_list = self
-                .next_message(&self.group_name, &self.tenant, &topic.topic)
+            total += self
+                .process_topic_messages(&topic.topic, &buckets, &seqs, stop_sx)
                 .await?;
+        }
+        Ok(total)
+    }
 
-            if data_list.is_empty() {
+    async fn process_topic_messages(
+        &self,
+        topic_name: &str,
+        buckets: &crate::subscribe::buckets::BucketsManager,
+        seqs: &[u64],
+        stop_sx: &Sender<bool>,
+    ) -> Result<u64, MqttBrokerError> {
+        let data_list = self
+            .next_message(&self.group_name, &self.tenant, topic_name)
+            .await?;
+
+        if data_list.is_empty() {
+            return Ok(0);
+        }
+
+        let mut processed_count = 0;
+        for record in data_list {
+            if message_is_expire(&record) {
+                if let Some(mut offsets) = self.group_offsets.get_mut(&self.group_name) {
+                    offsets.insert(record.metadata.shard.to_string(), record.metadata.offset);
+                }
                 continue;
             }
 
-            for record in data_list {
-                // If the message has expired, it will not be delivered.
-                if message_is_expire(&record) {
-                    if let Some(mut offsets) = self.group_offsets.get_mut(&self.group_name) {
-                        offsets.insert(record.metadata.shard.to_string(), record.metadata.offset);
-                    }
-                    continue;
-                }
+            let dispatched = self
+                .dispatch_record_to_group(&record, buckets, seqs, stop_sx)
+                .await?;
 
-                let max_attempts = seqs.len();
-                let mut attempts = 0;
-                let mut break_flag = false;
-                loop {
-                    if attempts >= max_attempts {
-                        debug!(
-                            "Failed to push message after {} attempts for group {}, skipping record",
-                            attempts, self.group_name
-                        );
-                        break_flag = true;
-                        break;
-                    }
-                    attempts += 1;
-
-                    let row_seq = self.seq.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    let index = row_seq % (seqs.len() as u64);
-                    if let Some(subscriber) =
-                        buckets.get_subscribe_by_key_seq(&self.group_name, index)
-                    {
-                        // check allow send
-                        if !self
-                            .subscribe_manager
-                            .allow_push_client(&subscriber.tenant, &subscriber.client_id)
-                        {
-                            continue;
-                        }
-
-                        // If the message exceeds the size limit specified for the entire client ID, try the next client.
-                        match message_is_exceeds_max_message_size(
-                            &self.cache_manager,
-                            &subscriber.client_id,
-                            &record,
-                        )
-                        .await
-                        {
-                            Ok(allow) => {
-                                if !allow {
-                                    continue;
-                                }
-                            }
-                            Err(e) => {
-                                if !client_unavailable_error(&e) {
-                                    self.subscribe_manager.add_not_push_client(
-                                        &subscriber.tenant,
-                                        &subscriber.client_id,
-                                    );
-                                }
-                                continue;
-                            }
-                        };
-
-                        // If the message cannot be sent to the entire client group, try the next client.
-                        if !message_is_same_client(&subscriber, &record) {
-                            continue;
-                        }
-
-                        // Push data
-                        let success = match push_data(
-                            &self.connection_manager,
-                            &self.cache_manager,
-                            &self.rocksdb_engine_handler,
-                            &subscriber,
-                            &record,
-                            stop_sx,
-                        )
-                        .await
-                        {
-                            Ok(pushed) => {
-                                if pushed {
-                                    processed_count += 1;
-                                }
-                                pushed
-                            }
-                            Err(e) => {
-                                if !client_unavailable_error(&e) {
-                                    self.subscribe_manager.add_not_push_client(
-                                        &subscriber.tenant,
-                                        &subscriber.client_id,
-                                    );
-                                }
-
-                                continue;
-                            }
-                        };
-
-                        record_sub_send_metrics(
-                            &subscriber.tenant,
-                            &subscriber.client_id,
-                            &subscriber.sub_path,
-                            &subscriber.topic_name,
-                            0,
-                            success,
-                        );
-
-                        if let Some(mut offsets) =
-                            self.group_offsets.get_mut(&subscriber.group_name)
-                        {
-                            offsets.insert(
-                                record.metadata.shard.to_string(),
-                                record.metadata.offset + 1,
-                            );
-                        }
-
-                        break;
-                    }
-                }
-
-                if break_flag {
-                    break;
-                }
+            if !dispatched {
+                debug!(
+                    "Failed to push message after {} attempts for group {}, skipping record",
+                    seqs.len(),
+                    self.group_name
+                );
+                break;
             }
 
-            if let Some(offsets) = self.group_offsets.get(&self.group_name).map(|r| r.clone()) {
-                self.commit_offset(&self.tenant, &self.group_name, &offsets)
-                    .await?;
-            }
+            processed_count += 1;
+        }
+
+        if let Some(offsets) = self.group_offsets.get(&self.group_name).map(|r| r.clone()) {
+            self.commit_offset(&self.tenant, &self.group_name, &offsets)
+                .await?;
         }
 
         Ok(processed_count)
+    }
+
+    async fn dispatch_record_to_group(
+        &self,
+        record: &StorageRecord,
+        buckets: &crate::subscribe::buckets::BucketsManager,
+        seqs: &[u64],
+        stop_sx: &Sender<bool>,
+    ) -> Result<bool, MqttBrokerError> {
+        let max_attempts = seqs.len();
+        for _ in 0..max_attempts {
+            let row_seq = self.seq.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let index = row_seq % (seqs.len() as u64);
+
+            let subscriber = match buckets.get_subscribe_by_key_seq(&self.group_name, index) {
+                Some(s) => s,
+                None => continue,
+            };
+
+            match self
+                .try_push_to_subscriber(record, &subscriber, stop_sx)
+                .await
+            {
+                Ok(true) => return Ok(true),
+                Ok(false) => continue,
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(false)
+    }
+
+    async fn try_push_to_subscriber(
+        &self,
+        record: &StorageRecord,
+        subscriber: &crate::subscribe::common::Subscriber,
+        stop_sx: &Sender<bool>,
+    ) -> Result<bool, MqttBrokerError> {
+        if !self
+            .subscribe_manager
+            .allow_push_client(&subscriber.tenant, &subscriber.client_id)
+        {
+            return Ok(false);
+        }
+
+        match message_is_exceeds_max_message_size(
+            &self.cache_manager,
+            &subscriber.client_id,
+            record,
+        )
+        .await
+        {
+            Ok(false) => return Ok(false),
+            Err(e) => {
+                if !client_unavailable_error(&e) {
+                    self.subscribe_manager
+                        .add_not_push_client(&subscriber.tenant, &subscriber.client_id);
+                }
+                return Ok(false);
+            }
+            Ok(true) => {}
+        }
+
+        if !message_is_same_client(subscriber, record) {
+            return Ok(false);
+        }
+
+        let success = match push_data(
+            &self.connection_manager,
+            &self.cache_manager,
+            &self.rocksdb_engine_handler,
+            subscriber,
+            record,
+            stop_sx,
+        )
+        .await
+        {
+            Ok(pushed) => pushed,
+            Err(e) => {
+                if !client_unavailable_error(&e) {
+                    self.subscribe_manager
+                        .add_not_push_client(&subscriber.tenant, &subscriber.client_id);
+                }
+                return Ok(false);
+            }
+        };
+
+        record_sub_send_metrics(
+            &subscriber.tenant,
+            &subscriber.client_id,
+            &subscriber.sub_path,
+            &subscriber.topic_name,
+            0,
+            success,
+        );
+
+        if let Some(mut offsets) = self.group_offsets.get_mut(&subscriber.group_name) {
+            offsets.insert(
+                record.metadata.shard.to_string(),
+                record.metadata.offset + 1,
+            );
+        }
+
+        Ok(true)
     }
 
     async fn next_message(

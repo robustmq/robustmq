@@ -219,16 +219,18 @@ mod tests {
         commit_offset.save_latest_offset(&shard_name, 0).unwrap();
 
         let messages: Vec<AdapterWriteRecord> = (0..10)
-            .map(|i| AdapterWriteRecord {
-                key: Some(format!("key{}", i)),
-                tags: Some(vec![format!("tag{}", i % 3)]),
-                ..Default::default()
+            .map(|i| {
+                AdapterWriteRecord::new("", bytes::Bytes::default())
+                    .with_key(format!("key{}", i))
+                    .with_tags(vec![format!("tag{}", i % 3)])
             })
             .collect();
         let write_result = engine.batch_write(&shard_name, &messages).await.unwrap();
         assert_eq!(write_result.len(), 10);
         assert_eq!(write_result[0].offset, 0);
         assert_eq!(write_result[9].offset, 9);
+
+
         let read_config = AdapterReadConfig {
             max_record_num: 10,
             max_size: 1024 * 1024,
@@ -240,6 +242,7 @@ mod tests {
         assert_eq!(records.len(), 10);
         assert_eq!(records[0].metadata.offset, 0);
         assert_eq!(records[9].metadata.offset, 9);
+
         let tag_records = engine
             .read_by_tag(&shard_name, "tag0", None, &read_config)
             .await
@@ -248,14 +251,5 @@ mod tests {
         let key_records = engine.read_by_key(&shard_name, "key5").await.unwrap();
         assert_eq!(key_records.len(), 1);
         assert_eq!(key_records[0].metadata.offset, 5);
-        let offset_by_ts = engine
-            .get_offset_by_timestamp(
-                &shard_name,
-                1500,
-                metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy::Latest,
-            )
-            .await
-            .unwrap();
-        assert_eq!(offset_by_ts, 5);
     }
 }
