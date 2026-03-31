@@ -97,7 +97,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_bytes = "0.11"
 bincode = "1.3.3"
-toml = "1.0.6"
+toml = "1.1.0"
 rkyv = { version = "0.8.15" }
 
 # ====================
@@ -177,7 +177,7 @@ jsonwebtoken = { version = "10.0.0", default-features = false, features = [
 # ====================
 rocksdb = { version = "0.22.0", default-features = false, features = ["multi-threaded-cf", "lz4", "zstd"] }
 mysql = { version = "27.0.0", default-features = false }
-redis = { version = "1.0.5", default-features = false, features = ["r2d2", "tokio-comp", "connection-manager"] }
+redis = { version = "1.1.0", default-features = false, features = ["r2d2", "tokio-comp", "connection-manager"] }
 mongodb = { version = "2.8", default-features = false, features = ["tokio-runtime"] }
 sqlx = { version = "0.8", default-features = false }
 r2d2 = "0.8.10"
@@ -197,7 +197,7 @@ memmap2 = "0.9.10"
 # ====================
 rdkafka = "0.39.0"
 kafka-protocol = "0.17.0"
-pulsar = { version = "6.7.1", default-features = false, features = [
+pulsar = { version = "6.7.2", default-features = false, features = [
     "tokio-runtime",
     "auth-oauth2",
 ] }
@@ -210,7 +210,7 @@ paho-mqtt = { version = "0.13.3", default-features = false, features = [
     "bundled",
     "ssl",
 ] }
-clickhouse = "0.14.2"
+clickhouse = "0.14.3"
 scylla = "0.15"
 
 # ====================
@@ -264,10 +264,10 @@ apache-avro = "0.17.0"
 anyhow = "1.0.102"
 thiserror = "2.0"
 bytes = { version = "1", features = ["serde"] }
-uuid = { version = "1.22.0", default-features = false, features = ["v4"] }
+uuid = { version = "1.23.0", default-features = false, features = ["v4"] }
 xid = "1.1"
 dashmap = { version = "6.1.0", default-features = false, features = ["serde"] }
-arc-swap = "1.7"
+arc-swap = "1.9"
 rand = "0.8.5"
 regex = "1.10.4"
 grep = "0.3.2"
@@ -288,7 +288,7 @@ strum_macros = "0.28"
 governor = "0.10.1"
 os_info = "3.8.2"
 sysinfo = "0.29.10"
-local-ip-address = "0.6.1"
+local-ip-address = "0.6.11"
 num_cpus = "1.16"
 chrono-tz = "0.10.3"
 parking_lot = "0.12.5"
