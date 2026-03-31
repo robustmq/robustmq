@@ -22,7 +22,7 @@ use grpc_clients::meta::mqtt::call::{
     placement_list_topic_rewrite_rule, placement_set_topic_retain_message,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::meta::meta_service_mqtt::{
@@ -108,15 +108,13 @@ impl TopicStorage {
         &self,
         tenant: &str,
         topic_name: &str,
-        retain_message: &MqttMessage,
-        retain_message_expired_at: u64,
+        retain_message: &MQTTRetainMessage,
     ) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = SetTopicRetainMessageRequest {
             tenant: tenant.to_string(),
             topic_name: topic_name.to_string(),
             retain_message: Some(retain_message.encode()?.to_vec()),
-            retain_message_expired_at,
         };
         placement_set_topic_retain_message(
             &self.client_pool,
@@ -136,8 +134,7 @@ impl TopicStorage {
         let request = SetTopicRetainMessageRequest {
             tenant: tenant.to_string(),
             topic_name: topic_name.to_owned(),
-            retain_message: None,
-            retain_message_expired_at: 0,
+            ..Default::default()
         };
         placement_set_topic_retain_message(
             &self.client_pool,
@@ -152,7 +149,7 @@ impl TopicStorage {
         &self,
         tenant: &str,
         topic_name: &str,
-    ) -> Result<(Option<MqttMessage>, Option<u64>), MqttBrokerError> {
+    ) -> Result<Option<MQTTRetainMessage>, MqttBrokerError> {
         let config = broker_config();
         let request = GetTopicRetainMessageRequest {
             tenant: tenant.to_owned(),
@@ -167,13 +164,10 @@ impl TopicStorage {
         .await?;
 
         if let Some(data) = reply.retain_message {
-            Ok((
-                Some(MqttMessage::decode(&data)?),
-                Some(reply.retain_message_expired_at),
-            ))
-        } else {
-            Ok((None, None))
+            let message = MQTTRetainMessage::decode(&data)?;
+            return Ok(Some(message));
         }
+        Ok(None)
     }
 
     pub async fn all_topic_rewrite_rule(

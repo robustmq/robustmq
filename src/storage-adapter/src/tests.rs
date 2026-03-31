@@ -14,9 +14,9 @@
 
 use crate::driver::ArcStorageAdapter;
 use common_base::uuid::unique_id;
-use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::adapter::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
+use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::shard::EngineShardConfig;
 
 pub async fn test_shard_lifecycle(adapter: ArcStorageAdapter) {
@@ -69,15 +69,13 @@ pub async fn test_write_and_read(adapter: ArcStorageAdapter) {
         .await
         .unwrap();
 
-    let mut r1 = AdapterWriteRecord::from_bytes(b"msg1".to_vec());
-    r1.key = Some("k1".to_string());
-    r1.tags = Some(vec!["a".to_string(), "c".to_string()]);
-    r1.timestamp = 1000;
+    let r1 = AdapterWriteRecord::new(&shard_name, b"msg1".as_ref())
+        .with_key("k1")
+        .with_tags(vec!["a".to_string(), "c".to_string()]);
 
-    let mut r2 = AdapterWriteRecord::from_bytes(b"msg2".to_vec());
-    r2.key = Some("k2".to_string());
-    r2.tags = Some(vec!["b".to_string(), "c".to_string()]);
-    r2.timestamp = 2000;
+    let r2 = AdapterWriteRecord::new(&shard_name, b"msg2".as_ref())
+        .with_key("k2")
+        .with_tags(vec!["b".to_string(), "c".to_string()]);
 
     let offsets: Vec<u64> = adapter
         .batch_write(&shard_name, &[r1, r2])
@@ -155,9 +153,8 @@ pub async fn test_timestamp_index_with_multiple_entries(adapter: ArcStorageAdapt
         .unwrap();
 
     let mut records = Vec::new();
-    for i in 0..15000 {
-        let mut r = AdapterWriteRecord::from_bytes(format!("msg{}", i).into_bytes());
-        r.timestamp = 1000 + i;
+    for i in 0..15000u64 {
+        let r = AdapterWriteRecord::new(&shard_name, format!("msg{}", i).into_bytes());
         records.push(r);
     }
 

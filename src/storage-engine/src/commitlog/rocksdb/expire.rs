@@ -20,7 +20,7 @@ use common_base::{
 };
 use futures::stream::StreamExt;
 use metadata_struct::storage::{
-    adapter_offset::AdapterOffsetStrategy, shard::EngineShard, storage_record::StorageRecord,
+    adapter_offset::AdapterOffsetStrategy, record::StorageRecord, shard::EngineShard,
 };
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::storage::{
@@ -156,7 +156,7 @@ mod tests {
     };
     use broker_core::cache::NodeCacheManager;
     use bytes::Bytes;
-    use common_base::{tools::now_second, uuid::unique_id};
+    use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
     use metadata_struct::storage::{
         adapter_read_config::AdapterReadConfig, adapter_record::AdapterWriteRecord,
@@ -184,15 +184,12 @@ mod tests {
             ..Default::default()
         });
 
-        let now = now_second();
-
         let mut expired_records = Vec::new();
         for i in 0..5 {
             let record = AdapterWriteRecord {
                 data: Bytes::from(format!("expired{}", i)),
                 key: Some(format!("exp_key{}", i)),
                 tags: Some(vec!["exp_tag".to_string()]),
-                timestamp: now - 20,
                 ..Default::default()
             };
             expired_records.push(record);
@@ -204,7 +201,6 @@ mod tests {
                 data: Bytes::from(format!("valid{}", i)),
                 key: Some(format!("val_key{}", i)),
                 tags: Some(vec!["val_tag".to_string()]),
-                timestamp: now - 5,
                 ..Default::default()
             };
             valid_records.push(record);

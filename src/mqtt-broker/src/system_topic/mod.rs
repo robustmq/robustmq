@@ -16,70 +16,12 @@ use crate::core::cache::MQTTCacheManager;
 use crate::core::error::MqttBrokerError;
 use crate::core::topic::try_init_topic;
 use crate::storage::message::MessageStorage;
-use crate::system_topic::packet::bytes::{
-    SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED, SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT,
-};
-use crate::system_topic::packet::messages::{
-    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_DROPPED, SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_EXPIRED,
-    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_FORWARD,
-    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_RECEIVED,
-    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_SENT,
-    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_RECEIVED,
-    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_SENT,
-    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_DROPPED,
-    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_EXPIRED,
-    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_RECEIVED,
-    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_SENT,
-    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RECEIVED, SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RETAINED,
-    SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_SENT,
-};
-use crate::system_topic::packet::packets::{
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH, SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNACK,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNECT,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGREQ, SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGRESP,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_MISSED,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_RECEIVED,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_SENT,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_MISSED,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_RECEIVED,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_SENT,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_RECEIVED,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_SENT,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_MISSED,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_RECEIVED,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_SENT,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_MISSED,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_RECEIVED,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_SENT,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_RECEIVED, SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SENT,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBACK, SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBSCRIBE,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK,
-    SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE,
-};
-use crate::system_topic::stats::client::{
-    SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX,
-};
-use crate::system_topic::stats::route::{
-    report_broker_stat_routes, SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT,
-    SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX,
-};
-use crate::system_topic::stats::subscription::{
-    SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_MAX,
-    SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_MAX,
-    SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_MAX,
-    SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT,
-    SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX,
-};
-use crate::system_topic::stats::topics::{
-    SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT, SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX,
-};
+use crate::system_topic::stats::route::report_broker_stat_routes;
+use bytes::Bytes;
 use common_base::error::ResultCommonError;
 use common_base::tools::{get_local_ip, loop_select_ticket, now_millis};
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use serde::{Deserialize, Serialize};
@@ -127,7 +69,6 @@ impl SystemTopic {
     }
 
     pub async fn start_thread(&self, stop_send: broadcast::Sender<bool>) {
-        self.try_init_system_topic().await;
         let ac_fn = async || -> ResultCommonError {
             report_broker_info(
                 &self.client_pool,
@@ -162,100 +103,6 @@ impl SystemTopic {
 
         let interval_ms = broker_config().mqtt_system_monitor.system_topic_interval_ms;
         loop_select_ticket(ac_fn, interval_ms, &stop_send).await;
-    }
-
-    pub async fn try_init_system_topic(&self) {
-        let results = self.get_all_system_topic();
-        for topic_name in results {
-            let new_topic_name = replace_topic_name(topic_name);
-            if let Err(e) = try_init_topic(
-                DEFAULT_TENANT,
-                &new_topic_name,
-                &self.metadata_cache,
-                &self.storage_driver_manager,
-                &self.client_pool,
-            )
-            .await
-            {
-                if e.to_string().contains("already exist") {
-                    continue;
-                }
-                panic!("Initializing system topic {new_topic_name} Failed, error message :{e}");
-            }
-        }
-    }
-
-    fn get_all_system_topic(&self) -> Vec<String> {
-        vec![
-            // broker
-            SYSTEM_TOPIC_BROKERS.to_string(),
-            SYSTEM_TOPIC_BROKERS_VERSION.to_string(),
-            SYSTEM_TOPIC_BROKERS_UPTIME.to_string(),
-            SYSTEM_TOPIC_BROKERS_DATETIME.to_string(),
-            SYSTEM_TOPIC_BROKERS_SYSDESCR.to_string(),
-            // stats
-            SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT.to_string(),
-            SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX.to_string(),
-            SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT.to_string(),
-            SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX.to_string(),
-            SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_COUNT.to_string(),
-            SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_MAX.to_string(),
-            SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_COUNT.to_string(),
-            SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_MAX.to_string(),
-            SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_COUNT.to_string(),
-            SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_MAX.to_string(),
-            SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT.to_string(),
-            SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX.to_string(),
-            // bytes
-            SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT.to_string(),
-            // messages
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RECEIVED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_SENT.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_EXPIRED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_RETAINED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_DROPPED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_FORWARD.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_RECEIVED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS0_SENT.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_RECEIVED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS1_SENT.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_RECEIVED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_SENT.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_EXPIRED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES_QOS2_DROPPED.to_string(),
-            // packets
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_RECEIVED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SENT.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNECT.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNACK.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_RECEIVED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_SENT.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_RECEIVED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_SENT.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_MISSED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_RECEIVED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_SENT.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_MISSED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_RECEIVED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_SENT.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_MISSED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_RECEIVED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_SENT.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_MISSED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBSCRIBE.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBACK.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGREQ.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGRESP.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT.to_string(),
-            SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH.to_string(),
-            // topics stats (missing from original)
-            SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT.to_string(),
-            SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX.to_string(),
-        ]
     }
 }
 
@@ -358,21 +205,19 @@ pub(crate) async fn report_system_data<F, Fut, T>(
         }
     };
 
-    if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), data) {
-        if let Err(e) = write_topic_data(
-            storage_driver_manager,
-            metadata_cache,
-            client_pool,
-            topic_name.clone(),
-            record,
-        )
-        .await
-        {
-            warn!(
-                "Failed to write system topic data to topic {}: {:?}",
-                topic_name, e
-            );
-        }
+    if let Err(e) = write_topic_data(
+        storage_driver_manager,
+        metadata_cache,
+        client_pool,
+        topic_name.clone(),
+        Bytes::from(data),
+    )
+    .await
+    {
+        warn!(
+            "Failed to write system topic data to topic {}: {:?}",
+            topic_name, e
+        );
     }
 }
 
@@ -389,7 +234,7 @@ pub(crate) async fn write_topic_data(
     metadata_cache: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     topic_name: String,
-    record: AdapterWriteRecord,
+    payload: Bytes,
 ) -> Result<Vec<u64>, MqttBrokerError> {
     let topic = try_init_topic(
         DEFAULT_TENANT,
@@ -400,6 +245,7 @@ pub(crate) async fn write_topic_data(
     )
     .await?;
 
+    let record = AdapterWriteRecord::new(topic_name, payload);
     let message_storage = MessageStorage::new(storage_driver_manager.clone());
     let resp = message_storage
         .append_topic_message(DEFAULT_TENANT, &topic.topic_name, vec![record])
@@ -411,11 +257,12 @@ pub(crate) async fn write_topic_data(
 mod test {
     use crate::core::tool::test_build_mqtt_cache_manager0;
     use crate::system_topic::write_topic_data;
+    use bytes::Bytes;
     use common_base::{tools::get_local_ip, uuid::unique_id};
     use common_config::broker::{broker_config, default_broker_config, init_broker_conf_by_config};
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
-    use metadata_struct::{mqtt::message::MqttMessage, tenant::DEFAULT_TENANT};
+    use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use std::collections::HashMap;
     use std::sync::Arc;
     use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
@@ -431,16 +278,13 @@ mod test {
 
         test_add_topic(&storage_driver_manager, &topic_name);
 
-        let data = "test_write_topic_data".to_string();
-        let topic_message =
-            MqttMessage::build_system_topic_message(topic_name.clone(), data).unwrap();
-
+        let data = Bytes::from("test_write_topic_data");
         let resp = write_topic_data(
             &storage_driver_manager,
             &cache_manger,
             &client_pool,
             topic_name.clone(),
-            topic_message.clone(),
+            data.clone(),
         )
         .await
         .unwrap();
@@ -467,7 +311,7 @@ mod test {
             .await
             .unwrap();
         assert_eq!(results.len(), 1);
-        assert_eq!(topic_message.data, results[0].data)
+        assert_eq!(data, results[0].data)
     }
 
     #[tokio::test]
@@ -524,10 +368,9 @@ mod test {
 
         assert_eq!(results.len(), 1);
 
-        let message: MqttMessage =
-            common_base::utils::serialize::deserialize(&results[0].data).unwrap();
+        let payload = results[0].data.clone();
         let payload: super::SystemTopicEnvelope<String> =
-            serde_json::from_str(&String::from_utf8_lossy(&message.payload)).unwrap();
+            serde_json::from_str(&String::from_utf8_lossy(&payload)).unwrap();
         assert_eq!(payload.value, "test_data");
         assert_eq!(payload.node_id, broker_config().broker_id);
     }

@@ -40,9 +40,8 @@ use kafka_protocol::protocol::Message;
 use kafka_protocol::records::{
     Compression, Record, RecordBatchEncoder, RecordEncodeOptions, TimestampType,
 };
+use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
 use metadata_struct::connection::NetworkConnection;
-use metadata_struct::mqtt::message::MqttMessage;
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use network_server::command::Command;
 use network_server::common::packet::ResponsePackage;
@@ -410,10 +409,6 @@ impl KafkaHandlerCommand {
                     let mut kafka_records = Vec::new();
                     for (i, record) in records.iter().enumerate() {
                         offsets.insert(record.metadata.shard.clone(), record.metadata.offset + 1);
-                        let value = match MqttMessage::decode(&record.data) {
-                            Ok(msg) => msg.payload,
-                            Err(_) => record.data.clone(),
-                        };
                         kafka_records.push(Record {
                             transactional: false,
                             control: false,
@@ -425,7 +420,7 @@ impl KafkaHandlerCommand {
                             sequence: i as i32,
                             timestamp: 0,
                             key: None,
-                            value: Some(value),
+                            value: Some(record.data.clone()),
                             headers: Default::default(),
                         });
                     }

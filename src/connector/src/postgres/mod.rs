@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_postgres::PostgresConnectorConfig, connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
+    storage::record::StorageRecord,
 };
 use rule_engine::apply_rule_engine;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
@@ -64,13 +64,14 @@ impl PostgresBridgePlugin {
 
     async fn single_insert(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         pool: &Pool<Postgres>,
     ) -> Result<(), CommonError> {
         for record in records {
-            let client_id = &record.key;
-            let timestamp = record.timestamp as i64;
+            let client_id = &record.metadata.key;
+            let timestamp = record.metadata.create_t as i64;
             let topic = record
+                .metadata
                 .header
                 .as_ref()
                 .and_then(|headers| headers.iter().find(|h| h.name == "topic"))
@@ -126,7 +127,7 @@ impl PostgresBridgePlugin {
 
     async fn batch_insert(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         pool: &Pool<Postgres>,
     ) -> Result<(), CommonError> {
         let mut value_placeholders = Vec::with_capacity(records.len());
@@ -139,9 +140,10 @@ impl PostgresBridgePlugin {
         let mut data_vec = Vec::with_capacity(records.len());
 
         for record in records {
-            let client_id = record.key.clone();
-            let timestamp = record.timestamp as i64;
+            let client_id = record.metadata.key.clone();
+            let timestamp = record.metadata.create_t as i64;
             let topic = record
+                .metadata
                 .header
                 .as_ref()
                 .and_then(|headers| headers.iter().find(|h| h.name == "topic"))
@@ -219,7 +221,7 @@ impl ConnectorSink for PostgresBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         pool: &mut Pool<Postgres>,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {

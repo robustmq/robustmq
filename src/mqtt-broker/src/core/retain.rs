@@ -19,10 +19,7 @@ use super::constant::{
 };
 use super::message::build_message_expire;
 use crate::core::error::MqttBrokerError;
-use crate::core::sub_option::{
-    get_retain_flag_by_retain_as_published, is_send_msg_by_bo_local,
-    is_send_retain_msg_by_retain_handling,
-};
+use crate::core::sub_option::is_send_retain_msg_by_retain_handling;
 use crate::core::subscribe::is_new_sub;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::storage::topic::TopicStorage;
@@ -36,11 +33,9 @@ use common_metrics::mqtt::packets::{record_retain_recv_metrics, record_retain_se
 use common_metrics::mqtt::statistics::{record_mqtt_retained_dec, record_mqtt_retained_inc};
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use network_server::common::connection_manager::ConnectionManager;
-use protocol::mqtt::common::{
-    MqttPacket, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties,
-};
+use protocol::mqtt::common::{MqttPacket, Publish, PublishProperties, QoS, Subscribe};
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::{broadcast, mpsc, Semaphore};
@@ -51,17 +46,13 @@ struct SendRetainData {
     pub tenant: String,
     pub topic_name: String,
     pub client_id: String,
-    pub no_local: bool,
-    pub preserve_retain: bool,
-    pub qos: QoS,
-    pub sub_ids: Vec<usize>,
 }
 
 pub struct RetainMessageManager {
     cache_manager: Arc<MQTTCacheManager>,
     client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
-    topic_retain_data: DashMap<String, DashMap<String, Option<(MqttMessage, u64)>>>,
+    topic_retain_data: DashMap<String, DashMap<String, MQTTRetainMessage>>,
     last_update_time: DashMap<String, DashMap<String, u64>>,
     send_retain_message_queue: mpsc::Sender<SendRetainData>,
 }
@@ -90,7 +81,6 @@ impl RetainMessageManager {
         &self,
         tenant: &str,
         topic_name: &str,
-        client_id: &str,
         publish: &Publish,
         publish_properties: &Option<PublishProperties>,
     ) -> ResultMqttBrokerError {
@@ -106,14 +96,16 @@ impl RetainMessageManager {
                 .delete_retain_message(tenant, topic_name)
                 .await?;
             record_mqtt_retained_dec();
+
             self.topic_retain_data
                 .entry(tenant.to_string())
                 .or_default()
-                .insert(topic_name.to_string(), None);
+                .remove(topic_name);
+
             self.last_update_time
                 .entry(tenant.to_string())
                 .or_default()
-                .insert(topic_name.to_string(), now_second());
+                .remove(topic_name);
         }
 
         if !publish.payload.is_empty() {
@@ -121,21 +113,25 @@ impl RetainMessageManager {
             if !had_retain {
                 record_mqtt_retained_inc();
             }
-            let message_expire =
-                build_message_expire(&self.cache_manager, publish_properties).await;
-            let retain_message =
-                MqttMessage::build_message(client_id, publish, publish_properties, message_expire);
+
+            let expired_at = build_message_expire(&self.cache_manager, publish_properties).await;
+            let retain_message = MQTTRetainMessage {
+                tenant: tenant.to_string(),
+                topic_name: topic_name.to_string(),
+                payload: publish.payload.clone(),
+                expired_at,
+                create_time: now_second(),
+            };
+
             topic_storage
-                .set_retain_message(tenant, topic_name, &retain_message, message_expire)
+                .set_retain_message(tenant, topic_name, &retain_message)
                 .await?;
 
             self.topic_retain_data
                 .entry(tenant.to_string())
                 .or_default()
-                .insert(
-                    topic_name.to_string(),
-                    Some((retain_message, message_expire)),
-                );
+                .insert(topic_name.to_string(), retain_message.clone());
+
             self.last_update_time
                 .entry(tenant.to_string())
                 .or_default()
@@ -145,21 +141,20 @@ impl RetainMessageManager {
         Ok(())
     }
 
+    pub fn get_retain_message(&self, tenant: &str, topic_name: &str) -> Option<MQTTRetainMessage> {
+        self.topic_retain_data
+            .get(tenant)
+            .and_then(|m| m.get(topic_name).map(|v| v.clone()))
+    }
+
     pub async fn try_send_retain_message(
         &self,
         tenant: &str,
         client_id: &str,
         subscribe: &Subscribe,
-        subscribe_properties: &Option<SubscribeProperties>,
         cache_manager: &Arc<MQTTCacheManager>,
         subscribe_manager: &Arc<SubscribeManager>,
     ) -> Result<(), MqttBrokerError> {
-        let sub_ids = subscribe_properties
-            .as_ref()
-            .and_then(|props| props.subscription_identifier)
-            .map(|id| vec![id])
-            .unwrap_or_default();
-
         let is_new_subs = is_new_sub(tenant, client_id, subscribe, subscribe_manager);
         for filter in subscribe.filters.iter() {
             if !is_send_retain_msg_by_retain_handling(
@@ -184,10 +179,6 @@ impl RetainMessageManager {
                 let data = SendRetainData {
                     tenant: tenant.to_string(),
                     client_id: client_id.to_string(),
-                    no_local: filter.no_local,
-                    preserve_retain: filter.preserve_retain,
-                    qos: filter.qos,
-                    sub_ids: sub_ids.clone(),
                     topic_name,
                 };
                 if let Err(e) = self.send_retain_message_queue.send(data).await {
@@ -201,37 +192,30 @@ impl RetainMessageManager {
     async fn contain_retain(&self, tenant: &str, topic: &str) -> Result<bool, MqttBrokerError> {
         let current_time = now_second();
 
-        let last_update_time = self
+        let cache_age = self
             .last_update_time
             .get(tenant)
-            .and_then(|m| m.get(topic).map(|v| *v));
+            .and_then(|m| m.get(topic).map(|v| current_time.saturating_sub(*v)));
 
-        let last_update_time = if let Some(t) = last_update_time {
-            t
-        } else {
-            self.load_retain_from_storage(tenant, topic).await?;
-            current_time
-        };
-
-        if current_time - last_update_time >= 5 {
+        // Load from storage if never cached or cache is stale (>= 5s)
+        if cache_age.is_none_or(|age| age >= 5) {
             self.load_retain_from_storage(tenant, topic).await?;
         }
 
-        let expired = self
+        let Some(msg) = self
             .topic_retain_data
             .get(tenant)
             .and_then(|m| m.get(topic).map(|v| v.clone()))
-            .and_then(|entry| entry.map(|(_, expire_at)| current_time >= expire_at));
-
-        let contain = match expired {
-            None => false,
-            Some(true) => {
-                self.clear_local_retain_cache(tenant, topic, current_time);
-                false
-            }
-            Some(false) => true,
+        else {
+            return Ok(false);
         };
-        Ok(contain)
+
+        if msg.expired_at > 0 && current_time >= msg.expired_at {
+            self.clear_local_retain_cache(tenant, topic);
+            return Ok(false);
+        }
+
+        Ok(true)
     }
 
     async fn load_retain_from_storage(
@@ -240,7 +224,16 @@ impl RetainMessageManager {
         topic: &str,
     ) -> Result<(), MqttBrokerError> {
         let topic_storage = TopicStorage::new(self.client_pool.clone());
-        let (message, message_at) = topic_storage.get_retain_message(tenant, topic).await?;
+        let retain_message = topic_storage.get_retain_message(tenant, topic).await?;
+
+        if let Some(data) = retain_message {
+            self.topic_retain_data
+                .entry(tenant.to_string())
+                .or_default()
+                .insert(topic.to_string(), data);
+        } else {
+            self.clear_local_retain_cache(tenant, topic);
+        }
 
         let current_time = now_second();
         self.last_update_time
@@ -248,27 +241,19 @@ impl RetainMessageManager {
             .or_default()
             .insert(topic.to_string(), current_time);
 
-        let retain_data = match (message, message_at) {
-            (Some(msg), Some(msg_at)) => Some((msg, msg_at)),
-            _ => None,
-        };
-        self.topic_retain_data
-            .entry(tenant.to_string())
-            .or_default()
-            .insert(topic.to_string(), retain_data);
-
         Ok(())
     }
 
-    fn clear_local_retain_cache(&self, tenant: &str, topic: &str, current_time: u64) {
+    fn clear_local_retain_cache(&self, tenant: &str, topic: &str) {
         self.topic_retain_data
             .entry(tenant.to_string())
             .or_default()
-            .insert(topic.to_string(), None);
+            .remove(topic);
+
         self.last_update_time
             .entry(tenant.to_string())
             .or_default()
-            .insert(topic.to_string(), current_time);
+            .remove(topic);
     }
 
     async fn send_retain_message(
@@ -276,104 +261,50 @@ impl RetainMessageManager {
         data: &SendRetainData,
         stop_sx: &broadcast::Sender<bool>,
     ) -> ResultMqttBrokerError {
-        let mut is_expired = false;
-        let msg_data = {
-            let cache_entry = self
-                .topic_retain_data
-                .get(&data.tenant)
-                .and_then(|m| m.get(&data.topic_name).map(|v| v.clone()));
-            if let Some(entry) = cache_entry {
-                if let Some((message, message_at)) = entry.as_ref() {
-                    if now_second() >= *message_at {
-                        is_expired = true;
-                        None
-                    } else {
-                        Some((
-                            message.client_id.clone(),
-                            message.retain,
-                            message.payload.clone(),
-                            message.format_indicator,
-                            message.expiry_interval,
-                            message.response_topic.clone(),
-                            message.correlation_data.clone(),
-                            message.user_properties.clone(),
-                            message.content_type.clone(),
-                        ))
-                    }
-                } else {
-                    None
-                }
+        let retain_message =
+            if let Some(msg) = self.get_retain_message(&data.tenant, &data.topic_name) {
+                msg
             } else {
-                None
-            }
-        };
+                return Ok(());
+            };
 
-        if is_expired {
-            self.clear_local_retain_cache(&data.tenant, &data.topic_name, now_second());
+        if now_second() > retain_message.expired_at {
+            self.clear_local_retain_cache(&retain_message.tenant, &retain_message.topic_name);
             return Ok(());
         }
 
-        let Some((
-            msg_client_id,
-            retain_flag,
-            payload,
-            format_indicator,
-            expiry_interval,
-            response_topic,
-            correlation_data,
-            user_properties_opt,
-            content_type,
-        )) = msg_data
-        else {
-            return Ok(());
-        };
-
-        if !is_send_msg_by_bo_local(data.no_local, &data.client_id, &msg_client_id) {
-            return Ok(());
-        }
-
-        let retain = get_retain_flag_by_retain_as_published(data.preserve_retain, retain_flag);
-
-        let mut user_properties = user_properties_opt.unwrap_or_default();
-        user_properties.push((
-            SUB_RETAIN_MESSAGE_PUSH_FLAG.to_string(),
-            SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE.to_string(),
-        ));
-
-        let properties = PublishProperties {
-            payload_format_indicator: format_indicator,
-            message_expiry_interval: Some(expiry_interval as u32),
-            topic_alias: None,
-            response_topic,
-            correlation_data,
-            user_properties,
-            subscription_identifiers: data.sub_ids.clone(),
-            content_type,
-        };
-
+        let qos = QoS::AtLeastOnce;
         let p_kid = self
             .cache_manager
             .pkid_manager
-            .generate_publish_to_client_pkid(&data.client_id, &data.qos)
+            .generate_publish_to_client_pkid(&data.client_id, &qos)
             .await;
 
         let publish = Publish {
             dup: false,
-            qos: data.qos,
+            qos,
             p_kid,
-            retain,
-            topic: Bytes::copy_from_slice(data.topic_name.as_bytes()),
-            payload,
+            retain: false,
+            topic: Bytes::copy_from_slice(retain_message.topic_name.as_bytes()),
+            payload: retain_message.payload.clone(),
         };
 
-        let packet = MqttPacket::Publish(publish, Some(properties));
+        let publish_properties = PublishProperties {
+            user_properties: vec![(
+                SUB_RETAIN_MESSAGE_PUSH_FLAG.to_string(),
+                SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE.to_string(),
+            )],
+            ..Default::default()
+        };
+
+        let packet = MqttPacket::Publish(publish, Some(publish_properties));
 
         let sub_pub_param = SubPublishParam {
             packet,
             create_time: now_second(),
             client_id: data.client_id.clone(),
             p_kid,
-            qos: data.qos,
+            qos,
         };
 
         send_publish_packet_to_client(
@@ -383,12 +314,8 @@ impl RetainMessageManager {
             stop_sx,
         )
         .await?;
-        debug!(
-            "retain message sent successfully: client_id: {}, topic_id: {}",
-            data.client_id, data.topic_name
-        );
 
-        record_retain_sent_metrics(data.qos);
+        record_retain_sent_metrics(qos);
 
         Ok(())
     }
@@ -436,8 +363,8 @@ fn start_send_retain_thread(
                                 Err(e) => {
                                     error!(
                                         "Failed to acquire semaphore permit for sending retain message, \
-                                        semaphore may be closed. client_id={}, topic={}, qos={:?}, error={}",
-                                        data.client_id, data.topic_name, data.qos, e
+                                        semaphore may be closed. client_id={}, topic={}, error={}",
+                                        data.client_id, data.topic_name, e
                                     );
                                     continue;
                                 }
@@ -445,15 +372,15 @@ fn start_send_retain_thread(
                             tokio::spawn(async move{
                                 let _permit = permit;
                                 debug!(
-                                    "Processing retain message: client_id={}, topic={}, qos={:?}",
-                                    data.client_id, data.topic_name, data.qos
+                                    "Processing retain message: client_id={}, topic={}",
+                                    data.client_id, data.topic_name
                                 );
 
                                 if let Err(e) = raw_retain_message_manager.send_retain_message(&data, &raw_stop_sx).await{
                                     if !client_unavailable_error(&e) {
                                         warn!(
-                                            "Sending retain message failed: client_id={}, topic={}, qos={:?}, error={}",
-                                            data.client_id, data.topic_name, data.qos, e
+                                            "Sending retain message failed: client_id={}, topic={}, error={}",
+                                            data.client_id, data.topic_name, e
                                         );
                                     }
                                 }

@@ -17,7 +17,7 @@ use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_mqtt::MqttBridgeConnectorConfig, connector::config_mqtt::MqttProtocolVersion,
-    connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
+    connector::MQTTConnector, storage::record::StorageRecord,
 };
 use paho_mqtt as mqtt;
 use rule_engine::apply_rule_engine;
@@ -54,8 +54,12 @@ impl MqttBridgePlugin {
         Ok(MqttBridgePlugin { connector, config })
     }
 
-    fn build_target_topic(&self, record: &AdapterWriteRecord) -> String {
-        let original_topic = record.key.as_deref().unwrap_or("robustmq/bridge/default");
+    fn build_target_topic(&self, record: &StorageRecord) -> String {
+        let original_topic = record
+            .metadata
+            .key
+            .as_deref()
+            .unwrap_or("robustmq/bridge/default");
 
         if let Some(prefix) = &self.config.topic_prefix {
             format!("{}/{}", prefix.trim_end_matches('/'), original_topic)
@@ -131,7 +135,7 @@ impl ConnectorSink for MqttBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         client: &mut mqtt::AsyncClient,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {

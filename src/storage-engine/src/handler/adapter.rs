@@ -34,11 +34,11 @@ use common_metrics::storage_engine::{
     record_storage_engine_ops, record_storage_engine_ops_duration, record_storage_engine_ops_fail,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
-use metadata_struct::storage::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::adapter::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
+use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::storage::shard::EngineShard;
-use metadata_struct::storage::storage_record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 

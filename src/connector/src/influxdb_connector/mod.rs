@@ -18,7 +18,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_influxdb::{InfluxDBConnectorConfig, InfluxDBVersion},
     connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
+    storage::record::StorageRecord,
 };
 use reqwest::Client;
 use rule_engine::apply_rule_engine;
@@ -63,18 +63,18 @@ impl InfluxDBBridgePlugin {
             .map_err(|e| CommonError::CommonError(format!("Failed to build HTTP client: {}", e)))
     }
 
-    /// Convert an AdapterWriteRecord to InfluxDB Line Protocol format:
+    /// Convert a StorageRecord to InfluxDB Line Protocol format:
     /// `measurement,tag1=val1 field1="strval",field2=42i timestamp`
     fn record_to_line_protocol(
         &self,
-        record: &AdapterWriteRecord,
+        record: &StorageRecord,
         processed_data: &bytes::Bytes,
     ) -> String {
         let measurement = &self.config.measurement;
         let payload_str = String::from_utf8_lossy(processed_data);
 
         let mut tags = String::new();
-        if let Some(key) = &record.key {
+        if let Some(key) = &record.metadata.key {
             if !key.is_empty() {
                 tags.push_str(&format!(",key={}", escape_tag_value(key)));
             }
@@ -83,7 +83,7 @@ impl InfluxDBBridgePlugin {
         let escaped_payload = payload_str.replace('\\', "\\\\").replace('"', "\\\"");
         let fields = format!("payload=\"{}\"", escaped_payload);
 
-        let timestamp = record.timestamp;
+        let timestamp = record.metadata.create_t;
 
         format!("{}{} {} {}", measurement, tags, fields, timestamp)
     }
@@ -116,7 +116,7 @@ impl ConnectorSink for InfluxDBBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         client: &mut Client,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {

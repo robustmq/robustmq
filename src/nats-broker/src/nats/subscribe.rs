@@ -12,12 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
-
-use metadata_struct::mqtt::message::MqttMessage;
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::nats::packet::NatsPacket;
@@ -25,6 +20,9 @@ use protocol::robust::{
     NatsWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol,
     RobustMQWrapperExtend,
 };
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::time::sleep;
 use tracing::error;
@@ -56,15 +54,11 @@ pub fn process_sub(
                     for record in &records {
                         shard_offsets
                             .insert(record.metadata.shard.clone(), record.metadata.offset + 1);
-                        let payload = match MqttMessage::decode(&record.data) {
-                            Ok(mqtt_msg) => mqtt_msg.payload,
-                            Err(_) => record.data.clone(),
-                        };
                         let msg = NatsPacket::Msg {
                             subject: subject.clone(),
                             sid: sid.clone(),
                             reply_to: None,
-                            payload,
+                            payload: record.data.clone(),
                         };
                         let wrapper = RobustMQPacketWrapper {
                             protocol: RobustMQProtocol::NATS,

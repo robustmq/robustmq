@@ -161,6 +161,7 @@ mod tests {
                 key: Some(format!("key-{}", i)),
                 tags: Some(vec![format!("tag-{}", i)]),
                 value: Bytes::from(format!("data-{i}")),
+                protocol_data: None,
             });
         }
 

@@ -28,7 +28,13 @@ use crate::{
 use common_metrics::mqtt::publish::record_messages_dropped_no_subscribers_incr;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::{message::MqttMessage, topic::Topic};
+use metadata_struct::{
+    mqtt::topic::Topic,
+    storage::{
+        adapter_record::AdapterWriteRecord,
+        record::{StorageRecordProtocolData, StorageRecordProtocolDataMqtt},
+    },
+};
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use storage_adapter::driver::StorageDriverManager;
 
@@ -67,12 +73,12 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         .save_retain_message(
             &context.topic.tenant,
             &context.topic.topic_name,
-            &context.client_id,
             &context.publish,
             &context.publish_properties,
         )
         .await?;
 
+    // offline message
     let offline_message_disabled = !context
         .cache_manager
         .node_cache
@@ -90,63 +96,94 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         return Ok(None);
     }
 
-    let message_expire =
-        build_message_expire(&context.cache_manager, &context.publish_properties).await;
-
+    // save delay message
     if context.delay_info.is_some() {
         return save_delay_message(
             &context.delay_message_manager,
             &context.topic.tenant,
-            &context.publish,
-            &context.publish_properties,
-            &context.client_id,
-            message_expire,
+            &context.publish.payload,
             context.delay_info.as_ref().unwrap(),
         )
         .await;
     }
 
-    save_simple_message(
-        &context.storage_driver_manager,
+    // save message
+    let mqtt_data = build_mqtt_protocol_data(
+        &context.cache_manager,
+        &context.client_id,
         &context.publish,
         &context.publish_properties,
+    )
+    .await;
+
+    let record = AdapterWriteRecord::new(
+        context.topic.topic_name.clone(),
+        context.publish.payload.clone(),
+    )
+    .with_protocol_data(Some(StorageRecordProtocolData {
+        mqtt: Some(mqtt_data),
+    }));
+
+    save_simple_message(
+        &context.storage_driver_manager,
         &context.client_id,
         &context.topic,
-        message_expire,
+        &context.publish,
+        &record,
     )
     .await
 }
 
 async fn save_simple_message(
     storage_driver_manager: &Arc<StorageDriverManager>,
-    publish: &Publish,
-    publish_properties: &Option<PublishProperties>,
     client_id: &str,
     topic: &Topic,
-    message_expire: u64,
+    publish: &Publish,
+    record: &AdapterWriteRecord,
 ) -> Result<Option<String>, MqttBrokerError> {
-    if let Some(record) =
-        MqttMessage::build_record(client_id, publish, publish_properties, message_expire)
-    {
-        let offsets = if publish.qos == QoS::ExactlyOnce {
-            save_temporary_qos2_message(
-                storage_driver_manager,
-                &record,
-                &topic.tenant,
-                &topic.topic_name,
-                client_id,
-                publish.p_kid,
-            )
+    let offsets = if publish.qos == QoS::ExactlyOnce {
+        save_temporary_qos2_message(
+            storage_driver_manager,
+            record,
+            &topic.tenant,
+            &topic.topic_name,
+            client_id,
+            publish.p_kid,
+        )
+        .await?
+    } else {
+        let message_storage = MessageStorage::new(storage_driver_manager.clone());
+        message_storage
+            .append_topic_message(&topic.tenant, &topic.topic_name, vec![record.clone()])
             .await?
-        } else {
-            let message_storage = MessageStorage::new(storage_driver_manager.clone());
-            message_storage
-                .append_topic_message(&topic.tenant, &topic.topic_name, vec![record])
-                .await?
-        };
+    };
 
-        return Ok(Some(format!("{offsets:?}")));
+    Ok(Some(format!("{offsets:?}")))
+}
+
+pub async fn build_mqtt_protocol_data(
+    cache_manager: &Arc<MQTTCacheManager>,
+    client_id: &str,
+    publish: &Publish,
+    publish_properties: &Option<PublishProperties>,
+) -> StorageRecordProtocolDataMqtt {
+    let message_expire = build_message_expire(cache_manager, publish_properties).await;
+
+    if let Some(properties) = publish_properties {
+        StorageRecordProtocolDataMqtt {
+            client_id: client_id.to_string(),
+            retain: publish.retain,
+            format_indicator: properties.payload_format_indicator,
+            response_topic: properties.response_topic.clone(),
+            correlation_data: properties.correlation_data.clone(),
+            content_type: properties.content_type.clone(),
+            expire_at: message_expire,
+        }
+    } else {
+        StorageRecordProtocolDataMqtt {
+            client_id: client_id.to_string(),
+            retain: publish.retain,
+            ..Default::default()
+        }
     }
-
-    Err(MqttBrokerError::FailedToBuildMessage)
 }

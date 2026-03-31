@@ -24,9 +24,10 @@ use crate::{
 use async_trait::async_trait;
 use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::storage::convert::convert_storage_record_to_adapter;
 use metadata_struct::{
     connector::config_pulsar::PulsarConnectorConfig, connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
+    storage::record::StorageRecord,
 };
 use rule_engine::apply_rule_engine;
 use storage_adapter::driver::StorageDriverManager;
@@ -71,7 +72,7 @@ impl ConnectorSink for PulsarBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         producer: &mut pulsar::producer::Producer<pulsar::TokioExecutor>,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         let mut fail_messages = Vec::new();
@@ -91,9 +92,9 @@ impl ConnectorSink for PulsarBridgePlugin {
                         continue;
                     }
                 };
-            let mut processed_record = record.clone();
-            processed_record.data = processed_data;
-            producer.send_non_blocking(processed_record).await?;
+            let mut write_record = convert_storage_record_to_adapter(record.clone());
+            write_record.data = processed_data;
+            producer.send_non_blocking(write_record).await?;
         }
         Ok(fail_messages)
     }

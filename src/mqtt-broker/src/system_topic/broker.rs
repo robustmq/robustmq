@@ -12,24 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use broker_core::cluster::ClusterStorage;
-use chrono::DateTime;
-use common_base::tools::now_second;
-use common_base::version::version;
-use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::message::MqttMessage;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-use storage_adapter::driver::StorageDriverManager;
-use tracing::{error, warn};
-
 use super::{
     build_system_topic_payload, replace_topic_name, report_system_data, write_topic_data,
     SYSTEM_TOPIC_BROKERS, SYSTEM_TOPIC_BROKERS_DATETIME, SYSTEM_TOPIC_BROKERS_SYSDESCR,
     SYSTEM_TOPIC_BROKERS_UPTIME, SYSTEM_TOPIC_BROKERS_VERSION,
 };
 use crate::core::cache::MQTTCacheManager;
+use broker_core::cache::NodeCacheManager;
+use bytes::Bytes;
+use chrono::DateTime;
+use common_base::tools::now_second;
+use common_base::version::version;
+use grpc_clients::pool::ClientPool;
+use std::sync::Arc;
+use storage_adapter::driver::StorageDriverManager;
+use tracing::{error, warn};
 
 pub(crate) async fn report_cluster_status(
     client_pool: &Arc<ClientPool>,
@@ -37,13 +34,13 @@ pub(crate) async fn report_cluster_status(
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS.to_string());
-    if let Some(record) = build_node_cluster(&topic_name, client_pool).await {
+    if let Some(payload) = build_node_cluster(&metadata_cache.node_cache).await {
         if let Err(e) = write_topic_data(
             storage_driver_manager,
             metadata_cache,
             client_pool,
             topic_name.clone(),
-            record,
+            payload,
         )
         .await
         {
@@ -123,19 +120,8 @@ pub(crate) async fn report_broker_sysdescr(
     .await;
 }
 
-async fn build_node_cluster(
-    topic_name: &str,
-    client_pool: &Arc<ClientPool>,
-) -> Option<AdapterWriteRecord> {
-    let cluster_storage = ClusterStorage::new(client_pool.clone());
-    let node_list = match cluster_storage.node_list().await {
-        Ok(data) => data,
-        Err(e) => {
-            error!("build node cluster {}", e.to_string());
-            return None;
-        }
-    };
-
+async fn build_node_cluster(node_cache: &Arc<NodeCacheManager>) -> Option<Bytes> {
+    let node_list = node_cache.node_list();
     let content = match build_system_topic_payload(node_list) {
         Ok(content) => content,
         Err(e) => {
@@ -144,7 +130,7 @@ async fn build_node_cluster(
         }
     };
 
-    MqttMessage::build_system_topic_message(topic_name.to_string(), content)
+    Some(Bytes::from(content))
 }
 
 #[cfg(test)]

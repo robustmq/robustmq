@@ -21,7 +21,7 @@ use common_metrics::storage_engine::{
     record_storage_engine_ops, record_storage_engine_ops_duration, record_storage_engine_ops_fail,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::AdapterConsumerGroupOffset;
+use metadata_struct::adapter::adapter_offset::AdapterConsumerGroupOffset;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;

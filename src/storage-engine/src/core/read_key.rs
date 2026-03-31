@@ -27,7 +27,7 @@ use crate::{
     filesegment::{read::segment_read_by_key, SegmentIdentity},
 };
 use common_config::{broker::broker_config, storage::StorageType};
-use metadata_struct::storage::storage_record::StorageRecord;
+use metadata_struct::storage::record::StorageRecord;
 use protocol::storage::{
     codec::StorageEnginePacket,
     protocol::{ReadReq, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType},

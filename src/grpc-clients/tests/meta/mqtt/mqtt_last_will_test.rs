@@ -14,15 +14,14 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use crate::common::get_placement_addr;
     use common_base::uuid::unique_id;
     use grpc_clients::meta::mqtt::call::placement_save_last_will_message;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::lastwill::MqttLastWillData;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::meta::meta_service_mqtt::SaveLastWillMessageRequest;
-
-    use crate::common::get_placement_addr;
+    use std::sync::Arc;
 
     #[tokio::test]
 
@@ -32,6 +31,7 @@ mod tests {
         let client_id: String = unique_id();
 
         let last_will_message = MqttLastWillData {
+            tenant: DEFAULT_TENANT.to_string(),
             client_id: client_id.clone(),
             last_will: None,
             last_will_properties: None,

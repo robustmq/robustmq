@@ -26,8 +26,10 @@ use bytes::Bytes;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_read_config::AdapterWriteRespRow;
-use metadata_struct::storage::storage_record::{StorageRecord, StorageRecordMetadata};
+use metadata_struct::adapter::adapter_read_config::AdapterWriteRespRow;
+use metadata_struct::storage::record::{
+    StorageRecord, StorageRecordMetadata, StorageRecordProtocolData,
+};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::hash::Hasher;
@@ -50,10 +52,11 @@ pub struct WriteChannelData {
 #[derive(Debug, Clone)]
 pub struct WriteChannelDataRecord {
     pub pkid: u64,
-    pub header: Option<Vec<metadata_struct::storage::storage_record::Header>>,
+    pub header: Option<Vec<metadata_struct::storage::record::StorageHeader>>,
     pub key: Option<String>,
     pub value: Bytes,
     pub tags: Option<Vec<String>>,
+    pub protocol_data: Option<StorageRecordProtocolData>,
 }
 
 /// the response of the write request from the segment write thread
@@ -300,7 +303,9 @@ pub fn create_io_thread(
                             &row.tags,
                             &row.value,
                         ),
+
                         data: row.value,
+                        protocol_data: row.protocol_data.clone(),
                     });
 
                     // key index
@@ -536,7 +541,7 @@ mod tests {
     use crate::filesegment::segment_file::SegmentFile;
     use bytes::Bytes;
     use common_config::storage::StorageType;
-    use metadata_struct::storage::storage_record::StorageRecordMetadata;
+    use metadata_struct::storage::record::StorageRecordMetadata;
 
     fn create_test_records(count: usize, shard: &str, segment: u32) -> Vec<StorageRecord> {
         (0..count)
@@ -553,6 +558,7 @@ mod tests {
                         &data,
                     ),
                     data,
+                    protocol_data: None,
                 }
             })
             .collect()
@@ -664,6 +670,7 @@ mod tests {
                 key: Some(format!("key-{}", i)),
                 tags: Some(vec![format!("tag-{}", i)]),
                 value: Bytes::from(format!("data-{}", i)),
+                protocol_data: None,
             });
         }
 
@@ -726,6 +733,7 @@ mod tests {
             key: Some("key-1".to_string()),
             tags: None,
             value: Bytes::from("data-1"),
+            protocol_data: None,
         }];
 
         let result = write_manager.write(&non_exist_segment, data_list).await;
@@ -754,6 +762,7 @@ mod tests {
             key: Some("key-1".to_string()),
             tags: None,
             value: Bytes::from("data-1"),
+            protocol_data: None,
         }];
 
         let result = write_manager.write(&segment_iden, data_list).await;

@@ -19,7 +19,7 @@ use crate::tool::{
 };
 use axum::{extract::State, Json};
 use common_base::http_response::{error_response, success_response};
-use metadata_struct::storage::adapter_offset::{
+use metadata_struct::adapter::adapter_offset::{
     AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
 use metadata_struct::storage::segment::EngineSegment;

@@ -17,7 +17,7 @@ use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_opentsdb::OpenTSDBConnectorConfig, connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
+    storage::record::StorageRecord,
 };
 use reqwest::Client;
 use rule_engine::apply_rule_engine;
@@ -64,10 +64,7 @@ impl OpenTSDBBridgePlugin {
     }
 
     #[allow(clippy::result_large_err)]
-    async fn record_to_data_point(
-        &self,
-        record: &AdapterWriteRecord,
-    ) -> Result<Value, CommonError> {
+    async fn record_to_data_point(&self, record: &StorageRecord) -> Result<Value, CommonError> {
         let processed_data = apply_rule_engine(&self.connector.etl_rule, &record.data).await?;
         let payload_str = String::from_utf8_lossy(&processed_data);
         let payload: Value = serde_json::from_str(&payload_str).map_err(|e| {
@@ -109,7 +106,7 @@ impl OpenTSDBBridgePlugin {
         let timestamp = payload
             .get("timestamp")
             .and_then(|v| v.as_u64())
-            .unwrap_or(record.timestamp);
+            .unwrap_or(record.metadata.create_t);
 
         Ok(json!({
             "metric": metric,
@@ -134,7 +131,7 @@ impl ConnectorSink for OpenTSDBBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         client: &mut Client,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {

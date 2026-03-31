@@ -18,10 +18,11 @@ use crate::storage::message::MessageStorage;
 use crate::system_topic::build_system_topic_payload;
 use common_base::tools::now_millis;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::connection::MQTTConnection;
-use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::tenant::DEFAULT_TENANT;
+use metadata_struct::{
+    mqtt::connection::MQTTConnection, storage::adapter_record::AdapterWriteRecord,
+};
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{DisconnectReasonCode, Subscribe, Unsubscribe};
 use serde::{Deserialize, Serialize};
@@ -218,11 +219,9 @@ async fn flush_batch(batch: Vec<EventMessage>, topic_name: &str, message_storage
                 continue;
             }
         };
-        if let Some(record) =
-            MqttMessage::build_system_topic_message(topic_name.to_string(), payload)
-        {
-            records.push(record);
-        }
+
+        let record = AdapterWriteRecord::new(topic_name.to_string(), payload);
+        records.push(record);
     }
 
     if records.is_empty() {

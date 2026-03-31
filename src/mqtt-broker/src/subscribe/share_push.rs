@@ -12,26 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::sub_option::is_send_msg_by_bo_local;
+use crate::core::sub_option::message_is_same_client;
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use crate::subscribe::common::{message_is_exceeds_max_message_size, message_is_expire};
 use crate::subscribe::common::{record_sub_send_metrics, stale_subscriber_error};
 use crate::subscribe::push::{
-    send_message_validator_by_max_message_size, send_message_validator_by_message_expire,
+    push_data, BATCH_SIZE, HIGH_LOAD_SLEEP_MS, IDLE_SLEEP_MS, LOW_LOAD_SLEEP_MS, LOW_LOAD_THRESHOLD,
 };
 use crate::{core::cache::MQTTCacheManager, storage::message::MessageStorage};
 use crate::{
+    core::error::MqttBrokerError,
     core::tool::ResultMqttBrokerError,
-    core::{error::MqttBrokerError, sub_slow::record_slow_subscribe_data},
-    subscribe::{
-        common::{client_unavailable_error, Subscriber},
-        manager::SubscribeManager,
-        push::{build_publish_message, send_publish_packet_to_client},
-    },
+    subscribe::{common::client_unavailable_error, manager::SubscribeManager},
 };
-use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::mqtt::message::MqttMessage;
-use metadata_struct::storage::convert::convert_engine_record_to_adapter;
-use metadata_struct::storage::storage_record::StorageRecord;
+use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
@@ -40,13 +47,6 @@ use std::{sync::Arc, time::Duration};
 use storage_adapter::driver::StorageDriverManager;
 use tokio::{select, sync::broadcast, sync::broadcast::Sender, time::sleep};
 use tracing::{debug, error, info};
-
-const BATCH_SIZE: u64 = 500;
-
-const IDLE_SLEEP_MS: u64 = 100;
-const LOW_LOAD_SLEEP_MS: u64 = 50;
-const HIGH_LOAD_SLEEP_MS: u64 = 10;
-const LOW_LOAD_THRESHOLD: u64 = 10;
 
 pub struct SharePushManager {
     subscribe_manager: Arc<SubscribeManager>,
@@ -160,194 +160,162 @@ impl SharePushManager {
             return Ok(0);
         }
 
-        let mut processed_count = 0;
+        let mut total = 0;
         for topic in topic_list.iter() {
-            let data_list = self
-                .next_message(&self.group_name, &self.tenant, &topic.topic)
+            total += self
+                .process_topic_messages(&topic.topic, &buckets, &seqs, stop_sx)
                 .await?;
-            if data_list.is_empty() {
+        }
+        Ok(total)
+    }
+
+    async fn process_topic_messages(
+        &self,
+        topic_name: &str,
+        buckets: &crate::subscribe::buckets::BucketsManager,
+        seqs: &[u64],
+        stop_sx: &Sender<bool>,
+    ) -> Result<u64, MqttBrokerError> {
+        let data_list = self
+            .next_message(&self.group_name, &self.tenant, topic_name)
+            .await?;
+
+        if data_list.is_empty() {
+            return Ok(0);
+        }
+
+        let mut processed_count = 0;
+        for record in data_list {
+            if message_is_expire(&record) {
+                if let Some(mut offsets) = self.group_offsets.get_mut(&self.group_name) {
+                    offsets.insert(record.metadata.shard.to_string(), record.metadata.offset);
+                }
                 continue;
             }
 
-            for record in data_list {
-                let new_record = convert_engine_record_to_adapter(record.clone());
-                let msg = MqttMessage::decode_record(new_record.clone())?;
+            let dispatched = self
+                .dispatch_record_to_group(&record, buckets, seqs, stop_sx)
+                .await?;
 
-                // If the message has expired, it will not be delivered.
-                if !send_message_validator_by_message_expire(&msg) {
-                    if let Some(mut offsets) = self.group_offsets.get_mut(&self.group_name) {
-                        offsets.insert(record.metadata.shard.to_string(), record.metadata.offset);
-                    }
-                    continue;
-                }
-
-                let max_attempts = seqs.len();
-                let mut attempts = 0;
-                let mut break_flag = false;
-                loop {
-                    if attempts >= max_attempts {
-                        debug!(
-                            "Failed to push message after {} attempts for group {}, skipping record",
-                            attempts, self.group_name
-                        );
-                        break_flag = true;
-                        break;
-                    }
-                    attempts += 1;
-
-                    let row_seq = self.seq.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    let index = row_seq % (seqs.len() as u64);
-                    if let Some(subscriber) =
-                        buckets.get_subscribe_by_key_seq(&self.group_name, index)
-                    {
-                        // check allow send
-                        if !self
-                            .subscribe_manager
-                            .allow_push_client(&subscriber.tenant, &subscriber.client_id)
-                        {
-                            continue;
-                        }
-
-                        // If the message exceeds the size limit specified for the entire client ID, try the next client.
-                        let allow = match send_message_validator_by_max_message_size(
-                            &self.cache_manager,
-                            &subscriber.client_id,
-                            &msg,
-                        )
-                        .await
-                        {
-                            Ok(allow) => allow,
-                            Err(e) => {
-                                if !client_unavailable_error(&e) {
-                                    self.subscribe_manager.add_not_push_client(
-                                        &subscriber.tenant,
-                                        &subscriber.client_id,
-                                    );
-                                }
-                                continue;
-                            }
-                        };
-
-                        if !allow {
-                            continue;
-                        }
-
-                        // If the message cannot be sent to the entire client group, try the next client.
-                        if !is_send_msg_by_bo_local(
-                            subscriber.no_local,
-                            &subscriber.client_id,
-                            &msg.client_id,
-                        ) {
-                            continue;
-                        }
-
-                        // Push data
-                        let success = match self.push_data(&subscriber, &msg, stop_sx).await {
-                            Ok(pushed) => {
-                                if pushed {
-                                    processed_count += 1;
-                                }
-                                pushed
-                            }
-                            Err(e) => {
-                                if !client_unavailable_error(&e) {
-                                    self.subscribe_manager.add_not_push_client(
-                                        &subscriber.tenant,
-                                        &subscriber.client_id,
-                                    );
-                                }
-
-                                continue;
-                            }
-                        };
-
-                        record_sub_send_metrics(
-                            &subscriber.tenant,
-                            &subscriber.client_id,
-                            &subscriber.sub_path,
-                            &subscriber.topic_name,
-                            0,
-                            success,
-                        );
-
-                        if let Some(mut offsets) =
-                            self.group_offsets.get_mut(&subscriber.group_name)
-                        {
-                            offsets.insert(
-                                record.metadata.shard.to_string(),
-                                record.metadata.offset + 1,
-                            );
-                        }
-
-                        break;
-                    }
-                }
-
-                if break_flag {
-                    break;
-                }
+            if !dispatched {
+                debug!(
+                    "Failed to push message after {} attempts for group {}, skipping record",
+                    seqs.len(),
+                    self.group_name
+                );
+                break;
             }
 
-            if let Some(offsets) = self.group_offsets.get(&self.group_name).map(|r| r.clone()) {
-                // Clone releases the DashMap shard lock before .await
-                if let Err(e) = self
-                    .commit_offset(&self.tenant, &self.group_name, &offsets)
-                    .await
-                {
-                    error!(
-                        "Failed to commit offset for subscriber [group: {}, tenant:{}, topic: {}]: {}. Messages may be redelivered on next poll",
-                        &self.group_name, &self.tenant, topic.topic, e
-                    );
-                } else {
-                    debug!(
-                        "Committed offset for share group [group: {}, tenant:{}, topic: {}], total processed: {} messages",
-                        self.group_name, &self.tenant, topic.topic, processed_count
-                    );
-                }
-            }
+            processed_count += 1;
+        }
+
+        if let Some(offsets) = self.group_offsets.get(&self.group_name).map(|r| r.clone()) {
+            self.commit_offset(&self.tenant, &self.group_name, &offsets)
+                .await?;
         }
 
         Ok(processed_count)
     }
 
-    async fn push_data(
+    async fn dispatch_record_to_group(
         &self,
-        subscriber: &Subscriber,
-        msg: &MqttMessage,
+        record: &StorageRecord,
+        buckets: &crate::subscribe::buckets::BucketsManager,
+        seqs: &[u64],
         stop_sx: &Sender<bool>,
     ) -> Result<bool, MqttBrokerError> {
-        let sub_pub_param = if let Some(params) = build_publish_message(
-            &self.cache_manager,
-            &self.connection_manager,
-            msg,
-            subscriber,
-        )
-        .await?
+        let max_attempts = seqs.len();
+        for _ in 0..max_attempts {
+            let row_seq = self.seq.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let index = row_seq % (seqs.len() as u64);
+
+            let subscriber = match buckets.get_subscribe_by_key_seq(&self.group_name, index) {
+                Some(s) => s,
+                None => continue,
+            };
+
+            match self
+                .try_push_to_subscriber(record, &subscriber, stop_sx)
+                .await
+            {
+                Ok(true) => return Ok(true),
+                Ok(false) => continue,
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(false)
+    }
+
+    async fn try_push_to_subscriber(
+        &self,
+        record: &StorageRecord,
+        subscriber: &crate::subscribe::common::Subscriber,
+        stop_sx: &Sender<bool>,
+    ) -> Result<bool, MqttBrokerError> {
+        if !self
+            .subscribe_manager
+            .allow_push_client(&subscriber.tenant, &subscriber.client_id)
         {
-            params
-        } else {
-            // Message skipped (expired, no_local, packet too large, etc.)
             return Ok(false);
-        };
+        }
 
-        let send_time = now_second();
-
-        send_publish_packet_to_client(
-            &self.connection_manager,
+        match message_is_exceeds_max_message_size(
             &self.cache_manager,
-            &sub_pub_param,
-            stop_sx,
+            &subscriber.client_id,
+            record,
         )
-        .await?;
+        .await
+        {
+            Ok(false) => return Ok(false),
+            Err(e) => {
+                if !client_unavailable_error(&e) {
+                    self.subscribe_manager
+                        .add_not_push_client(&subscriber.tenant, &subscriber.client_id);
+                }
+                return Ok(false);
+            }
+            Ok(true) => {}
+        }
 
-        record_slow_subscribe_data(
+        if !message_is_same_client(subscriber, record) {
+            return Ok(false);
+        }
+
+        let success = match push_data(
+            &self.connection_manager,
             &self.cache_manager,
             &self.rocksdb_engine_handler,
             subscriber,
-            send_time,
-            msg.create_time,
+            record,
+            stop_sx,
         )
-        .await?;
+        .await
+        {
+            Ok(pushed) => pushed,
+            Err(e) => {
+                if !client_unavailable_error(&e) {
+                    self.subscribe_manager
+                        .add_not_push_client(&subscriber.tenant, &subscriber.client_id);
+                }
+                return Ok(false);
+            }
+        };
+
+        record_sub_send_metrics(
+            &subscriber.tenant,
+            &subscriber.client_id,
+            &subscriber.sub_path,
+            &subscriber.topic_name,
+            0,
+            success,
+        );
+
+        if let Some(mut offsets) = self.group_offsets.get_mut(&subscriber.group_name) {
+            offsets.insert(
+                record.metadata.shard.to_string(),
+                record.metadata.offset + 1,
+            );
+        }
 
         Ok(true)
     }

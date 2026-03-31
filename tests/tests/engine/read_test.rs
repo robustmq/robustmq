@@ -18,13 +18,12 @@ mod tests {
     use admin_server::engine::shard::ShardCreateReq;
     use broker_core::cache::NodeCacheManager;
     use bytes::Bytes;
-    use common_base::tools::now_second;
     use common_base::utils::serialize::{self, deserialize};
     use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
+    use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
     use metadata_struct::meta::node::BrokerNode;
-    use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-    use metadata_struct::storage::storage_record::StorageRecord;
+    use metadata_struct::storage::record::StorageRecord;
     use protocol::storage::codec::StorageEnginePacket;
     use protocol::storage::protocol::{
         ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType, WriteReq,
@@ -81,11 +80,9 @@ mod tests {
         let mut messages = Vec::new();
         for i in 0..10 {
             let record = AdapterWriteRecord {
-                pkid: 100 + i,
                 key: Some(format!("key-{}", i)),
                 tags: Some(vec![format!("tag-{}", i % 3)]),
                 data: Bytes::from(format!("data-{}", i)),
-                timestamp: now_second(),
                 ..Default::default()
             };
             messages.push(serialize::serialize(&record).unwrap());

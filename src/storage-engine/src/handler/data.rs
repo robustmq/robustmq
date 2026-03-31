@@ -23,8 +23,8 @@ use crate::core::read_tag::{read_by_tag, ReadByTagParams};
 use crate::core::write::batch_write;
 use crate::filesegment::write::WriteManager;
 use common_base::utils::serialize::{deserialize, serialize};
-use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use protocol::storage::protocol::{
     ReadReqBody, ReadType, StorageEngineNetworkError, WriteRespMessage, WriteRespMessageStatus,
 };
@@ -208,13 +208,12 @@ mod tests {
     use crate::handler::data::read_data_req;
     use crate::{clients::manager::ClientConnectionManager, handler::data::write_data_req};
     use bytes::Bytes;
-    use common_base::tools::now_second;
     use common_base::utils::serialize::{self, deserialize};
     use common_config::storage::memory::StorageDriverMemoryConfig;
     use common_config::storage::StorageType;
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-    use metadata_struct::storage::storage_record::StorageRecord;
+    use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+    use metadata_struct::storage::record::StorageRecord;
     use protocol::storage::protocol::{
         ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
     };
@@ -281,14 +280,12 @@ mod tests {
             Arc::new(ClientConnectionManager::new(cache_manager.clone(), 8));
         let mut messages = Vec::new();
         for i in 0..10 {
-            let record = AdapterWriteRecord {
-                pkid: 100 + i,
-                header: None,
-                key: Some(format!("key-{}", i)),
-                tags: Some(vec![format!("tag-{}", i)]),
-                data: Bytes::from("dsfsfsdfsf"),
-                timestamp: now_second(),
-            };
+            let record = AdapterWriteRecord::new(
+                segment_iden.shard_name.to_string(),
+                Bytes::from("dsfsfsdfsf"),
+            )
+            .with_key(format!("key-{}", i))
+            .with_tags(vec![format!("tag-{}", i)]);
             messages.push(serialize::serialize(&record).unwrap());
         }
         write_data_req(

@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_mysql::MySQLConnectorConfig, connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
+    storage::record::StorageRecord,
 };
 use rule_engine::apply_rule_engine;
 use sqlx::{mysql::MySqlPoolOptions, MySql, Pool};
@@ -64,7 +64,7 @@ impl MySQLBridgePlugin {
 
     async fn single_insert(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         pool: &Pool<MySql>,
     ) -> Result<(), CommonError> {
         for record in records {
@@ -96,9 +96,9 @@ impl MySQLBridgePlugin {
             };
 
             sqlx::query(&sql)
-                .bind(&record.key)
+                .bind(&record.metadata.key)
                 .bind(&payload)
-                .bind(record.timestamp as i64)
+                .bind(record.metadata.create_t as i64)
                 .execute(pool)
                 .await?;
         }
@@ -108,7 +108,7 @@ impl MySQLBridgePlugin {
 
     async fn batch_insert(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         pool: &Pool<MySql>,
     ) -> Result<(), CommonError> {
         let mut values_placeholders = Vec::with_capacity(records.len());
@@ -117,7 +117,11 @@ impl MySQLBridgePlugin {
         for record in records {
             values_placeholders.push("(?, ?, ?)");
             let payload = serde_json::to_string(record)?;
-            bindings.push((record.key.clone(), payload, record.timestamp as i64));
+            bindings.push((
+                record.metadata.key.clone(),
+                payload,
+                record.metadata.create_t as i64,
+            ));
         }
 
         let base_sql = format!(
@@ -161,7 +165,7 @@ impl ConnectorSink for MySQLBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         pool: &mut Pool<MySql>,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {

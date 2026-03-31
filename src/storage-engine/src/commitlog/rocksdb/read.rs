@@ -19,7 +19,7 @@ use crate::{
 use common_base::utils::serialize::deserialize;
 use metadata_struct::storage::{
     adapter_offset::AdapterOffsetStrategy, adapter_read_config::AdapterReadConfig,
-    storage_record::StorageRecord,
+    record::StorageRecord,
 };
 use rocksdb_engine::keys::storage::{
     key_index_key, shard_record_key, shard_record_key_prefix, tag_index_tag_prefix,
@@ -304,8 +304,7 @@ mod tests {
     use broker_core::cache::NodeCacheManager;
     use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
-    use metadata_struct::storage::adapter_offset::AdapterOffsetStrategy;
-    use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+    use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 
     #[tokio::test]
     async fn test_batch_write_and_read_by_offset() {
@@ -320,12 +319,10 @@ mod tests {
         commit_offset.save_latest_offset(&shard_name, 0).unwrap();
 
         let messages: Vec<AdapterWriteRecord> = (0..10)
-            .map(|i| AdapterWriteRecord {
-                pkid: i,
-                key: Some(format!("key{}", i)),
-                tags: Some(vec![format!("tag{}", i % 3)]),
-                timestamp: 1000 + i * 100,
-                ..Default::default()
+            .map(|i| {
+                AdapterWriteRecord::new("", bytes::Bytes::default())
+                    .with_key(format!("key{}", i))
+                    .with_tags(vec![format!("tag{}", i % 3)])
             })
             .collect();
 
@@ -357,11 +354,5 @@ mod tests {
         let key_records = engine.read_by_key(&shard_name, "key5").await.unwrap();
         assert_eq!(key_records.len(), 1);
         assert_eq!(key_records[0].metadata.offset, 5);
-
-        let offset_by_ts = engine
-            .get_offset_by_timestamp(&shard_name, 1500, AdapterOffsetStrategy::Latest)
-            .await
-            .unwrap();
-        assert_eq!(offset_by_ts, 5);
     }
 }

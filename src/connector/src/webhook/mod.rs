@@ -18,7 +18,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_webhook::{WebhookAuthType, WebhookConnectorConfig, WebhookHttpMethod},
     connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
+    storage::record::StorageRecord,
 };
 use reqwest::{Client, RequestBuilder};
 use rule_engine::apply_rule_engine;
@@ -97,7 +97,7 @@ impl WebhookBridgePlugin {
 
     async fn records_to_json(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         fail_messages: &mut Vec<FailureRecordInfo>,
     ) -> String {
         let mut items: Vec<serde_json::Value> = Vec::with_capacity(records.len());
@@ -122,12 +122,12 @@ impl WebhookBridgePlugin {
             let payload = String::from_utf8_lossy(&processed_data).to_string();
             let mut item = json!({
                 "payload": payload,
-                "timestamp": record.timestamp,
+                "timestamp": record.metadata.create_t,
             });
-            if let Some(key) = &record.key {
+            if let Some(key) = &record.metadata.key {
                 item["key"] = json!(key);
             }
-            if let Some(headers) = &record.header {
+            if let Some(headers) = &record.metadata.header {
                 if !headers.is_empty() {
                     let h: Vec<serde_json::Value> = headers
                         .iter()
@@ -163,7 +163,7 @@ impl ConnectorSink for WebhookBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         client: &mut Client,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {

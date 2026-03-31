@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use crate::commitlog::memory::engine::MemoryStorageEngine;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use common_base::tools::now_second;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 
 impl MemoryStorageEngine {
     pub fn save_index(&self, shard_name: &str, offset: u64, msg: &AdapterWriteRecord) {
@@ -31,14 +32,15 @@ impl MemoryStorageEngine {
             }
         }
 
+        let msg_timestamp = now_second();
         // timestamp index
-        if msg.timestamp > 0 && offset.is_multiple_of(5000) {
+        if msg_timestamp > 0 && offset.is_multiple_of(5000) {
             let timestamp_map = self
                 .timestamp_index
                 .entry(shard_name.to_string())
                 .or_default();
-            if !timestamp_map.contains_key(&msg.timestamp) {
-                timestamp_map.insert(msg.timestamp, offset);
+            if !timestamp_map.contains_key(&msg_timestamp) {
+                timestamp_map.insert(msg_timestamp, offset);
             }
         }
     }
@@ -61,10 +63,8 @@ mod tests {
         let engine = test_build_memory_engine();
         let shard_name = unique_id();
         let msg = AdapterWriteRecord {
-            pkid: 1,
             key: Some("test_key".to_string()),
             tags: Some(vec!["test_tag".to_string()]),
-            timestamp: 1000,
             ..Default::default()
         };
         engine.save_index(&shard_name, 100, &msg);

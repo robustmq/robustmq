@@ -19,7 +19,7 @@ use crate::filesegment::segment_file::data_fold_shard;
 use crate::filesegment::SegmentIdentity;
 use common_config::{broker::broker_config, storage::StorageType};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::storage::adapter_offset::AdapterShardInfo;
+use metadata_struct::adapter::adapter_offset::AdapterShardInfo;
 use metadata_struct::storage::shard::EngineShard;
 use protocol::meta::meta_service_journal::{
     CreateShardRequest, DeleteShardRequest, ListShardRequest,

@@ -20,8 +20,8 @@ use serde::{Deserialize, Serialize};
 pub struct MQTTRetainMessage {
     pub tenant: String,
     pub topic_name: String,
-    pub retain_message: Bytes,
-    pub retain_message_expired_at: u64,
+    pub payload: Bytes,
+    pub expired_at: u64,
     pub create_time: u64,
 }
 

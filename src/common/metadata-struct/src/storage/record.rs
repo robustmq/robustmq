@@ -18,17 +18,19 @@ use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use serde::{Deserialize, Serialize};
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Serialize, Deserialize)]
-pub struct Header {
+pub struct StorageHeader {
     pub name: String,
     pub value: String,
 }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Serialize, Deserialize)]
+#[derive(
+    Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Serialize, Deserialize, Default,
+)]
 pub struct StorageRecordMetadata {
     pub offset: u64,
     pub shard: String,
     pub segment: u32,
-    pub header: Option<Vec<Header>>,
+    pub header: Option<Vec<StorageHeader>>,
     pub key: Option<String>,
     pub tags: Option<Vec<String>>,
     pub create_t: u64,
@@ -50,7 +52,7 @@ impl StorageRecordMetadata {
         offset: u64,
         shard: &str,
         segment: u32,
-        header: &Option<Vec<Header>>,
+        header: &Option<Vec<StorageHeader>>,
         key: &Option<String>,
         tags: &Option<Vec<String>>,
         data: &Bytes,
@@ -100,7 +102,7 @@ impl StorageRecordMetadata {
     }
 
     /// Set header (chainable)
-    pub fn with_header(mut self, header: Option<Vec<Header>>) -> Self {
+    pub fn with_header(mut self, header: Option<Vec<StorageHeader>>) -> Self {
         self.header = header;
         self
     }
@@ -145,5 +147,24 @@ impl StorageRecordMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageRecord {
     pub metadata: StorageRecordMetadata,
+    pub protocol_data: Option<StorageRecordProtocolData>,
     pub data: Bytes,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct StorageRecordProtocolData {
+    pub mqtt: Option<StorageRecordProtocolDataMqtt>,
+}
+
+impl StorageRecordProtocolData {}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct StorageRecordProtocolDataMqtt {
+    pub client_id: String,
+    pub retain: bool,
+    pub expire_at: u64,
+    pub format_indicator: Option<u8>,
+    pub response_topic: Option<String>,
+    pub correlation_data: Option<Bytes>,
+    pub content_type: Option<String>,
 }

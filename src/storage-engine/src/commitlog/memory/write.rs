@@ -16,7 +16,7 @@ use crate::{commitlog::memory::engine::MemoryStorageEngine, core::error::Storage
 use dashmap::DashMap;
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
-    convert::convert_adapter_record_to_engine,
+    convert::convert_adapter_record_to_storage,
 };
 use std::sync::Arc;
 
@@ -135,12 +135,12 @@ impl MemoryStorageEngine {
         let mut offset = self.commit_log_offset.get_latest_offset(shard_name)?;
         for msg in messages.iter() {
             offset_res.push(AdapterWriteRespRow {
-                pkid: msg.pkid,
+                pkid: msg.record_id,
                 offset,
                 ..Default::default()
             });
 
-            let engine_record = convert_adapter_record_to_engine(msg.clone(), shard_name, offset);
+            let engine_record = convert_adapter_record_to_storage(msg.clone(), shard_name, offset);
 
             current_shard_data_list.insert(offset, engine_record);
 
@@ -166,7 +166,7 @@ mod tests {
     use bytes::Bytes;
     use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
-    use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
+    use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
 
     #[tokio::test]
     async fn test_try_remove_old_data() {
@@ -185,20 +185,16 @@ mod tests {
 
         let messages: Vec<AdapterWriteRecord> = (0..10)
             .map(|i| AdapterWriteRecord {
-                pkid: i,
                 key: Some(format!("key{}", i)),
                 tags: Some(vec![format!("tag{}", i % 3)]),
-                timestamp: 1000 + i * 100,
                 ..Default::default()
             })
             .collect();
 
         engine.batch_write(&shard_name, &messages).await.unwrap();
         let new_message = AdapterWriteRecord {
-            pkid: 100,
             key: Some("key100".to_string()),
             tags: Some(vec!["tag100".to_string()]),
-            timestamp: 2000,
             ..Default::default()
         };
         engine.write(&shard_name, &new_message).await.unwrap();
@@ -235,11 +231,9 @@ mod tests {
 
         let messages: Vec<AdapterWriteRecord> = (0..5)
             .map(|i| AdapterWriteRecord {
-                pkid: i,
                 key: Some(format!("key{}", i)),
                 tags: Some(vec![format!("tag{}", i)]),
                 data: Bytes::from(format!("data{}", i)),
-                timestamp: 1000 + i * 100,
                 ..Default::default()
             })
             .collect();

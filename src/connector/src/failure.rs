@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::{error::common::CommonError, tools::now_second};
+use crate::storage::message::MessageStorage;
+use common_base::error::common::CommonError;
 use common_metrics::mqtt::connector::{
     record_connector_dlq_messages, record_connector_messages_discarded, record_connector_retry,
 };
-use metadata_struct::connector::FailureHandlingStrategy;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+use metadata_struct::{connector::FailureHandlingStrategy, storage::record::StorageRecord};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::time::sleep;
 use tracing::{debug, error};
-
-use crate::storage::message::MessageStorage;
 
 /// Record written to the dead letter queue when a connector fails to deliver messages.
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -34,10 +33,7 @@ pub struct DeadLetterRecord {
     pub source_topic: String,
     pub error_message: String,
     pub retry_times: u32,
-    pub original_key: Option<String>,
-    pub original_data: Vec<u8>,
-    pub original_timestamp: u64,
-    pub dead_letter_timestamp: u64,
+    pub record: StorageRecord,
 }
 
 pub struct FailureRecordInfo {
@@ -46,7 +42,7 @@ pub struct FailureRecordInfo {
     pub connector_type: String,
     pub source_topic: String,
     pub error_message: String,
-    pub records: Vec<AdapterWriteRecord>,
+    pub records: Vec<StorageRecord>,
 }
 
 pub async fn failure_message_process(
@@ -139,7 +135,6 @@ async fn send_to_dead_letter_queue(
     retry_times: u32,
     context: &FailureRecordInfo,
 ) -> Result<(), CommonError> {
-    let now = now_second();
     let mut dlq_records = Vec::with_capacity(context.records.len());
 
     for record in context.records.iter() {
@@ -148,10 +143,7 @@ async fn send_to_dead_letter_queue(
             source_topic: context.source_topic.to_string(),
             error_message: context.error_message.to_string(),
             retry_times,
-            original_key: record.key.clone(),
-            original_data: record.data.to_vec(),
-            original_timestamp: record.timestamp,
-            dead_letter_timestamp: now,
+            record: record.clone(),
         };
 
         let data = serde_json::to_vec(&dead_letter).map_err(|e| {
@@ -160,10 +152,7 @@ async fn send_to_dead_letter_queue(
                 context.connector_name, e
             ))
         })?;
-        let mut dlq_record = AdapterWriteRecord::from_bytes(data);
-        if let Some(key) = &record.key {
-            dlq_record.set_key(key.clone());
-        }
+        let dlq_record = AdapterWriteRecord::new(dlq_topic, data);
         dlq_records.push(dlq_record);
     }
 

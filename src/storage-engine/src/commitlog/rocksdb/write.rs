@@ -24,7 +24,7 @@ use common_base::{
 };
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
-    convert::convert_adapter_record_to_engine,
+    convert::convert_adapter_record_to_storage,
 };
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::storage::{
@@ -89,13 +89,13 @@ impl RocksDBStorageEngine {
 
         for msg in messages {
             results.push(AdapterWriteRespRow {
-                pkid: msg.pkid,
+                pkid: msg.record_id,
                 offset,
                 ..Default::default()
             });
 
             // Convert StorageAdapterRecord to StorageEngineRecord
-            let engine_record = convert_adapter_record_to_engine(msg.clone(), shard_name, offset);
+            let engine_record = convert_adapter_record_to_storage(msg.clone(), shard_name, offset);
 
             // save message (now storing StorageEngineRecord)
             let shard_record_key = shard_record_key(shard_name, offset);
@@ -125,8 +125,9 @@ impl RocksDBStorageEngine {
             }
 
             // timestamp index
-            if msg.timestamp > 0 && offset % 5000 == 0 {
-                let timestamp_index_key = timestamp_index_key(shard_name, msg.timestamp, offset);
+            let msg_timestamp = now_second();
+            if msg_timestamp > 0 && offset % 5000 == 0 {
+                let timestamp_index_key = timestamp_index_key(shard_name, msg_timestamp, offset);
                 batch.put_cf(
                     &cf,
                     timestamp_index_key.as_bytes(),
@@ -160,15 +161,14 @@ impl RocksDBStorageEngine {
         let cf = self.get_cf()?;
         let record_key = shard_record_key(shard, offset);
 
-        let record = match self
-            .rocksdb_engine_handler
-            .read::<metadata_struct::storage::storage_record::StorageRecord>(
-            cf.clone(),
-            &record_key,
-        )? {
-            Some(r) => r,
-            None => return Ok(()),
-        };
+        let record =
+            match self
+                .rocksdb_engine_handler
+                .read::<metadata_struct::storage::record::StorageRecord>(cf.clone(), &record_key)?
+            {
+                Some(r) => r,
+                None => return Ok(()),
+            };
 
         let mut batch = WriteBatch::default();
 
@@ -207,8 +207,8 @@ mod tests {
     use bytes::Bytes;
     use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
-    use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
-    use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+    use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+    use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 
     #[tokio::test]
     async fn test_write_and_delete() {
@@ -224,11 +224,9 @@ mod tests {
 
         let messages: Vec<AdapterWriteRecord> = (0..5)
             .map(|i| AdapterWriteRecord {
-                pkid: i,
                 key: Some(format!("key{}", i)),
                 tags: Some(vec![format!("tag{}", i)]),
                 data: Bytes::from(format!("data{}", i)),
-                timestamp: 1000 + i * 100,
                 ..Default::default()
             })
             .collect();

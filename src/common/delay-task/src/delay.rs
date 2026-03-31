@@ -15,14 +15,13 @@
 use crate::manager::DelayTaskManager;
 use crate::{DelayTask, DELAY_TASK_INDEX_TOPIC};
 use broker_core::cache::NodeCacheManager;
-use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use common_base::utils::serialize::serialize;
 use common_base::uuid::unique_id;
 use common_config::storage::StorageType;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mqtt::topic::Topic;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::shard::EngineShardConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
@@ -35,12 +34,9 @@ pub(crate) async fn save_delay_task_index(
     task: &DelayTask,
 ) -> Result<(), CommonError> {
     let data = serialize(task)?;
-    let record = AdapterWriteRecord {
-        key: Some(task.task_id.clone()),
-        data: Bytes::copy_from_slice(&data),
-        timestamp: now_second(),
-        ..Default::default()
-    };
+    let record =
+        AdapterWriteRecord::new(DELAY_TASK_INDEX_TOPIC, data).with_key(task.task_id.clone());
+
     let result = storage_driver_manager
         .write(DEFAULT_TENANT, DELAY_TASK_INDEX_TOPIC, &[record])
         .await?;

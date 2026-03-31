@@ -12,14 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod auth;
-pub mod auto_subscribe;
-pub mod connection;
-pub mod group_leader;
-pub mod lastwill;
-pub mod retain_message;
-pub mod session;
-pub mod subscribe;
-pub mod topic;
-pub mod topic_rewrite_rule;
-pub mod user;
+pub mod adapter_offset;
+pub mod adapter_read_config;
+pub mod adapter_record;

@@ -18,10 +18,9 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::{
     connector::config_redis::RedisConnectorConfig, connector::config_redis::RedisMode,
-    connector::MQTTConnector, storage::adapter_record::AdapterWriteRecord,
+    connector::MQTTConnector, storage::record::StorageRecord,
 };
 use redis::aio::ConnectionManager;
 use redis::{Client, Cmd, RedisError};
@@ -134,19 +133,20 @@ impl RedisBridgePlugin {
     #[allow(clippy::result_large_err)]
     fn render_command_template(
         &self,
-        record: &AdapterWriteRecord,
-        msg: &MqttMessage,
+        record: &StorageRecord,
+        processed_data: &bytes::Bytes,
     ) -> Result<Vec<String>, CommonError> {
         let mut rendered = self.config.command_template.clone();
 
         let mut replacements = HashMap::new();
-        replacements.insert("client_id", msg.client_id.clone());
-        replacements.insert("topic", String::from_utf8_lossy(&msg.topic).to_string());
-        replacements.insert("payload", String::from_utf8_lossy(&msg.payload).to_string());
-        replacements.insert("timestamp", record.timestamp.to_string());
-        replacements.insert("qos", format!("{:?}", msg.qos));
-        replacements.insert("retain", msg.retain.to_string());
-        replacements.insert("key", record.key.clone().unwrap_or_default());
+        replacements.insert("client_id", record.metadata.key.clone().unwrap_or_default());
+        replacements.insert("topic", record.metadata.shard.clone());
+        replacements.insert(
+            "payload",
+            String::from_utf8_lossy(processed_data).to_string(),
+        );
+        replacements.insert("timestamp", record.metadata.create_t.to_string());
+        replacements.insert("key", record.metadata.key.clone().unwrap_or_default());
 
         for (placeholder, value) in replacements.iter() {
             let pattern = format!("${{{}}}", placeholder);
@@ -213,7 +213,7 @@ impl ConnectorSink for RedisBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         conn: &mut ConnectionManager,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         let mut success_count = 0;
@@ -239,27 +239,7 @@ impl ConnectorSink for RedisBridgePlugin {
                     }
                 };
 
-            let mut processed_record = record.clone();
-            processed_record.data = processed_data;
-
-            let msg = match MqttMessage::decode_record(processed_record.clone()) {
-                Ok(m) => m,
-                Err(e) => {
-                    error!("Failed to parse MQTT message: {}", e);
-                    error_count += 1;
-                    fail_messages.push(FailureRecordInfo {
-                        tenant: self.connector.tenant.clone(),
-                        connector_name: self.connector.connector_name.clone(),
-                        connector_type: self.connector.connector_type.to_string(),
-                        source_topic: self.connector.topic_name.clone(),
-                        error_message: e.to_string(),
-                        records: vec![record.clone()],
-                    });
-                    continue;
-                }
-            };
-
-            let command_parts = match self.render_command_template(&processed_record, &msg) {
+            let command_parts = match self.render_command_template(record, &processed_data) {
                 Ok(parts) => parts,
                 Err(e) => {
                     error!("Failed to render command template: {}", e);

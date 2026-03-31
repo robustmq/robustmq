@@ -17,7 +17,7 @@ use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_cassandra::CassandraConnectorConfig, connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
+    storage::record::StorageRecord,
 };
 use rule_engine::apply_rule_engine;
 use scylla::{Session, SessionBuilder};
@@ -98,7 +98,7 @@ impl ConnectorSink for CassandraBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         session: &mut Session,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
@@ -128,8 +128,8 @@ impl ConnectorSink for CassandraBridgePlugin {
                     }
                 };
             let payload = String::from_utf8_lossy(&processed_data).to_string();
-            let key = record.key.clone().unwrap_or_default();
-            let timestamp = record.timestamp as i64;
+            let key = record.metadata.key.clone().unwrap_or_default();
+            let timestamp = record.metadata.create_t as i64;
 
             session
                 .execute_unpaged(&prepared, (&key, "", 0i32, &payload, timestamp))

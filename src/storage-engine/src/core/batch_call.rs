@@ -18,7 +18,7 @@ use crate::{
 };
 use common_config::broker::broker_config;
 use futures::future::join_all;
-use metadata_struct::storage::storage_record::StorageRecord;
+use metadata_struct::storage::record::StorageRecord;
 use protocol::storage::{codec::StorageEnginePacket, protocol::ReadReq};
 use std::{sync::Arc, time::Duration};
 use tracing::warn;

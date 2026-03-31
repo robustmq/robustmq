@@ -20,7 +20,7 @@ use bson::Document;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_mongodb::MongoDBConnectorConfig, connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
+    storage::record::StorageRecord,
 };
 use mongodb::{
     options::{ClientOptions, InsertManyOptions, WriteConcern},
@@ -108,17 +108,14 @@ impl MongoDBBridgePlugin {
     }
 
     #[allow(clippy::result_large_err)]
-    async fn record_to_document(
-        &self,
-        record: &AdapterWriteRecord,
-    ) -> Result<Document, CommonError> {
+    async fn record_to_document(&self, record: &StorageRecord) -> Result<Document, CommonError> {
         let processed_data = apply_rule_engine(&self.connector.etl_rule, &record.data).await?;
         let mut processed_record = record.clone();
         processed_record.data = processed_data;
         bson::to_document(&processed_record).map_err(|e| {
             CommonError::CommonError(format!(
                 "Failed to serialize record with key '{:?}' at timestamp {}: {}",
-                processed_record.key, processed_record.timestamp, e
+                processed_record.metadata.key, processed_record.metadata.create_t, e
             ))
         })
     }
@@ -176,7 +173,7 @@ impl ConnectorSink for MongoDBBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         collection: &mut Collection<Document>,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         if records.is_empty() {
@@ -197,8 +194,8 @@ impl ConnectorSink for MongoDBBridgePlugin {
                         "Failed to serialize record {}/{} (key: '{:?}', timestamp: {}): {}",
                         idx + 1,
                         records.len(),
-                        record.key,
-                        record.timestamp,
+                        record.metadata.key,
+                        record.metadata.create_t,
                         e
                     );
                     failed_serializations.push((idx, e.to_string()));

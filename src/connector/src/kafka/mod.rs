@@ -26,7 +26,7 @@ use common_base::error::common::CommonError;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
     connector::config_kafka::KafkaConnectorConfig, connector::MQTTConnector,
-    storage::adapter_record::AdapterWriteRecord,
+    storage::record::StorageRecord,
 };
 use rdkafka::producer::{FutureProducer, FutureRecord, Producer};
 use rule_engine::apply_rule_engine;
@@ -96,7 +96,7 @@ impl ConnectorSink for KafkaBridgePlugin {
 
     async fn send_batch(
         &self,
-        records: &[AdapterWriteRecord],
+        records: &[StorageRecord],
         producer: &mut FutureProducer,
     ) -> Result<Vec<FailureRecordInfo>, CommonError> {
         use futures::future::join_all;
@@ -136,7 +136,7 @@ impl ConnectorSink for KafkaBridgePlugin {
             serialized_data.push(data);
 
             let key = if self.config.key.is_empty() {
-                record.key.clone().unwrap_or_default()
+                record.metadata.key.clone().unwrap_or_default()
             } else {
                 self.config.key.clone()
             };
