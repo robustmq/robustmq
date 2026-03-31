@@ -74,7 +74,7 @@ pub fn process_sub(
                         }
                     }
                 }
-                Err(e) => {
+                Err(_) => {
                     sleep(Duration::from_millis(1000)).await;
                 }
             }

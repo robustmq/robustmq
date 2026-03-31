@@ -178,6 +178,7 @@ pub async fn build_mqtt_protocol_data(
             correlation_data: properties.correlation_data.clone(),
             content_type: properties.content_type.clone(),
             expire_at: message_expire,
+            user_properties: properties.user_properties.clone(),
         }
     } else {
         StorageRecordProtocolDataMqtt {
