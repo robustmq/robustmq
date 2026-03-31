@@ -74,6 +74,7 @@ tokio = { version = "1.50.0", default-features = false, features = [
     "signal",
     "process",
     "parking_lot",
+    "tracing"
 ] }
 tokio-util = { version = "0.7.18", default-features = false, features = [
     "codec",
