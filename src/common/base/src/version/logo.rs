@@ -41,9 +41,9 @@ pub fn banner() -> String {
     │    ██║  ██║╚██████╔╝██████╔╝ ╚████╔╝ ███████║   ██║   ██║ ╚═╝ ██║╚██████╔╝  │
     │    ╚═╝  ╚═╝ ╚═════╝ ╚═════╝   ╚═══╝  ╚══════╝   ╚═╝   ╚═╝     ╚═╝ ╚═════╝   │
     │                                                                             │
-    │    🦀 Next-Generation Cloud-Native Message Queue                            │
-    │    ⚡ Built with Rust • AI-Native • Multi-Protocol                          │
-    │    🚀 Microsecond Latency • Zero GC • Serverless Ready                      │
+    │    🦀 Communication Infrastructure for the AI Era                           │
+    │    ⚡ One Binary • One Broker • No External Dependencies                    │
+    │    🚀 MQTT • Kafka • NATS • AMQP • N Protocols — One Copy of Data           │
     │                                                                             │
     ╰─────────────────────────────────────────────────────────────────────────────╯
     ";
