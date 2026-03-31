@@ -359,7 +359,7 @@ impl KafkaHandlerCommand {
         let broker = MetadataResponseBroker::default()
             .with_node_id(0.into())
             .with_host("127.0.0.1".into())
-            .with_port(9095);
+            .with_port(9092);
 
         let resp = MetadataResponse::default()
             .with_brokers(vec![broker])
@@ -374,12 +374,12 @@ impl KafkaHandlerCommand {
             .with_error_code(0)
             .with_node_id(0.into())
             .with_host("127.0.0.1".into())
-            .with_port(9095)
+            .with_port(9092)
             .with_coordinators(vec![Coordinator::default()
                 .with_error_code(0)
                 .with_node_id(0.into())
                 .with_host("127.0.0.1".into())
-                .with_port(9095)]);
+                .with_port(9092)]);
 
         Some(KafkaPacket::FindCoordinatorResponse(resp))
     }
