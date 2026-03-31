@@ -72,6 +72,11 @@ RobustMQ is designed from scratch to solve this structurally: **unified storage 
 
 ## ✨ Features
 
+<div align="center">
+  <video src="docs/images/demo.mp4" controls width="100%"></video>
+</div>
+
+
 - 🦀 **Rust-native**: No GC, stable and predictable memory footprint, no periodic spikes — consistent from edge devices to cloud clusters
 - 🗄️ **Unified storage layer**: All protocols share one storage engine — data written once, consumed by any protocol, no duplication
 - 🔌 **Native multi-protocol**: MQTT 3.1/3.1.1/5.0, Kafka, NATS, AMQP — natively implemented, full protocol semantics, not emulated
