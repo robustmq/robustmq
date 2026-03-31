@@ -185,7 +185,7 @@ impl DirectlyPushManager {
                     &self.connection_manager,
                     &self.cache_manager,
                     &self.rocksdb_engine_handler,
-                    &subscriber,
+                    subscriber,
                     &record,
                     stop_sx,
                 )
