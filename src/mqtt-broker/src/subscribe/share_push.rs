@@ -165,6 +165,7 @@ impl SharePushManager {
             let data_list = self
                 .next_message(&self.group_name, &self.tenant, &topic.topic)
                 .await?;
+
             if data_list.is_empty() {
                 continue;
             }
@@ -291,21 +292,8 @@ impl SharePushManager {
             }
 
             if let Some(offsets) = self.group_offsets.get(&self.group_name).map(|r| r.clone()) {
-                // Clone releases the DashMap shard lock before .await
-                if let Err(e) = self
-                    .commit_offset(&self.tenant, &self.group_name, &offsets)
-                    .await
-                {
-                    error!(
-                        "Failed to commit offset for subscriber [group: {}, tenant:{}, topic: {}]: {}. Messages may be redelivered on next poll",
-                        &self.group_name, &self.tenant, topic.topic, e
-                    );
-                } else {
-                    debug!(
-                        "Committed offset for share group [group: {}, tenant:{}, topic: {}], total processed: {} messages",
-                        self.group_name, &self.tenant, topic.topic, processed_count
-                    );
-                }
+                self.commit_offset(&self.tenant, &self.group_name, &offsets)
+                    .await?;
             }
         }
 
