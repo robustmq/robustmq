@@ -359,6 +359,27 @@ const features = computed(() => [
       </div>
     </section>
 
+    <!-- ══ DEMO VIDEO ══ -->
+    <section class="section demo-section">
+      <div class="section-inner">
+        <div class="section-header">
+          <div class="section-tag">{{ t('里程碑演示', 'Milestone Demo') }}</div>
+          <h2 class="section-title">{{ t('一份数据，四协议同时消费', 'One Message, Four Protocols') }}</h2>
+          <p class="section-desc">{{ t('MQTT 写入，MQTT / Kafka / NATS / AMQP 四端原生消费，底层一份数据，零桥接，零复制', 'Publish via MQTT, consume natively with MQTT, Kafka, NATS, and AMQP — one data store, zero bridging, zero copying') }}</p>
+        </div>
+        <div class="demo-video-wrapper">
+          <video
+            class="demo-video"
+            controls
+            preload="metadata"
+            playsinline
+          >
+            <source src="/images/demo.mp4" type="video/mp4" />
+          </video>
+        </div>
+      </div>
+    </section>
+
     <!-- ══ SCENARIOS ══ -->
     <section class="section scenarios-section">
       <div class="section-inner">
