@@ -230,7 +230,6 @@ mod tests {
         assert_eq!(write_result[0].offset, 0);
         assert_eq!(write_result[9].offset, 9);
 
-
         let read_config = AdapterReadConfig {
             max_record_num: 10,
             max_size: 1024 * 1024,
