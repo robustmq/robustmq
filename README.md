@@ -73,7 +73,7 @@ RobustMQ is designed from scratch to solve this structurally: **unified storage 
 ## ✨ Features
 
 <div align="center">
-  <video src="docs/images/demo.mp4" controls width="100%"></video>
+  <video src="https://robustmq.com/assets/demo.zRXM786t.mp4" controls width="100%"></video>
 </div>
 
 
