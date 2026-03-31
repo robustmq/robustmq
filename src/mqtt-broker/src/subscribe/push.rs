@@ -183,10 +183,7 @@ fn build_publish_properties(
         }
     }
     properties.user_properties = user_properties;
-    properties.subscription_identifiers = subscriber
-        .subscription_identifier
-        .into_iter()
-        .collect();
+    properties.subscription_identifiers = subscriber.subscription_identifier.into_iter().collect();
 
     Some(properties)
 }
