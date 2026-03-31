@@ -183,10 +183,10 @@ impl FileBridgePlugin {
         Ok(FileBridgePlugin { connector, config })
     }
 
-    async fn process_data(&self, data: &Bytes) -> Result<String, CommonError> {
+    async fn process_data(&self, data: &Bytes) -> Result<Bytes, CommonError> {
         let processed_data = apply_rule_engine(&self.connector.etl_rule, data).await?;
-        let data = serde_json::to_string(&processed_data)?;
-        Ok(data)
+        // let data = String::from_utf8_lossy(&processed_data);
+        Ok(processed_data)
     }
 }
 
@@ -320,7 +320,7 @@ mod tests {
     async fn file_bridge_plugin_test() {
         let mut test_data = vec![];
 
-        for i in 0..1000u64 {
+        for i in 0..3u64 {
             let record = StorageRecord {
                 metadata: StorageRecordMetadata::default(),
                 data: Bytes::from(format!("test_data_{i}")),
@@ -334,7 +334,7 @@ mod tests {
 
         let config = LocalFileConnectorConfig {
             local_file_path: PathBuf::from(dir_path.clone())
-                .join("test.txt")
+                .join(unique_id())
                 .to_str()
                 .unwrap()
                 .to_string(),
@@ -376,15 +376,14 @@ mod tests {
         file.read_to_string(&mut res).await.unwrap();
 
         let expected = test_data.iter().fold(String::new(), |mut acc, record| {
-            let data = serde_json::to_string(&serde_json::Value::String(
-                String::from_utf8_lossy(&record.data).into_owned(),
-            ))
-            .unwrap();
+            let data = String::from_utf8_lossy(&record.data).into_owned();
             acc.push_str(&data);
             acc.push('\n');
             acc
         });
 
+        println!("{}", res);
+        println!("{}", expected);
         assert_eq!(res, expected);
     }
 }

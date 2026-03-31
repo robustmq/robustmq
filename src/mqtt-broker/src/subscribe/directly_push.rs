@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::sub_option::is_send_msg_by_bo_local;
+use crate::core::sub_option::message_is_same_client;
+use crate::subscribe::common::{message_is_exceeds_max_message_size, message_is_expire};
 use crate::subscribe::common::{record_sub_send_metrics, stale_subscriber_error};
-use crate::subscribe::push::send_message_validator;
+use crate::subscribe::push::{
+    push_data, BATCH_SIZE, HIGH_LOAD_SLEEP_MS, IDLE_SLEEP_MS, LOW_LOAD_SLEEP_MS, LOW_LOAD_THRESHOLD,
+};
 use crate::{core::cache::MQTTCacheManager, storage::message::MessageStorage};
 use crate::{
+    core::error::MqttBrokerError,
     core::tool::ResultMqttBrokerError,
-    core::{error::MqttBrokerError, sub_slow::record_slow_subscribe_data},
     subscribe::{
         common::{client_unavailable_error, Subscriber},
         manager::SubscribeManager,
-        push::{build_publish_message, send_publish_packet_to_client},
         push_model::{get_push_model, PushModel},
     },
 };
-use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
@@ -36,12 +37,6 @@ use std::{sync::Arc, time::Duration};
 use storage_adapter::driver::StorageDriverManager;
 use tokio::{select, sync::broadcast, sync::broadcast::Sender, time::sleep};
 use tracing::{debug, error, info, warn};
-
-const BATCH_SIZE: u64 = 500;
-const IDLE_SLEEP_MS: u64 = 100;
-const LOW_LOAD_SLEEP_MS: u64 = 50;
-const HIGH_LOAD_SLEEP_MS: u64 = 10;
-const LOW_LOAD_THRESHOLD: usize = 10;
 
 pub struct DirectlyPushManager {
     subscribe_manager: Arc<SubscribeManager>,
@@ -101,7 +96,7 @@ impl DirectlyPushManager {
                         Ok(processed_count) => {
                             if processed_count == 0 {
                                 sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
-                            } else if processed_count < LOW_LOAD_THRESHOLD {
+                            } else if processed_count < LOW_LOAD_THRESHOLD as usize {
                                 sleep(Duration::from_millis(LOW_LOAD_SLEEP_MS)).await;
                             } else {
                                 sleep(Duration::from_millis(HIGH_LOAD_SLEEP_MS)).await;
@@ -127,7 +122,6 @@ impl DirectlyPushManager {
             .buckets_data_list
             .get(&self.uuid)
         {
-            let subscriber_count = data.len();
             for row in data.iter() {
                 match self.process_subscriber_messages(&row, stop_sx).await {
                     Ok(count) => {
@@ -152,13 +146,6 @@ impl DirectlyPushManager {
                         }
                     }
                 }
-            }
-
-            if processed_count > 0 {
-                debug!(
-                    "Processed {} messages across {} subscribers in bucket [{}]",
-                    processed_count, subscriber_count, self.uuid
-                );
             }
         }
 
@@ -193,35 +180,46 @@ impl DirectlyPushManager {
         let model = get_push_model(&subscriber.client_id, &subscriber.topic_name);
 
         for record in data_list {
-            let success = match self.push_data(subscriber, &record, stop_sx).await {
-                Ok(pushed) => {
-                    if pushed {
-                        processed_count += 1;
+            if !is_discard_message(&self.cache_manager, &record, subscriber).await? {
+                let success = match push_data(
+                    &self.connection_manager,
+                    &self.cache_manager,
+                    &self.rocksdb_engine_handler,
+                    &subscriber,
+                    &record,
+                    stop_sx,
+                )
+                .await
+                {
+                    Ok(pushed) => {
+                        if pushed {
+                            processed_count += 1;
+                        }
+                        pushed
                     }
-                    pushed
-                }
-                Err(e) => {
-                    if !client_unavailable_error(&e) {
-                        warn!(
-                            "Directly push fail, offset [{}], error message:{}",
-                            record.metadata.offset, e
-                        );
+                    Err(e) => {
+                        if !client_unavailable_error(&e) {
+                            warn!(
+                                "Directly push fail, offset [{}], error message:{}",
+                                record.metadata.offset, e
+                            );
+                        }
+                        if model == PushModel::RetryFailure {
+                            break;
+                        }
+                        false
                     }
-                    if model == PushModel::RetryFailure {
-                        break;
-                    }
-                    false
-                }
-            };
+                };
 
-            record_sub_send_metrics(
-                &subscriber.tenant,
-                &subscriber.client_id,
-                &subscriber.sub_path,
-                &subscriber.topic_name,
-                0,
-                success,
-            );
+                record_sub_send_metrics(
+                    &subscriber.tenant,
+                    &subscriber.client_id,
+                    &subscriber.sub_path,
+                    &subscriber.topic_name,
+                    0,
+                    success,
+                );
+            }
 
             if let Some(mut offsets) = self.group_offsets.get_mut(&subscriber.group_name) {
                 offsets.insert(
@@ -236,77 +234,11 @@ impl DirectlyPushManager {
             .get(&subscriber.group_name)
             .map(|r| r.clone())
         {
-            // Clone releases the DashMap shard lock before .await
-            if let Err(e) = self
-                .commit_offset(&subscriber.tenant, &subscriber.group_name, &offsets)
-                .await
-            {
-                error!(
-                    "Failed to commit offset for subscriber [client_id: {}, group: {}, topic: {}]: {}. Messages may be redelivered on next poll",
-                    subscriber.client_id, subscriber.group_name, subscriber.topic_name, e
-                );
-            } else {
-                debug!(
-                    "Committed offset for subscriber [client_id: {}, topic: {}], processed: {} messages",
-                    subscriber.client_id, subscriber.topic_name, processed_count
-                );
-            }
-        } else if data_list_len > 0 {
-            debug!(
-                "No offset to commit for subscriber [client_id: {}, topic: {}], all messages failed or skipped",
-                subscriber.client_id, subscriber.topic_name
-            );
+            self.commit_offset(&subscriber.tenant, &subscriber.group_name, &offsets)
+                .await?;
         }
 
         Ok(processed_count)
-    }
-
-    async fn push_data(
-        &self,
-        subscriber: &Subscriber,
-        record: &StorageRecord,
-        stop_sx: &Sender<bool>,
-    ) -> Result<bool, MqttBrokerError> {
-        if !send_message_validator(&self.cache_manager, &subscriber.client_id, record).await? {
-            return Ok(false);
-        }
-
-        if !is_send_msg_by_bo_local(subscriber, record) {
-            return Ok(false);
-        }
-
-        let sub_pub_param = if let Some(params) = build_publish_message(
-            &self.cache_manager,
-            &self.connection_manager,
-            record,
-            subscriber,
-        )
-        .await?
-        {
-            params
-        } else {
-            return Ok(false);
-        };
-
-        let send_time = now_second();
-        send_publish_packet_to_client(
-            &self.connection_manager,
-            &self.cache_manager,
-            &sub_pub_param,
-            stop_sx,
-        )
-        .await?;
-
-        record_slow_subscribe_data(
-            &self.cache_manager,
-            &self.rocksdb_engine_handler,
-            subscriber,
-            send_time,
-            record.metadata.create_t,
-        )
-        .await?;
-
-        Ok(true)
     }
 
     async fn next_message(
@@ -346,4 +278,24 @@ impl DirectlyPushManager {
 
 pub fn directly_group_name(client_id: &str, path: &str, topic_name: &str) -> String {
     format!("directly_sub_{client_id}_{path}_{topic_name}")
+}
+
+async fn is_discard_message(
+    cache_manager: &Arc<MQTTCacheManager>,
+    record: &StorageRecord,
+    subscriber: &Subscriber,
+) -> Result<bool, MqttBrokerError> {
+    if message_is_expire(record) {
+        return Ok(true);
+    }
+
+    if message_is_exceeds_max_message_size(cache_manager, &subscriber.client_id, record).await? {
+        return Ok(true);
+    }
+
+    if message_is_same_client(subscriber, record) {
+        return Ok(true);
+    }
+
+    Ok(false)
 }

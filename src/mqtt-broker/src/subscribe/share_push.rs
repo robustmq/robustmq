@@ -12,22 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::sub_option::is_send_msg_by_bo_local;
+use crate::core::sub_option::message_is_same_client;
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+use crate::subscribe::common::{message_is_exceeds_max_message_size, message_is_expire};
 use crate::subscribe::common::{record_sub_send_metrics, stale_subscriber_error};
 use crate::subscribe::push::{
-    send_message_validator_by_max_message_size, send_message_validator_by_message_expire,
+    push_data, BATCH_SIZE, HIGH_LOAD_SLEEP_MS, IDLE_SLEEP_MS, LOW_LOAD_SLEEP_MS, LOW_LOAD_THRESHOLD,
 };
 use crate::{core::cache::MQTTCacheManager, storage::message::MessageStorage};
 use crate::{
+    core::error::MqttBrokerError,
     core::tool::ResultMqttBrokerError,
-    core::{error::MqttBrokerError, sub_slow::record_slow_subscribe_data},
-    subscribe::{
-        common::{client_unavailable_error, Subscriber},
-        manager::SubscribeManager,
-        push::{build_publish_message, send_publish_packet_to_client},
-    },
+    subscribe::{common::client_unavailable_error, manager::SubscribeManager},
 };
-use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
@@ -38,13 +47,6 @@ use std::{sync::Arc, time::Duration};
 use storage_adapter::driver::StorageDriverManager;
 use tokio::{select, sync::broadcast, sync::broadcast::Sender, time::sleep};
 use tracing::{debug, error, info};
-
-const BATCH_SIZE: u64 = 500;
-
-const IDLE_SLEEP_MS: u64 = 100;
-const LOW_LOAD_SLEEP_MS: u64 = 50;
-const HIGH_LOAD_SLEEP_MS: u64 = 10;
-const LOW_LOAD_THRESHOLD: u64 = 10;
 
 pub struct SharePushManager {
     subscribe_manager: Arc<SubscribeManager>,
@@ -169,7 +171,7 @@ impl SharePushManager {
 
             for record in data_list {
                 // If the message has expired, it will not be delivered.
-                if !send_message_validator_by_message_expire(&record) {
+                if message_is_expire(&record) {
                     if let Some(mut offsets) = self.group_offsets.get_mut(&self.group_name) {
                         offsets.insert(record.metadata.shard.to_string(), record.metadata.offset);
                     }
@@ -204,14 +206,18 @@ impl SharePushManager {
                         }
 
                         // If the message exceeds the size limit specified for the entire client ID, try the next client.
-                        let allow = match send_message_validator_by_max_message_size(
+                        match message_is_exceeds_max_message_size(
                             &self.cache_manager,
                             &subscriber.client_id,
                             &record,
                         )
                         .await
                         {
-                            Ok(allow) => allow,
+                            Ok(allow) => {
+                                if !allow {
+                                    continue;
+                                }
+                            }
                             Err(e) => {
                                 if !client_unavailable_error(&e) {
                                     self.subscribe_manager.add_not_push_client(
@@ -223,17 +229,22 @@ impl SharePushManager {
                             }
                         };
 
-                        if !allow {
-                            continue;
-                        }
-
                         // If the message cannot be sent to the entire client group, try the next client.
-                        if !is_send_msg_by_bo_local(&subscriber, &record) {
+                        if !message_is_same_client(&subscriber, &record) {
                             continue;
                         }
 
                         // Push data
-                        let success = match self.push_data(&subscriber, &record, stop_sx).await {
+                        let success = match push_data(
+                            &self.connection_manager,
+                            &self.cache_manager,
+                            &self.rocksdb_engine_handler,
+                            &subscriber,
+                            &record,
+                            stop_sx,
+                        )
+                        .await
+                        {
                             Ok(pushed) => {
                                 if pushed {
                                     processed_count += 1;
@@ -299,48 +310,6 @@ impl SharePushManager {
         }
 
         Ok(processed_count)
-    }
-
-    async fn push_data(
-        &self,
-        subscriber: &Subscriber,
-        msg: &StorageRecord,
-        stop_sx: &Sender<bool>,
-    ) -> Result<bool, MqttBrokerError> {
-        let sub_pub_param = if let Some(params) = build_publish_message(
-            &self.cache_manager,
-            &self.connection_manager,
-            msg,
-            subscriber,
-        )
-        .await?
-        {
-            params
-        } else {
-            // Message skipped (expired, no_local, packet too large, etc.)
-            return Ok(false);
-        };
-
-        let send_time = now_second();
-
-        send_publish_packet_to_client(
-            &self.connection_manager,
-            &self.cache_manager,
-            &sub_pub_param,
-            stop_sx,
-        )
-        .await?;
-
-        record_slow_subscribe_data(
-            &self.cache_manager,
-            &self.rocksdb_engine_handler,
-            subscriber,
-            send_time,
-            msg.metadata.create_t,
-        )
-        .await?;
-
-        Ok(true)
     }
 
     async fn next_message(

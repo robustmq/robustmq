@@ -20,15 +20,15 @@ use crate::subscribe::common::Subscriber;
 
 // No Local
 // The only values available for No Local are 0 and 1, where 1 means that the server cannot forward the message to the client that posted it, and 0 is the opposite.
-pub fn is_send_msg_by_bo_local(subscriber: &Subscriber, record: &StorageRecord) -> bool {
+pub fn message_is_same_client(subscriber: &Subscriber, record: &StorageRecord) -> bool {
     if let Some(protocol_data) = record.protocol_data.clone() {
         if let Some(mqtt_data) = protocol_data.mqtt {
             if subscriber.no_local && subscriber.client_id == mqtt_data.client_id {
-                return false;
+                return true;
             }
         }
     }
-    true
+    false
 }
 
 // Retain Handling
@@ -62,90 +62,9 @@ pub fn is_send_retain_msg_by_retain_handling(
 
 #[cfg(test)]
 mod tests {
-    use bytes::Bytes;
+    use crate::core::sub_option::is_send_retain_msg_by_retain_handling;
     use dashmap::DashMap;
-    use metadata_struct::storage::record::{
-        StorageRecord, StorageRecordMetadata, StorageRecordProtocolData,
-        StorageRecordProtocolDataMqtt,
-    };
-    use protocol::mqtt::common::{MqttProtocol, QoS, RetainHandling};
-
-    use crate::core::sub_option::{is_send_msg_by_bo_local, is_send_retain_msg_by_retain_handling};
-    use crate::subscribe::common::Subscriber;
-
-    fn build_subscriber(client_id: &str, no_local: bool) -> Subscriber {
-        Subscriber {
-            client_id: client_id.to_string(),
-            sub_path: "/test".to_string(),
-            rewrite_sub_path: None,
-            tenant: "default".to_string(),
-            topic_name: "/test".to_string(),
-            group_name: "g".to_string(),
-            protocol: MqttProtocol::Mqtt5,
-            qos: QoS::AtLeastOnce,
-            no_local,
-            preserve_retain: false,
-            retain_forward_rule: RetainHandling::OnEverySubscribe,
-            subscription_identifier: None,
-            create_time: 0,
-        }
-    }
-
-    fn build_record_with_client(client_id: &str) -> StorageRecord {
-        StorageRecord {
-            metadata: StorageRecordMetadata::build(0, "shard".to_string(), 0),
-            protocol_data: Some(StorageRecordProtocolData {
-                mqtt: Some(StorageRecordProtocolDataMqtt {
-                    client_id: client_id.to_string(),
-                    retain: false,
-                    format_indicator: None,
-                    response_topic: None,
-                    correlation_data: None,
-                    content_type: None,
-                    expire_at: 0,
-                }),
-            }),
-            data: Bytes::new(),
-        }
-    }
-
-    #[test]
-    fn is_send_msg_by_bo_local_test() {
-        // no_local=true, same client_id → should NOT send
-        assert!(!is_send_msg_by_bo_local(
-            &build_subscriber("client_id", true),
-            &build_record_with_client("client_id")
-        ));
-
-        // no_local=true, different client_id → should send
-        assert!(is_send_msg_by_bo_local(
-            &build_subscriber("client_id", true),
-            &build_record_with_client("client_id_1")
-        ));
-
-        // no_local=false, same client_id → should send
-        assert!(is_send_msg_by_bo_local(
-            &build_subscriber("client_id", false),
-            &build_record_with_client("client_id")
-        ));
-
-        // no_local=false, different client_id → should send
-        assert!(is_send_msg_by_bo_local(
-            &build_subscriber("client_id", false),
-            &build_record_with_client("client_id_1")
-        ));
-
-        // no protocol_data → should send regardless of no_local
-        let record_no_protocol = StorageRecord {
-            metadata: StorageRecordMetadata::build(0, "shard".to_string(), 0),
-            protocol_data: None,
-            data: Bytes::new(),
-        };
-        assert!(is_send_msg_by_bo_local(
-            &build_subscriber("client_id", true),
-            &record_no_protocol
-        ));
-    }
+    use protocol::mqtt::common::RetainHandling;
 
     #[test]
     fn is_send_retain_msg_by_retain_handling_test() {

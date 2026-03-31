@@ -19,14 +19,14 @@ use crate::core::sub_share::{decode_share_info, is_mqtt_share_subscribe};
 use crate::core::sub_wildcards::is_wildcards;
 use crate::core::tool::ResultMqttBrokerError;
 use common_base::error::client_unavailable_error_by_str;
+use common_base::tools::now_second;
 use common_metrics::mqtt::subscribe::{
     record_subscribe_bytes_sent, record_subscribe_messages_sent, record_subscribe_topic_bytes_sent,
     record_subscribe_topic_messages_sent,
 };
-use protocol::mqtt::common::{
-    Filter, MqttProtocol, RetainHandling, SubAck, SubscribeProperties, SubscribeReasonCode,
-};
+use metadata_struct::storage::record::StorageRecord;
 use protocol::mqtt::common::{MqttPacket, QoS};
+use protocol::mqtt::common::{MqttProtocol, RetainHandling, SubAck, SubscribeReasonCode};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -50,13 +50,6 @@ pub struct Subscriber {
     pub create_time: u64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SubscribeData {
-    pub protocol: MqttProtocol,
-    pub filter: Filter,
-    pub subscribe_properties: Option<SubscribeProperties>,
-}
-
 #[derive(Clone, Debug)]
 pub struct SubPublishParam {
     pub packet: MqttPacket,
@@ -64,6 +57,35 @@ pub struct SubPublishParam {
     pub client_id: String,
     pub p_kid: u16,
     pub qos: QoS,
+}
+
+pub fn message_is_expire(message: &StorageRecord) -> bool {
+    if let Some(protocol_data) = message.protocol_data.clone() {
+        if let Some(mqtt_data) = protocol_data.mqtt {
+            if mqtt_data.expire_at == 0 {
+                return false;
+            }
+            return mqtt_data.expire_at < now_second();
+        }
+    }
+    false
+}
+
+pub async fn message_is_exceeds_max_message_size(
+    cache_manager: &Arc<MQTTCacheManager>,
+    client_id: &str,
+    msg: &StorageRecord,
+) -> Result<bool, MqttBrokerError> {
+    let connect_id = cache_manager
+        .get_connect_id(client_id)
+        .ok_or_else(|| MqttBrokerError::ConnectionNullSkipPushMessage(client_id.to_owned()))?;
+
+    if let Some(conn) = cache_manager.get_connection(connect_id) {
+        if msg.data.len() > (conn.max_packet_size as usize) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 pub fn client_unavailable_error(e: &MqttBrokerError) -> bool {

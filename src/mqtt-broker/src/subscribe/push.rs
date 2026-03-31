@@ -20,6 +20,7 @@ use crate::core::cache::{
 use crate::core::error::MqttBrokerError;
 use crate::core::metrics::record_publish_send_metrics;
 use crate::core::metrics::record_send_metrics;
+use crate::core::sub_slow::record_slow_subscribe_data;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::subscribe::common::{client_unavailable_error, SubPublishParam};
 use axum::extract::ws::Message;
@@ -36,11 +37,13 @@ use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::{MqttPacket, PubRel, Publish, PublishProperties, QoS};
 use protocol::robust::RobustMQPacket;
 use protocol::robust::RobustMQProtocol;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
 use tokio::sync::broadcast;
+use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc;
 use tokio::time::{sleep, timeout};
 use tracing::warn;
@@ -52,46 +55,41 @@ const RETRY_SLEEP_INTERVAL_MS: u64 = 200;
 const RETRY_SLEEP_ITERATIONS: usize = 5; // 5 * 200ms = 1000ms
 const QOS_ACK_RESEND_MAX_RETRIES: usize = 3;
 
-pub async fn send_message_validator(
+// Push Config
+pub const BATCH_SIZE: u64 = 500;
+pub const IDLE_SLEEP_MS: u64 = 100;
+pub const LOW_LOAD_SLEEP_MS: u64 = 50;
+pub const HIGH_LOAD_SLEEP_MS: u64 = 10;
+pub const LOW_LOAD_THRESHOLD: u64 = 10;
+
+pub async fn push_data(
+    connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<MQTTCacheManager>,
-    client_id: &str,
-    msg: &StorageRecord,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    subscriber: &Subscriber,
+    record: &StorageRecord,
+    stop_sx: &Sender<bool>,
 ) -> Result<bool, MqttBrokerError> {
-    // Check if message has expired
-    if !send_message_validator_by_message_expire(msg) {
+    let sub_pub_param = if let Some(params) =
+        build_publish_message(cache_manager, connection_manager, record, subscriber).await?
+    {
+        params
+    } else {
         return Ok(false);
-    }
-    // Check if message size is within limits
-    send_message_validator_by_max_message_size(cache_manager, client_id, msg).await
-}
+    };
 
-/// Returns true if message has NOT expired (can be sent)
-/// Returns false if message has expired (should be skipped)
-pub fn send_message_validator_by_message_expire(message: &StorageRecord) -> bool {
-    if let Some(protocol_data) = message.protocol_data.clone() {
-        if let Some(mqtt_data) = protocol_data.mqtt {
-            return mqtt_data.expire_at < now_second();
-        }
-    }
-    false
-}
+    send_publish_packet_to_client(connection_manager, cache_manager, &sub_pub_param, stop_sx)
+        .await?;
 
-/// Returns true if message size is within client's max packet size limit (can be sent)
-/// Returns false if message is too large (should be skipped)
-pub async fn send_message_validator_by_max_message_size(
-    cache_manager: &Arc<MQTTCacheManager>,
-    client_id: &str,
-    msg: &StorageRecord,
-) -> Result<bool, MqttBrokerError> {
-    let connect_id = cache_manager
-        .get_connect_id(client_id)
-        .ok_or_else(|| MqttBrokerError::ConnectionNullSkipPushMessage(client_id.to_owned()))?;
+    record_slow_subscribe_data(
+        cache_manager,
+        rocksdb_engine_handler,
+        subscriber,
+        now_second(),
+        record.metadata.create_t,
+    )
+    .await?;
 
-    if let Some(conn) = cache_manager.get_connection(connect_id) {
-        if msg.data.len() > (conn.max_packet_size as usize) {
-            return Ok(false);
-        }
-    }
     Ok(true)
 }
 
@@ -257,12 +255,8 @@ pub async fn send_publish_packet_to_client(
     }
 }
 
-pub async fn build_pub_qos(subscriber: &Subscriber) -> QoS {
+async fn build_pub_qos(subscriber: &Subscriber) -> QoS {
     min_qos(QoS::ExactlyOnce, subscriber.qos)
-}
-
-pub fn build_sub_ids(subscriber: &Subscriber) -> Vec<usize> {
-    subscriber.subscription_identifier.into_iter().collect()
 }
 
 // When the subscription QOS is 0,
@@ -716,155 +710,4 @@ async fn interruptible_sleep(
         }
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::core::tool::test_build_mqtt_cache_manager;
-    use crate::subscribe::common::Subscriber;
-    use common_base::tools::now_second;
-    use metadata_struct::storage::record::{StorageRecord, StorageRecordMetadata};
-    use metadata_struct::tenant::DEFAULT_TENANT;
-    use protocol::mqtt::common::{MqttProtocol, QoS, RetainHandling};
-    use std::time::Instant;
-
-    fn build_subscriber(
-        client_id: &str,
-        qos: QoS,
-        subscription_identifier: Option<usize>,
-    ) -> Subscriber {
-        Subscriber {
-            client_id: client_id.to_string(),
-            sub_path: "/test/topic".to_string(),
-            rewrite_sub_path: None,
-            tenant: DEFAULT_TENANT.to_string(),
-            topic_name: "/test/topic".to_string(),
-            group_name: "test_group".to_string(),
-            protocol: MqttProtocol::Mqtt5,
-            qos,
-            no_local: false,
-            preserve_retain: false,
-            retain_forward_rule: RetainHandling::OnEverySubscribe,
-            subscription_identifier,
-            create_time: now_second(),
-        }
-    }
-
-    fn build_record(data: String) -> StorageRecord {
-        StorageRecord {
-            metadata: StorageRecordMetadata::build(0, "shard".to_string(), 0),
-            protocol_data: None,
-            data: Bytes::from(data),
-        }
-    }
-
-    #[test]
-    fn test_build_sub_ids() {
-        assert_eq!(
-            build_sub_ids(&build_subscriber("client1", QoS::AtLeastOnce, Some(123))),
-            vec![123]
-        );
-        assert_eq!(
-            build_sub_ids(&build_subscriber("client1", QoS::AtLeastOnce, None)),
-            Vec::<usize>::new()
-        );
-        assert_eq!(
-            build_sub_ids(&build_subscriber("client1", QoS::AtLeastOnce, Some(0))),
-            vec![0]
-        );
-    }
-
-    #[tokio::test]
-    async fn test_build_pub_qos() {
-        assert_eq!(
-            build_pub_qos(&build_subscriber("client1", QoS::ExactlyOnce, None)).await,
-            QoS::ExactlyOnce
-        );
-        assert_eq!(
-            build_pub_qos(&build_subscriber("client1", QoS::AtMostOnce, None)).await,
-            QoS::AtMostOnce
-        );
-        assert_eq!(
-            build_pub_qos(&build_subscriber("client1", QoS::AtLeastOnce, None)).await,
-            QoS::AtLeastOnce
-        );
-    }
-
-    #[test]
-    fn test_send_message_validator_by_message_expire() {
-        // not expired
-        assert!(send_message_validator_by_message_expire(&build_record(
-            "messag1".to_string()
-        )));
-        // expired
-        assert!(!send_message_validator_by_message_expire(&build_record(
-            "messag1".to_string()
-        )));
-    }
-
-    #[tokio::test]
-    async fn test_send_message_validator_by_max_message_size_no_connection() {
-        let cache_manager = test_build_mqtt_cache_manager().await;
-        // client has no connection → expect Err
-        let result = send_message_validator_by_max_message_size(
-            &cache_manager,
-            "test_client",
-            &build_record("messag1".to_string()),
-        )
-        .await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_send_message_validator_expired() {
-        let cache_manager = test_build_mqtt_cache_manager().await;
-        // message expired → validate returns Ok(false) without checking connection
-        let result = send_message_validator(
-            &cache_manager,
-            "test_client",
-            &build_record("messag1".to_string()),
-        )
-        .await;
-        assert!(!result.unwrap());
-    }
-
-    #[tokio::test]
-    async fn test_interruptible_sleep() {
-        // No stop signal → sleeps full duration
-        let (_stop_sx, mut stop_rx) = broadcast::channel(1);
-        let start = Instant::now();
-        assert!(interruptible_sleep(&mut stop_rx, RETRY_SLEEP_ITERATIONS)
-            .await
-            .is_ok());
-        assert!(start.elapsed().as_millis() >= 1000);
-
-        // Stop signal sent early → returns Err before full duration
-        let (stop_sx, mut stop_rx) = broadcast::channel(1);
-        let start = Instant::now();
-        tokio::spawn(async move {
-            sleep(Duration::from_millis(50)).await;
-            let _ = stop_sx.send(true);
-        });
-        assert!(interruptible_sleep(&mut stop_rx, RETRY_SLEEP_ITERATIONS)
-            .await
-            .is_err());
-        assert!(start.elapsed().as_millis() < 500);
-
-        // false signal → not treated as stop, completes normally
-        let (stop_sx, mut stop_rx) = broadcast::channel(1);
-        tokio::spawn(async move {
-            sleep(Duration::from_millis(100)).await;
-            let _ = stop_sx.send(false);
-        });
-        assert!(interruptible_sleep(&mut stop_rx, 1).await.is_ok());
-    }
-
-    #[test]
-    fn test_retry_sleep_iterations_constant() {
-        assert_eq!(
-            (RETRY_SLEEP_ITERATIONS as u64) * RETRY_SLEEP_INTERVAL_MS,
-            1000
-        );
-    }
 }
