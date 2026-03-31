@@ -121,7 +121,7 @@ pub async fn build_publish_message(
         payload: msg.data.clone(),
     };
 
-    let properties = build_publish_properties(connection_manager, msg, connect_id);
+    let properties = build_publish_properties(connection_manager, msg, connect_id, subscriber);
     let packet = MqttPacket::Publish(publish, properties);
     Ok(Some(SubPublishParam {
         packet,
@@ -150,6 +150,7 @@ fn build_publish_properties(
     connection_manager: &Arc<ConnectionManager>,
     msg: &StorageRecord,
     connect_id: u64,
+    subscriber: &Subscriber,
 ) -> Option<PublishProperties> {
     let contain_properties = connection_manager
         .get_connect_protocol(connect_id)
@@ -182,6 +183,10 @@ fn build_publish_properties(
         }
     }
     properties.user_properties = user_properties;
+    properties.subscription_identifiers = subscriber
+        .subscription_identifier
+        .into_iter()
+        .collect();
 
     Some(properties)
 }
