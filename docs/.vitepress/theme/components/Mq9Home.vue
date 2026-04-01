@@ -474,7 +474,7 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{}'</code></pre>
 
 /* ── Primitives ── */
 .mq9-primitives-section { background: rgba(255,255,255,0.015); }
-.mq9-primitives { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.mq9-primitives { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-left: -160px; }
 .mq9-primitive {
   padding: 28px;
   border-radius: 16px;

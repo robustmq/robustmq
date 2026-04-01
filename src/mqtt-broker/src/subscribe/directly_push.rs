@@ -251,7 +251,8 @@ impl DirectlyPushManager {
         topic_name: &str,
     ) -> Result<Vec<StorageRecord>, MqttBrokerError> {
         let offsets = self.message_storage.get_group_offset(tenant, group).await?;
-        self.group_offsets.insert(group.to_string(), offsets.clone());
+        self.group_offsets
+            .insert(group.to_string(), offsets.clone());
 
         let data = self
             .message_storage
