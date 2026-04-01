@@ -4670,6 +4670,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mq9-core"
+version = "0.3.7"
+dependencies = [
+ "axum 0.8.8",
+ "bytes",
+ "mockall",
+ "pprof",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "mqtt-broker"
 version = "0.3.7"
 dependencies = [

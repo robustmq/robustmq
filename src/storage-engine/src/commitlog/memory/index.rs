@@ -12,43 +12,75 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::commitlog::memory::engine::MemoryStorageEngine;
+use crate::commitlog::memory::engine::{MemoryStorageEngine, ShardState};
 use common_base::tools::now_second;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 impl MemoryStorageEngine {
+    /// Write indexes for a single message. Prefer [`batch_save_index`] in the
+    /// write hot path where multiple messages are indexed at once.
     pub fn save_index(&self, shard_name: &str, offset: u64, msg: &AdapterWriteRecord) {
-        // key index
-        if let Some(key) = &msg.key {
-            let key_map = self.key_index.entry(shard_name.to_string()).or_default();
-            key_map.insert(key.clone(), offset);
-        }
+        let shard = self.get_or_create_shard(shard_name);
+        Self::index_one(&shard, offset, msg);
+    }
 
-        // tag index
-        if let Some(tags) = &msg.tags {
-            let tag_map = self.tag_index.entry(shard_name.to_string()).or_default();
-            for tag in tags.iter() {
-                tag_map.entry(tag.clone()).or_default().push(offset);
+    /// Write indexes for a batch of `(offset, msg)` pairs into an already-
+    /// resolved `ShardState`. Avoids repeated shard lookups and merges tag
+    /// accumulations before touching `tag_index`, reducing DashMap contention
+    /// when the same tag appears more than once in the batch.
+    pub fn batch_save_index(shard: &Arc<ShardState>, entries: &[(u64, &AdapterWriteRecord)]) {
+        // Collect key → offset (last writer wins, consistent with single-write behaviour).
+        // Collect tag → Vec<offset> for bulk extend.
+        let mut tag_batch: HashMap<&str, Vec<u64>> = HashMap::new();
+
+        let now = now_second();
+
+        for &(offset, msg) in entries {
+            if let Some(key) = &msg.key {
+                shard.key_index.insert(key.clone(), offset);
+            }
+
+            if let Some(tags) = &msg.tags {
+                for tag in tags.iter() {
+                    tag_batch.entry(tag.as_str()).or_default().push(offset);
+                }
+            }
+
+            if now > 0 && offset.is_multiple_of(5000) {
+                shard.timestamp_index.entry(now).or_insert(offset);
             }
         }
 
-        let msg_timestamp = now_second();
-        // timestamp index
-        if msg_timestamp > 0 && offset.is_multiple_of(5000) {
-            let timestamp_map = self
-                .timestamp_index
-                .entry(shard_name.to_string())
-                .or_default();
-            if !timestamp_map.contains_key(&msg_timestamp) {
-                timestamp_map.insert(msg_timestamp, offset);
-            }
+        for (tag, offsets) in tag_batch {
+            shard
+                .tag_index
+                .entry(tag.to_owned())
+                .or_default()
+                .extend(offsets);
         }
     }
 
     pub fn remove_indexes(&self, shard_key: &str) {
-        self.tag_index.remove(shard_key);
-        self.key_index.remove(shard_key);
-        self.timestamp_index.remove(shard_key);
+        self.shards.remove(shard_key);
+    }
+
+    fn index_one(shard: &Arc<ShardState>, offset: u64, msg: &AdapterWriteRecord) {
+        if let Some(key) = &msg.key {
+            shard.key_index.insert(key.clone(), offset);
+        }
+
+        if let Some(tags) = &msg.tags {
+            for tag in tags.iter() {
+                shard.tag_index.entry(tag.clone()).or_default().push(offset);
+            }
+        }
+
+        let now = now_second();
+        if now > 0 && offset.is_multiple_of(5000) {
+            shard.timestamp_index.entry(now).or_insert(offset);
+        }
     }
 }
 
@@ -68,18 +100,11 @@ mod tests {
             ..Default::default()
         };
         engine.save_index(&shard_name, 100, &msg);
-        assert!(engine
-            .key_index
-            .get(&shard_name)
-            .unwrap()
-            .contains_key("test_key"));
-        assert!(engine
-            .tag_index
-            .get(&shard_name)
-            .unwrap()
-            .contains_key("test_tag"));
+        let shard = engine.shards.get(&shard_name).unwrap();
+        assert!(shard.key_index.contains_key("test_key"));
+        assert!(shard.tag_index.contains_key("test_tag"));
+        drop(shard);
         engine.remove_indexes(&shard_name);
-        assert!(!engine.key_index.contains_key(&shard_name));
-        assert!(!engine.tag_index.contains_key(&shard_name));
+        assert!(!engine.shards.contains_key(&shard_name));
     }
 }

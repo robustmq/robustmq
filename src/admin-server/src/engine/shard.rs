@@ -22,9 +22,10 @@ use common_base::http_response::{error_response, success_response};
 use metadata_struct::adapter::adapter_offset::{
     AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
 };
+use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
 use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
-use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
+use metadata_struct::storage::shard::EngineShardConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -101,7 +102,7 @@ pub struct CommitOffsetReq {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ShardListRow {
-    pub shard_info: EngineShard,
+    pub shard_info: AdapterShardDetail,
 }
 
 impl Queryable for ShardListRow {

@@ -99,6 +99,11 @@ impl BrokerServer {
         }
         let (stop_send, _) = broadcast::channel(2);
         let stop_handle = stop_send.clone();
+
+        self.engine_params
+            .memory_storage_engine
+            .start_expire_task(&stop_send);
+
         let server = StorageEngineServer::new(
             self.engine_params.clone(),
             stop_send,

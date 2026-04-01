@@ -12,39 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::MQTTCacheManager;
 use crate::core::sub_option::message_is_same_client;
-// Copyright 2023 RobustMQ Team
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 use crate::subscribe::common::{message_is_exceeds_max_message_size, message_is_expire};
 use crate::subscribe::common::{record_sub_send_metrics, stale_subscriber_error};
 use crate::subscribe::push::{
     push_data, BATCH_SIZE, HIGH_LOAD_SLEEP_MS, IDLE_SLEEP_MS, LOW_LOAD_SLEEP_MS, LOW_LOAD_THRESHOLD,
 };
-use crate::{core::cache::MQTTCacheManager, storage::message::MessageStorage};
 use crate::{
     core::error::MqttBrokerError,
-    core::tool::ResultMqttBrokerError,
     subscribe::{common::client_unavailable_error, manager::SubscribeManager},
 };
-use dashmap::DashMap;
-use metadata_struct::storage::record::StorageRecord;
+use metadata_struct::storage::{adapter_read_config::AdapterReadConfig, record::StorageRecord};
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::collections::HashMap;
 use std::sync::atomic::AtomicU64;
 use std::{sync::Arc, time::Duration};
-use storage_adapter::driver::StorageDriverManager;
+use storage_adapter::{consumer::GroupConsumer, driver::StorageDriverManager};
 use tokio::{select, sync::broadcast, sync::broadcast::Sender, time::sleep};
 use tracing::{debug, error, info};
 
@@ -53,8 +37,7 @@ pub struct SharePushManager {
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<MQTTCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    group_offsets: DashMap<String, HashMap<String, u64>>,
-    message_storage: MessageStorage,
+    consumer: GroupConsumer,
     tenant: String,
     group_name: String,
     seq: AtomicU64,
@@ -72,18 +55,17 @@ impl SharePushManager {
     ) -> Self {
         SharePushManager {
             subscribe_manager,
-            message_storage: MessageStorage::new(storage_driver_manager),
+            consumer: GroupConsumer::new_manual(storage_driver_manager, group_name.clone()),
             cache_manager,
             rocksdb_engine_handler,
             connection_manager,
-            group_offsets: DashMap::with_capacity(8),
             tenant,
             group_name,
             seq: AtomicU64::new(0),
         }
     }
 
-    pub async fn start(&self, stop_sx: &Sender<bool>) {
+    pub async fn start(&mut self, stop_sx: &Sender<bool>) {
         info!("SharePushManager[{}] started", self.group_name);
         let mut stop_rx = stop_sx.subscribe();
         loop {
@@ -132,7 +114,7 @@ impl SharePushManager {
         }
     }
 
-    pub async fn send_messages(&self, stop_sx: &Sender<bool>) -> Result<u64, MqttBrokerError> {
+    pub async fn send_messages(&mut self, stop_sx: &Sender<bool>) -> Result<u64, MqttBrokerError> {
         let topic_list = self
             .subscribe_manager
             .share_group_topics
@@ -170,14 +152,21 @@ impl SharePushManager {
     }
 
     async fn process_topic_messages(
-        &self,
+        &mut self,
         topic_name: &str,
         buckets: &crate::subscribe::buckets::BucketsManager,
         seqs: &[u64],
         stop_sx: &Sender<bool>,
     ) -> Result<u64, MqttBrokerError> {
+        let read_config = AdapterReadConfig {
+            max_record_num: BATCH_SIZE,
+            max_size: 1024 * 1024 * 30,
+        };
+
+        let tenant = self.tenant.clone();
         let data_list = self
-            .next_message(&self.group_name, &self.tenant, topic_name)
+            .consumer
+            .next_messages(&tenant, topic_name, &read_config)
             .await?;
 
         if data_list.is_empty() {
@@ -185,14 +174,10 @@ impl SharePushManager {
         }
 
         let mut processed_count = 0;
+        let mut all_dispatched = true;
+
         for record in data_list {
             if message_is_expire(&record) {
-                if let Some(mut offsets) = self.group_offsets.get_mut(&self.group_name) {
-                    offsets.insert(
-                        record.metadata.shard.to_string(),
-                        record.metadata.offset + 1,
-                    );
-                }
                 continue;
             }
 
@@ -206,15 +191,15 @@ impl SharePushManager {
                     seqs.len(),
                     self.group_name
                 );
+                all_dispatched = false;
                 break;
             }
 
             processed_count += 1;
         }
 
-        if let Some(offsets) = self.group_offsets.get(&self.group_name).map(|r| r.clone()) {
-            self.commit_offset(&self.tenant, &self.group_name, &offsets)
-                .await?;
+        if all_dispatched {
+            self.consumer.commit().await?;
         }
 
         Ok(processed_count)
@@ -313,46 +298,6 @@ impl SharePushManager {
             success,
         );
 
-        if let Some(mut offsets) = self.group_offsets.get_mut(&subscriber.group_name) {
-            offsets.insert(
-                record.metadata.shard.to_string(),
-                record.metadata.offset + 1,
-            );
-        }
-
         Ok(true)
-    }
-
-    async fn next_message(
-        &self,
-        group: &str,
-        tenant: &str,
-        topic_name: &str,
-    ) -> Result<Vec<StorageRecord>, MqttBrokerError> {
-        let offsets = if let Some(offsets) = self.group_offsets.get(group) {
-            offsets.clone()
-        } else {
-            let offsets = self.message_storage.get_group_offset(tenant, group).await?;
-            self.group_offsets
-                .insert(group.to_string(), offsets.clone());
-            offsets
-        };
-
-        Ok(self
-            .message_storage
-            .read_topic_message(tenant, topic_name, &offsets, BATCH_SIZE)
-            .await?)
-    }
-
-    async fn commit_offset(
-        &self,
-        tenant: &str,
-        group: &str,
-        offsets: &HashMap<String, u64>,
-    ) -> ResultMqttBrokerError {
-        self.message_storage
-            .commit_group_offset(tenant, group, offsets)
-            .await?;
-        Ok(())
     }
 }

@@ -12,28 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crate::adapter::adapter_shard::AdapterShardInfo;
+use crate::storage::shard::{EngineShard, EngineShardConfig};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub enum AdapterOffsetStrategy {
-    #[default]
-    Earliest,
-    Latest,
+pub struct AdapterShardInfo {
+    pub shard_name: String,
+    pub config: EngineShardConfig,
+    pub desc: String,
 }
 
-#[derive(Default, Clone, Serialize, Deserialize, Debug)]
-pub struct AdapterConsumerGroupOffset {
-    pub group: String,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdapterShardDetail {
     pub shard_name: String,
-    pub segment_no: u32,
-    pub offset: u64,
+    pub config: EngineShardConfig,
+    pub extend: AdapterShardDetailExtend,
+    pub offset: AdapterShardDetailOffset,
+    pub desc: String,
 }
 
-#[derive(Default, Clone, Serialize, Deserialize, Debug)]
-pub struct AdapterShardOffsetInfo {
-    pub shard_name: String,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AdapterShardDetailExtend {
+    StorageEngine(EngineShard),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdapterShardDetailOffset {
     pub start_offset: u64,
-    pub high_water_mark: u64,
     pub end_offset: u64,
 }

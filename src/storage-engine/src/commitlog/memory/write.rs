@@ -13,12 +13,10 @@
 // limitations under the License.
 
 use crate::{commitlog::memory::engine::MemoryStorageEngine, core::error::StorageEngineError};
-use dashmap::DashMap;
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
     convert::convert_adapter_record_to_storage,
 };
-use std::sync::Arc;
 
 impl MemoryStorageEngine {
     pub async fn batch_write(
@@ -49,16 +47,15 @@ impl MemoryStorageEngine {
     }
 
     pub async fn delete_by_key(&self, shard: &str, key: &str) -> Result<(), StorageEngineError> {
-        let offset = if let Some(key_map) = self.key_index.get(shard) {
-            if let Some(offset) = key_map.get(key) {
-                *offset
-            } else {
+        let offset = {
+            let Some(shard_state) = self.shards.get(shard) else {
                 return Ok(());
-            }
-        } else {
-            return Ok(());
+            };
+            let Some(offset_ref) = shard_state.key_index.get(key) else {
+                return Ok(());
+            };
+            *offset_ref
         };
-
         self.delete_by_offset(shard, offset).await
     }
 
@@ -67,36 +64,30 @@ impl MemoryStorageEngine {
         shard: &str,
         offset: u64,
     ) -> Result<(), StorageEngineError> {
-        let record = if let Some(data_map) = self.shard_data.get(shard) {
-            if let Some((_, record)) = data_map.remove(&offset) {
-                record
-            } else {
-                return Ok(());
-            }
-        } else {
+        let Some(shard_state) = self.shards.get(shard) else {
+            return Ok(());
+        };
+
+        let Some((_, record)) = shard_state.data.remove(&offset) else {
             return Ok(());
         };
 
         if let Some(key) = &record.metadata.key {
-            if let Some(key_map) = self.key_index.get_mut(shard) {
-                key_map.remove(key);
-            }
+            shard_state.key_index.remove(key);
         }
 
         if let Some(tags) = &record.metadata.tags {
-            if let Some(tag_map) = self.tag_index.get_mut(shard) {
-                for tag in tags.iter() {
-                    if let Some(mut offsets) = tag_map.get_mut(tag) {
-                        offsets.retain(|&o| o != offset);
-                    }
+            for tag in tags.iter() {
+                if let Some(mut offsets) = shard_state.tag_index.get_mut(tag) {
+                    offsets.retain(|&o| o != offset);
                 }
             }
         }
 
         if record.metadata.create_t > 0 && offset.is_multiple_of(5000) {
-            if let Some(timestamp_map) = self.timestamp_index.get_mut(shard) {
-                timestamp_map.remove(&record.metadata.create_t);
-            }
+            shard_state
+                .timestamp_index
+                .remove(&record.metadata.create_t);
         }
 
         Ok(())
@@ -111,28 +102,13 @@ impl MemoryStorageEngine {
             return Ok(Vec::new());
         }
 
-        // lock
-        let shard_name_str = shard_name.to_string();
-        let lock = self
-            .shard_write_locks
-            .entry(shard_name_str.clone())
-            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
-            .clone();
+        let shard = self.get_or_create_shard(shard_name);
+        let _guard = shard.write_lock.lock().await;
 
-        let _guard = lock.lock().await;
-
-        // init
-        let capacity = self.config.max_records_per_shard.min(1024);
-        let current_shard_data_list = self
-            .shard_data
-            .entry(shard_name_str.clone())
-            .or_insert_with(|| DashMap::with_capacity(capacity));
-
-        self.try_remove_old_data(shard_name, &current_shard_data_list, messages.len())?;
-
-        // save data
         let mut offset_res = Vec::with_capacity(messages.len());
+        let mut index_entries = Vec::with_capacity(messages.len());
         let mut offset = self.commit_log_offset.get_latest_offset(shard_name)?;
+
         for msg in messages.iter() {
             offset_res.push(AdapterWriteRespRow {
                 pkid: msg.record_id,
@@ -141,13 +117,13 @@ impl MemoryStorageEngine {
             });
 
             let engine_record = convert_adapter_record_to_storage(msg.clone(), shard_name, offset);
-
-            current_shard_data_list.insert(offset, engine_record);
-
-            self.save_index(shard_name, offset, msg);
+            shard.data.insert(offset, engine_record);
+            index_entries.push((offset, msg));
 
             offset += 1;
         }
+
+        MemoryStorageEngine::batch_save_index(&shard, &index_entries);
 
         self.commit_log_offset
             .save_latest_offset(shard_name, offset)?;
@@ -167,6 +143,7 @@ mod tests {
     use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
     use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_try_remove_old_data() {
@@ -198,21 +175,27 @@ mod tests {
             ..Default::default()
         };
         engine.write(&shard_name, &new_message).await.unwrap();
-        let data = engine.shard_data.get(&shard_name).unwrap();
-        assert_eq!(data.len(), 9);
-        assert!(!data.contains_key(&0));
-        assert!(!data.contains_key(&1));
-        assert!(data.contains_key(&2));
-        assert!(data.contains_key(&10));
+
+        // Trigger expiry explicitly (normally done by the background task)
+        let shard_ref = engine.shards.get(&shard_name).unwrap().clone();
+        engine.evict_shard(&shard_name, &shard_ref).unwrap();
+
+        let shard = engine.shards.get(&shard_name).unwrap();
+        assert_eq!(shard.data.len(), 9);
+        assert!(!shard.data.contains_key(&0));
+        assert!(!shard.data.contains_key(&1));
+        assert!(shard.data.contains_key(&2));
+        assert!(shard.data.contains_key(&10));
+
         let earliest = engine
             .commit_log_offset
             .get_earliest_offset(&shard_name)
             .unwrap();
         assert_eq!(earliest, 2);
-        let key_map = engine.key_index.get(&shard_name).unwrap();
-        assert!(!key_map.contains_key("key0"));
-        assert!(!key_map.contains_key("key1"));
-        assert!(key_map.contains_key("key2"));
+
+        assert!(!shard.key_index.contains_key("key0"));
+        assert!(!shard.key_index.contains_key("key1"));
+        assert!(shard.key_index.contains_key("key2"));
     }
 
     #[tokio::test]
@@ -239,7 +222,6 @@ mod tests {
             .collect();
 
         engine.batch_write(&shard_name, &messages).await.unwrap();
-
         engine.delete_by_key(&shard_name, "key2").await.unwrap();
 
         let read_config = AdapterReadConfig {

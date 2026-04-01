@@ -153,9 +153,12 @@ impl EngineCommand {
                     "retention_sec"
                 ]);
                 for item in page_data.data {
+                    let metadata_struct::adapter::adapter_shard::AdapterShardDetailExtend::StorageEngine(ref e) =
+                        item.shard_info.extend;
+                    let status = format!("{:?}", e.status);
                     table.add_row(row![
                         item.shard_info.shard_name,
-                        format!("{:?}", item.shard_info.status),
+                        status,
                         item.shard_info.config.replica_num,
                         format!("{:?}", item.shard_info.config.storage_type),
                         item.shard_info.config.retention_sec

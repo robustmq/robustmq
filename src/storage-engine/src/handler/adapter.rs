@@ -16,6 +16,7 @@ use crate::core::error::StorageEngineError;
 use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
+use crate::filesegment::offset::FileSegmentOffset;
 use crate::group::OffsetManager;
 use crate::{
     clients::manager::ClientConnectionManager,
@@ -37,6 +38,9 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+use metadata_struct::adapter::adapter_shard::{
+    AdapterShardDetail, AdapterShardDetailExtend, AdapterShardDetailOffset,
+};
 use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::storage::shard::EngineShard;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -92,22 +96,66 @@ impl StorageEngineHandler {
         Ok(())
     }
 
-    pub async fn list_shard(&self, shard: Option<String>) -> Result<Vec<EngineShard>, CommonError> {
-        if let Some(shard_name) = shard {
-            if let Some(raw) = self.cache_manager.shards.get(&shard_name) {
-                return Ok(vec![raw.clone()]);
-            }
-            return Ok(Vec::new());
+    pub async fn list_shard(
+        &self,
+        shard: Option<String>,
+    ) -> Result<Vec<AdapterShardDetail>, CommonError> {
+        let shards: Vec<EngineShard> = if let Some(shard_name) = shard {
+            self.cache_manager
+                .shards
+                .get(&shard_name)
+                .map(|r| vec![r.clone()])
+                .unwrap_or_default()
+        } else {
+            self.cache_manager
+                .shards
+                .iter()
+                .map(|r| r.clone())
+                .collect()
+        };
+
+        let mut results = Vec::with_capacity(shards.len());
+        for shard in shards {
+            let (start_offset, end_offset) = match shard.config.storage_type {
+                StorageType::EngineMemory => {
+                    let o = &self.memory_storage_engine.commit_log_offset;
+                    (
+                        o.get_earliest_offset(&shard.shard_name).unwrap_or(0),
+                        o.get_latest_offset(&shard.shard_name).unwrap_or(0),
+                    )
+                }
+                StorageType::EngineRocksDB => {
+                    let o = &self.rocksdb_storage_engine.commitlog_offset;
+                    (
+                        o.get_earliest_offset(&shard.shard_name).unwrap_or(0),
+                        o.get_latest_offset(&shard.shard_name).unwrap_or(0),
+                    )
+                }
+                StorageType::EngineSegment => {
+                    let o = FileSegmentOffset::new(
+                        self.rocksdb_engine_handler.clone(),
+                        self.cache_manager.clone(),
+                    );
+                    (
+                        o.get_earliest_offset(&shard.shard_name).unwrap_or(0),
+                        o.get_latest_offset(&shard.shard_name).unwrap_or(0),
+                    )
+                }
+                _ => (0, 0),
+            };
+
+            results.push(AdapterShardDetail {
+                shard_name: shard.shard_name.clone(),
+                config: shard.config.clone(),
+                desc: shard.desc.clone(),
+                extend: AdapterShardDetailExtend::StorageEngine(shard),
+                offset: AdapterShardDetailOffset {
+                    start_offset,
+                    end_offset,
+                },
+            });
         }
-
-        let res = self
-            .cache_manager
-            .shards
-            .iter()
-            .map(|raw| raw.clone())
-            .collect();
-
-        Ok(res)
+        Ok(results)
     }
 
     pub async fn delete_shard(&self, shard_name: &str) -> Result<(), CommonError> {

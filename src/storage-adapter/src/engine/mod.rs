@@ -18,8 +18,8 @@ use common_base::error::common::CommonError;
 use metadata_struct::adapter::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
 use metadata_struct::storage::record::StorageRecord;
-use metadata_struct::storage::shard::EngineShard;
 use std::sync::Arc;
 use storage_engine::handler::adapter::StorageEngineHandler;
 pub struct EngineStorageAdapter {
@@ -38,7 +38,10 @@ impl StorageAdapter for EngineStorageAdapter {
         self.adapter.create_shard(shard).await
     }
 
-    async fn list_shard(&self, shard: Option<String>) -> Result<Vec<EngineShard>, CommonError> {
+    async fn list_shard(
+        &self,
+        shard: Option<String>,
+    ) -> Result<Vec<AdapterShardDetail>, CommonError> {
         self.adapter.list_shard(shard).await
     }
 
