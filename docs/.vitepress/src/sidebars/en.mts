@@ -1,4 +1,6 @@
-export const sidebar = [
+export const sidebar = {
+  '/en/mq9/': [],
+  '/en/': [
     {
         text: "Introduction",
         collapsed: true,
@@ -321,4 +323,5 @@ export const sidebar = [
       { text: "0.2.0 RELEASE", link: "/en/VersionRecord/RobustMQ-0.2.0-RELEASE" },
     ],
   },
-];
+  ],
+};

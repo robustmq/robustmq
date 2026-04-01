@@ -327,6 +327,31 @@
   50% { filter: drop-shadow(0 0 70px rgba(124, 58, 237, 1)); }
 }
 
+.title-mq9-badge {
+  display: inline-block;
+  position: relative;
+  top: -0.55em;
+  font-size: clamp(18px, 2.5vw, 28px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 3px 9px 3px 8px;
+  margin-left: 6px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(232, 121, 249, 0.15) 0%, rgba(124, 58, 237, 0.2) 100%);
+  border: 1px solid rgba(232, 121, 249, 0.4);
+  color: #e879f9;
+  text-decoration: none;
+  text-shadow: 0 0 12px rgba(232, 121, 249, 0.6);
+  transition: all 0.2s;
+  vertical-align: top;
+}
+.title-mq9-badge:hover {
+  background: linear-gradient(135deg, rgba(232, 121, 249, 0.25) 0%, rgba(124, 58, 237, 0.3) 100%);
+  border-color: rgba(232, 121, 249, 0.7);
+  text-shadow: 0 0 20px rgba(232, 121, 249, 0.9);
+}
+
 .hero-sub {
   font-size: clamp(18px, 2.5vw, 24px);
   font-weight: 700;
@@ -404,6 +429,20 @@
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.15);
   transform: translateY(-2px);
+}
+
+.btn-mq9 {
+  background: linear-gradient(135deg, rgba(232, 121, 249, 0.12) 0%, rgba(124, 58, 237, 0.15) 100%);
+  color: #e879f9;
+  border: 1px solid rgba(232, 121, 249, 0.35);
+  text-shadow: 0 0 10px rgba(232, 121, 249, 0.4);
+}
+
+.btn-mq9:hover {
+  background: linear-gradient(135deg, rgba(232, 121, 249, 0.22) 0%, rgba(124, 58, 237, 0.25) 100%);
+  border-color: rgba(232, 121, 249, 0.65);
+  transform: translateY(-2px);
+  text-shadow: 0 0 16px rgba(232, 121, 249, 0.7);
 }
 
 /* Stats bar */
@@ -1140,4 +1179,50 @@
   .demo-video-wrapper {
     border-radius: 10px;
   }
+}
+
+/* ── mq9 callout in hero ── */
+.mq9-callout {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 40px;
+  background: linear-gradient(135deg, rgba(168,85,247,0.12), rgba(109,40,217,0.08));
+  border: 1px solid rgba(168,85,247,0.35);
+  color: #c084fc;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  margin-bottom: 28px;
+  max-width: 640px;
+}
+.mq9-callout:hover {
+  border-color: rgba(168,85,247,0.7);
+  background: linear-gradient(135deg, rgba(168,85,247,0.2), rgba(109,40,217,0.14));
+  transform: translateY(-1px);
+}
+.mq9-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(168,85,247,0.25);
+  color: #e879f9;
+  white-space: nowrap;
+}
+.mq9-text {
+  flex: 1;
+  color: #d8b4fe;
+  line-height: 1.4;
+}
+.mq9-arrow {
+  color: #a855f7;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+@media (max-width: 768px) {
+  .mq9-callout { font-size: 12px; padding: 8px 14px; }
 }
