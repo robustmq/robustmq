@@ -75,7 +75,12 @@ impl GroupConsumer {
     }
 
     /// Persist pending offsets to the offset store and advance current_offsets.
-    /// If not called after next_messages, the next call will re-read the same batch.
+    /// Persist the pending offsets to the offset store and advance the internal consume position.
+    ///
+    /// After `next_messages` returns, the new offsets are staged in `pending_offsets`.
+    /// Only when `commit` succeeds are they merged into `current_offsets`.
+    /// If `commit` is not called, the next `next_messages` call re-reads the same batch,
+    /// which is the desired behavior when message processing fails and a retry is needed.
     pub async fn commit(&mut self) -> Result<(), CommonError> {
         if self.pending_offsets.is_empty() {
             return Ok(());
@@ -101,6 +106,21 @@ impl GroupConsumer {
         }
 
         Ok(())
+    }
+
+    /// Merge pending offsets into current_offsets without persisting to the offset store.
+    ///
+    /// Moves the in-memory consume position forward to the end of the last read batch,
+    /// so the next `next_messages` call reads new messages instead of the same batch.
+    /// Unlike `commit`, no IO is performed, so the offset store is not updated and a
+    /// restart will resume from the last `commit` position.
+    pub fn advance(&mut self) {
+        for (key, offset) in self.pending_offsets.drain() {
+            let entry = self.current_offsets.entry(key).or_insert(0);
+            if offset > *entry {
+                *entry = offset;
+            }
+        }
     }
 
     fn stage_offsets(&mut self, tenant: &str, topic_name: &str, records: &[StorageRecord]) {

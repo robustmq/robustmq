@@ -18,6 +18,7 @@ use common_base::error::common::CommonError;
 use common_config::storage::StorageType;
 use dashmap::DashMap;
 use metadata_struct::{
+    adapter::adapter_shard::AdapterShardDetail,
     mqtt::topic::Topic,
     storage::{
         adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo},
@@ -81,7 +82,7 @@ impl StorageDriverManager {
         &self,
         tenant: &str,
         topic_name: &str,
-    ) -> Result<HashMap<u32, EngineShard>, CommonError> {
+    ) -> Result<HashMap<u32, AdapterShardDetail>, CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         let mut results = HashMap::new();
         for (partition, shard_name) in topic.storage_name_list {

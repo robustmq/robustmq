@@ -77,10 +77,6 @@ mod tests {
         println!("get_shard_list result: {:#?}", shard_list);
         assert_eq!(shard_list.data.len(), 1);
         let shard = &shard_list.data[0];
-        assert_eq!(shard.shard_info.start_segment_seq, 0);
-        assert_eq!(shard.shard_info.active_segment_seq, 0);
-        assert_eq!(shard.shard_info.last_segment_seq, 0);
-        assert_eq!(shard.shard_info.status, EngineShardStatus::Run);
         assert_eq!(shard.shard_info.config.replica_num, 1);
         assert_eq!(shard.shard_info.config.max_segment_size, 1073741824);
         assert_eq!(shard.shard_info.config.retention_sec, 86400);
@@ -88,10 +84,17 @@ mod tests {
             shard.shard_info.config.storage_type,
             StorageType::EngineSegment
         );
-        assert_eq!(
-            shard.shard_info.config.storage_type,
-            StorageType::EngineSegment
-        );
+        if let metadata_struct::adapter::adapter_shard::AdapterShardDetailExtend::StorageEngine(
+            engine_shard,
+        ) = &shard.shard_info.extend
+        {
+            assert_eq!(engine_shard.start_segment_seq, 0);
+            assert_eq!(engine_shard.active_segment_seq, 0);
+            assert_eq!(engine_shard.last_segment_seq, 0);
+            assert_eq!(engine_shard.status, EngineShardStatus::Run);
+        } else {
+            panic!("expected StorageEngine extend");
+        }
 
         let segment_req = SegmentListReq {
             shard_name: shard_name.clone(),

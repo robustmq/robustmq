@@ -24,6 +24,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::storage::segment::EngineSegment;
@@ -44,7 +45,10 @@ use storage_engine::handler::adapter::{StorageEngineHandler, StorageEngineHandle
 pub trait StorageAdapter {
     async fn create_shard(&self, shard: &AdapterShardInfo) -> Result<(), CommonError>;
 
-    async fn list_shard(&self, shard: Option<String>) -> Result<Vec<EngineShard>, CommonError>;
+    async fn list_shard(
+        &self,
+        shard: Option<String>,
+    ) -> Result<Vec<AdapterShardDetail>, CommonError>;
 
     async fn delete_shard(&self, shard: &str) -> Result<(), CommonError>;
 

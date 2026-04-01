@@ -25,10 +25,9 @@ use common_base::{
     http_response::{error_response, success_response},
     tools::now_millis,
 };
+use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
+use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::{retain_message::MQTTRetainMessage, topic::Topic};
-use metadata_struct::{
-    mqtt::topic_rewrite_rule::MqttTopicRewriteRule, storage::shard::EngineShard,
-};
 use mqtt_broker::subscribe::manager::TopicSubscribeInfo;
 use mqtt_broker::{core::error::MqttBrokerError, storage::topic::TopicStorage};
 use serde::{Deserialize, Serialize};
@@ -135,7 +134,7 @@ pub struct TopicDetailResp {
     pub topic_info: Topic,
     pub retain_message: Option<MQTTRetainMessage>,
     pub sub_list: HashSet<TopicSubscribeInfo>,
-    pub storage_list: HashMap<u32, EngineShard>,
+    pub storage_list: HashMap<u32, AdapterShardDetail>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
