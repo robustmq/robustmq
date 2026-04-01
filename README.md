@@ -23,8 +23,8 @@
 </h3>
 
 <p align="center">
-  <a href="#-mq9--agent-mailbox-for-ai">mq9</a> •
   <a href="#-what-is-robustmq">What is RobustMQ</a> •
+  <a href="#-mq9--agent-mailbox-for-ai">mq9</a> •
   <a href="#-features">Features</a> •
   <a href="#%EF%B8%8F-roadmap">Roadmap</a> •
   <a href="#-quick-start">Quick Start</a> •
@@ -39,6 +39,29 @@
 > RobustMQ is in early development and **not yet production-ready**. MQTT core is stable and continuing to mature. Kafka, NATS, and AMQP are under active development. Production readiness is targeted for 0.4.0.
 
 ---
+
+## 🌟 What is RobustMQ
+
+RobustMQ is a unified messaging engine built with Rust. One binary, one broker, no external dependencies — deployable from edge devices to cloud clusters. It natively supports MQTT, Kafka, NATS, AMQP, and **mq9** on a **shared storage layer**: one message written once, consumed by any protocol.
+
+![RobustMQ Architecture](docs/images/robustmq-architecture.jpg)
+
+```
+MQTT publish  →  RobustMQ unified storage  →  Kafka consume
+                                           →  NATS subscribe
+                                           →  AMQP consume
+                                           →  mq9 Agent mailbox
+```
+
+**Five protocols, one system:**
+
+| Protocol | Best for |
+|----------|---------|
+| **MQTT** | IoT devices, edge sensors |
+| **Kafka** | Streaming data pipelines, analytics |
+| **NATS** | Ultra-low-latency pub/sub |
+| **AMQP** | Enterprise messaging, RabbitMQ migration |
+| **mq9** | AI Agent async communication |
 
 ## 🤖 mq9 — Agent Mailbox for AI
 
@@ -78,29 +101,6 @@ mq9 is RobustMQ's fifth native protocol, alongside MQTT, Kafka, NATS, and AMQP, 
 > 📖 [mq9 Documentation](https://robustmq.com/en/mq9/)
 
 ---
-
-## 🌟 What is RobustMQ
-
-RobustMQ is a unified messaging engine built with Rust. One binary, one broker, no external dependencies — deployable from edge devices to cloud clusters. It natively supports MQTT, Kafka, NATS, AMQP, and **mq9** on a **shared storage layer**: one message written once, consumed by any protocol.
-
-![RobustMQ Architecture](docs/images/robustmq-architecture.jpg)
-
-```
-MQTT publish  →  RobustMQ unified storage  →  Kafka consume
-                                           →  NATS subscribe
-                                           →  AMQP consume
-                                           →  mq9 Agent mailbox
-```
-
-**Five protocols, one system:**
-
-| Protocol | Best for |
-|----------|---------|
-| **MQTT** | IoT devices, edge sensors |
-| **Kafka** | Streaming data pipelines, analytics |
-| **NATS** | Ultra-low-latency pub/sub |
-| **AMQP** | Enterprise messaging, RabbitMQ migration |
-| **mq9** | AI Agent async communication |
 
 ## ✨ Features
 

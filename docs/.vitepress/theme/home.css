@@ -1226,3 +1226,18 @@
 @media (max-width: 768px) {
   .mq9-callout { font-size: 12px; padding: 8px 14px; }
 }
+
+/* ── mq9 page: reset VitePress layout-page container offsets ── */
+body.mq9-layout .VPContent {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+body.mq9-layout .VPPage {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}

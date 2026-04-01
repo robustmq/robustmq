@@ -1,10 +1,17 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useData } from 'vitepress'
 
 const { lang } = useData()
 const isZh = computed(() => lang.value === 'zh')
 const t = (zh, en) => isZh.value ? zh : en
+
+onMounted(() => {
+  document.body.classList.add('mq9-layout')
+})
+onUnmounted(() => {
+  document.body.classList.remove('mq9-layout')
+})
 
 const primitives = computed(() => [
   {
