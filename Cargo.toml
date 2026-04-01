@@ -18,6 +18,7 @@ members = [
     "src/broker-core",
     "src/admin-server",
     "src/mqtt-broker",
+    "src/mq9-core",
     "src/amqp-broker",
     "src/kafka-broker",
     "src/nats-broker",
@@ -317,6 +318,7 @@ kafka-broker = { path = "src/kafka-broker" }
 nats-broker = { path = "src/nats-broker" }
 broker-server = { path = "src/broker-server" }
 broker-core = { path = "src/broker-core" }
+mq9-core = { path = "src/mq9-core" }
 
 # Meta & Journal Services
 meta-service = { path = "src/meta-service" }
