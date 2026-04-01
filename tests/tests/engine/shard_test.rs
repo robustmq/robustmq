@@ -84,17 +84,13 @@ mod tests {
             shard.shard_info.config.storage_type,
             StorageType::EngineSegment
         );
-        if let metadata_struct::adapter::adapter_shard::AdapterShardDetailExtend::StorageEngine(
+        let metadata_struct::adapter::adapter_shard::AdapterShardDetailExtend::StorageEngine(
             engine_shard,
-        ) = &shard.shard_info.extend
-        {
-            assert_eq!(engine_shard.start_segment_seq, 0);
-            assert_eq!(engine_shard.active_segment_seq, 0);
-            assert_eq!(engine_shard.last_segment_seq, 0);
-            assert_eq!(engine_shard.status, EngineShardStatus::Run);
-        } else {
-            panic!("expected StorageEngine extend");
-        }
+        ) = &shard.shard_info.extend;
+        assert_eq!(engine_shard.start_segment_seq, 0);
+        assert_eq!(engine_shard.active_segment_seq, 0);
+        assert_eq!(engine_shard.last_segment_seq, 0);
+        assert_eq!(engine_shard.status, EngineShardStatus::Run);
 
         let segment_req = SegmentListReq {
             shard_name: shard_name.clone(),

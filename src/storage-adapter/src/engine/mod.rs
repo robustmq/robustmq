@@ -20,7 +20,6 @@ use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWr
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
 use metadata_struct::storage::record::StorageRecord;
-use metadata_struct::storage::shard::EngineShard;
 use std::sync::Arc;
 use storage_engine::handler::adapter::StorageEngineHandler;
 pub struct EngineStorageAdapter {

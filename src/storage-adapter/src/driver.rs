@@ -25,7 +25,7 @@ use metadata_struct::{
         adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow},
         adapter_record::AdapterWriteRecord,
         record::StorageRecord,
-        shard::{EngineShard, EngineShardConfig},
+        shard::EngineShardConfig,
     },
 };
 use std::{

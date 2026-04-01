@@ -25,7 +25,7 @@ use metadata_struct::adapter::adapter_offset::{
 use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
 use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
-use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
+use metadata_struct::storage::shard::EngineShardConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
