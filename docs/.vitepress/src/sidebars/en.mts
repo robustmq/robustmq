@@ -333,6 +333,7 @@ const items = [
 ]
 
 export const sidebar = {
+  '/en/mq9/index': [],
   '/en/mq9/': items,
   '/en/': items,
 };

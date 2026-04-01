@@ -343,6 +343,7 @@ const items = [
 ]
 
 export const sidebar = {
+  '/zh/mq9/index': [],
   '/zh/mq9/': items,
   '/zh/': items,
 };
