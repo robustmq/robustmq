@@ -98,23 +98,20 @@ impl BrokerServer {
             return None;
         }
         let (stop_send, _) = broadcast::channel(2);
-        let stop_handle = stop_send.clone();
-
-        self.engine_params
-            .memory_storage_engine
-            .start_expire_task(&stop_send);
 
         let server = StorageEngineServer::new(
             self.engine_params.clone(),
-            stop_send,
+            stop_send.clone(),
             self.task_supervisor.clone(),
         );
-        self.broker_runtime.spawn(Box::pin(async move {
+        self.engine_runtime.spawn(Box::pin(async move {
             server.start().await;
         }));
+
         if !wait_for_engine_ready(self.config.storage_runtime.tcp_port) {
             std::process::exit(1);
         }
-        Some(stop_handle)
+
+        Some(stop_send)
     }
 }

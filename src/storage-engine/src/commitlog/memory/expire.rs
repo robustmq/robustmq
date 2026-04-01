@@ -21,16 +21,12 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 
 impl MemoryStorageEngine {
-    pub fn start_expire_task(&self, stop_send: &broadcast::Sender<bool>) {
-        let engine = self.clone();
-        let stop_send = stop_send.clone();
-        tokio::spawn(async move {
-            let ac_fn = async || -> ResultCommonError {
-                engine.run_expire_once();
-                Ok(())
-            };
-            loop_select_ticket(ac_fn, 10000, &stop_send).await;
-        });
+    pub async fn start_expire_task(&self, stop_send: &broadcast::Sender<bool>) {
+        let ac_fn = async || -> ResultCommonError {
+            self.run_expire_once();
+            Ok(())
+        };
+        loop_select_ticket(ac_fn, 10000, &stop_send).await;
     }
 
     fn run_expire_once(&self) {

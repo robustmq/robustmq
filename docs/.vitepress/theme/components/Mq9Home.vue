@@ -24,7 +24,7 @@ const primitives = computed(() => [
     ),
     color: '#a855f7',
     code: `nats req '$mq9.AI.MAILBOX.CREATE' '{}'
-# → {"agent_id": "agt-001", "token": "tok-xxx"}
+# → {"mail_id": "agt-001", "token": "tok-xxx"}
 
 nats pub '$mq9.AI.INBOX.agt-001.normal' \\
   '{"from":"agt-002","payload":"task done"}'

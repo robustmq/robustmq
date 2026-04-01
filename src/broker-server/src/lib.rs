@@ -82,6 +82,7 @@ pub struct BrokerServer {
     /// Dedicated runtime for broker tasks; tasks spawned during construction
     /// (e.g. RetainMessageManager's send thread) land here, not on server_runtime.
     pub(crate) broker_runtime: Runtime,
+    pub(crate) engine_runtime: Runtime,
     pub(crate) meta_params: MetaServiceServerParams,
     pub(crate) mqtt_params: MqttBrokerServerParams,
     pub(crate) kafka_params: KafkaBrokerServerParams,
@@ -113,7 +114,7 @@ impl BrokerServer {
 
         let config: &BrokerConfig = broker_config();
 
-        let (base, meta_runtime, broker_runtime) = Self::init_base(config);
+        let (base, meta_runtime, broker_runtime, engine_runtime) = Self::init_base(config);
 
         let (engine_params, storage_driver_manager, delay_task_manager, meta_params) =
             Self::init_storage(config, &base, &meta_runtime);
@@ -125,6 +126,7 @@ impl BrokerServer {
             server_runtime: base.server_runtime,
             meta_runtime,
             broker_runtime,
+            engine_runtime,
             broker_cache: base.broker_cache,
             client_pool: base.client_pool,
             rocksdb_engine_handler: base.rocksdb_engine_handler,
@@ -147,7 +149,7 @@ impl BrokerServer {
 
     /// Initialize shared infrastructure: runtimes, RocksDB, connection manager,
     /// rate limiter, offset manager, and node call manager.
-    fn init_base(config: &BrokerConfig) -> (BaseComponents, Runtime, Runtime) {
+    fn init_base(config: &BrokerConfig) -> (BaseComponents, Runtime, Runtime, Runtime) {
         let client_pool = Arc::new(ClientPool::new(config.runtime.channels_per_address));
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.rocksdb.data_path),
@@ -187,6 +189,10 @@ impl BrokerServer {
             "broker-runtime",
             resolve_broker_worker_threads(config.runtime.broker_worker_threads),
         );
+        let engine_runtime = create_runtime(
+            "engine-runtime",
+            resolve_server_worker_threads(config.runtime.server_worker_threads),
+        );
 
         let base = BaseComponents {
             server_runtime,
@@ -199,7 +205,7 @@ impl BrokerServer {
             offset_manager,
             node_call_manager,
         };
-        (base, meta_runtime, broker_runtime)
+        (base, meta_runtime, broker_runtime, engine_runtime)
     }
 
     /// Build storage engine params, message storage driver, delay managers,

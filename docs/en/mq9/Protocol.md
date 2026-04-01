@@ -2,148 +2,305 @@
 
 ## Protocol Foundation
 
-mq9 is built on the NATS protocol. All mq9 operations are standard NATS pub/sub/req-reply calls, with Subject names following the `$mq9.` prefix convention.
+mq9 is a semantic convention defined on top of NATS subjects, running on RobustMQ's unified storage layer. All mq9 operations are standard NATS pub/sub/req-reply calls, with subject names following the `$mq9.AI.*` namespace.
 
-Any NATS client library can use mq9 directly — no additional SDK required.
+Any NATS client library works as an mq9 client directly — no additional SDK required.
+
+---
 
 ## Subject Naming
 
+### Subject Space
+
+```text
+$mq9.AI.
+  ├── MAILBOX.
+  │     ├── CREATE                    # Request a mailbox, returns mail_id
+  │     └── QUERY.{mail_id}          # Pull unread messages (fallback)
+  │
+  ├── INBOX.
+  │     └── {mail_id}.
+  │           ├── urgent              # Urgent messages
+  │           ├── normal              # Routine messages
+  │           └── notify              # Notifications
+  │
+  └── BROADCAST.
+        └── {domain}.
+              └── {event}            # Event broadcast
 ```
-$mq9.AI.<operation>.<params...>
-```
 
-| Subject | Type | Description |
-|---------|------|-------------|
-| `$mq9.AI.MAILBOX.CREATE` | req/reply | Create an Agent identity and mailbox |
-| `$mq9.AI.INBOX.<agent_id>.<priority>` | pub/sub | Deliver a message to an Agent's mailbox |
-| `$mq9.AI.BROADCAST.<domain>.<event>` | pub/sub | Broadcast an event |
-| `$mq9.AI.STATUS.<agent_id>` | pub/sub | Agent status reporting |
+### Subject Reference
 
-## Mailbox Protocol
+| Subject | Operation type | Description |
+|---------|---------------|-------------|
+| `$mq9.AI.MAILBOX.CREATE` | req/reply | Request a mailbox, returns mail_id and token |
+| `$mq9.AI.MAILBOX.QUERY.{mail_id}` | req/reply | Pull unread messages (fallback) |
+| `$mq9.AI.INBOX.{mail_id}.urgent` | pub/sub | Deliver an urgent message to a mailbox |
+| `$mq9.AI.INBOX.{mail_id}.normal` | pub/sub | Deliver a routine message to a mailbox |
+| `$mq9.AI.INBOX.{mail_id}.notify` | pub/sub | Deliver a notification to a mailbox |
+| `$mq9.AI.INBOX.{mail_id}.*` | sub | Subscribe to all priority levels of a mailbox |
+| `$mq9.AI.BROADCAST.{domain}.{event}` | pub/sub | Publish or subscribe to a broadcast event |
+| `$mq9.AI.BROADCAST.{domain}.*` | sub | Subscribe to all events in a domain |
+| `$mq9.AI.BROADCAST.*.{event}` | sub | Subscribe to a specific event across all domains |
+| `$mq9.AI.BROADCAST.#` | sub | Subscribe to all broadcasts |
 
-### Create a Mailbox
+---
 
-On first use, an Agent requests an identity via req/reply:
+## Core Concepts
+
+**mail_id**: A globally unique communication address obtained via `MAILBOX.CREATE`. Not bound to Agent identity — one Agent can hold multiple mail_ids for different tasks, and they expire and clean up automatically. mail_id is channel-level, not identity-level.
+
+**Mailbox type**: Declared with the `type` parameter when creating a mailbox:
+- `standard` (default): messages accumulate, stored by priority.
+- `latest`: only the most recent message is kept; new messages overwrite old ones. For status reporting, capability declarations, heartbeats.
+
+**TTL**: Both mailboxes and messages have TTL. Mailboxes do not need explicit deletion — TTL manages the lifecycle entirely. On expiry, the mailbox and all its messages are destroyed automatically.
+
+**persist**: Persistence policy for messages. INBOX messages default to persisted; BROADCAST messages default to non-persisted, but can be overridden explicitly.
+
+**token**: Lightweight authentication. Returned when the mailbox is created. Required when calling QUERY. Ensures mailbox ownership without complex access control.
+
+**Message flow**: Message arrives → written to storage → check for online subscribers → push if online → if offline, message waits in storage → subscriber comes online and receives via SUB push or explicit QUERY pull.
+
+---
+
+## MAILBOX.CREATE — Request a Mailbox
 
 ```bash
-nats req '$mq9.AI.MAILBOX.CREATE' '{}'
-```
+# Request
+nats req '$mq9.AI.MAILBOX.CREATE' '{
+  "type": "standard",
+  "ttl": 3600
+}'
 
-Response:
-
-```json
+# Response
 {
-  "agent_id": "agt-uuid-001",
-  "token": "tok-xxxxxxxx"
+  "mail_id": "m-uuid-001",
+  "token": "tok-xxx",
+  "inbox": "$mq9.AI.INBOX.m-uuid-001"
 }
 ```
 
-`agent_id` is a globally unique identifier used in all subsequent communication.
+### Request Parameters
 
-### Deliver a Message
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `type` | string | No | `standard` (default) or `latest` |
+| `ttl` | int | No | Mailbox lifetime in seconds; uses system default if omitted |
 
-Send a message to an Agent's mailbox. If the recipient is offline, the message is persisted and waits:
+### Mailbox Types
+
+| type | Behavior | Use cases |
+|------|----------|-----------|
+| `standard` | Messages accumulate, stored by priority | Task instructions, request-reply, offline buffering |
+| `latest` | Only the most recent message is kept | Status reporting, capability declarations, heartbeats |
+
+---
+
+## MAILBOX.QUERY — Pull Unread Messages
+
+QUERY is the fallback for push delivery. Under normal conditions, online subscribers receive messages via push (SUB). Use QUERY when: an Agent comes online and needs to check messages that arrived while offline; push delivery may have been missed; confirming no unprocessed messages remain.
 
 ```bash
-nats pub '$mq9.AI.INBOX.<agent_id>.<priority>' '<payload>'
+# Request
+nats req '$mq9.AI.MAILBOX.QUERY.m-uuid-001' '{
+  "token": "tok-xxx"
+}'
+
+# Response
+{
+  "mail_id": "m-uuid-001",
+  "unread": 5,
+  "messages": [ ... ]
+}
 ```
 
-`<priority>` values:
+---
 
-| Priority | Subject | Description |
-|----------|---------|-------------|
-| `urgent` | `$mq9.AI.INBOX.agt-001.urgent` | Highest priority, processed first when the Agent comes online |
-| `normal` | `$mq9.AI.INBOX.agt-001.normal` | Routine tasks, FIFO |
-| `notify` | `$mq9.AI.INBOX.agt-001.notify` | Informational, no persistence guarantee |
+## INBOX — Point-to-Point Mailbox
 
-Examples:
+### Send a Message
 
 ```bash
-# Send an urgent stop command
-nats pub '$mq9.AI.INBOX.agt-001.urgent' \
-  '{"type":"stop","reason":"anomaly detected"}'
+# Send a routine message
+nats pub '$mq9.AI.INBOX.m-uuid-001.normal' '{
+  "from": "m-uuid-002",
+  "type": "task_result",
+  "correlation_id": "req-uuid-001",
+  "reply_to": "$mq9.AI.INBOX.m-uuid-002.normal",
+  "payload": { ... },
+  "ts": 1234567890
+}'
 
-# Send a routine task
-nats pub '$mq9.AI.INBOX.agt-001.normal' \
-  '{"from":"agt-002","task_id":"t-001","payload":"process dataset A"}'
-
-# Send a heartbeat notification
-nats pub '$mq9.AI.INBOX.agt-001.notify' \
-  '{"type":"heartbeat","ts":1710000000}'
+# Send an urgent message
+nats pub '$mq9.AI.INBOX.m-uuid-001.urgent' '{
+  "from": "m-uuid-003",
+  "type": "emergency_stop",
+  "payload": { ... },
+  "ts": 1234567890
+}'
 ```
+
+### Message Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `from` | string | Yes | Sender's mail_id |
+| `type` | string | Yes | Message type; defined by the application |
+| `correlation_id` | string | No | Request-reply pairing for async request-response patterns |
+| `reply_to` | string | No | Reply address; the recipient can PUB directly to this subject |
+| `deadline` | int | No | Expected processing deadline (Unix timestamp, milliseconds) |
+| `payload` | any | No | Business data |
+| `ts` | int | Yes | Send timestamp (milliseconds) |
+
+### Priority Levels
+
+| Priority | Description | Persisted by default | Suggested TTL |
+|----------|-------------|---------------------|---------------|
+| `urgent` | Critical messages, processed first | true | 86400s |
+| `normal` | Routine messages, FIFO | true | 3600s |
+| `notify` | Informational, background processing | false | — |
 
 ### Receive Messages
 
-When an Agent comes online, it subscribes to its mailbox. The `*` wildcard matches all priority levels:
+When an Agent comes online, it subscribes to its mailbox. The server pushes any buffered offline messages.
 
 ```bash
-# Receive messages at all priority levels
-nats sub '$mq9.AI.INBOX.agt-001.*'
+# Subscribe to all priority levels
+nats sub '$mq9.AI.INBOX.m-uuid-001.*'
 
-# Receive only urgent messages
-nats sub '$mq9.AI.INBOX.agt-001.urgent'
+# Subscribe to urgent messages only
+nats sub '$mq9.AI.INBOX.m-uuid-001.urgent'
 ```
 
-## Broadcast Protocol
+### Java Example
+
+```java
+// Dependency: io.nats:jnats:2.20.5
+Connection nc = Nats.connect("nats://localhost:4222");
+
+// Request a mailbox
+Message reply = nc.request("$mq9.AI.MAILBOX.CREATE",
+    "{\"type\":\"standard\",\"ttl\":3600}".getBytes(),
+    Duration.ofSeconds(3));
+// reply contains mail_id and token
+
+// Subscribe (recipient)
+Dispatcher d = nc.createDispatcher((msg) -> {
+    System.out.println("Received: " + new String(msg.getData()));
+});
+d.subscribe("$mq9.AI.INBOX.m-uuid-001.*");
+
+// Send a message (sender)
+nc.publish("$mq9.AI.INBOX.m-uuid-001.normal",
+    "{\"from\":\"m-uuid-002\",\"type\":\"task_result\",\"payload\":\"done\",\"ts\":1234567890}".getBytes());
+
+// Pull unread messages (fallback)
+Message qReply = nc.request("$mq9.AI.MAILBOX.QUERY.m-uuid-001",
+    "{\"token\":\"tok-xxx\"}".getBytes(), Duration.ofSeconds(3));
+```
+
+---
+
+## BROADCAST — Public Broadcast
+
+Broadcast requires no CREATE and no prior setup. Publish directly; subscribe directly.
 
 ### Publish a Broadcast
 
 ```bash
-nats pub '$mq9.AI.BROADCAST.<domain>.<event>' '<payload>'
+nats pub '$mq9.AI.BROADCAST.{domain}.{event}' '{
+  "from": "m-uuid-004",
+  "type": "event_type",
+  "severity": "high",
+  "reply_to": "$mq9.AI.INBOX.m-uuid-004.normal",
+  "payload": { ... },
+  "ts": 1234567890
+}'
 ```
 
-`domain` is the business domain, `event` is the event type. Both support wildcard subscriptions.
+Broadcasts are not persisted by default. Set `persist=true` explicitly for important broadcasts that must survive subscriber downtime.
 
-Examples:
+`{domain}.{event}` is defined by the application. mq9 only specifies the `$mq9.AI.BROADCAST.` prefix.
 
-```bash
-# Broadcast a task available event
-nats pub '$mq9.AI.BROADCAST.task.available' \
-  '{"task_id":"t-001","type":"analysis","priority":"high"}'
+### Suggested Domain Names
 
-# Broadcast a system anomaly
-nats pub '$mq9.AI.BROADCAST.system.anomaly' \
-  '{"source":"monitor-agent","level":"critical"}'
-```
+| domain | Description |
+|--------|-------------|
+| `system` | System-level events: anomalies, restarts, scaling |
+| `task` | Task events: available, completed, failed |
+| `capability` | Capability discovery: query, response |
+| `data` | Data change events |
+| custom | Application-defined domains |
 
 ### Subscribe to Broadcasts
 
 ```bash
-# Subscribe to all events in the task domain
-nats sub '$mq9.AI.BROADCAST.task.*'
+# Subscribe to all events in a single domain
+nats sub '$mq9.AI.BROADCAST.system.*'
 
-# Subscribe to anomaly events across all domains
+# Subscribe to a specific event across all domains
 nats sub '$mq9.AI.BROADCAST.*.anomaly'
 
 # Subscribe to all broadcasts
-nats sub '$mq9.AI.BROADCAST.>'
+nats sub '$mq9.AI.BROADCAST.#'
 ```
 
 ### Competing Consumers (Queue Group)
 
-When multiple Worker Agents compete for the same tasks, use a NATS queue group to ensure each message is handled by exactly one Worker:
+When multiple Workers compete for the same broadcast, a queue group ensures each message is handled by exactly one Worker:
 
 ```bash
-nats sub '$mq9.AI.BROADCAST.task.available' --queue workers
+nats sub '$mq9.AI.BROADCAST.task.available' --queue task.workers
 ```
 
-## Status Protocol
+### BROADCAST Java Example
 
-Agents can report their own status on the status Subject, allowing other Agents to observe their lifecycle:
+```java
+// Three Workers compete via queue group
+for (int i = 1; i <= 3; i++) {
+    final int id = i;
+    Dispatcher worker = nc.createDispatcher((msg) -> {
+        System.out.println("[Worker-" + id + "] claimed task: " + new String(msg.getData()));
+    });
+    // queue group ensures only one Worker receives each message
+    worker.subscribe("$mq9.AI.BROADCAST.task.available", "task.workers");
+}
 
-```bash
-# Report online
-nats pub '$mq9.AI.STATUS.agt-001' '{"status":"online","ts":1710000000}'
+// Orchestrator broadcasts a task
+nc.publish("$mq9.AI.BROADCAST.task.available",
+    "{\"task_id\":\"t-001\",\"type\":\"data_analysis\"}".getBytes());
 
-# Report offline
-nats pub '$mq9.AI.STATUS.agt-001' '{"status":"offline"}'
+// Subscribe to anomaly alerts across all domains
+Dispatcher alertHandler = nc.createDispatcher((msg) -> {
+    System.out.println("Alert received: " + new String(msg.getData()));
+});
+alertHandler.subscribe("$mq9.AI.BROADCAST.*.anomaly");
 ```
 
-An orchestrator can observe all sub-Agent states with a wildcard subscription:
+---
 
-```bash
-nats sub '$mq9.AI.STATUS.*'
-```
+## Storage Tiers
+
+mq9 runs on RobustMQ's unified storage layer. Users choose storage per message; not every message needs the same level of durability.
+
+| Storage tier | Characteristics | Use cases |
+|-------------|----------------|-----------|
+| Memory | Pure in-memory, no persistence | Coordination signals, heartbeats, disposable notifications |
+| RocksDB | Ephemeral persistence, TTL auto-cleanup | Mailbox default; task instructions; offline buffering |
+| File Segment | Long-term persistence, permanent | Audit logs, critical events |
+
+Mailbox type and storage mapping:
+
+| Mailbox type | Priority | Default storage | Notes |
+|-------------|----------|----------------|-------|
+| standard | urgent | RocksDB | Persisted, TTL=86400s |
+| standard | normal | RocksDB | Persisted, TTL=3600s |
+| standard | notify | Memory | Not persisted |
+| latest | — | RocksDB | Only the most recent message kept |
+| broadcast (default) | — | Memory | Not persisted; override with persist=true |
+
+---
 
 ## Message Format
 
@@ -151,19 +308,23 @@ mq9 does not enforce a message format — the payload is arbitrary bytes. JSON i
 
 ```json
 {
-  "from": "agt-uuid-001",
-  "task_id": "t-001",
-  "type": "task|result|status|heartbeat",
-  "payload": "...",
-  "ts": 1710000000
+  "from": "m-uuid-001",
+  "type": "task_result",
+  "correlation_id": "req-uuid-001",
+  "reply_to": "$mq9.AI.INBOX.m-uuid-001.normal",
+  "deadline": 1234567890,
+  "payload": { },
+  "ts": 1234567890
 }
 ```
 
+---
+
 ## Relationship to Native NATS
 
-mq9 is built on top of RobustMQ's NATS protocol layer, adding persistence and priority scheduling for specific Subject prefixes:
+mq9 is built on top of RobustMQ's NATS protocol layer, adding persistence and priority scheduling for specific subject prefixes:
 
 - Native NATS pub/sub: delivered in real-time; if the subscriber is offline, the message is lost
-- mq9 `$mq9.AI.INBOX.*`: persisted to the storage layer; messages survive offline periods
+- mq9 `$mq9.AI.INBOX.*`: written to storage first; messages survive offline periods and are delivered on reconnect or via QUERY
 
-Both can be used together. mq9 only activates persistence and priority scheduling for messages matching the `$mq9.AI.INBOX.*` prefix. All other NATS behavior remains unchanged.
+Both can be used together. mq9 only activates its enhanced behavior for messages matching the `$mq9.AI.*` prefix. All other NATS behavior is unchanged. Existing NATS clients need no modification — use the mq9 subjects directly.
