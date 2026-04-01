@@ -156,6 +156,15 @@ const items = [
   },
 
   {
+    text: "RobustMQ NATS",
+    collapsed: true,
+    items: [
+      { text: "Overview", link: "/en/nats/Overview" },
+      { text: "NATS Core", link: "/en/nats/NatsCore" },
+    ],
+  },
+
+  {
     text: "RobustMQ Kafka",
     collapsed: true,
     items: [
