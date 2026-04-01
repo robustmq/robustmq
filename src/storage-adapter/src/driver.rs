@@ -34,6 +34,7 @@ use std::{
 use storage_engine::{group::OffsetManager, handler::adapter::StorageEngineHandler};
 
 pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
+
 #[derive(Clone)]
 pub struct StorageDriverManager {
     pub driver_list: DashMap<String, ArcStorageAdapter>,
