@@ -15,9 +15,9 @@ $mq9.AI.<操作>.<参数...>
 | Subject | 类型 | 说明 |
 |---------|------|------|
 | `$mq9.AI.MAILBOX.CREATE` | req/reply | 创建 Agent 身份和邮箱 |
-| `$mq9.AI.INBOX.<agent_id>.<priority>` | pub/sub | 向指定 Agent 邮箱投递消息 |
+| `$mq9.AI.INBOX.<mail_id>.<priority>` | pub/sub | 向指定 Agent 邮箱投递消息 |
 | `$mq9.AI.BROADCAST.<domain>.<event>` | pub/sub | 广播事件 |
-| `$mq9.AI.STATUS.<agent_id>` | pub/sub | Agent 状态上报 |
+| `$mq9.AI.STATUS.<mail_id>` | pub/sub | Agent 状态上报 |
 
 ## 邮箱协议
 
@@ -33,19 +33,19 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{}'
 
 ```json
 {
-  "agent_id": "agt-uuid-001",
+  "mail_id": "agt-uuid-001",
   "token": "tok-xxxxxxxx"
 }
 ```
 
-`agent_id` 是全局唯一标识，后续所有通信使用此 ID。
+`mail_id` 是全局唯一标识，后续所有通信使用此 ID。
 
 ### 投递消息
 
 向指定 Agent 的邮箱投递消息，即使对方不在线，消息也会持久化等待：
 
 ```bash
-nats pub '$mq9.AI.INBOX.<agent_id>.<priority>' '<payload>'
+nats pub '$mq9.AI.INBOX.<mail_id>.<priority>' '<payload>'
 ```
 
 `<priority>` 取值：

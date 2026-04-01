@@ -15,9 +15,9 @@ $mq9.AI.<operation>.<params...>
 | Subject | Type | Description |
 |---------|------|-------------|
 | `$mq9.AI.MAILBOX.CREATE` | req/reply | Create an Agent identity and mailbox |
-| `$mq9.AI.INBOX.<agent_id>.<priority>` | pub/sub | Deliver a message to an Agent's mailbox |
+| `$mq9.AI.INBOX.<mail_id>.<priority>` | pub/sub | Deliver a message to an Agent's mailbox |
 | `$mq9.AI.BROADCAST.<domain>.<event>` | pub/sub | Broadcast an event |
-| `$mq9.AI.STATUS.<agent_id>` | pub/sub | Agent status reporting |
+| `$mq9.AI.STATUS.<mail_id>` | pub/sub | Agent status reporting |
 
 ## Mailbox Protocol
 
@@ -33,19 +33,19 @@ Response:
 
 ```json
 {
-  "agent_id": "agt-uuid-001",
+  "mail_id": "agt-uuid-001",
   "token": "tok-xxxxxxxx"
 }
 ```
 
-`agent_id` is a globally unique identifier used in all subsequent communication.
+`mail_id` is a globally unique identifier used in all subsequent communication.
 
 ### Deliver a Message
 
 Send a message to an Agent's mailbox. If the recipient is offline, the message is persisted and waits:
 
 ```bash
-nats pub '$mq9.AI.INBOX.<agent_id>.<priority>' '<payload>'
+nats pub '$mq9.AI.INBOX.<mail_id>.<priority>' '<payload>'
 ```
 
 `<priority>` values:

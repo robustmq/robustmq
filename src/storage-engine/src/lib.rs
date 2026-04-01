@@ -62,6 +62,7 @@ pub struct StorageEngineServer {
     stop: broadcast::Sender<bool>,
     client_connection_manager: Arc<ClientConnectionManager>,
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    memory_storage_engine: Arc<MemoryStorageEngine>,
     server: Arc<Server>,
     task_supervisor: Arc<TaskSupervisor>,
 }
@@ -95,6 +96,7 @@ impl StorageEngineServer {
             write_manager: params.write_manager,
             client_connection_manager: params.client_connection_manager,
             rocksdb_storage_engine: params.rocksdb_storage_engine,
+            memory_storage_engine: params.memory_storage_engine,
             stop,
             server,
             task_supervisor,
@@ -124,7 +126,7 @@ impl StorageEngineServer {
                 crate::clients::gc::start_conn_gc_thread(conn_manager, stop_sx).await;
             });
 
-        // segment engine
+        // segment engine expire
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
         let stop_sx = self.stop.clone();
@@ -135,13 +137,23 @@ impl StorageEngineServer {
             },
         );
 
-        // rocksdb engine
+        // rocksdb engine expire
         let rocksdb_storage_engine = self.rocksdb_storage_engine.clone();
         let stop_sx = self.stop.clone();
         self.task_supervisor.spawn(
             TaskKind::StorageEngineRocksDBExpire.to_string(),
             async move {
                 rocksdb_storage_engine.start_expire_thread(&stop_sx).await;
+            },
+        );
+
+        // memory engine expire
+        let memory_storage_engine = self.memory_storage_engine.clone();
+        let stop_sx = self.stop.clone();
+        self.task_supervisor.spawn(
+            TaskKind::StorageEngineRocksDBExpire.to_string(),
+            async move {
+                memory_storage_engine.start_expire_task(&stop_sx).await;
             },
         );
     }
