@@ -163,7 +163,7 @@ const scenarios = computed(() => [
     title: t('AI Agent 通信', 'AI Agent Communication'),
     subtitle: t('原生 Agent 基础设施', 'Native Agent Infrastructure'),
     points: [
-      t('$AI.API.* Subject 空间，Agent 注册、发现、调用', '$AI.API.* subjects for Agent register, discover, and invoke'),
+      t('$mq9.AI.API.* Subject 空间，Agent 注册、发现、调用', '$mq9.AI.API.* subjects for Agent register, discover, and invoke'),
       t('百万级轻量 Topic，每个 Agent 独立通道', 'Million-scale Topics — each Agent gets its own isolated channel'),
       t('NATS Queue Group 原生负载均衡，零学习成本', 'NATS Queue Group load balancing, zero learning overhead'),
     ]
@@ -249,7 +249,7 @@ const features = computed(() => [
   {
     icon: '🤖',
     title: t('AI Agent 通信', 'AI Agent Communication'),
-    desc: t('基于 NATS 的 $AI.API.* 扩展，原生支持 Agent 注册、发现、调用和编排', 'NATS-based $AI.API.* extension — native Agent registration, discovery, invocation, and orchestration'),
+    desc: t('基于 NATS 的 $mq9.AI.API.* 扩展，原生支持 Agent 注册、发现、调用和编排', 'NATS-based $mq9.AI.API.* extension — native Agent registration, discovery, invocation, and orchestration'),
   },
   {
     icon: '💾',

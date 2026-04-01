@@ -49,7 +49,7 @@ RobustMQ is a unified messaging engine built with Rust. One binary, one broker, 
 
 | Scenario | How |
 |----------|-----|
-| AI Agent communication | `$AI.API.*` subject space over NATS: native Agent registration, discovery, invocation, and load balancing |
+| AI Agent communication | `$mq9.AI.API.*` subject space over NATS: native Agent registration, discovery, invocation, and load balancing |
 | IoT device ingestion | Devices publish via MQTT; AI platforms and data pipelines consume via Kafka — same data, no bridging |
 | Streaming data pipelines | Standard Kafka protocol, existing Kafka SDKs connect with zero migration cost |
 | Edge-to-cloud sync | Single binary, near-zero memory, offline buffering with automatic cloud sync on reconnect |
@@ -82,7 +82,7 @@ RobustMQ is designed from scratch to solve this structurally: **unified storage 
 - 🔌 **Native multi-protocol**: MQTT 3.1/3.1.1/5.0, Kafka, NATS, AMQP — natively implemented, full protocol semantics, not emulated
 - 🏢 **Native multi-tenancy**: Unified across all protocols — full data isolation and independent permission management per tenant
 - 🌐 **Edge-to-cloud**: Single binary, zero dependencies, offline buffering with auto-sync — same runtime from edge gateways to cloud clusters
-- 🤖 **AI Agent communication**: NATS-based `$AI.API.*` extension — native Agent registration, discovery, invocation, and orchestration
+- 🤖 **AI Agent communication**: NATS-based `$mq9.AI.API.*` extension — native Agent registration, discovery, invocation, and orchestration
 - ⚡ **Ultra-low-latency dispatch**: NATS pure in-memory routing — no disk writes, millisecond to sub-millisecond latency
 - 💾 **Multi-mode storage**: Memory / RocksDB / File, per-topic configuration, automatic cold data tiering to S3
 - 🔄 **Shared subscription**: Break the "concurrency = partition count" limit — consumers scale elastically at any time
@@ -98,7 +98,7 @@ Phase 1 — MQTT (current)
   Architecture and infrastructure hardened in parallel
 
 Phase 2 — NATS + AI Agent (in progress)
-  NATS protocol compatibility + $AI.API.* extension
+  NATS protocol compatibility + $mq9.AI.API.* extension
   Native Agent registration, discovery, invocation, and load balancing
 
 Phase 3 — Kafka (in progress)
@@ -121,7 +121,7 @@ Phase 4 — AMQP (planned)
 | Kafka protocol | 🚧 In development |
 | NATS protocol | 🔬 Demo validated, in development |
 | AMQP protocol | 🔬 Demo validated, in development |
-| $AI.API.* Agent communication | 🔬 Demo validated, in development |
+| $mq9.AI.API.* Agent communication | 🔬 Demo validated, in development |
 
 ## 🏗️ Architecture
 
