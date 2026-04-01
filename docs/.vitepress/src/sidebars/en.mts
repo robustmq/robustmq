@@ -1,4 +1,4 @@
-export const sidebar = [
+const items = [
     {
         text: "Introduction",
         collapsed: true,
@@ -146,6 +146,15 @@ export const sidebar = [
       },
     ],
   },
+  {
+    text: "RobustMQ mq9",
+    collapsed: true,
+    items: [
+      { text: "Overview", link: "/en/mq9/Overview" },
+      { text: "Protocol", link: "/en/mq9/Protocol" },
+    ],
+  },
+
   {
     text: "RobustMQ Kafka",
     collapsed: true,
@@ -321,4 +330,10 @@ export const sidebar = [
       { text: "0.2.0 RELEASE", link: "/en/VersionRecord/RobustMQ-0.2.0-RELEASE" },
     ],
   },
-];
+]
+
+export const sidebar = {
+  '/en/mq9/index': [],
+  '/en/mq9/': items,
+  '/en/': items,
+};

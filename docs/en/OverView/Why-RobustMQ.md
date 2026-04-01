@@ -36,7 +36,7 @@ Specifically, RobustMQ aims to:
 
 **Edge-to-cloud unified deployment.** Single binary, no external dependencies, minimal memory footprint. The same system runs on edge gateways for offline buffering and on cloud clusters for large-scale data flow — consistent operations from edge to cloud.
 
-**AI Agent communication, natively.** The `$AI.API.*` subject space, built on the NATS protocol, provides native capabilities for Agent registration, discovery, invocation, and orchestration. Millions of lightweight Topics — each Agent gets its own isolated communication channel, unconstrained by traditional Topic limits.
+**AI Agent communication, natively.** The `$mq9.AI.API.*` subject space, built on the NATS protocol, provides native capabilities for Agent registration, discovery, invocation, and orchestration. Millions of lightweight Topics — each Agent gets its own isolated communication channel, unconstrained by traditional Topic limits.
 
 **Built with Rust.** Zero-cost abstractions, memory safety, no GC pauses. Communication infrastructure demands stable latency above all else. GC-induced memory spikes are especially damaging in edge scenarios. Rust is the right language for this domain.
 

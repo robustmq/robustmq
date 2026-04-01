@@ -56,12 +56,12 @@ Switch to JetStream mode when persistence is needed — unified storage layer ta
 
 ### AI Agent Communication
 
-The `$AI.API.*` subject space, built on the NATS protocol, provides native capabilities for Agent registration, discovery, invocation, and load balancing. No dependency on LangChain or external frameworks — any NATS client (Go/Rust/Python/Java) connects with zero learning overhead.
+The `$mq9.AI.API.*` subject space, built on the NATS protocol, provides native capabilities for Agent registration, discovery, invocation, and load balancing. No dependency on LangChain or external frameworks — any NATS client (Go/Rust/Python/Java) connects with zero learning overhead.
 
 ```
-Agent register  → PUB $AI.API.AGENT.REGISTER
-Agent discover  → PUB $AI.API.AGENT.DISCOVER
-Agent invoke    → PUB $AI.API.AGENT.INVOKE.{name}
+Agent register  → PUB $mq9.AI.API.AGENT.REGISTER
+Agent discover  → PUB $mq9.AI.API.AGENT.DISCOVER
+Agent invoke    → PUB $mq9.AI.API.AGENT.INVOKE.{name}
 Load balancing  → NATS Queue Group, native support
 ```
 
@@ -74,7 +74,7 @@ Load balancing  → NATS Queue Group, native support
 - 🔌 **Native multi-protocol**: MQTT 3.1/3.1.1/5.0, Kafka, NATS, AMQP natively implemented — full protocol semantics, not emulated
 - 🏢 **Native multi-tenancy**: Unified across all protocols — full data isolation and independent permission management per tenant
 - 🌐 **Edge-to-cloud**: Single binary, zero dependencies, offline buffering with auto-sync — same runtime from edge gateways to cloud clusters
-- 🤖 **AI Agent communication**: NATS-based `$AI.API.*` extension — native Agent registration, discovery, invocation, and orchestration
+- 🤖 **AI Agent communication**: NATS-based `$mq9.AI.API.*` extension — native Agent registration, discovery, invocation, and orchestration
 - ⚡ **Ultra-low-latency dispatch**: NATS pure in-memory routing — no disk writes, millisecond to sub-millisecond latency
 - 💾 **Multi-mode storage engine**: Memory / RocksDB / File, per-Topic configuration, automatic cold data tiering to S3
 - 🔄 **Shared subscription**: Break the "concurrency = partition count" limit — consumers scale elastically at any time
@@ -92,7 +92,7 @@ Phase 1 (current)
   Architecture and infrastructure hardened in parallel
 
 Phase 2 (in progress)
-  NATS protocol compatibility + AI Agent communication ($AI.API.* extension)
+  NATS protocol compatibility + AI Agent communication ($mq9.AI.API.* extension)
   Native Agent registration, discovery, invocation, and load balancing
 
 Phase 3 (in progress)
@@ -119,7 +119,7 @@ Phase 4 (planned)
 | Kafka protocol | 🚧 In development |
 | NATS protocol | 🔬 Demo validated, in development |
 | AMQP protocol | 🔬 Demo validated, in development |
-| $AI.API.* Agent communication | 🔬 Demo validated, in development |
+| $mq9.AI.API.* Agent communication | 🔬 Demo validated, in development |
 
 > **Notice**: The current version is still in early stage and not recommended for production use. Version 0.4.0 / 0.5.0 is targeted to reach MQTT production-ready status.
 

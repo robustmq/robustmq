@@ -1,4 +1,4 @@
-export const sidebar = [
+const items = [
     {
         text: "简介",
         collapsed: true,
@@ -125,19 +125,10 @@ export const sidebar = [
         collapsed: true,
         items: [
           { text: "使用 C SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/c-sdk" },
-          {
-            text: "使用 Java SDK 连接",
-            link: "/zh/RobustMQ-MQTT/SDK/java-sdk",
-          },
+          { text: "使用 Java SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/java-sdk" },
           { text: "使用 Go SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/go-sdk" },
-          {
-            text: "使用 Python SDK 连接",
-            link: "/zh/RobustMQ-MQTT/SDK/python-sdk",
-          },
-          {
-            text: "使用 JavaScript SDK 连接",
-            link: "/zh/RobustMQ-MQTT/SDK/javascript-sdk",
-          },
+          { text: "使用 Python SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/python-sdk" },
+          { text: "使用 JavaScript SDK 连接", link: "/zh/RobustMQ-MQTT/SDK/javascript-sdk" },
         ],
       },
       {
@@ -152,6 +143,15 @@ export const sidebar = [
           { text: "MQTT 原因码", link: "https://www.emqx.com/en/blog/mqtt5-new-features-reason-code-and-ack" },
         ],
       },
+    ],
+  },
+
+  {
+    text: "RobustMQ mq9",
+    collapsed: true,
+    items: [
+      { text: "概览", link: "/zh/mq9/Overview" },
+      { text: "协议设计", link: "/zh/mq9/Protocol" },
     ],
   },
 
@@ -340,4 +340,10 @@ export const sidebar = [
       { text: "0.2.0 RELEASE", link: "/zh/VersionRecord/RobustMQ-0.2.0-RELEASE" },
     ],
   },
-];
+]
+
+export const sidebar = {
+  '/zh/mq9/index': [],
+  '/zh/mq9/': items,
+  '/zh/': items,
+};

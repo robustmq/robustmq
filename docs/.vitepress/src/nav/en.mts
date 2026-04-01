@@ -4,6 +4,7 @@ export default function getNavs() {
   return [
 
     { text: "Home", link: "/en/" },
+    { text: "mq9", link: "/en/mq9/" },
     { text: "Blog", link: "/en/Blogs/" },
     { text: "Docs", link: "/en/OverView/What-is-RobustMQ" },
     {

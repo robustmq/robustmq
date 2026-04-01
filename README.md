@@ -24,10 +24,9 @@
 
 <p align="center">
   <a href="#-what-is-robustmq">What is RobustMQ</a> •
-  <a href="#-why-robustmq">Why RobustMQ</a> •
+  <a href="#-mq9--agent-mailbox-for-ai">mq9</a> •
   <a href="#-features">Features</a> •
   <a href="#%EF%B8%8F-roadmap">Roadmap</a> •
-  <a href="#%EF%B8%8F-architecture">Architecture</a> •
   <a href="#-quick-start">Quick Start</a> •
   <a href="#-documentation">Documentation</a> •
   <a href="#-contributing">Contributing</a> •
@@ -39,36 +38,69 @@
 > **⚠️ Development Status**
 > RobustMQ is in early development and **not yet production-ready**. MQTT core is stable and continuing to mature. Kafka, NATS, and AMQP are under active development. Production readiness is targeted for 0.4.0.
 
+---
+
 ## 🌟 What is RobustMQ
 
-RobustMQ is a unified messaging engine built with Rust. One binary, one broker, no external dependencies — deployable from edge devices to cloud clusters. It natively supports MQTT, Kafka, NATS, and AMQP on a **shared storage layer**: one message written once, consumed by any protocol.
+RobustMQ is a unified messaging engine built with Rust. One binary, one broker, no external dependencies — deployable from edge devices to cloud clusters. It natively supports MQTT, Kafka, NATS, AMQP, and **mq9** on a **shared storage layer**: one message written once, consumed by any protocol.
 
 ![RobustMQ Architecture](docs/images/robustmq-architecture.jpg)
-
-**Six core scenarios on one system:**
-
-| Scenario | How |
-|----------|-----|
-| AI Agent communication | `$AI.API.*` subject space over NATS: native Agent registration, discovery, invocation, and load balancing |
-| IoT device ingestion | Devices publish via MQTT; AI platforms and data pipelines consume via Kafka — same data, no bridging |
-| Streaming data pipelines | Standard Kafka protocol, existing Kafka SDKs connect with zero migration cost |
-| Edge-to-cloud sync | Single binary, near-zero memory, offline buffering with automatic cloud sync on reconnect |
-| Ultra-low-latency dispatch | NATS pure in-memory routing — no disk writes, millisecond to sub-millisecond latency |
-| Traditional messaging | Native AMQP support — existing RabbitMQ applications migrate with minimal changes |
 
 ```
 MQTT publish  →  RobustMQ unified storage  →  Kafka consume
                                            →  NATS subscribe
                                            →  AMQP consume
+                                           →  mq9 Agent mailbox
 ```
 
-## 🤔 Why RobustMQ
+**Five protocols, one system:**
 
-Today's messaging infrastructure is a collection of protocol silos. IoT uses MQTT brokers, data pipelines use Kafka, enterprise systems use RabbitMQ, and AI Agent communication has no native solution. Multiple systems mean duplicate data copies, overlapping operations, and bridging layers that add latency and failure points.
+| Protocol | Best for |
+|----------|---------|
+| **MQTT** | IoT devices, edge sensors |
+| **Kafka** | Streaming data pipelines, analytics |
+| **NATS** | Ultra-low-latency pub/sub |
+| **AMQP** | Enterprise messaging, RabbitMQ migration |
+| **mq9** | AI Agent async communication |
 
-Existing systems carry heavy architectural baggage. Kafka's file-system-based design hits a hard ceiling at tens of thousands of topics. RabbitMQ's Erlang runtime limits throughput headroom. None of these systems were designed for the AI era — retrofitting them is patching old foundations.
+## 🤖 mq9 — Agent Mailbox for AI
 
-RobustMQ is designed from scratch to solve this structurally: **unified storage + native multi-protocol support**. Not bridging, not routing — one copy of data, each protocol reading it through its own semantic lens. One system replaces multiple brokers. No data duplication, no operational overlap.
+**mq9** is RobustMQ's communication layer designed for AI Agents. Just like people have email — you send a message, the recipient reads it when they're available — Agents need the same. Today, when Agent A sends a message to Agent B and B is offline, the message is gone. Every team works around this with Redis pub/sub, database polling, or homegrown queues.
+
+mq9 solves it directly: **send a message, the recipient gets it when they come online.**
+
+<div align="center">
+
+| Primitive | What it does |
+|-----------|-------------|
+| **Mailbox** | Each Agent has its own inbox. Messages wait until the Agent comes online. |
+| **Broadcast** | Publish once, any interested Agent subscribes. No need to know who's listening. |
+| **Priority** | `urgent` / `normal` / `notify` — critical messages are never buried. |
+
+</div>
+
+```bash
+# Give an Agent an identity and mailbox — one call, no registration
+nats req '$mq9.AI.MAILBOX.CREATE' '{}'
+# → {"agent_id": "agt-uuid-001", "token": "tok-xxx"}
+
+# Send to another Agent's mailbox (works even if they're offline)
+nats pub '$mq9.AI.INBOX.agt-uuid-002.normal' '{"from":"agt-uuid-001","payload":"task done"}'
+
+# Broadcast an event — anyone interested will receive it
+nats pub '$mq9.AI.BROADCAST.task.available' '{"task_id":"t-001"}'
+
+# Subscribe to your own mailbox
+nats sub '$mq9.AI.INBOX.agt-uuid-001.*'
+```
+
+**Any NATS client — Go, Python, Rust, Java, JavaScript — is already an mq9 client.** No new SDK needed.
+
+mq9 is RobustMQ's fifth native protocol, alongside MQTT, Kafka, NATS, and AMQP, built on the same unified storage layer. Deploy one RobustMQ instance — mq9 is ready.
+
+> 📖 [mq9 Documentation](https://robustmq.com/en/mq9/)
+
+---
 
 ## ✨ Features
 
@@ -76,13 +108,12 @@ RobustMQ is designed from scratch to solve this structurally: **unified storage 
   <video src="https://robustmq.com/assets/demo.zRXM786t.mp4" controls width="100%"></video>
 </div>
 
-
+- 🤖 **mq9 — AI Agent communication**: Agent mailbox, broadcast, priority queue — async Agent-to-Agent messaging, no simultaneous online required
 - 🦀 **Rust-native**: No GC, stable and predictable memory footprint, no periodic spikes — consistent from edge devices to cloud clusters
 - 🗄️ **Unified storage layer**: All protocols share one storage engine — data written once, consumed by any protocol, no duplication
-- 🔌 **Native multi-protocol**: MQTT 3.1/3.1.1/5.0, Kafka, NATS, AMQP — natively implemented, full protocol semantics, not emulated
+- 🔌 **Native multi-protocol**: MQTT 3.1/3.1.1/5.0, Kafka, NATS, AMQP, mq9 — natively implemented, full protocol semantics
 - 🏢 **Native multi-tenancy**: Unified across all protocols — full data isolation and independent permission management per tenant
 - 🌐 **Edge-to-cloud**: Single binary, zero dependencies, offline buffering with auto-sync — same runtime from edge gateways to cloud clusters
-- 🤖 **AI Agent communication**: NATS-based `$AI.API.*` extension — native Agent registration, discovery, invocation, and orchestration
 - ⚡ **Ultra-low-latency dispatch**: NATS pure in-memory routing — no disk writes, millisecond to sub-millisecond latency
 - 💾 **Multi-mode storage**: Memory / RocksDB / File, per-topic configuration, automatic cold data tiering to S3
 - 🔄 **Shared subscription**: Break the "concurrency = partition count" limit — consumers scale elastically at any time
@@ -90,16 +121,14 @@ RobustMQ is designed from scratch to solve this structurally: **unified storage 
 
 ## 🗺️ Roadmap
 
-The approach: slow is smooth, smooth is fast. Each phase done properly before moving on.
-
 ```
 Phase 1 — MQTT (current)
   MQTT core production-ready, continuously refined to be the best MQTT Broker available
   Architecture and infrastructure hardened in parallel
 
-Phase 2 — NATS + AI Agent (in progress)
-  NATS protocol compatibility + $AI.API.* extension
-  Native Agent registration, discovery, invocation, and load balancing
+Phase 2 — NATS + mq9 AI Agent (in progress)
+  NATS protocol compatibility + mq9 Agent mailbox & broadcast
+  Native Agent async communication layer
 
 Phase 3 — Kafka (in progress)
   Full Kafka protocol compatibility
@@ -121,14 +150,14 @@ Phase 4 — AMQP (planned)
 | Kafka protocol | 🚧 In development |
 | NATS protocol | 🔬 Demo validated, in development |
 | AMQP protocol | 🔬 Demo validated, in development |
-| $AI.API.* Agent communication | 🔬 Demo validated, in development |
+| mq9 — AI Agent mailbox | 🔬 Demo validated, in development |
 
 ## 🏗️ Architecture
 
 RobustMQ has three components with fixed, clean boundaries:
 
 - **Meta Service** — metadata management, Raft-based consensus
-- **Broker** — protocol parsing and routing (MQTT / Kafka / NATS / AMQP)
+- **Broker** — protocol parsing and routing (MQTT / Kafka / NATS / AMQP / mq9)
 - **Storage Engine** — unified data storage with pluggable backends
 
 Adding a new protocol means implementing only the Broker parsing layer. Adding a new storage backend means implementing only the Storage Engine interface. The core architecture does not change.
@@ -154,6 +183,19 @@ kafka-console-consumer.sh --bootstrap-server localhost:9092 \
 
 # Consume the same message via NATS
 nats sub "robustmq.multi.protocol"
+```
+
+### mq9 Agent Mailbox in Action
+
+```bash
+# Agent A gets a mailbox
+nats req '$mq9.AI.MAILBOX.CREATE' '{}'
+
+# Agent B sends to Agent A (even if A is offline)
+nats pub '$mq9.AI.INBOX.{agent_a_id}.normal' '{"from":"agent-b","payload":"hello"}'
+
+# Agent A subscribes and receives
+nats sub '$mq9.AI.INBOX.{agent_a_id}.*'
 ```
 
 ### Web Dashboard
@@ -188,6 +230,7 @@ make build-full      # With frontend
 ## 📚 Documentation
 
 - **📖 [Official Documentation](https://robustmq.com/)** — Comprehensive guides and API references
+- **🤖 [mq9 — AI Agent Communication](https://robustmq.com/en/mq9/)** — Agent mailbox, broadcast, priority queue
 - **🚀 [Quick Start Guide](https://robustmq.com/QuickGuide/Overview.html)** — Get up and running in minutes
 - **🔧 [MQTT Documentation](https://robustmq.com/RobustMQ-MQTT/Overview.html)** — MQTT-specific features and configuration
 - **💻 [Command Reference](https://robustmq.com/RobustMQ-Command/Mqtt-Broker.html)** — CLI commands and usage

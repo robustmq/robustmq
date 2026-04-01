@@ -114,7 +114,8 @@ impl DirectlyPushManager {
 
     pub async fn send_messages(&self, stop_sx: &Sender<bool>) -> Result<usize, MqttBrokerError> {
         let mut processed_count = 0;
-        let mut stale_subs: Vec<(String, String, String)> = Vec::new();
+        // (tenant, client_id, sub_path, group_name)
+        let mut stale_subs: Vec<(String, String, String, String)> = Vec::new();
 
         if let Some(data) = self
             .subscribe_manager
@@ -137,6 +138,7 @@ impl DirectlyPushManager {
                                 row.tenant.clone(),
                                 row.client_id.clone(),
                                 row.sub_path.clone(),
+                                row.group_name.clone(),
                             ));
                         } else {
                             warn!(
@@ -149,9 +151,10 @@ impl DirectlyPushManager {
             }
         }
 
-        for (tenant, client_id, sub_path) in stale_subs {
+        for (tenant, client_id, sub_path, group_name) in stale_subs {
             self.subscribe_manager
                 .remove_by_sub(&tenant, &client_id, &sub_path);
+            self.group_offsets.remove(&group_name);
         }
 
         Ok(processed_count)
@@ -231,8 +234,8 @@ impl DirectlyPushManager {
 
         if let Some(offsets) = self
             .group_offsets
-            .get(&subscriber.group_name)
-            .map(|r| r.clone())
+            .remove(&subscriber.group_name)
+            .map(|(_, v)| v)
         {
             self.commit_offset(&subscriber.tenant, &subscriber.group_name, &offsets)
                 .await?;
@@ -247,14 +250,9 @@ impl DirectlyPushManager {
         tenant: &str,
         topic_name: &str,
     ) -> Result<Vec<StorageRecord>, MqttBrokerError> {
-        let offsets = if let Some(offsets) = self.group_offsets.get(group) {
-            offsets.clone()
-        } else {
-            let offsets = self.message_storage.get_group_offset(tenant, group).await?;
-            self.group_offsets
-                .insert(group.to_string(), offsets.clone());
-            offsets
-        };
+        let offsets = self.message_storage.get_group_offset(tenant, group).await?;
+        self.group_offsets
+            .insert(group.to_string(), offsets.clone());
 
         let data = self
             .message_storage
