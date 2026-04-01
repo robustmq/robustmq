@@ -156,7 +156,6 @@ impl BrokerServer {
             )
             .await;
         }));
-
     }
 
     pub fn awaiting_stop(

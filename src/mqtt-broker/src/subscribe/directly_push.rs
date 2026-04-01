@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::MQTTCacheManager;
 use crate::core::sub_option::message_is_same_client;
 use crate::subscribe::common::{message_is_exceeds_max_message_size, message_is_expire};
 use crate::subscribe::common::{record_sub_send_metrics, stale_subscriber_error};
 use crate::subscribe::push::{
     push_data, BATCH_SIZE, HIGH_LOAD_SLEEP_MS, IDLE_SLEEP_MS, LOW_LOAD_SLEEP_MS, LOW_LOAD_THRESHOLD,
 };
-use crate::{core::cache::MQTTCacheManager, storage::message::MessageStorage};
 use crate::{
     core::error::MqttBrokerError,
-    core::tool::ResultMqttBrokerError,
     subscribe::{
         common::{client_unavailable_error, Subscriber},
         manager::SubscribeManager,
@@ -32,9 +31,8 @@ use dashmap::DashMap;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::collections::HashMap;
 use std::{sync::Arc, time::Duration};
-use storage_adapter::driver::StorageDriverManager;
+use storage_adapter::{consumer::GroupConsumer, driver::StorageDriverManager};
 use tokio::{select, sync::broadcast, sync::broadcast::Sender, time::sleep};
 use tracing::{debug, error, info, warn};
 
@@ -43,8 +41,8 @@ pub struct DirectlyPushManager {
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<MQTTCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    message_storage: MessageStorage,
-    group_offsets: DashMap<String, HashMap<String, u64>>,
+    storage_driver_manager: Arc<StorageDriverManager>,
+    consumers: DashMap<String, GroupConsumer>,
     uuid: String,
 }
 
@@ -59,11 +57,11 @@ impl DirectlyPushManager {
     ) -> Self {
         DirectlyPushManager {
             subscribe_manager,
-            message_storage: MessageStorage::new(storage_driver_manager),
+            storage_driver_manager,
             cache_manager,
             rocksdb_engine_handler,
             connection_manager,
-            group_offsets: DashMap::with_capacity(2),
+            consumers: DashMap::with_capacity(2),
             uuid,
         }
     }
@@ -154,7 +152,7 @@ impl DirectlyPushManager {
         for (tenant, client_id, sub_path, group_name) in stale_subs {
             self.subscribe_manager
                 .remove_by_sub(&tenant, &client_id, &sub_path);
-            self.group_offsets.remove(&group_name);
+            self.consumers.remove(&group_name);
         }
 
         Ok(processed_count)
@@ -167,16 +165,26 @@ impl DirectlyPushManager {
     ) -> Result<usize, MqttBrokerError> {
         let mut processed_count = 0;
 
-        let data_list = self
-            .next_message(
-                &subscriber.group_name,
-                &subscriber.tenant,
-                &subscriber.topic_name,
-            )
+        let read_config = metadata_struct::storage::adapter_read_config::AdapterReadConfig {
+            max_record_num: BATCH_SIZE,
+            max_size: 1024 * 1024 * 30,
+        };
+
+        let mut consumer = self
+            .consumers
+            .entry(subscriber.group_name.clone())
+            .or_insert_with(|| {
+                GroupConsumer::new_manual(
+                    self.storage_driver_manager.clone(),
+                    subscriber.group_name.clone(),
+                )
+            });
+
+        let data_list = consumer
+            .next_messages(&subscriber.tenant, &subscriber.topic_name, &read_config)
             .await?;
 
-        let data_list_len = data_list.len();
-        if data_list_len == 0 {
+        if data_list.is_empty() {
             return Ok(0);
         }
 
@@ -223,54 +231,11 @@ impl DirectlyPushManager {
                     success,
                 );
             }
-
-            if let Some(mut offsets) = self.group_offsets.get_mut(&subscriber.group_name) {
-                offsets.insert(
-                    record.metadata.shard.to_string(),
-                    record.metadata.offset + 1,
-                );
-            }
         }
 
-        if let Some(offsets) = self
-            .group_offsets
-            .remove(&subscriber.group_name)
-            .map(|(_, v)| v)
-        {
-            self.commit_offset(&subscriber.tenant, &subscriber.group_name, &offsets)
-                .await?;
-        }
+        consumer.commit().await?;
 
         Ok(processed_count)
-    }
-
-    async fn next_message(
-        &self,
-        group: &str,
-        tenant: &str,
-        topic_name: &str,
-    ) -> Result<Vec<StorageRecord>, MqttBrokerError> {
-        let offsets = self.message_storage.get_group_offset(tenant, group).await?;
-        self.group_offsets
-            .insert(group.to_string(), offsets.clone());
-
-        let data = self
-            .message_storage
-            .read_topic_message(tenant, topic_name, &offsets, BATCH_SIZE)
-            .await?;
-        Ok(data)
-    }
-
-    async fn commit_offset(
-        &self,
-        tenant: &str,
-        group: &str,
-        offsets: &HashMap<String, u64>,
-    ) -> ResultMqttBrokerError {
-        self.message_storage
-            .commit_group_offset(tenant, group, offsets)
-            .await?;
-        Ok(())
     }
 }
 

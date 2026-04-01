@@ -20,7 +20,10 @@ use std::{collections::HashMap, sync::Arc};
 pub struct GroupConsumer {
     driver: Arc<StorageDriverManager>,
     group_name: String,
+    /// Committed offsets: the starting offset for the next read per shard.
     current_offsets: HashMap<(String, String, String), u64>,
+    /// Offsets advanced after the last next_messages call, not yet committed.
+    pending_offsets: HashMap<(String, String, String), u64>,
     auto_commit: bool,
 }
 
@@ -30,6 +33,7 @@ impl GroupConsumer {
             driver,
             group_name: group_name.into(),
             current_offsets: HashMap::new(),
+            pending_offsets: HashMap::new(),
             auto_commit: true,
         }
     }
@@ -61,7 +65,7 @@ impl GroupConsumer {
             .read_by_offset(tenant, topic_name, &shard_offsets, read_config)
             .await?;
 
-        self.advance_offsets(tenant, topic_name, &records);
+        self.stage_offsets(tenant, topic_name, &records);
 
         if self.auto_commit && !records.is_empty() {
             self.commit().await?;
@@ -70,9 +74,15 @@ impl GroupConsumer {
         Ok(records)
     }
 
-    pub async fn commit(&self) -> Result<(), CommonError> {
+    /// Persist pending offsets to the offset store and advance current_offsets.
+    /// If not called after next_messages, the next call will re-read the same batch.
+    pub async fn commit(&mut self) -> Result<(), CommonError> {
+        if self.pending_offsets.is_empty() {
+            return Ok(());
+        }
+
         let mut by_tenant_topic: HashMap<(&str, &str), HashMap<String, u64>> = HashMap::new();
-        for ((tenant, topic, shard), &offset) in &self.current_offsets {
+        for ((tenant, topic, shard), &offset) in &self.pending_offsets {
             by_tenant_topic
                 .entry((tenant.as_str(), topic.as_str()))
                 .or_default()
@@ -84,7 +94,28 @@ impl GroupConsumer {
                 .commit_offset(tenant, &self.group_name, &shard_offsets)
                 .await?;
         }
+
+        // Only advance current_offsets after successful IO.
+        for (key, offset) in self.pending_offsets.drain() {
+            self.current_offsets.insert(key, offset);
+        }
+
         Ok(())
+    }
+
+    fn stage_offsets(&mut self, tenant: &str, topic_name: &str, records: &[StorageRecord]) {
+        for record in records {
+            let key = (
+                tenant.to_string(),
+                topic_name.to_string(),
+                record.metadata.shard.clone(),
+            );
+            let next = record.metadata.offset + 1;
+            let entry = self.pending_offsets.entry(key).or_insert(0);
+            if next > *entry {
+                *entry = next;
+            }
+        }
     }
 
     async fn ensure_offsets_loaded(
@@ -121,20 +152,5 @@ impl GroupConsumer {
         }
 
         Ok(())
-    }
-
-    fn advance_offsets(&mut self, tenant: &str, topic_name: &str, records: &[StorageRecord]) {
-        for record in records {
-            let key = (
-                tenant.to_string(),
-                topic_name.to_string(),
-                record.metadata.shard.clone(),
-            );
-            let next = record.metadata.offset + 1;
-            let entry = self.current_offsets.entry(key).or_insert(0);
-            if next > *entry {
-                *entry = next;
-            }
-        }
     }
 }

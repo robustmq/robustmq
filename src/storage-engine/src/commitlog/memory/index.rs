@@ -30,10 +30,7 @@ impl MemoryStorageEngine {
     /// resolved `ShardState`. Avoids repeated shard lookups and merges tag
     /// accumulations before touching `tag_index`, reducing DashMap contention
     /// when the same tag appears more than once in the batch.
-    pub fn batch_save_index(
-        shard: &Arc<ShardState>,
-        entries: &[(u64, &AdapterWriteRecord)],
-    ) {
+    pub fn batch_save_index(shard: &Arc<ShardState>, entries: &[(u64, &AdapterWriteRecord)]) {
         // Collect key → offset (last writer wins, consistent with single-write behaviour).
         // Collect tag → Vec<offset> for bulk extend.
         let mut tag_batch: HashMap<&str, Vec<u64>> = HashMap::new();

@@ -85,7 +85,9 @@ impl MemoryStorageEngine {
         }
 
         if record.metadata.create_t > 0 && offset.is_multiple_of(5000) {
-            shard_state.timestamp_index.remove(&record.metadata.create_t);
+            shard_state
+                .timestamp_index
+                .remove(&record.metadata.create_t);
         }
 
         Ok(())

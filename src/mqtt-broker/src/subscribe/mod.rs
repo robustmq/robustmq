@@ -283,6 +283,7 @@ impl PushManager {
 
                     let stop_sx = sub_thread_stop_sx.clone();
                     tokio::spawn(async move {
+                        let mut push_manager = push_manager;
                         push_manager.start(&stop_sx).await;
                     });
 

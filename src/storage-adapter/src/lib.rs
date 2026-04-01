@@ -17,6 +17,6 @@ pub mod driver;
 pub mod engine;
 pub mod tests;
 // pub mod mysql;
+pub mod consumer;
 pub mod storage;
 pub mod topic;
-pub mod consumer;
