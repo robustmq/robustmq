@@ -215,7 +215,12 @@ impl GroupConsumer {
             StartOffsetStrategy::Latest => {
                 let offsets = storage_list
                     .into_values()
-                    .map(|detail| (detail.shard_name, detail.offset.end_offset.saturating_add(1)))
+                    .map(|detail| {
+                        (
+                            detail.shard_name,
+                            detail.offset.end_offset.saturating_add(1),
+                        )
+                    })
                     .collect();
                 Ok(offsets)
             }
