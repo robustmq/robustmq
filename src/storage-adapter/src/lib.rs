@@ -19,3 +19,4 @@ pub mod tests;
 // pub mod mysql;
 pub mod storage;
 pub mod topic;
+pub mod consumer;

@@ -25,7 +25,7 @@ impl MemoryStorageEngine {
         start_offset: u64,
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        let Some(data_map) = self.shard_data.get(shard) else {
+        let Some(shard_state) = self.shards.get(shard) else {
             return Ok(Vec::new());
         };
 
@@ -34,7 +34,7 @@ impl MemoryStorageEngine {
         let end_offset = start_offset.saturating_add(read_config.max_record_num);
 
         for current_offset in start_offset..end_offset {
-            let Some(record) = data_map.get(&current_offset) else {
+            let Some(record) = shard_state.data.get(&current_offset) else {
                 break;
             };
 
@@ -61,15 +61,11 @@ impl MemoryStorageEngine {
         start_offset: Option<u64>,
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        let Some(tag_map) = self.tag_index.get(shard) else {
+        let Some(shard_state) = self.shards.get(shard) else {
             return Ok(Vec::new());
         };
 
-        let Some(offsets_list) = tag_map.get(tag) else {
-            return Ok(Vec::new());
-        };
-
-        let Some(data_map) = self.shard_data.get(shard) else {
+        let Some(offsets_list) = shard_state.tag_index.get(tag) else {
             return Ok(Vec::new());
         };
 
@@ -84,7 +80,7 @@ impl MemoryStorageEngine {
                 }
             }
 
-            let Some(record) = data_map.get(&offset) else {
+            let Some(record) = shard_state.data.get(&offset) else {
                 continue;
             };
 
@@ -109,19 +105,15 @@ impl MemoryStorageEngine {
         shard: &str,
         key: &str,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        let Some(key_map) = self.key_index.get(shard) else {
+        let Some(shard_state) = self.shards.get(shard) else {
             return Ok(Vec::new());
         };
 
-        let Some(offset) = key_map.get(key) else {
+        let Some(offset) = shard_state.key_index.get(key) else {
             return Ok(Vec::new());
         };
 
-        let Some(data_map) = self.shard_data.get(shard) else {
-            return Ok(Vec::new());
-        };
-
-        let Some(record) = data_map.get(&offset) else {
+        let Some(record) = shard_state.data.get(&*offset) else {
             return Ok(Vec::new());
         };
 
@@ -149,9 +141,10 @@ impl MemoryStorageEngine {
     }
 
     fn search_index_by_timestamp(&self, shard: &str, timestamp: u64) -> Option<u64> {
-        let ts_map = self.timestamp_index.get(shard)?;
+        let shard_state = self.shards.get(shard)?;
 
-        ts_map
+        shard_state
+            .timestamp_index
             .iter()
             .filter(|entry| *entry.key() <= timestamp)
             .max_by_key(|entry| *entry.key())
@@ -164,20 +157,20 @@ impl MemoryStorageEngine {
         start_offset: Option<u64>,
         timestamp: u64,
     ) -> Option<u64> {
-        let data_map = self.shard_data.get(shard)?;
-        let shard_state = self
+        let shard_state = self.shards.get(shard)?;
+        let shard_offset_state = self
             .commit_log_offset
             .cache_manager
             .get_offset_state(shard)?;
 
         let start = start_offset.unwrap_or(0);
-        let end = shard_state.latest_offset;
+        let end = shard_offset_state.latest_offset;
 
         const MAX_SCAN: u64 = 10000;
         let scan_end = end.min(start + MAX_SCAN);
 
         for offset in start..scan_end {
-            let Some(record) = data_map.get(&offset) else {
+            let Some(record) = shard_state.data.get(&offset) else {
                 continue;
             };
 

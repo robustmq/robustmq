@@ -19,23 +19,31 @@ use metadata_struct::storage::record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
+pub struct ShardState {
+    pub data: DashMap<u64, StorageRecord>,
+    pub tag_index: DashMap<String, Vec<u64>>,
+    pub key_index: DashMap<String, u64>,
+    pub timestamp_index: DashMap<u64, u64>,
+    pub write_lock: Arc<tokio::sync::Mutex<()>>,
+}
+
+impl ShardState {
+    pub fn new(capacity: usize) -> Self {
+        ShardState {
+            data: DashMap::with_capacity(capacity),
+            tag_index: DashMap::with_capacity(8),
+            key_index: DashMap::with_capacity(8),
+            timestamp_index: DashMap::with_capacity(8),
+            write_lock: Arc::new(tokio::sync::Mutex::new(())),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct MemoryStorageEngine {
-    // ====inner struct====
-    //(shard, lock)
-    pub shard_write_locks: DashMap<String, Arc<tokio::sync::Mutex<()>>>,
+    pub shards: DashMap<String, Arc<ShardState>>,
     pub config: StorageDriverMemoryConfig,
     pub commit_log_offset: Arc<CommitLogOffset>,
-
-    // ====Message Data====
-    //(shard, (offset,Record))
-    pub shard_data: DashMap<String, DashMap<u64, StorageRecord>>,
-    //(shard, (tag, (offset)))
-    pub tag_index: DashMap<String, DashMap<String, Vec<u64>>>,
-    //(shard, (key, offset))
-    pub key_index: DashMap<String, DashMap<String, u64>>,
-    //(shard, (timestamp, offset))
-    pub timestamp_index: DashMap<String, DashMap<u64, u64>>,
 }
 
 impl MemoryStorageEngine {
@@ -45,16 +53,20 @@ impl MemoryStorageEngine {
         config: StorageDriverMemoryConfig,
     ) -> Self {
         MemoryStorageEngine {
-            shard_data: DashMap::with_capacity(8),
-            tag_index: DashMap::with_capacity(8),
-            key_index: DashMap::with_capacity(8),
-            timestamp_index: DashMap::with_capacity(8),
-            shard_write_locks: DashMap::with_capacity(8),
+            shards: DashMap::with_capacity(8),
             config,
             commit_log_offset: Arc::new(CommitLogOffset::new(
                 cache_manager.clone(),
                 rocksdb_engine_handler.clone(),
             )),
         }
+    }
+
+    pub fn get_or_create_shard(&self, shard_name: &str) -> Arc<ShardState> {
+        let capacity = self.config.max_records_per_shard.min(1024);
+        self.shards
+            .entry(shard_name.to_string())
+            .or_insert_with(|| Arc::new(ShardState::new(capacity)))
+            .clone()
     }
 }
