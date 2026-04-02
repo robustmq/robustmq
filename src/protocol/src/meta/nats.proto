@@ -1,0 +1,33 @@
+syntax = "proto3";
+package meta.service.nats;
+
+import "meta/validate.proto";
+
+service NatsService {
+  rpc ListNatsSubject(ListNatsSubjectRequest) returns (stream ListNatsSubjectReply) {}
+  rpc CreateNatsSubject(CreateNatsSubjectRequest) returns (CreateNatsSubjectReply) {}
+  rpc DeleteNatsSubject(DeleteNatsSubjectRequest) returns (DeleteNatsSubjectReply) {}
+}
+
+message ListNatsSubjectRequest {
+  string tenant = 1;
+  string name = 2;
+}
+
+message ListNatsSubjectReply {
+  bytes subject = 1;
+}
+
+message CreateNatsSubjectRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  bytes subject = 2 [(validate.rules).bytes.min_len = 1];
+}
+
+message CreateNatsSubjectReply {}
+
+message DeleteNatsSubjectRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string name = 2 [(validate.rules).string.min_len = 1];
+}
+
+message DeleteNatsSubjectReply {}

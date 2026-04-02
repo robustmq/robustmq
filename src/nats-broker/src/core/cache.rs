@@ -16,9 +16,10 @@ use crate::core::connection::NatsConnection;
 use broker_core::cache::NodeCacheManager;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::nats::subject::NatsSubject;
 use std::sync::Arc;
 
-pub struct NatsCache {
+pub struct NatsCacheManager {
     // broker cache
     pub node_cache: Arc<NodeCacheManager>,
 
@@ -27,16 +28,22 @@ pub struct NatsCache {
 
     // (connect_id, NatsConnection)
     pub connection_info: DashMap<u64, NatsConnection>,
+
+    // ("{tenant}/{name}", NatsSubject)
+    pub subject_info: DashMap<String, NatsSubject>,
 }
 
-impl NatsCache {
+impl NatsCacheManager {
     pub fn new(client_pool: Arc<ClientPool>, node_cache: Arc<NodeCacheManager>) -> Self {
-        NatsCache {
+        NatsCacheManager {
             node_cache,
             client_pool,
             connection_info: DashMap::with_capacity(1024),
+            subject_info: DashMap::with_capacity(256),
         }
     }
+
+    // connection
 
     pub fn add_connection(&self, connection: NatsConnection) {
         self.connection_info
@@ -68,5 +75,31 @@ impl NatsCache {
             .get(&connect_id)
             .map(|e| e.is_login)
             .unwrap_or(false)
+    }
+
+    // subject
+
+    pub fn add_subject(&self, subject: NatsSubject) {
+        let key = format!("{}/{}", subject.tenant, subject.name);
+        self.subject_info.insert(key, subject);
+    }
+
+    pub fn remove_subject(&self, tenant: &str, name: &str) {
+        let key = format!("{}/{}", tenant, name);
+        self.subject_info.remove(&key);
+    }
+
+    pub fn get_subject(&self, tenant: &str, name: &str) -> Option<NatsSubject> {
+        let key = format!("{}/{}", tenant, name);
+        self.subject_info.get(&key).map(|e| e.value().clone())
+    }
+
+    pub fn list_subjects_by_tenant(&self, tenant: &str) -> Vec<NatsSubject> {
+        let prefix = format!("{}/", tenant);
+        self.subject_info
+            .iter()
+            .filter(|e| e.key().starts_with(&prefix))
+            .map(|e| e.value().clone())
+            .collect()
     }
 }

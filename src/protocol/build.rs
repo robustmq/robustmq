@@ -63,6 +63,7 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
         &[
             proto_root.join("src/meta/engine.proto").to_str().unwrap(),
             proto_root.join("src/meta/mqtt.proto").to_str().unwrap(),
+            proto_root.join("src/meta/nats.proto").to_str().unwrap(),
             proto_root.join("src/meta/common.proto").to_str().unwrap(),
             proto_root.join("src/meta/validate.proto").to_str().unwrap(),
         ],

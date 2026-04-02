@@ -4971,6 +4971,7 @@ dependencies = [
  "rate-limit",
  "storage-adapter",
  "tokio",
+ "tonic 0.14.5",
  "tracing",
 ]
 

@@ -30,6 +30,7 @@ metadata-struct.workspace = true
 common-base.workspace = true
 common-config.workspace = true
 tokio.workspace = true
+tonic.workspace = true
 bytes.workspace = true
 tracing.workspace = true
 dashmap.workspace = true

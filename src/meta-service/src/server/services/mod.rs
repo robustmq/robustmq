@@ -15,3 +15,4 @@
 pub mod common;
 pub mod engine;
 pub mod mqtt;
+pub mod nats;

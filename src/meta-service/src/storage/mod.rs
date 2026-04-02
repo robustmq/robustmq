@@ -15,3 +15,4 @@
 pub mod common;
 pub mod journal;
 pub mod mqtt;
+pub mod nats;
