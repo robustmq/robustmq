@@ -80,6 +80,8 @@ fn build_nats_info(
         jetstream: false,
         client_id: Some(connection_id),
         client_ip: Some(addr.ip().to_string()),
+        client_id: Some(connection_id),
+        client_ip: Some(addr.ip().to_string()),
         nonce: None,
         cluster: Some(conf.cluster_name.clone()),
         cluster_dynamic: Some(true),
