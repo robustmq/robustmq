@@ -192,12 +192,15 @@ pub struct BrokerConfig {
     pub mqtt_limit: MQTTLimit,
 
     // Kafka
+    #[serde(default)]
     pub kafka_runtime: KafkaRuntime,
 
     // AMQP
+    #[serde(default)]
     pub amqp_runtime: AmqpRuntime,
 
     // NATS
+    #[serde(default)]
     pub nats_runtime: NatsRuntime,
 
     // Shared broker network config (handler pool + request channel)
@@ -734,5 +737,41 @@ pub struct KafkaRuntime {}
 #[derive(Default, Debug, Deserialize, Serialize, Clone)]
 pub struct AmqpRuntime {}
 
-#[derive(Default, Debug, Deserialize, Serialize, Clone)]
-pub struct NatsRuntime {}
+fn default_nats_tcp_port() -> u32 {
+    4222
+}
+
+fn default_nats_tls_port() -> u32 {
+    4223
+}
+
+fn default_nats_ws_port() -> u32 {
+    4080
+}
+
+fn default_nats_wss_port() -> u32 {
+    4443
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct NatsRuntime {
+    #[serde(default = "default_nats_tcp_port")]
+    pub tcp_port: u32,
+    #[serde(default = "default_nats_tls_port")]
+    pub tls_port: u32,
+    #[serde(default = "default_nats_ws_port")]
+    pub ws_port: u32,
+    #[serde(default = "default_nats_wss_port")]
+    pub wss_port: u32,
+}
+
+impl Default for NatsRuntime {
+    fn default() -> Self {
+        Self {
+            tcp_port: default_nats_tcp_port(),
+            tls_port: default_nats_tls_port(),
+            ws_port: default_nats_ws_port(),
+            wss_port: default_nats_wss_port(),
+        }
+    }
+}

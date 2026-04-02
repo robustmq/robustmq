@@ -33,3 +33,9 @@ tcp_port = 1779
 max_segment_size = 1073741824
 data_path = ["./data/broker/engine"]
 io_thread_num = 4
+
+[nats_runtime]
+tcp_port = 4222
+tls_port = 4223
+ws_port  = 4080
+wss_port = 4443
