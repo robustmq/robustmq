@@ -42,8 +42,9 @@ impl QuicServer {
         let server = Endpoint::server(config, addr)?;
         let arc_quic_endpoint = Arc::new(server);
         let codec = RobustMQCodec::new();
+        let conf = broker_config();
         acceptor_process(
-            self.context.proc_config.accept_thread_num,
+            conf.broker_network.accept_thread_num,
             self.context.connection_manager.clone(),
             self.context.broker_cache.clone(),
             arc_quic_endpoint.clone(),

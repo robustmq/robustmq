@@ -30,7 +30,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
-use network_server::context::{ProcessorConfig, ServerContext};
+use network_server::context::ServerContext;
 use network_server::quic::server::QuicServer;
 use network_server::tcp::server::TcpServer;
 use network_server::websocket::server::{WebSocketServer, WebSocketServerState};
@@ -102,18 +102,10 @@ impl Server {
         };
 
         let command = create_command(command_context);
-
-        let proc_config = ProcessorConfig {
-            accept_thread_num: conf.mqtt_runtime.network.accept_thread_num,
-            handler_process_num: conf.mqtt_runtime.network.handler_thread_num,
-            channel_size: conf.mqtt_runtime.network.queue_size,
-        };
-
         let mut server_context = ServerContext {
             connection_manager: context.connection_manager.clone(),
             client_pool: context.client_pool.clone(),
             network_type: NetworkConnectionType::Tcp,
-            proc_config,
             stop_sx: context.stop_sx.clone(),
             broker_cache: context.broker_cache.clone(),
             request_channel: request_channel.clone(),
@@ -127,15 +119,16 @@ impl Server {
         server_context.network_type = NetworkConnectionType::Tls;
         let tls_server = TcpServer::new(RobustMQProtocol::MQTT4, server_context.clone());
 
-        let ws_server = WebSocketServer::new(WebSocketServerState::new(
-            conf.mqtt_server.websocket_port,
-            conf.mqtt_server.websockets_port,
-            context.connection_manager.clone(),
-            context.broker_cache.clone(),
-            context.global_limit_manager.clone(),
-            context.stop_sx.clone(),
-            request_channel.clone(),
-        ));
+        let ws_server = WebSocketServer::new(WebSocketServerState {
+            ws_port: conf.mqtt_server.websocket_port,
+            wss_port: conf.mqtt_server.websockets_port,
+            connection_manager: context.connection_manager.clone(),
+            node_cache: context.broker_cache.clone(),
+            global_limit_manager: context.global_limit_manager.clone(),
+            stop_sx: context.stop_sx.clone(),
+            request_channel: request_channel.clone(),
+            protocol: RobustMQProtocol::MQTT4,
+        });
 
         server_context.network_type = NetworkConnectionType::QUIC;
         let quic_server = QuicServer::new(name.clone(), server_context);
@@ -163,7 +156,7 @@ impl Server {
         let ws_server = self.ws_server.clone();
         tokio::spawn(Box::pin(async move {
             if let Err(e) = ws_server.start_ws().await {
-                error!("WebSocket server start fail, error:{}", e);
+                error!("MQTT WebSocket server start fail, error:{}", e);
                 std::process::exit(1);
             }
         }));
@@ -171,7 +164,7 @@ impl Server {
         let ws_server = self.ws_server.clone();
         tokio::spawn(Box::pin(async move {
             if let Err(e) = ws_server.start_wss().await {
-                error!("WebSockets server start fail, error:{}", e);
+                error!("MQTT WebSockets server start fail, error:{}", e);
                 std::process::exit(1);
             }
         }));

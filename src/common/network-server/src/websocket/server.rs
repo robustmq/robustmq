@@ -31,7 +31,7 @@ use common_config::broker::broker_config;
 use futures_util::stream::StreamExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
-use protocol::robust::RobustMQPacket;
+use protocol::robust::{RobustMQPacket, RobustMQProtocol};
 use rate_limit::global::GlobalRateLimiterManager;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -50,29 +50,8 @@ pub struct WebSocketServerState {
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub node_cache: Arc<NodeCacheManager>,
     pub stop_sx: broadcast::Sender<bool>,
+    pub protocol: RobustMQProtocol,
     pub request_channel: Arc<RequestChannel>,
-}
-
-impl WebSocketServerState {
-    pub fn new(
-        ws_port: u32,
-        wss_port: u32,
-        connection_manager: Arc<ConnectionManager>,
-        node_cache: Arc<NodeCacheManager>,
-        global_limit_manager: Arc<GlobalRateLimiterManager>,
-        stop_sx: broadcast::Sender<bool>,
-        request_channel: Arc<RequestChannel>,
-    ) -> Self {
-        Self {
-            ws_port,
-            wss_port,
-            connection_manager,
-            stop_sx,
-            node_cache,
-            global_limit_manager,
-            request_channel,
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -89,7 +68,10 @@ impl WebSocketServer {
         let ip: SocketAddr = format!("0.0.0.0:{}", self.state.ws_port).parse()?;
         let app = routes_v1(self.state.clone());
 
-        info!("WebSocket Server start success. addr:{}", ip);
+        info!(
+            "{:?} WebSocket Server start success. addr:{}",
+            self.state.protocol, ip
+        );
         axum_server::bind(ip)
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .await?;
@@ -107,7 +89,10 @@ impl WebSocketServer {
         )
         .await?;
 
-        info!("WebSocket TLS Server start success. addr:{}", ip);
+        info!(
+            "{:?} WebSocket TLS Server start success. addr:{}",
+            self.state.protocol, ip
+        );
         axum_server::bind_rustls(ip, tls_config)
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .await?;

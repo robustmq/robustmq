@@ -131,7 +131,7 @@ pub async fn acceptor_process(ctx: TcpAcceptorContext) {
 
                                 // nats special logic
                                 if protocol.is_nats() {
-                                    send_nats_info(connection.connection_id, &connection_manager).await;
+                                    send_nats_info(&row_broker_cache, connection.connection_id, &connection_manager,&network_type, &addr).await;
                                 }
 
                                 // process connection

@@ -21,20 +21,12 @@ use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
-#[derive(Debug, Clone, Copy)]
-pub struct ProcessorConfig {
-    pub accept_thread_num: usize,
-    pub handler_process_num: usize,
-    pub channel_size: usize,
-}
-
 #[derive(Clone)]
 pub struct ServerContext {
     pub connection_manager: Arc<ConnectionManager>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub client_pool: Arc<ClientPool>,
     pub network_type: NetworkConnectionType,
-    pub proc_config: ProcessorConfig,
     pub broker_cache: Arc<NodeCacheManager>,
     pub stop_sx: broadcast::Sender<bool>,
     /// Shared request channel for all protocol acceptors.

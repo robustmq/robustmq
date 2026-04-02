@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct NodeExtend {
     pub mqtt: MqttNodeExtend,
+    pub nats: NatsNodeExtend,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
@@ -38,4 +39,12 @@ impl NodeExtend {
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
         serialize::deserialize(data)
     }
+}
+
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+pub struct NatsNodeExtend {
+    pub tcp_addr: String,
+    pub tls_addr: String,
+    pub ws_addr: String,
+    pub wss_addr: String,
 }

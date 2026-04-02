@@ -15,17 +15,15 @@
 use crate::server::{NatsServer, NatsServerParams};
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
-use network_server::context::ProcessorConfig;
 use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
 use tracing::{error, info};
-
-const DEFAULT_NATS_PORT: u32 = 4222;
 
 #[derive(Clone)]
 pub struct NatsBrokerServerParams {
@@ -35,7 +33,6 @@ pub struct NatsBrokerServerParams {
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub task_supervisor: Arc<TaskSupervisor>,
     pub stop_sx: broadcast::Sender<bool>,
-    pub proc_config: ProcessorConfig,
     pub request_channel: Arc<RequestChannel>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
 }
@@ -47,14 +44,18 @@ pub struct NatsBrokerServer {
 
 impl NatsBrokerServer {
     pub fn new(params: NatsBrokerServerParams) -> Self {
+        let conf = broker_config();
         let server = NatsServer::new(NatsServerParams {
+            tcp_port: conf.nats_runtime.tcp_port,
+            tls_port: conf.nats_runtime.tls_port,
+            ws_port: conf.nats_runtime.ws_port,
+            wss_port: conf.nats_runtime.wss_port,
             connection_manager: params.connection_manager,
             client_pool: params.client_pool,
             broker_cache: params.broker_cache,
             global_limit_manager: params.global_limit_manager,
             task_supervisor: params.task_supervisor,
             stop_sx: params.stop_sx.clone(),
-            proc_config: params.proc_config,
             request_channel: params.request_channel,
             storage_driver_manager: params.storage_driver_manager,
         });
@@ -65,7 +66,7 @@ impl NatsBrokerServer {
     }
 
     pub async fn start(&self) {
-        if let Err(e) = self.server.start(DEFAULT_NATS_PORT).await {
+        if let Err(e) = self.server.start().await {
             error!("NATS broker server failed to start: {}", e);
             std::process::exit(1);
         }

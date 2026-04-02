@@ -19,7 +19,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
-use network_server::context::{ProcessorConfig, ServerContext};
+use network_server::context::ServerContext;
 use network_server::tcp::server::TcpServer;
 use protocol::robust::RobustMQProtocol;
 use rate_limit::global::GlobalRateLimiterManager;
@@ -33,7 +33,6 @@ pub struct KafkaServerParams {
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub task_supervisor: Arc<TaskSupervisor>,
     pub stop_sx: broadcast::Sender<bool>,
-    pub proc_config: ProcessorConfig,
     pub request_channel: Arc<RequestChannel>,
 }
 
@@ -47,7 +46,6 @@ impl KafkaServer {
             connection_manager: params.connection_manager.clone(),
             client_pool: params.client_pool,
             network_type: NetworkConnectionType::Tcp,
-            proc_config: params.proc_config,
             stop_sx: params.stop_sx,
             broker_cache: params.broker_cache,
             request_channel: params.request_channel,

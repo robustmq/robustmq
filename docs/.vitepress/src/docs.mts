@@ -2,6 +2,6 @@ export const docsConfig = {
 
     title: "RobustMQ",
 
-    description: "Next-generation unified communication infrastructure for AI, IoT, and big data.",
+    description: "RobustMQ is a next-generation cloud-native message queue supporting MQTT, NATS, Kafka protocols with unified storage, built for AI agent communication, IoT, and big data.",
 
 };

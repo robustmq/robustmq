@@ -119,3 +119,10 @@ channels_per_address = 4
 # # For ollama, default is http://localhost:11434/v1/
 # # Useful for custom OpenAI-compatible gateways/private deployments.
 # # base_url = "https://api.openai.com/v1/"
+
+
+[nats_runtime]
+tcp_port = 4222
+tls_port = 4223
+ws_port  = 4080
+wss_port = 4443

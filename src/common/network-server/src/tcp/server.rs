@@ -19,11 +19,12 @@ use crate::{
         tcp_acceptor::{acceptor_process, TcpAcceptorContext},
         tls_acceptor::{acceptor_tls_process, TlsAcceptorContext},
     },
-    context::{ProcessorConfig, ServerContext},
+    context::ServerContext,
 };
 use broker_core::cache::NodeCacheManager;
 use common_base::error::ResultCommonError;
 use common_base::task::TaskSupervisor;
+use common_config::broker::broker_config;
 use common_metrics::network::record_broker_thread_num;
 use metadata_struct::connection::NetworkConnectionType;
 use protocol::codec::RobustMQCodec;
@@ -39,7 +40,6 @@ use tracing::{error, info};
 pub struct TcpServer {
     name: String,
     connection_manager: Arc<ConnectionManager>,
-    proc_config: ProcessorConfig,
     network_type: NetworkConnectionType,
     protocol: RobustMQProtocol,
     request_channel: Arc<RequestChannel>,
@@ -52,17 +52,12 @@ pub struct TcpServer {
 impl TcpServer {
     pub fn new(protocol: RobustMQProtocol, context: ServerContext) -> Self {
         let name = format!("{protocol:?}");
-        info!(
-            "network type:{}, process thread num: {:?}",
-            context.network_type, context.proc_config
-        );
         let (acceptor_stop_send, _) = broadcast::channel(2);
         Self {
             name,
             network_type: context.network_type,
             protocol,
             connection_manager: context.connection_manager,
-            proc_config: context.proc_config,
             request_channel: context.request_channel,
             acceptor_stop_send,
             broker_cache: context.broker_cache.clone(),
@@ -75,9 +70,10 @@ impl TcpServer {
         let listener = TcpListener::bind(format!("0.0.0.0:{port}")).await?;
         let arc_listener = Arc::new(listener);
         let codec = RobustMQCodec::new();
+        let conf = broker_config();
         if tls {
             acceptor_tls_process(TlsAcceptorContext {
-                accept_thread_num: self.proc_config.accept_thread_num,
+                accept_thread_num: conf.broker_network.accept_thread_num,
                 listener: arc_listener.clone(),
                 stop_sx: self.acceptor_stop_send.clone(),
                 network_type: self.network_type.clone(),
@@ -92,7 +88,7 @@ impl TcpServer {
             .await?;
         } else {
             acceptor_process(TcpAcceptorContext {
-                accept_thread_num: self.proc_config.accept_thread_num,
+                accept_thread_num: conf.broker_network.accept_thread_num,
                 connection_manager: self.connection_manager.clone(),
                 broker_cache: self.broker_cache.clone(),
                 stop_sx: self.acceptor_stop_send.clone(),
@@ -107,7 +103,13 @@ impl TcpServer {
             .await;
         }
 
-        self.record_pre_server_metrics();
+        record_broker_thread_num(
+            &self.network_type,
+            (
+                conf.broker_network.accept_thread_num,
+                conf.broker_network.handler_thread_num,
+            ),
+        );
         info!(
             "{} {} Server started successfully, listening port: {port}",
             self.name, self.network_type
@@ -137,18 +139,5 @@ impl TcpServer {
             );
             sleep(Duration::from_secs(1)).await;
         }
-    }
-
-    // Record the metrics before the service starts,
-    // which usually happens when you need to record the static metrics of the server
-    fn record_pre_server_metrics(&self) {
-        // number of execution threads of the server
-        record_broker_thread_num(
-            &self.network_type,
-            (
-                self.proc_config.accept_thread_num,
-                self.proc_config.handler_process_num,
-            ),
-        );
     }
 }
