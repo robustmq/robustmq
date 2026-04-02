@@ -82,7 +82,7 @@ fn build_nats_info(
         client_ip: Some(addr.ip().to_string()),
         nonce: None,
         cluster: Some(conf.cluster_name.clone()),
-        cluster_dynamic: None,
+        cluster_dynamic: Some(true),
         connect_urls: Some(get_connect_urls(node_cache, network_type)),
         ws_connect_urls: Some(get_ws_connect_urls(node_cache, network_type)),
         ldm: Some(false),
