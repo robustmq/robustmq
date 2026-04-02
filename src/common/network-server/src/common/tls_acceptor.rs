@@ -137,14 +137,14 @@ pub async fn acceptor_tls_process(ctx: TlsAcceptorContext) -> ResultCommonError 
                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                 let connection = NetworkConnection::new(
                                     NetworkConnectionType::Tls,
-                                    addr,
+                                    addr.clone(),
                                     Some(connection_stop_sx.clone())
                                 );
                                 connection_manager.add_connection(connection.clone());
                                 connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
 
                                 if protocol.is_nats() {
-                                    send_nats_info(connection.connection_id, &connection_manager).await;
+                                    send_nats_info(&row_broker_cache, connection.connection_id, &connection_manager,&network_type, &addr).await;
                                 }
 
                                 read_tls_frame_process(row_broker_cache.clone(), connection_manager.clone(),read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone());

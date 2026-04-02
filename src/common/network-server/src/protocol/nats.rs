@@ -13,22 +13,41 @@
 // limitations under the License.
 
 use crate::common::connection_manager::ConnectionManager;
+use broker_core::cache::NodeCacheManager;
+use common_base::tools::get_local_ip;
+use common_base::version::version;
+use common_config::broker::broker_config;
+use common_config::config::BrokerConfig;
+use metadata_struct::connection::NetworkConnectionType;
 use protocol::nats::packet::{NatsPacket, ServerInfo};
 use protocol::robust::{
     NatsWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol,
     RobustMQWrapperExtend,
 };
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::error;
 
 /// Send INFO to the client immediately after a NATS connection is established.
 /// Also marks the connection's protocol as NATS so the handler can route responses.
-pub async fn send_nats_info(connection_id: u64, connection_manager: &Arc<ConnectionManager>) {
+pub async fn send_nats_info(
+    node_cache: &Arc<NodeCacheManager>,
+    connection_id: u64,
+    connection_manager: &Arc<ConnectionManager>,
+    network_type: &NetworkConnectionType,
+    addr: &SocketAddr,
+) {
     let wrapper = RobustMQPacketWrapper {
         protocol: RobustMQProtocol::NATS,
         extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
-        packet: RobustMQPacket::NATS(build_nats_info()),
+        packet: RobustMQPacket::NATS(build_nats_info(
+            node_cache,
+            connection_id,
+            network_type,
+            addr,
+        )),
     };
+
     if let Err(e) = connection_manager
         .write_tcp_frame(connection_id, wrapper)
         .await
@@ -37,34 +56,104 @@ pub async fn send_nats_info(connection_id: u64, connection_manager: &Arc<Connect
     }
 }
 
-/// Build the INFO packet sent to a NATS client immediately after connection.
-/// Fields are hardcoded for now.
-pub fn build_nats_info() -> NatsPacket {
+fn build_nats_info(
+    node_cache: &Arc<NodeCacheManager>,
+    connection_id: u64,
+    network_type: &NetworkConnectionType,
+    addr: &SocketAddr,
+) -> NatsPacket {
+    let conf = broker_config();
+    let local_ip = conf.broker_ip.clone().unwrap_or_else(get_local_ip);
     NatsPacket::Info(ServerInfo {
-        server_id: "robustmq".to_string(),
-        server_name: "robustmq".to_string(),
-        version: "0.0.1".to_string(),
+        server_id: conf.broker_id.to_string(),
+        server_name: format!("server-{}", conf.broker_id),
+        version: version(),
         proto: 1,
-        host: "0.0.0.0".to_string(),
-        port: 4222,
+        host: local_ip,
+        port: get_port_by_network_type(conf, network_type) as u16,
         headers: true,
         auth_required: false,
         tls_required: false,
         tls_verify: false,
         tls_available: false,
-        max_payload: 1024 * 1024,
+        max_payload: conf.nats_runtime.max_payload,
         jetstream: false,
-        client_id: None,
-        client_ip: None,
+        client_id: Some(connection_id),
+        client_ip: Some(addr.ip().to_string()),
         nonce: None,
-        cluster: None,
+        cluster: Some(conf.cluster_name.clone()),
         cluster_dynamic: None,
-        connect_urls: None,
-        ws_connect_urls: None,
-        ldm: None,
-        git_commit: None,
-        go: None,
-        domain: None,
+        connect_urls: Some(get_connect_urls(node_cache, network_type)),
+        ws_connect_urls: Some(get_ws_connect_urls(node_cache, network_type)),
+        ldm: Some(false),
+        git_commit: Some("-".to_string()),
+        go: Some("robustmq-rust".to_string()),
+        domain: Some("-".to_string()),
         xkey: None,
     })
+}
+
+fn get_port_by_network_type(conf: &BrokerConfig, network_type: &NetworkConnectionType) -> u32 {
+    match network_type.clone() {
+        NetworkConnectionType::QUIC => 0,
+        NetworkConnectionType::Tls => conf.nats_runtime.tcp_port,
+        NetworkConnectionType::Tcp => conf.nats_runtime.tls_port,
+        NetworkConnectionType::WebSocket => conf.nats_runtime.ws_port,
+        NetworkConnectionType::WebSockets => conf.nats_runtime.wss_port,
+    }
+}
+
+fn get_connect_urls(
+    node_cache: &Arc<NodeCacheManager>,
+    network_type: &NetworkConnectionType,
+) -> Vec<String> {
+    let is_ssl = network_type.clone() == NetworkConnectionType::Tls
+        || network_type.clone() == NetworkConnectionType::WebSockets;
+    if is_ssl {
+        build_network_connect_urls(node_cache, &NetworkConnectionType::Tls)
+    } else {
+        build_network_connect_urls(node_cache, &NetworkConnectionType::Tcp)
+    }
+}
+
+fn get_ws_connect_urls(
+    node_cache: &Arc<NodeCacheManager>,
+    network_type: &NetworkConnectionType,
+) -> Vec<String> {
+    let is_ssl = network_type.clone() == NetworkConnectionType::Tls
+        || network_type.clone() == NetworkConnectionType::WebSockets;
+    if is_ssl {
+        build_network_connect_urls(node_cache, &NetworkConnectionType::WebSocket)
+    } else {
+        build_network_connect_urls(node_cache, &NetworkConnectionType::WebSockets)
+    }
+}
+
+fn build_network_connect_urls(
+    node_cache: &Arc<NodeCacheManager>,
+    network_type: &NetworkConnectionType,
+) -> Vec<String> {
+    match network_type {
+        NetworkConnectionType::QUIC => Vec::new(),
+        NetworkConnectionType::Tls => node_cache
+            .node_list()
+            .iter()
+            .map(|data| data.extend.nats.tls_addr.clone())
+            .collect(),
+        NetworkConnectionType::Tcp => node_cache
+            .node_list()
+            .iter()
+            .map(|data| data.extend.nats.tcp_addr.clone())
+            .collect(),
+        NetworkConnectionType::WebSocket => node_cache
+            .node_list()
+            .iter()
+            .map(|data| data.extend.nats.ws_addr.clone())
+            .collect(),
+        NetworkConnectionType::WebSockets => node_cache
+            .node_list()
+            .iter()
+            .map(|data| data.extend.nats.wss_addr.clone())
+            .collect(),
+    }
 }

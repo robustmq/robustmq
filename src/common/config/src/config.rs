@@ -753,6 +753,10 @@ fn default_nats_wss_port() -> u32 {
     4443
 }
 
+fn default_nats_max_payload() -> u64 {
+    1024 * 1024 // 1 MB
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct NatsRuntime {
     #[serde(default = "default_nats_tcp_port")]
@@ -763,6 +767,8 @@ pub struct NatsRuntime {
     pub ws_port: u32,
     #[serde(default = "default_nats_wss_port")]
     pub wss_port: u32,
+    #[serde(default = "default_nats_max_payload")]
+    pub max_payload: u64,
 }
 
 impl Default for NatsRuntime {
@@ -772,6 +778,7 @@ impl Default for NatsRuntime {
             tls_port: default_nats_tls_port(),
             ws_port: default_nats_ws_port(),
             wss_port: default_nats_wss_port(),
+            max_payload: default_nats_max_payload(),
         }
     }
 }
