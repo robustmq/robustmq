@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use bytes::Bytes;
+use mq9_core::subject::Mq9Subject;
 use protocol::nats::packet::NatsPacket;
 
 /// Handle a PUB packet from the client.
@@ -22,10 +23,9 @@ use protocol::nats::packet::NatsPacket;
 /// - Look up all active subscriptions matching the subject (including wildcard)
 /// - Fan-out: deliver MSG to each matching subscriber connection
 /// - If reply_to is set, include it in the delivered MSG
-pub fn process_pub(
-    _subject: &str,
-    _reply_to: Option<&str>,
-    _payload: &Bytes,
-) -> Option<NatsPacket> {
+pub fn process_pub(subject: &str, _reply_to: Option<&str>, _payload: &Bytes) -> Option<NatsPacket> {
+    if Mq9Subject::is_mq9_subject(subject) {
+        //todo
+    }
     None
 }

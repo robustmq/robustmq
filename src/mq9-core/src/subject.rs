@@ -52,6 +52,10 @@ pub enum Mq9Subject {
 }
 
 impl Mq9Subject {
+    pub fn is_mq9_subject(subject: &str) -> bool {
+        Self::from_subject(subject).is_some()
+    }
+
     pub fn to_subject(&self) -> String {
         match self {
             Mq9Subject::MailboxCreate => "MAILBOX.CREATE".to_string(),
