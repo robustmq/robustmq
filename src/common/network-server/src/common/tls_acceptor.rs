@@ -137,7 +137,7 @@ pub async fn acceptor_tls_process(ctx: TlsAcceptorContext) -> ResultCommonError 
                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                 let connection = NetworkConnection::new(
                                     NetworkConnectionType::Tls,
-                                    addr.clone(),
+                                    addr,
                                     Some(connection_stop_sx.clone())
                                 );
                                 connection_manager.add_connection(connection.clone());
