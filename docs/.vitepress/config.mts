@@ -90,14 +90,39 @@ export default defineConfig({
 
     /* 语言配置 */
 
-    // Auto-apply blog post layout to all Blogs/*.md pages
+    // Sitemap
+    sitemap: {
+        hostname: 'https://robustmq.com',
+    },
+
+    // Auto-apply blog post layout + SEO meta for all pages
     transformPageData(pageData) {
+        // 博客页 layout 处理
         if (pageData.relativePath.match(/^(zh|en)\/Blogs\/(?!index)\d+\.md$/)) {
             pageData.frontmatter.layout    = pageData.frontmatter.layout    ?? 'doc'
             pageData.frontmatter.sidebar   = false
             pageData.frontmatter.aside     = false
             pageData.frontmatter.pageClass = 'blog-post-page'
         }
+
+        // 动态注入 og:title / og:description / canonical
+        const siteUrl = 'https://robustmq.com'
+        const title = pageData.title
+            ? `${pageData.title} | RobustMQ`
+            : 'RobustMQ — Next-generation unified messaging infrastructure'
+        const description = pageData.frontmatter.description
+            || pageData.description
+            || 'RobustMQ is a next-generation cloud-native message queue supporting MQTT, NATS, Kafka protocols with unified storage, built for AI, IoT, and big data.'
+
+        pageData.frontmatter.head = pageData.frontmatter.head ?? []
+        pageData.frontmatter.head.push(
+            ['meta', { property: 'og:title', content: title }],
+            ['meta', { property: 'og:description', content: description }],
+            ['meta', { property: 'og:url', content: `${siteUrl}/${pageData.relativePath.replace(/\.md$/, '')}` }],
+            ['meta', { name: 'twitter:title', content: title }],
+            ['meta', { name: 'twitter:description', content: description }],
+            ['link', { rel: 'canonical', href: `${siteUrl}/${pageData.relativePath.replace(/\.md$/, '')}` }],
+        )
     },
 
 });
