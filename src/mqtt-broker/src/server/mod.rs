@@ -30,7 +30,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
-use network_server::context::{ProcessorConfig, ServerContext};
+use network_server::context::ServerContext;
 use network_server::quic::server::QuicServer;
 use network_server::tcp::server::TcpServer;
 use network_server::websocket::server::{WebSocketServer, WebSocketServerState};
@@ -102,18 +102,10 @@ impl Server {
         };
 
         let command = create_command(command_context);
-
-        let proc_config = ProcessorConfig {
-            accept_thread_num: conf.mqtt_runtime.network.accept_thread_num,
-            handler_process_num: conf.mqtt_runtime.network.handler_thread_num,
-            channel_size: conf.mqtt_runtime.network.queue_size,
-        };
-
         let mut server_context = ServerContext {
             connection_manager: context.connection_manager.clone(),
             client_pool: context.client_pool.clone(),
             network_type: NetworkConnectionType::Tcp,
-            proc_config,
             stop_sx: context.stop_sx.clone(),
             broker_cache: context.broker_cache.clone(),
             request_channel: request_channel.clone(),

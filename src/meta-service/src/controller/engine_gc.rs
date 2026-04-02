@@ -39,7 +39,7 @@ pub async fn start_engine_delete_gc_thread(
         if let Err(e) = gc_segment(&raft_manager, &node_call_manager, &cache_manager).await {
             return Err(CommonError::CommonError(e.to_string()));
         }
-        
+
         Ok(())
     };
     loop_select_ticket(ac_fn, 10000, &stop_send).await;

@@ -18,7 +18,6 @@ use common_base::task::TaskSupervisor;
 use grpc_clients::pool::ClientPool;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
-use network_server::context::ProcessorConfig;
 use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -35,7 +34,6 @@ pub struct NatsBrokerServerParams {
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub task_supervisor: Arc<TaskSupervisor>,
     pub stop_sx: broadcast::Sender<bool>,
-    pub proc_config: ProcessorConfig,
     pub request_channel: Arc<RequestChannel>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
 }
@@ -54,7 +52,6 @@ impl NatsBrokerServer {
             global_limit_manager: params.global_limit_manager,
             task_supervisor: params.task_supervisor,
             stop_sx: params.stop_sx.clone(),
-            proc_config: params.proc_config,
             request_channel: params.request_channel,
             storage_driver_manager: params.storage_driver_manager,
         });

@@ -13,14 +13,13 @@
 // limitations under the License.
 
 use super::default::{
-    default_accept_thread_num, default_amqp_runtime, default_broker_id, default_broker_ip,
-    default_channels_per_address, default_cluster_name, default_delay_task,
-    default_delay_task_handler_concurrency, default_delay_task_queue_num, default_engine_runtime,
-    default_flapping_ban_time, default_flapping_max_connections, default_flapping_window_time,
-    default_grpc_port, default_handler_thread_num, default_heartbeat_check_time_ms,
-    default_heartbeat_timeout_ms, default_http_port, default_kafka_runtime,
-    default_keep_alive_default_time, default_keep_alive_default_timeout, default_keep_alive_enable,
-    default_keep_alive_max_time, default_limit_max_connection_rate,
+    default_accept_thread_num, default_broker_id, default_broker_ip, default_channels_per_address,
+    default_cluster_name, default_delay_task, default_delay_task_handler_concurrency,
+    default_delay_task_queue_num, default_engine_runtime, default_flapping_ban_time,
+    default_flapping_max_connections, default_flapping_window_time, default_grpc_port,
+    default_handler_thread_num, default_heartbeat_check_time_ms, default_heartbeat_timeout_ms,
+    default_http_port, default_keep_alive_default_time, default_keep_alive_default_timeout,
+    default_keep_alive_enable, default_keep_alive_max_time, default_limit_max_connection_rate,
     default_limit_max_connections_per_node, default_limit_max_publish_rate,
     default_limit_max_sessions, default_limit_max_topics, default_max_admin_http_uri_rate,
     default_max_message_expiry_interval, default_max_network_connection,
@@ -32,13 +31,13 @@ use super::default::{
     default_mqtt_runtime_user, default_mqtt_schema, default_mqtt_server,
     default_mqtt_slow_subscribe, default_mqtt_system_monitor, default_mqtt_tcp_port,
     default_mqtt_tls_port, default_mqtt_websocket_port, default_mqtt_websockets_port,
-    default_nats_runtime, default_network, default_offline_message_enable,
-    default_offline_message_expire_ms, default_offline_message_max_num, default_pprof_frequency,
-    default_pprof_port, default_queue_size, default_raft_write_timeout_sec, default_receive_max,
-    default_rocksdb, default_rocksdb_data_path, default_rocksdb_max_open_files, default_roles,
-    default_runtime, default_runtime_worker_threads, default_schema_echo_log,
-    default_schema_enable, default_schema_failed_operation, default_schema_log_level,
-    default_schema_strategy, default_session_expiry_interval, default_slow_subscribe_delay_type,
+    default_network, default_offline_message_enable, default_offline_message_expire_ms,
+    default_offline_message_max_num, default_pprof_frequency, default_pprof_port,
+    default_queue_size, default_raft_write_timeout_sec, default_receive_max, default_rocksdb,
+    default_rocksdb_data_path, default_rocksdb_max_open_files, default_roles, default_runtime,
+    default_runtime_worker_threads, default_schema_echo_log, default_schema_enable,
+    default_schema_failed_operation, default_schema_log_level, default_schema_strategy,
+    default_session_expiry_interval, default_slow_subscribe_delay_type,
     default_slow_subscribe_record_time, default_storage_io_thread_num,
     default_storage_max_segment_size, default_storage_offset_enable_cache,
     default_storage_tcp_port, default_system_monitor_cpu_watermark,
@@ -193,15 +192,12 @@ pub struct BrokerConfig {
     pub mqtt_limit: MQTTLimit,
 
     // Kafka
-    #[serde(default = "default_kafka_runtime")]
     pub kafka_runtime: KafkaRuntime,
 
     // AMQP
-    #[serde(default = "default_amqp_runtime")]
     pub amqp_runtime: AmqpRuntime,
 
     // NATS
-    #[serde(default = "default_nats_runtime")]
     pub nats_runtime: NatsRuntime,
 
     // Shared broker network config (handler pool + request channel)
@@ -248,13 +244,13 @@ impl Default for BrokerConfig {
             mqtt_limit: MQTTLimit::default(),
 
             // Kafka
-            kafka_runtime: default_kafka_runtime(),
+            kafka_runtime: KafkaRuntime::default(),
 
             // AMQP
-            amqp_runtime: default_amqp_runtime(),
+            amqp_runtime: AmqpRuntime::default(),
 
             // NATS
-            nats_runtime: default_nats_runtime(),
+            nats_runtime: NatsRuntime::default(),
 
             // Shared broker network config
             broker_network: default_network(),
@@ -732,38 +728,11 @@ impl Default for StorageRuntime {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct KafkaRuntime {
-    #[serde(default = "default_network")]
-    pub network: Network,
-}
+#[derive(Default, Debug, Deserialize, Serialize, Clone)]
+pub struct KafkaRuntime {}
 
-impl Default for KafkaRuntime {
-    fn default() -> Self {
-        default_kafka_runtime()
-    }
-}
+#[derive(Default, Debug, Deserialize, Serialize, Clone)]
+pub struct AmqpRuntime {}
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct AmqpRuntime {
-    #[serde(default = "default_network")]
-    pub network: Network,
-}
-
-impl Default for AmqpRuntime {
-    fn default() -> Self {
-        default_amqp_runtime()
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct NatsRuntime {
-    #[serde(default = "default_network")]
-    pub network: Network,
-}
-
-impl Default for NatsRuntime {
-    fn default() -> Self {
-        default_nats_runtime()
-    }
-}
+#[derive(Default, Debug, Deserialize, Serialize, Clone)]
+pub struct NatsRuntime {}

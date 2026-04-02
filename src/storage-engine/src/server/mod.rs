@@ -27,7 +27,7 @@ use network_server::{
     common::{
         channel::RequestChannel, connection_manager::ConnectionManager, handler::handler_process,
     },
-    context::{ProcessorConfig, ServerContext},
+    context::ServerContext,
     tcp::server::TcpServer,
 };
 use protocol::robust::RobustMQProtocol;
@@ -81,19 +81,12 @@ impl Server {
             ..Default::default()
         };
 
-        let proc_config = ProcessorConfig {
-            accept_thread_num: conf.storage_runtime.network.accept_thread_num,
-            handler_process_num: conf.storage_runtime.network.handler_thread_num,
-            channel_size: conf.storage_runtime.network.queue_size,
-        };
-
-        let request_channel = Arc::new(RequestChannel::new(proc_config.channel_size));
+        let request_channel = Arc::new(RequestChannel::new(conf.broker_network.queue_size));
 
         let context: ServerContext = ServerContext {
             connection_manager: params.connection_manager.clone(),
             client_pool: params.client_pool.clone(),
             network_type: NetworkConnectionType::Tcp,
-            proc_config,
             stop_sx: stop_sx.clone(),
             broker_cache: params.broker_cache.clone(),
             request_channel: request_channel.clone(),
@@ -104,7 +97,7 @@ impl Server {
         let tcp_server = TcpServer::new(RobustMQProtocol::StorageEngine, context);
         Server {
             tcp_server,
-            handler_process_num: proc_config.handler_process_num,
+            handler_process_num: conf.broker_network.handler_thread_num,
             connection_manager: params.connection_manager,
             commands,
             request_channel,
