@@ -51,5 +51,14 @@ watch(isDark, updateTheme)
 <template>
   <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--vp-c-divider);">
     <div id="giscus-container" />
+    <div style="margin-top: 24px; padding: 16px 20px; border-radius: 8px; background: var(--vp-c-bg-soft); text-align: center; font-size: 14px; color: var(--vp-c-text-2);">
+      🎉 既然都登录了 GitHub，不如顺手给我们点个 Star 吧！⭐ 你的支持是我们最大的动力 🚀
+      <a
+        href="https://github.com/robustmq/robustmq"
+        target="_blank"
+        rel="noopener noreferrer"
+        style="margin-left: 10px; display: inline-flex; align-items: center; gap: 5px; padding: 5px 14px; border-radius: 6px; background: var(--vp-c-brand-1); color: #fff; font-weight: 600; text-decoration: none; font-size: 13px;"
+      >⭐ Star on GitHub</a>
+    </div>
   </div>
 </template>
