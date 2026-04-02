@@ -4962,6 +4962,7 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
+ "dashmap 6.1.0",
  "grpc-clients",
  "metadata-struct",
  "network-server",

@@ -757,6 +757,10 @@ fn default_nats_max_payload() -> u64 {
     1024 * 1024 // 1 MB
 }
 
+fn default_nats_auth_required() -> bool {
+    false
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct NatsRuntime {
     #[serde(default = "default_nats_tcp_port")]
@@ -769,6 +773,8 @@ pub struct NatsRuntime {
     pub wss_port: u32,
     #[serde(default = "default_nats_max_payload")]
     pub max_payload: u64,
+    #[serde(default = "default_nats_auth_required")]
+    pub auth_required: bool,
 }
 
 impl Default for NatsRuntime {
@@ -779,6 +785,7 @@ impl Default for NatsRuntime {
             ws_port: default_nats_ws_port(),
             wss_port: default_nats_wss_port(),
             max_payload: default_nats_max_payload(),
+            auth_required: default_nats_auth_required(),
         }
     }
 }

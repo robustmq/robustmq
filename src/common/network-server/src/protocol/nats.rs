@@ -15,6 +15,7 @@
 use crate::common::connection_manager::ConnectionManager;
 use broker_core::cache::NodeCacheManager;
 use common_base::tools::get_local_ip;
+use common_base::uuid::unique_id;
 use common_base::version::version;
 use common_config::broker::broker_config;
 use common_config::config::BrokerConfig;
@@ -72,17 +73,18 @@ fn build_nats_info(
         host: local_ip,
         port: get_port_by_network_type(conf, network_type) as u16,
         headers: true,
-        auth_required: false,
+        auth_required: conf.nats_runtime.auth_required,
         tls_required: false,
         tls_verify: false,
-        tls_available: false,
+        tls_available: matches!(
+            network_type,
+            NetworkConnectionType::Tcp | NetworkConnectionType::WebSocket
+        ),
         max_payload: conf.nats_runtime.max_payload,
         jetstream: false,
         client_id: Some(connection_id),
         client_ip: Some(addr.ip().to_string()),
-        client_id: Some(connection_id),
-        client_ip: Some(addr.ip().to_string()),
-        nonce: None,
+        nonce: Some(unique_id()),
         cluster: Some(conf.cluster_name.clone()),
         cluster_dynamic: Some(true),
         connect_urls: Some(get_connect_urls(node_cache, network_type)),
@@ -98,8 +100,8 @@ fn build_nats_info(
 fn get_port_by_network_type(conf: &BrokerConfig, network_type: &NetworkConnectionType) -> u32 {
     match network_type.clone() {
         NetworkConnectionType::QUIC => 0,
-        NetworkConnectionType::Tls => conf.nats_runtime.tcp_port,
-        NetworkConnectionType::Tcp => conf.nats_runtime.tls_port,
+        NetworkConnectionType::Tcp => conf.nats_runtime.tcp_port,
+        NetworkConnectionType::Tls => conf.nats_runtime.tls_port,
         NetworkConnectionType::WebSocket => conf.nats_runtime.ws_port,
         NetworkConnectionType::WebSockets => conf.nats_runtime.wss_port,
     }

@@ -32,4 +32,5 @@ common-config.workspace = true
 tokio.workspace = true
 bytes.workspace = true
 tracing.workspace = true
+dashmap.workspace = true
 storage-adapter.workspace = true
