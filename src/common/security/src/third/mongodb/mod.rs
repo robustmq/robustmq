@@ -12,28 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::str::FromStr;
-
-use crate::core::error::MqttBrokerError;
-use crate::security::AuthStorageAdapter;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use futures::TryStreamExt;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::auth::acl::SecurityAcl;
+use metadata_struct::auth::blacklist::SecurityBlackList;
+use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::mqtt::auth::storage::MongoDBConfig;
-use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use mongodb::bson::{Bson, Document};
 use mongodb::options::ClientOptions;
 use mongodb::{Client, Collection};
+use std::str::FromStr;
 use tracing::warn;
+
+use crate::third::storage_trait::AuthStorageAdapter;
 
 pub struct MongoDBAuthStorageAdapter {
     config: MongoDBConfig,
@@ -44,10 +44,10 @@ impl MongoDBAuthStorageAdapter {
         Self { config }
     }
 
-    async fn collection(&self, name: &str) -> Result<Collection<Document>, MqttBrokerError> {
+    async fn collection(&self, name: &str) -> Result<Collection<Document>, CommonError> {
         let mut options = ClientOptions::parse(&self.config.mongodb_uri)
             .await
-            .map_err(|e| MqttBrokerError::MongoDBError(e.to_string()))?;
+            .map_err(|e| CommonError::MongoDBError(e.to_string()))?;
 
         if !self.config.username.trim().is_empty() {
             options.credential = Some(
@@ -58,17 +58,17 @@ impl MongoDBAuthStorageAdapter {
             );
         }
 
-        let client = Client::with_options(options)
-            .map_err(|e| MqttBrokerError::MongoDBError(e.to_string()))?;
+        let client =
+            Client::with_options(options).map_err(|e| CommonError::MongoDBError(e.to_string()))?;
         Ok(client.database(&self.config.database).collection(name))
     }
 
-    fn parse_filter(query: &str) -> Result<Document, MqttBrokerError> {
+    fn parse_filter(query: &str) -> Result<Document, CommonError> {
         if query.trim().is_empty() {
             return Ok(Document::new());
         }
         serde_json::from_str::<Document>(query)
-            .map_err(|e| MqttBrokerError::BsonSerializationError(e.to_string()))
+            .map_err(|e| CommonError::BsonSerializationError(e.to_string()))
     }
 
     fn parse_created_to_seconds(v: Option<&Bson>) -> u64 {
@@ -99,18 +99,18 @@ impl MongoDBAuthStorageAdapter {
         }
     }
 
-    fn parse_permission(v: Option<&Bson>) -> Result<MqttAclPermission, MqttBrokerError> {
+    fn parse_permission(v: Option<&Bson>) -> Result<MqttAclPermission, CommonError> {
         match v {
             Some(Bson::Int32(0)) | Some(Bson::Int64(0)) => Ok(MqttAclPermission::Deny),
             Some(Bson::Int32(1)) | Some(Bson::Int64(1)) => Ok(MqttAclPermission::Allow),
             Some(Bson::String(s)) => {
-                MqttAclPermission::from_str(s).map_err(|_| MqttBrokerError::InvalidAclPermission)
+                MqttAclPermission::from_str(s).map_err(|_| CommonError::InvalidAclPermission)
             }
-            _ => Err(MqttBrokerError::InvalidAclPermission),
+            _ => Err(CommonError::InvalidAclPermission),
         }
     }
 
-    fn parse_action(v: Option<&Bson>) -> Result<MqttAclAction, MqttBrokerError> {
+    fn parse_action(v: Option<&Bson>) -> Result<MqttAclAction, CommonError> {
         match v {
             Some(Bson::Int32(0)) | Some(Bson::Int64(0)) => Ok(MqttAclAction::All),
             Some(Bson::Int32(1)) | Some(Bson::Int64(1)) => Ok(MqttAclAction::Subscribe),
@@ -128,9 +128,9 @@ impl MongoDBAuthStorageAdapter {
                     "qos" => "Qos",
                     _ => s,
                 };
-                MqttAclAction::from_str(normalized).map_err(|_| MqttBrokerError::InvalidAclAction)
+                MqttAclAction::from_str(normalized).map_err(|_| CommonError::InvalidAclAction)
             }
-            _ => Err(MqttBrokerError::InvalidAclAction),
+            _ => Err(CommonError::InvalidAclAction),
         }
     }
 
@@ -150,7 +150,7 @@ impl MongoDBAuthStorageAdapter {
         Vec::new()
     }
 
-    fn parse_blacklist_type(v: Option<&Bson>) -> Result<String, MqttBrokerError> {
+    fn parse_blacklist_type(v: Option<&Bson>) -> Result<String, CommonError> {
         match v {
             Some(Bson::String(s)) => {
                 let normalized = match s.to_ascii_lowercase().as_str() {
@@ -164,7 +164,7 @@ impl MongoDBAuthStorageAdapter {
                 };
                 Ok(normalized.to_string())
             }
-            _ => Err(MqttBrokerError::CommonError(
+            _ => Err(CommonError::CommonError(
                 "missing or invalid blacklist_type".to_string(),
             )),
         }
@@ -173,19 +173,19 @@ impl MongoDBAuthStorageAdapter {
 
 #[async_trait]
 impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
+    async fn read_all_user(&self) -> Result<DashMap<String, SecurityUser>, CommonError> {
         let collection = self.collection(&self.config.collection_user).await?;
         let filter = Self::parse_filter(&self.config.query_user)?;
         let mut cursor = collection
             .find(filter, None)
             .await
-            .map_err(|e| MqttBrokerError::MongoDBError(e.to_string()))?;
+            .map_err(|e| CommonError::MongoDBError(e.to_string()))?;
 
         let results = DashMap::new();
         while let Some(doc) = cursor
             .try_next()
             .await
-            .map_err(|e| MqttBrokerError::MongoDBError(e.to_string()))?
+            .map_err(|e| CommonError::MongoDBError(e.to_string()))?
         {
             let Some(Bson::String(username)) = doc.get("username") else {
                 warn!("MongoDB user record missing username, skip");
@@ -196,7 +196,7 @@ impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
                 continue;
             };
 
-            let user = MqttUser {
+            let user = SecurityUser {
                 tenant: DEFAULT_TENANT.to_string(),
                 username: username.clone(),
                 password: password.clone(),
@@ -210,19 +210,19 @@ impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
         Ok(results)
     }
 
-    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
+    async fn read_all_acl(&self) -> Result<Vec<SecurityAcl>, CommonError> {
         let collection = self.collection(&self.config.collection_acl).await?;
         let filter = Self::parse_filter(&self.config.query_acl)?;
         let mut cursor = collection
             .find(filter, None)
             .await
-            .map_err(|e| MqttBrokerError::MongoDBError(e.to_string()))?;
+            .map_err(|e| CommonError::MongoDBError(e.to_string()))?;
 
         let mut results = Vec::new();
         while let Some(doc) = cursor
             .try_next()
             .await
-            .map_err(|e| MqttBrokerError::MongoDBError(e.to_string()))?
+            .map_err(|e| CommonError::MongoDBError(e.to_string()))?
         {
             let username = doc.get_str("username").unwrap_or_default().to_string();
             let clientid = doc.get_str("clientid").unwrap_or_default().to_string();
@@ -266,7 +266,7 @@ impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
             let desc = doc.get_str("desc").unwrap_or_default().to_string();
 
             for topic in topics {
-                results.push(MqttAcl {
+                results.push(SecurityAcl {
                     name: name.clone(),
                     desc: desc.clone(),
                     tenant: DEFAULT_TENANT.to_string(),
@@ -282,19 +282,19 @@ impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
         Ok(results)
     }
 
-    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
+    async fn read_all_blacklist(&self) -> Result<Vec<SecurityBlackList>, CommonError> {
         let collection = self.collection(&self.config.collection_blacklist).await?;
         let filter = Self::parse_filter(&self.config.query_blacklist)?;
         let mut cursor = collection
             .find(filter, None)
             .await
-            .map_err(|e| MqttBrokerError::MongoDBError(e.to_string()))?;
+            .map_err(|e| CommonError::MongoDBError(e.to_string()))?;
 
         let mut results = Vec::new();
         while let Some(doc) = cursor
             .try_next()
             .await
-            .map_err(|e| MqttBrokerError::MongoDBError(e.to_string()))?
+            .map_err(|e| CommonError::MongoDBError(e.to_string()))?
         {
             let blacklist_type = match Self::parse_blacklist_type(doc.get("blacklist_type")) {
                 Ok(v) => v,
@@ -317,7 +317,7 @@ impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
             let desc = doc.get_str("desc").unwrap_or_default().to_string();
 
             let name = doc.get_str("name").unwrap_or_default().to_string();
-            let blacklist = MqttAclBlackList {
+            let blacklist = SecurityBlackList {
                 name,
                 tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: get_blacklist_type_by_str(&blacklist_type)?,

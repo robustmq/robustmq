@@ -133,7 +133,7 @@ impl MqttService {
         }
         // auth check
         if self
-            .auth_driver
+            .security_manager
             .connect_check(
                 &connection.client_id,
                 &context.addr.to_string(),
@@ -150,7 +150,7 @@ impl MqttService {
         }
         // login check
         match self
-            .auth_driver
+            .security_manager
             .login_check(&context.login, &context.connect_properties)
             .await
         {

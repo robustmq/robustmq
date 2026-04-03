@@ -12,18 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::MqttBrokerError;
 use async_trait::async_trait;
+use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::auth::{acl::SecurityAcl, blacklist::SecurityBlackList, user::SecurityUser};
 
 #[async_trait]
 pub trait AuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError>;
+    async fn read_all_user(&self) -> Result<DashMap<String, SecurityUser>, CommonError>;
 
-    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError>;
+    async fn read_all_acl(&self) -> Result<Vec<SecurityAcl>, CommonError>;
 
-    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError>;
+    async fn read_all_blacklist(&self) -> Result<Vec<SecurityBlackList>, CommonError>;
 }

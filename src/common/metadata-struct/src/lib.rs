@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-pub mod acl;
+pub mod auth;
 pub mod adapter;
 pub mod connection;
 pub mod connector;

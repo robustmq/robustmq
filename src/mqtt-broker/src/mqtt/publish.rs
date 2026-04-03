@@ -157,7 +157,7 @@ impl MqttService {
             None
         };
 
-        self.auth_driver
+        self.security_manager
             .publish_acl_check(connection, &topic_name, publish.retain, publish.qos)
             .await?;
 

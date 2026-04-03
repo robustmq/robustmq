@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::MqttBrokerError;
-use crate::security::storage::storage_trait::AuthStorageAdapter;
+use common_base::error::common::CommonError;
 use metadata_struct::mqtt::auth::storage::StorageConfig;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -29,11 +28,13 @@ pub mod storage_type;
 pub mod sync;
 pub use storage_type::AuthDataStorageType;
 
+use crate::third::storage_trait::AuthStorageAdapter;
+
 pub fn build_storage_driver(
     storage_config: &StorageConfig,
-) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, MqttBrokerError> {
+) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, CommonError> {
     let storage_type = AuthDataStorageType::from_str(&storage_config.storage_type)
-        .map_err(|_| MqttBrokerError::UnavailableStorageType)?;
+        .map_err(|_| CommonError::UnavailableStorageType)?;
 
     match storage_type {
         AuthDataStorageType::Meta => {
@@ -45,7 +46,7 @@ pub fn build_storage_driver(
                 let driver = mysql::MySQLAuthStorageAdapter::new(mysql_config.clone())?;
                 Ok(Arc::new(driver))
             } else {
-                Err(MqttBrokerError::CommonError(
+                Err(CommonError::CommonError(
                     "Mysql config not found".to_string(),
                 ))
             }
@@ -56,7 +57,7 @@ pub fn build_storage_driver(
                     postgresql::PostgresqlAuthStorageAdapter::new(postgres_config.clone())?;
                 Ok(Arc::new(driver))
             } else {
-                Err(MqttBrokerError::CommonError(
+                Err(CommonError::CommonError(
                     "Postgres config not found".to_string(),
                 ))
             }
@@ -66,7 +67,7 @@ pub fn build_storage_driver(
                 let driver = redis::RedisAuthStorageAdapter::new(redis_config.clone())?;
                 Ok(Arc::new(driver))
             } else {
-                Err(MqttBrokerError::CommonError(
+                Err(CommonError::CommonError(
                     "Redis config not found".to_string(),
                 ))
             }
@@ -76,7 +77,7 @@ pub fn build_storage_driver(
                 let driver = mongodb::MongoDBAuthStorageAdapter::new(mongodb_config.clone());
                 Ok(Arc::new(driver))
             } else {
-                Err(MqttBrokerError::CommonError(
+                Err(CommonError::CommonError(
                     "MongoDB config not found".to_string(),
                 ))
             }
@@ -86,7 +87,7 @@ pub fn build_storage_driver(
                 let driver = http::HttpAuthStorageAdapter::new(http_config.clone());
                 Ok(Arc::new(driver))
             } else {
-                Err(MqttBrokerError::HttpConfigNotFound)
+                Err(CommonError::HttpConfigNotFound)
             }
         }
     }

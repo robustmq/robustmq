@@ -43,7 +43,7 @@ impl MqttService {
     ) -> MqttPacket {
         let (reason_codes, reason) = subscribe_validator(
             &self.cache_manager,
-            &self.auth_driver,
+            &self.security_manager,
             &self.subscribe_manager,
             connection,
             subscribe,

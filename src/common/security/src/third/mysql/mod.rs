@@ -10,26 +10,26 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.
+// limitations under the License
 
-use crate::core::error::MqttBrokerError;
-use crate::security::AuthStorageAdapter;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+use common_base::error::common::CommonError;
 use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
 use dashmap::DashMap;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::auth::acl::SecurityAcl;
+use metadata_struct::auth::blacklist::SecurityBlackList;
+use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::mqtt::auth::storage::MysqlConfig;
-use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use r2d2_mysql::mysql::prelude::Queryable;
 use r2d2_mysql::mysql::Row;
 use third_driver::mysql::{build_mysql_conn_pool, MysqlPool};
 
+use crate::third::storage_trait::AuthStorageAdapter;
 mod schema;
 
 pub struct MySQLAuthStorageAdapter {
@@ -38,7 +38,7 @@ pub struct MySQLAuthStorageAdapter {
 }
 
 impl MySQLAuthStorageAdapter {
-    pub fn new(config: MysqlConfig) -> Result<Self, MqttBrokerError> {
+    pub fn new(config: MysqlConfig) -> Result<Self, CommonError> {
         let addr = format!(
             "mysql://{}:{}@{}/{}",
             config.username, config.password, config.mysql_addr, config.database
@@ -105,29 +105,29 @@ impl MySQLAuthStorageAdapter {
 
 #[async_trait]
 impl AuthStorageAdapter for MySQLAuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
+    async fn read_all_user(&self) -> Result<DashMap<String, SecurityUser>, CommonError> {
         let mut conn = self.pool.get()?;
         let sql = self.user_query();
         let rows: Vec<Row> = conn.query(sql)?;
         let results = DashMap::with_capacity(rows.len());
         for mut row in rows {
-            let username: String = row.take("username").ok_or_else(|| {
-                MqttBrokerError::CommonError("missing column: username".to_string())
-            })?;
-            let password: String = row.take("password").ok_or_else(|| {
-                MqttBrokerError::CommonError("missing column: password".to_string())
-            })?;
+            let username: String = row
+                .take("username")
+                .ok_or_else(|| CommonError::CommonError("missing column: username".to_string()))?;
+            let password: String = row
+                .take("password")
+                .ok_or_else(|| CommonError::CommonError("missing column: password".to_string()))?;
             let salt: Option<String> = row
                 .take("salt")
-                .ok_or_else(|| MqttBrokerError::CommonError("missing column: salt".to_string()))?;
+                .ok_or_else(|| CommonError::CommonError("missing column: salt".to_string()))?;
             let is_superuser: u8 = row.take("is_superuser").ok_or_else(|| {
-                MqttBrokerError::CommonError("missing column: is_superuser".to_string())
+                CommonError::CommonError("missing column: is_superuser".to_string())
             })?;
-            let created: Option<String> = row.take("created").ok_or_else(|| {
-                MqttBrokerError::CommonError("missing column: created".to_string())
-            })?;
+            let created: Option<String> = row
+                .take("created")
+                .ok_or_else(|| CommonError::CommonError("missing column: created".to_string()))?;
 
-            let user = MqttUser {
+            let user = SecurityUser {
                 tenant: DEFAULT_TENANT.to_string(),
                 username: username.clone(),
                 password,
@@ -140,42 +140,42 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         return Ok(results);
     }
 
-    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
+    async fn read_all_acl(&self) -> Result<Vec<SecurityAcl>, CommonError> {
         let mut conn = self.pool.get()?;
         let sql = self.acl_query();
         let rows: Vec<Row> = conn.query(sql)?;
         let mut results = Vec::with_capacity(rows.len());
         for mut row in rows {
             let permission: u8 = row.take("permission").ok_or_else(|| {
-                MqttBrokerError::CommonError("missing column: permission".to_string())
+                CommonError::CommonError("missing column: permission".to_string())
             })?;
-            let ipaddr: String = row.take("ipaddr").ok_or_else(|| {
-                MqttBrokerError::CommonError("missing column: ipaddr".to_string())
-            })?;
-            let username: String = row.take("username").ok_or_else(|| {
-                MqttBrokerError::CommonError("missing column: username".to_string())
-            })?;
-            let clientid: String = row.take("clientid").ok_or_else(|| {
-                MqttBrokerError::CommonError("missing column: clientid".to_string())
-            })?;
-            let access: u8 = row.take("access").ok_or_else(|| {
-                MqttBrokerError::CommonError("missing column: access".to_string())
-            })?;
+            let ipaddr: String = row
+                .take("ipaddr")
+                .ok_or_else(|| CommonError::CommonError("missing column: ipaddr".to_string()))?;
+            let username: String = row
+                .take("username")
+                .ok_or_else(|| CommonError::CommonError("missing column: username".to_string()))?;
+            let clientid: String = row
+                .take("clientid")
+                .ok_or_else(|| CommonError::CommonError("missing column: clientid".to_string()))?;
+            let access: u8 = row
+                .take("access")
+                .ok_or_else(|| CommonError::CommonError("missing column: access".to_string()))?;
             let topic: Option<String> = row
                 .take("topic")
-                .ok_or_else(|| MqttBrokerError::CommonError("missing column: topic".to_string()))?;
+                .ok_or_else(|| CommonError::CommonError("missing column: topic".to_string()))?;
 
             let name: String = row.take("name").unwrap_or_default();
             let desc: String = row.take("desc").unwrap_or_default();
 
-            let acl = MqttAcl {
+            let acl = SecurityAcl {
                 name,
                 desc,
                 tenant: DEFAULT_TENANT.to_string(),
                 permission: match permission {
                     0 => MqttAclPermission::Deny,
                     1 => MqttAclPermission::Allow,
-                    _ => return Err(MqttBrokerError::InvalidAclPermission),
+                    _ => return Err(CommonError::InvalidAclPermission),
                 },
                 resource_type: match username.is_empty() {
                     true => MqttAclResourceType::ClientId,
@@ -194,7 +194,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                     3 => MqttAclAction::PubSub,
                     4 => MqttAclAction::Retain,
                     5 => MqttAclAction::Qos,
-                    _ => return Err(MqttBrokerError::InvalidAclAction),
+                    _ => return Err(CommonError::InvalidAclAction),
                 },
             };
             results.push(acl);
@@ -202,27 +202,27 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         return Ok(results);
     }
 
-    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
+    async fn read_all_blacklist(&self) -> Result<Vec<SecurityBlackList>, CommonError> {
         let mut conn = self.pool.get()?;
         let sql = self.blacklist_query();
         let rows: Vec<Row> = conn.query(sql)?;
         let mut results = Vec::with_capacity(rows.len());
         for mut row in rows {
             let blacklist_type: String = row.take("blacklist_type").ok_or_else(|| {
-                MqttBrokerError::CommonError("missing column: blacklist_type".to_string())
+                CommonError::CommonError("missing column: blacklist_type".to_string())
             })?;
             let resource_name: String = row.take("resource_name").ok_or_else(|| {
-                MqttBrokerError::CommonError("missing column: resource_name".to_string())
+                CommonError::CommonError("missing column: resource_name".to_string())
             })?;
-            let end_time: u64 = row.take("end_time").ok_or_else(|| {
-                MqttBrokerError::CommonError("missing column: end_time".to_string())
-            })?;
+            let end_time: u64 = row
+                .take("end_time")
+                .ok_or_else(|| CommonError::CommonError("missing column: end_time".to_string()))?;
             let desc: Option<String> = row
                 .take("desc")
-                .ok_or_else(|| MqttBrokerError::CommonError("missing column: desc".to_string()))?;
+                .ok_or_else(|| CommonError::CommonError("missing column: desc".to_string()))?;
 
             let name: Option<String> = row.take("name");
-            let blacklist = MqttAclBlackList {
+            let blacklist = SecurityBlackList {
                 name: name.unwrap_or_default(),
                 tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: get_blacklist_type_by_str(&blacklist_type)?,
@@ -238,14 +238,12 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
 
 #[cfg(test)]
 mod tests {
+    use super::schema::TAuthUser;
+    use super::MySQLAuthStorageAdapter;
     use metadata_struct::mqtt::auth::storage::MysqlConfig;
     use r2d2_mysql::mysql::params;
     use r2d2_mysql::mysql::prelude::Queryable;
     use third_driver::mysql::build_mysql_conn_pool;
-
-    use super::schema::TAuthUser;
-    use super::MySQLAuthStorageAdapter;
-    use crate::security::AuthStorageAdapter;
 
     #[tokio::test]
     #[ignore]

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::security::AuthManager;
 use common_base::{
     error::{common::CommonError, ResultCommonError},
     task::{TaskKind, TaskSupervisor},
@@ -21,32 +20,34 @@ use common_base::{
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
+use crate::manager::SecurityManager;
+
 pub fn start_auth_sync_thread(
-    auth_driver: Arc<AuthManager>,
+    security_manager: Arc<SecurityManager>,
     task_supervisor: Arc<TaskSupervisor>,
     stop_send: broadcast::Sender<bool>,
 ) {
     sync_user_cache(
-        auth_driver.clone(),
+        security_manager.clone(),
         task_supervisor.clone(),
         stop_send.clone(),
     );
     sync_acl_cache(
-        auth_driver.clone(),
+        security_manager.clone(),
         task_supervisor.clone(),
         stop_send.clone(),
     );
-    sync_blacklist_cache(auth_driver, task_supervisor.clone(), stop_send);
+    sync_blacklist_cache(security_manager, task_supervisor.clone(), stop_send);
 }
 
 fn sync_user_cache(
-    auth_driver: Arc<AuthManager>,
+    security_manager: Arc<SecurityManager>,
     task_supervisor: Arc<TaskSupervisor>,
     stop_send: broadcast::Sender<bool>,
 ) {
     task_supervisor.spawn(TaskKind::MQTTSecurityUserSync.to_string(), async move {
         let ac_fn = async || -> ResultCommonError {
-            if let Err(e) = auth_driver.update_user_cache().await {
+            if let Err(e) = security_manager.update_user_cache().await {
                 return Err(CommonError::CommonError(e.to_string()));
             }
             Ok(())
@@ -56,13 +57,13 @@ fn sync_user_cache(
 }
 
 fn sync_acl_cache(
-    auth_driver: Arc<AuthManager>,
+    security_manager: Arc<SecurityManager>,
     task_supervisor: Arc<TaskSupervisor>,
     stop_send: broadcast::Sender<bool>,
 ) {
     task_supervisor.spawn(TaskKind::MQTTSecurityAclSync.to_string(), async move {
         let ac_fn = async || -> ResultCommonError {
-            if let Err(e) = auth_driver.update_acl_cache().await {
+            if let Err(e) = security_manager.update_acl_cache().await {
                 return Err(CommonError::CommonError(e.to_string()));
             }
             Ok(())
@@ -72,7 +73,7 @@ fn sync_acl_cache(
 }
 
 fn sync_blacklist_cache(
-    auth_driver: Arc<AuthManager>,
+    security_manager: Arc<SecurityManager>,
     task_supervisor: Arc<TaskSupervisor>,
     stop_send: broadcast::Sender<bool>,
 ) {
@@ -80,7 +81,7 @@ fn sync_blacklist_cache(
         TaskKind::MQTTSecurityBlacklistSync.to_string(),
         async move {
             let ac_fn = async || -> ResultCommonError {
-                if let Err(e) = auth_driver.update_blacklist_cache().await {
+                if let Err(e) = security_manager.update_blacklist_cache().await {
                     return Err(CommonError::CommonError(e.to_string()));
                 }
                 Ok(())

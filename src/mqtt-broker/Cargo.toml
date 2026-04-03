@@ -83,6 +83,7 @@ jsonwebtoken.workspace = true
 rate-limit.workspace = true
 node-call.workspace = true
 prost.workspace = true
+common-security.workspace =true
 
 [dev-dependencies]
 # test

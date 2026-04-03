@@ -19,6 +19,7 @@ mod publish;
 pub mod qos_ack;
 pub mod subscribe;
 
+use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
 use node_call::NodeCallManager;
@@ -35,7 +36,6 @@ use storage_adapter::driver::StorageDriverManager;
 use crate::core::cache::MQTTCacheManager;
 use crate::core::event::EventReportManager;
 use crate::core::retain::RetainMessageManager;
-use crate::security::AuthManager;
 use crate::storage::session::SessionBatcher;
 use crate::subscribe::manager::SubscribeManager;
 
@@ -52,7 +52,7 @@ pub struct MqttService {
     schema_manager: Arc<SchemaRegisterManager>,
     client_pool: Arc<ClientPool>,
     session_batcher: Arc<SessionBatcher>,
-    auth_driver: Arc<AuthManager>,
+    security_manager: Arc<SecurityManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     retain_message_manager: Arc<RetainMessageManager>,
     limit_manager: Arc<MQTTRateLimiterManager>,
@@ -100,7 +100,7 @@ impl MqttService {
             subscribe_manager: context.subscribe_manager,
             client_pool: context.client_pool,
             session_batcher: context.session_batcher,
-            auth_driver: context.auth_driver,
+            security_manager: context.auth_driver,
             schema_manager: context.schema_manager,
             rocksdb_engine_handler: context.rocksdb_engine_handler,
             retain_message_manager: context.retain_message_manager,

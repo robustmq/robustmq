@@ -12,26 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::MqttBrokerError;
-use crate::security::AuthStorageAdapter;
 use async_trait::async_trait;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::auth::acl::SecurityAcl;
+use metadata_struct::auth::blacklist::SecurityBlackList;
+use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::mqtt::auth::storage::HttpConfig;
-use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use reqwest::Client;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::time::Duration;
 use tracing::warn;
+
+use crate::third::storage_trait::AuthStorageAdapter;
 
 /// HTTP auth storage adapter
 pub struct HttpAuthStorageAdapter {
@@ -89,14 +89,14 @@ impl HttpAuthStorageAdapter {
         }
     }
 
-    async fn request_json(&self, endpoint: &str, resource: &str) -> Result<Value, MqttBrokerError> {
+    async fn request_json(&self, endpoint: &str, resource: &str) -> Result<Value, CommonError> {
         let headers = self.build_headers(resource);
         let body = self.build_body(resource);
         let mut request_builder = match self.config.method.to_uppercase().as_str() {
             "GET" => self.client.get(endpoint).query(&body),
             "POST" => self.client.post(endpoint).json(&body),
             _ => {
-                return Err(MqttBrokerError::UnsupportedHttpMethod(
+                return Err(CommonError::UnsupportedHttpMethod(
                     self.config.method.clone(),
                 ))
             }
@@ -109,10 +109,10 @@ impl HttpAuthStorageAdapter {
         let response = request_builder
             .send()
             .await
-            .map_err(|e| MqttBrokerError::HttpRequestError(e.to_string()))?;
+            .map_err(|e| CommonError::HttpRequestError(e.to_string()))?;
 
         if !response.status().is_success() {
-            return Err(MqttBrokerError::HttpRequestError(format!(
+            return Err(CommonError::HttpRequestError(format!(
                 "HTTP data source request failed, status={}, endpoint={}",
                 response.status(),
                 endpoint
@@ -122,20 +122,16 @@ impl HttpAuthStorageAdapter {
         response
             .json::<Value>()
             .await
-            .map_err(|e| MqttBrokerError::HttpResponseParseError(e.to_string()))
+            .map_err(|e| CommonError::HttpResponseParseError(e.to_string()))
     }
 
-    async fn fetch_resource(
-        &self,
-        resource: &str,
-        query: &str,
-    ) -> Result<Vec<Value>, MqttBrokerError> {
+    async fn fetch_resource(&self, resource: &str, query: &str) -> Result<Vec<Value>, CommonError> {
         let endpoint = self.endpoint_for(query);
         let payload = self.request_json(&endpoint, resource).await?;
         Self::extract_items(payload, resource)
     }
 
-    fn extract_items(payload: Value, resource: &str) -> Result<Vec<Value>, MqttBrokerError> {
+    fn extract_items(payload: Value, resource: &str) -> Result<Vec<Value>, CommonError> {
         match payload {
             Value::Array(items) => Ok(items),
             Value::Object(map) => {
@@ -152,18 +148,18 @@ impl HttpAuthStorageAdapter {
                         return match value {
                             Value::Array(items) => Ok(items.clone()),
                             Value::Object(_) => Ok(vec![value.clone()]),
-                            _ => Err(MqttBrokerError::HttpResponseParseError(format!(
+                            _ => Err(CommonError::HttpResponseParseError(format!(
                                 "field `{}` is not array/object",
                                 key
                             ))),
                         };
                     }
                 }
-                Err(MqttBrokerError::HttpResponseParseError(
+                Err(CommonError::HttpResponseParseError(
                     "unable to locate resource data in response".to_string(),
                 ))
             }
-            _ => Err(MqttBrokerError::HttpResponseParseError(
+            _ => Err(CommonError::HttpResponseParseError(
                 "invalid response json, expected object/array".to_string(),
             )),
         }
@@ -210,18 +206,18 @@ impl HttpAuthStorageAdapter {
         }
     }
 
-    fn parse_permission(value: Option<&Value>) -> Result<MqttAclPermission, MqttBrokerError> {
+    fn parse_permission(value: Option<&Value>) -> Result<MqttAclPermission, CommonError> {
         match value {
             Some(Value::Number(v)) if v.as_i64() == Some(0) => Ok(MqttAclPermission::Deny),
             Some(Value::Number(v)) if v.as_i64() == Some(1) => Ok(MqttAclPermission::Allow),
             Some(Value::String(v)) => {
-                MqttAclPermission::from_str(v).map_err(|_| MqttBrokerError::InvalidAclPermission)
+                MqttAclPermission::from_str(v).map_err(|_| CommonError::InvalidAclPermission)
             }
-            _ => Err(MqttBrokerError::InvalidAclPermission),
+            _ => Err(CommonError::InvalidAclPermission),
         }
     }
 
-    fn parse_action(value: Option<&Value>) -> Result<MqttAclAction, MqttBrokerError> {
+    fn parse_action(value: Option<&Value>) -> Result<MqttAclAction, CommonError> {
         match value {
             Some(Value::Number(v)) if v.as_i64() == Some(0) => Ok(MqttAclAction::All),
             Some(Value::Number(v)) if v.as_i64() == Some(1) => Ok(MqttAclAction::Subscribe),
@@ -239,16 +235,16 @@ impl HttpAuthStorageAdapter {
                     "qos" => "Qos",
                     _ => v,
                 };
-                MqttAclAction::from_str(normalized).map_err(|_| MqttBrokerError::InvalidAclAction)
+                MqttAclAction::from_str(normalized).map_err(|_| CommonError::InvalidAclAction)
             }
-            _ => Err(MqttBrokerError::InvalidAclAction),
+            _ => Err(CommonError::InvalidAclAction),
         }
     }
 }
 
 #[async_trait]
 impl AuthStorageAdapter for HttpAuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError> {
+    async fn read_all_user(&self) -> Result<DashMap<String, SecurityUser>, CommonError> {
         let users = DashMap::new();
         let values = self
             .fetch_resource(Self::RESOURCE_USER, &self.config.query_user)
@@ -267,7 +263,7 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
                 warn!(username = %username, "HTTP user item missing password, skip");
                 continue;
             };
-            let user = MqttUser {
+            let user = SecurityUser {
                 tenant: DEFAULT_TENANT.to_string(),
                 username: username.clone(),
                 password,
@@ -280,7 +276,7 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
         Ok(users)
     }
 
-    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
+    async fn read_all_acl(&self) -> Result<Vec<SecurityAcl>, CommonError> {
         let mut acls = Vec::new();
         let values = self
             .fetch_resource(Self::RESOURCE_ACL, &self.config.query_acl)
@@ -346,7 +342,7 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
             let desc = Self::parse_string(map.get("desc")).unwrap_or_default();
 
             for topic in topics {
-                acls.push(MqttAcl {
+                acls.push(SecurityAcl {
                     name: name.clone(),
                     desc: desc.clone(),
                     tenant: DEFAULT_TENANT.to_string(),
@@ -362,7 +358,7 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
         Ok(acls)
     }
 
-    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
+    async fn read_all_blacklist(&self) -> Result<Vec<SecurityBlackList>, CommonError> {
         let mut blacklists = Vec::new();
         let values = self
             .fetch_resource(Self::RESOURCE_BLACKLIST, &self.config.query_blacklist)
@@ -406,7 +402,7 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
             };
 
             let name = Self::parse_string(map.get("name")).unwrap_or_default();
-            blacklists.push(MqttAclBlackList {
+            blacklists.push(SecurityBlackList {
                 name,
                 tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type,
