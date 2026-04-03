@@ -136,15 +136,11 @@ pub struct AclListRow {
 }
 
 use common_base::{
-    enum_type::mqtt::acl::{
-        mqtt_acl_action::MqttAclAction, mqtt_acl_permission::MqttAclPermission,
-        mqtt_acl_resource_type::MqttAclResourceType,
-    },
     error::{common::CommonError, ResultCommonError},
     http_response::{error_response, success_response},
 };
-use metadata_struct::auth::acl::SecurityAcl;
-use mqtt_broker::storage::acl::AclStorage;
+use common_security::storage::acl::AclStorage;
+use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl};
 use std::{str::FromStr, sync::Arc};
 
 pub async fn acl_list(
@@ -160,7 +156,11 @@ pub async fn acl_list(
         None,
         None,
     );
-    let data: Vec<SecurityAcl> = state.mqtt_context.cache_manager.acl_metadata.get_all_acl();
+    let data: Vec<SecurityAcl> = state
+        .mqtt_context
+        .security_manager
+        .security_metadata
+        .get_all_acl();
 
     let acls_list: Vec<AclListRow> = data
         .into_iter()
@@ -229,21 +229,21 @@ pub async fn acl_create(
 }
 
 async fn acl_create_inner(state: &Arc<HttpState>, params: &CreateAclReq) -> ResultCommonError {
-    let resource_type = match MqttAclResourceType::from_str(&params.resource_type) {
+    let resource_type = match EnumAclResourceType::from_str(&params.resource_type) {
         Ok(data) => data,
         Err(e) => {
             return Err(CommonError::CommonError(e));
         }
     };
 
-    let action = match MqttAclAction::from_str(&params.action) {
+    let action = match EnumAclAction::from_str(&params.action) {
         Ok(data) => data,
         Err(e) => {
             return Err(CommonError::CommonError(e));
         }
     };
 
-    let permission = match MqttAclPermission::from_str(&params.permission) {
+    let permission = match EnumAclPermission::from_str(&params.permission) {
         Ok(data) => data,
         Err(e) => {
             return Err(CommonError::CommonError(e));
@@ -284,12 +284,12 @@ async fn acl_delete_inner(state: &Arc<HttpState>, params: &DeleteAclReq) -> Resu
         name: params.name.clone(),
         desc: String::new(),
         tenant: params.tenant.clone(),
-        resource_type: MqttAclResourceType::ClientId,
+        resource_type: EnumAclResourceType::ClientId,
         resource_name: String::new(),
         topic: String::new(),
         ip: String::new(),
-        action: MqttAclAction::All,
-        permission: MqttAclPermission::Allow,
+        action: EnumAclAction::All,
+        permission: EnumAclPermission::Allow,
     };
 
     let acl_storage = AclStorage::new(state.client_pool.clone());

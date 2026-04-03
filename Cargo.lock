@@ -45,6 +45,7 @@ dependencies = [
  "common-config",
  "common-healthy",
  "common-metrics",
+ "common-security",
  "connector",
  "dashmap 6.1.0",
  "grpc-clients",

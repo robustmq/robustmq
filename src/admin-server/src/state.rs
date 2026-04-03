@@ -15,6 +15,7 @@
 use std::sync::Arc;
 
 use broker_core::cache::NodeCacheManager;
+use common_security::manager::SecurityManager;
 use connector::manager::ConnectorManager;
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::{
@@ -43,6 +44,7 @@ pub struct HttpState {
 #[derive(Clone)]
 pub struct MQTTContext {
     pub cache_manager: Arc<MQTTCacheManager>,
+    pub security_manager: Arc<SecurityManager>,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub metrics_manager: Arc<MQTTMetricsCache>,
     pub connector_manager: Arc<ConnectorManager>,

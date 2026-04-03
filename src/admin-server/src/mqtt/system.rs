@@ -157,7 +157,6 @@ pub async fn flapping_detect_list(
     let flapping_detect_map = &state
         .mqtt_context
         .cache_manager
-        .acl_metadata
         .flapping_detect_map;
     let mut results = Vec::new();
 

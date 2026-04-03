@@ -26,6 +26,7 @@ tracing.workspace = true
 serde_json.workspace = true
 serde.workspace = true
 common-base.workspace = true
+common-security.workspace = true
 common-metrics.workspace = true
 mqtt-broker.workspace = true
 network-server.workspace = true

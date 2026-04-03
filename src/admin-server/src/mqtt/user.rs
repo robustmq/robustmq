@@ -72,8 +72,8 @@ use common_base::{
     http_response::{error_response, success_response},
     tools::now_second,
 };
-use metadata_struct::mqtt::user::SecurityUser;
-use mqtt_broker::storage::user::UserStorage;
+use common_security::storage::user::UserStorage;
+use metadata_struct::auth::user::SecurityUser;
 use std::sync::Arc;
 
 pub async fn user_list(

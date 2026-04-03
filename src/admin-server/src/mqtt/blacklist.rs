@@ -98,12 +98,11 @@ pub struct BlackListListRow {
 }
 
 use common_base::{
-    enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str,
     http_response::{error_response, success_response},
     utils::time_util::timestamp_to_local_datetime,
 };
-use metadata_struct::auth::blacklist::SecurityBlackList;
-use mqtt_broker::storage::blacklist::BlackListStorage;
+use common_security::storage::blacklist::BlackListStorage;
+use metadata_struct::auth::blacklist::{get_blacklist_type_by_str, SecurityBlackList};
 use std::sync::Arc;
 
 pub async fn blacklist_list(
@@ -122,8 +121,8 @@ pub async fn blacklist_list(
 
     let data: Vec<SecurityBlackList> = state
         .mqtt_context
-        .cache_manager
-        .acl_metadata
+        .security_manager
+        .security_metadata
         .get_all_blacklist();
 
     let blacklists: Vec<BlackListListRow> = data
