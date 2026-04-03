@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::metadata::SecurityMetadata;
-use crate::third::user::UserStorage;
+use crate::storage::user::UserStorage;
 use common_base::error::ResultCommonError;
 use common_base::tools::now_second;
 use common_config::broker::broker_config;

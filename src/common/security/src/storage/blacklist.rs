@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use common_base::error::common::CommonError;
+use common_base::error::ResultCommonError;
 use common_config::broker::broker_config;
 use grpc_clients::meta::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
 use grpc_clients::pool::ClientPool;
@@ -21,9 +21,7 @@ use metadata_struct::auth::blacklist::SecurityBlackList;
 use protocol::meta::meta_service_mqtt::{
     CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,
 };
-
-use crate::core::error::MqttBrokerError;
-use crate::core::tool::ResultMqttBrokerError;
+use std::sync::Arc;
 
 pub struct BlackListStorage {
     client_pool: Arc<ClientPool>,
@@ -34,7 +32,7 @@ impl BlackListStorage {
         BlackListStorage { client_pool }
     }
 
-    pub async fn list_blacklist(&self) -> Result<Vec<SecurityBlackList>, MqttBrokerError> {
+    pub async fn list_blacklist(&self) -> Result<Vec<SecurityBlackList>, CommonError> {
         let config = broker_config();
         let request = ListBlacklistRequest {
             ..Default::default()
@@ -48,7 +46,7 @@ impl BlackListStorage {
         Ok(list)
     }
 
-    pub async fn save_blacklist(&self, blacklist: SecurityBlackList) -> ResultMqttBrokerError {
+    pub async fn save_blacklist(&self, blacklist: SecurityBlackList) -> ResultCommonError {
         let config = broker_config();
         let request = CreateBlacklistRequest {
             blacklist: blacklist.encode()?,
@@ -57,7 +55,7 @@ impl BlackListStorage {
         Ok(())
     }
 
-    pub async fn delete_blacklist(&self, tenant: &str, name: &str) -> ResultMqttBrokerError {
+    pub async fn delete_blacklist(&self, tenant: &str, name: &str) -> ResultCommonError {
         let config = broker_config();
         let request = DeleteBlacklistRequest {
             tenant: tenant.to_string(),
