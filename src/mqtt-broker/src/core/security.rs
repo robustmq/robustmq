@@ -17,8 +17,11 @@ use crate::core::{error::MqttBrokerError, tenant::try_decode_username};
 use crate::subscribe::common::get_sub_topic_name_list;
 use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
+use common_base::tools::now_second;
 use common_metrics::mqtt::auth::{record_mqtt_acl_failed, record_mqtt_acl_success};
-use common_security::auth::blacklist::is_connection_blacklisted;
+use common_security::auth::blacklist::{
+    is_client_id_blacklisted, is_ip_blacklisted, is_user_blacklisted,
+};
 use common_security::auth::is_allow_acl;
 use common_security::login::password::password_check_by_login;
 use common_security::{login::LoginType, manager::SecurityManager};
@@ -76,8 +79,10 @@ pub async fn security_connect_check(
     login: &Option<Login>,
 ) -> bool {
     let login = login.clone().unwrap_or_default();
-    is_connection_blacklisted(security_manager, client_id, source_ip_addr, &login.username)
-        .unwrap_or(true)
+
+    is_user_blacklisted(security_manager, &login.username)
+        || is_client_id_blacklisted(security_manager, client_id)
+        || is_ip_blacklisted(security_manager, source_ip_addr)
 }
 
 pub async fn security_publish_acl_check(

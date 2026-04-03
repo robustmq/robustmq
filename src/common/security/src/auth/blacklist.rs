@@ -12,26 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-
 use crate::{auth::common::ip_match, manager::SecurityManager};
-use common_base::{error::common::CommonError, tools::now_second};
+use common_base::tools::now_second;
 use regex::Regex;
 use std::sync::Arc;
 use tracing::{info, warn};
-
-pub fn is_connection_blacklisted(
-    security_manager: &Arc<SecurityManager>,
-    client_id: &str,
-    source_ip_addr: &str,
-    user: &str,
-) -> Result<bool, CommonError> {
-    let now = now_second();
-
-    Ok(is_user_blacklisted(security_manager, user, now)
-        || is_client_id_blacklisted(security_manager, client_id, now)
-        || is_ip_blacklisted(security_manager, source_ip_addr, now))
-}
 
 fn extract_ip_from_addr(addr: &str) -> String {
     use std::net::SocketAddr;
@@ -83,7 +68,8 @@ fn is_wildcard_pattern_match(target: &str, pattern: &str) -> bool {
     }
 }
 
-fn is_user_blacklisted(security_manager: &Arc<SecurityManager>, user: &str, now: u64) -> bool {
+pub fn is_user_blacklisted(security_manager: &Arc<SecurityManager>, user: &str) -> bool {
+    let now = now_second();
     // Check exact match across all tenants
     for tenant_entry in security_manager.security_metadata.blacklist_user.iter() {
         if let Some(data) = tenant_entry.value().get(user) {
@@ -122,11 +108,8 @@ fn is_user_blacklisted(security_manager: &Arc<SecurityManager>, user: &str, now:
     false
 }
 
-fn is_client_id_blacklisted(
-    security_manager: &Arc<SecurityManager>,
-    client_id: &str,
-    now: u64,
-) -> bool {
+pub fn is_client_id_blacklisted(security_manager: &Arc<SecurityManager>, client_id: &str) -> bool {
+    let now = now_second();
     // Check exact match across all tenants
     for tenant_entry in security_manager
         .security_metadata
@@ -169,12 +152,9 @@ fn is_client_id_blacklisted(
     false
 }
 
-fn is_ip_blacklisted(
-    security_manager: &Arc<SecurityManager>,
-    source_ip_addr: &str,
-    now: u64,
-) -> bool {
+pub fn is_ip_blacklisted(security_manager: &Arc<SecurityManager>, source_ip_addr: &str) -> bool {
     let source_ip = extract_ip_from_addr(source_ip_addr);
+    let now = now_second();
 
     // Check exact match across all tenants
     for tenant_entry in security_manager.security_metadata.blacklist_ip.iter() {
