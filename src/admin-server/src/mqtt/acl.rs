@@ -140,7 +140,9 @@ use common_base::{
     http_response::{error_response, success_response},
 };
 use common_security::storage::acl::AclStorage;
-use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl};
+use metadata_struct::auth::acl::{
+    EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl,
+};
 use std::{str::FromStr, sync::Arc};
 
 pub async fn acl_list(

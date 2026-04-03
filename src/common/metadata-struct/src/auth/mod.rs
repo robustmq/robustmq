@@ -13,5 +13,5 @@
 // limitations under the License.
 
 pub mod acl;
-pub mod user;
 pub mod blacklist;
+pub mod user;

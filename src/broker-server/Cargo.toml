@@ -32,6 +32,7 @@ tonic-web.workspace = true
 tokio.workspace = true
 rustls.workspace = true
 common-base.workspace = true
+common-security.workspace = true
 tower.workspace = true
 protocol.workspace = true
 common-config.workspace = true

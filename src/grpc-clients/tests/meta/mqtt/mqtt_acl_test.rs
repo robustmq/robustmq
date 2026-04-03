@@ -14,12 +14,14 @@
 
 #[cfg(test)]
 mod tests {
+    use crate::common::get_placement_addr;
     use grpc_clients::meta::mqtt::call::{create_acl, delete_acl, list_acl};
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl};
+    use metadata_struct::auth::acl::{
+        EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl,
+    };
     use protocol::meta::meta_service_mqtt::{CreateAclRequest, DeleteAclRequest, ListAclRequest};
     use std::sync::Arc;
-    use crate::common::get_placement_addr;
 
     #[tokio::test]
     async fn mqtt_acl_test() {

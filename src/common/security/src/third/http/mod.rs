@@ -16,8 +16,10 @@ use async_trait::async_trait;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl};
-use metadata_struct::auth::blacklist::{SecurityBlackList, get_blacklist_type_by_str};
+use metadata_struct::auth::acl::{
+    EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl,
+};
+use metadata_struct::auth::blacklist::{get_blacklist_type_by_str, SecurityBlackList};
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::mqtt::auth::storage::HttpConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;

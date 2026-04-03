@@ -96,6 +96,7 @@ impl BrokerServer {
         let client_pool = self.client_pool.clone();
         let connector_manager = self.mqtt_params.connector_manager.clone();
         let schema_manager = self.mqtt_params.schema_manager.clone();
+        let security_manager = self.mqtt_params.security_manager.clone();
         self.server_runtime.block_on(async {
             if let Err(e) = crate::load_cache::load_metadata_cache(
                 &mqtt_cache_manager,
@@ -103,6 +104,7 @@ impl BrokerServer {
                 &client_pool,
                 &connector_manager,
                 &schema_manager,
+                &security_manager,
             )
             .await
             {
