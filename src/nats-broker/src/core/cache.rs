@@ -44,7 +44,6 @@ impl NatsCacheManager {
     }
 
     // connection
-
     pub fn add_connection(&self, connection: NatsConnection) {
         self.connection_info
             .insert(connection.connect_id, connection);
@@ -78,7 +77,6 @@ impl NatsCacheManager {
     }
 
     // subject
-
     pub fn add_subject(&self, subject: NatsSubject) {
         let key = format!("{}/{}", subject.tenant, subject.name);
         self.subject_info.insert(key, subject);

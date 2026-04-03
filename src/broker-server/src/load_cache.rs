@@ -15,6 +15,7 @@
 use broker_core::cache::NodeCacheManager;
 use broker_core::dynamic_config::build_cluster_config;
 use broker_core::tenant::TenantStorage;
+use common_base::error::common::CommonError;
 use connector::manager::ConnectorManager;
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::core::cache::MQTTCacheManager;
@@ -39,7 +40,7 @@ use tracing::info;
 
 pub async fn load_metadata_cache(
     mqtt_cache_manager: &Arc<MQTTCacheManager>,
-    // nats_cache_manager: &Arc<NatsCacheManager>,
+    nats_cache_manager: &Arc<NatsCacheManager>,
     client_pool: &Arc<ClientPool>,
     connector_manager: &Arc<ConnectorManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
@@ -54,7 +55,7 @@ pub async fn load_metadata_cache(
     .await?;
 
     load_mqtt_cache(mqtt_cache_manager, client_pool).await?;
-    // load_nats_cache(cache_manager, client_pool).await?;
+    load_nats_cache(nats_cache_manager, client_pool).await?;
     Ok(())
 }
 
@@ -218,18 +219,16 @@ pub async fn load_engine_cache(
     Ok(())
 }
 
-pub async fn load_nats_cache(cache_manager: &Arc<NatsCacheManager>, client_pool: &Arc<ClientPool>) {
+pub async fn load_nats_cache(
+    cache_manager: &Arc<NatsCacheManager>,
+    client_pool: &Arc<ClientPool>,
+) -> Result<(), CommonError> {
     let storage = NatsSubjectStorage::new(client_pool.clone());
-    match storage.list("").await {
-        Ok(subjects) => {
-            let count = subjects.len();
-            for subject in subjects {
-                cache_manager.add_subject(subject);
-            }
-            info!("NATS cache loaded: subjects={}", count);
-        }
-        Err(e) => {
-            tracing::error!("Failed to load NATS subjects: {}", e);
-        }
+    let subjects = storage.list("").await?;
+    let count = subjects.len();
+    for subject in subjects {
+        cache_manager.add_subject(subject);
     }
+    info!("NATS cache loaded: subjects={}", count);
+    Ok(())
 }

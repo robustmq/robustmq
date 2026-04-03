@@ -90,13 +90,15 @@ impl BrokerServer {
     }
 
     pub fn start_load_cache(&self) {
-        let cache_manager = self.mqtt_params.cache_manager.clone();
+        let mqtt_cache_manager = self.mqtt_params.cache_manager.clone();
+        let nats_cache_manager = self.nats_params.cache_manager.clone();
         let client_pool = self.client_pool.clone();
         let connector_manager = self.mqtt_params.connector_manager.clone();
         let schema_manager = self.mqtt_params.schema_manager.clone();
         self.server_runtime.block_on(async {
             if let Err(e) = crate::load_cache::load_metadata_cache(
-                &cache_manager,
+                &mqtt_cache_manager,
+                &nats_cache_manager,
                 &client_pool,
                 &connector_manager,
                 &schema_manager,
