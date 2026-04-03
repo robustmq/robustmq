@@ -14,15 +14,11 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use grpc_clients::meta::mqtt::call::{create_acl, delete_acl, list_acl};
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::auth::acl::SecurityAcl;
+    use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl};
     use protocol::meta::meta_service_mqtt::{CreateAclRequest, DeleteAclRequest, ListAclRequest};
     use std::sync::Arc;
-
     use crate::common::get_placement_addr;
 
     #[tokio::test]
@@ -34,12 +30,12 @@ mod tests {
             name: "test-acl-loboxu".to_string(),
             desc: String::new(),
             tenant: "default".to_string(),
-            resource_type: MqttAclResourceType::User,
+            resource_type: EnumAclResourceType::User,
             resource_name: "loboxu".to_string(),
             topic: "tp-1".to_string(),
             ip: "*".to_string(),
-            action: MqttAclAction::All,
-            permission: MqttAclPermission::Deny,
+            action: EnumAclAction::All,
+            permission: EnumAclPermission::Deny,
         };
 
         let request = CreateAclRequest {

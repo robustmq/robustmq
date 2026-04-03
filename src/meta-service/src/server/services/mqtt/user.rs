@@ -22,7 +22,7 @@ use crate::{
     storage::mqtt::user::SecurityUserStorage,
 };
 use common_base::utils::serialize::encode_to_bytes;
-use metadata_struct::mqtt::user::SecurityUser;
+use metadata_struct::auth::user::SecurityUser;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
     CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply,

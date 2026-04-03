@@ -14,16 +14,12 @@
 
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
-use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
-use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str;
-use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
-use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl};
+use metadata_struct::auth::blacklist::{SecurityBlackList, get_blacklist_type_by_str};
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use futures::TryStreamExt;
-use metadata_struct::auth::acl::SecurityAcl;
-use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::mqtt::auth::storage::MongoDBConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;
@@ -99,25 +95,25 @@ impl MongoDBAuthStorageAdapter {
         }
     }
 
-    fn parse_permission(v: Option<&Bson>) -> Result<MqttAclPermission, CommonError> {
+    fn parse_permission(v: Option<&Bson>) -> Result<EnumAclPermission, CommonError> {
         match v {
-            Some(Bson::Int32(0)) | Some(Bson::Int64(0)) => Ok(MqttAclPermission::Deny),
-            Some(Bson::Int32(1)) | Some(Bson::Int64(1)) => Ok(MqttAclPermission::Allow),
+            Some(Bson::Int32(0)) | Some(Bson::Int64(0)) => Ok(EnumAclPermission::Deny),
+            Some(Bson::Int32(1)) | Some(Bson::Int64(1)) => Ok(EnumAclPermission::Allow),
             Some(Bson::String(s)) => {
-                MqttAclPermission::from_str(s).map_err(|_| CommonError::InvalidAclPermission)
+                EnumAclPermission::from_str(s).map_err(|_| CommonError::InvalidAclPermission)
             }
             _ => Err(CommonError::InvalidAclPermission),
         }
     }
 
-    fn parse_action(v: Option<&Bson>) -> Result<MqttAclAction, CommonError> {
+    fn parse_action(v: Option<&Bson>) -> Result<EnumAclAction, CommonError> {
         match v {
-            Some(Bson::Int32(0)) | Some(Bson::Int64(0)) => Ok(MqttAclAction::All),
-            Some(Bson::Int32(1)) | Some(Bson::Int64(1)) => Ok(MqttAclAction::Subscribe),
-            Some(Bson::Int32(2)) | Some(Bson::Int64(2)) => Ok(MqttAclAction::Publish),
-            Some(Bson::Int32(3)) | Some(Bson::Int64(3)) => Ok(MqttAclAction::PubSub),
-            Some(Bson::Int32(4)) | Some(Bson::Int64(4)) => Ok(MqttAclAction::Retain),
-            Some(Bson::Int32(5)) | Some(Bson::Int64(5)) => Ok(MqttAclAction::Qos),
+            Some(Bson::Int32(0)) | Some(Bson::Int64(0)) => Ok(EnumAclAction::All),
+            Some(Bson::Int32(1)) | Some(Bson::Int64(1)) => Ok(EnumAclAction::Subscribe),
+            Some(Bson::Int32(2)) | Some(Bson::Int64(2)) => Ok(EnumAclAction::Publish),
+            Some(Bson::Int32(3)) | Some(Bson::Int64(3)) => Ok(EnumAclAction::PubSub),
+            Some(Bson::Int32(4)) | Some(Bson::Int64(4)) => Ok(EnumAclAction::Retain),
+            Some(Bson::Int32(5)) | Some(Bson::Int64(5)) => Ok(EnumAclAction::Qos),
             Some(Bson::String(s)) => {
                 let normalized = match s.to_ascii_lowercase().as_str() {
                     "all" => "All",
@@ -128,7 +124,7 @@ impl MongoDBAuthStorageAdapter {
                     "qos" => "Qos",
                     _ => s,
                 };
-                MqttAclAction::from_str(normalized).map_err(|_| CommonError::InvalidAclAction)
+                EnumAclAction::from_str(normalized).map_err(|_| CommonError::InvalidAclAction)
             }
             _ => Err(CommonError::InvalidAclAction),
         }
@@ -252,9 +248,9 @@ impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
             }
 
             let resource_type = if username.is_empty() {
-                MqttAclResourceType::ClientId
+                EnumAclResourceType::ClientId
             } else {
-                MqttAclResourceType::User
+                EnumAclResourceType::User
             };
             let resource_name = if username.is_empty() {
                 clientid.clone()

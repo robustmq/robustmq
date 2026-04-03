@@ -1638,6 +1638,7 @@ dependencies = [
  "broker-core",
  "bytes",
  "chrono",
+ "clap",
  "common-base",
  "common-config",
  "common-metrics",
@@ -4569,6 +4570,7 @@ name = "metadata-struct"
 version = "0.3.7"
 dependencies = [
  "bytes",
+ "clap",
  "common-base",
  "common-config",
  "dashmap 6.1.0",

@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use common_base::error::common::CommonError;
-use metadata_struct::mqtt::user::SecurityUser;
-
+use metadata_struct::auth::user::SecurityUser;
 use rocksdb_engine::keys::meta::{
     storage_key_mqtt_user, storage_key_mqtt_user_prefix, storage_key_mqtt_user_tenant_prefix,
 };
@@ -25,6 +22,7 @@ use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
     engine_prefix_list_by_meta_metadata, engine_save_by_meta_metadata,
 };
+use std::sync::Arc;
 
 pub struct SecurityUserStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -37,7 +35,12 @@ impl SecurityUserStorage {
         }
     }
 
-    pub fn save(&self, tenant: &str, user_name: &str, user: SecurityUser) -> Result<(), CommonError> {
+    pub fn save(
+        &self,
+        tenant: &str,
+        user_name: &str,
+        user: SecurityUser,
+    ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_user(tenant, user_name);
         engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, user)
     }

@@ -13,21 +13,18 @@
 // limitations under the License.
 
 use async_trait::async_trait;
-use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
-use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str;
-use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
-use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::auth::acl::SecurityAcl;
-use metadata_struct::auth::blacklist::SecurityBlackList;
+use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl};
+use metadata_struct::auth::blacklist::{SecurityBlackList, get_blacklist_type_by_str};
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::mqtt::auth::storage::HttpConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use reqwest::Client;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::time::Duration;
 use tracing::warn;
 
@@ -206,25 +203,25 @@ impl HttpAuthStorageAdapter {
         }
     }
 
-    fn parse_permission(value: Option<&Value>) -> Result<MqttAclPermission, CommonError> {
+    fn parse_permission(value: Option<&Value>) -> Result<EnumAclPermission, CommonError> {
         match value {
-            Some(Value::Number(v)) if v.as_i64() == Some(0) => Ok(MqttAclPermission::Deny),
-            Some(Value::Number(v)) if v.as_i64() == Some(1) => Ok(MqttAclPermission::Allow),
+            Some(Value::Number(v)) if v.as_i64() == Some(0) => Ok(EnumAclPermission::Deny),
+            Some(Value::Number(v)) if v.as_i64() == Some(1) => Ok(EnumAclPermission::Allow),
             Some(Value::String(v)) => {
-                MqttAclPermission::from_str(v).map_err(|_| CommonError::InvalidAclPermission)
+                EnumAclPermission::from_str(v).map_err(|_| CommonError::InvalidAclPermission)
             }
             _ => Err(CommonError::InvalidAclPermission),
         }
     }
 
-    fn parse_action(value: Option<&Value>) -> Result<MqttAclAction, CommonError> {
+    fn parse_action(value: Option<&Value>) -> Result<EnumAclAction, CommonError> {
         match value {
-            Some(Value::Number(v)) if v.as_i64() == Some(0) => Ok(MqttAclAction::All),
-            Some(Value::Number(v)) if v.as_i64() == Some(1) => Ok(MqttAclAction::Subscribe),
-            Some(Value::Number(v)) if v.as_i64() == Some(2) => Ok(MqttAclAction::Publish),
-            Some(Value::Number(v)) if v.as_i64() == Some(3) => Ok(MqttAclAction::PubSub),
-            Some(Value::Number(v)) if v.as_i64() == Some(4) => Ok(MqttAclAction::Retain),
-            Some(Value::Number(v)) if v.as_i64() == Some(5) => Ok(MqttAclAction::Qos),
+            Some(Value::Number(v)) if v.as_i64() == Some(0) => Ok(EnumAclAction::All),
+            Some(Value::Number(v)) if v.as_i64() == Some(1) => Ok(EnumAclAction::Subscribe),
+            Some(Value::Number(v)) if v.as_i64() == Some(2) => Ok(EnumAclAction::Publish),
+            Some(Value::Number(v)) if v.as_i64() == Some(3) => Ok(EnumAclAction::PubSub),
+            Some(Value::Number(v)) if v.as_i64() == Some(4) => Ok(EnumAclAction::Retain),
+            Some(Value::Number(v)) if v.as_i64() == Some(5) => Ok(EnumAclAction::Qos),
             Some(Value::String(v)) => {
                 let normalized = match v.to_ascii_lowercase().as_str() {
                     "all" => "All",
@@ -235,7 +232,7 @@ impl HttpAuthStorageAdapter {
                     "qos" => "Qos",
                     _ => v,
                 };
-                MqttAclAction::from_str(normalized).map_err(|_| CommonError::InvalidAclAction)
+                EnumAclAction::from_str(normalized).map_err(|_| CommonError::InvalidAclAction)
             }
             _ => Err(CommonError::InvalidAclAction),
         }
@@ -328,9 +325,9 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
             }
 
             let resource_type = if username.is_empty() {
-                MqttAclResourceType::ClientId
+                EnumAclResourceType::ClientId
             } else {
-                MqttAclResourceType::User
+                EnumAclResourceType::User
             };
             let resource_name = if username.is_empty() {
                 clientid

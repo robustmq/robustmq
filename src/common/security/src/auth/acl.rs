@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    core::cache::MQTTCacheManager,
-    security::auth::common::{ip_match, topic_match},
-};
-use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
-use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
+use common_base::enum_type::mqtt::acl::mqtt_acl_action::EnumAclAction;
+use common_base::enum_type::mqtt::acl::mqtt_acl_permission::EnumAclPermission;
 use metadata_struct::{auth::acl::SecurityAcl, mqtt::connection::MQTTConnection};
 use std::{net::SocketAddr, sync::Arc};
+
+use crate::auth::common::{ip_match, topic_match};
 
 fn normalize_source_ip(source_ip_addr: &str) -> String {
     if let Ok(socket_addr) = source_ip_addr.parse::<SocketAddr>() {
@@ -37,7 +35,7 @@ pub fn is_acl_deny(
     cache_manager: &Arc<MQTTCacheManager>,
     connection: &MQTTConnection,
     topic_name: &str,
-    action: MqttAclAction,
+    action: EnumAclAction,
 ) -> bool {
     let source_ip = normalize_source_ip(&connection.source_ip_addr);
     let user = connection.login_user.clone().unwrap_or_default();
@@ -72,15 +70,15 @@ pub fn is_acl_deny(
 
 fn check_for_deny(
     acl_list: &[SecurityAcl],
-    action: &MqttAclAction,
+    action: &EnumAclAction,
     topic_name: &str,
     source_ip: &str,
 ) -> bool {
     for acl in acl_list.iter() {
-        if acl.permission != MqttAclPermission::Deny {
+        if acl.permission != EnumAclPermission::Deny {
             continue;
         }
-        if acl.action != *action && acl.action != MqttAclAction::All {
+        if acl.action != *action && acl.action != EnumAclAction::All {
             continue;
         }
         if topic_match(topic_name, &acl.topic) && ip_match(source_ip, &acl.ip) {
@@ -96,13 +94,13 @@ mod test {
     use crate::core::cache::MQTTCacheManager;
     use crate::core::constant::WILDCARD_RESOURCE;
     use crate::core::tool::test_build_mqtt_cache_manager;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_action::EnumAclAction;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::EnumAclPermission;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::EnumAclResourceType;
     use common_base::tools::{local_hostname, now_second};
     use metadata_struct::auth::acl::SecurityAcl;
-    use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use metadata_struct::auth::user::SecurityUser;
+    use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
     use std::sync::Arc;
 
     const TENANT: &str = "tenant1";
@@ -152,13 +150,13 @@ mod test {
 
     fn add_deny_rule(
         fixture: &TestFixture,
-        resource_type: MqttAclResourceType,
+        resource_type: EnumAclResourceType,
         topic: &str,
-        action: MqttAclAction,
+        action: EnumAclAction,
     ) {
         let resource_name = match resource_type {
-            MqttAclResourceType::User => fixture.user.username.clone(),
-            MqttAclResourceType::ClientId => fixture.connection.client_id.clone(),
+            EnumAclResourceType::User => fixture.user.username.clone(),
+            EnumAclResourceType::ClientId => fixture.connection.client_id.clone(),
         };
 
         let acl = SecurityAcl {
@@ -170,7 +168,7 @@ mod test {
             topic: topic.to_string(),
             ip: WILDCARD_RESOURCE.to_string(),
             action,
-            permission: MqttAclPermission::Deny,
+            permission: EnumAclPermission::Deny,
         };
         fixture.cache_manager.add_acl(acl);
     }
@@ -182,7 +180,7 @@ mod test {
             &fixture.cache_manager,
             &fixture.connection,
             &fixture.topic_name,
-            MqttAclAction::Publish,
+            EnumAclAction::Publish,
         ));
     }
 
@@ -191,23 +189,23 @@ mod test {
         let fixture = setup().await;
         add_deny_rule(
             &fixture,
-            MqttAclResourceType::User,
+            EnumAclResourceType::User,
             &fixture.topic_name,
-            MqttAclAction::Publish,
+            EnumAclAction::Publish,
         );
 
         assert!(is_acl_deny(
             &fixture.cache_manager,
             &fixture.connection,
             &fixture.topic_name,
-            MqttAclAction::Publish
+            EnumAclAction::Publish
         ));
 
         assert!(!is_acl_deny(
             &fixture.cache_manager,
             &fixture.connection,
             &fixture.topic_name,
-            MqttAclAction::Subscribe
+            EnumAclAction::Subscribe
         ));
     }
 
@@ -219,38 +217,38 @@ mod test {
             name: "acl-user-other-topic".to_string(),
             desc: String::new(),
             tenant: TENANT.to_string(),
-            resource_type: MqttAclResourceType::User,
+            resource_type: EnumAclResourceType::User,
             resource_name: fixture.user.username.clone(),
             topic: "other/topic".to_string(),
             ip: WILDCARD_RESOURCE.to_string(),
-            action: MqttAclAction::Publish,
-            permission: MqttAclPermission::Deny,
+            action: EnumAclAction::Publish,
+            permission: EnumAclPermission::Deny,
         });
 
         fixture.cache_manager.add_acl(SecurityAcl {
             name: "acl-client-wildcard".to_string(),
             desc: String::new(),
             tenant: TENANT.to_string(),
-            resource_type: MqttAclResourceType::ClientId,
+            resource_type: EnumAclResourceType::ClientId,
             resource_name: fixture.connection.client_id.clone(),
             topic: WILDCARD_RESOURCE.to_string(),
             ip: WILDCARD_RESOURCE.to_string(),
-            action: MqttAclAction::All,
-            permission: MqttAclPermission::Deny,
+            action: EnumAclAction::All,
+            permission: EnumAclPermission::Deny,
         });
 
         assert!(is_acl_deny(
             &fixture.cache_manager,
             &fixture.connection,
             &fixture.topic_name,
-            MqttAclAction::Publish
+            EnumAclAction::Publish
         ));
 
         assert!(is_acl_deny(
             &fixture.cache_manager,
             &fixture.connection,
             "any/topic",
-            MqttAclAction::Subscribe
+            EnumAclAction::Subscribe
         ));
     }
 
@@ -264,19 +262,19 @@ mod test {
             name: "acl-client-ip-deny".to_string(),
             desc: String::new(),
             tenant: TENANT.to_string(),
-            resource_type: MqttAclResourceType::ClientId,
+            resource_type: EnumAclResourceType::ClientId,
             resource_name: conn.client_id.clone(),
             topic: fixture.topic_name.clone(),
             ip: "127.0.0.1".to_string(),
-            action: MqttAclAction::Publish,
-            permission: MqttAclPermission::Deny,
+            action: EnumAclAction::Publish,
+            permission: EnumAclPermission::Deny,
         });
 
         assert!(is_acl_deny(
             &fixture.cache_manager,
             &conn,
             &fixture.topic_name,
-            MqttAclAction::Publish
+            EnumAclAction::Publish
         ));
     }
 
@@ -287,7 +285,7 @@ mod test {
 
         #[test]
         fn check_for_deny_core_cases() {
-            let rule = |permission: MqttAclPermission, action: MqttAclAction| SecurityAcl {
+            let rule = |permission: EnumAclPermission, action: EnumAclAction| SecurityAcl {
                 name: format!("rule-{:?}-{:?}", permission, action),
                 desc: String::new(),
                 tenant: TENANT.to_string(),
@@ -295,30 +293,30 @@ mod test {
                 action,
                 topic: "test/topic".to_string(),
                 ip: "127.0.0.1".to_string(),
-                resource_type: MqttAclResourceType::User,
+                resource_type: EnumAclResourceType::User,
                 resource_name: "resource_name".to_string(),
             };
 
             let cases = vec![
-                (vec![], MqttAclAction::Publish, false),
+                (vec![], EnumAclAction::Publish, false),
                 (
-                    vec![rule(MqttAclPermission::Deny, MqttAclAction::Publish)],
-                    MqttAclAction::Publish,
+                    vec![rule(EnumAclPermission::Deny, EnumAclAction::Publish)],
+                    EnumAclAction::Publish,
                     true,
                 ),
                 (
-                    vec![rule(MqttAclPermission::Allow, MqttAclAction::Publish)],
-                    MqttAclAction::Publish,
+                    vec![rule(EnumAclPermission::Allow, EnumAclAction::Publish)],
+                    EnumAclAction::Publish,
                     false,
                 ),
                 (
-                    vec![rule(MqttAclPermission::Deny, MqttAclAction::Subscribe)],
-                    MqttAclAction::Publish,
+                    vec![rule(EnumAclPermission::Deny, EnumAclAction::Subscribe)],
+                    EnumAclAction::Publish,
                     false,
                 ),
                 (
-                    vec![rule(MqttAclPermission::Deny, MqttAclAction::All)],
-                    MqttAclAction::Subscribe,
+                    vec![rule(EnumAclPermission::Deny, EnumAclAction::All)],
+                    EnumAclAction::Subscribe,
                     true,
                 ),
             ];

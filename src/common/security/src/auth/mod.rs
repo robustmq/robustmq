@@ -14,7 +14,7 @@
 
 use crate::auth::acl::is_acl_deny;
 use crate::login::super_user::is_super_user;
-use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+use common_base::enum_type::mqtt::acl::mqtt_acl_action::EnumAclAction;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::QoS;
 use std::sync::Arc;
@@ -27,7 +27,7 @@ pub fn is_allow_acl(
     cache_manager: &Arc<MQTTCacheManager>,
     connection: &MQTTConnection,
     topic_name: &str,
-    action: MqttAclAction,
+    action: EnumAclAction,
     retain: bool,
     _: QoS,
 ) -> bool {
@@ -43,7 +43,7 @@ pub fn is_allow_acl(
     }
 
     // check retain acl
-    if retain && is_acl_deny(cache_manager, connection, topic_name, MqttAclAction::Retain) {
+    if retain && is_acl_deny(cache_manager, connection, topic_name, EnumAclAction::Retain) {
         return false;
     }
 

@@ -221,7 +221,7 @@ fn is_ip_blacklisted(
 mod test {
     use super::{extract_ip_from_addr, is_connection_blacklisted, wildcard_to_regex};
     use crate::core::tool::test_build_mqtt_cache_manager;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
+    use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::EnumBlackListType;
     use common_base::tools::{local_hostname, now_second};
     use metadata_struct::auth::blacklist::SecurityBlackList;
     use metadata_struct::auth::user::SecurityUser;
@@ -278,7 +278,7 @@ mod test {
     mod is_connection_blacklisted_cases {
         use super::{
             build_login, is_connection_blacklisted, local_hostname, now_second,
-            test_build_mqtt_cache_manager, SecurityBlackList, MqttAclBlackListType, SecurityUser,
+            test_build_mqtt_cache_manager, SecurityBlackList, EnumBlackListType, SecurityUser,
             DEFAULT_TENANT,
         };
 
@@ -305,12 +305,12 @@ mod test {
             );
 
             let cases = vec![
-                (MqttAclBlackListType::User, user.username.clone()),
-                (MqttAclBlackListType::ClientId, client_id.to_string()),
-                (MqttAclBlackListType::Ip, source_ip_addr.clone()),
-                (MqttAclBlackListType::UserMatch, "lobo*".to_string()),
-                (MqttAclBlackListType::ClientIdMatch, "client*".to_string()),
-                (MqttAclBlackListType::IPCIDR, "127.0.0.0/24".to_string()),
+                (EnumBlackListType::User, user.username.clone()),
+                (EnumBlackListType::ClientId, client_id.to_string()),
+                (EnumBlackListType::Ip, source_ip_addr.clone()),
+                (EnumBlackListType::UserMatch, "lobo*".to_string()),
+                (EnumBlackListType::ClientIdMatch, "client*".to_string()),
+                (EnumBlackListType::IPCIDR, "127.0.0.0/24".to_string()),
             ];
 
             for (blacklist_type, resource_name) in cases {
@@ -349,10 +349,10 @@ mod test {
             let login = build_login(&user.username, &user.password);
 
             let cases = vec![
-                ("127.0.0.1:53836", MqttAclBlackListType::Ip, "127.0.0.1"),
+                ("127.0.0.1:53836", EnumBlackListType::Ip, "127.0.0.1"),
                 (
                     "192.168.1.100:8080",
-                    MqttAclBlackListType::IPCIDR,
+                    EnumBlackListType::IPCIDR,
                     "192.168.1.0/24",
                 ),
             ];

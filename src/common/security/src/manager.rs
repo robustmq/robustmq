@@ -12,19 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::auth::blacklist::is_connection_blacklisted;
-use crate::auth::is_allow_acl;
-use crate::login::password::password_check_by_login;
-use crate::login::LoginType;
 use crate::metadata::SecurityMetadata;
 use crate::third::build_storage_driver;
 use crate::third::storage_trait::AuthStorageAdapter;
 use broker_core::cache::NodeCacheManager;
-use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::now_millis;
-use common_metrics::mqtt::auth::{record_mqtt_acl_failed, record_mqtt_acl_success};
 use dashmap::DashMap;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::blacklist::SecurityBlackList;
@@ -33,10 +27,7 @@ use metadata_struct::mqtt::auth::authn_config::AuthnConfig;
 use metadata_struct::mqtt::auth::authn_config::LoginAuthEnum;
 use metadata_struct::mqtt::auth::password::PasswordBasedConfig;
 use metadata_struct::mqtt::auth::storage::StorageConfig;
-use metadata_struct::mqtt::connection::MQTTConnection;
-use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::sync::Arc;
 
 const STORAGE_DRIVER_REBUILD_MS: u128 = 5000;
@@ -120,98 +111,98 @@ impl SecurityManager {
     }
 
     // Permission: Allow && Deny
-    pub async fn login_check(
-        &self,
-        login: &Option<Login>,
-        _connect_properties: &Option<ConnectProperties>,
-    ) -> Result<bool, CommonError> {
-        let cluster = self.node_cache.get_cluster_config();
+    // pub async fn login_check(
+    //     &self,
+    //     login: &Option<Login>,
+    //     _connect_properties: &Option<ConnectProperties>,
+    // ) -> Result<bool, CommonError> {
+    //     let cluster = self.node_cache.get_cluster_config();
 
-        if cluster.mqtt_runtime.secret_free_login {
-            return Ok(true);
-        }
+    //     if cluster.mqtt_runtime.secret_free_login {
+    //         return Ok(true);
+    //     }
 
-        if let Some((_, authn)) = self.authn_list_with_default().into_iter().next() {
-            let login_type = LoginType::from_str(&authn.authn_type)
-                .map_err(|_| CommonError::UnsupportedAuthType(authn.authn_type.clone()))?;
+    //     if let Some((_, authn)) = self.authn_list_with_default().into_iter().next() {
+    //         let login_type = LoginType::from_str(&authn.authn_type)
+    //             .map_err(|_| CommonError::UnsupportedAuthType(authn.authn_type.clone()))?;
 
-            return match login_type {
-                LoginType::PasswordBased => {
-                    if let Some(user_info) = login {
-                        let username = try_decode_username(&user_info.username);
-                        let password = user_info.password.clone();
-                        Ok(password_check_by_login(
-                            &self.cache_manager,
-                            &username,
-                            &password,
-                        ))
-                    } else {
-                        Ok(false)
-                    }
-                }
-                LoginType::Jwt => Ok(false),
-            };
-        }
+    //         return match login_type {
+    //             LoginType::PasswordBased => {
+    //                 if let Some(user_info) = login {
+    //                     let username = try_decode_username(&user_info.username);
+    //                     let password = user_info.password.clone();
+    //                     Ok(password_check_by_login(
+    //                         &self.cache_manager,
+    //                         &username,
+    //                         &password,
+    //                     ))
+    //                 } else {
+    //                     Ok(false)
+    //                 }
+    //             }
+    //             LoginType::Jwt => Ok(false),
+    //         };
+    //     }
 
-        Ok(false)
-    }
+    //     Ok(false)
+    // }
 
-    pub async fn connect_check(
-        &self,
-        client_id: &str,
-        source_ip_addr: &str,
-        login: &Option<Login>,
-    ) -> bool {
-        // default true if blacklist check fails
-        is_connection_blacklisted(&self.cache_manager, client_id, source_ip_addr, login)
-            .unwrap_or(true)
-    }
+    // pub async fn connect_check(
+    //     &self,
+    //     client_id: &str,
+    //     source_ip_addr: &str,
+    //     login: &Option<Login>,
+    // ) -> bool {
+    //     // default true if blacklist check fails
+    //     is_connection_blacklisted(&self.cache_manager, client_id, source_ip_addr, login)
+    //         .unwrap_or(true)
+    // }
 
-    pub async fn publish_acl_check(
-        &self,
-        connection: &MQTTConnection,
-        topic_name: &str,
-        retain: bool,
-        qos: QoS,
-    ) -> Result<(), CommonError> {
-        if !is_allow_acl(
-            &self.cache_manager,
-            connection,
-            topic_name,
-            MqttAclAction::Publish,
-            retain,
-            qos,
-        ) {
-            record_mqtt_acl_failed();
-            return Err(CommonError::NotAclAuth(topic_name.to_string()));
-        }
-        record_mqtt_acl_success();
+    // pub async fn publish_acl_check(
+    //     &self,
+    //     connection: &MQTTConnection,
+    //     topic_name: &str,
+    //     retain: bool,
+    //     qos: QoS,
+    // ) -> Result<(), CommonError> {
+    //     if !is_allow_acl(
+    //         &self.cache_manager,
+    //         connection,
+    //         topic_name,
+    //         EnumAclAction::Publish,
+    //         retain,
+    //         qos,
+    //     ) {
+    //         record_mqtt_acl_failed();
+    //         return Err(CommonError::NotAclAuth(topic_name.to_string()));
+    //     }
+    //     record_mqtt_acl_success();
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
-    pub async fn subscribe_check(
-        &self,
-        connection: &MQTTConnection,
-        subscribe: &Subscribe,
-    ) -> bool {
-        for filter in subscribe.filters.iter() {
-            let topic_list = get_sub_topic_name_list(&self.cache_manager, &filter.path).await;
-            for topic_name in topic_list {
-                if !is_allow_acl(
-                    &self.cache_manager,
-                    connection,
-                    &topic_name,
-                    MqttAclAction::Subscribe,
-                    false,
-                    filter.qos,
-                ) {
-                    return false;
-                }
-            }
-        }
-        true
-    }
+    // pub async fn subscribe_check(
+    //     &self,
+    //     connection: &MQTTConnection,
+    //     subscribe: &Subscribe,
+    // ) -> bool {
+    //     for filter in subscribe.filters.iter() {
+    //         let topic_list = get_sub_topic_name_list(&self.cache_manager, &filter.path).await;
+    //         for topic_name in topic_list {
+    //             if !is_allow_acl(
+    //                 &self.cache_manager,
+    //                 connection,
+    //                 &topic_name,
+    //                 EnumAclAction::Subscribe,
+    //                 false,
+    //                 filter.qos,
+    //             ) {
+    //                 return false;
+    //             }
+    //         }
+    //     }
+    //     true
+    // }
 
     // read all
     pub async fn read_all_user(&self) -> Result<HashMap<String, SecurityUser>, CommonError> {
@@ -251,7 +242,7 @@ impl SecurityManager {
         let all_users: HashMap<String, SecurityUser> = self.read_all_user().await?;
 
         for user in all_users.values() {
-            self.cache_manager.add_user(user.clone());
+            self.security_metadata.add_user(user.clone());
         }
 
         Ok(())
@@ -262,7 +253,7 @@ impl SecurityManager {
         let all_acls: Vec<SecurityAcl> = self.read_all_acl().await?;
 
         for acl in all_acls.iter() {
-            self.cache_manager.add_acl(acl.to_owned());
+            self.security_metadata.add_acl(acl.to_owned());
         }
 
         Ok(())
@@ -273,7 +264,7 @@ impl SecurityManager {
         let all_blacklist = self.read_all_blacklist().await?;
 
         for acl in all_blacklist.iter() {
-            self.cache_manager.add_blacklist(acl.to_owned());
+            self.security_metadata.add_blacklist(acl.to_owned());
         }
 
         Ok(())

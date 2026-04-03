@@ -14,11 +14,10 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
     use common_base::tools::now_second;
     use grpc_clients::meta::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::auth::blacklist::SecurityBlackList;
+    use metadata_struct::auth::blacklist::{EnumBlackListType, SecurityBlackList};
     use protocol::meta::meta_service_mqtt::{
         CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,
     };
@@ -35,7 +34,7 @@ mod tests {
         let blacklist = SecurityBlackList {
             name: "test-blacklist-loboxu".to_string(),
             tenant: "default".to_string(),
-            blacklist_type: MqttAclBlackListType::User,
+            blacklist_type: EnumBlackListType::User,
             resource_name: "loboxu".to_string(),
             end_time: now_second() + 100,
             desc: "loboxu test".to_string(),

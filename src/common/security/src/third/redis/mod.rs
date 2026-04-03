@@ -13,13 +13,12 @@
 // limitations under the License.
 
 use async_trait::async_trait;
-use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str;
-use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
-use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::error::common::CommonError;
-use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
+use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::auth::acl::SecurityAcl;
+use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, EnumAclResourceType};
+use metadata_struct::auth::blacklist::get_blacklist_type_by_str;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::mqtt::auth::storage::RedisConfig;
@@ -28,13 +27,10 @@ use redis::Commands;
 use std::collections::HashMap;
 use third_driver::redis::{build_redis_conn_pool, RedisPool};
 use tracing::warn;
-
 type RedisConnection = r2d2::PooledConnection<redis::Client>;
-
 mod schema;
-use schema::{RedisAuthAcl, RedisAuthBlacklist, RedisAuthUser};
-
 use crate::third::storage_trait::AuthStorageAdapter;
+use schema::{RedisAuthAcl, RedisAuthBlacklist, RedisAuthUser};
 
 pub struct RedisAuthStorageAdapter {
     pool: RedisPool,
@@ -173,13 +169,13 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
                         desc: redis_acl.desc.clone(),
                         tenant: DEFAULT_TENANT.to_string(),
                         permission: match redis_acl.permission {
-                            0 => MqttAclPermission::Deny,
-                            1 => MqttAclPermission::Allow,
+                            0 => EnumAclPermission::Deny,
+                            1 => EnumAclPermission::Allow,
                             _ => return Err(CommonError::InvalidAclPermission),
                         },
                         resource_type: match redis_acl.username.is_empty() {
-                            true => MqttAclResourceType::ClientId,
-                            false => MqttAclResourceType::User,
+                            true => EnumAclResourceType::ClientId,
+                            false => EnumAclResourceType::User,
                         },
                         resource_name: match redis_acl.username.is_empty() {
                             true => redis_acl.clientid,
@@ -188,12 +184,12 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
                         topic: redis_acl.topic,
                         ip: redis_acl.ipaddr,
                         action: match redis_acl.access {
-                            0 => MqttAclAction::All,
-                            1 => MqttAclAction::Subscribe,
-                            2 => MqttAclAction::Publish,
-                            3 => MqttAclAction::PubSub,
-                            4 => MqttAclAction::Retain,
-                            5 => MqttAclAction::Qos,
+                            0 => EnumAclAction::All,
+                            1 => EnumAclAction::Subscribe,
+                            2 => EnumAclAction::Publish,
+                            3 => EnumAclAction::PubSub,
+                            4 => EnumAclAction::Retain,
+                            5 => EnumAclAction::Qos,
                             _ => return Err(CommonError::InvalidAclAction),
                         },
                     };

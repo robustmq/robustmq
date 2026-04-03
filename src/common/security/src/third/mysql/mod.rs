@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
+use crate::third::storage_trait::AuthStorageAdapter;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
-use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::get_blacklist_type_by_str;
-use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
-use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use common_base::error::common::CommonError;
-use common_base::{enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction, tools::now_second};
+use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::auth::acl::SecurityAcl;
+use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, EnumAclResourceType};
+use metadata_struct::auth::blacklist::get_blacklist_type_by_str;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::mqtt::auth::storage::MysqlConfig;
@@ -29,7 +29,6 @@ use r2d2_mysql::mysql::prelude::Queryable;
 use r2d2_mysql::mysql::Row;
 use third_driver::mysql::{build_mysql_conn_pool, MysqlPool};
 
-use crate::third::storage_trait::AuthStorageAdapter;
 mod schema;
 
 pub struct MySQLAuthStorageAdapter {
@@ -173,13 +172,13 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 desc,
                 tenant: DEFAULT_TENANT.to_string(),
                 permission: match permission {
-                    0 => MqttAclPermission::Deny,
-                    1 => MqttAclPermission::Allow,
+                    0 => EnumAclPermission::Deny,
+                    1 => EnumAclPermission::Allow,
                     _ => return Err(CommonError::InvalidAclPermission),
                 },
                 resource_type: match username.is_empty() {
-                    true => MqttAclResourceType::ClientId,
-                    false => MqttAclResourceType::User,
+                    true => EnumAclResourceType::ClientId,
+                    false => EnumAclResourceType::User,
                 },
                 resource_name: match username.is_empty() {
                     true => clientid,
@@ -188,12 +187,12 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 topic: topic.unwrap_or_default(),
                 ip: ipaddr,
                 action: match access {
-                    0 => MqttAclAction::All,
-                    1 => MqttAclAction::Subscribe,
-                    2 => MqttAclAction::Publish,
-                    3 => MqttAclAction::PubSub,
-                    4 => MqttAclAction::Retain,
-                    5 => MqttAclAction::Qos,
+                    0 => EnumAclAction::All,
+                    1 => EnumAclAction::Subscribe,
+                    2 => EnumAclAction::Publish,
+                    3 => EnumAclAction::PubSub,
+                    4 => EnumAclAction::Retain,
+                    5 => EnumAclAction::Qos,
                     _ => return Err(CommonError::InvalidAclAction),
                 },
             };
@@ -240,6 +239,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
 mod tests {
     use super::schema::TAuthUser;
     use super::MySQLAuthStorageAdapter;
+    use crate::third::storage_trait::AuthStorageAdapter;
     use metadata_struct::mqtt::auth::storage::MysqlConfig;
     use r2d2_mysql::mysql::params;
     use r2d2_mysql::mysql::prelude::Queryable;
