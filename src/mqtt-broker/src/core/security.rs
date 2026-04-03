@@ -17,17 +17,17 @@ use crate::core::{error::MqttBrokerError, tenant::try_decode_username};
 use crate::subscribe::common::get_sub_topic_name_list;
 use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
-use common_base::tools::now_second;
 use common_metrics::mqtt::auth::{record_mqtt_acl_failed, record_mqtt_acl_success};
+use common_security::auth::acl::{is_client_id_acl_deny, is_user_acl_deny, normalize_source_ip};
 use common_security::auth::blacklist::{
     is_client_id_blacklisted, is_ip_blacklisted, is_user_blacklisted,
 };
-use common_security::auth::is_allow_acl;
 use common_security::login::password::password_check_by_login;
+use common_security::login::super_user::is_super_user;
 use common_security::{login::LoginType, manager::SecurityManager};
 use metadata_struct::auth::acl::EnumAclAction;
 use metadata_struct::mqtt::connection::MQTTConnection;
-use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
+use protocol::mqtt::common::{ConnectProperties, Login, Subscribe};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -72,7 +72,7 @@ pub async fn security_login_check(
     Ok(false)
 }
 
-pub async fn security_connect_check(
+pub async fn security_is_allow_connect(
     security_manager: &Arc<SecurityManager>,
     client_id: &str,
     source_ip_addr: &str,
@@ -85,57 +85,113 @@ pub async fn security_connect_check(
         || is_ip_blacklisted(security_manager, source_ip_addr)
 }
 
-pub async fn security_publish_acl_check(
+pub async fn security_is_allow_publish(
     security_manager: &Arc<SecurityManager>,
     connection: &MQTTConnection,
     topic_name: &str,
     retain: bool,
-    qos: QoS,
-) -> Result<(), MqttBrokerError> {
+) -> bool {
     let user = connection.login_user.clone().unwrap_or_default();
-    if !is_allow_acl(
+    if is_super_user(security_manager, &user) {
+        record_mqtt_acl_success();
+        return true;
+    }
+
+    let source_ip = normalize_source_ip(&connection.source_ip_addr);
+
+    // Message auth
+    if is_client_id_acl_deny(
+        security_manager,
+        topic_name,
+        &connection.tenant,
+        &connection.client_id,
+        &source_ip,
+        &EnumAclAction::Publish,
+    ) {
+        record_mqtt_acl_failed();
+        return false;
+    }
+
+    if is_user_acl_deny(
         security_manager,
         topic_name,
         &connection.tenant,
         &user,
-        &connection.source_ip_addr,
-        &connection.client_id,
-        EnumAclAction::Publish,
-        retain,
-        qos,
+        &source_ip,
+        &EnumAclAction::Publish,
     ) {
         record_mqtt_acl_failed();
-        return Err(MqttBrokerError::NotAclAuth(topic_name.to_string()));
+        return false;
     }
-    record_mqtt_acl_success();
 
-    Ok(())
+    // Retain auth
+    if retain {
+        if is_client_id_acl_deny(
+            security_manager,
+            topic_name,
+            &connection.tenant,
+            &connection.client_id,
+            &source_ip,
+            &EnumAclAction::Retain,
+        ) {
+            record_mqtt_acl_failed();
+            return false;
+        }
+
+        if is_user_acl_deny(
+            security_manager,
+            topic_name,
+            &connection.tenant,
+            &user,
+            &source_ip,
+            &EnumAclAction::Retain,
+        ) {
+            record_mqtt_acl_failed();
+            return false;
+        }
+    }
+
+    record_mqtt_acl_success();
+    true
 }
 
-pub async fn security_subscribe_check(
+pub async fn security_is_allow_subscribe(
     cache_manager: &Arc<MQTTCacheManager>,
     security_manager: &Arc<SecurityManager>,
     connection: &MQTTConnection,
     subscribe: &Subscribe,
 ) -> bool {
     let user = connection.login_user.clone().unwrap_or_default();
+    let source_ip = normalize_source_ip(&connection.source_ip_addr);
+
     for filter in subscribe.filters.iter() {
         let topic_list = get_sub_topic_name_list(cache_manager, &filter.path).await;
         for topic_name in topic_list {
-            if !is_allow_acl(
+            if is_client_id_acl_deny(
+                security_manager,
+                &topic_name,
+                &connection.tenant,
+                &connection.client_id,
+                &source_ip,
+                &EnumAclAction::Subscribe,
+            ) {
+                record_mqtt_acl_failed();
+                return false;
+            }
+
+            if is_user_acl_deny(
                 security_manager,
                 &topic_name,
                 &connection.tenant,
                 &user,
-                &connection.source_ip_addr,
-                &connection.client_id,
-                EnumAclAction::Subscribe,
-                false,
-                filter.qos,
+                &source_ip,
+                &EnumAclAction::Subscribe,
             ) {
+                record_mqtt_acl_failed();
                 return false;
             }
         }
     }
+
     true
 }

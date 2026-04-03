@@ -19,7 +19,7 @@ use crate::{
 use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, SecurityAcl};
 use std::{net::SocketAddr, sync::Arc};
 
-fn normalize_source_ip(source_ip_addr: &str) -> String {
+pub fn normalize_source_ip(source_ip_addr: &str) -> String {
     if let Ok(socket_addr) = source_ip_addr.parse::<SocketAddr>() {
         return socket_addr.ip().to_string();
     }
@@ -31,40 +31,36 @@ fn normalize_source_ip(source_ip_addr: &str) -> String {
     source_ip_addr.to_string()
 }
 
-pub fn is_acl_deny(
+pub fn is_user_acl_deny(
     security_manager: &Arc<SecurityManager>,
     topic_name: &str,
     tenant: &str,
     user: &str,
-    source_ip_addr: &str,
-    client_id: &str,
-    action: EnumAclAction,
+    source_ip: &str,
+    action: &EnumAclAction,
 ) -> bool {
-    let source_ip = normalize_source_ip(source_ip_addr);
+    if let Some(tenant_map) = security_manager.security_metadata.acl_user.get(tenant) {
+        if let Some(acl_list) = tenant_map.get(user) {
+            return check_for_deny(&acl_list, action, topic_name, source_ip);
+        }
+    }
+    false
+}
 
-    let user_deny =
-        if let Some(tenant_map) = security_manager.security_metadata.acl_user.get(tenant) {
-            if let Some(acl_list) = tenant_map.get(user) {
-                check_for_deny(&acl_list, &action, topic_name, &source_ip)
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-
-    let client_id_deny =
-        if let Some(tenant_map) = security_manager.security_metadata.acl_client_id.get(tenant) {
-            if let Some(acl_list) = tenant_map.get(client_id) {
-                check_for_deny(&acl_list, &action, topic_name, &source_ip)
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-
-    user_deny || client_id_deny
+pub fn is_client_id_acl_deny(
+    security_manager: &Arc<SecurityManager>,
+    topic_name: &str,
+    tenant: &str,
+    client_id: &str,
+    source_ip: &str,
+    action: &EnumAclAction,
+) -> bool {
+    if let Some(tenant_map) = security_manager.security_metadata.acl_client_id.get(tenant) {
+        if let Some(acl_list) = tenant_map.get(client_id) {
+            return check_for_deny(&acl_list, action, topic_name, source_ip);
+        }
+    }
+    false
 }
 
 fn check_for_deny(
@@ -80,6 +76,7 @@ fn check_for_deny(
         if acl.action != *action && acl.action != EnumAclAction::All {
             continue;
         }
+
         if topic_match(topic_name, &acl.topic) && ip_match(source_ip, &acl.ip) {
             return true;
         }

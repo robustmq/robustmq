@@ -22,7 +22,7 @@ use crate::core::event::st_report_connected_event;
 use crate::core::flapping_detect::check_flapping_detect;
 use crate::core::last_will::save_last_will_message;
 use crate::core::limit::connection_total_num_limit;
-use crate::core::security::{security_connect_check, security_login_check};
+use crate::core::security::{security_is_allow_connect, security_login_check};
 use crate::core::session::{session_process, BuildSessionContext};
 use crate::core::string_validator::{validate_client_id, validate_password, validate_username};
 use crate::core::sub_auto::try_auto_subscribe;
@@ -134,7 +134,7 @@ impl MqttService {
             }
         }
         // auth check
-        if security_connect_check(
+        if !security_is_allow_connect(
             &self.security_manager,
             &connection.client_id,
             &context.addr.to_string(),
@@ -149,6 +149,7 @@ impl MqttService {
                 Some("client is banned".to_string()),
             );
         }
+
         // login check
         match security_login_check(
             &self.security_manager,
