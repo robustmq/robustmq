@@ -14,6 +14,7 @@
 
 use broker_core::cache::NodeCacheManager;
 use common_base::{role::is_broker_node, task::TaskSupervisor};
+use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
 use nats_broker::broker::{NatsBrokerServer, NatsBrokerServerParams};
 use nats_broker::core::cache::NatsCacheManager;
@@ -35,6 +36,7 @@ pub struct NatsBuildParams {
     pub stop_sx: broadcast::Sender<bool>,
     pub shared_request_channel: Arc<RequestChannel>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub security_manager: Arc<SecurityManager>,
 }
 
 pub fn build_nats_params(p: NatsBuildParams) -> NatsBrokerServerParams {
@@ -52,6 +54,7 @@ pub fn build_nats_params(p: NatsBuildParams) -> NatsBrokerServerParams {
         stop_sx: p.stop_sx,
         request_channel: p.shared_request_channel,
         storage_driver_manager: p.storage_driver_manager,
+        security_manager: p.security_manager,
     }
 }
 

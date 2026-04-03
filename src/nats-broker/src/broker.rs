@@ -19,6 +19,7 @@ use crate::{
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
 use common_config::broker::broker_config;
+use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
@@ -39,6 +40,7 @@ pub struct NatsBrokerServerParams {
     pub stop_sx: broadcast::Sender<bool>,
     pub request_channel: Arc<RequestChannel>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub security_manager: Arc<SecurityManager>,
 }
 
 pub struct NatsBrokerServer {

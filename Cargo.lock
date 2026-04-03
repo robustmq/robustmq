@@ -5001,6 +5001,7 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
+ "common-security",
  "dashmap 6.1.0",
  "grpc-clients",
  "metadata-struct",
