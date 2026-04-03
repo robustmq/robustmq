@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::constant::WILDCARD_RESOURCE;
+use crate::WILDCARD_RESOURCE;
 use ipnet::IpNet;
 use std::{net::IpAddr, str::FromStr};
 use tracing::warn;
@@ -65,8 +65,8 @@ pub fn topic_match(topic_name: &str, match_topic_name: &str) -> bool {
 #[cfg(test)]
 mod test {
     use crate::{
-        core::constant::WILDCARD_RESOURCE,
-        security::auth::common::{ip_match, topic_match},
+        auth::common::{ip_match, topic_match},
+        WILDCARD_RESOURCE,
     };
 
     #[test]

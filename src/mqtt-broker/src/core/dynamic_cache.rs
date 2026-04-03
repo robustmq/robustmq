@@ -18,9 +18,11 @@ use crate::core::topic::delete_topic;
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::parse::ParseSubscribeData;
 use common_base::utils::serialize;
+use common_security::manager::SecurityManager;
 use connector::manager::ConnectorManager;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::blacklist::SecurityBlackList;
+use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
@@ -28,7 +30,6 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use metadata_struct::mqtt::user::SecurityUser;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use metadata_struct::tenant::Tenant;
 use protocol::broker::broker_common::{
@@ -47,6 +48,7 @@ pub async fn update_mqtt_cache_metadata(
     schema_manager: &Arc<SchemaRegisterManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     metrics_manager: &Arc<MQTTMetricsCache>,
+    security_manager: &Arc<SecurityManager>,
     record: &UpdateCacheRecord,
 ) -> ResultMqttBrokerError {
     match record.resource_type() {
@@ -95,23 +97,25 @@ pub async fn update_mqtt_cache_metadata(
         BrokerUpdateCacheResourceType::Acl => match record.action_type() {
             BrokerUpdateCacheActionType::Create => {
                 let acl = serialize::deserialize::<SecurityAcl>(&record.data)?;
-                cache_manager.add_acl(acl);
+                security_manager.security_metadata.add_acl(acl);
             }
             BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let acl = serialize::deserialize::<SecurityAcl>(&record.data)?;
-                cache_manager.remove_acl(acl);
+                security_manager.security_metadata.remove_acl(acl);
             }
         },
         BrokerUpdateCacheResourceType::Blacklist => match record.action_type() {
             BrokerUpdateCacheActionType::Create => {
                 let blacklist = serialize::deserialize::<SecurityBlackList>(&record.data)?;
-                cache_manager.add_blacklist(blacklist);
+                security_manager.security_metadata.add_blacklist(blacklist);
             }
             BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let blacklist = serialize::deserialize::<SecurityBlackList>(&record.data)?;
-                cache_manager.remove_blacklist(blacklist);
+                security_manager
+                    .security_metadata
+                    .remove_blacklist(blacklist);
             }
         },
 

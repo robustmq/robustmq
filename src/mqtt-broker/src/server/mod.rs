@@ -19,12 +19,12 @@ use crate::core::tool::ResultMqttBrokerError;
 use crate::storage::session::SessionBatcher;
 use crate::{
     core::{cache::MQTTCacheManager, command::CommandContext},
-    security::AuthManager,
     subscribe::manager::SubscribeManager,
 };
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
 use common_config::broker::broker_config;
+use common_security::manager::SecurityManager;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
@@ -66,7 +66,7 @@ pub struct TcpServerContext {
     pub client_pool: Arc<ClientPool>,
     pub session_batcher: Arc<SessionBatcher>,
     pub stop_sx: broadcast::Sender<bool>,
-    pub auth_driver: Arc<AuthManager>,
+    pub security_manager: Arc<SecurityManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub broker_cache: Arc<NodeCacheManager>,
     pub mqtt_limit_manager: Arc<MQTTRateLimiterManager>,
@@ -91,7 +91,7 @@ impl Server {
             session_batcher: context.session_batcher.clone(),
             connection_manager: context.connection_manager.clone(),
             schema_manager: context.schema_manager.clone(),
-            auth_driver: context.auth_driver.clone(),
+            security_manager: context.security_manager.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
             broker_cache: context.broker_cache.clone(),
             retain_message_manager: context.retain_message_manager.clone(),

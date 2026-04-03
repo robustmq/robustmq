@@ -22,10 +22,10 @@ use crate::core::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_su
 use crate::core::sub_wildcards::sub_path_validator;
 use crate::core::subscribe::remove_subscribe;
 use crate::core::subscribe::{save_subscribe, SaveSubscribeContext};
-use crate::security::AuthManager;
 use crate::subscribe::common::min_qos;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_second;
+use common_security::manager::SecurityManager;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
     MqttPacket, MqttProtocol, QoS, SubAck, SubAckProperties, Subscribe, SubscribeProperties,
@@ -266,7 +266,7 @@ fn response_packet_mqtt_unsub_ack(
 
 async fn subscribe_validator(
     cache_manager: &Arc<MQTTCacheManager>,
-    auth_driver: &Arc<AuthManager>,
+    security_manager: &Arc<SecurityManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     connection: &MQTTConnection,
     subscribe: &Subscribe,

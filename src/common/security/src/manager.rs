@@ -42,7 +42,7 @@ struct CachedStorageDriver {
 pub struct SecurityManager {
     storage_drivers: Arc<DashMap<String, CachedStorageDriver>>,
     node_cache: Arc<NodeCacheManager>,
-    security_metadata: SecurityMetadata,
+    pub security_metadata: SecurityMetadata,
 }
 
 impl SecurityManager {

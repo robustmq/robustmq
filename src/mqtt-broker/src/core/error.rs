@@ -12,16 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{num::ParseIntError, string::FromUtf8Error};
-
 use common_base::error::{common::CommonError, mqtt_protocol_error::MQTTProtocolError};
-use lapin::Error as LapinError;
-use pulsar::Error as PulsarError;
 use quinn::{ReadToEndError, StoppedError, WriteError};
-use r2d2;
 use rdkafka::error::KafkaError;
 use reqwest::Error as RequestError;
-use sqlx::Error as SqlxError;
+use std::{num::ParseIntError, string::FromUtf8Error};
 use thiserror::Error;
 use tonic::Status;
 
@@ -169,7 +164,7 @@ pub enum MqttBrokerError {
 
     #[error("Missing target shard name for delay message")]
     MissingTargetShardName,
-    
+
     #[error("Session does not exist")]
     SessionDoesNotExist,
 

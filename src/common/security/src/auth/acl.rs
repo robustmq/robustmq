@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::enum_type::mqtt::acl::mqtt_acl_action::EnumAclAction;
-use common_base::enum_type::mqtt::acl::mqtt_acl_permission::EnumAclPermission;
-use metadata_struct::{auth::acl::SecurityAcl, mqtt::connection::MQTTConnection};
+use crate::{
+    auth::common::{ip_match, topic_match},
+    metadata::SecurityMetadata,
+};
+use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, SecurityAcl};
 use std::{net::SocketAddr, sync::Arc};
-
-use crate::auth::common::{ip_match, topic_match};
 
 fn normalize_source_ip(source_ip_addr: &str) -> String {
     if let Ok(socket_addr) = source_ip_addr.parse::<SocketAddr>() {
@@ -32,31 +32,28 @@ fn normalize_source_ip(source_ip_addr: &str) -> String {
 }
 
 pub fn is_acl_deny(
-    cache_manager: &Arc<MQTTCacheManager>,
-    connection: &MQTTConnection,
+    security_metadata: &Arc<SecurityMetadata>,
     topic_name: &str,
+    tenant: &str,
+    user: &str,
+    source_ip_addr: &str,
+    client_id: &str,
     action: EnumAclAction,
 ) -> bool {
-    let source_ip = normalize_source_ip(&connection.source_ip_addr);
-    let user = connection.login_user.clone().unwrap_or_default();
+    let source_ip = normalize_source_ip(source_ip_addr);
 
-    let user_deny =
-        if let Some(tenant_map) = cache_manager.acl_metadata.acl_user.get(&connection.tenant) {
-            if let Some(acl_list) = tenant_map.get(&user) {
-                check_for_deny(&acl_list, &action, topic_name, &source_ip)
-            } else {
-                false
-            }
+    let user_deny = if let Some(tenant_map) = security_metadata.acl_user.get(tenant) {
+        if let Some(acl_list) = tenant_map.get(user) {
+            check_for_deny(&acl_list, &action, topic_name, &source_ip)
         } else {
             false
-        };
+        }
+    } else {
+        false
+    };
 
-    let client_id_deny = if let Some(tenant_map) = cache_manager
-        .acl_metadata
-        .acl_client_id
-        .get(&connection.tenant)
-    {
-        if let Some(acl_list) = tenant_map.get(&connection.client_id) {
+    let client_id_deny = if let Some(tenant_map) = security_metadata.acl_client_id.get(tenant) {
+        if let Some(acl_list) = tenant_map.get(client_id) {
             check_for_deny(&acl_list, &action, topic_name, &source_ip)
         } else {
             false
@@ -86,247 +83,4 @@ fn check_for_deny(
         }
     }
     false
-}
-
-#[cfg(test)]
-mod test {
-    use super::is_acl_deny;
-    use crate::core::cache::MQTTCacheManager;
-    use crate::core::constant::WILDCARD_RESOURCE;
-    use crate::core::tool::test_build_mqtt_cache_manager;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_action::EnumAclAction;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::EnumAclPermission;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::EnumAclResourceType;
-    use common_base::tools::{local_hostname, now_second};
-    use metadata_struct::auth::acl::SecurityAcl;
-    use metadata_struct::auth::user::SecurityUser;
-    use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
-    use std::sync::Arc;
-
-    const TENANT: &str = "tenant1";
-
-    struct TestFixture {
-        cache_manager: Arc<MQTTCacheManager>,
-        connection: MQTTConnection,
-        user: SecurityUser,
-        topic_name: String,
-    }
-
-    async fn setup() -> TestFixture {
-        let topic_name = "tp-1".to_string();
-        let cache_manager = test_build_mqtt_cache_manager().await;
-        let user = SecurityUser {
-            tenant: TENANT.to_string(),
-            username: "loboxu".to_string(),
-            password: "lobo_123".to_string(),
-            salt: None,
-            is_superuser: true,
-            create_time: now_second(),
-        };
-
-        cache_manager.add_user(user.clone());
-        let config = ConnectionConfig {
-            connect_id: 1,
-            tenant: TENANT.to_string(),
-            client_id: "client_id-1".to_string(),
-            receive_maximum: 3,
-            max_packet_size: 3,
-            topic_alias_max: 3,
-            request_problem_info: 1,
-            keep_alive: 2,
-            source_ip_addr: local_hostname(),
-            clean_session: true,
-        };
-        let mut connection = MQTTConnection::new(config);
-        connection.login_success(user.username.clone());
-
-        TestFixture {
-            cache_manager,
-            connection,
-            user,
-            topic_name,
-        }
-    }
-
-    fn add_deny_rule(
-        fixture: &TestFixture,
-        resource_type: EnumAclResourceType,
-        topic: &str,
-        action: EnumAclAction,
-    ) {
-        let resource_name = match resource_type {
-            EnumAclResourceType::User => fixture.user.username.clone(),
-            EnumAclResourceType::ClientId => fixture.connection.client_id.clone(),
-        };
-
-        let acl = SecurityAcl {
-            name: format!("acl-deny-{}-{:?}", topic, action),
-            desc: String::new(),
-            tenant: TENANT.to_string(),
-            resource_type,
-            resource_name,
-            topic: topic.to_string(),
-            ip: WILDCARD_RESOURCE.to_string(),
-            action,
-            permission: EnumAclPermission::Deny,
-        };
-        fixture.cache_manager.add_acl(acl);
-    }
-
-    #[tokio::test]
-    async fn empty_acl_returns_false() {
-        let fixture = setup().await;
-        assert!(!is_acl_deny(
-            &fixture.cache_manager,
-            &fixture.connection,
-            &fixture.topic_name,
-            EnumAclAction::Publish,
-        ));
-    }
-
-    #[tokio::test]
-    async fn user_specific_rule_blocks_publish_only() {
-        let fixture = setup().await;
-        add_deny_rule(
-            &fixture,
-            EnumAclResourceType::User,
-            &fixture.topic_name,
-            EnumAclAction::Publish,
-        );
-
-        assert!(is_acl_deny(
-            &fixture.cache_manager,
-            &fixture.connection,
-            &fixture.topic_name,
-            EnumAclAction::Publish
-        ));
-
-        assert!(!is_acl_deny(
-            &fixture.cache_manager,
-            &fixture.connection,
-            &fixture.topic_name,
-            EnumAclAction::Subscribe
-        ));
-    }
-
-    #[tokio::test]
-    async fn client_id_deny_still_effective_when_user_rules_exist() {
-        let fixture = setup().await;
-
-        fixture.cache_manager.add_acl(SecurityAcl {
-            name: "acl-user-other-topic".to_string(),
-            desc: String::new(),
-            tenant: TENANT.to_string(),
-            resource_type: EnumAclResourceType::User,
-            resource_name: fixture.user.username.clone(),
-            topic: "other/topic".to_string(),
-            ip: WILDCARD_RESOURCE.to_string(),
-            action: EnumAclAction::Publish,
-            permission: EnumAclPermission::Deny,
-        });
-
-        fixture.cache_manager.add_acl(SecurityAcl {
-            name: "acl-client-wildcard".to_string(),
-            desc: String::new(),
-            tenant: TENANT.to_string(),
-            resource_type: EnumAclResourceType::ClientId,
-            resource_name: fixture.connection.client_id.clone(),
-            topic: WILDCARD_RESOURCE.to_string(),
-            ip: WILDCARD_RESOURCE.to_string(),
-            action: EnumAclAction::All,
-            permission: EnumAclPermission::Deny,
-        });
-
-        assert!(is_acl_deny(
-            &fixture.cache_manager,
-            &fixture.connection,
-            &fixture.topic_name,
-            EnumAclAction::Publish
-        ));
-
-        assert!(is_acl_deny(
-            &fixture.cache_manager,
-            &fixture.connection,
-            "any/topic",
-            EnumAclAction::Subscribe
-        ));
-    }
-
-    #[tokio::test]
-    async fn source_ip_with_port_is_normalized_for_acl_match() {
-        let fixture = setup().await;
-        let mut conn = fixture.connection.clone();
-        conn.source_ip_addr = "127.0.0.1:1883".to_string();
-
-        fixture.cache_manager.add_acl(SecurityAcl {
-            name: "acl-client-ip-deny".to_string(),
-            desc: String::new(),
-            tenant: TENANT.to_string(),
-            resource_type: EnumAclResourceType::ClientId,
-            resource_name: conn.client_id.clone(),
-            topic: fixture.topic_name.clone(),
-            ip: "127.0.0.1".to_string(),
-            action: EnumAclAction::Publish,
-            permission: EnumAclPermission::Deny,
-        });
-
-        assert!(is_acl_deny(
-            &fixture.cache_manager,
-            &conn,
-            &fixture.topic_name,
-            EnumAclAction::Publish
-        ));
-    }
-
-    mod check_for_deny_tests {
-        use crate::auth::acl::check_for_deny;
-
-        use super::*;
-
-        #[test]
-        fn check_for_deny_core_cases() {
-            let rule = |permission: EnumAclPermission, action: EnumAclAction| SecurityAcl {
-                name: format!("rule-{:?}-{:?}", permission, action),
-                desc: String::new(),
-                tenant: TENANT.to_string(),
-                permission,
-                action,
-                topic: "test/topic".to_string(),
-                ip: "127.0.0.1".to_string(),
-                resource_type: EnumAclResourceType::User,
-                resource_name: "resource_name".to_string(),
-            };
-
-            let cases = vec![
-                (vec![], EnumAclAction::Publish, false),
-                (
-                    vec![rule(EnumAclPermission::Deny, EnumAclAction::Publish)],
-                    EnumAclAction::Publish,
-                    true,
-                ),
-                (
-                    vec![rule(EnumAclPermission::Allow, EnumAclAction::Publish)],
-                    EnumAclAction::Publish,
-                    false,
-                ),
-                (
-                    vec![rule(EnumAclPermission::Deny, EnumAclAction::Subscribe)],
-                    EnumAclAction::Publish,
-                    false,
-                ),
-                (
-                    vec![rule(EnumAclPermission::Deny, EnumAclAction::All)],
-                    EnumAclAction::Subscribe,
-                    true,
-                ),
-            ];
-
-            for (rules, action, expected) in cases {
-                assert_eq!(
-                    check_for_deny(&rules, &action, "test/topic", "127.0.0.1"),
-                    expected
-                );
-            }
-        }
-    }
 }

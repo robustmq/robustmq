@@ -45,6 +45,8 @@ common-config.workspace = true
 grpc-clients.workspace = true
 broker-core.workspace = true
 clap.workspace = true
+regex.workspace = true
+ipnet.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

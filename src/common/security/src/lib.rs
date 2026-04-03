@@ -1,3 +1,5 @@
+pub const WILDCARD_RESOURCE: &str = "*";
+
 pub mod auth;
 pub mod login;
 pub mod manager;

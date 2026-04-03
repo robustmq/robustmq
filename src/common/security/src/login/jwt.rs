@@ -14,10 +14,10 @@
 
 use super::Authentication;
 use crate::core::cache::MQTTCacheManager;
-use common_base::error::common::CommonError;
 use async_trait::async_trait;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
+use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use common_config::security::JwtConfig;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
