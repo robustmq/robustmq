@@ -46,11 +46,11 @@ pub async fn try_init_system_user(client_pool: &Arc<ClientPool>) -> ResultCommon
     Ok(())
 }
 
-/// Check if a username is a super user by searching across all tenants.
 pub fn is_super_user(security_manager: &Arc<SecurityManager>, username: &str) -> bool {
     if username.is_empty() {
         return false;
     }
+    
     for tenant_entry in security_manager.security_metadata.user_info.iter() {
         if let Some(user) = tenant_entry.value().get(username) {
             return user.is_superuser;

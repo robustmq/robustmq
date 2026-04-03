@@ -366,7 +366,8 @@ mod test {
             topic_alias_max: 100,
             request_problem_info: 100,
             keep_alive,
-            source_ip_addr: addr,
+            source_ip_addr: addr.clone(),
+            source_ip: addr,
             clean_session: false,
         };
         let connection = MQTTConnection::new(config);

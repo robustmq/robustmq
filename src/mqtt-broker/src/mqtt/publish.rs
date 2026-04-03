@@ -614,6 +614,7 @@ mod tests {
             client_id: "test_client".to_string(),
             is_login: true,
             source_ip_addr: "127.0.0.1".to_string(),
+            source_ip: "127.0.0.1".to_string(),
             clean_session: true,
             login_user: None,
             keep_alive: 60,

@@ -18,7 +18,7 @@ use crate::subscribe::common::get_sub_topic_name_list;
 use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use common_metrics::mqtt::auth::{record_mqtt_acl_failed, record_mqtt_acl_success};
-use common_security::auth::acl::{is_client_id_acl_deny, is_user_acl_deny, normalize_source_ip};
+use common_security::auth::acl::{is_client_id_acl_deny, is_user_acl_deny};
 use common_security::auth::blacklist::{
     is_client_id_blacklisted, is_ip_blacklisted, is_user_blacklisted,
 };
@@ -76,14 +76,14 @@ pub async fn security_is_allow_connect(
     security_manager: &Arc<SecurityManager>,
     tenant: &str,
     client_id: &str,
-    source_ip_addr: &str,
+    source_ip: &str,
     login: &Option<Login>,
 ) -> bool {
     let login = login.clone().unwrap_or_default();
 
-    is_user_blacklisted(security_manager, tenant, &login.username)
-        || is_client_id_blacklisted(security_manager, tenant, client_id)
-        || is_ip_blacklisted(security_manager, tenant, source_ip_addr)
+    !is_user_blacklisted(security_manager, tenant, &login.username)
+        && !is_client_id_blacklisted(security_manager, tenant, client_id)
+        && !is_ip_blacklisted(security_manager, tenant, source_ip)
 }
 
 pub async fn security_is_allow_publish(
@@ -98,7 +98,7 @@ pub async fn security_is_allow_publish(
         return true;
     }
 
-    let source_ip = normalize_source_ip(&connection.source_ip_addr);
+    let source_ip = connection.source_ip.as_str();
 
     // Message auth
     if is_client_id_acl_deny(
@@ -106,7 +106,7 @@ pub async fn security_is_allow_publish(
         topic_name,
         &connection.tenant,
         &connection.client_id,
-        &source_ip,
+        source_ip,
         &EnumAclAction::Publish,
     ) {
         record_mqtt_acl_failed();
@@ -118,7 +118,7 @@ pub async fn security_is_allow_publish(
         topic_name,
         &connection.tenant,
         &user,
-        &source_ip,
+        source_ip,
         &EnumAclAction::Publish,
     ) {
         record_mqtt_acl_failed();
@@ -132,7 +132,7 @@ pub async fn security_is_allow_publish(
             topic_name,
             &connection.tenant,
             &connection.client_id,
-            &source_ip,
+            source_ip,
             &EnumAclAction::Retain,
         ) {
             record_mqtt_acl_failed();
@@ -144,7 +144,7 @@ pub async fn security_is_allow_publish(
             topic_name,
             &connection.tenant,
             &user,
-            &source_ip,
+            source_ip,
             &EnumAclAction::Retain,
         ) {
             record_mqtt_acl_failed();
@@ -163,7 +163,7 @@ pub async fn security_is_allow_subscribe(
     subscribe: &Subscribe,
 ) -> bool {
     let user = connection.login_user.clone().unwrap_or_default();
-    let source_ip = normalize_source_ip(&connection.source_ip_addr);
+    let source_ip = connection.source_ip.as_str();
 
     for filter in subscribe.filters.iter() {
         let topic_list = get_sub_topic_name_list(cache_manager, &filter.path).await;
@@ -173,7 +173,7 @@ pub async fn security_is_allow_subscribe(
                 &topic_name,
                 &connection.tenant,
                 &connection.client_id,
-                &source_ip,
+                source_ip,
                 &EnumAclAction::Subscribe,
             ) {
                 record_mqtt_acl_failed();
@@ -185,7 +185,7 @@ pub async fn security_is_allow_subscribe(
                 &topic_name,
                 &connection.tenant,
                 &user,
-                &source_ip,
+                source_ip,
                 &EnumAclAction::Subscribe,
             ) {
                 record_mqtt_acl_failed();

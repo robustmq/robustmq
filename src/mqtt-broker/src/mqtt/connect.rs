@@ -138,7 +138,7 @@ impl MqttService {
             &self.security_manager,
             &connection.tenant,
             &connection.client_id,
-            &context.addr.to_string(),
+            &connection.source_ip,
             &context.login,
         )
         .await

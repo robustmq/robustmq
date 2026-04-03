@@ -15,7 +15,6 @@
 use crate::{auth::common::ip_match, manager::SecurityManager};
 use common_base::tools::now_second;
 use regex::Regex;
-use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::{info, warn};
 
@@ -82,14 +81,13 @@ pub fn is_client_id_blacklisted(
 pub fn is_ip_blacklisted(
     security_manager: &Arc<SecurityManager>,
     tenant: &str,
-    source_ip_addr: &str,
+    source_ip: &str,
 ) -> bool {
-    let source_ip = extract_ip_from_addr(source_ip_addr);
     let now = now_second();
     let meta = &security_manager.security_metadata;
 
     if let Some(tenant_map) = meta.blacklist_ip.get(tenant) {
-        if let Some(data) = tenant_map.get(&source_ip) {
+        if let Some(data) = tenant_map.get(source_ip) {
             if is_active(data.end_time, now) {
                 info!(source_ip = %source_ip, end_time = data.end_time, "Connection blocked by exact IP blacklist");
                 return true;
@@ -99,7 +97,7 @@ pub fn is_ip_blacklisted(
 
     if let Some(list) = meta.blacklist_ip_match.get(tenant) {
         for raw in list.iter() {
-            if is_active(raw.end_time, now) && ip_match(&source_ip, &raw.resource_name) {
+            if is_active(raw.end_time, now) && ip_match(source_ip, &raw.resource_name) {
                 info!(source_ip = %source_ip, pattern = %raw.resource_name, "Connection blocked by IP pattern blacklist");
                 return true;
             }
@@ -107,21 +105,6 @@ pub fn is_ip_blacklisted(
     }
 
     false
-}
-
-fn extract_ip_from_addr(addr: &str) -> String {
-    if let Ok(socket_addr) = addr.parse::<SocketAddr>() {
-        return socket_addr.ip().to_string();
-    }
-
-    if let Some((ip, _port)) = addr.rsplit_once(':') {
-        if ip.split('.').count() == 4 {
-            return ip.to_string();
-        }
-    }
-
-    warn!(source_addr = %addr, "Failed to extract IP from source address");
-    addr.to_string()
 }
 
 fn wildcard_to_regex(pattern: &str) -> String {
@@ -154,5 +137,71 @@ fn is_wildcard_pattern_match(target: &str, pattern: &str) -> bool {
             warn!(pattern = %pattern, error = %e, "Invalid wildcard pattern");
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_user_blacklisted, is_wildcard_pattern_match};
+    use crate::manager::SecurityManager;
+    use common_base::tools::now_second;
+    use metadata_struct::auth::blacklist::{EnumBlackListType, SecurityBlackList};
+    use std::sync::Arc;
+
+    fn make_blacklist(
+        tenant: &str,
+        resource_name: &str,
+        blacklist_type: EnumBlackListType,
+        end_time: u64,
+    ) -> SecurityBlackList {
+        SecurityBlackList {
+            name: resource_name.to_string(),
+            tenant: tenant.to_string(),
+            blacklist_type,
+            resource_name: resource_name.to_string(),
+            end_time,
+            desc: String::new(),
+        }
+    }
+
+    #[test]
+    fn test_wildcard_pattern_match() {
+        assert!(is_wildcard_pattern_match("admin", "admin*"));
+        assert!(is_wildcard_pattern_match("admin_1", "admin*"));
+        assert!(is_wildcard_pattern_match("admin", "adm?n"));
+        assert!(!is_wildcard_pattern_match("root", "admin*"));
+    }
+
+    #[test]
+    fn test_is_user_blacklisted() {
+        let sm = Arc::new(SecurityManager::new());
+        let tenant = "t1";
+        let future = now_second() + 9999;
+        let past = now_second() - 1;
+
+        sm.security_metadata.add_blacklist(make_blacklist(
+            tenant,
+            "alice",
+            EnumBlackListType::User,
+            future,
+        ));
+        assert!(is_user_blacklisted(&sm, tenant, "alice"));
+
+        sm.security_metadata.add_blacklist(make_blacklist(
+            tenant,
+            "bob",
+            EnumBlackListType::User,
+            past,
+        ));
+        assert!(!is_user_blacklisted(&sm, tenant, "bob"));
+
+        sm.security_metadata.add_blacklist(make_blacklist(
+            tenant,
+            "tmp_*",
+            EnumBlackListType::UserMatch,
+            future,
+        ));
+        assert!(is_user_blacklisted(&sm, tenant, "tmp_test"));
+        assert!(!is_user_blacklisted(&sm, tenant, "normal_user"));
     }
 }

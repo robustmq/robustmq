@@ -83,3 +83,55 @@ fn check_for_deny(
     }
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{is_user_acl_deny, normalize_source_ip};
+    use crate::manager::SecurityManager;
+    use metadata_struct::auth::acl::{
+        EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl,
+    };
+    use std::sync::Arc;
+
+    fn make_acl(
+        tenant: &str,
+        user: &str,
+        action: EnumAclAction,
+        permission: EnumAclPermission,
+    ) -> SecurityAcl {
+        SecurityAcl {
+            name: "test".to_string(),
+            desc: String::new(),
+            tenant: tenant.to_string(),
+            resource_type: EnumAclResourceType::User,
+            resource_name: user.to_string(),
+            topic: "sensor/data".to_string(),
+            ip: "*".to_string(),
+            action,
+            permission,
+        }
+    }
+
+    #[test]
+    fn test_normalize_source_ip() {
+        assert_eq!(normalize_source_ip("192.168.1.1:12345"), "192.168.1.1");
+        assert_eq!(normalize_source_ip("[::1]:8080"), "::1");
+        assert_eq!(normalize_source_ip("10.0.0.1"), "10.0.0.1");
+    }
+
+    #[test]
+    fn test_is_user_acl_deny() {
+        let sm = Arc::new(SecurityManager::new());
+        let tenant = "t1";
+        let user = "user1";
+
+        sm.security_metadata
+            .add_acl(make_acl(tenant, user, EnumAclAction::Publish, EnumAclPermission::Deny));
+
+        assert!(is_user_acl_deny(&sm, "sensor/data", tenant, user, "1.2.3.4", &EnumAclAction::Publish));
+
+        assert!(!is_user_acl_deny(&sm, "sensor/data", tenant, user, "1.2.3.4", &EnumAclAction::Subscribe));
+
+        assert!(!is_user_acl_deny(&sm, "sensor/data", tenant, "other_user", "1.2.3.4", &EnumAclAction::Publish));
+    }
+}
