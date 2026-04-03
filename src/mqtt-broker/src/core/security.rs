@@ -72,7 +72,7 @@ pub async fn security_publish_acl_check(
     topic_name: &str,
     retain: bool,
     qos: QoS,
-) -> Result<(), CommonError> {
+) -> Result<(), MqttBrokerError> {
     let user = connection.login_user.clone().unwrap_or_default();
     if !is_allow_acl(
         security_manager,
@@ -86,7 +86,7 @@ pub async fn security_publish_acl_check(
         qos,
     ) {
         record_mqtt_acl_failed();
-        return Err(CommonError::NotAclAuth(topic_name.to_string()));
+        return Err(MqttBrokerError::NotAclAuth(topic_name.to_string()));
     }
     record_mqtt_acl_success();
 

@@ -203,6 +203,12 @@ pub enum MqttBrokerError {
 
     #[error("Tenant [{0}] does not exist.")]
     TenantNotFound(String),
+
+    #[error("ACL authentication failed. Access denied for topic: {0}")]
+    NotAclAuth(String),
+
+    #[error("Blacklist authentication failed. Connection is blocked")]
+    NotBlacklistAuth,
 }
 
 impl From<MqttBrokerError> for Status {

@@ -251,12 +251,6 @@ pub enum CommonError {
 
     #[error("BSON serialization error: {0}")]
     BsonSerializationError(String),
-
-    #[error("ACL authentication failed. Access denied for topic: {0}")]
-    NotAclAuth(String),
-
-    #[error("Blacklist authentication failed. Connection is blocked")]
-    NotBlacklistAuth,
 }
 
 impl From<CommonError> for Status {
