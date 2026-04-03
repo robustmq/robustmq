@@ -24,10 +24,11 @@ mod tests {
     use admin_server::client::AdminHttpClient;
     use admin_server::mqtt::acl::{AclListReq, AclListRow, CreateAclReq, DeleteAclReq};
     use admin_server::mqtt::user::{CreateUserReq, DeleteUserReq};
-    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::uuid::unique_id;
+    use metadata_struct::auth::acl::{
+        EnumAclAction as MqttAclAction, EnumAclPermission as MqttAclPermission,
+        EnumAclResourceType as MqttAclResourceType,
+    };
     use paho_mqtt::MessageBuilder;
     use tokio::time::sleep;
 

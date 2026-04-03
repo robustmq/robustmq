@@ -7463,6 +7463,7 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
+ "common-security",
  "dashmap 6.1.0",
  "futures",
  "grpc-clients",
