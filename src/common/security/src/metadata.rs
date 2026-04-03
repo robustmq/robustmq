@@ -177,7 +177,6 @@ impl SecurityMetadata {
     }
 
     // Blacklist
-
     pub fn add_blacklist(&self, blacklist: SecurityBlackList) {
         self.parse_mqtt_blacklist(blacklist);
     }
@@ -282,30 +281,6 @@ impl SecurityMetadata {
                 }
             }
         }
-    }
-
-    /// Returns all wildcard user blacklist entries across all tenants.
-    pub fn get_blacklist_user_match(&self) -> Vec<SecurityBlackList> {
-        self.blacklist_user_match
-            .iter()
-            .flat_map(|entry| entry.value().clone())
-            .collect()
-    }
-
-    /// Returns all wildcard client-id blacklist entries across all tenants.
-    pub fn get_blacklist_client_id_match(&self) -> Vec<SecurityBlackList> {
-        self.blacklist_client_id_match
-            .iter()
-            .flat_map(|entry| entry.value().clone())
-            .collect()
-    }
-
-    /// Returns all CIDR/wildcard IP blacklist entries across all tenants.
-    pub fn get_blacklist_ip_match(&self) -> Vec<SecurityBlackList> {
-        self.blacklist_ip_match
-            .iter()
-            .flat_map(|entry| entry.value().clone())
-            .collect()
     }
 
     pub fn get_all_blacklist(&self) -> Vec<SecurityBlackList> {

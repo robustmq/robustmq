@@ -15,12 +15,101 @@
 use crate::{auth::common::ip_match, manager::SecurityManager};
 use common_base::tools::now_second;
 use regex::Regex;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::{info, warn};
 
-fn extract_ip_from_addr(addr: &str) -> String {
-    use std::net::SocketAddr;
+pub fn is_user_blacklisted(
+    security_manager: &Arc<SecurityManager>,
+    tenant: &str,
+    user: &str,
+) -> bool {
+    let now = now_second();
+    let meta = &security_manager.security_metadata;
 
+    if let Some(tenant_map) = meta.blacklist_user.get(tenant) {
+        if let Some(data) = tenant_map.get(user) {
+            if is_active(data.end_time, now) {
+                info!(username = %user, end_time = data.end_time, "Connection blocked by exact user blacklist");
+                return true;
+            }
+        }
+    }
+
+    if let Some(list) = meta.blacklist_user_match.get(tenant) {
+        for raw in list.iter() {
+            if is_active(raw.end_time, now) && is_wildcard_pattern_match(user, &raw.resource_name) {
+                info!(username = %user, pattern = %raw.resource_name, "Connection blocked by user wildcard blacklist");
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+pub fn is_client_id_blacklisted(
+    security_manager: &Arc<SecurityManager>,
+    tenant: &str,
+    client_id: &str,
+) -> bool {
+    let now = now_second();
+    let meta = &security_manager.security_metadata;
+
+    if let Some(tenant_map) = meta.blacklist_client_id.get(tenant) {
+        if let Some(data) = tenant_map.get(client_id) {
+            if is_active(data.end_time, now) {
+                info!(client_id = %client_id, end_time = data.end_time, "Connection blocked by exact client_id blacklist");
+                return true;
+            }
+        }
+    }
+
+    if let Some(list) = meta.blacklist_client_id_match.get(tenant) {
+        for raw in list.iter() {
+            if is_active(raw.end_time, now)
+                && is_wildcard_pattern_match(client_id, &raw.resource_name)
+            {
+                info!(client_id = %client_id, pattern = %raw.resource_name, "Connection blocked by client_id wildcard blacklist");
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+pub fn is_ip_blacklisted(
+    security_manager: &Arc<SecurityManager>,
+    tenant: &str,
+    source_ip_addr: &str,
+) -> bool {
+    let source_ip = extract_ip_from_addr(source_ip_addr);
+    let now = now_second();
+    let meta = &security_manager.security_metadata;
+
+    if let Some(tenant_map) = meta.blacklist_ip.get(tenant) {
+        if let Some(data) = tenant_map.get(&source_ip) {
+            if is_active(data.end_time, now) {
+                info!(source_ip = %source_ip, end_time = data.end_time, "Connection blocked by exact IP blacklist");
+                return true;
+            }
+        }
+    }
+
+    if let Some(list) = meta.blacklist_ip_match.get(tenant) {
+        for raw in list.iter() {
+            if is_active(raw.end_time, now) && ip_match(&source_ip, &raw.resource_name) {
+                info!(source_ip = %source_ip, pattern = %raw.resource_name, "Connection blocked by IP pattern blacklist");
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+fn extract_ip_from_addr(addr: &str) -> String {
     if let Ok(socket_addr) = addr.parse::<SocketAddr>() {
         return socket_addr.ip().to_string();
     }
@@ -66,129 +155,4 @@ fn is_wildcard_pattern_match(target: &str, pattern: &str) -> bool {
             false
         }
     }
-}
-
-pub fn is_user_blacklisted(security_manager: &Arc<SecurityManager>, user: &str) -> bool {
-    let now = now_second();
-    // Check exact match across all tenants
-    for tenant_entry in security_manager.security_metadata.blacklist_user.iter() {
-        if let Some(data) = tenant_entry.value().get(user) {
-            if is_active(data.end_time, now) {
-                info!(
-                    username = %user,
-                    end_time = data.end_time,
-                    now = now,
-                    "Connection blocked by exact user blacklist"
-                );
-                return true;
-            }
-        }
-    }
-
-    // Check wildcard match across all tenants
-    for raw in security_manager
-        .security_metadata
-        .get_blacklist_user_match()
-    {
-        if !is_active(raw.end_time, now) {
-            continue;
-        }
-        if is_wildcard_pattern_match(user, &raw.resource_name) {
-            info!(
-                username = %user,
-                pattern = %raw.resource_name,
-                end_time = raw.end_time,
-                now = now,
-                "Connection blocked by user wildcard blacklist"
-            );
-            return true;
-        }
-    }
-
-    false
-}
-
-pub fn is_client_id_blacklisted(security_manager: &Arc<SecurityManager>, client_id: &str) -> bool {
-    let now = now_second();
-    // Check exact match across all tenants
-    for tenant_entry in security_manager
-        .security_metadata
-        .blacklist_client_id
-        .iter()
-    {
-        if let Some(data) = tenant_entry.value().get(client_id) {
-            if is_active(data.end_time, now) {
-                info!(
-                    client_id = %client_id,
-                    end_time = data.end_time,
-                    now = now,
-                    "Connection blocked by exact client_id blacklist"
-                );
-                return true;
-            }
-        }
-    }
-
-    // Check wildcard match across all tenants
-    for raw in security_manager
-        .security_metadata
-        .get_blacklist_client_id_match()
-    {
-        if !is_active(raw.end_time, now) {
-            continue;
-        }
-        if is_wildcard_pattern_match(client_id, &raw.resource_name) {
-            info!(
-                client_id = %client_id,
-                pattern = %raw.resource_name,
-                end_time = raw.end_time,
-                now = now,
-                "Connection blocked by client_id wildcard blacklist"
-            );
-            return true;
-        }
-    }
-
-    false
-}
-
-pub fn is_ip_blacklisted(security_manager: &Arc<SecurityManager>, source_ip_addr: &str) -> bool {
-    let source_ip = extract_ip_from_addr(source_ip_addr);
-    let now = now_second();
-
-    // Check exact match across all tenants
-    for tenant_entry in security_manager.security_metadata.blacklist_ip.iter() {
-        if let Some(data) = tenant_entry.value().get(&source_ip) {
-            if is_active(data.end_time, now) {
-                info!(
-                    source_ip_addr = %source_ip_addr,
-                    source_ip = %source_ip,
-                    end_time = data.end_time,
-                    now = now,
-                    "Connection blocked by exact IP blacklist"
-                );
-                return true;
-            }
-        }
-    }
-
-    // Check CIDR/wildcard match across all tenants
-    for raw in security_manager.security_metadata.get_blacklist_ip_match() {
-        if !is_active(raw.end_time, now) {
-            continue;
-        }
-        if ip_match(&source_ip, &raw.resource_name) {
-            info!(
-                source_ip_addr = %source_ip_addr,
-                source_ip = %source_ip,
-                pattern = %raw.resource_name,
-                end_time = raw.end_time,
-                now = now,
-                "Connection blocked by IP pattern blacklist"
-            );
-            return true;
-        }
-    }
-
-    false
 }

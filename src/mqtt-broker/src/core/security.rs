@@ -74,15 +74,16 @@ pub async fn security_login_check(
 
 pub async fn security_is_allow_connect(
     security_manager: &Arc<SecurityManager>,
+    tenant: &str,
     client_id: &str,
     source_ip_addr: &str,
     login: &Option<Login>,
 ) -> bool {
     let login = login.clone().unwrap_or_default();
 
-    is_user_blacklisted(security_manager, &login.username)
-        || is_client_id_blacklisted(security_manager, client_id)
-        || is_ip_blacklisted(security_manager, source_ip_addr)
+    is_user_blacklisted(security_manager, tenant, &login.username)
+        || is_client_id_blacklisted(security_manager, tenant, client_id)
+        || is_ip_blacklisted(security_manager, tenant, source_ip_addr)
 }
 
 pub async fn security_is_allow_publish(

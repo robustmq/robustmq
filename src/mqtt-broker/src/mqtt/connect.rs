@@ -136,6 +136,7 @@ impl MqttService {
         // auth check
         if !security_is_allow_connect(
             &self.security_manager,
+            &connection.tenant,
             &connection.client_id,
             &context.addr.to_string(),
             &context.login,
