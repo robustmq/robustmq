@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_config::broker::broker_config;
 use grpc_clients::meta::mqtt::call::{create_acl, delete_acl, list_acl};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::auth::acl::SecurityAcl;
 use protocol::meta::meta_service_mqtt::{CreateAclRequest, DeleteAclRequest, ListAclRequest};
 
 use crate::core::error::MqttBrokerError;
@@ -32,7 +32,7 @@ impl AclStorage {
         AclStorage { client_pool }
     }
 
-    pub async fn list_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
+    pub async fn list_acl(&self) -> Result<Vec<SecurityAcl>, MqttBrokerError> {
         let config = broker_config();
         let request = ListAclRequest {
             ..Default::default()
@@ -40,12 +40,12 @@ impl AclStorage {
         let reply = list_acl(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         let mut list = Vec::new();
         for raw in reply.acls {
-            list.push(MqttAcl::decode(&raw)?);
+            list.push(SecurityAcl::decode(&raw)?);
         }
         Ok(list)
     }
 
-    pub async fn save_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
+    pub async fn save_acl(&self, acl: SecurityAcl) -> ResultMqttBrokerError {
         let config = broker_config();
 
         let value = acl.encode()?;
@@ -54,7 +54,7 @@ impl AclStorage {
         Ok(())
     }
 
-    pub async fn delete_acl(&self, acl: MqttAcl) -> ResultMqttBrokerError {
+    pub async fn delete_acl(&self, acl: SecurityAcl) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = DeleteAclRequest {
             tenant: acl.tenant,

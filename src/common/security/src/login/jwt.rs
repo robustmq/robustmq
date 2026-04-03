@@ -14,14 +14,14 @@
 
 use super::Authentication;
 use crate::core::cache::MQTTCacheManager;
-use crate::core::error::MqttBrokerError;
+use common_base::error::common::CommonError;
 use async_trait::async_trait;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use common_base::tools::now_second;
 use common_config::security::JwtConfig;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
-use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::acl::user::SecurityUser;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -68,19 +68,19 @@ impl JwtAuth {
     }
 
     /// create decoding key based on encryption method
-    fn create_decoding_key(&self) -> Result<DecodingKey, MqttBrokerError> {
+    fn create_decoding_key(&self) -> Result<DecodingKey, CommonError> {
         match self.jwt_config.jwt_encryption.as_str() {
             "hmac-based" => {
                 let secret = self
                     .jwt_config
                     .secret
                     .as_ref()
-                    .ok_or(MqttBrokerError::JwtSecretNotFound)?;
+                    .ok_or(CommonError::JwtSecretNotFound)?;
 
                 let secret_bytes = if self.jwt_config.secret_base64_encoded.unwrap_or(false) {
                     BASE64_STANDARD
                         .decode(secret)
-                        .map_err(|e| MqttBrokerError::JwtSecretDecodeError(e.to_string()))?
+                        .map_err(|e| CommonError::JwtSecretDecodeError(e.to_string()))?
                 } else {
                     secret.as_bytes().to_vec()
                 };
@@ -92,31 +92,31 @@ impl JwtAuth {
                     .jwt_config
                     .public_key
                     .as_ref()
-                    .ok_or(MqttBrokerError::JwtPublicKeyNotFound)?;
+                    .ok_or(CommonError::JwtPublicKeyNotFound)?;
 
                 DecodingKey::from_rsa_pem(public_key.as_bytes())
                     .or_else(|_| DecodingKey::from_ec_pem(public_key.as_bytes()))
-                    .map_err(|e| MqttBrokerError::JwtPublicKeyDecodeError(e.to_string()))
+                    .map_err(|e| CommonError::JwtPublicKeyDecodeError(e.to_string()))
             }
-            _ => Err(MqttBrokerError::UnsupportedJwtEncryption(
+            _ => Err(CommonError::UnsupportedJwtEncryption(
                 self.jwt_config.jwt_encryption.clone(),
             )),
         }
     }
 
     /// get validation algorithm based on encryption method
-    fn get_validation_algorithm(&self) -> Result<Algorithm, MqttBrokerError> {
+    fn get_validation_algorithm(&self) -> Result<Algorithm, CommonError> {
         match self.jwt_config.jwt_encryption.as_str() {
             "hmac-based" => Ok(Algorithm::HS256), // default use HS256
             "public-key" => Ok(Algorithm::RS256), // default use RS256
-            _ => Err(MqttBrokerError::UnsupportedJwtEncryption(
+            _ => Err(CommonError::UnsupportedJwtEncryption(
                 self.jwt_config.jwt_encryption.clone(),
             )),
         }
     }
 
     /// verify JWT token
-    fn verify_jwt(&self, token: &str) -> Result<JwtClaims, MqttBrokerError> {
+    fn verify_jwt(&self, token: &str) -> Result<JwtClaims, CommonError> {
         let decoding_key = self.create_decoding_key()?;
         let algorithm = self.get_validation_algorithm()?;
 
@@ -124,7 +124,7 @@ impl JwtAuth {
         validation.validate_exp = true; // verify expiration time
 
         let token_data = decode::<JwtClaims>(token, &decoding_key, &validation)
-            .map_err(|e| MqttBrokerError::JwtVerificationError(e.to_string()))?;
+            .map_err(|e| CommonError::JwtVerificationError(e.to_string()))?;
 
         Ok(token_data.claims)
     }
@@ -136,7 +136,7 @@ pub async fn jwt_check_login(
     jwt_config: &JwtConfig,
     username: &str,
     password: &str,
-) -> Result<bool, MqttBrokerError> {
+) -> Result<bool, CommonError> {
     let jwt_auth = JwtAuth::new(
         username.to_owned(),
         password.to_owned(),
@@ -153,7 +153,7 @@ pub async fn jwt_check_login(
 
 #[async_trait]
 impl Authentication for JwtAuth {
-    async fn apply(&self) -> Result<bool, MqttBrokerError> {
+    async fn apply(&self) -> Result<bool, CommonError> {
         let jwt_token = self.get_jwt_token();
 
         // verify JWT token
@@ -166,7 +166,7 @@ impl Authentication for JwtAuth {
             .unwrap_or_else(|| self.username.clone());
 
         // update user information to cache
-        let user = MqttUser {
+        let user = SecurityUser {
             username: jwt_username,
             password: self.password.clone(),
             salt: None,

@@ -19,7 +19,7 @@ mod tests {
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use grpc_clients::meta::mqtt::call::{create_acl, delete_acl, list_acl};
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::acl::mqtt_acl::MqttAcl;
+    use metadata_struct::auth::acl::SecurityAcl;
     use protocol::meta::meta_service_mqtt::{CreateAclRequest, DeleteAclRequest, ListAclRequest};
     use std::sync::Arc;
 
@@ -30,7 +30,7 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
 
-        let acl = MqttAcl {
+        let acl = SecurityAcl {
             name: "test-acl-loboxu".to_string(),
             desc: String::new(),
             tenant: "default".to_string(),
@@ -55,7 +55,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.acls {
-                    let tmp = MqttAcl::decode(&raw).unwrap();
+                    let tmp = SecurityAcl::decode(&raw).unwrap();
                     if tmp.name == acl.name {
                         flag = true;
                     }
@@ -86,7 +86,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.acls {
-                    let tmp = MqttAcl::decode(&raw).unwrap();
+                    let tmp = SecurityAcl::decode(&raw).unwrap();
                     if tmp.name == acl.name {
                         flag = true;
                     }

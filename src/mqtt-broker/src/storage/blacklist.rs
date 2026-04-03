@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_config::broker::broker_config;
 use grpc_clients::meta::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::auth::blacklist::SecurityBlackList;
 use protocol::meta::meta_service_mqtt::{
     CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,
 };
@@ -34,7 +34,7 @@ impl BlackListStorage {
         BlackListStorage { client_pool }
     }
 
-    pub async fn list_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
+    pub async fn list_blacklist(&self) -> Result<Vec<SecurityBlackList>, MqttBrokerError> {
         let config = broker_config();
         let request = ListBlacklistRequest {
             ..Default::default()
@@ -43,12 +43,12 @@ impl BlackListStorage {
             list_blacklist(&self.client_pool, &config.get_meta_service_addr(), request).await?;
         let mut list = Vec::new();
         for raw in reply.blacklists {
-            list.push(MqttAclBlackList::decode(&raw)?);
+            list.push(SecurityBlackList::decode(&raw)?);
         }
         Ok(list)
     }
 
-    pub async fn save_blacklist(&self, blacklist: MqttAclBlackList) -> ResultMqttBrokerError {
+    pub async fn save_blacklist(&self, blacklist: SecurityBlackList) -> ResultMqttBrokerError {
         let config = broker_config();
         let request = CreateBlacklistRequest {
             blacklist: blacklist.encode()?,

@@ -19,7 +19,7 @@ use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub struct MqttAcl {
+pub struct SecurityAcl {
     pub name: String,
     pub desc: String,
     pub tenant: String,
@@ -31,7 +31,7 @@ pub struct MqttAcl {
     pub permission: MqttAclPermission,
 }
 
-impl MqttAcl {
+impl SecurityAcl {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         Ok(serde_json::to_vec(&self)?)
     }

@@ -1630,6 +1630,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "common-security"
+version = "0.3.7"
+dependencies = [
+ "async-trait",
+ "axum 0.8.8",
+ "broker-core",
+ "bytes",
+ "chrono",
+ "common-base",
+ "common-config",
+ "common-metrics",
+ "dashmap 6.1.0",
+ "futures",
+ "grpc-clients",
+ "metadata-struct",
+ "mockall",
+ "mongodb",
+ "pprof",
+ "protocol",
+ "r2d2",
+ "r2d2_mysql",
+ "r2d2_postgres",
+ "redis",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "third-driver",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "compression-codecs"
 version = "0.4.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4721,12 +4753,8 @@ dependencies = [
  "protocol",
  "pulsar",
  "quinn",
- "r2d2",
- "r2d2_mysql",
- "r2d2_postgres",
  "rate-limit",
  "rdkafka",
- "redis",
  "regex",
  "reqwest 0.12.28",
  "robustmq-test",

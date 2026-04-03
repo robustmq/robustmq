@@ -18,7 +18,7 @@ use crate::{
 };
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
-use metadata_struct::{acl::mqtt_acl::MqttAcl, mqtt::connection::MQTTConnection};
+use metadata_struct::{auth::acl::SecurityAcl, mqtt::connection::MQTTConnection};
 use std::{net::SocketAddr, sync::Arc};
 
 fn normalize_source_ip(source_ip_addr: &str) -> String {
@@ -71,7 +71,7 @@ pub fn is_acl_deny(
 }
 
 fn check_for_deny(
-    acl_list: &[MqttAcl],
+    acl_list: &[SecurityAcl],
     action: &MqttAclAction,
     topic_name: &str,
     source_ip: &str,
@@ -100,9 +100,9 @@ mod test {
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::tools::{local_hostname, now_second};
-    use metadata_struct::acl::mqtt_acl::MqttAcl;
+    use metadata_struct::auth::acl::SecurityAcl;
     use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
-    use metadata_struct::mqtt::user::MqttUser;
+    use metadata_struct::auth::user::SecurityUser;
     use std::sync::Arc;
 
     const TENANT: &str = "tenant1";
@@ -110,14 +110,14 @@ mod test {
     struct TestFixture {
         cache_manager: Arc<MQTTCacheManager>,
         connection: MQTTConnection,
-        user: MqttUser,
+        user: SecurityUser,
         topic_name: String,
     }
 
     async fn setup() -> TestFixture {
         let topic_name = "tp-1".to_string();
         let cache_manager = test_build_mqtt_cache_manager().await;
-        let user = MqttUser {
+        let user = SecurityUser {
             tenant: TENANT.to_string(),
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
@@ -161,7 +161,7 @@ mod test {
             MqttAclResourceType::ClientId => fixture.connection.client_id.clone(),
         };
 
-        let acl = MqttAcl {
+        let acl = SecurityAcl {
             name: format!("acl-deny-{}-{:?}", topic, action),
             desc: String::new(),
             tenant: TENANT.to_string(),
@@ -215,7 +215,7 @@ mod test {
     async fn client_id_deny_still_effective_when_user_rules_exist() {
         let fixture = setup().await;
 
-        fixture.cache_manager.add_acl(MqttAcl {
+        fixture.cache_manager.add_acl(SecurityAcl {
             name: "acl-user-other-topic".to_string(),
             desc: String::new(),
             tenant: TENANT.to_string(),
@@ -227,7 +227,7 @@ mod test {
             permission: MqttAclPermission::Deny,
         });
 
-        fixture.cache_manager.add_acl(MqttAcl {
+        fixture.cache_manager.add_acl(SecurityAcl {
             name: "acl-client-wildcard".to_string(),
             desc: String::new(),
             tenant: TENANT.to_string(),
@@ -260,7 +260,7 @@ mod test {
         let mut conn = fixture.connection.clone();
         conn.source_ip_addr = "127.0.0.1:1883".to_string();
 
-        fixture.cache_manager.add_acl(MqttAcl {
+        fixture.cache_manager.add_acl(SecurityAcl {
             name: "acl-client-ip-deny".to_string(),
             desc: String::new(),
             tenant: TENANT.to_string(),
@@ -281,13 +281,13 @@ mod test {
     }
 
     mod check_for_deny_tests {
-        use crate::security::auth::acl::check_for_deny;
+        use crate::auth::acl::check_for_deny;
 
         use super::*;
 
         #[test]
         fn check_for_deny_core_cases() {
-            let rule = |permission: MqttAclPermission, action: MqttAclAction| MqttAcl {
+            let rule = |permission: MqttAclPermission, action: MqttAclAction| SecurityAcl {
                 name: format!("rule-{:?}-{:?}", permission, action),
                 desc: String::new(),
                 tenant: TENANT.to_string(),

@@ -143,7 +143,7 @@ use common_base::{
     error::{common::CommonError, ResultCommonError},
     http_response::{error_response, success_response},
 };
-use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::auth::acl::SecurityAcl;
 use mqtt_broker::storage::acl::AclStorage;
 use std::{str::FromStr, sync::Arc};
 
@@ -160,7 +160,7 @@ pub async fn acl_list(
         None,
         None,
     );
-    let data: Vec<MqttAcl> = state.mqtt_context.cache_manager.acl_metadata.get_all_acl();
+    let data: Vec<SecurityAcl> = state.mqtt_context.cache_manager.acl_metadata.get_all_acl();
 
     let acls_list: Vec<AclListRow> = data
         .into_iter()
@@ -250,7 +250,7 @@ async fn acl_create_inner(state: &Arc<HttpState>, params: &CreateAclReq) -> Resu
         }
     };
 
-    let mqtt_acl = MqttAcl {
+    let mqtt_acl = SecurityAcl {
         name: params.name.clone(),
         desc: params.desc.clone().unwrap_or_default(),
         tenant: params.tenant.clone(),
@@ -280,7 +280,7 @@ pub async fn acl_delete(
 }
 
 async fn acl_delete_inner(state: &Arc<HttpState>, params: &DeleteAclReq) -> ResultCommonError {
-    let mqtt_acl = MqttAcl {
+    let mqtt_acl = SecurityAcl {
         name: params.name.clone(),
         desc: String::new(),
         tenant: params.tenant.clone(),

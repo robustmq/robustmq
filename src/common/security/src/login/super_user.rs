@@ -12,22 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::MQTTCacheManager;
-use crate::core::tool::ResultMqttBrokerError;
+use crate::metadata::SecurityMetadata;
 use crate::storage::user::UserStorage;
+use common_base::error::ResultCommonError;
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
 
-pub async fn try_init_system_user(
-    cache_manager: &Arc<MQTTCacheManager>,
-    client_pool: &Arc<ClientPool>,
-) -> ResultMqttBrokerError {
+pub async fn try_init_system_user(client_pool: &Arc<ClientPool>) -> ResultCommonError {
     let conf = broker_config();
-    let system_user_info = MqttUser {
+    let system_user_info = SecurityUser {
         tenant: DEFAULT_TENANT.to_string(),
         username: conf.mqtt_runtime.default_user.clone(),
         password: conf.mqtt_runtime.default_password.clone(),
@@ -46,12 +43,11 @@ pub async fn try_init_system_user(
         return Ok(());
     }
     user_storage.save_user(system_user_info.clone()).await?;
-    cache_manager.add_user(system_user_info);
     Ok(())
 }
 
 /// Check if a username is a super user by searching across all tenants.
-pub fn is_super_user(cache_manager: &Arc<MQTTCacheManager>, username: &str) -> bool {
+pub fn is_super_user(cache_manager: &Arc<SecurityMetadata>, username: &str) -> bool {
     if username.is_empty() {
         return false;
     }
@@ -65,16 +61,19 @@ pub fn is_super_user(cache_manager: &Arc<MQTTCacheManager>, username: &str) -> b
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
+    use crate::metadata::SecurityMetadata;
+
     use super::is_super_user;
-    use crate::core::tool::test_build_mqtt_cache_manager;
     use common_base::tools::now_second;
-    use metadata_struct::mqtt::user::MqttUser;
+    use metadata_struct::auth::user::SecurityUser;
     use metadata_struct::tenant::DEFAULT_TENANT;
 
     #[tokio::test]
     pub async fn check_super_user_test() {
-        let cache_manager = test_build_mqtt_cache_manager().await;
-        let user = MqttUser {
+        let security_metadata = Arc::new(SecurityMetadata::new());
+        let user = SecurityUser {
             tenant: DEFAULT_TENANT.to_string(),
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
@@ -82,17 +81,17 @@ mod test {
             is_superuser: true,
             create_time: now_second(),
         };
-        cache_manager.add_user(user.clone());
+        security_metadata.add_user(user.clone());
 
         let login_username = "".to_string();
-        assert!(!is_super_user(&cache_manager, &login_username));
+        assert!(!is_super_user(&security_metadata, &login_username));
 
         let login_username = "test".to_string();
-        assert!(!is_super_user(&cache_manager, &login_username));
+        assert!(!is_super_user(&security_metadata, &login_username));
 
-        assert!(is_super_user(&cache_manager, &user.username));
+        assert!(is_super_user(&security_metadata, &user.username));
 
-        let user = MqttUser {
+        let user = SecurityUser {
             tenant: DEFAULT_TENANT.to_string(),
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
@@ -100,7 +99,7 @@ mod test {
             is_superuser: false,
             create_time: now_second(),
         };
-        cache_manager.add_user(user.clone());
-        assert!(!is_super_user(&cache_manager, &user.username));
+        security_metadata.add_user(user.clone());
+        assert!(!is_super_user(&security_metadata, &user.username));
     }
 }

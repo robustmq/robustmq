@@ -33,6 +33,7 @@ pub mod offline_message;
 pub mod pkid_manager;
 pub mod qos;
 pub mod retain;
+pub mod security;
 pub mod session;
 pub mod string_validator;
 pub mod sub_auto;

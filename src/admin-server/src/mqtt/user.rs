@@ -72,7 +72,7 @@ use common_base::{
     http_response::{error_response, success_response},
     tools::now_second,
 };
-use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::mqtt::user::SecurityUser;
 use mqtt_broker::storage::user::UserStorage;
 use std::sync::Arc;
 
@@ -137,7 +137,7 @@ pub async fn user_create(
     State(state): State<Arc<HttpState>>,
     ValidatedJson(params): ValidatedJson<CreateUserReq>,
 ) -> String {
-    let user_info = MqttUser {
+    let user_info = SecurityUser {
         tenant: params.tenant.clone(),
         username: params.username.clone(),
         password: params.password.clone(),

@@ -16,7 +16,6 @@
 pub mod broker;
 pub mod core;
 pub mod mqtt;
-pub mod security;
 pub mod server;
 pub mod storage;
 pub mod subscribe;

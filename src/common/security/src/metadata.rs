@@ -12,44 +12,56 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::flapping_detect::FlappingDetectCondition;
 use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
 use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
-use common_base::enum_type::time_unit_enum::TimeUnit;
-use common_base::tools::{convert_seconds, now_second};
-use common_config::config::MqttFlappingDetect;
 use dashmap::DashMap;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::auth::acl::SecurityAcl;
+use metadata_struct::auth::blacklist::SecurityBlackList;
+use metadata_struct::auth::user::SecurityUser;
+use metadata_struct::mqtt::auth::authn_config::AuthnConfig;
 
 #[derive(Clone)]
-pub struct AclMetadata {
-    // blacklist exact match: outer = tenant, inner = resource_name
-    pub blacklist_user: DashMap<String, DashMap<String, MqttAclBlackList>>,
-    pub blacklist_client_id: DashMap<String, DashMap<String, MqttAclBlackList>>,
-    pub blacklist_ip: DashMap<String, DashMap<String, MqttAclBlackList>>,
-    // blacklist wildcard match: outer = tenant, value = list of patterns
-    pub blacklist_user_match: DashMap<String, Vec<MqttAclBlackList>>,
-    pub blacklist_client_id_match: DashMap<String, Vec<MqttAclBlackList>>,
-    pub blacklist_ip_match: DashMap<String, Vec<MqttAclBlackList>>,
+pub struct SecurityMetadata {
+    pub authn_list: DashMap<String, AuthnConfig>,
 
-    // acl: outer = tenant, inner = resource_name
-    pub acl_user: DashMap<String, DashMap<String, Vec<MqttAcl>>>,
-    pub acl_client_id: DashMap<String, DashMap<String, Vec<MqttAcl>>>,
+    // ==== User  ====
+    // (tenant, (username, User))
+    pub user_info: DashMap<String, DashMap<String, SecurityUser>>,
 
-    // connection jitter: outer = tenant, inner = (client_id, FlappingDetectCondition)
-    pub flapping_detect_map: DashMap<String, DashMap<String, FlappingDetectCondition>>,
+    // ==== Acl  ====
+    // (tenant, (user, Vec<SecurityAcl>)
+    pub acl_user: DashMap<String, DashMap<String, Vec<SecurityAcl>>>,
+
+    // (tenant, (client_id, Vec<SecurityAcl>)
+    pub acl_client_id: DashMap<String, DashMap<String, Vec<SecurityAcl>>>,
+
+    // ==== BlackList ====
+    // (tenant, （resource_name, SecurityBlackList）)
+    pub blacklist_user: DashMap<String, DashMap<String, SecurityBlackList>>,
+    pub blacklist_client_id: DashMap<String, DashMap<String, SecurityBlackList>>,
+    pub blacklist_ip: DashMap<String, DashMap<String, SecurityBlackList>>,
+
+    // (tenant, Vec<SecurityBlackList>)
+    pub blacklist_user_match: DashMap<String, Vec<SecurityBlackList>>,
+    pub blacklist_client_id_match: DashMap<String, Vec<SecurityBlackList>>,
+    pub blacklist_ip_match: DashMap<String, Vec<SecurityBlackList>>,
 }
 
-impl Default for AclMetadata {
+impl Default for SecurityMetadata {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl AclMetadata {
+impl SecurityMetadata {
     pub fn new() -> Self {
-        AclMetadata {
+        SecurityMetadata {
+            authn_list: DashMap::with_capacity(2),
+
+            // user
+            user_info: DashMap::with_capacity(2),
+
+            // blacklist
             blacklist_user: DashMap::with_capacity(2),
             blacklist_client_id: DashMap::with_capacity(2),
             blacklist_ip: DashMap::with_capacity(2),
@@ -57,56 +69,28 @@ impl AclMetadata {
             blacklist_client_id_match: DashMap::with_capacity(2),
             blacklist_ip_match: DashMap::with_capacity(2),
 
+            // user
             acl_user: DashMap::with_capacity(2),
             acl_client_id: DashMap::with_capacity(2),
-            flapping_detect_map: DashMap::new(),
         }
     }
 
-    // Flapping Detects
-    pub fn get_flapping_detect_condition(
-        &self,
-        tenant: &str,
-        client_id: &str,
-    ) -> Option<FlappingDetectCondition> {
-        self.flapping_detect_map
-            .get(tenant)
-            .and_then(|inner| inner.get(client_id).map(|v| v.clone()))
+    // user
+    pub fn add_user(&self, user: SecurityUser) {
+        self.user_info
+            .entry(user.tenant.clone())
+            .or_insert_with(DashMap::new)
+            .insert(user.username.clone(), user);
     }
 
-    pub fn add_flapping_detect_condition(
-        &self,
-        flapping_detect_condition: FlappingDetectCondition,
-    ) {
-        self.flapping_detect_map
-            .entry(flapping_detect_condition.tenant.clone())
-            .or_default()
-            .insert(
-                flapping_detect_condition.client_id.clone(),
-                flapping_detect_condition,
-            );
-    }
-
-    pub fn remove_flapping_detect_condition(&self, tenant: &str, client_id: &str) {
-        if let Some(inner) = self.flapping_detect_map.get(tenant) {
-            inner.remove(client_id);
-        }
-    }
-
-    pub async fn remove_flapping_detect_conditions(&self, config: MqttFlappingDetect) {
-        let current_time = now_second();
-        let window_time = convert_seconds(config.window_time as u64, TimeUnit::Minutes);
-        for tenant_entry in self.flapping_detect_map.iter() {
-            tenant_entry.value().retain(|_, flapping_detect_condition| {
-                // we need retain elements within window_time,
-                // so now_seconds - first_request_time must less than window_time
-                current_time - flapping_detect_condition.first_request_time < window_time
-            });
+    pub fn del_user(&self, tenant: &str, username: &str) {
+        if let Some(tenant_map) = self.user_info.get(tenant) {
+            tenant_map.remove(username);
         }
     }
 
     // ACL
-    pub fn parse_mqtt_acl(&self, acl: MqttAcl) {
+    pub fn parse_mqtt_acl(&self, acl: SecurityAcl) {
         let map = match acl.resource_type {
             MqttAclResourceType::ClientId => &self.acl_client_id,
             MqttAclResourceType::User => &self.acl_user,
@@ -121,7 +105,7 @@ impl AclMetadata {
         }
     }
 
-    pub fn remove_mqtt_acl(&self, acl: MqttAcl) {
+    pub fn remove_mqtt_acl(&self, acl: SecurityAcl) {
         for map in [&self.acl_client_id, &self.acl_user] {
             if let Some(tenant_map) = map.get(&acl.tenant) {
                 let mut keys_to_clean = Vec::new();
@@ -138,8 +122,8 @@ impl AclMetadata {
         }
     }
 
-    pub fn get_all_acl(&self) -> Vec<MqttAcl> {
-        let mut data: Vec<MqttAcl> = Vec::new();
+    pub fn get_all_acl(&self) -> Vec<SecurityAcl> {
+        let mut data: Vec<SecurityAcl> = Vec::new();
         for tenant_entry in self.acl_user.iter() {
             for acl_entry in tenant_entry.value().iter() {
                 data.extend(acl_entry.value().iter().cloned());
@@ -171,8 +155,8 @@ impl AclMetadata {
         data
     }
 
-    pub fn get_acl_by_tenant(&self, tenant: &str) -> Vec<MqttAcl> {
-        let mut data: Vec<MqttAcl> = Vec::new();
+    pub fn get_acl_by_tenant(&self, tenant: &str) -> Vec<SecurityAcl> {
+        let mut data: Vec<SecurityAcl> = Vec::new();
         if let Some(user_map) = self.acl_user.get(tenant) {
             for acl_entry in user_map.iter() {
                 data.extend(acl_entry.value().iter().cloned());
@@ -187,7 +171,7 @@ impl AclMetadata {
     }
 
     // Blacklist
-    pub fn parse_mqtt_blacklist(&self, blacklist: MqttAclBlackList) {
+    pub fn parse_mqtt_blacklist(&self, blacklist: SecurityBlackList) {
         match blacklist.blacklist_type {
             MqttAclBlackListType::ClientId => {
                 self.blacklist_client_id
@@ -235,7 +219,7 @@ impl AclMetadata {
         }
     }
 
-    pub fn remove_mqtt_blacklist(&self, blacklist: MqttAclBlackList) {
+    pub fn remove_mqtt_blacklist(&self, blacklist: SecurityBlackList) {
         match blacklist.blacklist_type {
             MqttAclBlackListType::ClientId => {
                 if let Some(tenant_map) = self.blacklist_client_id.get(&blacklist.tenant) {
@@ -286,7 +270,7 @@ impl AclMetadata {
     }
 
     /// Returns all wildcard user blacklist entries across all tenants.
-    pub fn get_blacklist_user_match(&self) -> Vec<MqttAclBlackList> {
+    pub fn get_blacklist_user_match(&self) -> Vec<SecurityBlackList> {
         self.blacklist_user_match
             .iter()
             .flat_map(|entry| entry.value().clone())
@@ -294,7 +278,7 @@ impl AclMetadata {
     }
 
     /// Returns all wildcard client-id blacklist entries across all tenants.
-    pub fn get_blacklist_client_id_match(&self) -> Vec<MqttAclBlackList> {
+    pub fn get_blacklist_client_id_match(&self) -> Vec<SecurityBlackList> {
         self.blacklist_client_id_match
             .iter()
             .flat_map(|entry| entry.value().clone())
@@ -302,15 +286,15 @@ impl AclMetadata {
     }
 
     /// Returns all CIDR/wildcard IP blacklist entries across all tenants.
-    pub fn get_blacklist_ip_match(&self) -> Vec<MqttAclBlackList> {
+    pub fn get_blacklist_ip_match(&self) -> Vec<SecurityBlackList> {
         self.blacklist_ip_match
             .iter()
             .flat_map(|entry| entry.value().clone())
             .collect()
     }
 
-    pub fn get_all_blacklist(&self) -> Vec<MqttAclBlackList> {
-        let mut data: Vec<MqttAclBlackList> = Vec::new();
+    pub fn get_all_blacklist(&self) -> Vec<SecurityBlackList> {
+        let mut data: Vec<SecurityBlackList> = Vec::new();
         for tenant_entry in self.blacklist_user.iter() {
             data.extend(tenant_entry.value().iter().map(|e| e.value().clone()));
         }
@@ -346,8 +330,8 @@ impl AclMetadata {
         data
     }
 
-    pub fn get_blacklist_by_tenant(&self, tenant: &str) -> Vec<MqttAclBlackList> {
-        let mut data: Vec<MqttAclBlackList> = Vec::new();
+    pub fn get_blacklist_by_tenant(&self, tenant: &str) -> Vec<SecurityBlackList> {
+        let mut data: Vec<SecurityBlackList> = Vec::new();
         if let Some(m) = self.blacklist_user.get(tenant) {
             data.extend(m.iter().map(|e| e.value().clone()));
         }
@@ -368,82 +352,48 @@ impl AclMetadata {
         }
         data
     }
+
+    // Authn
+    pub fn add_authn(&self, auth: AuthnConfig) {
+        self.authn_list.insert(auth.uid.clone(), auth);
+    }
+
+    pub fn get_authn(&self) -> Vec<(String, AuthnConfig)> {
+        let mut authn_list: Vec<(String, AuthnConfig)> = self
+            .authn_list
+            .iter()
+            .map(|entry| (entry.key().clone(), entry.value().clone()))
+            .collect();
+
+        authn_list.sort_by(|a, b| b.1.create_at.cmp(&a.1.create_at));
+        authn_list
+    }
+
+    pub fn remove_authn(&self, uid: &str) {
+        self.authn_list.remove(uid);
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::core::flapping_detect::FlappingDetectCondition;
-    use crate::security::auth::metadata::AclMetadata;
     use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
     use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
     use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
     use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::tools::now_second;
-    use common_config::config::MqttFlappingDetect;
-    use metadata_struct::acl::mqtt_acl::MqttAcl;
-    use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+    use metadata_struct::auth::acl::SecurityAcl;
+    use metadata_struct::auth::blacklist::SecurityBlackList;
     use metadata_struct::tenant::DEFAULT_TENANT;
+
+    use crate::metadata::SecurityMetadata;
 
     const TENANT: &str = DEFAULT_TENANT;
 
     #[tokio::test]
-    pub async fn test_mqtt_remove_flapping_detect() {
-        let acl_metadata = AclMetadata::new();
-        let condition1 = FlappingDetectCondition {
-            tenant: "default".to_string(),
-            client_id: "test_id_1".to_string(),
-            before_last_window_connections: 15,
-            first_request_time: now_second() - 10,
-        };
-        let condition2 = FlappingDetectCondition {
-            tenant: "default".to_string(),
-            client_id: "test_id_2".to_string(),
-            before_last_window_connections: 15,
-            first_request_time: now_second() - 70,
-        };
-
-        acl_metadata.add_flapping_detect_condition(condition1);
-        acl_metadata.add_flapping_detect_condition(condition2);
-
-        assert!(acl_metadata
-            .flapping_detect_map
-            .get("default")
-            .map(|m| m.contains_key("test_id_1"))
-            .unwrap_or(false));
-        assert!(acl_metadata
-            .flapping_detect_map
-            .get("default")
-            .map(|m| m.contains_key("test_id_2"))
-            .unwrap_or(false));
-
-        let jitter_config = MqttFlappingDetect {
-            enable: true,
-            window_time: 1,
-            max_client_connections: 15,
-            ban_time: 5,
-        };
-
-        acl_metadata
-            .remove_flapping_detect_conditions(jitter_config)
-            .await;
-
-        assert!(acl_metadata
-            .flapping_detect_map
-            .get("default")
-            .map(|m| m.contains_key("test_id_1"))
-            .unwrap_or(false));
-        assert!(!acl_metadata
-            .flapping_detect_map
-            .get("default")
-            .map(|m| m.contains_key("test_id_2"))
-            .unwrap_or(false));
-    }
-
-    #[tokio::test]
     pub async fn parse_mqtt_acl_test() {
-        let acl_metadata = AclMetadata::new();
+        let acl_metadata = SecurityMetadata::new();
         // Test ClientId ACL
-        let client_id_acl = MqttAcl {
+        let client_id_acl = SecurityAcl {
             name: "acl-client-1".to_string(),
             desc: String::new(),
             tenant: TENANT.to_string(),
@@ -471,7 +421,7 @@ mod test {
         );
 
         // Test User ACL
-        let user_acl = MqttAcl {
+        let user_acl = SecurityAcl {
             name: "acl-user-1".to_string(),
             desc: String::new(),
             tenant: TENANT.to_string(),
@@ -499,7 +449,7 @@ mod test {
         );
 
         // Test multiple ACLs for same ClientId
-        let client_id_acl2 = MqttAcl {
+        let client_id_acl2 = SecurityAcl {
             name: "acl-client-2".to_string(),
             ..client_id_acl
         };
@@ -514,7 +464,7 @@ mod test {
         );
 
         // Test multiple ACLs for same User
-        let user_acl2 = MqttAcl {
+        let user_acl2 = SecurityAcl {
             name: "acl-user-2".to_string(),
             ..user_acl.clone()
         };
@@ -529,7 +479,7 @@ mod test {
         );
 
         // Remove only one acl item by name, keep the other one
-        acl_metadata.remove_mqtt_acl(MqttAcl {
+        acl_metadata.remove_mqtt_acl(SecurityAcl {
             name: "acl-user-1".to_string(),
             desc: String::new(),
             tenant: TENANT.to_string(),
@@ -552,10 +502,10 @@ mod test {
 
     #[tokio::test]
     pub async fn parse_mqtt_blacklist_test() {
-        let acl_metadata = AclMetadata::new();
+        let acl_metadata = SecurityMetadata::new();
 
         // Test ClientId blacklist
-        let client_id_blacklist = MqttAclBlackList {
+        let client_id_blacklist = SecurityBlackList {
             name: "bl-client-id".to_string(),
             tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::ClientId,
@@ -571,7 +521,7 @@ mod test {
             .unwrap_or(false));
 
         // Test User blacklist
-        let user_blacklist = MqttAclBlackList {
+        let user_blacklist = SecurityBlackList {
             name: "bl-user".to_string(),
             tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::User,
@@ -587,7 +537,7 @@ mod test {
             .unwrap_or(false));
 
         // Test IP blacklist
-        let ip_blacklist = MqttAclBlackList {
+        let ip_blacklist = SecurityBlackList {
             name: "bl-ip".to_string(),
             tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::Ip,
@@ -603,7 +553,7 @@ mod test {
             .unwrap_or(false));
 
         // Test ClientIdMatch blacklist
-        let client_id_match_blacklist = MqttAclBlackList {
+        let client_id_match_blacklist = SecurityBlackList {
             name: "bl-client-id-match".to_string(),
             tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::ClientIdMatch,
@@ -623,7 +573,7 @@ mod test {
         );
 
         // Test UserMatch blacklist
-        let user_match_blacklist = MqttAclBlackList {
+        let user_match_blacklist = SecurityBlackList {
             name: "bl-user-match".to_string(),
             tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::UserMatch,
@@ -643,7 +593,7 @@ mod test {
         );
 
         // Test IPCIDR blacklist
-        let ip_cidr_blacklist = MqttAclBlackList {
+        let ip_cidr_blacklist = SecurityBlackList {
             name: "bl-ip-cidr".to_string(),
             tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::IPCIDR,
@@ -663,7 +613,7 @@ mod test {
         );
 
         // Test adding multiple entries for match types
-        let another_client_id_match_blacklist = MqttAclBlackList {
+        let another_client_id_match_blacklist = SecurityBlackList {
             name: "bl-client-id-match-2".to_string(),
             tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::ClientIdMatch,
@@ -685,7 +635,7 @@ mod test {
         assert_eq!(all_blacklist.len(), 7);
 
         // Remove one match rule should not remove entire match group
-        acl_metadata.remove_mqtt_blacklist(MqttAclBlackList {
+        acl_metadata.remove_mqtt_blacklist(SecurityBlackList {
             name: "bl-client-id-match".to_string(),
             tenant: TENANT.to_string(),
             blacklist_type: MqttAclBlackListType::ClientIdMatch,
@@ -705,8 +655,8 @@ mod test {
 
     #[tokio::test]
     pub async fn get_all_acl_test() {
-        let acl_metadata = AclMetadata::new();
-        acl_metadata.parse_mqtt_acl(MqttAcl {
+        let acl_metadata = SecurityMetadata::new();
+        acl_metadata.parse_mqtt_acl(SecurityAcl {
             name: "acl-get-all-1".to_string(),
             desc: String::new(),
             tenant: TENANT.to_string(),
@@ -717,7 +667,7 @@ mod test {
             action: MqttAclAction::All,
             permission: MqttAclPermission::Allow,
         });
-        acl_metadata.parse_mqtt_acl(MqttAcl {
+        acl_metadata.parse_mqtt_acl(SecurityAcl {
             name: "acl-get-all-2".to_string(),
             desc: String::new(),
             tenant: TENANT.to_string(),

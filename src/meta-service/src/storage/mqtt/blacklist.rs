@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::auth::blacklist::SecurityBlackList;
 
 use rocksdb_engine::keys::meta::{
     storage_key_mqtt_blacklist, storage_key_mqtt_blacklist_prefix,
@@ -38,31 +38,31 @@ impl MqttBlackListStorage {
         }
     }
 
-    pub fn save(&self, blacklist: MqttAclBlackList) -> Result<(), CommonError> {
+    pub fn save(&self, blacklist: SecurityBlackList) -> Result<(), CommonError> {
         let key = storage_key_mqtt_blacklist(&blacklist.tenant, &blacklist.name);
         engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, blacklist)
     }
 
-    pub fn get(&self, tenant: &str, name: &str) -> Result<Option<MqttAclBlackList>, CommonError> {
+    pub fn get(&self, tenant: &str, name: &str) -> Result<Option<SecurityBlackList>, CommonError> {
         let key = storage_key_mqtt_blacklist(tenant, name);
         Ok(
-            engine_get_by_meta_metadata::<MqttAclBlackList>(&self.rocksdb_engine_handler, &key)?
+            engine_get_by_meta_metadata::<SecurityBlackList>(&self.rocksdb_engine_handler, &key)?
                 .map(|raw| raw.data),
         )
     }
 
-    pub fn list_all(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
+    pub fn list_all(&self) -> Result<Vec<SecurityBlackList>, CommonError> {
         let prefix_key = storage_key_mqtt_blacklist_prefix();
-        let data = engine_prefix_list_by_meta_metadata::<MqttAclBlackList>(
+        let data = engine_prefix_list_by_meta_metadata::<SecurityBlackList>(
             &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn list_by_tenant(&self, tenant: &str) -> Result<Vec<MqttAclBlackList>, CommonError> {
+    pub fn list_by_tenant(&self, tenant: &str) -> Result<Vec<SecurityBlackList>, CommonError> {
         let prefix_key = storage_key_mqtt_blacklist_tenant_prefix(tenant);
-        let data = engine_prefix_list_by_meta_metadata::<MqttAclBlackList>(
+        let data = engine_prefix_list_by_meta_metadata::<SecurityBlackList>(
             &self.rocksdb_engine_handler,
             &prefix_key,
         )?;

@@ -22,7 +22,7 @@ mod tests {
         placement_create_user, placement_delete_user, placement_list_user,
     };
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::mqtt::user::MqttUser;
+    use metadata_struct::auth::user::SecurityUser;
     use protocol::meta::meta_service_mqtt::{
         CreateUserRequest, DeleteUserRequest, ListUserRequest,
     };
@@ -37,7 +37,7 @@ mod tests {
         let user_name: String = unique_id();
         let password: String = "123456".to_string();
 
-        let mqtt_user: MqttUser = MqttUser {
+        let mqtt_user: SecurityUser = SecurityUser {
             tenant: "default".to_string(),
             username: user_name.clone(),
             password: password.clone(),
@@ -66,7 +66,7 @@ mod tests {
 
         let mut flag: bool = false;
         for raw in data.users {
-            let user = MqttUser::decode(&raw).unwrap();
+            let user = SecurityUser::decode(&raw).unwrap();
             if mqtt_user == user {
                 flag = true;
             }
@@ -93,7 +93,7 @@ mod tests {
 
         let mut flag: bool = false;
         for raw in data.users {
-            let user = MqttUser::decode(&raw).unwrap();
+            let user = SecurityUser::decode(&raw).unwrap();
             if mqtt_user == user {
                 flag = true;
             }

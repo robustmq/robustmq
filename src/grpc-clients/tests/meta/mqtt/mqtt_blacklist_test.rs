@@ -18,7 +18,7 @@ mod tests {
     use common_base::tools::now_second;
     use grpc_clients::meta::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+    use metadata_struct::auth::blacklist::SecurityBlackList;
     use protocol::meta::meta_service_mqtt::{
         CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,
     };
@@ -32,7 +32,7 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
 
-        let blacklist = MqttAclBlackList {
+        let blacklist = SecurityBlackList {
             name: "test-blacklist-loboxu".to_string(),
             tenant: "default".to_string(),
             blacklist_type: MqttAclBlackListType::User,
@@ -59,7 +59,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.blacklists {
-                    let tmp = MqttAclBlackList::decode(&raw).unwrap();
+                    let tmp = SecurityBlackList::decode(&raw).unwrap();
                     if tmp.name == blacklist.name {
                         flag = true;
                     }
@@ -90,7 +90,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.blacklists {
-                    let tmp = MqttAclBlackList::decode(&raw).unwrap();
+                    let tmp = SecurityBlackList::decode(&raw).unwrap();
                     if tmp.name == blacklist.name {
                         flag = true;
                     }

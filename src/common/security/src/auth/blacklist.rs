@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    core::{cache::MQTTCacheManager, error::MqttBrokerError},
+    core::{cache::MQTTCacheManager, error::CommonError},
     security::auth::common::ip_match,
 };
 use common_base::tools::now_second;
@@ -27,7 +27,7 @@ pub fn is_connection_blacklisted(
     client_id: &str,
     source_ip_addr: &str,
     login: &Option<Login>,
-) -> Result<bool, MqttBrokerError> {
+) -> Result<bool, CommonError> {
     let now = now_second();
 
     Ok(is_user_blacklisted(cache_manager, login, now)
@@ -223,8 +223,8 @@ mod test {
     use crate::core::tool::test_build_mqtt_cache_manager;
     use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
     use common_base::tools::{local_hostname, now_second};
-    use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-    use metadata_struct::mqtt::user::MqttUser;
+    use metadata_struct::auth::blacklist::SecurityBlackList;
+    use metadata_struct::auth::user::SecurityUser;
     use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::mqtt::common::Login;
     use regex::Regex;
@@ -278,14 +278,14 @@ mod test {
     mod is_connection_blacklisted_cases {
         use super::{
             build_login, is_connection_blacklisted, local_hostname, now_second,
-            test_build_mqtt_cache_manager, MqttAclBlackList, MqttAclBlackListType, MqttUser,
+            test_build_mqtt_cache_manager, SecurityBlackList, MqttAclBlackListType, SecurityUser,
             DEFAULT_TENANT,
         };
 
         #[tokio::test]
         async fn blocks_on_all_blacklist_types() {
             let cache_manager = test_build_mqtt_cache_manager().await;
-            let user = MqttUser {
+            let user = SecurityUser {
                 tenant: DEFAULT_TENANT.to_string(),
                 username: "loboxu".to_string(),
                 password: "pass123".to_string(),
@@ -314,7 +314,7 @@ mod test {
             ];
 
             for (blacklist_type, resource_name) in cases {
-                let blacklist = MqttAclBlackList {
+                let blacklist = SecurityBlackList {
                     name: format!("test-blacklist-{resource_name}"),
                     tenant: DEFAULT_TENANT.to_string(),
                     blacklist_type,
@@ -337,7 +337,7 @@ mod test {
         #[tokio::test]
         async fn supports_ip_port_input() {
             let cache_manager = test_build_mqtt_cache_manager().await;
-            let user = MqttUser {
+            let user = SecurityUser {
                 tenant: DEFAULT_TENANT.to_string(),
                 username: "testuser".to_string(),
                 password: "pass123".to_string(),
@@ -358,7 +358,7 @@ mod test {
             ];
 
             for (source_ip_addr, blacklist_type, resource_name) in cases {
-                let blacklist = MqttAclBlackList {
+                let blacklist = SecurityBlackList {
                     name: format!("test-blacklist-{resource_name}"),
                     tenant: DEFAULT_TENANT.to_string(),
                     blacklist_type,

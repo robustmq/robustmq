@@ -14,8 +14,8 @@
 
 use crate::core::error::MetaServiceError;
 use common_base::utils::serialize;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::auth::acl::SecurityAcl;
+use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
@@ -23,7 +23,7 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::nats::subject::NatsSubject;
 use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
@@ -185,7 +185,7 @@ pub async fn send_notify_by_delete_connector(
 // MQTT User
 pub async fn send_notify_by_add_user(
     call_manager: &Arc<NodeCallManager>,
-    user: MqttUser,
+    user: SecurityUser,
 ) -> Result<(), MetaServiceError> {
     send_update_cache(
         call_manager,
@@ -198,7 +198,7 @@ pub async fn send_notify_by_add_user(
 
 pub async fn send_notify_by_delete_user(
     call_manager: &Arc<NodeCallManager>,
-    user: MqttUser,
+    user: SecurityUser,
 ) -> Result<(), MetaServiceError> {
     send_update_cache(
         call_manager,
@@ -212,7 +212,7 @@ pub async fn send_notify_by_delete_user(
 // MQTT ACL
 pub async fn send_notify_by_add_acl(
     call_manager: &Arc<NodeCallManager>,
-    acl: MqttAcl,
+    acl: SecurityAcl,
 ) -> Result<(), MetaServiceError> {
     send_update_cache(
         call_manager,
@@ -225,7 +225,7 @@ pub async fn send_notify_by_add_acl(
 
 pub async fn send_notify_by_delete_acl(
     call_manager: &Arc<NodeCallManager>,
-    acl: MqttAcl,
+    acl: SecurityAcl,
 ) -> Result<(), MetaServiceError> {
     send_update_cache(
         call_manager,
@@ -239,7 +239,7 @@ pub async fn send_notify_by_delete_acl(
 // MQTT Blacklist
 pub async fn send_notify_by_add_blacklist(
     call_manager: &Arc<NodeCallManager>,
-    blacklist: MqttAclBlackList,
+    blacklist: SecurityBlackList,
 ) -> Result<(), MetaServiceError> {
     send_update_cache(
         call_manager,
@@ -252,7 +252,7 @@ pub async fn send_notify_by_add_blacklist(
 
 pub async fn send_notify_by_delete_blacklist(
     call_manager: &Arc<NodeCallManager>,
-    blacklist: MqttAclBlackList,
+    blacklist: SecurityBlackList,
 ) -> Result<(), MetaServiceError> {
     send_update_cache(
         call_manager,

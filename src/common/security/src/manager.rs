@@ -12,37 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::MQTTCacheManager;
-use crate::core::error::MqttBrokerError;
-use crate::core::tenant::try_decode_username;
-use crate::core::tool::ResultMqttBrokerError;
-use crate::security::auth::blacklist::is_connection_blacklisted;
-use crate::security::auth::is_allow_acl;
-use crate::security::login::password::password_check_by_login;
-use crate::security::login::LoginType;
-use crate::security::storage::build_storage_driver;
-use crate::security::storage::storage_trait::AuthStorageAdapter;
-use crate::subscribe::common::get_sub_topic_name_list;
+use crate::auth::blacklist::is_connection_blacklisted;
+use crate::auth::is_allow_acl;
+use crate::login::password::password_check_by_login;
+use crate::login::LoginType;
+use crate::metadata::SecurityMetadata;
+use crate::storage::build_storage_driver;
+use crate::storage::storage_trait::AuthStorageAdapter;
+use broker_core::cache::NodeCacheManager;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
+use common_base::error::common::CommonError;
+use common_base::error::ResultCommonError;
 use common_base::tools::now_millis;
 use common_metrics::mqtt::auth::{record_mqtt_acl_failed, record_mqtt_acl_success};
 use dashmap::DashMap;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::auth::acl::SecurityAcl;
+use metadata_struct::auth::blacklist::SecurityBlackList;
+use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::mqtt::auth::authn_config::AuthnConfig;
 use metadata_struct::mqtt::auth::authn_config::LoginAuthEnum;
 use metadata_struct::mqtt::auth::password::PasswordBasedConfig;
 use metadata_struct::mqtt::auth::storage::StorageConfig;
 use metadata_struct::mqtt::connection::MQTTConnection;
-use metadata_struct::mqtt::user::MqttUser;
 use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
-
-pub mod auth;
-pub mod login;
-pub mod storage;
 
 const STORAGE_DRIVER_REBUILD_MS: u128 = 5000;
 
@@ -53,21 +48,23 @@ struct CachedStorageDriver {
 }
 
 #[derive(Clone)]
-pub struct AuthManager {
-    cache_manager: Arc<MQTTCacheManager>,
+pub struct SecurityManager {
     storage_drivers: Arc<DashMap<String, CachedStorageDriver>>,
+    node_cache: Arc<NodeCacheManager>,
+    security_metadata: SecurityMetadata,
 }
 
-impl AuthManager {
-    pub fn new(cache_manager: Arc<MQTTCacheManager>) -> AuthManager {
-        AuthManager {
-            cache_manager,
+impl SecurityManager {
+    pub fn new(node_cache: Arc<NodeCacheManager>) -> SecurityManager {
+        SecurityManager {
             storage_drivers: Arc::new(DashMap::new()),
+            security_metadata: SecurityMetadata::new(),
+            node_cache,
         }
     }
 
     fn authn_list_with_default(&self) -> Vec<(String, AuthnConfig)> {
-        let mut authn_list = self.cache_manager.get_authn();
+        let mut authn_list = self.security_metadata.get_authn();
         if authn_list.is_empty() {
             let default_authn = AuthnConfig {
                 uid: "inner_default".to_string(),
@@ -90,7 +87,7 @@ impl AuthManager {
         &self,
         authn_id: &str,
         storage_config: &StorageConfig,
-    ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, MqttBrokerError> {
+    ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, CommonError> {
         let now = now_millis();
         if let Some(cached) = self.storage_drivers.get(authn_id) {
             if now.saturating_sub(cached.build_at_ms) <= STORAGE_DRIVER_REBUILD_MS {
@@ -111,7 +108,7 @@ impl AuthManager {
 
     fn password_based_drivers(
         &self,
-    ) -> Result<Vec<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>>, MqttBrokerError> {
+    ) -> Result<Vec<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>>, CommonError> {
         let mut drivers = Vec::new();
         for (authn_id, authn) in self.authn_list_with_default() {
             if let LoginAuthEnum::PasswordBased(config) = authn.config {
@@ -127,8 +124,8 @@ impl AuthManager {
         &self,
         login: &Option<Login>,
         _connect_properties: &Option<ConnectProperties>,
-    ) -> Result<bool, MqttBrokerError> {
-        let cluster = self.cache_manager.node_cache.get_cluster_config();
+    ) -> Result<bool, CommonError> {
+        let cluster = self.node_cache.get_cluster_config();
 
         if cluster.mqtt_runtime.secret_free_login {
             return Ok(true);
@@ -136,7 +133,7 @@ impl AuthManager {
 
         if let Some((_, authn)) = self.authn_list_with_default().into_iter().next() {
             let login_type = LoginType::from_str(&authn.authn_type)
-                .map_err(|_| MqttBrokerError::UnsupportedAuthType(authn.authn_type.clone()))?;
+                .map_err(|_| CommonError::UnsupportedAuthType(authn.authn_type.clone()))?;
 
             return match login_type {
                 LoginType::PasswordBased => {
@@ -176,7 +173,7 @@ impl AuthManager {
         topic_name: &str,
         retain: bool,
         qos: QoS,
-    ) -> Result<(), MqttBrokerError> {
+    ) -> Result<(), CommonError> {
         if !is_allow_acl(
             &self.cache_manager,
             connection,
@@ -186,7 +183,7 @@ impl AuthManager {
             qos,
         ) {
             record_mqtt_acl_failed();
-            return Err(MqttBrokerError::NotAclAuth(topic_name.to_string()));
+            return Err(CommonError::NotAclAuth(topic_name.to_string()));
         }
         record_mqtt_acl_success();
 
@@ -217,7 +214,7 @@ impl AuthManager {
     }
 
     // read all
-    pub async fn read_all_user(&self) -> Result<HashMap<String, MqttUser>, MqttBrokerError> {
+    pub async fn read_all_user(&self) -> Result<HashMap<String, SecurityUser>, CommonError> {
         let mut results = HashMap::new();
         for driver in self.password_based_drivers()? {
             let list = driver.read_all_user().await?;
@@ -228,7 +225,7 @@ impl AuthManager {
         Ok(results)
     }
 
-    pub async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError> {
+    pub async fn read_all_acl(&self) -> Result<Vec<SecurityAcl>, CommonError> {
         let mut results = Vec::new();
         for driver in self.password_based_drivers()? {
             let list = driver.read_all_acl().await?;
@@ -239,7 +236,7 @@ impl AuthManager {
         Ok(results)
     }
 
-    pub async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError> {
+    pub async fn read_all_blacklist(&self) -> Result<Vec<SecurityBlackList>, CommonError> {
         let mut results = Vec::new();
         for driver in self.password_based_drivers()? {
             let list = driver.read_all_blacklist().await?;
@@ -250,8 +247,8 @@ impl AuthManager {
         Ok(results)
     }
 
-    pub async fn update_user_cache(&self) -> ResultMqttBrokerError {
-        let all_users: HashMap<String, MqttUser> = self.read_all_user().await?;
+    pub async fn update_user_cache(&self) -> ResultCommonError {
+        let all_users: HashMap<String, SecurityUser> = self.read_all_user().await?;
 
         for user in all_users.values() {
             self.cache_manager.add_user(user.clone());
@@ -261,8 +258,8 @@ impl AuthManager {
     }
 
     // ACL
-    pub async fn update_acl_cache(&self) -> ResultMqttBrokerError {
-        let all_acls: Vec<MqttAcl> = self.read_all_acl().await?;
+    pub async fn update_acl_cache(&self) -> ResultCommonError {
+        let all_acls: Vec<SecurityAcl> = self.read_all_acl().await?;
 
         for acl in all_acls.iter() {
             self.cache_manager.add_acl(acl.to_owned());
@@ -272,7 +269,7 @@ impl AuthManager {
     }
 
     // BlackList
-    pub async fn update_blacklist_cache(&self) -> ResultMqttBrokerError {
+    pub async fn update_blacklist_cache(&self) -> ResultCommonError {
         let all_blacklist = self.read_all_blacklist().await?;
 
         for acl in all_blacklist.iter() {

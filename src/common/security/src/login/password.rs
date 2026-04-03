@@ -12,25 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::{error::common::CommonError, utils::serialize};
-use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-pub struct MqttUser {
-    pub tenant: String,
-    pub username: String,
-    pub password: String,
-    pub salt: Option<String>,
-    pub is_superuser: bool,
-    pub create_time: u64,
-}
+use crate::metadata::SecurityMetadata;
 
-impl MqttUser {
-    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
-        serialize::serialize(self)
+/// Check password by searching across all tenants.
+/// This is intentionally tenant-agnostic because at login time the tenant
+/// is not yet known (the MQTT CONNECT packet only carries username/password).
+pub fn password_check_by_login(
+    cache_manager: &Arc<SecurityMetadata>,
+    username: &str,
+    password: &str,
+) -> bool {
+    for tenant_entry in cache_manager.user_info.iter() {
+        if let Some(user) = tenant_entry.value().get(username) {
+            return user.password == password;
+        }
     }
-
-    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
-        serialize::deserialize(data)
-    }
+    false
 }

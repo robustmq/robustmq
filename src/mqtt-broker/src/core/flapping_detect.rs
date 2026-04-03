@@ -21,7 +21,7 @@ use common_base::error::ResultCommonError;
 use common_base::tools::{convert_seconds, loop_select_ticket, now_second};
 use common_config::config::MqttFlappingDetect;
 use common_metrics::mqtt::event;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::auth::blacklist::SecurityBlackList;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -139,7 +139,7 @@ async fn add_blacklist_4_connection_jitter(
     client_id: String,
 ) -> ResultMqttBrokerError {
     let end_time = now_second() + convert_seconds(config.ban_time as u64, TimeUnit::Minutes);
-    let client_id_blacklist = MqttAclBlackList {
+    let client_id_blacklist = SecurityBlackList {
         name: format!("flapping-ban-{}-{}", tenant, client_id),
         tenant: tenant.to_string(),
         blacklist_type: MqttAclBlackListType::ClientId,

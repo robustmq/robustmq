@@ -12,18 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::MqttBrokerError;
-use async_trait::async_trait;
-use dashmap::DashMap;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use metadata_struct::mqtt::user::MqttUser;
+use common_base::{error::common::CommonError, utils::serialize};
+use serde::{Deserialize, Serialize};
 
-#[async_trait]
-pub trait AuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, MqttBrokerError>;
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct SecurityUser {
+    pub tenant: String,
+    pub username: String,
+    pub password: String,
+    pub salt: Option<String>,
+    pub is_superuser: bool,
+    pub create_time: u64,
+}
 
-    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, MqttBrokerError>;
+impl SecurityUser {
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
 
-    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, MqttBrokerError>;
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
+    }
 }

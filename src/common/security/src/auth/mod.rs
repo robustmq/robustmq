@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::MQTTCacheManager;
-use crate::security::auth::acl::is_acl_deny;
-use crate::security::login::super_user::is_super_user;
+use crate::auth::acl::is_acl_deny;
+use crate::login::super_user::is_super_user;
 use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::QoS;
@@ -23,7 +22,6 @@ use std::sync::Arc;
 pub mod acl;
 pub mod blacklist;
 pub mod common;
-pub mod metadata;
 
 pub fn is_allow_acl(
     cache_manager: &Arc<MQTTCacheManager>,

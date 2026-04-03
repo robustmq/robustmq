@@ -12,5 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod mqtt_acl;
-pub mod mqtt_blacklist;
+pub mod acl;
+pub mod user;
+pub mod blacklist;

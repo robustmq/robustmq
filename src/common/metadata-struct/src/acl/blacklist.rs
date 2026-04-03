@@ -17,7 +17,7 @@ use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub struct MqttAclBlackList {
+pub struct SecurityBlackList {
     pub name: String,
     pub tenant: String,
     pub blacklist_type: MqttAclBlackListType,
@@ -26,7 +26,7 @@ pub struct MqttAclBlackList {
     pub desc: String,
 }
 
-impl MqttAclBlackList {
+impl SecurityBlackList {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         Ok(serde_json::to_vec(&self)?)
     }
