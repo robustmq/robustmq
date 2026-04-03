@@ -114,6 +114,9 @@ async fn update_cache(
             }
         }
 
+        // NATS
+        BrokerUpdateCacheResourceType::NatsSubject => {}
+
         // Storage Engine
         BrokerUpdateCacheResourceType::Shard
         | BrokerUpdateCacheResourceType::Segment

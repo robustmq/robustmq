@@ -12,7 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod common;
-pub mod engine;
-pub mod mqtt;
-pub mod nats;
+use common_base::{error::common::CommonError, utils::serialize};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct NatsSubject {
+    pub tenant: String,
+    pub name: String,
+    pub ttl: u64,
+    pub create_time: u64,
+}
+
+impl NatsSubject {
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
+    }
+}

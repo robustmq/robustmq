@@ -4962,13 +4962,16 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
+ "dashmap 6.1.0",
  "grpc-clients",
  "metadata-struct",
+ "mq9-core",
  "network-server",
  "protocol",
  "rate-limit",
  "storage-adapter",
  "tokio",
+ "tonic 0.14.5",
  "tracing",
 ]
 

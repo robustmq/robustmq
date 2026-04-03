@@ -236,6 +236,38 @@ nats sub "test.>" --server nats://mytoken@localhost:4222
 nats sub "test.>" --server nats://localhost:4222 --tlscert client.crt --tlskey client.key
 ```
 
+### INFO 命令字段
+
+服务端连接后立即推送 `INFO` JSON，完整字段如下：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `server_id` | string | 服务节点唯一标识符 |
+| `server_name` | string | 服务节点名称 |
+| `version` | string | 服务端版本号 |
+| `go` | string | 编译所用语言版本 |
+| `host` | string | 服务监听 IP |
+| `port` | int | 服务监听端口 |
+| `proto` | int | 协议版本号，`1` 表示支持动态 INFO 更新 |
+| `headers` | bool | 是否支持消息 Header（HPUB/HMSG） |
+| `max_payload` | int | 允许的最大 Payload 字节数 |
+| `auth_required` | bool | 是否要求客户端鉴权 |
+| `tls_required` | bool | 是否要求 TLS |
+| `tls_verify` | bool | 是否要求客户端提供证书 |
+| `tls_available` | bool | 服务端是否可选支持 TLS |
+| `jetstream` | bool | 是否支持 JetStream |
+| `client_id` | uint64 | 服务端分配的内部客户端 ID |
+| `client_ip` | string | 客户端 IP 地址 |
+| `nonce` | string | 用于 NKey 鉴权的随机数 |
+| `cluster` | string | 集群名称 |
+| `domain` | string | NATS 域名 |
+| `connect_urls` | []string | 集群其他节点地址，用于客户端重连 |
+| `ws_connect_urls` | []string | WebSocket 连接地址列表 |
+| `ldm` | bool | 是否处于 Lame Duck 模式（即将下线） |
+| `git_commit` | string | 编译版本的 Git commit hash |
+| `cluster_dynamic` | bool | 集群是否支持动态路由，仅在配置了集群路由时存在 |
+| `xkey` | string | 服务端 X25519 公钥，用于消息级加密（NKey 加密扩展），普通部署不使用 |
+
 ### CONNECT 命令字段
 
 客户端连接时向服务端发送 `CONNECT` JSON，常用字段：
@@ -248,9 +280,15 @@ nats sub "test.>" --server nats://localhost:4222 --tlscert client.crt --tlskey c
 | `name` | string | 客户端名称，方便调试 |
 | `lang` | string | 客户端语言，如 `go`、`java`、`python` |
 | `version` | string | 客户端版本 |
+| `protocol` | int | 协议版本，`1` 表示支持动态 INFO 更新 |
 | `user` | string | 用户名（用户名密码鉴权） |
 | `pass` | string | 密码 |
 | `auth_token` | string | Token 鉴权 |
+| `echo` | bool | 是否将自己发布的消息回传给自己的订阅，默认 `true` |
+| `sig` | string | 对 `nonce` 的签名，NKey 鉴权时使用 |
+| `jwt` | string | 用户 JWT，用于权限控制 |
+| `nkey` | string | NKey 公钥 |
+| `no_responders` | bool | 是否启用无订阅者时立即返回错误的功能 |
 | `headers` | bool | 是否支持消息 Header |
 
 ---

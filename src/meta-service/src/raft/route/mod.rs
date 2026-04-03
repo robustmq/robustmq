@@ -18,6 +18,7 @@ use crate::raft::route::common::DataRouteCluster;
 use crate::raft::route::engine::DataRouteJournal;
 use crate::raft::route::kv::DataRouteKv;
 use crate::raft::route::mqtt::DataRouteMqtt;
+use crate::raft::route::nats::DataRouteNats;
 use broker_core::cache::NodeCacheManager;
 use bytes::Bytes;
 use data::{StorageData, StorageDataType};
@@ -31,6 +32,7 @@ pub mod data;
 pub mod engine;
 pub mod kv;
 pub mod mqtt;
+pub mod nats;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppResponseData {
@@ -41,6 +43,7 @@ pub struct AppResponseData {
 pub struct DataRoute {
     route_kv: DataRouteKv,
     route_mqtt: DataRouteMqtt,
+    route_nats: DataRouteNats,
     route_journal: DataRouteJournal,
     route_cluster: DataRouteCluster,
 }
@@ -60,12 +63,14 @@ impl DataRoute {
             delay_task_manager.clone(),
         );
 
+        let route_nats = DataRouteNats::new(rocksdb_engine_handler.clone());
         let route_cluster =
             DataRouteCluster::new(rocksdb_engine_handler.clone(), cache_manager.clone());
         let route_journal = DataRouteJournal::new(rocksdb_engine_handler, cache_manager);
         DataRoute {
             route_kv,
             route_mqtt,
+            route_nats,
             route_journal,
             route_cluster,
         }
@@ -299,6 +304,16 @@ impl DataRoute {
             StorageDataType::MqttDeleteAutoSubscribeRule => {
                 self.route_mqtt
                     .delete_auto_subscribe_rule(storage_data.value.clone())?;
+                Ok(None)
+            }
+
+            // nats subject
+            StorageDataType::NatsSetSubject => {
+                self.route_nats.set_subject(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::NatsDeleteSubject => {
+                self.route_nats.delete_subject(storage_data.value.clone())?;
                 Ok(None)
             }
         }

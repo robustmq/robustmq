@@ -236,9 +236,41 @@ nats sub "test.>" --server nats://mytoken@localhost:4222
 nats sub "test.>" --server nats://localhost:4222 --tlscert client.crt --tlskey client.key
 ```
 
+### INFO Command Fields
+
+The server pushes an `INFO` JSON payload immediately after a client connects. Full field list:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `server_id` | string | Unique identifier for the server node |
+| `server_name` | string | Server node name |
+| `version` | string | Server version |
+| `go` | string | Language/runtime version used to build the server |
+| `host` | string | IP address the server is listening on |
+| `port` | int | Port the server is listening on |
+| `proto` | int | Protocol version; `1` indicates support for dynamic INFO updates |
+| `headers` | bool | Whether message Headers (HPUB/HMSG) are supported |
+| `max_payload` | int | Maximum allowed payload size in bytes |
+| `auth_required` | bool | Whether client authentication is required |
+| `tls_required` | bool | Whether TLS is required |
+| `tls_verify` | bool | Whether the client must present a certificate |
+| `tls_available` | bool | Whether TLS is optionally available |
+| `jetstream` | bool | Whether JetStream is supported |
+| `client_id` | uint64 | Internal client ID assigned by the server |
+| `client_ip` | string | Client IP address |
+| `nonce` | string | Random nonce for NKey authentication |
+| `cluster` | string | Cluster name |
+| `domain` | string | NATS domain |
+| `connect_urls` | []string | Other cluster node addresses for client reconnection |
+| `ws_connect_urls` | []string | WebSocket connection address list |
+| `ldm` | bool | Whether the server is in Lame Duck mode (shutting down soon) |
+| `git_commit` | string | Git commit hash of the build |
+| `cluster_dynamic` | bool | Whether the cluster supports dynamic routing; only present when cluster routes are configured |
+| `xkey` | string | Server's X25519 public key for message-level encryption (NKey extension); not used in standard deployments |
+
 ### CONNECT Command Fields
 
-The client sends a `CONNECT` JSON payload on connection. Common fields:
+The client sends a `CONNECT` JSON payload on connection. Complete fields:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -248,9 +280,15 @@ The client sends a `CONNECT` JSON payload on connection. Common fields:
 | `name` | string | Client name, useful for debugging |
 | `lang` | string | Client language: `go`, `java`, `python`, etc. |
 | `version` | string | Client version |
+| `protocol` | int | Protocol version; `1` indicates support for dynamic INFO updates |
 | `user` | string | Username (username/password auth) |
 | `pass` | string | Password |
 | `auth_token` | string | Token authentication |
+| `echo` | bool | Whether to echo messages published by this client back to its own subscriptions; default `true` |
+| `sig` | string | Signature of the `nonce`, used for NKey authentication |
+| `jwt` | string | User JWT for access control |
+| `nkey` | string | NKey public key |
+| `no_responders` | bool | Enable immediate error response when no subscribers exist for a subject |
 | `headers` | bool | Whether the client supports message headers |
 
 ---

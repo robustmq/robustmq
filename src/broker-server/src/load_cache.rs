@@ -15,6 +15,7 @@
 use broker_core::cache::NodeCacheManager;
 use broker_core::dynamic_config::build_cluster_config;
 use broker_core::tenant::TenantStorage;
+use common_base::error::common::CommonError;
 use connector::manager::ConnectorManager;
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::core::cache::MQTTCacheManager;
@@ -27,6 +28,8 @@ use mqtt_broker::storage::connector::ConnectorStorage;
 use mqtt_broker::storage::schema::SchemaStorage;
 use mqtt_broker::storage::topic::TopicStorage;
 use mqtt_broker::storage::user::UserStorage;
+use nats_broker::core::cache::NatsCacheManager;
+use nats_broker::storage::subject::NatsSubjectStorage;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_engine::core::cache::StorageCacheManager;
@@ -36,21 +39,23 @@ use storage_engine::core::shard::list_shards;
 use tracing::info;
 
 pub async fn load_metadata_cache(
-    cache_manager: &Arc<MQTTCacheManager>,
+    mqtt_cache_manager: &Arc<MQTTCacheManager>,
+    nats_cache_manager: &Arc<NatsCacheManager>,
     client_pool: &Arc<ClientPool>,
     connector_manager: &Arc<ConnectorManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
 ) -> ResultMqttBrokerError {
     info!("Starting to load metadata cache...");
     load_common_cache(
-        &cache_manager.node_cache,
+        &mqtt_cache_manager.node_cache,
         client_pool,
         connector_manager,
         schema_manager,
     )
     .await?;
 
-    load_mqtt_cache(cache_manager, client_pool).await?;
+    load_mqtt_cache(mqtt_cache_manager, client_pool).await?;
+    load_nats_cache(nats_cache_manager, client_pool).await?;
     Ok(())
 }
 
@@ -211,5 +216,19 @@ pub async fn load_engine_cache(
         cache_manager.segment_metadatas.len(),
     );
 
+    Ok(())
+}
+
+pub async fn load_nats_cache(
+    cache_manager: &Arc<NatsCacheManager>,
+    client_pool: &Arc<ClientPool>,
+) -> Result<(), CommonError> {
+    let storage = NatsSubjectStorage::new(client_pool.clone());
+    let subjects = storage.list("").await?;
+    let count = subjects.len();
+    for subject in subjects {
+        cache_manager.add_subject(subject);
+    }
+    info!("NATS cache loaded: subjects={}", count);
     Ok(())
 }

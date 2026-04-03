@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::server::{NatsServer, NatsServerParams};
+use crate::{
+    core::cache::NatsCacheManager,
+    server::{NatsServer, NatsServerParams},
+};
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
 use common_config::broker::broker_config;
@@ -27,6 +30,7 @@ use tracing::{error, info};
 
 #[derive(Clone)]
 pub struct NatsBrokerServerParams {
+    pub cache_manager: Arc<NatsCacheManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub client_pool: Arc<ClientPool>,
     pub broker_cache: Arc<NodeCacheManager>,

@@ -26,3 +26,7 @@ pub mod meta_service_common {
 pub mod meta_service_mqtt {
     tonic::include_proto!("meta.service.mqtt");
 }
+
+pub mod meta_service_nats {
+    tonic::include_proto!("meta.service.nats");
+}
