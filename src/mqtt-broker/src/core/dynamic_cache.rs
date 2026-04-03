@@ -41,6 +41,7 @@ use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::info;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn update_mqtt_cache_metadata(
     cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
