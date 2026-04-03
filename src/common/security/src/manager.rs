@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::result_large_err)]
+
 use crate::metadata::SecurityMetadata;
 use crate::third::build_storage_driver;
 use crate::third::storage_trait::AuthStorageAdapter;
@@ -41,6 +43,12 @@ struct CachedStorageDriver {
 pub struct SecurityManager {
     storage_drivers: Arc<DashMap<String, CachedStorageDriver>>,
     pub security_metadata: SecurityMetadata,
+}
+
+impl Default for SecurityManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SecurityManager {

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+#![allow(clippy::result_large_err)]
 use async_trait::async_trait;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;

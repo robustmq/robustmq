@@ -77,7 +77,7 @@ impl SecurityMetadata {
     pub fn add_user(&self, user: SecurityUser) {
         self.user_info
             .entry(user.tenant.clone())
-            .or_insert_with(DashMap::new)
+            .or_default()
             .insert(user.username.clone(), user);
     }
 
@@ -101,7 +101,7 @@ impl SecurityMetadata {
             EnumAclResourceType::ClientId => &self.acl_client_id,
             EnumAclResourceType::User => &self.acl_user,
         };
-        map.entry(acl.tenant.clone()).or_insert_with(DashMap::new);
+        map.entry(acl.tenant.clone()).or_default();
         if let Some(tenant_map) = map.get(&acl.tenant) {
             if let Some(mut list) = tenant_map.get_mut(&acl.resource_name) {
                 list.push(acl);
@@ -191,19 +191,19 @@ impl SecurityMetadata {
             EnumBlackListType::ClientId => {
                 self.blacklist_client_id
                     .entry(blacklist.tenant.clone())
-                    .or_insert_with(DashMap::new)
+                    .or_default()
                     .insert(blacklist.resource_name.clone(), blacklist);
             }
             EnumBlackListType::User => {
                 self.blacklist_user
                     .entry(blacklist.tenant.clone())
-                    .or_insert_with(DashMap::new)
+                    .or_default()
                     .insert(blacklist.resource_name.clone(), blacklist);
             }
             EnumBlackListType::Ip => {
                 self.blacklist_ip
                     .entry(blacklist.tenant.clone())
-                    .or_insert_with(DashMap::new)
+                    .or_default()
                     .insert(blacklist.resource_name.clone(), blacklist);
             }
             EnumBlackListType::ClientIdMatch => {

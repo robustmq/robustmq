@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::manager::SecurityManager;
-use crate::metadata::SecurityMetadata;
 use crate::storage::user::UserStorage;
 use common_base::error::ResultCommonError;
 use common_base::tools::now_second;

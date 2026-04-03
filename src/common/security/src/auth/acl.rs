@@ -15,7 +15,6 @@
 use crate::{
     auth::common::{ip_match, topic_match},
     manager::SecurityManager,
-    metadata::SecurityMetadata,
 };
 use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, SecurityAcl};
 use std::{net::SocketAddr, sync::Arc};

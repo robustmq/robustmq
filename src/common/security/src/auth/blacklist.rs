@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::result_large_err)]
+
 use crate::{auth::common::ip_match, manager::SecurityManager};
 use common_base::{error::common::CommonError, tools::now_second};
 use regex::Regex;
@@ -105,7 +107,7 @@ fn is_user_blacklisted(security_manager: &Arc<SecurityManager>, user: &str, now:
         if !is_active(raw.end_time, now) {
             continue;
         }
-        if is_wildcard_pattern_match(&user, &raw.resource_name) {
+        if is_wildcard_pattern_match(user, &raw.resource_name) {
             info!(
                 username = %user,
                 pattern = %raw.resource_name,
