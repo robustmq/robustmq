@@ -14,7 +14,7 @@
 
 use crate::auth::acl::is_acl_deny;
 use crate::login::super_user::is_super_user;
-use crate::metadata::SecurityMetadata;
+use crate::manager::SecurityManager;
 use metadata_struct::auth::acl::EnumAclAction;
 use protocol::mqtt::common::QoS;
 use std::sync::Arc;
@@ -24,7 +24,7 @@ pub mod blacklist;
 pub mod common;
 
 pub fn is_allow_acl(
-    security_metadata: &Arc<SecurityMetadata>,
+    security_manager: &Arc<SecurityManager>,
     topic_name: &str,
     tenant: &str,
     user: &str,
@@ -35,13 +35,13 @@ pub fn is_allow_acl(
     _: QoS,
 ) -> bool {
     // check super user
-    if is_super_user(security_metadata, user) {
+    if is_super_user(security_manager, user) {
         return true;
     }
 
     // check acl
     if is_acl_deny(
-        security_metadata,
+        security_manager,
         topic_name,
         tenant,
         user,
@@ -55,7 +55,7 @@ pub fn is_allow_acl(
     // check retain acl
     if retain
         && is_acl_deny(
-            security_metadata,
+            security_manager,
             topic_name,
             tenant,
             user,

@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::manager::SecurityManager;
 use std::sync::Arc;
-
-use crate::metadata::SecurityMetadata;
 
 /// Check password by searching across all tenants.
 /// This is intentionally tenant-agnostic because at login time the tenant
 /// is not yet known (the MQTT CONNECT packet only carries username/password).
 pub fn password_check_by_login(
-    cache_manager: &Arc<SecurityMetadata>,
+    security_manager: &Arc<SecurityManager>,
     username: &str,
     password: &str,
 ) -> bool {
-    for tenant_entry in cache_manager.user_info.iter() {
+    for tenant_entry in security_manager.security_metadata.user_info.iter() {
         if let Some(user) = tenant_entry.value().get(username) {
             return user.password == password;
         }

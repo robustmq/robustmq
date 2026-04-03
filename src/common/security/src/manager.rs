@@ -15,7 +15,6 @@
 use crate::metadata::SecurityMetadata;
 use crate::third::build_storage_driver;
 use crate::third::storage_trait::AuthStorageAdapter;
-use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::now_millis;
@@ -41,20 +40,18 @@ struct CachedStorageDriver {
 #[derive(Clone)]
 pub struct SecurityManager {
     storage_drivers: Arc<DashMap<String, CachedStorageDriver>>,
-    node_cache: Arc<NodeCacheManager>,
     pub security_metadata: SecurityMetadata,
 }
 
 impl SecurityManager {
-    pub fn new(node_cache: Arc<NodeCacheManager>) -> SecurityManager {
+    pub fn new() -> SecurityManager {
         SecurityManager {
             storage_drivers: Arc::new(DashMap::new()),
             security_metadata: SecurityMetadata::new(),
-            node_cache,
         }
     }
 
-    fn authn_list_with_default(&self) -> Vec<(String, AuthnConfig)> {
+    pub fn authn_list_with_default(&self) -> Vec<(String, AuthnConfig)> {
         let mut authn_list = self.security_metadata.get_authn();
         if authn_list.is_empty() {
             let default_authn = AuthnConfig {
@@ -74,7 +71,7 @@ impl SecurityManager {
         authn_list
     }
 
-    fn get_or_build_storage_driver(
+    pub fn get_or_build_storage_driver(
         &self,
         authn_id: &str,
         storage_config: &StorageConfig,
@@ -109,100 +106,6 @@ impl SecurityManager {
         }
         Ok(drivers)
     }
-
-    // Permission: Allow && Deny
-    // pub async fn login_check(
-    //     &self,
-    //     login: &Option<Login>,
-    //     _connect_properties: &Option<ConnectProperties>,
-    // ) -> Result<bool, CommonError> {
-    //     let cluster = self.node_cache.get_cluster_config();
-
-    //     if cluster.mqtt_runtime.secret_free_login {
-    //         return Ok(true);
-    //     }
-
-    //     if let Some((_, authn)) = self.authn_list_with_default().into_iter().next() {
-    //         let login_type = LoginType::from_str(&authn.authn_type)
-    //             .map_err(|_| CommonError::UnsupportedAuthType(authn.authn_type.clone()))?;
-
-    //         return match login_type {
-    //             LoginType::PasswordBased => {
-    //                 if let Some(user_info) = login {
-    //                     let username = try_decode_username(&user_info.username);
-    //                     let password = user_info.password.clone();
-    //                     Ok(password_check_by_login(
-    //                         &self.cache_manager,
-    //                         &username,
-    //                         &password,
-    //                     ))
-    //                 } else {
-    //                     Ok(false)
-    //                 }
-    //             }
-    //             LoginType::Jwt => Ok(false),
-    //         };
-    //     }
-
-    //     Ok(false)
-    // }
-
-    // pub async fn connect_check(
-    //     &self,
-    //     client_id: &str,
-    //     source_ip_addr: &str,
-    //     login: &Option<Login>,
-    // ) -> bool {
-    //     // default true if blacklist check fails
-    //     is_connection_blacklisted(&self.cache_manager, client_id, source_ip_addr, login)
-    //         .unwrap_or(true)
-    // }
-
-    // pub async fn publish_acl_check(
-    //     &self,
-    //     connection: &MQTTConnection,
-    //     topic_name: &str,
-    //     retain: bool,
-    //     qos: QoS,
-    // ) -> Result<(), CommonError> {
-    //     if !is_allow_acl(
-    //         &self.cache_manager,
-    //         connection,
-    //         topic_name,
-    //         EnumAclAction::Publish,
-    //         retain,
-    //         qos,
-    //     ) {
-    //         record_mqtt_acl_failed();
-    //         return Err(CommonError::NotAclAuth(topic_name.to_string()));
-    //     }
-    //     record_mqtt_acl_success();
-
-    //     Ok(())
-    // }
-
-    // pub async fn subscribe_check(
-    //     &self,
-    //     connection: &MQTTConnection,
-    //     subscribe: &Subscribe,
-    // ) -> bool {
-    //     for filter in subscribe.filters.iter() {
-    //         let topic_list = get_sub_topic_name_list(&self.cache_manager, &filter.path).await;
-    //         for topic_name in topic_list {
-    //             if !is_allow_acl(
-    //                 &self.cache_manager,
-    //                 connection,
-    //                 &topic_name,
-    //                 EnumAclAction::Subscribe,
-    //                 false,
-    //                 filter.qos,
-    //             ) {
-    //                 return false;
-    //             }
-    //         }
-    //     }
-    //     true
-    // }
 
     // read all
     pub async fn read_all_user(&self) -> Result<HashMap<String, SecurityUser>, CommonError> {

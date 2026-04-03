@@ -14,6 +14,7 @@
 
 use crate::{
     auth::common::{ip_match, topic_match},
+    manager::SecurityManager,
     metadata::SecurityMetadata,
 };
 use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, SecurityAcl};
@@ -32,7 +33,7 @@ fn normalize_source_ip(source_ip_addr: &str) -> String {
 }
 
 pub fn is_acl_deny(
-    security_metadata: &Arc<SecurityMetadata>,
+    security_manager: &Arc<SecurityManager>,
     topic_name: &str,
     tenant: &str,
     user: &str,
@@ -42,25 +43,27 @@ pub fn is_acl_deny(
 ) -> bool {
     let source_ip = normalize_source_ip(source_ip_addr);
 
-    let user_deny = if let Some(tenant_map) = security_metadata.acl_user.get(tenant) {
-        if let Some(acl_list) = tenant_map.get(user) {
-            check_for_deny(&acl_list, &action, topic_name, &source_ip)
+    let user_deny =
+        if let Some(tenant_map) = security_manager.security_metadata.acl_user.get(tenant) {
+            if let Some(acl_list) = tenant_map.get(user) {
+                check_for_deny(&acl_list, &action, topic_name, &source_ip)
+            } else {
+                false
+            }
         } else {
             false
-        }
-    } else {
-        false
-    };
+        };
 
-    let client_id_deny = if let Some(tenant_map) = security_metadata.acl_client_id.get(tenant) {
-        if let Some(acl_list) = tenant_map.get(client_id) {
-            check_for_deny(&acl_list, &action, topic_name, &source_ip)
+    let client_id_deny =
+        if let Some(tenant_map) = security_manager.security_metadata.acl_client_id.get(tenant) {
+            if let Some(acl_list) = tenant_map.get(client_id) {
+                check_for_deny(&acl_list, &action, topic_name, &source_ip)
+            } else {
+                false
+            }
         } else {
             false
-        }
-    } else {
-        false
-    };
+        };
 
     user_deny || client_id_deny
 }

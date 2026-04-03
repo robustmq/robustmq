@@ -141,12 +141,6 @@ pub enum MqttBrokerError {
     #[error("Subscription path {0} is not available")]
     InvalidSubPath(String),
 
-    #[error("ACL authentication failed. Access denied for topic: {0}")]
-    NotAclAuth(String),
-
-    #[error("Blacklist authentication failed. Connection is blocked")]
-    NotBlacklistAuth,
-
     #[error("topicRewriteRule has been existed")]
     TopicRewriteRuleAlreadyExist,
 

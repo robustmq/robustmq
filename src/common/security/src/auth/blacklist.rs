@@ -11,23 +11,23 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{auth::common::ip_match, metadata::SecurityMetadata};
+use crate::{auth::common::ip_match, manager::SecurityManager};
 use common_base::{error::common::CommonError, tools::now_second};
 use regex::Regex;
 use std::sync::Arc;
 use tracing::{info, warn};
 
 pub fn is_connection_blacklisted(
-    security_metadata: &Arc<SecurityMetadata>,
+    security_manager: &Arc<SecurityManager>,
     client_id: &str,
     source_ip_addr: &str,
     user: &str,
 ) -> Result<bool, CommonError> {
     let now = now_second();
 
-    Ok(is_user_blacklisted(security_metadata, user, now)
-        || is_client_id_blacklisted(security_metadata, client_id, now)
-        || is_ip_blacklisted(security_metadata, source_ip_addr, now))
+    Ok(is_user_blacklisted(security_manager, user, now)
+        || is_client_id_blacklisted(security_manager, client_id, now)
+        || is_ip_blacklisted(security_manager, source_ip_addr, now))
 }
 
 fn extract_ip_from_addr(addr: &str) -> String {
@@ -80,9 +80,9 @@ fn is_wildcard_pattern_match(target: &str, pattern: &str) -> bool {
     }
 }
 
-fn is_user_blacklisted(security_metadata: &Arc<SecurityMetadata>, user: &str, now: u64) -> bool {
+fn is_user_blacklisted(security_manager: &Arc<SecurityManager>, user: &str, now: u64) -> bool {
     // Check exact match across all tenants
-    for tenant_entry in security_metadata.blacklist_user.iter() {
+    for tenant_entry in security_manager.security_metadata.blacklist_user.iter() {
         if let Some(data) = tenant_entry.value().get(user) {
             if is_active(data.end_time, now) {
                 info!(
@@ -97,7 +97,10 @@ fn is_user_blacklisted(security_metadata: &Arc<SecurityMetadata>, user: &str, no
     }
 
     // Check wildcard match across all tenants
-    for raw in security_metadata.get_blacklist_user_match() {
+    for raw in security_manager
+        .security_metadata
+        .get_blacklist_user_match()
+    {
         if !is_active(raw.end_time, now) {
             continue;
         }
@@ -117,12 +120,16 @@ fn is_user_blacklisted(security_metadata: &Arc<SecurityMetadata>, user: &str, no
 }
 
 fn is_client_id_blacklisted(
-    security_metadata: &Arc<SecurityMetadata>,
+    security_manager: &Arc<SecurityManager>,
     client_id: &str,
     now: u64,
 ) -> bool {
     // Check exact match across all tenants
-    for tenant_entry in security_metadata.blacklist_client_id.iter() {
+    for tenant_entry in security_manager
+        .security_metadata
+        .blacklist_client_id
+        .iter()
+    {
         if let Some(data) = tenant_entry.value().get(client_id) {
             if is_active(data.end_time, now) {
                 info!(
@@ -137,7 +144,10 @@ fn is_client_id_blacklisted(
     }
 
     // Check wildcard match across all tenants
-    for raw in security_metadata.get_blacklist_client_id_match() {
+    for raw in security_manager
+        .security_metadata
+        .get_blacklist_client_id_match()
+    {
         if !is_active(raw.end_time, now) {
             continue;
         }
@@ -157,14 +167,14 @@ fn is_client_id_blacklisted(
 }
 
 fn is_ip_blacklisted(
-    security_metadata: &Arc<SecurityMetadata>,
+    security_manager: &Arc<SecurityManager>,
     source_ip_addr: &str,
     now: u64,
 ) -> bool {
     let source_ip = extract_ip_from_addr(source_ip_addr);
 
     // Check exact match across all tenants
-    for tenant_entry in security_metadata.blacklist_ip.iter() {
+    for tenant_entry in security_manager.security_metadata.blacklist_ip.iter() {
         if let Some(data) = tenant_entry.value().get(&source_ip) {
             if is_active(data.end_time, now) {
                 info!(
@@ -180,7 +190,7 @@ fn is_ip_blacklisted(
     }
 
     // Check CIDR/wildcard match across all tenants
-    for raw in security_metadata.get_blacklist_ip_match() {
+    for raw in security_manager.security_metadata.get_blacklist_ip_match() {
         if !is_active(raw.end_time, now) {
             continue;
         }

@@ -18,6 +18,7 @@ use crate::core::connection::is_request_problem_info;
 use crate::core::error::MqttBrokerError;
 use crate::core::event::{st_report_subscribed_event, st_report_unsubscribed_event};
 use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
+use crate::core::security::security_subscribe_check;
 use crate::core::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use crate::core::sub_wildcards::sub_path_validator;
 use crate::core::subscribe::remove_subscribe;
@@ -358,7 +359,7 @@ async fn subscribe_validator(
         );
     }
 
-    if !auth_driver.subscribe_check(connection, subscribe).await {
+    if !security_subscribe_check(cache_manager, security_manager, connection, subscribe).await {
         return (
             vec![SubscribeReasonCode::NotAuthorized],
             "Subscription not authorized".to_string(),

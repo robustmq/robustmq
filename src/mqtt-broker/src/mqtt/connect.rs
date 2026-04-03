@@ -119,6 +119,7 @@ impl MqttService {
                 &tenant.tenant_name,
                 context.connect.client_id.clone(),
                 &self.cache_manager,
+                &self.security_manager,
                 &self.rocksdb_engine_handler,
             )
             .await
