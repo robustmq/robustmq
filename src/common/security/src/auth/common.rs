@@ -22,9 +22,9 @@ pub fn ip_match(source_ip_addr: &str, ip_role: &str) -> Result<bool, CommonError
         return Ok(true);
     }
 
-    let source_ip = source_ip_addr
-        .parse::<IpAddr>()
-        .map_err(|_| CommonError::CommonError(format!("Invalid source IP address: {}", source_ip_addr)))?;
+    let source_ip = source_ip_addr.parse::<IpAddr>().map_err(|_| {
+        CommonError::CommonError(format!("Invalid source IP address: {}", source_ip_addr))
+    })?;
 
     if let Ok(role_ip) = ip_role.parse::<IpAddr>() {
         return Ok(source_ip == role_ip);

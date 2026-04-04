@@ -15,7 +15,6 @@
 use async_trait::async_trait;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use dashmap::DashMap;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, EnumAclResourceType};
 use metadata_struct::auth::blacklist::get_blacklist_type_by_str;
@@ -54,6 +53,8 @@ impl RedisAuthStorageAdapter {
         Ok(RedisAuthStorageAdapter { pool, config })
     }
 
+    const ALLOWED_QUERY_CMDS: &'static [&'static str] = &["SMEMBERS", "LRANGE", "SUNION", "KEYS"];
+
     fn exec_query_ids(
         conn: &mut RedisConnection,
         query: &str,
@@ -68,7 +69,16 @@ impl RedisAuthStorageAdapter {
             return Ok(conn.smembers(fallback_key)?);
         }
 
-        let mut cmd = redis::cmd(parts[0]);
+        let cmd_name = parts[0].to_ascii_uppercase();
+        if !Self::ALLOWED_QUERY_CMDS.contains(&cmd_name.as_str()) {
+            return Err(CommonError::CommonError(format!(
+                "Redis query command `{}` is not allowed; permitted: {:?}",
+                parts[0],
+                Self::ALLOWED_QUERY_CMDS,
+            )));
+        }
+
+        let mut cmd = redis::cmd(&cmd_name);
         for arg in parts.iter().skip(1) {
             cmd.arg(*arg);
         }
@@ -98,13 +108,12 @@ impl RedisAuthStorageAdapter {
 
 #[async_trait]
 impl AuthStorageAdapter for RedisAuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, SecurityUser>, CommonError> {
+    async fn read_all_user(&self) -> Result<Vec<SecurityUser>, CommonError> {
         let mut conn: RedisConnection = self.pool.get()?;
         let usernames = self.query_user_ids(&mut conn)?;
-        let results = DashMap::with_capacity(usernames.len());
 
         if usernames.is_empty() {
-            return Ok(results);
+            return Ok(Vec::new());
         }
 
         let mut pipe = redis::pipe();
@@ -113,6 +122,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
                 .arg(RedisAuthUser::redis_user_key(username));
         }
         let rows: Vec<HashMap<String, String>> = pipe.query(&mut conn)?;
+        let mut results = Vec::with_capacity(usernames.len());
 
         for (username, fields) in usernames.into_iter().zip(rows.into_iter()) {
             if fields.is_empty() {
@@ -120,9 +130,9 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
             }
             match RedisAuthUser::from_redis_hash(username.clone(), fields) {
                 Ok(redis_user) => {
-                    let user = SecurityUser {
+                    results.push(SecurityUser {
                         tenant: DEFAULT_TENANT.to_string(),
-                        username: redis_user.username.clone(),
+                        username: redis_user.username,
                         password: redis_user.password,
                         salt: if redis_user.salt.is_empty() {
                             None
@@ -131,8 +141,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
                         },
                         is_superuser: redis_user.is_superuser == 1,
                         create_time: redis_user.created.unwrap_or_else(now_second),
-                    };
-                    results.insert(redis_user.username, user);
+                    });
                 }
                 Err(e) => {
                     warn!(username = %username, error = %e, "Parse Redis user failed, skip record");

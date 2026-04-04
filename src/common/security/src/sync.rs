@@ -46,7 +46,7 @@ fn sync_user_cache(
 ) {
     task_supervisor.spawn(TaskKind::MQTTSecurityUserSync.to_string(), async move {
         let ac_fn = async || -> ResultCommonError {
-            for driver in security_manager.drivers_list()? {
+            for driver in security_manager.drivers_list().await? {
                 let list = driver.read_all_user().await?;
                 for user in list.iter() {
                     security_manager.security_metadata.add_user(user.clone());
@@ -65,7 +65,7 @@ fn sync_acl_cache(
 ) {
     task_supervisor.spawn(TaskKind::MQTTSecurityAclSync.to_string(), async move {
         let ac_fn = async || -> ResultCommonError {
-            for driver in security_manager.drivers_list()? {
+            for driver in security_manager.drivers_list().await? {
                 let list = driver.read_all_acl().await?;
                 for acl in list.iter() {
                     security_manager.security_metadata.add_acl(acl.to_owned());
@@ -86,7 +86,7 @@ fn sync_blacklist_cache(
         TaskKind::MQTTSecurityBlacklistSync.to_string(),
         async move {
             let ac_fn = async || -> ResultCommonError {
-                for driver in security_manager.drivers_list()? {
+                for driver in security_manager.drivers_list().await? {
                     let list = driver.read_all_blacklist().await?;
                     for blacklist in list.iter() {
                         security_manager

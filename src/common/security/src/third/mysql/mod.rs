@@ -17,7 +17,6 @@ use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use dashmap::DashMap;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, EnumAclResourceType};
 use metadata_struct::auth::blacklist::get_blacklist_type_by_str;
@@ -104,11 +103,11 @@ impl MySQLAuthStorageAdapter {
 
 #[async_trait]
 impl AuthStorageAdapter for MySQLAuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, SecurityUser>, CommonError> {
+    async fn read_all_user(&self) -> Result<Vec<SecurityUser>, CommonError> {
         let mut conn = self.pool.get()?;
         let sql = self.user_query();
         let rows: Vec<Row> = conn.query(sql)?;
-        let results = DashMap::with_capacity(rows.len());
+        let mut results = Vec::with_capacity(rows.len());
         for mut row in rows {
             let username: String = row
                 .take("username")
@@ -126,17 +125,16 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 .take("created")
                 .ok_or_else(|| CommonError::CommonError("missing column: created".to_string()))?;
 
-            let user = SecurityUser {
+            results.push(SecurityUser {
                 tenant: DEFAULT_TENANT.to_string(),
-                username: username.clone(),
+                username,
                 password,
                 salt,
                 is_superuser: is_superuser == 1,
                 create_time: Self::parse_created_to_seconds(created),
-            };
-            results.insert(username, user);
+            });
         }
-        return Ok(results);
+        Ok(results)
     }
 
     async fn read_all_acl(&self) -> Result<Vec<SecurityAcl>, CommonError> {
@@ -262,9 +260,9 @@ mod tests {
         let result = auth_mysql.read_all_user().await;
         assert!(result.is_ok());
         let res = result.unwrap();
-        assert!(res.contains_key("robustmq"));
-        let user = res.get("robustmq").unwrap();
-        assert_eq!(user.password, "robustmq@2024");
+        let user = res.iter().find(|u| u.username == "robustmq");
+        assert!(user.is_some());
+        assert_eq!(user.unwrap().password, "robustmq@2024");
     }
 
     fn init_user(addr: &str) {

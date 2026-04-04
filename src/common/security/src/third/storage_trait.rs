@@ -14,12 +14,11 @@
 
 use async_trait::async_trait;
 use common_base::error::common::CommonError;
-use dashmap::DashMap;
 use metadata_struct::auth::{acl::SecurityAcl, blacklist::SecurityBlackList, user::SecurityUser};
 
 #[async_trait]
 pub trait AuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, SecurityUser>, CommonError>;
+    async fn read_all_user(&self) -> Result<Vec<SecurityUser>, CommonError>;
 
     async fn read_all_acl(&self) -> Result<Vec<SecurityAcl>, CommonError>;
 

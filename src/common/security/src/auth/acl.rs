@@ -133,8 +133,32 @@ mod tests {
             EnumAclPermission::Deny,
         ));
 
-        assert!(is_user_acl_deny(&sm, "sensor/data", tenant, user, "1.2.3.4", &EnumAclAction::Publish).unwrap());
-        assert!(!is_user_acl_deny(&sm, "sensor/data", tenant, user, "1.2.3.4", &EnumAclAction::Subscribe).unwrap());
-        assert!(!is_user_acl_deny(&sm, "sensor/data", tenant, "other_user", "1.2.3.4", &EnumAclAction::Publish).unwrap());
+        assert!(is_user_acl_deny(
+            &sm,
+            "sensor/data",
+            tenant,
+            user,
+            "1.2.3.4",
+            &EnumAclAction::Publish
+        )
+        .unwrap());
+        assert!(!is_user_acl_deny(
+            &sm,
+            "sensor/data",
+            tenant,
+            user,
+            "1.2.3.4",
+            &EnumAclAction::Subscribe
+        )
+        .unwrap());
+        assert!(!is_user_acl_deny(
+            &sm,
+            "sensor/data",
+            tenant,
+            "other_user",
+            "1.2.3.4",
+            &EnumAclAction::Publish
+        )
+        .unwrap());
     }
 }

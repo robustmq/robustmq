@@ -27,7 +27,7 @@ pub mod storage_trait;
 pub mod storage_type;
 pub use storage_type::AuthDataStorageType;
 
-pub fn build_storage_driver(
+pub async fn build_storage_driver(
     storage_config: &StorageConfig,
 ) -> Result<Option<ArcAuthStorageAdapter>, CommonError> {
     let storage_type = AuthDataStorageType::from_str(&storage_config.storage_type)
@@ -67,7 +67,8 @@ pub fn build_storage_driver(
         }
         AuthDataStorageType::Mongodb => {
             if let Some(mongodb_config) = &storage_config.mongodb_config {
-                let driver = mongodb::MongoDBAuthStorageAdapter::new(mongodb_config.clone());
+                let driver =
+                    mongodb::MongoDBAuthStorageAdapter::new(mongodb_config.clone()).await?;
                 Ok(Some(Arc::new(driver)))
             } else {
                 Err(CommonError::CommonError(

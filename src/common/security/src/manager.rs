@@ -60,13 +60,14 @@ impl SecurityManager {
         authn_list
     }
 
-    pub fn drivers_list(&self) -> Result<Vec<ArcAuthStorageAdapter>, CommonError> {
+    pub async fn drivers_list(&self) -> Result<Vec<ArcAuthStorageAdapter>, CommonError> {
         let mut drivers = Vec::new();
         for (authn_id, authn) in self.authn_list_with_default() {
             match authn.config {
                 LoginAuthEnum::PasswordBased(config) => {
-                    if let Some(driver) =
-                        self.get_or_build_storage_driver(&authn_id, &config.storage_config)?
+                    if let Some(driver) = self
+                        .get_or_build_storage_driver(&authn_id, &config.storage_config)
+                        .await?
                     {
                         drivers.push(driver);
                     }
@@ -79,7 +80,7 @@ impl SecurityManager {
         Ok(drivers)
     }
 
-    fn get_or_build_storage_driver(
+    async fn get_or_build_storage_driver(
         &self,
         authn_id: &str,
         storage_config: &StorageConfig,
@@ -88,7 +89,7 @@ impl SecurityManager {
             return Ok(Some(driver.clone()));
         }
 
-        if let Some(driver) = build_storage_driver(storage_config)? {
+        if let Some(driver) = build_storage_driver(storage_config).await? {
             self.storage_drivers
                 .insert(authn_id.to_string(), driver.clone());
         }

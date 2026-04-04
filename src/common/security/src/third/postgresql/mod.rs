@@ -17,7 +17,6 @@ use chrono::NaiveDateTime;
 
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use dashmap::DashMap;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, EnumAclResourceType};
 use metadata_struct::auth::blacklist::get_blacklist_type_by_str;
@@ -105,11 +104,11 @@ impl PostgresqlAuthStorageAdapter {
 
 #[async_trait]
 impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, SecurityUser>, CommonError> {
+    async fn read_all_user(&self) -> Result<Vec<SecurityUser>, CommonError> {
         let mut conn = self.pool.get()?;
         let sql = self.user_query();
         let rows = conn.query(&sql, &[])?;
-        let results = DashMap::with_capacity(rows.len());
+        let mut results = Vec::with_capacity(rows.len());
         for row in rows {
             let username: String = row
                 .try_get("username")
@@ -126,17 +125,16 @@ impl AuthStorageAdapter for PostgresqlAuthStorageAdapter {
             let created: Option<String> = row
                 .try_get("created")
                 .map_err(|_| CommonError::CommonError("missing column: created".to_string()))?;
-            let user = SecurityUser {
+            results.push(SecurityUser {
                 tenant: DEFAULT_TENANT.to_string(),
-                username: username.clone(),
+                username,
                 password,
                 salt,
                 is_superuser: is_superuser == 1,
                 create_time: Self::parse_created_to_seconds(created),
-            };
-            results.insert(username, user);
+            });
         }
-        return Ok(results);
+        Ok(results)
     }
 
     async fn read_all_acl(&self) -> Result<Vec<SecurityAcl>, CommonError> {

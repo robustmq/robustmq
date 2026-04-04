@@ -15,7 +15,6 @@
 use async_trait::async_trait;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use dashmap::DashMap;
 use metadata_struct::auth::acl::{
     EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl,
 };
@@ -243,8 +242,8 @@ impl HttpAuthStorageAdapter {
 
 #[async_trait]
 impl AuthStorageAdapter for HttpAuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, SecurityUser>, CommonError> {
-        let users = DashMap::new();
+    async fn read_all_user(&self) -> Result<Vec<SecurityUser>, CommonError> {
+        let mut users = Vec::new();
         let values = self
             .fetch_resource(Self::RESOURCE_USER, &self.config.query_user)
             .await?;
@@ -262,15 +261,14 @@ impl AuthStorageAdapter for HttpAuthStorageAdapter {
                 warn!(username = %username, "HTTP user item missing password, skip");
                 continue;
             };
-            let user = SecurityUser {
+            users.push(SecurityUser {
                 tenant: DEFAULT_TENANT.to_string(),
-                username: username.clone(),
+                username,
                 password,
                 salt: Self::parse_string(map.get("salt")),
                 is_superuser: Self::parse_bool_like(map.get("is_superuser")),
                 create_time: Self::parse_created_to_seconds(map.get("created")),
-            };
-            users.insert(username, user);
+            });
         }
         Ok(users)
     }

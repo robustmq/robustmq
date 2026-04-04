@@ -81,9 +81,11 @@ pub async fn security_is_allow_connect(
 ) -> Result<bool, MqttBrokerError> {
     let login = login.clone().unwrap_or_default();
 
-    Ok(!is_user_blacklisted(security_manager, tenant, &login.username)
-        && !is_client_id_blacklisted(security_manager, tenant, client_id)
-        && !is_ip_blacklisted(security_manager, tenant, source_ip)?)
+    Ok(
+        !is_user_blacklisted(security_manager, tenant, &login.username)
+            && !is_client_id_blacklisted(security_manager, tenant, client_id)
+            && !is_ip_blacklisted(security_manager, tenant, source_ip)?,
+    )
 }
 
 pub async fn security_is_allow_publish(

@@ -16,7 +16,6 @@ use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use dashmap::DashMap;
 use futures::TryStreamExt;
 use metadata_struct::auth::acl::{
     EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl,
@@ -34,31 +33,32 @@ use tracing::warn;
 use crate::third::storage_trait::AuthStorageAdapter;
 
 pub struct MongoDBAuthStorageAdapter {
+    client: Client,
     config: MongoDBConfig,
 }
 
 impl MongoDBAuthStorageAdapter {
-    pub fn new(config: MongoDBConfig) -> Self {
-        Self { config }
-    }
-
-    async fn collection(&self, name: &str) -> Result<Collection<Document>, CommonError> {
-        let mut options = ClientOptions::parse(&self.config.mongodb_uri)
+    pub async fn new(config: MongoDBConfig) -> Result<Self, CommonError> {
+        let mut options = ClientOptions::parse(&config.mongodb_uri)
             .await
             .map_err(|e| CommonError::MongoDBError(e.to_string()))?;
 
-        if !self.config.username.trim().is_empty() {
+        if !config.username.trim().is_empty() {
             options.credential = Some(
                 mongodb::options::Credential::builder()
-                    .username(Some(self.config.username.clone()))
-                    .password(Some(self.config.password.clone()))
+                    .username(Some(config.username.clone()))
+                    .password(Some(config.password.clone()))
                     .build(),
             );
         }
 
         let client =
             Client::with_options(options).map_err(|e| CommonError::MongoDBError(e.to_string()))?;
-        Ok(client.database(&self.config.database).collection(name))
+        Ok(Self { client, config })
+    }
+
+    fn collection(&self, name: &str) -> Collection<Document> {
+        self.client.database(&self.config.database).collection(name)
     }
 
     fn parse_filter(query: &str) -> Result<Document, CommonError> {
@@ -171,15 +171,15 @@ impl MongoDBAuthStorageAdapter {
 
 #[async_trait]
 impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, SecurityUser>, CommonError> {
-        let collection = self.collection(&self.config.collection_user).await?;
+    async fn read_all_user(&self) -> Result<Vec<SecurityUser>, CommonError> {
+        let collection = self.collection(&self.config.collection_user);
         let filter = Self::parse_filter(&self.config.query_user)?;
         let mut cursor = collection
             .find(filter, None)
             .await
             .map_err(|e| CommonError::MongoDBError(e.to_string()))?;
 
-        let results = DashMap::new();
+        let mut results = Vec::new();
         while let Some(doc) = cursor
             .try_next()
             .await
@@ -194,22 +194,21 @@ impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
                 continue;
             };
 
-            let user = SecurityUser {
+            results.push(SecurityUser {
                 tenant: DEFAULT_TENANT.to_string(),
                 username: username.clone(),
                 password: password.clone(),
                 salt: doc.get_str("salt").ok().map(|v| v.to_string()),
                 is_superuser: Self::parse_is_superuser(doc.get("is_superuser")),
                 create_time: Self::parse_created_to_seconds(doc.get("created")),
-            };
-            results.insert(username.clone(), user);
+            });
         }
 
         Ok(results)
     }
 
     async fn read_all_acl(&self) -> Result<Vec<SecurityAcl>, CommonError> {
-        let collection = self.collection(&self.config.collection_acl).await?;
+        let collection = self.collection(&self.config.collection_acl);
         let filter = Self::parse_filter(&self.config.query_acl)?;
         let mut cursor = collection
             .find(filter, None)
@@ -281,7 +280,7 @@ impl AuthStorageAdapter for MongoDBAuthStorageAdapter {
     }
 
     async fn read_all_blacklist(&self) -> Result<Vec<SecurityBlackList>, CommonError> {
-        let collection = self.collection(&self.config.collection_blacklist).await?;
+        let collection = self.collection(&self.config.collection_blacklist);
         let filter = Self::parse_filter(&self.config.query_blacklist)?;
         let mut cursor = collection
             .find(filter, None)

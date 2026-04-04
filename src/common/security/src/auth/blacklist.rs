@@ -127,7 +127,7 @@ fn wildcard_to_regex(pattern: &str) -> String {
 }
 
 fn is_active(end_time: u64, now: u64) -> bool {
-    end_time > now
+    end_time == 0 || end_time > now
 }
 
 fn is_wildcard_pattern_match(target: &str, pattern: &str) -> bool {
@@ -195,6 +195,14 @@ mod tests {
             past,
         ));
         assert!(!is_user_blacklisted(&sm, tenant, "bob"));
+
+        sm.security_metadata.add_blacklist(make_blacklist(
+            tenant,
+            "permanent",
+            EnumBlackListType::User,
+            0,
+        ));
+        assert!(is_user_blacklisted(&sm, tenant, "permanent"));
 
         sm.security_metadata.add_blacklist(make_blacklist(
             tenant,
