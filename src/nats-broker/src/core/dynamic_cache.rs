@@ -25,19 +25,16 @@ pub async fn update_nats_cache_metadata(
     cache_manager: &Arc<NatsCacheManager>,
     record: &UpdateCacheRecord,
 ) -> Result<(), CommonError> {
-    match record.resource_type() {
-        BrokerUpdateCacheResourceType::NatsSubscribe => {
-            let subscribe: NatsSubscribe = serialize::deserialize(&record.data)?;
-            match record.action_type() {
-                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
-                    cache_manager.add_subscribe(subscribe);
-                }
-                BrokerUpdateCacheActionType::Delete => {
-                    cache_manager.remove_subscribe(&subscribe.client_id, &subscribe.sid);
-                }
+    if record.resource_type() == BrokerUpdateCacheResourceType::NatsSubscribe {
+        let subscribe: NatsSubscribe = serialize::deserialize(&record.data)?;
+        match record.action_type() {
+            BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                cache_manager.add_subscribe(subscribe);
+            }
+            BrokerUpdateCacheActionType::Delete => {
+                cache_manager.remove_subscribe(&subscribe.client_id, &subscribe.sid);
             }
         }
-        _ => {}
     }
     Ok(())
 }
