@@ -422,6 +422,7 @@ impl BrokerServer {
                     self.nats_params.cache_manager.clone(),
                     self.nats_params.storage_driver_manager.clone(),
                     self.nats_params.client_pool.clone(),
+                    self.nats_params.security_manager.clone(),
                 )),
             )
         } else {

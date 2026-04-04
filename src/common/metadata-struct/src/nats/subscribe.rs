@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 pub struct NatsSubscribe {
     pub tenant: String,
     pub connect_id: u64,
-    pub client_id: String,
     pub sid: String,
     pub subject: String,
     pub queue_group: String,

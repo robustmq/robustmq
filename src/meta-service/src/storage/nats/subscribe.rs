@@ -38,17 +38,17 @@ impl NatsSubscribeStorage {
 
     pub fn save(&self, subscribe: &NatsSubscribe) -> Result<(), CommonError> {
         let key =
-            storage_key_nats_subscribe(&subscribe.tenant, &subscribe.client_id, &subscribe.sid);
+            storage_key_nats_subscribe(&subscribe.tenant, subscribe.connect_id, &subscribe.sid);
         engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, subscribe)
     }
 
     pub fn get(
         &self,
         tenant: &str,
-        client_id: &str,
+        connect_id: u64,
         sid: &str,
     ) -> Result<Option<NatsSubscribe>, CommonError> {
-        let key = storage_key_nats_subscribe(tenant, client_id, sid);
+        let key = storage_key_nats_subscribe(tenant, connect_id, sid);
         Ok(
             engine_get_by_meta_data::<NatsSubscribe>(&self.rocksdb_engine_handler, &key)?
                 .map(|data| data.data),
@@ -73,8 +73,8 @@ impl NatsSubscribeStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn delete(&self, tenant: &str, client_id: &str, sid: &str) -> Result<(), CommonError> {
-        let key = storage_key_nats_subscribe(tenant, client_id, sid);
+    pub fn delete(&self, tenant: &str, connect_id: u64, sid: &str) -> Result<(), CommonError> {
+        let key = storage_key_nats_subscribe(tenant, connect_id, sid);
         engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)
     }
 }

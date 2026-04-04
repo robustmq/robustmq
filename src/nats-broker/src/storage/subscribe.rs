@@ -62,14 +62,14 @@ impl NatsSubscribeStorage {
     pub async fn delete(
         &self,
         tenant: &str,
-        client_id: &str,
+        connect_id: u64,
         sid: &str,
     ) -> Result<(), CommonError> {
         let config = broker_config();
         let request = DeleteNatsSubscribeRequest {
             tenant: tenant.to_string(),
             keys: vec![NatsSubscribeKey {
-                client_id: client_id.to_string(),
+                connect_id,
                 sid: sid.to_string(),
             }],
         };
@@ -85,12 +85,12 @@ impl NatsSubscribeStorage {
     pub async fn list(
         &self,
         tenant: &str,
-        client_id: &str,
+        connect_id: u64,
     ) -> Result<Vec<NatsSubscribe>, CommonError> {
         let config = broker_config();
         let request = ListNatsSubscribeRequest {
             tenant: tenant.to_string(),
-            client_id: client_id.to_string(),
+            connect_id,
         };
         let mut stream: Streaming<ListNatsSubscribeReply> = placement_list_nats_subscribe(
             &self.client_pool,

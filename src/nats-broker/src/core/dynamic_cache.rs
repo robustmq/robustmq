@@ -32,7 +32,7 @@ pub async fn update_nats_cache_metadata(
                 cache_manager.add_subscribe(subscribe);
             }
             BrokerUpdateCacheActionType::Delete => {
-                cache_manager.remove_subscribe(&subscribe.client_id, &subscribe.sid);
+                cache_manager.remove_subscribe(subscribe.connect_id, &subscribe.sid);
             }
         }
     }

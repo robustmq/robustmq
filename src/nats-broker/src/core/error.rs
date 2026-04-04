@@ -87,9 +87,7 @@ impl NatsProtocolError {
     /// Returns the error message string sent in `-ERR '<message>'`.
     pub fn message(&self) -> String {
         match self {
-            NatsProtocolError::UnknownProtocolOperation => {
-                "Unknown Protocol Operation".to_string()
-            }
+            NatsProtocolError::UnknownProtocolOperation => "Unknown Protocol Operation".to_string(),
             NatsProtocolError::AttemptedToConnectToRoutePort => {
                 "Attempted To Connect To Route Port".to_string()
             }

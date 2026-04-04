@@ -78,22 +78,22 @@ impl NatsCacheManager {
 
     // subscribe
     pub fn add_subscribe(&self, subscribe: NatsSubscribe) {
-        let key = format!("{}/{}", subscribe.client_id, subscribe.sid);
+        let key = format!("{}/{}", subscribe.connect_id, subscribe.sid);
         self.subscribe_info.insert(key, subscribe);
     }
 
-    pub fn remove_subscribe(&self, client_id: &str, sid: &str) {
-        let key = format!("{}/{}", client_id, sid);
+    pub fn remove_subscribe(&self, connect_id: u64, sid: &str) {
+        let key = format!("{}/{}", connect_id, sid);
         self.subscribe_info.remove(&key);
     }
 
-    pub fn get_subscribe(&self, client_id: &str, sid: &str) -> Option<NatsSubscribe> {
-        let key = format!("{}/{}", client_id, sid);
+    pub fn get_subscribe(&self, connect_id: u64, sid: &str) -> Option<NatsSubscribe> {
+        let key = format!("{}/{}", connect_id, sid);
         self.subscribe_info.get(&key).map(|e| e.value().clone())
     }
 
-    pub fn list_subscribes_by_client(&self, client_id: &str) -> Vec<NatsSubscribe> {
-        let prefix = format!("{}/", client_id);
+    pub fn list_subscribes_by_connection(&self, connect_id: u64) -> Vec<NatsSubscribe> {
+        let prefix = format!("{}/", connect_id);
         self.subscribe_info
             .iter()
             .filter(|e| e.key().starts_with(&prefix))

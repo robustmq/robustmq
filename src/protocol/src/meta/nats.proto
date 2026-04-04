@@ -22,7 +22,7 @@ message DeleteNatsSubscribeRequest {
 }
 
 message NatsSubscribeKey {
-  string client_id = 1;
+  uint64 connect_id = 1;
   string sid = 2;
 }
 
@@ -30,7 +30,7 @@ message DeleteNatsSubscribeReply {}
 
 message ListNatsSubscribeRequest {
   string tenant = 1;
-  string client_id = 2;
+  uint64 connect_id = 2;
 }
 
 message ListNatsSubscribeReply {

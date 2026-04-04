@@ -323,10 +323,10 @@ pub fn storage_key_mqtt_retain_message_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_nats_subscribe(tenant: &str, client_id: &str, sid: &str) -> String {
+pub fn storage_key_nats_subscribe(tenant: &str, connect_id: u64, sid: &str) -> String {
     format!(
         "{}nats/subscribe/{}/{}/{}",
-        PREFIX_META, tenant, client_id, sid
+        PREFIX_META, tenant, connect_id, sid
     )
 }
 

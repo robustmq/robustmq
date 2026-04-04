@@ -15,6 +15,7 @@
 use crate::core::cache::NatsCacheManager;
 use crate::nats::{connect, ping, publish, subscribe};
 use async_trait::async_trait;
+use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
@@ -33,6 +34,7 @@ pub struct NatsProcessContext {
     pub cache_manager: Arc<NatsCacheManager>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub client_pool: Arc<ClientPool>,
+    pub security_manager: Arc<SecurityManager>,
 }
 
 #[derive(Clone)]
@@ -41,6 +43,7 @@ pub struct NatsHandlerCommand {
     pub cache_manager: Arc<NatsCacheManager>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub client_pool: Arc<ClientPool>,
+    pub security_manager: Arc<SecurityManager>,
 }
 
 impl NatsHandlerCommand {
@@ -49,12 +52,14 @@ impl NatsHandlerCommand {
         cache_manager: Arc<NatsCacheManager>,
         storage_driver_manager: Arc<StorageDriverManager>,
         client_pool: Arc<ClientPool>,
+        security_manager: Arc<SecurityManager>,
     ) -> Self {
         NatsHandlerCommand {
             connection_manager,
             cache_manager,
             storage_driver_manager,
             client_pool,
+            security_manager,
         }
     }
 }
@@ -80,6 +85,7 @@ impl Command for NatsHandlerCommand {
             cache_manager: self.cache_manager.clone(),
             storage_driver_manager: self.storage_driver_manager.clone(),
             client_pool: self.client_pool.clone(),
+            security_manager: self.security_manager.clone(),
         };
 
         let resp_packet = match &packet {
@@ -113,7 +119,7 @@ impl Command for NatsHandlerCommand {
                 sid,
             } => subscribe::process_sub(&ctx, subject, queue_group.as_deref(), sid),
 
-            NatsPacket::Unsub { sid, max_msgs } => subscribe::process_unsub(sid, *max_msgs),
+            NatsPacket::Unsub { sid, max_msgs } => subscribe::process_unsub(&ctx, sid, *max_msgs),
 
             NatsPacket::Ping => ping::process_ping(connection_id, &self.connection_manager),
 
@@ -139,11 +145,13 @@ pub fn create_command(
     cache_manager: Arc<NatsCacheManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     client_pool: Arc<ClientPool>,
+    security_manager: Arc<SecurityManager>,
 ) -> Arc<Box<dyn Command + Send + Sync>> {
     Arc::new(Box::new(NatsHandlerCommand::new(
         connection_manager,
         cache_manager,
         storage_driver_manager,
         client_pool,
+        security_manager,
     )))
 }

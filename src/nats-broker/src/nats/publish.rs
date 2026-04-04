@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::NatsBrokerError;
+use crate::core::error::{NatsBrokerError, NatsProtocolError};
 use crate::core::subject::try_get_or_init_subject;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
 use crate::storage::message::MessageStorage;
 use bytes::Bytes;
+use common_config::broker::broker_config;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordProtocolDataNats};
 use protocol::nats::packet::NatsPacket;
@@ -34,6 +35,12 @@ pub async fn process_pub(
     } else {
         return None;
     };
+
+    if broker_config().nats_runtime.auth_required && !connection.is_login {
+        return Some(NatsPacket::Err(
+            NatsProtocolError::AuthorizationViolation.message(),
+        ));
+    }
 
     if let Err(e) = process_pub0(ctx, subject, reply_to, payload, headers).await {
         if connection.verbose {
