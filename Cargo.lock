@@ -5014,6 +5014,7 @@ dependencies = [
  "protocol",
  "rate-limit",
  "storage-adapter",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-util",
  "tonic 0.14.5",

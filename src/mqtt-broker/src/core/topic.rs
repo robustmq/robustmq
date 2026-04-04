@@ -19,7 +19,7 @@ use crate::core::tool::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::topic::Topic;
+use metadata_struct::{mqtt::topic::Topic, topic::TopicSource};
 use protocol::mqtt::common::{Publish, PublishProperties};
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
@@ -168,7 +168,8 @@ pub async fn try_init_topic(
             )));
         }
 
-        let topic = Topic::new(tenant, topic_name, StorageType::EngineRocksDB);
+        let topic = Topic::new(tenant, topic_name, StorageType::EngineRocksDB)
+            .with_source(TopicSource::MQTT);
         create_topic_full(
             &cache_manager.node_cache,
             storage_driver_manager,

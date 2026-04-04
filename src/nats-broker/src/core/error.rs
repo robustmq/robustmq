@@ -12,10 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cache;
-pub mod connection;
-pub mod dynamic_cache;
-pub mod error;
-pub mod keep_alive;
-pub mod shard;
-pub mod subject;
+use common_base::error::common::CommonError;
+use thiserror::Error;
+use tonic::Status;
+
+#[derive(Error, Debug)]
+pub enum NatsBrokerError {
+    #[error("{0}")]
+    FromCommonError(#[from] CommonError),
+
+    #[error("{0}")]
+    CommonError(String),
+}
+
+impl From<NatsBrokerError> for Status {
+    fn from(e: NatsBrokerError) -> Self {
+        Status::cancelled(e.to_string())
+    }
+}

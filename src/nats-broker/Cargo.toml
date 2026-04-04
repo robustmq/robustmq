@@ -39,3 +39,4 @@ tracing.workspace = true
 dashmap.workspace = true
 storage-adapter.workspace = true
 mq9-core.workspace = true
+thiserror.workspace = true
