@@ -13,15 +13,11 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
-use crate::storage::nats::{NatsSubjectStorage, NatsSubscribeStorage};
+use crate::storage::nats::NatsSubscribeStorage;
 use bytes::Bytes;
-use metadata_struct::nats::subject::NatsSubject;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use prost::Message as _;
-use protocol::meta::meta_service_nats::{
-    CreateNatsSubjectRequest, CreateNatsSubscribeRequest, DeleteNatsSubjectRequest,
-    DeleteNatsSubscribeRequest,
-};
+use protocol::meta::meta_service_nats::{CreateNatsSubscribeRequest, DeleteNatsSubscribeRequest};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
@@ -35,21 +31,6 @@ impl DataRouteNats {
         DataRouteNats {
             rocksdb_engine_handler,
         }
-    }
-
-    pub fn set_subject(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let req = CreateNatsSubjectRequest::decode(value.as_ref())?;
-        let subject = NatsSubject::decode(&req.subject)?;
-        let storage = NatsSubjectStorage::new(self.rocksdb_engine_handler.clone());
-        storage.save(&subject)?;
-        Ok(())
-    }
-
-    pub fn delete_subject(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let req = DeleteNatsSubjectRequest::decode(value.as_ref())?;
-        let storage = NatsSubjectStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&req.tenant, &req.name)?;
-        Ok(())
     }
 
     pub fn set_subscribe(&self, value: Bytes) -> Result<(), MetaServiceError> {

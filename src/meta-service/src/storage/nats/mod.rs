@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod subject;
 pub mod subscribe;
 
-pub use subject::NatsSubjectStorage;
 pub use subscribe::NatsSubscribeStorage;

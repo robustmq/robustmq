@@ -15,7 +15,6 @@
 use crate::core::cache::NatsCacheManager;
 use common_base::error::common::CommonError;
 use common_base::utils::serialize;
-use metadata_struct::nats::subject::NatsSubject;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use protocol::broker::broker_common::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
@@ -27,17 +26,6 @@ pub async fn update_nats_cache_metadata(
     record: &UpdateCacheRecord,
 ) -> Result<(), CommonError> {
     match record.resource_type() {
-        BrokerUpdateCacheResourceType::NatsSubject => {
-            let subject: NatsSubject = serialize::deserialize(&record.data)?;
-            match record.action_type() {
-                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
-                    cache_manager.add_subject(subject);
-                }
-                BrokerUpdateCacheActionType::Delete => {
-                    cache_manager.remove_subject(&subject.tenant, &subject.name);
-                }
-            }
-        }
         BrokerUpdateCacheResourceType::NatsSubscribe => {
             let subscribe: NatsSubscribe = serialize::deserialize(&record.data)?;
             match record.action_type() {

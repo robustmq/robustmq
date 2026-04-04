@@ -13,9 +13,6 @@
 // limitations under the License.
 
 use crate::raft::manager::MultiRaftManager;
-use crate::server::services::nats::subject::{
-    create_nats_subject_by_req, delete_nats_subject_by_req, list_nats_subject_by_req,
-};
 use crate::server::services::nats::subscribe::{
     create_nats_subscribe_by_req, delete_nats_subscribe_by_req, list_nats_subscribe_by_req,
 };
@@ -23,10 +20,8 @@ use node_call::NodeCallManager;
 use prost_validate::Validator;
 use protocol::meta::meta_service_nats::nats_service_server::NatsService;
 use protocol::meta::meta_service_nats::{
-    CreateNatsSubjectReply, CreateNatsSubjectRequest, CreateNatsSubscribeReply,
-    CreateNatsSubscribeRequest, DeleteNatsSubjectReply, DeleteNatsSubjectRequest,
-    DeleteNatsSubscribeReply, DeleteNatsSubscribeRequest, ListNatsSubjectReply,
-    ListNatsSubjectRequest, ListNatsSubscribeReply, ListNatsSubscribeRequest,
+    CreateNatsSubscribeReply, CreateNatsSubscribeRequest, DeleteNatsSubscribeReply,
+    DeleteNatsSubscribeRequest, ListNatsSubscribeReply, ListNatsSubscribeRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -65,50 +60,8 @@ impl GrpcNatsService {
 
 #[tonic::async_trait]
 impl NatsService for GrpcNatsService {
-    type ListNatsSubjectStream =
-        Pin<Box<dyn Stream<Item = Result<ListNatsSubjectReply, Status>> + Send>>;
-
     type ListNatsSubscribeStream =
         Pin<Box<dyn Stream<Item = Result<ListNatsSubscribeReply, Status>> + Send>>;
-
-    async fn list_nats_subject(
-        &self,
-        request: Request<ListNatsSubjectRequest>,
-    ) -> Result<Response<Self::ListNatsSubjectStream>, Status> {
-        let req = request.into_inner();
-        list_nats_subject_by_req(&self.rocksdb_engine_handler, &req)
-            .map_err(Self::to_status)
-            .map(Response::new)
-    }
-
-    async fn create_nats_subject(
-        &self,
-        request: Request<CreateNatsSubjectRequest>,
-    ) -> Result<Response<CreateNatsSubjectReply>, Status> {
-        let req = request.into_inner();
-        self.validate_request(&req)?;
-        create_nats_subject_by_req(&self.raft_manager, &self.call_manager, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
-    }
-
-    async fn delete_nats_subject(
-        &self,
-        request: Request<DeleteNatsSubjectRequest>,
-    ) -> Result<Response<DeleteNatsSubjectReply>, Status> {
-        let req = request.into_inner();
-        self.validate_request(&req)?;
-        delete_nats_subject_by_req(
-            &self.raft_manager,
-            &self.call_manager,
-            &self.rocksdb_engine_handler,
-            &req,
-        )
-        .await
-        .map_err(Self::to_status)
-        .map(Response::new)
-    }
 
     async fn create_nats_subscribe(
         &self,

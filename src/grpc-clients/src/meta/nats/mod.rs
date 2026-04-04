@@ -14,10 +14,8 @@
 
 use protocol::meta::meta_service_nats::nats_service_client::NatsServiceClient;
 use protocol::meta::meta_service_nats::{
-    CreateNatsSubjectReply, CreateNatsSubjectRequest, CreateNatsSubscribeReply,
-    CreateNatsSubscribeRequest, DeleteNatsSubjectReply, DeleteNatsSubjectRequest,
-    DeleteNatsSubscribeReply, DeleteNatsSubscribeRequest, ListNatsSubjectReply,
-    ListNatsSubjectRequest, ListNatsSubscribeReply, ListNatsSubscribeRequest,
+    CreateNatsSubscribeReply, CreateNatsSubscribeRequest, DeleteNatsSubscribeReply,
+    DeleteNatsSubscribeRequest, ListNatsSubscribeReply, ListNatsSubscribeRequest,
 };
 use tonic::transport::Channel;
 use tonic::Streaming;
@@ -25,36 +23,6 @@ use tonic::Streaming;
 use crate::macros::impl_retriable_request;
 
 pub mod call;
-
-impl_retriable_request!(
-    ListNatsSubjectRequest,
-    NatsServiceClient<Channel>,
-    Streaming<ListNatsSubjectReply>,
-    list_nats_subject,
-    "NatsService",
-    "ListNatsSubject",
-    true
-);
-
-impl_retriable_request!(
-    CreateNatsSubjectRequest,
-    NatsServiceClient<Channel>,
-    CreateNatsSubjectReply,
-    create_nats_subject,
-    "NatsService",
-    "CreateNatsSubject",
-    true
-);
-
-impl_retriable_request!(
-    DeleteNatsSubjectRequest,
-    NatsServiceClient<Channel>,
-    DeleteNatsSubjectReply,
-    delete_nats_subject,
-    "NatsService",
-    "DeleteNatsSubject",
-    true
-);
 
 impl_retriable_request!(
     CreateNatsSubscribeRequest,

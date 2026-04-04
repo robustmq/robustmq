@@ -94,8 +94,6 @@ pub enum StorageDataType {
     MqttDeleteGroupLeader,
 
     // nats
-    NatsSetSubject,
-    NatsDeleteSubject,
     NatsSetSubscribe,
     NatsDeleteSubscribe,
 }
@@ -165,8 +163,6 @@ impl fmt::Display for StorageDataType {
                 write!(f, "MqttDeleteGroupLeader")
             }
 
-            StorageDataType::NatsSetSubject => write!(f, "NatsSetSubject"),
-            StorageDataType::NatsDeleteSubject => write!(f, "NatsDeleteSubject"),
             StorageDataType::NatsSetSubscribe => write!(f, "NatsSetSubscribe"),
             StorageDataType::NatsDeleteSubscribe => write!(f, "NatsDeleteSubscribe"),
         }
