@@ -156,6 +156,7 @@ impl MqttService {
         match security_login_check(
             &self.security_manager,
             &self.cache_manager.node_cache,
+            &tenant.tenant_name,
             &context.login,
             &context.connect_properties,
         )

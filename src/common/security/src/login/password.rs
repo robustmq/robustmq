@@ -13,19 +13,24 @@
 // limitations under the License.
 
 use crate::manager::SecurityManager;
+use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
-/// Check password by searching across all tenants.
-/// This is intentionally tenant-agnostic because at login time the tenant
-/// is not yet known (the MQTT CONNECT packet only carries username/password).
 pub fn password_check_by_login(
     security_manager: &Arc<SecurityManager>,
+    tenant: &str,
     username: &str,
     password: &str,
 ) -> bool {
-    for tenant_entry in security_manager.security_metadata.user_info.iter() {
-        if let Some(user) = tenant_entry.value().get(username) {
-            return user.password == password;
+    if let Some(tenant_map) = security_manager.security_metadata.user_info.get(tenant) {
+        if let Some(user) = tenant_map.get(username) {
+            return if let Some(salt) = &user.salt {
+                let hash = Sha256::digest(format!("{}{}", salt, password).as_bytes());
+                let hex_hash: String = hash.iter().map(|b| format!("{:02x}", b)).collect();
+                user.password == hex_hash
+            } else {
+                user.password == password
+            };
         }
     }
     false

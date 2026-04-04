@@ -143,7 +143,9 @@ fn is_wildcard_pattern_match(target: &str, pattern: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_user_blacklisted, is_wildcard_pattern_match};
+    use super::{
+        is_client_id_blacklisted, is_ip_blacklisted, is_user_blacklisted, is_wildcard_pattern_match,
+    };
     use crate::manager::SecurityManager;
     use common_base::tools::now_second;
     use metadata_struct::auth::blacklist::{EnumBlackListType, SecurityBlackList};
@@ -212,5 +214,63 @@ mod tests {
         ));
         assert!(is_user_blacklisted(&sm, tenant, "tmp_test"));
         assert!(!is_user_blacklisted(&sm, tenant, "normal_user"));
+    }
+
+    #[test]
+    fn test_is_client_id_blacklisted() {
+        let sm = Arc::new(SecurityManager::new());
+        let tenant = "t1";
+        let future = now_second() + 9999;
+        let past = now_second() - 1;
+
+        sm.security_metadata.add_blacklist(make_blacklist(
+            tenant,
+            "dev-001",
+            EnumBlackListType::ClientId,
+            future,
+        ));
+        assert!(is_client_id_blacklisted(&sm, tenant, "dev-001"));
+
+        sm.security_metadata.add_blacklist(make_blacklist(
+            tenant,
+            "dev-002",
+            EnumBlackListType::ClientId,
+            past,
+        ));
+        assert!(!is_client_id_blacklisted(&sm, tenant, "dev-002"));
+
+        sm.security_metadata.add_blacklist(make_blacklist(
+            tenant,
+            "tmp_*",
+            EnumBlackListType::ClientIdMatch,
+            future,
+        ));
+        assert!(is_client_id_blacklisted(&sm, tenant, "tmp_sensor"));
+        assert!(!is_client_id_blacklisted(&sm, tenant, "prod_sensor"));
+    }
+
+    #[test]
+    fn test_is_ip_blacklisted() {
+        let sm = Arc::new(SecurityManager::new());
+        let tenant = "t1";
+        let future = now_second() + 9999;
+
+        sm.security_metadata.add_blacklist(make_blacklist(
+            tenant,
+            "1.2.3.4",
+            EnumBlackListType::Ip,
+            future,
+        ));
+        assert!(is_ip_blacklisted(&sm, tenant, "1.2.3.4").unwrap());
+        assert!(!is_ip_blacklisted(&sm, tenant, "1.2.3.5").unwrap());
+
+        sm.security_metadata.add_blacklist(make_blacklist(
+            tenant,
+            "10.0.0.0/24",
+            EnumBlackListType::IPCIDR,
+            future,
+        ));
+        assert!(is_ip_blacklisted(&sm, tenant, "10.0.0.100").unwrap());
+        assert!(!is_ip_blacklisted(&sm, tenant, "10.0.1.1").unwrap());
     }
 }

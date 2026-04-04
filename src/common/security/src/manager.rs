@@ -92,6 +92,7 @@ impl SecurityManager {
         if let Some(driver) = build_storage_driver(storage_config).await? {
             self.storage_drivers
                 .insert(authn_id.to_string(), driver.clone());
+            return Ok(Some(driver));
         }
 
         Ok(None)

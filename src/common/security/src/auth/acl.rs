@@ -42,7 +42,7 @@ pub fn is_user_acl_deny(
 ) -> Result<bool, CommonError> {
     if let Some(tenant_map) = security_manager.security_metadata.acl_user.get(tenant) {
         if let Some(acl_list) = tenant_map.get(user) {
-            return check_for_deny(&acl_list, action, topic_name, source_ip);
+            return check_acl_rules(&acl_list, action, topic_name, source_ip);
         }
     }
     Ok(false)
@@ -58,36 +58,33 @@ pub fn is_client_id_acl_deny(
 ) -> Result<bool, CommonError> {
     if let Some(tenant_map) = security_manager.security_metadata.acl_client_id.get(tenant) {
         if let Some(acl_list) = tenant_map.get(client_id) {
-            return check_for_deny(&acl_list, action, topic_name, source_ip);
+            return check_acl_rules(&acl_list, action, topic_name, source_ip);
         }
     }
     Ok(false)
 }
 
-fn check_for_deny(
+fn check_acl_rules(
     acl_list: &[SecurityAcl],
     action: &EnumAclAction,
     topic_name: &str,
     source_ip: &str,
 ) -> Result<bool, CommonError> {
     for acl in acl_list.iter() {
-        if acl.permission != EnumAclPermission::Deny {
-            continue;
-        }
         if acl.action != *action && acl.action != EnumAclAction::All {
             continue;
         }
-
-        if topic_match(topic_name, &acl.topic) && ip_match(source_ip, &acl.ip)? {
-            return Ok(true);
+        if !topic_match(topic_name, &acl.topic) || !ip_match(source_ip, &acl.ip)? {
+            continue;
         }
+        return Ok(acl.permission == EnumAclPermission::Deny);
     }
     Ok(false)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{is_user_acl_deny, normalize_source_ip};
+    use super::{is_client_id_acl_deny, is_user_acl_deny, normalize_source_ip};
     use crate::manager::SecurityManager;
     use metadata_struct::auth::acl::{
         EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl,
@@ -97,16 +94,17 @@ mod tests {
     fn make_acl(
         tenant: &str,
         user: &str,
+        topic: &str,
         action: EnumAclAction,
         permission: EnumAclPermission,
     ) -> SecurityAcl {
         SecurityAcl {
-            name: "test".to_string(),
+            name: format!("{}-{:?}-{:?}", user, action, permission),
             desc: String::new(),
             tenant: tenant.to_string(),
             resource_type: EnumAclResourceType::User,
             resource_name: user.to_string(),
-            topic: "sensor/data".to_string(),
+            topic: topic.to_string(),
             ip: "*".to_string(),
             action,
             permission,
@@ -126,13 +124,14 @@ mod tests {
         let tenant = "t1";
         let user = "user1";
 
+        // Deny rule: blocked
         sm.security_metadata.add_acl(make_acl(
             tenant,
             user,
+            "sensor/data",
             EnumAclAction::Publish,
             EnumAclPermission::Deny,
         ));
-
         assert!(is_user_acl_deny(
             &sm,
             "sensor/data",
@@ -142,6 +141,8 @@ mod tests {
             &EnumAclAction::Publish
         )
         .unwrap());
+
+        // Different action: no match → not denied
         assert!(!is_user_acl_deny(
             &sm,
             "sensor/data",
@@ -151,6 +152,8 @@ mod tests {
             &EnumAclAction::Subscribe
         )
         .unwrap());
+
+        // Unknown user: no rules → not denied
         assert!(!is_user_acl_deny(
             &sm,
             "sensor/data",
@@ -158,6 +161,150 @@ mod tests {
             "other_user",
             "1.2.3.4",
             &EnumAclAction::Publish
+        )
+        .unwrap());
+
+        // Allow rule wins over no prior deny: first-match allow → not denied
+        let sm2 = Arc::new(SecurityManager::new());
+        sm2.security_metadata.add_acl(make_acl(
+            tenant,
+            user,
+            "sensor/data",
+            EnumAclAction::Publish,
+            EnumAclPermission::Allow,
+        ));
+        assert!(!is_user_acl_deny(
+            &sm2,
+            "sensor/data",
+            tenant,
+            user,
+            "1.2.3.4",
+            &EnumAclAction::Publish
+        )
+        .unwrap());
+
+        // Allow on specific topic, Deny on wildcard: first-match (Allow) wins
+        let sm3 = Arc::new(SecurityManager::new());
+        sm3.security_metadata.add_acl(make_acl(
+            tenant,
+            user,
+            "sensor/data",
+            EnumAclAction::Publish,
+            EnumAclPermission::Allow,
+        ));
+        sm3.security_metadata.add_acl(make_acl(
+            tenant,
+            user,
+            "*",
+            EnumAclAction::Publish,
+            EnumAclPermission::Deny,
+        ));
+        assert!(!is_user_acl_deny(
+            &sm3,
+            "sensor/data",
+            tenant,
+            user,
+            "1.2.3.4",
+            &EnumAclAction::Publish
+        )
+        .unwrap());
+        assert!(is_user_acl_deny(
+            &sm3,
+            "other/topic",
+            tenant,
+            user,
+            "1.2.3.4",
+            &EnumAclAction::Publish
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn test_is_client_id_acl_deny() {
+        let sm = Arc::new(SecurityManager::new());
+        let tenant = "t1";
+        let client_id = "device-001";
+
+        sm.security_metadata.add_acl(SecurityAcl {
+            name: "acl-client".to_string(),
+            desc: String::new(),
+            tenant: tenant.to_string(),
+            resource_type: EnumAclResourceType::ClientId,
+            resource_name: client_id.to_string(),
+            topic: "cmd/device".to_string(),
+            ip: "*".to_string(),
+            action: EnumAclAction::Subscribe,
+            permission: EnumAclPermission::Deny,
+        });
+
+        assert!(is_client_id_acl_deny(
+            &sm,
+            "cmd/device",
+            tenant,
+            client_id,
+            "1.2.3.4",
+            &EnumAclAction::Subscribe
+        )
+        .unwrap());
+        assert!(!is_client_id_acl_deny(
+            &sm,
+            "cmd/device",
+            tenant,
+            client_id,
+            "1.2.3.4",
+            &EnumAclAction::Publish
+        )
+        .unwrap());
+        assert!(!is_client_id_acl_deny(
+            &sm,
+            "cmd/device",
+            tenant,
+            "other-device",
+            "1.2.3.4",
+            &EnumAclAction::Subscribe
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn test_action_all_matches_any_action() {
+        let sm = Arc::new(SecurityManager::new());
+        let tenant = "t1";
+        let user = "u1";
+
+        sm.security_metadata.add_acl(make_acl(
+            tenant,
+            user,
+            "data/#",
+            EnumAclAction::All,
+            EnumAclPermission::Deny,
+        ));
+
+        assert!(is_user_acl_deny(
+            &sm,
+            "data/#",
+            tenant,
+            user,
+            "1.2.3.4",
+            &EnumAclAction::Publish
+        )
+        .unwrap());
+        assert!(is_user_acl_deny(
+            &sm,
+            "data/#",
+            tenant,
+            user,
+            "1.2.3.4",
+            &EnumAclAction::Subscribe
+        )
+        .unwrap());
+        assert!(is_user_acl_deny(
+            &sm,
+            "data/#",
+            tenant,
+            user,
+            "1.2.3.4",
+            &EnumAclAction::Retain
         )
         .unwrap());
     }

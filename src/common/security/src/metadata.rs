@@ -114,15 +114,12 @@ impl SecurityMetadata {
             EnumAclResourceType::User => &self.acl_user,
         };
         if let Some(tenant_map) = map.get(&acl.tenant) {
-            let mut keys_to_clean = Vec::new();
-            for mut entry in tenant_map.iter_mut() {
-                entry.value_mut().retain(|item| item.name != acl.name);
-                if entry.value().is_empty() {
-                    keys_to_clean.push(entry.key().clone());
+            if let Some(mut list) = tenant_map.get_mut(&acl.resource_name) {
+                list.retain(|item| item.name != acl.name);
+                if list.is_empty() {
+                    drop(list);
+                    tenant_map.remove(&acl.resource_name);
                 }
-            }
-            for key in keys_to_clean {
-                tenant_map.remove(&key);
             }
         }
     }
@@ -422,6 +419,25 @@ mod test {
             permission: EnumAclPermission::Allow,
         });
         assert_eq!(acl_metadata.get_all_acl().len(), 2);
+
+        acl_metadata.remove_mqtt_acl(SecurityAcl {
+            name: "acl-user-2".to_string(),
+            desc: String::new(),
+            tenant: TENANT.to_string(),
+            resource_type: EnumAclResourceType::User,
+            resource_name: "test_user".to_string(),
+            topic: "".to_string(),
+            ip: "".to_string(),
+            action: EnumAclAction::All,
+            permission: EnumAclPermission::Allow,
+        });
+        assert_eq!(acl_metadata.get_all_acl().len(), 1);
+        let key_removed = acl_metadata
+            .acl_user
+            .get(TENANT)
+            .map(|m| !m.contains_key("test_user"))
+            .unwrap_or(true);
+        assert!(key_removed);
     }
 
     #[tokio::test]

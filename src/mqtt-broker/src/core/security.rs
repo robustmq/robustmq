@@ -16,7 +16,6 @@ use crate::core::cache::MQTTCacheManager;
 use crate::core::{error::MqttBrokerError, tenant::try_decode_username};
 use crate::subscribe::common::get_sub_topic_name_list;
 use broker_core::cache::NodeCacheManager;
-use common_base::error::common::CommonError;
 use common_metrics::mqtt::auth::{record_mqtt_acl_failed, record_mqtt_acl_success};
 use common_security::auth::acl::{is_client_id_acl_deny, is_user_acl_deny};
 use common_security::auth::blacklist::{
@@ -30,10 +29,12 @@ use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{ConnectProperties, Login, Subscribe};
 use std::str::FromStr;
 use std::sync::Arc;
+use tracing;
 
 pub async fn security_login_check(
     security_manager: &Arc<SecurityManager>,
     node_cache: &Arc<NodeCacheManager>,
+    tenant: &str,
     login: &Option<Login>,
     _connect_properties: &Option<ConnectProperties>,
 ) -> Result<bool, MqttBrokerError> {
@@ -43,30 +44,27 @@ pub async fn security_login_check(
         return Ok(true);
     }
 
-    if let Some((_, authn)) = security_manager
-        .authn_list_with_default()
-        .into_iter()
-        .next()
-    {
-        let login_type = LoginType::from_str(&authn.authn_type)
-            .map_err(|_| CommonError::UnsupportedAuthType(authn.authn_type.clone()))?;
+    for (_, authn) in security_manager.authn_list_with_default() {
+        let login_type = match LoginType::from_str(&authn.authn_type) {
+            Ok(t) => t,
+            Err(_) => {
+                tracing::warn!("Unsupported auth type: {}", authn.authn_type);
+                continue;
+            }
+        };
 
-        return match login_type {
+        match login_type {
             LoginType::PasswordBased => {
                 if let Some(user_info) = login {
                     let username = try_decode_username(&user_info.username);
                     let password = user_info.password.clone();
-                    Ok(password_check_by_login(
-                        security_manager,
-                        &username,
-                        &password,
-                    ))
-                } else {
-                    Ok(false)
+                    if password_check_by_login(security_manager, tenant, &username, &password) {
+                        return Ok(true);
+                    }
                 }
             }
-            LoginType::Jwt => Ok(false),
-        };
+            LoginType::Jwt => {}
+        }
     }
 
     Ok(false)
@@ -95,7 +93,7 @@ pub async fn security_is_allow_publish(
     retain: bool,
 ) -> Result<bool, MqttBrokerError> {
     let user = connection.login_user.clone().unwrap_or_default();
-    if is_super_user(security_manager, &user) {
+    if is_super_user(security_manager, &connection.tenant, &user) {
         record_mqtt_acl_success();
         return Ok(true);
     }
@@ -163,6 +161,11 @@ pub async fn security_is_allow_subscribe(
     subscribe: &Subscribe,
 ) -> Result<bool, MqttBrokerError> {
     let user = connection.login_user.clone().unwrap_or_default();
+    if is_super_user(security_manager, &connection.tenant, &user) {
+        record_mqtt_acl_success();
+        return Ok(true);
+    }
+
     let source_ip = connection.source_ip.as_str();
 
     for filter in subscribe.filters.iter() {

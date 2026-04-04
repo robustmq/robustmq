@@ -47,6 +47,8 @@ broker-core.workspace = true
 clap.workspace = true
 regex.workspace = true
 ipnet.workspace = true
+sha2.workspace = true
+hex.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

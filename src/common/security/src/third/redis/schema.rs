@@ -153,9 +153,8 @@ impl RedisAuthBlacklist {
 
         let end_time = fields
             .get("end_time")
-            .ok_or("Missing end_time field")?
-            .parse::<u64>()
-            .map_err(|_| "Invalid end_time value")?;
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(0);
 
         let desc = fields.get("desc").cloned().unwrap_or_default();
         let name = fields.get("name").cloned().unwrap_or_else(|| id.clone());
