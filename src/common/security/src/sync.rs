@@ -46,11 +46,11 @@ fn sync_user_cache(
 ) {
     task_supervisor.spawn(TaskKind::MQTTSecurityUserSync.to_string(), async move {
         let ac_fn = async || -> ResultCommonError {
-            security_manager.security_metadata.user_info.clear();
+            security_manager.metadata.user_info.clear();
             for driver in security_manager.drivers_list().await? {
                 let list = driver.read_all_user().await?;
                 for user in list.iter() {
-                    security_manager.security_metadata.add_user(user.clone());
+                    security_manager.metadata.add_user(user.clone());
                 }
             }
             Ok(())
@@ -66,12 +66,12 @@ fn sync_acl_cache(
 ) {
     task_supervisor.spawn(TaskKind::MQTTSecurityAclSync.to_string(), async move {
         let ac_fn = async || -> ResultCommonError {
-            security_manager.security_metadata.acl_user.clear();
-            security_manager.security_metadata.acl_client_id.clear();
+            security_manager.metadata.acl_user.clear();
+            security_manager.metadata.acl_client_id.clear();
             for driver in security_manager.drivers_list().await? {
                 let list = driver.read_all_acl().await?;
                 for acl in list.iter() {
-                    security_manager.security_metadata.add_acl(acl.to_owned());
+                    security_manager.metadata.add_acl(acl.to_owned());
                 }
             }
             Ok(())
@@ -89,29 +89,29 @@ fn sync_blacklist_cache(
         TaskKind::MQTTSecurityBlacklistSync.to_string(),
         async move {
             let ac_fn = async || -> ResultCommonError {
-                security_manager.security_metadata.blacklist_user.clear();
+                security_manager.metadata.blacklist_user.clear();
                 security_manager
-                    .security_metadata
+                    .metadata
                     .blacklist_client_id
                     .clear();
-                security_manager.security_metadata.blacklist_ip.clear();
+                security_manager.metadata.blacklist_ip.clear();
                 security_manager
-                    .security_metadata
+                    .metadata
                     .blacklist_user_match
                     .clear();
                 security_manager
-                    .security_metadata
+                    .metadata
                     .blacklist_client_id_match
                     .clear();
                 security_manager
-                    .security_metadata
+                    .metadata
                     .blacklist_ip_match
                     .clear();
                 for driver in security_manager.drivers_list().await? {
                     let list = driver.read_all_blacklist().await?;
                     for blacklist in list.iter() {
                         security_manager
-                            .security_metadata
+                            .metadata
                             .add_blacklist(blacklist.to_owned());
                     }
                 }

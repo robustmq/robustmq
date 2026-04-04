@@ -40,7 +40,7 @@ pub fn is_user_acl_deny(
     source_ip: &str,
     action: &EnumAclAction,
 ) -> Result<bool, CommonError> {
-    if let Some(tenant_map) = security_manager.security_metadata.acl_user.get(tenant) {
+    if let Some(tenant_map) = security_manager.metadata.acl_user.get(tenant) {
         if let Some(acl_list) = tenant_map.get(user) {
             return check_acl_rules(&acl_list, action, topic_name, source_ip);
         }
@@ -56,7 +56,7 @@ pub fn is_client_id_acl_deny(
     source_ip: &str,
     action: &EnumAclAction,
 ) -> Result<bool, CommonError> {
-    if let Some(tenant_map) = security_manager.security_metadata.acl_client_id.get(tenant) {
+    if let Some(tenant_map) = security_manager.metadata.acl_client_id.get(tenant) {
         if let Some(acl_list) = tenant_map.get(client_id) {
             return check_acl_rules(&acl_list, action, topic_name, source_ip);
         }
@@ -125,7 +125,7 @@ mod tests {
         let user = "user1";
 
         // Deny rule: blocked
-        sm.security_metadata.add_acl(make_acl(
+        sm.metadata.add_acl(make_acl(
             tenant,
             user,
             "sensor/data",
@@ -166,7 +166,7 @@ mod tests {
 
         // Allow rule wins over no prior deny: first-match allow → not denied
         let sm2 = Arc::new(SecurityManager::new());
-        sm2.security_metadata.add_acl(make_acl(
+        sm2.metadata.add_acl(make_acl(
             tenant,
             user,
             "sensor/data",
@@ -185,14 +185,14 @@ mod tests {
 
         // Allow on specific topic, Deny on wildcard: first-match (Allow) wins
         let sm3 = Arc::new(SecurityManager::new());
-        sm3.security_metadata.add_acl(make_acl(
+        sm3.metadata.add_acl(make_acl(
             tenant,
             user,
             "sensor/data",
             EnumAclAction::Publish,
             EnumAclPermission::Allow,
         ));
-        sm3.security_metadata.add_acl(make_acl(
+        sm3.metadata.add_acl(make_acl(
             tenant,
             user,
             "*",
@@ -225,7 +225,7 @@ mod tests {
         let tenant = "t1";
         let client_id = "device-001";
 
-        sm.security_metadata.add_acl(SecurityAcl {
+        sm.metadata.add_acl(SecurityAcl {
             name: "acl-client".to_string(),
             desc: String::new(),
             tenant: tenant.to_string(),
@@ -272,7 +272,7 @@ mod tests {
         let tenant = "t1";
         let user = "u1";
 
-        sm.security_metadata.add_acl(make_acl(
+        sm.metadata.add_acl(make_acl(
             tenant,
             user,
             "data/#",

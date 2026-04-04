@@ -21,7 +21,6 @@ use common_base::tools::now_second;
 use common_config::config::MqttFlappingDetect;
 use dashmap::{DashMap, DashSet};
 use grpc_clients::pool::ClientPool;
-use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::session::MqttSession;
@@ -93,9 +92,6 @@ pub struct MQTTCacheManager {
     // client pool
     pub client_pool: Arc<ClientPool>,
 
-    // (tenant, (username, User))
-    pub user_info: DashMap<String, DashMap<String, SecurityUser>>,
-
     // (client_id, Session)
     pub session_info: DashMap<String, MqttSession>,
 
@@ -136,7 +132,6 @@ impl MQTTCacheManager {
         MQTTCacheManager {
             client_pool,
             node_cache: broker_cache,
-            user_info: DashMap::with_capacity(8),
             session_info: DashMap::with_capacity(1024),
             tenant_session_index: DashMap::with_capacity(8),
             connection_info: DashMap::with_capacity(1024),
@@ -194,20 +189,6 @@ impl MQTTCacheManager {
         }
         self.heartbeat_data.remove(client_id);
         self.pkid_manager.remove_by_client_id(client_id);
-    }
-
-    // user
-    pub fn add_user(&self, user: SecurityUser) {
-        self.user_info
-            .entry(user.tenant.clone())
-            .or_insert_with(DashMap::new)
-            .insert(user.username.clone(), user);
-    }
-
-    pub fn del_user(&self, tenant: &str, username: &str) {
-        if let Some(tenant_map) = self.user_info.get(tenant) {
-            tenant_map.remove(username);
-        }
     }
 
     // connection
@@ -445,87 +426,8 @@ mod tests {
     use super::*;
     use crate::core::tool::test_build_mqtt_cache_manager;
     use common_base::tools::now_second;
-    use metadata_struct::meta::node::BrokerNode;
     use metadata_struct::tenant::DEFAULT_TENANT;
     use protocol::mqtt::common::{QoS, RetainHandling};
-
-    #[tokio::test]
-    async fn node_operations() {
-        let cache_manager = test_build_mqtt_cache_manager().await;
-        let node = BrokerNode {
-            node_id: 1,
-            node_ip: "127.0.0.1".to_string(),
-            ..Default::default()
-        };
-
-        // add
-        cache_manager.node_cache.add_node(node.clone());
-
-        // get
-        let nodes = cache_manager.node_cache.node_list();
-        assert_eq!(nodes.len(), 1);
-        assert_eq!(nodes[0].node_id, node.node_id);
-        assert_eq!(nodes[0].node_ip, node.node_ip);
-
-        // remove
-        cache_manager.node_cache.remove_node(node.clone());
-
-        // get again
-        let nodes = cache_manager.node_cache.node_list();
-        assert!(nodes.is_empty());
-    }
-
-    #[tokio::test]
-    async fn user_info_operations() {
-        let cache_manager = test_build_mqtt_cache_manager().await;
-        let tenant = DEFAULT_TENANT.to_string();
-        let user1 = SecurityUser {
-            tenant: tenant.clone(),
-            username: "user1".to_string(),
-            password: "password1".to_string(),
-            salt: None,
-            is_superuser: false,
-            create_time: now_second(),
-        };
-        let user2 = SecurityUser {
-            tenant: tenant.clone(),
-            username: "user2".to_string(),
-            password: "password2".to_string(),
-            salt: None,
-            is_superuser: false,
-            create_time: now_second(),
-        };
-
-        // add
-        cache_manager.add_user(user1.clone());
-        cache_manager.add_user(user2.clone());
-
-        // get
-        let user_info = cache_manager
-            .user_info
-            .get(&tenant)
-            .and_then(|m| m.get(&user1.username).map(|u| u.clone()));
-        assert!(user_info.is_some());
-        assert_eq!(user_info.unwrap().username, user1.username);
-
-        // remove user2
-        cache_manager.del_user(&tenant, &user2.username);
-        let user2_info = cache_manager
-            .user_info
-            .get(&tenant)
-            .and_then(|m| m.get("user2").map(|u| u.clone()));
-        assert!(user2_info.is_none());
-
-        // remove user1
-        cache_manager.del_user(&user1.tenant, &user1.username);
-
-        // get again
-        let user_info = cache_manager
-            .user_info
-            .get(&tenant)
-            .and_then(|m| m.get(&user1.username).map(|u| u.clone()));
-        assert!(user_info.is_none());
-    }
 
     #[tokio::test]
     async fn session_info_operations() {
@@ -615,20 +517,13 @@ mod tests {
             heartbeat: now_second(),
         };
 
-        // add
         cache_manager.report_heartbeat(client_id.to_string(), live_time);
-
-        // get
-        let heartbeat = cache_manager.heartbeat_data.get(client_id);
+        let heartbeat = cache_manager.get_heartbeat(client_id);
         assert!(heartbeat.is_some());
         assert_eq!(heartbeat.unwrap().keep_live, 60);
 
-        // remove
         cache_manager.remove_heartbeat(client_id);
-
-        // get again
-        let heartbeat_after_remove = cache_manager.heartbeat_data.get(client_id);
-        assert!(heartbeat_after_remove.is_none());
+        assert!(cache_manager.get_heartbeat(client_id).is_none());
     }
 
     #[tokio::test]
@@ -675,27 +570,20 @@ mod tests {
             retained_handling: RetainHandling::OnEverySubscribe,
         };
 
-        // add
         cache_manager.add_auto_subscribe_rule(rule.clone());
-
-        // get
         let rule_info = cache_manager
             .auto_subscribe_rule
             .get(&rule.tenant)
             .and_then(|m| m.get(&rule.name).map(|v| v.clone()));
-        println!("{rule_info:?}");
         assert!(rule_info.is_some());
         assert_eq!(rule_info.unwrap().topic, rule.topic);
 
-        // remove
         cache_manager.delete_auto_subscribe_rule(&rule.tenant, &rule.name);
-
-        // get again
-        let rule_info_after_remove = cache_manager
+        let rule_after_remove = cache_manager
             .auto_subscribe_rule
             .get(&rule.tenant)
             .and_then(|m| m.get(&rule.name).map(|v| v.clone()));
-        assert!(rule_info_after_remove.is_none());
+        assert!(rule_after_remove.is_none());
     }
 
     #[tokio::test]

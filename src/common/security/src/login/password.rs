@@ -22,7 +22,7 @@ pub fn password_check_by_login(
     username: &str,
     password: &str,
 ) -> bool {
-    if let Some(tenant_map) = security_manager.security_metadata.user_info.get(tenant) {
+    if let Some(tenant_map) = security_manager.metadata.user_info.get(tenant) {
         if let Some(user) = tenant_map.get(username) {
             return if let Some(salt) = &user.salt {
                 let hash = Sha256::digest(format!("{}{}", salt, password).as_bytes());

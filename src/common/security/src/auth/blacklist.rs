@@ -25,7 +25,7 @@ pub fn is_user_blacklisted(
     user: &str,
 ) -> bool {
     let now = now_second();
-    let meta = &security_manager.security_metadata;
+    let meta = &security_manager.metadata;
 
     if let Some(tenant_map) = meta.blacklist_user.get(tenant) {
         if let Some(data) = tenant_map.get(user) {
@@ -54,7 +54,7 @@ pub fn is_client_id_blacklisted(
     client_id: &str,
 ) -> bool {
     let now = now_second();
-    let meta = &security_manager.security_metadata;
+    let meta = &security_manager.metadata;
 
     if let Some(tenant_map) = meta.blacklist_client_id.get(tenant) {
         if let Some(data) = tenant_map.get(client_id) {
@@ -85,7 +85,7 @@ pub fn is_ip_blacklisted(
     source_ip: &str,
 ) -> Result<bool, CommonError> {
     let now = now_second();
-    let meta = &security_manager.security_metadata;
+    let meta = &security_manager.metadata;
 
     if let Some(tenant_map) = meta.blacklist_ip.get(tenant) {
         if let Some(data) = tenant_map.get(source_ip) {
@@ -182,7 +182,7 @@ mod tests {
         let future = now_second() + 9999;
         let past = now_second() - 1;
 
-        sm.security_metadata.add_blacklist(make_blacklist(
+        sm.metadata.add_blacklist(make_blacklist(
             tenant,
             "alice",
             EnumBlackListType::User,
@@ -190,7 +190,7 @@ mod tests {
         ));
         assert!(is_user_blacklisted(&sm, tenant, "alice"));
 
-        sm.security_metadata.add_blacklist(make_blacklist(
+        sm.metadata.add_blacklist(make_blacklist(
             tenant,
             "bob",
             EnumBlackListType::User,
@@ -198,7 +198,7 @@ mod tests {
         ));
         assert!(!is_user_blacklisted(&sm, tenant, "bob"));
 
-        sm.security_metadata.add_blacklist(make_blacklist(
+        sm.metadata.add_blacklist(make_blacklist(
             tenant,
             "permanent",
             EnumBlackListType::User,
@@ -206,7 +206,7 @@ mod tests {
         ));
         assert!(is_user_blacklisted(&sm, tenant, "permanent"));
 
-        sm.security_metadata.add_blacklist(make_blacklist(
+        sm.metadata.add_blacklist(make_blacklist(
             tenant,
             "tmp_*",
             EnumBlackListType::UserMatch,
@@ -223,7 +223,7 @@ mod tests {
         let future = now_second() + 9999;
         let past = now_second() - 1;
 
-        sm.security_metadata.add_blacklist(make_blacklist(
+        sm.metadata.add_blacklist(make_blacklist(
             tenant,
             "dev-001",
             EnumBlackListType::ClientId,
@@ -231,7 +231,7 @@ mod tests {
         ));
         assert!(is_client_id_blacklisted(&sm, tenant, "dev-001"));
 
-        sm.security_metadata.add_blacklist(make_blacklist(
+        sm.metadata.add_blacklist(make_blacklist(
             tenant,
             "dev-002",
             EnumBlackListType::ClientId,
@@ -239,7 +239,7 @@ mod tests {
         ));
         assert!(!is_client_id_blacklisted(&sm, tenant, "dev-002"));
 
-        sm.security_metadata.add_blacklist(make_blacklist(
+        sm.metadata.add_blacklist(make_blacklist(
             tenant,
             "tmp_*",
             EnumBlackListType::ClientIdMatch,
@@ -255,7 +255,7 @@ mod tests {
         let tenant = "t1";
         let future = now_second() + 9999;
 
-        sm.security_metadata.add_blacklist(make_blacklist(
+        sm.metadata.add_blacklist(make_blacklist(
             tenant,
             "1.2.3.4",
             EnumBlackListType::Ip,
@@ -264,7 +264,7 @@ mod tests {
         assert!(is_ip_blacklisted(&sm, tenant, "1.2.3.4").unwrap());
         assert!(!is_ip_blacklisted(&sm, tenant, "1.2.3.5").unwrap());
 
-        sm.security_metadata.add_blacklist(make_blacklist(
+        sm.metadata.add_blacklist(make_blacklist(
             tenant,
             "10.0.0.0/24",
             EnumBlackListType::IPCIDR,

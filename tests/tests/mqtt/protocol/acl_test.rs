@@ -77,6 +77,8 @@ mod tests {
 
         // Create test user
         create_user(&admin_client, username.clone(), password.clone()).await;
+        // Wait for auth cache sync (sync interval is 5s)
+        sleep(Duration::from_secs(2)).await;
 
         // Test publishing without ACL
         match resource_type {
@@ -110,6 +112,8 @@ mod tests {
         };
 
         create_acl(&admin_client, acl.clone()).await;
+        // Wait for ACL cache sync
+        sleep(Duration::from_secs(2)).await;
 
         // Test publishing with ACL
         match resource_type {
@@ -123,6 +127,8 @@ mod tests {
 
         // Delete ACL rule
         delete_acl(&admin_client, acl.clone()).await;
+        // Wait for ACL cache sync after delete
+        sleep(Duration::from_secs(2)).await;
 
         // Test publishing after deleting ACL
         match resource_type {

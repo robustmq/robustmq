@@ -146,7 +146,7 @@ async fn add_blacklist_4_connection_jitter(
     };
 
     security_manager
-        .security_metadata
+        .metadata
         .add_blacklist(client_id_blacklist);
 
     let local_storage = LocalStorage::new(rocksdb_engine_handler.clone());

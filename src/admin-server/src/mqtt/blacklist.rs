@@ -122,7 +122,7 @@ pub async fn blacklist_list(
     let data: Vec<SecurityBlackList> = state
         .mqtt_context
         .security_manager
-        .security_metadata
+        .metadata
         .get_all_blacklist();
 
     let blacklists: Vec<BlackListListRow> = data

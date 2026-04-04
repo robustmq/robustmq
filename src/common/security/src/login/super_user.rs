@@ -55,7 +55,7 @@ pub fn is_super_user(
         return false;
     }
 
-    if let Some(tenant_map) = security_manager.security_metadata.user_info.get(tenant) {
+    if let Some(tenant_map) = security_manager.metadata.user_info.get(tenant) {
         if let Some(user) = tenant_map.get(username) {
             return user.is_superuser;
         }

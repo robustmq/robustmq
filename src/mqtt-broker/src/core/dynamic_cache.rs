@@ -87,35 +87,37 @@ pub async fn update_mqtt_cache_metadata(
         BrokerUpdateCacheResourceType::User => match record.action_type() {
             BrokerUpdateCacheActionType::Create => {
                 let user = serialize::deserialize::<SecurityUser>(&record.data)?;
-                cache_manager.add_user(user);
+                security_manager.metadata.add_user(user);
             }
             BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let user = serialize::deserialize::<SecurityUser>(&record.data)?;
-                cache_manager.del_user(&user.tenant, &user.username);
+                security_manager
+                    .metadata
+                    .del_user(&user.tenant, &user.username);
             }
         },
         BrokerUpdateCacheResourceType::Acl => match record.action_type() {
             BrokerUpdateCacheActionType::Create => {
                 let acl = serialize::deserialize::<SecurityAcl>(&record.data)?;
-                security_manager.security_metadata.add_acl(acl);
+                security_manager.metadata.add_acl(acl);
             }
             BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let acl = serialize::deserialize::<SecurityAcl>(&record.data)?;
-                security_manager.security_metadata.remove_acl(acl);
+                security_manager.metadata.remove_acl(acl);
             }
         },
         BrokerUpdateCacheResourceType::Blacklist => match record.action_type() {
             BrokerUpdateCacheActionType::Create => {
                 let blacklist = serialize::deserialize::<SecurityBlackList>(&record.data)?;
-                security_manager.security_metadata.add_blacklist(blacklist);
+                security_manager.metadata.add_blacklist(blacklist);
             }
             BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let blacklist = serialize::deserialize::<SecurityBlackList>(&record.data)?;
                 security_manager
-                    .security_metadata
+                    .metadata
                     .remove_blacklist(blacklist);
             }
         },

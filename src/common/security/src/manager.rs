@@ -29,19 +29,19 @@ pub type ArcAuthStorageAdapter = Arc<dyn AuthStorageAdapter + Send + Sync>;
 #[derive(Clone, Default)]
 pub struct SecurityManager {
     storage_drivers: Arc<DashMap<String, ArcAuthStorageAdapter>>,
-    pub security_metadata: SecurityMetadata,
+    pub metadata: SecurityMetadata,
 }
 
 impl SecurityManager {
     pub fn new() -> SecurityManager {
         SecurityManager {
             storage_drivers: Arc::new(DashMap::new()),
-            security_metadata: SecurityMetadata::new(),
+            metadata: SecurityMetadata::new(),
         }
     }
 
     pub fn authn_list_with_default(&self) -> Vec<(String, AuthnConfig)> {
-        let mut authn_list = self.security_metadata.authn_list();
+        let mut authn_list = self.metadata.authn_list();
         if authn_list.is_empty() {
             let default_authn = AuthnConfig {
                 uid: "inner_default".to_string(),

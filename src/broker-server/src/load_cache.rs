@@ -140,7 +140,7 @@ async fn load_mqtt_cache(
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load users: {}", e)))?;
     for user in user_list.iter() {
-        cache_manager.add_user(user.clone());
+        security_manager.metadata.add_user(user.clone());
     }
 
     let acl_storage = AclStorage::new(client_pool.clone());
@@ -149,7 +149,7 @@ async fn load_mqtt_cache(
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load ACLs: {}", e)))?;
     for acl in acl_list.iter() {
-        security_manager.security_metadata.add_acl(acl.clone());
+        security_manager.metadata.add_acl(acl.clone());
     }
 
     let blacklist_storage = BlackListStorage::new(client_pool.clone());
@@ -159,7 +159,7 @@ async fn load_mqtt_cache(
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load blacklist: {}", e)))?;
     for blacklist in blacklist_list.iter() {
         security_manager
-            .security_metadata
+            .metadata
             .add_blacklist(blacklist.clone());
     }
 

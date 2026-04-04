@@ -91,7 +91,13 @@ pub async fn user_list(
     );
 
     let mut users = Vec::new();
-    for tenant_entry in state.mqtt_context.cache_manager.user_info.iter() {
+    for tenant_entry in state
+        .mqtt_context
+        .security_manager
+        .metadata
+        .user_info
+        .iter()
+    {
         if let Some(ref t) = params.tenant {
             if tenant_entry.key() != t {
                 continue;
