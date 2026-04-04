@@ -16,7 +16,7 @@ use crate::core::cache::NatsCacheManager;
 use crate::subscribe::{directly_group_name, NatsSubscribeManager, NatsSubscriber};
 use common_base::tools::now_second;
 use metadata_struct::nats::subscribe::NatsSubscribe;
-use metadata_struct::topic::Topic;
+use metadata_struct::topic::{Topic, TopicSource};
 use std::sync::Arc;
 use tokio::{
     select,
@@ -120,7 +120,12 @@ fn parse_by_new_subscribe(
         sub.connect_id, sub.sid, sub.subject
     );
 
-    let topics: Vec<_> = cache_manager.node_cache.list_topics_by_tenant(&sub.tenant);
+    let topics: Vec<_> = cache_manager
+        .node_cache
+        .list_topics_by_tenant(&sub.tenant)
+        .into_iter()
+        .filter(|t| t.source == TopicSource::NATS)
+        .collect();
 
     for topic in topics {
         if nats_subject_match(&sub.subject, &topic.topic_name) {
@@ -130,6 +135,9 @@ fn parse_by_new_subscribe(
 }
 
 fn parse_by_new_topic(subscribe_manager: &Arc<NatsSubscribeManager>, topic: &Topic) {
+    if topic.source != TopicSource::NATS {
+        return;
+    }
     debug!("Matching new topic: {}", topic.topic_name);
 
     let subscribes: Vec<_> = subscribe_manager
