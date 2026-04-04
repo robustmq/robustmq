@@ -86,6 +86,38 @@ pub async fn security_is_allow_connect(
     )
 }
 
+pub enum ConnectAuthResult {
+    Allowed,
+    Banned,
+    NotAuthorized,
+}
+
+pub async fn security_check_connect(
+    security_manager: &Arc<SecurityManager>,
+    node_cache: &Arc<NodeCacheManager>,
+    tenant: &str,
+    client_id: &str,
+    source_ip: &str,
+    login: &Option<Login>,
+    connect_properties: &Option<ConnectProperties>,
+) -> Result<ConnectAuthResult, MqttBrokerError> {
+    if !security_is_allow_connect(security_manager, tenant, client_id, source_ip, login).await? {
+        return Ok(ConnectAuthResult::Banned);
+    }
+    if security_login_check(
+        security_manager,
+        node_cache,
+        tenant,
+        login,
+        connect_properties,
+    )
+    .await?
+    {
+        return Ok(ConnectAuthResult::Allowed);
+    }
+    Ok(ConnectAuthResult::NotAuthorized)
+}
+
 pub async fn security_is_allow_publish(
     security_manager: &Arc<SecurityManager>,
     connection: &MQTTConnection,
