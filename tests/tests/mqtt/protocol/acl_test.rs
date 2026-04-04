@@ -24,10 +24,11 @@ mod tests {
     use admin_server::client::AdminHttpClient;
     use admin_server::mqtt::acl::{AclListReq, AclListRow, CreateAclReq, DeleteAclReq};
     use admin_server::mqtt::user::{CreateUserReq, DeleteUserReq};
-    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
     use common_base::uuid::unique_id;
+    use metadata_struct::auth::acl::{
+        EnumAclAction as MqttAclAction, EnumAclPermission as MqttAclPermission,
+        EnumAclResourceType as MqttAclResourceType,
+    };
     use paho_mqtt::MessageBuilder;
     use tokio::time::sleep;
 
@@ -76,6 +77,8 @@ mod tests {
 
         // Create test user
         create_user(&admin_client, username.clone(), password.clone()).await;
+        // Wait for auth cache sync (sync interval is 5s)
+        sleep(Duration::from_secs(2)).await;
 
         // Test publishing without ACL
         match resource_type {
@@ -109,6 +112,8 @@ mod tests {
         };
 
         create_acl(&admin_client, acl.clone()).await;
+        // Wait for ACL cache sync
+        sleep(Duration::from_secs(2)).await;
 
         // Test publishing with ACL
         match resource_type {
@@ -122,6 +127,8 @@ mod tests {
 
         // Delete ACL rule
         delete_acl(&admin_client, acl.clone()).await;
+        // Wait for ACL cache sync after delete
+        sleep(Duration::from_secs(2)).await;
 
         // Test publishing after deleting ACL
         match resource_type {

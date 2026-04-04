@@ -28,6 +28,7 @@ use common_base::{
 use common_config::{broker::broker_config, config::BrokerConfig};
 use common_healthy::port::wait_for_grpc_ready;
 use common_metrics::init_metrics;
+use common_security::manager::SecurityManager;
 use delay_task::manager::DelayTaskManager;
 use grpc_clients::pool::ClientPool;
 use kafka_broker::broker::KafkaBrokerServerParams;
@@ -290,6 +291,8 @@ impl BrokerServer {
         let shared_request_channel =
             Arc::new(RequestChannel::new(config.broker_network.queue_size));
 
+        let security_manager = Arc::new(SecurityManager::new());
+
         let mqtt_params = mqtt::build_mqtt_params(
             mqtt::MqttBuildParams {
                 client_pool: base.client_pool.clone(),
@@ -303,6 +306,7 @@ impl BrokerServer {
                 node_call: base.node_call_manager.clone(),
                 stop_sx: main_stop_send.clone(),
                 request_channel: shared_request_channel.clone(),
+                security_manager: security_manager.clone(),
             },
             broker_runtime,
         );
@@ -336,6 +340,7 @@ impl BrokerServer {
             stop_sx: main_stop_send,
             shared_request_channel: shared_request_channel.clone(),
             storage_driver_manager: storage_driver_manager.clone(),
+            security_manager,
         });
 
         (

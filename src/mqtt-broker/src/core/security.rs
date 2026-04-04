@@ -1,0 +1,233 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use crate::core::cache::MQTTCacheManager;
+use crate::core::{error::MqttBrokerError, tenant::try_decode_username};
+use crate::subscribe::common::get_sub_topic_name_list;
+use broker_core::cache::NodeCacheManager;
+use common_metrics::mqtt::auth::{record_mqtt_acl_failed, record_mqtt_acl_success};
+use common_security::auth::acl::{is_client_id_acl_deny, is_user_acl_deny};
+use common_security::auth::blacklist::{
+    is_client_id_blacklisted, is_ip_blacklisted, is_user_blacklisted,
+};
+use common_security::login::password::password_check_by_login;
+use common_security::login::super_user::is_super_user;
+use common_security::{login::LoginType, manager::SecurityManager};
+use metadata_struct::auth::acl::EnumAclAction;
+use metadata_struct::mqtt::connection::MQTTConnection;
+use protocol::mqtt::common::{ConnectProperties, Login, Subscribe};
+use std::str::FromStr;
+use std::sync::Arc;
+use tracing;
+
+pub async fn security_login_check(
+    security_manager: &Arc<SecurityManager>,
+    node_cache: &Arc<NodeCacheManager>,
+    tenant: &str,
+    login: &Option<Login>,
+    _connect_properties: &Option<ConnectProperties>,
+) -> Result<bool, MqttBrokerError> {
+    let cluster = node_cache.get_cluster_config();
+
+    if cluster.mqtt_runtime.secret_free_login {
+        return Ok(true);
+    }
+
+    for (_, authn) in security_manager.authn_list_with_default() {
+        let login_type = match LoginType::from_str(&authn.authn_type) {
+            Ok(t) => t,
+            Err(_) => {
+                tracing::warn!("Unsupported auth type: {}", authn.authn_type);
+                continue;
+            }
+        };
+
+        match login_type {
+            LoginType::PasswordBased => {
+                if let Some(user_info) = login {
+                    let username = try_decode_username(&user_info.username);
+                    let password = user_info.password.clone();
+                    if password_check_by_login(security_manager, tenant, &username, &password) {
+                        return Ok(true);
+                    }
+                }
+            }
+            LoginType::Jwt => {}
+        }
+    }
+
+    Ok(false)
+}
+
+pub async fn security_is_allow_connect(
+    security_manager: &Arc<SecurityManager>,
+    tenant: &str,
+    client_id: &str,
+    source_ip: &str,
+    login: &Option<Login>,
+) -> Result<bool, MqttBrokerError> {
+    let login = login.clone().unwrap_or_default();
+
+    Ok(
+        !is_user_blacklisted(security_manager, tenant, &login.username)
+            && !is_client_id_blacklisted(security_manager, tenant, client_id)
+            && !is_ip_blacklisted(security_manager, tenant, source_ip)?,
+    )
+}
+
+pub enum ConnectAuthResult {
+    Allowed,
+    Banned,
+    NotAuthorized,
+}
+
+pub async fn security_check_connect(
+    security_manager: &Arc<SecurityManager>,
+    node_cache: &Arc<NodeCacheManager>,
+    tenant: &str,
+    client_id: &str,
+    source_ip: &str,
+    login: &Option<Login>,
+    connect_properties: &Option<ConnectProperties>,
+) -> Result<ConnectAuthResult, MqttBrokerError> {
+    if !security_is_allow_connect(security_manager, tenant, client_id, source_ip, login).await? {
+        return Ok(ConnectAuthResult::Banned);
+    }
+    if security_login_check(
+        security_manager,
+        node_cache,
+        tenant,
+        login,
+        connect_properties,
+    )
+    .await?
+    {
+        return Ok(ConnectAuthResult::Allowed);
+    }
+    Ok(ConnectAuthResult::NotAuthorized)
+}
+
+pub async fn security_is_allow_publish(
+    security_manager: &Arc<SecurityManager>,
+    connection: &MQTTConnection,
+    topic_name: &str,
+    retain: bool,
+) -> Result<bool, MqttBrokerError> {
+    let user = connection.login_user.clone().unwrap_or_default();
+    if is_super_user(security_manager, &connection.tenant, &user) {
+        record_mqtt_acl_success();
+        return Ok(true);
+    }
+
+    let source_ip = connection.source_ip.as_str();
+
+    if is_client_id_acl_deny(
+        security_manager,
+        topic_name,
+        &connection.tenant,
+        &connection.client_id,
+        source_ip,
+        &EnumAclAction::Publish,
+    )? {
+        record_mqtt_acl_failed();
+        return Ok(false);
+    }
+
+    if is_user_acl_deny(
+        security_manager,
+        topic_name,
+        &connection.tenant,
+        &user,
+        source_ip,
+        &EnumAclAction::Publish,
+    )? {
+        record_mqtt_acl_failed();
+        return Ok(false);
+    }
+
+    if retain {
+        if is_client_id_acl_deny(
+            security_manager,
+            topic_name,
+            &connection.tenant,
+            &connection.client_id,
+            source_ip,
+            &EnumAclAction::Retain,
+        )? {
+            record_mqtt_acl_failed();
+            return Ok(false);
+        }
+
+        if is_user_acl_deny(
+            security_manager,
+            topic_name,
+            &connection.tenant,
+            &user,
+            source_ip,
+            &EnumAclAction::Retain,
+        )? {
+            record_mqtt_acl_failed();
+            return Ok(false);
+        }
+    }
+
+    record_mqtt_acl_success();
+    Ok(true)
+}
+
+pub async fn security_is_allow_subscribe(
+    cache_manager: &Arc<MQTTCacheManager>,
+    security_manager: &Arc<SecurityManager>,
+    connection: &MQTTConnection,
+    subscribe: &Subscribe,
+) -> Result<bool, MqttBrokerError> {
+    let user = connection.login_user.clone().unwrap_or_default();
+    if is_super_user(security_manager, &connection.tenant, &user) {
+        record_mqtt_acl_success();
+        return Ok(true);
+    }
+
+    let source_ip = connection.source_ip.as_str();
+
+    for filter in subscribe.filters.iter() {
+        let topic_list = get_sub_topic_name_list(cache_manager, &filter.path).await;
+        for topic_name in topic_list {
+            if is_client_id_acl_deny(
+                security_manager,
+                &topic_name,
+                &connection.tenant,
+                &connection.client_id,
+                source_ip,
+                &EnumAclAction::Subscribe,
+            )? {
+                record_mqtt_acl_failed();
+                return Ok(false);
+            }
+
+            if is_user_acl_deny(
+                security_manager,
+                &topic_name,
+                &connection.tenant,
+                &user,
+                source_ip,
+                &EnumAclAction::Subscribe,
+            )? {
+                record_mqtt_acl_failed();
+                return Ok(false);
+            }
+        }
+    }
+
+    Ok(true)
+}

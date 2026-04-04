@@ -22,6 +22,7 @@ use crate::storage::session::{SessionBatcher, SessionStorage};
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_second;
 use common_base::uuid::unique_id;
+use common_security::auth::acl::normalize_source_ip;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
 use metadata_struct::mqtt::session::MqttSession;
@@ -113,6 +114,7 @@ pub async fn build_connection(
         request_problem_info,
         keep_alive,
         source_ip_addr: addr.to_string(),
+        source_ip: normalize_source_ip(&addr.to_string()),
         clean_session: connect.clean_session,
     };
     MQTTConnection::new(config)

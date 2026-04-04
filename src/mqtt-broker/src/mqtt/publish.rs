@@ -23,6 +23,7 @@ use crate::core::metrics::record_publish_receive_metrics;
 use crate::core::offline_message::{save_message, SaveMessageContext};
 use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
 use crate::core::qos::{get_temporary_qos2_message, persistent_save_qos2_message};
+use crate::core::security::security_is_allow_publish;
 use crate::core::topic::{get_topic_name, try_init_topic};
 use common_base::tools::now_second;
 use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
@@ -157,9 +158,16 @@ impl MqttService {
             None
         };
 
-        self.auth_driver
-            .publish_acl_check(connection, &topic_name, publish.retain, publish.qos)
-            .await?;
+        if !security_is_allow_publish(
+            &self.security_manager,
+            connection,
+            &topic_name,
+            publish.retain,
+        )
+        .await?
+        {
+            return Err(MqttBrokerError::NotAclAuth(topic_name.clone()));
+        }
 
         let topic = try_init_topic(
             &connection.tenant,
@@ -606,6 +614,7 @@ mod tests {
             client_id: "test_client".to_string(),
             is_login: true,
             source_ip_addr: "127.0.0.1".to_string(),
+            source_ip: "127.0.0.1".to_string(),
             clean_session: true,
             login_user: None,
             keep_alive: 60,

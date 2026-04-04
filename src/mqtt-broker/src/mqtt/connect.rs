@@ -22,6 +22,7 @@ use crate::core::event::st_report_connected_event;
 use crate::core::flapping_detect::check_flapping_detect;
 use crate::core::last_will::save_last_will_message;
 use crate::core::limit::connection_total_num_limit;
+use crate::core::security::{security_check_connect, ConnectAuthResult};
 use crate::core::session::{session_process, BuildSessionContext};
 use crate::core::string_validator::{validate_client_id, validate_password, validate_username};
 use crate::core::sub_auto::try_auto_subscribe;
@@ -119,6 +120,7 @@ impl MqttService {
                 &tenant.tenant_name,
                 context.connect.client_id.clone(),
                 &self.cache_manager,
+                &self.security_manager,
                 &self.rocksdb_engine_handler,
             )
             .await
@@ -131,40 +133,38 @@ impl MqttService {
                 );
             }
         }
-        // auth check
-        if self
-            .auth_driver
-            .connect_check(
-                &connection.client_id,
-                &context.addr.to_string(),
-                &context.login,
-            )
-            .await
+        // auth check (blacklist + login)
+        match security_check_connect(
+            &self.security_manager,
+            &self.cache_manager.node_cache,
+            &tenant.tenant_name,
+            &connection.client_id,
+            &connection.source_ip,
+            &context.login,
+            &context.connect_properties,
+        )
+        .await
         {
-            return build_connect_ack_fail_packet(
-                &self.protocol,
-                ConnectReturnCode::Banned,
-                &context.connect_properties,
-                Some("client is banned".to_string()),
-            );
-        }
-        // login check
-        match self
-            .auth_driver
-            .login_check(&context.login, &context.connect_properties)
-            .await
-        {
-            Ok(flag) => {
-                if !flag {
-                    record_mqtt_auth_failed();
-                    return build_connect_ack_fail_packet(
-                        &self.protocol,
-                        ConnectReturnCode::NotAuthorized,
-                        &context.connect_properties,
-                        Some("login not authorized".to_string()),
-                    );
-                }
+            Ok(ConnectAuthResult::Allowed) => {
                 record_mqtt_auth_success();
+            }
+            Ok(ConnectAuthResult::Banned) => {
+                record_mqtt_auth_failed();
+                return build_connect_ack_fail_packet(
+                    &self.protocol,
+                    ConnectReturnCode::Banned,
+                    &context.connect_properties,
+                    Some("client is banned".to_string()),
+                );
+            }
+            Ok(ConnectAuthResult::NotAuthorized) => {
+                record_mqtt_auth_failed();
+                return build_connect_ack_fail_packet(
+                    &self.protocol,
+                    ConnectReturnCode::NotAuthorized,
+                    &context.connect_properties,
+                    Some("login not authorized".to_string()),
+                );
             }
             Err(e) => {
                 return build_connect_ack_fail_packet(

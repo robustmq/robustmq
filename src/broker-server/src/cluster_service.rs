@@ -85,6 +85,7 @@ async fn update_cache(
                 &mqtt_params.schema_manager,
                 &mqtt_params.storage_driver_manager,
                 &mqtt_params.metrics_cache_manager,
+                &mqtt_params.security_manager,
                 record,
             )
             .await
@@ -106,6 +107,7 @@ async fn update_cache(
                 &mqtt_params.schema_manager,
                 &mqtt_params.storage_driver_manager,
                 &mqtt_params.metrics_cache_manager,
+                &mqtt_params.security_manager,
                 record,
             )
             .await

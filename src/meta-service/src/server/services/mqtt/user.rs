@@ -19,10 +19,10 @@ use crate::{
         manager::MultiRaftManager,
         route::data::{StorageData, StorageDataType},
     },
-    storage::mqtt::user::MqttUserStorage,
+    storage::mqtt::user::SecurityUserStorage,
 };
 use common_base::utils::serialize::encode_to_bytes;
-use metadata_struct::mqtt::user::MqttUser;
+use metadata_struct::auth::user::SecurityUser;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
     CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply,
@@ -35,7 +35,7 @@ pub fn list_user_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListUserRequest,
 ) -> Result<ListUserReply, MetaServiceError> {
-    let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
+    let storage = SecurityUserStorage::new(rocksdb_engine_handler.clone());
     let mut users = Vec::new();
 
     if !req.user_name.is_empty() {
@@ -65,7 +65,7 @@ pub async fn create_user_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateUserRequest,
 ) -> Result<CreateUserReply, MetaServiceError> {
-    let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
+    let storage = SecurityUserStorage::new(rocksdb_engine_handler.clone());
 
     if storage.get(&req.tenant, &req.user_name)?.is_some() {
         return Err(MetaServiceError::UserAlreadyExist(req.user_name.clone()));
@@ -74,7 +74,7 @@ pub async fn create_user_by_req(
     let data = StorageData::new(StorageDataType::MqttSetUser, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
 
-    let user = MqttUser::decode(&req.content)?;
+    let user = SecurityUser::decode(&req.content)?;
     send_notify_by_add_user(call_manager, user).await?;
 
     Ok(CreateUserReply {})
@@ -86,7 +86,7 @@ pub async fn delete_user_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &DeleteUserRequest,
 ) -> Result<DeleteUserReply, MetaServiceError> {
-    let storage = MqttUserStorage::new(rocksdb_engine_handler.clone());
+    let storage = SecurityUserStorage::new(rocksdb_engine_handler.clone());
 
     let user = storage
         .get(&req.tenant, &req.user_name)?

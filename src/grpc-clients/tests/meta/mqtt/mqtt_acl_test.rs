@@ -14,32 +14,30 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
-    use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
+    use crate::common::get_placement_addr;
     use grpc_clients::meta::mqtt::call::{create_acl, delete_acl, list_acl};
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::acl::mqtt_acl::MqttAcl;
+    use metadata_struct::auth::acl::{
+        EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl,
+    };
     use protocol::meta::meta_service_mqtt::{CreateAclRequest, DeleteAclRequest, ListAclRequest};
     use std::sync::Arc;
-
-    use crate::common::get_placement_addr;
 
     #[tokio::test]
     async fn mqtt_acl_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
 
-        let acl = MqttAcl {
+        let acl = SecurityAcl {
             name: "test-acl-loboxu".to_string(),
             desc: String::new(),
             tenant: "default".to_string(),
-            resource_type: MqttAclResourceType::User,
+            resource_type: EnumAclResourceType::User,
             resource_name: "loboxu".to_string(),
             topic: "tp-1".to_string(),
             ip: "*".to_string(),
-            action: MqttAclAction::All,
-            permission: MqttAclPermission::Deny,
+            action: EnumAclAction::All,
+            permission: EnumAclPermission::Deny,
         };
 
         let request = CreateAclRequest {
@@ -55,7 +53,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.acls {
-                    let tmp = MqttAcl::decode(&raw).unwrap();
+                    let tmp = SecurityAcl::decode(&raw).unwrap();
                     if tmp.name == acl.name {
                         flag = true;
                     }
@@ -86,7 +84,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.acls {
-                    let tmp = MqttAcl::decode(&raw).unwrap();
+                    let tmp = SecurityAcl::decode(&raw).unwrap();
                     if tmp.name == acl.name {
                         flag = true;
                     }

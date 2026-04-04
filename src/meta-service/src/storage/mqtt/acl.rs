@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::auth::acl::SecurityAcl;
 
 use rocksdb_engine::keys::meta::{
     storage_key_mqtt_acl, storage_key_mqtt_acl_prefix, storage_key_mqtt_acl_tenant_prefix,
@@ -37,40 +37,40 @@ impl AclStorage {
         }
     }
 
-    pub fn save(&self, acl: MqttAcl) -> Result<(), CommonError> {
+    pub fn save(&self, acl: SecurityAcl) -> Result<(), CommonError> {
         let key = storage_key_mqtt_acl(&acl.tenant, &acl.name);
         engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, acl)
     }
 
-    pub fn list_all(&self) -> Result<Vec<MqttAcl>, CommonError> {
+    pub fn list_all(&self) -> Result<Vec<SecurityAcl>, CommonError> {
         let prefix_key = storage_key_mqtt_acl_prefix();
-        let data = engine_prefix_list_by_meta_metadata::<MqttAcl>(
+        let data = engine_prefix_list_by_meta_metadata::<SecurityAcl>(
             &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn list_by_tenant(&self, tenant: &str) -> Result<Vec<MqttAcl>, CommonError> {
+    pub fn list_by_tenant(&self, tenant: &str) -> Result<Vec<SecurityAcl>, CommonError> {
         let prefix_key = storage_key_mqtt_acl_tenant_prefix(tenant);
-        let data = engine_prefix_list_by_meta_metadata::<MqttAcl>(
+        let data = engine_prefix_list_by_meta_metadata::<SecurityAcl>(
             &self.rocksdb_engine_handler,
             &prefix_key,
         )?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn get(&self, tenant: &str, name: &str) -> Result<Option<MqttAcl>, CommonError> {
+    pub fn get(&self, tenant: &str, name: &str) -> Result<Option<SecurityAcl>, CommonError> {
         let key = storage_key_mqtt_acl(tenant, name);
         Ok(
-            engine_get_by_meta_metadata::<MqttAcl>(&self.rocksdb_engine_handler, &key)?
+            engine_get_by_meta_metadata::<SecurityAcl>(&self.rocksdb_engine_handler, &key)?
                 .map(|raw| raw.data),
         )
     }
 
     pub fn delete(&self, tenant: &str, name: &str) -> Result<(), CommonError> {
         let key = storage_key_mqtt_acl(tenant, name);
-        match engine_get_by_meta_metadata::<MqttAcl>(&self.rocksdb_engine_handler, &key)? {
+        match engine_get_by_meta_metadata::<SecurityAcl>(&self.rocksdb_engine_handler, &key)? {
             None => Ok(()),
             Some(_) => engine_delete_by_meta_metadata(&self.rocksdb_engine_handler, &key),
         }

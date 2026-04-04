@@ -22,14 +22,15 @@ use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
-use crate::storage::mqtt::user::MqttUserStorage;
+use crate::storage::mqtt::user::SecurityUserStorage;
 use broker_core::cache::NodeCacheManager;
 use bytes::Bytes;
 use common_base::tools::now_millis;
 use delay_task::manager::DelayTaskManager;
 use delay_task::{DelayTask, DelayTaskData};
-use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::auth::acl::SecurityAcl;
+use metadata_struct::auth::blacklist::SecurityBlackList;
+use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::group_leader::MqttGroupLeader;
@@ -39,7 +40,6 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use metadata_struct::mqtt::user::MqttUser;
 use prost::Message as _;
 use protocol::meta::meta_service_mqtt::{
     CreateAclRequest, CreateAutoSubscribeRuleRequest, CreateBlacklistRequest,
@@ -78,15 +78,15 @@ impl DataRouteMqtt {
     // User
     pub fn create_user(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = CreateUserRequest::decode(value.as_ref())?;
-        let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
-        let user = MqttUser::decode(&req.content)?;
+        let storage = SecurityUserStorage::new(self.rocksdb_engine_handler.clone());
+        let user = SecurityUser::decode(&req.content)?;
         storage.save(&req.tenant, &req.user_name, user.clone())?;
         Ok(())
     }
 
     pub fn delete_user(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteUserRequest::decode(value.as_ref())?;
-        let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
+        let storage = SecurityUserStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.tenant, &req.user_name)?;
         Ok(())
     }
@@ -268,7 +268,7 @@ impl DataRouteMqtt {
     pub fn create_acl(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = CreateAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
-        let acl = MqttAcl::decode(&req.acl)?;
+        let acl = SecurityAcl::decode(&req.acl)?;
         acl_storage.save(acl)?;
         Ok(())
     }
@@ -284,7 +284,7 @@ impl DataRouteMqtt {
     pub fn create_blacklist(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = CreateBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
-        let blacklist = MqttAclBlackList::decode(&req.blacklist)?;
+        let blacklist = SecurityBlackList::decode(&req.blacklist)?;
         blacklist_storage.save(blacklist)?;
         Ok(())
     }

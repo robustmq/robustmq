@@ -18,9 +18,11 @@ use crate::core::topic::delete_topic;
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::parse::ParseSubscribeData;
 use common_base::utils::serialize;
+use common_security::manager::SecurityManager;
 use connector::manager::ConnectorManager;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::auth::acl::SecurityAcl;
+use metadata_struct::auth::blacklist::SecurityBlackList;
+use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
@@ -28,7 +30,6 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use metadata_struct::mqtt::user::MqttUser;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use metadata_struct::tenant::Tenant;
 use protocol::broker::broker_common::{
@@ -40,6 +41,7 @@ use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::info;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn update_mqtt_cache_metadata(
     cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
@@ -47,6 +49,7 @@ pub async fn update_mqtt_cache_metadata(
     schema_manager: &Arc<SchemaRegisterManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     metrics_manager: &Arc<MQTTMetricsCache>,
+    security_manager: &Arc<SecurityManager>,
     record: &UpdateCacheRecord,
 ) -> ResultMqttBrokerError {
     match record.resource_type() {
@@ -71,47 +74,46 @@ pub async fn update_mqtt_cache_metadata(
         },
 
         BrokerUpdateCacheResourceType::Session => match record.action_type() {
-            BrokerUpdateCacheActionType::Create => {
+            BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
                 let session = serialize::deserialize::<MqttSession>(&record.data)?;
                 cache_manager.add_session(&session.client_id, &session);
             }
-            BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let session = serialize::deserialize::<MqttSession>(&record.data)?;
                 cache_manager.remove_session(&session.client_id);
             }
         },
         BrokerUpdateCacheResourceType::User => match record.action_type() {
-            BrokerUpdateCacheActionType::Create => {
-                let user = serialize::deserialize::<MqttUser>(&record.data)?;
-                cache_manager.add_user(user);
+            BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                let user = serialize::deserialize::<SecurityUser>(&record.data)?;
+                println!("user:{:?}", user);
+                security_manager.metadata.add_user(user);
             }
-            BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
-                let user = serialize::deserialize::<MqttUser>(&record.data)?;
-                cache_manager.del_user(&user.tenant, &user.username);
+                let user = serialize::deserialize::<SecurityUser>(&record.data)?;
+                security_manager
+                    .metadata
+                    .del_user(&user.tenant, &user.username);
             }
         },
         BrokerUpdateCacheResourceType::Acl => match record.action_type() {
-            BrokerUpdateCacheActionType::Create => {
-                let acl = serialize::deserialize::<MqttAcl>(&record.data)?;
-                cache_manager.add_acl(acl);
+            BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                let acl = serialize::deserialize::<SecurityAcl>(&record.data)?;
+                security_manager.metadata.add_acl(acl);
             }
-            BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
-                let acl = serialize::deserialize::<MqttAcl>(&record.data)?;
-                cache_manager.remove_acl(acl);
+                let acl = serialize::deserialize::<SecurityAcl>(&record.data)?;
+                security_manager.metadata.remove_acl(acl);
             }
         },
         BrokerUpdateCacheResourceType::Blacklist => match record.action_type() {
-            BrokerUpdateCacheActionType::Create => {
-                let blacklist = serialize::deserialize::<MqttAclBlackList>(&record.data)?;
-                cache_manager.add_blacklist(blacklist);
+            BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                let blacklist = serialize::deserialize::<SecurityBlackList>(&record.data)?;
+                security_manager.metadata.add_blacklist(blacklist);
             }
-            BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
-                let blacklist = serialize::deserialize::<MqttAclBlackList>(&record.data)?;
-                cache_manager.remove_blacklist(blacklist);
+                let blacklist = serialize::deserialize::<SecurityBlackList>(&record.data)?;
+                security_manager.metadata.remove_blacklist(blacklist);
             }
         },
 
@@ -192,34 +194,30 @@ pub async fn update_mqtt_cache_metadata(
             }
         },
         BrokerUpdateCacheResourceType::Connector => match record.action_type() {
-            BrokerUpdateCacheActionType::Create => {
+            BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
                 let connector = serialize::deserialize::<MQTTConnector>(&record.data)?;
                 connector_manager.add_connector(&connector);
             }
-            BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let connector = serialize::deserialize::<MQTTConnector>(&record.data)?;
                 connector_manager.remove_connector(&connector.connector_name);
             }
         },
         BrokerUpdateCacheResourceType::Schema => match record.action_type() {
-            BrokerUpdateCacheActionType::Create => {
+            BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
                 let schema = serialize::deserialize::<SchemaData>(&record.data)?;
                 schema_manager.add_schema(schema);
             }
-            BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let schema = serialize::deserialize::<SchemaData>(&record.data)?;
                 schema_manager.remove_schema(&schema.tenant, &schema.name);
             }
         },
         BrokerUpdateCacheResourceType::SchemaResource => match record.action_type() {
-            BrokerUpdateCacheActionType::Create => {
+            BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
                 let schema_resource = serialize::deserialize::<SchemaResourceBind>(&record.data)?;
                 schema_manager.add_bind(&schema_resource);
             }
-
-            BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let schema_resource = serialize::deserialize::<SchemaResourceBind>(&record.data)?;
                 schema_manager.remove_bind(&schema_resource);
@@ -240,12 +238,11 @@ pub async fn update_mqtt_cache_metadata(
             }
         },
         BrokerUpdateCacheResourceType::AutoSubscribeRule => match record.action_type() {
-            BrokerUpdateCacheActionType::Create => {
+            BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
                 let rule = MqttAutoSubscribeRule::decode(&record.data)
                     .map_err(|e| crate::core::error::MqttBrokerError::CommonError(e.to_string()))?;
                 cache_manager.add_auto_subscribe_rule(rule);
             }
-            BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let rule = MqttAutoSubscribeRule::decode(&record.data)
                     .map_err(|e| crate::core::error::MqttBrokerError::CommonError(e.to_string()))?;
@@ -253,13 +250,12 @@ pub async fn update_mqtt_cache_metadata(
             }
         },
         BrokerUpdateCacheResourceType::TopicRewriteRule => match record.action_type() {
-            BrokerUpdateCacheActionType::Create => {
+            BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
                 let rule = MqttTopicRewriteRule::decode(&record.data)
                     .map_err(|e| crate::core::error::MqttBrokerError::CommonError(e.to_string()))?;
                 cache_manager.add_topic_rewrite_rule(rule);
                 cache_manager.set_re_calc_topic_rewrite(true).await;
             }
-            BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let rule = MqttTopicRewriteRule::decode(&record.data)
                     .map_err(|e| crate::core::error::MqttBrokerError::CommonError(e.to_string()))?;

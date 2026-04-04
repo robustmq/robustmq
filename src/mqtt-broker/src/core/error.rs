@@ -12,16 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{num::ParseIntError, string::FromUtf8Error};
-
 use common_base::error::{common::CommonError, mqtt_protocol_error::MQTTProtocolError};
-use lapin::Error as LapinError;
-use pulsar::Error as PulsarError;
 use quinn::{ReadToEndError, StoppedError, WriteError};
-use r2d2;
 use rdkafka::error::KafkaError;
 use reqwest::Error as RequestError;
-use sqlx::Error as SqlxError;
+use std::{num::ParseIntError, string::FromUtf8Error};
 use thiserror::Error;
 use tonic::Status;
 
@@ -108,6 +103,9 @@ pub enum MqttBrokerError {
     #[error("Topic {0} is incorrectly formatted")]
     TopicNameIncorrectlyFormatted(String),
 
+    #[error("Topic {0} does not exist")]
+    TopicDoesNotExist(String),
+
     #[error("Connection ID [0] information not found in cache.")]
     NotFoundConnectionInCache(u64),
 
@@ -140,77 +138,11 @@ pub enum MqttBrokerError {
     #[error("Bad subscription Path [{0}] does not exist")]
     SubscriptionPathNotExists(String),
 
-    #[error("User does not exist")]
-    UserDoesNotExist,
-
-    #[error("user has been existed")]
-    UserAlreadyExist,
-
-    #[error("Session does not exist")]
-    SessionDoesNotExist,
-
-    #[error("Topic [{0}] does not exist")]
-    TopicDoesNotExist(String),
-
-    #[error("Unavailable storage type")]
-    UnavailableStorageType,
-
-    #[error("Unsupported authentication type: {0}")]
-    UnsupportedAuthType(String),
-
-    #[error("Password configuration not found")]
-    PasswordConfigNotFound,
-
-    #[error("HTTP configuration not found")]
-    HttpConfigNotFound,
-
-    #[error("JWT configuration not found")]
-    JwtConfigNotFound,
-
-    #[error("HTTP request error: {0}")]
-    HttpRequestError(String),
-
-    #[error("HTTP response parse error: {0}")]
-    HttpResponseParseError(String),
-
-    #[error("Unsupported HTTP method: {0}")]
-    UnsupportedHttpMethod(String),
-
-    #[error("JWT secret not found")]
-    JwtSecretNotFound,
-
-    #[error("JWT public key not found")]
-    JwtPublicKeyNotFound,
-
-    #[error("JWT secret decode error: {0}")]
-    JwtSecretDecodeError(String),
-
-    #[error("JWT public key decode error: {0}")]
-    JwtPublicKeyDecodeError(String),
-
-    #[error("JWT verification error: {0}")]
-    JwtVerificationError(String),
-
-    #[error("Unsupported JWT encryption: {0}")]
-    UnsupportedJwtEncryption(String),
-
     #[error("{0}")]
     CommonError(String),
 
-    #[error("Invalid acl action")]
-    InvalidAclAction,
-
     #[error("Subscription path {0} is not available")]
     InvalidSubPath(String),
-
-    #[error("invalid acl permission")]
-    InvalidAclPermission,
-
-    #[error("ACL authentication failed. Access denied for topic: {0}")]
-    NotAclAuth(String),
-
-    #[error("Blacklist authentication failed. Connection is blocked")]
-    NotBlacklistAuth,
 
     #[error("topicRewriteRule has been existed")]
     TopicRewriteRuleAlreadyExist,
@@ -229,6 +161,9 @@ pub enum MqttBrokerError {
 
     #[error("Missing target shard name for delay message")]
     MissingTargetShardName,
+
+    #[error("Session does not exist")]
+    SessionDoesNotExist,
 
     #[error("Empty topic name in delay message")]
     EmptyDelayTopicName,
@@ -269,32 +204,14 @@ pub enum MqttBrokerError {
     #[error("gRPC error: {0}")]
     RpcError(#[from] Status),
 
-    #[error("Unsupported hash algorithm: {0}")]
-    UnsupportedHashAlgorithm(String),
-
-    #[error("Password verification error: {0}")]
-    PasswordVerificationError(String),
-
-    #[error("Unsupported MAC function: {0}")]
-    UnsupportedMacFunction(String),
-
-    #[error("Pulsar error: {0}")]
-    PulsarError(#[from] PulsarError),
-
-    #[error("MongoDB error: {0}")]
-    MongoDBError(String),
-
-    #[error("BSON serialization error: {0}")]
-    BsonSerializationError(String),
-
-    #[error("RabbitMQ error: {0}")]
-    RabbitMQError(#[from] LapinError),
-
-    #[error("Sqlx error: {0}")]
-    SqlxError(#[from] SqlxError),
-
     #[error("Tenant [{0}] does not exist.")]
     TenantNotFound(String),
+
+    #[error("ACL authentication failed. Access denied for topic: {0}")]
+    NotAclAuth(String),
+
+    #[error("Blacklist authentication failed. Connection is blocked")]
+    NotBlacklistAuth,
 }
 
 impl From<MqttBrokerError> for Status {

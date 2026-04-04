@@ -16,18 +16,19 @@ use broker_core::cache::NodeCacheManager;
 use broker_core::dynamic_config::build_cluster_config;
 use broker_core::tenant::TenantStorage;
 use common_base::error::common::CommonError;
+use common_security::manager::SecurityManager;
+use common_security::storage::acl::AclStorage;
+use common_security::storage::blacklist::BlackListStorage;
+use common_security::storage::user::UserStorage;
 use connector::manager::ConnectorManager;
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::core::cache::MQTTCacheManager;
 use mqtt_broker::core::error::MqttBrokerError;
 use mqtt_broker::core::tool::ResultMqttBrokerError;
-use mqtt_broker::storage::acl::AclStorage;
 use mqtt_broker::storage::auto_subscribe::AutoSubscribeStorage;
-use mqtt_broker::storage::blacklist::BlackListStorage;
 use mqtt_broker::storage::connector::ConnectorStorage;
 use mqtt_broker::storage::schema::SchemaStorage;
 use mqtt_broker::storage::topic::TopicStorage;
-use mqtt_broker::storage::user::UserStorage;
 use nats_broker::core::cache::NatsCacheManager;
 use nats_broker::storage::subject::NatsSubjectStorage;
 use schema_register::schema::SchemaRegisterManager;
@@ -44,6 +45,7 @@ pub async fn load_metadata_cache(
     client_pool: &Arc<ClientPool>,
     connector_manager: &Arc<ConnectorManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
+    security_manager: &Arc<SecurityManager>,
 ) -> ResultMqttBrokerError {
     info!("Starting to load metadata cache...");
     load_common_cache(
@@ -54,7 +56,7 @@ pub async fn load_metadata_cache(
     )
     .await?;
 
-    load_mqtt_cache(mqtt_cache_manager, client_pool).await?;
+    load_mqtt_cache(mqtt_cache_manager, security_manager, client_pool).await?;
     load_nats_cache(nats_cache_manager, client_pool).await?;
     Ok(())
 }
@@ -129,6 +131,7 @@ async fn load_common_cache(
 
 async fn load_mqtt_cache(
     cache_manager: &Arc<MQTTCacheManager>,
+    security_manager: &Arc<SecurityManager>,
     client_pool: &Arc<ClientPool>,
 ) -> ResultMqttBrokerError {
     let user_storage = UserStorage::new(client_pool.clone());
@@ -137,7 +140,7 @@ async fn load_mqtt_cache(
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load users: {}", e)))?;
     for user in user_list.iter() {
-        cache_manager.add_user(user.clone());
+        security_manager.metadata.add_user(user.clone());
     }
 
     let acl_storage = AclStorage::new(client_pool.clone());
@@ -146,7 +149,7 @@ async fn load_mqtt_cache(
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load ACLs: {}", e)))?;
     for acl in acl_list.iter() {
-        cache_manager.add_acl(acl.clone());
+        security_manager.metadata.add_acl(acl.clone());
     }
 
     let blacklist_storage = BlackListStorage::new(client_pool.clone());
@@ -155,7 +158,7 @@ async fn load_mqtt_cache(
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load blacklist: {}", e)))?;
     for blacklist in blacklist_list.iter() {
-        cache_manager.add_blacklist(blacklist.clone());
+        security_manager.metadata.add_blacklist(blacklist.clone());
     }
 
     let topic_storage = TopicStorage::new(client_pool.clone());

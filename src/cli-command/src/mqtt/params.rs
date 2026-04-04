@@ -17,11 +17,9 @@ use crate::mqtt::pub_sub::{PublishArgsRequest, SubscribeArgsRequest};
 use admin_server::mqtt::connector::FailureStrategy;
 use clap::builder::EnumValueParser;
 use clap::Parser;
-use common_base::enum_type::mqtt::acl::mqtt_acl_action::MqttAclAction;
-use common_base::enum_type::mqtt::acl::mqtt_acl_blacklist_type::MqttAclBlackListType;
-use common_base::enum_type::mqtt::acl::mqtt_acl_permission::MqttAclPermission;
-use common_base::enum_type::mqtt::acl::mqtt_acl_resource_type::MqttAclResourceType;
 use core::option::Option::Some;
+use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, EnumAclResourceType};
+use metadata_struct::auth::blacklist::EnumBlackListType;
 use metadata_struct::tenant::DEFAULT_TENANT;
 
 // session
@@ -158,10 +156,10 @@ pub struct CreateAclArgs {
     pub desc: Option<String>,
     #[arg(
         long,
-        value_parser = EnumValueParser::<MqttAclResourceType>::new(),
+        value_parser = EnumValueParser::<EnumAclResourceType>::new(),
         default_missing_value = "ClientId"
     )]
-    pub resource_type: MqttAclResourceType,
+    pub resource_type: EnumAclResourceType,
     #[arg(long, required = true)]
     pub resource_name: String,
     #[arg(long)]
@@ -170,16 +168,16 @@ pub struct CreateAclArgs {
     pub ip: Option<String>,
     #[arg(
         long,
-        value_parser = EnumValueParser::<MqttAclAction>::new(),
+        value_parser = EnumValueParser::<EnumAclAction>::new(),
         default_missing_value = "All",
     )]
-    pub action: MqttAclAction,
+    pub action: EnumAclAction,
     #[arg(
         long,
-        value_parser = EnumValueParser::<MqttAclPermission>::new(),
+        value_parser = EnumValueParser::<EnumAclPermission>::new(),
         default_missing_value = "Allow",
     )]
-    pub permission: MqttAclPermission,
+    pub permission: EnumAclPermission,
 }
 
 #[derive(clap::Args, Debug)]
@@ -221,10 +219,10 @@ pub struct CreateBlacklistArgs {
     pub name: String,
     #[arg(
         long,
-        value_parser = EnumValueParser::<MqttAclBlackListType>::new(),
+        value_parser = EnumValueParser::<EnumBlackListType>::new(),
         default_missing_value = "ClientId"
     )]
-    pub blacklist_type: MqttAclBlackListType,
+    pub blacklist_type: EnumBlackListType,
     #[arg(long, required = true)]
     pub resource_name: String,
     #[arg(long, required = true)]

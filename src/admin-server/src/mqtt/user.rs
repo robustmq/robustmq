@@ -72,8 +72,8 @@ use common_base::{
     http_response::{error_response, success_response},
     tools::now_second,
 };
-use metadata_struct::mqtt::user::MqttUser;
-use mqtt_broker::storage::user::UserStorage;
+use common_security::storage::user::UserStorage;
+use metadata_struct::auth::user::SecurityUser;
 use std::sync::Arc;
 
 pub async fn user_list(
@@ -91,7 +91,13 @@ pub async fn user_list(
     );
 
     let mut users = Vec::new();
-    for tenant_entry in state.mqtt_context.cache_manager.user_info.iter() {
+    for tenant_entry in state
+        .mqtt_context
+        .security_manager
+        .metadata
+        .user_info
+        .iter()
+    {
         if let Some(ref t) = params.tenant {
             if tenant_entry.key() != t {
                 continue;
@@ -137,7 +143,7 @@ pub async fn user_create(
     State(state): State<Arc<HttpState>>,
     ValidatedJson(params): ValidatedJson<CreateUserReq>,
 ) -> String {
-    let user_info = MqttUser {
+    let user_info = SecurityUser {
         tenant: params.tenant.clone(),
         username: params.username.clone(),
         password: params.password.clone(),

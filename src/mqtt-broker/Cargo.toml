@@ -71,10 +71,6 @@ sqlx = { workspace = true, features = ["mysql", "postgres", "runtime-tokio"] }
 rocksdb-engine.workspace = true
 connector.workspace = true
 # security
-r2d2.workspace = true
-r2d2_mysql.workspace = true
-r2d2_postgres.workspace = true
-redis.workspace = true
 md5.workspace = true
 sha1.workspace = true
 sha2.workspace = true
@@ -87,6 +83,12 @@ jsonwebtoken.workspace = true
 rate-limit.workspace = true
 node-call.workspace = true
 prost.workspace = true
+common-security.workspace = true
+r2d2.workspace = true
+r2d2_mysql.workspace = true
+r2d2_postgres.workspace = true
+redis.workspace = true
+
 
 [dev-dependencies]
 # test

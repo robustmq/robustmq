@@ -14,6 +14,7 @@
 
 use crate::connection::network_connection_gc;
 use common_base::{node_status::NodeStatus, task::TaskKind};
+use common_security::sync::start_auth_sync_thread;
 use connector::start_connector;
 use delay_message::manager::start_delay_message_manager_thread;
 use delay_task::start_delay_task_manager_thread;
@@ -118,6 +119,13 @@ impl BrokerServer {
             Box::pin(async move {
                 offset_cache.offset_async_save_thread(tx).await;
             }),
+        );
+
+        // sync auth info
+        start_auth_sync_thread(
+            self.mqtt_params.security_manager.clone(),
+            self.task_supervisor.clone(),
+            stop.clone(),
         );
 
         // system info collection

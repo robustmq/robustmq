@@ -28,6 +28,8 @@ pub struct MQTTConnection {
     pub is_login: bool,
     // The IP address of the client that initiated the connection
     pub source_ip_addr: String,
+    // Extracted IP without port, pre-computed for ACL/blacklist checks
+    pub source_ip: String,
     // clean session flag
     pub clean_session: bool,
     // The user name of the client that initiated the connection
@@ -58,6 +60,7 @@ pub struct ConnectionConfig {
     pub request_problem_info: u8,
     pub keep_alive: u16,
     pub source_ip_addr: String,
+    pub source_ip: String,
     pub clean_session: bool,
 }
 
@@ -76,6 +79,7 @@ impl MQTTConnection {
             request_problem_info: config.request_problem_info,
             create_time: now_second(),
             source_ip_addr: config.source_ip_addr,
+            source_ip: config.source_ip,
             clean_session: config.clean_session,
             login_user: None,
         }

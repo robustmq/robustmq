@@ -30,3 +30,4 @@ dashmap.workspace = true
 tokio.workspace = true
 pulsar.workspace = true
 rkyv.workspace = true
+clap.workspace = true

@@ -18,14 +18,15 @@ use crate::core::connection::is_request_problem_info;
 use crate::core::error::MqttBrokerError;
 use crate::core::event::{st_report_subscribed_event, st_report_unsubscribed_event};
 use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
+use crate::core::security::security_is_allow_subscribe;
 use crate::core::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
 use crate::core::sub_wildcards::sub_path_validator;
 use crate::core::subscribe::remove_subscribe;
 use crate::core::subscribe::{save_subscribe, SaveSubscribeContext};
-use crate::security::AuthManager;
 use crate::subscribe::common::min_qos;
 use crate::subscribe::manager::SubscribeManager;
 use common_base::tools::now_second;
+use common_security::manager::SecurityManager;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use protocol::mqtt::common::{
     MqttPacket, MqttProtocol, QoS, SubAck, SubAckProperties, Subscribe, SubscribeProperties,
@@ -43,7 +44,7 @@ impl MqttService {
     ) -> MqttPacket {
         let (reason_codes, reason) = subscribe_validator(
             &self.cache_manager,
-            &self.auth_driver,
+            &self.security_manager,
             &self.subscribe_manager,
             connection,
             subscribe,
@@ -266,7 +267,7 @@ fn response_packet_mqtt_unsub_ack(
 
 async fn subscribe_validator(
     cache_manager: &Arc<MQTTCacheManager>,
-    auth_driver: &Arc<AuthManager>,
+    security_manager: &Arc<SecurityManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     connection: &MQTTConnection,
     subscribe: &Subscribe,
@@ -358,7 +359,10 @@ async fn subscribe_validator(
         );
     }
 
-    if !auth_driver.subscribe_check(connection, subscribe).await {
+    if !security_is_allow_subscribe(cache_manager, security_manager, connection, subscribe)
+        .await
+        .unwrap_or(false)
+    {
         return (
             vec![SubscribeReasonCode::NotAuthorized],
             "Subscription not authorized".to_string(),

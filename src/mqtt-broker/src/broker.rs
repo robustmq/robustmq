@@ -24,9 +24,6 @@ use crate::core::retain::RetainMessageManager;
 use crate::core::system_alarm::SystemAlarm;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::core::topic_rewrite::start_topic_rewrite_convert_thread;
-use crate::security::login::super_user::try_init_system_user;
-use crate::security::storage::sync::start_auth_sync_thread;
-use crate::security::AuthManager;
 use crate::server::{Server, TcpServerContext};
 use crate::storage::session::SessionBatcher;
 use crate::subscribe::manager::SubscribeManager;
@@ -37,6 +34,8 @@ use broker_core::cache::NodeCacheManager;
 use broker_core::tenant::try_init_default_tenant;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_config::broker::broker_config;
+use common_security::login::super_user::try_init_system_user;
+use common_security::manager::SecurityManager;
 use connector::manager::ConnectorManager;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -65,7 +64,7 @@ pub struct MqttBrokerServerParams {
     pub subscribe_manager: Arc<SubscribeManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub connector_manager: Arc<ConnectorManager>,
-    pub auth_driver: Arc<AuthManager>,
+    pub security_manager: Arc<SecurityManager>,
     pub delay_message_manager: Arc<DelayMessageManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
     pub metrics_cache_manager: Arc<MQTTMetricsCache>,
@@ -90,7 +89,6 @@ pub struct MqttBrokerServer {
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     connector_manager: Arc<ConnectorManager>,
-    auth_driver: Arc<AuthManager>,
     delay_message_manager: Arc<DelayMessageManager>,
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -130,7 +128,7 @@ impl MqttBrokerServer {
                 client_pool: params.client_pool.clone(),
                 session_batcher: params.session_batcher.clone(),
                 stop_sx: stop.clone(),
-                auth_driver: params.auth_driver.clone(),
+                security_manager: params.security_manager.clone(),
                 rocksdb_engine_handler: params.rocksdb_engine_handler.clone(),
                 broker_cache: params.node_cache.clone(),
                 retain_message_manager: params.retain_message_manager.clone(),
@@ -154,7 +152,6 @@ impl MqttBrokerServer {
             subscribe_manager: params.subscribe_manager,
             connector_manager: params.connector_manager,
             connection_manager: params.connection_manager,
-            auth_driver: params.auth_driver,
             delay_message_manager: params.delay_message_manager,
             server,
             metrics_cache_manager: params.metrics_cache_manager,
@@ -198,7 +195,7 @@ impl MqttBrokerServer {
         }
 
         // init system user
-        if let Err(e) = try_init_system_user(&self.cache_manager, &self.client_pool).await {
+        if let Err(e) = try_init_system_user(&self.client_pool).await {
             error!("Failed to initialize system user: {}", e);
             std::process::exit(1);
         }
@@ -242,13 +239,6 @@ impl MqttBrokerServer {
             Box::pin(async move {
                 keep_alive.start_heartbeat_check(&raw_stop_send).await;
             }),
-        );
-
-        // sync auth info
-        start_auth_sync_thread(
-            self.auth_driver.clone(),
-            self.task_supervisor.clone(),
-            self.stop.clone(),
         );
 
         // flapping detect

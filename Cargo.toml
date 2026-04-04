@@ -43,6 +43,7 @@ members = [
     "src/common/node-call",
     "src/common/llm-engine",
     "src/common/healthy",
+    "src/common/security",
     "src/protocol",
     "src/connector",
     "src/storage-engine",
@@ -357,6 +358,7 @@ system-info = { path = "src/common/system-info" }
 node-call = { path = "src/common/node-call" }
 llm-engine = { path = "src/common/llm-engine" }
 common-healthy = { path = "src/common/healthy" }
+common-security = { path = "src/common/security" }
 # Protocol & Macros
 protocol = { path = "src/protocol" }
 connector = { path = "src/connector" }

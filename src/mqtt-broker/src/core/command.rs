@@ -20,7 +20,6 @@ use crate::core::retain::RetainMessageManager;
 use crate::mqtt::connect::build_connect_ack_fail_packet;
 use crate::mqtt::disconnect::build_distinct_packet;
 use crate::mqtt::{MqttService, MqttServiceConnectContext, MqttServiceContext};
-use crate::security::AuthManager;
 use crate::storage::session::SessionBatcher;
 use crate::subscribe::common::is_error_by_suback;
 use crate::subscribe::manager::SubscribeManager;
@@ -32,6 +31,7 @@ use common_metrics::mqtt::event::{
     record_mqtt_subscribe_success, record_mqtt_unsubscribe_success,
 };
 use common_metrics::mqtt::time::record_packet_process_duration;
+use common_security::manager::SecurityManager;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
@@ -81,7 +81,7 @@ pub struct CommandContext {
     pub session_batcher: Arc<SessionBatcher>,
     pub connection_manager: Arc<ConnectionManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
-    pub auth_driver: Arc<AuthManager>,
+    pub security_manager: Arc<SecurityManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub broker_cache: Arc<NodeCacheManager>,
     pub retain_message_manager: Arc<RetainMessageManager>,
@@ -680,7 +680,7 @@ impl MQTTHandlerCommand {
             schema_manager: context.schema_manager.clone(),
             client_pool: context.client_pool.clone(),
             session_batcher: context.session_batcher.clone(),
-            auth_driver: context.auth_driver.clone(),
+            security_manager: context.security_manager.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
             retain_message_manager: context.retain_message_manager.clone(),
             limit_manager: context.mqtt_limit_manager.clone(),
@@ -698,7 +698,7 @@ impl MQTTHandlerCommand {
             schema_manager: context.schema_manager.clone(),
             client_pool: context.client_pool.clone(),
             session_batcher: context.session_batcher.clone(),
-            auth_driver: context.auth_driver.clone(),
+            security_manager: context.security_manager.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
             retain_message_manager: context.retain_message_manager.clone(),
             limit_manager: context.mqtt_limit_manager.clone(),
@@ -716,7 +716,7 @@ impl MQTTHandlerCommand {
             schema_manager: context.schema_manager.clone(),
             client_pool: context.client_pool.clone(),
             session_batcher: context.session_batcher.clone(),
-            auth_driver: context.auth_driver.clone(),
+            security_manager: context.security_manager.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
             retain_message_manager: context.retain_message_manager.clone(),
             limit_manager: context.mqtt_limit_manager.clone(),

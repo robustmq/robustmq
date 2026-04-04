@@ -16,8 +16,8 @@
 mod tests {
     use common_base::tools::now_second;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+    use common_security::storage::user::UserStorage;
     use grpc_clients::pool::ClientPool;
-    use mqtt_broker::storage::user::UserStorage;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -29,7 +29,7 @@ mod tests {
         let username = "test".to_string();
         let password = "test_password".to_string();
         let is_superuser = true;
-        let user_info = metadata_struct::mqtt::user::MqttUser {
+        let user_info = metadata_struct::auth::user::SecurityUser {
             tenant: "default".to_string(),
             username: username.clone(),
             password: password.clone(),

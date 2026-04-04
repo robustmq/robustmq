@@ -182,6 +182,75 @@ pub enum CommonError {
 
     #[error("Unavailable storage type")]
     UnavailableStorageType,
+
+    #[error("User does not exist")]
+    UserDoesNotExist,
+
+    #[error("user has been existed")]
+    UserAlreadyExist,
+
+    #[error("Topic [{0}] does not exist")]
+    TopicDoesNotExist(String),
+
+    #[error("Unsupported authentication type: {0}")]
+    UnsupportedAuthType(String),
+
+    #[error("Password configuration not found")]
+    PasswordConfigNotFound,
+
+    #[error("HTTP configuration not found")]
+    HttpConfigNotFound,
+
+    #[error("JWT configuration not found")]
+    JwtConfigNotFound,
+
+    #[error("HTTP request error: {0}")]
+    HttpRequestError(String),
+
+    #[error("HTTP response parse error: {0}")]
+    HttpResponseParseError(String),
+
+    #[error("Unsupported HTTP method: {0}")]
+    UnsupportedHttpMethod(String),
+
+    #[error("JWT secret not found")]
+    JwtSecretNotFound,
+
+    #[error("JWT public key not found")]
+    JwtPublicKeyNotFound,
+
+    #[error("JWT secret decode error: {0}")]
+    JwtSecretDecodeError(String),
+
+    #[error("JWT public key decode error: {0}")]
+    JwtPublicKeyDecodeError(String),
+
+    #[error("JWT verification error: {0}")]
+    JwtVerificationError(String),
+
+    #[error("Unsupported JWT encryption: {0}")]
+    UnsupportedJwtEncryption(String),
+
+    #[error("invalid acl permission")]
+    InvalidAclPermission,
+
+    #[error("Invalid acl action")]
+    InvalidAclAction,
+
+    #[error("Unsupported hash algorithm: {0}")]
+    UnsupportedHashAlgorithm(String),
+
+    #[error("Password verification error: {0}")]
+    PasswordVerificationError(String),
+
+    #[error("Unsupported MAC function: {0}")]
+    UnsupportedMacFunction(String),
+
+    #[error("MongoDB error: {0}")]
+    MongoDBError(String),
+
+    #[error("BSON serialization error: {0}")]
+    BsonSerializationError(String),
 }
 
 impl From<CommonError> for Status {

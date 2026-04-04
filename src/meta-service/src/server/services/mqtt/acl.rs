@@ -24,8 +24,8 @@ use crate::{
     storage::mqtt::acl::AclStorage,
 };
 use common_base::utils::serialize::encode_to_bytes;
-use metadata_struct::acl::mqtt_acl::MqttAcl;
-use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::auth::acl::SecurityAcl;
+use metadata_struct::auth::blacklist::SecurityBlackList;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
     CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest, DeleteAclReply,
@@ -61,7 +61,7 @@ pub async fn create_acl_by_req(
 ) -> Result<CreateAclReply, MetaServiceError> {
     let data = StorageData::new(StorageDataType::MqttSetAcl, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
-    let acl = MqttAcl::decode(&req.acl)?;
+    let acl = SecurityAcl::decode(&req.acl)?;
     send_notify_by_add_acl(call_manager, acl).await?;
 
     Ok(CreateAclReply {})
@@ -112,7 +112,7 @@ pub async fn create_blacklist_by_req(
 ) -> Result<CreateBlacklistReply, MetaServiceError> {
     let data = StorageData::new(StorageDataType::MqttSetBlacklist, encode_to_bytes(req));
     raft_manager.write_metadata(data).await?;
-    let blacklist = MqttAclBlackList::decode(&req.blacklist)?;
+    let blacklist = SecurityBlackList::decode(&req.blacklist)?;
     send_notify_by_add_blacklist(call_manager, blacklist).await?;
 
     Ok(CreateBlacklistReply {})

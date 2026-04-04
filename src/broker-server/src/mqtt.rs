@@ -14,6 +14,7 @@
 
 use broker_core::cache::NodeCacheManager;
 use common_base::{error::common::CommonError, role::is_broker_node, task::TaskSupervisor};
+use common_security::manager::SecurityManager;
 use connector::manager::ConnectorManager;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -23,7 +24,6 @@ use mqtt_broker::{
         cache::MQTTCacheManager as MqttCacheManager, event::EventReportManager,
         retain::RetainMessageManager,
     },
-    security::AuthManager,
     storage::session::SessionBatcher,
     subscribe::{manager::SubscribeManager, PushManager},
 };
@@ -54,6 +54,7 @@ pub struct MqttBuildParams {
     pub node_call: Arc<NodeCallManager>,
     pub stop_sx: broadcast::Sender<bool>,
     pub request_channel: Arc<RequestChannel>,
+    pub security_manager: Arc<SecurityManager>,
 }
 
 pub fn build_mqtt_params(
@@ -71,10 +72,24 @@ pub fn build_mqtt_params(
     let nc = p.node_call;
     let stop = p.stop_sx;
     let request_channel = p.request_channel;
+    let security_manager = p.security_manager;
 
     broker_runtime.block_on(async move {
-        match build_broker_mqtt_params(cp, bc, re, cm, sdm, om, ts, glm, nc, stop, request_channel)
-            .await
+        match build_broker_mqtt_params(
+            cp,
+            bc,
+            re,
+            cm,
+            sdm,
+            om,
+            ts,
+            glm,
+            nc,
+            stop,
+            request_channel,
+            security_manager,
+        )
+        .await
         {
             Ok(params) => params,
             Err(e) => {
@@ -100,6 +115,7 @@ pub(crate) async fn build_broker_mqtt_params(
     node_call: Arc<NodeCallManager>,
     stop_sx: broadcast::Sender<bool>,
     request_channel: Arc<RequestChannel>,
+    security_manager: Arc<SecurityManager>,
 ) -> Result<MqttBrokerServerParams, CommonError> {
     let cache_manager = Arc::new(MqttCacheManager::new(
         client_pool.clone(),
@@ -107,7 +123,6 @@ pub(crate) async fn build_broker_mqtt_params(
     ));
     let subscribe_manager = Arc::new(SubscribeManager::new());
     let connector_manager = Arc::new(ConnectorManager::new());
-    let auth_driver = Arc::new(AuthManager::new(cache_manager.clone()));
     let delay_message_manager = Arc::new(
         DelayMessageManager::new(client_pool.clone(), storage_driver_manager.clone(), 5).await?,
     );
@@ -140,7 +155,7 @@ pub(crate) async fn build_broker_mqtt_params(
         subscribe_manager,
         connection_manager,
         connector_manager,
-        auth_driver,
+        security_manager,
         delay_message_manager,
         schema_manager,
         metrics_cache_manager,
