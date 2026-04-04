@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::{auth::common::ip_match, manager::SecurityManager};
+use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use regex::Regex;
 use std::sync::Arc;
@@ -82,7 +83,7 @@ pub fn is_ip_blacklisted(
     security_manager: &Arc<SecurityManager>,
     tenant: &str,
     source_ip: &str,
-) -> bool {
+) -> Result<bool, CommonError> {
     let now = now_second();
     let meta = &security_manager.security_metadata;
 
@@ -90,21 +91,21 @@ pub fn is_ip_blacklisted(
         if let Some(data) = tenant_map.get(source_ip) {
             if is_active(data.end_time, now) {
                 info!(source_ip = %source_ip, end_time = data.end_time, "Connection blocked by exact IP blacklist");
-                return true;
+                return Ok(true);
             }
         }
     }
 
     if let Some(list) = meta.blacklist_ip_match.get(tenant) {
         for raw in list.iter() {
-            if is_active(raw.end_time, now) && ip_match(source_ip, &raw.resource_name) {
+            if is_active(raw.end_time, now) && ip_match(source_ip, &raw.resource_name)? {
                 info!(source_ip = %source_ip, pattern = %raw.resource_name, "Connection blocked by IP pattern blacklist");
-                return true;
+                return Ok(true);
             }
         }
     }
 
-    false
+    Ok(false)
 }
 
 fn wildcard_to_regex(pattern: &str) -> String {

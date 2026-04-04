@@ -359,7 +359,7 @@ async fn subscribe_validator(
         );
     }
 
-    if !security_is_allow_subscribe(cache_manager, security_manager, connection, subscribe).await {
+    if !security_is_allow_subscribe(cache_manager, security_manager, connection, subscribe).await.unwrap_or(false) {
         return (
             vec![SubscribeReasonCode::NotAuthorized],
             "Subscription not authorized".to_string(),

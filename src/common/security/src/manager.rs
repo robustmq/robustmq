@@ -24,7 +24,7 @@ use metadata_struct::mqtt::auth::storage::StorageConfig;
 use std::sync::Arc;
 use tracing::warn;
 
-type ArcAuthStorageAdapter = Arc<dyn AuthStorageAdapter + Send + Sync>;
+pub type ArcAuthStorageAdapter = Arc<dyn AuthStorageAdapter + Send + Sync>;
 
 #[derive(Clone, Default)]
 pub struct SecurityManager {
@@ -41,7 +41,7 @@ impl SecurityManager {
     }
 
     pub fn authn_list_with_default(&self) -> Vec<(String, AuthnConfig)> {
-        let mut authn_list = self.security_metadata.get_authn();
+        let mut authn_list = self.security_metadata.authn_list();
         if authn_list.is_empty() {
             let default_authn = AuthnConfig {
                 uid: "inner_default".to_string(),
@@ -65,9 +65,11 @@ impl SecurityManager {
         for (authn_id, authn) in self.authn_list_with_default() {
             match authn.config {
                 LoginAuthEnum::PasswordBased(config) => {
-                    let driver =
-                        self.get_or_build_storage_driver(&authn_id, &config.storage_config)?;
-                    drivers.push(driver);
+                    if let Some(driver) =
+                        self.get_or_build_storage_driver(&authn_id, &config.storage_config)?
+                    {
+                        drivers.push(driver);
+                    }
                 }
                 _ => {
                     warn!(authn_id = %authn_id, authn_type = %authn.authn_type, "Unsupported authn type, skipped");
@@ -81,14 +83,16 @@ impl SecurityManager {
         &self,
         authn_id: &str,
         storage_config: &StorageConfig,
-    ) -> Result<ArcAuthStorageAdapter, CommonError> {
+    ) -> Result<Option<ArcAuthStorageAdapter>, CommonError> {
         if let Some(driver) = self.storage_drivers.get(authn_id) {
-            return Ok(driver.clone());
+            return Ok(Some(driver.clone()));
         }
 
-        let driver = build_storage_driver(storage_config)?;
-        self.storage_drivers
-            .insert(authn_id.to_string(), driver.clone());
-        Ok(driver)
+        if let Some(driver) = build_storage_driver(storage_config)? {
+            self.storage_drivers
+                .insert(authn_id.to_string(), driver.clone());
+        }
+
+        Ok(None)
     }
 }

@@ -13,36 +13,29 @@
 // limitations under the License.
 
 use crate::WILDCARD_RESOURCE;
+use common_base::error::common::CommonError;
 use ipnet::IpNet;
 use std::{net::IpAddr, str::FromStr};
-use tracing::warn;
 
-pub fn ip_match(source_ip_addr: &str, ip_role: &str) -> bool {
+pub fn ip_match(source_ip_addr: &str, ip_role: &str) -> Result<bool, CommonError> {
     if ip_role.is_empty() || ip_role == WILDCARD_RESOURCE {
-        return true;
+        return Ok(true);
     }
 
-    let source_ip = match source_ip_addr.parse::<IpAddr>() {
-        Ok(ip) => ip,
-        Err(_) => {
-            warn!("Invalid source IP address format: {}", source_ip_addr);
-            return false;
-        }
-    };
+    let source_ip = source_ip_addr
+        .parse::<IpAddr>()
+        .map_err(|_| CommonError::CommonError(format!("Invalid source IP address: {}", source_ip_addr)))?;
 
-    if source_ip_addr == ip_role && ip_role.parse::<IpAddr>().is_ok() {
-        return true;
+    if let Ok(role_ip) = ip_role.parse::<IpAddr>() {
+        return Ok(source_ip == role_ip);
     }
 
     match IpNet::from_str(ip_role) {
-        Ok(ip_cidr) => ip_cidr.contains(&source_ip),
-        Err(_) => {
-            warn!(
-                "Invalid IP pattern in blacklist: '{}' (not a valid IP or CIDR)",
-                ip_role
-            );
-            false
-        }
+        Ok(ip_cidr) => Ok(ip_cidr.contains(&source_ip)),
+        Err(_) => Err(CommonError::CommonError(format!(
+            "Invalid IP pattern: '{}' (not a valid IP or CIDR)",
+            ip_role
+        ))),
     }
 }
 
@@ -69,21 +62,15 @@ mod test {
 
     #[test]
     fn ip_match_test() {
-        let cases = [
-            ("127.0.0.1", WILDCARD_RESOURCE, true),
-            ("127.0.0.1", "127.0.0.1", true),
-            ("127.0.0.1", "192.1.1.1", false),
-            ("127.0.0.1", "127.0.0.1/24", true),
-            ("10.0.0.2", "10.0.0.1/32", false),
-            ("not-an-ip", "127.0.0.1", false),
-            ("127.0.0.1", "not-a-cidr", false),
-            ("127.0.0.1", "", true),
-            ("2001:db8::1", "2001:db8::/32", true),
-            ("2001:db8::1", "2001:db9::/32", false),
-        ];
-
-        for (source, pattern, expected) in cases {
-            assert_eq!(ip_match(source, pattern), expected);
-        }
+        assert!(ip_match("127.0.0.1", WILDCARD_RESOURCE).unwrap());
+        assert!(ip_match("127.0.0.1", "127.0.0.1").unwrap());
+        assert!(!ip_match("127.0.0.1", "192.1.1.1").unwrap());
+        assert!(ip_match("127.0.0.1", "127.0.0.1/24").unwrap());
+        assert!(!ip_match("10.0.0.2", "10.0.0.1/32").unwrap());
+        assert!(ip_match("127.0.0.1", "").unwrap());
+        assert!(ip_match("2001:db8::1", "2001:db8::/32").unwrap());
+        assert!(!ip_match("2001:db8::1", "2001:db9::/32").unwrap());
+        assert!(ip_match("not-an-ip", "127.0.0.1").is_err());
+        assert!(ip_match("127.0.0.1", "not-a-cidr").is_err());
     }
 }

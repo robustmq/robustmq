@@ -164,7 +164,7 @@ impl MqttService {
             &topic_name,
             publish.retain,
         )
-        .await
+        .await?
         {
             return Err(MqttBrokerError::NotAclAuth(topic_name.clone()));
         }

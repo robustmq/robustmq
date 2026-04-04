@@ -78,12 +78,12 @@ pub async fn security_is_allow_connect(
     client_id: &str,
     source_ip: &str,
     login: &Option<Login>,
-) -> bool {
+) -> Result<bool, MqttBrokerError> {
     let login = login.clone().unwrap_or_default();
 
-    !is_user_blacklisted(security_manager, tenant, &login.username)
+    Ok(!is_user_blacklisted(security_manager, tenant, &login.username)
         && !is_client_id_blacklisted(security_manager, tenant, client_id)
-        && !is_ip_blacklisted(security_manager, tenant, source_ip)
+        && !is_ip_blacklisted(security_manager, tenant, source_ip)?)
 }
 
 pub async fn security_is_allow_publish(
@@ -91,16 +91,15 @@ pub async fn security_is_allow_publish(
     connection: &MQTTConnection,
     topic_name: &str,
     retain: bool,
-) -> bool {
+) -> Result<bool, MqttBrokerError> {
     let user = connection.login_user.clone().unwrap_or_default();
     if is_super_user(security_manager, &user) {
         record_mqtt_acl_success();
-        return true;
+        return Ok(true);
     }
 
     let source_ip = connection.source_ip.as_str();
 
-    // Message auth
     if is_client_id_acl_deny(
         security_manager,
         topic_name,
@@ -108,9 +107,9 @@ pub async fn security_is_allow_publish(
         &connection.client_id,
         source_ip,
         &EnumAclAction::Publish,
-    ) {
+    )? {
         record_mqtt_acl_failed();
-        return false;
+        return Ok(false);
     }
 
     if is_user_acl_deny(
@@ -120,12 +119,11 @@ pub async fn security_is_allow_publish(
         &user,
         source_ip,
         &EnumAclAction::Publish,
-    ) {
+    )? {
         record_mqtt_acl_failed();
-        return false;
+        return Ok(false);
     }
 
-    // Retain auth
     if retain {
         if is_client_id_acl_deny(
             security_manager,
@@ -134,9 +132,9 @@ pub async fn security_is_allow_publish(
             &connection.client_id,
             source_ip,
             &EnumAclAction::Retain,
-        ) {
+        )? {
             record_mqtt_acl_failed();
-            return false;
+            return Ok(false);
         }
 
         if is_user_acl_deny(
@@ -146,14 +144,14 @@ pub async fn security_is_allow_publish(
             &user,
             source_ip,
             &EnumAclAction::Retain,
-        ) {
+        )? {
             record_mqtt_acl_failed();
-            return false;
+            return Ok(false);
         }
     }
 
     record_mqtt_acl_success();
-    true
+    Ok(true)
 }
 
 pub async fn security_is_allow_subscribe(
@@ -161,7 +159,7 @@ pub async fn security_is_allow_subscribe(
     security_manager: &Arc<SecurityManager>,
     connection: &MQTTConnection,
     subscribe: &Subscribe,
-) -> bool {
+) -> Result<bool, MqttBrokerError> {
     let user = connection.login_user.clone().unwrap_or_default();
     let source_ip = connection.source_ip.as_str();
 
@@ -175,9 +173,9 @@ pub async fn security_is_allow_subscribe(
                 &connection.client_id,
                 source_ip,
                 &EnumAclAction::Subscribe,
-            ) {
+            )? {
                 record_mqtt_acl_failed();
-                return false;
+                return Ok(false);
             }
 
             if is_user_acl_deny(
@@ -187,12 +185,12 @@ pub async fn security_is_allow_subscribe(
                 &user,
                 source_ip,
                 &EnumAclAction::Subscribe,
-            ) {
+            )? {
                 record_mqtt_acl_failed();
-                return false;
+                return Ok(false);
             }
         }
     }
 
-    true
+    Ok(true)
 }

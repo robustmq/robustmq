@@ -340,7 +340,7 @@ impl SecurityMetadata {
         self.authn_list.insert(auth.uid.clone(), auth);
     }
 
-    pub fn get_authn(&self) -> Vec<(String, AuthnConfig)> {
+    pub fn authn_list(&self) -> Vec<(String, AuthnConfig)> {
         let mut authn_list: Vec<(String, AuthnConfig)> = self
             .authn_list
             .iter()

@@ -142,6 +142,7 @@ impl MqttService {
             &context.login,
         )
         .await
+        .unwrap_or(false)
         {
             return build_connect_ack_fail_packet(
                 &self.protocol,

@@ -16,6 +16,7 @@ use crate::{
     auth::common::{ip_match, topic_match},
     manager::SecurityManager,
 };
+use common_base::error::common::CommonError;
 use metadata_struct::auth::acl::{EnumAclAction, EnumAclPermission, SecurityAcl};
 use std::{net::SocketAddr, sync::Arc};
 
@@ -38,13 +39,13 @@ pub fn is_user_acl_deny(
     user: &str,
     source_ip: &str,
     action: &EnumAclAction,
-) -> bool {
+) -> Result<bool, CommonError> {
     if let Some(tenant_map) = security_manager.security_metadata.acl_user.get(tenant) {
         if let Some(acl_list) = tenant_map.get(user) {
             return check_for_deny(&acl_list, action, topic_name, source_ip);
         }
     }
-    false
+    Ok(false)
 }
 
 pub fn is_client_id_acl_deny(
@@ -54,13 +55,13 @@ pub fn is_client_id_acl_deny(
     client_id: &str,
     source_ip: &str,
     action: &EnumAclAction,
-) -> bool {
+) -> Result<bool, CommonError> {
     if let Some(tenant_map) = security_manager.security_metadata.acl_client_id.get(tenant) {
         if let Some(acl_list) = tenant_map.get(client_id) {
             return check_for_deny(&acl_list, action, topic_name, source_ip);
         }
     }
-    false
+    Ok(false)
 }
 
 fn check_for_deny(
@@ -68,7 +69,7 @@ fn check_for_deny(
     action: &EnumAclAction,
     topic_name: &str,
     source_ip: &str,
-) -> bool {
+) -> Result<bool, CommonError> {
     for acl in acl_list.iter() {
         if acl.permission != EnumAclPermission::Deny {
             continue;
@@ -77,11 +78,11 @@ fn check_for_deny(
             continue;
         }
 
-        if topic_match(topic_name, &acl.topic) && ip_match(source_ip, &acl.ip) {
-            return true;
+        if topic_match(topic_name, &acl.topic) && ip_match(source_ip, &acl.ip)? {
+            return Ok(true);
         }
     }
-    false
+    Ok(false)
 }
 
 #[cfg(test)]
@@ -132,31 +133,8 @@ mod tests {
             EnumAclPermission::Deny,
         ));
 
-        assert!(is_user_acl_deny(
-            &sm,
-            "sensor/data",
-            tenant,
-            user,
-            "1.2.3.4",
-            &EnumAclAction::Publish
-        ));
-
-        assert!(!is_user_acl_deny(
-            &sm,
-            "sensor/data",
-            tenant,
-            user,
-            "1.2.3.4",
-            &EnumAclAction::Subscribe
-        ));
-
-        assert!(!is_user_acl_deny(
-            &sm,
-            "sensor/data",
-            tenant,
-            "other_user",
-            "1.2.3.4",
-            &EnumAclAction::Publish
-        ));
+        assert!(is_user_acl_deny(&sm, "sensor/data", tenant, user, "1.2.3.4", &EnumAclAction::Publish).unwrap());
+        assert!(!is_user_acl_deny(&sm, "sensor/data", tenant, user, "1.2.3.4", &EnumAclAction::Subscribe).unwrap());
+        assert!(!is_user_acl_deny(&sm, "sensor/data", tenant, "other_user", "1.2.3.4", &EnumAclAction::Publish).unwrap());
     }
 }
