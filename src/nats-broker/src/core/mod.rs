@@ -17,5 +17,4 @@ pub mod connection;
 pub mod dynamic_cache;
 pub mod error;
 pub mod keep_alive;
-pub mod shard;
 pub mod subject;

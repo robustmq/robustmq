@@ -27,5 +27,6 @@ pub fn process_pub(subject: &str, _reply_to: Option<&str>, _payload: &Bytes) -> 
     if Mq9Subject::is_mq9_subject(subject) {
         //todo
     }
+
     None
 }

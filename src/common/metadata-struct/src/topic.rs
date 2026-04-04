@@ -97,6 +97,7 @@ impl Topic {
 
     /// Overrides the storage name list directly, bypassing the auto-generated names.
     pub fn with_storage_name_list(mut self, storage_name_list: HashMap<u32, String>) -> Self {
+        self.partition = storage_name_list.len() as u32;
         self.storage_name_list = storage_name_list;
         self
     }

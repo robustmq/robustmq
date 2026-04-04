@@ -773,6 +773,10 @@ fn default_nats_ping_send_chunk() -> usize {
     10000
 }
 
+fn default_nats_core_shard_num() -> usize {
+    10
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct NatsRuntime {
     #[serde(default = "default_nats_tcp_port")]
@@ -796,6 +800,9 @@ pub struct NatsRuntime {
     /// Number of connections processed per spawn batch when sending PINGs.
     #[serde(default = "default_nats_ping_send_chunk")]
     pub ping_send_chunk: usize,
+    /// Number of internal core shards to initialize on startup.
+    #[serde(default = "default_nats_core_shard_num")]
+    pub core_shard_num: usize,
 }
 
 impl Default for NatsRuntime {
@@ -810,6 +817,7 @@ impl Default for NatsRuntime {
             ping_interval: default_nats_ping_interval(),
             ping_max: default_nats_ping_max(),
             ping_send_chunk: default_nats_ping_send_chunk(),
+            core_shard_num: default_nats_core_shard_num(),
         }
     }
 }
