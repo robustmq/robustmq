@@ -761,6 +761,18 @@ fn default_nats_auth_required() -> bool {
     false
 }
 
+fn default_nats_ping_interval() -> u64 {
+    60
+}
+
+fn default_nats_ping_max() -> u64 {
+    3
+}
+
+fn default_nats_ping_send_chunk() -> usize {
+    10000
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct NatsRuntime {
     #[serde(default = "default_nats_tcp_port")]
@@ -775,6 +787,15 @@ pub struct NatsRuntime {
     pub max_payload: u64,
     #[serde(default = "default_nats_auth_required")]
     pub auth_required: bool,
+    /// Interval in seconds between server-initiated PINGs.
+    #[serde(default = "default_nats_ping_interval")]
+    pub ping_interval: u64,
+    /// Maximum number of unanswered PINGs before the connection is closed.
+    #[serde(default = "default_nats_ping_max")]
+    pub ping_max: u64,
+    /// Number of connections processed per spawn batch when sending PINGs.
+    #[serde(default = "default_nats_ping_send_chunk")]
+    pub ping_send_chunk: usize,
 }
 
 impl Default for NatsRuntime {
@@ -786,6 +807,9 @@ impl Default for NatsRuntime {
             wss_port: default_nats_wss_port(),
             max_payload: default_nats_max_payload(),
             auth_required: default_nats_auth_required(),
+            ping_interval: default_nats_ping_interval(),
+            ping_max: default_nats_ping_max(),
+            ping_send_chunk: default_nats_ping_send_chunk(),
         }
     }
 }

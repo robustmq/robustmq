@@ -15,5 +15,6 @@
 pub mod cache;
 pub mod connection;
 pub mod dynamic_cache;
+pub mod keep_alive;
 pub mod shard;
 pub mod storage;

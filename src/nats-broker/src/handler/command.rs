@@ -53,6 +53,10 @@ impl Command for NatsHandlerCommand {
         let packet = robust_packet.get_nats_packet()?;
         let connection_id = tcp_connection.connection_id;
 
+        // Refresh heartbeat on every inbound client message.
+        self.connection_manager
+            .report_heartbeat(connection_id, common_base::tools::now_second());
+
         let resp_packet = match &packet {
             NatsPacket::Connect(req) => connect::process_connect(req),
             NatsPacket::Pub {
@@ -73,8 +77,8 @@ impl Command for NatsHandlerCommand {
                 self.storage_driver_manager.clone(),
             ),
             NatsPacket::Unsub { sid, max_msgs } => subscribe::process_unsub(sid, *max_msgs),
-            NatsPacket::Ping => ping::process_ping(),
-            NatsPacket::Pong => ping::process_pong(),
+            NatsPacket::Ping => ping::process_ping(connection_id, &self.connection_manager),
+            NatsPacket::Pong => ping::process_pong(connection_id, &self.connection_manager),
             // Server-to-client packets; not expected from a client
             NatsPacket::Info(_) | NatsPacket::Msg { .. } | NatsPacket::Ok | NatsPacket::Err(_) => {
                 None
