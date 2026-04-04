@@ -23,9 +23,9 @@ use common_config::config::{
 };
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
-use strum_macros::Display;
+use strum_macros::{Display, EnumString};
 
-#[derive(Default, Display, Clone, Copy)]
+#[derive(Default, Display, EnumString, Clone, Copy)]
 pub enum ClusterDynamicConfig {
     #[default]
     MqttSlowSubscribeConfig,

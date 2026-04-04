@@ -12,4 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub struct NatsSubscribe {}
+use common_base::{error::common::CommonError, utils::serialize};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct NatsSubscribe {
+    pub tenant: String,
+    pub connect_id: u64,
+    pub client_id: String,
+    pub sid: String,
+    pub subject: String,
+    pub queue_group: String,
+    pub create_time: u64,
+}
+
+impl NatsSubscribe {
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
+    }
+}

@@ -7,6 +7,10 @@ service NatsService {
   rpc ListNatsSubject(ListNatsSubjectRequest) returns (stream ListNatsSubjectReply) {}
   rpc CreateNatsSubject(CreateNatsSubjectRequest) returns (CreateNatsSubjectReply) {}
   rpc DeleteNatsSubject(DeleteNatsSubjectRequest) returns (DeleteNatsSubjectReply) {}
+
+  rpc CreateNatsSubscribe(CreateNatsSubscribeRequest) returns (CreateNatsSubscribeReply) {}
+  rpc DeleteNatsSubscribe(DeleteNatsSubscribeRequest) returns (DeleteNatsSubscribeReply) {}
+  rpc ListNatsSubscribe(ListNatsSubscribeRequest) returns (stream ListNatsSubscribeReply) {}
 }
 
 message ListNatsSubjectRequest {
@@ -31,3 +35,31 @@ message DeleteNatsSubjectRequest {
 }
 
 message DeleteNatsSubjectReply {}
+
+message CreateNatsSubscribeRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  repeated bytes subscribes = 2;
+}
+
+message CreateNatsSubscribeReply {}
+
+message DeleteNatsSubscribeRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  repeated NatsSubscribeKey keys = 2;
+}
+
+message NatsSubscribeKey {
+  string client_id = 1;
+  string sid = 2;
+}
+
+message DeleteNatsSubscribeReply {}
+
+message ListNatsSubscribeRequest {
+  string tenant = 1;
+  string client_id = 2;
+}
+
+message ListNatsSubscribeReply {
+  bytes subscribe = 1;
+}

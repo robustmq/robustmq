@@ -26,6 +26,7 @@ use meta_service::server::service_nats::GrpcNatsService;
 use meta_service::MetaServiceServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
 use mqtt_broker::server::inner::GrpcInnerServices;
+use nats_broker::broker::NatsBrokerServerParams;
 use protocol::broker::broker_common::broker_common_service_server::BrokerCommonServiceServer;
 use protocol::broker::broker_mqtt::broker_mqtt_service_server::BrokerMqttServiceServer;
 use protocol::broker::broker_storage::broker_storage_service_server::BrokerStorageServiceServer;
@@ -47,6 +48,7 @@ const SLOW_GRPC_WARN_THRESHOLD_MS: f64 = 2000.0;
 pub async fn start_grpc_server(
     place_params: MetaServiceServerParams,
     mqtt_params: MqttBrokerServerParams,
+    nats_params: NatsBrokerServerParams,
     engine_params: StorageEngineParams,
     grpc_port: u32,
 ) -> Result<(), CommonError> {
@@ -69,6 +71,7 @@ pub async fn start_grpc_server(
         .add_service(
             BrokerCommonServiceServer::new(GrpcBrokerCommonService::new(
                 mqtt_params.clone(),
+                nats_params.clone(),
                 engine_params.clone(),
             ))
             .max_decoding_message_size(grpc_max_decoding_message_size),

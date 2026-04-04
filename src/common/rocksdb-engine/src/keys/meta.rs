@@ -336,3 +336,21 @@ pub fn storage_key_nats_subject_tenant_prefix(tenant: &str) -> String {
 pub fn storage_key_nats_subject_prefix() -> String {
     format!("{}nats/subject/", PREFIX_META)
 }
+
+#[inline]
+pub fn storage_key_nats_subscribe(tenant: &str, client_id: &str, sid: &str) -> String {
+    format!(
+        "{}nats/subscribe/{}/{}/{}",
+        PREFIX_META, tenant, client_id, sid
+    )
+}
+
+#[inline]
+pub fn storage_key_nats_subscribe_tenant_prefix(tenant: &str) -> String {
+    format!("{}nats/subscribe/{}/", PREFIX_META, tenant)
+}
+
+#[inline]
+pub fn storage_key_nats_subscribe_prefix() -> String {
+    format!("{}nats/subscribe/", PREFIX_META)
+}

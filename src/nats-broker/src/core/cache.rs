@@ -17,6 +17,7 @@ use broker_core::cache::NodeCacheManager;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::nats::subject::NatsSubject;
+use metadata_struct::nats::subscribe::NatsSubscribe;
 use std::sync::Arc;
 
 pub struct NatsCacheManager {
@@ -31,6 +32,9 @@ pub struct NatsCacheManager {
 
     // ("{tenant}/{name}", NatsSubject)
     pub subject_info: DashMap<String, NatsSubject>,
+
+    // ("{client_id}/{sid}", NatsSubscribe)
+    pub subscribe_info: DashMap<String, NatsSubscribe>,
 }
 
 impl NatsCacheManager {
@@ -40,6 +44,7 @@ impl NatsCacheManager {
             client_pool,
             connection_info: DashMap::with_capacity(1024),
             subject_info: DashMap::with_capacity(256),
+            subscribe_info: DashMap::with_capacity(256),
         }
     }
 
@@ -95,6 +100,31 @@ impl NatsCacheManager {
     pub fn list_subjects_by_tenant(&self, tenant: &str) -> Vec<NatsSubject> {
         let prefix = format!("{}/", tenant);
         self.subject_info
+            .iter()
+            .filter(|e| e.key().starts_with(&prefix))
+            .map(|e| e.value().clone())
+            .collect()
+    }
+
+    // subscribe
+    pub fn add_subscribe(&self, subscribe: NatsSubscribe) {
+        let key = format!("{}/{}", subscribe.client_id, subscribe.sid);
+        self.subscribe_info.insert(key, subscribe);
+    }
+
+    pub fn remove_subscribe(&self, client_id: &str, sid: &str) {
+        let key = format!("{}/{}", client_id, sid);
+        self.subscribe_info.remove(&key);
+    }
+
+    pub fn get_subscribe(&self, client_id: &str, sid: &str) -> Option<NatsSubscribe> {
+        let key = format!("{}/{}", client_id, sid);
+        self.subscribe_info.get(&key).map(|e| e.value().clone())
+    }
+
+    pub fn list_subscribes_by_client(&self, client_id: &str) -> Vec<NatsSubscribe> {
+        let prefix = format!("{}/", client_id);
+        self.subscribe_info
             .iter()
             .filter(|e| e.key().starts_with(&prefix))
             .map(|e| e.value().clone())

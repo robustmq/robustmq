@@ -96,6 +96,8 @@ pub enum StorageDataType {
     // nats
     NatsSetSubject,
     NatsDeleteSubject,
+    NatsSetSubscribe,
+    NatsDeleteSubscribe,
 }
 
 impl fmt::Display for StorageDataType {
@@ -165,6 +167,8 @@ impl fmt::Display for StorageDataType {
 
             StorageDataType::NatsSetSubject => write!(f, "NatsSetSubject"),
             StorageDataType::NatsDeleteSubject => write!(f, "NatsDeleteSubject"),
+            StorageDataType::NatsSetSubscribe => write!(f, "NatsSetSubscribe"),
+            StorageDataType::NatsDeleteSubscribe => write!(f, "NatsDeleteSubscribe"),
         }
     }
 }

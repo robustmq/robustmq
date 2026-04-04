@@ -25,6 +25,7 @@ use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::nats::subject::NatsSubject;
+use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use metadata_struct::storage::{
@@ -519,6 +520,33 @@ pub async fn send_notify_by_delete_nats_subject(
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::NatsSubject,
         serialize::serialize(&subject)?,
+    )
+    .await
+}
+
+// NATS Subscribe
+pub async fn send_notify_by_add_nats_subscribe(
+    call_manager: &Arc<NodeCallManager>,
+    subscribe: NatsSubscribe,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::NatsSubscribe,
+        serialize::serialize(&subscribe)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_nats_subscribe(
+    call_manager: &Arc<NodeCallManager>,
+    subscribe: NatsSubscribe,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::NatsSubscribe,
+        serialize::serialize(&subscribe)?,
     )
     .await
 }

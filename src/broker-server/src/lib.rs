@@ -55,6 +55,7 @@ mod cluster_service;
 pub mod common;
 mod connection;
 mod daemon;
+mod dynamic_cache;
 mod engine;
 mod grpc;
 mod kafka;
