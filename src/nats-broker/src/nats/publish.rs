@@ -69,6 +69,7 @@ async fn process_pub0(
         &ctx.cache_manager,
         &ctx.storage_driver_manager,
         &ctx.client_pool,
+        &ctx.subscribe_manager,
         &tenant,
         subject,
     )

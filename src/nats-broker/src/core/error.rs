@@ -23,6 +23,9 @@ pub enum NatsBrokerError {
 
     #[error("{0}")]
     CommonError(String),
+
+    #[error("Connection not found: {0}")]
+    ConnectionNotFound(u64),
 }
 
 impl From<CommonError> for NatsBrokerError {

@@ -14,6 +14,7 @@
 
 use crate::core::cache::NatsCacheManager;
 use crate::nats::{connect, ping, publish, subscribe};
+use crate::subscribe::NatsSubscribeManager;
 use async_trait::async_trait;
 use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
@@ -32,6 +33,7 @@ pub struct NatsProcessContext {
     pub connect_id: u64,
     pub connection_manager: Arc<ConnectionManager>,
     pub cache_manager: Arc<NatsCacheManager>,
+    pub subscribe_manager: Arc<NatsSubscribeManager>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub client_pool: Arc<ClientPool>,
     pub security_manager: Arc<SecurityManager>,
@@ -41,6 +43,7 @@ pub struct NatsProcessContext {
 pub struct NatsHandlerCommand {
     pub connection_manager: Arc<ConnectionManager>,
     pub cache_manager: Arc<NatsCacheManager>,
+    pub subscribe_manager: Arc<NatsSubscribeManager>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub client_pool: Arc<ClientPool>,
     pub security_manager: Arc<SecurityManager>,
@@ -50,6 +53,7 @@ impl NatsHandlerCommand {
     pub fn new(
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<NatsCacheManager>,
+        subscribe_manager: Arc<NatsSubscribeManager>,
         storage_driver_manager: Arc<StorageDriverManager>,
         client_pool: Arc<ClientPool>,
         security_manager: Arc<SecurityManager>,
@@ -57,6 +61,7 @@ impl NatsHandlerCommand {
         NatsHandlerCommand {
             connection_manager,
             cache_manager,
+            subscribe_manager,
             storage_driver_manager,
             client_pool,
             security_manager,
@@ -83,6 +88,7 @@ impl Command for NatsHandlerCommand {
             connect_id: connection_id,
             connection_manager: self.connection_manager.clone(),
             cache_manager: self.cache_manager.clone(),
+            subscribe_manager: self.subscribe_manager.clone(),
             storage_driver_manager: self.storage_driver_manager.clone(),
             client_pool: self.client_pool.clone(),
             security_manager: self.security_manager.clone(),
@@ -143,6 +149,7 @@ impl Command for NatsHandlerCommand {
 pub fn create_command(
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<NatsCacheManager>,
+    subscribe_manager: Arc<NatsSubscribeManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     client_pool: Arc<ClientPool>,
     security_manager: Arc<SecurityManager>,
@@ -150,6 +157,7 @@ pub fn create_command(
     Arc::new(Box::new(NatsHandlerCommand::new(
         connection_manager,
         cache_manager,
+        subscribe_manager,
         storage_driver_manager,
         client_pool,
         security_manager,

@@ -15,6 +15,10 @@
 use crate::{
     core::{cache::NatsCacheManager, keep_alive::NatsClientKeepAlive},
     server::{NatsServer, NatsServerParams},
+    subscribe::{
+        directly_push::DirectlyPushManager, parse::start_parse_thread,
+        queue_push::QueuePushManager, NatsSubscribeManager,
+    },
 };
 use broker_core::cache::NodeCacheManager;
 use common_base::task::{TaskKind, TaskSupervisor};
@@ -26,12 +30,13 @@ use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc};
 use tracing::{error, info};
 
 #[derive(Clone)]
 pub struct NatsBrokerServerParams {
     pub cache_manager: Arc<NatsCacheManager>,
+    pub subscribe_manager: Arc<NatsSubscribeManager>,
     pub connection_manager: Arc<ConnectionManager>,
     pub client_pool: Arc<ClientPool>,
     pub broker_cache: Arc<NodeCacheManager>,
@@ -46,6 +51,10 @@ pub struct NatsBrokerServerParams {
 pub struct NatsBrokerServer {
     server: NatsServer,
     keep_alive: NatsClientKeepAlive,
+    cache_manager: Arc<NatsCacheManager>,
+    subscribe_manager: Arc<NatsSubscribeManager>,
+    connection_manager: Arc<ConnectionManager>,
+    storage_driver_manager: Arc<StorageDriverManager>,
     task_supervisor: Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
 }
@@ -65,19 +74,65 @@ impl NatsBrokerServer {
             task_supervisor: params.task_supervisor.clone(),
             stop_sx: params.stop_sx.clone(),
             request_channel: params.request_channel,
-            storage_driver_manager: params.storage_driver_manager,
+            storage_driver_manager: params.storage_driver_manager.clone(),
+            subscribe_manager: params.subscribe_manager.clone(),
+            security_manager: params.security_manager,
         });
-        let keep_alive = NatsClientKeepAlive::new(params.connection_manager);
+        let keep_alive = NatsClientKeepAlive::new(
+            params.connection_manager.clone(),
+            params.cache_manager.clone(),
+            params.subscribe_manager.clone(),
+        );
         NatsBrokerServer {
             server,
             keep_alive,
+            cache_manager: params.cache_manager,
+            subscribe_manager: params.subscribe_manager,
+            connection_manager: params.connection_manager,
+            storage_driver_manager: params.storage_driver_manager,
             task_supervisor: params.task_supervisor,
             stop_sx: params.stop_sx,
         }
     }
 
     pub async fn start(&self) {
-        // Start the keep-alive monitor in a background task.
+        // Start parse thread
+        let (parse_tx, parse_rx) = mpsc::channel(1024);
+        self.subscribe_manager.set_parse_sender(parse_tx).await;
+
+        let cache_manager = self.cache_manager.clone();
+        let subscribe_manager = self.subscribe_manager.clone();
+        let stop_sx = self.stop_sx.clone();
+        self.task_supervisor
+            .spawn(TaskKind::NATSSubscribeParse.to_string(), async move {
+                start_parse_thread(cache_manager, subscribe_manager, parse_rx, stop_sx).await;
+            });
+
+        // Start directly push manager
+        let directly_push = DirectlyPushManager::new(
+            self.subscribe_manager.clone(),
+            self.connection_manager.clone(),
+            self.storage_driver_manager.clone(),
+        );
+        let stop_sx = self.stop_sx.clone();
+        self.task_supervisor
+            .spawn(TaskKind::NATSSubscribePush.to_string(), async move {
+                directly_push.start(&stop_sx).await;
+            });
+
+        // Start queue push manager
+        let queue_push = QueuePushManager::new(
+            self.subscribe_manager.clone(),
+            self.connection_manager.clone(),
+            self.storage_driver_manager.clone(),
+        );
+        let stop_sx = self.stop_sx.clone();
+        self.task_supervisor
+            .spawn(TaskKind::NATSQueuePush.to_string(), async move {
+                queue_push.start(&stop_sx).await;
+            });
+
+        // Start keep-alive monitor
         let keep_alive = self.keep_alive.clone();
         let stop_sx = self.stop_sx.clone();
         self.task_supervisor

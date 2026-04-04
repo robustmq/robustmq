@@ -13,6 +13,10 @@
 // limitations under the License.
 
 use crate::core::{cache::NatsCacheManager, error::NatsBrokerError};
+use crate::subscribe::{
+    parse::{ParseAction, ParseSubscribeData},
+    NatsSubscribeManager,
+};
 use common_config::broker::broker_config;
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
@@ -45,6 +49,7 @@ pub async fn try_get_or_init_subject(
     cache_manager: &Arc<NatsCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_pool: &Arc<ClientPool>,
+    subscribe_manager: &Arc<NatsSubscribeManager>,
     tenant: &str,
     subject: &str,
 ) -> Result<NatSubject, NatsBrokerError> {
@@ -71,6 +76,11 @@ pub async fn try_get_or_init_subject(
         &topic,
     )
     .await?;
+
+    // Notify parse thread so existing subscriptions can be matched against this new topic.
+    let data = ParseSubscribeData::new_topic(ParseAction::Add, topic.clone());
+    subscribe_manager.send_parse_event(data).await;
+
     Ok(topic)
 }
 

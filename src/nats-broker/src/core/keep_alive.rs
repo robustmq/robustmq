@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::NatsCacheManager;
+use crate::subscribe::NatsSubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::error::ResultCommonError;
@@ -39,11 +41,21 @@ const ERR_SEND_TIMEOUT: Duration = Duration::from_secs(1);
 #[derive(Clone)]
 pub struct NatsClientKeepAlive {
     connection_manager: Arc<ConnectionManager>,
+    cache_manager: Arc<NatsCacheManager>,
+    subscribe_manager: Arc<NatsSubscribeManager>,
 }
 
 impl NatsClientKeepAlive {
-    pub fn new(connection_manager: Arc<ConnectionManager>) -> Self {
-        NatsClientKeepAlive { connection_manager }
+    pub fn new(
+        connection_manager: Arc<ConnectionManager>,
+        cache_manager: Arc<NatsCacheManager>,
+        subscribe_manager: Arc<NatsSubscribeManager>,
+    ) -> Self {
+        NatsClientKeepAlive {
+            connection_manager,
+            cache_manager,
+            subscribe_manager,
+        }
     }
 
     pub async fn start_heartbeat_check(&self, stop_send: &broadcast::Sender<bool>) {
@@ -109,9 +121,13 @@ impl NatsClientKeepAlive {
         // Close all stale connections in a single background task (fire and forget).
         if !stale_ids.is_empty() {
             let cm = self.connection_manager.clone();
+            let cache = self.cache_manager.clone();
+            let subscribe = self.subscribe_manager.clone();
             tokio::spawn(async move {
                 for connect_id in stale_ids {
                     close_stale_connection(&cm, connect_id).await;
+                    cache.remove_connection(connect_id);
+                    subscribe.remove_by_connection(connect_id);
                 }
             });
         }

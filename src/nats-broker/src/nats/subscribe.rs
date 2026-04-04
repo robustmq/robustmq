@@ -20,6 +20,7 @@ use protocol::nats::packet::NatsPacket;
 
 use crate::core::error::NatsProtocolError;
 use crate::handler::command::NatsProcessContext;
+use crate::subscribe::parse::{ParseAction, ParseSubscribeData};
 
 pub fn process_sub(
     ctx: &NatsProcessContext,
@@ -42,9 +43,14 @@ pub fn process_sub(
         create_time: now_second(),
     };
 
-    ctx.cache_manager.add_subscribe(subscribe);
+    ctx.subscribe_manager.add_subscribe(subscribe.clone());
 
-    // SUB has no response packet
+    let data = ParseSubscribeData::new_subscribe(ParseAction::Add, subscribe);
+    let subscribe_manager = ctx.subscribe_manager.clone();
+    tokio::spawn(async move {
+        subscribe_manager.send_parse_event(data).await;
+    });
+
     None
 }
 
@@ -59,6 +65,14 @@ pub fn process_unsub(
         ));
     }
 
-    ctx.cache_manager.remove_subscribe(ctx.connect_id, sid);
+    if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
+        let data = ParseSubscribeData::new_subscribe(ParseAction::Remove, subscribe);
+        let subscribe_manager = ctx.subscribe_manager.clone();
+        tokio::spawn(async move {
+            subscribe_manager.send_parse_event(data).await;
+        });
+    }
+
+    ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
     None
 }
