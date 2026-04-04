@@ -30,6 +30,7 @@ mod tests {
         CreateMqttTenantReq, DeleteMqttTenantReq, MqttTenantListReq, MqttTenantListRow,
     };
     use admin_server::mqtt::topic::TopicListReq;
+    use admin_server::mqtt::user::{CreateUserReq, DeleteUserReq};
     use admin_server::tool::PageReplyData;
     use common_base::uuid::unique_id;
     use metadata_struct::mqtt::topic::Topic;
@@ -43,11 +44,11 @@ mod tests {
         let tenant_name = format!("test_tenant_{}", unique_id());
 
         create_tenant(&admin_client, &tenant_name).await;
-        sleep(Duration::from_millis(500)).await;
+        sleep(Duration::from_millis(2000)).await;
         assert_eq!(get_tenant(&admin_client, &tenant_name).await, 1);
 
         delete_tenant(&admin_client, &tenant_name).await;
-        sleep(Duration::from_millis(500)).await;
+        sleep(Duration::from_millis(2000)).await;
         assert_eq!(get_tenant(&admin_client, &tenant_name).await, 0);
     }
 
@@ -95,9 +96,12 @@ mod tests {
         let topic = format!("/tenant_test/{}", unique_id());
         let client_id = build_client_id("custom_tenant_pubsub");
         let message = "custom_tenant_pubsub_test message".to_string();
+        let username = format!("tenant_user_{}", unique_id());
+        let user_pwd = unique_id();
 
         create_tenant(&admin_client, &tenant_name).await;
-        sleep(Duration::from_millis(500)).await;
+        create_user(&admin_client, &tenant_name, &username, &user_pwd).await;
+        sleep(Duration::from_millis(2000)).await;
 
         let cli = {
             let mut props = build_v5_pros();
@@ -109,6 +113,8 @@ mod tests {
                     mqtt_version: 5,
                     client_id: client_id.clone(),
                     addr: broker_addr_by_type("tcp"),
+                    user_name: username.clone(),
+                    password: user_pwd.clone(),
                     ..Default::default()
                 },
                 props,
@@ -141,6 +147,7 @@ mod tests {
         )
         .await;
 
+        delete_user(&admin_client, &tenant_name, &username).await;
         delete_tenant(&admin_client, &tenant_name).await;
     }
 
@@ -151,15 +158,20 @@ mod tests {
         let topic = format!("/tenant_test/{}", unique_id());
         let client_id = build_client_id("custom_tenant_username");
         let message = "custom_tenant_username_test message".to_string();
+        let username = format!("tenant_user_{}", unique_id());
+        let user_pwd = unique_id();
 
         create_tenant(&admin_client, &tenant_name).await;
-        sleep(Duration::from_millis(500)).await;
+        create_user(&admin_client, &tenant_name, &username, &user_pwd).await;
+        sleep(Duration::from_millis(2000)).await;
 
+        // username format: "<tenant>@<real_username>" encodes tenant via prefix
         let cli = connect_server(&ClientTestProperties {
             mqtt_version: 5,
             client_id: client_id.clone(),
             addr: broker_addr_by_type("tcp"),
-            user_name: format!("{}@admin", tenant_name),
+            user_name: format!("{}@{}", tenant_name, username),
+            password: user_pwd.clone(),
             ..Default::default()
         });
 
@@ -185,6 +197,7 @@ mod tests {
         )
         .await;
 
+        delete_user(&admin_client, &tenant_name, &username).await;
         delete_tenant(&admin_client, &tenant_name).await;
     }
 
@@ -355,6 +368,33 @@ mod tests {
         admin_client
             .delete_mqtt_tenant(&DeleteMqttTenantReq {
                 tenant_name: tenant_name.to_string(),
+            })
+            .await
+            .unwrap();
+    }
+
+    async fn create_user(
+        admin_client: &AdminHttpClient,
+        tenant: &str,
+        username: &str,
+        password: &str,
+    ) {
+        admin_client
+            .create_user(&CreateUserReq {
+                tenant: tenant.to_string(),
+                username: username.to_string(),
+                password: password.to_string(),
+                is_superuser: false,
+            })
+            .await
+            .unwrap();
+    }
+
+    async fn delete_user(admin_client: &AdminHttpClient, tenant: &str, username: &str) {
+        admin_client
+            .delete_user(&DeleteUserReq {
+                tenant: tenant.to_string(),
+                username: username.to_string(),
             })
             .await
             .unwrap();
