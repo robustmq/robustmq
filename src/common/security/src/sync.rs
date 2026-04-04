@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::manager::SecurityManager;
 use common_base::{
-    error::{common::CommonError, ResultCommonError},
+    error::ResultCommonError,
     task::{TaskKind, TaskSupervisor},
     tools::loop_select_ticket,
 };
 use std::sync::Arc;
 use tokio::sync::broadcast;
-
-use crate::manager::SecurityManager;
 
 pub fn start_auth_sync_thread(
     security_manager: Arc<SecurityManager>,
@@ -47,8 +46,11 @@ fn sync_user_cache(
 ) {
     task_supervisor.spawn(TaskKind::MQTTSecurityUserSync.to_string(), async move {
         let ac_fn = async || -> ResultCommonError {
-            if let Err(e) = security_manager.update_user_cache().await {
-                return Err(CommonError::CommonError(e.to_string()));
+            for driver in security_manager.drivers_list()? {
+                let list = driver.read_all_user().await?;
+                for user in list.iter() {
+                    security_manager.security_metadata.add_user(user.clone());
+                }
             }
             Ok(())
         };
@@ -63,8 +65,11 @@ fn sync_acl_cache(
 ) {
     task_supervisor.spawn(TaskKind::MQTTSecurityAclSync.to_string(), async move {
         let ac_fn = async || -> ResultCommonError {
-            if let Err(e) = security_manager.update_acl_cache().await {
-                return Err(CommonError::CommonError(e.to_string()));
+            for driver in security_manager.drivers_list()? {
+                let list = driver.read_all_acl().await?;
+                for acl in list.iter() {
+                    security_manager.security_metadata.add_acl(acl.to_owned());
+                }
             }
             Ok(())
         };
@@ -81,8 +86,13 @@ fn sync_blacklist_cache(
         TaskKind::MQTTSecurityBlacklistSync.to_string(),
         async move {
             let ac_fn = async || -> ResultCommonError {
-                if let Err(e) = security_manager.update_blacklist_cache().await {
-                    return Err(CommonError::CommonError(e.to_string()));
+                for driver in security_manager.drivers_list()? {
+                    let list = driver.read_all_blacklist().await?;
+                    for blacklist in list.iter() {
+                        security_manager
+                            .security_metadata
+                            .add_blacklist(blacklist.to_owned());
+                    }
                 }
                 Ok(())
             };

@@ -30,10 +30,8 @@ pub fn ip_match(source_ip_addr: &str, ip_role: &str) -> bool {
         }
     };
 
-    if source_ip_addr == ip_role {
-        if ip_role.parse::<IpAddr>().is_ok() {
-            return true;
-        }
+    if source_ip_addr == ip_role && ip_role.parse::<IpAddr>().is_ok() {
+        return true;
     }
 
     match IpNet::from_str(ip_role) {

@@ -36,7 +36,6 @@ use common_base::task::{TaskKind, TaskSupervisor};
 use common_config::broker::broker_config;
 use common_security::login::super_user::try_init_system_user;
 use common_security::manager::SecurityManager;
-use common_security::third::sync::start_auth_sync_thread;
 use connector::manager::ConnectorManager;
 use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
@@ -90,7 +89,6 @@ pub struct MqttBrokerServer {
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     connector_manager: Arc<ConnectorManager>,
-    security_manager: Arc<SecurityManager>,
     delay_message_manager: Arc<DelayMessageManager>,
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -154,7 +152,6 @@ impl MqttBrokerServer {
             subscribe_manager: params.subscribe_manager,
             connector_manager: params.connector_manager,
             connection_manager: params.connection_manager,
-            security_manager: params.security_manager,
             delay_message_manager: params.delay_message_manager,
             server,
             metrics_cache_manager: params.metrics_cache_manager,
@@ -242,13 +239,6 @@ impl MqttBrokerServer {
             Box::pin(async move {
                 keep_alive.start_heartbeat_check(&raw_stop_send).await;
             }),
-        );
-
-        // sync auth info
-        start_auth_sync_thread(
-            self.security_manager.clone(),
-            self.task_supervisor.clone(),
-            self.stop.clone(),
         );
 
         // flapping detect

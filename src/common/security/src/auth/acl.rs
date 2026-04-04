@@ -125,13 +125,38 @@ mod tests {
         let tenant = "t1";
         let user = "user1";
 
-        sm.security_metadata
-            .add_acl(make_acl(tenant, user, EnumAclAction::Publish, EnumAclPermission::Deny));
+        sm.security_metadata.add_acl(make_acl(
+            tenant,
+            user,
+            EnumAclAction::Publish,
+            EnumAclPermission::Deny,
+        ));
 
-        assert!(is_user_acl_deny(&sm, "sensor/data", tenant, user, "1.2.3.4", &EnumAclAction::Publish));
+        assert!(is_user_acl_deny(
+            &sm,
+            "sensor/data",
+            tenant,
+            user,
+            "1.2.3.4",
+            &EnumAclAction::Publish
+        ));
 
-        assert!(!is_user_acl_deny(&sm, "sensor/data", tenant, user, "1.2.3.4", &EnumAclAction::Subscribe));
+        assert!(!is_user_acl_deny(
+            &sm,
+            "sensor/data",
+            tenant,
+            user,
+            "1.2.3.4",
+            &EnumAclAction::Subscribe
+        ));
 
-        assert!(!is_user_acl_deny(&sm, "sensor/data", tenant, "other_user", "1.2.3.4", &EnumAclAction::Publish));
+        assert!(!is_user_acl_deny(
+            &sm,
+            "sensor/data",
+            tenant,
+            "other_user",
+            "1.2.3.4",
+            &EnumAclAction::Publish
+        ));
     }
 }

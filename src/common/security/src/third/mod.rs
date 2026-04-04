@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::third::storage_trait::AuthStorageAdapter;
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::auth::storage::StorageConfig;
 use std::str::FromStr;
@@ -25,10 +26,7 @@ pub mod postgresql;
 pub mod redis;
 pub mod storage_trait;
 pub mod storage_type;
-pub mod sync;
 pub use storage_type::AuthDataStorageType;
-
-use crate::third::storage_trait::AuthStorageAdapter;
 
 pub fn build_storage_driver(
     storage_config: &StorageConfig,

@@ -20,4 +20,5 @@ pub mod login;
 pub mod manager;
 pub mod metadata;
 pub mod storage;
+pub mod sync;
 pub mod third;
