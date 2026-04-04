@@ -145,9 +145,7 @@ async fn add_blacklist_4_connection_jitter(
         desc: "Ban due to connection jitter ".to_string(),
     };
 
-    security_manager
-        .metadata
-        .add_blacklist(client_id_blacklist);
+    security_manager.metadata.add_blacklist(client_id_blacklist);
 
     let local_storage = LocalStorage::new(rocksdb_engine_handler.clone());
     let log = BanLog {

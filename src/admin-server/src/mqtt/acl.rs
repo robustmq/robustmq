@@ -158,11 +158,7 @@ pub async fn acl_list(
         None,
         None,
     );
-    let data: Vec<SecurityAcl> = state
-        .mqtt_context
-        .security_manager
-        .metadata
-        .get_all_acl();
+    let data: Vec<SecurityAcl> = state.mqtt_context.security_manager.metadata.get_all_acl();
 
     let acls_list: Vec<AclListRow> = data
         .into_iter()

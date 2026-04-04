@@ -190,12 +190,8 @@ mod tests {
         ));
         assert!(is_user_blacklisted(&sm, tenant, "alice"));
 
-        sm.metadata.add_blacklist(make_blacklist(
-            tenant,
-            "bob",
-            EnumBlackListType::User,
-            past,
-        ));
+        sm.metadata
+            .add_blacklist(make_blacklist(tenant, "bob", EnumBlackListType::User, past));
         assert!(!is_user_blacklisted(&sm, tenant, "bob"));
 
         sm.metadata.add_blacklist(make_blacklist(

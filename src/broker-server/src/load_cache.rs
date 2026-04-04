@@ -158,9 +158,7 @@ async fn load_mqtt_cache(
         .await
         .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load blacklist: {}", e)))?;
     for blacklist in blacklist_list.iter() {
-        security_manager
-            .metadata
-            .add_blacklist(blacklist.clone());
+        security_manager.metadata.add_blacklist(blacklist.clone());
     }
 
     let topic_storage = TopicStorage::new(client_pool.clone());
