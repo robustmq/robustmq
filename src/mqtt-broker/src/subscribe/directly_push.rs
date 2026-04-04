@@ -139,7 +139,7 @@ impl DirectlyPushManager {
                                 row.group_name.clone(),
                             ));
                         } else {
-                            warn!(
+                            debug!(
                                 "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}],error message: {}",
                                 row.client_id, row.group_name, row.topic_name, row.sub_path, e
                             );
