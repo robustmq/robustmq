@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use crate::{
-    core::cache::NatsCacheManager,
+    core::{cache::NatsCacheManager, keep_alive::NatsClientKeepAlive},
     server::{NatsServer, NatsServerParams},
 };
 use broker_core::cache::NodeCacheManager;
-use common_base::task::TaskSupervisor;
+use common_base::task::{TaskKind, TaskSupervisor};
 use common_config::broker::broker_config;
 use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
@@ -45,6 +45,8 @@ pub struct NatsBrokerServerParams {
 
 pub struct NatsBrokerServer {
     server: NatsServer,
+    keep_alive: NatsClientKeepAlive,
+    task_supervisor: Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
 }
 
@@ -56,22 +58,33 @@ impl NatsBrokerServer {
             tls_port: conf.nats_runtime.tls_port,
             ws_port: conf.nats_runtime.ws_port,
             wss_port: conf.nats_runtime.wss_port,
-            connection_manager: params.connection_manager,
+            connection_manager: params.connection_manager.clone(),
             client_pool: params.client_pool,
             broker_cache: params.broker_cache,
             global_limit_manager: params.global_limit_manager,
-            task_supervisor: params.task_supervisor,
+            task_supervisor: params.task_supervisor.clone(),
             stop_sx: params.stop_sx.clone(),
             request_channel: params.request_channel,
             storage_driver_manager: params.storage_driver_manager,
         });
+        let keep_alive = NatsClientKeepAlive::new(params.connection_manager);
         NatsBrokerServer {
             server,
+            keep_alive,
+            task_supervisor: params.task_supervisor,
             stop_sx: params.stop_sx,
         }
     }
 
     pub async fn start(&self) {
+        // Start the keep-alive monitor in a background task.
+        let keep_alive = self.keep_alive.clone();
+        let stop_sx = self.stop_sx.clone();
+        self.task_supervisor
+            .spawn(TaskKind::NATSClientKeepAlive.to_string(), async move {
+                keep_alive.start_heartbeat_check(&stop_sx).await;
+            });
+
         if let Err(e) = self.server.start().await {
             error!("NATS broker server failed to start: {}", e);
             std::process::exit(1);

@@ -16,7 +16,7 @@ use crate::core::connection::NatsConnection;
 use broker_core::cache::NodeCacheManager;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::nats::subject::NatsSubject;
+use metadata_struct::nats::subscribe::NatsSubscribe;
 use std::sync::Arc;
 
 pub struct NatsCacheManager {
@@ -29,8 +29,8 @@ pub struct NatsCacheManager {
     // (connect_id, NatsConnection)
     pub connection_info: DashMap<u64, NatsConnection>,
 
-    // ("{tenant}/{name}", NatsSubject)
-    pub subject_info: DashMap<String, NatsSubject>,
+    // ("{client_id}/{sid}", NatsSubscribe)
+    pub subscribe_info: DashMap<String, NatsSubscribe>,
 }
 
 impl NatsCacheManager {
@@ -39,7 +39,7 @@ impl NatsCacheManager {
             node_cache,
             client_pool,
             connection_info: DashMap::with_capacity(1024),
-            subject_info: DashMap::with_capacity(256),
+            subscribe_info: DashMap::with_capacity(256),
         }
     }
 
@@ -76,25 +76,25 @@ impl NatsCacheManager {
             .unwrap_or(false)
     }
 
-    // subject
-    pub fn add_subject(&self, subject: NatsSubject) {
-        let key = format!("{}/{}", subject.tenant, subject.name);
-        self.subject_info.insert(key, subject);
+    // subscribe
+    pub fn add_subscribe(&self, subscribe: NatsSubscribe) {
+        let key = format!("{}/{}", subscribe.connect_id, subscribe.sid);
+        self.subscribe_info.insert(key, subscribe);
     }
 
-    pub fn remove_subject(&self, tenant: &str, name: &str) {
-        let key = format!("{}/{}", tenant, name);
-        self.subject_info.remove(&key);
+    pub fn remove_subscribe(&self, connect_id: u64, sid: &str) {
+        let key = format!("{}/{}", connect_id, sid);
+        self.subscribe_info.remove(&key);
     }
 
-    pub fn get_subject(&self, tenant: &str, name: &str) -> Option<NatsSubject> {
-        let key = format!("{}/{}", tenant, name);
-        self.subject_info.get(&key).map(|e| e.value().clone())
+    pub fn get_subscribe(&self, connect_id: u64, sid: &str) -> Option<NatsSubscribe> {
+        let key = format!("{}/{}", connect_id, sid);
+        self.subscribe_info.get(&key).map(|e| e.value().clone())
     }
 
-    pub fn list_subjects_by_tenant(&self, tenant: &str) -> Vec<NatsSubject> {
-        let prefix = format!("{}/", tenant);
-        self.subject_info
+    pub fn list_subscribes_by_connection(&self, connect_id: u64) -> Vec<NatsSubscribe> {
+        let prefix = format!("{}/", connect_id);
+        self.subscribe_info
             .iter()
             .filter(|e| e.key().starts_with(&prefix))
             .map(|e| e.value().clone())

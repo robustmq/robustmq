@@ -12,23 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::{error::common::CommonError, utils::serialize};
-use serde::{Deserialize, Serialize};
+use metadata_struct::tenant::DEFAULT_TENANT;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-pub struct NatsSubject {
-    pub tenant: String,
-    pub name: String,
-    pub ttl: u64,
-    pub create_time: u64,
-}
-
-impl NatsSubject {
-    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
-        serialize::serialize(self)
-    }
-
-    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
-        serialize::deserialize(data)
-    }
+pub fn get_tenant() -> String {
+    DEFAULT_TENANT.to_string()
 }

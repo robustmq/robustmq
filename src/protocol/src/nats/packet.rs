@@ -98,6 +98,15 @@ pub enum NatsPacket {
         reply_to: Option<String>,
         payload: Bytes,
     },
+    /// HMSG: server delivers a message with custom headers.
+    /// `headers` is the raw header block: `NATS/1.0[status]\r\n[Key: Value\r\n...]\r\n`.
+    HMsg {
+        subject: String,
+        sid: String,
+        reply_to: Option<String>,
+        headers: Bytes,
+        payload: Bytes,
+    },
     Ping,
     Pong,
     Ok,
@@ -108,6 +117,14 @@ pub enum NatsPacket {
     Pub {
         subject: String,
         reply_to: Option<String>,
+        payload: Bytes,
+    },
+    /// HPUB: publish with custom headers.
+    /// `headers` is the raw header block: `NATS/1.0\r\n[Key: Value\r\n...]\r\n`.
+    HPub {
+        subject: String,
+        reply_to: Option<String>,
+        headers: Bytes,
         payload: Bytes,
     },
     Sub {

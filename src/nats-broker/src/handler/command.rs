@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::NatsCacheManager;
 use crate::nats::{connect, ping, publish, subscribe};
 use async_trait::async_trait;
+use common_security::manager::SecurityManager;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
 use network_server::common::connection_manager::ConnectionManager;
@@ -25,19 +28,38 @@ use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
 #[derive(Clone)]
+pub struct NatsProcessContext {
+    pub connect_id: u64,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub cache_manager: Arc<NatsCacheManager>,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub security_manager: Arc<SecurityManager>,
+}
+
+#[derive(Clone)]
 pub struct NatsHandlerCommand {
     pub connection_manager: Arc<ConnectionManager>,
+    pub cache_manager: Arc<NatsCacheManager>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub security_manager: Arc<SecurityManager>,
 }
 
 impl NatsHandlerCommand {
     pub fn new(
         connection_manager: Arc<ConnectionManager>,
+        cache_manager: Arc<NatsCacheManager>,
         storage_driver_manager: Arc<StorageDriverManager>,
+        client_pool: Arc<ClientPool>,
+        security_manager: Arc<SecurityManager>,
     ) -> Self {
         NatsHandlerCommand {
             connection_manager,
+            cache_manager,
             storage_driver_manager,
+            client_pool,
+            security_manager,
         }
     }
 }
@@ -53,32 +75,62 @@ impl Command for NatsHandlerCommand {
         let packet = robust_packet.get_nats_packet()?;
         let connection_id = tcp_connection.connection_id;
 
+        // Refresh heartbeat on every inbound client message.
+        self.connection_manager
+            .report_heartbeat(connection_id, common_base::tools::now_second());
+
+        let ctx = NatsProcessContext {
+            connect_id: connection_id,
+            connection_manager: self.connection_manager.clone(),
+            cache_manager: self.cache_manager.clone(),
+            storage_driver_manager: self.storage_driver_manager.clone(),
+            client_pool: self.client_pool.clone(),
+            security_manager: self.security_manager.clone(),
+        };
+
         let resp_packet = match &packet {
-            NatsPacket::Connect(req) => connect::process_connect(req),
+            NatsPacket::Connect(req) => connect::process_connect(&ctx, req),
+
             NatsPacket::Pub {
                 subject,
                 reply_to,
                 payload,
-            } => publish::process_pub(subject, reply_to.as_deref(), payload),
+            } => publish::process_pub(&ctx, subject, reply_to.as_deref(), &None, payload).await,
+
+            NatsPacket::HPub {
+                subject,
+                reply_to,
+                headers,
+                payload,
+            } => {
+                publish::process_pub(
+                    &ctx,
+                    subject,
+                    reply_to.as_deref(),
+                    &Some(headers.clone()),
+                    payload,
+                )
+                .await
+            }
+
             NatsPacket::Sub {
                 subject,
                 queue_group,
                 sid,
-            } => subscribe::process_sub(
-                connection_id,
-                subject,
-                queue_group.as_deref(),
-                sid,
-                self.connection_manager.clone(),
-                self.storage_driver_manager.clone(),
-            ),
-            NatsPacket::Unsub { sid, max_msgs } => subscribe::process_unsub(sid, *max_msgs),
-            NatsPacket::Ping => ping::process_ping(),
-            NatsPacket::Pong => ping::process_pong(),
+            } => subscribe::process_sub(&ctx, subject, queue_group.as_deref(), sid),
+
+            NatsPacket::Unsub { sid, max_msgs } => subscribe::process_unsub(&ctx, sid, *max_msgs),
+
+            NatsPacket::Ping => ping::process_ping(connection_id, &self.connection_manager),
+
+            NatsPacket::Pong => ping::process_pong(connection_id, &self.connection_manager),
+
             // Server-to-client packets; not expected from a client
-            NatsPacket::Info(_) | NatsPacket::Msg { .. } | NatsPacket::Ok | NatsPacket::Err(_) => {
-                None
-            }
+            NatsPacket::Info(_)
+            | NatsPacket::Msg { .. }
+            | NatsPacket::HMsg { .. }
+            | NatsPacket::Ok
+            | NatsPacket::Err(_) => None,
         }?;
 
         Some(ResponsePackage::new(
@@ -90,10 +142,16 @@ impl Command for NatsHandlerCommand {
 
 pub fn create_command(
     connection_manager: Arc<ConnectionManager>,
+    cache_manager: Arc<NatsCacheManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
+    client_pool: Arc<ClientPool>,
+    security_manager: Arc<SecurityManager>,
 ) -> Arc<Box<dyn Command + Send + Sync>> {
     Arc::new(Box::new(NatsHandlerCommand::new(
         connection_manager,
+        cache_manager,
         storage_driver_manager,
+        client_pool,
+        security_manager,
     )))
 }

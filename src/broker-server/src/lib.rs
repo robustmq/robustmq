@@ -55,6 +55,7 @@ mod cluster_service;
 pub mod common;
 mod connection;
 mod daemon;
+mod dynamic_cache;
 mod engine;
 mod grpc;
 mod kafka;
@@ -418,7 +419,10 @@ impl BrokerServer {
                 )),
                 Some(nats_broker::handler::command::create_command(
                     self.connection_manager.clone(),
+                    self.nats_params.cache_manager.clone(),
                     self.nats_params.storage_driver_manager.clone(),
+                    self.nats_params.client_pool.clone(),
+                    self.nats_params.security_manager.clone(),
                 )),
             )
         } else {

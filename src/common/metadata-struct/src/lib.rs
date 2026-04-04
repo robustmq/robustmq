@@ -25,3 +25,4 @@ pub mod resource_config;
 pub mod schema;
 pub mod storage;
 pub mod tenant;
+pub mod topic;

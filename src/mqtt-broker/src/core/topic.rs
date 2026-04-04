@@ -17,13 +17,9 @@ use crate::core::cache::MQTTCacheManager;
 use crate::core::limit::topic_total_num_limit;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
-use common_base::tools::now_second;
-use common_base::uuid::unique_id;
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::{mqtt::topic::Topic, storage::shard::DEFAULT_MAX_SEGMENT_SIZE};
-
-use metadata_struct::storage::shard::{EngineShardConfig, DEFAULT_RETENTION_SEC};
+use metadata_struct::{mqtt::topic::Topic, topic::TopicSource};
 use protocol::mqtt::common::{Publish, PublishProperties};
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
@@ -172,30 +168,13 @@ pub async fn try_init_topic(
             )));
         }
 
-        let uid = unique_id();
-        let topic = Topic {
-            topic_id: uid.clone(),
-            tenant: tenant.to_string(),
-            topic_name: topic_name.to_string(),
-            storage_type: StorageType::EngineRocksDB,
-            partition: 1,
-            replication: 1,
-            storage_name_list: Topic::create_partition_name(&uid, 1),
-            create_time: now_second(),
-        };
-
-        let shard_config = EngineShardConfig {
-            replica_num: 1,
-            storage_type: StorageType::EngineRocksDB,
-            max_segment_size: DEFAULT_MAX_SEGMENT_SIZE,
-            retention_sec: DEFAULT_RETENTION_SEC,
-        };
+        let topic = Topic::new(tenant, topic_name, StorageType::EngineRocksDB)
+            .with_source(TopicSource::MQTT);
         create_topic_full(
             &cache_manager.node_cache,
             storage_driver_manager,
             client_pool,
             &topic,
-            &shard_config,
         )
         .await?;
         topic

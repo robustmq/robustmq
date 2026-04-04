@@ -17,10 +17,10 @@ mod tests {
     use bytes::Bytes;
     use common_base::{tools::now_second, uuid::unique_id};
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+    use common_config::storage::StorageType;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::{
-        mqtt::{retain_message::MQTTRetainMessage, topic::Topic},
-        tenant::DEFAULT_TENANT,
+        mqtt::retain_message::MQTTRetainMessage, tenant::DEFAULT_TENANT, topic::Topic,
     };
     use mqtt_broker::storage::topic::TopicStorage;
     use std::sync::Arc;
@@ -32,7 +32,7 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_pool);
         let topic_name: String = "test_password".to_string();
-        let topic = Topic::build_by_name(&topic_name);
+        let topic = Topic::new(DEFAULT_TENANT, &topic_name, StorageType::EngineMemory);
         topic_storage.create_topic(&topic).await.unwrap();
 
         let result = topic_storage
@@ -71,7 +71,7 @@ mod tests {
         let topic_name: String = unique_id();
         let content = "Robust Data".to_string();
 
-        let topic = Topic::build_by_name(&topic_name);
+        let topic = Topic::new(DEFAULT_TENANT, &topic_name, StorageType::EngineMemory);
         println!("{:?}", topic);
         topic_storage.create_topic(&topic).await.unwrap();
 

@@ -30,7 +30,7 @@ use mqtt_broker::storage::connector::ConnectorStorage;
 use mqtt_broker::storage::schema::SchemaStorage;
 use mqtt_broker::storage::topic::TopicStorage;
 use nats_broker::core::cache::NatsCacheManager;
-use nats_broker::storage::subject::NatsSubjectStorage;
+use nats_broker::storage::subscribe::NatsSubscribeStorage;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_engine::core::cache::StorageCacheManager;
@@ -226,12 +226,13 @@ pub async fn load_nats_cache(
     cache_manager: &Arc<NatsCacheManager>,
     client_pool: &Arc<ClientPool>,
 ) -> Result<(), CommonError> {
-    let storage = NatsSubjectStorage::new(client_pool.clone());
-    let subjects = storage.list("").await?;
-    let count = subjects.len();
-    for subject in subjects {
-        cache_manager.add_subject(subject);
+    let subscribe_storage = NatsSubscribeStorage::new(client_pool.clone());
+    let subscribes = subscribe_storage.list("", 0).await?;
+    let subscribe_count = subscribes.len();
+    for subscribe in subscribes {
+        cache_manager.add_subscribe(subscribe);
     }
-    info!("NATS cache loaded: subjects={}", count);
+
+    info!("NATS cache loaded: subscribes={}", subscribe_count);
     Ok(())
 }

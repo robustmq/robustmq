@@ -53,7 +53,7 @@ enum BrokerUpdateCacheResourceType {
   Tenant = 14;
   AutoSubscribeRule = 15;
   TopicRewriteRule = 16;
-  NatsSubject = 17;
+  NatsSubscribe = 17;
 }
 
 enum BrokerUpdateCacheActionType {

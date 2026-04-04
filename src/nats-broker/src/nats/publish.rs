@@ -12,20 +12,81 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::error::{NatsBrokerError, NatsProtocolError};
+use crate::core::subject::try_get_or_init_subject;
+use crate::core::tenant::get_tenant;
+use crate::handler::command::NatsProcessContext;
+use crate::storage::message::MessageStorage;
 use bytes::Bytes;
-use mq9_core::subject::Mq9Subject;
+use common_config::broker::broker_config;
+use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordProtocolDataNats};
 use protocol::nats::packet::NatsPacket;
 
-/// Handle a PUB packet from the client.
-///
-/// Responsibilities (all TODO):
-/// - Validate subject name
-/// - Look up all active subscriptions matching the subject (including wildcard)
-/// - Fan-out: deliver MSG to each matching subscriber connection
-/// - If reply_to is set, include it in the delivered MSG
-pub fn process_pub(subject: &str, _reply_to: Option<&str>, _payload: &Bytes) -> Option<NatsPacket> {
-    if Mq9Subject::is_mq9_subject(subject) {
-        //todo
+pub async fn process_pub(
+    ctx: &NatsProcessContext,
+    subject: &str,
+    reply_to: Option<&str>,
+    headers: &Option<Bytes>,
+    payload: &Bytes,
+) -> Option<NatsPacket> {
+    let connection = if let Some(connection) = ctx.cache_manager.get_connection(ctx.connect_id) {
+        connection.clone()
+    } else {
+        return None;
+    };
+
+    if broker_config().nats_runtime.auth_required && !connection.is_login {
+        return Some(NatsPacket::Err(
+            NatsProtocolError::AuthorizationViolation.message(),
+        ));
+    }
+
+    if let Err(e) = process_pub0(ctx, subject, reply_to, payload, headers).await {
+        if connection.verbose {
+            return Some(NatsPacket::Err(e.to_string()));
+        } else {
+            return None;
+        }
+    }
+
+    if connection.verbose {
+        return Some(NatsPacket::Ok);
     }
     None
+}
+
+async fn process_pub0(
+    ctx: &NatsProcessContext,
+    subject: &str,
+    reply_to: Option<&str>,
+    payload: &Bytes,
+    header: &Option<Bytes>,
+) -> Result<(), NatsBrokerError> {
+    let tenant = get_tenant();
+
+    try_get_or_init_subject(
+        &ctx.cache_manager,
+        &ctx.storage_driver_manager,
+        &ctx.client_pool,
+        &tenant,
+        subject,
+    )
+    .await?;
+
+    let message = MessageStorage::new(ctx.storage_driver_manager.clone());
+    let reply_to_string = reply_to.map(|rt| rt.to_string());
+
+    let tags = vec![subject.to_string()];
+    let record = AdapterWriteRecord::new(subject.to_string(), payload.clone())
+        .with_protocol_data(Some(StorageRecordProtocolData {
+            nats: Some(StorageRecordProtocolDataNats {
+                reply_to: reply_to_string,
+                header: header.clone(),
+            }),
+            mqtt: None,
+        }))
+        .with_tags(tags);
+    message.write(&tenant, subject, vec![record]).await?;
+    Ok(())
 }

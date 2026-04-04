@@ -12,15 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_config::broker::broker_config;
 use protocol::nats::packet::{ClientConnect, NatsPacket};
 
-/// Handle a CONNECT packet from the client.
-///
-/// Responsibilities (all TODO):
-/// - Validate auth_token / user+pass / nkey / jwt fields if auth_required
-/// - Record verbose / pedantic flags on the connection state
-/// - Enforce tls_required if configured
-/// - Reply +OK when verbose = true
-pub fn process_connect(_req: &ClientConnect) -> Option<NatsPacket> {
+use crate::core::connection::NatsConnection;
+use crate::core::error::NatsProtocolError;
+use crate::core::security::login_check;
+use crate::core::tenant::get_tenant;
+use crate::handler::command::NatsProcessContext;
+
+pub fn process_connect(ctx: &NatsProcessContext, req: &ClientConnect) -> Option<NatsPacket> {
+    let auth_required = broker_config().nats_runtime.auth_required;
+
+    // Step 1: auth
+    let authed = login_check(
+        &ctx.security_manager,
+        &get_tenant(),
+        auth_required,
+        req.user.as_deref(),
+        req.pass.as_deref(),
+    );
+
+    if !authed {
+        return Some(NatsPacket::Err(
+            NatsProtocolError::AuthorizationViolation.message(),
+        ));
+    }
+
+    // Step 2: save connection state (only after auth passes)
+    let mut connection = NatsConnection::new(ctx.connect_id, String::new());
+    connection.verbose = req.verbose;
+    connection.pedantic = req.pedantic;
+    connection.echo = req.echo.unwrap_or(true);
+    connection.headers = req.headers.unwrap_or(false);
+    connection.no_responders = req.no_responders.unwrap_or(false);
+    connection.protocol = req.protocol;
+    connection.client_name = req.name.clone();
+    connection.lang = req.lang.clone();
+    connection.version = req.version.clone();
+
+    if auth_required {
+        connection.login_success(req.user.clone().unwrap_or_default());
+    }
+
+    ctx.cache_manager.add_connection(connection);
+
+    // Step 3: reply
+    if req.verbose {
+        return Some(NatsPacket::Ok);
+    }
     None
 }

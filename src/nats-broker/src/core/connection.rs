@@ -30,8 +30,13 @@ pub struct NatsConnection {
     // Whether to enable strict subject/format validation (from CONNECT pedantic field)
     pub pedantic: bool,
 
-    // Whether the client requires TLS (from CONNECT tls_required field)
-    pub tls_required: bool,
+    // Client language (e.g. "go", "rust", "java")
+    pub lang: String,
+
+    // Client library version
+    pub version: String,
+
+    pub protocol: Option<u8>,
 
     // Whether to echo messages published by this client back to its own subscriptions
     pub echo: bool,
@@ -44,12 +49,6 @@ pub struct NatsConnection {
 
     // Client name for logging/debugging
     pub client_name: String,
-
-    // Client language (e.g. "go", "rust", "java")
-    pub lang: String,
-
-    // Client library version
-    pub version: String,
 
     // Mark whether the connection has completed authentication
     pub is_login: bool,
@@ -68,13 +67,13 @@ impl NatsConnection {
             source_ip_addr,
             verbose: false,
             pedantic: false,
-            tls_required: false,
             echo: true,
             headers: true,
             no_responders: false,
             client_name: String::new(),
             lang: String::new(),
             version: String::new(),
+            protocol: None,
             is_login: false,
             login_user: None,
             create_time: now_second(),

@@ -237,7 +237,9 @@ mod tests {
         build_sub_path_regex, client_unavailable_error, decode_share_info, decode_sub_path,
         get_sub_topic_name_list, is_error_by_suback, is_match_sub_and_topic, is_wildcards, min_qos,
     };
-    use metadata_struct::mqtt::topic::Topic;
+    use common_config::storage::StorageType;
+    use metadata_struct::tenant::DEFAULT_TENANT;
+    use metadata_struct::topic::Topic;
     use protocol::mqtt::common::{QoS, SubAck, SubscribeReasonCode};
 
     #[tokio::test]
@@ -401,15 +403,21 @@ mod tests {
     #[tokio::test]
     async fn get_sub_topic_list_test() {
         let cache = test_build_mqtt_cache_manager().await;
-        cache
-            .node_cache
-            .add_topic(&Topic::build_by_name("/test/topic1"));
-        cache
-            .node_cache
-            .add_topic(&Topic::build_by_name("/test/topic2"));
-        cache
-            .node_cache
-            .add_topic(&Topic::build_by_name("/other/topic"));
+        cache.node_cache.add_topic(&Topic::new(
+            DEFAULT_TENANT,
+            "/test/topic1",
+            StorageType::EngineMemory,
+        ));
+        cache.node_cache.add_topic(&Topic::new(
+            DEFAULT_TENANT,
+            "/test/topic2",
+            StorageType::EngineMemory,
+        ));
+        cache.node_cache.add_topic(&Topic::new(
+            DEFAULT_TENANT,
+            "/other/topic",
+            StorageType::EngineMemory,
+        ));
 
         // Exact match
         let result = get_sub_topic_name_list(&cache, "/test/topic1").await;

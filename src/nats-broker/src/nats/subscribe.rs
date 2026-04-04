@@ -12,79 +12,53 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+use common_base::tools::now_second;
+use common_config::broker::broker_config;
+use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::tenant::DEFAULT_TENANT;
-use network_server::common::connection_manager::ConnectionManager;
 use protocol::nats::packet::NatsPacket;
-use protocol::robust::{
-    NatsWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol,
-    RobustMQWrapperExtend,
-};
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
-use storage_adapter::driver::StorageDriverManager;
-use tokio::time::sleep;
-use tracing::error;
+
+use crate::core::error::NatsProtocolError;
+use crate::handler::command::NatsProcessContext;
 
 pub fn process_sub(
-    connection_id: u64,
+    ctx: &NatsProcessContext,
     subject: &str,
-    _queue_group: Option<&str>,
+    queue_group: Option<&str>,
     sid: &str,
-    connection_manager: Arc<ConnectionManager>,
-    storage_driver_manager: Arc<StorageDriverManager>,
 ) -> Option<NatsPacket> {
-    let subject = subject.to_string();
-    let sid = sid.to_string();
-    let read_config = AdapterReadConfig::new();
+    if broker_config().nats_runtime.auth_required && !ctx.cache_manager.is_login(ctx.connect_id) {
+        return Some(NatsPacket::Err(
+            NatsProtocolError::AuthorizationViolation.message(),
+        ));
+    }
 
-    tokio::spawn(async move {
-        // key: shard_name (matches StorageRecord.metadata.shard), value: next offset to read
-        let mut shard_offsets: HashMap<String, u64> = HashMap::new();
-        loop {
-            match storage_driver_manager
-                .read_by_offset(DEFAULT_TENANT, &subject, &shard_offsets, &read_config)
-                .await
-            {
-                Ok(records) if records.is_empty() => {
-                    sleep(Duration::from_millis(100)).await;
-                }
-                Ok(records) => {
-                    for record in &records {
-                        shard_offsets
-                            .insert(record.metadata.shard.clone(), record.metadata.offset + 1);
-                        let msg = NatsPacket::Msg {
-                            subject: subject.clone(),
-                            sid: sid.clone(),
-                            reply_to: None,
-                            payload: record.data.clone(),
-                        };
-                        let wrapper = RobustMQPacketWrapper {
-                            protocol: RobustMQProtocol::NATS,
-                            extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
-                            packet: RobustMQPacket::NATS(msg),
-                        };
-                        if let Err(e) = connection_manager
-                            .write_tcp_frame(connection_id, wrapper)
-                            .await
-                        {
-                            error!(connection_id, "NATS subscribe push failed: {}", e);
-                            return;
-                        }
-                    }
-                }
-                Err(_) => {
-                    sleep(Duration::from_millis(1000)).await;
-                }
-            }
-        }
-    });
+    let subscribe = NatsSubscribe {
+        tenant: DEFAULT_TENANT.to_string(),
+        connect_id: ctx.connect_id,
+        sid: sid.to_string(),
+        subject: subject.to_string(),
+        queue_group: queue_group.unwrap_or_default().to_string(),
+        create_time: now_second(),
+    };
 
-    // SUB has no immediate response
+    ctx.cache_manager.add_subscribe(subscribe);
+
+    // SUB has no response packet
     None
 }
 
-pub fn process_unsub(_sid: &str, _max_msgs: Option<u32>) -> Option<NatsPacket> {
+pub fn process_unsub(
+    ctx: &NatsProcessContext,
+    sid: &str,
+    _max_msgs: Option<u32>,
+) -> Option<NatsPacket> {
+    if broker_config().nats_runtime.auth_required && !ctx.cache_manager.is_login(ctx.connect_id) {
+        return Some(NatsPacket::Err(
+            NatsProtocolError::AuthorizationViolation.message(),
+        ));
+    }
+
+    ctx.cache_manager.remove_subscribe(ctx.connect_id, sid);
     None
 }

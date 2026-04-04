@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::dynamic_cache::update_cluster_cache_metadata;
 use common_base::error::{common::CommonError, ResultCommonError};
 use mqtt_broker::{
     broker::MqttBrokerServerParams, core::dynamic_cache::update_mqtt_cache_metadata,
+};
+use nats_broker::{
+    broker::NatsBrokerServerParams, core::dynamic_cache::update_nats_cache_metadata,
 };
 use protocol::broker::broker_common::{
     broker_common_service_server::BrokerCommonService, BrokerUpdateCacheResourceType,
@@ -26,13 +30,19 @@ use tracing::warn;
 
 pub struct GrpcBrokerCommonService {
     mqtt_params: MqttBrokerServerParams,
+    nats_params: NatsBrokerServerParams,
     storage_params: StorageEngineParams,
 }
 
 impl GrpcBrokerCommonService {
-    pub fn new(mqtt_params: MqttBrokerServerParams, storage_params: StorageEngineParams) -> Self {
+    pub fn new(
+        mqtt_params: MqttBrokerServerParams,
+        nats_params: NatsBrokerServerParams,
+        storage_params: StorageEngineParams,
+    ) -> Self {
         GrpcBrokerCommonService {
             mqtt_params,
+            nats_params,
             storage_params,
         }
     }
@@ -46,7 +56,14 @@ impl BrokerCommonService for GrpcBrokerCommonService {
     ) -> Result<Response<UpdateCacheReply>, Status> {
         let req = request.into_inner();
         for record in req.records.iter() {
-            if let Err(e) = update_cache(&self.mqtt_params, &self.storage_params, record).await {
+            if let Err(e) = update_cache(
+                &self.mqtt_params,
+                &self.nats_params,
+                &self.storage_params,
+                record,
+            )
+            .await
+            {
                 warn!(
                     "Failed to update cache for resource type {:?}, action: {:?}, error: {:?}",
                     record.resource_type(),
@@ -62,20 +79,18 @@ impl BrokerCommonService for GrpcBrokerCommonService {
 
 async fn update_cache(
     mqtt_params: &MqttBrokerServerParams,
+    nats_params: &NatsBrokerServerParams,
     storage_params: &StorageEngineParams,
     record: &UpdateCacheRecord,
 ) -> ResultCommonError {
     match record.resource_type() {
         // MQTT Broker
         BrokerUpdateCacheResourceType::Session
-        | BrokerUpdateCacheResourceType::User
         | BrokerUpdateCacheResourceType::Subscribe
         | BrokerUpdateCacheResourceType::Topic
         | BrokerUpdateCacheResourceType::Connector
         | BrokerUpdateCacheResourceType::Schema
         | BrokerUpdateCacheResourceType::SchemaResource
-        | BrokerUpdateCacheResourceType::Acl
-        | BrokerUpdateCacheResourceType::Blacklist
         | BrokerUpdateCacheResourceType::AutoSubscribeRule
         | BrokerUpdateCacheResourceType::TopicRewriteRule => {
             if let Err(e) = update_mqtt_cache_metadata(
@@ -94,19 +109,15 @@ async fn update_cache(
             }
         }
 
-        // Cluster
+        // Cluster — Node, Config, Tenant, User, Acl, Blacklist
         BrokerUpdateCacheResourceType::ClusterResourceConfig
-        | BrokerUpdateCacheResourceType::Node => {}
-
-        // Tenant
-        BrokerUpdateCacheResourceType::Tenant => {
-            if let Err(e) = update_mqtt_cache_metadata(
-                &mqtt_params.cache_manager,
-                &mqtt_params.connector_manager,
-                &mqtt_params.subscribe_manager,
-                &mqtt_params.schema_manager,
-                &mqtt_params.storage_driver_manager,
-                &mqtt_params.metrics_cache_manager,
+        | BrokerUpdateCacheResourceType::Node
+        | BrokerUpdateCacheResourceType::Tenant
+        | BrokerUpdateCacheResourceType::User
+        | BrokerUpdateCacheResourceType::Acl
+        | BrokerUpdateCacheResourceType::Blacklist => {
+            if let Err(e) = update_cluster_cache_metadata(
+                &mqtt_params.cache_manager.node_cache,
                 &mqtt_params.security_manager,
                 record,
             )
@@ -117,7 +128,11 @@ async fn update_cache(
         }
 
         // NATS
-        BrokerUpdateCacheResourceType::NatsSubject => {}
+        BrokerUpdateCacheResourceType::NatsSubscribe => {
+            if let Err(e) = update_nats_cache_metadata(&nats_params.cache_manager, record).await {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
 
         // Storage Engine
         BrokerUpdateCacheResourceType::Shard

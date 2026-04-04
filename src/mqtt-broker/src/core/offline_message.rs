@@ -122,6 +122,7 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
     )
     .with_protocol_data(Some(StorageRecordProtocolData {
         mqtt: Some(mqtt_data),
+        nats: None,
     }));
 
     save_simple_message(

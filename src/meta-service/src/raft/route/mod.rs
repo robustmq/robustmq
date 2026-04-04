@@ -307,13 +307,14 @@ impl DataRoute {
                 Ok(None)
             }
 
-            // nats subject
-            StorageDataType::NatsSetSubject => {
-                self.route_nats.set_subject(storage_data.value.clone())?;
+            // nats subscribe
+            StorageDataType::NatsSetSubscribe => {
+                self.route_nats.set_subscribe(storage_data.value.clone())?;
                 Ok(None)
             }
-            StorageDataType::NatsDeleteSubject => {
-                self.route_nats.delete_subject(storage_data.value.clone())?;
+            StorageDataType::NatsDeleteSubscribe => {
+                self.route_nats
+                    .delete_subscribe(storage_data.value.clone())?;
                 Ok(None)
             }
         }

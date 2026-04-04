@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use protocol::meta::meta_service_nats::{
-    CreateNatsSubjectReply, CreateNatsSubjectRequest, DeleteNatsSubjectReply,
-    DeleteNatsSubjectRequest, ListNatsSubjectReply, ListNatsSubjectRequest,
+    CreateNatsSubscribeReply, CreateNatsSubscribeRequest, DeleteNatsSubscribeReply,
+    DeleteNatsSubscribeRequest, ListNatsSubscribeReply, ListNatsSubscribeRequest,
 };
 use tonic::Streaming;
 
@@ -34,22 +34,22 @@ macro_rules! generate_nats_service_call {
 }
 
 generate_nats_service_call!(
-    placement_list_nats_subject,
-    ListNatsSubjectRequest,
-    Streaming<ListNatsSubjectReply>,
-    ListNatsSubject
+    placement_create_nats_subscribe,
+    CreateNatsSubscribeRequest,
+    CreateNatsSubscribeReply,
+    CreateNatsSubscribe
 );
 
 generate_nats_service_call!(
-    placement_create_nats_subject,
-    CreateNatsSubjectRequest,
-    CreateNatsSubjectReply,
-    CreateNatsSubject
+    placement_delete_nats_subscribe,
+    DeleteNatsSubscribeRequest,
+    DeleteNatsSubscribeReply,
+    DeleteNatsSubscribe
 );
 
 generate_nats_service_call!(
-    placement_delete_nats_subject,
-    DeleteNatsSubjectRequest,
-    DeleteNatsSubjectReply,
-    DeleteNatsSubject
+    placement_list_nats_subscribe,
+    ListNatsSubscribeRequest,
+    Streaming<ListNatsSubscribeReply>,
+    ListNatsSubscribe
 );

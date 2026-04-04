@@ -154,6 +154,7 @@ pub struct StorageRecord {
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct StorageRecordProtocolData {
     pub mqtt: Option<StorageRecordProtocolDataMqtt>,
+    pub nats: Option<StorageRecordProtocolDataNats>,
 }
 
 impl StorageRecordProtocolData {}
@@ -168,4 +169,10 @@ pub struct StorageRecordProtocolDataMqtt {
     pub correlation_data: Option<Bytes>,
     pub content_type: Option<String>,
     pub user_properties: Vec<(String, String)>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct StorageRecordProtocolDataNats {
+    pub reply_to: Option<String>,
+    pub header: Option<Bytes>,
 }

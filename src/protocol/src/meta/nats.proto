@@ -4,30 +4,35 @@ package meta.service.nats;
 import "meta/validate.proto";
 
 service NatsService {
-  rpc ListNatsSubject(ListNatsSubjectRequest) returns (stream ListNatsSubjectReply) {}
-  rpc CreateNatsSubject(CreateNatsSubjectRequest) returns (CreateNatsSubjectReply) {}
-  rpc DeleteNatsSubject(DeleteNatsSubjectRequest) returns (DeleteNatsSubjectReply) {}
+  rpc CreateNatsSubscribe(CreateNatsSubscribeRequest) returns (CreateNatsSubscribeReply) {}
+  rpc DeleteNatsSubscribe(DeleteNatsSubscribeRequest) returns (DeleteNatsSubscribeReply) {}
+  rpc ListNatsSubscribe(ListNatsSubscribeRequest) returns (stream ListNatsSubscribeReply) {}
 }
 
-message ListNatsSubjectRequest {
+message CreateNatsSubscribeRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  repeated bytes subscribes = 2;
+}
+
+message CreateNatsSubscribeReply {}
+
+message DeleteNatsSubscribeRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  repeated NatsSubscribeKey keys = 2;
+}
+
+message NatsSubscribeKey {
+  uint64 connect_id = 1;
+  string sid = 2;
+}
+
+message DeleteNatsSubscribeReply {}
+
+message ListNatsSubscribeRequest {
   string tenant = 1;
-  string name = 2;
+  uint64 connect_id = 2;
 }
 
-message ListNatsSubjectReply {
-  bytes subject = 1;
+message ListNatsSubscribeReply {
+  bytes subscribe = 1;
 }
-
-message CreateNatsSubjectRequest {
-  string tenant = 1 [(validate.rules).string.min_len = 1];
-  bytes subject = 2 [(validate.rules).bytes.min_len = 1];
-}
-
-message CreateNatsSubjectReply {}
-
-message DeleteNatsSubjectRequest {
-  string tenant = 1 [(validate.rules).string.min_len = 1];
-  string name = 2 [(validate.rules).string.min_len = 1];
-}
-
-message DeleteNatsSubjectReply {}

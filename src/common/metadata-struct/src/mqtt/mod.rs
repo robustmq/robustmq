@@ -20,5 +20,5 @@ pub mod lastwill;
 pub mod retain_message;
 pub mod session;
 pub mod subscribe;
-pub mod topic;
+pub use crate::topic;
 pub mod topic_rewrite_rule;

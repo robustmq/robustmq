@@ -28,11 +28,18 @@ impl BrokerServer {
     pub fn start_grpc_server(&self) {
         let place_params = self.meta_params.clone();
         let mqtt_params = self.mqtt_params.clone();
+        let nats_params = self.nats_params.clone();
         let engine_params = self.engine_params.clone();
         let grpc_port = self.config.grpc_port;
         self.server_runtime.spawn(Box::pin(async move {
-            if let Err(e) =
-                start_grpc_server(place_params, mqtt_params, engine_params, grpc_port).await
+            if let Err(e) = start_grpc_server(
+                place_params,
+                mqtt_params,
+                nats_params,
+                engine_params,
+                grpc_port,
+            )
+            .await
             {
                 error!("Failed to start GRPC server: {}", e);
                 std::process::exit(1);

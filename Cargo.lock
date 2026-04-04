@@ -1025,6 +1025,7 @@ dependencies = [
  "protocol",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "strum_macros 0.28.0",
  "tokio",
  "tracing",
@@ -4999,6 +5000,7 @@ name = "nats-broker"
 version = "0.3.7"
 dependencies = [
  "async-trait",
+ "axum 0.8.8",
  "broker-core",
  "bytes",
  "common-base",
@@ -5012,7 +5014,9 @@ dependencies = [
  "protocol",
  "rate-limit",
  "storage-adapter",
+ "thiserror 2.0.18",
  "tokio",
+ "tokio-util",
  "tonic 0.14.5",
  "tracing",
 ]
