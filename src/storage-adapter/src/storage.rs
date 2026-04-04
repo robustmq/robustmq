@@ -25,11 +25,12 @@ use metadata_struct::adapter::adapter_offset::{AdapterOffsetStrategy, AdapterSha
 use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
-use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
+use metadata_struct::tenant::DEFAULT_TENANT;
+use metadata_struct::topic::Topic;
 use rocksdb_engine::test::test_rocksdb_instance;
 use std::sync::Arc;
 use storage_engine::clients::manager::ClientConnectionManager;
@@ -144,7 +145,7 @@ pub async fn test_build_storage_driver_manager() -> Result<Arc<StorageDriverMana
 }
 
 pub fn test_add_topic(storage_driver_manager: &Arc<StorageDriverManager>, topic_name: &str) {
-    let topic = Topic::build_by_name(topic_name);
+    let topic = Topic::new(DEFAULT_TENANT, topic_name, StorageType::EngineMemory);
     storage_driver_manager.broker_cache.add_topic(&topic);
 
     let shard_name = Topic::build_storage_name(&topic.topic_id, 0);

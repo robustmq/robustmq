@@ -26,8 +26,9 @@ use crate::{
     storage::codec::StorageEnginePacket,
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum RobustMQProtocol {
+    #[default]
     MQTT3,
     MQTT4,
     MQTT5,

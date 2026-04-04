@@ -17,14 +17,11 @@ use crate::core::{
 };
 use broker_core::cache::NodeCacheManager;
 use common_base::utils::serialize;
-use common_base::{tools::now_second, uuid::unique_id};
 use common_config::storage::StorageType;
 use connector::storage::message::MessageStorage;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
-    mqtt::topic::Topic,
-    storage::{adapter_record::AdapterWriteRecord, shard::EngineShardConfig},
-    tenant::DEFAULT_TENANT,
+    mqtt::topic::Topic, storage::adapter_record::AdapterWriteRecord, tenant::DEFAULT_TENANT,
 };
 use node_call::{NodeCallData, NodeCallManager};
 use prost::Message;
@@ -60,33 +57,13 @@ pub async fn init_qos2_inner_topic(
         return Ok(());
     }
 
-    let uid = unique_id();
-    let topic = Topic {
-        topic_id: uid.clone(),
-        tenant: DEFAULT_TENANT.to_string(),
-        topic_name: DELAY_QUEUE_MESSAGE_TOPIC.to_string(),
-        storage_type: StorageType::EngineRocksDB,
-        partition: 1,
-        replication: 1,
-        storage_name_list: Topic::create_partition_name(&uid, 1),
-        create_time: now_second(),
-    };
-    let shard_config = EngineShardConfig {
-        replica_num: 1,
-        retention_sec: 86400,
-        storage_type: StorageType::EngineRocksDB,
-        max_segment_size: 1024 * 1024 * 1024,
-    };
+    let topic = Topic::new(
+        DEFAULT_TENANT,
+        DELAY_QUEUE_MESSAGE_TOPIC,
+        StorageType::EngineRocksDB,
+    );
 
-    create_topic_full(
-        broker_cache,
-        storage_driver_manager,
-        client_pool,
-        &topic,
-        &shard_config,
-    )
-    .await?;
-
+    create_topic_full(broker_cache, storage_driver_manager, client_pool, &topic).await?;
     Ok(())
 }
 

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{sync::Arc, time::Duration};
-
 use crate::driver::StorageDriverManager;
 use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
@@ -21,6 +19,7 @@ use common_config::broker::broker_config;
 use grpc_clients::{meta::mqtt::call::placement_create_topic, pool::ClientPool};
 use metadata_struct::{mqtt::topic::Topic, storage::shard::EngineShardConfig};
 use protocol::meta::meta_service_mqtt::CreateTopicRequest;
+use std::{sync::Arc, time::Duration};
 use tokio::time::{sleep, timeout};
 
 pub async fn create_topic_full(
@@ -28,7 +27,6 @@ pub async fn create_topic_full(
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_pool: &Arc<ClientPool>,
     topic: &Topic,
-    shard_config: &EngineShardConfig,
 ) -> Result<(), CommonError> {
     let conf = broker_config();
     let request = CreateTopicRequest {
@@ -59,9 +57,15 @@ pub async fn create_topic_full(
         )));
     }
 
-    // todo create topic message storage
+    // create topic message storage
+    let shard_config = EngineShardConfig {
+        replica_num: topic.replication,
+        storage_type: topic.storage_type,
+        max_segment_size: topic.config.max_segment_size,
+        retention_sec: topic.config.retention_sec,
+    };
     storage_driver_manager
-        .create_storage_resource(&topic.tenant, &topic.topic_name, shard_config)
+        .create_storage_resource(&topic.tenant, &topic.topic_name, &shard_config)
         .await?;
     Ok(())
 }

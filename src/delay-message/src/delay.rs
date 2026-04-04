@@ -15,14 +15,12 @@
 use crate::manager::DelayMessageManager;
 use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
-use common_base::tools::now_second;
 use common_base::utils::serialize::serialize;
-use common_base::uuid::unique_id;
 use common_config::storage::StorageType;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::tenant::DEFAULT_TENANT;
-use metadata_struct::{delay_info::DelayMessageIndexInfo, storage::shard::EngineShardConfig};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use storage_adapter::topic::create_topic_full;
@@ -140,29 +138,12 @@ pub(crate) async fn init_inner_topic(
             continue;
         }
 
-        let uid = unique_id();
-        let topic = Topic {
-            topic_id: uid.clone(),
-            tenant: DEFAULT_TENANT.to_string(),
-            topic_name: topic_name.to_string(),
-            storage_type: StorageType::EngineRocksDB,
-            partition: 1,
-            replication: 1,
-            storage_name_list: Topic::create_partition_name(&uid, 1),
-            create_time: now_second(),
-        };
-        let shard_config = EngineShardConfig {
-            replica_num: 1,
-            retention_sec: 86400,
-            storage_type: StorageType::EngineRocksDB,
-            max_segment_size: 1024 * 1024 * 1024,
-        };
+        let topic = Topic::new(DEFAULT_TENANT, &topic_name, StorageType::EngineRocksDB);
         create_topic_full(
             broker_cache,
             &delay_message_manager.storage_driver_manager,
             &delay_message_manager.client_pool,
             &topic,
-            &shard_config,
         )
         .await?;
     }
