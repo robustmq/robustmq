@@ -14,27 +14,27 @@
 
 use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;
-use network_server::common::connection_manager::ConnectionManager;
 use protocol::nats::packet::NatsPacket;
 use protocol::robust::{
     NatsWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol,
     RobustMQWrapperExtend,
 };
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::Duration;
-use storage_adapter::driver::StorageDriverManager;
 use tokio::time::sleep;
 use tracing::error;
 
+use crate::handler::command::NatsProcessContext;
+
 pub fn process_sub(
-    connection_id: u64,
+    ctx: &NatsProcessContext,
     subject: &str,
     _queue_group: Option<&str>,
     sid: &str,
-    connection_manager: Arc<ConnectionManager>,
-    storage_driver_manager: Arc<StorageDriverManager>,
 ) -> Option<NatsPacket> {
+    let connection_id = ctx.connect_id;
+    let connection_manager = ctx.connection_manager.clone();
+    let storage_driver_manager = ctx.storage_driver_manager.clone();
     let subject = subject.to_string();
     let sid = sid.to_string();
     let read_config = AdapterReadConfig::new();

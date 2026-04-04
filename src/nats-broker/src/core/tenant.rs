@@ -12,5 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod message;
-pub mod subscribe;
+use metadata_struct::tenant::DEFAULT_TENANT;
+
+pub fn get_tenant() -> String {
+    DEFAULT_TENANT.to_string()
+}

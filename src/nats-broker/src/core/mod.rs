@@ -18,3 +18,4 @@ pub mod dynamic_cache;
 pub mod error;
 pub mod keep_alive;
 pub mod subject;
+pub mod tenant;

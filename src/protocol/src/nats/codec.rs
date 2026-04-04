@@ -66,10 +66,21 @@ enum PartialPacket {
         subject: String,
         reply_to: Option<String>,
     },
+    HPub {
+        subject: String,
+        reply_to: Option<String>,
+        header_len: usize,
+    },
     Msg {
         subject: String,
         sid: String,
         reply_to: Option<String>,
+    },
+    HMsg {
+        subject: String,
+        sid: String,
+        reply_to: Option<String>,
+        header_len: usize,
     },
 }
 
@@ -149,6 +160,24 @@ impl codec::Decoder for NatsCodec {
                                 payload_len,
                             };
                         }
+                        ParsedControl::HPub {
+                            subject,
+                            reply_to,
+                            header_len,
+                            total_len,
+                        } => {
+                            if total_len > self.max_payload {
+                                return Err(NatsCodecError::PayloadTooLarge(total_len));
+                            }
+                            self.state = DecodeState::ReadingPayload {
+                                packet: PartialPacket::HPub {
+                                    subject,
+                                    reply_to,
+                                    header_len,
+                                },
+                                payload_len: total_len,
+                            };
+                        }
                         ParsedControl::Msg {
                             subject,
                             sid,
@@ -173,6 +202,26 @@ impl codec::Decoder for NatsCodec {
                                     reply_to,
                                 },
                                 payload_len,
+                            };
+                        }
+                        ParsedControl::HMsg {
+                            subject,
+                            sid,
+                            reply_to,
+                            header_len,
+                            total_len,
+                        } => {
+                            if total_len > self.max_payload {
+                                return Err(NatsCodecError::PayloadTooLarge(total_len));
+                            }
+                            self.state = DecodeState::ReadingPayload {
+                                packet: PartialPacket::HMsg {
+                                    subject,
+                                    sid,
+                                    reply_to,
+                                    header_len,
+                                },
+                                payload_len: total_len,
                             };
                         }
                         // All other packets are complete after the control line
@@ -209,6 +258,20 @@ impl codec::Decoder for NatsCodec {
                             reply_to,
                             payload,
                         },
+                        PartialPacket::HPub {
+                            subject,
+                            reply_to,
+                            header_len,
+                        } => {
+                            let headers = payload.slice(..header_len);
+                            let body = payload.slice(header_len..);
+                            NatsPacket::HPub {
+                                subject,
+                                reply_to,
+                                headers,
+                                payload: body,
+                            }
+                        }
                         PartialPacket::Msg {
                             subject,
                             sid,
@@ -219,6 +282,22 @@ impl codec::Decoder for NatsCodec {
                             reply_to,
                             payload,
                         },
+                        PartialPacket::HMsg {
+                            subject,
+                            sid,
+                            reply_to,
+                            header_len,
+                        } => {
+                            let headers = payload.slice(..header_len);
+                            let body = payload.slice(header_len..);
+                            NatsPacket::HMsg {
+                                subject,
+                                sid,
+                                reply_to,
+                                headers,
+                                payload: body,
+                            }
+                        }
                     };
 
                     return Ok(Some(nats_packet));
@@ -258,6 +337,29 @@ impl codec::Encoder<NatsPacket> for NatsCodec {
                 dst.put_slice(b"\r\n");
             }
 
+            NatsPacket::HMsg {
+                subject,
+                sid,
+                reply_to,
+                headers,
+                payload,
+            } => {
+                let header_len = headers.len();
+                let total_len = header_len + payload.len();
+                let ctrl = match reply_to {
+                    Some(rt) => format!(
+                        "HMSG {} {} {} {} {}\r\n",
+                        subject, sid, rt, header_len, total_len
+                    ),
+                    None => format!("HMSG {} {} {} {}\r\n", subject, sid, header_len, total_len),
+                };
+                dst.reserve(ctrl.len() + total_len + 2);
+                dst.put_slice(ctrl.as_bytes());
+                dst.put_slice(&headers);
+                dst.put_slice(&payload);
+                dst.put_slice(b"\r\n");
+            }
+
             NatsPacket::Ping => dst.put_slice(b"PING\r\n"),
             NatsPacket::Pong => dst.put_slice(b"PONG\r\n"),
             NatsPacket::Ok => dst.put_slice(b"+OK\r\n"),
@@ -287,6 +389,25 @@ impl codec::Encoder<NatsPacket> for NatsCodec {
                 };
                 dst.reserve(ctrl.len() + len + 2);
                 dst.put_slice(ctrl.as_bytes());
+                dst.put_slice(&payload);
+                dst.put_slice(b"\r\n");
+            }
+
+            NatsPacket::HPub {
+                subject,
+                reply_to,
+                headers,
+                payload,
+            } => {
+                let header_len = headers.len();
+                let total_len = header_len + payload.len();
+                let ctrl = match reply_to {
+                    Some(rt) => format!("HPUB {} {} {} {}\r\n", subject, rt, header_len, total_len),
+                    None => format!("HPUB {} {} {}\r\n", subject, header_len, total_len),
+                };
+                dst.reserve(ctrl.len() + total_len + 2);
+                dst.put_slice(ctrl.as_bytes());
+                dst.put_slice(&headers);
                 dst.put_slice(&payload);
                 dst.put_slice(b"\r\n");
             }
@@ -322,11 +443,24 @@ enum ParsedControl {
         reply_to: Option<String>,
         payload_len: usize,
     },
+    HPub {
+        subject: String,
+        reply_to: Option<String>,
+        header_len: usize,
+        total_len: usize,
+    },
     Msg {
         subject: String,
         sid: String,
         reply_to: Option<String>,
         payload_len: usize,
+    },
+    HMsg {
+        subject: String,
+        sid: String,
+        reply_to: Option<String>,
+        header_len: usize,
+        total_len: usize,
     },
 }
 
@@ -374,6 +508,40 @@ fn parse_control_line(line: &str) -> Result<ParsedControl, NatsCodecError> {
                 }
                 _ => Err(NatsCodecError::MalformedCommand(format!(
                     "PUB expects 2 or 3 args, got: {}",
+                    line
+                ))),
+            }
+        }
+
+        "HPUB" => {
+            // HPUB <subject> [reply-to] <#header bytes> <#total bytes>
+            let parts: Vec<&str> = rest.split_whitespace().collect();
+            match parts.len() {
+                3 => {
+                    let subject = parts[0].to_string();
+                    let header_len = parse_usize(parts[1], "HPUB")?;
+                    let total_len = parse_usize(parts[2], "HPUB")?;
+                    Ok(ParsedControl::HPub {
+                        subject,
+                        reply_to: None,
+                        header_len,
+                        total_len,
+                    })
+                }
+                4 => {
+                    let subject = parts[0].to_string();
+                    let reply_to = parts[1].to_string();
+                    let header_len = parse_usize(parts[2], "HPUB")?;
+                    let total_len = parse_usize(parts[3], "HPUB")?;
+                    Ok(ParsedControl::HPub {
+                        subject,
+                        reply_to: Some(reply_to),
+                        header_len,
+                        total_len,
+                    })
+                }
+                _ => Err(NatsCodecError::MalformedCommand(format!(
+                    "HPUB expects 3 or 4 args, got: {}",
                     line
                 ))),
             }
@@ -451,6 +619,44 @@ fn parse_control_line(line: &str) -> Result<ParsedControl, NatsCodecError> {
                 }
                 _ => Err(NatsCodecError::MalformedCommand(format!(
                     "MSG expects 3 or 4 args, got: {}",
+                    line
+                ))),
+            }
+        }
+
+        "HMSG" => {
+            // HMSG <subject> <sid> [reply-to] <#header bytes> <#total bytes>
+            let parts: Vec<&str> = rest.split_whitespace().collect();
+            match parts.len() {
+                4 => {
+                    let subject = parts[0].to_string();
+                    let sid = parts[1].to_string();
+                    let header_len = parse_usize(parts[2], "HMSG")?;
+                    let total_len = parse_usize(parts[3], "HMSG")?;
+                    Ok(ParsedControl::HMsg {
+                        subject,
+                        sid,
+                        reply_to: None,
+                        header_len,
+                        total_len,
+                    })
+                }
+                5 => {
+                    let subject = parts[0].to_string();
+                    let sid = parts[1].to_string();
+                    let reply_to = parts[2].to_string();
+                    let header_len = parse_usize(parts[3], "HMSG")?;
+                    let total_len = parse_usize(parts[4], "HMSG")?;
+                    Ok(ParsedControl::HMsg {
+                        subject,
+                        sid,
+                        reply_to: Some(reply_to),
+                        header_len,
+                        total_len,
+                    })
+                }
+                _ => Err(NatsCodecError::MalformedCommand(format!(
+                    "HMSG expects 4 or 5 args, got: {}",
                     line
                 ))),
             }
@@ -631,6 +837,76 @@ mod tests {
             sid: "9".to_string(),
             reply_to: Some("GREETING.34".to_string()),
             payload: Bytes::from("Hello World"),
+        };
+        let mut buf = encode(packet.clone());
+        assert_eq!(decode(&mut buf), packet);
+    }
+
+    #[test]
+    fn hpub_no_reply_roundtrip() {
+        // NATS/1.0\r\nKey: val\r\n\r\n  = 22 bytes header, payload = "Hello NATS!" = 11 bytes
+        let headers = Bytes::from("NATS/1.0\r\nKey: val\r\n\r\n");
+        let packet = NatsPacket::HPub {
+            subject: "FOO".to_string(),
+            reply_to: None,
+            headers: headers.clone(),
+            payload: Bytes::from("Hello NATS!"),
+        };
+        let mut buf = encode(packet.clone());
+        assert_eq!(decode(&mut buf), packet);
+    }
+
+    #[test]
+    fn hpub_with_reply_roundtrip() {
+        let headers = Bytes::from("NATS/1.0\r\n\r\n");
+        let packet = NatsPacket::HPub {
+            subject: "FOO".to_string(),
+            reply_to: Some("INBOX.1".to_string()),
+            headers: headers.clone(),
+            payload: Bytes::from("data"),
+        };
+        let mut buf = encode(packet.clone());
+        assert_eq!(decode(&mut buf), packet);
+    }
+
+    #[test]
+    fn hmsg_no_reply_roundtrip() {
+        let headers = Bytes::from("NATS/1.0\r\nHeader: value\r\n\r\n");
+        let packet = NatsPacket::HMsg {
+            subject: "FOO.BAR".to_string(),
+            sid: "9".to_string(),
+            reply_to: None,
+            headers: headers.clone(),
+            payload: Bytes::from("Hello World"),
+        };
+        let mut buf = encode(packet.clone());
+        assert_eq!(decode(&mut buf), packet);
+    }
+
+    #[test]
+    fn hmsg_with_reply_roundtrip() {
+        let headers = Bytes::from("NATS/1.0\r\n\r\n");
+        let packet = NatsPacket::HMsg {
+            subject: "FOO.BAR".to_string(),
+            sid: "9".to_string(),
+            reply_to: Some("INBOX.42".to_string()),
+            headers: headers.clone(),
+            payload: Bytes::from("Hello World"),
+        };
+        let mut buf = encode(packet.clone());
+        assert_eq!(decode(&mut buf), packet);
+    }
+
+    #[test]
+    fn hmsg_status_no_payload_roundtrip() {
+        // 503 No Responders: header only, no payload
+        let headers = Bytes::from("NATS/1.0 503\r\n\r\n");
+        let packet = NatsPacket::HMsg {
+            subject: "FOO".to_string(),
+            sid: "1".to_string(),
+            reply_to: None,
+            headers: headers.clone(),
+            payload: Bytes::new(),
         };
         let mut buf = encode(packet.clone());
         assert_eq!(decode(&mut buf), packet);

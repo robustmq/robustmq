@@ -419,7 +419,9 @@ impl BrokerServer {
                 )),
                 Some(nats_broker::handler::command::create_command(
                     self.connection_manager.clone(),
+                    self.nats_params.cache_manager.clone(),
                     self.nats_params.storage_driver_manager.clone(),
+                    self.nats_params.client_pool.clone(),
                 )),
             )
         } else {

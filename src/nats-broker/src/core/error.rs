@@ -19,10 +19,16 @@ use tonic::Status;
 #[derive(Error, Debug)]
 pub enum NatsBrokerError {
     #[error("{0}")]
-    FromCommonError(#[from] CommonError),
+    FromCommonError(Box<CommonError>),
 
     #[error("{0}")]
     CommonError(String),
+}
+
+impl From<CommonError> for NatsBrokerError {
+    fn from(e: CommonError) -> Self {
+        NatsBrokerError::FromCommonError(Box::new(e))
+    }
 }
 
 impl From<NatsBrokerError> for Status {
