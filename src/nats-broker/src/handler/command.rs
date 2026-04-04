@@ -83,7 +83,7 @@ impl Command for NatsHandlerCommand {
         };
 
         let resp_packet = match &packet {
-            NatsPacket::Connect(req) => connect::process_connect(req),
+            NatsPacket::Connect(req) => connect::process_connect(&ctx, req),
 
             NatsPacket::Pub {
                 subject,

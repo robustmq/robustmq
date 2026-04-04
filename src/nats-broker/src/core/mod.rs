@@ -17,5 +17,6 @@ pub mod connection;
 pub mod dynamic_cache;
 pub mod error;
 pub mod keep_alive;
+pub mod security;
 pub mod subject;
 pub mod tenant;

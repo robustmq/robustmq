@@ -14,6 +14,8 @@
 
 use protocol::nats::packet::{ClientConnect, NatsPacket};
 
+use crate::handler::command::NatsProcessContext;
+
 /// Handle a CONNECT packet from the client.
 ///
 /// Responsibilities (all TODO):
@@ -21,6 +23,6 @@ use protocol::nats::packet::{ClientConnect, NatsPacket};
 /// - Record verbose / pedantic flags on the connection state
 /// - Enforce tls_required if configured
 /// - Reply +OK when verbose = true
-pub fn process_connect(_req: &ClientConnect) -> Option<NatsPacket> {
+pub fn process_connect(ctx: &NatsProcessContext, req: &ClientConnect) -> Option<NatsPacket> {
     None
 }
