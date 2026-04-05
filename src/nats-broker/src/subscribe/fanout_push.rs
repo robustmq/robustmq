@@ -14,7 +14,8 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
-use crate::subscribe::{NatsSubscribeManager, NatsSubscriber};
+use crate::subscribe::common::NatsSubscriber;
+use crate::subscribe::NatsSubscribeManager;
 use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
 use dashmap::DashMap;
@@ -37,30 +38,32 @@ use tokio::time::sleep;
 use tokio_util::codec::Encoder;
 use tracing::{debug, error, info, warn};
 
-const BATCH_SIZE: u64 = 500;
-const IDLE_SLEEP_MS: u64 = 100;
-const LOW_LOAD_SLEEP_MS: u64 = 50;
-const HIGH_LOAD_SLEEP_MS: u64 = 10;
-const LOW_LOAD_THRESHOLD: usize = 10;
+pub const BATCH_SIZE: u64 = 500;
+pub const IDLE_SLEEP_MS: u64 = 100;
+pub const LOW_LOAD_SLEEP_MS: u64 = 50;
+pub const HIGH_LOAD_SLEEP_MS: u64 = 10;
+pub const LOW_LOAD_THRESHOLD: usize = 10;
 
-pub struct DirectlyPushManager {
+pub struct FanoutPushManager {
     subscribe_manager: Arc<NatsSubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
-    // group_name → GroupConsumer
+    bucket_id: String,
     consumers: DashMap<String, GroupConsumer>,
 }
 
-impl DirectlyPushManager {
+impl FanoutPushManager {
     pub fn new(
         subscribe_manager: Arc<NatsSubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
         storage_driver_manager: Arc<StorageDriverManager>,
+        bucket_id: String,
     ) -> Self {
-        DirectlyPushManager {
+        FanoutPushManager {
             subscribe_manager,
             connection_manager,
             storage_driver_manager,
+            bucket_id,
             consumers: DashMap::with_capacity(64),
         }
     }
@@ -72,20 +75,23 @@ impl DirectlyPushManager {
                 val = stop_rx.recv() => {
                     match val {
                         Ok(true) => {
-                            info!("NATS DirectlyPushManager stopped");
+                            info!("NATS FanoutPushManager[{}] stopped", self.bucket_id);
                             break;
                         }
                         Ok(false) => {}
                         Err(broadcast::error::RecvError::Closed) => {
-                            info!("NATS DirectlyPushManager stop channel closed");
+                            info!("NATS FanoutPushManager[{}] stop channel closed", self.bucket_id);
                             break;
                         }
                         Err(broadcast::error::RecvError::Lagged(n)) => {
-                            debug!("NATS DirectlyPushManager stop channel lagged, skipped {}", n);
+                            debug!(
+                                "NATS FanoutPushManager[{}] stop channel lagged, skipped {}",
+                                self.bucket_id, n
+                            );
                         }
                     }
                 }
-                res = self.push_all() => {
+                res = self.send_messages() => {
                     match res {
                         Ok(count) => {
                             if count == 0 {
@@ -97,7 +103,10 @@ impl DirectlyPushManager {
                             }
                         }
                         Err(e) => {
-                            error!("NATS DirectlyPushManager push error: {}", e);
+                            error!(
+                                "NATS FanoutPushManager[{}] error: {}",
+                                self.bucket_id, e
+                            );
                             sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
                         }
                     }
@@ -106,112 +115,130 @@ impl DirectlyPushManager {
         }
     }
 
-    async fn push_all(&self) -> Result<usize, NatsBrokerError> {
-        let mut total = 0;
+    async fn send_messages(&self) -> Result<usize, NatsBrokerError> {
+        let mut processed = 0;
+        let mut stale: Vec<(u64, String, String)> = Vec::new();
 
-        // Collect all (topic, seq, subscriber) to avoid holding DashMap locks across awaits.
-        let entries: Vec<(String, u64, NatsSubscriber)> = self
+        let subscribers: Vec<NatsSubscriber> = self
             .subscribe_manager
-            .directly_push
-            .iter()
-            .flat_map(|topic_entry| {
-                let topic = topic_entry.key().clone();
-                topic_entry
-                    .value()
-                    .iter()
-                    .map(|sub_entry| (topic.clone(), *sub_entry.key(), sub_entry.value().clone()))
-                    .collect::<Vec<_>>()
-            })
-            .collect();
+            .fanout_push
+            .buckets_data_list
+            .get(&self.bucket_id)
+            .map(|bucket| bucket.iter().map(|e| e.value().clone()).collect())
+            .unwrap_or_default();
 
-        let mut stale: Vec<(String, u64)> = Vec::new();
-
-        for (topic_name, seq, subscriber) in entries {
+        for subscriber in subscribers {
             if !self
                 .subscribe_manager
-                .allow_push_client(subscriber.connect_id, &topic_name)
+                .allow_push_client(subscriber.connect_id, &subscriber.topic_name)
             {
                 continue;
             }
 
-            match self.push_subscriber(&subscriber).await {
-                Ok(count) => total += count,
+            match self.process_subscriber(&subscriber).await {
+                Ok(count) => processed += count,
                 Err(NatsBrokerError::ConnectionNotFound(_)) => {
                     warn!(
-                        "NATS subscriber connection not found, removing: connect_id={} sid={}",
+                        "NATS subscriber gone, removing: connect_id={} sid={}",
                         subscriber.connect_id, subscriber.sid
                     );
-                    stale.push((topic_name, seq));
+                    stale.push((
+                        subscriber.connect_id,
+                        subscriber.sid.clone(),
+                        subscriber.group_name.clone(),
+                    ));
                 }
                 Err(e) => {
                     debug!(
                         "NATS push failed [connect_id={}, topic={}, sid={}]: {}",
-                        subscriber.connect_id, topic_name, subscriber.sid, e
+                        subscriber.connect_id, subscriber.topic_name, subscriber.sid, e
                     );
                     self.subscribe_manager
-                        .add_not_push_client(subscriber.connect_id, &topic_name);
+                        .add_not_push_client(subscriber.connect_id, &subscriber.topic_name);
                 }
             }
         }
 
-        for (topic_name, seq) in stale {
-            self.subscribe_manager
-                .remove_directly_subscriber(&topic_name, seq);
+        for (connect_id, sid, group_name) in stale {
+            self.subscribe_manager.remove_push_by_sid(connect_id, &sid);
+            self.consumers.remove(&group_name);
         }
 
-        Ok(total)
+        Ok(processed)
     }
 
-    async fn push_subscriber(&self, subscriber: &NatsSubscriber) -> Result<usize, NatsBrokerError> {
+    async fn process_subscriber(
+        &self,
+        subscriber: &NatsSubscriber,
+    ) -> Result<usize, NatsBrokerError> {
         let read_config = AdapterReadConfig {
             max_record_num: BATCH_SIZE,
             max_size: 1024 * 1024 * 30,
         };
-
         let tenant = get_tenant();
 
-        let mut consumer_entry = self
+        let mut consumer = self
             .consumers
-            .entry(subscriber.group_name.clone())
-            .or_insert_with(|| {
+            .remove(&subscriber.group_name)
+            .map(|(_, c)| c)
+            .unwrap_or_else(|| {
                 GroupConsumer::new_manual(
                     self.storage_driver_manager.clone(),
                     subscriber.group_name.clone(),
                 )
             });
 
-        let records = consumer_entry
+        let records_result = consumer
             .next_messages(&tenant, &subscriber.topic_name, &read_config)
-            .await
-            .map_err(NatsBrokerError::from)?;
+            .await;
 
-        if records.is_empty() {
-            return Ok(0);
+        match records_result {
+            Err(e) => {
+                self.consumers
+                    .insert(subscriber.group_name.clone(), consumer);
+                return Err(NatsBrokerError::from(e));
+            }
+            Ok(ref r) if r.is_empty() => {
+                self.consumers
+                    .insert(subscriber.group_name.clone(), consumer);
+                return Ok(0);
+            }
+            Ok(_) => {}
         }
 
+        let records = records_result.unwrap();
+
         let mut pushed = 0;
+        let mut connection_gone = false;
         for record in &records {
-            match self.send_to_client(subscriber, record).await {
+            match send_packet(&self.connection_manager, subscriber, record).await {
                 Ok(true) => pushed += 1,
                 Ok(false) => {}
-                Err(e) => return Err(e),
+                Err(NatsBrokerError::ConnectionNotFound(_)) => {
+                    connection_gone = true;
+                    break;
+                }
+                Err(e) => {
+                    debug!(
+                        "NATS send failed [connect_id={}, sid={}]: {}",
+                        subscriber.connect_id, subscriber.sid, e
+                    );
+                }
             }
         }
 
-        consumer_entry
-            .commit()
-            .await
-            .map_err(NatsBrokerError::from)?;
+        if connection_gone {
+            self.consumers
+                .insert(subscriber.group_name.clone(), consumer);
+            return Err(NatsBrokerError::ConnectionNotFound(subscriber.connect_id));
+        }
+
+        let commit_result = consumer.commit().await.map_err(NatsBrokerError::from);
+        self.consumers
+            .insert(subscriber.group_name.clone(), consumer);
+        commit_result?;
 
         Ok(pushed)
-    }
-
-    async fn send_to_client(
-        &self,
-        subscriber: &NatsSubscriber,
-        record: &StorageRecord,
-    ) -> Result<bool, NatsBrokerError> {
-        send_packet(&self.connection_manager, subscriber, record).await
     }
 }
 
@@ -245,23 +272,27 @@ pub async fn send_packet(
         }
     };
 
-    let wrapper = RobustMQPacketWrapper {
-        protocol: RobustMQProtocol::NATS,
-        extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
-        packet: RobustMQPacket::NATS(packet.clone()),
-    };
-
     if connection_manager.is_websocket(connect_id) {
         let mut codec = NatsCodec::new();
         let mut buf = BytesMut::new();
         codec
-            .encode(packet, &mut buf)
+            .encode(packet.clone(), &mut buf)
             .map_err(|e| NatsBrokerError::CommonError(e.to_string()))?;
+        let wrapper = RobustMQPacketWrapper {
+            protocol: RobustMQProtocol::NATS,
+            extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
+            packet: RobustMQPacket::NATS(packet),
+        };
         connection_manager
             .write_websocket_frame(connect_id, wrapper, Message::Binary(buf.to_vec().into()))
             .await
             .map_err(|e| NatsBrokerError::CommonError(e.to_string()))?;
     } else {
+        let wrapper = RobustMQPacketWrapper {
+            protocol: RobustMQProtocol::NATS,
+            extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
+            packet: RobustMQPacket::NATS(packet),
+        };
         connection_manager
             .write_tcp_frame(connect_id, wrapper)
             .await
@@ -278,6 +309,5 @@ fn extract_nats_meta(record: &StorageRecord) -> (Option<String>, Option<Bytes>) 
     let Some(nats) = &proto.nats else {
         return (None, None);
     };
-    let headers = nats.header.clone();
-    (nats.reply_to.clone(), headers)
+    (nats.reply_to.clone(), nats.header.clone())
 }

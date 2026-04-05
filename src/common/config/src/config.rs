@@ -777,6 +777,14 @@ fn default_nats_core_shard_num() -> usize {
     10
 }
 
+fn default_nats_push_thread_num() -> usize {
+    10
+}
+
+fn default_nats_push_queue_thread_num() -> usize {
+    10
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct NatsRuntime {
     #[serde(default = "default_nats_tcp_port")]
@@ -803,6 +811,12 @@ pub struct NatsRuntime {
     /// Number of internal core shards to initialize on startup.
     #[serde(default = "default_nats_core_shard_num")]
     pub core_shard_num: usize,
+    /// Number of directly-push threads (one thread per bucket).
+    #[serde(default = "default_nats_push_thread_num")]
+    pub push_thread_num: usize,
+    /// Number of queue-push threads (one thread per queue-group bucket).
+    #[serde(default = "default_nats_push_queue_thread_num")]
+    pub push_queue_thread_num: usize,
 }
 
 impl Default for NatsRuntime {
@@ -818,6 +832,8 @@ impl Default for NatsRuntime {
             ping_max: default_nats_ping_max(),
             ping_send_chunk: default_nats_ping_send_chunk(),
             core_shard_num: default_nats_core_shard_num(),
+            push_thread_num: default_nats_push_thread_num(),
+            push_queue_thread_num: default_nats_push_queue_thread_num(),
         }
     }
 }

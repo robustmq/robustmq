@@ -16,21 +16,12 @@ use crate::core::connection::NatsConnection;
 use broker_core::cache::NodeCacheManager;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::nats::subscribe::NatsSubscribe;
 use std::sync::Arc;
 
 pub struct NatsCacheManager {
-    // broker cache
     pub node_cache: Arc<NodeCacheManager>,
-
-    // client pool
     pub client_pool: Arc<ClientPool>,
-
-    // (connect_id, NatsConnection)
     pub connection_info: DashMap<u64, NatsConnection>,
-
-    // ("{client_id}/{sid}", NatsSubscribe)
-    pub subscribe_info: DashMap<String, NatsSubscribe>,
 }
 
 impl NatsCacheManager {
@@ -39,11 +30,9 @@ impl NatsCacheManager {
             node_cache,
             client_pool,
             connection_info: DashMap::with_capacity(1024),
-            subscribe_info: DashMap::with_capacity(256),
         }
     }
 
-    // connection
     pub fn add_connection(&self, connection: NatsConnection) {
         self.connection_info
             .insert(connection.connect_id, connection);
@@ -74,30 +63,5 @@ impl NatsCacheManager {
             .get(&connect_id)
             .map(|e| e.is_login)
             .unwrap_or(false)
-    }
-
-    // subscribe
-    pub fn add_subscribe(&self, subscribe: NatsSubscribe) {
-        let key = format!("{}/{}", subscribe.connect_id, subscribe.sid);
-        self.subscribe_info.insert(key, subscribe);
-    }
-
-    pub fn remove_subscribe(&self, connect_id: u64, sid: &str) {
-        let key = format!("{}/{}", connect_id, sid);
-        self.subscribe_info.remove(&key);
-    }
-
-    pub fn get_subscribe(&self, connect_id: u64, sid: &str) -> Option<NatsSubscribe> {
-        let key = format!("{}/{}", connect_id, sid);
-        self.subscribe_info.get(&key).map(|e| e.value().clone())
-    }
-
-    pub fn list_subscribes_by_connection(&self, connect_id: u64) -> Vec<NatsSubscribe> {
-        let prefix = format!("{}/", connect_id);
-        self.subscribe_info
-            .iter()
-            .filter(|e| e.key().starts_with(&prefix))
-            .map(|e| e.value().clone())
-            .collect()
     }
 }

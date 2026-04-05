@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use crate::core::cache::NatsCacheManager;
-use crate::subscribe::{directly_group_name, NatsSubscribeManager, NatsSubscriber};
+use crate::subscribe::common::{fanout_group_name, NatsSubscriber};
+use crate::subscribe::NatsSubscribeManager;
 use common_base::tools::now_second;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::topic::{Topic, TopicSource};
@@ -94,12 +95,13 @@ pub async fn start_parse_thread(
                     }
                     (ParseAction::Remove, Some(sub), None) => {
                         subscribe_manager.remove_subscribe(sub.connect_id, &sub.sid);
+                        subscribe_manager.remove_push_by_sid(sub.connect_id, &sub.sid);
                     }
                     (ParseAction::Add, None, Some(topic)) => {
                         parse_by_new_topic(&subscribe_manager, topic);
                     }
                     (ParseAction::Remove, None, Some(topic)) => {
-                        remove_by_topic(&subscribe_manager, &topic.topic_name);
+                        subscribe_manager.remove_by_topic(&topic.topic_name);
                     }
                     _ => {
                         error!("Unexpected ParseSubscribeData: {:?}", data);
@@ -153,13 +155,6 @@ fn parse_by_new_topic(subscribe_manager: &Arc<NatsSubscribeManager>, topic: &Top
     }
 }
 
-fn remove_by_topic(subscribe_manager: &Arc<NatsSubscribeManager>, topic_name: &str) {
-    subscribe_manager.directly_push.remove(topic_name);
-    subscribe_manager
-        .queue_push
-        .retain(|key, _| !key.starts_with(&format!("{}#", topic_name)));
-}
-
 fn register_subscriber(
     subscribe_manager: &Arc<NatsSubscribeManager>,
     sub: &NatsSubscribe,
@@ -170,18 +165,18 @@ fn register_subscriber(
         sid: sub.sid.clone(),
         sub_subject: sub.subject.clone(),
         topic_name: topic_name.to_string(),
-        group_name: directly_group_name(sub.connect_id, &sub.sid, topic_name),
+        queue_group: sub.queue_group.clone(),
+        group_name: fanout_group_name(sub.connect_id, &sub.sid, topic_name),
         create_time: now_second(),
     };
 
     if sub.queue_group.is_empty() {
-        subscribe_manager.add_directly_subscriber(subscriber);
+        subscribe_manager.add_fanout_subscriber(subscriber);
     } else {
         subscribe_manager.add_queue_subscriber(subscriber, &sub.queue_group);
     }
 }
 
-// `*` matches exactly one dot-separated token; `>` matches one or more and must be last.
 pub fn nats_subject_match(pattern: &str, topic: &str) -> bool {
     let pat: Vec<&str> = pattern.split('.').collect();
     let top: Vec<&str> = topic.split('.').collect();

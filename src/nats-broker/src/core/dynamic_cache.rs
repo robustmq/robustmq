@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::NatsCacheManager;
+use crate::subscribe::parse::{ParseAction, ParseSubscribeData};
+use crate::subscribe::NatsSubscribeManager;
 use common_base::error::common::CommonError;
 use common_base::utils::serialize;
 use metadata_struct::nats::subscribe::NatsSubscribe;
@@ -22,19 +23,23 @@ use protocol::broker::broker_common::{
 use std::sync::Arc;
 
 pub async fn update_nats_cache_metadata(
-    cache_manager: &Arc<NatsCacheManager>,
+    subscribe_manager: &Arc<NatsSubscribeManager>,
     record: &UpdateCacheRecord,
 ) -> Result<(), CommonError> {
     if record.resource_type() == BrokerUpdateCacheResourceType::NatsSubscribe {
         let subscribe: NatsSubscribe = serialize::deserialize(&record.data)?;
-        match record.action_type() {
+        let data = match record.action_type() {
             BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
-                cache_manager.add_subscribe(subscribe);
+                subscribe_manager.add_subscribe(subscribe.clone());
+                ParseSubscribeData::new_subscribe(ParseAction::Add, subscribe)
             }
             BrokerUpdateCacheActionType::Delete => {
-                cache_manager.remove_subscribe(subscribe.connect_id, &subscribe.sid);
+                subscribe_manager.remove_subscribe(subscribe.connect_id, &subscribe.sid);
+                subscribe_manager.remove_push_by_sid(subscribe.connect_id, &subscribe.sid);
+                ParseSubscribeData::new_subscribe(ParseAction::Remove, subscribe)
             }
-        }
+        };
+        subscribe_manager.send_parse_event(data).await;
     }
     Ok(())
 }
