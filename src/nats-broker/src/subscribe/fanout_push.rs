@@ -160,7 +160,7 @@ impl FanoutPushManager {
 
         for (connect_id, sid, group_name) in stale {
             self.subscribe_manager.remove_push_by_sid(connect_id, &sid);
-            self.remove_consumer(&group_name);
+            self.consumers.remove(&group_name);
         }
 
         Ok(processed)
@@ -177,10 +177,6 @@ impl FanoutPushManager {
         self.consumers
             .insert(subscriber.group_name.clone(), consumer.clone());
         consumer
-    }
-
-    pub fn remove_consumer(&self, group_name: &str) {
-        self.consumers.remove(group_name);
     }
 
     async fn process_subscriber(
