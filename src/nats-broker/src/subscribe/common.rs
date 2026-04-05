@@ -15,6 +15,7 @@
 /// Represents a resolved NATS subscriber: a (connect_id, sid) pair matched to a concrete topic.
 #[derive(Debug, Clone)]
 pub struct NatsSubscriber {
+    pub tenant: String,
     pub connect_id: u64,
     pub sid: String,
     /// Original subscription subject pattern (may contain wildcards).

@@ -161,6 +161,7 @@ fn register_subscriber(
     topic_name: &str,
 ) {
     let subscriber = NatsSubscriber {
+        tenant: sub.tenant.clone(),
         connect_id: sub.connect_id,
         sid: sub.sid.clone(),
         sub_subject: sub.subject.clone(),

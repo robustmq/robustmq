@@ -268,6 +268,7 @@ mod tests {
 
     fn make_sub(connect_id: u64, sid: &str, topic: &str) -> NatsSubscriber {
         NatsSubscriber {
+            tenant: "default".to_string(),
             connect_id,
             sid: sid.to_string(),
             sub_subject: topic.to_string(),

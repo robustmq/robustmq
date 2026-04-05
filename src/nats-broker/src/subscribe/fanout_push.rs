@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::core::error::NatsBrokerError;
-use crate::core::tenant::get_tenant;
 use crate::subscribe::common::NatsSubscriber;
 use crate::subscribe::NatsSubscribeManager;
 use axum::extract::ws::Message;
@@ -130,7 +129,7 @@ impl FanoutPushManager {
         for subscriber in subscribers {
             if !self
                 .subscribe_manager
-                .allow_push_client(subscriber.connect_id, &subscriber.topic_name)
+                .allow_push_client(subscriber.connect_id)
             {
                 continue;
             }
@@ -154,7 +153,7 @@ impl FanoutPushManager {
                         subscriber.connect_id, subscriber.topic_name, subscriber.sid, e
                     );
                     self.subscribe_manager
-                        .add_not_push_client(subscriber.connect_id, &subscriber.topic_name);
+                        .add_not_push_client(subscriber.connect_id);
                 }
             }
         }
@@ -175,7 +174,6 @@ impl FanoutPushManager {
             max_record_num: BATCH_SIZE,
             max_size: 1024 * 1024 * 30,
         };
-        let tenant = get_tenant();
 
         let mut consumer = self
             .consumers
@@ -189,7 +187,7 @@ impl FanoutPushManager {
             });
 
         let records_result = consumer
-            .next_messages(&tenant, &subscriber.topic_name, &read_config)
+            .next_messages(&subscriber.tenant, &subscriber.topic_name, &read_config)
             .await;
 
         match records_result {
@@ -233,10 +231,9 @@ impl FanoutPushManager {
             return Err(NatsBrokerError::ConnectionNotFound(subscriber.connect_id));
         }
 
-        let commit_result = consumer.commit().await.map_err(NatsBrokerError::from);
+        consumer.advance();
         self.consumers
             .insert(subscriber.group_name.clone(), consumer);
-        commit_result?;
 
         Ok(pushed)
     }
