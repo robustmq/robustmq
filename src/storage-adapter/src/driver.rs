@@ -114,12 +114,17 @@ impl StorageDriverManager {
     ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
 
-        // todo write-up strategy needs to be further improved.
+        // Pick a partition via round-robin and use the shard name from storage_name_list.
+        let partition_count = topic.partition as u64;
         let partition = self
             .message_seq
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-            % topic.partition as u64;
-        let partition_name = Topic::build_storage_name(&topic.topic_id, partition as u32);
+            % partition_count;
+        let partition_name = topic
+            .storage_name_list
+            .get(&(partition as u32))
+            .cloned()
+            .unwrap_or_else(|| Topic::build_storage_name(&topic.topic_id, partition as u32));
         driver.batch_write(&partition_name, data).await
     }
 

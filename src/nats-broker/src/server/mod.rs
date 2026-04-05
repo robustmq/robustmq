@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::subscribe::NatsSubscribeManager;
 use broker_core::cache::NodeCacheManager;
 use common_base::error::ResultCommonError;
 use common_base::task::TaskSupervisor;
+use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnectionType;
 use network_server::common::channel::RequestChannel;
@@ -42,6 +44,8 @@ pub struct NatsServerParams {
     pub stop_sx: broadcast::Sender<bool>,
     pub request_channel: Arc<RequestChannel>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub subscribe_manager: Arc<NatsSubscribeManager>,
+    pub security_manager: Arc<SecurityManager>,
 }
 
 pub struct NatsServer {

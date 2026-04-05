@@ -18,3 +18,4 @@ pub mod handler;
 pub mod nats;
 pub mod server;
 pub mod storage;
+pub mod subscribe;

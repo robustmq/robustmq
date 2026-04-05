@@ -16,60 +16,69 @@ onUnmounted(() => {
 const primitives = computed(() => [
   {
     icon: '📬',
-    title: t('邮箱', 'Mailbox'),
-    subtitle: t('点对点异步投递', 'Async point-to-point'),
+    title: t('INBOX', 'INBOX'),
+    subtitle: t('点对点私人邮箱', 'Private point-to-point mailbox'),
     desc: t(
-      '每个 Agent 有自己的邮箱。发件方不需要知道对方在不在线，直接发到邮箱，消息在那里等着。对方上线后自动收到。',
-      'Every Agent has its own inbox. Send without knowing if the recipient is online — the message waits. The Agent receives it when it comes back.'
+      '创建邮箱，拿到 mail_id。发件方直接投到对方 mail_id，不需要知道对方在不在线，消息等着，对方上线全量收到。邮箱是私人的，只有主人能收。',
+      'Create a mailbox, get a mail_id. Send to the recipient\'s mail_id — no need to know if they\'re online. Messages wait; the recipient gets all of them when they come back. Only the owner can receive.'
     ),
     color: '#a855f7',
-    code: `nats req '$mq9.AI.MAILBOX.CREATE' '{}'
-# → {"mail_id": "agt-001", "token": "tok-xxx"}
+    code: `# Create a mailbox
+nats req '$mq9.AI.MAILBOX.CREATE' \\
+  '{"type":"standard","ttl":3600,"subject":"$mq9.AI.INBOX"}'
+# → {"mail_id":"m-001","token":"tok-xxx","inbox":"$mq9.AI.INBOX.m-001"}
 
-nats pub '$mq9.AI.INBOX.agt-001.normal' \\
-  '{"from":"agt-002","payload":"task done"}'
+# Send (works even if recipient is offline)
+nats pub '$mq9.AI.INBOX.m-001.normal' \\
+  '{"msg_id":"msg-1","from":"m-002","type":"task_result","ts":1234567890}'
 
-nats sub '$mq9.AI.INBOX.agt-001.*'`,
+# Subscribe — receive all non-expired messages
+nats sub '$mq9.AI.INBOX.m-001.*'`,
   },
   {
     icon: '📡',
-    title: t('广播', 'Broadcast'),
-    subtitle: t('一发多收', 'Publish once, many receive'),
+    title: t('BROADCAST', 'BROADCAST'),
+    subtitle: t('公共广播频道', 'Public broadcast channel'),
     desc: t(
-      'Agent 广播一个事件，不需要知道谁在监听。关心的 Agent 自己来订阅，新 Agent 加入自动感知，拓扑变化零成本。',
-      'An Agent broadcasts an event without knowing who is listening. Interested Agents subscribe themselves. Topology changes are zero-cost.'
+      '创建广播频道，任何人可发可订。离线的订阅者上线后全量收到未过期消息。支持通配符订阅和 queue group 竞争消费。内置系统公告板 BROADCAST.system.* 用于能力发现。',
+      'Create a broadcast channel — anyone can publish or subscribe. Offline subscribers receive all non-expired messages on reconnect. Supports wildcard subscriptions and queue group competing consumers. Built-in system bulletin board for capability discovery.'
     ),
     color: '#7c3aed',
-    code: `# Broadcast an event
+    code: `# Create broadcast channel first
+nats req '$mq9.AI.MAILBOX.CREATE' \\
+  '{"type":"standard","ttl":3600,"subject":"$mq9.AI.BROADCAST.task.available"}'
+
+# Publish to the channel
 nats pub '$mq9.AI.BROADCAST.task.available' \\
-  '{"task_id":"t-001","type":"analysis"}'
+  '{"msg_id":"t-001","task_id":"t-001","type":"analysis"}'
 
-# Subscribe to all task events
+# Subscribe (wildcard or queue group)
 nats sub '$mq9.AI.BROADCAST.task.*'
+nats sub '$mq9.AI.BROADCAST.task.available' --queue workers
 
-# Subscribe to anomalies across all domains
-nats sub '$mq9.AI.BROADCAST.*.anomaly'`,
+# System bulletin board (built-in, no CREATE needed)
+nats sub '$mq9.AI.BROADCAST.system.*'`,
   },
   {
     icon: '⚡',
     title: t('优先级', 'Priority'),
     subtitle: t('紧急消息先处理', 'Critical messages first'),
     desc: t(
-      '邮箱支持三个优先级：urgent、normal、notify。紧急指令永远不会被普通任务淹没。同一优先级保证 FIFO。',
-      'Three priority levels: urgent, normal, notify. Critical instructions are never buried under routine tasks. FIFO within each level.'
+      'INBOX 支持三个优先级：urgent、normal、notify。紧急指令永远不会被普通任务淹没。同一优先级保证 FIFO。边缘设备离线 8 小时后上线，urgent 先于 normal 处理。',
+      'INBOX supports three priority levels: urgent, normal, notify. Critical instructions are never buried under routine tasks. FIFO within each level. An edge device offline for 8 hours reconnects and gets urgent messages first.'
     ),
     color: '#6d28d9',
-    code: `# Urgent — processed first
-nats pub '$mq9.AI.INBOX.agt-001.urgent' \\
-  '{"type":"stop","reason":"anomaly"}'
+    code: `# Urgent — processed first, persisted 86400s
+nats pub '$mq9.AI.INBOX.m-001.urgent' \\
+  '{"msg_id":"u-1","type":"emergency_stop","ts":1234567890}'
 
-# Normal — routine tasks
-nats pub '$mq9.AI.INBOX.agt-001.normal' \\
-  '{"type":"task","payload":"..."}'
+# Normal — routine tasks, persisted 3600s
+nats pub '$mq9.AI.INBOX.m-001.normal' \\
+  '{"msg_id":"n-1","type":"task","payload":"...","ts":1234567890}'
 
 # Notify — background info, no persistence
-nats pub '$mq9.AI.INBOX.agt-001.notify' \\
-  '{"type":"heartbeat"}'`,
+nats pub '$mq9.AI.INBOX.m-001.notify' \\
+  '{"msg_id":"nf-1","type":"heartbeat","ts":1234567890}'`,
   },
 ])
 
@@ -82,27 +91,37 @@ const scenarios = computed(() => [
   {
     num: '02',
     title: t('感知所有子 Agent 状态', 'Monitor all Agent states'),
-    desc: t('一行通配符订阅，主 Agent 自动感知所有子 Agent 的上线、运行、消亡，不需要注册或注销。', 'One wildcard subscription — the orchestrator automatically tracks every sub-Agent coming online, running, or dying. No registration needed.'),
+    desc: t('Worker 创建 latest 类型邮箱定期上报状态，主 Agent 通配符订阅感知全局。TTL 过期自动感知消亡，不需要注册或注销。', 'Workers create latest-type mailboxes to report status. The orchestrator uses wildcard subscriptions. TTL expiry auto-signals death — no registration needed.'),
   },
   {
     num: '03',
     title: t('任务广播竞争消费', 'Task broadcast with competing consumers'),
-    desc: t('主 Agent 广播任务，有能力的 Worker 自己来抢。queue group 保证每个任务只被一个 Worker 处理。', 'Orchestrator broadcasts a task, capable Workers compete to claim it. Queue group ensures each task is handled by exactly one Worker.'),
+    desc: t('主 Agent 广播任务，有能力的 Worker 用 queue group 竞争。抢到的发结果回主 Agent INBOX。离线 Worker 上线后也能收到未过期任务。', 'Orchestrator broadcasts a task; Workers use queue group to compete. The winner sends results back to the orchestrator\'s INBOX. Offline Workers receive non-expired tasks after reconnecting.'),
   },
   {
     num: '04',
-    title: t('边缘 Agent 离线积压', 'Edge Agent offline buffering'),
-    desc: t('云端给边缘 Agent 发指令，边缘不在线消息等着，联网后按优先级处理。', 'Cloud sends instructions to an edge Agent that\'s offline. Messages wait, then are processed by priority when the edge reconnects.'),
+    title: t('异常告警广播', 'Anomaly alert broadcast'),
+    desc: t('Agent 创建广播频道发异常事件，订阅者自行响应。离线的 handler 上线后也能收到未过期的告警。发布方不需要维护订阅列表。', 'Agent creates a broadcast channel and publishes anomaly events. Subscribers respond independently. Offline handlers receive non-expired alerts after reconnecting.'),
   },
   {
     num: '05',
-    title: t('人机混合工作流', 'Human-in-the-loop workflows'),
-    desc: t('Agent 遇到需要人工判断的节点，发审批请求到人类邮箱，审批结果发回 Agent 邮箱，流程继续。', 'Agent hits a decision point requiring human judgment, sends to a human\'s inbox, and resumes when the approval comes back.'),
+    title: t('边缘 Agent 离线积压', 'Edge Agent offline buffering'),
+    desc: t('云端给边缘 Agent 发指令到 INBOX，边缘断网消息持久化等待，联网后按优先级处理——urgent 先于 normal。', 'Cloud sends instructions to an edge Agent\'s INBOX. Messages persist during outage and are processed by priority on reconnect — urgent before normal.'),
   },
   {
     num: '06',
+    title: t('人机混合工作流', 'Human-in-the-loop workflows'),
+    desc: t('Agent 发审批请求到人类审批员 INBOX，审批员处理后发结果回 Agent INBOX。人和 Agent 用完全相同的协议，流程不中断。', 'Agent sends approval requests to a human\'s INBOX; the human replies to the Agent\'s INBOX. Humans and Agents use the exact same protocol — the workflow is uninterrupted.'),
+  },
+  {
+    num: '07',
     title: t('异步 Request-Reply', 'Async Request-Reply'),
-    desc: t('Agent A 发请求到 Agent B 邮箱。B 不在线请求等着，上线处理完发响应到 A 邮箱，通过 correlation_id 匹配。', 'Agent A sends a request to Agent B\'s inbox. B processes when online and replies to A\'s inbox, matched by correlation_id.'),
+    desc: t('Agent A 发请求到 Agent B 邮箱，带 reply_to 和 correlation_id。B 上线后处理并回复到 A 邮箱。离线不丢，A 不阻塞。', 'Agent A sends a request to Agent B\'s inbox with reply_to and correlation_id. B replies to A\'s inbox when online. Nothing lost if offline; A doesn\'t block.'),
+  },
+  {
+    num: '08',
+    title: t('能力注册与发现', 'Capability registration and discovery'),
+    desc: t('Agent 启动时把能力声明发到系统公告板 BROADCAST.system.capability，其他 Agent 订阅即可感知整个网络。去中心化，零额外服务。', 'Agents publish capabilities to BROADCAST.system.capability at startup. Subscribers sense the entire network\'s capabilities. Decentralized — zero extra services.'),
   },
 ])
 </script>
@@ -189,7 +208,7 @@ const scenarios = computed(() => [
     <section class="mq9-section mq9-primitives-section">
       <div class="mq9-section-inner">
         <div class="mq9-section-header">
-          <div class="mq9-section-tag">{{ t('三个核心原语', 'Three Core Primitives') }}</div>
+          <div class="mq9-section-tag">{{ t('三个命令字', 'Three Commands') }}</div>
           <h2 class="mq9-section-title">{{ t('覆盖 Agent 异步通信的所有场景', 'Covers every async Agent communication scenario') }}</h2>
         </div>
         <div class="mq9-primitives">
@@ -213,7 +232,7 @@ const scenarios = computed(() => [
       <div class="mq9-section-inner">
         <div class="mq9-section-header">
           <div class="mq9-section-tag">{{ t('真实场景', 'Real Scenarios') }}</div>
-          <h2 class="mq9-section-title">{{ t('六个真实使用场景', 'Six real-world use cases') }}</h2>
+          <h2 class="mq9-section-title">{{ t('八个真实使用场景', 'Eight real-world use cases') }}</h2>
         </div>
         <div class="mq9-scenarios">
           <div v-for="s in scenarios" :key="s.num" class="mq9-scenario">
@@ -275,8 +294,11 @@ const scenarios = computed(() => [
           <pre class="mq9-code mq9-cta-code"><code>curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
 broker-server start
 
-# Agent gets a mailbox
-nats req '$mq9.AI.MAILBOX.CREATE' '{}'</code></pre>
+# Create a mailbox — returns mail_id and token
+nats req '$mq9.AI.MAILBOX.CREATE' '{"type":"standard","ttl":3600,"subject":"$mq9.AI.INBOX"}'
+
+# Send a message (works even if recipient is offline)
+nats pub '$mq9.AI.INBOX.{mail_id}.normal' '{"msg_id":"msg-1","from":"...","type":"task","ts":1234567890}'</code></pre>
           <div class="mq9-cta-links">
             <a class="mq9-btn-primary" :href="isZh ? '/zh/OverView/What-is-RobustMQ' : '/en/OverView/What-is-RobustMQ'">{{ t('查看文档', 'Read the Docs') }}</a>
             <a class="mq9-btn-ghost" href="https://github.com/robustmq/robustmq" target="_blank" rel="noopener">GitHub</a>
@@ -474,7 +496,7 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{}'</code></pre>
 
 /* ── Primitives ── */
 .mq9-primitives-section { background: rgba(255,255,255,0.015); }
-.mq9-primitives { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-left: -160px; }
+.mq9-primitives { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
 .mq9-primitive {
   padding: 28px;
   border-radius: 16px;

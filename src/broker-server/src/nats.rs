@@ -18,6 +18,7 @@ use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
 use nats_broker::broker::{NatsBrokerServer, NatsBrokerServerParams};
 use nats_broker::core::cache::NatsCacheManager;
+use nats_broker::subscribe::NatsSubscribeManager;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::global::GlobalRateLimiterManager;
@@ -44,8 +45,10 @@ pub fn build_nats_params(p: NatsBuildParams) -> NatsBrokerServerParams {
         p.client_pool.clone(),
         p.broker_cache.clone(),
     ));
+    let subscribe_manager = Arc::new(NatsSubscribeManager::new());
     NatsBrokerServerParams {
         cache_manager,
+        subscribe_manager,
         connection_manager: p.connection_manager,
         client_pool: p.client_pool,
         broker_cache: p.broker_cache,

@@ -13,6 +13,10 @@
 // limitations under the License.
 
 use crate::core::{cache::NatsCacheManager, error::NatsBrokerError};
+use crate::subscribe::{
+    parse::{ParseAction, ParseSubscribeData},
+    NatsSubscribeManager,
+};
 use common_config::broker::broker_config;
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
@@ -30,21 +34,11 @@ pub type NatSubject = Topic;
 const INNER_NATS_CORE_SHARD_NAME: &str = "$sys.inner.nats.core.shard.";
 static SHARD_ALLOCATION_GENERAL: AtomicI64 = AtomicI64::new(0);
 
-/// Returns the Topic that backs the given NATS subject, creating it on first use.
-///
-/// Design: NATS subjects are not stored in their own physical shards. Instead, each
-/// subject topic's `storage_name_list` points to one of the pre-allocated internal
-/// core shards (`$sys.inner.nats.core.shard.*`). This keeps the number of physical
-/// shards bounded regardless of how many subjects exist.
-///
-/// Flow:
-/// 1. Cache hit → return immediately.
-/// 2. Cache miss → pick a core shard via round-robin (`get_subject_storage_name`),
-///    create the subject topic with that shard's storage mapping, persist it, return.
 pub async fn try_get_or_init_subject(
     cache_manager: &Arc<NatsCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_pool: &Arc<ClientPool>,
+    subscribe_manager: &Arc<NatsSubscribeManager>,
     tenant: &str,
     subject: &str,
 ) -> Result<NatSubject, NatsBrokerError> {
@@ -71,26 +65,22 @@ pub async fn try_get_or_init_subject(
         &topic,
     )
     .await?;
+
+    let data = ParseSubscribeData::new_topic(ParseAction::Add, topic.clone());
+    subscribe_manager.send_parse_event(data).await;
+
     Ok(topic)
 }
 
-/// Picks a core shard via round-robin and returns its `storage_name_list`.
-///
-/// `SHARD_ALLOCATION_GENERAL` is a global atomic counter. Each call increments it
-/// and takes the result mod `core_shard_num`, producing an evenly distributed shard
-/// index across all callers without any locking.
-///
-/// If the core shard topic is already in cache (normal path after startup), the
-/// `storage_name_list` is returned immediately. Otherwise the shard topic is created
-/// as a fallback (e.g. if `init_nats_core_shard` was not called or `core_shard_num`
-/// was increased after startup).
 async fn get_subject_storage_name(
     cache_manager: &Arc<NatsCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_pool: &Arc<ClientPool>,
 ) -> Result<HashMap<u32, String>, NatsBrokerError> {
-    let seq = SHARD_ALLOCATION_GENERAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        % (broker_config().nats_runtime.core_shard_num as i64);
+    let seq = SHARD_ALLOCATION_GENERAL
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        .unsigned_abs()
+        % (broker_config().nats_runtime.core_shard_num as u64);
 
     let shard_topic_name = format!("{}.{}", INNER_NATS_CORE_SHARD_NAME, seq);
     let tenant = DEFAULT_TENANT;

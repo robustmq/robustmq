@@ -71,27 +71,28 @@ mq9 solves it directly: **send a message, the recipient gets it when they come o
 
 <div align="center">
 
-| Primitive | What it does |
-|-----------|-------------|
-| **Mailbox** | Each Agent has its own inbox. Messages wait until the Agent comes online. |
-| **Broadcast** | Publish once, any interested Agent subscribes. No need to know who's listening. |
-| **Priority** | `urgent` / `normal` / `notify` — critical messages are never buried. |
+| Command | What it does |
+|---------|-------------|
+| **MAILBOX.CREATE** | Create a private mailbox (returns mail_id + token) or a public broadcast channel |
+| **INBOX** | Point-to-point delivery with three priority levels: `urgent` / `normal` / `notify` |
+| **BROADCAST** | Public channel — anyone can publish or subscribe; offline subscribers get all non-expired messages on reconnect |
 
 </div>
 
 ```bash
-# Give an Agent an identity and mailbox — one call, no registration
-nats req '$mq9.AI.MAILBOX.CREATE' '{}'
-# → {"agent_id": "agt-uuid-001", "token": "tok-xxx"}
+# Create a mailbox — returns mail_id and token
+nats req '$mq9.AI.MAILBOX.CREATE' '{"type":"standard","ttl":3600,"subject":"$mq9.AI.INBOX"}'
+# → {"mail_id": "m-uuid-001", "token": "tok-xxx", "inbox": "$mq9.AI.INBOX.m-uuid-001"}
 
 # Send to another Agent's mailbox (works even if they're offline)
-nats pub '$mq9.AI.INBOX.agt-uuid-002.normal' '{"from":"agt-uuid-001","payload":"task done"}'
+nats pub '$mq9.AI.INBOX.m-uuid-002.normal' '{"msg_id":"msg-001","from":"m-uuid-001","type":"task_result","payload":"done","ts":1234567890}'
 
-# Broadcast an event — anyone interested will receive it
-nats pub '$mq9.AI.BROADCAST.task.available' '{"task_id":"t-001"}'
+# Create a broadcast channel, then publish to it
+nats req '$mq9.AI.MAILBOX.CREATE' '{"type":"standard","ttl":3600,"subject":"$mq9.AI.BROADCAST.task.available"}'
+nats pub '$mq9.AI.BROADCAST.task.available' '{"msg_id":"t-001","task_id":"t-001","type":"data_analysis"}'
 
 # Subscribe to your own mailbox
-nats sub '$mq9.AI.INBOX.agt-uuid-001.*'
+nats sub '$mq9.AI.INBOX.m-uuid-001.*'
 ```
 
 **Any NATS client — Go, Python, Rust, Java, JavaScript — is already an mq9 client.** No new SDK needed.
@@ -188,14 +189,14 @@ nats sub "robustmq.multi.protocol"
 ### mq9 Agent Mailbox in Action
 
 ```bash
-# Agent A gets a mailbox
-nats req '$mq9.AI.MAILBOX.CREATE' '{}'
+# Agent A creates a mailbox — returns mail_id
+nats req '$mq9.AI.MAILBOX.CREATE' '{"type":"standard","ttl":3600,"subject":"$mq9.AI.INBOX"}'
 
-# Agent B sends to Agent A (even if A is offline)
-nats pub '$mq9.AI.INBOX.{agent_a_id}.normal' '{"from":"agent-b","payload":"hello"}'
+# Agent B sends to Agent A (works even if A is offline)
+nats pub '$mq9.AI.INBOX.{mail_id_a}.normal' '{"msg_id":"msg-001","from":"m-uuid-b","type":"hello","payload":"hi","ts":1234567890}'
 
-# Agent A subscribes and receives
-nats sub '$mq9.AI.INBOX.{agent_a_id}.*'
+# Agent A subscribes and receives all non-expired messages
+nats sub '$mq9.AI.INBOX.{mail_id_a}.*'
 ```
 
 ### Web Dashboard
