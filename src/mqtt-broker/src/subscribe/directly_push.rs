@@ -28,6 +28,7 @@ use crate::{
     },
 };
 use dashmap::DashMap;
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -165,12 +166,12 @@ impl DirectlyPushManager {
     ) -> Result<usize, MqttBrokerError> {
         let mut processed_count = 0;
 
-        let read_config = metadata_struct::storage::adapter_read_config::AdapterReadConfig {
+        let read_config = AdapterReadConfig {
             max_record_num: BATCH_SIZE,
             max_size: 1024 * 1024 * 30,
         };
 
-        let mut consumer = self
+        let consumer = self
             .consumers
             .entry(subscriber.group_name.clone())
             .or_insert_with(|| {

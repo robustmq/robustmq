@@ -14,6 +14,7 @@
 
 use crate::driver::StorageDriverManager;
 use common_base::error::common::CommonError;
+use dashmap::DashMap;
 use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
 use metadata_struct::storage::{adapter_read_config::AdapterReadConfig, record::StorageRecord};
 use std::{collections::HashMap, sync::Arc};
@@ -30,9 +31,9 @@ pub struct GroupConsumer {
     driver: Arc<StorageDriverManager>,
     group_name: String,
     /// Committed offsets: the starting offset for the next read per shard.
-    current_offsets: HashMap<(String, String, String), u64>,
+    current_offsets: DashMap<(String, String, String), u64>,
     /// Offsets advanced after the last next_messages call, not yet committed.
-    pending_offsets: HashMap<(String, String, String), u64>,
+    pending_offsets: DashMap<(String, String, String), u64>,
     auto_commit: bool,
     start_offset_strategy: StartOffsetStrategy,
 }
@@ -42,8 +43,8 @@ impl GroupConsumer {
         GroupConsumer {
             driver,
             group_name: group_name.into(),
-            current_offsets: HashMap::new(),
-            pending_offsets: HashMap::new(),
+            current_offsets: DashMap::new(),
+            pending_offsets: DashMap::new(),
             auto_commit: true,
             start_offset_strategy: StartOffsetStrategy::Earliest,
         }
@@ -61,7 +62,7 @@ impl GroupConsumer {
     }
 
     pub async fn next_messages(
-        &mut self,
+        &self,
         tenant: &str,
         topic_name: &str,
         read_config: &AdapterReadConfig,
@@ -71,8 +72,8 @@ impl GroupConsumer {
         let shard_offsets: HashMap<String, u64> = self
             .current_offsets
             .iter()
-            .filter(|((t, tp, _), _)| t == tenant && tp == topic_name)
-            .map(|((_, _, shard), &offset)| (shard.clone(), offset))
+            .filter(|e| e.key().0 == tenant && e.key().1 == topic_name)
+            .map(|e| (e.key().2.clone(), *e.value()))
             .collect();
 
         let records = self
@@ -96,29 +97,31 @@ impl GroupConsumer {
     /// Only when `commit` succeeds are they merged into `current_offsets`.
     /// If `commit` is not called, the next `next_messages` call re-reads the same batch,
     /// which is the desired behavior when message processing fails and a retry is needed.
-    pub async fn commit(&mut self) -> Result<(), CommonError> {
+    pub async fn commit(&self) -> Result<(), CommonError> {
         if self.pending_offsets.is_empty() {
             return Ok(());
         }
 
-        let mut by_tenant_topic: HashMap<(&str, &str), HashMap<String, u64>> = HashMap::new();
-        for ((tenant, topic, shard), &offset) in &self.pending_offsets {
+        let mut by_tenant_topic: HashMap<(String, String), HashMap<String, u64>> = HashMap::new();
+        for e in self.pending_offsets.iter() {
+            let (tenant, topic, shard) = e.key();
             by_tenant_topic
-                .entry((tenant.as_str(), topic.as_str()))
+                .entry((tenant.clone(), topic.clone()))
                 .or_default()
-                .insert(shard.clone(), offset);
+                .insert(shard.clone(), *e.value());
         }
 
-        for ((tenant, _topic), shard_offsets) in by_tenant_topic {
+        for ((tenant, _topic), shard_offsets) in &by_tenant_topic {
             self.driver
-                .commit_offset(tenant, &self.group_name, &shard_offsets)
+                .commit_offset(tenant, &self.group_name, shard_offsets)
                 .await?;
         }
 
         // Only advance current_offsets after successful IO.
-        for (key, offset) in self.pending_offsets.drain() {
-            self.current_offsets.insert(key, offset);
+        for e in self.pending_offsets.iter() {
+            self.current_offsets.insert(e.key().clone(), *e.value());
         }
+        self.pending_offsets.clear();
 
         Ok(())
     }
@@ -129,16 +132,17 @@ impl GroupConsumer {
     /// so the next `next_messages` call reads new messages instead of the same batch.
     /// Unlike `commit`, no IO is performed, so the offset store is not updated and a
     /// restart will resume from the last `commit` position.
-    pub fn advance(&mut self) {
-        for (key, offset) in self.pending_offsets.drain() {
-            let entry = self.current_offsets.entry(key).or_insert(0);
-            if offset > *entry {
-                *entry = offset;
+    pub fn advance(&self) {
+        for e in self.pending_offsets.iter() {
+            let mut cur = self.current_offsets.entry(e.key().clone()).or_insert(0);
+            if *e.value() > *cur {
+                *cur = *e.value();
             }
         }
+        self.pending_offsets.clear();
     }
 
-    fn stage_offsets(&mut self, tenant: &str, topic_name: &str, records: &[StorageRecord]) {
+    fn stage_offsets(&self, tenant: &str, topic_name: &str, records: &[StorageRecord]) {
         for record in records {
             let key = (
                 tenant.to_string(),
@@ -146,7 +150,7 @@ impl GroupConsumer {
                 record.metadata.shard.clone(),
             );
             let next = record.metadata.offset + 1;
-            let entry = self.pending_offsets.entry(key).or_insert(0);
+            let mut entry = self.pending_offsets.entry(key).or_insert(0);
             if next > *entry {
                 *entry = next;
             }
@@ -154,14 +158,14 @@ impl GroupConsumer {
     }
 
     async fn ensure_offsets_loaded(
-        &mut self,
+        &self,
         tenant: &str,
         topic_name: &str,
     ) -> Result<(), CommonError> {
         let already_loaded = self
             .current_offsets
-            .keys()
-            .any(|(t, tp, _)| t == tenant && tp == topic_name);
+            .iter()
+            .any(|e| e.key().0 == tenant && e.key().1 == topic_name);
 
         if already_loaded {
             return Ok(());

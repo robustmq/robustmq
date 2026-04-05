@@ -48,7 +48,7 @@ pub struct FanoutPushManager {
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     bucket_id: String,
-    consumers: DashMap<String, GroupConsumer>,
+    consumers: DashMap<String, Arc<GroupConsumer>>,
 }
 
 impl FanoutPushManager {
@@ -160,10 +160,27 @@ impl FanoutPushManager {
 
         for (connect_id, sid, group_name) in stale {
             self.subscribe_manager.remove_push_by_sid(connect_id, &sid);
-            self.consumers.remove(&group_name);
+            self.remove_consumer(&group_name);
         }
 
         Ok(processed)
+    }
+
+    fn get_or_create_consumer(&self, subscriber: &NatsSubscriber) -> Arc<GroupConsumer> {
+        if let Some(consumer) = self.consumers.get(&subscriber.group_name) {
+            return consumer.clone();
+        }
+        let consumer = Arc::new(GroupConsumer::new_manual(
+            self.storage_driver_manager.clone(),
+            subscriber.group_name.clone(),
+        ));
+        self.consumers
+            .insert(subscriber.group_name.clone(), consumer.clone());
+        consumer
+    }
+
+    pub fn remove_consumer(&self, group_name: &str) {
+        self.consumers.remove(group_name);
     }
 
     async fn process_subscriber(
@@ -175,46 +192,24 @@ impl FanoutPushManager {
             max_size: 1024 * 1024 * 30,
         };
 
-        let mut consumer = self
-            .consumers
-            .remove(&subscriber.group_name)
-            .map(|(_, c)| c)
-            .unwrap_or_else(|| {
-                GroupConsumer::new_manual(
-                    self.storage_driver_manager.clone(),
-                    subscriber.group_name.clone(),
-                )
-            });
+        let consumer = self.get_or_create_consumer(subscriber);
 
-        let records_result = consumer
+        let records = match consumer
             .next_messages(&subscriber.tenant, &subscriber.topic_name, &read_config)
-            .await;
-
-        match records_result {
-            Err(e) => {
-                self.consumers
-                    .insert(subscriber.group_name.clone(), consumer);
-                return Err(NatsBrokerError::from(e));
-            }
-            Ok(ref r) if r.is_empty() => {
-                self.consumers
-                    .insert(subscriber.group_name.clone(), consumer);
-                return Ok(0);
-            }
-            Ok(_) => {}
-        }
-
-        let records = records_result.unwrap();
+            .await
+        {
+            Err(e) => return Err(NatsBrokerError::from(e)),
+            Ok(r) if r.is_empty() => return Ok(0),
+            Ok(r) => r,
+        };
 
         let mut pushed = 0;
-        let mut connection_gone = false;
         for record in &records {
             match send_packet(&self.connection_manager, subscriber, record).await {
                 Ok(true) => pushed += 1,
                 Ok(false) => {}
                 Err(NatsBrokerError::ConnectionNotFound(_)) => {
-                    connection_gone = true;
-                    break;
+                    return Err(NatsBrokerError::ConnectionNotFound(subscriber.connect_id));
                 }
                 Err(e) => {
                     debug!(
@@ -225,16 +220,7 @@ impl FanoutPushManager {
             }
         }
 
-        if connection_gone {
-            self.consumers
-                .insert(subscriber.group_name.clone(), consumer);
-            return Err(NatsBrokerError::ConnectionNotFound(subscriber.connect_id));
-        }
-
         consumer.advance();
-        self.consumers
-            .insert(subscriber.group_name.clone(), consumer);
-
         Ok(pushed)
     }
 }
