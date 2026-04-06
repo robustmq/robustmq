@@ -55,10 +55,6 @@ $mq9.AI.
 
 **mail_id**: A globally unique communication address obtained via `MAILBOX.CREATE`. Not bound to Agent identity — one Agent can hold multiple mail_ids for different tasks, and they expire and clean up automatically. mail_id is channel-level, not identity-level.
 
-**Mailbox type**: Declared with the `type` parameter when creating a mailbox:
-- `standard` (default): messages accumulate, stored by priority.
-- `latest`: only the most recent message is kept; new messages overwrite old ones. For status reporting, capability declarations.
-
 **TTL**: Declared at INBOX or BROADCAST creation time; auto-destroyed on expiry, along with all messages. No explicit delete operation. TTL is fixed by the first CREATE call; subsequent CREATEs do not override it.
 
 **token**: Returned when creating an INBOX. Anyone who knows the mail_id can send messages; the token is only used for mailbox management operations. BROADCAST has no token.
@@ -84,7 +80,6 @@ A unified creation entry point. The subject prefix in the request body distingui
 ```bash
 # Request
 nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "type": "standard",
   "ttl": 3600,
   "subject": "$mq9.AI.INBOX"
 }'
@@ -102,7 +97,6 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{
 ```bash
 # Request
 nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "type": "standard",
   "ttl": 3600,
   "subject": "$mq9.AI.BROADCAST.pipeline.complete"
 }'
@@ -121,7 +115,6 @@ CREATE is idempotent. If the channel already exists, it silently returns success
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `type` | string | No | `standard` (default) or `latest` |
 | `ttl` | int | No | Lifetime in seconds; uses system default if omitted |
 | `subject` | string | Yes | `$mq9.AI.INBOX` to create a mailbox; `$mq9.AI.BROADCAST.{domain}.{event}` to create a broadcast channel |
 
@@ -196,7 +189,7 @@ Connection nc = Nats.connect("nats://localhost:4222");
 
 // Create a mailbox
 Message reply = nc.request("$mq9.AI.MAILBOX.CREATE",
-    "{\"type\":\"standard\",\"ttl\":3600,\"subject\":\"$mq9.AI.INBOX\"}".getBytes(),
+    "{\"ttl\":3600,\"subject\":\"$mq9.AI.INBOX\"}".getBytes(),
     Duration.ofSeconds(3));
 // reply contains mail_id and token
 
@@ -222,7 +215,6 @@ Broadcast channels must be CREATEd first; after that, anyone can publish to them
 ```bash
 # Create the channel first
 nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "type": "standard",
   "ttl": 7200,
   "subject": "$mq9.AI.BROADCAST.pipeline.complete"
 }'
@@ -309,15 +301,12 @@ mq9 runs on RobustMQ's unified storage layer. Users choose storage per message; 
 | RocksDB | Ephemeral persistence, TTL auto-cleanup | Mailbox default; task instructions; offline buffering |
 | File Segment | Long-term persistence, permanent | Audit logs, critical events |
 
-Mailbox type and storage mapping:
-
-| Mailbox type | Priority | Default storage | Notes |
-|-------------|----------|----------------|-------|
-| standard | urgent | RocksDB | Persisted, TTL=86400s |
-| standard | normal | RocksDB | Persisted, TTL=3600s |
-| standard | notify | Memory | Not persisted |
-| latest | — | RocksDB | Only the most recent message kept |
-| broadcast | — | RocksDB | Persisted, TTL declared at CREATE time |
+| Priority | Default storage | Notes |
+|----------|----------------|-------|
+| urgent | RocksDB | Persisted, TTL=86400s |
+| normal | RocksDB | Persisted, TTL=3600s |
+| notify | Memory | Not persisted |
+| broadcast | RocksDB | Persisted, TTL declared at CREATE time |
 
 ---
 

@@ -55,10 +55,6 @@ $mq9.AI.
 
 **mail_id**：通过 `MAILBOX.CREATE` 申请的全局唯一通信地址。不绑定 Agent 身份——一个 Agent 可以为不同任务申请不同的 mail_id，用完不管，TTL 自动清理。mail_id 是通道级的，不是身份级的。
 
-**邮箱类型**：申请邮箱时通过 `type` 参数声明：
-- `standard`（默认）：普通邮箱，消息累积，按优先级存储。
-- `latest`：状态邮箱，只保留最新一条，新消息覆盖旧消息。适合状态上报、能力声明等场景。
-
 **TTL**：INBOX 和 BROADCAST 创建时声明，到期自动销毁，消息随之清理。无显式删除操作。TTL 以第一次 CREATE 为准，重复 CREATE 不覆盖。
 
 **token**：创建 INBOX 时返回。任何人知道 mail_id 即可发消息，token 仅用于邮箱管理操作。BROADCAST 无 token。
@@ -84,7 +80,6 @@ $mq9.AI.
 ```bash
 # 请求
 nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "type": "standard",
   "ttl": 3600,
   "subject": "$mq9.AI.INBOX"
 }'
@@ -102,7 +97,6 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{
 ```bash
 # 请求
 nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "type": "standard",
   "ttl": 3600,
   "subject": "$mq9.AI.BROADCAST.pipeline.complete"
 }'
@@ -121,7 +115,6 @@ CREATE 是幂等的。频道已存在则静默返回成功，TTL 以第一次创
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `type` | string | 否 | `standard`（默认）或 `latest` |
 | `ttl` | int | 否 | 生存时间（秒），不填则使用默认值 |
 | `subject` | string | 是 | `$mq9.AI.INBOX` 创建邮箱；`$mq9.AI.BROADCAST.{domain}.{event}` 创建广播频道 |
 
@@ -196,7 +189,7 @@ Connection nc = Nats.connect("nats://localhost:4222");
 
 // 申请邮箱
 Message reply = nc.request("$mq9.AI.MAILBOX.CREATE",
-    "{\"type\":\"standard\",\"ttl\":3600,\"subject\":\"$mq9.AI.INBOX\"}".getBytes(),
+    "{\"ttl\":3600,\"subject\":\"$mq9.AI.INBOX\"}".getBytes(),
     Duration.ofSeconds(3));
 // reply 包含 mail_id 和 token
 
@@ -222,7 +215,6 @@ nc.publish("$mq9.AI.INBOX.m-uuid-001.normal",
 ```bash
 # 先创建频道
 nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "type": "standard",
   "ttl": 7200,
   "subject": "$mq9.AI.BROADCAST.pipeline.complete"
 }'
@@ -309,15 +301,12 @@ mq9 运行在 RobustMQ 统一存储层之上，提供三种存储能力。用户
 | RocksDB | 临时持久化，TTL 到期自动清理 | 邮箱默认选择，任务指令，离线消息 |
 | File Segment | 长期持久化，永久保留 | 审计日志，关键事件 |
 
-各邮箱类型与存储的对应关系：
-
-| 邮箱类型 | 优先级 | 默认存储层 | 说明 |
-|---------|--------|----------|------|
-| standard | urgent | RocksDB | 持久化，TTL=86400s |
-| standard | normal | RocksDB | 持久化，TTL=3600s |
-| standard | notify | Memory | 不持久化 |
-| latest | — | RocksDB | 只保留最新一条 |
-| broadcast | — | RocksDB | 持久化，TTL 以 CREATE 时声明为准 |
+| 优先级 | 默认存储层 | 说明 |
+|--------|----------|------|
+| urgent | RocksDB | 持久化，TTL=86400s |
+| normal | RocksDB | 持久化，TTL=3600s |
+| notify | Memory | 不持久化 |
+| broadcast | RocksDB | 持久化，TTL 以 CREATE 时声明为准 |
 
 ---
 

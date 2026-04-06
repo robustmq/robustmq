@@ -54,10 +54,6 @@ mq9 的全部协议只有三个命令字：
 
 私人的。有 mail_id、有 token，别人往里发，只有主人能收。创建时声明 TTL，到期自动销毁。
 
-邮箱有两种类型：
-- `standard`（默认）：消息累积，按优先级存储。适合任务指令、请求响应。
-- `latest`：只保留最新一条，新消息覆盖旧消息。适合状态上报、能力声明。
-
 邮箱不需要显式删除，TTL 到期自动销毁，消息随邮箱一起清理。
 
 ### 广播频道（BROADCAST）
@@ -101,7 +97,7 @@ Agent 上线后订阅 `$mq9.AI.BROADCAST.system.*`，就能发现整个网络。
 | 场景 | 协议组合 | 核心优势 |
 |------|---------|---------|
 | 子 Agent 完成任务，异步通知主 Agent | MAILBOX.CREATE + INBOX.normal | 主 Agent 不需要阻塞等待，消息离线不丢 |
-| 主 Agent 感知所有子 Agent 状态 | latest 邮箱 + 通配符订阅 | 新 Agent 加入自动感知，TTL 过期自动感知消亡，零维护 |
+| 主 Agent 感知所有子 Agent 状态 | BROADCAST + 通配符订阅 | 新 Agent 加入自动感知，TTL 过期自动感知消亡，零维护 |
 | 任务广播，多个 Worker 竞争消费 | BROADCAST + queue group | 竞争消费零配置，无 rebalance，Worker 动态增减 |
 | Agent 发现异常，广播告警 | BROADCAST + 持久化 | 发布方不需要维护订阅列表，离线 handler 上线后也能收到 |
 | 云端给离线边缘 Agent 发指令 | INBOX urgent/normal | 原生优先级，边缘断网不丢消息，联网后按优先级处理 |

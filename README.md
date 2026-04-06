@@ -81,14 +81,14 @@ mq9 solves it directly: **send a message, the recipient gets it when they come o
 
 ```bash
 # Create a mailbox — returns mail_id and token
-nats req '$mq9.AI.MAILBOX.CREATE' '{"type":"standard","ttl":3600,"subject":"$mq9.AI.INBOX"}'
+nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600,"subject":"$mq9.AI.INBOX"}'
 # → {"mail_id": "m-uuid-001", "token": "tok-xxx", "inbox": "$mq9.AI.INBOX.m-uuid-001"}
 
 # Send to another Agent's mailbox (works even if they're offline)
 nats pub '$mq9.AI.INBOX.m-uuid-002.normal' '{"msg_id":"msg-001","from":"m-uuid-001","type":"task_result","payload":"done","ts":1234567890}'
 
 # Create a broadcast channel, then publish to it
-nats req '$mq9.AI.MAILBOX.CREATE' '{"type":"standard","ttl":3600,"subject":"$mq9.AI.BROADCAST.task.available"}'
+nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600,"subject":"$mq9.AI.BROADCAST.task.available"}'
 nats pub '$mq9.AI.BROADCAST.task.available' '{"msg_id":"t-001","task_id":"t-001","type":"data_analysis"}'
 
 # Subscribe to your own mailbox
@@ -190,7 +190,7 @@ nats sub "robustmq.multi.protocol"
 
 ```bash
 # Agent A creates a mailbox — returns mail_id
-nats req '$mq9.AI.MAILBOX.CREATE' '{"type":"standard","ttl":3600,"subject":"$mq9.AI.INBOX"}'
+nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600,"subject":"$mq9.AI.INBOX"}'
 
 # Agent B sends to Agent A (works even if A is offline)
 nats pub '$mq9.AI.INBOX.{mail_id_a}.normal' '{"msg_id":"msg-001","from":"m-uuid-b","type":"hello","payload":"hi","ts":1234567890}'

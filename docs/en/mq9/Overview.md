@@ -54,10 +54,6 @@ No QUERY — every subscription delivers all non-expired messages in full; subsc
 
 Private. Has mail_id and token; anyone can send to it, but only the owner can receive. Declare TTL at creation; auto-destroyed on expiry.
 
-Two mailbox types:
-- `standard` (default): messages accumulate, stored by priority. For task instructions, request-reply.
-- `latest`: only the most recent message is kept; new messages overwrite old ones. For status reporting, capability declarations.
-
 Mailboxes do not need explicit deletion. TTL expiry triggers automatic destruction, and messages are cleaned up with the mailbox.
 
 ### Broadcast Channel (BROADCAST)
@@ -101,7 +97,7 @@ All of these share the same underlying flaw: **they assume the recipient is onli
 | Scenario | Protocol combination | Key advantage |
 |----------|---------------------|---------------|
 | Sub-Agent reports task result to orchestrator | MAILBOX.CREATE + INBOX.normal | Orchestrator doesn't block; messages survive offline periods |
-| Orchestrator tracks all sub-Agent states | `latest` mailbox + wildcard subscription | New Agents auto-discovered; TTL expiry auto-signals death; zero maintenance |
+| Orchestrator tracks all sub-Agent states | BROADCAST + wildcard subscription | New Agents auto-discovered; TTL expiry auto-signals death; zero maintenance |
 | Task broadcast with competing Workers | BROADCAST + queue group | Competing consumers need zero config, no rebalancing, dynamic Worker scaling |
 | Agent broadcasts an anomaly alert | BROADCAST + persistence | Publisher needs no subscriber list; offline handlers receive alerts after reconnecting |
 | Cloud sends commands to offline edge Agent | INBOX urgent/normal | Native priority; messages survive network outages; processed by priority on reconnect |
