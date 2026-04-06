@@ -30,7 +30,7 @@ use protocol::robust::{
 };
 use std::sync::Arc;
 use std::time::Duration;
-use storage_adapter::consumer::GroupConsumer;
+use storage_adapter::consumer::{GroupConsumer, StartOffsetStrategy};
 use storage_adapter::driver::StorageDriverManager;
 use tokio::select;
 use tokio::sync::broadcast;
@@ -167,7 +167,7 @@ impl FanoutPushManager {
         Ok(processed)
     }
 
-    fn get_or_create_consumer(&self, subscriber: &NatsSubscriber) -> Arc<GroupConsumer> {
+    async fn get_or_create_consumer(&self, subscriber: &NatsSubscriber) -> Arc<GroupConsumer> {
         if let Some(consumer) = self.consumers.get(&subscriber.group_name) {
             return consumer.clone();
         }
@@ -175,6 +175,9 @@ impl FanoutPushManager {
             self.storage_driver_manager.clone(),
             subscriber.group_name.clone(),
         ));
+        consumer
+            .set_start_offset_strategy(StartOffsetStrategy::Latest)
+            .await;
         self.consumers
             .insert(subscriber.group_name.clone(), consumer.clone());
         consumer
@@ -189,7 +192,7 @@ impl FanoutPushManager {
             max_size: 1024 * 1024 * 30,
         };
 
-        let consumer = self.get_or_create_consumer(subscriber);
+        let consumer = self.get_or_create_consumer(subscriber).await;
         let tag = subject_message_tag(&subscriber.tenant, &subscriber.topic_name);
         let records = match consumer
             .next_messages_by_tags(

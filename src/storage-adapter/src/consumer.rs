@@ -18,7 +18,9 @@ use dashmap::DashMap;
 use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
 use metadata_struct::storage::{adapter_read_config::AdapterReadConfig, record::StorageRecord};
 use std::{collections::HashMap, sync::Arc};
+use tokio::sync::RwLock;
 
+#[derive(Clone)]
 pub enum StartOffsetStrategy {
     Earliest,
     Latest,
@@ -52,7 +54,7 @@ pub struct GroupConsumer {
     /// Offsets advanced after the last next_messages call, not yet committed.
     pending_offsets: DashMap<OffsetKey, u64>,
     auto_commit: bool,
-    start_offset_strategy: StartOffsetStrategy,
+    start_offset_strategy: RwLock<StartOffsetStrategy>,
 }
 
 impl GroupConsumer {
@@ -63,7 +65,7 @@ impl GroupConsumer {
             current_offsets: DashMap::new(),
             pending_offsets: DashMap::new(),
             auto_commit: true,
-            start_offset_strategy: StartOffsetStrategy::Earliest,
+            start_offset_strategy: RwLock::new(StartOffsetStrategy::Earliest),
         }
     }
 
@@ -74,8 +76,9 @@ impl GroupConsumer {
         }
     }
 
-    pub fn set_start_offset_strategy(&mut self, strategy: StartOffsetStrategy) {
-        self.start_offset_strategy = strategy;
+    pub async fn set_start_offset_strategy(&self, strategy: StartOffsetStrategy) {
+        let mut write = self.start_offset_strategy.write().await;
+        *write = strategy;
     }
 
     pub async fn next_messages(
@@ -213,6 +216,7 @@ impl GroupConsumer {
             return Ok(());
         }
 
+        println!("group:{}", self.group_name);
         let committed = self
             .driver
             .get_offset_by_group(tenant, &self.group_name)
@@ -228,6 +232,8 @@ impl GroupConsumer {
 
         // No committed offset for this group — apply the start offset strategy.
         let shard_offsets = self.resolve_initial_offsets(tenant, topic_name).await?;
+        println!("shard_offsets:{:?}", shard_offsets);
+
         for (shard_name, offset) in shard_offsets {
             self.current_offsets
                 .insert(OffsetKey::new(tenant, topic_name, &shard_name), offset);
@@ -245,8 +251,9 @@ impl GroupConsumer {
             .driver
             .list_storage_resource(tenant, topic_name)
             .await?;
-
-        match &self.start_offset_strategy {
+        let strategy = self.start_offset_strategy.read().await;
+        println!("storage_list:{:?}", storage_list);
+        match *strategy {
             StartOffsetStrategy::Earliest => {
                 let offsets = storage_list
                     .into_values()
@@ -280,7 +287,7 @@ impl GroupConsumer {
                 let offsets = storage_list
                     .into_values()
                     .map(|detail| {
-                        let offset = (*start)
+                        let offset = start
                             .max(detail.offset.start_offset)
                             .min(detail.offset.end_offset);
                         (detail.shard_name, offset)
@@ -292,7 +299,7 @@ impl GroupConsumer {
                 let adapter_strategy = AdapterOffsetStrategy::Latest;
                 let target = self
                     .driver
-                    .get_offset_by_timestamp(tenant, topic_name, *timestamp, adapter_strategy)
+                    .get_offset_by_timestamp(tenant, topic_name, timestamp, adapter_strategy)
                     .await?;
                 let offsets = storage_list
                     .into_values()

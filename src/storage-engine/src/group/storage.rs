@@ -49,7 +49,6 @@ impl OffsetStorageManager {
             group: group.to_owned(),
         };
         let reply = get_offset_data(&self.client_pool, &self.addrs, request).await?;
-
         let mut results = Vec::new();
         for raw in reply.offsets {
             results.push(AdapterConsumerGroupOffset {
