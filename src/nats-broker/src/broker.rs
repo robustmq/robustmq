@@ -14,7 +14,7 @@
 
 use crate::{
     core::{cache::NatsCacheManager, keep_alive::NatsClientKeepAlive},
-    push::NatsSubscribeManager,
+    push::{manager::NatsSubscribeManager, start_push},
     server::{NatsServer, NatsServerParams},
 };
 use broker_core::cache::NodeCacheManager;
@@ -95,16 +95,16 @@ impl NatsBrokerServer {
     pub async fn start(&self) {
         let conf = broker_config();
 
-        self.subscribe_manager
-            .start_push(
-                self.cache_manager.clone(),
-                self.connection_manager.clone(),
-                self.storage_driver_manager.clone(),
-                self.task_supervisor.clone(),
-                conf.nats_runtime.push_thread_num,
-                self.stop_sx.clone(),
-            )
-            .await;
+        start_push(
+            &self.subscribe_manager,
+            self.cache_manager.clone(),
+            self.connection_manager.clone(),
+            self.storage_driver_manager.clone(),
+            self.task_supervisor.clone(),
+            conf.nats_runtime.push_thread_num,
+            self.stop_sx.clone(),
+        )
+        .await;
 
         let keep_alive = self.keep_alive.clone();
         let stop_sx = self.stop_sx.clone();

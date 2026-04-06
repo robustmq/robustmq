@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::NatsCacheManager;
-use crate::push::NatsSubscribeManager;
+use crate::push::manager::NatsSubscribeManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use common_config::broker::broker_config;

@@ -13,18 +13,14 @@
 // limitations under the License.
 
 use crate::core::cache::NatsCacheManager;
-use crate::push::NatsSubscribeManager;
-use crate::push::NatsSubscriber;
+use crate::push::manager::NatsSubscribeManager;
+use crate::push::manager::NatsSubscriber;
 use common_base::tools::now_second;
 use common_base::uuid::unique_id;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::topic::{Topic, TopicSource};
 use std::sync::Arc;
-use tokio::{
-    select,
-    sync::{broadcast, mpsc::Receiver},
-};
-use tracing::{debug, error, info};
+use tracing::debug;
 
 #[derive(Clone, Debug)]
 pub enum ParseAction {
@@ -70,70 +66,7 @@ impl ParseSubscribeData {
     }
 }
 
-pub async fn start_parse_thread(
-    cache_manager: Arc<NatsCacheManager>,
-    subscribe_manager: Arc<NatsSubscribeManager>,
-    mut rx: Receiver<ParseSubscribeData>,
-    stop_sx: broadcast::Sender<bool>,
-) {
-    let mut stop_rx = stop_sx.subscribe();
-
-    loop {
-        select! {
-            val = stop_rx.recv() => {
-                match val {
-                    Ok(true) => {
-                        info!("NATS subscribe parse thread stopping");
-                        break;
-                    }
-                    Ok(false) => {}
-                    Err(broadcast::error::RecvError::Closed) => {
-                        info!("NATS subscribe parse thread stop channel closed");
-                        break;
-                    }
-                    Err(broadcast::error::RecvError::Lagged(n)) => {
-                        debug!("NATS subscribe parse thread stop channel lagged, skipped {}", n);
-                    }
-                }
-            }
-
-            result = rx.recv() => {
-                let Some(data) = result else {
-                    info!("NATS subscribe parse thread request channel closed");
-                    break;
-                };
-
-                match (&data.action, &data.source, &data.subscribe, &data.topic) {
-                    (ParseAction::Add, source, Some(sub), None) => {
-                        parse_by_new_subscribe(
-                            &cache_manager,
-                            &subscribe_manager,
-                            sub,
-                            source,
-                        );
-                    }
-                    (ParseAction::Remove, _, Some(sub), None) => {
-                        subscribe_manager.remove_push_by_sid(sub.connect_id, &sub.sid);
-                    }
-
-                    (ParseAction::Add, _, None, Some(topic)) => {
-                        parse_by_new_topic(&subscribe_manager, topic);
-                    }
-
-                    (ParseAction::Remove, _, None, Some(topic)) => {
-                        subscribe_manager.remove_by_topic(&topic.topic_name);
-                    }
-
-                    _ => {
-                        error!("Unexpected ParseSubscribeData: {:?}", data);
-                    }
-                }
-            }
-        }
-    }
-}
-
-fn parse_by_new_subscribe(
+pub(crate) fn parse_by_new_subscribe(
     cache_manager: &Arc<NatsCacheManager>,
     subscribe_manager: &Arc<NatsSubscribeManager>,
     sub: &NatsSubscribe,
@@ -165,7 +98,7 @@ fn parse_by_new_subscribe(
     }
 }
 
-fn parse_by_new_topic(subscribe_manager: &Arc<NatsSubscribeManager>, topic: &Topic) {
+pub(crate) fn parse_by_new_topic(subscribe_manager: &Arc<NatsSubscribeManager>, topic: &Topic) {
     if topic.source != TopicSource::NATS {
         return;
     }

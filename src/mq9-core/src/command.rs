@@ -56,7 +56,7 @@ impl Mq9Command {
         match parts.as_slice() {
             ["MAILBOX", "CREATE"] => Some(Mq9Command::MailboxCreate),
             ["MAILBOX", mail_id, priority] => {
-                let priority = Priority::from_str(priority)?;
+                let priority = Priority::parse(priority)?;
                 Some(Mq9Command::Mailbox {
                     mail_id: (*mail_id).to_string(),
                     priority,

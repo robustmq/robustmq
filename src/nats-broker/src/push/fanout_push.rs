@@ -14,8 +14,8 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::nats::subscribe::subject_message_tag;
-use crate::push::NatsSubscribeManager;
-use crate::push::NatsSubscriber;
+use crate::push::manager::NatsSubscribeManager;
+use crate::push::manager::NatsSubscriber;
 use bytes::Bytes;
 use dashmap::DashMap;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;

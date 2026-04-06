@@ -18,8 +18,8 @@ use crate::push::fanout_push::{
     send_packet, BATCH_SIZE, HIGH_LOAD_SLEEP_MS, IDLE_SLEEP_MS, LOW_LOAD_SLEEP_MS,
     LOW_LOAD_THRESHOLD,
 };
-use crate::push::NatsSubscribeManager;
-use crate::push::NatsSubscriber;
+use crate::push::manager::NatsSubscribeManager;
+use crate::push::manager::NatsSubscriber;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
