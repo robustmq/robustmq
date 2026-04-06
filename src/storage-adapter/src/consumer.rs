@@ -159,14 +159,12 @@ impl GroupConsumer {
     /// Unlike `commit`, no IO is performed, so the offset store is not updated and a
     /// restart will resume from the last `commit` position.
     pub fn advance(&self) {
-        println!("self.pending_offsets:{:?}", self.pending_offsets);
         for e in self.pending_offsets.iter() {
             let mut cur = self.current_offsets.entry(e.key().clone()).or_insert(0);
-            if *e.value() > *cur {
+            if *e.value() >= *cur {
                 *cur = *e.value() + 1;
             }
         }
-        println!("self.current_offsets:{:?}", self.current_offsets);
         self.pending_offsets.clear();
     }
 
@@ -220,7 +218,6 @@ impl GroupConsumer {
             return Ok(());
         }
 
-        println!("group:{}", self.group_name);
         let committed = self
             .driver
             .get_offset_by_group(tenant, &self.group_name)
@@ -236,7 +233,6 @@ impl GroupConsumer {
 
         // No committed offset for this group — apply the start offset strategy.
         let shard_offsets = self.resolve_initial_offsets(tenant, topic_name).await?;
-        println!("shard_offsets:{:?}", shard_offsets);
 
         for (shard_name, offset) in shard_offsets {
             self.current_offsets
@@ -256,7 +252,6 @@ impl GroupConsumer {
             .list_storage_resource(tenant, topic_name)
             .await?;
         let strategy = self.start_offset_strategy.read().await;
-        println!("storage_list:{:?}", storage_list);
         match *strategy {
             StartOffsetStrategy::Earliest => {
                 let offsets = storage_list

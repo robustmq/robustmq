@@ -202,7 +202,7 @@ impl FanoutPushManager {
             Ok(r) if r.is_empty() => return Ok(0),
             Ok(r) => r,
         };
-        println!("records:{:?}", records);
+
         let mut pushed = 0;
         for record in &records {
             match send_packet(&self.connection_manager, subscriber, record).await {
