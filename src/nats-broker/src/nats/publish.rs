@@ -37,6 +37,8 @@ pub async fn process_pub(
         return None;
     };
 
+    
+
     if broker_config().nats_runtime.auth_required && !connection.is_login {
         return Some(NatsPacket::Err(
             NatsProtocolError::AuthorizationViolation.message(),

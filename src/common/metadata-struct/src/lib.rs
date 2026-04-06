@@ -26,3 +26,4 @@ pub mod schema;
 pub mod storage;
 pub mod tenant;
 pub mod topic;
+pub mod mq9;
