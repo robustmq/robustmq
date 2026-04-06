@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::core::error::NatsBrokerError;
+use crate::nats::subscribe::subject_message_tag;
 use crate::subscribe::common::NatsSubscriber;
 use crate::subscribe::NatsSubscribeManager;
 use axum::extract::ws::Message;
@@ -189,9 +190,14 @@ impl FanoutPushManager {
         };
 
         let consumer = self.get_or_create_consumer(subscriber);
-
+        let tag = subject_message_tag(&subscriber.tenant, &subscriber.topic_name);
         let records = match consumer
-            .next_messages(&subscriber.tenant, &subscriber.topic_name, &read_config)
+            .next_messages_by_tags(
+                &subscriber.tenant,
+                &subscriber.topic_name,
+                &tag,
+                &read_config,
+            )
             .await
         {
             Err(e) => return Err(NatsBrokerError::from(e)),

@@ -778,7 +778,7 @@ fn default_nats_core_shard_num() -> usize {
 }
 
 fn default_nats_push_thread_num() -> usize {
-    10
+    1
 }
 
 fn default_nats_push_queue_thread_num() -> usize {

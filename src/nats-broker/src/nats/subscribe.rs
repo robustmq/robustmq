@@ -22,6 +22,10 @@ use crate::core::error::NatsProtocolError;
 use crate::handler::command::NatsProcessContext;
 use crate::subscribe::parse::{ParseAction, ParseSubscribeData};
 
+pub fn subject_message_tag(tenant: &str, subject: &str) -> String {
+    format!("{}_{}", tenant, subject)
+}
+
 pub fn process_sub(
     ctx: &NatsProcessContext,
     subject: &str,

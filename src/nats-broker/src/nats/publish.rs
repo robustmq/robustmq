@@ -16,6 +16,7 @@ use crate::core::error::{NatsBrokerError, NatsProtocolError};
 use crate::core::subject::try_get_or_init_subject;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
+use crate::nats::subscribe::subject_message_tag;
 use crate::storage::message::MessageStorage;
 use bytes::Bytes;
 use common_config::broker::broker_config;
@@ -78,16 +79,15 @@ async fn process_pub0(
     let message = MessageStorage::new(ctx.storage_driver_manager.clone());
     let reply_to_string = reply_to.map(|rt| rt.to_string());
 
-    let tags = vec![subject.to_string()];
     let record = AdapterWriteRecord::new(subject.to_string(), payload.clone())
+        .with_tags(vec![subject_message_tag(&tenant, subject)])
         .with_protocol_data(Some(StorageRecordProtocolData {
             nats: Some(StorageRecordProtocolDataNats {
                 reply_to: reply_to_string,
                 header: header.clone(),
             }),
             mqtt: None,
-        }))
-        .with_tags(tags);
+        }));
     message.write(&tenant, subject, vec![record]).await?;
     Ok(())
 }

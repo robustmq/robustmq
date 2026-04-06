@@ -27,13 +27,30 @@ pub enum StartOffsetStrategy {
     ByStartTime(u64),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct OffsetKey {
+    tenant: String,
+    topic: String,
+    shard: String,
+}
+
+impl OffsetKey {
+    fn new(tenant: &str, topic: &str, shard: &str) -> Self {
+        OffsetKey {
+            tenant: tenant.to_string(),
+            topic: topic.to_string(),
+            shard: shard.to_string(),
+        }
+    }
+}
+
 pub struct GroupConsumer {
     driver: Arc<StorageDriverManager>,
     group_name: String,
     /// Committed offsets: the starting offset for the next read per shard.
-    current_offsets: DashMap<(String, String, String), u64>,
+    current_offsets: DashMap<OffsetKey, u64>,
     /// Offsets advanced after the last next_messages call, not yet committed.
-    pending_offsets: DashMap<(String, String, String), u64>,
+    pending_offsets: DashMap<OffsetKey, u64>,
     auto_commit: bool,
     start_offset_strategy: StartOffsetStrategy,
 }
@@ -69,25 +86,31 @@ impl GroupConsumer {
     ) -> Result<Vec<StorageRecord>, CommonError> {
         self.ensure_offsets_loaded(tenant, topic_name).await?;
 
-        let shard_offsets: HashMap<String, u64> = self
-            .current_offsets
-            .iter()
-            .filter(|e| e.key().0 == tenant && e.key().1 == topic_name)
-            .map(|e| (e.key().2.clone(), *e.value()))
-            .collect();
-
+        let shard_offsets = self.current_shard_offsets(tenant, topic_name);
         let records = self
             .driver
             .read_by_offset(tenant, topic_name, &shard_offsets, read_config)
             .await?;
 
-        self.stage_offsets(tenant, topic_name, &records);
+        self.after_read(tenant, topic_name, records).await
+    }
 
-        if self.auto_commit && !records.is_empty() {
-            self.commit().await?;
-        }
+    pub async fn next_messages_by_tags(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+        tag: &str,
+        read_config: &AdapterReadConfig,
+    ) -> Result<Vec<StorageRecord>, CommonError> {
+        self.ensure_offsets_loaded(tenant, topic_name).await?;
 
-        Ok(records)
+        let shard_offsets = self.current_shard_offsets(tenant, topic_name);
+        let records = self
+            .driver
+            .read_by_tag(tenant, topic_name, tag, &shard_offsets, read_config)
+            .await?;
+
+        self.after_read(tenant, topic_name, records).await
     }
 
     /// Persist pending offsets to the offset store and advance current_offsets.
@@ -104,11 +127,11 @@ impl GroupConsumer {
 
         let mut by_tenant_topic: HashMap<(String, String), HashMap<String, u64>> = HashMap::new();
         for e in self.pending_offsets.iter() {
-            let (tenant, topic, shard) = e.key();
+            let key = e.key();
             by_tenant_topic
-                .entry((tenant.clone(), topic.clone()))
+                .entry((key.tenant.clone(), key.topic.clone()))
                 .or_default()
-                .insert(shard.clone(), *e.value());
+                .insert(key.shard.clone(), *e.value());
         }
 
         for ((tenant, _topic), shard_offsets) in &by_tenant_topic {
@@ -142,13 +165,32 @@ impl GroupConsumer {
         self.pending_offsets.clear();
     }
 
+    /// Collect per-shard offsets for the given tenant+topic from current_offsets.
+    fn current_shard_offsets(&self, tenant: &str, topic_name: &str) -> HashMap<String, u64> {
+        self.current_offsets
+            .iter()
+            .filter(|e| e.key().tenant == tenant && e.key().topic == topic_name)
+            .map(|e| (e.key().shard.clone(), *e.value()))
+            .collect()
+    }
+
+    /// Stage offsets from the returned records, then auto-commit if enabled.
+    async fn after_read(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+        records: Vec<StorageRecord>,
+    ) -> Result<Vec<StorageRecord>, CommonError> {
+        self.stage_offsets(tenant, topic_name, &records);
+        if self.auto_commit && !records.is_empty() {
+            self.commit().await?;
+        }
+        Ok(records)
+    }
+
     fn stage_offsets(&self, tenant: &str, topic_name: &str, records: &[StorageRecord]) {
         for record in records {
-            let key = (
-                tenant.to_string(),
-                topic_name.to_string(),
-                record.metadata.shard.clone(),
-            );
+            let key = OffsetKey::new(tenant, topic_name, &record.metadata.shard);
             let next = record.metadata.offset + 1;
             let mut entry = self.pending_offsets.entry(key).or_insert(0);
             if next > *entry {
@@ -165,7 +207,7 @@ impl GroupConsumer {
         let already_loaded = self
             .current_offsets
             .iter()
-            .any(|e| e.key().0 == tenant && e.key().1 == topic_name);
+            .any(|e| e.key().tenant == tenant && e.key().topic == topic_name);
 
         if already_loaded {
             return Ok(());
@@ -178,10 +220,8 @@ impl GroupConsumer {
 
         if !committed.is_empty() {
             for g in committed {
-                self.current_offsets.insert(
-                    (tenant.to_string(), topic_name.to_string(), g.shard_name),
-                    g.offset,
-                );
+                self.current_offsets
+                    .insert(OffsetKey::new(tenant, topic_name, &g.shard_name), g.offset);
             }
             return Ok(());
         }
@@ -189,10 +229,8 @@ impl GroupConsumer {
         // No committed offset for this group — apply the start offset strategy.
         let shard_offsets = self.resolve_initial_offsets(tenant, topic_name).await?;
         for (shard_name, offset) in shard_offsets {
-            self.current_offsets.insert(
-                (tenant.to_string(), topic_name.to_string(), shard_name),
-                offset,
-            );
+            self.current_offsets
+                .insert(OffsetKey::new(tenant, topic_name, &shard_name), offset);
         }
 
         Ok(())

@@ -156,14 +156,15 @@ impl StorageDriverManager {
         tenant: &str,
         topic_name: &str,
         tag: &str,
-        start_offset: Option<u64>,
+        offsets: &HashMap<String, u64>,
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         let mut results = Vec::new();
         for (_, shard_name) in topic.storage_name_list {
+            let offset = offsets.get(&shard_name).copied();
             let resp = driver
-                .read_by_tag(&shard_name, tag, start_offset, read_config)
+                .read_by_tag(&shard_name, tag, offset, read_config)
                 .await?;
             results.extend(resp);
         }
