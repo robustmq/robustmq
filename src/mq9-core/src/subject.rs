@@ -12,84 +12,88 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// Subject namespace prefix: `$mq9.AI`
+const PREFIX: &str = "$mq9.AI";
+
+/// Priority levels for mailbox messages.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum InboxPriority {
-    Urgent,
+pub enum Priority {
+    High,
     Normal,
-    Notify,
+    Low,
 }
 
-impl InboxPriority {
+impl Priority {
     pub fn as_str(&self) -> &'static str {
         match self {
-            InboxPriority::Urgent => "urgent",
-            InboxPriority::Normal => "normal",
-            InboxPriority::Notify => "notify",
+            Priority::High => "high",
+            Priority::Normal => "normal",
+            Priority::Low => "low",
+        }
+    }
+
+    fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "high" => Some(Priority::High),
+            "normal" => Some(Priority::Normal),
+            "low" => Some(Priority::Low),
+            _ => None,
         }
     }
 }
 
-impl std::fmt::Display for InboxPriority {
+impl std::fmt::Display for Priority {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
     }
 }
 
+/// All recognized mq9 subjects.
+///
+/// Full subject strings:
+/// - `$mq9.AI.MAILBOX.CREATE`
+/// - `$mq9.AI.MAILBOX.{mail_id}.{high|normal|low}`
+/// - `$mq9.AI.PUBLIC.LIST`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mq9Subject {
+    /// `$mq9.AI.MAILBOX.CREATE` — create a mailbox.
     MailboxCreate,
-    MailboxQuery {
-        mail_id: String,
-    },
-    Inbox {
-        mail_id: String,
-        priority: InboxPriority,
-    },
-    Broadcast {
-        domain: String,
-        event: String,
-    },
+    /// `$mq9.AI.MAILBOX.{mail_id}.{priority}` — send/subscribe to a mailbox.
+    Mailbox { mail_id: String, priority: Priority },
+    /// `$mq9.AI.PUBLIC.LIST` — discover all public mailboxes.
+    PublicList,
 }
 
 impl Mq9Subject {
     pub fn is_mq9_subject(subject: &str) -> bool {
-        Self::from_subject(subject).is_some()
+        Self::parse(subject).is_some()
     }
 
+    /// Returns the full NATS subject string, e.g. `$mq9.AI.MAILBOX.m-001.normal`.
     pub fn to_subject(&self) -> String {
         match self {
-            Mq9Subject::MailboxCreate => "MAILBOX.CREATE".to_string(),
-            Mq9Subject::MailboxQuery { mail_id } => format!("MAILBOX.QUERY.{}", mail_id),
-            Mq9Subject::Inbox { mail_id, priority } => format!("INBOX.{}.{}", mail_id, priority),
-            Mq9Subject::Broadcast { domain, event } => format!("BROADCAST.{}.{}", domain, event),
+            Mq9Subject::MailboxCreate => format!("{}.MAILBOX.CREATE", PREFIX),
+            Mq9Subject::Mailbox { mail_id, priority } => {
+                format!("{}.MAILBOX.{}.{}", PREFIX, mail_id, priority)
+            }
+            Mq9Subject::PublicList => format!("{}.PUBLIC.LIST", PREFIX),
         }
     }
 
-    pub fn from_subject(subject: &str) -> Option<Self> {
-        let parts: Vec<&str> = subject.splitn(4, '.').collect();
+    /// Parse a full NATS subject string into an [`Mq9Subject`].
+    pub fn parse(subject: &str) -> Option<Self> {
+        let rest = subject.strip_prefix(PREFIX)?.strip_prefix('.')?;
+        let parts: Vec<&str> = rest.splitn(4, '.').collect();
         match parts.as_slice() {
             ["MAILBOX", "CREATE"] => Some(Mq9Subject::MailboxCreate),
-            ["MAILBOX", "QUERY", mail_id] => Some(Mq9Subject::MailboxQuery {
-                mail_id: (*mail_id).to_string(),
-            }),
-            ["INBOX", mail_id, priority] => {
-                let priority = match *priority {
-                    "urgent" => InboxPriority::Urgent,
-                    "normal" => InboxPriority::Normal,
-                    "notify" => InboxPriority::Notify,
-                    _ => return None,
-                };
-                Some(Mq9Subject::Inbox {
+            ["MAILBOX", mail_id, priority] => {
+                let priority = Priority::from_str(priority)?;
+                Some(Mq9Subject::Mailbox {
                     mail_id: (*mail_id).to_string(),
                     priority,
                 })
             }
-            [ns, domain, ..] if *ns == "BROADCAST" && parts.len() >= 3 => {
-                Some(Mq9Subject::Broadcast {
-                    domain: (*domain).to_string(),
-                    event: parts[2..].join("."),
-                })
-            }
+            ["PUBLIC", "LIST"] => Some(Mq9Subject::PublicList),
             _ => None,
         }
     }
@@ -106,29 +110,64 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_subject_roundtrip() {
+    fn test_roundtrip() {
         let cases = vec![
             Mq9Subject::MailboxCreate,
-            Mq9Subject::MailboxQuery {
-                mail_id: "abc".to_string(),
+            Mq9Subject::Mailbox {
+                mail_id: "m-uuid-001".to_string(),
+                priority: Priority::High,
             },
-            Mq9Subject::Inbox {
-                mail_id: "abc".to_string(),
-                priority: InboxPriority::Urgent,
+            Mq9Subject::Mailbox {
+                mail_id: "m-uuid-001".to_string(),
+                priority: Priority::Normal,
             },
-            Mq9Subject::Broadcast {
-                domain: "finance".to_string(),
-                event: "order.created".to_string(),
+            Mq9Subject::Mailbox {
+                mail_id: "m-uuid-001".to_string(),
+                priority: Priority::Low,
             },
+            Mq9Subject::Mailbox {
+                mail_id: "task.queue".to_string(),
+                priority: Priority::Normal,
+            },
+            Mq9Subject::PublicList,
         ];
-        for s in cases {
-            assert_eq!(Mq9Subject::from_subject(&s.to_subject()), Some(s));
+        for s in &cases {
+            assert_eq!(Mq9Subject::parse(&s.to_subject()).as_ref(), Some(s));
         }
     }
 
     #[test]
-    fn test_invalid_subject() {
-        assert_eq!(Mq9Subject::from_subject("UNKNOWN.foo"), None);
-        assert_eq!(Mq9Subject::from_subject("INBOX.abc.bad"), None);
+    fn test_to_subject_strings() {
+        assert_eq!(
+            Mq9Subject::MailboxCreate.to_subject(),
+            "$mq9.AI.MAILBOX.CREATE"
+        );
+        assert_eq!(
+            Mq9Subject::Mailbox {
+                mail_id: "m-001".to_string(),
+                priority: Priority::High,
+            }
+            .to_subject(),
+            "$mq9.AI.MAILBOX.m-001.high"
+        );
+        assert_eq!(Mq9Subject::PublicList.to_subject(), "$mq9.AI.PUBLIC.LIST");
+    }
+
+    #[test]
+    fn test_invalid() {
+        assert_eq!(Mq9Subject::parse("$mq9.AI.MAILBOX.m-001.urgent"), None);
+        assert_eq!(Mq9Subject::parse("$mq9.AI.INBOX.m-001.normal"), None);
+        assert_eq!(Mq9Subject::parse("$mq9.AI.BROADCAST.task.done"), None);
+        assert_eq!(Mq9Subject::parse("MAILBOX.CREATE"), None);
+        assert_eq!(Mq9Subject::parse("$mq9.AI.MAILBOX.CREATE.extra"), None);
+    }
+
+    #[test]
+    fn test_is_mq9_subject() {
+        assert!(Mq9Subject::is_mq9_subject("$mq9.AI.MAILBOX.CREATE"));
+        assert!(Mq9Subject::is_mq9_subject("$mq9.AI.MAILBOX.m-001.normal"));
+        assert!(Mq9Subject::is_mq9_subject("$mq9.AI.PUBLIC.LIST"));
+        assert!(!Mq9Subject::is_mq9_subject("$mq9.AI.INBOX.m-001.normal"));
+        assert!(!Mq9Subject::is_mq9_subject("some.other.subject"));
     }
 }

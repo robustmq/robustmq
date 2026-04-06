@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::NatsCacheManager;
-use crate::subscribe::NatsSubscribeManager;
+use crate::nats_push::NatsSubscribeManager;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::error::ResultCommonError;

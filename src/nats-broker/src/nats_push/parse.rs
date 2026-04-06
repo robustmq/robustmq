@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::core::cache::NatsCacheManager;
-use crate::subscribe::NatsSubscribeManager;
-use crate::subscribe::NatsSubscriber;
+use crate::nats_push::NatsSubscribeManager;
+use crate::nats_push::NatsSubscriber;
 use common_base::tools::now_second;
 use common_base::uuid::unique_id;
 use metadata_struct::nats::subscribe::NatsSubscribe;

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::subscribe::parse::{ParseAction, ParseSubscribeData};
-use crate::subscribe::NatsSubscribeManager;
+use crate::nats_push::parse::{ParseAction, ParseSubscribeData};
+use crate::nats_push::NatsSubscribeManager;
 use common_base::error::common::CommonError;
 use common_base::utils::serialize;
 use metadata_struct::nats::subscribe::NatsSubscribe;
