@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::subscribe::common::NatsSubscriber;
+use crate::subscribe::NatsSubscriber;
 use common_base::uuid::unique_id;
 use dashmap::DashMap;
 use std::collections::HashSet;
@@ -50,7 +50,7 @@ pub struct NatsBucketsManager {
     seq_bucket: DashMap<u64, String>,
 
     // group_name (nats_fanout_{connect_id}_{sid}_{topic}) → seq  for deduplication
-    group_seq: DashMap<String, u64>,
+    sub_seq: DashMap<String, u64>,
 
     // Bucket IDs registered via register_bucket — never auto-deleted when empty.
     registered_buckets: DashMap<String, ()>,
@@ -78,7 +78,7 @@ impl NatsBucketsManager {
             buckets_data_list: DashMap::with_capacity(8),
             topic_sub: DashMap::with_capacity(8),
             seq_bucket: DashMap::with_capacity(256),
-            group_seq: DashMap::with_capacity(256),
+            sub_seq: DashMap::with_capacity(256),
             registered_buckets: DashMap::with_capacity(16),
             bucket_order: Arc::new(std::sync::RwLock::new(Vec::new())),
             bucket_id,
@@ -96,7 +96,7 @@ impl NatsBucketsManager {
     }
 
     pub fn add(&self, subscriber: &NatsSubscriber) {
-        if self.group_seq.contains_key(&subscriber.group_name) {
+        if self.sub_seq.contains_key(&subscriber.uniq_id) {
             return;
         }
 
@@ -114,11 +114,11 @@ impl NatsBucketsManager {
             .insert(seq);
 
         self.topic_sub
-            .entry(subscriber.topic_name.clone())
+            .entry(subscriber.subject.clone())
             .or_default()
             .insert(seq);
 
-        self.group_seq.insert(subscriber.group_name.clone(), seq);
+        self.sub_seq.insert(subscriber.uniq_id.clone(), seq);
 
         let bucket_id = self.pick_bucket();
         self.seq_bucket.insert(seq, bucket_id.clone());
@@ -232,15 +232,15 @@ impl NatsBucketsManager {
         }
 
         // Clean topic index
-        if let Some(mut seqs) = self.topic_sub.get_mut(&subscriber.topic_name) {
+        if let Some(mut seqs) = self.topic_sub.get_mut(&subscriber.subject) {
             seqs.remove(&seq);
             if seqs.is_empty() {
                 drop(seqs);
-                self.topic_sub.remove(&subscriber.topic_name);
+                self.topic_sub.remove(&subscriber.subject);
             }
         }
 
-        self.group_seq.remove(&subscriber.group_name);
+        self.sub_seq.remove(&subscriber.uniq_id);
 
         let is_registered = self.registered_buckets.contains_key(&bucket_id);
         if !is_registered {
@@ -263,17 +263,17 @@ fn sid_key(connect_id: u64, sid: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::subscribe::common::fanout_group_name;
     use common_base::tools::now_second;
 
     fn make_sub(connect_id: u64, sid: &str, topic: &str) -> NatsSubscriber {
         NatsSubscriber {
+            uniq_id: unique_id(),
+            tenant: "default".to_string(),
             connect_id,
             sid: sid.to_string(),
             sub_subject: topic.to_string(),
-            topic_name: topic.to_string(),
+            subject: topic.to_string(),
             queue_group: String::new(),
-            group_name: fanout_group_name(connect_id, sid, topic),
             create_time: now_second(),
         }
     }

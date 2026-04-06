@@ -15,26 +15,19 @@
 use crate::{
     core::{cache::NatsCacheManager, keep_alive::NatsClientKeepAlive},
     server::{NatsServer, NatsServerParams},
-    subscribe::{
-        fanout_push::FanoutPushManager, parse::start_parse_thread, queue_push::QueuePushManager,
-        NatsSubscribeManager,
-    },
+    subscribe::NatsSubscribeManager,
 };
 use broker_core::cache::NodeCacheManager;
 use common_base::task::{TaskKind, TaskSupervisor};
-use common_base::uuid::unique_id;
 use common_config::broker::broker_config;
 use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::global::GlobalRateLimiterManager;
-use std::collections::HashSet;
 use std::sync::Arc;
-use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
-use tokio::sync::{broadcast, mpsc};
-use tokio::time::sleep;
+use tokio::sync::broadcast;
 use tracing::{error, info};
 
 #[derive(Clone)]
@@ -102,58 +95,16 @@ impl NatsBrokerServer {
     pub async fn start(&self) {
         let conf = broker_config();
 
-        let (parse_tx, parse_rx) = mpsc::channel(1024);
-        self.subscribe_manager.set_parse_sender(parse_tx).await;
-
-        let cache_manager = self.cache_manager.clone();
-        let subscribe_manager = self.subscribe_manager.clone();
-        let stop_sx = self.stop_sx.clone();
-        self.task_supervisor
-            .spawn(TaskKind::NATSSubscribeParse.to_string(), async move {
-                start_parse_thread(cache_manager, subscribe_manager, parse_rx, stop_sx).await;
-            });
-
-        let push_thread_num = conf.nats_runtime.push_thread_num;
-        let bucket_ids: Vec<String> = (0..push_thread_num).map(|_| unique_id()).collect();
-
-        for bucket_id in &bucket_ids {
-            self.subscribe_manager
-                .fanout_push
-                .register_bucket(bucket_id.clone());
-        }
-
-        for bucket_id in bucket_ids {
-            let mgr = FanoutPushManager::new(
-                self.subscribe_manager.clone(),
+        self.subscribe_manager
+            .start_push(
+                self.cache_manager.clone(),
                 self.connection_manager.clone(),
                 self.storage_driver_manager.clone(),
-                bucket_id.clone(),
-            );
-            let stop_sx = self.stop_sx.clone();
-            self.task_supervisor.spawn(
-                format!("{}_{}", TaskKind::NATSSubscribePush, bucket_id),
-                async move {
-                    mgr.start(&stop_sx).await;
-                },
-            );
-        }
-
-        let subscribe_manager = self.subscribe_manager.clone();
-        let connection_manager = self.connection_manager.clone();
-        let storage_driver_manager = self.storage_driver_manager.clone();
-        let task_supervisor = self.task_supervisor.clone();
-        let stop_sx = self.stop_sx.clone();
-        self.task_supervisor
-            .spawn(TaskKind::NATSQueuePush.to_string(), async move {
-                queue_group_watcher(
-                    subscribe_manager,
-                    connection_manager,
-                    storage_driver_manager,
-                    task_supervisor,
-                    stop_sx,
-                )
-                .await;
-            });
+                self.task_supervisor.clone(),
+                conf.nats_runtime.push_thread_num,
+                self.stop_sx.clone(),
+            )
+            .await;
 
         let keep_alive = self.keep_alive.clone();
         let stop_sx = self.stop_sx.clone();
@@ -183,63 +134,6 @@ impl NatsBrokerServer {
             }
             Err(e) => {
                 error!("NATS broker stop channel error: {}", e);
-            }
-        }
-    }
-}
-
-/// Watches `subscribe_manager.queue_push` and starts a `QueuePushManager` for each
-/// new queue group that appears. Runs every 100 ms.
-async fn queue_group_watcher(
-    subscribe_manager: Arc<NatsSubscribeManager>,
-    connection_manager: Arc<ConnectionManager>,
-    storage_driver_manager: Arc<StorageDriverManager>,
-    task_supervisor: Arc<TaskSupervisor>,
-    stop_sx: broadcast::Sender<bool>,
-) {
-    let mut stop_rx = stop_sx.subscribe();
-    let mut running_groups: HashSet<String> = HashSet::new();
-
-    loop {
-        tokio::select! {
-            val = stop_rx.recv() => {
-                match val {
-                    Ok(true) | Err(broadcast::error::RecvError::Closed) => {
-                        info!("NATS queue group watcher stopped");
-                        break;
-                    }
-                    _ => {}
-                }
-            }
-            _ = sleep(Duration::from_millis(100)) => {
-                let current_keys: HashSet<String> = subscribe_manager
-                    .queue_push
-                    .iter()
-                    .map(|e| e.key().clone())
-                    .collect();
-
-                for queue_key in &current_keys {
-                    if running_groups.contains(queue_key) {
-                        continue;
-                    }
-                    running_groups.insert(queue_key.clone());
-
-                    let mut mgr = QueuePushManager::new(
-                        subscribe_manager.clone(),
-                        connection_manager.clone(),
-                        storage_driver_manager.clone(),
-                        queue_key.clone(),
-                    );
-                    let stop_sx2 = stop_sx.clone();
-                    task_supervisor.spawn(
-                        format!("{}_{}", TaskKind::NATSQueuePush, queue_key),
-                        async move {
-                            mgr.start(&stop_sx2).await;
-                        },
-                    );
-                }
-
-                running_groups.retain(|k| current_keys.contains(k));
             }
         }
     }

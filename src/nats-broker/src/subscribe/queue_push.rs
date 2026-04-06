@@ -14,12 +14,12 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
-use crate::subscribe::common::NatsSubscriber;
 use crate::subscribe::fanout_push::{
     send_packet, BATCH_SIZE, HIGH_LOAD_SLEEP_MS, IDLE_SLEEP_MS, LOW_LOAD_SLEEP_MS,
     LOW_LOAD_THRESHOLD,
 };
 use crate::subscribe::NatsSubscribeManager;
+use crate::subscribe::NatsSubscriber;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
@@ -125,7 +125,17 @@ impl QueuePushManager {
             return Ok(0);
         }
 
-        let tenant = get_tenant();
+        let tenant = self
+            .subscribe_manager
+            .queue_push
+            .get(&self.queue_key)
+            .and_then(|b| {
+                b.buckets_data_list
+                    .iter()
+                    .next()
+                    .and_then(|bucket| bucket.iter().next().map(|e| e.tenant.clone()))
+            })
+            .unwrap_or_else(get_tenant);
         let read_config = AdapterReadConfig {
             max_record_num: BATCH_SIZE,
             max_size: 1024 * 1024 * 30,
@@ -196,7 +206,7 @@ impl QueuePushManager {
 
             if !self
                 .subscribe_manager
-                .allow_push_client(subscriber.connect_id, &self.topic_name)
+                .allow_push_client(subscriber.connect_id)
             {
                 continue;
             }
@@ -212,7 +222,7 @@ impl QueuePushManager {
                     self.subscribe_manager
                         .remove_push_by_sid(subscriber.connect_id, &subscriber.sid);
                     self.subscribe_manager
-                        .add_not_push_client(subscriber.connect_id, &self.topic_name);
+                        .add_not_push_client(subscriber.connect_id);
                 }
                 Err(e) => {
                     debug!(
@@ -220,7 +230,7 @@ impl QueuePushManager {
                         subscriber.connect_id, subscriber.sid, e
                     );
                     self.subscribe_manager
-                        .add_not_push_client(subscriber.connect_id, &self.topic_name);
+                        .add_not_push_client(subscriber.connect_id);
                 }
             }
         }

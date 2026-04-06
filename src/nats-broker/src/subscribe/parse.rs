@@ -13,9 +13,10 @@
 // limitations under the License.
 
 use crate::core::cache::NatsCacheManager;
-use crate::subscribe::common::{fanout_group_name, NatsSubscriber};
 use crate::subscribe::NatsSubscribeManager;
+use crate::subscribe::NatsSubscriber;
 use common_base::tools::now_second;
+use common_base::uuid::unique_id;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::topic::{Topic, TopicSource};
 use std::sync::Arc;
@@ -161,12 +162,13 @@ fn register_subscriber(
     topic_name: &str,
 ) {
     let subscriber = NatsSubscriber {
+        uniq_id: unique_id(),
+        tenant: sub.tenant.clone(),
         connect_id: sub.connect_id,
         sid: sub.sid.clone(),
         sub_subject: sub.subject.clone(),
-        topic_name: topic_name.to_string(),
+        subject: topic_name.to_string(),
         queue_group: sub.queue_group.clone(),
-        group_name: fanout_group_name(sub.connect_id, &sub.sid, topic_name),
         create_time: now_second(),
     };
 

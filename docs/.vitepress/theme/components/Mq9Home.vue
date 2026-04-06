@@ -155,7 +155,7 @@ const scenarios = computed(() => [
         </p>
 
         <div class="mq9-hero-actions">
-          <a class="mq9-btn-primary" :href="isZh ? '/zh/OverView/What-is-RobustMQ' : '/en/OverView/What-is-RobustMQ'">
+          <a class="mq9-btn-primary" href="https://mq9.robustmq.com/" target="_blank" rel="noopener">
             {{ t('快速开始', 'Get Started') }} →
           </a>
           <a class="mq9-btn-ghost" href="https://github.com/robustmq/robustmq" target="_blank" rel="noopener">
