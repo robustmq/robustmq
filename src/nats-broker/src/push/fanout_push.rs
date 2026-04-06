@@ -114,7 +114,7 @@ impl FanoutPushManager {
 
         let subscribers: Vec<NatsSubscriber> = self
             .subscribe_manager
-            .fanout_push
+            .nats_core_fanout_push
             .buckets_data_list
             .get(&self.bucket_id)
             .map(|bucket| bucket.iter().map(|e| e.value().clone()).collect())

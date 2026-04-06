@@ -17,11 +17,10 @@ use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
 use crate::storage::email::Mq9EmailStorage;
 use bytes::Bytes;
-use common_base::tools::now_second;
+use common_base::{tools::now_second, uuid::unique_id};
 use common_config::broker::broker_config;
 use metadata_struct::mq9::email::MQ9Email;
 use mq9_core::protocol::{CreateMailboxReply, CreateMailboxReq, Mq9Reply};
-use uuid::Uuid;
 
 fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
     let params: CreateMailboxReq = serde_json::from_slice(payload).map_err(|e| {
@@ -35,7 +34,7 @@ fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
             NatsBrokerError::CommonError("public mailbox requires a 'name' field".to_string())
         })?
     } else {
-        Uuid::new_v4().to_string()
+        format!("email-{}-{}", unique_id(), unique_id())
     };
 
     Ok(MQ9Email {

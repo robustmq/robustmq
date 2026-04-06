@@ -12,4 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use serde::{Deserialize, Serialize};
+
 pub mod email;
+
+/// Priority levels for mailbox messages.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Priority {
+    High,
+    Normal,
+    Low,
+}
+
+impl Priority {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Priority::High => "high",
+            Priority::Normal => "normal",
+            Priority::Low => "low",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "high" => Some(Priority::High),
+            "normal" => Some(Priority::Normal),
+            "low" => Some(Priority::Low),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for Priority {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}

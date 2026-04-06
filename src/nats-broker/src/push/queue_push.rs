@@ -116,7 +116,7 @@ impl QueuePushManager {
     async fn send_messages(&mut self) -> Result<usize, NatsBrokerError> {
         let is_empty = self
             .subscribe_manager
-            .queue_push
+            .nats_core_queue_push
             .get(&self.queue_key)
             .map(|b| b.sub_len() == 0)
             .unwrap_or(true);
@@ -127,7 +127,7 @@ impl QueuePushManager {
 
         let tenant = self
             .subscribe_manager
-            .queue_push
+            .nats_core_queue_push
             .get(&self.queue_key)
             .and_then(|b| {
                 b.buckets_data_list
@@ -184,7 +184,11 @@ impl QueuePushManager {
 
     async fn round_robin_send(&self, record: &StorageRecord) -> Result<bool, NatsBrokerError> {
         let subscribers: Vec<NatsSubscriber> = {
-            let Some(bucket_mgr) = self.subscribe_manager.queue_push.get(&self.queue_key) else {
+            let Some(bucket_mgr) = self
+                .subscribe_manager
+                .nats_core_queue_push
+                .get(&self.queue_key)
+            else {
                 return Ok(false);
             };
             let Some(bucket) = bucket_mgr.buckets_data_list.get(&self.queue_key) else {

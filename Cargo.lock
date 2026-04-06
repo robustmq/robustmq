@@ -4716,6 +4716,7 @@ version = "0.3.7"
 dependencies = [
  "axum 0.8.8",
  "bytes",
+ "metadata-struct",
  "mockall",
  "pprof",
  "serde",

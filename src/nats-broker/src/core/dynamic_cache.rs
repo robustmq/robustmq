@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::NatsCacheManager;
-use crate::push::parse::{ParseAction, ParseSubscribeData};
+use crate::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
 use crate::push::NatsSubscribeManager;
 use common_base::error::common::CommonError;
 use common_base::utils::serialize;
@@ -35,12 +35,20 @@ pub async fn update_nats_cache_metadata(
             let data = match record.action_type() {
                 BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
                     subscribe_manager.add_subscribe(subscribe.clone());
-                    ParseSubscribeData::new_subscribe(ParseAction::Add, subscribe)
+                    ParseSubscribeData::new_subscribe(
+                        ParseAction::Add,
+                        SubscribeSource::NatsCore,
+                        subscribe,
+                    )
                 }
                 BrokerUpdateCacheActionType::Delete => {
                     subscribe_manager.remove_subscribe(subscribe.connect_id, &subscribe.sid);
                     subscribe_manager.remove_push_by_sid(subscribe.connect_id, &subscribe.sid);
-                    ParseSubscribeData::new_subscribe(ParseAction::Remove, subscribe)
+                    ParseSubscribeData::new_subscribe(
+                        ParseAction::Remove,
+                        SubscribeSource::NatsCore,
+                        subscribe,
+                    )
                 }
             };
             subscribe_manager.send_parse_event(data).await;

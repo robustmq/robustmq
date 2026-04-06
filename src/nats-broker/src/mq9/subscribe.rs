@@ -14,22 +14,57 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::handler::command::NatsProcessContext;
-use mq9_core::command::Priority;
+use crate::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
+use common_base::tools::now_second;
+use metadata_struct::mq9::Priority;
+use metadata_struct::nats::subscribe::NatsSubscribe;
+use metadata_struct::tenant::DEFAULT_TENANT;
 
-pub fn process_sub(
-    _ctx: &NatsProcessContext,
-    _mail_id: &str,
-    _priority: &Priority,
-    _sid: &str,
-    _queue_group: Option<&str>,
+pub async fn process_sub(
+    ctx: &NatsProcessContext,
+    mail_id: &str,
+    priority: &Priority,
+    sid: &str,
+    queue_group: Option<&str>,
 ) -> Result<(), NatsBrokerError> {
+    let subscribe = NatsSubscribe {
+        tenant: DEFAULT_TENANT.to_string(),
+        connect_id: ctx.connect_id,
+        sid: sid.to_string(),
+        subject: mail_id.to_string(),
+        queue_group: queue_group.unwrap_or_default().to_string(),
+        priority: Some(priority.clone()),
+        create_time: now_second(),
+    };
+
+    ctx.subscribe_manager.add_subscribe(subscribe.clone());
+    ctx.subscribe_manager
+        .send_parse_event(ParseSubscribeData::new_subscribe(
+            ParseAction::Add,
+            SubscribeSource::Mq9,
+            subscribe,
+        ))
+        .await;
+
     Ok(())
 }
 
-pub fn process_unsub(
-    _ctx: &NatsProcessContext,
-    _mail_id: &str,
-    _sid: &str,
+pub async fn process_unsub(
+    ctx: &NatsProcessContext,
+    mail_id: &str,
+    sid: &str,
 ) -> Result<(), NatsBrokerError> {
+    if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
+        ctx.subscribe_manager
+            .send_parse_event(ParseSubscribeData::new_subscribe(
+                ParseAction::Remove,
+                SubscribeSource::Mq9,
+                subscribe,
+            ))
+            .await;
+    }
+
+    ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
+    let _ = mail_id;
     Ok(())
 }

@@ -20,8 +20,8 @@ use crate::nats::subscribe::subject_message_tag;
 use crate::storage::message::MessageStorage;
 use bytes::Bytes;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+use metadata_struct::mq9::Priority;
 use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordProtocolDataMq9};
-use mq9_core::command::Priority;
 use mq9_core::protocol::{Mq9Reply, PubMailboxReply};
 
 pub async fn process_pub(
@@ -69,6 +69,6 @@ pub async fn process_pub(
     let offset = offsets.into_iter().next().unwrap_or(0);
     Ok(Mq9Reply::Pub(PubMailboxReply {
         mail_id: mail_id.to_string(),
-        offset,
+        msg_id: offset,
     }))
 }

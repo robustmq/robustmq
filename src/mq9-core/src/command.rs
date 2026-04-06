@@ -12,41 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use metadata_struct::mq9::Priority;
+
 /// Subject namespace prefix: `$mq9.AI`
 const PREFIX: &str = "$mq9.AI";
-
-/// Priority levels for mailbox messages.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Priority {
-    High,
-    Normal,
-    Low,
-}
-
-impl Priority {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Priority::High => "high",
-            Priority::Normal => "normal",
-            Priority::Low => "low",
-        }
-    }
-
-    fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "high" => Some(Priority::High),
-            "normal" => Some(Priority::Normal),
-            "low" => Some(Priority::Low),
-            _ => None,
-        }
-    }
-}
-
-impl std::fmt::Display for Priority {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
 
 /// All recognized mq9 subjects.
 ///

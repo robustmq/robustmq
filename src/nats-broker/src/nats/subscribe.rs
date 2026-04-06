@@ -22,7 +22,7 @@ use protocol::nats::packet::NatsPacket;
 use crate::core::error::NatsProtocolError;
 use crate::handler::command::NatsProcessContext;
 use crate::mq9::subscribe as mq9_subscribe;
-use crate::push::parse::{ParseAction, ParseSubscribeData};
+use crate::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
 
 pub fn subject_message_tag(tenant: &str, subject: &str) -> String {
     format!("{}_{}", tenant, subject)
@@ -42,6 +42,7 @@ pub async fn process_sub(
 
     if let Some(Mq9Command::Mailbox { mail_id, priority }) = Mq9Command::parse(subject) {
         return mq9_subscribe::process_sub(ctx, &mail_id, &priority, sid, queue_group)
+            .await
             .map_err(|e| NatsPacket::Err(e.to_string()));
     }
 
@@ -50,6 +51,7 @@ pub async fn process_sub(
         connect_id: ctx.connect_id,
         sid: sid.to_string(),
         subject: subject.to_string(),
+        priority: None,
         queue_group: queue_group.unwrap_or_default().to_string(),
         create_time: now_second(),
     };
@@ -59,6 +61,7 @@ pub async fn process_sub(
     ctx.subscribe_manager
         .send_parse_event(ParseSubscribeData::new_subscribe(
             ParseAction::Add,
+            SubscribeSource::NatsCore,
             subscribe,
         ))
         .await;
@@ -81,11 +84,13 @@ pub async fn process_unsub(
         if let Some(Mq9Command::Mailbox { mail_id, .. }) = Mq9Command::parse(&subscribe.subject) {
             ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
             return mq9_subscribe::process_unsub(ctx, &mail_id, sid)
+                .await
                 .map_err(|e| NatsPacket::Err(e.to_string()));
         }
         ctx.subscribe_manager
             .send_parse_event(ParseSubscribeData::new_subscribe(
                 ParseAction::Remove,
+                SubscribeSource::NatsCore,
                 subscribe,
             ))
             .await;

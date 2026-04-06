@@ -26,6 +26,7 @@ bytes.workspace = true
 tracing.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+metadata-struct.workspace =true
 
 [dev-dependencies]
 mockall.workspace = true
