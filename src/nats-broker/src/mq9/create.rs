@@ -21,28 +21,12 @@ use bytes::Bytes;
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use metadata_struct::mq9::email::MQ9Email;
+use mq9_core::protocol::{CreateMailboxReply, CreateMailboxReq};
 use protocol::nats::packet::NatsPacket;
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Serialize)]
-pub struct CreateMailboxReply {
-    pub mail_id: String,
-    pub is_new: bool,
-}
-
-#[derive(Deserialize)]
-pub struct CreateEmailPayload {
-    pub ttl: Option<u64>,
-    #[serde(default)]
-    pub public: bool,
-    pub name: Option<String>,
-    #[serde(default)]
-    pub desc: String,
-}
-
 fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
-    let params: CreateEmailPayload = serde_json::from_slice(payload).map_err(|e| {
+    let params: CreateMailboxReq = serde_json::from_slice(payload).map_err(|e| {
         NatsBrokerError::CommonError(format!("invalid MAILBOX.CREATE payload: {}", e))
     })?;
 

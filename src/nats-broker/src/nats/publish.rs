@@ -90,6 +90,7 @@ async fn process_pub0(
                 header: header.clone(),
             }),
             mqtt: None,
+            mq9: None,
         }));
     message.write(&tenant, subject, vec![record]).await?;
     Ok(())

@@ -4718,6 +4718,8 @@ dependencies = [
  "bytes",
  "mockall",
  "pprof",
+ "serde",
+ "serde_json",
  "tokio",
  "tracing",
 ]

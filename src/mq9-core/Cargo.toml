@@ -24,6 +24,8 @@ pprof.workspace = true
 axum.workspace = true
 bytes.workspace = true
 tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
