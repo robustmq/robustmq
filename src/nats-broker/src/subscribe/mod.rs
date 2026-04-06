@@ -14,7 +14,6 @@
 
 use crate::core::cache::NatsCacheManager;
 use crate::subscribe::buckets::NatsBucketsManager;
-use crate::subscribe::common::NatsSubscriber;
 use crate::subscribe::fanout_push::FanoutPushManager;
 use crate::subscribe::parse::{start_parse_thread, ParseSubscribeData};
 use crate::subscribe::queue_push::QueuePushManager;
@@ -33,10 +32,24 @@ use tokio::time::sleep;
 use tracing::{error, info};
 
 pub mod buckets;
-pub mod common;
 pub mod fanout_push;
 pub mod parse;
 pub mod queue_push;
+
+#[derive(Debug, Clone)]
+pub struct NatsSubscriber {
+    pub uniq_id: String,
+    pub tenant: String,
+    pub connect_id: u64,
+    pub sid: String,
+    /// Original subscription subject pattern (may contain wildcards).
+    pub sub_subject: String,
+    /// Concrete subject name matched against sub_subject.
+    pub subject: String,
+    /// Non-empty for queue-group subscriptions.
+    pub queue_group: String,
+    pub create_time: u64,
+}
 
 #[derive(Default)]
 pub struct NatsSubscribeManager {
@@ -106,7 +119,7 @@ impl NatsSubscribeManager {
     }
 
     pub fn add_queue_subscriber(&self, subscriber: NatsSubscriber, queue_group: &str) {
-        let queue_key = format!("{}#{}", subscriber.topic_name, queue_group);
+        let queue_key = format!("{}#{}", subscriber.subject, queue_group);
         self.queue_push
             .entry(queue_key.clone())
             .or_insert_with(|| NatsBucketsManager::new(Some(queue_key.clone())))
@@ -266,7 +279,6 @@ pub fn subscribe_key(connect_id: u64, sid: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::subscribe::common::fanout_group_name;
     use common_base::tools::now_second;
     use metadata_struct::nats::subscribe::NatsSubscribe;
 
@@ -283,13 +295,13 @@ mod tests {
 
     fn make_subscriber(connect_id: u64, sid: &str, topic: &str) -> NatsSubscriber {
         NatsSubscriber {
+            uniq_id: unique_id(),
             tenant: "default".to_string(),
             connect_id,
             sid: sid.to_string(),
             sub_subject: topic.to_string(),
-            topic_name: topic.to_string(),
+            subject: topic.to_string(),
             queue_group: String::new(),
-            group_name: fanout_group_name(connect_id, sid, topic),
             create_time: now_second(),
         }
     }

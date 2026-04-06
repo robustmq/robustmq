@@ -14,8 +14,8 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::nats::subscribe::subject_message_tag;
-use crate::subscribe::common::NatsSubscriber;
 use crate::subscribe::NatsSubscribeManager;
+use crate::subscribe::NatsSubscriber;
 use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
 use dashmap::DashMap;
@@ -145,13 +145,13 @@ impl FanoutPushManager {
                     stale.push((
                         subscriber.connect_id,
                         subscriber.sid.clone(),
-                        subscriber.group_name.clone(),
+                        subscriber.uniq_id.clone(),
                     ));
                 }
                 Err(e) => {
                     debug!(
                         "NATS push failed [connect_id={}, topic={}, sid={}]: {}",
-                        subscriber.connect_id, subscriber.topic_name, subscriber.sid, e
+                        subscriber.connect_id, subscriber.subject, subscriber.sid, e
                     );
                     self.subscribe_manager
                         .add_not_push_client(subscriber.connect_id);
@@ -159,27 +159,27 @@ impl FanoutPushManager {
             }
         }
 
-        for (connect_id, sid, group_name) in stale {
+        for (connect_id, sid, uniq_id) in stale {
             self.subscribe_manager.remove_push_by_sid(connect_id, &sid);
-            self.consumers.remove(&group_name);
+            self.consumers.remove(&uniq_id);
         }
 
         Ok(processed)
     }
 
     async fn get_or_create_consumer(&self, subscriber: &NatsSubscriber) -> Arc<GroupConsumer> {
-        if let Some(consumer) = self.consumers.get(&subscriber.group_name) {
+        if let Some(consumer) = self.consumers.get(&subscriber.uniq_id) {
             return consumer.clone();
         }
         let consumer = Arc::new(GroupConsumer::new_manual(
             self.storage_driver_manager.clone(),
-            subscriber.group_name.clone(),
+            subscriber.uniq_id.clone(),
         ));
         consumer
             .set_start_offset_strategy(StartOffsetStrategy::Latest)
             .await;
         self.consumers
-            .insert(subscriber.group_name.clone(), consumer.clone());
+            .insert(subscriber.uniq_id.clone(), consumer.clone());
         consumer
     }
 
@@ -193,14 +193,9 @@ impl FanoutPushManager {
         };
 
         let consumer = self.get_or_create_consumer(subscriber).await;
-        let tag = subject_message_tag(&subscriber.tenant, &subscriber.topic_name);
+        let tag = subject_message_tag(&subscriber.tenant, &subscriber.subject);
         let records = match consumer
-            .next_messages_by_tags(
-                &subscriber.tenant,
-                &subscriber.topic_name,
-                &tag,
-                &read_config,
-            )
+            .next_messages_by_tags(&subscriber.tenant, &subscriber.subject, &tag, &read_config)
             .await
         {
             Err(e) => return Err(NatsBrokerError::from(e)),
@@ -245,7 +240,7 @@ pub async fn send_packet(
 
     let packet = if let Some(headers) = headers {
         NatsPacket::HMsg {
-            subject: subscriber.topic_name.clone(),
+            subject: subscriber.subject.clone(),
             sid: subscriber.sid.clone(),
             reply_to,
             headers,
@@ -253,7 +248,7 @@ pub async fn send_packet(
         }
     } else {
         NatsPacket::Msg {
-            subject: subscriber.topic_name.clone(),
+            subject: subscriber.subject.clone(),
             sid: subscriber.sid.clone(),
             reply_to,
             payload: Bytes::copy_from_slice(&record.data),

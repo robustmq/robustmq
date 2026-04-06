@@ -14,12 +14,12 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
-use crate::subscribe::common::NatsSubscriber;
 use crate::subscribe::fanout_push::{
     send_packet, BATCH_SIZE, HIGH_LOAD_SLEEP_MS, IDLE_SLEEP_MS, LOW_LOAD_SLEEP_MS,
     LOW_LOAD_THRESHOLD,
 };
 use crate::subscribe::NatsSubscribeManager;
+use crate::subscribe::NatsSubscriber;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
