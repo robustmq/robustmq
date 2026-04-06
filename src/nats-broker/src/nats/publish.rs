@@ -16,12 +16,14 @@ use crate::core::error::{NatsBrokerError, NatsProtocolError};
 use crate::core::subject::try_get_or_init_subject;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
+use crate::mq9::process::mq9_command;
 use crate::nats::subscribe::subject_message_tag;
 use crate::storage::message::MessageStorage;
 use bytes::Bytes;
 use common_config::broker::broker_config;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordProtocolDataNats};
+use mq9_core::subject::Mq9Subject;
 use protocol::nats::packet::NatsPacket;
 
 pub async fn process_pub(
@@ -37,12 +39,14 @@ pub async fn process_pub(
         return None;
     };
 
-    
-
     if broker_config().nats_runtime.auth_required && !connection.is_login {
         return Some(NatsPacket::Err(
             NatsProtocolError::AuthorizationViolation.message(),
         ));
+    }
+
+    if Mq9Subject::is_mq9_subject(subject) {
+        return mq9_command(ctx, subject, reply_to, headers, payload).await;
     }
 
     if let Err(e) = process_pub0(ctx, subject, reply_to, payload, headers).await {
