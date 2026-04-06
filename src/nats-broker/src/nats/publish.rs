@@ -23,7 +23,7 @@ use bytes::Bytes;
 use common_config::broker::broker_config;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordProtocolDataNats};
-use mq9_core::subject::Mq9Subject;
+use mq9_core::command::Mq9Command;
 use protocol::nats::packet::NatsPacket;
 
 pub async fn process_pub(
@@ -45,7 +45,7 @@ pub async fn process_pub(
         ));
     }
 
-    if Mq9Subject::is_mq9_subject(subject) {
+    if Mq9Command::is_mq9_subject(subject) {
         return mq9_command(ctx, subject, reply_to, headers, payload).await;
     }
 

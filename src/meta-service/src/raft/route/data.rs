@@ -96,6 +96,10 @@ pub enum StorageDataType {
     // nats
     NatsSetSubscribe,
     NatsDeleteSubscribe,
+
+    // mq9
+    Mq9CreateEmail,
+    Mq9DeleteEmail,
 }
 
 impl fmt::Display for StorageDataType {
@@ -165,6 +169,9 @@ impl fmt::Display for StorageDataType {
 
             StorageDataType::NatsSetSubscribe => write!(f, "NatsSetSubscribe"),
             StorageDataType::NatsDeleteSubscribe => write!(f, "NatsDeleteSubscribe"),
+
+            StorageDataType::Mq9CreateEmail => write!(f, "Mq9CreateEmail"),
+            StorageDataType::Mq9DeleteEmail => write!(f, "Mq9DeleteEmail"),
         }
     }
 }

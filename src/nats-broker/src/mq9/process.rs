@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::NatsBrokerError;
 use crate::handler::command::NatsProcessContext;
+use crate::mq9::create::process_create;
+use crate::mq9::publish::process_pub;
+use crate::mq9::public_list::process_public_list;
 use bytes::Bytes;
-use mq9_core::subject::{Mq9Subject, Priority};
+use mq9_core::command::Mq9Command;
 use protocol::nats::packet::NatsPacket;
 
 pub async fn mq9_command(
@@ -25,7 +27,7 @@ pub async fn mq9_command(
     headers: &Option<Bytes>,
     payload: &Bytes,
 ) -> Option<NatsPacket> {
-    let parsed = match Mq9Subject::parse(subject) {
+    let parsed = match Mq9Command::parse(subject) {
         Some(s) => s,
         None => {
             return Some(NatsPacket::Err(format!(
@@ -36,44 +38,15 @@ pub async fn mq9_command(
     };
 
     let result = match parsed {
-        Mq9Subject::MailboxCreate => process_create(ctx, reply_to, headers, payload).await,
-        Mq9Subject::Mailbox { mail_id, priority } => {
+        Mq9Command::MailboxCreate => process_create(ctx, reply_to, headers, payload).await,
+        Mq9Command::Mailbox { mail_id, priority } => {
             process_pub(ctx, &mail_id, &priority, reply_to, headers, payload).await
         }
-        Mq9Subject::PublicList => process_public_list(ctx, reply_to, headers, payload).await,
+        Mq9Command::PublicList => process_public_list(ctx, reply_to, headers, payload).await,
     };
 
     match result {
         Ok(()) => None,
         Err(e) => Some(NatsPacket::Err(e.to_string())),
     }
-}
-
-async fn process_create(
-    _ctx: &NatsProcessContext,
-    _reply_to: Option<&str>,
-    _headers: &Option<Bytes>,
-    _payload: &Bytes,
-) -> Result<(), NatsBrokerError> {
-    Ok(())
-}
-
-async fn process_pub(
-    _ctx: &NatsProcessContext,
-    _mail_id: &str,
-    _priority: &Priority,
-    _reply_to: Option<&str>,
-    _headers: &Option<Bytes>,
-    _payload: &Bytes,
-) -> Result<(), NatsBrokerError> {
-    Ok(())
-}
-
-async fn process_public_list(
-    _ctx: &NatsProcessContext,
-    _reply_to: Option<&str>,
-    _headers: &Option<Bytes>,
-    _payload: &Bytes,
-) -> Result<(), NatsBrokerError> {
-    Ok(())
 }

@@ -24,6 +24,7 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
+use metadata_struct::mq9::email::MQ9Email;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
@@ -519,6 +520,33 @@ pub async fn send_notify_by_delete_nats_subscribe(
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::NatsSubscribe,
         serialize::serialize(&subscribe)?,
+    )
+    .await
+}
+
+// MQ9 Email
+pub async fn send_notify_by_create_mq9_email(
+    call_manager: &Arc<NodeCallManager>,
+    email: MQ9Email,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::Mq9Email,
+        serialize::serialize(&email)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_mq9_email(
+    call_manager: &Arc<NodeCallManager>,
+    email: MQ9Email,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Mq9Email,
+        serialize::serialize(&email)?,
     )
     .await
 }

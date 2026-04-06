@@ -12,25 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(any(), rustfmt::skip)]
-#![allow(clippy::all)]
+use crate::core::error::NatsBrokerError;
+use crate::handler::command::NatsProcessContext;
+use bytes::Bytes;
 
-pub mod meta_service_journal {
-    tonic::include_proto!("meta.service.journal");
-}
-
-pub mod meta_service_common {
-    tonic::include_proto!("meta.service.common");
-}
-
-pub mod meta_service_mqtt {
-    tonic::include_proto!("meta.service.mqtt");
-}
-
-pub mod meta_service_nats {
-    tonic::include_proto!("meta.service.nats");
-}
-
-pub mod meta_service_mq9 {
-    tonic::include_proto!("meta.service.mq9");
+pub async fn process_public_list(
+    _ctx: &NatsProcessContext,
+    _reply_to: Option<&str>,
+    _headers: &Option<Bytes>,
+    _payload: &Bytes,
+) -> Result<(), NatsBrokerError> {
+    Ok(())
 }

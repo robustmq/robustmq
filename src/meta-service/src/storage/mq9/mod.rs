@@ -12,25 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(any(), rustfmt::skip)]
-#![allow(clippy::all)]
-
-pub mod meta_service_journal {
-    tonic::include_proto!("meta.service.journal");
-}
-
-pub mod meta_service_common {
-    tonic::include_proto!("meta.service.common");
-}
-
-pub mod meta_service_mqtt {
-    tonic::include_proto!("meta.service.mqtt");
-}
-
-pub mod meta_service_nats {
-    tonic::include_proto!("meta.service.nats");
-}
-
-pub mod meta_service_mq9 {
-    tonic::include_proto!("meta.service.mq9");
-}
+pub mod email;

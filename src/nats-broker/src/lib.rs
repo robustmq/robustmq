@@ -15,6 +15,7 @@
 pub mod broker;
 pub mod core;
 pub mod handler;
+pub mod jstream;
 pub mod mq9;
 pub mod nats;
 pub mod nats_push;

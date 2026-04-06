@@ -69,6 +69,11 @@ pub enum MetaServiceInterface {
     DeleteBlackList,
     ListBlackList,
 
+    // mq9 service interface
+    CreateEmail,
+    DeleteEmail,
+    ListEmail,
+
     // Open Raft
     Vote,
     Append,
@@ -78,6 +83,7 @@ pub enum MetaServiceInterface {
 }
 
 pub mod common;
+pub mod mq9;
 pub mod mqtt;
 pub mod nats;
 pub mod storage;

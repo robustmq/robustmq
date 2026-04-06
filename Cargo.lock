@@ -5013,12 +5013,15 @@ dependencies = [
  "network-server",
  "protocol",
  "rate-limit",
+ "serde",
+ "serde_json",
  "storage-adapter",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
  "tonic 0.14.5",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

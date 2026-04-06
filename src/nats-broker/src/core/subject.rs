@@ -24,7 +24,7 @@ use metadata_struct::{
     tenant::DEFAULT_TENANT,
     topic::{Topic, TopicSource},
 };
-use mq9_core::subject::Mq9Subject;
+use mq9_core::command::Mq9Command;
 use std::{
     collections::HashMap,
     sync::{atomic::AtomicI64, Arc},
@@ -55,7 +55,7 @@ pub async fn try_get_or_init_subject(
         return Ok(topic);
     }
 
-    let topic = if Mq9Subject::is_mq9_subject(subject) {
+    let topic = if Mq9Command::is_mq9_subject(subject) {
         try_get_or_init_mq9_subject(
             cache_manager,
             storage_driver_manager,

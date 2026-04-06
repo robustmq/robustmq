@@ -29,8 +29,10 @@ use mqtt_broker::storage::auto_subscribe::AutoSubscribeStorage;
 use mqtt_broker::storage::connector::ConnectorStorage;
 use mqtt_broker::storage::schema::SchemaStorage;
 use mqtt_broker::storage::topic::TopicStorage;
-use nats_broker::storage::subscribe::NatsSubscribeStorage;
+use nats_broker::core::cache::NatsCacheManager;
 use nats_broker::nats_push::NatsSubscribeManager;
+use nats_broker::storage::email::Mq9EmailStorage;
+use nats_broker::storage::subscribe::NatsSubscribeStorage;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_engine::core::cache::StorageCacheManager;
@@ -42,6 +44,7 @@ use tracing::info;
 pub async fn load_metadata_cache(
     mqtt_cache_manager: &Arc<MQTTCacheManager>,
     nats_subscribe_manager: &Arc<NatsSubscribeManager>,
+    nats_cache_manager: &Arc<NatsCacheManager>,
     client_pool: &Arc<ClientPool>,
     connector_manager: &Arc<ConnectorManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
@@ -57,7 +60,7 @@ pub async fn load_metadata_cache(
     .await?;
 
     load_mqtt_cache(mqtt_cache_manager, security_manager, client_pool).await?;
-    load_nats_cache(nats_subscribe_manager, client_pool).await?;
+    load_nats_cache(nats_subscribe_manager, nats_cache_manager, client_pool).await?;
     Ok(())
 }
 
@@ -224,6 +227,7 @@ pub async fn load_engine_cache(
 
 pub async fn load_nats_cache(
     subscribe_manager: &Arc<NatsSubscribeManager>,
+    cache_manager: &Arc<NatsCacheManager>,
     client_pool: &Arc<ClientPool>,
 ) -> Result<(), CommonError> {
     let subscribe_storage = NatsSubscribeStorage::new(client_pool.clone());
@@ -233,6 +237,16 @@ pub async fn load_nats_cache(
         subscribe_manager.add_subscribe(subscribe);
     }
 
-    info!("NATS cache loaded: subscribes={}", subscribe_count);
+    let email_storage = Mq9EmailStorage::new(client_pool.clone());
+    let emails = email_storage.list("").await?;
+    let email_count = emails.len();
+    for email in emails {
+        cache_manager.add_email(email);
+    }
+
+    info!(
+        "NATS cache loaded: subscribes={}, emails={}",
+        subscribe_count, email_count
+    );
     Ok(())
 }
