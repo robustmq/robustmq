@@ -14,8 +14,8 @@
 
 use crate::handler::command::NatsProcessContext;
 use crate::mq9::create::process_create;
-use crate::mq9::publish::process_pub;
 use crate::mq9::public_list::process_public_list;
+use crate::mq9::publish::process_pub;
 use bytes::Bytes;
 use mq9_core::command::Mq9Command;
 use protocol::nats::packet::NatsPacket;

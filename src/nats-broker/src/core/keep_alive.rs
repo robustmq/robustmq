@@ -14,23 +14,14 @@
 
 use crate::core::cache::NatsCacheManager;
 use crate::nats_push::NatsSubscribeManager;
-use axum::extract::ws::Message;
-use bytes::BytesMut;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use common_config::broker::broker_config;
-use metadata_struct::connection::NetworkConnectionType;
 use network_server::common::connection_manager::ConnectionManager;
-use protocol::codec::RobustMQCodec;
 use protocol::nats::packet::NatsPacket;
-use protocol::robust::{
-    NatsWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol,
-    RobustMQWrapperExtend,
-};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
-use tokio_util::codec::Encoder;
 use tracing::{debug, info, warn};
 
 /// Per-connection timeout for sending a single PING frame.
@@ -138,15 +129,13 @@ impl NatsClientKeepAlive {
     /// Sends PING to all alive connections in parallel chunks.
     /// Waits for all chunk tasks with a total timeout of `ping_interval / 2`.
     async fn send_ping_to_alive(&self, alive_ids: &[u64], chunk_size: usize, ping_interval: u64) {
-        let ping_wrapper = build_ping_wrapper();
         let mut handles = Vec::new();
         for chunk in alive_ids.chunks(chunk_size) {
             let chunk: Vec<u64> = chunk.to_vec();
             let cm = self.connection_manager.clone();
-            let wrapper = ping_wrapper.clone();
             handles.push(tokio::spawn(async move {
                 for connect_id in chunk {
-                    send_ping_to_connection(&cm, connect_id, &wrapper).await;
+                    send_ping_to_connection(&cm, connect_id).await;
                 }
             }));
         }
@@ -169,44 +158,15 @@ impl NatsClientKeepAlive {
 
 /// Best-effort: send -ERR to the connection according to its type, then close it.
 async fn close_stale_connection(cm: &Arc<ConnectionManager>, connect_id: u64) {
-    let err_wrapper = build_err_wrapper("Stale Connection");
-
-    let send_fut = async {
-        let conn_type = cm
-            .get_network_type(connect_id)
-            .unwrap_or(NetworkConnectionType::Tcp);
-
-        match conn_type {
-            NetworkConnectionType::WebSocket | NetworkConnectionType::WebSockets => {
-                let mut codec = RobustMQCodec::new();
-                let mut buf = BytesMut::new();
-                let nats_pkt = match err_wrapper.packet.clone() {
-                    RobustMQPacket::NATS(p) => p,
-                    _ => unreachable!(),
-                };
-                if codec.nats_codec.encode(nats_pkt, &mut buf).is_err() {
-                    return;
-                }
-                let _ = cm
-                    .write_websocket_frame(
-                        connect_id,
-                        err_wrapper,
-                        Message::Binary(buf.to_vec().into()),
-                    )
-                    .await;
-            }
-            NetworkConnectionType::QUIC => {
-                let _ = cm.write_quic_frame(connect_id, err_wrapper).await;
-            }
-            // Tcp and Tls: write_tcp_frame already routes Tls internally.
-            NetworkConnectionType::Tcp | NetworkConnectionType::Tls => {
-                let _ = cm.write_tcp_frame(connect_id, err_wrapper).await;
-            }
-        }
-    };
+    let send_fut = crate::core::write_client::write_nats_packet(
+        cm,
+        connect_id,
+        NatsPacket::Err("Stale Connection".to_string()),
+    );
 
     match tokio::time::timeout(ERR_SEND_TIMEOUT, send_fut).await {
-        Ok(()) => {}
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => debug!(connect_id, "Failed to send -ERR: {}", e),
         Err(_) => warn!(connect_id, "Timed out sending -ERR on stale connection"),
     }
 
@@ -217,63 +177,12 @@ async fn close_stale_connection(cm: &Arc<ConnectionManager>, connect_id: u64) {
     );
 }
 
-async fn send_ping_to_connection(
-    cm: &Arc<ConnectionManager>,
-    connect_id: u64,
-    wrapper: &RobustMQPacketWrapper,
-) {
-    let conn_type = cm
-        .get_network_type(connect_id)
-        .unwrap_or(NetworkConnectionType::Tcp);
+async fn send_ping_to_connection(cm: &Arc<ConnectionManager>, connect_id: u64) {
+    let send_fut = crate::core::write_client::write_nats_packet(cm, connect_id, NatsPacket::Ping);
 
-    let send_result = match conn_type {
-        NetworkConnectionType::WebSocket | NetworkConnectionType::WebSockets => {
-            let mut codec = RobustMQCodec::new();
-            let mut buf = BytesMut::new();
-            let nats_pkt = match wrapper.packet.clone() {
-                RobustMQPacket::NATS(p) => p,
-                _ => unreachable!(),
-            };
-            if codec.nats_codec.encode(nats_pkt, &mut buf).is_err() {
-                debug!(connect_id, "Failed to encode PING for WebSocket");
-                return;
-            }
-            let send_fut = cm.write_websocket_frame(
-                connect_id,
-                wrapper.clone(),
-                Message::Binary(buf.to_vec().into()),
-            );
-            tokio::time::timeout(PING_SEND_TIMEOUT, send_fut).await
-        }
-        NetworkConnectionType::QUIC => {
-            let send_fut = cm.write_quic_frame(connect_id, wrapper.clone());
-            tokio::time::timeout(PING_SEND_TIMEOUT, send_fut).await
-        }
-        NetworkConnectionType::Tcp | NetworkConnectionType::Tls => {
-            let send_fut = cm.write_tcp_frame(connect_id, wrapper.clone());
-            tokio::time::timeout(PING_SEND_TIMEOUT, send_fut).await
-        }
-    };
-
-    match send_result {
+    match tokio::time::timeout(PING_SEND_TIMEOUT, send_fut).await {
         Ok(Ok(())) => debug!(connect_id, "Sent PING to NATS connection"),
         Ok(Err(e)) => debug!(connect_id, "Failed to send PING: {}", e),
         Err(_) => debug!(connect_id, "Timed out sending PING"),
-    }
-}
-
-fn build_ping_wrapper() -> RobustMQPacketWrapper {
-    RobustMQPacketWrapper {
-        protocol: RobustMQProtocol::NATS,
-        extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
-        packet: RobustMQPacket::NATS(NatsPacket::Ping),
-    }
-}
-
-fn build_err_wrapper(msg: &str) -> RobustMQPacketWrapper {
-    RobustMQPacketWrapper {
-        protocol: RobustMQProtocol::NATS,
-        extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
-        packet: RobustMQPacket::NATS(NatsPacket::Err(msg.to_string())),
     }
 }

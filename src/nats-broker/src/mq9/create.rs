@@ -14,27 +14,21 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
+use crate::core::write_client::write_nats_packet;
 use crate::handler::command::NatsProcessContext;
 use crate::storage::email::Mq9EmailStorage;
-use axum::extract::ws::Message;
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use common_base::tools::now_second;
+use common_config::broker::broker_config;
 use metadata_struct::mq9::email::MQ9Email;
-use network_server::common::connection_manager::ConnectionManager;
-use protocol::nats::codec::NatsCodec;
 use protocol::nats::packet::NatsPacket;
-use protocol::robust::{
-    NatsWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol,
-    RobustMQWrapperExtend,
-};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio_util::codec::Encoder;
 use uuid::Uuid;
 
 #[derive(Serialize)]
 pub struct CreateMailboxReply {
     pub mail_id: String,
+    pub is_new: bool,
 }
 
 #[derive(Deserialize)]
@@ -67,14 +61,15 @@ fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
         tenant,
         desc: params.desc,
         public: params.public,
-        ttl: params.ttl.unwrap_or(3600),
+        ttl: params
+            .ttl
+            .unwrap_or_else(|| broker_config().nats_runtime.mq9_mailbox_ttl),
         create_time: now_second(),
     })
 }
 
 async fn reply_nats_packet(
-    connection_manager: &Arc<ConnectionManager>,
-    connect_id: u64,
+    ctx: &NatsProcessContext,
     subject: &str,
     payload: Bytes,
 ) -> Result<(), NatsBrokerError> {
@@ -84,30 +79,7 @@ async fn reply_nats_packet(
         reply_to: None,
         payload,
     };
-    let wrapper = RobustMQPacketWrapper {
-        protocol: RobustMQProtocol::NATS,
-        extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
-        packet: RobustMQPacket::NATS(packet.clone()),
-    };
-
-    if connection_manager.is_websocket(connect_id) {
-        let mut codec = NatsCodec::new();
-        let mut buf = BytesMut::new();
-        codec
-            .encode(packet, &mut buf)
-            .map_err(|e| NatsBrokerError::CommonError(e.to_string()))?;
-        connection_manager
-            .write_websocket_frame(connect_id, wrapper, Message::Binary(buf.to_vec().into()))
-            .await
-            .map_err(|e| NatsBrokerError::CommonError(e.to_string()))?;
-    } else {
-        connection_manager
-            .write_tcp_frame(connect_id, wrapper)
-            .await
-            .map_err(|e| NatsBrokerError::CommonError(e.to_string()))?;
-    }
-
-    Ok(())
+    write_nats_packet(&ctx.connection_manager, ctx.connect_id, packet).await
 }
 
 pub async fn process_create(
@@ -119,33 +91,24 @@ pub async fn process_create(
     let email = build_email(payload)?;
     let mail_id = email.mail_id.clone();
 
-    if ctx
+    let is_new = ctx
         .cache_manager
         .get_email(&email.tenant, &email.mail_id)
-        .is_some()
-    {
-        return Err(NatsBrokerError::CommonError(format!(
-            "mailbox {} already exists",
-            mail_id
-        )));
-    }
+        .is_none();
 
-    Mq9EmailStorage::new(ctx.client_pool.clone())
-        .create(&email)
-        .await?;
+    if is_new {
+        Mq9EmailStorage::new(ctx.client_pool.clone())
+            .create(&email)
+            .await?;
+    }
 
     if let Some(reply_subject) = reply_to {
         let response = serde_json::to_string(&CreateMailboxReply {
             mail_id: mail_id.clone(),
+            is_new,
         })
         .unwrap_or_default();
-        reply_nats_packet(
-            &ctx.connection_manager,
-            ctx.connect_id,
-            reply_subject,
-            Bytes::from(response),
-        )
-        .await?;
+        reply_nats_packet(ctx, reply_subject, Bytes::from(response)).await?;
     }
 
     Ok(())

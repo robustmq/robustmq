@@ -16,18 +16,12 @@ use crate::core::error::NatsBrokerError;
 use crate::nats::subscribe::subject_message_tag;
 use crate::nats_push::NatsSubscribeManager;
 use crate::nats_push::NatsSubscriber;
-use axum::extract::ws::Message;
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use dashmap::DashMap;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
-use protocol::nats::codec::NatsCodec;
 use protocol::nats::packet::NatsPacket;
-use protocol::robust::{
-    NatsWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol,
-    RobustMQWrapperExtend,
-};
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::consumer::{GroupConsumer, StartOffsetStrategy};
@@ -35,7 +29,6 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
-use tokio_util::codec::Encoder;
 use tracing::{debug, error, info, warn};
 
 pub const BATCH_SIZE: u64 = 500;
@@ -255,32 +248,7 @@ pub async fn send_packet(
         }
     };
 
-    if connection_manager.is_websocket(connect_id) {
-        let mut codec = NatsCodec::new();
-        let mut buf = BytesMut::new();
-        codec
-            .encode(packet.clone(), &mut buf)
-            .map_err(|e| NatsBrokerError::CommonError(e.to_string()))?;
-        let wrapper = RobustMQPacketWrapper {
-            protocol: RobustMQProtocol::NATS,
-            extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
-            packet: RobustMQPacket::NATS(packet),
-        };
-        connection_manager
-            .write_websocket_frame(connect_id, wrapper, Message::Binary(buf.to_vec().into()))
-            .await
-            .map_err(|e| NatsBrokerError::CommonError(e.to_string()))?;
-    } else {
-        let wrapper = RobustMQPacketWrapper {
-            protocol: RobustMQProtocol::NATS,
-            extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
-            packet: RobustMQPacket::NATS(packet),
-        };
-        connection_manager
-            .write_tcp_frame(connect_id, wrapper)
-            .await
-            .map_err(|e| NatsBrokerError::CommonError(e.to_string()))?;
-    }
+    crate::core::write_client::write_nats_packet(connection_manager, connect_id, packet).await?;
 
     Ok(true)
 }

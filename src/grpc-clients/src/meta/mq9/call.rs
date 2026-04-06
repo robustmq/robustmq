@@ -33,8 +33,16 @@ macro_rules! generate_mq9_service_call {
     };
 }
 
-generate_mq9_service_call!(placement_create_mq9_email, CreateEmailRequest, CreateEmailReply);
-generate_mq9_service_call!(placement_delete_mq9_email, DeleteEmailRequest, DeleteEmailReply);
+generate_mq9_service_call!(
+    placement_create_mq9_email,
+    CreateEmailRequest,
+    CreateEmailReply
+);
+generate_mq9_service_call!(
+    placement_delete_mq9_email,
+    DeleteEmailRequest,
+    DeleteEmailReply
+);
 generate_mq9_service_call!(
     placement_list_mq9_email,
     ListEmailRequest,

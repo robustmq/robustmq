@@ -785,6 +785,10 @@ fn default_nats_push_queue_thread_num() -> usize {
     10
 }
 
+fn default_nats_mq9_mailbox_ttl() -> u64 {
+    86400
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct NatsRuntime {
     #[serde(default = "default_nats_tcp_port")]
@@ -817,6 +821,9 @@ pub struct NatsRuntime {
     /// Number of queue-push threads (one thread per queue-group bucket).
     #[serde(default = "default_nats_push_queue_thread_num")]
     pub push_queue_thread_num: usize,
+    /// Default TTL in seconds for MQ9 mailboxes when the client does not specify one.
+    #[serde(default = "default_nats_mq9_mailbox_ttl")]
+    pub mq9_mailbox_ttl: u64,
 }
 
 impl Default for NatsRuntime {
@@ -834,6 +841,7 @@ impl Default for NatsRuntime {
             core_shard_num: default_nats_core_shard_num(),
             push_thread_num: default_nats_push_thread_num(),
             push_queue_thread_num: default_nats_push_queue_thread_num(),
+            mq9_mailbox_ttl: default_nats_mq9_mailbox_ttl(),
         }
     }
 }

@@ -30,10 +30,8 @@ use std::sync::Arc;
 use tonic::codegen::tokio_stream::Stream;
 use tonic::Status;
 
-pub type ListEmailStream = Result<
-    Pin<Box<dyn Stream<Item = Result<ListEmailReply, Status>> + Send>>,
-    MetaServiceError,
->;
+pub type ListEmailStream =
+    Result<Pin<Box<dyn Stream<Item = Result<ListEmailReply, Status>> + Send>>, MetaServiceError>;
 
 pub fn list_email_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,

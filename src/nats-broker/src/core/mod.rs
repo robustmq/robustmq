@@ -20,3 +20,4 @@ pub mod keep_alive;
 pub mod security;
 pub mod subject;
 pub mod tenant;
+pub mod write_client;
