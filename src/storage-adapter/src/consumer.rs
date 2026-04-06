@@ -168,12 +168,13 @@ impl GroupConsumer {
         self.pending_offsets.clear();
     }
 
-    /// Collect per-shard offsets for the given tenant+topic from current_offsets.
+    /// Collect per-shard read-start offsets for the given tenant+topic.
+    /// Returns offset + 1 so the next read begins after the last consumed record.
     fn current_shard_offsets(&self, tenant: &str, topic_name: &str) -> HashMap<String, u64> {
         self.current_offsets
             .iter()
             .filter(|e| e.key().tenant == tenant && e.key().topic == topic_name)
-            .map(|e| (e.key().shard.clone(), *e.value()))
+            .map(|e| (e.key().shard.clone(), e.value().saturating_add(1)))
             .collect()
     }
 
@@ -191,13 +192,14 @@ impl GroupConsumer {
         Ok(records)
     }
 
+    /// Record the highest offset seen per shard from the returned records.
     fn stage_offsets(&self, tenant: &str, topic_name: &str, records: &[StorageRecord]) {
         for record in records {
             let key = OffsetKey::new(tenant, topic_name, &record.metadata.shard);
-            let next = record.metadata.offset + 1;
+            let offset = record.metadata.offset;
             let mut entry = self.pending_offsets.entry(key).or_insert(0);
-            if next > *entry {
-                *entry = next;
+            if offset > *entry {
+                *entry = offset;
             }
         }
     }
