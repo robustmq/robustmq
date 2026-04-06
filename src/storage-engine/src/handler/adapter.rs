@@ -119,27 +119,30 @@ impl StorageEngineHandler {
             let (start_offset, end_offset) = match shard.config.storage_type {
                 StorageType::EngineMemory => {
                     let o = &self.memory_storage_engine.commit_log_offset;
-                    (
-                        o.get_earliest_offset(&shard.shard_name).unwrap_or(0),
-                        o.get_latest_offset(&shard.shard_name).unwrap_or(0),
-                    )
+                    let mut end = o.get_latest_offset(&shard.shard_name).unwrap_or(0);
+                    if end > 0 {
+                        end = end - 1;
+                    }
+                    (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
                 }
                 StorageType::EngineRocksDB => {
                     let o = &self.rocksdb_storage_engine.commitlog_offset;
-                    (
-                        o.get_earliest_offset(&shard.shard_name).unwrap_or(0),
-                        o.get_latest_offset(&shard.shard_name).unwrap_or(0),
-                    )
+                    let mut end = o.get_latest_offset(&shard.shard_name).unwrap_or(0);
+                    if end > 0 {
+                        end = end - 1;
+                    }
+                    (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
                 }
                 StorageType::EngineSegment => {
                     let o = FileSegmentOffset::new(
                         self.rocksdb_engine_handler.clone(),
                         self.cache_manager.clone(),
                     );
-                    (
-                        o.get_earliest_offset(&shard.shard_name).unwrap_or(0),
-                        o.get_latest_offset(&shard.shard_name).unwrap_or(0),
-                    )
+                    let mut end = o.get_latest_offset(&shard.shard_name).unwrap_or(0);
+                    if end > 0 {
+                        end = end - 1;
+                    }
+                    (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
                 }
                 _ => (0, 0),
             };

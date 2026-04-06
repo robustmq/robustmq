@@ -134,7 +134,7 @@ impl GroupConsumer {
             by_tenant_topic
                 .entry((key.tenant.clone(), key.topic.clone()))
                 .or_default()
-                .insert(key.shard.clone(), *e.value());
+                .insert(key.shard.clone(), *e.value() + 1);
         }
 
         for ((tenant, _topic), shard_offsets) in &by_tenant_topic {
@@ -159,12 +159,14 @@ impl GroupConsumer {
     /// Unlike `commit`, no IO is performed, so the offset store is not updated and a
     /// restart will resume from the last `commit` position.
     pub fn advance(&self) {
+        println!("self.pending_offsets:{:?}", self.pending_offsets);
         for e in self.pending_offsets.iter() {
             let mut cur = self.current_offsets.entry(e.key().clone()).or_insert(0);
             if *e.value() > *cur {
-                *cur = *e.value();
+                *cur = *e.value() + 1;
             }
         }
+        println!("self.current_offsets:{:?}", self.current_offsets);
         self.pending_offsets.clear();
     }
 
@@ -174,7 +176,7 @@ impl GroupConsumer {
         self.current_offsets
             .iter()
             .filter(|e| e.key().tenant == tenant && e.key().topic == topic_name)
-            .map(|e| (e.key().shard.clone(), e.value().saturating_add(1)))
+            .map(|e| (e.key().shard.clone(), *e.value()))
             .collect()
     }
 
@@ -266,12 +268,7 @@ impl GroupConsumer {
             StartOffsetStrategy::Latest => {
                 let offsets = storage_list
                     .into_values()
-                    .map(|detail| {
-                        (
-                            detail.shard_name,
-                            detail.offset.end_offset.saturating_add(1),
-                        )
-                    })
+                    .map(|detail| (detail.shard_name, detail.offset.end_offset))
                     .collect();
                 Ok(offsets)
             }
@@ -279,7 +276,7 @@ impl GroupConsumer {
                 let offsets = storage_list
                     .into_values()
                     .map(|detail| {
-                        let offset = detail.offset.end_offset.saturating_sub(1);
+                        let offset = detail.offset.end_offset;
                         (detail.shard_name, offset)
                     })
                     .collect();

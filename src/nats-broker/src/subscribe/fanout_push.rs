@@ -40,9 +40,9 @@ use tracing::{debug, error, info, warn};
 
 pub const BATCH_SIZE: u64 = 500;
 pub const IDLE_SLEEP_MS: u64 = 100;
-pub const LOW_LOAD_SLEEP_MS: u64 = 50;
-pub const HIGH_LOAD_SLEEP_MS: u64 = 10;
-pub const LOW_LOAD_THRESHOLD: usize = 10;
+pub const LOW_LOAD_SLEEP_MS: u64 = 3000;
+pub const HIGH_LOAD_SLEEP_MS: u64 = 3000;
+pub const LOW_LOAD_THRESHOLD: usize = 3000;
 
 pub struct FanoutPushManager {
     subscribe_manager: Arc<NatsSubscribeManager>,
@@ -202,7 +202,7 @@ impl FanoutPushManager {
             Ok(r) if r.is_empty() => return Ok(0),
             Ok(r) => r,
         };
-
+        println!("records:{:?}", records);
         let mut pushed = 0;
         for record in &records {
             match send_packet(&self.connection_manager, subscriber, record).await {
