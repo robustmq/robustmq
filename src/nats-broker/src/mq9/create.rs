@@ -67,5 +67,5 @@ pub async fn process_create(
             .await?;
     }
 
-    Ok(Mq9Reply::Create(CreateMailboxReply { mail_id, is_new }))
+    Ok(Mq9Reply::Create(CreateMailboxReply { email_id: mail_id, is_new }))
 }

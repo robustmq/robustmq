@@ -35,7 +35,7 @@ pub struct ListPublicMailboxReq {
 
 #[derive(Debug, Serialize)]
 pub struct CreateMailboxReply {
-    pub mail_id: String,
+    pub email_id: String,
     pub is_new: bool,
 }
 
