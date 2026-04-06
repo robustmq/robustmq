@@ -149,13 +149,13 @@ impl Command for NatsHandlerCommand {
                 subject,
                 queue_group,
                 sid,
-            } => match subscribe::process_sub(&ctx, subject, queue_group.as_deref(), sid) {
+            } => match subscribe::process_sub(&ctx, subject, queue_group.as_deref(), sid).await {
                 Ok(()) => verbose.then_some(NatsPacket::Ok),
                 Err(e) => Some(e),
             },
 
             NatsPacket::Unsub { sid, max_msgs } => {
-                match subscribe::process_unsub(&ctx, sid, *max_msgs) {
+                match subscribe::process_unsub(&ctx, sid, *max_msgs).await {
                     Ok(()) => verbose.then_some(NatsPacket::Ok),
                     Err(e) => Some(e),
                 }

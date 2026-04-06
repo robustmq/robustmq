@@ -12,8 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod create;
-pub mod process;
-pub mod public_list;
-pub mod publish;
-pub mod subscribe;
+use crate::core::error::NatsBrokerError;
+use crate::handler::command::NatsProcessContext;
+use mq9_core::command::Priority;
+
+pub fn process_sub(
+    _ctx: &NatsProcessContext,
+    _mail_id: &str,
+    _priority: &Priority,
+    _sid: &str,
+    _queue_group: Option<&str>,
+) -> Result<(), NatsBrokerError> {
+    Ok(())
+}
+
+pub fn process_unsub(
+    _ctx: &NatsProcessContext,
+    _mail_id: &str,
+    _sid: &str,
+) -> Result<(), NatsBrokerError> {
+    Ok(())
+}

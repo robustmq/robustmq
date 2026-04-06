@@ -16,17 +16,19 @@ use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::tenant::DEFAULT_TENANT;
+use mq9_core::command::Mq9Command;
 use protocol::nats::packet::NatsPacket;
 
 use crate::core::error::NatsProtocolError;
 use crate::handler::command::NatsProcessContext;
+use crate::mq9::subscribe as mq9_subscribe;
 use crate::push::parse::{ParseAction, ParseSubscribeData};
 
 pub fn subject_message_tag(tenant: &str, subject: &str) -> String {
     format!("{}_{}", tenant, subject)
 }
 
-pub fn process_sub(
+pub async fn process_sub(
     ctx: &NatsProcessContext,
     subject: &str,
     queue_group: Option<&str>,
@@ -36,6 +38,11 @@ pub fn process_sub(
         return Err(NatsPacket::Err(
             NatsProtocolError::AuthorizationViolation.message(),
         ));
+    }
+
+    if let Some(Mq9Command::Mailbox { mail_id, priority }) = Mq9Command::parse(subject) {
+        return mq9_subscribe::process_sub(ctx, &mail_id, &priority, sid, queue_group)
+            .map_err(|e| NatsPacket::Err(e.to_string()));
     }
 
     let subscribe = NatsSubscribe {
@@ -49,16 +56,17 @@ pub fn process_sub(
 
     ctx.subscribe_manager.add_subscribe(subscribe.clone());
 
-    let data = ParseSubscribeData::new_subscribe(ParseAction::Add, subscribe);
-    let subscribe_manager = ctx.subscribe_manager.clone();
-    tokio::spawn(async move {
-        subscribe_manager.send_parse_event(data).await;
-    });
+    ctx.subscribe_manager
+        .send_parse_event(ParseSubscribeData::new_subscribe(
+            ParseAction::Add,
+            subscribe,
+        ))
+        .await;
 
     Ok(())
 }
 
-pub fn process_unsub(
+pub async fn process_unsub(
     ctx: &NatsProcessContext,
     sid: &str,
     _max_msgs: Option<u32>,
@@ -70,11 +78,17 @@ pub fn process_unsub(
     }
 
     if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
-        let data = ParseSubscribeData::new_subscribe(ParseAction::Remove, subscribe);
-        let subscribe_manager = ctx.subscribe_manager.clone();
-        tokio::spawn(async move {
-            subscribe_manager.send_parse_event(data).await;
-        });
+        if let Some(Mq9Command::Mailbox { mail_id, .. }) = Mq9Command::parse(&subscribe.subject) {
+            ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
+            return mq9_subscribe::process_unsub(ctx, &mail_id, sid)
+                .map_err(|e| NatsPacket::Err(e.to_string()));
+        }
+        ctx.subscribe_manager
+            .send_parse_event(ParseSubscribeData::new_subscribe(
+                ParseAction::Remove,
+                subscribe,
+            ))
+            .await;
     }
 
     ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
