@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::nats_push::NatsSubscriber;
+use crate::push::NatsSubscriber;
 use common_base::uuid::unique_id;
 use dashmap::DashMap;
 use std::collections::HashSet;

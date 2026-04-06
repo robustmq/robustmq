@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::nats_push::NatsSubscribeManager;
+use crate::push::NatsSubscribeManager;
 use broker_core::cache::NodeCacheManager;
 use common_base::error::ResultCommonError;
 use common_base::task::TaskSupervisor;

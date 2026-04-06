@@ -14,7 +14,7 @@
 
 use crate::core::cache::NatsCacheManager;
 use crate::nats::{connect, ping, publish, subscribe};
-use crate::nats_push::NatsSubscribeManager;
+use crate::push::NatsSubscribeManager;
 use async_trait::async_trait;
 use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;

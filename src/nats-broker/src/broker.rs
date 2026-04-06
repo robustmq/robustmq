@@ -14,7 +14,7 @@
 
 use crate::{
     core::{cache::NatsCacheManager, keep_alive::NatsClientKeepAlive},
-    nats_push::NatsSubscribeManager,
+    push::NatsSubscribeManager,
     server::{NatsServer, NatsServerParams},
 };
 use broker_core::cache::NodeCacheManager;

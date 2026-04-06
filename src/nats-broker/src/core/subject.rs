@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::{cache::NatsCacheManager, error::NatsBrokerError};
-use crate::nats_push::{
+use crate::push::{
     parse::{ParseAction, ParseSubscribeData},
     NatsSubscribeManager,
 };
