@@ -22,16 +22,15 @@ use bytes::Bytes;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordProtocolDataMq9};
 use mq9_core::command::Priority;
-use mq9_core::protocol::PubMailboxReply;
+use mq9_core::protocol::{Mq9Reply, PubMailboxReply};
 
 pub async fn process_pub(
     ctx: &NatsProcessContext,
     mail_id: &str,
     priority: &Priority,
-    reply_to: Option<&str>,
     headers: &Option<Bytes>,
     payload: &Bytes,
-) -> Result<String, NatsBrokerError> {
+) -> Result<Mq9Reply, NatsBrokerError> {
     let tenant = get_tenant();
 
     if ctx.cache_manager.get_email(&tenant, mail_id).is_none() {
@@ -48,6 +47,7 @@ pub async fn process_pub(
         &ctx.subscribe_manager,
         &tenant,
         mail_id,
+        true,
     )
     .await?;
 
@@ -56,7 +56,6 @@ pub async fn process_pub(
         .with_protocol_data(Some(StorageRecordProtocolData {
             mq9: Some(StorageRecordProtocolDataMq9 {
                 priority: priority.to_string(),
-                reply_to: reply_to.map(|s| s.to_string()),
                 header: headers.clone(),
             }),
             nats: None,
@@ -68,10 +67,8 @@ pub async fn process_pub(
         .await?;
 
     let offset = offsets.into_iter().next().unwrap_or(0);
-    let response = serde_json::to_string(&PubMailboxReply {
+    Ok(Mq9Reply::Pub(PubMailboxReply {
         mail_id: mail_id.to_string(),
         offset,
-    })
-    .unwrap_or_default();
-    Ok(response)
+    }))
 }

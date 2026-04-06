@@ -15,12 +15,13 @@
 use crate::core::error::NatsBrokerError;
 use crate::handler::command::NatsProcessContext;
 use bytes::Bytes;
+use mq9_core::protocol::{ListPublicMailboxReply, Mq9Reply};
 
 pub async fn process_public_list(
     _ctx: &NatsProcessContext,
-    _reply_to: Option<&str>,
-    _headers: &Option<Bytes>,
     _payload: &Bytes,
-) -> Result<String, NatsBrokerError> {
-    Ok(String::new())
+) -> Result<Mq9Reply, NatsBrokerError> {
+    Ok(Mq9Reply::PublicList(ListPublicMailboxReply {
+        items: vec![],
+    }))
 }

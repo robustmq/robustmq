@@ -116,8 +116,7 @@ impl Command for NatsHandlerCommand {
                 reply_to,
                 payload,
             } => {
-                match publish::process_pub(&ctx, subject, reply_to.as_deref(), &None, payload)
-                    .await
+                match publish::process_pub(&ctx, subject, reply_to.as_deref(), &None, payload).await
                 {
                     Ok(Some(pkt)) => Some(pkt), // server-initiated (e.g. mq9 reply)
                     Ok(None) => verbose.then_some(NatsPacket::Ok),

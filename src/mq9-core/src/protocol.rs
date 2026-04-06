@@ -14,6 +14,8 @@
 
 use serde::{Deserialize, Serialize};
 
+// ── Requests ──────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Deserialize)]
 pub struct CreateMailboxReq {
     pub ttl: Option<u64>,
@@ -23,6 +25,13 @@ pub struct CreateMailboxReq {
     #[serde(default)]
     pub desc: String,
 }
+
+#[derive(Debug, Deserialize, Default)]
+pub struct ListPublicMailboxReq {
+    pub prefix: Option<String>,
+}
+
+// ── Replies ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize)]
 pub struct CreateMailboxReply {
@@ -36,11 +45,6 @@ pub struct PubMailboxReply {
     pub offset: u64,
 }
 
-#[derive(Debug, Deserialize, Default)]
-pub struct ListPublicMailboxReq {
-    pub prefix: Option<String>,
-}
-
 #[derive(Debug, Serialize)]
 pub struct ListPublicMailboxReplyItem {
     pub mail_id: String,
@@ -51,4 +55,14 @@ pub struct ListPublicMailboxReplyItem {
 #[derive(Debug, Serialize)]
 pub struct ListPublicMailboxReply {
     pub items: Vec<ListPublicMailboxReplyItem>,
+}
+
+// ── Reply enum ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum Mq9Reply {
+    Create(CreateMailboxReply),
+    Pub(PubMailboxReply),
+    PublicList(ListPublicMailboxReply),
 }

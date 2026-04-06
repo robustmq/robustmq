@@ -40,22 +40,22 @@ pub async fn mq9_command(
     };
 
     let result = match parsed {
-        Mq9Command::MailboxCreate => process_create(ctx, reply_to, headers, payload).await,
+        Mq9Command::MailboxCreate => process_create(ctx, payload).await,
         Mq9Command::Mailbox { mail_id, priority } => {
-            process_pub(ctx, &mail_id, &priority, reply_to, headers, payload).await
+            process_pub(ctx, &mail_id, &priority, headers, payload).await
         }
-        Mq9Command::PublicList => process_public_list(ctx, reply_to, headers, payload).await,
+        Mq9Command::PublicList => process_public_list(ctx, payload).await,
     };
 
     if let Some(reply_subject) = reply_to {
         let response = match result {
-            Ok(r) => r,
+            Ok(r) => serde_json::to_string(&r).unwrap_or_default(),
             Err(e) => e.to_string(),
         };
         let _ = reply_nats_packet(ctx, reply_subject, Bytes::from(response)).await;
     }
 
-    Some(NatsPacket::Ok)
+    None
 }
 
 async fn reply_nats_packet(

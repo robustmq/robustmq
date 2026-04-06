@@ -20,7 +20,7 @@ use bytes::Bytes;
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use metadata_struct::mq9::email::MQ9Email;
-use mq9_core::protocol::{CreateMailboxReply, CreateMailboxReq};
+use mq9_core::protocol::{CreateMailboxReply, CreateMailboxReq, Mq9Reply};
 use uuid::Uuid;
 
 fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
@@ -52,10 +52,8 @@ fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
 
 pub async fn process_create(
     ctx: &NatsProcessContext,
-    _reply_to: Option<&str>,
-    _headers: &Option<Bytes>,
     payload: &Bytes,
-) -> Result<String, NatsBrokerError> {
+) -> Result<Mq9Reply, NatsBrokerError> {
     let email = build_email(payload)?;
     let mail_id = email.mail_id.clone();
 
@@ -70,7 +68,5 @@ pub async fn process_create(
             .await?;
     }
 
-    let response =
-        serde_json::to_string(&CreateMailboxReply { mail_id, is_new }).unwrap_or_default();
-    Ok(response)
+    Ok(Mq9Reply::Create(CreateMailboxReply { mail_id, is_new }))
 }

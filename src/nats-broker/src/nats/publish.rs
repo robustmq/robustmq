@@ -76,6 +76,7 @@ async fn process_pub0(
         &ctx.subscribe_manager,
         &tenant,
         subject,
+        false,
     )
     .await?;
 

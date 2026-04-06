@@ -44,6 +44,7 @@ pub async fn try_get_or_init_subject(
     subscribe_manager: &Arc<NatsSubscribeManager>,
     tenant: &str,
     subject: &str,
+    is_mq9: bool,
 ) -> Result<NatSubject, NatsBrokerError> {
     if tenant.is_empty() {
         return Err(NatsBrokerError::CommonError(
@@ -55,7 +56,7 @@ pub async fn try_get_or_init_subject(
         return Ok(topic);
     }
 
-    let topic = if Mq9Command::is_mq9_subject(subject) {
+    let topic = if is_mq9 {
         try_get_or_init_mq9_subject(
             cache_manager,
             storage_driver_manager,
