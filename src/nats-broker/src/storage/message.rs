@@ -46,7 +46,6 @@ impl MessageStorage {
             }
             offsets.push(row.offset);
         }
-        println!("write offsets:{:?}", offsets);
         Ok(offsets)
     }
 }
