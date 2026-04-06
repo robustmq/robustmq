@@ -26,41 +26,38 @@ use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordP
 use mq9_core::command::Mq9Command;
 use protocol::nats::packet::NatsPacket;
 
+/// Returns `Ok(None)` for normal commands (verbose handled by caller),
+/// `Ok(Some(packet))` for server-initiated replies (e.g. mq9 reply-to MSG),
+/// `Err(packet)` for protocol errors.
 pub async fn process_pub(
     ctx: &NatsProcessContext,
     subject: &str,
     reply_to: Option<&str>,
     headers: &Option<Bytes>,
     payload: &Bytes,
-) -> Option<NatsPacket> {
-    let connection = if let Some(connection) = ctx.cache_manager.get_connection(ctx.connect_id) {
-        connection.clone()
-    } else {
-        return None;
-    };
+) -> Result<Option<NatsPacket>, NatsPacket> {
+    let connection = ctx.cache_manager.get_connection(ctx.connect_id);
 
-    if broker_config().nats_runtime.auth_required && !connection.is_login {
-        return Some(NatsPacket::Err(
-            NatsProtocolError::AuthorizationViolation.message(),
-        ));
-    }
-
-    if Mq9Command::is_mq9_subject(subject) {
-        return mq9_command(ctx, subject, reply_to, headers, payload).await;
-    }
-
-    if let Err(e) = process_pub0(ctx, subject, reply_to, payload, headers).await {
-        if connection.verbose {
-            return Some(NatsPacket::Err(e.to_string()));
-        } else {
-            return None;
+    if broker_config().nats_runtime.auth_required {
+        let is_login = connection.as_ref().map(|c| c.is_login).unwrap_or(false);
+        if !is_login {
+            return Err(NatsPacket::Err(
+                NatsProtocolError::AuthorizationViolation.message(),
+            ));
         }
     }
 
-    if connection.verbose {
-        return Some(NatsPacket::Ok);
+    if Mq9Command::is_mq9_subject(subject) {
+        // mq9 commands send their own replies; return as server-initiated packet
+        let pkt = mq9_command(ctx, subject, reply_to, headers, payload).await;
+        return Ok(pkt);
     }
-    None
+
+    process_pub0(ctx, subject, reply_to, payload, headers)
+        .await
+        .map_err(|e| NatsPacket::Err(e.to_string()))?;
+
+    Ok(None)
 }
 
 async fn process_pub0(

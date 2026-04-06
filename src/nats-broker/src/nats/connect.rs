@@ -21,10 +21,9 @@ use crate::core::security::login_check;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
 
-pub fn process_connect(ctx: &NatsProcessContext, req: &ClientConnect) -> Option<NatsPacket> {
+pub fn process_connect(ctx: &NatsProcessContext, req: &ClientConnect) -> Result<(), NatsPacket> {
     let auth_required = broker_config().nats_runtime.auth_required;
 
-    // Step 1: auth
     let authed = login_check(
         &ctx.security_manager,
         &get_tenant(),
@@ -34,12 +33,11 @@ pub fn process_connect(ctx: &NatsProcessContext, req: &ClientConnect) -> Option<
     );
 
     if !authed {
-        return Some(NatsPacket::Err(
+        return Err(NatsPacket::Err(
             NatsProtocolError::AuthorizationViolation.message(),
         ));
     }
 
-    // Step 2: save connection state (only after auth passes)
     let mut connection = NatsConnection::new(ctx.connect_id, String::new());
     connection.verbose = req.verbose;
     connection.pedantic = req.pedantic;
@@ -56,10 +54,5 @@ pub fn process_connect(ctx: &NatsProcessContext, req: &ClientConnect) -> Option<
     }
 
     ctx.cache_manager.add_connection(connection);
-
-    // Step 3: reply
-    if req.verbose {
-        return Some(NatsPacket::Ok);
-    }
-    None
+    Ok(())
 }

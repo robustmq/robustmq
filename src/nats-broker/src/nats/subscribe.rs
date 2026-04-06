@@ -31,9 +31,9 @@ pub fn process_sub(
     subject: &str,
     queue_group: Option<&str>,
     sid: &str,
-) -> Option<NatsPacket> {
+) -> Result<(), NatsPacket> {
     if broker_config().nats_runtime.auth_required && !ctx.cache_manager.is_login(ctx.connect_id) {
-        return Some(NatsPacket::Err(
+        return Err(NatsPacket::Err(
             NatsProtocolError::AuthorizationViolation.message(),
         ));
     }
@@ -55,16 +55,16 @@ pub fn process_sub(
         subscribe_manager.send_parse_event(data).await;
     });
 
-    None
+    Ok(())
 }
 
 pub fn process_unsub(
     ctx: &NatsProcessContext,
     sid: &str,
     _max_msgs: Option<u32>,
-) -> Option<NatsPacket> {
+) -> Result<(), NatsPacket> {
     if broker_config().nats_runtime.auth_required && !ctx.cache_manager.is_login(ctx.connect_id) {
-        return Some(NatsPacket::Err(
+        return Err(NatsPacket::Err(
             NatsProtocolError::AuthorizationViolation.message(),
         ));
     }
@@ -78,5 +78,5 @@ pub fn process_unsub(
     }
 
     ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
-    None
+    Ok(())
 }
