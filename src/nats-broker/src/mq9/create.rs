@@ -14,7 +14,6 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
-use crate::core::write_client::write_nats_packet;
 use crate::handler::command::NatsProcessContext;
 use crate::storage::email::Mq9EmailStorage;
 use bytes::Bytes;
@@ -22,7 +21,6 @@ use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use metadata_struct::mq9::email::MQ9Email;
 use mq9_core::protocol::{CreateMailboxReply, CreateMailboxReq};
-use protocol::nats::packet::NatsPacket;
 use uuid::Uuid;
 
 fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
@@ -52,26 +50,12 @@ fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
     })
 }
 
-async fn reply_nats_packet(
-    ctx: &NatsProcessContext,
-    subject: &str,
-    payload: Bytes,
-) -> Result<(), NatsBrokerError> {
-    let packet = NatsPacket::Msg {
-        subject: subject.to_string(),
-        sid: "0".to_string(),
-        reply_to: None,
-        payload,
-    };
-    write_nats_packet(&ctx.connection_manager, ctx.connect_id, packet).await
-}
-
 pub async fn process_create(
     ctx: &NatsProcessContext,
-    reply_to: Option<&str>,
+    _reply_to: Option<&str>,
     _headers: &Option<Bytes>,
     payload: &Bytes,
-) -> Result<(), NatsBrokerError> {
+) -> Result<String, NatsBrokerError> {
     let email = build_email(payload)?;
     let mail_id = email.mail_id.clone();
 
@@ -86,14 +70,7 @@ pub async fn process_create(
             .await?;
     }
 
-    if let Some(reply_subject) = reply_to {
-        let response = serde_json::to_string(&CreateMailboxReply {
-            mail_id: mail_id.clone(),
-            is_new,
-        })
-        .unwrap_or_default();
-        reply_nats_packet(ctx, reply_subject, Bytes::from(response)).await?;
-    }
-
-    Ok(())
+    let response =
+        serde_json::to_string(&CreateMailboxReply { mail_id, is_new }).unwrap_or_default();
+    Ok(response)
 }

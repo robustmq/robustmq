@@ -15,7 +15,6 @@
 use crate::core::error::NatsBrokerError;
 use crate::core::subject::try_get_or_init_subject;
 use crate::core::tenant::get_tenant;
-use crate::core::write_client::write_nats_packet;
 use crate::handler::command::NatsProcessContext;
 use crate::nats::subscribe::subject_message_tag;
 use crate::storage::message::MessageStorage;
@@ -24,7 +23,6 @@ use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordProtocolDataMq9};
 use mq9_core::command::Priority;
 use mq9_core::protocol::PubMailboxReply;
-use protocol::nats::packet::NatsPacket;
 
 pub async fn process_pub(
     ctx: &NatsProcessContext,
@@ -33,7 +31,7 @@ pub async fn process_pub(
     reply_to: Option<&str>,
     headers: &Option<Bytes>,
     payload: &Bytes,
-) -> Result<(), NatsBrokerError> {
+) -> Result<String, NatsBrokerError> {
     let tenant = get_tenant();
 
     if ctx.cache_manager.get_email(&tenant, mail_id).is_none() {
@@ -69,21 +67,11 @@ pub async fn process_pub(
         .write(&tenant, mail_id, vec![record])
         .await?;
 
-    if let Some(reply_subject) = reply_to {
-        let offset = offsets.into_iter().next().unwrap_or(0);
-        let response = serde_json::to_string(&PubMailboxReply {
-            mail_id: mail_id.to_string(),
-            offset,
-        })
-        .unwrap_or_default();
-        let packet = NatsPacket::Msg {
-            subject: reply_subject.to_string(),
-            sid: "0".to_string(),
-            reply_to: None,
-            payload: Bytes::from(response),
-        };
-        write_nats_packet(&ctx.connection_manager, ctx.connect_id, packet).await?;
-    }
-
-    Ok(())
+    let offset = offsets.into_iter().next().unwrap_or(0);
+    let response = serde_json::to_string(&PubMailboxReply {
+        mail_id: mail_id.to_string(),
+        offset,
+    })
+    .unwrap_or_default();
+    Ok(response)
 }

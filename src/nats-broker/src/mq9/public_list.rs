@@ -21,6 +21,6 @@ pub async fn process_public_list(
     _reply_to: Option<&str>,
     _headers: &Option<Bytes>,
     _payload: &Bytes,
-) -> Result<(), NatsBrokerError> {
-    Ok(())
+) -> Result<String, NatsBrokerError> {
+    Ok(String::new())
 }

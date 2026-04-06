@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::error::NatsBrokerError;
+use crate::core::write_client::write_nats_packet;
 use crate::handler::command::NatsProcessContext;
 use crate::mq9::create::process_create;
 use crate::mq9::public_list::process_public_list;
@@ -45,8 +47,27 @@ pub async fn mq9_command(
         Mq9Command::PublicList => process_public_list(ctx, reply_to, headers, payload).await,
     };
 
-    match result {
-        Ok(()) => None,
-        Err(e) => Some(NatsPacket::Err(e.to_string())),
+    if let Some(reply_subject) = reply_to {
+        let response = match result {
+            Ok(r) => r,
+            Err(e) => e.to_string(),
+        };
+        let _ = reply_nats_packet(ctx, reply_subject, Bytes::from(response)).await;
     }
+
+    Some(NatsPacket::Ok)
+}
+
+async fn reply_nats_packet(
+    ctx: &NatsProcessContext,
+    subject: &str,
+    payload: Bytes,
+) -> Result<(), NatsBrokerError> {
+    let packet = NatsPacket::Msg {
+        subject: subject.to_string(),
+        sid: "0".to_string(),
+        reply_to: None,
+        payload,
+    };
+    write_nats_packet(&ctx.connection_manager, ctx.connect_id, packet).await
 }
