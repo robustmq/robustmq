@@ -57,6 +57,7 @@ pub enum TaskKind {
     NATSSubscribeParse,
     NATSSubscribePush,
     NATSQueuePush,
+    MQ9SubscribePush,
 }
 
 impl std::fmt::Display for TaskKind {
@@ -101,6 +102,7 @@ impl std::fmt::Display for TaskKind {
             TaskKind::NATSSubscribeParse => write!(f, "NATSSubscribeParse"),
             TaskKind::NATSSubscribePush => write!(f, "NATSSubscribePush"),
             TaskKind::NATSQueuePush => write!(f, "NATSQueuePush"),
+            TaskKind::MQ9SubscribePush => write!(f, "MQ9SubscribePush"),
         }
     }
 }

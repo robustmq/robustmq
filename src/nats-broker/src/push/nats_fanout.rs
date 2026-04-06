@@ -14,6 +14,7 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::nats::subscribe::subject_message_tag;
+use crate::push::common::{adaptive_sleep, should_stop, BATCH_SIZE};
 use crate::push::manager::NatsSubscribeManager;
 use crate::push::manager::NatsSubscriber;
 use bytes::Bytes;
@@ -23,19 +24,11 @@ use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::nats::packet::NatsPacket;
 use std::sync::Arc;
-use std::time::Duration;
 use storage_adapter::consumer::{GroupConsumer, StartOffsetStrategy};
 use storage_adapter::driver::StorageDriverManager;
 use tokio::select;
 use tokio::sync::broadcast;
-use tokio::time::sleep;
-use tracing::{debug, error, info, warn};
-
-pub const BATCH_SIZE: u64 = 500;
-pub const IDLE_SLEEP_MS: u64 = 100;
-pub const LOW_LOAD_SLEEP_MS: u64 = 50;
-pub const HIGH_LOAD_SLEEP_MS: u64 = 10;
-pub const LOW_LOAD_THRESHOLD: usize = 10;
+use tracing::{debug, error, warn};
 
 pub struct FanoutPushManager {
     subscribe_manager: Arc<NatsSubscribeManager>,
@@ -63,44 +56,18 @@ impl FanoutPushManager {
 
     pub async fn start(&self, stop_sx: &broadcast::Sender<bool>) {
         let mut stop_rx = stop_sx.subscribe();
+        let label = format!("NATS FanoutPushManager[{}]", self.bucket_id);
         loop {
             select! {
                 val = stop_rx.recv() => {
-                    match val {
-                        Ok(true) => {
-                            info!("NATS FanoutPushManager[{}] stopped", self.bucket_id);
-                            break;
-                        }
-                        Ok(false) => {}
-                        Err(broadcast::error::RecvError::Closed) => {
-                            info!("NATS FanoutPushManager[{}] stop channel closed", self.bucket_id);
-                            break;
-                        }
-                        Err(broadcast::error::RecvError::Lagged(n)) => {
-                            debug!(
-                                "NATS FanoutPushManager[{}] stop channel lagged, skipped {}",
-                                self.bucket_id, n
-                            );
-                        }
-                    }
+                    if should_stop(val, &label) { break; }
                 }
                 res = self.send_messages() => {
                     match res {
-                        Ok(count) => {
-                            if count == 0 {
-                                sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
-                            } else if count < LOW_LOAD_THRESHOLD {
-                                sleep(Duration::from_millis(LOW_LOAD_SLEEP_MS)).await;
-                            } else {
-                                sleep(Duration::from_millis(HIGH_LOAD_SLEEP_MS)).await;
-                            }
-                        }
+                        Ok(count) => adaptive_sleep(count).await,
                         Err(e) => {
-                            error!(
-                                "NATS FanoutPushManager[{}] error: {}",
-                                self.bucket_id, e
-                            );
-                            sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
+                            error!("{} error: {}", label, e);
+                            adaptive_sleep(0).await;
                         }
                     }
                 }

@@ -13,9 +13,10 @@
 // limitations under the License.
 
 use crate::core::cache::NatsCacheManager;
-use crate::push::fanout_push::FanoutPushManager;
+use crate::push::mq9_fanout::Mq9FanoutPushManager;
+use crate::push::nats_fanout::FanoutPushManager;
+use crate::push::nats_queue::QueuePushManager;
 use crate::push::parse::{ParseAction, ParseSubscribeData};
-use crate::push::queue_push::QueuePushManager;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::uuid::unique_id;
 pub use manager::NatsSubscribeManager;
@@ -29,12 +30,14 @@ use tokio::time::sleep;
 use tracing::{debug, error, info};
 
 pub mod buckets;
-pub mod fanout_push;
+pub mod common;
 pub mod manager;
+pub mod mq9_fanout;
+pub mod nats_fanout;
+pub mod nats_queue;
 pub mod parse;
-pub mod queue_push;
 
-pub async fn start_parse_thread(
+async fn start_parse_thread(
     cache_manager: Arc<NatsCacheManager>,
     subscribe_manager: Arc<NatsSubscribeManager>,
     mut rx: Receiver<ParseSubscribeData>,
@@ -99,6 +102,7 @@ pub async fn start_push(
     push_thread_num: usize,
     stop_sx: broadcast::Sender<bool>,
 ) {
+    // parse thread
     let (parse_tx, parse_rx) = tokio::sync::mpsc::channel(1024);
     subscribe_manager.set_parse_sender(parse_tx).await;
 
@@ -109,6 +113,7 @@ pub async fn start_push(
         start_parse_thread(cm, sm, parse_rx, sx).await;
     });
 
+    // nats core fanout push
     let bucket_ids: Vec<String> = (0..push_thread_num).map(|_| unique_id()).collect();
     for bucket_id in &bucket_ids {
         subscribe_manager
@@ -129,6 +134,28 @@ pub async fn start_push(
         );
     }
 
+    // mq9 fanout push
+    let mq9_bucket_ids: Vec<String> = (0..push_thread_num).map(|_| unique_id()).collect();
+    for bucket_id in &mq9_bucket_ids {
+        subscribe_manager
+            .mq9_fanout_push
+            .register_bucket(bucket_id.clone());
+    }
+    for bucket_id in mq9_bucket_ids {
+        let mgr = Mq9FanoutPushManager::new(
+            subscribe_manager.clone(),
+            connection_manager.clone(),
+            storage_driver_manager.clone(),
+            bucket_id.clone(),
+        );
+        let sx = stop_sx.clone();
+        task_supervisor.spawn(
+            format!("{}_{}", TaskKind::MQ9SubscribePush, bucket_id),
+            async move { mgr.start(&sx).await },
+        );
+    }
+
+    // nats queue push
     let sm = subscribe_manager.clone();
     let conn = connection_manager.clone();
     let stor = storage_driver_manager.clone();
