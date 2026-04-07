@@ -41,7 +41,6 @@ pub struct CreateMailboxReply {
 
 #[derive(Debug, Serialize)]
 pub struct PubMailboxReply {
-    pub mail_id: String,
     pub msg_id: u64,
 }
 
