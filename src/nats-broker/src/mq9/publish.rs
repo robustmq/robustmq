@@ -67,7 +67,10 @@ pub async fn process_pub(
         .await?;
 
     let offset = offsets.into_iter().next().ok_or_else(|| {
-        NatsBrokerError::CommonError(format!("write to mailbox {} failed: no offset returned", mail_id))
+        NatsBrokerError::CommonError(format!(
+            "write to mailbox {} failed: no offset returned",
+            mail_id
+        ))
     })?;
     Ok(Mq9Reply::Pub(PubMailboxReply { msg_id: offset }))
 }

@@ -26,16 +26,11 @@ pub struct CreateMailboxReq {
     pub desc: String,
 }
 
-#[derive(Debug, Deserialize, Default)]
-pub struct ListPublicMailboxReq {
-    pub prefix: Option<String>,
-}
-
 // ── Replies ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize)]
 pub struct CreateMailboxReply {
-    pub email_id: String,
+    pub mail_id: String,
     pub is_new: bool,
 }
 
@@ -45,15 +40,21 @@ pub struct PubMailboxReply {
 }
 
 #[derive(Debug, Serialize)]
-pub struct ListPublicMailboxReplyItem {
-    pub mail_id: String,
-    pub desc: String,
-    pub ttl: u64,
+pub struct ListMailboxMsgItem {
+    pub msg_id: u64,
+    pub priority: String,
+    pub ts: u64,
 }
 
 #[derive(Debug, Serialize)]
-pub struct ListPublicMailboxReply {
-    pub items: Vec<ListPublicMailboxReplyItem>,
+pub struct ListMailboxMsgReply {
+    pub mail_id: String,
+    pub messages: Vec<ListMailboxMsgItem>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DeleteMailboxMsgReply {
+    pub deleted: bool,
 }
 
 // ── Reply enum ────────────────────────────────────────────────────────────────
@@ -63,5 +64,6 @@ pub struct ListPublicMailboxReply {
 pub enum Mq9Reply {
     Create(CreateMailboxReply),
     Pub(PubMailboxReply),
-    PublicList(ListPublicMailboxReply),
+    List(ListMailboxMsgReply),
+    Delete(DeleteMailboxMsgReply),
 }

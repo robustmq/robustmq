@@ -23,17 +23,23 @@ use metadata_struct::tenant::DEFAULT_TENANT;
 pub async fn process_sub(
     ctx: &NatsProcessContext,
     mail_id: &str,
-    priority: &Priority,
+    priority: Option<&Priority>,
     sid: &str,
     queue_group: Option<&str>,
 ) -> Result<(), NatsBrokerError> {
+    // subject stored is the full subscription pattern, e.g. `mail-id.*` or `mail-id.high`
+    let subject = match priority {
+        Some(p) => format!("{}.{}", mail_id, p),
+        None => format!("{}.*", mail_id),
+    };
+
     let subscribe = NatsSubscribe {
         tenant: DEFAULT_TENANT.to_string(),
         connect_id: ctx.connect_id,
         sid: sid.to_string(),
-        subject: mail_id.to_string(),
+        subject,
         queue_group: queue_group.unwrap_or_default().to_string(),
-        priority: Some(priority.clone()),
+        priority: priority.cloned(),
         create_time: now_second(),
     };
 

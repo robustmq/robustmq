@@ -16,7 +16,8 @@ use crate::core::error::NatsBrokerError;
 use crate::core::write_client::write_nats_packet;
 use crate::handler::command::NatsProcessContext;
 use crate::mq9::create::process_create;
-use crate::mq9::public_list::process_public_list;
+use crate::mq9::delete::process_delete;
+use crate::mq9::list::process_list;
 use crate::mq9::publish::process_pub;
 use bytes::Bytes;
 use mq9_core::command::Mq9Command;
@@ -41,10 +42,19 @@ pub async fn mq9_command(
 
     let result = match parsed {
         Mq9Command::MailboxCreate => process_create(ctx, payload).await,
-        Mq9Command::Mailbox { mail_id, priority } => {
+        Mq9Command::MailboxMsg { mail_id, priority } => {
             process_pub(ctx, &mail_id, &priority, headers, payload).await
         }
-        Mq9Command::PublicList => process_public_list(ctx, payload).await,
+        Mq9Command::MailboxList { mail_id } => process_list(ctx, &mail_id).await,
+        Mq9Command::MailboxDelete { mail_id, msg_id } => {
+            process_delete(ctx, &mail_id, &msg_id).await
+        }
+        Mq9Command::MailboxSub { .. } => {
+            // SUB subjects are handled in the subscribe path, not via PUB.
+            return Some(NatsPacket::Err(
+                "use SUB to subscribe to a mailbox".to_string(),
+            ));
+        }
     };
 
     if let Some(reply_subject) = reply_to {
@@ -63,7 +73,6 @@ async fn reply_nats_packet(
     subject: &str,
     payload: Bytes,
 ) -> Result<(), NatsBrokerError> {
-    // Look up the sid that the client used when subscribing to this reply subject.
     let sid = ctx
         .cache_manager
         .get_inbox_sid(subject)

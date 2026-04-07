@@ -14,14 +14,12 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::handler::command::NatsProcessContext;
-use bytes::Bytes;
-use mq9_core::protocol::{ListPublicMailboxReply, Mq9Reply};
+use mq9_core::protocol::{DeleteMailboxMsgReply, Mq9Reply};
 
-pub async fn process_public_list(
+pub async fn process_delete(
     _ctx: &NatsProcessContext,
-    _payload: &Bytes,
+    _mail_id: &str,
+    _msg_id: &str,
 ) -> Result<Mq9Reply, NatsBrokerError> {
-    Ok(Mq9Reply::PublicList(ListPublicMailboxReply {
-        items: vec![],
-    }))
+    Ok(Mq9Reply::Delete(DeleteMailboxMsgReply { deleted: true }))
 }

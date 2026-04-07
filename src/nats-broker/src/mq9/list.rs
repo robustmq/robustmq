@@ -12,9 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod create;
-pub mod delete;
-pub mod list;
-pub mod process;
-pub mod publish;
-pub mod subscribe;
+use crate::core::error::NatsBrokerError;
+use crate::handler::command::NatsProcessContext;
+use mq9_core::protocol::{ListMailboxMsgReply, Mq9Reply};
+
+pub async fn process_list(
+    _ctx: &NatsProcessContext,
+    mail_id: &str,
+) -> Result<Mq9Reply, NatsBrokerError> {
+    Ok(Mq9Reply::List(ListMailboxMsgReply {
+        mail_id: mail_id.to_string(),
+        messages: vec![],
+    }))
+}
