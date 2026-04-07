@@ -14,24 +14,20 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
-use crate::subscribe::fanout_push::{
-    send_packet, BATCH_SIZE, HIGH_LOAD_SLEEP_MS, IDLE_SLEEP_MS, LOW_LOAD_SLEEP_MS,
-    LOW_LOAD_THRESHOLD,
-};
-use crate::subscribe::NatsSubscribeManager;
-use crate::subscribe::NatsSubscriber;
+use crate::push::common::{adaptive_sleep, should_stop, BATCH_SIZE};
+use crate::push::manager::NatsSubscribeManager;
+use crate::push::manager::NatsSubscriber;
+use crate::push::nats_fanout::send_packet;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 use storage_adapter::consumer::GroupConsumer;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::select;
 use tokio::sync::broadcast;
-use tokio::time::sleep;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
 pub struct QueuePushManager {
     subscribe_manager: Arc<NatsSubscribeManager>,
@@ -68,44 +64,18 @@ impl QueuePushManager {
 
     pub async fn start(&mut self, stop_sx: &broadcast::Sender<bool>) {
         let mut stop_rx = stop_sx.subscribe();
+        let label = format!("NATS QueuePushManager[{}]", self.queue_key);
         loop {
             select! {
                 val = stop_rx.recv() => {
-                    match val {
-                        Ok(true) => {
-                            info!("NATS QueuePushManager[{}] stopped", self.queue_key);
-                            break;
-                        }
-                        Ok(false) => {}
-                        Err(broadcast::error::RecvError::Closed) => {
-                            info!("NATS QueuePushManager[{}] stop channel closed", self.queue_key);
-                            break;
-                        }
-                        Err(broadcast::error::RecvError::Lagged(n)) => {
-                            debug!(
-                                "NATS QueuePushManager[{}] stop channel lagged, skipped {}",
-                                self.queue_key, n
-                            );
-                        }
-                    }
+                    if should_stop(val, &label) { break; }
                 }
                 res = self.send_messages() => {
                     match res {
-                        Ok(count) => {
-                            if count == 0 {
-                                sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
-                            } else if count < LOW_LOAD_THRESHOLD {
-                                sleep(Duration::from_millis(LOW_LOAD_SLEEP_MS)).await;
-                            } else {
-                                sleep(Duration::from_millis(HIGH_LOAD_SLEEP_MS)).await;
-                            }
-                        }
+                        Ok(count) => adaptive_sleep(count).await,
                         Err(e) => {
-                            error!(
-                                "NATS QueuePushManager[{}] error: {}",
-                                self.queue_key, e
-                            );
-                            sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
+                            error!("{} error: {}", label, e);
+                            adaptive_sleep(0).await;
                         }
                     }
                 }
@@ -116,7 +86,7 @@ impl QueuePushManager {
     async fn send_messages(&mut self) -> Result<usize, NatsBrokerError> {
         let is_empty = self
             .subscribe_manager
-            .queue_push
+            .nats_core_queue_push
             .get(&self.queue_key)
             .map(|b| b.sub_len() == 0)
             .unwrap_or(true);
@@ -127,7 +97,7 @@ impl QueuePushManager {
 
         let tenant = self
             .subscribe_manager
-            .queue_push
+            .nats_core_queue_push
             .get(&self.queue_key)
             .and_then(|b| {
                 b.buckets_data_list
@@ -184,7 +154,11 @@ impl QueuePushManager {
 
     async fn round_robin_send(&self, record: &StorageRecord) -> Result<bool, NatsBrokerError> {
         let subscribers: Vec<NatsSubscriber> = {
-            let Some(bucket_mgr) = self.subscribe_manager.queue_push.get(&self.queue_key) else {
+            let Some(bucket_mgr) = self
+                .subscribe_manager
+                .nats_core_queue_push
+                .get(&self.queue_key)
+            else {
                 return Ok(false);
             };
             let Some(bucket) = bucket_mgr.buckets_data_list.get(&self.queue_key) else {

@@ -13,18 +13,14 @@
 // limitations under the License.
 
 use crate::core::cache::NatsCacheManager;
-use crate::subscribe::NatsSubscribeManager;
-use crate::subscribe::NatsSubscriber;
+use crate::push::manager::NatsSubscribeManager;
+use crate::push::manager::NatsSubscriber;
 use common_base::tools::now_second;
 use common_base::uuid::unique_id;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::topic::{Topic, TopicSource};
 use std::sync::Arc;
-use tokio::{
-    select,
-    sync::{broadcast, mpsc::Receiver},
-};
-use tracing::{debug, error, info};
+use tracing::debug;
 
 #[derive(Clone, Debug)]
 pub enum ParseAction {
@@ -32,17 +28,29 @@ pub enum ParseAction {
     Remove,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum SubscribeSource {
+    NatsCore,
+    Mq9,
+}
+
 #[derive(Clone, Debug)]
 pub struct ParseSubscribeData {
     pub action: ParseAction,
+    pub source: SubscribeSource,
     pub subscribe: Option<NatsSubscribe>,
     pub topic: Option<Topic>,
 }
 
 impl ParseSubscribeData {
-    pub fn new_subscribe(action: ParseAction, subscribe: NatsSubscribe) -> Self {
+    pub fn new_subscribe(
+        action: ParseAction,
+        source: SubscribeSource,
+        subscribe: NatsSubscribe,
+    ) -> Self {
         ParseSubscribeData {
             action,
+            source,
             subscribe: Some(subscribe),
             topic: None,
         }
@@ -51,93 +59,46 @@ impl ParseSubscribeData {
     pub fn new_topic(action: ParseAction, topic: Topic) -> Self {
         ParseSubscribeData {
             action,
+            source: SubscribeSource::NatsCore,
             subscribe: None,
             topic: Some(topic),
         }
     }
 }
 
-pub async fn start_parse_thread(
-    cache_manager: Arc<NatsCacheManager>,
-    subscribe_manager: Arc<NatsSubscribeManager>,
-    mut rx: Receiver<ParseSubscribeData>,
-    stop_sx: broadcast::Sender<bool>,
-) {
-    let mut stop_rx = stop_sx.subscribe();
-
-    loop {
-        select! {
-            val = stop_rx.recv() => {
-                match val {
-                    Ok(true) => {
-                        info!("NATS subscribe parse thread stopping");
-                        break;
-                    }
-                    Ok(false) => {}
-                    Err(broadcast::error::RecvError::Closed) => {
-                        info!("NATS subscribe parse thread stop channel closed");
-                        break;
-                    }
-                    Err(broadcast::error::RecvError::Lagged(n)) => {
-                        debug!("NATS subscribe parse thread stop channel lagged, skipped {}", n);
-                    }
-                }
-            }
-
-            result = rx.recv() => {
-                let Some(data) = result else {
-                    info!("NATS subscribe parse thread request channel closed");
-                    break;
-                };
-
-                match (&data.action, &data.subscribe, &data.topic) {
-                    (ParseAction::Add, Some(sub), None) => {
-                        parse_by_new_subscribe(&cache_manager, &subscribe_manager, sub);
-                    }
-                    (ParseAction::Remove, Some(sub), None) => {
-                        subscribe_manager.remove_subscribe(sub.connect_id, &sub.sid);
-                        subscribe_manager.remove_push_by_sid(sub.connect_id, &sub.sid);
-                    }
-                    (ParseAction::Add, None, Some(topic)) => {
-                        parse_by_new_topic(&subscribe_manager, topic);
-                    }
-                    (ParseAction::Remove, None, Some(topic)) => {
-                        subscribe_manager.remove_by_topic(&topic.topic_name);
-                    }
-                    _ => {
-                        error!("Unexpected ParseSubscribeData: {:?}", data);
-                    }
-                }
-            }
-        }
-    }
-}
-
-fn parse_by_new_subscribe(
+pub(crate) fn parse_by_new_subscribe(
     cache_manager: &Arc<NatsCacheManager>,
     subscribe_manager: &Arc<NatsSubscribeManager>,
     sub: &NatsSubscribe,
+    source: &SubscribeSource,
 ) {
     debug!(
-        "Matching new subscribe: connect_id={}, sid={}, subject={}",
-        sub.connect_id, sub.sid, sub.subject
+        "Matching new subscribe: connect_id={}, sid={}, subject={}, source={:?}",
+        sub.connect_id, sub.sid, sub.subject, source
     );
 
-    let topics: Vec<_> = cache_manager
-        .node_cache
-        .list_topics_by_tenant(&sub.tenant)
-        .into_iter()
-        .filter(|t| t.source == TopicSource::NATS)
-        .collect();
+    match source {
+        SubscribeSource::NatsCore => {
+            let topics: Vec<_> = cache_manager
+                .node_cache
+                .list_topics_by_tenant(&sub.tenant)
+                .into_iter()
+                .filter(|t| t.source == TopicSource::NATS)
+                .collect();
 
-    for topic in topics {
-        if nats_subject_match(&sub.subject, &topic.topic_name) {
-            register_subscriber(subscribe_manager, sub, &topic.topic_name);
+            for topic in topics {
+                if nats_subject_match(&sub.subject, &topic.topic_name) {
+                    register_subscriber(subscribe_manager, sub, &topic.topic_name, source);
+                }
+            }
+        }
+        SubscribeSource::Mq9 => {
+            register_subscriber(subscribe_manager, sub, &sub.subject, source);
         }
     }
 }
 
-fn parse_by_new_topic(subscribe_manager: &Arc<NatsSubscribeManager>, topic: &Topic) {
+pub(crate) fn parse_by_new_topic(subscribe_manager: &Arc<NatsSubscribeManager>, topic: &Topic) {
     if topic.source != TopicSource::NATS {
         return;
     }
@@ -151,7 +112,12 @@ fn parse_by_new_topic(subscribe_manager: &Arc<NatsSubscribeManager>, topic: &Top
 
     for sub in subscribes {
         if nats_subject_match(&sub.subject, &topic.topic_name) {
-            register_subscriber(subscribe_manager, &sub, &topic.topic_name);
+            register_subscriber(
+                subscribe_manager,
+                &sub,
+                &topic.topic_name,
+                &SubscribeSource::NatsCore,
+            );
         }
     }
 }
@@ -160,6 +126,7 @@ fn register_subscriber(
     subscribe_manager: &Arc<NatsSubscribeManager>,
     sub: &NatsSubscribe,
     topic_name: &str,
+    source: &SubscribeSource,
 ) {
     let subscriber = NatsSubscriber {
         uniq_id: unique_id(),
@@ -169,13 +136,25 @@ fn register_subscriber(
         sub_subject: sub.subject.clone(),
         subject: topic_name.to_string(),
         queue_group: sub.queue_group.clone(),
+        priority: sub.priority.clone(),
         create_time: now_second(),
     };
 
-    if sub.queue_group.is_empty() {
-        subscribe_manager.add_fanout_subscriber(subscriber);
-    } else {
-        subscribe_manager.add_queue_subscriber(subscriber, &sub.queue_group);
+    match source {
+        SubscribeSource::NatsCore => {
+            if sub.queue_group.is_empty() {
+                subscribe_manager.add_nats_core_fanout_subscriber(subscriber);
+            } else {
+                subscribe_manager.add_nats_core_queue_subscriber(subscriber, &sub.queue_group);
+            }
+        }
+        SubscribeSource::Mq9 => {
+            if sub.queue_group.is_empty() {
+                subscribe_manager.add_mq9_fanout_subscriber(subscriber);
+            } else {
+                subscribe_manager.add_mq9_queue_subscriber(subscriber, &sub.queue_group);
+            }
+        }
     }
 }
 

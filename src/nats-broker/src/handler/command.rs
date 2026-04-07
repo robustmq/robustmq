@@ -14,7 +14,7 @@
 
 use crate::core::cache::NatsCacheManager;
 use crate::nats::{connect, ping, publish, subscribe};
-use crate::subscribe::NatsSubscribeManager;
+use crate::push::manager::NatsSubscribeManager;
 use async_trait::async_trait;
 use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
@@ -94,14 +94,35 @@ impl Command for NatsHandlerCommand {
             security_manager: self.security_manager.clone(),
         };
 
-        let resp_packet = match &packet {
-            NatsPacket::Connect(req) => connect::process_connect(&ctx, req),
+        // Helper: convert Result<(), NatsPacket> into Option<NatsPacket> with verbose.
+        let verbose = self
+            .cache_manager
+            .get_connection(connection_id)
+            .map(|c| c.verbose)
+            .unwrap_or(false);
+
+        let resp_packet: Option<NatsPacket> = match &packet {
+            NatsPacket::Connect(req) => {
+                // verbose is not yet in cache when CONNECT arrives; read from req directly
+                let verbose = req.verbose;
+                match connect::process_connect(&ctx, req) {
+                    Ok(()) => verbose.then_some(NatsPacket::Ok),
+                    Err(e) => Some(e),
+                }
+            }
 
             NatsPacket::Pub {
                 subject,
                 reply_to,
                 payload,
-            } => publish::process_pub(&ctx, subject, reply_to.as_deref(), &None, payload).await,
+            } => {
+                match publish::process_pub(&ctx, subject, reply_to.as_deref(), &None, payload).await
+                {
+                    Ok(Some(pkt)) => Some(pkt), // server-initiated (e.g. mq9 reply)
+                    Ok(None) => verbose.then_some(NatsPacket::Ok),
+                    Err(e) => Some(e),
+                }
+            }
 
             NatsPacket::HPub {
                 subject,
@@ -109,7 +130,7 @@ impl Command for NatsHandlerCommand {
                 headers,
                 payload,
             } => {
-                publish::process_pub(
+                match publish::process_pub(
                     &ctx,
                     subject,
                     reply_to.as_deref(),
@@ -117,15 +138,28 @@ impl Command for NatsHandlerCommand {
                     payload,
                 )
                 .await
+                {
+                    Ok(Some(pkt)) => Some(pkt),
+                    Ok(None) => verbose.then_some(NatsPacket::Ok),
+                    Err(e) => Some(e),
+                }
             }
 
             NatsPacket::Sub {
                 subject,
                 queue_group,
                 sid,
-            } => subscribe::process_sub(&ctx, subject, queue_group.as_deref(), sid),
+            } => match subscribe::process_sub(&ctx, subject, queue_group.as_deref(), sid).await {
+                Ok(()) => verbose.then_some(NatsPacket::Ok),
+                Err(e) => Some(e),
+            },
 
-            NatsPacket::Unsub { sid, max_msgs } => subscribe::process_unsub(&ctx, sid, *max_msgs),
+            NatsPacket::Unsub { sid, max_msgs } => {
+                match subscribe::process_unsub(&ctx, sid, *max_msgs).await {
+                    Ok(()) => verbose.then_some(NatsPacket::Ok),
+                    Err(e) => Some(e),
+                }
+            }
 
             NatsPacket::Ping => ping::process_ping(connection_id, &self.connection_manager),
 
@@ -137,11 +171,11 @@ impl Command for NatsHandlerCommand {
             | NatsPacket::HMsg { .. }
             | NatsPacket::Ok
             | NatsPacket::Err(_) => None,
-        }?;
+        };
 
         Some(ResponsePackage::new(
             connection_id,
-            RobustMQPacket::NATS(resp_packet),
+            RobustMQPacket::NATS(resp_packet?),
         ))
     }
 }

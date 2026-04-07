@@ -2,7 +2,7 @@
 
 ## Protocol Foundation
 
-mq9 is a semantic convention defined on top of NATS subjects, running on RobustMQ's unified storage layer. All mq9 operations are standard NATS pub/sub/req-reply calls, with subject names following the `$mq9.AI.*` namespace.
+mq9 is a semantic convention defined on top of NATS subjects, running on RobustMQ's unified storage layer. All mq9 operations are standard NATS pub/sub calls, with subject names following the `$mq9.AI.*` namespace.
 
 Any NATS client library works as an mq9 client directly — no additional SDK required.
 
@@ -15,336 +15,219 @@ Any NATS client library works as an mq9 client directly — no additional SDK re
 ```text
 $mq9.AI.
   ├── MAILBOX.
-  │     └── CREATE                    # Create a mailbox or broadcast channel
-  │
-  ├── INBOX.
+  │     ├── CREATE                         # Create a mailbox
   │     └── {mail_id}.
-  │           ├── urgent              # Urgent messages
-  │           ├── normal              # Routine messages
-  │           └── notify              # Notifications
+  │           ├── high                     # High-priority messages
+  │           ├── normal                   # Routine messages
+  │           └── low                      # Low-priority messages
   │
-  └── BROADCAST.
-        ├── system.
-        │     ├── capability          # System bulletin board: capability
-        │     ├── status              # System bulletin board: status
-        │     └── channel             # System bulletin board: channel
-        └── {domain}.
-              └── {event}            # User-defined broadcasts
+  └── PUBLIC.LIST                          # Public mailbox discovery, system-managed
 ```
 
 ### Subject Reference
 
-| Subject | Operation type | Description |
-|---------|---------------|-------------|
-| `$mq9.AI.MAILBOX.CREATE` | req/reply | Create a mailbox or broadcast channel. INBOX returns mail_id + token; BROADCAST returns success |
-| `$mq9.AI.INBOX.{mail_id}.urgent` | pub/sub | Deliver an urgent message to a mailbox |
-| `$mq9.AI.INBOX.{mail_id}.normal` | pub/sub | Deliver a routine message to a mailbox |
-| `$mq9.AI.INBOX.{mail_id}.notify` | pub/sub | Deliver a notification to a mailbox |
-| `$mq9.AI.INBOX.{mail_id}.*` | sub | Subscribe to all priority levels of a mailbox |
-| `$mq9.AI.BROADCAST.system.capability` | pub/sub | System bulletin board: capability |
-| `$mq9.AI.BROADCAST.system.status` | pub/sub | System bulletin board: status |
-| `$mq9.AI.BROADCAST.system.channel` | pub/sub | System bulletin board: channel |
-| `$mq9.AI.BROADCAST.{domain}.{event}` | pub/sub | Publish or subscribe to a user-defined broadcast channel |
-| `$mq9.AI.BROADCAST.{domain}.*` | sub | Subscribe to all events in a domain |
-| `$mq9.AI.BROADCAST.*.{event}` | sub | Subscribe to a specific event across all domains |
-| `$mq9.AI.BROADCAST.#` | sub | Subscribe to all broadcasts |
+| Subject | Operation | Description |
+|---------|-----------|-------------|
+| `$mq9.AI.MAILBOX.CREATE` | pub | Create a mailbox; response returned via reply-to |
+| `$mq9.AI.MAILBOX.{mail_id}.high` | pub/sub | High-priority messages |
+| `$mq9.AI.MAILBOX.{mail_id}.normal` | pub/sub | Routine messages |
+| `$mq9.AI.MAILBOX.{mail_id}.low` | pub/sub | Low-priority messages |
+| `$mq9.AI.MAILBOX.{mail_id}.*` | sub | Subscribe to all priority levels of a mailbox |
+| `$mq9.AI.PUBLIC.LIST` | sub | Discover all public mailboxes, system-managed |
 
 ---
 
 ## Core Concepts
 
-**mail_id**: A globally unique communication address obtained via `MAILBOX.CREATE`. Not bound to Agent identity — one Agent can hold multiple mail_ids for different tasks, and they expire and clean up automatically. mail_id is channel-level, not identity-level.
+**mail_id**: The communication address returned when creating a mailbox via `MAILBOX.CREATE`. Not bound to Agent identity — one Agent can apply for different mail_ids for different tasks, leave them alone when done, and TTL handles cleanup. Private mailbox mail_ids are system-generated and unguessable. Public mailbox mail_ids are user-defined with meaningful names — `task.queue`, `analytics.result`.
 
-**Mailbox type**: Declared with the `type` parameter when creating a mailbox:
-- `standard` (default): messages accumulate, stored by priority.
-- `latest`: only the most recent message is kept; new messages overwrite old ones. For status reporting, capability declarations.
+**mail_id unguessability is the security boundary.** Knowing the mail_id lets you send messages and subscribe. Without it, you can't interact with the mailbox. No token, no ACL.
 
-**TTL**: Declared at INBOX or BROADCAST creation time; auto-destroyed on expiry, along with all messages. No explicit delete operation. TTL is fixed by the first CREATE call; subsequent CREATEs do not override it.
+**TTL**: Declared at mailbox creation time; auto-destroyed on expiry along with all messages. No DELETE command. CREATE is idempotent — creating the same mailbox again does not error; TTL is fixed by the first creation.
 
-**token**: Returned when creating an INBOX. Anyone who knows the mail_id can send messages; the token is only used for mailbox management operations. BROADCAST has no token.
+**priority**: MAILBOX supports three priority levels: high, normal, low. Same priority is FIFO; across priorities, higher priority is processed first. The storage layer guarantees ordering; consumers need not sort themselves.
 
 **msg_id**: A unique identifier per message; used by clients for deduplication.
 
-**Subscription semantics**: INBOX and BROADCAST behave identically — each subscription delivers all non-expired messages in full. No read/unread distinction, no consume offset tracking. Zero consumer state on the server.
+**Subscription semantics**: Every subscription delivers all non-expired messages in full, with new messages pushed in real time afterward. No read/unread distinction, no consume offset tracking, no QUERY command. Zero consumer state on the server.
 
 **Message flow**: Message arrives → written to storage → pushed to online subscribers in real time; if offline, waits → delivered in full on next subscription.
 
-**CREATE idempotency**: Creating the same INBOX or BROADCAST again does not error; it silently succeeds. TTL is fixed by the first creation.
-
-**No state queries**: mq9 does not expose "does this mailbox exist" or "does this channel exist" query interfaces. CREATE always returns success.
-
 ---
 
-## MAILBOX.CREATE — Create a Mailbox or Broadcast Channel
+## MAILBOX.CREATE — Create a Mailbox
 
-A unified creation entry point. The subject prefix in the request body distinguishes whether an INBOX or BROADCAST is being created.
-
-### Create a Private Mailbox (INBOX)
+### Create a Private Mailbox
 
 ```bash
-# Request
-nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "type": "standard",
+nats pub '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
+
+# Response
+{"mail_id": "m-uuid-001"}
+```
+
+### Create a Public Mailbox
+
+```bash
+nats pub '$mq9.AI.MAILBOX.CREATE' '{
   "ttl": 3600,
-  "subject": "$mq9.AI.INBOX"
+  "public": true,
+  "name": "task.queue",
+  "desc": "Task queue"
 }'
 
 # Response
-{
-  "mail_id": "m-uuid-001",
-  "token": "tok-xxx",
-  "inbox": "$mq9.AI.INBOX.m-uuid-001"
-}
+{"mail_id": "task.queue"}
 ```
 
-### Create a Broadcast Channel (BROADCAST)
+Public mailboxes (`public: true`) are automatically registered to `$mq9.AI.PUBLIC.LIST` on creation and removed when their TTL expires.
 
-```bash
-# Request
-nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "type": "standard",
-  "ttl": 3600,
-  "subject": "$mq9.AI.BROADCAST.pipeline.complete"
-}'
-
-# Response
-{
-  "subject": "$mq9.AI.BROADCAST.pipeline.complete"
-}
-```
-
-The server identifies the `$mq9.AI.BROADCAST.` prefix, does not generate a mail_id or token. After creation, anyone can publish to or subscribe from the channel.
-
-CREATE is idempotent. If the channel already exists, it silently returns success; TTL is fixed by the first creation and is not overridden.
+CREATE is idempotent. If the mailbox already exists, it silently returns success; TTL is fixed by the first creation.
 
 ### Request Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `type` | string | No | `standard` (default) or `latest` |
 | `ttl` | int | No | Lifetime in seconds; uses system default if omitted |
-| `subject` | string | Yes | `$mq9.AI.INBOX` to create a mailbox; `$mq9.AI.BROADCAST.{domain}.{event}` to create a broadcast channel |
+| `public` | bool | No | Whether to make the mailbox public; default false |
+| `name` | string | Required for public mailboxes | Custom mail_id for a public mailbox |
+| `desc` | string | No | Mailbox description; recommended for public mailboxes |
 
 ---
 
-## INBOX — Point-to-Point Mailbox
+## Sending Messages
 
-### Send a Message
+Knowing the mail_id is all that's needed to send — no authorization required.
 
 ```bash
-# Send a routine message
-nats pub '$mq9.AI.INBOX.m-uuid-001.normal' '{
+nats pub '$mq9.AI.MAILBOX.m-uuid-001.high'   'payload'  # Urgent, processed first
+nats pub '$mq9.AI.MAILBOX.m-uuid-001.normal' 'payload'  # Routine communication
+nats pub '$mq9.AI.MAILBOX.m-uuid-001.low'    'payload'  # Background, not urgent
+```
+
+### Priority Levels
+
+| Level | Semantics | Typical use |
+|-------|-----------|-------------|
+| high | Urgent, processed first | Task interrupts, emergency commands |
+| normal | Routine communication | Task dispatch, result delivery, approval requests |
+| low | Background, not urgent | Logs, status reports, notifications |
+
+The storage layer guarantees priority ordering. An edge device that comes back online after being offline receives high messages first, then normal, then low. Consumers need not sort themselves.
+
+### Message Structure (Recommended)
+
+```json
+{
   "msg_id": "msg-uuid-001",
   "from": "m-uuid-002",
   "type": "task_result",
   "correlation_id": "req-uuid-001",
-  "reply_to": "$mq9.AI.INBOX.m-uuid-002.normal",
-  "payload": { ... },
+  "reply_to": "m-uuid-002",
+  "payload": {},
   "ts": 1234567890
-}'
-
-# Send an urgent message
-nats pub '$mq9.AI.INBOX.m-uuid-001.urgent' '{
-  "msg_id": "msg-uuid-002",
-  "from": "m-uuid-003",
-  "type": "emergency_stop",
-  "payload": { ... },
-  "ts": 1234567890
-}'
+}
 ```
 
-### Message Fields
+| Field | Description |
+|-------|-------------|
+| msg_id | Unique message identifier; used by clients for deduplication |
+| from | Sender's mail_id |
+| type | Message type; defined by the application |
+| correlation_id | Links to the original request; used for request-reply |
+| reply_to | Reply address; the recipient sends responses to this mail_id |
+| payload | Message content; mq9 does not parse this |
+| ts | Send timestamp |
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `msg_id` | string | Yes | Unique message identifier; used by clients for deduplication |
-| `from` | string | Yes | Sender's mail_id |
-| `type` | string | Yes | Message type; defined by the application |
-| `correlation_id` | string | No | Request-reply pairing for async request-response patterns |
-| `reply_to` | string | No | Reply address; the recipient can PUB directly to this subject |
-| `deadline` | int | No | Expected processing deadline (Unix timestamp, milliseconds) |
-| `payload` | any | No | Business data |
-| `ts` | int | Yes | Send timestamp (milliseconds) |
-
-### Priority Levels
-
-| Priority | Description | Persisted | Suggested TTL |
-|----------|-------------|-----------|---------------|
-| `urgent` | Critical messages, processed first | Yes | 86400s |
-| `normal` | Routine messages, FIFO | Yes | 3600s |
-| `notify` | Informational, background processing | No | short |
-
-Messages expire together with their mailbox. When the mailbox TTL expires, all messages inside are destroyed.
-
-### Receive Messages
-
-When an Agent comes online, it subscribes to its mailbox. The server delivers all non-expired messages in full.
-
-```bash
-# Subscribe to all priority levels
-nats sub '$mq9.AI.INBOX.m-uuid-001.*'
-
-# Subscribe to urgent messages only
-nats sub '$mq9.AI.INBOX.m-uuid-001.urgent'
-```
-
-### Java Example
-
-```java
-// Dependency: io.nats:jnats:2.20.5
-Connection nc = Nats.connect("nats://localhost:4222");
-
-// Create a mailbox
-Message reply = nc.request("$mq9.AI.MAILBOX.CREATE",
-    "{\"type\":\"standard\",\"ttl\":3600,\"subject\":\"$mq9.AI.INBOX\"}".getBytes(),
-    Duration.ofSeconds(3));
-// reply contains mail_id and token
-
-// Subscribe (recipient)
-Dispatcher d = nc.createDispatcher((msg) -> {
-    System.out.println("Received: " + new String(msg.getData()));
-});
-d.subscribe("$mq9.AI.INBOX.m-uuid-001.*");
-
-// Send a message (sender)
-nc.publish("$mq9.AI.INBOX.m-uuid-001.normal",
-    "{\"msg_id\":\"msg-001\",\"from\":\"m-uuid-002\",\"type\":\"task_result\",\"payload\":\"done\",\"ts\":1234567890}".getBytes());
-```
+Message structure is defined by the application; mq9 does not enforce it. The above is a recommended convention.
 
 ---
 
-## BROADCAST — Public Broadcast
-
-Broadcast channels must be CREATEd first; after that, anyone can publish to them and anyone can subscribe. Messages are persisted; offline subscribers receive all non-expired messages in full upon reconnection.
-
-### Create and Publish
+## Subscribing to a Mailbox
 
 ```bash
-# Create the channel first
-nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "type": "standard",
-  "ttl": 7200,
-  "subject": "$mq9.AI.BROADCAST.pipeline.complete"
-}'
-
-# Publish a broadcast
-nats pub '$mq9.AI.BROADCAST.pipeline.complete' '{
-  "msg_id": "msg-uuid-003",
-  "from": "m-uuid-004",
-  "type": "pipeline_done",
-  "reply_to": "$mq9.AI.INBOX.m-uuid-004.normal",
-  "payload": { ... },
-  "ts": 1234567890
-}'
+nats sub '$mq9.AI.MAILBOX.m-uuid-001.*'     # All priority levels
+nats sub '$mq9.AI.MAILBOX.m-uuid-001.high'  # High priority only
 ```
 
-`{domain}.{event}` is defined by the application. mq9 only specifies the `$mq9.AI.BROADCAST.` prefix.
+Subscribing delivers all non-expired messages immediately, then pushes new messages in real time. Agents that reconnect do not miss messages.
 
-### Suggested Domain Names
-
-| domain | Description |
-|--------|-------------|
-| `system` | System-level events (built-in, not modifiable) |
-| `task` | Task events: available, completed, failed |
-| `data` | Data change events |
-| custom | Application-defined domains |
-
-### Subscribe to Broadcasts
+**Competing consumers** — Public mailboxes support queue groups, allowing multiple subscribers to compete, with each message handled by exactly one subscriber:
 
 ```bash
-# Subscribe to the system bulletin board
-nats sub '$mq9.AI.BROADCAST.system.*'
-
-# Subscribe to all events in a single domain
-nats sub '$mq9.AI.BROADCAST.pipeline.*'
-
-# Subscribe to a specific event across all domains
-nats sub '$mq9.AI.BROADCAST.*.anomaly'
-
-# Subscribe to all broadcasts
-nats sub '$mq9.AI.BROADCAST.#'
+nats sub '$mq9.AI.MAILBOX.task.queue.*' --queue workers
 ```
 
-### Competing Consumers (Queue Group)
-
-When multiple Workers compete for the same broadcast, a queue group ensures each message is handled by exactly one Worker:
+**Prohibited operations:**
 
 ```bash
-nats sub '$mq9.AI.BROADCAST.task.available' --queue task.workers
+nats sub '$mq9.AI.MAILBOX.*'  # Rejected by broker
+nats sub '$mq9.AI.MAILBOX.#'  # Rejected by broker
 ```
 
-### BROADCAST Java Example
+Subscriptions must specify an exact mail_id. Wildcard subscriptions across all mailboxes are not permitted.
 
-```java
-// Three Workers compete via queue group
-for (int i = 1; i <= 3; i++) {
-    final int id = i;
-    Dispatcher worker = nc.createDispatcher((msg) -> {
-        System.out.println("[Worker-" + id + "] claimed task: " + new String(msg.getData()));
-    });
-    // queue group ensures only one Worker receives each message
-    worker.subscribe("$mq9.AI.BROADCAST.task.available", "task.workers");
-}
+---
 
-// Orchestrator broadcasts a task
-nc.publish("$mq9.AI.BROADCAST.task.available",
-    "{\"msg_id\":\"t-001\",\"task_id\":\"t-001\",\"type\":\"data_analysis\"}".getBytes());
+## PUBLIC.LIST — Public Mailbox Discovery
 
-// Subscribe to anomaly alerts across all domains
-Dispatcher alertHandler = nc.createDispatcher((msg) -> {
-    System.out.println("Alert received: " + new String(msg.getData()));
-});
-alertHandler.subscribe("$mq9.AI.BROADCAST.*.anomaly");
+System-managed address maintained by the broker. Does not accept user writes. Never expires.
+
+Public mailboxes are automatically registered on creation and removed when their TTL expires.
+
+```bash
+nats sub '$mq9.AI.PUBLIC.LIST'
+```
+
+Subscribing delivers all current public mailboxes immediately, then streams additions and removals in real time.
+
+Push format:
+
+```json
+# Added
+{"event": "created", "mail_id": "task.queue", "desc": "Task queue", "ttl": 3600}
+
+# Removed
+{"event": "expired", "mail_id": "task.queue"}
 ```
 
 ---
 
 ## Storage Tiers
 
-mq9 runs on RobustMQ's unified storage layer. Users choose storage per message; not every message needs the same level of durability.
+mq9 runs on RobustMQ's unified storage layer, providing three storage capabilities:
 
 | Storage tier | Characteristics | Use cases |
 |-------------|----------------|-----------|
-| Memory | Pure in-memory, no persistence | Coordination signals, heartbeats, disposable notifications |
-| RocksDB | Ephemeral persistence, TTL auto-cleanup | Mailbox default; task instructions; offline buffering |
+| Memory | Pure in-memory, no persistence | Coordination signals, heartbeats — disposable |
+| RocksDB | Ephemeral persistence, TTL auto-cleanup | Mailbox default; offline message buffering |
 | File Segment | Long-term persistence, permanent | Audit logs, critical events |
 
-Mailbox type and storage mapping:
-
-| Mailbox type | Priority | Default storage | Notes |
-|-------------|----------|----------------|-------|
-| standard | urgent | RocksDB | Persisted, TTL=86400s |
-| standard | normal | RocksDB | Persisted, TTL=3600s |
-| standard | notify | Memory | Not persisted |
-| latest | — | RocksDB | Only the most recent message kept |
-| broadcast | — | RocksDB | Persisted, TTL declared at CREATE time |
+| Priority | Default storage | Notes |
+|----------|----------------|-------|
+| high | RocksDB | Persisted |
+| normal | RocksDB | Persisted |
+| low | Memory | Not persisted — retransmit if lost |
 
 ---
 
-## Message Format
+## Protocol Summary
 
-mq9 does not enforce a message format — the payload is arbitrary bytes. JSON is recommended. Suggested fields:
-
-```json
-{
-  "msg_id": "msg-uuid-001",
-  "from": "m-uuid-001",
-  "type": "task_result",
-  "correlation_id": "req-uuid-001",
-  "reply_to": "$mq9.AI.INBOX.m-uuid-001.normal",
-  "deadline": 1234567890,
-  "payload": {},
-  "ts": 1234567890
-}
-```
+| Subject | Direction | Persisted | Description |
+|---------|-----------|-----------|-------------|
+| `$mq9.AI.MAILBOX.CREATE` | PUB | — | Create a mailbox |
+| `$mq9.AI.MAILBOX.{id}.high` | PUB/SUB | Yes | High-priority messages |
+| `$mq9.AI.MAILBOX.{id}.normal` | PUB/SUB | Yes | Routine messages |
+| `$mq9.AI.MAILBOX.{id}.low` | PUB/SUB | No | Low-priority messages |
+| `$mq9.AI.PUBLIC.LIST` | SUB | Yes | Discover public mailboxes, system-managed |
 
 ---
 
 ## Relationship to Native NATS
 
-mq9 is built on top of RobustMQ's NATS protocol layer, adding persistence and priority scheduling for specific subject prefixes:
+mq9 is built on top of RobustMQ's NATS protocol layer, enhancing specific subject prefixes with server-side logic:
 
 - Native NATS pub/sub: delivered in real-time; if the subscriber is offline, the message is lost
-- mq9 `$mq9.AI.INBOX.*` / `$mq9.AI.BROADCAST.*`: written to storage first; messages survive offline periods and are delivered in full on reconnect
+- mq9 `$mq9.AI.MAILBOX.*`: messages are written to storage first; they survive offline periods and are delivered in full on reconnect
 
 Both can be used together. mq9 only activates its enhanced behavior for messages matching the `$mq9.AI.*` prefix. All other NATS behavior is unchanged. Existing NATS clients need no modification — use the mq9 subjects directly.

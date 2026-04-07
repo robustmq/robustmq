@@ -29,6 +29,7 @@ pub enum TopicSource {
     SystemInner,
     MQTT,
     NATS,
+    MQ9,
     Kafka,
     AMQP,
 }

@@ -127,9 +127,14 @@ async fn update_cache(
             }
         }
 
-        // NATS
-        BrokerUpdateCacheResourceType::NatsSubscribe => {
-            if let Err(e) = update_nats_cache_metadata(&nats_params.subscribe_manager, record).await
+        // NATS / MQ9
+        BrokerUpdateCacheResourceType::NatsSubscribe | BrokerUpdateCacheResourceType::Mq9Email => {
+            if let Err(e) = update_nats_cache_metadata(
+                &nats_params.cache_manager,
+                &nats_params.subscribe_manager,
+                record,
+            )
+            .await
             {
                 return Err(CommonError::CommonError(e.to_string()));
             }

@@ -17,6 +17,7 @@ use crate::core::error::MetaServiceError;
 use crate::raft::route::common::DataRouteCluster;
 use crate::raft::route::engine::DataRouteJournal;
 use crate::raft::route::kv::DataRouteKv;
+use crate::raft::route::mq9::DataRouteMq9;
 use crate::raft::route::mqtt::DataRouteMqtt;
 use crate::raft::route::nats::DataRouteNats;
 use broker_core::cache::NodeCacheManager;
@@ -31,6 +32,7 @@ pub mod common;
 pub mod data;
 pub mod engine;
 pub mod kv;
+pub mod mq9;
 pub mod mqtt;
 pub mod nats;
 
@@ -42,6 +44,7 @@ pub struct AppResponseData {
 #[derive(Clone)]
 pub struct DataRoute {
     route_kv: DataRouteKv,
+    route_mq9: DataRouteMq9,
     route_mqtt: DataRouteMqtt,
     route_nats: DataRouteNats,
     route_journal: DataRouteJournal,
@@ -63,12 +66,14 @@ impl DataRoute {
             delay_task_manager.clone(),
         );
 
+        let route_mq9 = DataRouteMq9::new(rocksdb_engine_handler.clone());
         let route_nats = DataRouteNats::new(rocksdb_engine_handler.clone());
         let route_cluster =
             DataRouteCluster::new(rocksdb_engine_handler.clone(), cache_manager.clone());
         let route_journal = DataRouteJournal::new(rocksdb_engine_handler, cache_manager);
         DataRoute {
             route_kv,
+            route_mq9,
             route_mqtt,
             route_nats,
             route_journal,
@@ -315,6 +320,16 @@ impl DataRoute {
             StorageDataType::NatsDeleteSubscribe => {
                 self.route_nats
                     .delete_subscribe(storage_data.value.clone())?;
+                Ok(None)
+            }
+
+            // mq9
+            StorageDataType::Mq9CreateEmail => {
+                self.route_mq9.create_email(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::Mq9DeleteEmail => {
+                self.route_mq9.delete_email(storage_data.value.clone())?;
                 Ok(None)
             }
         }

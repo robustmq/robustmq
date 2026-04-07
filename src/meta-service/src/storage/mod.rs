@@ -14,5 +14,6 @@
 
 pub mod common;
 pub mod journal;
+pub mod mq9;
 pub mod mqtt;
 pub mod nats;

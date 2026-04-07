@@ -85,6 +85,7 @@ pub async fn send_last_will_message(
         .with_protocol_data(Some(StorageRecordProtocolData {
             mqtt: Some(mqtt_data),
             nats: None,
+            mq9: None,
         }));
     let message_storage = MessageStorage::new(storage_driver_manager.clone());
     message_storage

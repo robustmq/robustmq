@@ -34,49 +34,59 @@ mq9 sits between Core pub/sub and JetStream. Core NATS is too lightweight — no
 
 ---
 
-## Three Commands
+## Core Concept: Mailbox
 
-mq9's entire protocol has just three commands:
+mq9 has a single core abstraction: **Mailbox (MAILBOX)**.
 
-| Command | Description |
-|---------|-------------|
-| `MAILBOX.CREATE` | Create a mailbox or broadcast channel. INBOX returns mail_id + token; BROADCAST returns success |
-| `INBOX` | Point-to-point message delivery, persisted, three priority levels (urgent / normal / notify) |
-| `BROADCAST` | Public broadcast, persisted, anyone can publish or subscribe, supports wildcards and queue groups |
+A mailbox is an Agent's communication address. Ephemeral — TTL drives the lifecycle, auto-destroyed on expiry. An Agent creates a mailbox for each task, gets a mail_id, and that's its communication address for that task. When the task ends, the mailbox auto-expires.
 
-No QUERY — every subscription delivers all non-expired messages in full; subscribing is querying. No DELETE — TTL handles cleanup automatically.
+**mail_id unguessability is the security boundary.** mail_id is a system-generated unguessable string. Knowing the mail_id lets you send messages and subscribe. Without it, you can't interact with the mailbox. No token, no ACL.
+
+Mailboxes come in two kinds:
+
+| | Private mailbox | Public mailbox |
+|---|---|---|
+| mail_id | System-generated, unguessable | User-defined, meaningful name |
+| Discoverability | Private — only Agents who know the mail_id can find it | Auto-registered to PUBLIC.LIST, discoverable by anyone |
+| Use cases | Point-to-point messaging, task result delivery | Task queues, public channels, capability announcements |
+
+A public mailbox's mail_id is its address — choose a meaningful name like `task.queue` or `analytics.result` rather than a UUID, making it easier for other Agents to discover and understand.
 
 ---
 
-## Two Core Abstractions
+## Three Operations
 
-### Mailbox (INBOX)
+mq9's entire protocol is three operations:
 
-Private. Has mail_id and token; anyone can send to it, but only the owner can receive. Declare TTL at creation; auto-destroyed on expiry.
+| Operation | Subject | Description |
+|-----------|---------|-------------|
+| Create mailbox | `$mq9.AI.MAILBOX.CREATE` | Create a private or public mailbox |
+| Send message | `$mq9.AI.MAILBOX.{mail_id}.{priority}` | Three priority levels (high / normal / low) |
+| Subscribe | `$mq9.AI.MAILBOX.{mail_id}.*` | Full delivery of all non-expired messages on subscribe |
 
-Two mailbox types:
-- `standard` (default): messages accumulate, stored by priority. For task instructions, request-reply.
-- `latest`: only the most recent message is kept; new messages overwrite old ones. For status reporting, capability declarations.
+No QUERY — every subscription delivers all non-expired messages in full; subscribing is querying. No DELETE — TTL handles cleanup automatically.
 
-Mailboxes do not need explicit deletion. TTL expiry triggers automatic destruction, and messages are cleaned up with the mailbox.
+**Three priority levels:**
 
-### Broadcast Channel (BROADCAST)
+| Level | Semantics | Typical use |
+|-------|-----------|-------------|
+| high | Urgent, processed first | Task interrupts, emergency commands |
+| normal | Routine communication | Task dispatch, result delivery, approval requests |
+| low | Background, not urgent | Logs, status reports, notifications |
 
-Public. No mail_id, no token; anyone can create one, anyone can publish to it, anyone can subscribe. The creator does not own it exclusively.
+---
 
-Broadcast channels are also persisted and have TTL. Offline subscribers receive all non-expired messages upon reconnection.
+## Public Mailbox Discovery
 
-### System Bulletin Board
+`$mq9.AI.PUBLIC.LIST` is a system-managed address maintained by the broker. It does not accept user writes and never expires.
 
-mq9 has three built-in permanent broadcast channels, automatically created at system startup, TTL never expires, cannot be deleted:
+Public mailboxes (`public: true`) are automatically registered on creation and removed when their TTL expires. No manual registry maintenance needed.
 
-| Bulletin board | Purpose |
-|----------------|---------|
-| `$mq9.AI.BROADCAST.system.capability` | Capability announcement — what I can do |
-| `$mq9.AI.BROADCAST.system.status` | Status announcement — I'm alive, current load |
-| `$mq9.AI.BROADCAST.system.channel` | Channel announcement — I created a new broadcast channel |
+```bash
+nats sub '$mq9.AI.PUBLIC.LIST'
+```
 
-Once an Agent comes online and subscribes to `$mq9.AI.BROADCAST.system.*`, it can discover the entire network. No registry service needed.
+Subscribing delivers all current public mailboxes immediately, then streams additions and removals in real time. No registry service needed — PUBLIC.LIST is the directory.
 
 ---
 
@@ -85,12 +95,12 @@ Once an Agent comes online and subscribes to `$mq9.AI.BROADCAST.system.*`, it ca
 | Solution | Core Problem |
 |----------|-------------|
 | HTTP | Synchronous — the recipient must be online. Agents go offline constantly; this assumption breaks constantly. |
-| Redis pub/sub | No persistence. Offline recipients don't get the message. Guaranteeing delivery requires hand-rolling a reliable queue on top of Redis. |
-| Kafka | Designed for high-volume data pipelines. No ephemeral mailbox concept, no priority queue, topic creation requires admin operations. Agents are throwaway; Kafka assumes long-lived, carefully maintained resources. |
-| RabbitMQ | Flexible AMQP model, but performance ceiling and single-node architecture are hard limitations. Community focus is not on Agent scenarios. |
+| Redis pub/sub | No persistence. Offline recipients don't get the message. |
+| Kafka | Designed for high-volume data pipelines. Topic creation requires admin operations. Agents are throwaway; Kafka assumes long-lived, carefully maintained resources. |
+| RabbitMQ | Flexible AMQP model, but performance ceiling and single-node architecture are hard limitations. |
 | NATS Core | No persistence. Offline messages are lost. |
 | JetStream | Stream, consumer, offset concepts are too heavy for mailbox semantics. |
-| Homegrown queues | Every team rebuilds the same wheel, every implementation is different, cross-team interop is impossible. |
+| Homegrown queues | Every team rebuilds the same wheel; implementations are incompatible across teams. |
 
 All of these share the same underlying flaw: **they assume the recipient is online, or require manual handling of the offline case.** Agents going offline frequently is a problem all existing solutions require you to work around — not a problem they solve.
 
@@ -98,28 +108,28 @@ All of these share the same underlying flaw: **they assume the recipient is onli
 
 ## Eight Core Scenarios
 
-| Scenario | Protocol combination | Key advantage |
-|----------|---------------------|---------------|
-| Sub-Agent reports task result to orchestrator | MAILBOX.CREATE + INBOX.normal | Orchestrator doesn't block; messages survive offline periods |
-| Orchestrator tracks all sub-Agent states | `latest` mailbox + wildcard subscription | New Agents auto-discovered; TTL expiry auto-signals death; zero maintenance |
-| Task broadcast with competing Workers | BROADCAST + queue group | Competing consumers need zero config, no rebalancing, dynamic Worker scaling |
-| Agent broadcasts an anomaly alert | BROADCAST + persistence | Publisher needs no subscriber list; offline handlers receive alerts after reconnecting |
-| Cloud sends commands to offline edge Agent | INBOX urgent/normal | Native priority; messages survive network outages; processed by priority on reconnect |
-| Human-in-the-loop approval workflow | INBOX bidirectional + correlation_id | Humans and Agents use the same protocol; no separate approval service needed |
-| Agent A asks Agent B a question, B may be offline | INBOX + reply_to + correlation_id | B offline doesn't lose the request; A doesn't block; async request-reply |
-| Agent registers capabilities, others discover it | BROADCAST.system.capability | Decentralized; no registry service; TTL auto-cleanup |
+| Scenario | Key advantage |
+|----------|---------------|
+| Sub-Agent reports task result to orchestrator | Orchestrator doesn't block; messages survive offline periods |
+| Multiple Workers compete for a task queue | Public mailbox + queue group; competing consumers need zero config |
+| Orchestrator tracks all sub-Agent states | Workers report to public mailbox; TTL expiry auto-signals death |
+| Agent broadcasts an anomaly alert | Public mailbox collects alerts; offline handlers receive them after reconnecting |
+| Cloud sends commands to offline edge Agent | Native priority; messages survive network outages; processed by priority on reconnect |
+| Human-in-the-loop approval workflow | Humans and Agents use the same protocol; no separate approval service needed |
+| Agent A asks Agent B a question, B may be offline | B offline doesn't lose the request; A doesn't block; async request-reply |
+| Agent registers capabilities, others discover it | Public mailbox + PUBLIC.LIST; decentralized, no registry service |
 
 ---
 
 ## Design Principles
 
-**No new SDK required**: mq9 is built on the NATS protocol. Any NATS client — Go, Python, Rust, Java, JavaScript — is already an mq9 client. No new dependencies. The `$mq9.AI.*` namespace design makes the protocol self-documenting — reading a subject tells you its full semantics.
+**No new SDK required**: mq9 is built on the NATS protocol. Any NATS client — Go, Python, Rust, Java, JavaScript — is already an mq9 client. No new dependencies. The `$mq9.AI.*` namespace makes the protocol self-documenting — reading a subject tells you its full semantics.
 
 **mail_id is not tied to Agent identity**: mq9 recognizes mail_ids, not agent_ids. A mail_id is a communication channel. One Agent can hold multiple mail_ids for different tasks; they expire and clean up automatically. This is channel-level design, not identity-level.
 
 **Store first, then push**: Messages are written to storage first, then pushed to online subscribers. Online subscribers take the real-time path; offline messages wait in storage and are delivered in full on the next subscription.
 
-**No new concepts invented**: ACK reuses NATS native reply-to. Subscriptions reuse NATS native sub semantics. Competing consumers reuse NATS native queue groups.
+**No new concepts invented**: Subscriptions reuse NATS native sub semantics. Competing consumers reuse NATS native queue groups. Reply-to reuses NATS native mechanisms.
 
 **Storage chosen per message**: Running on RobustMQ's unified storage layer with three tiers — Memory (coordination signals, disposable), RocksDB (ephemeral persistence, the mailbox default, TTL cleanup), File Segment (long-term, audit logs). Not every message needs three replicas; not every message can afford to be lost.
 

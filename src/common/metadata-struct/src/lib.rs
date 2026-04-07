@@ -19,6 +19,7 @@ pub mod connection;
 pub mod connector;
 pub mod delay_info;
 pub mod meta;
+pub mod mq9;
 pub mod mqtt;
 pub mod nats;
 pub mod resource_config;

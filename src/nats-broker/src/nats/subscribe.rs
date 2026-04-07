@@ -16,26 +16,41 @@ use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::tenant::DEFAULT_TENANT;
+use mq9_core::command::Mq9Command;
 use protocol::nats::packet::NatsPacket;
 
 use crate::core::error::NatsProtocolError;
+use crate::core::subject::is_inbox_subject;
 use crate::handler::command::NatsProcessContext;
-use crate::subscribe::parse::{ParseAction, ParseSubscribeData};
+use crate::mq9::subscribe as mq9_subscribe;
+use crate::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
 
 pub fn subject_message_tag(tenant: &str, subject: &str) -> String {
     format!("{}_{}", tenant, subject)
 }
 
-pub fn process_sub(
+pub async fn process_sub(
     ctx: &NatsProcessContext,
     subject: &str,
     queue_group: Option<&str>,
     sid: &str,
-) -> Option<NatsPacket> {
+) -> Result<(), NatsPacket> {
     if broker_config().nats_runtime.auth_required && !ctx.cache_manager.is_login(ctx.connect_id) {
-        return Some(NatsPacket::Err(
+        return Err(NatsPacket::Err(
             NatsProtocolError::AuthorizationViolation.message(),
         ));
+    }
+
+    if is_inbox_subject(subject) {
+        ctx.cache_manager
+            .add_inbox(subject.to_string(), sid.to_string());
+        return Ok(());
+    }
+
+    if let Some(Mq9Command::MailboxSub { mail_id, priority }) = Mq9Command::parse(subject) {
+        return mq9_subscribe::process_sub(ctx, &mail_id, priority.as_ref(), sid, queue_group)
+            .await
+            .map_err(|e| NatsPacket::Err(e.to_string()));
     }
 
     let subscribe = NatsSubscribe {
@@ -43,40 +58,55 @@ pub fn process_sub(
         connect_id: ctx.connect_id,
         sid: sid.to_string(),
         subject: subject.to_string(),
+        priority: None,
         queue_group: queue_group.unwrap_or_default().to_string(),
         create_time: now_second(),
     };
 
     ctx.subscribe_manager.add_subscribe(subscribe.clone());
 
-    let data = ParseSubscribeData::new_subscribe(ParseAction::Add, subscribe);
-    let subscribe_manager = ctx.subscribe_manager.clone();
-    tokio::spawn(async move {
-        subscribe_manager.send_parse_event(data).await;
-    });
+    ctx.subscribe_manager
+        .send_parse_event(ParseSubscribeData::new_subscribe(
+            ParseAction::Add,
+            SubscribeSource::NatsCore,
+            subscribe,
+        ))
+        .await;
 
-    None
+    Ok(())
 }
 
-pub fn process_unsub(
+pub async fn process_unsub(
     ctx: &NatsProcessContext,
     sid: &str,
     _max_msgs: Option<u32>,
-) -> Option<NatsPacket> {
+) -> Result<(), NatsPacket> {
     if broker_config().nats_runtime.auth_required && !ctx.cache_manager.is_login(ctx.connect_id) {
-        return Some(NatsPacket::Err(
+        return Err(NatsPacket::Err(
             NatsProtocolError::AuthorizationViolation.message(),
         ));
     }
 
+    // inbox: no subscribe_manager entry, remove directly by sid.
+    ctx.cache_manager.remove_inbox_by_sid(sid);
+
     if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
-        let data = ParseSubscribeData::new_subscribe(ParseAction::Remove, subscribe);
-        let subscribe_manager = ctx.subscribe_manager.clone();
-        tokio::spawn(async move {
-            subscribe_manager.send_parse_event(data).await;
-        });
+        if let Some(Mq9Command::MailboxSub { mail_id, .. }) = Mq9Command::parse(&subscribe.subject)
+        {
+            ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
+            return mq9_subscribe::process_unsub(ctx, &mail_id, sid)
+                .await
+                .map_err(|e| NatsPacket::Err(e.to_string()));
+        }
+        ctx.subscribe_manager
+            .send_parse_event(ParseSubscribeData::new_subscribe(
+                ParseAction::Remove,
+                SubscribeSource::NatsCore,
+                subscribe,
+            ))
+            .await;
     }
 
     ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
-    None
+    Ok(())
 }

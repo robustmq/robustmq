@@ -155,6 +155,7 @@ pub struct StorageRecord {
 pub struct StorageRecordProtocolData {
     pub mqtt: Option<StorageRecordProtocolDataMqtt>,
     pub nats: Option<StorageRecordProtocolDataNats>,
+    pub mq9: Option<StorageRecordProtocolDataMq9>,
 }
 
 impl StorageRecordProtocolData {}
@@ -174,5 +175,11 @@ pub struct StorageRecordProtocolDataMqtt {
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct StorageRecordProtocolDataNats {
     pub reply_to: Option<String>,
+    pub header: Option<Bytes>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct StorageRecordProtocolDataMq9 {
+    pub priority: String,
     pub header: Option<Bytes>,
 }
