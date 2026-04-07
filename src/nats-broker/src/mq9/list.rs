@@ -79,7 +79,7 @@ pub async fn process_list(
 
             messages.push(ListMailboxMsgItem {
                 msg_id: record.metadata.offset,
-                payload: record.data.to_vec(),
+                payload: String::from_utf8_lossy(&record.data).into_owned(),
                 priority,
                 header,
                 create_time: record.metadata.create_t,

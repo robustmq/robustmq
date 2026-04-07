@@ -42,7 +42,7 @@ pub struct PubMailboxReply {
 #[derive(Debug, Serialize)]
 pub struct ListMailboxMsgItem {
     pub msg_id: u64,
-    pub payload: Vec<u8>,
+    pub payload: String,
     pub priority: String,
     pub header: Option<Vec<u8>>,
     pub create_time: u64,
