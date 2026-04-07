@@ -48,6 +48,10 @@ impl NatsCacheManager {
         self.inbox_data.remove(inbox);
     }
 
+    pub fn remove_inbox_by_sid(&self, sid: &str) {
+        self.inbox_data.retain(|_, v| v != sid);
+    }
+
     pub fn get_inbox_sid(&self, inbox: &str) -> Option<String> {
         self.inbox_data.get(inbox).map(|e| e.value().clone())
     }

@@ -57,7 +57,7 @@ pub async fn process_sub(
 
 pub async fn process_unsub(
     ctx: &NatsProcessContext,
-    mail_id: &str,
+    _mail_id: &str,
     sid: &str,
 ) -> Result<(), NatsBrokerError> {
     if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
@@ -71,6 +71,5 @@ pub async fn process_unsub(
     }
 
     ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
-    let _ = mail_id;
     Ok(())
 }

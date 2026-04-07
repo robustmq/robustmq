@@ -44,15 +44,6 @@ pub async fn process_sub(
     if is_inbox_subject(subject) {
         ctx.cache_manager
             .add_inbox(subject.to_string(), sid.to_string());
-        ctx.subscribe_manager.add_subscribe(NatsSubscribe {
-            tenant: DEFAULT_TENANT.to_string(),
-            connect_id: ctx.connect_id,
-            sid: sid.to_string(),
-            subject: subject.to_string(),
-            priority: None,
-            queue_group: String::new(),
-            create_time: now_second(),
-        });
         return Ok(());
     }
 
@@ -96,12 +87,10 @@ pub async fn process_unsub(
         ));
     }
 
-    if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
-        if is_inbox_subject(&subscribe.subject) {
-            ctx.cache_manager.remove_inbox(&subscribe.subject);
-            return Ok(());
-        }
+    // inbox: no subscribe_manager entry, remove directly by sid.
+    ctx.cache_manager.remove_inbox_by_sid(sid);
 
+    if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
         if let Some(Mq9Command::MailboxSub { mail_id, .. }) = Mq9Command::parse(&subscribe.subject)
         {
             ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
