@@ -172,6 +172,8 @@ async fn handle_socket(
                             buf.put(data.as_ref());
                             match codec.decode_data(&mut buf) {
                                 Ok(Some(packet)) => {
+
+                                    info!("recv packet:{:?}",packet);
                                     let robust_packet = match packet {
                                         RobustMQCodecWrapper::MQTT(pkg) => RobustMQPacket::MQTT(pkg.packet),
                                         RobustMQCodecWrapper::KAFKA(pkg) => RobustMQPacket::KAFKA(pkg),

@@ -63,13 +63,10 @@ async fn reply_nats_packet(
     subject: &str,
     payload: Bytes,
 ) -> Result<(), NatsBrokerError> {
-      // Look up the sid that the client used when subscribing to this reply subject.
+    // Look up the sid that the client used when subscribing to this reply subject.
     let sid = ctx
-        .subscribe_manager
-        .list_subscribes_by_connection(ctx.connect_id)
-        .into_iter()
-        .find(|s| s.subject == subject)
-        .map(|s| s.sid)
+        .cache_manager
+        .get_inbox_sid(subject)
         .unwrap_or_else(|| "0".to_string());
     let packet = NatsPacket::Msg {
         subject: subject.to_string(),

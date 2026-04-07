@@ -150,6 +150,8 @@ fn read_frame_process(
                                 debug!("{} connection 【{}】 acceptor thread stopped successfully.", network_type, connection_id);
                                 break;
                             }
+
+                            info!("recv packet:{:?}",pack);
                             if let Some(pk) = pack{
                                 let connection = connection_manager.get_connect(connection_id).unwrap();
                                 match pk {

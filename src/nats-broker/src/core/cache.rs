@@ -25,6 +25,8 @@ pub struct NatsCacheManager {
     pub connection_info: DashMap<u64, NatsConnection>,
     /// Key: "{tenant}/{mail_id}"
     pub email_info: DashMap<String, MQ9Email>,
+    /// Key: inbox subject, Value: sid
+    pub inbox_data: DashMap<String, String>,
 }
 
 impl NatsCacheManager {
@@ -34,7 +36,20 @@ impl NatsCacheManager {
             client_pool,
             connection_info: DashMap::with_capacity(1024),
             email_info: DashMap::new(),
+            inbox_data: DashMap::new(),
         }
+    }
+
+    pub fn add_inbox(&self, inbox: String, sid: String) {
+        self.inbox_data.insert(inbox, sid);
+    }
+
+    pub fn remove_inbox(&self, inbox: &str) {
+        self.inbox_data.remove(inbox);
+    }
+
+    pub fn get_inbox_sid(&self, inbox: &str) -> Option<String> {
+        self.inbox_data.get(inbox).map(|e| e.value().clone())
     }
 
     pub fn add_email(&self, email: MQ9Email) {

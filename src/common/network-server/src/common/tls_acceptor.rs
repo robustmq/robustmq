@@ -40,7 +40,7 @@ use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 pub struct TlsAcceptorContext {
     pub accept_thread_num: usize,
@@ -202,6 +202,7 @@ pub(crate) fn read_tls_frame_process(
                                     debug!("{} connection 【{}】 acceptor thread stopped successfully.",network_type, connection.connection_id);
                                     break;
                                 }
+                                info!("recv packet:{:?}",pack);
                                  match pack{
                                     RobustMQCodecWrapper::MQTT(pk) =>{
                                         read_packet(RobustMQPacket::MQTT(pk.packet), &request_channel, &connection, &network_type).await;

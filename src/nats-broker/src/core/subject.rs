@@ -33,6 +33,11 @@ use storage_adapter::{driver::StorageDriverManager, topic::create_topic_full};
 pub type NatSubject = Topic;
 const INNER_NATS_CORE_SHARD_NAME: &str = "$sys.inner.nats.core.shard.";
 const INNER_MQ9_SHARD_NAME: &str = "$sys.inner.mq9.shard.";
+const INBOX_PREFIX: &str = "_INBOX.";
+
+pub fn is_inbox_subject(subject: &str) -> bool {
+    subject.starts_with(INBOX_PREFIX)
+}
 
 static SHARD_ALLOCATION_GENERAL: AtomicI64 = AtomicI64::new(0);
 

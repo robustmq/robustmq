@@ -20,6 +20,7 @@ use mq9_core::command::Mq9Command;
 use protocol::nats::packet::NatsPacket;
 
 use crate::core::error::NatsProtocolError;
+use crate::core::subject::is_inbox_subject;
 use crate::handler::command::NatsProcessContext;
 use crate::mq9::subscribe as mq9_subscribe;
 use crate::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
@@ -38,6 +39,11 @@ pub async fn process_sub(
         return Err(NatsPacket::Err(
             NatsProtocolError::AuthorizationViolation.message(),
         ));
+    }
+
+    if is_inbox_subject(subject) {
+        ctx.cache_manager.add_inbox(subject.to_string(), sid.to_string());
+        return Ok(());
     }
 
     if let Some(Mq9Command::Mailbox { mail_id, priority }) = Mq9Command::parse(subject) {
@@ -81,6 +87,11 @@ pub async fn process_unsub(
     }
 
     if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
+        if is_inbox_subject(&subscribe.subject) {
+            ctx.cache_manager.remove_inbox(&subscribe.subject);
+            return Ok(());
+        }
+
         if let Some(Mq9Command::Mailbox { mail_id, .. }) = Mq9Command::parse(&subscribe.subject) {
             ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
             return mq9_subscribe::process_unsub(ctx, &mail_id, sid)
