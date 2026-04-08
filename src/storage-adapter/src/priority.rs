@@ -12,13 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-pub mod driver;
-pub mod engine;
-pub mod tests;
-// pub mod mysql;
-pub mod consumer;
-pub mod consumer_priority;
-pub mod priority;
-pub mod storage;
-pub mod topic;
+use metadata_struct::mq9::Priority;
+
+pub fn storage_priority_tag(prefix: &str, priority: &Priority) -> String {
+    format!("{}_{}", prefix, priority)
+}
