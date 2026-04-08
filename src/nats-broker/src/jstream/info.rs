@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod ack;
-pub mod command;
-pub mod consumer;
-pub mod direct;
-pub mod event;
-pub mod info;
-pub mod kv;
-pub mod object;
-pub mod process;
-pub mod stream;
+use crate::core::error::NatsBrokerError;
+use crate::handler::command::NatsProcessContext;
+
+/// `$JS.API.INFO` — server-level JetStream info.
+pub async fn process_info(_ctx: &NatsProcessContext) -> Result<String, NatsBrokerError> {
+    todo!("JS.API.INFO")
+}
+
+/// `$JS.API.ACCOUNT.INFO` — account-level JetStream usage info.
+pub async fn process_account_info(_ctx: &NatsProcessContext) -> Result<String, NatsBrokerError> {
+    todo!("JS.API.ACCOUNT.INFO")
+}
