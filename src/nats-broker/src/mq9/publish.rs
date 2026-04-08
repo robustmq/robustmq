@@ -23,6 +23,8 @@ use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mq9::Priority;
 use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordProtocolDataMq9};
 use mq9_core::protocol::{Mq9Reply, PubMailboxReply};
+use mq9_core::public::is_system_mailbox;
+use storage_adapter::priority::storage_priority_tag;
 
 pub async fn process_pub(
     ctx: &NatsProcessContext,
@@ -32,6 +34,13 @@ pub async fn process_pub(
     payload: &Bytes,
 ) -> Result<Mq9Reply, NatsBrokerError> {
     let tenant = get_tenant();
+
+    if is_system_mailbox(mail_id) {
+        return Err(NatsBrokerError::CommonError(format!(
+            "mailbox '{}' is reserved and cannot receive messages from clients",
+            mail_id
+        )));
+    }
 
     if ctx.cache_manager.get_email(&tenant, mail_id).is_none() {
         return Err(NatsBrokerError::CommonError(format!(
@@ -52,7 +61,7 @@ pub async fn process_pub(
     .await?;
 
     let record = AdapterWriteRecord::new(mail_id.to_string(), payload.clone())
-        .with_tags(vec![subject_message_tag(&tenant, mail_id)])
+        .with_tags(build_message_tag(&tenant, mail_id, priority))
         .with_protocol_data(Some(StorageRecordProtocolData {
             mq9: Some(StorageRecordProtocolDataMq9 {
                 priority: priority.to_string(),
@@ -73,4 +82,10 @@ pub async fn process_pub(
         ))
     })?;
     Ok(Mq9Reply::Pub(PubMailboxReply { msg_id: offset }))
+}
+
+fn build_message_tag(tenant: &str, mail_id: &str, priority: &Priority) -> Vec<String> {
+    let subject_tag = subject_message_tag(tenant, mail_id);
+    let subject_priority = storage_priority_tag(&subject_tag, priority);
+    vec![subject_tag, subject_priority]
 }

@@ -26,6 +26,9 @@ pub enum NatsBrokerError {
 
     #[error("Connection not found: {0}")]
     ConnectionNotFound(u64),
+
+    #[error("{0}")]
+    FromSerdeJsonError(#[from] serde_json::Error),
 }
 
 impl From<CommonError> for NatsBrokerError {

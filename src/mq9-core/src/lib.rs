@@ -14,4 +14,4 @@
 
 pub mod command;
 pub mod protocol;
-pub mod system;
+pub mod public;

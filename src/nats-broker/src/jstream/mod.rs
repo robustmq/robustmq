@@ -11,3 +11,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+pub mod ack;
+pub mod command;
+pub mod consumer;
+pub mod direct;
+pub mod event;
+pub mod info;
+pub mod kv;
+pub mod object;
+pub mod process;
+pub mod stream;

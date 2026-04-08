@@ -19,25 +19,25 @@ pub mod email;
 /// Priority levels for mailbox messages.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Priority {
-    High,
+    Critical,
+    Urgent,
     Normal,
-    Low,
 }
 
 impl Priority {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Priority::High => "high",
+            Priority::Critical => "critical",
+            Priority::Urgent => "urgent",
             Priority::Normal => "normal",
-            Priority::Low => "low",
         }
     }
 
     pub fn parse(s: &str) -> Option<Self> {
         match s {
-            "high" => Some(Priority::High),
+            "critical" => Some(Priority::Critical),
+            "urgent" => Some(Priority::Urgent),
             "normal" => Some(Priority::Normal),
-            "low" => Some(Priority::Low),
             _ => None,
         }
     }

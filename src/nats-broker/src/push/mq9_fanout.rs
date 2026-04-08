@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::core::error::NatsBrokerError;
+use crate::nats::subscribe::subject_message_tag;
 use crate::push::common::{adaptive_sleep, should_stop, BATCH_SIZE};
 use crate::push::manager::NatsSubscribeManager;
 use crate::push::manager::NatsSubscriber;
@@ -23,7 +24,8 @@ use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::nats::packet::NatsPacket;
 use std::sync::Arc;
-use storage_adapter::consumer::{GroupConsumer, StartOffsetStrategy};
+use storage_adapter::consumer::StartOffsetStrategy;
+use storage_adapter::consumer_priority::PriorityGroupConsumer;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::select;
 use tokio::sync::broadcast;
@@ -34,7 +36,7 @@ pub struct Mq9FanoutPushManager {
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     bucket_id: String,
-    consumers: DashMap<String, Arc<GroupConsumer>>,
+    consumers: DashMap<String, Arc<PriorityGroupConsumer>>,
 }
 
 impl Mq9FanoutPushManager {
@@ -126,11 +128,14 @@ impl Mq9FanoutPushManager {
         Ok(processed)
     }
 
-    async fn get_or_create_consumer(&self, subscriber: &NatsSubscriber) -> Arc<GroupConsumer> {
+    async fn get_or_create_consumer(
+        &self,
+        subscriber: &NatsSubscriber,
+    ) -> Arc<PriorityGroupConsumer> {
         if let Some(consumer) = self.consumers.get(&subscriber.uniq_id) {
             return consumer.clone();
         }
-        let consumer = Arc::new(GroupConsumer::new_manual(
+        let consumer = Arc::new(PriorityGroupConsumer::new_manual(
             self.storage_driver_manager.clone(),
             subscriber.uniq_id.clone(),
         ));
@@ -154,9 +159,15 @@ impl Mq9FanoutPushManager {
 
         let consumer = self.get_or_create_consumer(subscriber).await;
 
-        // subject is the mail_id; no tag filtering needed — the topic IS the mailbox.
+        // Use priority-tag-based reads so messages are delivered in critical → urgent → normal order.
+        let base_tag = subject_message_tag(&subscriber.tenant, &subscriber.subject);
         let records = match consumer
-            .next_messages(&subscriber.tenant, &subscriber.subject, &read_config)
+            .next_messages_by_tags(
+                &subscriber.tenant,
+                &subscriber.subject,
+                &base_tag,
+                &read_config,
+            )
             .await
         {
             Err(e) => return Err(NatsBrokerError::from(e)),
@@ -166,10 +177,6 @@ impl Mq9FanoutPushManager {
 
         let mut pushed = 0;
         for record in &records {
-            // Filter by priority when sub_subject is not a wildcard.
-            if !priority_matches(&subscriber.sub_subject, record) {
-                continue;
-            }
             match send_mq9_packet(&self.connection_manager, subscriber, record).await {
                 Ok(true) => pushed += 1,
                 Ok(false) => {}
@@ -188,21 +195,6 @@ impl Mq9FanoutPushManager {
         consumer.advance();
         Ok(pushed)
     }
-}
-
-/// Returns true if the record's priority matches the subscription pattern.
-/// sub_subject format: `{mail_id}.*` → accept all, `{mail_id}.{priority}` → filter.
-fn priority_matches(sub_subject: &str, record: &StorageRecord) -> bool {
-    let priority_pattern = sub_subject.split_once('.').map(|(_, p)| p).unwrap_or("*");
-    if priority_pattern == "*" {
-        return true;
-    }
-    record
-        .protocol_data
-        .as_ref()
-        .and_then(|pd| pd.mq9.as_ref())
-        .map(|mq9| mq9.priority == priority_pattern)
-        .unwrap_or(false)
 }
 
 async fn send_mq9_packet(

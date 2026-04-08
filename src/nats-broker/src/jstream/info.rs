@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-pub mod driver;
-pub mod engine;
-pub mod tests;
-// pub mod mysql;
-pub mod consumer;
-pub mod consumer_priority;
-pub mod priority;
-pub mod storage;
-pub mod topic;
+use crate::core::error::NatsBrokerError;
+use crate::handler::command::NatsProcessContext;
+
+/// `$JS.API.INFO` — server-level JetStream info.
+pub async fn process_info(_ctx: &NatsProcessContext) -> Result<String, NatsBrokerError> {
+    todo!("JS.API.INFO")
+}
+
+/// `$JS.API.ACCOUNT.INFO` — account-level JetStream usage info.
+pub async fn process_account_info(_ctx: &NatsProcessContext) -> Result<String, NatsBrokerError> {
+    todo!("JS.API.ACCOUNT.INFO")
+}

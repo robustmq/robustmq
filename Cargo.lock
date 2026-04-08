@@ -4715,12 +4715,17 @@ name = "mq9-core"
 version = "0.3.8"
 dependencies = [
  "axum 0.8.8",
+ "broker-core",
  "bytes",
+ "common-base",
+ "common-config",
+ "grpc-clients",
  "metadata-struct",
  "mockall",
  "pprof",
  "serde",
  "serde_json",
+ "storage-adapter",
  "tokio",
  "tracing",
 ]

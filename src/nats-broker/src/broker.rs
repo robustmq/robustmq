@@ -22,6 +22,7 @@ use common_base::task::{TaskKind, TaskSupervisor};
 use common_config::broker::broker_config;
 use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
+use mq9_core::public::try_init_system_email;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::global::GlobalRateLimiterManager;
@@ -52,6 +53,7 @@ pub struct NatsBrokerServer {
     subscribe_manager: Arc<NatsSubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
+    client_pool: Arc<ClientPool>,
     task_supervisor: Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
 }
@@ -65,7 +67,7 @@ impl NatsBrokerServer {
             ws_port: conf.nats_runtime.ws_port,
             wss_port: conf.nats_runtime.wss_port,
             connection_manager: params.connection_manager.clone(),
-            client_pool: params.client_pool,
+            client_pool: params.client_pool.clone(),
             broker_cache: params.broker_cache,
             global_limit_manager: params.global_limit_manager,
             task_supervisor: params.task_supervisor.clone(),
@@ -87,6 +89,7 @@ impl NatsBrokerServer {
             subscribe_manager: params.subscribe_manager,
             connection_manager: params.connection_manager,
             storage_driver_manager: params.storage_driver_manager,
+            client_pool: params.client_pool,
             task_supervisor: params.task_supervisor,
             stop_sx: params.stop_sx,
         }
@@ -94,6 +97,17 @@ impl NatsBrokerServer {
 
     pub async fn start(&self) {
         let conf = broker_config();
+
+        if let Err(e) = try_init_system_email(
+            &self.cache_manager.node_cache,
+            &self.storage_driver_manager,
+            &self.client_pool,
+        )
+        .await
+        {
+            error!("Failed to init system mailbox: {}", e);
+            std::process::exit(1);
+        }
 
         start_push(
             &self.subscribe_manager,
