@@ -26,7 +26,12 @@ bytes.workspace = true
 tracing.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-metadata-struct.workspace =true
+metadata-struct.workspace = true
+common-config.workspace = true
+storage-adapter.workspace = true
+broker-core.workspace = true
+grpc-clients.workspace = true
+common-base.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
