@@ -14,28 +14,33 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::handler::command::NatsProcessContext;
+use crate::jstream::protocol::{DirectGetHeaders, DirectGetRequest};
 use bytes::Bytes;
 
+/// `$JS.API.DIRECT.GET.<stream>`
+/// Returns headers + raw payload; caller builds the HMSG response.
 pub async fn process_direct_get(
     _ctx: &NatsProcessContext,
     _stream: &str,
-    _payload: &Bytes,
-) -> Result<String, NatsBrokerError> {
+    _req: DirectGetRequest,
+) -> Result<(DirectGetHeaders, Bytes), NatsBrokerError> {
     todo!("DIRECT.GET")
 }
 
+/// `$JS.API.DIRECT.GET.<stream>.<subject>` — get latest message for subject
 pub async fn process_direct_get_by_subject(
     _ctx: &NatsProcessContext,
     _stream: &str,
     _subject: &str,
-) -> Result<String, NatsBrokerError> {
+) -> Result<(DirectGetHeaders, Bytes), NatsBrokerError> {
     todo!("DIRECT.GET (by subject)")
 }
 
+/// `$JS.API.DIRECT.GET.LAST.<stream>.<subject>` — alias for last-by-subject
 pub async fn process_direct_get_last(
     _ctx: &NatsProcessContext,
     _stream: &str,
     _subject: &str,
-) -> Result<String, NatsBrokerError> {
+) -> Result<(DirectGetHeaders, Bytes), NatsBrokerError> {
     todo!("DIRECT.GET.LAST")
 }

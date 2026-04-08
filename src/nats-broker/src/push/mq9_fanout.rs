@@ -139,6 +139,7 @@ impl Mq9FanoutPushManager {
             self.storage_driver_manager.clone(),
             subscriber.uniq_id.clone(),
         ));
+
         // mq9 subscriptions start from the earliest available message.
         consumer
             .set_start_offset_strategy(StartOffsetStrategy::Earliest)

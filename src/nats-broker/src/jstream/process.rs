@@ -44,6 +44,12 @@ use crate::jstream::object::{
     process_obj_delete, process_obj_get, process_obj_info, process_obj_list, process_obj_put,
     process_obj_watch,
 };
+use crate::jstream::protocol::{
+    AckNextRequest, AdvisoryEvent, ConsumerCreateRequest, ConsumerListRequest,
+    ConsumerMsgNextRequest, ConsumerPauseRequest, DirectGetRequest, NakRequest, ObjectMeta,
+    ObjectRequest, StreamCreateRequest, StreamListRequest, StreamMsgDeleteRequest,
+    StreamMsgGetRequest, StreamPeerRemoveRequest, StreamPurgeRequest, StreamSnapshotRequest,
+};
 use crate::jstream::stream::{
     process_stream_create, process_stream_delete, process_stream_info,
     process_stream_leader_stepdown, process_stream_list, process_stream_msg_delete,
@@ -52,16 +58,15 @@ use crate::jstream::stream::{
 };
 use bytes::Bytes;
 use protocol::nats::packet::NatsPacket;
+use serde::Serialize;
 
 pub async fn js_command(
     ctx: &NatsProcessContext,
     subject: &str,
     reply_to: Option<&str>,
-    headers: &Option<Bytes>,
+    _headers: &Option<Bytes>,
     payload: &Bytes,
 ) -> Option<NatsPacket> {
-    let _ = headers;
-
     let parsed = match JsCommand::parse(subject) {
         Some(c) => c,
         None => {
@@ -72,112 +77,184 @@ pub async fn js_command(
         }
     };
 
+    // Helper: deserialize payload into T; return ERR packet on failure.
+    macro_rules! parse_req {
+        ($t:ty) => {
+            match serde_json::from_slice::<$t>(payload) {
+                Ok(v) => v,
+                Err(e) => return Some(NatsPacket::Err(format!("invalid request body: {}", e))),
+            }
+        };
+        // Zero-byte / optional payload: use Default when empty.
+        ($t:ty, default) => {
+            if payload.is_empty() {
+                <$t>::default()
+            } else {
+                match serde_json::from_slice::<$t>(payload) {
+                    Ok(v) => v,
+                    Err(e) => return Some(NatsPacket::Err(format!("invalid request body: {}", e))),
+                }
+            }
+        };
+    }
+
+    // Most commands return a serializable response; ACK/event commands return ().
+    // We use an Option<String> so fire-and-forget paths return None (no reply sent).
     let result: Result<Option<String>, NatsBrokerError> = match parsed {
         // ── Info ──────────────────────────────────────────────────
-        JsCommand::Info => process_info(ctx).await.map(Some),
-        JsCommand::AccountInfo => process_account_info(ctx).await.map(Some),
+        JsCommand::Info => process_info(ctx).await.and_then(to_json),
+        JsCommand::AccountInfo => process_account_info(ctx).await.and_then(to_json),
 
         // ── Stream ────────────────────────────────────────────────
         JsCommand::StreamCreate { stream } => {
-            process_stream_create(ctx, &stream, payload).await.map(Some)
+            let req = parse_req!(StreamCreateRequest);
+            process_stream_create(ctx, &stream, req)
+                .await
+                .and_then(to_json)
         }
         JsCommand::StreamUpdate { stream } => {
-            process_stream_update(ctx, &stream, payload).await.map(Some)
+            let req = parse_req!(StreamCreateRequest);
+            process_stream_update(ctx, &stream, req)
+                .await
+                .and_then(to_json)
         }
-        JsCommand::StreamDelete { stream } => process_stream_delete(ctx, &stream).await.map(Some),
-        JsCommand::StreamInfo { stream } => process_stream_info(ctx, &stream).await.map(Some),
-        JsCommand::StreamList => process_stream_list(ctx, payload).await.map(Some),
-        JsCommand::StreamNames => process_stream_names(ctx, payload).await.map(Some),
+        JsCommand::StreamDelete { stream } => {
+            process_stream_delete(ctx, &stream).await.and_then(to_json)
+        }
+        JsCommand::StreamInfo { stream } => {
+            process_stream_info(ctx, &stream).await.and_then(to_json)
+        }
+        JsCommand::StreamList => {
+            let req = parse_req!(StreamListRequest, default);
+            process_stream_list(ctx, req).await.and_then(to_json)
+        }
+        JsCommand::StreamNames => {
+            let req = parse_req!(StreamListRequest, default);
+            process_stream_names(ctx, req).await.and_then(to_json)
+        }
         JsCommand::StreamPurge { stream } => {
-            process_stream_purge(ctx, &stream, payload).await.map(Some)
+            let req = parse_req!(StreamPurgeRequest, default);
+            process_stream_purge(ctx, &stream, req)
+                .await
+                .and_then(to_json)
         }
-        JsCommand::StreamMsgGet { stream } => process_stream_msg_get(ctx, &stream, payload)
-            .await
-            .map(Some),
-        JsCommand::StreamMsgDelete { stream } => process_stream_msg_delete(ctx, &stream, payload)
-            .await
-            .map(Some),
-        JsCommand::StreamSnapshot { stream } => process_stream_snapshot(ctx, &stream, payload)
-            .await
-            .map(Some),
-        JsCommand::StreamRestore { stream } => process_stream_restore(ctx, &stream, payload)
-            .await
-            .map(Some),
-        JsCommand::StreamLeaderStepdown { stream } => {
-            process_stream_leader_stepdown(ctx, &stream).await.map(Some)
+        JsCommand::StreamMsgGet { stream } => {
+            let req = parse_req!(StreamMsgGetRequest);
+            process_stream_msg_get(ctx, &stream, req)
+                .await
+                .and_then(to_json)
         }
-        JsCommand::StreamPeerRemove { stream } => process_stream_peer_remove(ctx, &stream, payload)
+        JsCommand::StreamMsgDelete { stream } => {
+            let req = parse_req!(StreamMsgDeleteRequest);
+            process_stream_msg_delete(ctx, &stream, req)
+                .await
+                .and_then(to_json)
+        }
+        JsCommand::StreamSnapshot { stream } => {
+            let req = parse_req!(StreamSnapshotRequest);
+            process_stream_snapshot(ctx, &stream, req)
+                .await
+                .and_then(to_json)
+        }
+        JsCommand::StreamRestore { stream } => {
+            process_stream_restore(ctx, &stream).await.and_then(to_json)
+        }
+        JsCommand::StreamLeaderStepdown { stream } => process_stream_leader_stepdown(ctx, &stream)
             .await
-            .map(Some),
+            .and_then(to_json),
+        JsCommand::StreamPeerRemove { stream } => {
+            let req = parse_req!(StreamPeerRemoveRequest);
+            process_stream_peer_remove(ctx, &stream, req)
+                .await
+                .and_then(to_json)
+        }
 
         // ── Consumer ──────────────────────────────────────────────
-        JsCommand::ConsumerCreate { stream } => process_consumer_create(ctx, &stream, payload)
-            .await
-            .map(Some),
-        JsCommand::ConsumerCreateNamed { stream, consumer } => {
-            process_consumer_create_named(ctx, &stream, &consumer, payload)
+        JsCommand::ConsumerCreate { stream } => {
+            let req = parse_req!(ConsumerCreateRequest);
+            process_consumer_create(ctx, &stream, req)
                 .await
-                .map(Some)
+                .and_then(to_json)
+        }
+        JsCommand::ConsumerCreateNamed { stream, consumer } => {
+            let req = parse_req!(ConsumerCreateRequest);
+            process_consumer_create_named(ctx, &stream, &consumer, req)
+                .await
+                .and_then(to_json)
         }
         JsCommand::ConsumerDurableCreate { stream, consumer } => {
-            process_consumer_durable_create(ctx, &stream, &consumer, payload)
+            let req = parse_req!(ConsumerCreateRequest);
+            process_consumer_durable_create(ctx, &stream, &consumer, req)
                 .await
-                .map(Some)
+                .and_then(to_json)
         }
         JsCommand::ConsumerDelete { stream, consumer } => {
             process_consumer_delete(ctx, &stream, &consumer)
                 .await
-                .map(Some)
+                .and_then(to_json)
         }
         JsCommand::ConsumerInfo { stream, consumer } => {
             process_consumer_info(ctx, &stream, &consumer)
                 .await
-                .map(Some)
+                .and_then(to_json)
         }
         JsCommand::ConsumerList { stream } => {
-            process_consumer_list(ctx, &stream, payload).await.map(Some)
-        }
-        JsCommand::ConsumerNames { stream } => process_consumer_names(ctx, &stream, payload)
-            .await
-            .map(Some),
-        JsCommand::ConsumerMsgNext { stream, consumer } => {
-            process_consumer_msg_next(ctx, &stream, &consumer, payload)
+            let req = parse_req!(ConsumerListRequest, default);
+            process_consumer_list(ctx, &stream, req)
                 .await
-                .map(Some)
+                .and_then(to_json)
+        }
+        JsCommand::ConsumerNames { stream } => {
+            let req = parse_req!(ConsumerListRequest, default);
+            process_consumer_names(ctx, &stream, req)
+                .await
+                .and_then(to_json)
+        }
+        JsCommand::ConsumerMsgNext { stream, consumer } => {
+            let req = parse_req!(ConsumerMsgNextRequest, default);
+            process_consumer_msg_next(ctx, &stream, &consumer, req)
+                .await
+                .map(|_| None)
         }
         JsCommand::ConsumerLeaderStepdown { stream, consumer } => {
             process_consumer_leader_stepdown(ctx, &stream, &consumer)
                 .await
-                .map(Some)
+                .and_then(to_json)
         }
         JsCommand::ConsumerPause { stream, consumer } => {
-            process_consumer_pause(ctx, &stream, &consumer, payload)
+            let req = parse_req!(ConsumerPauseRequest);
+            process_consumer_pause(ctx, &stream, &consumer, req)
                 .await
-                .map(Some)
+                .and_then(to_json)
         }
 
-        // ── Direct get ────────────────────────────────────────────
+        // ── Direct Get ────────────────────────────────────────────
         JsCommand::DirectGet { stream } => {
-            process_direct_get(ctx, &stream, payload).await.map(Some)
+            let req = parse_req!(DirectGetRequest);
+            // Direct Get returns raw bytes + headers, not JSON — handled separately.
+            process_direct_get(ctx, &stream, req).await.map(|_| None)
         }
         JsCommand::DirectGetBySubject { stream, subject } => {
             process_direct_get_by_subject(ctx, &stream, &subject)
                 .await
-                .map(Some)
+                .map(|_| None)
         }
         JsCommand::DirectGetLast { stream, subject } => {
             process_direct_get_last(ctx, &stream, &subject)
                 .await
-                .map(Some)
+                .map(|_| None)
         }
 
-        // ── ACK (fire-and-forget, no reply) ───────────────────────
-        JsCommand::Ack { stream, consumer } => process_ack(ctx, &stream, &consumer, payload)
-            .await
-            .map(|_| None),
-        JsCommand::Nak { stream, consumer } => process_nak(ctx, &stream, &consumer, payload)
-            .await
-            .map(|_| None),
+        // ── ACK (fire-and-forget) ─────────────────────────────────
+        JsCommand::Ack { stream, consumer } => {
+            process_ack(ctx, &stream, &consumer).await.map(|_| None)
+        }
+        JsCommand::Nak { stream, consumer } => {
+            let req = parse_req!(NakRequest, default);
+            process_nak(ctx, &stream, &consumer, req)
+                .await
+                .map(|_| None)
+        }
         JsCommand::AckProgress { stream, consumer } => {
             process_ack_progress(ctx, &stream, &consumer)
                 .await
@@ -187,98 +264,141 @@ pub async fn js_command(
             .await
             .map(|_| None),
         JsCommand::AckNext { stream, consumer } => {
-            process_ack_next(ctx, &stream, &consumer, payload)
+            let req = parse_req!(AckNextRequest, default);
+            process_ack_next(ctx, &stream, &consumer, req)
                 .await
                 .map(|_| None)
         }
 
-        // ── Advisory events (fire-and-forget) ─────────────────────
-        JsCommand::EventStreamCreated { stream } => process_event_stream_created(ctx, &stream)
-            .await
-            .map(|_| None),
-        JsCommand::EventStreamDeleted { stream } => process_event_stream_deleted(ctx, &stream)
-            .await
-            .map(|_| None),
-        JsCommand::EventStreamUpdated { stream } => process_event_stream_updated(ctx, &stream)
-            .await
-            .map(|_| None),
+        // ── Advisory Events (fire-and-forget) ─────────────────────
+        JsCommand::EventStreamCreated { stream } => {
+            let event = parse_req!(AdvisoryEvent);
+            process_event_stream_created(ctx, &stream, event)
+                .await
+                .map(|_| None)
+        }
+        JsCommand::EventStreamDeleted { stream } => {
+            let event = parse_req!(AdvisoryEvent);
+            process_event_stream_deleted(ctx, &stream, event)
+                .await
+                .map(|_| None)
+        }
+        JsCommand::EventStreamUpdated { stream } => {
+            let event = parse_req!(AdvisoryEvent);
+            process_event_stream_updated(ctx, &stream, event)
+                .await
+                .map(|_| None)
+        }
         JsCommand::EventConsumerCreated { stream, consumer } => {
-            process_event_consumer_created(ctx, &stream, &consumer)
+            let event = parse_req!(AdvisoryEvent);
+            process_event_consumer_created(ctx, &stream, &consumer, event)
                 .await
                 .map(|_| None)
         }
         JsCommand::EventConsumerDeleted { stream, consumer } => {
-            process_event_consumer_deleted(ctx, &stream, &consumer)
+            let event = parse_req!(AdvisoryEvent);
+            process_event_consumer_deleted(ctx, &stream, &consumer, event)
                 .await
                 .map(|_| None)
         }
         JsCommand::EventApiAudit { subject } => {
-            process_event_api_audit(ctx, &subject).await.map(|_| None)
-        }
-        JsCommand::EventSnapshotCreate { stream } => process_event_snapshot_create(ctx, &stream)
-            .await
-            .map(|_| None),
-        JsCommand::EventSnapshotComplete { stream } => {
-            process_event_snapshot_complete(ctx, &stream)
+            let event = parse_req!(AdvisoryEvent);
+            process_event_api_audit(ctx, &subject, event)
                 .await
                 .map(|_| None)
         }
-        JsCommand::EventRestoreCreate { stream } => process_event_restore_create(ctx, &stream)
-            .await
-            .map(|_| None),
-        JsCommand::EventRestoreComplete { stream } => process_event_restore_complete(ctx, &stream)
-            .await
-            .map(|_| None),
+        JsCommand::EventSnapshotCreate { stream } => {
+            let event = parse_req!(AdvisoryEvent);
+            process_event_snapshot_create(ctx, &stream, event)
+                .await
+                .map(|_| None)
+        }
+        JsCommand::EventSnapshotComplete { stream } => {
+            let event = parse_req!(AdvisoryEvent);
+            process_event_snapshot_complete(ctx, &stream, event)
+                .await
+                .map(|_| None)
+        }
+        JsCommand::EventRestoreCreate { stream } => {
+            let event = parse_req!(AdvisoryEvent);
+            process_event_restore_create(ctx, &stream, event)
+                .await
+                .map(|_| None)
+        }
+        JsCommand::EventRestoreComplete { stream } => {
+            let event = parse_req!(AdvisoryEvent);
+            process_event_restore_complete(ctx, &stream, event)
+                .await
+                .map(|_| None)
+        }
         JsCommand::EventConsumerLeaderElected { stream, consumer } => {
-            process_event_consumer_leader_elected(ctx, &stream, &consumer)
+            let event = parse_req!(AdvisoryEvent);
+            process_event_consumer_leader_elected(ctx, &stream, &consumer, event)
                 .await
                 .map(|_| None)
         }
         JsCommand::EventStreamLeaderElected { stream } => {
-            process_event_stream_leader_elected(ctx, &stream)
+            let event = parse_req!(AdvisoryEvent);
+            process_event_stream_leader_elected(ctx, &stream, event)
                 .await
                 .map(|_| None)
         }
 
-        // ── KV store ──────────────────────────────────────────────
-        JsCommand::KvPut { bucket, key } => {
-            process_kv_put(ctx, &bucket, &key, payload).await.map(Some)
+        // ── KV Store ──────────────────────────────────────────────
+        JsCommand::KvPut { bucket, key } => process_kv_put(ctx, &bucket, &key, payload.clone())
+            .await
+            .and_then(to_json),
+        JsCommand::KvGet { bucket, key } => process_kv_get(ctx, &bucket, &key).await.map(|_| None),
+        JsCommand::KvDelete { bucket, key } => process_kv_delete(ctx, &bucket, &key)
+            .await
+            .and_then(to_json),
+        JsCommand::KvPurge { bucket, key } => {
+            process_kv_purge(ctx, &bucket, &key).await.and_then(to_json)
         }
-        JsCommand::KvGet { bucket, key } => process_kv_get(ctx, &bucket, &key).await.map(Some),
-        JsCommand::KvDelete { bucket, key } => {
-            process_kv_delete(ctx, &bucket, &key).await.map(Some)
-        }
-        JsCommand::KvPurge { bucket, key } => process_kv_purge(ctx, &bucket, &key).await.map(Some),
-        JsCommand::KvKeys { bucket } => process_kv_keys(ctx, &bucket).await.map(Some),
+        JsCommand::KvKeys { bucket } => process_kv_keys(ctx, &bucket).await.and_then(to_json),
         JsCommand::KvWatch { bucket, pattern } => {
             process_kv_watch(ctx, &bucket, &pattern).await.map(|_| None)
         }
 
-        // ── Object store ──────────────────────────────────────────
-        JsCommand::ObjPut { bucket } => process_obj_put(ctx, &bucket, payload).await.map(Some),
-        JsCommand::ObjGet { bucket, object } => {
-            process_obj_get(ctx, &bucket, &object).await.map(Some)
+        // ── Object Store ──────────────────────────────────────────
+        JsCommand::ObjPut { bucket } => {
+            let meta = parse_req!(ObjectMeta);
+            process_obj_put(ctx, &bucket, meta).await.and_then(to_json)
         }
-        JsCommand::ObjDelete { bucket, object } => {
-            process_obj_delete(ctx, &bucket, &object).await.map(Some)
+        JsCommand::ObjGet { bucket, object: _ } => {
+            let req = parse_req!(ObjectRequest);
+            process_obj_get(ctx, &bucket, req).await.map(|_| None)
         }
-        JsCommand::ObjInfo { bucket, object } => {
-            process_obj_info(ctx, &bucket, &object).await.map(Some)
+        JsCommand::ObjDelete { bucket, object: _ } => {
+            let req = parse_req!(ObjectRequest);
+            process_obj_delete(ctx, &bucket, req)
+                .await
+                .and_then(to_json)
         }
-        JsCommand::ObjList { bucket } => process_obj_list(ctx, &bucket).await.map(Some),
+        JsCommand::ObjInfo { bucket, object: _ } => {
+            let req = parse_req!(ObjectRequest);
+            process_obj_info(ctx, &bucket, req).await.and_then(to_json)
+        }
+        JsCommand::ObjList { bucket } => process_obj_list(ctx, &bucket).await.and_then(to_json),
         JsCommand::ObjWatch { bucket } => process_obj_watch(ctx, &bucket).await.map(|_| None),
     };
 
     if let Some(reply_subject) = reply_to {
-        let response = match result {
-            Ok(Some(body)) => body,
+        let body = match result {
+            Ok(Some(json)) => Bytes::from(json),
             Ok(None) => return None,
-            Err(e) => e.to_string(),
+            Err(e) => Bytes::from(e.to_string()),
         };
-        let _ = reply_nats_packet(ctx, reply_subject, Bytes::from(response)).await;
+        let _ = reply_nats_packet(ctx, reply_subject, body).await;
     }
 
     None
+}
+
+fn to_json<T: Serialize>(v: T) -> Result<Option<String>, NatsBrokerError> {
+    serde_json::to_string(&v)
+        .map(Some)
+        .map_err(|e| NatsBrokerError::CommonError(e.to_string()))
 }
 
 async fn reply_nats_packet(
