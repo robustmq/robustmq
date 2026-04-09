@@ -152,6 +152,14 @@ const items = [
     items: [
       { text: "Overview", link: "/en/mq9/Overview" },
       { text: "Protocol", link: "/en/mq9/Protocol" },
+      { text: "Quick Start", link: "/en/mq9/QuickStart" },
+      { text: "Features", link: "/en/mq9/Features" },
+      { text: "SDK Integration", link: "/en/mq9/SDK" },
+      { text: "LangChain Integration", link: "/en/mq9/LangChain" },
+      { text: "Use Cases", link: "/en/mq9/Scenarios" },
+      { text: "FAQ", link: "/en/mq9/FAQ" },
+      { text: "NATS Client Usage", link: "/en/mq9/NatsClient" },
+      { text: "Roadmap", link: "/en/mq9/Roadmap" },
     ],
   },
 

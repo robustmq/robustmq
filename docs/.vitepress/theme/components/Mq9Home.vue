@@ -27,11 +27,11 @@ const primitives = computed(() => [
 nats pub '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
 # → {"mail_id":"m-001"}
 
-# Send (offline-safe)
-nats pub '$mq9.AI.MAILBOX.m-001.normal' \\
+# Send (offline-safe, default priority)
+nats pub '$mq9.AI.MAILBOX.m-001' \\
   '{"msg_id":"msg-1","type":"task_result","ts":1234}'
 
-# Subscribe
+# Subscribe (all priorities)
 nats sub '$mq9.AI.MAILBOX.m-001.*'`,
   },
   {
@@ -48,8 +48,8 @@ nats pub '$mq9.AI.MAILBOX.CREATE' \\
   '{"ttl":86400,"public":true,"name":"task.queue"}'
 # → {"mail_id":"task.queue"}
 
-# Publish
-nats pub '$mq9.AI.MAILBOX.task.queue.normal' \\
+# Publish (default priority, no suffix)
+nats pub '$mq9.AI.MAILBOX.task.queue' \\
   '{"msg_id":"t-001","type":"analysis"}'
 
 # Compete via queue group
@@ -63,21 +63,21 @@ nats sub '$mq9.AI.PUBLIC.LIST'`,
     title: t('优先级', 'Priority'),
     subtitle: t('紧急消息先处理', 'Critical messages first'),
     desc: t(
-      '邮箱支持三个优先级：high、normal、low。紧急指令永远不会被普通任务淹没。同一优先级保证 FIFO，存储层保证顺序。边缘设备离线 8 小时后上线，high 先于 normal 处理。',
-      'Mailboxes support three priority levels: high, normal, low. Critical instructions are never buried under routine tasks. FIFO within each level; ordering guaranteed by the storage layer. An edge device offline for 8 hours reconnects and gets high-priority messages first.'
+      '三个优先级：critical（最高）、urgent（紧急）、normal（默认，无后缀）。critical 和 urgent 持久化存储，normal 使用内存。边缘设备离线 8 小时后上线，critical 先于 urgent 先于 normal 处理。',
+      'Three priority levels: critical (highest), urgent, normal (default, no suffix). critical and urgent are persisted to RocksDB; normal uses memory. An edge device offline for 8 hours reconnects and gets critical messages first, then urgent, then normal.'
     ),
     color: '#6d28d9',
-    code: `# high — urgent, processed first, persisted
-nats pub '$mq9.AI.MAILBOX.m-001.high' \\
-  '{"msg_id":"h-1","type":"emergency_stop"}'
+    code: `# critical — highest, persisted, processed first
+nats pub '$mq9.AI.MAILBOX.m-001.critical' \\
+  '{"msg_id":"c-1","type":"emergency_stop"}'
 
-# normal — routine, persisted
-nats pub '$mq9.AI.MAILBOX.m-001.normal' \\
-  '{"msg_id":"n-1","type":"task"}'
+# urgent — high priority, persisted
+nats pub '$mq9.AI.MAILBOX.m-001.urgent' \\
+  '{"msg_id":"u-1","type":"interrupt"}'
 
-# low — background, not persisted
-nats pub '$mq9.AI.MAILBOX.m-001.low' \\
-  '{"msg_id":"l-1","type":"heartbeat"}'`,
+# normal — default, no suffix, memory storage
+nats pub '$mq9.AI.MAILBOX.m-001' \\
+  '{"msg_id":"n-1","type":"task"}'`,
   },
 ])
 
@@ -105,7 +105,7 @@ const scenarios = computed(() => [
   {
     num: '05',
     title: t('边缘 Agent 离线积压', 'Edge Agent offline buffering'),
-    desc: t('云端给边缘 Agent 邮箱发指令，边缘断网消息持久化等待，联网后按优先级处理——high 先于 normal。', 'Cloud sends instructions to an edge Agent\'s mailbox. Messages persist during outage and are processed by priority on reconnect — high before normal.'),
+    desc: t('云端给边缘 Agent 邮箱发指令，边缘断网消息持久化等待，联网后按优先级处理——critical 先于 urgent 先于 normal。', 'Cloud sends instructions to an edge Agent\'s mailbox. Messages persist during outage and are processed by priority on reconnect — critical before urgent before normal.'),
   },
   {
     num: '06',
@@ -148,8 +148,8 @@ const scenarios = computed(() => [
 
         <p class="mq9-hero-desc">
           {{ t(
-            'Agent 需要邮箱。发出去，对方上线自然收到。mq9 是 RobustMQ 为 AI Agent 设计的通信层，核心是 Agent 邮箱——点对点异步投递、优先级队列、公开邮箱发现，任何 NATS 客户端直接接入。',
-            'Agents need a mailbox. Send a message, the recipient gets it when they come online. mq9 is RobustMQ\'s communication layer for AI Agents — async delivery, priority queuing, public mailbox discovery. Any NATS client connects directly.'
+            'Agent 之间的消息，发出去就不会丢。mq9 是专为 AI Agent 设计的邮箱系统——离线照样收，优先级自动排，任何 NATS 客户端直连。',
+            'Messages between Agents are never lost. mq9 is a mailbox system built for AI Agents — offline delivery, automatic priority ordering, any NATS client connects directly.'
           ) }}
         </p>
 
@@ -157,13 +157,16 @@ const scenarios = computed(() => [
           <a class="mq9-btn-primary" href="https://mq9.robustmq.com/" target="_blank" rel="noopener">
             {{ t('快速开始', 'Get Started') }} →
           </a>
+          <a class="mq9-btn-ghost" :href="t('/zh/mq9/Overview', '/en/mq9/Overview')">
+            {{ t('查看文档', 'Documentation') }}
+          </a>
           <a class="mq9-btn-ghost" href="https://github.com/robustmq/robustmq" target="_blank" rel="noopener">
             GitHub
           </a>
         </div>
 
         <div class="mq9-hero-note">
-          {{ t('基于 NATS 协议 · 无需额外 SDK · 部署一个 RobustMQ 即可使用', 'Built on NATS · No extra SDK · Ships with every RobustMQ instance') }}
+          {{ t('基于 NATS 协议 · 支持 NATS 客户端 / RobustMQ SDK / LangChain / MCP Server', 'Built on NATS · NATS clients / RobustMQ SDK / LangChain / MCP Server') }}
         </div>
       </div>
     </section>
@@ -244,14 +247,48 @@ const scenarios = computed(() => [
       </div>
     </section>
 
-    <!-- ── NO NEW SDK ── -->
+    <!-- ── SDK ── -->
     <section class="mq9-section mq9-sdk-section">
       <div class="mq9-section-inner">
-        <div class="mq9-sdk-box">
-          <h2 class="mq9-section-title">{{ t('不需要新 SDK', 'No New SDK Required') }}</h2>
-          <p class="mq9-sdk-desc">{{ t('mq9 基于 NATS 协议。所有语言的 NATS 客户端直接就是 mq9 的客户端。NATS 生态有多大，mq9 的接入生态就有多大。', 'mq9 is built on the NATS protocol. Any NATS client in any language is already an mq9 client. The entire NATS ecosystem works out of the box.') }}</p>
-          <div class="mq9-langs">
-            <span v-for="lang in ['Go', 'Python', 'Rust', 'Java', 'JavaScript', 'C#', 'Ruby', 'Elixir']" :key="lang" class="mq9-lang">{{ lang }}</span>
+        <div class="mq9-section-header">
+          <div class="mq9-section-tag">{{ t('接入方式', 'Integration') }}</div>
+          <h2 class="mq9-section-title">{{ t('三种接入方式，按需选择', 'Three ways to connect — pick what fits') }}</h2>
+        </div>
+        <div class="mq9-sdk-cards">
+          <!-- Card 1: Native NATS -->
+          <div class="mq9-sdk-card">
+            <div class="mq9-sdk-card-icon">🔌</div>
+            <h3 class="mq9-sdk-card-title">{{ t('原生 NATS 客户端', 'Native NATS Client') }}</h3>
+            <p class="mq9-sdk-card-desc">{{ t('mq9 基于 NATS 协议。任何语言的 NATS 客户端直接就是 mq9 的客户端，零依赖，零学习成本。', 'mq9 is built on NATS. Any NATS client in any language works out of the box — zero extra dependencies.') }}</p>
+            <div class="mq9-langs">
+              <span v-for="l in ['Go', 'Python', 'Rust', 'Java', 'JavaScript', 'C#', 'Ruby', 'Elixir']" :key="l" class="mq9-lang">{{ l }}</span>
+            </div>
+          </div>
+          <!-- Card 2: RobustMQ SDK -->
+          <div class="mq9-sdk-card mq9-sdk-card-featured">
+            <div class="mq9-sdk-card-icon">📦</div>
+            <h3 class="mq9-sdk-card-title">{{ t('RobustMQ SDK', 'RobustMQ SDK') }}</h3>
+            <p class="mq9-sdk-card-desc">{{ t('官方 SDK，六种语言统一 API，类型安全，异步优先，开箱即用。', 'Official SDK — six languages, unified API, type-safe, async-first.') }}</p>
+            <div class="mq9-sdk-installs">
+              <code>pip install robustmq</code>
+              <code>go get robustmq-sdk/go</code>
+              <code>npm install @robustmq/sdk</code>
+              <code>cargo add robustmq</code>
+            </div>
+          </div>
+          <!-- Card 3: LangChain / LangGraph -->
+          <div class="mq9-sdk-card">
+            <div class="mq9-sdk-card-icon">🤖</div>
+            <h3 class="mq9-sdk-card-title">{{ t('AI 框架集成', 'AI Framework Integration') }}</h3>
+            <p class="mq9-sdk-card-desc">{{ t('官方 LangChain 工具包，6 个工具覆盖全部 mq9 操作，直接接入 LangChain Agent 和 LangGraph 工作流。', 'Official LangChain toolkit — 6 tools covering all mq9 operations, plug directly into LangChain Agents and LangGraph workflows.') }}</p>
+            <div class="mq9-sdk-installs">
+              <code>pip install langchain-mq9</code>
+            </div>
+            <div class="mq9-sdk-badges">
+              <span class="mq9-sdk-badge">LangChain</span>
+              <span class="mq9-sdk-badge">LangGraph</span>
+              <span class="mq9-sdk-badge">MCP Server</span>
+            </div>
           </div>
         </div>
       </div>
@@ -293,10 +330,13 @@ const scenarios = computed(() => [
 broker-server start
 
 # Create a mailbox — returns mail_id
-nats pub '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
+nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
 
-# Send a message (works even if recipient is offline)
-nats pub '$mq9.AI.MAILBOX.{mail_id}.normal' '{"msg_id":"msg-1","from":"...","type":"task","ts":1234567890}'</code></pre>
+# Send (default priority, no suffix — works even if recipient is offline)
+nats pub '$mq9.AI.MAILBOX.{mail_id}' '{"msg_id":"msg-1","from":"...","type":"task","ts":1234567890}'
+
+# Send critical (highest priority, persisted)
+nats pub '$mq9.AI.MAILBOX.{mail_id}.critical' '{"msg_id":"msg-2","type":"abort"}'</code></pre>
           <div class="mq9-cta-links">
             <a class="mq9-btn-primary" :href="isZh ? '/zh/OverView/What-is-RobustMQ' : '/en/OverView/What-is-RobustMQ'">{{ t('查看文档', 'Read the Docs') }}</a>
             <a class="mq9-btn-ghost" href="https://github.com/robustmq/robustmq" target="_blank" rel="noopener">GitHub</a>
@@ -549,17 +589,69 @@ nats pub '$mq9.AI.MAILBOX.{mail_id}.normal' '{"msg_id":"msg-1","from":"...","typ
 
 /* ── SDK ── */
 .mq9-sdk-section { background: rgba(168,85,247,0.04); }
-.mq9-sdk-box { text-align: center; }
-.mq9-sdk-desc { font-size: 15px; color: #94a3b8; max-width: 560px; margin: 12px auto 28px; line-height: 1.6; }
-.mq9-langs { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.mq9-sdk-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: 12px;
+}
+@media (max-width: 900px) {
+  .mq9-sdk-cards { grid-template-columns: 1fr; }
+}
+.mq9-sdk-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mq9-sdk-card-featured {
+  border-color: rgba(168,85,247,0.4);
+  background: rgba(168,85,247,0.06);
+}
+.mq9-sdk-card-icon { font-size: 28px; }
+.mq9-sdk-card-title { font-size: 17px; font-weight: 700; color: #e2e8f0; margin: 0; }
+.mq9-sdk-card-desc { font-size: 14px; color: #94a3b8; line-height: 1.6; margin: 0; flex: 1; }
+.mq9-langs { display: flex; flex-wrap: wrap; gap: 8px; }
 .mq9-lang {
-  padding: 6px 16px;
+  padding: 4px 12px;
   border-radius: 20px;
   border: 1px solid rgba(168,85,247,0.25);
   background: rgba(168,85,247,0.07);
   color: #c084fc;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
+}
+.mq9-sdk-installs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mq9-sdk-installs code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 6px;
+  padding: 5px 10px;
+  color: #a5f3fc;
+  display: block;
+}
+.mq9-sdk-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mq9-sdk-badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(16,185,129,0.12);
+  border: 1px solid rgba(16,185,129,0.3);
+  color: #6ee7b7;
 }
 
 /* ── Protocols ── */

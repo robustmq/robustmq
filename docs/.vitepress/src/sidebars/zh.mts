@@ -152,6 +152,14 @@ const items = [
     items: [
       { text: "概览", link: "/zh/mq9/Overview" },
       { text: "协议设计", link: "/zh/mq9/Protocol" },
+      { text: "快速开始", link: "/zh/mq9/QuickStart" },
+      { text: "核心功能", link: "/zh/mq9/Features" },
+      { text: "SDK 接入", link: "/zh/mq9/SDK" },
+      { text: "LangChain 集成", link: "/zh/mq9/LangChain" },
+      { text: "应用场景", link: "/zh/mq9/Scenarios" },
+      { text: "常见问题", link: "/zh/mq9/FAQ" },
+      { text: "NATS 客户端接入", link: "/zh/mq9/NatsClient" },
+      { text: "发展规划", link: "/zh/mq9/Roadmap" },
     ],
   },
 
