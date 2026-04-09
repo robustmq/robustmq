@@ -71,7 +71,7 @@ impl NatsClientKeepAlive {
         self.send_ping_to_alive(&alive_ids, chunk_size, ping_interval)
             .await;
 
-        info!(
+        debug!(
             alive = alive_ids.len(),
             total = all_ids.len(),
             "NATS keep-alive tick completed"

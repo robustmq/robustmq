@@ -22,6 +22,7 @@ use mqtt_broker::{
     core::{cache::MQTTCacheManager, retain::RetainMessageManager},
     subscribe::{manager::SubscribeManager, PushManager},
 };
+use nats_broker::core::cache::NatsCacheManager;
 use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::{metrics::mqtt::MQTTMetricsCache, rocksdb::RocksDBEngine};
@@ -39,6 +40,15 @@ pub struct HttpState {
     pub engine_context: StorageEngineContext,
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub rate_limiter: Arc<GlobalRateLimiterManager>,
+    /// Present only when the nats-broker is co-started with admin-server.
+    pub nats_context: Option<NatsContext>,
+}
+
+/// Context carrying nats-broker runtime state.
+/// Injected into HttpState only when the nats-broker is running alongside admin-server.
+#[derive(Clone)]
+pub struct NatsContext {
+    pub cache_manager: Arc<NatsCacheManager>,
 }
 
 #[derive(Clone)]

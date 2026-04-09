@@ -144,8 +144,9 @@ impl GroupConsumer {
         }
 
         // Only advance current_offsets after successful IO.
+        // Use offset + 1 to match what was persisted, so the next read starts after the last consumed record.
         for e in self.pending_offsets.iter() {
-            self.current_offsets.insert(e.key().clone(), *e.value());
+            self.current_offsets.insert(e.key().clone(), *e.value() + 1);
         }
         self.pending_offsets.clear();
 

@@ -16,10 +16,9 @@ Any NATS client library works as an mq9 client directly — no additional SDK re
 $mq9.AI.
   ├── MAILBOX.
   │     ├── CREATE                         # Create a mailbox
-  │     └── {mail_id}.
-  │           ├── high                     # High-priority messages
-  │           ├── normal                   # Routine messages
-  │           └── low                      # Low-priority messages
+  │     └── {mail_id}                      # Default priority (normal, no suffix)
+  │           ├── .urgent                  # Urgent messages
+  │           └── .critical                # Highest-priority messages
   │
   └── PUBLIC.LIST                          # Public mailbox discovery, system-managed
 ```
@@ -29,10 +28,10 @@ $mq9.AI.
 | Subject | Operation | Description |
 |---------|-----------|-------------|
 | `$mq9.AI.MAILBOX.CREATE` | pub | Create a mailbox; response returned via reply-to |
-| `$mq9.AI.MAILBOX.{mail_id}.high` | pub/sub | High-priority messages |
-| `$mq9.AI.MAILBOX.{mail_id}.normal` | pub/sub | Routine messages |
-| `$mq9.AI.MAILBOX.{mail_id}.low` | pub/sub | Low-priority messages |
-| `$mq9.AI.MAILBOX.{mail_id}.*` | sub | Subscribe to all priority levels of a mailbox |
+| `$mq9.AI.MAILBOX.{mail_id}` | pub/sub | Default priority messages (normal, no suffix) |
+| `$mq9.AI.MAILBOX.{mail_id}.urgent` | pub/sub | Urgent messages |
+| `$mq9.AI.MAILBOX.{mail_id}.critical` | pub/sub | Highest-priority messages |
+| `$mq9.AI.MAILBOX.{mail_id}.*` | sub | Subscribe to urgent and critical messages (excludes default normal) |
 | `$mq9.AI.PUBLIC.LIST` | sub | Discover all public mailboxes, system-managed |
 
 ---
@@ -45,7 +44,7 @@ $mq9.AI.
 
 **TTL**: Declared at mailbox creation time; auto-destroyed on expiry along with all messages. No DELETE command. CREATE is idempotent — creating the same mailbox again does not error; TTL is fixed by the first creation.
 
-**priority**: MAILBOX supports three priority levels: high, normal, low. Same priority is FIFO; across priorities, higher priority is processed first. The storage layer guarantees ordering; consumers need not sort themselves.
+**priority**: MAILBOX supports three priority levels: critical, urgent, normal. Same priority is FIFO; across priorities, higher priority is processed first. normal is the default level and is sent to the bare subject with no suffix; urgent and critical use the `.urgent` and `.critical` suffixes respectively. The storage layer guarantees ordering; consumers need not sort themselves.
 
 **msg_id**: A unique identifier per message; used by clients for deduplication.
 
@@ -100,20 +99,20 @@ CREATE is idempotent. If the mailbox already exists, it silently returns success
 Knowing the mail_id is all that's needed to send — no authorization required.
 
 ```bash
-nats pub '$mq9.AI.MAILBOX.m-uuid-001.high'   'payload'  # Urgent, processed first
-nats pub '$mq9.AI.MAILBOX.m-uuid-001.normal' 'payload'  # Routine communication
-nats pub '$mq9.AI.MAILBOX.m-uuid-001.low'    'payload'  # Background, not urgent
+nats pub '$mq9.AI.MAILBOX.m-uuid-001.critical' 'payload'  # Highest priority, processed first
+nats pub '$mq9.AI.MAILBOX.m-uuid-001.urgent'   'payload'  # Urgent
+nats pub '$mq9.AI.MAILBOX.m-uuid-001'          'payload'  # Default (normal), routine communication
 ```
 
 ### Priority Levels
 
 | Level | Semantics | Typical use |
 |-------|-----------|-------------|
-| high | Urgent, processed first | Task interrupts, emergency commands |
-| normal | Routine communication | Task dispatch, result delivery, approval requests |
-| low | Background, not urgent | Logs, status reports, notifications |
+| critical | Highest priority, processed first | Abort signals, emergency commands, security events |
+| urgent | Urgent | Task interrupts, time-sensitive instructions |
+| normal (default, no suffix) | Routine communication | Task dispatch, result delivery, approval requests |
 
-The storage layer guarantees priority ordering. An edge device that comes back online after being offline receives high messages first, then normal, then low. Consumers need not sort themselves.
+The storage layer guarantees priority ordering. An edge device that comes back online after being offline receives critical messages first, then urgent, then normal. Consumers need not sort themselves.
 
 ### Message Structure (Recommended)
 
@@ -146,8 +145,11 @@ Message structure is defined by the application; mq9 does not enforce it. The ab
 ## Subscribing to a Mailbox
 
 ```bash
-nats sub '$mq9.AI.MAILBOX.m-uuid-001.*'     # All priority levels
-nats sub '$mq9.AI.MAILBOX.m-uuid-001.high'  # High priority only
+nats sub '$mq9.AI.MAILBOX.m-uuid-001'          # Default priority only (normal, no suffix)
+nats sub '$mq9.AI.MAILBOX.m-uuid-001.*'         # urgent and critical (excludes default normal)
+nats sub '$mq9.AI.MAILBOX.m-uuid-001.urgent'    # urgent only
+nats sub '$mq9.AI.MAILBOX.m-uuid-001.critical'  # critical only
+# To receive all priorities: subscribe to both the bare subject and the wildcard
 ```
 
 Subscribing delivers all non-expired messages immediately, then pushes new messages in real time. Agents that reconnect do not miss messages.
@@ -205,9 +207,9 @@ mq9 runs on RobustMQ's unified storage layer, providing three storage capabiliti
 
 | Priority | Default storage | Notes |
 |----------|----------------|-------|
-| high | RocksDB | Persisted |
-| normal | RocksDB | Persisted |
-| low | Memory | Not persisted — retransmit if lost |
+| critical | RocksDB | Persisted |
+| urgent | RocksDB | Persisted |
+| normal (default) | Memory | Not persisted — retransmit if lost |
 
 ---
 
@@ -216,9 +218,9 @@ mq9 runs on RobustMQ's unified storage layer, providing three storage capabiliti
 | Subject | Direction | Persisted | Description |
 |---------|-----------|-----------|-------------|
 | `$mq9.AI.MAILBOX.CREATE` | PUB | — | Create a mailbox |
-| `$mq9.AI.MAILBOX.{id}.high` | PUB/SUB | Yes | High-priority messages |
-| `$mq9.AI.MAILBOX.{id}.normal` | PUB/SUB | Yes | Routine messages |
-| `$mq9.AI.MAILBOX.{id}.low` | PUB/SUB | No | Low-priority messages |
+| `$mq9.AI.MAILBOX.{id}` | PUB/SUB | No | Default priority messages (normal, no suffix) |
+| `$mq9.AI.MAILBOX.{id}.urgent` | PUB/SUB | Yes | Urgent messages |
+| `$mq9.AI.MAILBOX.{id}.critical` | PUB/SUB | Yes | Highest-priority messages |
 | `$mq9.AI.PUBLIC.LIST` | SUB | Yes | Discover public mailboxes, system-managed |
 
 ---

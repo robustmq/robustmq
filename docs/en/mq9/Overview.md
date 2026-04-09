@@ -61,8 +61,10 @@ mq9's entire protocol is three operations:
 | Operation | Subject | Description |
 |-----------|---------|-------------|
 | Create mailbox | `$mq9.AI.MAILBOX.CREATE` | Create a private or public mailbox |
-| Send message | `$mq9.AI.MAILBOX.{mail_id}.{priority}` | Three priority levels (high / normal / low) |
-| Subscribe | `$mq9.AI.MAILBOX.{mail_id}.*` | Full delivery of all non-expired messages on subscribe |
+| Send message (default) | `$mq9.AI.MAILBOX.{mail_id}` | Default priority (normal), no suffix |
+| Send message (urgent) | `$mq9.AI.MAILBOX.{mail_id}.urgent` | Urgent priority |
+| Send message (critical) | `$mq9.AI.MAILBOX.{mail_id}.critical` | Highest priority |
+| Subscribe (non-default) | `$mq9.AI.MAILBOX.{mail_id}.*` | Receive urgent and critical messages |
 
 No QUERY — every subscription delivers all non-expired messages in full; subscribing is querying. No DELETE — TTL handles cleanup automatically.
 
@@ -70,9 +72,9 @@ No QUERY — every subscription delivers all non-expired messages in full; subsc
 
 | Level | Semantics | Typical use |
 |-------|-----------|-------------|
-| high | Urgent, processed first | Task interrupts, emergency commands |
-| normal | Routine communication | Task dispatch, result delivery, approval requests |
-| low | Background, not urgent | Logs, status reports, notifications |
+| critical | Highest priority, processed first | Abort signals, emergency commands, security events |
+| urgent | Urgent | Task interrupts, time-sensitive instructions |
+| normal (default, no suffix) | Routine communication | Task dispatch, result delivery, approval requests |
 
 ---
 

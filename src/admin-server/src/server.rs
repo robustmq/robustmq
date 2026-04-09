@@ -17,6 +17,7 @@ use crate::engine::shard::{
     commit_offset, get_offset_by_group, get_offset_by_timestamp, segment_list, shard_create,
     shard_delete, shard_list,
 };
+use crate::mcp::mcp_route;
 use crate::mqtt::topic::{topic_delete, topic_rewrite_delete};
 use crate::{
     cluster::{
@@ -85,6 +86,7 @@ impl AdminServer {
         let route = Router::new()
             .merge(self.static_route())
             .nest("/api", self.api_route())
+            .merge(mcp_route())
             .with_state(state.clone())
             .layer(middleware::from_fn_with_state(state, rate_limit_middleware))
             .layer(middleware::from_fn(base_middleware))

@@ -74,7 +74,7 @@ mq9 solves it directly: **send a message, the recipient gets it when they come o
 | Operation | Subject | What it does |
 |-----------|---------|-------------|
 | **MAILBOX.CREATE** | `$mq9.AI.MAILBOX.CREATE` | Create a private or public mailbox |
-| **Send** | `$mq9.AI.MAILBOX.{mail_id}.{priority}` | Deliver a message — three levels: `high` / `normal` / `low` |
+| **Send** | `$mq9.AI.MAILBOX.{mail_id}` / `$mq9.AI.MAILBOX.{mail_id}.urgent` / `$mq9.AI.MAILBOX.{mail_id}.critical` | Deliver a message — three levels: `critical` / `urgent` / `normal` (default, no suffix) |
 | **Subscribe** | `$mq9.AI.MAILBOX.{mail_id}.*` | Receive all non-expired messages; new arrivals pushed in real time |
 
 </div>
@@ -85,17 +85,17 @@ nats pub '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
 # → {"mail_id": "m-uuid-001"}
 
 # Send to another Agent's mailbox (works even if they're offline)
-nats pub '$mq9.AI.MAILBOX.m-uuid-002.normal' '{"msg_id":"msg-001","from":"m-uuid-001","type":"task_result","payload":"done","ts":1234567890}'
+nats pub '$mq9.AI.MAILBOX.m-uuid-002' '{"msg_id":"msg-001","from":"m-uuid-001","type":"task_result","payload":"done","ts":1234567890}'
 
 # Create a public mailbox (task queue), discoverable via PUBLIC.LIST
 nats pub '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600,"public":true,"name":"task.queue","desc":"Task queue"}'
-nats pub '$mq9.AI.MAILBOX.task.queue.normal' '{"msg_id":"t-001","type":"data_analysis"}'
+nats pub '$mq9.AI.MAILBOX.task.queue' '{"msg_id":"t-001","type":"data_analysis"}'
 
 # Subscribe to your own mailbox — receives all non-expired messages immediately
 nats sub '$mq9.AI.MAILBOX.m-uuid-001.*'
 ```
 
-**Any NATS client — Go, Python, Rust, Java, JavaScript — is already an mq9 client.** No new SDK needed.
+**Multiple integration paths:** any NATS client connects directly; the RobustMQ SDK covers Go, Python, Rust, JavaScript, Java, and C#; the `langchain-mq9` toolkit plugs into LangChain and LangGraph; and an MCP Server provides JSON-RPC 2.0 access for tools like Dify.
 
 mq9 is RobustMQ's fifth native protocol, alongside MQTT, Kafka, NATS, and AMQP, built on the same unified storage layer. Deploy one RobustMQ instance — mq9 is ready.
 
@@ -193,7 +193,7 @@ nats sub "robustmq.multi.protocol"
 nats pub '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
 
 # Agent B sends to Agent A (works even if A is offline)
-nats pub '$mq9.AI.MAILBOX.{mail_id_a}.normal' '{"msg_id":"msg-001","from":"m-uuid-b","type":"hello","payload":"hi","ts":1234567890}'
+nats pub '$mq9.AI.MAILBOX.{mail_id_a}' '{"msg_id":"msg-001","from":"m-uuid-b","type":"hello","payload":"hi","ts":1234567890}'
 
 # Agent A subscribes and receives all non-expired messages
 nats sub '$mq9.AI.MAILBOX.{mail_id_a}.*'
@@ -231,11 +231,42 @@ make build-full      # With frontend
 ## 📚 Documentation
 
 - **📖 [Official Documentation](https://robustmq.com/)** — Comprehensive guides and API references
-- **🤖 [mq9 — AI Agent Communication](https://robustmq.com/en/mq9/)** — Agent mailbox, broadcast, priority queue
+- **🤖 [mq9 Overview](https://robustmq.com/en/mq9/Overview.html)** — Design rationale and core concepts
+- **⚡ [mq9 Quick Start](https://robustmq.com/en/mq9/QuickStart.html)** — CLI walkthrough in 10 minutes
+- **🔌 [mq9 SDK Integration](https://robustmq.com/en/mq9/SDK.html)** — Python, Go, JavaScript, Java, Rust, C#
+- **🧩 [mq9 NATS Client Usage](https://robustmq.com/en/mq9/NatsClient.html)** — Use any NATS client directly
+- **🔗 [mq9 LangChain Integration](https://robustmq.com/en/mq9/LangChain.html)** — LangChain & LangGraph toolkit
+- **🗺️ [mq9 Roadmap](https://robustmq.com/en/mq9/Roadmap.html)** — Semantic routing, intent policy, context awareness
 - **🚀 [Quick Start Guide](https://robustmq.com/QuickGuide/Overview.html)** — Get up and running in minutes
 - **🔧 [MQTT Documentation](https://robustmq.com/RobustMQ-MQTT/Overview.html)** — MQTT-specific features and configuration
 - **💻 [Command Reference](https://robustmq.com/RobustMQ-Command/Mqtt-Broker.html)** — CLI commands and usage
 - **🎛️ [Web Console](https://github.com/robustmq/robustmq-copilot)** — Management interface
+
+### mq9 SDK
+
+Install the mq9 SDK for your language:
+
+```bash
+# Python
+pip install robustmq
+
+# JavaScript / TypeScript
+npm install @robustmq/sdk
+
+# Rust
+cargo add robustmq
+
+# Go
+go get github.com/robustmq/robustmq-sdk/go
+
+# Java (Maven)
+# <dependency><groupId>com.robustmq</groupId><artifactId>robustmq</artifactId><version>0.3.5</version></dependency>
+
+# C# (.NET)
+dotnet add package RobustMQ
+```
+
+Or use any NATS client library directly — no SDK required.
 
 ## 🤝 Contributing
 

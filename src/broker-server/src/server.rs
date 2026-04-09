@@ -71,6 +71,7 @@ impl BrokerServer {
             broker_cache,
             storage_driver_manager: self.mqtt_params.storage_driver_manager.clone(),
             rate_limiter: self.global_rate_limiter.clone(),
+            nats_context: None,
         });
         let http_port = self.config.http_port;
         self.server_runtime.spawn(async move {
