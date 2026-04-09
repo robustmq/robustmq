@@ -21,4 +21,5 @@ pub mod info;
 pub mod kv;
 pub mod object;
 pub mod process;
+pub mod protocol;
 pub mod stream;

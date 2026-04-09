@@ -14,88 +14,104 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::handler::command::NatsProcessContext;
-use bytes::Bytes;
+use crate::jstream::protocol::{
+    ConsumerCreateRequest, ConsumerDeleteResponse, ConsumerInfoResponse, ConsumerLeaderResponse,
+    ConsumerListRequest, ConsumerListResponse, ConsumerMsgNextRequest, ConsumerNamesResponse,
+    ConsumerPauseRequest, ConsumerPauseResponse,
+};
 
+/// `$JS.API.CONSUMER.CREATE.<stream>` — ephemeral consumer
 pub async fn process_consumer_create(
     _ctx: &NatsProcessContext,
     _stream: &str,
-    _payload: &Bytes,
-) -> Result<String, NatsBrokerError> {
+    _req: ConsumerCreateRequest,
+) -> Result<ConsumerInfoResponse, NatsBrokerError> {
     todo!("CONSUMER.CREATE")
 }
 
+/// `$JS.API.CONSUMER.CREATE.<stream>.<consumer>` — named ephemeral consumer
 pub async fn process_consumer_create_named(
     _ctx: &NatsProcessContext,
     _stream: &str,
     _consumer: &str,
-    _payload: &Bytes,
-) -> Result<String, NatsBrokerError> {
+    _req: ConsumerCreateRequest,
+) -> Result<ConsumerInfoResponse, NatsBrokerError> {
     todo!("CONSUMER.CREATE (named)")
 }
 
+/// `$JS.API.CONSUMER.DURABLE.CREATE.<stream>.<consumer>`
 pub async fn process_consumer_durable_create(
     _ctx: &NatsProcessContext,
     _stream: &str,
     _consumer: &str,
-    _payload: &Bytes,
-) -> Result<String, NatsBrokerError> {
+    _req: ConsumerCreateRequest,
+) -> Result<ConsumerInfoResponse, NatsBrokerError> {
     todo!("CONSUMER.DURABLE.CREATE")
 }
 
+/// `$JS.API.CONSUMER.DELETE.<stream>.<consumer>`
 pub async fn process_consumer_delete(
     _ctx: &NatsProcessContext,
     _stream: &str,
     _consumer: &str,
-) -> Result<String, NatsBrokerError> {
+) -> Result<ConsumerDeleteResponse, NatsBrokerError> {
     todo!("CONSUMER.DELETE")
 }
 
+/// `$JS.API.CONSUMER.INFO.<stream>.<consumer>`
 pub async fn process_consumer_info(
     _ctx: &NatsProcessContext,
     _stream: &str,
     _consumer: &str,
-) -> Result<String, NatsBrokerError> {
+) -> Result<ConsumerInfoResponse, NatsBrokerError> {
     todo!("CONSUMER.INFO")
 }
 
+/// `$JS.API.CONSUMER.LIST.<stream>`
 pub async fn process_consumer_list(
     _ctx: &NatsProcessContext,
     _stream: &str,
-    _payload: &Bytes,
-) -> Result<String, NatsBrokerError> {
+    _req: ConsumerListRequest,
+) -> Result<ConsumerListResponse, NatsBrokerError> {
     todo!("CONSUMER.LIST")
 }
 
+/// `$JS.API.CONSUMER.NAMES.<stream>`
 pub async fn process_consumer_names(
     _ctx: &NatsProcessContext,
     _stream: &str,
-    _payload: &Bytes,
-) -> Result<String, NatsBrokerError> {
+    _req: ConsumerListRequest,
+) -> Result<ConsumerNamesResponse, NatsBrokerError> {
     todo!("CONSUMER.NAMES")
 }
 
+/// `$JS.API.CONSUMER.MSG.NEXT.<stream>.<consumer>`
 pub async fn process_consumer_msg_next(
     _ctx: &NatsProcessContext,
     _stream: &str,
     _consumer: &str,
-    _payload: &Bytes,
-) -> Result<String, NatsBrokerError> {
+    _req: ConsumerMsgNextRequest,
+) -> Result<(), NatsBrokerError> {
+    // Messages are pushed directly to the client's reply-to subject,
+    // not returned as a single response body.
     todo!("CONSUMER.MSG.NEXT")
 }
 
+/// `$JS.API.CONSUMER.LEADER.STEPDOWN.<stream>.<consumer>`
 pub async fn process_consumer_leader_stepdown(
     _ctx: &NatsProcessContext,
     _stream: &str,
     _consumer: &str,
-) -> Result<String, NatsBrokerError> {
+) -> Result<ConsumerLeaderResponse, NatsBrokerError> {
     todo!("CONSUMER.LEADER.STEPDOWN")
 }
 
+/// `$JS.API.CONSUMER.PAUSE.<stream>.<consumer>`
 pub async fn process_consumer_pause(
     _ctx: &NatsProcessContext,
     _stream: &str,
     _consumer: &str,
-    _payload: &Bytes,
-) -> Result<String, NatsBrokerError> {
+    _req: ConsumerPauseRequest,
+) -> Result<ConsumerPauseResponse, NatsBrokerError> {
     todo!("CONSUMER.PAUSE")
 }

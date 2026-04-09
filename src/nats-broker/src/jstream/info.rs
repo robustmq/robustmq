@@ -14,13 +14,16 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::handler::command::NatsProcessContext;
+use crate::jstream::protocol::JsInfoResponse;
 
 /// `$JS.API.INFO` — server-level JetStream info.
-pub async fn process_info(_ctx: &NatsProcessContext) -> Result<String, NatsBrokerError> {
+pub async fn process_info(_ctx: &NatsProcessContext) -> Result<JsInfoResponse, NatsBrokerError> {
     todo!("JS.API.INFO")
 }
 
-/// `$JS.API.ACCOUNT.INFO` — account-level JetStream usage info.
-pub async fn process_account_info(_ctx: &NatsProcessContext) -> Result<String, NatsBrokerError> {
+/// `$JS.API.ACCOUNT.INFO` — account-level JetStream usage and limits.
+pub async fn process_account_info(
+    _ctx: &NatsProcessContext,
+) -> Result<JsInfoResponse, NatsBrokerError> {
     todo!("JS.API.ACCOUNT.INFO")
 }

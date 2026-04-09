@@ -14,48 +14,59 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::handler::command::NatsProcessContext;
+use crate::jstream::protocol::{KvGetHeaders, KvPutResponse};
 use bytes::Bytes;
 
+/// `$KV.<bucket>.<key>` — put value.
+/// Returns a publish ACK confirming the message was written to the stream.
 pub async fn process_kv_put(
     _ctx: &NatsProcessContext,
     _bucket: &str,
     _key: &str,
-    _payload: &Bytes,
-) -> Result<String, NatsBrokerError> {
+    _payload: Bytes,
+) -> Result<KvPutResponse, NatsBrokerError> {
     todo!("KV PUT")
 }
 
+/// `$KV.<bucket>.<key>` — get latest value.
+/// Returns headers describing the entry plus the raw value bytes.
 pub async fn process_kv_get(
     _ctx: &NatsProcessContext,
     _bucket: &str,
     _key: &str,
-) -> Result<String, NatsBrokerError> {
+) -> Result<(KvGetHeaders, Bytes), NatsBrokerError> {
     todo!("KV GET")
 }
 
+/// `$KV.<bucket>.<key>` — delete key (writes a DEL marker).
 pub async fn process_kv_delete(
     _ctx: &NatsProcessContext,
     _bucket: &str,
     _key: &str,
-) -> Result<String, NatsBrokerError> {
+) -> Result<KvPutResponse, NatsBrokerError> {
     todo!("KV DELETE")
 }
 
+/// `$KV.<bucket>.<key>` — purge all revisions of key (writes a PURGE marker).
 pub async fn process_kv_purge(
     _ctx: &NatsProcessContext,
     _bucket: &str,
     _key: &str,
-) -> Result<String, NatsBrokerError> {
+) -> Result<KvPutResponse, NatsBrokerError> {
     todo!("KV PURGE")
 }
 
+/// `$KV.<bucket>.>` — list all keys in bucket.
+/// Returns the key names as strings.
 pub async fn process_kv_keys(
     _ctx: &NatsProcessContext,
     _bucket: &str,
-) -> Result<String, NatsBrokerError> {
+) -> Result<Vec<String>, NatsBrokerError> {
     todo!("KV KEYS")
 }
 
+/// `$KV.<bucket>.<key|>` — watch for changes.
+/// Sets up a push consumer; individual change events are delivered as KV get responses.
 pub async fn process_kv_watch(
     _ctx: &NatsProcessContext,
     _bucket: &str,

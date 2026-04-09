@@ -14,29 +14,28 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::handler::command::NatsProcessContext;
-use bytes::Bytes;
+use crate::jstream::protocol::{AckNextRequest, NakRequest};
 
-/// Positive acknowledgement — message processing succeeded.
+/// `$JS.ACK.*` with empty payload or `+ACK` — positive acknowledgement.
 pub async fn process_ack(
     _ctx: &NatsProcessContext,
     _stream: &str,
     _consumer: &str,
-    _payload: &Bytes,
 ) -> Result<(), NatsBrokerError> {
     todo!("ACK")
 }
 
-/// Negative acknowledgement — re-deliver the message, optionally after a delay.
+/// `$JS.ACK.*` with `-NAK` — negative acknowledgement, optional delay.
 pub async fn process_nak(
     _ctx: &NatsProcessContext,
     _stream: &str,
     _consumer: &str,
-    _payload: &Bytes,
+    _req: NakRequest,
 ) -> Result<(), NatsBrokerError> {
     todo!("NAK")
 }
 
-/// In-progress signal — resets the ack wait timer without acknowledging.
+/// `$JS.ACK.*` with `-WPI` — in-progress signal, resets ack_wait timer.
 pub async fn process_ack_progress(
     _ctx: &NatsProcessContext,
     _stream: &str,
@@ -45,7 +44,7 @@ pub async fn process_ack_progress(
     todo!("ACK progress (+WPI)")
 }
 
-/// Terminate — mark message as permanently failed, no re-delivery.
+/// `$JS.ACK.*` with `-TERM` — terminate, no redelivery.
 pub async fn process_ack_term(
     _ctx: &NatsProcessContext,
     _stream: &str,
@@ -54,12 +53,12 @@ pub async fn process_ack_term(
     todo!("ACK term (+TERM)")
 }
 
-/// Ack + request next message in a single operation.
+/// `$JS.ACK.*` with `-NXT` — ack and request next message (Pull Consumer).
 pub async fn process_ack_next(
     _ctx: &NatsProcessContext,
     _stream: &str,
     _consumer: &str,
-    _payload: &Bytes,
+    _req: AckNextRequest,
 ) -> Result<(), NatsBrokerError> {
     todo!("ACK next (+NXT)")
 }
