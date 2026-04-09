@@ -48,6 +48,8 @@ validator.workspace = true
 rocksdb-engine.workspace = true
 connector.workspace = true
 common-healthy.workspace = true
+nats-broker.workspace = true
+mq9-core.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

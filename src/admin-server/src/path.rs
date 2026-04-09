@@ -121,6 +121,9 @@ pub const MQTT_BAN_LOG_LIST_PATH: &str = "/mqtt/ban-log/list";
 pub const MQTT_MESSAGE_SEND_PATH: &str = "/mqtt/message/send";
 pub const MQTT_MESSAGE_READ_PATH: &str = "/mqtt/message/read";
 
+// MCP Server path (outside /api prefix — mounted directly on root)
+pub const MCP_PATH: &str = "/mcp";
+
 // Utility functions for building API paths with prefix
 pub const API_PREFIX: &str = "/api";
 

@@ -16,6 +16,7 @@
 pub mod client;
 pub mod cluster;
 pub mod engine;
+pub mod mcp;
 pub mod mqtt;
 pub mod path;
 pub mod server;
