@@ -3,9 +3,10 @@ const items = [
         text: "简介",
         collapsed: true,
         items: [
-            { text: "什么是 RobustMQ", link: "/zh/OverView/What-is-RobustMQ" },
-            { text: "为什么有 RobustMQ", link: "/zh/OverView/Why-RobustMQ" },
-            { text: "RobustMQ 遵循的哲学", link: "/zh/Blogs/83" },
+            { text: "是什么", link: "/zh/OverView/What-is-RobustMQ" },
+            { text: "为什么", link: "/zh/OverView/Why-RobustMQ" },
+            { text: "技术哲学", link: "/zh/Blogs/83" },
+            { text: "还在路上", link: "/zh/OverView/SignYourName" },
             {
                 text: "和主流MQ的对比",
                 collapsed: true,
@@ -28,7 +29,6 @@ const items = [
                     { text: "Good First Issue", link: "/zh/OverView/Good-First-Issue" },
                 ],
             },
-            { text: "还在路上，给我们签个名吧", link: "/zh/OverView/SignYourName" },
         ],
     },
     {

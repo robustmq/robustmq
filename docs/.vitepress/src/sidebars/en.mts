@@ -3,9 +3,10 @@ const items = [
         text: "Introduction",
         collapsed: true,
         items: [
-            { text: "What is RobustMQ", link: "/en/OverView/What-is-RobustMQ" },
-            { text: "Why RobustMQ", link: "/en/OverView/Why-RobustMQ" },
-            { text: "The Philosophy Behind RobustMQ", link: "/en/Blogs/83" },
+            { text: "What", link: "/en/OverView/What-is-RobustMQ" },
+            { text: "Why", link: "/en/OverView/Why-RobustMQ" },
+            { text: "Engineering Philosophy", link: "/en/Blogs/83" },
+            { text: "Still on the Way", link: "/en/OverView/SignYourName" },
             {
                 text: "MQ Comparison",
                 collapsed: true,
@@ -28,7 +29,6 @@ const items = [
                     { text: "Good First Issue", link: "/en/OverView/Good-First-Issue" },
                 ],
             },
-            { text: "Still on the Way — Sign Your Name", link: "/en/OverView/SignYourName" },
         ],
     },
     {

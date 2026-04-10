@@ -1,4 +1,59 @@
-# Still on the Way — Sign Your Name for Us
+# Still on the Way
+
+## So Glad to Have Met You
+
+We are glad you found us. Maybe we are just passing by at RobustMQ, brushing past each other. Maybe we will travel together for a while. Maybe we will be companions for a very long time.
+
+RobustMQ wants to invite you to sign your name for us — this signature will always be displayed on our official website. Because we want to know that you once looked at us seriously. Maybe one day in the distant future, you will suddenly remember that you once left us a signature, and we will have already traveled far.
+
+@socutes
+@huichungka
+@Ayanokoji-li
+@patwrall
+@flyswimmer
+@satori1995
+@WaterWhisperer
+@NuclEnergy
+@hzbnb
+@qiu121
+@linyihai
+@chenxi2015
+@codenohup
+@dwsio
+@Yinwei-Yu
+@reigadegr
+@yongruifang
+@ytharic
+@realonbebeto
+@cadeYDL
+@jamesfeng2009
+@CsongSY
+@wanliofficial
+
+## How to Sign Your Name
+
+If you are not sure how to submit a pull request, see [Pull Request Example](../ContributionGuide/Pull-Request-Example.md) for a walkthrough.
+
+It's a simple step:
+
+1. Fork our project
+1. Open both docs/zh/OverView/SignYourName.md and docs/en/OverView/SignYourName.md, and add your GitHub username.
+1. Submit a PR:
+
+```text
+PR title: 'docs: @yourname Nice to meet you'
+PR description: 'relate #1380'
+```
+
+1. Wait for us to merge
+
+---
+
+## Who We Are
+
+Just a few programmers who wanted to see if they could make something great.
+
+---
 
 ## Honestly, We're Still on the Way
 
@@ -75,58 +130,3 @@ What RobustMQ wants to do — unifying AI Agent communication, IoT device ingest
 We do not know how far RobustMQ will ultimately go. But we know: something worth doing deserves to be done seriously.
 
 Dare to dream. Build it slowly.
-
----
-
-## Who We Are
-
-Just a few programmers who wanted to see if they could make something great.
-
----
-
-## So Glad to Have Met You
-
-We are glad you found us. Maybe we are just passing by at RobustMQ, brushing past each other. Maybe we will travel together for a while. Maybe we will be companions for a very long time.
-
-RobustMQ wants to invite you to sign your name for us — this signature will always be displayed on our official website. Because we want to know that you once looked at us seriously. Maybe one day in the distant future, you will suddenly remember that you once left us a signature, and we will have already traveled far.
-
-@socutes
-@huichungka
-@Ayanokoji-li
-@patwrall
-@flyswimmer
-@satori1995
-@WaterWhisperer
-@NuclEnergy
-@hzbnb
-@qiu121
-@linyihai
-@chenxi2015
-@codenohup
-@dwsio
-@Yinwei-Yu
-@reigadegr
-@yongruifang
-@ytharic
-@realonbebeto
-@cadeYDL
-@jamesfeng2009
-@CsongSY
-@wanliofficial
-
-## How to Sign Your Name
-
-If you are not sure how to submit a pull request, see [Pull Request Example](../ContributionGuide/Pull-Request-Example.md) for a walkthrough.
-
-It's a simple step:
-
-1. Fork our project
-2. Open both docs/zh/OverView/SignYourName.md and docs/en/OverView/SignYourName.md, and add your GitHub username.
-3. Submit a PR:
-
-```
-PR title: 'docs: @yourname Nice to meet you'
-PR description: 'relate #1380'
-```
-
-4. Wait for us to merge

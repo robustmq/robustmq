@@ -1,4 +1,61 @@
-# 还在路上，给我们签个名吧
+# 还在路上
+
+## 很高兴遇见过你们
+
+很高兴你看见我们。也许我们在 RobustMQ 只是萍水相逢，擦身而过。也许我们会同行一段时间。也许我们会相伴很久很久。
+
+RobustMQ 想邀请你给我们签个名，这个签名会一直挂在我们的官网上。因为我们想知道你曾经认真看过我们一眼。也许在很久的某一天，你会突然想起来，曾经给我们留下过签名，而我们已经走了很远了。
+
+@socutes
+@huichungka
+@Ayanokoji-li
+@patwrall
+@flyswimmer
+@satori1995
+@WaterWhisperer
+@NuclEnergy
+@hzbnb
+@qiu121
+@linyihai
+@yqingyu
+@chenxi2015
+@codenohup
+@dwsio
+@Yinwei-Yu
+@reigadegr
+@yongruifang
+@ytharic
+@realonbebeto
+@cadeYDL
+@jamesfeng2009
+@CsongSY
+@teague2
+@wanliofficial
+
+## 怎么给我们签名呢
+
+如果你不知道如何提交分支并发起合并请求，请参考文档[《Pull Request Example》](../ContributionGuide/Pull-Request-Example.md) 加上你的名字。
+
+很简单的一步：
+
+1. Fork 我们的项目
+2. 打开 docs/zh/OverView/SignYourName.md 和 docs/en/OverView/SignYourName.md 这两个文件，加上你的 GitHub 名称。
+3. 给我们提交个 PR：
+
+```text
+PR title: 'docs: @yourname Nice to meet you'
+PR description: 'relate #1380'
+```
+
+1. 等待我们合并
+
+---
+
+## 我们是谁
+
+我们只是几个想试试能不能做一个伟大作品的程序员而已～
+
+---
 
 ## 坦诚说，我们还在路上
 
@@ -75,60 +132,3 @@ RobustMQ 想做的事——把 AI Agent 通信、IoT 设备接入、边缘数据
 我们不知道 RobustMQ 最终会走多远，但我们知道，值得做的事，就该认真做。
 
 敢想，慢慢干。
-
----
-
-## 我们是谁
-
-我们只是几个想试试能不能做一个伟大作品的程序员而已～
-
----
-
-## 很高兴遇见过你们
-
-很高兴你看见我们。也许我们在 RobustMQ 只是萍水相逢，擦身而过。也许我们会同行一段时间。也许我们会相伴很久很久。
-
-RobustMQ 想邀请你给我们签个名，这个签名会一直挂在我们的官网上。因为我们想知道你曾经认真看过我们一眼。也许在很久的某一天，你会突然想起来，曾经给我们留下过签名，而我们已经走了很远了。
-
-@socutes
-@huichungka
-@Ayanokoji-li
-@patwrall
-@flyswimmer
-@satori1995
-@WaterWhisperer
-@NuclEnergy
-@hzbnb
-@qiu121
-@linyihai
-@yqingyu
-@chenxi2015
-@codenohup
-@dwsio
-@Yinwei-Yu
-@reigadegr
-@yongruifang
-@ytharic
-@realonbebeto
-@cadeYDL
-@jamesfeng2009
-@CsongSY
-@teague2
-@wanliofficial
-
-## 怎么给我们签名呢
-
-如果你不知道如何提交分支并发起合并请求，请参考文档[《Pull Request Example》](../ContributionGuide/Pull-Request-Example.md) 加上你的名字。
-
-很简单的一步：
-
-1. Fork 我们的项目
-2. 打开 docs/zh/OverView/SignYourName.md 和 docs/en/OverView/SignYourName.md 这两个文件，加上你的 GitHub 名称。
-3. 给我们提交个 PR：
-
-```
-PR title: 'docs: @yourname Nice to meet you'
-PR description: 'relate #1380'
-```
-
-4. 等待我们合并
