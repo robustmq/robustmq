@@ -233,7 +233,13 @@ pub async fn delay_task_process(
             handle_lastwill_expire(rocksdb_engine_handler, node_call_manager, client_id).await?;
         }
         DelayTaskData::MQTTDeleteTopic(tenant, topic_name) => {
-            handle_delete_topic(node_call_manager, tenant, topic_name).await?;
+            handle_delete_topic(
+                node_call_manager,
+                rocksdb_engine_handler,
+                tenant,
+                topic_name,
+            )
+            .await?;
         }
     }
 

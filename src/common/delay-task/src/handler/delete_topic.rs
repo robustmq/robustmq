@@ -14,14 +14,21 @@
 
 use common_base::error::common::CommonError;
 use node_call::{NodeCallData, NodeCallManager};
+use rocksdb_engine::keys::meta::storage_key_mqtt_topic;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::meta_data::engine_delete_by_meta_data;
 use std::sync::Arc;
 use tracing::debug;
 
 pub async fn handle_delete_topic(
     node_call_manager: &Arc<NodeCallManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     tenant: &str,
     topic_name: &str,
 ) -> Result<(), CommonError> {
+    let key = storage_key_mqtt_topic(tenant, topic_name);
+    engine_delete_by_meta_data(rocksdb_engine_handler, &key)?;
+
     let data = NodeCallData::DeleteTopic(tenant.to_string(), topic_name.to_string());
     node_call_manager.send(data).await?;
 
