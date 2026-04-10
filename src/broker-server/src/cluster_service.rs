@@ -21,8 +21,9 @@ use nats_broker::{
     broker::NatsBrokerServerParams, core::dynamic_cache::update_nats_cache_metadata,
 };
 use protocol::broker::broker_common::{
-    broker_common_service_server::BrokerCommonService, BrokerUpdateCacheResourceType,
-    UpdateCacheRecord, UpdateCacheReply, UpdateCacheRequest,
+    broker_common_service_server::BrokerCommonService, BatchDeleteGroupsReply,
+    BatchDeleteGroupsRequest, BatchDeleteTopicsReply, BatchDeleteTopicsRequest,
+    BrokerUpdateCacheResourceType, UpdateCacheRecord, UpdateCacheReply, UpdateCacheRequest,
 };
 use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
 use tonic::{Request, Response, Status};
@@ -74,6 +75,20 @@ impl BrokerCommonService for GrpcBrokerCommonService {
         }
 
         Ok(Response::new(UpdateCacheReply::default()))
+    }
+
+    async fn batch_delete_topics(
+        &self,
+        _request: Request<BatchDeleteTopicsRequest>,
+    ) -> Result<Response<BatchDeleteTopicsReply>, Status> {
+        Ok(Response::new(BatchDeleteTopicsReply::default()))
+    }
+
+    async fn batch_delete_groups(
+        &self,
+        _request: Request<BatchDeleteGroupsRequest>,
+    ) -> Result<Response<BatchDeleteGroupsReply>, Status> {
+        Ok(Response::new(BatchDeleteGroupsReply::default()))
     }
 }
 

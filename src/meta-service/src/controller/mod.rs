@@ -24,6 +24,7 @@ use tracing::error;
 pub mod connector_scheduler;
 pub mod connector_status;
 pub mod engine_gc;
+pub mod group_gc;
 
 pub fn start_controller(
     raft_manager: &Arc<MultiRaftManager>,

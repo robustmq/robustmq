@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::delay::delete_delay_task_index;
+use crate::handler::delete_topic::handle_delete_topic;
 use crate::handler::lastwill_expire::handle_lastwill_expire;
 use crate::handler::session_expire::handle_session_expire;
 use crate::manager::{DelayTaskManager, ShardCmd};
@@ -230,6 +231,9 @@ pub async fn delay_task_process(
         }
         DelayTaskData::MQTTLastwillExpire(client_id) => {
             handle_lastwill_expire(rocksdb_engine_handler, node_call_manager, client_id).await?;
+        }
+        DelayTaskData::MQTTDeleteTopic(tenant, topic_name) => {
+            handle_delete_topic(node_call_manager, tenant, topic_name).await?;
         }
     }
 

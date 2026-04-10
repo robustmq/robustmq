@@ -12,6 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod delete_topic;
-pub mod lastwill_expire;
-pub mod session_expire;
+use common_base::error::common::CommonError;
+use node_call::{NodeCallData, NodeCallManager};
+use std::sync::Arc;
+use tracing::debug;
+
+pub async fn handle_delete_topic(
+    node_call_manager: &Arc<NodeCallManager>,
+    tenant: &str,
+    topic_name: &str,
+) -> Result<(), CommonError> {
+    let data = NodeCallData::DeleteTopic(tenant.to_string(), topic_name.to_string());
+    node_call_manager.send(data).await?;
+
+    debug!(
+        "Delete topic task completed: tenant={}, topic={}",
+        tenant, topic_name
+    );
+    Ok(())
+}
