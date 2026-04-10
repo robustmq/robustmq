@@ -37,6 +37,7 @@ const items = [
         items: [
             { text: "Quick Install", link: "/en/QuickGuide/Quick-Install" },
             { text: "Experience MQTT", link: "/en/QuickGuide/Experience-MQTT" },
+            { text: "Experience NATS Core", link: "/en/QuickGuide/Experience-NATS" },
             { text: "Experience mq9", link: "/en/QuickGuide/Experience-MQ9" },
             { text: "Public Server", link: "/en/QuickGuide/PublicMqttServer" },
         ],

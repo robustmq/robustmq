@@ -59,6 +59,9 @@ export default defineConfig({
     
     // 强制暗色模式，禁用切换
     appearance: 'force-dark',
+
+    // 显示页面最后更新时间（读取 git commit 时间）
+    lastUpdated: true,
     
     // 禁用可能导致布局问题的功能
     mpa: false,

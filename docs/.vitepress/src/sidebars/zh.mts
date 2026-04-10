@@ -37,6 +37,7 @@ const items = [
         items: [
             { text: "快速安装", link: "/zh/QuickGuide/Quick-Install" },
             { text: "体验 MQTT", link: "/zh/QuickGuide/Experience-MQTT" },
+            { text: "体验 NATS Core", link: "/zh/QuickGuide/Experience-NATS" },
             { text: "体验 mq9", link: "/zh/QuickGuide/Experience-MQ9" },
             { text: "公共 Server", link: "/zh/QuickGuide/PublicMqttServer" },
         ],
