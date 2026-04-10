@@ -164,7 +164,10 @@ const items = [
     collapsed: true,
     items: [
       { text: "概览", link: "/zh/nats/Overview" },
+      { text: "快速开始", link: "/zh/nats/QuickStart" },
       { text: "NATS Core", link: "/zh/nats/NatsCore" },
+      { text: "JetStream", link: "/zh/nats/JetStream" },
+      { text: "SDK 接入", link: "/zh/nats/SDK" },
     ],
   },
 

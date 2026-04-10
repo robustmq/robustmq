@@ -51,17 +51,16 @@ The storage layer supports three engines, selected based on the scenario:
 
 ### Supported Scope
 
-RobustMQ currently supports the complete **NATS Core** feature set, including:
-
-- Pub/Sub
-- Request/Reply
-- Queue Groups (competing consumers)
-- Subject wildcards (`*` and `>`)
-- Message Headers (HPUB/HMSG)
-- Connection authentication
-- TLS
-
-**JetStream** support will be evaluated based on future priorities. JetStream semantics (Streams, Consumers, offset management) overlap with RobustMQ's unified storage abstraction, and the integration path requires careful design.
+| Feature | Status |
+|---------|--------|
+| Pub/Sub | ✅ Available |
+| Request/Reply | ✅ Available |
+| Queue Groups (competing consumers) | ✅ Available |
+| Subject wildcards (`*` and `>`) | ✅ Available |
+| Message Headers (HPUB/HMSG) | ✅ Available |
+| Connection authentication | ✅ Available |
+| TLS | ✅ Available |
+| JetStream | 🚧 In development |
 
 ### mq9: AI Agent Communication Protocol Built on NATS
 

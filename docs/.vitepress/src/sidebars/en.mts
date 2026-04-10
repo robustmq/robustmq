@@ -164,7 +164,10 @@ const items = [
     collapsed: true,
     items: [
       { text: "Overview", link: "/en/nats/Overview" },
+      { text: "Quick Start", link: "/en/nats/QuickStart" },
       { text: "NATS Core", link: "/en/nats/NatsCore" },
+      { text: "JetStream", link: "/en/nats/JetStream" },
+      { text: "SDK Integration", link: "/en/nats/SDK" },
     ],
   },
 
