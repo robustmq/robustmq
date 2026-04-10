@@ -44,6 +44,7 @@ pub struct MemoryStorageEngine {
     pub shards: DashMap<String, Arc<ShardState>>,
     pub config: StorageDriverMemoryConfig,
     pub commit_log_offset: Arc<CommitLogOffset>,
+    pub cache_manager: Arc<StorageCacheManager>,
 }
 
 impl MemoryStorageEngine {
@@ -59,11 +60,12 @@ impl MemoryStorageEngine {
                 cache_manager.clone(),
                 rocksdb_engine_handler.clone(),
             )),
+            cache_manager,
         }
     }
 
     pub fn get_or_create_shard(&self, shard_name: &str) -> Arc<ShardState> {
-        let capacity = self.config.max_records_per_shard.min(1024);
+        let capacity = self.config.max_shard_size_limit.min(1024);
         self.shards
             .entry(shard_name.to_string())
             .or_insert_with(|| Arc::new(ShardState::new(capacity)))

@@ -21,6 +21,7 @@ use grpc_clients::meta::storage::call::{
     create_next_segment, seal_up_segment, update_start_time_by_segment_meta,
 };
 use grpc_clients::pool::ClientPool;
+use metadata_struct::storage::shard::DEFAULT_MAX_SEGMENT_SIZE;
 use protocol::meta::meta_service_journal::{
     CreateNextSegmentRequest, SealUpSegmentRequest, UpdateStartTimeBySegmentMetaRequest,
 };
@@ -99,7 +100,7 @@ pub async fn trigger_next_segment_scroll(
             } else {
                 let file_size = segment_write.size().await?;
                 let max_size = shard_info.config.max_segment_size;
-                let rate = calc_file_rate(file_size, max_size);
+                let rate = calc_file_rate(file_size, max_size.unwrap_or(DEFAULT_MAX_SEGMENT_SIZE));
                 rate > SEGMENT_SCROLL_SIZE_THRESHOLD
             }
         } else {

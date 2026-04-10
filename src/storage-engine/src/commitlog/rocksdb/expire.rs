@@ -16,15 +16,14 @@ use crate::{commitlog::rocksdb::engine::RocksDBStorageEngine, core::error::Stora
 use common_base::{
     error::{common::CommonError, ResultCommonError},
     tools::{loop_select_ticket, now_second},
-    utils::serialize::{self},
 };
-use futures::stream::StreamExt;
+use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{
     adapter_offset::AdapterOffsetStrategy, record::StorageRecord, shard::EngineShard,
 };
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::storage::{
-    key_index_key, shard_info_key_prefix, shard_record_key, tag_index_key, timestamp_index_key,
+    key_index_key, shard_record_key, tag_index_key, timestamp_index_key,
 };
 use tokio::sync::broadcast;
 
@@ -40,32 +39,43 @@ impl RocksDBStorageEngine {
     }
 
     async fn scan_and_delete_expire_data(&self) -> Result<(), StorageEngineError> {
-        let shard_infos = {
-            let cf = self.get_cf()?;
-            let raw_shard_info = self
-                .rocksdb_engine_handler
-                .read_prefix(cf.clone(), &shard_info_key_prefix())?;
-
-            let mut shard_infos = Vec::new();
-            for (_, v) in raw_shard_info {
-                let info = serialize::deserialize::<EngineShard>(v.as_slice())?;
-                shard_infos.push(info);
-            }
-            shard_infos
-        };
+        let shard_infos: Vec<EngineShard> = self
+            .cache_manager
+            .shards
+            .iter()
+            .filter(|e| e.value().config.storage_type == StorageType::EngineRocksDB)
+            .map(|e| e.value().clone())
+            .collect();
 
         if shard_infos.is_empty() {
             return Ok(());
         }
 
-        const MAX_CONCURRENT_TASKS: usize = 10;
+        // chunk
+        let task_num = broker_config().storage_runtime.expire_scan_task_num;
 
-        let mut stream = futures::stream::iter(shard_infos)
-            .map(|shard_info| self.scan_and_delete_data_by_shard(shard_info))
-            .buffer_unordered(MAX_CONCURRENT_TASKS);
+        let chunk_size = shard_infos.len().div_ceil(task_num);
+        let chunks: Vec<Vec<EngineShard>> = shard_infos
+            .chunks(chunk_size.max(1))
+            .map(|c| c.to_vec())
+            .collect();
 
-        while let Some(result) = stream.next().await {
-            result?;
+        // message clear task
+        let mut handles = Vec::with_capacity(chunks.len());
+        for chunk in chunks {
+            let engine = self.clone();
+            handles.push(tokio::spawn(async move {
+                for shard in chunk {
+                    engine.scan_and_delete_data_by_shard(shard).await?;
+                }
+                Ok::<(), StorageEngineError>(())
+            }));
+        }
+
+        for handle in handles {
+            handle
+                .await
+                .map_err(|e| CommonError::CommonError(e.to_string()))??;
         }
 
         Ok(())
@@ -75,7 +85,7 @@ impl RocksDBStorageEngine {
         &self,
         shard: EngineShard,
     ) -> Result<(), StorageEngineError> {
-        let earliest_timestamp = now_second() - shard.config.retention_sec;
+        let earliest_timestamp = now_second().saturating_sub(shard.config.retention_sec);
         let earliest_offset = self
             .commitlog_offset
             .get_earliest_offset(&shard.shard_name)?;
@@ -92,7 +102,6 @@ impl RocksDBStorageEngine {
         }
 
         let cf = self.get_cf()?;
-        let mut batch = WriteBatch::default();
 
         const BATCH_SIZE: u64 = 1000;
         let mut current_offset = earliest_offset;
@@ -107,6 +116,7 @@ impl RocksDBStorageEngine {
                 .rocksdb_engine_handler
                 .multi_get::<StorageRecord>(cf.clone(), &keys)?;
 
+            let mut batch = WriteBatch::default();
             for (i, record_opt) in records.into_iter().enumerate() {
                 if let Some(record) = record_opt {
                     let offset = current_offset + i as u64;
@@ -136,11 +146,13 @@ impl RocksDBStorageEngine {
                     }
                 }
             }
+            if !batch.is_empty() {
+                self.rocksdb_engine_handler.write_batch(batch)?;
+            }
 
             current_offset = batch_end;
         }
 
-        self.rocksdb_engine_handler.write_batch(batch)?;
         self.commitlog_offset
             .save_earliest_offset(&shard.shard_name, new_earliest_offset)?;
 

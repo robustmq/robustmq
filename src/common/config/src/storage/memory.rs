@@ -16,70 +16,54 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StorageDriverMemoryConfig {
-    pub max_records_per_shard: usize,
     pub max_shard_size_limit: usize,
+    /// Fraction of records to evict when a shard exceeds its capacity limit.
+    /// Set to 0.2 (20%) so each eviction reclaims enough headroom that the shard
+    /// can accept a burst of new writes before the next eviction is needed.
+    /// A smaller ratio would mean evicting just a few records at a time, causing
+    /// continuous eviction loops under sustained write load.
+    pub evict_ratio: f64,
 }
 
 impl Default for StorageDriverMemoryConfig {
     fn default() -> Self {
         Self {
-            max_records_per_shard: 1000,
             max_shard_size_limit: 10_000_000,
+            evict_ratio: 0.2,
         }
     }
 }
 
 impl StorageDriverMemoryConfig {
     pub fn validate(&self) -> Result<(), String> {
-        if self.max_records_per_shard < 100 {
-            return Err(format!(
-                "max_records_per_shard ({}) must be at least 100",
-                self.max_records_per_shard
-            ));
-        }
-
-        if self.max_shard_size_limit < self.max_records_per_shard {
-            return Err(format!(
-                "max_shard_size_limit ({}) must be >= max_records_per_shard ({})",
-                self.max_shard_size_limit, self.max_records_per_shard
-            ));
-        }
-
         Ok(())
-    }
-
-    pub fn estimate_memory_usage(&self, shard_count: usize, avg_record_size: usize) -> usize {
-        let per_shard_memory = self.max_records_per_shard * avg_record_size;
-        let total_data_memory = per_shard_memory * shard_count;
-        let index_overhead = total_data_memory / 5;
-        total_data_memory + index_overhead
     }
 
     pub fn dev_mode() -> Self {
         Self {
-            max_records_per_shard: 1_000,
             max_shard_size_limit: 10_000,
+            evict_ratio: 0.2,
         }
     }
 
     pub fn test_mode() -> Self {
         Self {
-            max_records_per_shard: 10_000,
             max_shard_size_limit: 100_000,
+            evict_ratio: 0.2,
         }
     }
 
     pub fn production_mode() -> Self {
         Self {
-            max_records_per_shard: 100_000,
             max_shard_size_limit: 1_000_000,
+            evict_ratio: 0.2,
         }
     }
 
     pub fn minimal_memory_mode() -> Self {
         Self {
-            max_records_per_shard: 1_000,
             max_shard_size_limit: 5_000,
+            evict_ratio: 0.2,
         }
     }
 }

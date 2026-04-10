@@ -127,7 +127,8 @@ impl Topic {
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct TopicConfig {
     /// Max size per segment in bytes. Default: 1 GiB.
-    pub max_segment_size: u64,
+    pub max_segment_size: Option<u64>,
+    pub max_record_num: Option<u64>,
     /// Retention duration in seconds. Default: 24 hours.
     pub retention_sec: u64,
 }
@@ -135,7 +136,8 @@ pub struct TopicConfig {
 impl Default for TopicConfig {
     fn default() -> Self {
         TopicConfig {
-            max_segment_size: DEFAULT_MAX_SEGMENT_SIZE,
+            max_segment_size: Some(DEFAULT_MAX_SEGMENT_SIZE),
+            max_record_num: None,
             retention_sec: DEFAULT_RETENTION_SEC,
         }
     }

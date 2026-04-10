@@ -62,6 +62,7 @@ pub async fn create_topic_full(
         replica_num: topic.replication,
         storage_type: topic.storage_type,
         max_segment_size: topic.config.max_segment_size,
+        max_record_num: topic.config.max_record_num,
         retention_sec: topic.config.retention_sec,
     };
     storage_driver_manager
