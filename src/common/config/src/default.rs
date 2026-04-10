@@ -96,6 +96,7 @@ pub fn default_meta_runtime() -> MetaRuntime {
         raft_write_timeout_sec: 30,
         offset_raft_group_num: 1,
         data_raft_group_num: 1,
+        group_offset_expire_sec: 7 * 24 * 3600,
     }
 }
 

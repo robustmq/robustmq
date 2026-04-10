@@ -50,6 +50,7 @@ pub enum NodeCallData {
     SendLastWillMessage(LastWillMessageItem),
     GetQosData(String),
     DeleteTopic(String, String), // (tenant, topic_name)
+    DeleteGroup(String, String), // (tenant, group_name)
 }
 
 pub struct NodeCallRequest {
@@ -68,6 +69,7 @@ impl NodeCallData {
             NodeCallData::SendLastWillMessage(item) => Some(&item.client_id),
             NodeCallData::GetQosData(_) => None,
             NodeCallData::DeleteTopic(_, _) => None,
+            NodeCallData::DeleteGroup(_, _) => None,
         }
     }
 }

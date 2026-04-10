@@ -16,7 +16,8 @@ use crate::{UpdateCacheData, RPC_MAX_RETRIES, RPC_RETRY_BASE_MS};
 use bytes::Bytes;
 use common_base::error::common::CommonError;
 use grpc_clients::broker::common::call::{
-    broker_common_batch_delete_topics, broker_common_update_cache,
+    broker_common_batch_delete_groups, broker_common_batch_delete_topics,
+    broker_common_update_cache,
 };
 use grpc_clients::broker::mqtt::call::{
     broker_mqtt_delete_session, get_qos_data_by_client_id, send_last_will_message,
@@ -24,7 +25,8 @@ use grpc_clients::broker::mqtt::call::{
 use grpc_clients::pool::ClientPool;
 use prost::Message;
 use protocol::broker::broker_common::{
-    BatchDeleteTopicsRequest, DeleteTopicItem, UpdateCacheRecord, UpdateCacheRequest,
+    BatchDeleteGroupsRequest, BatchDeleteTopicsRequest, DeleteGroupItem, DeleteTopicItem,
+    UpdateCacheRecord, UpdateCacheRequest,
 };
 use protocol::broker::broker_mqtt::{
     DeleteSessionRequest, GetQosDataByClientIdReply, GetQosDataByClientIdRequest,
@@ -170,6 +172,28 @@ pub async fn send_delete_topic_batch(
 
     retry_rpc(addr, "batch delete topics", || {
         broker_common_batch_delete_topics(client_pool, &addrs, request.clone())
+    })
+    .await;
+}
+
+pub async fn send_delete_group_batch(
+    client_pool: &Arc<ClientPool>,
+    addr: &str,
+    items: &[(String, String)],
+) {
+    let request = BatchDeleteGroupsRequest {
+        groups: items
+            .iter()
+            .map(|(tenant, group_name)| DeleteGroupItem {
+                tenant: tenant.clone(),
+                group_name: group_name.clone(),
+            })
+            .collect(),
+    };
+    let addrs = [addr];
+
+    retry_rpc(addr, "batch delete groups", || {
+        broker_common_batch_delete_groups(client_pool, &addrs, request.clone())
     })
     .await;
 }

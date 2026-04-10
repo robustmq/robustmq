@@ -437,10 +437,17 @@ pub struct MetaRuntime {
     pub offset_raft_group_num: u32,
     #[serde(default = "default_raft_sharded_group_num")]
     pub data_raft_group_num: u32,
+    #[serde(default = "default_group_offset_expire_sec")]
+    pub group_offset_expire_sec: u64,
 }
 
 fn default_raft_sharded_group_num() -> u32 {
     1
+}
+
+fn default_group_offset_expire_sec() -> u64 {
+    // 7 days
+    7 * 24 * 3600
 }
 
 impl Default for MetaRuntime {

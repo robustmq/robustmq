@@ -14,7 +14,7 @@
 
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use rocksdb_engine::keys::meta::{key_offset, key_offset_by_group};
+use rocksdb_engine::keys::meta::{key_offset, key_offset_by_group, key_offset_prefix_all};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::base::{batch_encode_data, get_cf_handle};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_DATA;
@@ -69,6 +69,15 @@ impl OffsetStorage {
     pub fn delete(&self, tenant: &str, group: &str, shard_name: &str) -> Result<(), CommonError> {
         let key = key_offset(tenant, group, shard_name);
         engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)
+    }
+
+    pub fn list_all(&self) -> Result<Vec<OffsetData>, CommonError> {
+        let prefix_key = key_offset_prefix_all();
+        let data = engine_prefix_list_by_meta_data::<OffsetData>(
+            &self.rocksdb_engine_handler,
+            &prefix_key,
+        )?;
+        Ok(data.into_iter().map(|row| row.data).collect())
     }
 
     pub fn group_offset(&self, tenant: &str, group: &str) -> Result<Vec<OffsetData>, CommonError> {

@@ -18,6 +18,7 @@ use crate::{
     raft::manager::{MultiRaftManager, RaftStateMachineName},
 };
 use node_call::NodeCallManager;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tokio::{select, sync::broadcast};
 use tracing::{error, info};
@@ -26,6 +27,8 @@ pub async fn monitoring_leader_transition(
     cache_manager: Arc<MetaCacheManager>,
     raft_manager: Arc<MultiRaftManager>,
     call_manager: Arc<NodeCallManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    group_offset_expire_sec: u64,
     stop_send: broadcast::Sender<bool>,
 ) {
     // Use the single metadata shard leader as the controller leadership source.
@@ -63,6 +66,8 @@ pub async fn monitoring_leader_transition(
                                     &raft_manager,
                                     &cache_manager,
                                     &call_manager,
+                                    &rocksdb_engine_handler,
+                                    group_offset_expire_sec,
                                     controller_stop_recv.clone(),
                                 );
                                 controller_running = true;
