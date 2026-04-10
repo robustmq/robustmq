@@ -32,6 +32,14 @@ export const zhConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
 
         },
 
+        lastUpdated: {
+            text: '最后更新于',
+            formatOptions: {
+                dateStyle: 'short',
+                timeStyle: 'short',
+            },
+        },
+
         socialLinks: [
             {icon: 'github', link: 'https://github.com/robustmq/robustmq'}
         ]

@@ -31,6 +31,14 @@ export const enConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
 
         },
 
+        lastUpdated: {
+            text: 'Last updated',
+            formatOptions: {
+                dateStyle: 'short',
+                timeStyle: 'short',
+            },
+        },
+
         socialLinks: [
             {icon: 'github', link: 'https://github.com/robustmq/robustmq'}
         ]
