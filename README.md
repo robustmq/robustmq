@@ -192,13 +192,13 @@ nats sub "robustmq.multi.protocol"
 
 ```bash
 # Agent A creates a mailbox — returns mail_id
-nats pub '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
+nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
 
 # Agent B sends to Agent A (works even if A is offline)
-nats pub '$mq9.AI.MAILBOX.{mail_id_a}' '{"msg_id":"msg-001","from":"m-uuid-b","type":"hello","payload":"hi","ts":1234567890}'
+nats pub '$mq9.AI.MAILBOX.MSG.{mail_id_a}' '{"type":"task","payload":"hello","ts":1234567890}'
 
-# Agent A subscribes and receives all non-expired messages
-nats sub '$mq9.AI.MAILBOX.{mail_id_a}.*'
+# Agent A subscribes and receives all non-expired messages in priority order
+nats sub '$mq9.AI.MAILBOX.MSG.{mail_id_a}.*'
 ```
 
 ### Web Dashboard

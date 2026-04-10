@@ -204,7 +204,7 @@ async def main():
 asyncio.run(main())
 ```
 
-Full examples for all languages: [NATS Client Integration](../mq9/NatsClient.md)
+Full examples for all languages: [SDK Integration](../mq9/SDK.md)
 
 ---
 
