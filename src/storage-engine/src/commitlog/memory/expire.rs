@@ -47,7 +47,6 @@ impl MemoryStorageEngine {
             if let Some(shard) = self.shards.get(&shard_info.shard_name) {
                 let _ = self.scan_and_delete_data_by_shard(&shard_info, &shard);
             }
-            // capacity-based eviction
             if let Some(shard) = self.shards.get(&shard_info.shard_name) {
                 if let Some(max_record_num) = shard_info.config.max_record_num {
                     let _ = self.evict_shard(&shard_info.shard_name, max_record_num, &shard);
@@ -70,7 +69,6 @@ impl MemoryStorageEngine {
             .commit_log_offset
             .get_earliest_offset(&shard_info.shard_name)?;
 
-        // Collect offsets to delete: records whose create_t is before retention window
         let mut offsets_to_delete: Vec<u64> = shard
             .data
             .iter()
@@ -102,21 +100,30 @@ impl MemoryStorageEngine {
             }
         }
 
-        // Remove empty tag index entries
         shard.tag_index.retain(|_, v| !v.is_empty());
 
-        // Advance earliest_offset past all deleted offsets
-        let new_earliest = offsets_to_delete
-            .last()
-            .map(|&o| o + 1)
-            .unwrap_or(earliest_offset);
+        let new_earliest = Self::contiguous_end(earliest_offset, &offsets_to_delete);
         if new_earliest > earliest_offset {
             self.commit_log_offset
                 .save_earliest_offset(&shard_info.shard_name, new_earliest)?;
-            self.cleanup_indexes_by_offset(shard, new_earliest);
+            self.cleanup_timestamp_index(shard, new_earliest);
         }
 
         Ok(())
+    }
+
+    // Only advance earliest_offset through a contiguous run from `from`.
+    // Skipping a gap would make records at intermediate offsets permanently inaccessible.
+    fn contiguous_end(from: u64, sorted_offsets: &[u64]) -> u64 {
+        let mut next = from;
+        for &o in sorted_offsets {
+            if o == next {
+                next += 1;
+            } else if o > next {
+                break;
+            }
+        }
+        next
     }
 
     pub(crate) fn evict_shard(
@@ -125,15 +132,13 @@ impl MemoryStorageEngine {
         max_record_num: u64,
         shard: &Arc<ShardState>,
     ) -> Result<(), StorageEngineError> {
-        if shard.data.len() as u64 <= max_record_num {
-            return Ok(());
-        }
-
-        if max_record_num == 0 {
+        if max_record_num == 0 || shard.data.len() as u64 <= max_record_num {
             return Ok(());
         }
 
         let offset = self.commit_log_offset.get_earliest_offset(shard_name)?;
+        // Evict evict_ratio of current size to avoid continuous eviction loops under
+        // sustained write load.
         let discard_num = (shard.data.len() as f64 * self.config.evict_ratio) as u64;
 
         for i in offset..(offset + discard_num) {
@@ -141,22 +146,26 @@ impl MemoryStorageEngine {
                 if let Some(key) = &record.metadata.key {
                     shard.key_index.remove(key);
                 }
+                if let Some(tags) = &record.metadata.tags {
+                    for tag in tags.iter() {
+                        if let Some(mut tag_offsets) = shard.tag_index.get_mut(tag) {
+                            tag_offsets.retain(|&o| o != i);
+                        }
+                    }
+                }
             }
         }
+
+        shard.tag_index.retain(|_, v| !v.is_empty());
 
         let new_earliest = offset + discard_num;
         self.commit_log_offset
             .save_earliest_offset(shard_name, new_earliest)?;
-        self.cleanup_indexes_by_offset(shard, new_earliest);
+        self.cleanup_timestamp_index(shard, new_earliest);
         Ok(())
     }
 
-    fn cleanup_indexes_by_offset(&self, shard: &Arc<ShardState>, earliest_offset: u64) {
-        for mut offsets in shard.tag_index.iter_mut() {
-            offsets.value_mut().retain(|&o| o >= earliest_offset);
-        }
-        shard.tag_index.retain(|_, v| !v.is_empty());
-        shard.key_index.retain(|_, &mut o| o >= earliest_offset);
+    fn cleanup_timestamp_index(&self, shard: &Arc<ShardState>, earliest_offset: u64) {
         shard
             .timestamp_index
             .retain(|_, &mut o| o >= earliest_offset);
