@@ -40,7 +40,7 @@ fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
             NatsBrokerError::CommonError("public mailbox requires a 'name' field".to_string())
         })?
     } else {
-        format!("email-{}-{}", unique_id(), unique_id())
+        format!("mq9-{}-{}", unique_id(), unique_id())
     };
 
     Ok(MQ9Email {

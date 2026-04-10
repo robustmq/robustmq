@@ -13,18 +13,18 @@ mq9 围绕八个具体的 Agent 通信模式设计，每个模式对应特定的
 ```bash
 # 编排者：创建私有回复邮箱（TTL 覆盖预期最长任务时间）
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl": 3600}'
-# 响应: {"mail_id": "m-7f3a1c9e2b"}
+# 响应: {"mail_id": "mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
 
 # 通过带外方式（如任务载荷）将 mail_id 传给子 Agent
 nats pub '$mq9.AI.MAILBOX.MSG.m-task-dispatch.normal' \
-  '{"task": "summarize /data/corpus", "reply_to": "m-7f3a1c9e2b"}'
+  '{"task": "summarize /data/corpus", "reply_to": "mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}'
 
 # 子 Agent：完成后存入结果
-nats pub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.normal' \
+nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.normal' \
   '{"status": "ok", "summary": "..."}'
 
 # 编排者：随时订阅——结果已存储在那里
-nats sub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.*'
+nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.*'
 ```
 
 **核心功能：** 私有邮箱、先存储后推送、异步结果取回。

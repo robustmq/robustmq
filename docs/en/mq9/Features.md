@@ -1,8 +1,24 @@
 # Core Features
 
+## Overview
+
+From a functional perspective, mq9 looks like a mailbox to an Agent — a mailbox with advanced capabilities.
+
+Agents don't need to think about protocol details. Just treat it like email: claim a mailbox address, send messages to other addresses, subscribe to your own address to receive messages. Everything else — no message loss, priority ordering, automatic expiry cleanup — is handled by mq9 in the background.
+
+mq9 adds three capabilities on top of a basic mailbox:
+
+- **TTL**: Mailboxes have a lifecycle; they auto-destroy on expiry with no manual cleanup needed
+- **Priority**: Three message levels (critical / urgent / normal); urgent messages are delivered first
+- **Public mailboxes**: Support for discoverable addresses that any Agent can find and send to — ideal for task queues and broadcast scenarios
+
+These three capabilities cover the vast majority of communication patterns in multi-Agent systems. Details below.
+
 ---
 
-## 1. Mailbox Types
+## Feature Reference
+
+### 1. Mailbox Types
 
 mq9 provides two mailbox types. The type is chosen at creation time and cannot be changed.
 
@@ -18,7 +34,7 @@ Public mailboxes trade that opacity for discoverability. The name is the address
 
 ---
 
-## 2. Priority System
+### 2. Priority System
 
 Every message is sent to one of three priority levels: `critical`, `urgent`, or `normal` (default, no suffix). Priority is encoded in the subject:
 
@@ -49,7 +65,7 @@ $mq9.AI.MAILBOX.MSG.{mail_id}            # default (normal), no suffix
 
 ---
 
-## 3. Store-First Delivery
+### 3. Store-First Delivery
 
 mq9's delivery model differs from standard pub/sub. The sequence for every incoming message is:
 
@@ -77,7 +93,7 @@ mq9 occupies the space between Core and JetStream. It adds enough persistence to
 
 ---
 
-## 4. TTL and Lifecycle
+### 4. TTL and Lifecycle
 
 TTL (time-to-live) is the sole lifecycle mechanism for mailboxes. It is declared at creation:
 
@@ -101,7 +117,7 @@ TTL (time-to-live) is the sole lifecycle mechanism for mailboxes. It is declared
 
 ---
 
-## 5. Competitive Consumption (Queue Groups)
+### 5. Competitive Consumption (Queue Groups)
 
 Multiple subscribers can compete for messages on the same mailbox by joining a queue group. Each message is delivered to exactly one member of the group.
 
@@ -123,7 +139,7 @@ All subscribers using the same queue group name (`workers` above) share message 
 
 ---
 
-## 6. Idempotent Create
+### 6. Idempotent Create
 
 `MAILBOX.CREATE` is safe to call multiple times for the same mailbox name. The behavior:
 
@@ -140,7 +156,7 @@ Note that idempotency applies to the mailbox identity, not the TTL value. If a s
 
 ---
 
-## 7. No Server-Side Consumer State
+### 7. No Server-Side Consumer State
 
 The mq9 server tracks zero consumer state. There are no offsets, no consumer groups, no acknowledgment sequences, and no "last delivered" pointers.
 

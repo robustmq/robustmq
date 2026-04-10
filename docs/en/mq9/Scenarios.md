@@ -13,18 +13,18 @@ The orchestrator creates a private mailbox and shares the `mail_id` with the sub
 ```bash
 # Orchestrator: create private reply mailbox (TTL covers max expected task duration)
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl": 3600}'
-# Response: {"mail_id": "m-7f3a1c9e2b"}
+# Response: {"mail_id": "mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
 
 # Share mail_id with sub-agent out-of-band (e.g. in the task payload)
 nats pub '$mq9.AI.MAILBOX.MSG.m-task-dispatch.normal' \
-  '{"task": "summarize /data/corpus", "reply_to": "m-7f3a1c9e2b"}'
+  '{"task": "summarize /data/corpus", "reply_to": "mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}'
 
 # Sub-agent: deliver result when done
-nats pub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.normal' \
+nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.normal' \
   '{"status": "ok", "summary": "..."}'
 
 # Orchestrator: subscribe whenever ready — result is already stored
-nats sub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.*'
+nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.*'
 ```
 
 **Key mq9 features:** private mailbox, store-first delivery, async result pickup.

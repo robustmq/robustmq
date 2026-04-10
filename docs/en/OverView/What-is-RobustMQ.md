@@ -56,25 +56,28 @@ Switch to JetStream mode when persistence is needed — unified storage layer ta
 
 ### AI Agent Communication
 
-The `$mq9.AI.API.*` subject space, built on the NATS protocol, provides native capabilities for Agent registration, discovery, invocation, and load balancing. No dependency on LangChain or external frameworks — any NATS client (Go/Rust/Python/Java) connects with zero learning overhead.
+mq9 is RobustMQ's fifth native protocol, purpose-built for AI Agents. Each Agent has a mailbox — messages are persisted on write and pushed to the recipient when they come online. Sender and receiver do not need to be online at the same time. Supports three priority levels (critical / urgent / normal), TTL-based auto-cleanup, and public mailbox discovery.
 
 ```
-Agent register  → PUB $mq9.AI.API.AGENT.REGISTER
-Agent discover  → PUB $mq9.AI.API.AGENT.DISCOVER
-Agent invoke    → PUB $mq9.AI.API.AGENT.INVOKE.{name}
-Load balancing  → NATS Queue Group, native support
+Create mailbox  → nats req  '$mq9.AI.MAILBOX.CREATE'                '{"ttl":3600}'
+Send message    → nats pub  '$mq9.AI.MAILBOX.MSG.{mail_id}'         '{...}'
+Urgent message  → nats pub  '$mq9.AI.MAILBOX.MSG.{mail_id}.urgent'  '{...}'
+Subscribe       → nats sub  '$mq9.AI.MAILBOX.MSG.{mail_id}.*'
+Discover public → nats req  '$mq9.AI.PUBLIC.LIST'                   ''
 ```
+
+Any NATS client connects directly. Also available: RobustMQ SDK (Go/Python/Rust/JavaScript/Java/C#) and the `langchain-mq9` toolkit.
 
 ---
 
 ## Core Features
 
+- 🤖 **mq9 — AI Agent communication**: Agent mailboxes, priority queuing, public discovery — async Agent-to-Agent messaging, no simultaneous online required
 - 🦀 **Rust-native**: No GC, stable and predictable memory footprint, no periodic spikes, minimal resource usage — consistent from edge devices to cloud clusters
 - 🗄️ **Unified storage layer**: All protocols share one storage engine — data written once, consumed by any protocol, no duplication
-- 🔌 **Native multi-protocol**: MQTT 3.1/3.1.1/5.0, Kafka, NATS, AMQP natively implemented — full protocol semantics, not emulated
+- 🔌 **Native multi-protocol**: MQTT 3.1/3.1.1/5.0, Kafka, NATS, AMQP, mq9 — natively implemented, full protocol semantics
 - 🏢 **Native multi-tenancy**: Unified across all protocols — full data isolation and independent permission management per tenant
 - 🌐 **Edge-to-cloud**: Single binary, zero dependencies, offline buffering with auto-sync — same runtime from edge gateways to cloud clusters
-- 🤖 **AI Agent communication**: NATS-based `$mq9.AI.API.*` extension — native Agent registration, discovery, invocation, and orchestration
 - ⚡ **Ultra-low-latency dispatch**: NATS pure in-memory routing — no disk writes, millisecond to sub-millisecond latency
 - 💾 **Multi-mode storage engine**: Memory / RocksDB / File, per-Topic configuration, automatic cold data tiering to S3
 - 🔄 **Shared subscription**: Break the "concurrency = partition count" limit — consumers scale elastically at any time
@@ -119,7 +122,7 @@ Phase 4 (planned)
 | Kafka protocol | 🚧 In development |
 | NATS protocol | 🔬 Demo validated, in development |
 | AMQP protocol | 🔬 Demo validated, in development |
-| $mq9.AI.API.* Agent communication | 🔬 Demo validated, in development |
+| mq9 — AI Agent mailbox | 🔬 Demo validated, in development |
 
 > **Notice**: The current version is still in early stage and not recommended for production use. Version 0.4.0 / 0.5.0 is targeted to reach MQTT production-ready status.
 

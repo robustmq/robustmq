@@ -1,10 +1,90 @@
-# Cluster Mode
+# Binary Deployment
 
-This guide covers deploying a three-node RobustMQ cluster for high availability.
+This guide covers running RobustMQ from a binary package, in both standalone mode (development/testing) and cluster mode (production).
+
+> No binary package available? You can [build one locally](../ContributionGuide/ContributingCode/Build-and-Package.md).
 
 ## Install
 
-See [Quick Install](../QuickGuide/Quick-Install.md). The installation package already includes cluster config templates:
+Use the one-line installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
+```
+
+See [Quick Install](../QuickGuide/Quick-Install.md) for more installation options.
+
+After installation, `robust-server`, `robust-ctl`, and `robust-bench` are available in your PATH.
+
+---
+
+## Standalone Mode
+
+Suitable for development and testing.
+
+### Start
+
+```bash
+robust-server start
+```
+
+Defaults to `config/server.toml`. You can also specify the config explicitly:
+
+```bash
+robust-server start config/server.toml
+```
+
+### Verify
+
+```bash
+# Cluster status
+robust-ctl cluster status
+
+# Cluster health
+robust-ctl cluster healthy
+
+# MQTT overview (connections, subscriptions, etc.)
+robust-ctl mqtt overview
+```
+
+`--server` defaults to `127.0.0.1:8080`. To target a different address:
+
+```bash
+robust-ctl cluster status --server 192.168.1.10:8080
+```
+
+**MQTT pub/sub test**
+
+```bash
+# Subscribe (terminal 1)
+mqttx sub -h 127.0.0.1 -p 1883 -t "test/topic"
+
+# Publish (terminal 2)
+mqttx pub -h 127.0.0.1 -p 1883 -t "test/topic" -m "Hello RobustMQ!"
+```
+
+If the subscriber receives the message, the service is running correctly. Web console: `http://localhost:3000`
+
+### Stop
+
+```bash
+robust-server stop
+```
+
+### Default Ports
+
+| Service | Port |
+|---------|------|
+| MQTT | 1883 |
+| HTTP API | 8083 |
+| Placement Center gRPC | 1228 |
+| Dashboard | 3000 |
+
+---
+
+## Cluster Mode
+
+Suitable for high-availability deployments. The installation package includes cluster config templates:
 
 ```
 config/cluster/
@@ -13,9 +93,7 @@ config/cluster/
 └── server-3.toml   # Node 3 (grpc: 1328, mqtt: 3883)
 ```
 
----
-
-## Option 1: Single-Machine Three-Node (Dev/Test)
+### Option 1: Single-Machine Three-Node (Dev/Test)
 
 All three config files default to `127.0.0.1`. Just start them directly:
 
@@ -26,9 +104,7 @@ robust-server start config/cluster/server-2.toml
 robust-server start config/cluster/server-3.toml
 ```
 
----
-
-## Option 2: Multi-Machine Cluster (Production)
+### Option 2: Multi-Machine Cluster (Production)
 
 Assuming three machines with IPs `10.0.0.1`, `10.0.0.2`, `10.0.0.3` — after installing on each, update `broker_ip` and `meta_addrs` in the corresponding config file:
 
@@ -59,11 +135,7 @@ robust-server start config/cluster/server-2.toml
 robust-server start config/cluster/server-3.toml
 ```
 
----
-
-## Verify
-
-**Check cluster status**
+### Verify
 
 ```bash
 # Cluster status (connect to any node)
@@ -88,17 +160,13 @@ mqttx pub -h 10.0.0.2 -p 1883 -t "test/cluster" -m "Hello Cluster!"
 
 If node 1 receives the message, the cluster is running correctly.
 
----
-
-## Stop
+### Stop
 
 ```bash
 robust-server stop
 ```
 
----
-
-## Default Ports (per node)
+### Default Ports (per node)
 
 | | Node 1 | Node 2 | Node 3 |
 |-|--------|--------|--------|

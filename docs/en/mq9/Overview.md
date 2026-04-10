@@ -6,31 +6,47 @@ mq9 is RobustMQ's protocol layer designed specifically for AI Agent communicatio
 
 ![img](../../images/mq9.jpg)
 
-Today, when Agent A sends a message to Agent B and B is offline, the message is gone. There is no standard mechanism to guarantee "the message I sent will be there when the recipient comes back online." Every team building multi-Agent systems works around this with their own temporary solution — Redis pub/sub, database polling, homegrown task queues. They work, but they're all workarounds.
+### What problem it solves
 
-mq9 solves this directly: **send a message, the recipient gets it when they come online.**
+In multi-Agent systems, Agents are not servers — they are task-driven, they start, execute, and die, coming online and offline at any time. When Agent A sends a message to Agent B and B is offline, the message is gone. Every team building multi-Agent systems works around this with their own temporary solution:
 
-Just like people have email — you send a message, the recipient reads it when they're available, and the message doesn't disappear. Agents need the same mechanism. mq9 is the infrastructure layer built for exactly this scenario.
+- **Redis pub/sub**: No persistence — messages are lost if the recipient is offline
+- **Kafka**: Topics require advance creation and maintenance; not designed for throwaway Agents
+- **Homegrown queues**: Every team rebuilds the same thing; Agent implementations are incompatible across teams
+
+These approaches work, but they're all workarounds — **offline delivery is treated as a boundary condition handled manually, not a guarantee provided by the infrastructure.**
+
+mq9 solves it directly: **send a message, the recipient gets it when they come online.** Just like email — you send it, the recipient reads it whenever they're available, and the message doesn't disappear.
+
+A system today might have dozens of Agents; tomorrow it might have millions. mq9 is designed for that scale from the start: mailboxes created on demand, TTL auto-destruction, horizontally scalable Broker. From the first Agent to millions — the same API, the same operational model.
+
+### Current capabilities
+
+Already available: mailbox lifecycle (TTL auto-destruction), three-tier priority messages (critical / urgent / normal), store-first delivery, competing consumers, public mailbox discovery, Python SDK, LangChain/LangGraph toolkit, and MCP Server.
+
+### Future direction
+
+The mailbox solves "messages get delivered." But as Agent networks mature, more is needed: semantic discovery (Agents describe needs rather than specifying addresses), intent routing (messages automatically find the best recipient), policy interception (the transport layer understands semantics and enforces access control), and context awareness (conversation history travels with messages, reducing repeated token transmission).
+
+These four directions are mq9's evolution roadmap — see [Roadmap](./Roadmap.md). The thinking behind them: [What should a messaging system look like in the AI era](../Blogs/82.md).
 
 ---
 
 ## Positioning
 
-mq9 is not a general-purpose message queue. It does not compete with or replace MQTT or Kafka. It is designed specifically for **AI Agent async communication**:
-
-- Agents are ephemeral — they come and go with tasks, may only live for seconds, and cannot be assumed to be online
-- Agent communication topologies are dynamic — publishers don't know who's listening, consumers don't know where messages come from
-- Agent resources need lightweight lifecycle management — create on demand, auto-destroy on expiry, no manual cleanup
-
-HTTP and A2A protocols solve synchronous calls — the caller waits, the recipient must be online now. mq9 solves async communication — send it, the recipient handles it whenever they're online. The two don't overlap and don't compete.
+mq9 is not a general-purpose message queue. It does not compete with or replace MQTT or Kafka. It is designed specifically for **AI Agent async communication**. HTTP and A2A protocols solve synchronous calls — the caller waits, the recipient must be online. mq9 solves async communication — send it, the recipient handles it whenever they're online. The two don't overlap and don't compete.
 
 ### Position within RobustMQ
 
-mq9 is RobustMQ's fifth native protocol, sharing the same unified storage architecture as MQTT, Kafka, NATS, and AMQP. Deploy one RobustMQ instance — all five protocols are ready. IoT devices send data over MQTT, analytics systems consume over Kafka, Agents collaborate over mq9 — one broker, one storage layer, no bridging, no data copying.
+mq9 is RobustMQ's fifth native protocol, sharing the same unified storage architecture as MQTT, Kafka, NATS, and AMQP. Deploy one RobustMQ instance — all capabilities are ready. IoT devices send data over MQTT, analytics systems consume over Kafka, Agents collaborate over mq9 — one broker, one storage layer, no bridging, no data copying.
 
 ### Position within the NATS ecosystem
 
-mq9 sits between Core pub/sub and JetStream. Core NATS is too lightweight — no persistence, offline messages are lost, it can't implement a mailbox. JetStream is too heavy — streams, consumers, offsets, replay, a full Kafka-equivalent set of semantics that you don't need just to send a message between Agents. mq9 adds persistence, priority, and TTL auto-management on top of pub/sub, without introducing streams, consumer groups, or offsets.
+mq9 is built on top of the NATS protocol, but NATS is only the transport layer — the communication protocol between client and Broker, just like HTTP is the transport protocol for the Web. mq9's Broker is implemented by RobustMQ entirely in Rust; storage, priority scheduling, TTL management, and store-first delivery semantics are all RobustMQ's own capabilities, with no relation to NATS Server.
+
+The choice of NATS is pragmatic: NATS has official and community clients covering 40+ languages; Python, Go, JavaScript, and Rust — the most common languages in AI — all have mature implementations. mq9 is ready out of the box for developers in all these languages from day one, with no need to wait for SDK coverage. NATS pub/sub and request/reply primitives also happen to cover all the communication patterns mq9 needs.
+
+In semantic terms, mq9 sits between NATS Core and JetStream. Core NATS is too lightweight — no persistence, messages lost offline. JetStream is too heavy — streams, consumers, offsets, ACK — unnecessary machinery just to send a message between Agents. mq9 adds persistence, priority, and TTL auto-management on top of pub/sub, without introducing streams, consumer groups, or offsets.
 
 ---
 
@@ -38,101 +54,61 @@ mq9 sits between Core pub/sub and JetStream. Core NATS is too lightweight — no
 
 mq9 has a single core abstraction: **Mailbox (MAILBOX)**.
 
-A mailbox is an Agent's communication address. Ephemeral — TTL drives the lifecycle, auto-destroyed on expiry. An Agent creates a mailbox for each task, gets a mail_id, and that's its communication address for that task. When the task ends, the mailbox auto-expires.
+Why a mailbox? Because mq9 treats Agents like people. The most natural async communication between people is email — you write it, send it, the recipient reads it whenever they're available; you don't have to wait, and the message doesn't disappear. Agent communication is fundamentally the same scenario: send it, the recipient gets it when they come online. Mailbox is the most intuitive mapping.
 
-**mail_id unguessability is the security boundary.** mail_id is a system-generated unguessable string. Knowing the mail_id lets you send messages and subscribe. Without it, you can't interact with the mailbox. No token, no ACL.
+Following that analogy:
 
-Mailboxes come in two kinds:
+- **Address**: Every mailbox has a `mail_id` — its communication address. Private mailbox addresses are system-generated and unguessable, like a personal inbox only you know; public mailbox addresses are user-defined (e.g. `task.queue`), like a public department inbox that anyone can find and deliver to.
+
+- **Letters**: Every message sent to a mailbox has a priority — normal (default), urgent, or critical. Priority is encoded in the delivery address, not the message content. Messages are delivered in priority order: critical first, then urgent, then normal; FIFO within the same priority.
+
+- **Offline delivery**: When you're not around, letters still arrive and wait for you. mq9's store-first semantics work exactly this way — messages are written to storage first; when a subscriber comes online, all non-expired messages are pushed in full, in order by priority; nothing is lost due to being offline.
+
+- **Mailbox lifetime**: Mailboxes declare a TTL at creation; they auto-destroy on expiry, taking all pending messages with them. No manual cleanup needed — forget about it when the task ends, the system handles it.
+
+- **Security boundary**: An unguessable `mail_id` is the security boundary. Knowing the address lets you send and receive; without it, there's no way to interact. No token, no ACL — the address itself is the credential.
+
+**Two kinds of mailboxes:**
 
 | | Private mailbox | Public mailbox |
 |---|---|---|
-| mail_id | System-generated, unguessable | User-defined, meaningful name |
-| Discoverability | Private — only Agents who know the mail_id can find it | Auto-registered to PUBLIC.LIST, discoverable by anyone |
+| `mail_id` | System-generated, unguessable | User-defined, meaningful name |
+| Discoverability | Private — only Agents who know the `mail_id` can find it | Auto-registered to `PUBLIC.LIST`, discoverable by anyone |
 | Use cases | Point-to-point messaging, task result delivery | Task queues, public channels, capability announcements |
-
-A public mailbox's mail_id is its address — choose a meaningful name like `task.queue` or `analytics.result` rather than a UUID, making it easier for other Agents to discover and understand.
 
 ---
 
-## Three Operations
-
-mq9's entire protocol is three operations:
+## Operations at a Glance
 
 | Operation | Subject | Description |
 |-----------|---------|-------------|
-| Create mailbox | `$mq9.AI.MAILBOX.CREATE` | Create a private or public mailbox |
-| Send message (default) | `$mq9.AI.MAILBOX.{mail_id}` | Default priority (normal), no suffix |
-| Send message (urgent) | `$mq9.AI.MAILBOX.{mail_id}.urgent` | Urgent priority |
-| Send message (critical) | `$mq9.AI.MAILBOX.{mail_id}.critical` | Highest priority |
-| Subscribe (non-default) | `$mq9.AI.MAILBOX.{mail_id}.*` | Receive urgent and critical messages |
-
-No QUERY — every subscription delivers all non-expired messages in full; subscribing is querying. No DELETE — TTL handles cleanup automatically.
+| Create mailbox | `$mq9.AI.MAILBOX.CREATE` | Create a private or public mailbox; idempotent |
+| Send (normal) | `$mq9.AI.MAILBOX.MSG.{mail_id}` | Default priority, no suffix |
+| Send (urgent) | `$mq9.AI.MAILBOX.MSG.{mail_id}.urgent` | Urgent priority |
+| Send (critical) | `$mq9.AI.MAILBOX.MSG.{mail_id}.critical` | Highest priority |
+| Subscribe | `$mq9.AI.MAILBOX.MSG.{mail_id}.*` | Subscribe to all priorities |
+| List messages | `$mq9.AI.MAILBOX.LIST.{mail_id}` | Return message metadata (non-consuming) |
+| Delete message | `$mq9.AI.MAILBOX.DELETE.{mail_id}.{msg_id}` | Delete a specific message |
+| Discover public mailboxes | `$mq9.AI.PUBLIC.LIST` | System-managed; subscribing triggers a full push |
 
 **Three priority levels:**
 
-| Level | Semantics | Typical use |
-|-------|-----------|-------------|
-| critical | Highest priority, processed first | Abort signals, emergency commands, security events |
-| urgent | Urgent | Task interrupts, time-sensitive instructions |
-| normal (default, no suffix) | Routine communication | Task dispatch, result delivery, approval requests |
-
----
-
-## Public Mailbox Discovery
-
-`$mq9.AI.PUBLIC.LIST` is a system-managed address maintained by the broker. It does not accept user writes and never expires.
-
-Public mailboxes (`public: true`) are automatically registered on creation and removed when their TTL expires. No manual registry maintenance needed.
-
-```bash
-nats sub '$mq9.AI.PUBLIC.LIST'
-```
-
-Subscribing delivers all current public mailboxes immediately, then streams additions and removals in real time. No registry service needed — PUBLIC.LIST is the directory.
-
----
-
-## Why Existing Solutions Fall Short
-
-| Solution | Core Problem |
-|----------|-------------|
-| HTTP | Synchronous — the recipient must be online. Agents go offline constantly; this assumption breaks constantly. |
-| Redis pub/sub | No persistence. Offline recipients don't get the message. |
-| Kafka | Designed for high-volume data pipelines. Topic creation requires admin operations. Agents are throwaway; Kafka assumes long-lived, carefully maintained resources. |
-| RabbitMQ | Flexible AMQP model, but performance ceiling and single-node architecture are hard limitations. |
-| NATS Core | No persistence. Offline messages are lost. |
-| JetStream | Stream, consumer, offset concepts are too heavy for mailbox semantics. |
-| Homegrown queues | Every team rebuilds the same wheel; implementations are incompatible across teams. |
-
-All of these share the same underlying flaw: **they assume the recipient is online, or require manual handling of the offline case.** Agents going offline frequently is a problem all existing solutions require you to work around — not a problem they solve.
-
----
-
-## Eight Core Scenarios
-
-| Scenario | Key advantage |
-|----------|---------------|
-| Sub-Agent reports task result to orchestrator | Orchestrator doesn't block; messages survive offline periods |
-| Multiple Workers compete for a task queue | Public mailbox + queue group; competing consumers need zero config |
-| Orchestrator tracks all sub-Agent states | Workers report to public mailbox; TTL expiry auto-signals death |
-| Agent broadcasts an anomaly alert | Public mailbox collects alerts; offline handlers receive them after reconnecting |
-| Cloud sends commands to offline edge Agent | Native priority; messages survive network outages; processed by priority on reconnect |
-| Human-in-the-loop approval workflow | Humans and Agents use the same protocol; no separate approval service needed |
-| Agent A asks Agent B a question, B may be offline | B offline doesn't lose the request; A doesn't block; async request-reply |
-| Agent registers capabilities, others discover it | Public mailbox + PUBLIC.LIST; decentralized, no registry service |
+| Level | Typical use |
+|-------|-------------|
+| `critical` (highest) | Abort signals, emergency commands, security events |
+| `urgent` | Task interrupts, time-sensitive instructions |
+| `normal` (default, no suffix) | Task dispatch, result delivery, routine communication |
 
 ---
 
 ## Design Principles
 
-**No new SDK required**: mq9 is built on the NATS protocol. Any NATS client — Go, Python, Rust, Java, JavaScript — is already an mq9 client. No new dependencies. The `$mq9.AI.*` namespace makes the protocol self-documenting — reading a subject tells you its full semantics.
+**Store first, then push**: Messages are written to the storage layer on arrival. Online subscribers take the real-time path; offline subscribers wait, and receive all non-expired messages in full on the next subscription. Agents that reconnect never miss messages.
 
-**mail_id is not tied to Agent identity**: mq9 recognizes mail_ids, not agent_ids. A mail_id is a communication channel. One Agent can hold multiple mail_ids for different tasks; they expire and clean up automatically. This is channel-level design, not identity-level.
-
-**Store first, then push**: Messages are written to storage first, then pushed to online subscribers. Online subscribers take the real-time path; offline messages wait in storage and are delivered in full on the next subscription.
+**mail_id is not tied to Agent identity**: mq9 recognizes `mail_id`, not `agent_id`. One Agent can create different mailboxes for different tasks, leave them alone when done, and TTL handles cleanup automatically. Channel-level design, not identity-level.
 
 **No new concepts invented**: Subscriptions reuse NATS native sub semantics. Competing consumers reuse NATS native queue groups. Reply-to reuses NATS native mechanisms.
 
-**Storage chosen per message**: Running on RobustMQ's unified storage layer with three tiers — Memory (coordination signals, disposable), RocksDB (ephemeral persistence, the mailbox default, TTL cleanup), File Segment (long-term, audit logs). Not every message needs three replicas; not every message can afford to be lost.
+**Broker is fully self-developed**: NATS is only the transport protocol. Storage, priority scheduling, TTL management, and store-first delivery semantics are all implemented by RobustMQ in Rust, running on RobustMQ's unified storage layer.
 
-**Single node is enough, scale when needed**: A single instance covers most Agent communication workloads. One command to start, no cluster required. When high availability is needed, switch to cluster mode — the API is unchanged, Agents notice nothing.
+**Single node is enough, scale when needed**: A single instance covers most workloads, started with one command. When high availability is needed, switch to cluster mode — the API is unchanged, Agents notice nothing.
