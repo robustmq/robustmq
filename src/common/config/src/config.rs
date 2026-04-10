@@ -38,11 +38,12 @@ use super::default::{
     default_runtime_worker_threads, default_schema_echo_log, default_schema_enable,
     default_schema_failed_operation, default_schema_log_level, default_schema_strategy,
     default_session_expiry_interval, default_slow_subscribe_delay_type,
-    default_slow_subscribe_record_time, default_storage_io_thread_num,
-    default_storage_max_segment_size, default_storage_offset_enable_cache,
-    default_storage_tcp_port, default_system_monitor_cpu_watermark,
-    default_system_monitor_memory_watermark, default_system_monitor_topic_interval_ms,
-    default_tls_cert, default_tls_key, default_topic_alias_max,
+    default_slow_subscribe_record_time, default_storage_expire_scan_task_num,
+    default_storage_io_thread_num, default_storage_max_segment_size,
+    default_storage_offset_enable_cache, default_storage_tcp_port,
+    default_system_monitor_cpu_watermark, default_system_monitor_memory_watermark,
+    default_system_monitor_topic_interval_ms, default_tls_cert, default_tls_key,
+    default_topic_alias_max,
 };
 use crate::common::Log;
 use crate::common::Prometheus;
@@ -721,6 +722,8 @@ pub struct StorageRuntime {
     pub data_path: Vec<String>,
     #[serde(default = "default_storage_offset_enable_cache")]
     pub offset_enable_cache: bool,
+    #[serde(default = "default_storage_expire_scan_task_num")]
+    pub expire_scan_task_num: usize,
     #[serde(default = "default_network")]
     pub network: Network,
 }

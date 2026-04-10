@@ -40,7 +40,7 @@ pub async fn create_shard(
     }
 
     info!(
-        "Creating shard: name={}, replica_num={}, max_segment_size={},desc={}",
+        "Creating shard: name={}, replica_num={}, max_segment_size={:?},desc={}",
         shard_name, shard_config.replica_num, shard_config.max_segment_size, desc
     );
 

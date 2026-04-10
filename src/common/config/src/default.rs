@@ -207,6 +207,7 @@ pub fn default_engine_runtime() -> StorageRuntime {
         data_path: vec![],
         io_thread_num: 8,
         offset_enable_cache: true,
+        expire_scan_task_num: 16,
         network: default_network(),
     }
 }
@@ -382,6 +383,9 @@ pub fn default_storage_io_thread_num() -> u32 {
 }
 pub fn default_storage_offset_enable_cache() -> bool {
     true
+}
+pub fn default_storage_expire_scan_task_num() -> usize {
+    16
 }
 
 // ClusterLimit

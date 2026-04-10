@@ -78,7 +78,7 @@ mod tests {
         assert_eq!(shard_list.data.len(), 1);
         let shard = &shard_list.data[0];
         assert_eq!(shard.shard_info.config.replica_num, 1);
-        assert_eq!(shard.shard_info.config.max_segment_size, 1073741824);
+        assert_eq!(shard.shard_info.config.max_segment_size, Some(1073741824));
         assert_eq!(shard.shard_info.config.retention_sec, 86400);
         assert_eq!(
             shard.shard_info.config.storage_type,

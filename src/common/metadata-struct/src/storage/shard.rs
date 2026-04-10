@@ -67,7 +67,8 @@ pub enum EngineShardStatus {
 pub struct EngineShardConfig {
     pub replica_num: u32,
     pub storage_type: StorageType,
-    pub max_segment_size: u64,
+    pub max_segment_size: Option<u64>,
+    pub max_record_num: Option<u64>,
     pub retention_sec: u64,
 }
 
@@ -81,8 +82,9 @@ impl Default for EngineShardConfig {
     fn default() -> Self {
         Self {
             replica_num: 1,
-            max_segment_size: DEFAULT_MAX_SEGMENT_SIZE,
+            max_segment_size: Some(DEFAULT_MAX_SEGMENT_SIZE),
             retention_sec: DEFAULT_RETENTION_SEC,
+            max_record_num: None,
             storage_type: StorageType::EngineMemory,
         }
     }

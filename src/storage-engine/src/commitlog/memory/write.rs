@@ -147,8 +147,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_try_remove_old_data() {
-        let mut engine = test_build_memory_engine();
-        engine.config.max_records_per_shard = 10;
+        let engine = test_build_memory_engine();
         let shard_name = unique_id();
         let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
@@ -178,7 +177,7 @@ mod tests {
 
         // Trigger expiry explicitly (normally done by the background task)
         let shard_ref = engine.shards.get(&shard_name).unwrap().clone();
-        engine.evict_shard(&shard_name, &shard_ref).unwrap();
+        engine.evict_shard(&shard_name, 10, &shard_ref).unwrap();
 
         let shard = engine.shards.get(&shard_name).unwrap();
         assert_eq!(shard.data.len(), 9);

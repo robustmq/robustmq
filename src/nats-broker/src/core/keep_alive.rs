@@ -83,6 +83,13 @@ impl NatsClientKeepAlive {
         self.connection_manager
             .connections
             .iter()
+            .filter(|e| {
+                e.value()
+                    .protocol
+                    .as_ref()
+                    .map(|p| p.is_nats())
+                    .unwrap_or(false)
+            })
             .map(|e| *e.key())
             .collect()
     }
