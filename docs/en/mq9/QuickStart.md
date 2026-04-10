@@ -37,7 +37,7 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":60}'
 Response:
 
 ```json
-{"mail_id":"m-7f3a1c9e2b"}
+{"mail_id":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
 ```
 
 The `mail_id` is the only access credential. Anyone who knows it can send messages to or subscribe from this mailbox. Keep it private for private communication.
@@ -55,17 +55,17 @@ $mq9.AI.MAILBOX.MSG.{mail_id}.{priority}   # for urgent or critical
 $mq9.AI.MAILBOX.MSG.{mail_id}              # for normal (default, no suffix)
 ```
 
-Replace `m-7f3a1c9e2b` with the `mail_id` from the previous step:
+Replace `mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag` with the `mail_id` from the previous step:
 
 ```bash
 # Critical — highest priority, processed first; use for abort signals, emergency commands, security events
-nats pub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.critical' '{"type":"abort","task_id":"t-001"}'
+nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.critical' '{"type":"abort","task_id":"t-001"}'
 
 # Urgent — use for task interrupts, time-sensitive instructions
-nats pub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.urgent'   '{"type":"interrupt","task_id":"t-002"}'
+nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.urgent'   '{"type":"interrupt","task_id":"t-002"}'
 
 # Normal (default, no suffix) — routine communication; use for task dispatch and result delivery
-nats pub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b' '{"type":"task","payload":"process dataset A"}'
+nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag' '{"type":"task","payload":"process dataset A"}'
 ```
 
 Sending is fire-and-forget (`nats pub`). The server writes each message to storage immediately. The sender does not wait for the subscriber to be online.
@@ -80,7 +80,7 @@ Subscribe to receive messages:
 
 ```bash
 # Subscribe to all priorities (critical, urgent, and normal)
-nats sub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.*'
+nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.*'
 ```
 
 All messages sent above are pushed immediately upon subscribing — regardless of whether the subscriber was online when they were sent. This is mq9's **store-first semantics**: every subscription begins by delivering all non-expired stored messages in priority order (critical before urgent before normal, FIFO within the same level), then switches to real-time delivery for new messages.
@@ -90,8 +90,8 @@ This means there is no difference between subscribing before or after messages a
 To subscribe to a single priority level only:
 
 ```bash
-nats sub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.urgent'
-nats sub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.critical'
+nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.urgent'
+nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.critical'
 ```
 
 ---
@@ -101,7 +101,7 @@ nats sub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.critical'
 To inspect what messages are currently stored in a mailbox without consuming them, send a request to the LIST subject:
 
 ```bash
-nats req '$mq9.AI.MAILBOX.LIST.m-7f3a1c9e2b' '{}'
+nats req '$mq9.AI.MAILBOX.LIST.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag' '{}'
 ```
 
 Response:
@@ -125,7 +125,7 @@ The response returns `msg_id`, `priority`, and `ts` (Unix timestamp) for each st
 To remove a specific message from storage before its mailbox TTL expires:
 
 ```bash
-nats req '$mq9.AI.MAILBOX.DELETE.m-7f3a1c9e2b.msg-002' '{}'
+nats req '$mq9.AI.MAILBOX.DELETE.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.msg-002' '{}'
 ```
 
 This is useful in competitive consumption workflows where a worker wants to explicitly acknowledge completion by removing the task message. The subject pattern is:

@@ -5,7 +5,7 @@ const items = [
         items: [
             { text: "什么是 RobustMQ", link: "/zh/OverView/What-is-RobustMQ" },
             { text: "为什么有 RobustMQ", link: "/zh/OverView/Why-RobustMQ" },
-            { text: "我们在路上", link: "/zh/OverView/TechnicalConcept" },
+            { text: "RobustMQ 遵循的哲学", link: "/zh/Blogs/83" },
             {
                 text: "和主流MQ的对比",
                 collapsed: true,
@@ -28,7 +28,7 @@ const items = [
                     { text: "Good First Issue", link: "/zh/OverView/Good-First-Issue" },
                 ],
             },
-            { text: "给我们签个名吧", link: "/zh/OverView/SignYourName" },
+            { text: "还在路上，给我们签个名吧", link: "/zh/OverView/SignYourName" },
         ],
     },
     {
@@ -36,18 +36,16 @@ const items = [
         collapsed: true,
         items: [
             { text: "快速安装", link: "/zh/QuickGuide/Quick-Install" },
-            { text: "公共Server", link: "/zh/QuickGuide/PublicMqttServer" },
-            { text: "体验 RobustMQ MQTT", link: "/zh/QuickGuide/Experience-MQTT" },
-            { text: "SDK 接入", link: "/zh/QuickGuide/SDK-Integration" },
+            { text: "体验 MQTT", link: "/zh/QuickGuide/Experience-MQTT" },
+            { text: "体验 mq9", link: "/zh/QuickGuide/Experience-MQ9" },
+            { text: "公共 Server", link: "/zh/QuickGuide/PublicMqttServer" },
         ],
     },
     {
         text: "安装部署",
         collapsed: true,
         items: [
-            { text: "编译打包", link: "/zh/QuickGuide/Build-and-Package" },
-            { text: "二进制运行[单机]", link: "/zh/InstallationDeployment/Single-Machine-Cluster" },
-            { text: "二进制运行[集群]", link: "/zh/InstallationDeployment/Multi-Node-Cluster" },
+            { text: "二进制运行", link: "/zh/InstallationDeployment/Binary-Deployment" },
             { text: "Docker 模式", link: "/zh/InstallationDeployment/Docker-Deployment" },
             { text: "K8S 模式", link: "/zh/InstallationDeployment/Kubernetes-Operator" },
         ],
@@ -151,14 +149,12 @@ const items = [
     collapsed: true,
     items: [
       { text: "概览", link: "/zh/mq9/Overview" },
-      { text: "协议设计", link: "/zh/mq9/Protocol" },
-      { text: "快速开始", link: "/zh/mq9/QuickStart" },
       { text: "核心功能", link: "/zh/mq9/Features" },
+      { text: "应用场景", link: "/zh/mq9/Scenarios" },
+      { text: "快速开始", link: "/zh/mq9/QuickStart" },
       { text: "SDK 接入", link: "/zh/mq9/SDK" },
       { text: "LangChain 集成", link: "/zh/mq9/LangChain" },
-      { text: "应用场景", link: "/zh/mq9/Scenarios" },
       { text: "常见问题", link: "/zh/mq9/FAQ" },
-      { text: "NATS 客户端接入", link: "/zh/mq9/NatsClient" },
       { text: "发展规划", link: "/zh/mq9/Roadmap" },
     ],
   },
@@ -330,6 +326,10 @@ const items = [
           {
             text: "Pprof 使用指南",
             link: "/zh/ContributionGuide/ContributingCode/Pprof-Usage",
+          },
+          {
+            text: "编译打包",
+            link: "/zh/ContributionGuide/ContributingCode/Build-and-Package",
           },
         ],
       },

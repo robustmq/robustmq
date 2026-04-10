@@ -5,7 +5,7 @@ const items = [
         items: [
             { text: "What is RobustMQ", link: "/en/OverView/What-is-RobustMQ" },
             { text: "Why RobustMQ", link: "/en/OverView/Why-RobustMQ" },
-            { text: "We're on the Way", link: "/en/OverView/TechnicalConcept" },
+            { text: "The Philosophy Behind RobustMQ", link: "/en/Blogs/83" },
             {
                 text: "MQ Comparison",
                 collapsed: true,
@@ -28,7 +28,7 @@ const items = [
                     { text: "Good First Issue", link: "/en/OverView/Good-First-Issue" },
                 ],
             },
-            { text: "Sign Your Name", link: "/en/OverView/SignYourName" },
+            { text: "Still on the Way — Sign Your Name", link: "/en/OverView/SignYourName" },
         ],
     },
     {
@@ -36,20 +36,18 @@ const items = [
         collapsed: true,
         items: [
             { text: "Quick Install", link: "/en/QuickGuide/Quick-Install" },
+            { text: "Experience MQTT", link: "/en/QuickGuide/Experience-MQTT" },
+            { text: "Experience mq9", link: "/en/QuickGuide/Experience-MQ9" },
             { text: "Public Server", link: "/en/QuickGuide/PublicMqttServer" },
-            { text: "Experience RobustMQ MQTT", link: "/en/QuickGuide/Experience-MQTT" },
-            { text: "SDK Integration", link: "/en/QuickGuide/SDK-Integration" },
         ],
     },
     {
         text: "Install and Deployment",
         collapsed: true,
         items: [
-            { text: "Build && Package", link: "/en/QuickGuide/Build-and-Package" },
-            { text: "StandaloneMode", link: "/en/InstallationDeployment/Single-Machine-Cluster" },
-            { text: "ClusterMode", link: "/en/InstallationDeployment/Multi-Node-Cluster" },
-            { text: "DockerMode", link: "/en/InstallationDeployment/Docker-Deployment" },
-            { text: "K8SMode", link: "/en/InstallationDeployment/Kubernetes-Operator" },
+            { text: "Binary Deployment", link: "/en/InstallationDeployment/Binary-Deployment" },
+            { text: "Docker Mode", link: "/en/InstallationDeployment/Docker-Deployment" },
+            { text: "K8S Mode", link: "/en/InstallationDeployment/Kubernetes-Operator" },
         ],
     },
     {
@@ -151,14 +149,12 @@ const items = [
     collapsed: true,
     items: [
       { text: "Overview", link: "/en/mq9/Overview" },
-      { text: "Protocol", link: "/en/mq9/Protocol" },
-      { text: "Quick Start", link: "/en/mq9/QuickStart" },
       { text: "Features", link: "/en/mq9/Features" },
+      { text: "Use Cases", link: "/en/mq9/Scenarios" },
+      { text: "Quick Start", link: "/en/mq9/QuickStart" },
       { text: "SDK Integration", link: "/en/mq9/SDK" },
       { text: "LangChain Integration", link: "/en/mq9/LangChain" },
-      { text: "Use Cases", link: "/en/mq9/Scenarios" },
       { text: "FAQ", link: "/en/mq9/FAQ" },
-      { text: "NATS Client Usage", link: "/en/mq9/NatsClient" },
       { text: "Roadmap", link: "/en/mq9/Roadmap" },
     ],
   },
@@ -320,6 +316,10 @@ const items = [
           {
             text: "Pprof Usage",
             link: "/en/ContributionGuide/ContributingCode/Pprof-Usage",
+          },
+          {
+            text: "Build and Package",
+            link: "/en/ContributionGuide/ContributingCode/Build-and-Package",
           },
         ],
       },

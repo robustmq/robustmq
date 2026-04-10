@@ -37,7 +37,7 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":60}'
 响应：
 
 ```json
-{"mail_id":"m-7f3a1c9e2b"}
+{"mail_id":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
 ```
 
 `mail_id` 是唯一的访问凭证。任何知道它的人都能向这个邮箱发消息或订阅。私有通信场景下请妥善保管。
@@ -55,17 +55,17 @@ $mq9.AI.MAILBOX.MSG.{mail_id}.{priority}   # urgent 或 critical
 $mq9.AI.MAILBOX.MSG.{mail_id}              # 默认（normal），无后缀
 ```
 
-将 `m-7f3a1c9e2b` 替换为上一步拿到的 `mail_id`：
+将 `mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag` 替换为上一步拿到的 `mail_id`：
 
 ```bash
 # 最高优先级——立即处理；适用于中止信号、紧急指令、安全事件
-nats pub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.critical' '{"type":"abort","task_id":"t-001"}'
+nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.critical' '{"type":"abort","task_id":"t-001"}'
 
 # 紧急——适用于任务中断、时效性指令
-nats pub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.urgent'   '{"type":"interrupt","task_id":"t-002"}'
+nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.urgent'   '{"type":"interrupt","task_id":"t-002"}'
 
 # 默认优先级（normal）——常规通信；适用于任务分发、结果返回
-nats pub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b' '{"type":"task","payload":"process dataset A"}'
+nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag' '{"type":"task","payload":"process dataset A"}'
 ```
 
 发送是即发即忘（`nats pub`）。服务端立即将每条消息写入存储，发送方无需等待订阅者在线。
@@ -80,7 +80,7 @@ nats pub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b' '{"type":"task","payload":"process d
 
 ```bash
 # 订阅所有优先级（critical、urgent、normal）
-nats sub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.*'
+nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.*'
 ```
 
 上面发送的消息会在订阅后立即推送——无论订阅者发送时是否在线。这是 mq9 的**先存储后推送语义**：每次订阅都会先按优先级顺序（critical → urgent → normal，同级 FIFO）推送所有未过期的存储消息，然后切换到实时推送新消息。
@@ -90,8 +90,8 @@ nats sub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.*'
 只订阅某一优先级：
 
 ```bash
-nats sub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.urgent'
-nats sub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.critical'
+nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.urgent'
+nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.critical'
 ```
 
 ---
@@ -101,7 +101,7 @@ nats sub '$mq9.AI.MAILBOX.MSG.m-7f3a1c9e2b.critical'
 不消费消息，只查看邮箱中当前存储的消息——向 LIST subject 发送请求：
 
 ```bash
-nats req '$mq9.AI.MAILBOX.LIST.m-7f3a1c9e2b' '{}'
+nats req '$mq9.AI.MAILBOX.LIST.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag' '{}'
 ```
 
 响应：
@@ -125,7 +125,7 @@ nats req '$mq9.AI.MAILBOX.LIST.m-7f3a1c9e2b' '{}'
 在邮箱 TTL 到期前删除某条特定消息：
 
 ```bash
-nats req '$mq9.AI.MAILBOX.DELETE.m-7f3a1c9e2b.msg-002' '{}'
+nats req '$mq9.AI.MAILBOX.DELETE.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.msg-002' '{}'
 ```
 
 竞争消费场景下，Worker 完成任务后可以显式删除任务消息来确认完成。Subject 格式为：
