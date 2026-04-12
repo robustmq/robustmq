@@ -13,9 +13,11 @@
 // limitations under the License.
 
 use broker_core::cache::NodeCacheManager;
+use common_base::utils::serialize;
 use common_base::{error::common::CommonError, tools::now_second};
 use metadata_struct::mqtt::session::MqttSession;
-use node_call::{NodeCallData, NodeCallManager};
+use node_call::{NodeCallData, NodeCallManager, UpdateCacheData};
+use protocol::broker::broker::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use rocksdb_engine::{
     keys::meta::storage_key_mqtt_session,
     rocksdb::RocksDBEngine,
@@ -49,7 +51,12 @@ pub async fn handle_session_expire(
             engine_delete_by_meta_data(rocksdb_engine_handler, &key)?;
         }
 
-        let data = NodeCallData::DeleteSession(client_id.to_string());
+        let data = NodeCallData::UpdateCache(UpdateCacheData {
+            action_type: BrokerUpdateCacheActionType::Delete,
+            resource_type: BrokerUpdateCacheResourceType::Session,
+            data: serialize::serialize(&session)
+                .map_err(|e| CommonError::CommonError(e.to_string()))?,
+        });
         node_call_manager.send(data).await?;
 
         if let Some(delay_interval) = session.last_will_delay_interval {

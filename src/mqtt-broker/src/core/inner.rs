@@ -12,49 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::MQTTCacheManager;
 use crate::core::error::MqttBrokerError;
 use crate::core::last_will::send_last_will_message;
 use crate::core::retain::RetainMessageManager;
-use crate::core::{cache::MQTTCacheManager, session::delete_session_by_local};
-use crate::subscribe::manager::SubscribeManager;
 use broker_core::tool::wait_cluster_running;
-use common_metrics::mqtt::session::record_mqtt_session_deleted;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
-use protocol::broker::broker::{
-    DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
-};
+use protocol::broker::broker::{SendLastWillMessageReply, SendLastWillMessageRequest};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::{debug, warn};
-
-pub async fn delete_session_by_req(
-    cache_manager: &Arc<MQTTCacheManager>,
-    subscribe_manager: &Arc<SubscribeManager>,
-    req: &DeleteSessionRequest,
-) -> Result<DeleteSessionReply, MqttBrokerError> {
-    debug!(
-        "Received request from Meta service to delete expired Session. clientId count: {:?}",
-        req.client_id.len()
-    );
-    wait_cluster_running(&cache_manager.node_cache)
-        .await
-        .map_err(MqttBrokerError::CommonError)?;
-
-    if req.client_id.is_empty() {
-        return Err(MqttBrokerError::ClientIDIsEmpty);
-    }
-
-    for client_id in req.client_id.iter() {
-        let tenant = cache_manager
-            .get_session_info(client_id)
-            .map(|s| s.tenant)
-            .unwrap_or_default();
-        delete_session_by_local(cache_manager, subscribe_manager, &tenant, client_id);
-    }
-    record_mqtt_session_deleted();
-    Ok(DeleteSessionReply::default())
-}
 
 pub async fn send_last_will_message_by_req(
     cache_manager: &Arc<MQTTCacheManager>,

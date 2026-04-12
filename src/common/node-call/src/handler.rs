@@ -16,14 +16,13 @@ use crate::{UpdateCacheData, RPC_MAX_RETRIES, RPC_RETRY_BASE_MS};
 use bytes::Bytes;
 use common_base::error::common::CommonError;
 use grpc_clients::broker::common::call::{
-    broker_delete_session, broker_get_qos_data_by_client_id, broker_send_last_will_message,
-    broker_update_cache,
+    broker_get_qos_data_by_client_id, broker_send_last_will_message, broker_update_cache,
 };
 use grpc_clients::pool::ClientPool;
 use prost::Message;
 use protocol::broker::broker::{
-    DeleteSessionRequest, GetQosDataByClientIdReply, GetQosDataByClientIdRequest,
-    LastWillMessageItem, SendLastWillMessageRequest, UpdateCacheRecord, UpdateCacheRequest,
+    GetQosDataByClientIdReply, GetQosDataByClientIdRequest, LastWillMessageItem,
+    SendLastWillMessageRequest, UpdateCacheRecord, UpdateCacheRequest,
 };
 use std::future::Future;
 use std::sync::Arc;
@@ -77,22 +76,6 @@ pub async fn send_update_cache_batch(
 
     retry_rpc(addr, "update cache", || {
         broker_update_cache(client_pool, &addrs, request.clone())
-    })
-    .await;
-}
-
-pub async fn send_delete_session_batch(
-    client_pool: &Arc<ClientPool>,
-    addr: &str,
-    client_ids: &[String],
-) {
-    let request = DeleteSessionRequest {
-        client_id: client_ids.to_vec(),
-    };
-    let addrs = [addr];
-
-    retry_rpc(addr, "delete sessions", || {
-        broker_delete_session(client_pool, &addrs, request.clone())
     })
     .await;
 }

@@ -289,7 +289,6 @@ mod tests {
             cache.get_session_in_pre_total("client3", 5).await.unwrap(),
             0
         );
-
     }
 
     #[tokio::test]
@@ -346,7 +345,6 @@ mod tests {
                 .unwrap(),
             0
         );
-
     }
 
     #[tokio::test]

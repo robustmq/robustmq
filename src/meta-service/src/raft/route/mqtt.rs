@@ -40,7 +40,6 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use metadata_struct::topic::TopicSource;
 use prost::Message as _;
 use protocol::meta::meta_service_mqtt::{
     CreateAclRequest, CreateAutoSubscribeRuleRequest, CreateBlacklistRequest,

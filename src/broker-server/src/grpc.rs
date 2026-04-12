@@ -152,7 +152,6 @@ fn get_place_engine_handler(place_params: &MetaServiceServerParams) -> GrpcEngin
     )
 }
 
-
 #[derive(Debug, Clone, Default)]
 struct BaseMiddlewareLayer {}
 

@@ -19,7 +19,6 @@ package broker;
 
 service BrokerService {
   rpc UpdateCache(UpdateCacheRequest) returns (UpdateCacheReply) {}
-  rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionReply) {}
   rpc SendLastWillMessage(SendLastWillMessageRequest) returns (SendLastWillMessageReply) {}
   rpc GetQosDataByClientId(GetQosDataByClientIdRequest) returns (GetQosDataByClientIdReply) {}
 }
@@ -35,15 +34,6 @@ message UpdateCacheRecord {
 }
 
 message UpdateCacheReply {
-  bool code = 1;
-  string data = 2;
-}
-
-message DeleteSessionRequest {
-  repeated string client_id = 2;
-}
-
-message DeleteSessionReply {
   bool code = 1;
   string data = 2;
 }

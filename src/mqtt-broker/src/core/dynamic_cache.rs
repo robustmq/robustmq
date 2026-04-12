@@ -77,13 +77,13 @@ pub async fn update_mqtt_cache_metadata(
             }
             BrokerUpdateCacheActionType::Delete => {
                 let session = serialize::deserialize::<MqttSession>(&record.data)?;
+                subscribe_manager.remove_by_client_id(&session.tenant, &session.client_id);
                 cache_manager.remove_session(&session.client_id);
             }
         },
         BrokerUpdateCacheResourceType::User => match record.action_type() {
             BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
                 let user = serialize::deserialize::<SecurityUser>(&record.data)?;
-                println!("user:{:?}", user);
                 security_manager.metadata.add_user(user);
             }
             BrokerUpdateCacheActionType::Delete => {

@@ -14,15 +14,13 @@
 
 use crate::dynamic_cache::update_cache;
 use mqtt_broker::{
-    broker::MqttBrokerServerParams,
-    core::inner::{delete_session_by_req, send_last_will_message_by_req},
+    broker::MqttBrokerServerParams, core::inner::send_last_will_message_by_req,
     core::qos::get_qos_data_by_req,
 };
 use nats_broker::broker::NatsBrokerServerParams;
 use protocol::broker::broker::{
-    broker_service_server::BrokerService, DeleteSessionReply, DeleteSessionRequest,
-    GetQosDataByClientIdReply, GetQosDataByClientIdRequest, SendLastWillMessageReply,
-    SendLastWillMessageRequest, UpdateCacheReply, UpdateCacheRequest,
+    broker_service_server::BrokerService, GetQosDataByClientIdReply, GetQosDataByClientIdRequest,
+    SendLastWillMessageReply, SendLastWillMessageRequest, UpdateCacheReply, UpdateCacheRequest,
 };
 use storage_engine::StorageEngineParams;
 use tonic::{Request, Response, Status};
@@ -74,21 +72,6 @@ impl BrokerService for GrpcBrokerService {
         }
 
         Ok(Response::new(UpdateCacheReply::default()))
-    }
-
-    async fn delete_session(
-        &self,
-        request: Request<DeleteSessionRequest>,
-    ) -> Result<Response<DeleteSessionReply>, Status> {
-        let req = request.into_inner();
-        delete_session_by_req(
-            &self.mqtt_params.cache_manager,
-            &self.mqtt_params.subscribe_manager,
-            &req,
-        )
-        .await
-        .map_err(|e| Status::internal(e.to_string()))
-        .map(Response::new)
     }
 
     async fn send_last_will_message(

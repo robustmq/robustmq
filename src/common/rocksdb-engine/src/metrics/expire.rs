@@ -82,13 +82,12 @@ fn gc_prefix(
                     break;
                 }
                 let value = val.to_vec();
-                match serialize::deserialize::<StorageDataWrap<MetricsValue>>(value.as_ref()) {
-                    Ok(v) => {
-                        if now_time > v.create_time.saturating_add(save_time) {
-                            engine_delete_by_broker(rocksdb_engine, &key)?;
-                        }
+                if let Ok(v) =
+                    serialize::deserialize::<StorageDataWrap<MetricsValue>>(value.as_ref())
+                {
+                    if now_time > v.create_time.saturating_add(save_time) {
+                        engine_delete_by_broker(rocksdb_engine, &key)?;
                     }
-                    Err(_) => {}
                 }
             }
         }

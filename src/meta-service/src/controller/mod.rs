@@ -113,8 +113,13 @@ impl BrokerController {
         let expire_sec = self.group_offset_expire_sec;
         let raw_stop_send = stop_send.clone();
         tokio::spawn(Box::pin(async move {
-            start_group_gc_thread(rocksdb_engine_handler, call_manager, expire_sec, raw_stop_send)
-                .await;
+            start_group_gc_thread(
+                rocksdb_engine_handler,
+                call_manager,
+                expire_sec,
+                raw_stop_send,
+            )
+            .await;
         }));
     }
 }
