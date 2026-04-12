@@ -45,8 +45,6 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
 use tracing::error;
 
-pub mod inner;
-
 pub struct Server {
     tcp_server: TcpServer,
     tls_server: TcpServer,

@@ -16,7 +16,6 @@ use crate::storage::common::offset::OffsetStorage;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
-use node_call::{NodeCallData, NodeCallManager};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -28,18 +27,11 @@ const GROUP_GC_INTERVAL_MS: u64 = 5 * 60 * 1000;
 
 pub async fn start_group_gc_thread(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    node_call_manager: Arc<NodeCallManager>,
     group_offset_expire_sec: u64,
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {
-        if let Err(e) = gc_expired_groups(
-            &rocksdb_engine_handler,
-            &node_call_manager,
-            group_offset_expire_sec,
-        )
-        .await
-        {
+        if let Err(e) = gc_expired_groups(&rocksdb_engine_handler, group_offset_expire_sec).await {
             return Err(CommonError::CommonError(e.to_string()));
         }
         Ok(())
@@ -49,7 +41,6 @@ pub async fn start_group_gc_thread(
 
 async fn gc_expired_groups(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    node_call_manager: &Arc<NodeCallManager>,
     expire_sec: u64,
 ) -> Result<(), CommonError> {
     let storage = OffsetStorage::new(rocksdb_engine_handler.clone());
@@ -69,18 +60,6 @@ async fn gc_expired_groups(
     let now = now_second();
     for ((tenant, group), latest_ts) in group_latest {
         if now.saturating_sub(latest_ts) < expire_sec {
-            continue;
-        }
-
-        // Notify all broker nodes to clean up in-memory group state.
-        if let Err(e) = node_call_manager
-            .send(NodeCallData::DeleteGroup(tenant.clone(), group.clone()))
-            .await
-        {
-            warn!(
-                "Failed to send DeleteGroup notify: tenant={}, group={}, error={}",
-                tenant, group, e
-            );
             continue;
         }
 

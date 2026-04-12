@@ -24,8 +24,8 @@ use nats_broker::{
     broker::NatsBrokerServerParams, core::dynamic_cache::update_nats_cache_metadata,
 };
 use protocol::broker::broker::{
-    broker_service_server::BrokerService, BatchDeleteGroupsReply, BatchDeleteGroupsRequest,
-    BrokerUpdateCacheResourceType, DeleteSessionReply, DeleteSessionRequest,
+    broker_service_server::BrokerService, BrokerUpdateCacheResourceType, DeleteSessionReply,
+    DeleteSessionRequest,
     GetQosDataByClientIdReply, GetQosDataByClientIdRequest, SendLastWillMessageReply,
     SendLastWillMessageRequest, UpdateCacheRecord, UpdateCacheReply, UpdateCacheRequest,
 };
@@ -79,13 +79,6 @@ impl BrokerService for GrpcBrokerService {
         }
 
         Ok(Response::new(UpdateCacheReply::default()))
-    }
-
-    async fn batch_delete_groups(
-        &self,
-        _request: Request<BatchDeleteGroupsRequest>,
-    ) -> Result<Response<BatchDeleteGroupsReply>, Status> {
-        Ok(Response::new(BatchDeleteGroupsReply::default()))
     }
 
     async fn delete_session(

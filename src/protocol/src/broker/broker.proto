@@ -19,7 +19,6 @@ package broker;
 
 service BrokerService {
   rpc UpdateCache(UpdateCacheRequest) returns (UpdateCacheReply) {}
-  rpc BatchDeleteGroups(BatchDeleteGroupsRequest) returns (BatchDeleteGroupsReply) {}
   rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionReply) {}
   rpc SendLastWillMessage(SendLastWillMessageRequest) returns (SendLastWillMessageReply) {}
   rpc GetQosDataByClientId(GetQosDataByClientIdRequest) returns (GetQosDataByClientIdReply) {}
@@ -36,20 +35,6 @@ message UpdateCacheRecord {
 }
 
 message UpdateCacheReply {
-  bool code = 1;
-  string data = 2;
-}
-
-message DeleteGroupItem {
-  string tenant = 1;
-  string group_name = 2;
-}
-
-message BatchDeleteGroupsRequest {
-  repeated DeleteGroupItem groups = 1;
-}
-
-message BatchDeleteGroupsReply {
   bool code = 1;
   string data = 2;
 }

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::handler::{
-    send_delete_group_batch, send_delete_session_batch, send_get_qos_data_batch,
-    send_last_will_batch, send_update_cache_batch,
+    send_delete_session_batch, send_get_qos_data_batch, send_last_will_batch,
+    send_update_cache_batch,
 };
 use crate::{NodeCallData, NodeCallRequest, BATCH_SIZE, WORKER_THREAD_NUM};
 use grpc_clients::pool::ClientPool;
@@ -176,7 +176,6 @@ async fn dispatch_batch(client_pool: &Arc<ClientPool>, addr: &str, batch: Vec<No
     let mut delete_sessions = Vec::new();
     let mut last_will_messages = Vec::new();
     let mut get_qos_data = Vec::new();
-    let mut delete_groups = Vec::new();
 
     for req in batch {
         match req.data {
@@ -186,9 +185,6 @@ async fn dispatch_batch(client_pool: &Arc<ClientPool>, addr: &str, batch: Vec<No
             NodeCallData::GetQosData(client_id) => {
                 let reply_tx = req.reply_txs.into_iter().flatten().next();
                 get_qos_data.push((client_id, reply_tx));
-            }
-            NodeCallData::DeleteGroup(tenant, group_name) => {
-                delete_groups.push((tenant, group_name));
             }
         }
     }
@@ -212,11 +208,6 @@ async fn dispatch_batch(client_pool: &Arc<ClientPool>, addr: &str, batch: Vec<No
         async {
             if !get_qos_data.is_empty() {
                 send_get_qos_data_batch(client_pool, addr, get_qos_data).await;
-            }
-        },
-        async {
-            if !delete_groups.is_empty() {
-                send_delete_group_batch(client_pool, addr, &delete_groups).await;
             }
         },
     );

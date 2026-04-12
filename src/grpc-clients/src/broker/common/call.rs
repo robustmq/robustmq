@@ -14,9 +14,9 @@
 
 use common_base::error::common::CommonError;
 use protocol::broker::broker::{
-    BatchDeleteGroupsReply, BatchDeleteGroupsRequest, DeleteSessionReply, DeleteSessionRequest,
-    GetQosDataByClientIdReply, GetQosDataByClientIdRequest, SendLastWillMessageReply,
-    SendLastWillMessageRequest, UpdateCacheReply, UpdateCacheRequest,
+    DeleteSessionReply, DeleteSessionRequest, GetQosDataByClientIdReply,
+    GetQosDataByClientIdRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
+    UpdateCacheReply, UpdateCacheRequest,
 };
 
 use crate::pool::ClientPool;
@@ -34,11 +34,6 @@ macro_rules! generate_broker_call {
 }
 
 generate_broker_call!(broker_update_cache, UpdateCacheRequest, UpdateCacheReply);
-generate_broker_call!(
-    broker_batch_delete_groups,
-    BatchDeleteGroupsRequest,
-    BatchDeleteGroupsReply
-);
 generate_broker_call!(
     broker_delete_session,
     DeleteSessionRequest,

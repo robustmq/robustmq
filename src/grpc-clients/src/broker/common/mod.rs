@@ -14,10 +14,9 @@
 
 use crate::macros::impl_retriable_request;
 use protocol::broker::broker::{
-    broker_service_client::BrokerServiceClient, BatchDeleteGroupsReply, BatchDeleteGroupsRequest,
-    DeleteSessionReply, DeleteSessionRequest, GetQosDataByClientIdReply,
-    GetQosDataByClientIdRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
-    UpdateCacheReply, UpdateCacheRequest,
+    broker_service_client::BrokerServiceClient, DeleteSessionReply, DeleteSessionRequest,
+    GetQosDataByClientIdReply, GetQosDataByClientIdRequest, SendLastWillMessageReply,
+    SendLastWillMessageRequest, UpdateCacheReply, UpdateCacheRequest,
 };
 use tonic::transport::Channel;
 
@@ -30,15 +29,6 @@ impl_retriable_request!(
     update_cache,
     "BrokerService",
     "UpdateCache"
-);
-
-impl_retriable_request!(
-    BatchDeleteGroupsRequest,
-    BrokerServiceClient<Channel>,
-    BatchDeleteGroupsReply,
-    batch_delete_groups,
-    "BrokerService",
-    "BatchDeleteGroups"
 );
 
 impl_retriable_request!(

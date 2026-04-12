@@ -16,15 +16,14 @@ use crate::{UpdateCacheData, RPC_MAX_RETRIES, RPC_RETRY_BASE_MS};
 use bytes::Bytes;
 use common_base::error::common::CommonError;
 use grpc_clients::broker::common::call::{
-    broker_batch_delete_groups, broker_delete_session, broker_get_qos_data_by_client_id,
-    broker_send_last_will_message, broker_update_cache,
+    broker_delete_session, broker_get_qos_data_by_client_id, broker_send_last_will_message,
+    broker_update_cache,
 };
 use grpc_clients::pool::ClientPool;
 use prost::Message;
 use protocol::broker::broker::{
-    BatchDeleteGroupsRequest, DeleteGroupItem, DeleteSessionRequest, GetQosDataByClientIdReply,
-    GetQosDataByClientIdRequest, LastWillMessageItem, SendLastWillMessageRequest,
-    UpdateCacheRecord, UpdateCacheRequest,
+    DeleteSessionRequest, GetQosDataByClientIdReply, GetQosDataByClientIdRequest,
+    LastWillMessageItem, SendLastWillMessageRequest, UpdateCacheRecord, UpdateCacheRequest,
 };
 use std::future::Future;
 use std::sync::Arc;
@@ -146,28 +145,6 @@ pub async fn send_get_qos_data_batch(
             );
         }
     }
-}
-
-pub async fn send_delete_group_batch(
-    client_pool: &Arc<ClientPool>,
-    addr: &str,
-    items: &[(String, String)],
-) {
-    let request = BatchDeleteGroupsRequest {
-        groups: items
-            .iter()
-            .map(|(tenant, group_name)| DeleteGroupItem {
-                tenant: tenant.clone(),
-                group_name: group_name.clone(),
-            })
-            .collect(),
-    };
-    let addrs = [addr];
-
-    retry_rpc(addr, "batch delete groups", || {
-        broker_batch_delete_groups(client_pool, &addrs, request.clone())
-    })
-    .await;
 }
 
 pub async fn send_last_will_batch(
