@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::dynamic_cache::update_cache;
+use crate::update_cache::update_cache;
 use mqtt_broker::{
     broker::MqttBrokerServerParams, core::inner::send_last_will_message_by_req,
     core::qos::get_qos_data_by_req,

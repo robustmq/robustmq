@@ -55,7 +55,6 @@ mod cluster_service;
 pub mod common;
 mod connection;
 mod daemon;
-mod dynamic_cache;
 mod engine;
 mod grpc;
 mod kafka;
@@ -64,6 +63,7 @@ mod meta;
 mod mqtt;
 mod nats;
 mod server;
+mod update_cache;
 
 /// Shared infrastructure created before any protocol or storage layer.
 struct BaseComponents {

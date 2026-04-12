@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::cache::MQTTCacheManager;
+use crate::core::session::delete_session_by_local;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::core::topic::delete_topic_by_mqtt;
 use crate::subscribe::manager::SubscribeManager;
@@ -24,7 +25,6 @@ use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
-use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
@@ -38,7 +38,6 @@ use protocol::broker::broker::{
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
-use tracing::info;
 
 pub async fn update_mqtt_cache_metadata(
     cache_manager: &Arc<MQTTCacheManager>,
@@ -50,26 +49,6 @@ pub async fn update_mqtt_cache_metadata(
     record: &UpdateCacheRecord,
 ) -> ResultMqttBrokerError {
     match record.resource_type() {
-        BrokerUpdateCacheResourceType::Node => match record.action_type() {
-            BrokerUpdateCacheActionType::Create => {
-                let node = serialize::deserialize::<BrokerNode>(&record.data)?;
-                info!(
-                    "Node {} is online. Node information: {:?}",
-                    node.node_id, node
-                );
-                cache_manager.node_cache.add_node(node);
-            }
-            BrokerUpdateCacheActionType::Update => {}
-            BrokerUpdateCacheActionType::Delete => {
-                let node = serialize::deserialize::<BrokerNode>(&record.data)?;
-                info!(
-                    "Node {} has been taken offline. Node information: {:?}",
-                    node.node_id, node
-                );
-                cache_manager.node_cache.remove_node(node);
-            }
-        },
-
         BrokerUpdateCacheResourceType::Session => match record.action_type() {
             BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
                 let session = serialize::deserialize::<MqttSession>(&record.data)?;
@@ -77,8 +56,12 @@ pub async fn update_mqtt_cache_metadata(
             }
             BrokerUpdateCacheActionType::Delete => {
                 let session = serialize::deserialize::<MqttSession>(&record.data)?;
-                subscribe_manager.remove_by_client_id(&session.tenant, &session.client_id);
-                cache_manager.remove_session(&session.client_id);
+                delete_session_by_local(
+                    cache_manager,
+                    subscribe_manager,
+                    &session.tenant,
+                    &session.client_id,
+                );
             }
         },
         BrokerUpdateCacheResourceType::User => match record.action_type() {
