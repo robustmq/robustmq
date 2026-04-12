@@ -14,10 +14,9 @@
 
 use crate::{
     define_cumulative_metric, define_dimensional_metric_1d, define_dimensional_metric_3d,
-    define_dimensional_metric_4d, define_simple_metric, metrics::base::delete_by_prefix,
-    rocksdb::RocksDBEngine,
+    define_dimensional_metric_4d, define_simple_metric, rocksdb::RocksDBEngine,
 };
-use common_base::error::{common::CommonError, ResultCommonError};
+use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -170,7 +169,6 @@ impl MQTTMetricsCache {
         METRICS_TYPE_KEY_CONNECTOR_FAILURE_TOTAL
     );
 
-    // Utility methods
     pub fn convert_monitor_data(&self, data_list: DashMap<u64, u64>) -> Vec<HashMap<String, u64>> {
         let mut results = Vec::new();
         for (time, value) in data_list {
@@ -180,51 +178,6 @@ impl MQTTMetricsCache {
             results.push(raw);
         }
         results
-    }
-
-    pub fn remove_topic(&self, topic: &str) -> ResultCommonError {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_TOPIC_IN_NUM, topic);
-        delete_by_prefix(&self.rocksdb_engine, &key)?;
-
-        let key = format!("{}_{}", METRICS_TYPE_KEY_TOPIC_OUT_NUM, topic);
-        delete_by_prefix(&self.rocksdb_engine, &key)?;
-        Ok(())
-    }
-
-    pub fn remove_subscribe(&self, client_id: &str, path: &str) -> ResultCommonError {
-        let key = format!("{}_{}_{}", METRICS_TYPE_KEY_SUBSCRIBE_SEND, client_id, path);
-        delete_by_prefix(&self.rocksdb_engine, &key)?;
-
-        let key = format!(
-            "{}_{}_{}",
-            METRICS_TYPE_KEY_SUBSCRIBE_TOPIC_SEND, client_id, path
-        );
-        delete_by_prefix(&self.rocksdb_engine, &key)?;
-        Ok(())
-    }
-
-    pub fn remove_session(&self, client_id: &str) -> ResultCommonError {
-        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_IN_NUM, client_id);
-        delete_by_prefix(&self.rocksdb_engine, &key)?;
-
-        let key = format!("{}_{}", METRICS_TYPE_KEY_SESSION_OUT_NUM, client_id);
-        delete_by_prefix(&self.rocksdb_engine, &key)?;
-        Ok(())
-    }
-
-    pub fn remove_connector(&self, connector_name: &str) -> ResultCommonError {
-        let key = format!(
-            "{}_{}",
-            METRICS_TYPE_KEY_CONNECTOR_SUCCESS_NUM, connector_name
-        );
-        delete_by_prefix(&self.rocksdb_engine, &key)?;
-
-        let key = format!(
-            "{}_{}",
-            METRICS_TYPE_KEY_CONNECTOR_FAILURE_NUM, connector_name
-        );
-        delete_by_prefix(&self.rocksdb_engine, &key)?;
-        Ok(())
     }
 }
 
@@ -283,10 +236,6 @@ mod tests {
         assert_eq!(cache.get_topic_out_num(&topic).unwrap().len(), 1);
         assert_eq!(cache.get_topic_out_pre_total(&topic, 5).await.unwrap(), 88);
         assert_eq!(cache.get_topic_out_pre_total("t3", 5).await.unwrap(), 0);
-
-        cache.remove_topic(&topic).unwrap();
-        assert_eq!(cache.get_topic_out_num(&topic).unwrap().len(), 0);
-        assert_eq!(cache.get_topic_out_pre_total(&topic, 5).await.unwrap(), 0);
     }
 
     #[tokio::test]
@@ -341,12 +290,6 @@ mod tests {
             0
         );
 
-        cache.remove_session(&client_id).unwrap();
-        assert_eq!(cache.get_session_in_num(&client_id).unwrap().len(), 0);
-        assert_eq!(
-            cache.get_session_in_pre_total(&client_id, 5).await.unwrap(),
-            0
-        );
     }
 
     #[tokio::test]
@@ -404,12 +347,6 @@ mod tests {
             0
         );
 
-        cache.remove_subscribe(&client_id, &path).unwrap();
-        assert_eq!(cache.get_session_in_num(&client_id).unwrap().len(), 0);
-        assert_eq!(
-            cache.get_session_in_pre_total(&client_id, 5).await.unwrap(),
-            0
-        );
     }
 
     #[tokio::test]

@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use super::error::MqttBrokerError;
-use crate::core::cache::MQTTCacheManager;
 use crate::core::limit::topic_total_num_limit;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
+use crate::{core::cache::MQTTCacheManager, subscribe::parse::ParseSubscribeData};
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
@@ -24,8 +24,8 @@ use metadata_struct::{
     storage::shard::DEFAULT_RETENTION_SEC,
     topic::{TopicConfig, TopicSource},
 };
+use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use protocol::mqtt::common::{Publish, PublishProperties};
-use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::{driver::StorageDriverManager, topic::create_topic_full};
@@ -191,20 +191,28 @@ pub async fn try_init_topic(
     Ok(topic)
 }
 
-pub async fn delete_topic(
+pub async fn delete_topic_by_mqtt(
     cache_manager: &Arc<MQTTCacheManager>,
-    tenant: &str,
-    topic_name: &str,
+    topic: &Topic,
     storage_driver_manager: &Arc<StorageDriverManager>,
     subscribe_manager: &Arc<SubscribeManager>,
-    metrics_manager: &Arc<MQTTMetricsCache>,
 ) -> Result<(), MqttBrokerError> {
     storage_driver_manager
-        .delete_storage_resource(tenant, topic_name)
+        .delete_storage_resource(&topic.tenant, &topic.topic_name)
         .await?;
-    cache_manager.node_cache.delete_topic(tenant, topic_name);
-    metrics_manager.remove_topic(topic_name)?;
-    subscribe_manager.remove_by_topic(tenant, topic_name);
+    cache_manager
+        .node_cache
+        .delete_topic(&topic.tenant, &topic.topic_name);
+    subscribe_manager.remove_by_topic(&topic.tenant, &topic.topic_name);
+
+    subscribe_manager
+        .add_wait_parse_data(ParseSubscribeData {
+            action_type: BrokerUpdateCacheActionType::Delete,
+            resource_type: BrokerUpdateCacheResourceType::Topic,
+            subscribe: None,
+            topic: Some(topic.clone()),
+        })
+        .await;
     Ok(())
 }
 

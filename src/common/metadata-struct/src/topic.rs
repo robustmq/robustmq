@@ -42,8 +42,6 @@ pub struct Topic {
     pub storage_type: StorageType,
     /// Which protocol or subsystem created this topic.
     pub source: TopicSource,
-    /// Retention duration in seconds. 0 means no expiry.
-    pub ttl: u64,
     pub partition: u32,
     pub replication: u32,
     /// Maps partition index to its storage shard name. Populated via `create_partition_name` or set manually.
@@ -63,7 +61,6 @@ impl Topic {
             source: TopicSource::SystemInner,
             partition: 1,
             replication: 1,
-            ttl: 0,
             storage_name_list: Topic::create_partition_name(&unique_id, 1),
             config: TopicConfig::default(),
             create_time: now_second(),
@@ -72,11 +69,6 @@ impl Topic {
 
     pub fn with_source(mut self, source: TopicSource) -> Self {
         self.source = source;
-        self
-    }
-
-    pub fn with_ttl(mut self, ttl: u64) -> Self {
-        self.ttl = ttl;
         self
     }
 
@@ -155,7 +147,6 @@ mod tests {
             topic_name: "test-topic".to_string(),
             storage_type: StorageType::EngineMemory,
             source: TopicSource::SystemInner,
-            ttl: 0,
             partition: 3,
             replication: 2,
             storage_name_list: HashMap::new(),
@@ -174,12 +165,10 @@ mod tests {
         let storage_name_list =
             HashMap::from([(0, "shard-0".to_string()), (1, "shard-1".to_string())]);
         let topic = Topic::new("tenant", "my-topic", StorageType::EngineMemory)
-            .with_ttl(3600)
             .with_partition(2)
             .with_replication(3)
             .with_storage_name_list(storage_name_list.clone());
 
-        assert_eq!(topic.ttl, 3600);
         assert_eq!(topic.partition, 2);
         assert_eq!(topic.replication, 3);
         assert_eq!(topic.storage_name_list, storage_name_list);

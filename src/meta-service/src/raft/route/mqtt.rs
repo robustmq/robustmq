@@ -40,6 +40,7 @@ use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
+use metadata_struct::topic::TopicSource;
 use prost::Message as _;
 use protocol::meta::meta_service_mqtt::{
     CreateAclRequest, CreateAutoSubscribeRuleRequest, CreateBlacklistRequest,
@@ -92,7 +93,7 @@ impl DataRouteMqtt {
     }
 
     // Topic
-    pub fn create_topic(&self, value: Bytes) -> Result<(), MetaServiceError> {
+    pub async fn create_topic(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = CreateTopicRequest::decode(value.as_ref())?;
         let topic = Topic::decode(&req.content)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());

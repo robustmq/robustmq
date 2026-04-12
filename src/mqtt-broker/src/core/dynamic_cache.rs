@@ -14,7 +14,7 @@
 
 use super::cache::MQTTCacheManager;
 use crate::core::tool::ResultMqttBrokerError;
-use crate::core::topic::delete_topic;
+use crate::core::topic::delete_topic_by_mqtt;
 use crate::subscribe::manager::SubscribeManager;
 use crate::subscribe::parse::ParseSubscribeData;
 use common_base::utils::serialize;
@@ -174,23 +174,13 @@ pub async fn update_mqtt_cache_metadata(
             BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
                 let topic = serialize::deserialize::<Topic>(&record.data)?;
-                delete_topic(
+                delete_topic_by_mqtt(
                     cache_manager,
-                    &topic.tenant,
-                    &topic.topic_name,
+                    &topic,
                     storage_driver_manager,
                     subscribe_manager,
-                    metrics_manager,
                 )
                 .await?;
-                subscribe_manager
-                    .add_wait_parse_data(ParseSubscribeData {
-                        action_type: BrokerUpdateCacheActionType::Delete,
-                        resource_type: BrokerUpdateCacheResourceType::Topic,
-                        subscribe: None,
-                        topic: Some(topic),
-                    })
-                    .await;
             }
         },
         BrokerUpdateCacheResourceType::Connector => match record.action_type() {
