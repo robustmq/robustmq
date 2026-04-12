@@ -18,6 +18,7 @@ use crate::core::controller::ClusterController;
 use crate::raft::manager::MultiRaftManager;
 use broker_core::cache::NodeCacheManager;
 use common_base::task::{TaskKind, TaskSupervisor};
+use common_config::broker::broker_config;
 use delay_task::manager::DelayTaskManager;
 use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
@@ -99,12 +100,21 @@ impl MetaServiceServer {
         let cache_manager = self.cache_manager.clone();
         let raft_manager = self.raft_manager.clone();
         let node_call_manager = self.node_call_manager.clone();
+        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        let group_offset_expire_sec = broker_config().meta_runtime.group_offset_expire_sec;
         let stop = self.stop.clone();
         self.task_supervisor.spawn(
             TaskKind::MetaMonitorRaftLeaderChange.to_string(),
             async move {
-                monitoring_leader_transition(cache_manager, raft_manager, node_call_manager, stop)
-                    .await;
+                monitoring_leader_transition(
+                    cache_manager,
+                    raft_manager,
+                    node_call_manager,
+                    rocksdb_engine_handler,
+                    group_offset_expire_sec,
+                    stop,
+                )
+                .await;
             },
         );
 

@@ -40,6 +40,11 @@ pub fn key_offset_by_group(tenant: &str, group: &str) -> String {
 }
 
 #[inline]
+pub fn key_offset_prefix_all() -> String {
+    format!("{}offset/", PREFIX_META)
+}
+
+#[inline]
 pub fn key_shard(shard_name: &str) -> String {
     format!("{}journal/shard/{}", PREFIX_META, shard_name)
 }

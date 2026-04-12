@@ -14,9 +14,11 @@
 
 use crate::controller::connector_scheduler::ConnectorScheduler;
 use crate::controller::engine_gc::start_engine_delete_gc_thread;
+use crate::controller::group_gc::start_group_gc_thread;
 use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
 use node_call::NodeCallManager;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
 use tracing::error;
@@ -24,17 +26,22 @@ use tracing::error;
 pub mod connector_scheduler;
 pub mod connector_status;
 pub mod engine_gc;
+pub mod group_gc;
 
 pub fn start_controller(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     call_manager: &Arc<NodeCallManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    group_offset_expire_sec: u64,
     stop_send: Sender<bool>,
 ) {
     let mqtt_controller = BrokerController::new(
         raft_manager.clone(),
         cache_manager.clone(),
         call_manager.clone(),
+        rocksdb_engine_handler.clone(),
+        group_offset_expire_sec,
     );
     tokio::spawn(async move {
         mqtt_controller.start(&stop_send).await;
@@ -54,6 +61,8 @@ pub struct BrokerController {
     node_call_manager: Arc<NodeCallManager>,
     raft_manager: Arc<MultiRaftManager>,
     cache_manager: Arc<MetaCacheManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    group_offset_expire_sec: u64,
 }
 
 impl BrokerController {
@@ -61,11 +70,15 @@ impl BrokerController {
         raft_manager: Arc<MultiRaftManager>,
         cache_manager: Arc<MetaCacheManager>,
         node_call_manager: Arc<NodeCallManager>,
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
+        group_offset_expire_sec: u64,
     ) -> BrokerController {
         BrokerController {
             cache_manager,
             node_call_manager,
             raft_manager,
+            rocksdb_engine_handler,
+            group_offset_expire_sec,
         }
     }
 
@@ -91,8 +104,22 @@ impl BrokerController {
                 call_manager.clone(),
                 cache_manager.clone(),
             );
-
             scheduler.run(&raw_stop_send).await;
+        }));
+
+        // group offset gc
+        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        let call_manager = self.node_call_manager.clone();
+        let expire_sec = self.group_offset_expire_sec;
+        let raw_stop_send = stop_send.clone();
+        tokio::spawn(Box::pin(async move {
+            start_group_gc_thread(
+                rocksdb_engine_handler,
+                call_manager,
+                expire_sec,
+                raw_stop_send,
+            )
+            .await;
         }));
     }
 }

@@ -49,6 +49,8 @@ pub enum NodeCallData {
     DeleteSession(String),
     SendLastWillMessage(LastWillMessageItem),
     GetQosData(String),
+    DeleteTopic(String, String), // (tenant, topic_name)
+    DeleteGroup(String, String), // (tenant, group_name)
 }
 
 pub struct NodeCallRequest {
@@ -66,6 +68,8 @@ impl NodeCallData {
             NodeCallData::DeleteSession(client_id) => Some(client_id),
             NodeCallData::SendLastWillMessage(item) => Some(&item.client_id),
             NodeCallData::GetQosData(_) => None,
+            NodeCallData::DeleteTopic(_, _) => None,
+            NodeCallData::DeleteGroup(_, _) => None,
         }
     }
 }
@@ -145,6 +149,14 @@ impl NodeCallManager {
             "NodeCallManager global sender is not initialized; call start() before send()"
                 .to_string(),
         ))
+    }
+
+    pub fn client_pool(&self) -> &Arc<ClientPool> {
+        &self.client_pool
+    }
+
+    pub fn broker_cache(&self) -> &Arc<NodeCacheManager> {
+        &self.broker_cache
     }
 
     /// Returns true once `start()` has initialised the global sender channel.

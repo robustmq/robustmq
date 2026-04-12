@@ -13,12 +13,15 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use protocol::broker::broker_common::{UpdateCacheReply, UpdateCacheRequest};
+use protocol::broker::broker_common::{
+    BatchDeleteGroupsReply, BatchDeleteGroupsRequest, BatchDeleteTopicsReply,
+    BatchDeleteTopicsRequest, UpdateCacheReply, UpdateCacheRequest,
+};
 
 use crate::pool::ClientPool;
 
-macro_rules! generate_mqtt_inner_service_call {
-    ($fn_name:ident, $req_ty:ty, $rep_ty:ty, $variant:ident) => {
+macro_rules! generate_broker_common_call {
+    ($fn_name:ident, $req_ty:ty, $rep_ty:ty) => {
         pub async fn $fn_name(
             client_pool: &ClientPool,
             addrs: &[impl AsRef<str>],
@@ -29,9 +32,18 @@ macro_rules! generate_mqtt_inner_service_call {
     };
 }
 
-generate_mqtt_inner_service_call!(
+generate_broker_common_call!(
     broker_common_update_cache,
     UpdateCacheRequest,
-    UpdateCacheReply,
-    UpdateMqttCache
+    UpdateCacheReply
+);
+generate_broker_common_call!(
+    broker_common_batch_delete_topics,
+    BatchDeleteTopicsRequest,
+    BatchDeleteTopicsReply
+);
+generate_broker_common_call!(
+    broker_common_batch_delete_groups,
+    BatchDeleteGroupsRequest,
+    BatchDeleteGroupsReply
 );
