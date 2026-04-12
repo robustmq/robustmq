@@ -81,6 +81,7 @@ impl BrokerCommonService for GrpcBrokerCommonService {
         &self,
         _request: Request<BatchDeleteTopicsRequest>,
     ) -> Result<Response<BatchDeleteTopicsReply>, Status> {
+        
         Ok(Response::new(BatchDeleteTopicsReply::default()))
     }
 
