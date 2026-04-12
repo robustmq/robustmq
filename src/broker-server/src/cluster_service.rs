@@ -12,24 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::dynamic_cache::update_cluster_cache_metadata;
-use common_base::error::{common::CommonError, ResultCommonError};
+use crate::dynamic_cache::update_cache;
 use mqtt_broker::{
     broker::MqttBrokerServerParams,
-    core::dynamic_cache::update_mqtt_cache_metadata,
     core::inner::{delete_session_by_req, send_last_will_message_by_req},
     core::qos::get_qos_data_by_req,
 };
-use nats_broker::{
-    broker::NatsBrokerServerParams, core::dynamic_cache::update_nats_cache_metadata,
-};
+use nats_broker::broker::NatsBrokerServerParams;
 use protocol::broker::broker::{
-    broker_service_server::BrokerService, BrokerUpdateCacheResourceType, DeleteSessionReply,
-    DeleteSessionRequest,
+    broker_service_server::BrokerService, DeleteSessionReply, DeleteSessionRequest,
     GetQosDataByClientIdReply, GetQosDataByClientIdRequest, SendLastWillMessageReply,
-    SendLastWillMessageRequest, UpdateCacheRecord, UpdateCacheReply, UpdateCacheRequest,
+    SendLastWillMessageRequest, UpdateCacheReply, UpdateCacheRequest,
 };
-use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
+use storage_engine::StorageEngineParams;
 use tonic::{Request, Response, Status};
 use tracing::warn;
 
@@ -123,84 +118,4 @@ impl BrokerService for GrpcBrokerService {
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
     }
-}
-
-async fn update_cache(
-    mqtt_params: &MqttBrokerServerParams,
-    nats_params: &NatsBrokerServerParams,
-    storage_params: &StorageEngineParams,
-    record: &UpdateCacheRecord,
-) -> ResultCommonError {
-    match record.resource_type() {
-        // MQTT Broker
-        BrokerUpdateCacheResourceType::Session
-        | BrokerUpdateCacheResourceType::Subscribe
-        | BrokerUpdateCacheResourceType::Topic
-        | BrokerUpdateCacheResourceType::Connector
-        | BrokerUpdateCacheResourceType::Schema
-        | BrokerUpdateCacheResourceType::SchemaResource
-        | BrokerUpdateCacheResourceType::AutoSubscribeRule
-        | BrokerUpdateCacheResourceType::TopicRewriteRule => {
-            if let Err(e) = update_mqtt_cache_metadata(
-                &mqtt_params.cache_manager,
-                &mqtt_params.connector_manager,
-                &mqtt_params.subscribe_manager,
-                &mqtt_params.schema_manager,
-                &mqtt_params.storage_driver_manager,
-                &mqtt_params.security_manager,
-                record,
-            )
-            .await
-            {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
-
-        // Cluster — Node, Config, Tenant, User, Acl, Blacklist
-        BrokerUpdateCacheResourceType::ClusterResourceConfig
-        | BrokerUpdateCacheResourceType::Node
-        | BrokerUpdateCacheResourceType::Tenant
-        | BrokerUpdateCacheResourceType::User
-        | BrokerUpdateCacheResourceType::Acl
-        | BrokerUpdateCacheResourceType::Blacklist => {
-            if let Err(e) = update_cluster_cache_metadata(
-                &mqtt_params.cache_manager.node_cache,
-                &mqtt_params.security_manager,
-                record,
-            )
-            .await
-            {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
-
-        // NATS / MQ9
-        BrokerUpdateCacheResourceType::NatsSubscribe | BrokerUpdateCacheResourceType::Mq9Email => {
-            if let Err(e) = update_nats_cache_metadata(
-                &nats_params.cache_manager,
-                &nats_params.subscribe_manager,
-                record,
-            )
-            .await
-            {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
-
-        // Storage Engine
-        BrokerUpdateCacheResourceType::Shard
-        | BrokerUpdateCacheResourceType::Segment
-        | BrokerUpdateCacheResourceType::SegmentMeta => {
-            if let Err(e) = update_storage_cache_metadata(
-                &storage_params.cache_manager,
-                &storage_params.rocksdb_engine_handler,
-                record,
-            )
-            .await
-            {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
-    }
-    Ok(())
 }

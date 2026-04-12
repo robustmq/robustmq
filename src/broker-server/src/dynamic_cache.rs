@@ -14,7 +14,7 @@
 
 use broker_core::cache::NodeCacheManager;
 use broker_core::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
-use common_base::error::common::CommonError;
+use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::utils::serialize;
 use common_security::manager::SecurityManager;
 use metadata_struct::auth::acl::SecurityAcl;
@@ -23,11 +23,95 @@ use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::tenant::Tenant;
+use mqtt_broker::{broker::MqttBrokerServerParams, core::dynamic_cache::update_mqtt_cache_metadata};
+use nats_broker::{broker::NatsBrokerServerParams, core::dynamic_cache::update_nats_cache_metadata};
 use protocol::broker::broker::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
 };
 use std::str::FromStr;
 use std::sync::Arc;
+use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
+
+pub async fn update_cache(
+    mqtt_params: &MqttBrokerServerParams,
+    nats_params: &NatsBrokerServerParams,
+    storage_params: &StorageEngineParams,
+    record: &UpdateCacheRecord,
+) -> ResultCommonError {
+    match record.resource_type() {
+        // MQTT Broker
+        BrokerUpdateCacheResourceType::Session
+        | BrokerUpdateCacheResourceType::Subscribe
+        | BrokerUpdateCacheResourceType::Topic
+        | BrokerUpdateCacheResourceType::Connector
+        | BrokerUpdateCacheResourceType::Schema
+        | BrokerUpdateCacheResourceType::SchemaResource
+        | BrokerUpdateCacheResourceType::AutoSubscribeRule
+        | BrokerUpdateCacheResourceType::TopicRewriteRule => {
+            if let Err(e) = update_mqtt_cache_metadata(
+                &mqtt_params.cache_manager,
+                &mqtt_params.connector_manager,
+                &mqtt_params.subscribe_manager,
+                &mqtt_params.schema_manager,
+                &mqtt_params.storage_driver_manager,
+                &mqtt_params.security_manager,
+                record,
+            )
+            .await
+            {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
+
+        // Cluster — Node, Config, Tenant, User, Acl, Blacklist, Group
+        BrokerUpdateCacheResourceType::ClusterResourceConfig
+        | BrokerUpdateCacheResourceType::Node
+        | BrokerUpdateCacheResourceType::Tenant
+        | BrokerUpdateCacheResourceType::User
+        | BrokerUpdateCacheResourceType::Acl
+        | BrokerUpdateCacheResourceType::Blacklist
+        | BrokerUpdateCacheResourceType::Group => {
+            if let Err(e) = update_cluster_cache_metadata(
+                &mqtt_params.cache_manager.node_cache,
+                &mqtt_params.security_manager,
+                record,
+            )
+            .await
+            {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
+
+        // NATS / MQ9
+        BrokerUpdateCacheResourceType::NatsSubscribe | BrokerUpdateCacheResourceType::Mq9Email => {
+            if let Err(e) = update_nats_cache_metadata(
+                &nats_params.cache_manager,
+                &nats_params.subscribe_manager,
+                record,
+            )
+            .await
+            {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
+
+        // Storage Engine
+        BrokerUpdateCacheResourceType::Shard
+        | BrokerUpdateCacheResourceType::Segment
+        | BrokerUpdateCacheResourceType::SegmentMeta => {
+            if let Err(e) = update_storage_cache_metadata(
+                &storage_params.cache_manager,
+                &storage_params.rocksdb_engine_handler,
+                record,
+            )
+            .await
+            {
+                return Err(CommonError::CommonError(e.to_string()));
+            }
+        }
+    }
+    Ok(())
+}
 
 pub async fn update_cluster_cache_metadata(
     node_cache: &Arc<NodeCacheManager>,
@@ -98,6 +182,7 @@ pub async fn update_cluster_cache_metadata(
                 }
             }
         }
+        BrokerUpdateCacheResourceType::Group => {}
         _ => {}
     }
     Ok(())

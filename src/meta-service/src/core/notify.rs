@@ -15,6 +15,7 @@
 use crate::core::error::MetaServiceError;
 use common_base::utils::serialize;
 use metadata_struct::auth::acl::SecurityAcl;
+use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
@@ -547,6 +548,26 @@ pub async fn send_notify_by_delete_mq9_email(
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::Mq9Email,
         serialize::serialize(&email)?,
+    )
+    .await
+}
+
+// Group
+pub async fn send_notify_by_delete_group(
+    call_manager: &Arc<NodeCallManager>,
+    tenant: &str,
+    group_name: &str,
+) -> Result<(), MetaServiceError> {
+    let group = MqttGroupLeader {
+        tenant: tenant.to_string(),
+        group_name: group_name.to_string(),
+        ..Default::default()
+    };
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Group,
+        serialize::serialize(&group)?,
     )
     .await
 }
