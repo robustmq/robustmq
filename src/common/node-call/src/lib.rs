@@ -49,7 +49,6 @@ pub enum NodeCallData {
     DeleteSession(String),
     SendLastWillMessage(LastWillMessageItem),
     GetQosData(String),
-    DeleteTopic(String, String), // (tenant, topic_name)
     DeleteGroup(String, String), // (tenant, group_name)
 }
 
@@ -68,7 +67,6 @@ impl NodeCallData {
             NodeCallData::DeleteSession(client_id) => Some(client_id),
             NodeCallData::SendLastWillMessage(item) => Some(&item.client_id),
             NodeCallData::GetQosData(_) => None,
-            NodeCallData::DeleteTopic(_, _) => None,
             NodeCallData::DeleteGroup(_, _) => None,
         }
     }

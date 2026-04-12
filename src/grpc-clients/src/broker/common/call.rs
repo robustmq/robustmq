@@ -14,8 +14,7 @@
 
 use common_base::error::common::CommonError;
 use protocol::broker::broker_common::{
-    BatchDeleteGroupsReply, BatchDeleteGroupsRequest, BatchDeleteTopicsReply,
-    BatchDeleteTopicsRequest, UpdateCacheReply, UpdateCacheRequest,
+    BatchDeleteGroupsReply, BatchDeleteGroupsRequest, UpdateCacheReply, UpdateCacheRequest,
 };
 
 use crate::pool::ClientPool;
@@ -36,11 +35,6 @@ generate_broker_common_call!(
     broker_common_update_cache,
     UpdateCacheRequest,
     UpdateCacheReply
-);
-generate_broker_common_call!(
-    broker_common_batch_delete_topics,
-    BatchDeleteTopicsRequest,
-    BatchDeleteTopicsReply
 );
 generate_broker_common_call!(
     broker_common_batch_delete_groups,

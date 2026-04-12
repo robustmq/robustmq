@@ -14,18 +14,17 @@
 
 use crate::dynamic_cache::update_cluster_cache_metadata;
 use common_base::error::{common::CommonError, ResultCommonError};
-use metadata_struct::topic::TopicSource;
 use mqtt_broker::{
     broker::MqttBrokerServerParams,
-    core::{dynamic_cache::update_mqtt_cache_metadata, topic::delete_topic_by_mqtt},
+    core::dynamic_cache::update_mqtt_cache_metadata,
 };
 use nats_broker::{
     broker::NatsBrokerServerParams, core::dynamic_cache::update_nats_cache_metadata,
 };
 use protocol::broker::broker_common::{
     broker_common_service_server::BrokerCommonService, BatchDeleteGroupsReply,
-    BatchDeleteGroupsRequest, BatchDeleteTopicsReply, BatchDeleteTopicsRequest,
-    BrokerUpdateCacheResourceType, UpdateCacheRecord, UpdateCacheReply, UpdateCacheRequest,
+    BatchDeleteGroupsRequest, BrokerUpdateCacheResourceType, UpdateCacheRecord, UpdateCacheReply,
+    UpdateCacheRequest,
 };
 use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
 use tonic::{Request, Response, Status};
@@ -77,47 +76,6 @@ impl BrokerCommonService for GrpcBrokerCommonService {
         }
 
         Ok(Response::new(UpdateCacheReply::default()))
-    }
-
-    async fn batch_delete_topics(
-        &self,
-        request: Request<BatchDeleteTopicsRequest>,
-    ) -> Result<Response<BatchDeleteTopicsReply>, Status> {
-        for topic_info in request.into_inner().topics.iter() {
-            let topic = if let Some(topic) = self
-                .mqtt_params
-                .node_cache
-                .get_topic_by_name(&topic_info.tenant, &topic_info.topic_name)
-            {
-                topic.clone()
-            } else {
-                continue;
-            };
-
-            self.mqtt_params
-                .node_cache
-                .delete_topic(&topic.tenant, &topic.topic_name);
-
-            match topic.source {
-                TopicSource::SystemInner => {
-                    // system Topic is not allowed to be deleted. Ignore the logic
-                }
-                TopicSource::MQTT => {
-                    let _res = delete_topic_by_mqtt(
-                        &self.mqtt_params.cache_manager,
-                        &topic,
-                        &self.mqtt_params.storage_driver_manager,
-                        &self.mqtt_params.subscribe_manager,
-                    )
-                    .await;
-                }
-                TopicSource::NATS => {}
-                TopicSource::MQ9 => {}
-                TopicSource::Kafka => {}
-                TopicSource::AMQP => {}
-            }
-        }
-        Ok(Response::new(BatchDeleteTopicsReply::default()))
     }
 
     async fn batch_delete_groups(

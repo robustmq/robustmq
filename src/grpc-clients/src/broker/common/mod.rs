@@ -15,8 +15,7 @@
 use crate::macros::impl_retriable_request;
 use protocol::broker::broker_common::{
     broker_common_service_client::BrokerCommonServiceClient, BatchDeleteGroupsReply,
-    BatchDeleteGroupsRequest, BatchDeleteTopicsReply, BatchDeleteTopicsRequest, UpdateCacheReply,
-    UpdateCacheRequest,
+    BatchDeleteGroupsRequest, UpdateCacheReply, UpdateCacheRequest,
 };
 use tonic::transport::Channel;
 
@@ -29,15 +28,6 @@ impl_retriable_request!(
     update_cache,
     "MqttBrokerInnerService",
     "UpdateCache"
-);
-
-impl_retriable_request!(
-    BatchDeleteTopicsRequest,
-    BrokerCommonServiceClient<Channel>,
-    BatchDeleteTopicsReply,
-    batch_delete_topics,
-    "BrokerCommonService",
-    "BatchDeleteTopics"
 );
 
 impl_retriable_request!(

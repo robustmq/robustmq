@@ -18,7 +18,6 @@ package broker.common;
 
 service BrokerCommonService {
   rpc UpdateCache(UpdateCacheRequest) returns (UpdateCacheReply) {}
-  rpc BatchDeleteTopics(BatchDeleteTopicsRequest) returns (BatchDeleteTopicsReply) {}
   rpc BatchDeleteGroups(BatchDeleteGroupsRequest) returns (BatchDeleteGroupsReply) {}
 }
 
@@ -33,20 +32,6 @@ message UpdateCacheRecord{
 }
 
 message UpdateCacheReply {
-  bool code = 1;
-  string data = 2;
-}
-
-message DeleteTopicItem {
-  string tenant = 1;
-  string topic_name = 2;
-}
-
-message BatchDeleteTopicsRequest {
-  repeated DeleteTopicItem topics = 1;
-}
-
-message BatchDeleteTopicsReply {
   bool code = 1;
   string data = 2;
 }
