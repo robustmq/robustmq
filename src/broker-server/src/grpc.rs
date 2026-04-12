@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::cluster_service::GrpcBrokerCommonService;
+use crate::cluster_service::GrpcBrokerService;
 use axum::http::{self};
 use common_base::error::common::CommonError;
-use common_base::role::{is_broker_node, is_engine_node, is_meta_node};
+use common_base::role::is_meta_node;
 use common_base::tools::now_millis;
 use common_config::broker::broker_config;
 use common_metrics::grpc::{extract_grpc_status_code, parse_grpc_path, record_grpc_request};
@@ -26,11 +26,8 @@ use meta_service::server::service_mqtt::GrpcMqttService;
 use meta_service::server::service_nats::GrpcNatsService;
 use meta_service::MetaServiceServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
-use mqtt_broker::server::inner::GrpcInnerServices;
 use nats_broker::broker::NatsBrokerServerParams;
-use protocol::broker::broker_common::broker_common_service_server::BrokerCommonServiceServer;
-use protocol::broker::broker_mqtt::broker_mqtt_service_server::BrokerMqttServiceServer;
-use protocol::broker::broker_storage::broker_storage_service_server::BrokerStorageServiceServer;
+use protocol::broker::broker::broker_service_server::BrokerServiceServer;
 use protocol::meta::meta_service_common::meta_service_service_server::MetaServiceServiceServer;
 use protocol::meta::meta_service_journal::engine_service_server::EngineServiceServer;
 use protocol::meta::meta_service_mq9::mq9_service_server::Mq9ServiceServer;
@@ -39,7 +36,6 @@ use protocol::meta::meta_service_nats::nats_service_server::NatsServiceServer;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use storage_engine::server::inner::GrpcBrokerStorageServerService;
 use storage_engine::StorageEngineParams;
 use tonic::transport::Server;
 use tower::{Layer, Service};
@@ -71,7 +67,7 @@ pub async fn start_grpc_server(
         .layer(tonic_web::GrpcWebLayer::new())
         .layer(layer)
         .add_service(
-            BrokerCommonServiceServer::new(GrpcBrokerCommonService::new(
+            BrokerServiceServer::new(GrpcBrokerService::new(
                 mqtt_params.clone(),
                 nats_params.clone(),
                 engine_params.clone(),
@@ -102,20 +98,6 @@ pub async fn start_grpc_server(
                 Mq9ServiceServer::new(get_place_mq9_handler(&place_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             );
-    }
-
-    if is_broker_node(&config.roles) {
-        route = route.add_service(
-            BrokerMqttServiceServer::new(get_mqtt_inner_handler(&mqtt_params))
-                .max_decoding_message_size(grpc_max_decoding_message_size),
-        );
-    }
-
-    if is_engine_node(&config.roles) {
-        route = route.add_service(
-            BrokerStorageServiceServer::new(get_storage_engine_inner_handler(&engine_params))
-                .max_decoding_message_size(grpc_max_decoding_message_size),
-        );
     }
 
     route.serve(ip).await?;
@@ -170,21 +152,6 @@ fn get_place_engine_handler(place_params: &MetaServiceServerParams) -> GrpcEngin
     )
 }
 
-fn get_mqtt_inner_handler(mqtt_params: &MqttBrokerServerParams) -> GrpcInnerServices {
-    GrpcInnerServices::new(
-        mqtt_params.cache_manager.clone(),
-        mqtt_params.subscribe_manager.clone(),
-        mqtt_params.client_pool.clone(),
-        mqtt_params.storage_driver_manager.clone(),
-        mqtt_params.retain_message_manager.clone(),
-    )
-}
-
-fn get_storage_engine_inner_handler(
-    _params: &StorageEngineParams,
-) -> GrpcBrokerStorageServerService {
-    GrpcBrokerStorageServerService::new()
-}
 
 #[derive(Debug, Clone, Default)]
 struct BaseMiddlewareLayer {}

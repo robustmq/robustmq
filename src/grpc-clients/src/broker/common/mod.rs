@@ -13,9 +13,11 @@
 // limitations under the License.
 
 use crate::macros::impl_retriable_request;
-use protocol::broker::broker_common::{
-    broker_common_service_client::BrokerCommonServiceClient, BatchDeleteGroupsReply,
-    BatchDeleteGroupsRequest, UpdateCacheReply, UpdateCacheRequest,
+use protocol::broker::broker::{
+    broker_service_client::BrokerServiceClient, BatchDeleteGroupsReply, BatchDeleteGroupsRequest,
+    DeleteSessionReply, DeleteSessionRequest, GetQosDataByClientIdReply,
+    GetQosDataByClientIdRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
+    UpdateCacheReply, UpdateCacheRequest,
 };
 use tonic::transport::Channel;
 
@@ -23,18 +25,45 @@ pub mod call;
 
 impl_retriable_request!(
     UpdateCacheRequest,
-    BrokerCommonServiceClient<Channel>,
+    BrokerServiceClient<Channel>,
     UpdateCacheReply,
     update_cache,
-    "MqttBrokerInnerService",
+    "BrokerService",
     "UpdateCache"
 );
 
 impl_retriable_request!(
     BatchDeleteGroupsRequest,
-    BrokerCommonServiceClient<Channel>,
+    BrokerServiceClient<Channel>,
     BatchDeleteGroupsReply,
     batch_delete_groups,
-    "BrokerCommonService",
+    "BrokerService",
     "BatchDeleteGroups"
+);
+
+impl_retriable_request!(
+    DeleteSessionRequest,
+    BrokerServiceClient<Channel>,
+    DeleteSessionReply,
+    delete_session,
+    "BrokerService",
+    "DeleteSession"
+);
+
+impl_retriable_request!(
+    SendLastWillMessageRequest,
+    BrokerServiceClient<Channel>,
+    SendLastWillMessageReply,
+    send_last_will_message,
+    "BrokerService",
+    "SendLastWillMessage"
+);
+
+impl_retriable_request!(
+    GetQosDataByClientIdRequest,
+    BrokerServiceClient<Channel>,
+    GetQosDataByClientIdReply,
+    get_qos_data_by_client_id,
+    "BrokerService",
+    "GetQosDataByClientId"
 );

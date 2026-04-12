@@ -15,7 +15,7 @@
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use node_call::{NodeCallData, NodeCallManager};
-use protocol::broker::broker_mqtt::LastWillMessageItem;
+use protocol::broker::broker::LastWillMessageItem;
 use rocksdb_engine::{
     keys::meta::storage_key_mqtt_last_will,
     rocksdb::RocksDBEngine,

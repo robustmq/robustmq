@@ -21,7 +21,7 @@ use broker_core::tool::wait_cluster_running;
 use common_metrics::mqtt::session::record_mqtt_session_deleted;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
-use protocol::broker::broker_mqtt::{
+use protocol::broker::broker::{
     DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
 };
 use std::sync::Arc;

@@ -15,11 +15,43 @@
  */
 
 syntax = "proto3";
-package broker.mqtt;
-service BrokerMQTTService {
+package broker;
+
+service BrokerService {
+  rpc UpdateCache(UpdateCacheRequest) returns (UpdateCacheReply) {}
+  rpc BatchDeleteGroups(BatchDeleteGroupsRequest) returns (BatchDeleteGroupsReply) {}
   rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionReply) {}
   rpc SendLastWillMessage(SendLastWillMessageRequest) returns (SendLastWillMessageReply) {}
   rpc GetQosDataByClientId(GetQosDataByClientIdRequest) returns (GetQosDataByClientIdReply) {}
+}
+
+message UpdateCacheRequest {
+  repeated UpdateCacheRecord records = 1;
+}
+
+message UpdateCacheRecord {
+  BrokerUpdateCacheActionType action_type = 2;
+  BrokerUpdateCacheResourceType resource_type = 3;
+  bytes data = 4;
+}
+
+message UpdateCacheReply {
+  bool code = 1;
+  string data = 2;
+}
+
+message DeleteGroupItem {
+  string tenant = 1;
+  string group_name = 2;
+}
+
+message BatchDeleteGroupsRequest {
+  repeated DeleteGroupItem groups = 1;
+}
+
+message BatchDeleteGroupsReply {
+  bool code = 1;
+  string data = 2;
 }
 
 message DeleteSessionRequest {
@@ -50,7 +82,35 @@ message GetQosDataByClientIdReply {
   repeated GetQosDataByClientIdRaw data = 1;
 }
 
-message GetQosDataByClientIdRaw{
+message GetQosDataByClientIdRaw {
   string client_id = 1;
   bytes qos_data = 2;
+}
+
+enum BrokerUpdateCacheResourceType {
+  Session = 0;
+  User = 1;
+  Subscribe = 2;
+  Topic = 3;
+  Connector = 4;
+  Schema = 5;
+  SchemaResource = 6;
+  ClusterResourceConfig = 7;
+  Node = 8;
+  Shard = 9;
+  Segment = 10;
+  SegmentMeta = 11;
+  Acl = 12;
+  Blacklist = 13;
+  Tenant = 14;
+  AutoSubscribeRule = 15;
+  TopicRewriteRule = 16;
+  NatsSubscribe = 17;
+  Mq9Email = 18;
+}
+
+enum BrokerUpdateCacheActionType {
+  Create = 0;
+  Update = 1;
+  Delete = 2;
 }

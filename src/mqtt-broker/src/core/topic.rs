@@ -24,7 +24,7 @@ use metadata_struct::{
     storage::shard::DEFAULT_RETENTION_SEC,
     topic::{TopicConfig, TopicSource},
 };
-use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
+use protocol::broker::broker::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use protocol::mqtt::common::{Publish, PublishProperties};
 use std::sync::Arc;
 use std::time::Duration;

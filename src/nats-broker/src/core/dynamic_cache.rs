@@ -19,7 +19,7 @@ use common_base::error::common::CommonError;
 use common_base::utils::serialize;
 use metadata_struct::mq9::email::MQ9Email;
 use metadata_struct::nats::subscribe::NatsSubscribe;
-use protocol::broker::broker_common::{
+use protocol::broker::broker::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
 };
 use std::sync::Arc;

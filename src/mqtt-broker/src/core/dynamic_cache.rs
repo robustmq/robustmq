@@ -32,23 +32,20 @@ use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use metadata_struct::tenant::Tenant;
-use protocol::broker::broker_common::{
+use protocol::broker::broker::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
 };
-use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::info;
 
-#[allow(clippy::too_many_arguments)]
 pub async fn update_mqtt_cache_metadata(
     cache_manager: &Arc<MQTTCacheManager>,
     connector_manager: &Arc<ConnectorManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
-    metrics_manager: &Arc<MQTTMetricsCache>,
     security_manager: &Arc<SecurityManager>,
     record: &UpdateCacheRecord,
 ) -> ResultMqttBrokerError {

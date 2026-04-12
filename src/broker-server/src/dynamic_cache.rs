@@ -23,7 +23,7 @@ use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::tenant::Tenant;
-use protocol::broker::broker_common::{
+use protocol::broker::broker::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
 };
 use std::str::FromStr;

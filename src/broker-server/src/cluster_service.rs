@@ -17,32 +17,35 @@ use common_base::error::{common::CommonError, ResultCommonError};
 use mqtt_broker::{
     broker::MqttBrokerServerParams,
     core::dynamic_cache::update_mqtt_cache_metadata,
+    core::inner::{delete_session_by_req, send_last_will_message_by_req},
+    core::qos::get_qos_data_by_req,
 };
 use nats_broker::{
     broker::NatsBrokerServerParams, core::dynamic_cache::update_nats_cache_metadata,
 };
-use protocol::broker::broker_common::{
-    broker_common_service_server::BrokerCommonService, BatchDeleteGroupsReply,
-    BatchDeleteGroupsRequest, BrokerUpdateCacheResourceType, UpdateCacheRecord, UpdateCacheReply,
-    UpdateCacheRequest,
+use protocol::broker::broker::{
+    broker_service_server::BrokerService, BatchDeleteGroupsReply, BatchDeleteGroupsRequest,
+    BrokerUpdateCacheResourceType, DeleteSessionReply, DeleteSessionRequest,
+    GetQosDataByClientIdReply, GetQosDataByClientIdRequest, SendLastWillMessageReply,
+    SendLastWillMessageRequest, UpdateCacheRecord, UpdateCacheReply, UpdateCacheRequest,
 };
 use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
 use tonic::{Request, Response, Status};
 use tracing::warn;
 
-pub struct GrpcBrokerCommonService {
+pub struct GrpcBrokerService {
     mqtt_params: MqttBrokerServerParams,
     nats_params: NatsBrokerServerParams,
     storage_params: StorageEngineParams,
 }
 
-impl GrpcBrokerCommonService {
+impl GrpcBrokerService {
     pub fn new(
         mqtt_params: MqttBrokerServerParams,
         nats_params: NatsBrokerServerParams,
         storage_params: StorageEngineParams,
     ) -> Self {
-        GrpcBrokerCommonService {
+        GrpcBrokerService {
             mqtt_params,
             nats_params,
             storage_params,
@@ -51,7 +54,7 @@ impl GrpcBrokerCommonService {
 }
 
 #[tonic::async_trait]
-impl BrokerCommonService for GrpcBrokerCommonService {
+impl BrokerService for GrpcBrokerService {
     async fn update_cache(
         &self,
         request: Request<UpdateCacheRequest>,
@@ -84,6 +87,49 @@ impl BrokerCommonService for GrpcBrokerCommonService {
     ) -> Result<Response<BatchDeleteGroupsReply>, Status> {
         Ok(Response::new(BatchDeleteGroupsReply::default()))
     }
+
+    async fn delete_session(
+        &self,
+        request: Request<DeleteSessionRequest>,
+    ) -> Result<Response<DeleteSessionReply>, Status> {
+        let req = request.into_inner();
+        delete_session_by_req(
+            &self.mqtt_params.cache_manager,
+            &self.mqtt_params.subscribe_manager,
+            &req,
+        )
+        .await
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
+    }
+
+    async fn send_last_will_message(
+        &self,
+        request: Request<SendLastWillMessageRequest>,
+    ) -> Result<Response<SendLastWillMessageReply>, Status> {
+        let req = request.into_inner();
+        send_last_will_message_by_req(
+            &self.mqtt_params.cache_manager,
+            &self.mqtt_params.client_pool,
+            &self.mqtt_params.retain_message_manager,
+            &self.mqtt_params.storage_driver_manager,
+            &req,
+        )
+        .await
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
+    }
+
+    async fn get_qos_data_by_client_id(
+        &self,
+        request: Request<GetQosDataByClientIdRequest>,
+    ) -> Result<Response<GetQosDataByClientIdReply>, Status> {
+        let req = request.into_inner();
+        get_qos_data_by_req(&self.mqtt_params.cache_manager, &req.client_ids)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
+    }
 }
 
 async fn update_cache(
@@ -108,7 +154,6 @@ async fn update_cache(
                 &mqtt_params.subscribe_manager,
                 &mqtt_params.schema_manager,
                 &mqtt_params.storage_driver_manager,
-                &mqtt_params.metrics_cache_manager,
                 &mqtt_params.security_manager,
                 record,
             )

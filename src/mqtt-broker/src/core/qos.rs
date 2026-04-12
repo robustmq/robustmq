@@ -25,7 +25,7 @@ use metadata_struct::{
 };
 use node_call::{NodeCallData, NodeCallManager};
 use prost::Message;
-use protocol::broker::broker_mqtt::{GetQosDataByClientIdRaw, GetQosDataByClientIdReply};
+use protocol::broker::broker::{GetQosDataByClientIdRaw, GetQosDataByClientIdReply};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;

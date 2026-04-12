@@ -33,7 +33,7 @@ use metadata_struct::storage::{
 };
 use metadata_struct::tenant::Tenant;
 use node_call::{NodeCallData, NodeCallManager, UpdateCacheData};
-use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
+use protocol::broker::broker::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use std::sync::Arc;
 
 // Tenant
