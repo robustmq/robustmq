@@ -21,6 +21,7 @@ use crate::{
     },
 };
 use axum::extract::{Query, State};
+use broker_core::topic::TopicStorage;
 use common_base::{
     http_response::{error_response, success_response},
     tools::now_millis,
@@ -28,8 +29,10 @@ use common_base::{
 use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use metadata_struct::mqtt::{retain_message::MQTTRetainMessage, topic::Topic};
-use mqtt_broker::subscribe::manager::TopicSubscribeInfo;
-use mqtt_broker::{core::error::MqttBrokerError, storage::topic::TopicStorage};
+use mqtt_broker::{core::error::MqttBrokerError, storage::retain::RetainStorage};
+use mqtt_broker::{
+    storage::topic_rewrite::TopicRewriteStorage, subscribe::manager::TopicSubscribeInfo,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
@@ -268,7 +271,7 @@ async fn read_topic_detail(
         .get(&topic.tenant)
         .and_then(|t| t.get(&topic.topic_name).map(|v| v.clone()))
         .unwrap_or_default();
-    let storage = TopicStorage::new(state.client_pool.clone());
+    let storage = RetainStorage::new(state.client_pool.clone());
     let retain_message = storage
         .get_retain_message(&topic.tenant, &topic.topic_name)
         .await?;
@@ -380,7 +383,7 @@ pub async fn topic_rewrite_create(
         timestamp: now_millis(),
     };
 
-    let topic_storage = TopicStorage::new(state.client_pool.clone());
+    let topic_storage = TopicRewriteStorage::new(state.client_pool.clone());
     if let Err(e) = topic_storage.create_topic_rewrite_rule(rule.clone()).await {
         return error_response(e.to_string());
     }
@@ -397,7 +400,7 @@ pub async fn topic_rewrite_delete(
     State(state): State<Arc<HttpState>>,
     ValidatedJson(params): ValidatedJson<DeleteTopicRewriteReq>,
 ) -> String {
-    let topic_storage = TopicStorage::new(state.client_pool.clone());
+    let topic_storage = TopicRewriteStorage::new(state.client_pool.clone());
     if let Err(e) = topic_storage
         .delete_topic_rewrite_rule(params.tenant.clone(), params.name.clone())
         .await

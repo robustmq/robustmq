@@ -191,20 +191,34 @@ pub async fn try_init_topic(
     Ok(topic)
 }
 
-pub async fn delete_topic_by_mqtt(
+pub async fn create_topic_by_mqtt(
     cache_manager: &Arc<MQTTCacheManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
     topic: &Topic,
-    storage_driver_manager: &Arc<StorageDriverManager>,
+) -> Result<(), MqttBrokerError> {
+    if cache_manager
+        .topic_rewrite_rule
+        .iter()
+        .any(|e| !e.value().is_empty())
+    {
+        cache_manager.set_re_calc_topic_rewrite(true).await;
+    }
+    subscribe_manager
+        .add_wait_parse_data(ParseSubscribeData {
+            action_type: BrokerUpdateCacheActionType::Create,
+            resource_type: BrokerUpdateCacheResourceType::Topic,
+            subscribe: None,
+            topic: Some(topic.clone()),
+        })
+        .await;
+    Ok(())
+}
+
+pub async fn delete_topic_by_mqtt(
+    topic: &Topic,
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> Result<(), MqttBrokerError> {
-    storage_driver_manager
-        .delete_storage_resource(&topic.tenant, &topic.topic_name)
-        .await?;
-    cache_manager
-        .node_cache
-        .delete_topic(&topic.tenant, &topic.topic_name);
     subscribe_manager.remove_by_topic(&topic.tenant, &topic.topic_name);
-
     subscribe_manager
         .add_wait_parse_data(ParseSubscribeData {
             action_type: BrokerUpdateCacheActionType::Delete,

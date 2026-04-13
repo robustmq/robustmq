@@ -17,12 +17,16 @@ use broker_core::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicC
 use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::utils::serialize;
 use common_security::manager::SecurityManager;
+use connector::manager::ConnectorManager;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
+use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::resource_config::ResourceConfig;
+use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use metadata_struct::tenant::Tenant;
+use metadata_struct::topic::Topic;
 use mqtt_broker::{
     broker::MqttBrokerServerParams, core::dynamic_cache::update_mqtt_cache_metadata,
 };
@@ -32,8 +36,10 @@ use nats_broker::{
 use protocol::broker::broker::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
 };
+use schema_register::schema::SchemaRegisterManager;
 use std::str::FromStr;
 use std::sync::Arc;
+use storage_adapter::driver::StorageDriverManager;
 use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
 
 pub async fn update_cache(
@@ -47,18 +53,11 @@ pub async fn update_cache(
         BrokerUpdateCacheResourceType::Session
         | BrokerUpdateCacheResourceType::Subscribe
         | BrokerUpdateCacheResourceType::Topic
-        | BrokerUpdateCacheResourceType::Connector
-        | BrokerUpdateCacheResourceType::Schema
-        | BrokerUpdateCacheResourceType::SchemaResource
         | BrokerUpdateCacheResourceType::AutoSubscribeRule
         | BrokerUpdateCacheResourceType::TopicRewriteRule => {
             if let Err(e) = update_mqtt_cache_metadata(
                 &mqtt_params.cache_manager,
-                &mqtt_params.connector_manager,
                 &mqtt_params.subscribe_manager,
-                &mqtt_params.schema_manager,
-                &mqtt_params.storage_driver_manager,
-                &mqtt_params.security_manager,
                 record,
             )
             .await
@@ -67,17 +66,23 @@ pub async fn update_cache(
             }
         }
 
-        // Cluster — Node, Config, Tenant, User, Acl, Blacklist, Group
+        // Cluster — Node, Config, Tenant, User, Acl, Blacklist, Group, Connector, Schema
         BrokerUpdateCacheResourceType::ClusterResourceConfig
         | BrokerUpdateCacheResourceType::Node
         | BrokerUpdateCacheResourceType::Tenant
         | BrokerUpdateCacheResourceType::User
         | BrokerUpdateCacheResourceType::Acl
         | BrokerUpdateCacheResourceType::Blacklist
-        | BrokerUpdateCacheResourceType::Group => {
+        | BrokerUpdateCacheResourceType::Group
+        | BrokerUpdateCacheResourceType::Connector
+        | BrokerUpdateCacheResourceType::Schema
+        | BrokerUpdateCacheResourceType::SchemaResource => {
             if let Err(e) = update_cluster_cache_metadata(
                 &mqtt_params.cache_manager.node_cache,
                 &mqtt_params.security_manager,
+                &mqtt_params.connector_manager,
+                &mqtt_params.schema_manager,
+                &mqtt_params.storage_driver_manager,
                 record,
             )
             .await
@@ -120,6 +125,9 @@ pub async fn update_cache(
 pub async fn update_cluster_cache_metadata(
     node_cache: &Arc<NodeCacheManager>,
     security_manager: &Arc<SecurityManager>,
+    connector_manager: &Arc<ConnectorManager>,
+    schema_manager: &Arc<SchemaRegisterManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
     record: &UpdateCacheRecord,
 ) -> Result<(), CommonError> {
     match record.resource_type() {
@@ -134,12 +142,30 @@ pub async fn update_cluster_cache_metadata(
                 }
             }
         }
+
         BrokerUpdateCacheResourceType::ClusterResourceConfig => {
             let config: ResourceConfig = serialize::deserialize(&record.data)?;
             if let Ok(config_type) = ClusterDynamicConfig::from_str(&config.resource) {
                 update_cluster_dynamic_config(node_cache, config_type, config.config)?;
             }
         }
+
+        BrokerUpdateCacheResourceType::Topic => match record.action_type() {
+            BrokerUpdateCacheActionType::Create => {
+                let topic = serialize::deserialize::<Topic>(&record.data)?;
+                node_cache.add_topic(&topic);
+            }
+
+            BrokerUpdateCacheActionType::Update => {}
+            BrokerUpdateCacheActionType::Delete => {
+                let topic = serialize::deserialize::<Topic>(&record.data)?;
+                node_cache.delete_topic(&topic.tenant, &topic.topic_name);
+                storage_driver_manager
+                    .delete_storage_resource(&topic.tenant, &topic.topic_name)
+                    .await?;
+            }
+        },
+
         BrokerUpdateCacheResourceType::Tenant => {
             let tenant: Tenant = serialize::deserialize(&record.data)?;
             match record.action_type() {
@@ -151,6 +177,7 @@ pub async fn update_cluster_cache_metadata(
                 }
             }
         }
+
         BrokerUpdateCacheResourceType::User => {
             let user: SecurityUser = serialize::deserialize(&record.data)?;
             match record.action_type() {
@@ -164,6 +191,7 @@ pub async fn update_cluster_cache_metadata(
                 }
             }
         }
+
         BrokerUpdateCacheResourceType::Acl => {
             let acl: SecurityAcl = serialize::deserialize(&record.data)?;
             match record.action_type() {
@@ -175,6 +203,7 @@ pub async fn update_cluster_cache_metadata(
                 }
             }
         }
+
         BrokerUpdateCacheResourceType::Blacklist => {
             let blacklist: SecurityBlackList = serialize::deserialize(&record.data)?;
             match record.action_type() {
@@ -186,6 +215,43 @@ pub async fn update_cluster_cache_metadata(
                 }
             }
         }
+
+        BrokerUpdateCacheResourceType::Connector => {
+            let connector: MQTTConnector = serialize::deserialize(&record.data)?;
+            match record.action_type() {
+                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                    connector_manager.add_connector(&connector);
+                }
+                BrokerUpdateCacheActionType::Delete => {
+                    connector_manager.remove_connector(&connector.connector_name);
+                }
+            }
+        }
+
+        BrokerUpdateCacheResourceType::Schema => {
+            let schema: SchemaData = serialize::deserialize(&record.data)?;
+            match record.action_type() {
+                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                    schema_manager.add_schema(schema);
+                }
+                BrokerUpdateCacheActionType::Delete => {
+                    schema_manager.remove_schema(&schema.tenant, &schema.name);
+                }
+            }
+        }
+
+        BrokerUpdateCacheResourceType::SchemaResource => {
+            let schema_resource: SchemaResourceBind = serialize::deserialize(&record.data)?;
+            match record.action_type() {
+                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                    schema_manager.add_bind(&schema_resource);
+                }
+                BrokerUpdateCacheActionType::Delete => {
+                    schema_manager.remove_bind(&schema_resource);
+                }
+            }
+        }
+
         BrokerUpdateCacheResourceType::Group => {}
         _ => {}
     }

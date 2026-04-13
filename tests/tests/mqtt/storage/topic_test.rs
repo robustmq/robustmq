@@ -14,6 +14,7 @@
 
 #[cfg(test)]
 mod tests {
+    use broker_core::topic::TopicStorage;
     use bytes::Bytes;
     use common_base::{tools::now_second, uuid::unique_id};
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
@@ -22,7 +23,7 @@ mod tests {
     use metadata_struct::{
         mqtt::retain_message::MQTTRetainMessage, tenant::DEFAULT_TENANT, topic::Topic,
     };
-    use mqtt_broker::storage::topic::TopicStorage;
+    use mqtt_broker::storage::retain::RetainStorage;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -66,7 +67,8 @@ mod tests {
         init_broker_conf_by_config(config.clone());
 
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
-        let topic_storage = TopicStorage::new(client_pool);
+        let topic_storage = TopicStorage::new(client_pool.clone());
+        let retain_storage = RetainStorage::new(client_pool.clone());
 
         let topic_name: String = unique_id();
         let content = "Robust Data".to_string();
@@ -83,12 +85,12 @@ mod tests {
             create_time: now_second(),
         };
 
-        topic_storage
+        retain_storage
             .set_retain_message(&topic.tenant, &topic.topic_name, &retain_message)
             .await
             .unwrap();
 
-        let result_message = topic_storage
+        let result_message = retain_storage
             .get_retain_message(&topic.tenant, &topic.topic_name)
             .await
             .unwrap();
@@ -99,12 +101,12 @@ mod tests {
         let payload = msg.payload;
         assert_eq!(payload, content);
 
-        topic_storage
+        retain_storage
             .delete_retain_message(&topic.tenant, &topic_name)
             .await
             .unwrap();
 
-        let result_message = topic_storage
+        let result_message = retain_storage
             .get_retain_message(&topic.tenant, &topic_name)
             .await
             .unwrap();

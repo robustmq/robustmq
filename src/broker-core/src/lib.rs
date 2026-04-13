@@ -19,3 +19,4 @@ pub mod dynamic_config;
 pub mod heartbeat;
 pub mod tenant;
 pub mod tool;
+pub mod topic;
