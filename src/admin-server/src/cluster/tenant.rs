@@ -66,7 +66,7 @@ pub struct TenantListReq {
     pub exact_match: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Validate, Default)]
 pub struct CreateTenantReq {
     #[validate(length(
         min = 1,

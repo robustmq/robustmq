@@ -361,7 +361,7 @@
 ### 4. 主题管理
 
 #### 4.1 主题列表查询
-- **接口**: `GET /api/mqtt/topic/list`
+- **接口**: `GET /api/cluster/topic/list`
 - **描述**: 查询 MQTT 主题列表，支持按租户过滤、主题名模糊搜索和主题类型过滤
 - **请求参数**:
 
@@ -399,7 +399,7 @@
 ```
 
 #### 4.2 主题详情查询
-- **接口**: `GET /api/mqtt/topic/detail`
+- **接口**: `GET /api/cluster/topic/detail`
 - **描述**: 查询指定主题的详细信息，包括主题基本信息、保留消息和订阅列表
 - **请求参数**:
 
@@ -436,7 +436,7 @@
 ```
 
 #### 4.3 删除主题
-- **接口**: `POST /api/mqtt/topic/delete`
+- **接口**: `POST /api/cluster/topic/delete`
 - **描述**: 删除指定的主题
 - **请求参数**:
 
@@ -453,7 +453,7 @@
 - 此操作不可逆，请谨慎使用
 
 #### 4.4 主题重写规则列表
-- **接口**: `GET /api/mqtt/topic-rewrite/list`
+- **接口**: `GET /api/cluster/topic-rewrite/list`
 - **描述**: 查询主题重写规则列表，支持按租户和规则名称模糊搜索
 - **请求参数**:
 
@@ -490,7 +490,7 @@
 ```
 
 #### 4.5 创建主题重写规则
-- **接口**: `POST /api/mqtt/topic-rewrite/create`
+- **接口**: `POST /api/cluster/topic-rewrite/create`
 - **描述**: 创建新的主题重写规则，`name` 作为唯一标识符
 - **请求参数**:
 ```json
@@ -508,7 +508,7 @@
 - **响应**: 成功返回 "success"
 
 #### 4.6 删除主题重写规则
-- **接口**: `POST /api/mqtt/topic-rewrite/delete`
+- **接口**: `POST /api/cluster/topic-rewrite/delete`
 - **描述**: 按规则名称删除主题重写规则
 - **请求参数**:
 ```json
@@ -826,7 +826,7 @@
 ### 7. ACL 管理
 
 #### 7.1 ACL 列表查询
-- **接口**: `GET /api/mqtt/acl/list`
+- **接口**: `GET /api/cluster/acl/list`
 - **描述**: 查询访问控制列表，支持租户、名称、资源名称的模糊搜索（包含匹配）
 - **请求参数**:
 ```json
@@ -866,7 +866,7 @@
 ```
 
 #### 7.2 创建 ACL 规则
-- **接口**: `POST /api/mqtt/acl/create`
+- **接口**: `POST /api/cluster/acl/create`
 - **描述**: 创建新的 ACL 规则，以 `name` 为唯一标识（租户内唯一）
 - **请求参数**:
 ```json
@@ -891,7 +891,7 @@
 - **响应**: 成功返回 "success"
 
 #### 7.3 删除 ACL 规则
-- **接口**: `POST /api/mqtt/acl/delete`
+- **接口**: `POST /api/cluster/acl/delete`
 - **描述**: 按 `name` 删除 ACL 规则
 - **请求参数**:
 ```json
@@ -908,7 +908,7 @@
 ### 8. 黑名单管理
 
 #### 8.1 黑名单列表查询
-- **接口**: `GET /api/mqtt/blacklist/list`
+- **接口**: `GET /api/cluster/blacklist/list`
 - **描述**: 查询黑名单列表，支持 tenant、name、resource_name 模糊搜索
 - **请求参数**:
 ```json
@@ -945,7 +945,7 @@
 ```
 
 #### 8.2 创建黑名单
-- **接口**: `POST /api/mqtt/blacklist/create`
+- **接口**: `POST /api/cluster/blacklist/create`
 - **描述**: 添加新的黑名单项，以 `name` 作为唯一标识
 - **请求参数**:
 ```json
@@ -966,7 +966,7 @@
 - **响应**: 成功返回 "success"
 
 #### 8.3 删除黑名单
-- **接口**: `POST /api/mqtt/blacklist/delete`
+- **接口**: `POST /api/cluster/blacklist/delete`
 - **描述**: 按 `name` 删除黑名单项
 - **请求参数**:
 ```json
@@ -991,7 +991,7 @@
 ### 10. Schema 管理
 
 #### 10.1 Schema 列表查询
-- **接口**: `GET /api/mqtt/schema/list`
+- **接口**: `GET /api/cluster/schema/list`
 - **描述**: 查询 Schema 列表，支持 tenant、name 模糊搜索
 - **请求参数**:
 ```json
@@ -1026,7 +1026,7 @@
 ```
 
 #### 10.2 创建 Schema
-- **接口**: `POST /api/mqtt/schema/create`
+- **接口**: `POST /api/cluster/schema/create`
 - **描述**: 创建新的 Schema
 - **请求参数**:
 ```json
@@ -1042,7 +1042,7 @@
 - **响应**: 成功返回 "success"
 
 #### 10.3 删除 Schema
-- **接口**: `POST /api/mqtt/schema/delete`
+- **接口**: `POST /api/cluster/schema/delete`
 - **描述**: 删除 Schema
 - **请求参数**:
 ```json
@@ -1057,7 +1057,7 @@
 #### 10.4 Schema 绑定管理
 
 ##### 10.4.1 Schema 绑定列表查询
-- **接口**: `GET /api/mqtt/schema-bind/list`
+- **接口**: `GET /api/cluster/schema-bind/list`
 - **描述**: 查询 Schema 绑定关系列表
 - **请求参数**:
 ```json
@@ -1090,7 +1090,7 @@
 ```
 
 ##### 10.4.2 创建 Schema 绑定
-- **接口**: `POST /api/mqtt/schema-bind/create`
+- **接口**: `POST /api/cluster/schema-bind/create`
 - **描述**: 创建 Schema 与资源的绑定关系
 - **请求参数**:
 ```json
@@ -1104,7 +1104,7 @@
 - **响应**: 成功返回 "success"
 
 ##### 10.4.3 删除 Schema 绑定
-- **接口**: `POST /api/mqtt/schema-bind/delete`
+- **接口**: `POST /api/cluster/schema-bind/delete`
 - **描述**: 删除 Schema 绑定关系
 - **请求参数**:
 ```json
@@ -1308,7 +1308,7 @@
 > MQTT Broker 支持多租户隔离。租户是资源（用户、ACL、主题、订阅等）的顶级命名空间。
 
 #### 13.1 租户列表查询
-- **接口**: `GET /api/mqtt/tenant/list`
+- **接口**: `GET /api/cluster/tenant/list`
 - **描述**: 查询 MQTT 租户列表，支持按租户名直接查询
 - **请求参数**:
 ```json
@@ -1358,7 +1358,7 @@
 - `max_publish_rate`: 每秒最大 Publish 消息速率
 
 #### 13.2 创建租户
-- **接口**: `POST /api/mqtt/tenant/create`
+- **接口**: `POST /api/cluster/tenant/create`
 - **描述**: 创建新的 MQTT 租户
 - **请求参数**:
 ```json
@@ -1376,7 +1376,7 @@
 - **响应**: 成功返回 "success"
 
 #### 13.3 删除租户
-- **接口**: `POST /api/mqtt/tenant/delete`
+- **接口**: `POST /api/cluster/tenant/delete`
 - **描述**: 删除 MQTT 租户
 - **请求参数**:
 ```json
@@ -1462,7 +1462,7 @@ curl "http://localhost:8080/api/mqtt/subscribe/list?tenant=default&limit=20&page
 
 ### 创建租户
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/tenant/create \
+curl -X POST http://localhost:8080/api/cluster/tenant/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant_name": "production",
@@ -1472,7 +1472,7 @@ curl -X POST http://localhost:8080/api/mqtt/tenant/create \
 
 ### 删除主题
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/topic/delete \
+curl -X POST http://localhost:8080/api/cluster/topic/delete \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1494,7 +1494,7 @@ curl -X POST http://localhost:8080/api/mqtt/user/create \
 
 ### 创建ACL规则
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/acl/create \
+curl -X POST http://localhost:8080/api/cluster/acl/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1510,7 +1510,7 @@ curl -X POST http://localhost:8080/api/mqtt/acl/create \
 
 ### 创建黑名单（通配符匹配）
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
+curl -X POST http://localhost:8080/api/cluster/blacklist/create \
   -H "Content-Type: application/json" \
   -d '{
     "name": "bl-bad-client-match",
@@ -1524,7 +1524,7 @@ curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
 
 ### 创建Schema
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/schema/create \
+curl -X POST http://localhost:8080/api/cluster/schema/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",

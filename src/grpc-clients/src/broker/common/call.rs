@@ -14,8 +14,9 @@
 
 use common_base::error::common::CommonError;
 use protocol::broker::broker::{
-    GetQosDataByClientIdReply, GetQosDataByClientIdRequest, SendLastWillMessageReply,
-    SendLastWillMessageRequest, UpdateCacheReply, UpdateCacheRequest,
+    GetQosDataByClientIdReply, GetQosDataByClientIdRequest, GetShardSegmentDeleteStatusReply,
+    GetShardSegmentDeleteStatusRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
+    UpdateCacheReply, UpdateCacheRequest,
 };
 
 use crate::pool::ClientPool;
@@ -42,4 +43,10 @@ generate_broker_call!(
     broker_get_qos_data_by_client_id,
     GetQosDataByClientIdRequest,
     GetQosDataByClientIdReply
+);
+
+generate_broker_call!(
+    broker_get_shard_segment_delete_status,
+    GetShardSegmentDeleteStatusRequest,
+    GetShardSegmentDeleteStatusReply
 );

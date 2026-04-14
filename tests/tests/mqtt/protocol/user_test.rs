@@ -20,7 +20,7 @@ mod tests {
     };
     use crate::mqtt::protocol::ClientTestProperties;
     use admin_server::client::AdminHttpClient;
-    use admin_server::mqtt::user::{CreateUserReq, DeleteUserReq, UserListReq, UserListRow};
+    use admin_server::cluster::user::{CreateUserReq, DeleteUserReq, UserListReq, UserListRow};
     use admin_server::tool::PageReplyData;
     use common_base::uuid::unique_id;
 

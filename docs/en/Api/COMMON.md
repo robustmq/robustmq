@@ -275,7 +275,7 @@ curl -X GET http://localhost:8080/
 curl -X GET http://localhost:8080/api/status
 
 # List query with pagination
-curl "http://localhost:8080/api/mqtt/user/list?limit=10&page=1&sort_field=username&sort_by=asc"
+curl "http://localhost:8080/api/cluster/user/list?limit=10&page=1&sort_field=username&sort_by=asc"
 ```
 
 ### Error Handling Example

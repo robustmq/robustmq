@@ -15,7 +15,8 @@
 use crate::macros::impl_retriable_request;
 use protocol::broker::broker::{
     broker_service_client::BrokerServiceClient, GetQosDataByClientIdReply,
-    GetQosDataByClientIdRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
+    GetQosDataByClientIdRequest, GetShardSegmentDeleteStatusReply,
+    GetShardSegmentDeleteStatusRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
     UpdateCacheReply, UpdateCacheRequest,
 };
 use tonic::transport::Channel;
@@ -47,4 +48,13 @@ impl_retriable_request!(
     get_qos_data_by_client_id,
     "BrokerService",
     "GetQosDataByClientId"
+);
+
+impl_retriable_request!(
+    GetShardSegmentDeleteStatusRequest,
+    BrokerServiceClient<Channel>,
+    GetShardSegmentDeleteStatusReply,
+    get_shard_segment_delete_status,
+    "BrokerService",
+    "GetShardSegmentDeleteStatus"
 );

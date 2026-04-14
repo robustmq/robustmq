@@ -22,7 +22,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::warn;
+use tracing::{info, warn};
 
 // Scan every 5 minutes
 const GROUP_GC_INTERVAL_MS: u64 = 5 * 60 * 1000;
@@ -91,6 +91,14 @@ async fn gc_expired_groups(
                 tenant, group, e
             );
         }
+
+        info!(
+            "Group {} cleaned up successfully: tenant={}, last_write_time={}s ago, expire_sec={}",
+            group,
+            tenant,
+            now.saturating_sub(latest_ts),
+            expire_sec
+        );
     }
 
     Ok(())

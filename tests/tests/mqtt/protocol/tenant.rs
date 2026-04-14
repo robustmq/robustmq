@@ -23,14 +23,14 @@ mod tests {
         ClientTestProperties,
     };
     use admin_server::client::AdminHttpClient;
+    use admin_server::cluster::tenant::{
+        CreateTenantReq, DeleteTenantReq, TenantListReq, TenantListRow,
+    };
+    use admin_server::cluster::topic::TopicListReq;
+    use admin_server::cluster::user::{CreateUserReq, DeleteUserReq};
     use admin_server::mqtt::client::{ClientListReq, ClientListRow};
     use admin_server::mqtt::session::{SessionListReq, SessionListRow};
     use admin_server::mqtt::subscribe::{SubscribeListReq, SubscribeListRow};
-    use admin_server::mqtt::tenant::{
-        CreateMqttTenantReq, DeleteMqttTenantReq, MqttTenantListReq, MqttTenantListRow,
-    };
-    use admin_server::mqtt::topic::TopicListReq;
-    use admin_server::mqtt::user::{CreateUserReq, DeleteUserReq};
     use admin_server::tool::PageReplyData;
     use common_base::uuid::unique_id;
     use metadata_struct::mqtt::topic::Topic;
@@ -344,7 +344,7 @@ mod tests {
 
     async fn create_tenant(admin_client: &AdminHttpClient, tenant_name: &str) {
         admin_client
-            .create_mqtt_tenant(&CreateMqttTenantReq {
+            .create_mqtt_tenant(&CreateTenantReq {
                 tenant_name: tenant_name.to_string(),
                 desc: Some("integration test tenant".to_string()),
                 ..Default::default()
@@ -354,8 +354,8 @@ mod tests {
     }
 
     async fn get_tenant(admin_client: &AdminHttpClient, tenant_name: &str) -> usize {
-        let res: PageReplyData<Vec<MqttTenantListRow>> = admin_client
-            .get_mqtt_tenant_list(&MqttTenantListReq {
+        let res: PageReplyData<Vec<TenantListRow>> = admin_client
+            .get_mqtt_tenant_list(&TenantListReq {
                 tenant_name: Some(tenant_name.to_string()),
                 ..Default::default()
             })
@@ -366,7 +366,7 @@ mod tests {
 
     async fn delete_tenant(admin_client: &AdminHttpClient, tenant_name: &str) {
         admin_client
-            .delete_mqtt_tenant(&DeleteMqttTenantReq {
+            .delete_mqtt_tenant(&DeleteTenantReq {
                 tenant_name: tenant_name.to_string(),
             })
             .await

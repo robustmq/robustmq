@@ -81,7 +81,7 @@ pub fn delete_local_shard(
     });
 }
 
-pub fn is_delete_by_shard(shard_name: &str) -> Result<bool, StorageEngineError> {
+pub fn shard_already_delete(shard_name: &str) -> Result<bool, StorageEngineError> {
     let conf = broker_config();
     for data_fold in conf.storage_runtime.data_path.iter() {
         let shard_fold_name = data_fold_shard(shard_name, data_fold);

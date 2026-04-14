@@ -20,10 +20,10 @@ mod tests {
     };
     use crate::mqtt::protocol::ClientTestProperties;
     use admin_server::client::AdminHttpClient;
-    use admin_server::mqtt::blacklist::{
+    use admin_server::cluster::blacklist::{
         BlackListListReq, BlackListListRow, CreateBlackListReq, DeleteBlackListReq,
     };
-    use admin_server::mqtt::user::{CreateUserReq, DeleteUserReq};
+    use admin_server::cluster::user::{CreateUserReq, DeleteUserReq};
     use common_base::tools::now_second;
     use common_base::uuid::unique_id;
     use metadata_struct::auth::blacklist::EnumBlackListType as MqttAclBlackListType;

@@ -21,6 +21,7 @@ service BrokerService {
   rpc UpdateCache(UpdateCacheRequest) returns (UpdateCacheReply) {}
   rpc SendLastWillMessage(SendLastWillMessageRequest) returns (SendLastWillMessageReply) {}
   rpc GetQosDataByClientId(GetQosDataByClientIdRequest) returns (GetQosDataByClientIdReply) {}
+  rpc GetShardSegmentDeleteStatus(GetShardSegmentDeleteStatusRequest) returns (GetShardSegmentDeleteStatusReply) {}
 }
 
 message UpdateCacheRequest {
@@ -60,6 +61,24 @@ message GetQosDataByClientIdReply {
 message GetQosDataByClientIdRaw {
   string client_id = 1;
   bytes qos_data = 2;
+}
+
+message ShardSegmentStatusItem {
+  string shard_name = 1;
+  optional uint32 segment_seq = 2;
+}
+
+message GetShardSegmentDeleteStatusRequest {
+  repeated ShardSegmentStatusItem items = 1;
+}
+
+message ShardSegmentDeleteStatus {
+  string shard_name = 1;
+  bool deleted = 2;
+}
+
+message GetShardSegmentDeleteStatusReply {
+  repeated ShardSegmentDeleteStatus results = 1;
 }
 
 enum BrokerUpdateCacheResourceType {

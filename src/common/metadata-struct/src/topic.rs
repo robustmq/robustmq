@@ -47,6 +47,7 @@ pub struct Topic {
     /// Maps partition index to its storage shard name. Populated via `create_partition_name` or set manually.
     pub storage_name_list: HashMap<u32, String>,
     pub config: TopicConfig,
+    pub mark_delete: bool,
     pub create_time: u64,
 }
 
@@ -61,6 +62,7 @@ impl Topic {
             source: TopicSource::SystemInner,
             partition: 1,
             replication: 1,
+            mark_delete: false,
             storage_name_list: Topic::create_partition_name(&unique_id, 1),
             config: TopicConfig::default(),
             create_time: now_second(),
@@ -148,6 +150,7 @@ mod tests {
             storage_type: StorageType::EngineMemory,
             source: TopicSource::SystemInner,
             partition: 3,
+            mark_delete: false,
             replication: 2,
             storage_name_list: HashMap::new(),
             config: TopicConfig::default(),

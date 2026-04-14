@@ -21,7 +21,7 @@ mod tests {
         },
         ClientTestProperties,
     };
-    use admin_server::mqtt::connector::{
+    use admin_server::cluster::connector::{
         ConnectorDetailReq, ConnectorDetailResp, ConnectorListReq, ConnectorListRow,
         CreateConnectorReq, FailureStrategy,
     };

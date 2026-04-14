@@ -20,8 +20,10 @@ use mqtt_broker::{
 use nats_broker::broker::NatsBrokerServerParams;
 use protocol::broker::broker::{
     broker_service_server::BrokerService, GetQosDataByClientIdReply, GetQosDataByClientIdRequest,
-    SendLastWillMessageReply, SendLastWillMessageRequest, UpdateCacheReply, UpdateCacheRequest,
+    GetShardSegmentDeleteStatusReply, GetShardSegmentDeleteStatusRequest, SendLastWillMessageReply,
+    SendLastWillMessageRequest, ShardSegmentDeleteStatus, UpdateCacheReply, UpdateCacheRequest,
 };
+use storage_engine::core::{segment::segment_already_delete, shard::shard_already_delete};
 use storage_engine::StorageEngineParams;
 use tonic::{Request, Response, Status};
 use tracing::warn;
@@ -100,5 +102,35 @@ impl BrokerService for GrpcBrokerService {
             .await
             .map_err(|e| Status::internal(e.to_string()))
             .map(Response::new)
+    }
+
+    async fn get_shard_segment_delete_status(
+        &self,
+        request: Request<GetShardSegmentDeleteStatusRequest>,
+    ) -> Result<Response<GetShardSegmentDeleteStatusReply>, Status> {
+        let req = request.into_inner();
+        let mut results = Vec::with_capacity(req.items.len());
+
+        for item in &req.items {
+            let deleted = if let Some(segment_seq) = item.segment_seq {
+                segment_already_delete(
+                    &self.storage_params.cache_manager,
+                    &item.shard_name,
+                    segment_seq,
+                )
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?
+            } else {
+                shard_already_delete(&item.shard_name)
+                    .map_err(|e| Status::internal(e.to_string()))?
+            };
+
+            results.push(ShardSegmentDeleteStatus {
+                shard_name: item.shard_name.clone(),
+                deleted,
+            });
+        }
+
+        Ok(Response::new(GetShardSegmentDeleteStatusReply { results }))
     }
 }

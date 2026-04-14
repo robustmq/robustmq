@@ -62,6 +62,10 @@ pub async fn update_nats_cache_metadata(
                 }
                 BrokerUpdateCacheActionType::Delete => {
                     cache_manager.remove_email(&email.tenant, &email.mail_id);
+                    // mail id is globally unique. Once the metadata of a mail is deleted,
+                    // there will be no duplicate mail ids in the future.
+                    // That is to say, data will no longer be written to this mail and will not be consumed.
+                    // At this point, the underlying data will naturally expire.
                 }
             }
         }

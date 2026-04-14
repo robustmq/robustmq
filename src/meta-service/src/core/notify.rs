@@ -293,7 +293,7 @@ pub async fn send_notify_by_delete_subscribe(
 }
 
 // MQTT Topic
-pub async fn send_notify_by_add_topic(
+pub async fn send_notify_by_set_topic(
     call_manager: &Arc<NodeCallManager>,
     topic: Topic,
 ) -> Result<(), MetaServiceError> {

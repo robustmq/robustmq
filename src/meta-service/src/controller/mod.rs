@@ -13,10 +13,13 @@
 // limitations under the License.
 
 use crate::controller::connector_scheduler::ConnectorScheduler;
+use crate::controller::email_gc::start_email_gc_thread;
 use crate::controller::engine_gc::start_engine_delete_gc_thread;
 use crate::controller::group_gc::start_group_gc_thread;
+use crate::controller::topic_delete::start_topic_delete_thread;
 use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
+use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -25,14 +28,17 @@ use tracing::error;
 
 pub mod connector_scheduler;
 pub mod connector_status;
+pub mod email_gc;
 pub mod engine_gc;
 pub mod group_gc;
+pub mod topic_delete;
 
 pub fn start_controller(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     call_manager: &Arc<NodeCallManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    client_pool: &Arc<ClientPool>,
     group_offset_expire_sec: u64,
     stop_send: Sender<bool>,
 ) {
@@ -41,6 +47,7 @@ pub fn start_controller(
         cache_manager.clone(),
         call_manager.clone(),
         rocksdb_engine_handler.clone(),
+        client_pool.clone(),
         group_offset_expire_sec,
     );
     tokio::spawn(async move {
@@ -62,6 +69,7 @@ pub struct BrokerController {
     raft_manager: Arc<MultiRaftManager>,
     cache_manager: Arc<MetaCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    client_pool: Arc<ClientPool>,
     group_offset_expire_sec: u64,
 }
 
@@ -71,6 +79,7 @@ impl BrokerController {
         cache_manager: Arc<MetaCacheManager>,
         node_call_manager: Arc<NodeCallManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        client_pool: Arc<ClientPool>,
         group_offset_expire_sec: u64,
     ) -> BrokerController {
         BrokerController {
@@ -78,6 +87,7 @@ impl BrokerController {
             node_call_manager,
             raft_manager,
             rocksdb_engine_handler,
+            client_pool,
             group_offset_expire_sec,
         }
     }
@@ -117,6 +127,33 @@ impl BrokerController {
                 rocksdb_engine_handler,
                 call_manager,
                 expire_sec,
+                raw_stop_send,
+            )
+            .await;
+        }));
+
+        // email gc
+        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        let call_manager = self.node_call_manager.clone();
+        let raw_stop_send = stop_send.clone();
+        tokio::spawn(Box::pin(async move {
+            start_email_gc_thread(rocksdb_engine_handler, call_manager, raw_stop_send).await;
+        }));
+
+        // topic delete gc
+        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        let call_manager = self.node_call_manager.clone();
+        let raft_manager = self.raft_manager.clone();
+        let cache_manager = self.cache_manager.clone();
+        let client_pool = self.client_pool.clone();
+        let raw_stop_send = stop_send.clone();
+        tokio::spawn(Box::pin(async move {
+            start_topic_delete_thread(
+                rocksdb_engine_handler,
+                call_manager,
+                raft_manager,
+                cache_manager,
+                client_pool,
                 raw_stop_send,
             )
             .await;

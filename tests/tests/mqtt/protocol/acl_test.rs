@@ -22,8 +22,8 @@ mod tests {
     };
     use crate::mqtt::protocol::ClientTestProperties;
     use admin_server::client::AdminHttpClient;
-    use admin_server::mqtt::acl::{AclListReq, AclListRow, CreateAclReq, DeleteAclReq};
-    use admin_server::mqtt::user::{CreateUserReq, DeleteUserReq};
+    use admin_server::cluster::acl::{AclListReq, AclListRow, CreateAclReq, DeleteAclReq};
+    use admin_server::cluster::user::{CreateUserReq, DeleteUserReq};
     use common_base::uuid::unique_id;
     use metadata_struct::auth::acl::{
         EnumAclAction as MqttAclAction, EnumAclPermission as MqttAclPermission,

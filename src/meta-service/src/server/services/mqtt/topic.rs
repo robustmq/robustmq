@@ -14,8 +14,8 @@
 
 use crate::core::error::MetaServiceError;
 use crate::core::notify::{
-    send_notify_by_add_topic, send_notify_by_create_topic_rewrite_rule,
-    send_notify_by_delete_topic, send_notify_by_delete_topic_rewrite_rule,
+    send_notify_by_create_topic_rewrite_rule, send_notify_by_delete_topic_rewrite_rule,
+    send_notify_by_set_topic,
 };
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
@@ -99,7 +99,7 @@ pub async fn create_topic_by_req(
 
     let topic = Topic::decode(&req.content)?;
 
-    send_notify_by_add_topic(call_manager, topic).await?;
+    send_notify_by_set_topic(call_manager, topic).await?;
     Ok(CreateTopicReply {})
 }
 
@@ -120,7 +120,7 @@ pub async fn delete_topic_by_req(
     let data = StorageData::new(StorageDataType::MqttDeleteTopic, encode_to_bytes(req));
     raft_manager.write_data(&req.topic_name, data).await?;
 
-    send_notify_by_delete_topic(call_manager, topic).await?;
+    send_notify_by_set_topic(call_manager, topic).await?;
 
     Ok(DeleteTopicReply {})
 }
