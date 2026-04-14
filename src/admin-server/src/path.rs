@@ -34,6 +34,7 @@ pub const CLUSTER_HEALTHY_PATH: &str = "/cluster/healthy";
 // Cluster Topic API paths
 pub const CLUSTER_TOPIC_LIST_PATH: &str = "/cluster/topic/list";
 pub const CLUSTER_TOPIC_DETAIL_PATH: &str = "/cluster/topic/detail";
+pub const CLUSTER_TOPIC_CREATE_PATH: &str = "/cluster/topic/create";
 pub const CLUSTER_TOPIC_DELETE_PATH: &str = "/cluster/topic/delete";
 
 // Cluster Topic Rewrite API paths

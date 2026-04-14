@@ -345,6 +345,24 @@ impl AdminHttpClient {
             .await
     }
 
+    /// Create topic
+    pub async fn create_topic<T>(&self, request: &T) -> Result<String, HttpClientError>
+    where
+        T: Serialize,
+    {
+        self.post_raw(&api_path(CLUSTER_TOPIC_CREATE_PATH), request)
+            .await
+    }
+
+    /// Delete topic
+    pub async fn delete_topic<T>(&self, request: &T) -> Result<String, HttpClientError>
+    where
+        T: Serialize,
+    {
+        self.post_raw(&api_path(CLUSTER_TOPIC_DELETE_PATH), request)
+            .await
+    }
+
     /// Get subscription list
     pub async fn get_subscribe_list<T, R>(
         &self,

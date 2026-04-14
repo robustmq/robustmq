@@ -30,7 +30,7 @@ use crate::{
             schema_list,
         },
         tenant::{tenant_create, tenant_delete, tenant_list, tenant_update},
-        topic::{topic_delete, topic_detail, topic_list},
+        topic::{topic_create, topic_delete, topic_detail, topic_list},
         user::{user_create, user_delete, user_list},
     },
     mqtt::{
@@ -156,6 +156,7 @@ impl AdminServer {
             // topic
             .route(CLUSTER_TOPIC_LIST_PATH, get(topic_list))
             .route(CLUSTER_TOPIC_DETAIL_PATH, get(topic_detail))
+            .route(CLUSTER_TOPIC_CREATE_PATH, post(topic_create))
             .route(CLUSTER_TOPIC_DELETE_PATH, post(topic_delete))
             // topic-rewrite
             .route(CLUSTER_TOPIC_REWRITE_LIST_PATH, get(topic_rewrite_list))

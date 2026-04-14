@@ -19,4 +19,4 @@ pub mod group_gc;
 pub mod mqtt;
 pub mod node_call;
 pub mod offset_test;
-pub mod topic_delete;
+pub mod topic;

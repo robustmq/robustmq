@@ -24,17 +24,23 @@ use crate::{
     },
 };
 use axum::extract::{Query, State};
+use axum::Json;
 use broker_core::topic::TopicStorage;
+use common_base::error::common::CommonError;
 use common_base::http_response::{error_response, success_response};
+use common_config::storage::StorageType;
 use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
 use metadata_struct::mqtt::{retain_message::MQTTRetainMessage, topic::Topic};
+use metadata_struct::topic::{TopicSource, Topic as MetaTopic};
 use mqtt_broker::subscribe::manager::TopicSubscribeInfo;
 use mqtt_broker::{core::error::MqttBrokerError, storage::retain::RetainStorage};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
+    str::FromStr,
     sync::Arc,
 };
+use storage_adapter::topic::create_topic_full;
 use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -52,6 +58,38 @@ pub struct TopicListReq {
 pub struct TopicDetailReq {
     pub tenant: String,
     pub topic_name: String,
+}
+
+/// Request body for creating a topic.
+///
+/// Required: `tenant`, `topic_name`, `storage_type`, `source`.
+/// Optional: `partition` and `replication` default to 1.
+/// `storage_name_list` is auto-generated from `topic_id` and `partition`.
+#[derive(Serialize, Deserialize, Debug, Validate)]
+pub struct TopicCreateReq {
+    #[validate(length(min = 1, max = 128, message = "Tenant length must be between 1-128"))]
+    pub tenant: String,
+
+    #[validate(length(
+        min = 1,
+        max = 256,
+        message = "Topic name length must be between 1-256"
+    ))]
+    pub topic_name: String,
+
+    /// Storage backend. One of: EngineMemory, EngineRocksDB, EngineSegment.
+    #[validate(length(min = 1, max = 64, message = "storage_type must not be empty"))]
+    pub storage_type: String,
+
+    /// Protocol source. One of: MQTT, NATS, MQ9, Kafka, AMQP, SystemInner.
+    #[validate(length(min = 1, max = 32, message = "source must not be empty"))]
+    pub source: String,
+
+    /// Number of partitions. Defaults to 1.
+    pub partition: Option<u32>,
+
+    /// Replication factor. Defaults to 1.
+    pub replication: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Validate)]
@@ -203,6 +241,58 @@ async fn read_topic_detail(
         sub_list,
         storage_list,
     })
+}
+
+pub async fn topic_create(
+    State(state): State<Arc<HttpState>>,
+    ValidatedJson(params): ValidatedJson<TopicCreateReq>,
+) -> String {
+    let storage_type = match StorageType::from_str(&params.storage_type) {
+        Ok(t) => t,
+        Err(_) => {
+            return error_response(format!(
+                "Invalid storage_type '{}', must be one of: EngineMemory, EngineRocksDB, EngineSegment",
+                params.storage_type
+            ));
+        }
+    };
+
+    let source = match params.source.as_str() {
+        "MQTT" => TopicSource::MQTT,
+        "NATS" => TopicSource::NATS,
+        "MQ9" => TopicSource::MQ9,
+        "Kafka" => TopicSource::Kafka,
+        "AMQP" => TopicSource::AMQP,
+        "SystemInner" => TopicSource::SystemInner,
+        _ => {
+            return error_response(format!(
+                "Invalid source '{}', must be one of: MQTT, NATS, MQ9, Kafka, AMQP, SystemInner",
+                params.source
+            ));
+        }
+    };
+
+    let partition = params.partition.unwrap_or(1).max(1);
+    let replication = params.replication.unwrap_or(1).max(1);
+
+    let topic = MetaTopic::new(&params.tenant, &params.topic_name, storage_type)
+        .with_source(source)
+        .with_partition(partition)
+        .with_replication(replication);
+
+    if let Err(e) = create_topic_full(
+        &state.broker_cache,
+        &state.storage_driver_manager,
+        &state.client_pool,
+        &topic,
+    )
+    .await
+    .map_err(|e: CommonError| e.to_string())
+    {
+        return error_response(e);
+    }
+
+    success_response("success")
 }
 
 pub async fn topic_delete(

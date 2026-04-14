@@ -33,6 +33,7 @@ RobustMQ Admin Server is an HTTP management interface service, providing compreh
 | Tenant | `POST` | `/api/cluster/tenant/delete` | Delete tenant |
 | Topic | `GET` | `/api/cluster/topic/list` | List topics |
 | Topic | `GET` | `/api/cluster/topic/detail` | Get topic detail |
+| Topic | `POST` | `/api/cluster/topic/create` | Create topic |
 | Topic | `POST` | `/api/cluster/topic/delete` | Delete topic |
 | Topic | `GET` | `/api/cluster/topic-rewrite/list` | List topic rewrite rules |
 | Topic | `POST` | `/api/cluster/topic-rewrite/create` | Create topic rewrite rule |
