@@ -71,7 +71,7 @@ pub async fn process_create(
 
     let is_new = ctx
         .cache_manager
-        .get_email(&email.tenant, &email.mail_id)
+        .get_mail(&email.tenant, &email.mail_id)
         .is_none();
 
     if is_new {

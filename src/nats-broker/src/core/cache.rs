@@ -24,7 +24,7 @@ pub struct NatsCacheManager {
     pub client_pool: Arc<ClientPool>,
     pub connection_info: DashMap<u64, NatsConnection>,
     /// Key: "{tenant}/{mail_id}"
-    pub email_info: DashMap<String, MQ9Email>,
+    pub mail_info: DashMap<String, MQ9Email>,
     /// Key: inbox subject, Value: sid
     pub inbox_data: DashMap<String, String>,
 }
@@ -35,7 +35,7 @@ impl NatsCacheManager {
             node_cache,
             client_pool,
             connection_info: DashMap::with_capacity(1024),
-            email_info: DashMap::new(),
+            mail_info: DashMap::new(),
             inbox_data: DashMap::new(),
         }
     }
@@ -56,19 +56,19 @@ impl NatsCacheManager {
         self.inbox_data.get(inbox).map(|e| e.value().clone())
     }
 
-    pub fn add_email(&self, email: MQ9Email) {
+    pub fn add_mail(&self, email: MQ9Email) {
         let key = format!("{}/{}", email.tenant, email.mail_id);
-        self.email_info.insert(key, email);
+        self.mail_info.insert(key, email);
     }
 
-    pub fn get_email(&self, tenant: &str, mail_id: &str) -> Option<MQ9Email> {
+    pub fn get_mail(&self, tenant: &str, mail_id: &str) -> Option<MQ9Email> {
         let key = format!("{}/{}", tenant, mail_id);
-        self.email_info.get(&key).map(|e| e.value().clone())
+        self.mail_info.get(&key).map(|e| e.value().clone())
     }
 
-    pub fn remove_email(&self, tenant: &str, mail_id: &str) {
+    pub fn remove_mail(&self, tenant: &str, mail_id: &str) {
         let key = format!("{}/{}", tenant, mail_id);
-        self.email_info.remove(&key);
+        self.mail_info.remove(&key);
     }
 
     pub fn add_connection(&self, connection: NatsConnection) {

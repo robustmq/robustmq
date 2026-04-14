@@ -33,6 +33,7 @@ use crate::{
         topic::{topic_create, topic_delete, topic_detail, topic_list},
         user::{user_create, user_delete, user_list},
     },
+    nats::mail::mail_list,
     mqtt::{
         client::client_list,
         monitor::monitor_data,
@@ -119,6 +120,7 @@ impl AdminServer {
             .merge(self.common_route())
             .merge(self.cluster_resource_route())
             .merge(self.mqtt_route())
+            .merge(self.mq9_route())
             .merge(self.kafka_route())
             .merge(self.engine_route())
     }
@@ -228,6 +230,10 @@ impl AdminServer {
             // message
             .route(MQTT_MESSAGE_SEND_PATH, post(send))
             .route(MQTT_MESSAGE_READ_PATH, post(read))
+    }
+
+    fn mq9_route(&self) -> Router<Arc<HttpState>> {
+        Router::new().route(MQ9_MAIL_LIST_PATH, get(mail_list))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {

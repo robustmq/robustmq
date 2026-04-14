@@ -825,6 +825,21 @@ impl AdminHttpClient {
         self.post_raw(&api_path(CLUSTER_OFFSET_COMMIT_PATH), request)
             .await
     }
+
+    // ========== MQ9 APIs ==========
+
+    /// Get mail list
+    pub async fn get_mail_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.get_with_params(&api_path(MQ9_MAIL_LIST_PATH), request)
+            .await
+    }
 }
 
 #[cfg(test)]

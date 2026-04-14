@@ -137,7 +137,7 @@ pub async fn send_message(
     // Verify the mailbox exists in cache.
     if ctx
         .cache_manager
-        .get_email(&args.tenant, &args.mail_id)
+        .get_mail(&args.tenant, &args.mail_id)
         .is_none()
     {
         return Err(CommonError::CommonError(format!(

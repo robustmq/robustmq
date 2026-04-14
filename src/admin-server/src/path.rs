@@ -124,6 +124,10 @@ pub const TENANT_CREATE_PATH: &str = "/cluster/tenant/create";
 pub const TENANT_UPDATE_PATH: &str = "/cluster/tenant/update";
 pub const TENANT_DELETE_PATH: &str = "/cluster/tenant/delete";
 
+// ── /mq9 ─────────────────────────────────────────────────────────────────────
+
+pub const MQ9_MAIL_LIST_PATH: &str = "/mq9/mail/list";
+
 // ── MCP ───────────────────────────────────────────────────────────────────────
 
 // MCP Server path (outside /api prefix — mounted directly on root)
