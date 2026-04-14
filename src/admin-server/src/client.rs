@@ -784,7 +784,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(STORAGE_ENGINE_OFFSET_BY_TIMESTAMP_PATH), request)
+        self.post(&api_path(CLUSTER_OFFSET_BY_TIMESTAMP_PATH), request)
             .await
     }
 
@@ -794,7 +794,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(STORAGE_ENGINE_OFFSET_BY_GROUP_PATH), request)
+        self.post(&api_path(CLUSTER_OFFSET_BY_GROUP_PATH), request)
             .await
     }
 
@@ -803,7 +803,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(STORAGE_ENGINE_OFFSET_COMMIT_PATH), request)
+        self.post_raw(&api_path(CLUSTER_OFFSET_COMMIT_PATH), request)
             .await
     }
 }

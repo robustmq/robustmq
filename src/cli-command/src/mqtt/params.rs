@@ -630,7 +630,7 @@ pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
     match args.action {
         TopicRewriteActionType::List => MqttActionType::ListTopicRewrite,
         TopicRewriteActionType::Create(arg) => MqttActionType::CreateTopicRewrite(
-            admin_server::cluster::topic::CreateTopicRewriteReq {
+            admin_server::mqtt::topic_rewrite::CreateTopicRewriteReq {
                 name: arg.name,
                 desc: arg.desc,
                 tenant: arg.tenant,
@@ -641,7 +641,7 @@ pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
             },
         ),
         TopicRewriteActionType::Delete(arg) => MqttActionType::DeleteTopicRewrite(
-            admin_server::cluster::topic::DeleteTopicRewriteReq {
+            admin_server::mqtt::topic_rewrite::DeleteTopicRewriteReq {
                 tenant: arg.tenant,
                 name: arg.name,
             },

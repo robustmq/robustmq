@@ -56,6 +56,9 @@ RobustMQ Admin Server is an HTTP management interface service, providing compreh
 | Schema | `GET` | `/api/cluster/schema-bind/list` | List schema bindings |
 | Schema | `POST` | `/api/cluster/schema-bind/create` | Create schema binding |
 | Schema | `POST` | `/api/cluster/schema-bind/delete` | Delete schema binding |
+| Offset | `POST` | `/api/cluster/offset/timestamp` | Query offset by timestamp |
+| Offset | `POST` | `/api/cluster/offset/group` | Query offset by consumer group |
+| Offset | `POST` | `/api/cluster/offset/commit` | Commit offset |
 
 ### /mqtt — MQTT Broker APIs
 
@@ -85,9 +88,6 @@ RobustMQ Admin Server is an HTTP management interface service, providing compreh
 | Shard | `POST` | `/api/storage-engine/shard/create` | Create shard |
 | Shard | `POST` | `/api/storage-engine/shard/delete` | Delete shard |
 | Segment | `POST` | `/api/storage-engine/segment/list` | List segments |
-| Offset | `POST` | `/api/storage-engine/offset/timestamp` | Query offset by timestamp |
-| Offset | `POST` | `/api/storage-engine/offset/group` | Query offset by consumer group |
-| Offset | `POST` | `/api/storage-engine/offset/commit` | Commit offset |
 
 ### Common APIs
 

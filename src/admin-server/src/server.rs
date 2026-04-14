@@ -13,10 +13,9 @@
 // limitations under the License.
 
 use crate::cluster::index;
-use crate::engine::shard::{
-    commit_offset, get_offset_by_group, get_offset_by_timestamp, segment_list, shard_create,
-    shard_delete, shard_list,
-};
+use crate::cluster::offset::{commit_offset, get_offset_by_group, get_offset_by_timestamp};
+use crate::engine::segment::segment_list;
+use crate::engine::shard::{shard_create, shard_delete, shard_list};
 use crate::mcp::mcp_route;
 use crate::{
     cluster::{
@@ -31,10 +30,7 @@ use crate::{
             schema_list,
         },
         tenant::{tenant_create, tenant_delete, tenant_list, tenant_update},
-        topic::{
-            topic_delete, topic_detail, topic_list, topic_rewrite_create, topic_rewrite_delete,
-            topic_rewrite_list,
-        },
+        topic::{topic_delete, topic_detail, topic_list},
         user::{user_create, user_delete, user_list},
     },
     mqtt::{
@@ -48,6 +44,7 @@ use crate::{
             subscribe_detail, subscribe_list,
         },
         system::{ban_log_list, flapping_detect_list, system_alarm_list},
+        topic_rewrite::{topic_rewrite_create, topic_rewrite_delete, topic_rewrite_list},
     },
     path::*,
     state::HttpState,
@@ -152,16 +149,6 @@ impl AdminServer {
             .route(STORAGE_ENGINE_SHARD_DELETE_PATH, post(shard_delete))
             // segment
             .route(STORAGE_ENGINE_SEGMENT_LIST_PATH, post(segment_list))
-            // offset
-            .route(
-                STORAGE_ENGINE_OFFSET_BY_TIMESTAMP_PATH,
-                post(get_offset_by_timestamp),
-            )
-            .route(
-                STORAGE_ENGINE_OFFSET_BY_GROUP_PATH,
-                post(get_offset_by_group),
-            )
-            .route(STORAGE_ENGINE_OFFSET_COMMIT_PATH, post(commit_offset))
     }
 
     fn cluster_resource_route(&self) -> Router<Arc<HttpState>> {
@@ -204,6 +191,13 @@ impl AdminServer {
             .route(CLUSTER_USER_LIST_PATH, get(user_list))
             .route(CLUSTER_USER_CREATE_PATH, post(user_create))
             .route(CLUSTER_USER_DELETE_PATH, post(user_delete))
+            // offset
+            .route(
+                CLUSTER_OFFSET_BY_TIMESTAMP_PATH,
+                post(get_offset_by_timestamp),
+            )
+            .route(CLUSTER_OFFSET_BY_GROUP_PATH, post(get_offset_by_group))
+            .route(CLUSTER_OFFSET_COMMIT_PATH, post(commit_offset))
     }
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {

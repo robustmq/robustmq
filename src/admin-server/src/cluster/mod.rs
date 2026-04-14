@@ -53,6 +53,7 @@ pub mod acl;
 pub mod blacklist;
 pub mod connector;
 pub mod health;
+pub mod offset;
 pub mod schema;
 pub mod tenant;
 pub mod topic;

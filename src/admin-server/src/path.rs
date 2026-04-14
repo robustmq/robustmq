@@ -111,9 +111,11 @@ pub const STORAGE_ENGINE_SHARD_LIST_PATH: &str = "/storage-engine/shard/list";
 pub const STORAGE_ENGINE_SHARD_CREATE_PATH: &str = "/storage-engine/shard/create";
 pub const STORAGE_ENGINE_SHARD_DELETE_PATH: &str = "/storage-engine/shard/delete";
 pub const STORAGE_ENGINE_SEGMENT_LIST_PATH: &str = "/storage-engine/segment/list";
-pub const STORAGE_ENGINE_OFFSET_BY_TIMESTAMP_PATH: &str = "/storage-engine/offset/timestamp";
-pub const STORAGE_ENGINE_OFFSET_BY_GROUP_PATH: &str = "/storage-engine/offset/group";
-pub const STORAGE_ENGINE_OFFSET_COMMIT_PATH: &str = "/storage-engine/offset/commit";
+
+// Cluster Offset API paths
+pub const CLUSTER_OFFSET_BY_TIMESTAMP_PATH: &str = "/cluster/offset/timestamp";
+pub const CLUSTER_OFFSET_BY_GROUP_PATH: &str = "/cluster/offset/group";
+pub const CLUSTER_OFFSET_COMMIT_PATH: &str = "/cluster/offset/commit";
 
 // Cluster Tenant (full CRUD, lives in cluster/tenant.rs)
 pub const TENANT_LIST_PATH: &str = "/cluster/tenant/list";

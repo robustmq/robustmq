@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Offset-related handlers (get_offset_by_timestamp, get_offset_by_group, commit_offset)
+// have been moved to: src/admin-server/src/cluster/offset.rs
+//
+// Segment-related handlers (segment_list) have been moved to:
+// src/admin-server/src/engine/segment.rs
+
 use crate::state::HttpState;
 use crate::tool::{
     query::{apply_filters, apply_pagination, apply_sorting, build_query_params, Queryable},
@@ -19,17 +25,11 @@ use crate::tool::{
 };
 use axum::{extract::State, Json};
 use common_base::http_response::{error_response, success_response};
-use metadata_struct::adapter::adapter_offset::{
-    AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo,
-};
+use metadata_struct::adapter::adapter_offset::AdapterShardInfo;
 use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
-use metadata_struct::storage::segment::EngineSegment;
-use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShardConfig;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::Arc;
-use storage_engine::filesegment::SegmentIdentity;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ShardListReq {
@@ -52,52 +52,6 @@ pub struct ShardCreateReq {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ShardDeleteReq {
     pub shard_name: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct SegmentListReq {
-    pub shard_name: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct SegmentListResp {
-    pub segment_list: Vec<SegmentListRespRaw>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct SegmentListRespRaw {
-    pub segment: EngineSegment,
-    pub segment_meta: Option<EngineSegmentMetadata>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GetOffsetByTimestampReq {
-    pub shard_name: String,
-    pub timestamp: u64,
-    pub strategy: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GetOffsetByTimestampResp {
-    pub offset: u64,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GetOffsetByGroupReq {
-    pub tenant: String,
-    pub group_name: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GetOffsetByGroupResp {
-    pub offsets: Vec<AdapterConsumerGroupOffset>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct CommitOffsetReq {
-    pub tenant: String,
-    pub group_name: String,
-    pub offsets: HashMap<String, u64>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -201,115 +155,6 @@ pub async fn shard_delete(
         .engine_context
         .engine_adapter_handler
         .delete_shard(&params.shard_name)
-        .await
-    {
-        return error_response(e.to_string());
-    }
-
-    success_response("success")
-}
-
-pub async fn segment_list(
-    State(state): State<Arc<HttpState>>,
-    Json(params): Json<SegmentListReq>,
-) -> String {
-    let segment_list = state
-        .engine_context
-        .cache_manager
-        .get_segments_list_by_shard(&params.shard_name);
-
-    let mut results: Vec<_> = Vec::new();
-    for segment in segment_list {
-        let segment_iden = SegmentIdentity::new(&segment.shard_name, segment.segment_seq);
-        let meta = state
-            .engine_context
-            .cache_manager
-            .get_segment_meta(&segment_iden);
-        results.push(SegmentListRespRaw {
-            segment: segment.clone(),
-            segment_meta: meta,
-        });
-    }
-    success_response(SegmentListResp {
-        segment_list: results,
-    })
-}
-
-pub async fn get_offset_by_timestamp(
-    State(state): State<Arc<HttpState>>,
-    Json(params): Json<GetOffsetByTimestampReq>,
-) -> String {
-    if params.shard_name.is_empty() {
-        return error_response("shard_name cannot be empty".to_string());
-    }
-
-    let strategy = match params.strategy.to_lowercase().as_str() {
-        "earliest" => AdapterOffsetStrategy::Earliest,
-        "latest" => AdapterOffsetStrategy::Latest,
-        _ => {
-            return error_response(format!(
-                "Invalid strategy '{}', must be 'earliest' or 'latest'",
-                params.strategy
-            ));
-        }
-    };
-
-    let offset = match state
-        .engine_context
-        .engine_adapter_handler
-        .get_offset_by_timestamp(&params.shard_name, params.timestamp, strategy)
-        .await
-    {
-        Ok(data) => data,
-        Err(e) => {
-            return error_response(e.to_string());
-        }
-    };
-
-    success_response(GetOffsetByTimestampResp { offset })
-}
-
-pub async fn get_offset_by_group(
-    State(state): State<Arc<HttpState>>,
-    Json(params): Json<GetOffsetByGroupReq>,
-) -> String {
-    if params.group_name.is_empty() {
-        return error_response("group_name cannot be empty".to_string());
-    }
-
-    let offsets = match state
-        .engine_context
-        .engine_adapter_handler
-        .offset_manager
-        .get_offset(&params.tenant, &params.group_name)
-        .await
-    {
-        Ok(data) => data,
-        Err(e) => {
-            return error_response(e.to_string());
-        }
-    };
-
-    success_response(GetOffsetByGroupResp { offsets })
-}
-
-pub async fn commit_offset(
-    State(state): State<Arc<HttpState>>,
-    Json(params): Json<CommitOffsetReq>,
-) -> String {
-    if params.group_name.is_empty() {
-        return error_response("group_name cannot be empty".to_string());
-    }
-
-    if params.offsets.is_empty() {
-        return error_response("offsets cannot be empty".to_string());
-    }
-
-    if let Err(e) = state
-        .engine_context
-        .engine_adapter_handler
-        .offset_manager
-        .commit_offset(&params.tenant, &params.group_name, &params.offsets)
         .await
     {
         return error_response(e.to_string());
