@@ -18,6 +18,89 @@ RobustMQ Admin Server is an HTTP management interface service, providing compreh
 
 ---
 
+## Full API URI List
+
+### /cluster — Cluster Resource APIs
+
+| Category | Method | URI | Description |
+|----------|--------|-----|-------------|
+| Config | `GET` | `/api/cluster/config/get` | Get cluster configuration |
+| Config | `POST` | `/api/cluster/config/set` | Update cluster configuration |
+| Health | `GET` | `/api/cluster/healthy` | Cluster health check |
+| Tenant | `GET` | `/api/cluster/tenant/list` | List tenants |
+| Tenant | `POST` | `/api/cluster/tenant/create` | Create tenant |
+| Tenant | `POST` | `/api/cluster/tenant/update` | Update tenant |
+| Tenant | `POST` | `/api/cluster/tenant/delete` | Delete tenant |
+| Topic | `GET` | `/api/cluster/topic/list` | List topics |
+| Topic | `GET` | `/api/cluster/topic/detail` | Get topic detail |
+| Topic | `POST` | `/api/cluster/topic/delete` | Delete topic |
+| Topic | `GET` | `/api/cluster/topic-rewrite/list` | List topic rewrite rules |
+| Topic | `POST` | `/api/cluster/topic-rewrite/create` | Create topic rewrite rule |
+| Topic | `POST` | `/api/cluster/topic-rewrite/delete` | Delete topic rewrite rule |
+| User | `GET` | `/api/cluster/user/list` | List users |
+| User | `POST` | `/api/cluster/user/create` | Create user |
+| User | `POST` | `/api/cluster/user/delete` | Delete user |
+| ACL | `GET` | `/api/cluster/acl/list` | List ACL rules |
+| ACL | `POST` | `/api/cluster/acl/create` | Create ACL rule |
+| ACL | `POST` | `/api/cluster/acl/delete` | Delete ACL rule |
+| Blacklist | `GET` | `/api/cluster/blacklist/list` | List blacklist entries |
+| Blacklist | `POST` | `/api/cluster/blacklist/create` | Create blacklist entry |
+| Blacklist | `POST` | `/api/cluster/blacklist/delete` | Delete blacklist entry |
+| Connector | `GET` | `/api/cluster/connector/list` | List connectors |
+| Connector | `GET` | `/api/cluster/connector/detail` | Get connector detail |
+| Connector | `POST` | `/api/cluster/connector/create` | Create connector |
+| Connector | `POST` | `/api/cluster/connector/delete` | Delete connector |
+| Schema | `GET` | `/api/cluster/schema/list` | List schemas |
+| Schema | `POST` | `/api/cluster/schema/create` | Create schema |
+| Schema | `POST` | `/api/cluster/schema/delete` | Delete schema |
+| Schema | `GET` | `/api/cluster/schema-bind/list` | List schema bindings |
+| Schema | `POST` | `/api/cluster/schema-bind/create` | Create schema binding |
+| Schema | `POST` | `/api/cluster/schema-bind/delete` | Delete schema binding |
+
+### /mqtt — MQTT Broker APIs
+
+| Category | Method | URI | Description |
+|----------|--------|-----|-------------|
+| Overview | `GET` | `/api/mqtt/overview` | Cluster overview information |
+| Monitor | `GET` | `/api/mqtt/monitor/data` | Monitor data query |
+| Client | `GET` | `/api/mqtt/client/list` | List clients |
+| Session | `GET` | `/api/mqtt/session/list` | List sessions |
+| Subscribe | `GET` | `/api/mqtt/subscribe/list` | List subscriptions |
+| Subscribe | `GET` | `/api/mqtt/subscribe/detail` | Get subscription detail |
+| Subscribe | `GET` | `/api/mqtt/auto-subscribe/list` | List auto-subscribe rules |
+| Subscribe | `POST` | `/api/mqtt/auto-subscribe/create` | Create auto-subscribe rule |
+| Subscribe | `POST` | `/api/mqtt/auto-subscribe/delete` | Delete auto-subscribe rule |
+| Subscribe | `GET` | `/api/mqtt/slow-subscribe/list` | List slow subscriptions |
+| Flapping | `GET` | `/api/mqtt/flapping_detect/list` | List flapping detection records |
+| Alarm | `GET` | `/api/mqtt/system-alarm/list` | List system alarms |
+| Alarm | `GET` | `/api/mqtt/ban-log/list` | List ban log entries |
+| Message | `POST` | `/api/mqtt/message/send` | Send message |
+| Message | `POST` | `/api/mqtt/message/read` | Read message |
+
+### /storage-engine — Storage Engine APIs
+
+| Category | Method | URI | Description |
+|----------|--------|-----|-------------|
+| Shard | `POST` | `/api/storage-engine/shard/list` | List shards |
+| Shard | `POST` | `/api/storage-engine/shard/create` | Create shard |
+| Shard | `POST` | `/api/storage-engine/shard/delete` | Delete shard |
+| Segment | `POST` | `/api/storage-engine/segment/list` | List segments |
+| Offset | `POST` | `/api/storage-engine/offset/timestamp` | Query offset by timestamp |
+| Offset | `POST` | `/api/storage-engine/offset/group` | Query offset by consumer group |
+| Offset | `POST` | `/api/storage-engine/offset/commit` | Commit offset |
+
+### Common APIs
+
+| Category | Method | URI | Description |
+|----------|--------|-----|-------------|
+| Info | `GET` | `/` | Get service version information |
+| Status | `GET` | `/api/status` | Cluster status query |
+| Health | `GET` | `/health/ready` | Readiness health check |
+| Health | `GET` | `/health/node` | Node health check |
+| Health | `GET` | `/health/cluster` | Cluster health check |
+
+---
+
 ## Common Response Format
 
 ### Success Response
