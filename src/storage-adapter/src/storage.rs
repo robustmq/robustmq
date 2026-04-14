@@ -20,6 +20,7 @@ use common_base::uuid::unique_id;
 use common_config::config::BrokerConfig;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use common_config::storage::StorageType;
+use common_group::OffsetManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
@@ -39,7 +40,6 @@ use storage_engine::commitlog::offset::CommitLogOffset;
 use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use storage_engine::core::cache::StorageCacheManager;
 use storage_engine::filesegment::write::WriteManager;
-use storage_engine::group::OffsetManager;
 use storage_engine::handler::adapter::{StorageEngineHandler, StorageEngineHandlerParams};
 
 #[async_trait]

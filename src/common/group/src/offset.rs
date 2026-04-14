@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::group::{cache::OffsetCacheManager, storage::OffsetStorageManager};
+use crate::cache::OffsetCacheManager;
+use crate::storage::OffsetStorageManager;
 use common_base::{
     error::{common::CommonError, ResultCommonError},
     tools::loop_select_ticket,
@@ -26,9 +27,6 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
 use tracing::error;
-
-pub mod cache;
-pub mod storage;
 
 #[derive(Clone)]
 pub struct OffsetManager {

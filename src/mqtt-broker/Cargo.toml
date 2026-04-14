@@ -26,6 +26,7 @@ thiserror.workspace = true
 bytes.workspace = true
 protocol.workspace = true
 common-base.workspace = true
+common-group.workspace = true
 common-config.workspace = true
 tokio-util.workspace = true
 futures.workspace = true

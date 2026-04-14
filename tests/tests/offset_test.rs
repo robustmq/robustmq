@@ -15,11 +15,11 @@
 #[cfg(test)]
 mod tests {
     use common_base::uuid::unique_id;
+    use common_group::OffsetManager;
     use grpc_clients::pool::ClientPool;
     use metadata_struct::tenant::DEFAULT_TENANT;
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::{collections::HashMap, sync::Arc, time::Duration};
-    use storage_engine::group::OffsetManager;
     use tokio::{sync::broadcast, time::sleep};
 
     #[tokio::test]

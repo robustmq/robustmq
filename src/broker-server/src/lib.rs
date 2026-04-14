@@ -26,6 +26,7 @@ use common_base::{
     task::TaskSupervisor,
 };
 use common_config::{broker::broker_config, config::BrokerConfig};
+use common_group::OffsetManager;
 use common_healthy::port::wait_for_grpc_ready;
 use common_metrics::init_metrics;
 use common_security::manager::SecurityManager;
@@ -46,7 +47,7 @@ use rocksdb_engine::{
 };
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
-use storage_engine::{group::OffsetManager, StorageEngineParams};
+use storage_engine::StorageEngineParams;
 use tokio::{runtime::Runtime, sync::broadcast};
 use tracing::error;
 

@@ -17,7 +17,6 @@ use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
 use crate::filesegment::offset::FileSegmentOffset;
-use crate::group::OffsetManager;
 use crate::{
     clients::manager::ClientConnectionManager,
     commitlog::memory::engine::MemoryStorageEngine,
@@ -31,6 +30,7 @@ use crate::{
 };
 use common_base::error::common::CommonError;
 use common_config::storage::StorageType;
+use common_group::OffsetManager;
 use common_metrics::storage_engine::{
     record_storage_engine_ops, record_storage_engine_ops_duration, record_storage_engine_ops_fail,
 };

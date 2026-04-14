@@ -15,6 +15,7 @@
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
 use common_config::{broker::broker_config, storage::memory::StorageDriverMemoryConfig};
+use common_group::OffsetManager;
 use common_healthy::port::wait_for_engine_ready;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
@@ -27,7 +28,6 @@ use storage_engine::{
     commitlog::rocksdb::engine::RocksDBStorageEngine,
     core::cache::StorageCacheManager,
     filesegment::write::WriteManager,
-    group::OffsetManager,
     handler::adapter::{StorageEngineHandler, StorageEngineHandlerParams},
     StorageEngineParams, StorageEngineServer,
 };
