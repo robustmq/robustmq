@@ -826,6 +826,28 @@ impl AdminHttpClient {
             .await
     }
 
+    // ========== Cluster Message APIs ==========
+
+    /// 发送消息到 topic
+    pub async fn send_message<T, R>(&self, request: &T) -> Result<R, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.post(&api_path(CLUSTER_MESSAGE_SEND_PATH), request)
+            .await
+    }
+
+    /// 从 topic 读取消息
+    pub async fn read_message<T, R>(&self, request: &T) -> Result<R, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.post(&api_path(CLUSTER_MESSAGE_READ_PATH), request)
+            .await
+    }
+
     // ========== MQ9 APIs ==========
 
     /// Get mail list

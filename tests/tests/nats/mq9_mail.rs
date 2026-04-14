@@ -15,13 +15,16 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt::protocol::common::create_test_env;
+    use admin_server::cluster::message::ReadMessageReq;
     use admin_server::nats::mail::MailListReq;
     use async_nats::Client;
     use bytes::Bytes;
     use common_base::uuid::unique_id;
     use metadata_struct::mq9::email::MQ9Email;
+    use metadata_struct::tenant::DEFAULT_TENANT;
     use mq9_core::command::Mq9Command;
     use mq9_core::protocol::{CreateMailboxReply, CreateMailboxReq};
+    use mq9_core::public::{StoragePublicData, MQ9_SYSTEM_PUBLIC_MAIL};
     use std::time::Duration;
     use tokio::time::sleep;
 
@@ -136,6 +139,29 @@ mod tests {
         assert!(mail.public, "should be public");
         assert_eq!(mail.ttl, TTL);
         assert!(mail.create_time > 0);
+
+        // ── read System topic — verify public mail entry exists ──────────────
+        let read_req = ReadMessageReq {
+            tenant: DEFAULT_TENANT.to_string(),
+            topic: MQ9_SYSTEM_PUBLIC_MAIL.to_string(),
+            offset: 0,
+        };
+        let read_resp = admin_client
+            .read_message::<_, admin_server::cluster::message::ReadMessageResp>(&read_req)
+            .await
+            .unwrap();
+        println!("$SYSTEM.PUBLIC messages: {:#?}", read_resp.messages);
+
+        let found = read_resp.messages.iter().any(|row| {
+            serde_json::from_str::<StoragePublicData>(&row.content)
+                .map(|d| d.mail_id == public_name)
+                .unwrap_or(false)
+        });
+        assert!(
+            found,
+            "public mail '{}' should appear in $SYSTEM.PUBLIC topic",
+            public_name
+        );
 
         // ── wait for TTL + GC cycle ────────────────────────────────────────────
         println!("waiting {}s for TTL expiry and GC...", WAIT_AFTER_TTL);

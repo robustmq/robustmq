@@ -25,6 +25,7 @@ use crate::{
         connector::{connector_create, connector_delete, connector_detail, connector_list},
         health::{health_cluster, health_node, health_ready},
         healthy,
+        message::{read_message, send_message},
         schema::{
             schema_bind_create, schema_bind_delete, schema_bind_list, schema_create, schema_delete,
             schema_list,
@@ -37,7 +38,6 @@ use crate::{
         client::client_list,
         monitor::monitor_data,
         overview::overview,
-        pub_sub::{read, send},
         session::session_list,
         subscribe::{
             auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list, slow_subscribe_list,
@@ -201,6 +201,9 @@ impl AdminServer {
             )
             .route(CLUSTER_OFFSET_BY_GROUP_PATH, post(get_offset_by_group))
             .route(CLUSTER_OFFSET_COMMIT_PATH, post(commit_offset))
+            // message
+            .route(CLUSTER_MESSAGE_SEND_PATH, post(send_message))
+            .route(CLUSTER_MESSAGE_READ_PATH, post(read_message))
     }
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
@@ -227,9 +230,6 @@ impl AdminServer {
             // system alarm
             .route(MQTT_SYSTEM_ALARM_LIST_PATH, get(system_alarm_list))
             .route(MQTT_BAN_LOG_LIST_PATH, get(ban_log_list))
-            // message
-            .route(MQTT_MESSAGE_SEND_PATH, post(send))
-            .route(MQTT_MESSAGE_READ_PATH, post(read))
     }
 
     fn mq9_route(&self) -> Router<Arc<HttpState>> {

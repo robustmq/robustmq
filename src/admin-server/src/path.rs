@@ -102,9 +102,9 @@ pub const MQTT_FLAPPING_DETECT_LIST_PATH: &str = "/mqtt/flapping_detect/list";
 pub const MQTT_SYSTEM_ALARM_LIST_PATH: &str = "/mqtt/system-alarm/list";
 pub const MQTT_BAN_LOG_LIST_PATH: &str = "/mqtt/ban-log/list";
 
-// MQTT Message
-pub const MQTT_MESSAGE_SEND_PATH: &str = "/mqtt/message/send";
-pub const MQTT_MESSAGE_READ_PATH: &str = "/mqtt/message/read";
+// Cluster Message
+pub const CLUSTER_MESSAGE_SEND_PATH: &str = "/cluster/message/send";
+pub const CLUSTER_MESSAGE_READ_PATH: &str = "/cluster/message/read";
 
 // ── /storage-engine ───────────────────────────────────────────────────────────
 

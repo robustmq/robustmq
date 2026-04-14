@@ -15,7 +15,6 @@
 pub mod client;
 pub mod monitor;
 pub mod overview;
-pub mod pub_sub;
 pub mod session;
 pub mod subscribe;
 pub mod system;
