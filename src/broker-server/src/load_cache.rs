@@ -242,7 +242,7 @@ pub async fn load_nats_cache(
     let emails = email_storage.list("").await?;
     let email_count = emails.len();
     for email in emails {
-        cache_manager.add_email(email);
+        cache_manager.add_mail(email);
     }
 
     info!(

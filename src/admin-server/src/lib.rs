@@ -18,6 +18,7 @@ pub mod cluster;
 pub mod engine;
 pub mod mcp;
 pub mod mqtt;
+pub mod nats;
 pub mod path;
 pub mod server;
 pub mod state;

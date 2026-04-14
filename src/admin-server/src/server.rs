@@ -13,10 +13,9 @@
 // limitations under the License.
 
 use crate::cluster::index;
-use crate::engine::shard::{
-    commit_offset, get_offset_by_group, get_offset_by_timestamp, segment_list, shard_create,
-    shard_delete, shard_list,
-};
+use crate::cluster::offset::{commit_offset, get_offset_by_group, get_offset_by_timestamp};
+use crate::engine::segment::segment_list;
+use crate::engine::shard::{shard_create, shard_delete, shard_list};
 use crate::mcp::mcp_route;
 use crate::{
     cluster::{
@@ -26,29 +25,28 @@ use crate::{
         connector::{connector_create, connector_delete, connector_detail, connector_list},
         health::{health_cluster, health_node, health_ready},
         healthy,
+        message::{read_message, send_message},
         schema::{
             schema_bind_create, schema_bind_delete, schema_bind_list, schema_create, schema_delete,
             schema_list,
         },
         tenant::{tenant_create, tenant_delete, tenant_list, tenant_update},
-        topic::{
-            topic_delete, topic_detail, topic_list, topic_rewrite_create, topic_rewrite_delete,
-            topic_rewrite_list,
-        },
+        topic::{topic_create, topic_delete, topic_detail, topic_list},
         user::{user_create, user_delete, user_list},
     },
     mqtt::{
         client::client_list,
         monitor::monitor_data,
         overview::overview,
-        pub_sub::{read, send},
         session::session_list,
         subscribe::{
             auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list, slow_subscribe_list,
             subscribe_detail, subscribe_list,
         },
         system::{ban_log_list, flapping_detect_list, system_alarm_list},
+        topic_rewrite::{topic_rewrite_create, topic_rewrite_delete, topic_rewrite_list},
     },
+    nats::mail::mail_list,
     path::*,
     state::HttpState,
 };
@@ -122,6 +120,7 @@ impl AdminServer {
             .merge(self.common_route())
             .merge(self.cluster_resource_route())
             .merge(self.mqtt_route())
+            .merge(self.mq9_route())
             .merge(self.kafka_route())
             .merge(self.engine_route())
     }
@@ -152,16 +151,6 @@ impl AdminServer {
             .route(STORAGE_ENGINE_SHARD_DELETE_PATH, post(shard_delete))
             // segment
             .route(STORAGE_ENGINE_SEGMENT_LIST_PATH, post(segment_list))
-            // offset
-            .route(
-                STORAGE_ENGINE_OFFSET_BY_TIMESTAMP_PATH,
-                post(get_offset_by_timestamp),
-            )
-            .route(
-                STORAGE_ENGINE_OFFSET_BY_GROUP_PATH,
-                post(get_offset_by_group),
-            )
-            .route(STORAGE_ENGINE_OFFSET_COMMIT_PATH, post(commit_offset))
     }
 
     fn cluster_resource_route(&self) -> Router<Arc<HttpState>> {
@@ -169,6 +158,7 @@ impl AdminServer {
             // topic
             .route(CLUSTER_TOPIC_LIST_PATH, get(topic_list))
             .route(CLUSTER_TOPIC_DETAIL_PATH, get(topic_detail))
+            .route(CLUSTER_TOPIC_CREATE_PATH, post(topic_create))
             .route(CLUSTER_TOPIC_DELETE_PATH, post(topic_delete))
             // topic-rewrite
             .route(CLUSTER_TOPIC_REWRITE_LIST_PATH, get(topic_rewrite_list))
@@ -204,6 +194,16 @@ impl AdminServer {
             .route(CLUSTER_USER_LIST_PATH, get(user_list))
             .route(CLUSTER_USER_CREATE_PATH, post(user_create))
             .route(CLUSTER_USER_DELETE_PATH, post(user_delete))
+            // offset
+            .route(
+                CLUSTER_OFFSET_BY_TIMESTAMP_PATH,
+                post(get_offset_by_timestamp),
+            )
+            .route(CLUSTER_OFFSET_BY_GROUP_PATH, post(get_offset_by_group))
+            .route(CLUSTER_OFFSET_COMMIT_PATH, post(commit_offset))
+            // message
+            .route(CLUSTER_MESSAGE_SEND_PATH, post(send_message))
+            .route(CLUSTER_MESSAGE_READ_PATH, post(read_message))
     }
 
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
@@ -230,9 +230,10 @@ impl AdminServer {
             // system alarm
             .route(MQTT_SYSTEM_ALARM_LIST_PATH, get(system_alarm_list))
             .route(MQTT_BAN_LOG_LIST_PATH, get(ban_log_list))
-            // message
-            .route(MQTT_MESSAGE_SEND_PATH, post(send))
-            .route(MQTT_MESSAGE_READ_PATH, post(read))
+    }
+
+    fn mq9_route(&self) -> Router<Arc<HttpState>> {
+        Router::new().route(MQ9_MAIL_LIST_PATH, get(mail_list))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {

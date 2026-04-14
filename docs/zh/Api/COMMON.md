@@ -33,6 +33,7 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 | Tenant | `POST` | `/api/cluster/tenant/delete` | 删除租户 |
 | Topic | `GET` | `/api/cluster/topic/list` | 主题列表查询 |
 | Topic | `GET` | `/api/cluster/topic/detail` | 主题详情查询 |
+| Topic | `POST` | `/api/cluster/topic/create` | 创建主题 |
 | Topic | `POST` | `/api/cluster/topic/delete` | 删除主题 |
 | Topic | `GET` | `/api/cluster/topic-rewrite/list` | 主题重写规则列表 |
 | Topic | `POST` | `/api/cluster/topic-rewrite/create` | 创建主题重写规则 |
@@ -56,6 +57,9 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 | Schema | `GET` | `/api/cluster/schema-bind/list` | Schema 绑定列表查询 |
 | Schema | `POST` | `/api/cluster/schema-bind/create` | 创建 Schema 绑定 |
 | Schema | `POST` | `/api/cluster/schema-bind/delete` | 删除 Schema 绑定 |
+| Offset | `POST` | `/api/cluster/offset/timestamp` | 按时间戳查询 Offset |
+| Offset | `POST` | `/api/cluster/offset/group` | 按消费组查询 Offset |
+| Offset | `POST` | `/api/cluster/offset/commit` | 提交 Offset |
 
 ### /mqtt — MQTT Broker 接口
 
@@ -85,9 +89,6 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 | Shard | `POST` | `/api/storage-engine/shard/create` | 创建 Shard |
 | Shard | `POST` | `/api/storage-engine/shard/delete` | 删除 Shard |
 | Segment | `POST` | `/api/storage-engine/segment/list` | Segment 列表查询 |
-| Offset | `POST` | `/api/storage-engine/offset/timestamp` | 按时间戳查询 Offset |
-| Offset | `POST` | `/api/storage-engine/offset/group` | 按消费组查询 Offset |
-| Offset | `POST` | `/api/storage-engine/offset/commit` | 提交 Offset |
 
 ### 通用接口
 

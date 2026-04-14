@@ -72,8 +72,8 @@ pub enum MqttActionType {
 
     // topic rewrite rule
     ListTopicRewrite,
-    CreateTopicRewrite(admin_server::cluster::topic::CreateTopicRewriteReq),
-    DeleteTopicRewrite(admin_server::cluster::topic::DeleteTopicRewriteReq),
+    CreateTopicRewrite(admin_server::mqtt::topic_rewrite::CreateTopicRewriteReq),
+    DeleteTopicRewrite(admin_server::mqtt::topic_rewrite::DeleteTopicRewriteReq),
 
     // publish
     Publish(PublishArgsRequest),
@@ -1183,7 +1183,7 @@ impl MqttBrokerCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for topic rewrite rule list
-        let request = admin_server::cluster::topic::TopicRewriteReq {
+        let request = admin_server::mqtt::topic_rewrite::TopicRewriteReq {
             tenant: None,
             name: None,
             limit: Some(params.limit),
@@ -1193,7 +1193,7 @@ impl MqttBrokerCommand {
         };
 
         match admin_client
-            .get_topic_rewrite_list::<admin_server::cluster::topic::TopicRewriteReq, Vec<admin_server::cluster::topic::TopicRewriteListRow>>(
+            .get_topic_rewrite_list::<admin_server::mqtt::topic_rewrite::TopicRewriteReq, Vec<admin_server::mqtt::topic_rewrite::TopicRewriteListRow>>(
                 &request,
             )
             .await
@@ -1239,7 +1239,7 @@ impl MqttBrokerCommand {
     async fn create_topic_rewrite_rule(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::cluster::topic::CreateTopicRewriteReq,
+        cli_request: admin_server::mqtt::topic_rewrite::CreateTopicRewriteReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
@@ -1258,7 +1258,7 @@ impl MqttBrokerCommand {
     async fn delete_topic_rewrite_rule(
         &self,
         params: MqttCliCommandParam,
-        cli_request: admin_server::cluster::topic::DeleteTopicRewriteReq,
+        cli_request: admin_server::mqtt::topic_rewrite::DeleteTopicRewriteReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));

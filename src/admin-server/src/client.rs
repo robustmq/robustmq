@@ -345,6 +345,25 @@ impl AdminHttpClient {
             .await
     }
 
+    /// Create topic
+    pub async fn create_topic<T, R>(&self, request: &T) -> Result<R, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.post(&api_path(CLUSTER_TOPIC_CREATE_PATH), request)
+            .await
+    }
+
+    /// Delete topic
+    pub async fn delete_topic<T>(&self, request: &T) -> Result<String, HttpClientError>
+    where
+        T: Serialize,
+    {
+        self.post_raw(&api_path(CLUSTER_TOPIC_DELETE_PATH), request)
+            .await
+    }
+
     /// Get subscription list
     pub async fn get_subscribe_list<T, R>(
         &self,
@@ -784,7 +803,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(STORAGE_ENGINE_OFFSET_BY_TIMESTAMP_PATH), request)
+        self.post(&api_path(CLUSTER_OFFSET_BY_TIMESTAMP_PATH), request)
             .await
     }
 
@@ -794,7 +813,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.post(&api_path(STORAGE_ENGINE_OFFSET_BY_GROUP_PATH), request)
+        self.post(&api_path(CLUSTER_OFFSET_BY_GROUP_PATH), request)
             .await
     }
 
@@ -803,7 +822,44 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(STORAGE_ENGINE_OFFSET_COMMIT_PATH), request)
+        self.post_raw(&api_path(CLUSTER_OFFSET_COMMIT_PATH), request)
+            .await
+    }
+
+    // ========== Cluster Message APIs ==========
+
+    /// 发送消息到 topic
+    pub async fn send_message<T, R>(&self, request: &T) -> Result<R, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.post(&api_path(CLUSTER_MESSAGE_SEND_PATH), request)
+            .await
+    }
+
+    /// 从 topic 读取消息
+    pub async fn read_message<T, R>(&self, request: &T) -> Result<R, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.post(&api_path(CLUSTER_MESSAGE_READ_PATH), request)
+            .await
+    }
+
+    // ========== MQ9 APIs ==========
+
+    /// Get mail list
+    pub async fn get_mail_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.get_with_params(&api_path(MQ9_MAIL_LIST_PATH), request)
             .await
     }
 }

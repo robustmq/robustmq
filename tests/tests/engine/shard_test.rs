@@ -18,9 +18,8 @@ mod tests {
 
     use crate::common::get_placement_addr;
     use crate::mqtt::protocol::common::create_test_env;
-    use admin_server::engine::shard::{
-        SegmentListReq, SegmentListResp, ShardCreateReq, ShardDeleteReq, ShardListReq, ShardListRow,
-    };
+    use admin_server::engine::segment::{SegmentListReq, SegmentListResp};
+    use admin_server::engine::shard::{ShardCreateReq, ShardDeleteReq, ShardListReq, ShardListRow};
     use common_base::uuid::unique_id;
     use common_base::{http_response::AdminServerResponse, tools::now_second};
     use common_config::storage::StorageType;

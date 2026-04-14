@@ -58,10 +58,10 @@ pub async fn update_nats_cache_metadata(
             let email: MQ9Email = serialize::deserialize(&record.data)?;
             match record.action_type() {
                 BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
-                    cache_manager.add_email(email);
+                    cache_manager.add_mail(email);
                 }
                 BrokerUpdateCacheActionType::Delete => {
-                    cache_manager.remove_email(&email.tenant, &email.mail_id);
+                    cache_manager.remove_mail(&email.tenant, &email.mail_id);
                     // mail id is globally unique. Once the metadata of a mail is deleted,
                     // there will be no duplicate mail ids in the future.
                     // That is to say, data will no longer be written to this mail and will not be consumed.

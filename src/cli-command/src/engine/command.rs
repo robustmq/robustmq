@@ -15,11 +15,12 @@
 use crate::mqtt::pub_sub::error_info;
 use crate::output::OutputFormat;
 use admin_server::client::AdminHttpClient;
-use admin_server::engine::shard::{
+use admin_server::cluster::offset::{
     CommitOffsetReq, GetOffsetByGroupReq, GetOffsetByGroupResp, GetOffsetByTimestampReq,
-    GetOffsetByTimestampResp, SegmentListReq, SegmentListResp, ShardCreateReq, ShardDeleteReq,
-    ShardListReq, ShardListRow,
+    GetOffsetByTimestampResp,
 };
+use admin_server::engine::segment::{SegmentListReq, SegmentListResp};
+use admin_server::engine::shard::{ShardCreateReq, ShardDeleteReq, ShardListReq, ShardListRow};
 use prettytable::{row, Table};
 use serde::Serialize;
 use std::collections::HashMap;

@@ -31,6 +31,10 @@ use tracing::error;
 
 /// Send INFO to the client immediately after a NATS connection is established.
 /// Also marks the connection's protocol as NATS so the handler can route responses.
+///
+/// After INFO, we immediately send a PING so that clients (e.g. async_nats) can
+/// complete their handshake without waiting for the keep-alive interval.
+/// This matches the behaviour of the reference NATS server (gnatsd).
 pub async fn send_nats_info(
     node_cache: &Arc<NodeCacheManager>,
     connection_id: u64,
@@ -38,7 +42,7 @@ pub async fn send_nats_info(
     network_type: &NetworkConnectionType,
     addr: &SocketAddr,
 ) {
-    let wrapper = RobustMQPacketWrapper {
+    let info_wrapper = RobustMQPacketWrapper {
         protocol: RobustMQProtocol::NATS,
         extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
         packet: RobustMQPacket::NATS(build_nats_info(
@@ -50,10 +54,26 @@ pub async fn send_nats_info(
     };
 
     if let Err(e) = connection_manager
-        .write_tcp_frame(connection_id, wrapper)
+        .write_tcp_frame(connection_id, info_wrapper)
         .await
     {
         error!(connection_id, "Failed to send NATS INFO: {}", e);
+        return;
+    }
+
+    // Send an immediate PING so the client can complete its handshake right away
+    // instead of waiting for the keep-alive tick (which may be tens of seconds away).
+    let ping_wrapper = RobustMQPacketWrapper {
+        protocol: RobustMQProtocol::NATS,
+        extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
+        packet: RobustMQPacket::NATS(NatsPacket::Ping),
+    };
+
+    if let Err(e) = connection_manager
+        .write_tcp_frame(connection_id, ping_wrapper)
+        .await
+    {
+        error!(connection_id, "Failed to send initial NATS PING: {}", e);
     }
 }
 

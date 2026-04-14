@@ -42,7 +42,7 @@ pub async fn process_pub(
         )));
     }
 
-    if ctx.cache_manager.get_email(&tenant, mail_id).is_none() {
+    if ctx.cache_manager.get_mail(&tenant, mail_id).is_none() {
         return Err(NatsBrokerError::CommonError(format!(
             "mailbox {} does not exist",
             mail_id

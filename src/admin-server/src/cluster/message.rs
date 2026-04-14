@@ -14,12 +14,19 @@
 
 use crate::{state::HttpState, tool::extractor::ValidatedJson};
 use axum::{extract::State, Json};
+use bytes::Bytes;
+use common_base::{
+    error::common::CommonError,
+    http_response::{error_response, success_response},
+};
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
+use mqtt_broker::{core::topic::try_init_topic, storage::message::MessageStorage};
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, sync::Arc};
 use validator::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
-pub struct PublishReq {
+pub struct SendMessageReq {
     #[validate(length(min = 1, max = 256, message = "Tenant length must be between 1-256"))]
     pub tenant: String,
 
@@ -31,12 +38,10 @@ pub struct PublishReq {
         message = "Payload length cannot exceed 1MB (1048576 bytes)"
     ))]
     pub payload: String,
-
-    pub retain: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ReadReq {
+pub struct ReadMessageReq {
     pub tenant: String,
     pub topic: String,
     pub offset: u64,
@@ -47,38 +52,32 @@ pub struct SendMessageResp {
     pub offsets: Vec<u64>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReadMessageResp {
     pub messages: Vec<ReadMessageRow>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReadMessageRow {
     pub offset: u64,
     pub content: String,
     pub timestamp: u64,
 }
 
-use bytes::Bytes;
-use common_base::{
-    error::common::CommonError,
-    http_response::{error_response, success_response},
-};
-use mqtt_broker::{core::topic::try_init_topic, storage::message::MessageStorage};
-use protocol::mqtt::common::{Publish, PublishProperties};
-use std::{collections::HashMap, sync::Arc};
-
-pub async fn send(
+pub async fn send_message(
     State(state): State<Arc<HttpState>>,
-    ValidatedJson(params): ValidatedJson<PublishReq>,
+    ValidatedJson(params): ValidatedJson<SendMessageReq>,
 ) -> String {
-    match send_inner(state, params).await {
+    match send_message_inner(state, params).await {
         Ok(offsets) => success_response(SendMessageResp { offsets }),
         Err(e) => error_response(e.to_string()),
     }
 }
 
-async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64>, CommonError> {
+async fn send_message_inner(
+    state: Arc<HttpState>,
+    params: SendMessageReq,
+) -> Result<Vec<u64>, CommonError> {
     let message_storage = MessageStorage::new(state.storage_driver_manager.clone());
 
     if let Err(e) = try_init_topic(
@@ -93,46 +92,27 @@ async fn send_inner(state: Arc<HttpState>, params: PublishReq) -> Result<Vec<u64
         return Err(CommonError::CommonError(e.to_string()));
     }
 
-    let publish = Publish {
-        dup: false,
-        qos: protocol::mqtt::common::QoS::AtLeastOnce,
-        p_kid: 0,
-        retain: params.retain,
-        topic: Bytes::from(params.topic.clone()),
-        payload: Bytes::from(params.payload.clone()),
-    };
-
-    let publish_properties = Some(PublishProperties::default());
-
-    if params.retain {
-        if let Err(e) = state
-            .mqtt_context
-            .retain_message_manager
-            .save_retain_message(&params.tenant, &params.topic, &publish, &publish_properties)
-            .await
-        {
-            return Err(CommonError::CommonError(e.to_string()));
-        }
-    }
-
     let record = AdapterWriteRecord::new(params.topic.clone(), Bytes::from(params.payload));
     let offset = message_storage
-        .append_topic_message(&params.tenant, &params.topic.clone(), vec![record])
+        .append_topic_message(&params.tenant, &params.topic, vec![record])
         .await?;
 
     Ok(offset)
 }
 
-pub async fn read(State(state): State<Arc<HttpState>>, Json(params): Json<ReadReq>) -> String {
-    match read_inner(state, params).await {
+pub async fn read_message(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<ReadMessageReq>,
+) -> String {
+    match read_message_inner(state, params).await {
         Ok(messages) => success_response(ReadMessageResp { messages }),
         Err(e) => error_response(e.to_string()),
     }
 }
 
-pub async fn read_inner(
+async fn read_message_inner(
     state: Arc<HttpState>,
-    params: ReadReq,
+    params: ReadMessageReq,
 ) -> Result<Vec<ReadMessageRow>, CommonError> {
     let message_storage = MessageStorage::new(state.storage_driver_manager.clone());
     let mut results = Vec::new();

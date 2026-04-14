@@ -34,6 +34,7 @@ pub const CLUSTER_HEALTHY_PATH: &str = "/cluster/healthy";
 // Cluster Topic API paths
 pub const CLUSTER_TOPIC_LIST_PATH: &str = "/cluster/topic/list";
 pub const CLUSTER_TOPIC_DETAIL_PATH: &str = "/cluster/topic/detail";
+pub const CLUSTER_TOPIC_CREATE_PATH: &str = "/cluster/topic/create";
 pub const CLUSTER_TOPIC_DELETE_PATH: &str = "/cluster/topic/delete";
 
 // Cluster Topic Rewrite API paths
@@ -101,9 +102,9 @@ pub const MQTT_FLAPPING_DETECT_LIST_PATH: &str = "/mqtt/flapping_detect/list";
 pub const MQTT_SYSTEM_ALARM_LIST_PATH: &str = "/mqtt/system-alarm/list";
 pub const MQTT_BAN_LOG_LIST_PATH: &str = "/mqtt/ban-log/list";
 
-// MQTT Message
-pub const MQTT_MESSAGE_SEND_PATH: &str = "/mqtt/message/send";
-pub const MQTT_MESSAGE_READ_PATH: &str = "/mqtt/message/read";
+// Cluster Message
+pub const CLUSTER_MESSAGE_SEND_PATH: &str = "/cluster/message/send";
+pub const CLUSTER_MESSAGE_READ_PATH: &str = "/cluster/message/read";
 
 // ── /storage-engine ───────────────────────────────────────────────────────────
 
@@ -111,15 +112,21 @@ pub const STORAGE_ENGINE_SHARD_LIST_PATH: &str = "/storage-engine/shard/list";
 pub const STORAGE_ENGINE_SHARD_CREATE_PATH: &str = "/storage-engine/shard/create";
 pub const STORAGE_ENGINE_SHARD_DELETE_PATH: &str = "/storage-engine/shard/delete";
 pub const STORAGE_ENGINE_SEGMENT_LIST_PATH: &str = "/storage-engine/segment/list";
-pub const STORAGE_ENGINE_OFFSET_BY_TIMESTAMP_PATH: &str = "/storage-engine/offset/timestamp";
-pub const STORAGE_ENGINE_OFFSET_BY_GROUP_PATH: &str = "/storage-engine/offset/group";
-pub const STORAGE_ENGINE_OFFSET_COMMIT_PATH: &str = "/storage-engine/offset/commit";
+
+// Cluster Offset API paths
+pub const CLUSTER_OFFSET_BY_TIMESTAMP_PATH: &str = "/cluster/offset/timestamp";
+pub const CLUSTER_OFFSET_BY_GROUP_PATH: &str = "/cluster/offset/group";
+pub const CLUSTER_OFFSET_COMMIT_PATH: &str = "/cluster/offset/commit";
 
 // Cluster Tenant (full CRUD, lives in cluster/tenant.rs)
 pub const TENANT_LIST_PATH: &str = "/cluster/tenant/list";
 pub const TENANT_CREATE_PATH: &str = "/cluster/tenant/create";
 pub const TENANT_UPDATE_PATH: &str = "/cluster/tenant/update";
 pub const TENANT_DELETE_PATH: &str = "/cluster/tenant/delete";
+
+// ── /mq9 ─────────────────────────────────────────────────────────────────────
+
+pub const MQ9_MAIL_LIST_PATH: &str = "/mq9/mail/list";
 
 // ── MCP ───────────────────────────────────────────────────────────────────────
 

@@ -35,7 +35,7 @@ checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 
 [[package]]
 name = "admin-server"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
@@ -180,7 +180,7 @@ dependencies = [
 
 [[package]]
 name = "amqp-broker"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "amq-protocol",
  "async-trait",
@@ -503,6 +503,42 @@ dependencies = [
  "event-listener 5.4.1",
  "event-listener-strategy",
  "pin-project-lite",
+]
+
+[[package]]
+name = "async-nats"
+version = "0.38.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76433c4de73442daedb3a59e991d94e85c14ebfc33db53dfcd347a21cd6ef4f8"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "futures",
+ "memchr",
+ "nkeys",
+ "nuid",
+ "once_cell",
+ "pin-project",
+ "portable-atomic",
+ "rand 0.8.5",
+ "regex",
+ "ring",
+ "rustls-native-certs 0.7.3",
+ "rustls-pemfile 2.2.0",
+ "rustls-webpki 0.102.8",
+ "serde",
+ "serde_json",
+ "serde_nanos",
+ "serde_repr",
+ "thiserror 1.0.69",
+ "time",
+ "tokio",
+ "tokio-rustls 0.26.4",
+ "tokio-util",
+ "tokio-websockets",
+ "tracing",
+ "tryhard",
+ "url",
 ]
 
 [[package]]
@@ -1015,7 +1051,7 @@ dependencies = [
 
 [[package]]
 name = "broker-core"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "arc-swap",
  "bytes",
@@ -1035,7 +1071,7 @@ dependencies = [
 
 [[package]]
 name = "broker-server"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "admin-server",
  "amqp-broker",
@@ -1408,7 +1444,7 @@ checksum = "3a822ea5bc7590f9d40f1ba12c0dc3c2760f3482c6984db1573ad11031420831"
 
 [[package]]
 name = "cli-bench"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
@@ -1432,7 +1468,7 @@ dependencies = [
 
 [[package]]
 name = "cli-command"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "admin-server",
  "chrono",
@@ -1506,7 +1542,7 @@ dependencies = [
 
 [[package]]
 name = "cmd"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "broker-server",
  "clap",
@@ -1553,7 +1589,7 @@ dependencies = [
 
 [[package]]
 name = "common-base"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "anyhow",
  "apache-avro",
@@ -1600,7 +1636,7 @@ dependencies = [
 
 [[package]]
 name = "common-config"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "common-base",
  "serde",
@@ -1610,7 +1646,7 @@ dependencies = [
 
 [[package]]
 name = "common-healthy"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "common-base",
  "common-config",
@@ -1621,7 +1657,7 @@ dependencies = [
 
 [[package]]
 name = "common-metrics"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "axum 0.8.8",
  "bytes",
@@ -1636,7 +1672,7 @@ dependencies = [
 
 [[package]]
 name = "common-security"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
@@ -1699,7 +1735,7 @@ dependencies = [
 
 [[package]]
 name = "connector"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "async-trait",
  "bson",
@@ -2214,7 +2250,7 @@ dependencies = [
 
 [[package]]
 name = "delay-message"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "broker-core",
  "bytes",
@@ -2234,7 +2270,7 @@ dependencies = [
 
 [[package]]
 name = "delay-task"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "broker-core",
  "bytes",
@@ -2567,6 +2603,7 @@ dependencies = [
  "ed25519",
  "serde",
  "sha2",
+ "signature",
  "subtle",
  "zeroize",
 ]
@@ -3367,7 +3404,7 @@ dependencies = [
 
 [[package]]
 name = "grpc-clients"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "common-base",
  "common-metrics",
@@ -4143,7 +4180,7 @@ dependencies = [
 
 [[package]]
 name = "kafka-broker"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "async-trait",
  "broker-core",
@@ -4334,7 +4371,7 @@ checksum = "6373607a59f0be73a39b6fe456b8192fcc3585f602af20751600e974dd455e77"
 
 [[package]]
 name = "llm-engine"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "common-base",
  "common-config",
@@ -4539,7 +4576,7 @@ dependencies = [
 
 [[package]]
 name = "meta-service"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "async-stream",
  "axum 0.8.8",
@@ -4576,7 +4613,7 @@ dependencies = [
 
 [[package]]
 name = "metadata-struct"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "bytes",
  "clap",
@@ -4637,7 +4674,7 @@ dependencies = [
 
 [[package]]
 name = "mmap-file"
-version = "0.3.8"
+version = "0.3.9"
 
 [[package]]
 name = "mockall"
@@ -4714,7 +4751,7 @@ dependencies = [
 
 [[package]]
 name = "mq9-core"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "axum 0.8.8",
  "broker-core",
@@ -4734,7 +4771,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-broker"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
@@ -5007,7 +5044,7 @@ dependencies = [
 
 [[package]]
 name = "nats-broker"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
@@ -5065,7 +5102,7 @@ dependencies = [
 
 [[package]]
 name = "network-server"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "async-channel 2.5.0",
  "async-trait",
@@ -5123,8 +5160,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "nkeys"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "879011babc47a1c7fdf5a935ae3cfe94f34645ca0cac1c7f6424b36fc743d1bf"
+dependencies = [
+ "data-encoding",
+ "ed25519",
+ "ed25519-dalek",
+ "getrandom 0.2.17",
+ "log",
+ "rand 0.8.5",
+ "signatory",
+]
+
+[[package]]
 name = "node-call"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "broker-core",
  "bytes",
@@ -5171,6 +5223,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "nuid"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc895af95856f929163a0aa20c26a78d26bfdc839f51b9d5aa7a5b79e52b7e83"
+dependencies = [
+ "rand 0.8.5",
 ]
 
 [[package]]
@@ -6203,7 +6264,7 @@ dependencies = [
 
 [[package]]
 name = "pprof-monitor"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "axum 0.8.8",
  "bytes",
@@ -6624,7 +6685,7 @@ dependencies = [
 
 [[package]]
 name = "protocol"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "amq-protocol",
  "bytes",
@@ -7024,7 +7085,7 @@ dependencies = [
 
 [[package]]
 name = "rate-limit"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "broker-core",
  "common-base",
@@ -7461,7 +7522,7 @@ checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
 
 [[package]]
 name = "robustmq-macro"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "async-trait",
  "macrotest",
@@ -7475,10 +7536,11 @@ dependencies = [
 
 [[package]]
 name = "robustmq-test"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "admin-server",
  "apache-avro",
+ "async-nats",
  "broker-core",
  "bytes",
  "common-base",
@@ -7488,6 +7550,7 @@ dependencies = [
  "futures",
  "grpc-clients",
  "metadata-struct",
+ "mq9-core",
  "mqtt-broker",
  "network-server",
  "node-call",
@@ -7521,7 +7584,7 @@ dependencies = [
 
 [[package]]
 name = "rocksdb-engine"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "common-base",
  "common-config",
@@ -7555,7 +7618,7 @@ dependencies = [
 
 [[package]]
 name = "rule-engine"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "bytes",
  "cel",
@@ -7904,7 +7967,7 @@ dependencies = [
 
 [[package]]
 name = "schema-register"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "apache-avro",
  "common-base",
@@ -8182,6 +8245,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_nanos"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a93142f0367a4cc53ae0fead1bcda39e85beccfad3dcd717656cacab94b12985"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_path_to_error"
 version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8199,6 +8271,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ce1fc6db65a611022b23a0dec6975d63fb80a302cb3388835ff02c097258d50"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "serde_repr"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -8331,6 +8414,18 @@ checksum = "c4db69cba1110affc0e9f7bcd48bbf87b3f4fc7c61fc9155afd4c469eb3d6c1b"
 dependencies = [
  "errno",
  "libc",
+]
+
+[[package]]
+name = "signatory"
+version = "0.27.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1e303f8205714074f6068773f0e29527e0453937fe837c9717d066635b65f31"
+dependencies = [
+ "pkcs8",
+ "rand_core 0.6.4",
+ "signature",
+ "zeroize",
 ]
 
 [[package]]
@@ -8658,7 +8753,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage-adapter"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
@@ -8686,7 +8781,7 @@ dependencies = [
 
 [[package]]
 name = "storage-engine"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "async-trait",
  "axum 0.8.8",
@@ -8919,7 +9014,7 @@ dependencies = [
 
 [[package]]
 name = "system-info"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "common-base",
  "common-metrics",
@@ -9000,7 +9095,7 @@ checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
 
 [[package]]
 name = "third-driver"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "common-base",
  "mysql 27.0.0",
@@ -9246,6 +9341,27 @@ dependencies = [
  "pin-project-lite",
  "slab",
  "tokio",
+]
+
+[[package]]
+name = "tokio-websockets"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f591660438b3038dd04d16c938271c79e7e06260ad2ea2885a4861bfb238605d"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "futures-core",
+ "futures-sink",
+ "http",
+ "httparse",
+ "rand 0.8.5",
+ "ring",
+ "rustls-native-certs 0.8.3",
+ "rustls-pki-types",
+ "tokio",
+ "tokio-rustls 0.26.4",
+ "tokio-util",
 ]
 
 [[package]]
@@ -9688,6 +9804,16 @@ dependencies = [
  "target-triple",
  "termcolor",
  "toml",
+]
+
+[[package]]
+name = "tryhard"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fe58ebd5edd976e0fe0f8a14d2a04b7c81ef153ea9a54eebc42e67c2c23b4e5"
+dependencies = [
+ "pin-project-lite",
+ "tokio",
 ]
 
 [[package]]

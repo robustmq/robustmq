@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
-use crate::core::notify::{send_notify_by_create_mq9_email, send_notify_by_delete_mq9_email};
+use crate::core::notify::{send_notify_by_create_mq9_email, send_notify_by_delete_mq9_mail};
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mq9::email::Mq9EmailStorage;
@@ -85,7 +85,7 @@ pub async fn delete_email_by_req(
     if let Some(email) = storage.get(&req.tenant, &req.mail_id)? {
         let data = StorageData::new(StorageDataType::Mq9DeleteEmail, encode_to_bytes(req));
         raft_manager.write_data(&req.tenant, data).await?;
-        send_notify_by_delete_mq9_email(call_manager, email).await?;
+        send_notify_by_delete_mq9_mail(call_manager, email).await?;
     }
     Ok(DeleteEmailReply {})
 }

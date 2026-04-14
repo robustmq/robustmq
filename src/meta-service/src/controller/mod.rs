@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use crate::controller::connector_scheduler::ConnectorScheduler;
-use crate::controller::email_gc::start_email_gc_thread;
 use crate::controller::engine_gc::start_engine_delete_gc_thread;
 use crate::controller::group_gc::start_group_gc_thread;
+use crate::controller::mail_gc::start_email_gc_thread;
 use crate::controller::topic_delete::start_topic_delete_thread;
 use crate::core::cache::MetaCacheManager;
 use crate::raft::manager::MultiRaftManager;
@@ -28,9 +28,9 @@ use tracing::error;
 
 pub mod connector_scheduler;
 pub mod connector_status;
-pub mod email_gc;
 pub mod engine_gc;
 pub mod group_gc;
+pub mod mail_gc;
 pub mod topic_delete;
 
 pub fn start_controller(
