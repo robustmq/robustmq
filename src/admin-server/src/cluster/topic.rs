@@ -24,14 +24,13 @@ use crate::{
     },
 };
 use axum::extract::{Query, State};
-use axum::Json;
 use broker_core::topic::TopicStorage;
 use common_base::error::common::CommonError;
 use common_base::http_response::{error_response, success_response};
 use common_config::storage::StorageType;
 use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
 use metadata_struct::mqtt::{retain_message::MQTTRetainMessage, topic::Topic};
-use metadata_struct::topic::{TopicSource, Topic as MetaTopic};
+use metadata_struct::topic::{Topic as MetaTopic, TopicSource};
 use mqtt_broker::subscribe::manager::TopicSubscribeInfo;
 use mqtt_broker::{core::error::MqttBrokerError, storage::retain::RetainStorage};
 use serde::{Deserialize, Serialize};
@@ -292,7 +291,7 @@ pub async fn topic_create(
         return error_response(e);
     }
 
-    success_response("success")
+    success_response(topic)
 }
 
 pub async fn topic_delete(

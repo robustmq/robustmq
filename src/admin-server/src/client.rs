@@ -346,11 +346,12 @@ impl AdminHttpClient {
     }
 
     /// Create topic
-    pub async fn create_topic<T>(&self, request: &T) -> Result<String, HttpClientError>
+    pub async fn create_topic<T, R>(&self, request: &T) -> Result<R, HttpClientError>
     where
         T: Serialize,
+        R: for<'de> Deserialize<'de>,
     {
-        self.post_raw(&api_path(CLUSTER_TOPIC_CREATE_PATH), request)
+        self.post(&api_path(CLUSTER_TOPIC_CREATE_PATH), request)
             .await
     }
 
