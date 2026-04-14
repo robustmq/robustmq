@@ -17,6 +17,7 @@ use crate::core::limit::topic_total_num_limit;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 use crate::{core::cache::MQTTCacheManager, subscribe::parse::ParseSubscribeData};
+use common_base::error::common::CommonError;
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
@@ -195,7 +196,7 @@ pub async fn create_topic_by_mqtt(
     cache_manager: &Arc<MQTTCacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     topic: &Topic,
-) -> Result<(), MqttBrokerError> {
+) -> Result<(), CommonError> {
     if cache_manager
         .topic_rewrite_rule
         .iter()
@@ -203,6 +204,7 @@ pub async fn create_topic_by_mqtt(
     {
         cache_manager.set_re_calc_topic_rewrite(true).await;
     }
+
     subscribe_manager
         .add_wait_parse_data(ParseSubscribeData {
             action_type: BrokerUpdateCacheActionType::Create,
@@ -217,7 +219,7 @@ pub async fn create_topic_by_mqtt(
 pub async fn delete_topic_by_mqtt(
     topic: &Topic,
     subscribe_manager: &Arc<SubscribeManager>,
-) -> Result<(), MqttBrokerError> {
+) -> Result<(), CommonError> {
     subscribe_manager.remove_by_topic(&topic.tenant, &topic.topic_name);
     subscribe_manager
         .add_wait_parse_data(ParseSubscribeData {
