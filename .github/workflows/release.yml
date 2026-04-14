@@ -49,7 +49,7 @@ jobs:
           - platform: linux-arm64
             runner: ubuntu-22.04-arm
           - platform: darwin-amd64
-            runner: macos-13
+            runner: macos-15-intel
           - platform: darwin-arm64
             runner: macos-14
 
