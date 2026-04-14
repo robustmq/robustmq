@@ -14,7 +14,7 @@
 
 use admin_server::{
     server::AdminServer,
-    state::{HttpState, MQTTContext, StorageEngineContext},
+    state::{HttpState, MQTTContext, NatsContext, StorageEngineContext},
 };
 use common_base::role::is_engine_node;
 use common_metrics::core::server::register_prometheus_export;
@@ -71,7 +71,9 @@ impl BrokerServer {
             broker_cache,
             storage_driver_manager: self.mqtt_params.storage_driver_manager.clone(),
             rate_limiter: self.global_rate_limiter.clone(),
-            nats_context: None,
+            nats_context: Some(NatsContext {
+                cache_manager: self.nats_params.cache_manager.clone(),
+            }),
         });
         let http_port = self.config.http_port;
         self.server_runtime.spawn(async move {
