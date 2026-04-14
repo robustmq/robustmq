@@ -22,3 +22,4 @@ pub mod security;
 pub mod subject;
 pub mod tenant;
 pub mod write_client;
+pub mod topic;

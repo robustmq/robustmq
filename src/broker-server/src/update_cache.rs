@@ -28,6 +28,7 @@ use mqtt_broker::core::topic::{create_topic_by_mqtt, delete_topic_by_mqtt};
 use mqtt_broker::{
     broker::MqttBrokerServerParams, core::dynamic_cache::update_mqtt_cache_metadata,
 };
+use nats_broker::core::topic::{create_topic_by_nats_and_mq9, delete_topic_by_nats_and_mq9};
 use nats_broker::{
     broker::NatsBrokerServerParams, core::dynamic_cache::update_nats_cache_metadata,
 };
@@ -72,7 +73,7 @@ pub async fn update_cache(
         | BrokerUpdateCacheResourceType::Schema
         | BrokerUpdateCacheResourceType::SchemaResource
         | BrokerUpdateCacheResourceType::Topic => {
-            if let Err(e) = update_cluster_cache_metadata(mqtt_params, record).await {
+            if let Err(e) = update_cluster_cache_metadata(mqtt_params, nats_params, record).await {
                 return Err(CommonError::CommonError(e.to_string()));
             }
         }
@@ -110,6 +111,7 @@ pub async fn update_cache(
 
 pub async fn update_cluster_cache_metadata(
     mqtt_params: &MqttBrokerServerParams,
+    nats_params: &NatsBrokerServerParams,
     record: &UpdateCacheRecord,
 ) -> Result<(), CommonError> {
     match record.resource_type() {
@@ -134,23 +136,39 @@ pub async fn update_cluster_cache_metadata(
 
         BrokerUpdateCacheResourceType::Topic => match record.action_type() {
             BrokerUpdateCacheActionType::Create => {
+                // Cache
                 let topic = serialize::deserialize::<Topic>(&record.data)?;
                 mqtt_params.node_cache.add_topic(&topic);
+
+                // MQTT Broker
                 create_topic_by_mqtt(
                     &mqtt_params.cache_manager,
                     &mqtt_params.subscribe_manager,
                     &topic,
                 )
                 .await?;
+
+                // Nats & MQ9
+                create_topic_by_nats_and_mq9(nats_params.subscribe_manager.clone(), &topic).await;
+
+                // Kafka
             }
 
             BrokerUpdateCacheActionType::Update => {}
             BrokerUpdateCacheActionType::Delete => {
+                // Cache
                 let topic = serialize::deserialize::<Topic>(&record.data)?;
                 mqtt_params
                     .node_cache
                     .delete_topic(&topic.tenant, &topic.topic_name);
+
+                // MQTT Broker
                 delete_topic_by_mqtt(&topic, &mqtt_params.subscribe_manager).await?;
+
+                // Nats & MQ9
+                delete_topic_by_nats_and_mq9(nats_params.subscribe_manager.clone(), &topic).await;
+
+                // Kafka
             }
         },
 
