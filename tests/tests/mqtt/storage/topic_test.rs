@@ -25,6 +25,8 @@ mod tests {
     };
     use mqtt_broker::storage::retain::RetainStorage;
     use std::sync::Arc;
+    use std::time::Duration;
+    use tokio::time::sleep;
 
     #[tokio::test]
     async fn topic_test() {
@@ -52,6 +54,7 @@ mod tests {
             .await
             .unwrap();
 
+        sleep(Duration::from_secs(30)).await;
         let result = topic_storage
             .get_topic(&topic.tenant, &topic_name)
             .await
