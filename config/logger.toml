@@ -15,7 +15,7 @@
 [stdout]
 kind = "console"
 targets = [
-    { path = "", level = "warn" },
+    { path = "", level = "info" },
     { path = "openraft::raft::responder", level = "error" },
 ]
 

@@ -103,8 +103,6 @@ pub fn client_unavailable_error(e: &MqttBrokerError) -> bool {
 }
 
 /// Returns true if the error indicates a stale subscriber that should be removed.
-/// Only removes subscribers when the topic itself no longer exists in the broker cache.
-/// Transient errors (e.g. shard not yet synced) should NOT remove the subscriber.
 pub fn stale_subscriber_error(e: &MqttBrokerError) -> bool {
     let msg = e.to_string();
     msg.contains("not found in broker cache")

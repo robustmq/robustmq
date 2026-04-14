@@ -48,8 +48,7 @@ pub async fn init_qos2_inner_topic(
     storage_driver_manager: &Arc<StorageDriverManager>,
     broker_cache: &Arc<NodeCacheManager>,
 ) -> Result<(), MqttBrokerError> {
-    if let Some(topic) = broker_cache.get_topic_by_name(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC)
-    {
+    if let Some(topic) = broker_cache.get_topic_by_name(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC) {
         // Topic exists in metadata; ensure the storage shard is also provisioned.
         info!(
             "QoS2 inner topic '{}' already exists, ensuring storage shard is provisioned",

@@ -64,6 +64,7 @@ mod tests {
         sleep(Duration::from_secs(3)).await;
         distinct_conn(cli);
 
+        sleep(Duration::from_secs(50)).await;
         // subscribe
         let client_id =
             build_client_id(format!("last_will_message_test_sub_{network}_{qos}").as_str());
