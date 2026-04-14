@@ -52,3 +52,5 @@ rocksdb-engine.workspace = true
 storage-engine.workspace = true
 node-call.workspace = true
 prost.workspace = true
+mq9-core.workspace = true
+async-nats.workspace = true

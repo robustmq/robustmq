@@ -33,7 +33,6 @@ use crate::{
         topic::{topic_create, topic_delete, topic_detail, topic_list},
         user::{user_create, user_delete, user_list},
     },
-    nats::mail::mail_list,
     mqtt::{
         client::client_list,
         monitor::monitor_data,
@@ -47,6 +46,7 @@ use crate::{
         system::{ban_log_list, flapping_detect_list, system_alarm_list},
         topic_rewrite::{topic_rewrite_create, topic_rewrite_delete, topic_rewrite_list},
     },
+    nats::mail::mail_list,
     path::*,
     state::HttpState,
 };

@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 // ── Requests ──────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CreateMailboxReq {
     pub ttl: Option<u64>,
     #[serde(default)]
@@ -28,7 +28,7 @@ pub struct CreateMailboxReq {
 
 // ── Replies ───────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CreateMailboxReply {
     pub mail_id: String,
     pub is_new: bool,

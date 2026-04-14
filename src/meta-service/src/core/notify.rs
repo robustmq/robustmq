@@ -539,7 +539,7 @@ pub async fn send_notify_by_create_mq9_email(
     .await
 }
 
-pub async fn send_notify_by_delete_mq9_email(
+pub async fn send_notify_by_delete_mq9_mail(
     call_manager: &Arc<NodeCallManager>,
     email: MQ9Email,
 ) -> Result<(), MetaServiceError> {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::notify::send_notify_by_delete_mq9_email;
+use crate::core::notify::send_notify_by_delete_mq9_mail;
 use crate::storage::mq9::email::Mq9EmailStorage;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
@@ -32,7 +32,7 @@ pub async fn start_email_gc_thread(
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {
-        if let Err(e) = gc_expired_emails(&rocksdb_engine_handler, &node_call_manager).await {
+        if let Err(e) = gc_expired_mails(&rocksdb_engine_handler, &node_call_manager).await {
             return Err(CommonError::CommonError(e.to_string()));
         }
         Ok(())
@@ -40,7 +40,7 @@ pub async fn start_email_gc_thread(
     loop_select_ticket(ac_fn, EMAIL_GC_INTERVAL_MS, &stop_send).await;
 }
 
-async fn gc_expired_emails(
+async fn gc_expired_mails(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     node_call_manager: &Arc<NodeCallManager>,
 ) -> Result<(), CommonError> {
@@ -62,16 +62,16 @@ async fn gc_expired_emails(
         // Delete from RocksDB.
         if let Err(e) = storage.delete(&email.tenant, &email.mail_id) {
             warn!(
-                "Failed to delete expired email: tenant={}, mail_id={}, error={}",
+                "Failed to delete expired mail: tenant={}, mail_id={}, error={}",
                 email.tenant, email.mail_id, e
             );
             continue;
         }
 
         // Notify broker nodes to evict from in-memory cache.
-        if let Err(e) = send_notify_by_delete_mq9_email(node_call_manager, email.clone()).await {
+        if let Err(e) = send_notify_by_delete_mq9_mail(node_call_manager, email.clone()).await {
             warn!(
-                "Failed to notify brokers to delete email: tenant={}, mail_id={}, error={}",
+                "Failed to notify brokers to delete mail: tenant={}, mail_id={}, error={}",
                 email.tenant, email.mail_id, e
             );
         }
