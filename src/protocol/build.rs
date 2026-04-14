@@ -38,6 +38,7 @@ pub fn setup() -> Result<(), Box<dyn std::error::Error>> {
     // Broker
     tonic_prost_build::configure()
         .build_server(true)
+        .protoc_arg("--experimental_allow_proto3_optional")
         .compile_protos(
             &[proto_root.join("src/broker/broker.proto").to_str().unwrap()],
             &[proto_root.join("src/").to_str().unwrap()],
