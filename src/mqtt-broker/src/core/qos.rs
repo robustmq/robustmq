@@ -21,7 +21,9 @@ use common_config::storage::StorageType;
 use connector::storage::message::MessageStorage;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
-    mqtt::topic::Topic, storage::adapter_record::AdapterWriteRecord, tenant::DEFAULT_TENANT,
+    mqtt::topic::Topic,
+    storage::{adapter_record::AdapterWriteRecord, shard::EngineShardConfig},
+    tenant::DEFAULT_TENANT,
 };
 use node_call::{NodeCallData, NodeCallManager};
 use prost::Message;
@@ -46,14 +48,24 @@ pub async fn init_qos2_inner_topic(
     storage_driver_manager: &Arc<StorageDriverManager>,
     broker_cache: &Arc<NodeCacheManager>,
 ) -> Result<(), MqttBrokerError> {
-    if broker_cache
-        .get_topic_by_name(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC)
-        .is_some()
+    if let Some(topic) = broker_cache.get_topic_by_name(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC)
     {
+        // Topic exists in metadata; ensure the storage shard is also provisioned.
         info!(
-            "Delay task inner topic '{}' already exists, skipping creation",
+            "QoS2 inner topic '{}' already exists, ensuring storage shard is provisioned",
             DELAY_QUEUE_MESSAGE_TOPIC
         );
+        let shard_config = EngineShardConfig {
+            replica_num: topic.replication,
+            storage_type: topic.storage_type,
+            max_segment_size: topic.config.max_segment_size,
+            max_record_num: topic.config.max_record_num,
+            retention_sec: topic.config.retention_sec,
+        };
+        storage_driver_manager
+            .create_storage_resource(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, &shard_config)
+            .await
+            .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
         return Ok(());
     }
 

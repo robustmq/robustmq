@@ -52,7 +52,6 @@ pub async fn update_cache(
         // MQTT Broker
         BrokerUpdateCacheResourceType::Session
         | BrokerUpdateCacheResourceType::Subscribe
-        | BrokerUpdateCacheResourceType::Topic
         | BrokerUpdateCacheResourceType::AutoSubscribeRule
         | BrokerUpdateCacheResourceType::TopicRewriteRule => {
             if let Err(e) = update_mqtt_cache_metadata(
@@ -66,7 +65,7 @@ pub async fn update_cache(
             }
         }
 
-        // Cluster — Node, Config, Tenant, User, Acl, Blacklist, Group, Connector, Schema
+        // Cluster — Node, Config, Tenant, User, Acl, Blacklist, Group, Connector, Schema, Topic
         BrokerUpdateCacheResourceType::ClusterResourceConfig
         | BrokerUpdateCacheResourceType::Node
         | BrokerUpdateCacheResourceType::Tenant
@@ -76,7 +75,8 @@ pub async fn update_cache(
         | BrokerUpdateCacheResourceType::Group
         | BrokerUpdateCacheResourceType::Connector
         | BrokerUpdateCacheResourceType::Schema
-        | BrokerUpdateCacheResourceType::SchemaResource => {
+        | BrokerUpdateCacheResourceType::SchemaResource
+        | BrokerUpdateCacheResourceType::Topic => {
             if let Err(e) = update_cluster_cache_metadata(
                 &mqtt_params.cache_manager.node_cache,
                 &mqtt_params.security_manager,

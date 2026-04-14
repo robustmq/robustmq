@@ -20,6 +20,7 @@ use common_config::storage::StorageType;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::mqtt::topic::Topic;
+use metadata_struct::storage::shard::EngineShardConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -127,14 +128,23 @@ pub(crate) async fn init_inner_topic(
         DELAY_QUEUE_MESSAGE_TOPIC.to_string(),
         DELAY_QUEUE_INDEX_TOPIC.to_string(),
     ] {
-        if broker_cache
-            .get_topic_by_name(DEFAULT_TENANT, &topic_name)
-            .is_some()
-        {
+        if let Some(topic) = broker_cache.get_topic_by_name(DEFAULT_TENANT, &topic_name) {
+            // Topic exists in metadata; ensure the storage shard is also provisioned.
             info!(
-                "Delay task inner topic '{}' already exists, skipping creation",
+                "Delay message inner topic '{}' already exists, ensuring storage shard is provisioned",
                 topic_name
             );
+            let shard_config = EngineShardConfig {
+                replica_num: topic.replication,
+                storage_type: topic.storage_type,
+                max_segment_size: topic.config.max_segment_size,
+                max_record_num: topic.config.max_record_num,
+                retention_sec: topic.config.retention_sec,
+            };
+            delay_message_manager
+                .storage_driver_manager
+                .create_storage_resource(DEFAULT_TENANT, &topic_name, &shard_config)
+                .await?;
             continue;
         }
 

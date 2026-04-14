@@ -19,6 +19,7 @@ use common_base::error::common::CommonError;
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
+    storage::shard::EngineShardConfig,
     tenant::DEFAULT_TENANT,
     topic::{Topic, TopicSource},
 };
@@ -38,10 +39,18 @@ pub async fn try_init_system_email(
     client_pool: &Arc<ClientPool>,
 ) -> Result<(), CommonError> {
     let tenant = DEFAULT_TENANT;
-    if node_cache
-        .get_topic_by_name(tenant, MQ9_SYSTEM_PUBLIC_MAIL)
-        .is_some()
-    {
+    if let Some(topic) = node_cache.get_topic_by_name(tenant, MQ9_SYSTEM_PUBLIC_MAIL) {
+        // Topic exists in metadata; ensure the storage shard is also provisioned.
+        let shard_config = EngineShardConfig {
+            replica_num: topic.replication,
+            storage_type: topic.storage_type,
+            max_segment_size: topic.config.max_segment_size,
+            max_record_num: topic.config.max_record_num,
+            retention_sec: topic.config.retention_sec,
+        };
+        storage_driver_manager
+            .create_storage_resource(tenant, MQ9_SYSTEM_PUBLIC_MAIL, &shard_config)
+            .await?;
         return Ok(());
     }
 
