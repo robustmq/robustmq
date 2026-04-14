@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::{
-    send_delete_group_batch, send_delete_session_batch, send_delete_topic_batch,
-    send_get_qos_data_batch, send_last_will_batch, send_update_cache_batch,
-};
+use crate::handler::{send_get_qos_data_batch, send_last_will_batch, send_update_cache_batch};
 use crate::{NodeCallData, NodeCallRequest, BATCH_SIZE, WORKER_THREAD_NUM};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
@@ -173,26 +170,16 @@ fn spawn_worker(
 
 async fn dispatch_batch(client_pool: &Arc<ClientPool>, addr: &str, batch: Vec<NodeCallRequest>) {
     let mut cache_updates = Vec::new();
-    let mut delete_sessions = Vec::new();
     let mut last_will_messages = Vec::new();
     let mut get_qos_data = Vec::new();
-    let mut delete_topics = Vec::new();
-    let mut delete_groups = Vec::new();
 
     for req in batch {
         match req.data {
             NodeCallData::UpdateCache(data) => cache_updates.push(data),
-            NodeCallData::DeleteSession(id) => delete_sessions.push(id),
             NodeCallData::SendLastWillMessage(item) => last_will_messages.push(item),
             NodeCallData::GetQosData(client_id) => {
                 let reply_tx = req.reply_txs.into_iter().flatten().next();
                 get_qos_data.push((client_id, reply_tx));
-            }
-            NodeCallData::DeleteTopic(tenant, topic_name) => {
-                delete_topics.push((tenant, topic_name));
-            }
-            NodeCallData::DeleteGroup(tenant, group_name) => {
-                delete_groups.push((tenant, group_name));
             }
         }
     }
@@ -204,11 +191,6 @@ async fn dispatch_batch(client_pool: &Arc<ClientPool>, addr: &str, batch: Vec<No
             }
         },
         async {
-            if !delete_sessions.is_empty() {
-                send_delete_session_batch(client_pool, addr, &delete_sessions).await;
-            }
-        },
-        async {
             if !last_will_messages.is_empty() {
                 send_last_will_batch(client_pool, addr, &last_will_messages).await;
             }
@@ -216,16 +198,6 @@ async fn dispatch_batch(client_pool: &Arc<ClientPool>, addr: &str, batch: Vec<No
         async {
             if !get_qos_data.is_empty() {
                 send_get_qos_data_batch(client_pool, addr, get_qos_data).await;
-            }
-        },
-        async {
-            if !delete_topics.is_empty() {
-                send_delete_topic_batch(client_pool, addr, &delete_topics).await;
-            }
-        },
-        async {
-            if !delete_groups.is_empty() {
-                send_delete_group_batch(client_pool, addr, &delete_groups).await;
             }
         },
     );

@@ -331,7 +331,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.get_with_params(&api_path(MQTT_TOPIC_LIST_PATH), request)
+        self.get_with_params(&api_path(CLUSTER_TOPIC_LIST_PATH), request)
             .await
     }
 
@@ -341,7 +341,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.get_with_params(&api_path(MQTT_TOPIC_DETAIL_PATH), request)
+        self.get_with_params(&api_path(CLUSTER_TOPIC_DETAIL_PATH), request)
             .await
     }
 
@@ -367,7 +367,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.get_with_params(&api_path(MQTT_USER_LIST_PATH), request)
+        self.get_with_params(&api_path(CLUSTER_USER_LIST_PATH), request)
             .await
     }
 
@@ -376,7 +376,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_USER_CREATE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_USER_CREATE_PATH), request)
             .await
     }
 
@@ -385,7 +385,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_USER_DELETE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_USER_DELETE_PATH), request)
             .await
     }
 
@@ -395,7 +395,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.get_with_params(&api_path(MQTT_ACL_LIST_PATH), request)
+        self.get_with_params(&api_path(CLUSTER_ACL_LIST_PATH), request)
             .await
     }
 
@@ -404,7 +404,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_ACL_CREATE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_ACL_CREATE_PATH), request)
             .await
     }
 
@@ -413,7 +413,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_ACL_DELETE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_ACL_DELETE_PATH), request)
             .await
     }
 
@@ -426,7 +426,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.get_with_params(&api_path(MQTT_BLACKLIST_LIST_PATH), request)
+        self.get_with_params(&api_path(CLUSTER_BLACKLIST_LIST_PATH), request)
             .await
     }
 
@@ -435,7 +435,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_BLACKLIST_CREATE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_BLACKLIST_CREATE_PATH), request)
             .await
     }
 
@@ -444,7 +444,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_BLACKLIST_DELETE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_BLACKLIST_DELETE_PATH), request)
             .await
     }
 
@@ -457,7 +457,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.get_with_params(&api_path(MQTT_CONNECTOR_LIST_PATH), request)
+        self.get_with_params(&api_path(CLUSTER_CONNECTOR_LIST_PATH), request)
             .await
     }
 
@@ -467,7 +467,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.get_with_params(&api_path(MQTT_CONNECTOR_DETAIL_PATH), request)
+        self.get_with_params(&api_path(CLUSTER_CONNECTOR_DETAIL_PATH), request)
             .await
     }
 
@@ -476,7 +476,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_CONNECTOR_CREATE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_CONNECTOR_CREATE_PATH), request)
             .await
     }
 
@@ -485,7 +485,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_CONNECTOR_DELETE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_CONNECTOR_DELETE_PATH), request)
             .await
     }
 
@@ -498,7 +498,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.get_with_params(&api_path(MQTT_SCHEMA_LIST_PATH), request)
+        self.get_with_params(&api_path(CLUSTER_SCHEMA_LIST_PATH), request)
             .await
     }
 
@@ -507,7 +507,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_SCHEMA_CREATE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_SCHEMA_CREATE_PATH), request)
             .await
     }
 
@@ -516,7 +516,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_SCHEMA_DELETE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_SCHEMA_DELETE_PATH), request)
             .await
     }
 
@@ -529,7 +529,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.get_with_params(&api_path(MQTT_SCHEMA_BIND_LIST_PATH), request)
+        self.get_with_params(&api_path(CLUSTER_SCHEMA_BIND_LIST_PATH), request)
             .await
     }
 
@@ -538,7 +538,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_SCHEMA_BIND_CREATE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_SCHEMA_BIND_CREATE_PATH), request)
             .await
     }
 
@@ -547,7 +547,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_SCHEMA_BIND_DELETE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_SCHEMA_BIND_DELETE_PATH), request)
             .await
     }
 
@@ -618,7 +618,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.get_with_params(&api_path(MQTT_TENANT_LIST_PATH), request)
+        self.get_with_params(&api_path(TENANT_LIST_PATH), request)
             .await
     }
 
@@ -627,8 +627,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_TENANT_CREATE_PATH), request)
-            .await
+        self.post_raw(&api_path(TENANT_CREATE_PATH), request).await
     }
 
     /// Delete MQTT tenant
@@ -636,8 +635,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_TENANT_DELETE_PATH), request)
-            .await
+        self.post_raw(&api_path(TENANT_DELETE_PATH), request).await
     }
 
     /// Get flapping detection list
@@ -662,7 +660,7 @@ impl AdminHttpClient {
         T: Serialize,
         R: for<'de> Deserialize<'de>,
     {
-        self.get_with_params(&api_path(MQTT_TOPIC_REWRITE_LIST_PATH), request)
+        self.get_with_params(&api_path(CLUSTER_TOPIC_REWRITE_LIST_PATH), request)
             .await
     }
 
@@ -671,7 +669,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_TOPIC_REWRITE_CREATE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_TOPIC_REWRITE_CREATE_PATH), request)
             .await
     }
 
@@ -680,7 +678,7 @@ impl AdminHttpClient {
     where
         T: Serialize,
     {
-        self.post_raw(&api_path(MQTT_TOPIC_REWRITE_DELETE_PATH), request)
+        self.post_raw(&api_path(CLUSTER_TOPIC_REWRITE_DELETE_PATH), request)
             .await
     }
 

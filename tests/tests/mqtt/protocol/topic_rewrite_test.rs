@@ -21,7 +21,7 @@ mod tests {
         },
         ClientTestProperties,
     };
-    use admin_server::mqtt::topic::{CreateTopicRewriteReq, DeleteTopicRewriteReq};
+    use admin_server::cluster::topic::{CreateTopicRewriteReq, DeleteTopicRewriteReq};
     use common_base::uuid::unique_id;
     use metadata_struct::tenant::DEFAULT_TENANT;
     use paho_mqtt::{Message, MessageBuilder};

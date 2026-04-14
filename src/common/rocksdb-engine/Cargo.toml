@@ -26,6 +26,7 @@ rocksdb.workspace = true
 dashmap.workspace = true
 futures.workspace = true
 common-metrics.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
 tokio.workspace = true

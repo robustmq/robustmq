@@ -21,6 +21,7 @@ use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mq9::email::MQ9Email;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
+use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
@@ -33,7 +34,7 @@ use metadata_struct::storage::{
 };
 use metadata_struct::tenant::Tenant;
 use node_call::{NodeCallData, NodeCallManager, UpdateCacheData};
-use protocol::broker::broker_common::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
+use protocol::broker::broker::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
 use std::sync::Arc;
 
 // Tenant
@@ -292,7 +293,7 @@ pub async fn send_notify_by_delete_subscribe(
 }
 
 // MQTT Topic
-pub async fn send_notify_by_add_topic(
+pub async fn send_notify_by_set_topic(
     call_manager: &Arc<NodeCallManager>,
     topic: Topic,
 ) -> Result<(), MetaServiceError> {
@@ -547,6 +548,26 @@ pub async fn send_notify_by_delete_mq9_email(
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::Mq9Email,
         serialize::serialize(&email)?,
+    )
+    .await
+}
+
+// Group
+pub async fn send_notify_by_delete_group(
+    call_manager: &Arc<NodeCallManager>,
+    tenant: &str,
+    group_name: &str,
+) -> Result<(), MetaServiceError> {
+    let group = MqttGroupLeader {
+        tenant: tenant.to_string(),
+        group_name: group_name.to_string(),
+        ..Default::default()
+    };
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Group,
+        serialize::serialize(&group)?,
     )
     .await
 }

@@ -16,6 +16,7 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 
 pub mod base;
+pub mod expire;
 pub mod mqtt;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

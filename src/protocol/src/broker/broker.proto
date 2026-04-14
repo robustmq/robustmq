@@ -1,0 +1,111 @@
+/*
+ * Copyright 2023 RobustMQ Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+package broker;
+
+service BrokerService {
+  rpc UpdateCache(UpdateCacheRequest) returns (UpdateCacheReply) {}
+  rpc SendLastWillMessage(SendLastWillMessageRequest) returns (SendLastWillMessageReply) {}
+  rpc GetQosDataByClientId(GetQosDataByClientIdRequest) returns (GetQosDataByClientIdReply) {}
+  rpc GetShardSegmentDeleteStatus(GetShardSegmentDeleteStatusRequest) returns (GetShardSegmentDeleteStatusReply) {}
+}
+
+message UpdateCacheRequest {
+  repeated UpdateCacheRecord records = 1;
+}
+
+message UpdateCacheRecord {
+  BrokerUpdateCacheActionType action_type = 2;
+  BrokerUpdateCacheResourceType resource_type = 3;
+  bytes data = 4;
+}
+
+message UpdateCacheReply {
+  bool code = 1;
+  string data = 2;
+}
+
+message SendLastWillMessageReply {}
+
+message SendLastWillMessageRequest {
+  repeated LastWillMessageItem items = 1;
+}
+
+message LastWillMessageItem {
+  string client_id = 1;
+  bytes last_will_message = 2;
+}
+
+message GetQosDataByClientIdRequest {
+  repeated string client_ids = 1;
+}
+
+message GetQosDataByClientIdReply {
+  repeated GetQosDataByClientIdRaw data = 1;
+}
+
+message GetQosDataByClientIdRaw {
+  string client_id = 1;
+  bytes qos_data = 2;
+}
+
+message ShardSegmentStatusItem {
+  string shard_name = 1;
+  optional uint32 segment_seq = 2;
+}
+
+message GetShardSegmentDeleteStatusRequest {
+  repeated ShardSegmentStatusItem items = 1;
+}
+
+message ShardSegmentDeleteStatus {
+  string shard_name = 1;
+  bool deleted = 2;
+}
+
+message GetShardSegmentDeleteStatusReply {
+  repeated ShardSegmentDeleteStatus results = 1;
+}
+
+enum BrokerUpdateCacheResourceType {
+  Session = 0;
+  User = 1;
+  Subscribe = 2;
+  Topic = 3;
+  Connector = 4;
+  Schema = 5;
+  SchemaResource = 6;
+  ClusterResourceConfig = 7;
+  Node = 8;
+  Shard = 9;
+  Segment = 10;
+  SegmentMeta = 11;
+  Acl = 12;
+  Blacklist = 13;
+  Tenant = 14;
+  AutoSubscribeRule = 15;
+  TopicRewriteRule = 16;
+  NatsSubscribe = 17;
+  Mq9Email = 18;
+  Group = 19;
+}
+
+enum BrokerUpdateCacheActionType {
+  Create = 0;
+  Update = 1;
+  Delete = 2;
+}

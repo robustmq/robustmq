@@ -12,36 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::dynamic_cache::update_cluster_cache_metadata;
-use common_base::error::{common::CommonError, ResultCommonError};
+use crate::update_cache::update_cache;
 use mqtt_broker::{
-    broker::MqttBrokerServerParams, core::dynamic_cache::update_mqtt_cache_metadata,
+    broker::MqttBrokerServerParams, core::inner::send_last_will_message_by_req,
+    core::qos::get_qos_data_by_req,
 };
-use nats_broker::{
-    broker::NatsBrokerServerParams, core::dynamic_cache::update_nats_cache_metadata,
+use nats_broker::broker::NatsBrokerServerParams;
+use protocol::broker::broker::{
+    broker_service_server::BrokerService, GetQosDataByClientIdReply, GetQosDataByClientIdRequest,
+    GetShardSegmentDeleteStatusReply, GetShardSegmentDeleteStatusRequest, SendLastWillMessageReply,
+    SendLastWillMessageRequest, ShardSegmentDeleteStatus, UpdateCacheReply, UpdateCacheRequest,
 };
-use protocol::broker::broker_common::{
-    broker_common_service_server::BrokerCommonService, BatchDeleteGroupsReply,
-    BatchDeleteGroupsRequest, BatchDeleteTopicsReply, BatchDeleteTopicsRequest,
-    BrokerUpdateCacheResourceType, UpdateCacheRecord, UpdateCacheReply, UpdateCacheRequest,
-};
-use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
+use storage_engine::core::{segment::segment_already_delete, shard::shard_already_delete};
+use storage_engine::StorageEngineParams;
 use tonic::{Request, Response, Status};
 use tracing::warn;
 
-pub struct GrpcBrokerCommonService {
+pub struct GrpcBrokerService {
     mqtt_params: MqttBrokerServerParams,
     nats_params: NatsBrokerServerParams,
     storage_params: StorageEngineParams,
 }
 
-impl GrpcBrokerCommonService {
+impl GrpcBrokerService {
     pub fn new(
         mqtt_params: MqttBrokerServerParams,
         nats_params: NatsBrokerServerParams,
         storage_params: StorageEngineParams,
     ) -> Self {
-        GrpcBrokerCommonService {
+        GrpcBrokerService {
             mqtt_params,
             nats_params,
             storage_params,
@@ -50,7 +49,7 @@ impl GrpcBrokerCommonService {
 }
 
 #[tonic::async_trait]
-impl BrokerCommonService for GrpcBrokerCommonService {
+impl BrokerService for GrpcBrokerService {
     async fn update_cache(
         &self,
         request: Request<UpdateCacheRequest>,
@@ -77,98 +76,61 @@ impl BrokerCommonService for GrpcBrokerCommonService {
         Ok(Response::new(UpdateCacheReply::default()))
     }
 
-    async fn batch_delete_topics(
+    async fn send_last_will_message(
         &self,
-        _request: Request<BatchDeleteTopicsRequest>,
-    ) -> Result<Response<BatchDeleteTopicsReply>, Status> {
-        Ok(Response::new(BatchDeleteTopicsReply::default()))
+        request: Request<SendLastWillMessageRequest>,
+    ) -> Result<Response<SendLastWillMessageReply>, Status> {
+        let req = request.into_inner();
+        send_last_will_message_by_req(
+            &self.mqtt_params.cache_manager,
+            &self.mqtt_params.client_pool,
+            &self.mqtt_params.retain_message_manager,
+            &self.mqtt_params.storage_driver_manager,
+            &req,
+        )
+        .await
+        .map_err(|e| Status::internal(e.to_string()))
+        .map(Response::new)
     }
 
-    async fn batch_delete_groups(
+    async fn get_qos_data_by_client_id(
         &self,
-        _request: Request<BatchDeleteGroupsRequest>,
-    ) -> Result<Response<BatchDeleteGroupsReply>, Status> {
-        Ok(Response::new(BatchDeleteGroupsReply::default()))
+        request: Request<GetQosDataByClientIdRequest>,
+    ) -> Result<Response<GetQosDataByClientIdReply>, Status> {
+        let req = request.into_inner();
+        get_qos_data_by_req(&self.mqtt_params.cache_manager, &req.client_ids)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .map(Response::new)
     }
-}
 
-async fn update_cache(
-    mqtt_params: &MqttBrokerServerParams,
-    nats_params: &NatsBrokerServerParams,
-    storage_params: &StorageEngineParams,
-    record: &UpdateCacheRecord,
-) -> ResultCommonError {
-    match record.resource_type() {
-        // MQTT Broker
-        BrokerUpdateCacheResourceType::Session
-        | BrokerUpdateCacheResourceType::Subscribe
-        | BrokerUpdateCacheResourceType::Topic
-        | BrokerUpdateCacheResourceType::Connector
-        | BrokerUpdateCacheResourceType::Schema
-        | BrokerUpdateCacheResourceType::SchemaResource
-        | BrokerUpdateCacheResourceType::AutoSubscribeRule
-        | BrokerUpdateCacheResourceType::TopicRewriteRule => {
-            if let Err(e) = update_mqtt_cache_metadata(
-                &mqtt_params.cache_manager,
-                &mqtt_params.connector_manager,
-                &mqtt_params.subscribe_manager,
-                &mqtt_params.schema_manager,
-                &mqtt_params.storage_driver_manager,
-                &mqtt_params.metrics_cache_manager,
-                &mqtt_params.security_manager,
-                record,
-            )
-            .await
-            {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
+    async fn get_shard_segment_delete_status(
+        &self,
+        request: Request<GetShardSegmentDeleteStatusRequest>,
+    ) -> Result<Response<GetShardSegmentDeleteStatusReply>, Status> {
+        let req = request.into_inner();
+        let mut results = Vec::with_capacity(req.items.len());
+
+        for item in &req.items {
+            let deleted = if let Some(segment_seq) = item.segment_seq {
+                segment_already_delete(
+                    &self.storage_params.cache_manager,
+                    &item.shard_name,
+                    segment_seq,
+                )
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?
+            } else {
+                shard_already_delete(&item.shard_name)
+                    .map_err(|e| Status::internal(e.to_string()))?
+            };
+
+            results.push(ShardSegmentDeleteStatus {
+                shard_name: item.shard_name.clone(),
+                deleted,
+            });
         }
 
-        // Cluster — Node, Config, Tenant, User, Acl, Blacklist
-        BrokerUpdateCacheResourceType::ClusterResourceConfig
-        | BrokerUpdateCacheResourceType::Node
-        | BrokerUpdateCacheResourceType::Tenant
-        | BrokerUpdateCacheResourceType::User
-        | BrokerUpdateCacheResourceType::Acl
-        | BrokerUpdateCacheResourceType::Blacklist => {
-            if let Err(e) = update_cluster_cache_metadata(
-                &mqtt_params.cache_manager.node_cache,
-                &mqtt_params.security_manager,
-                record,
-            )
-            .await
-            {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
-
-        // NATS / MQ9
-        BrokerUpdateCacheResourceType::NatsSubscribe | BrokerUpdateCacheResourceType::Mq9Email => {
-            if let Err(e) = update_nats_cache_metadata(
-                &nats_params.cache_manager,
-                &nats_params.subscribe_manager,
-                record,
-            )
-            .await
-            {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
-
-        // Storage Engine
-        BrokerUpdateCacheResourceType::Shard
-        | BrokerUpdateCacheResourceType::Segment
-        | BrokerUpdateCacheResourceType::SegmentMeta => {
-            if let Err(e) = update_storage_cache_metadata(
-                &storage_params.cache_manager,
-                &storage_params.rocksdb_engine_handler,
-                record,
-            )
-            .await
-            {
-                return Err(CommonError::CommonError(e.to_string()));
-            }
-        }
+        Ok(Response::new(GetShardSegmentDeleteStatusReply { results }))
     }
-    Ok(())
 }

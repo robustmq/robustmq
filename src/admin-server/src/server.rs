@@ -18,35 +18,36 @@ use crate::engine::shard::{
     shard_delete, shard_list,
 };
 use crate::mcp::mcp_route;
-use crate::mqtt::topic::{topic_delete, topic_rewrite_delete};
 use crate::{
     cluster::{
-        cluster_config_get, cluster_config_set, cluster_info,
-        health::{health_cluster, health_node, health_ready},
-        healthy,
-        tenant::{tenant_create, tenant_delete, tenant_list, tenant_update},
-    },
-    mqtt::{
         acl::{acl_create, acl_delete, acl_list},
         blacklist::{blacklist_create, blacklist_delete, blacklist_list},
-        client::client_list,
+        cluster_config_get, cluster_config_set, cluster_info,
         connector::{connector_create, connector_delete, connector_detail, connector_list},
-        monitor::monitor_data,
-        overview::overview,
-        pub_sub::{read, send},
+        health::{health_cluster, health_node, health_ready},
+        healthy,
         schema::{
             schema_bind_create, schema_bind_delete, schema_bind_list, schema_create, schema_delete,
             schema_list,
         },
+        tenant::{tenant_create, tenant_delete, tenant_list, tenant_update},
+        topic::{
+            topic_delete, topic_detail, topic_list, topic_rewrite_create, topic_rewrite_delete,
+            topic_rewrite_list,
+        },
+        user::{user_create, user_delete, user_list},
+    },
+    mqtt::{
+        client::client_list,
+        monitor::monitor_data,
+        overview::overview,
+        pub_sub::{read, send},
         session::session_list,
         subscribe::{
             auto_subscribe_create, auto_subscribe_delete, auto_subscribe_list, slow_subscribe_list,
             subscribe_detail, subscribe_list,
         },
         system::{ban_log_list, flapping_detect_list, system_alarm_list},
-        tenant::{mqtt_tenant_create, mqtt_tenant_delete, mqtt_tenant_list},
-        topic::{topic_detail, topic_list, topic_rewrite_create, topic_rewrite_list},
-        user::{user_create, user_delete, user_list},
     },
     path::*,
     state::HttpState,
@@ -119,6 +120,7 @@ impl AdminServer {
     fn api_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
             .merge(self.common_route())
+            .merge(self.cluster_resource_route())
             .merge(self.mqtt_route())
             .merge(self.kafka_route())
             .merge(self.engine_route())
@@ -162,6 +164,48 @@ impl AdminServer {
             .route(STORAGE_ENGINE_OFFSET_COMMIT_PATH, post(commit_offset))
     }
 
+    fn cluster_resource_route(&self) -> Router<Arc<HttpState>> {
+        Router::new()
+            // topic
+            .route(CLUSTER_TOPIC_LIST_PATH, get(topic_list))
+            .route(CLUSTER_TOPIC_DETAIL_PATH, get(topic_detail))
+            .route(CLUSTER_TOPIC_DELETE_PATH, post(topic_delete))
+            // topic-rewrite
+            .route(CLUSTER_TOPIC_REWRITE_LIST_PATH, get(topic_rewrite_list))
+            .route(
+                CLUSTER_TOPIC_REWRITE_CREATE_PATH,
+                post(topic_rewrite_create),
+            )
+            .route(
+                CLUSTER_TOPIC_REWRITE_DELETE_PATH,
+                post(topic_rewrite_delete),
+            )
+            // acl
+            .route(CLUSTER_ACL_LIST_PATH, get(acl_list))
+            .route(CLUSTER_ACL_CREATE_PATH, post(acl_create))
+            .route(CLUSTER_ACL_DELETE_PATH, post(acl_delete))
+            // blacklist
+            .route(CLUSTER_BLACKLIST_LIST_PATH, get(blacklist_list))
+            .route(CLUSTER_BLACKLIST_CREATE_PATH, post(blacklist_create))
+            .route(CLUSTER_BLACKLIST_DELETE_PATH, post(blacklist_delete))
+            // connector
+            .route(CLUSTER_CONNECTOR_LIST_PATH, get(connector_list))
+            .route(CLUSTER_CONNECTOR_CREATE_PATH, post(connector_create))
+            .route(CLUSTER_CONNECTOR_DETAIL_PATH, get(connector_detail))
+            .route(CLUSTER_CONNECTOR_DELETE_PATH, post(connector_delete))
+            // schema
+            .route(CLUSTER_SCHEMA_LIST_PATH, get(schema_list))
+            .route(CLUSTER_SCHEMA_CREATE_PATH, post(schema_create))
+            .route(CLUSTER_SCHEMA_DELETE_PATH, post(schema_delete))
+            .route(CLUSTER_SCHEMA_BIND_LIST_PATH, get(schema_bind_list))
+            .route(CLUSTER_SCHEMA_BIND_CREATE_PATH, post(schema_bind_create))
+            .route(CLUSTER_SCHEMA_BIND_DELETE_PATH, post(schema_bind_delete))
+            // user
+            .route(CLUSTER_USER_LIST_PATH, get(user_list))
+            .route(CLUSTER_USER_CREATE_PATH, post(user_create))
+            .route(CLUSTER_USER_DELETE_PATH, post(user_delete))
+    }
+
     fn mqtt_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
             // overview
@@ -172,14 +216,6 @@ impl AdminServer {
             .route(MQTT_CLIENT_LIST_PATH, get(client_list))
             // session
             .route(MQTT_SESSION_LIST_PATH, get(session_list))
-            // topic
-            .route(MQTT_TOPIC_LIST_PATH, get(topic_list))
-            .route(MQTT_TOPIC_DETAIL_PATH, get(topic_detail))
-            .route(MQTT_TOPIC_DELETE_PATH, post(topic_delete))
-            // topic-rewrite
-            .route(MQTT_TOPIC_REWRITE_LIST_PATH, get(topic_rewrite_list))
-            .route(MQTT_TOPIC_REWRITE_CREATE_PATH, post(topic_rewrite_create))
-            .route(MQTT_TOPIC_REWRITE_DELETE_PATH, post(topic_rewrite_delete))
             // subscribe
             .route(MQTT_SUBSCRIBE_LIST_PATH, get(subscribe_list))
             .route(MQTT_SUBSCRIBE_DETAIL_PATH, get(subscribe_detail))
@@ -189,36 +225,8 @@ impl AdminServer {
             .route(MQTT_AUTO_SUBSCRIBE_DELETE_PATH, post(auto_subscribe_delete))
             // slow subscribe
             .route(MQTT_SLOW_SUBSCRIBE_LIST_PATH, get(slow_subscribe_list))
-            // user
-            .route(MQTT_USER_LIST_PATH, get(user_list))
-            .route(MQTT_USER_CREATE_PATH, post(user_create))
-            .route(MQTT_USER_DELETE_PATH, post(user_delete))
-            // acl
-            .route(MQTT_ACL_LIST_PATH, get(acl_list))
-            .route(MQTT_ACL_CREATE_PATH, post(acl_create))
-            .route(MQTT_ACL_DELETE_PATH, post(acl_delete))
-            // blacklist
-            .route(MQTT_BLACKLIST_LIST_PATH, get(blacklist_list))
-            .route(MQTT_BLACKLIST_CREATE_PATH, post(blacklist_create))
-            .route(MQTT_BLACKLIST_DELETE_PATH, post(blacklist_delete))
             // flapping_detect
             .route(MQTT_FLAPPING_DETECT_LIST_PATH, get(flapping_detect_list))
-            // connector
-            .route(MQTT_CONNECTOR_LIST_PATH, get(connector_list))
-            .route(MQTT_CONNECTOR_CREATE_PATH, post(connector_create))
-            .route(MQTT_CONNECTOR_DETAIL_PATH, get(connector_detail))
-            .route(MQTT_CONNECTOR_DELETE_PATH, post(connector_delete))
-            // schema
-            .route(MQTT_SCHEMA_LIST_PATH, get(schema_list))
-            .route(MQTT_SCHEMA_CREATE_PATH, post(schema_create))
-            .route(MQTT_SCHEMA_DELETE_PATH, post(schema_delete))
-            .route(MQTT_SCHEMA_BIND_LIST_PATH, get(schema_bind_list))
-            .route(MQTT_SCHEMA_BIND_CREATE_PATH, post(schema_bind_create))
-            .route(MQTT_SCHEMA_BIND_DELETE_PATH, post(schema_bind_delete))
-            // tenant
-            .route(MQTT_TENANT_LIST_PATH, get(mqtt_tenant_list))
-            .route(MQTT_TENANT_CREATE_PATH, post(mqtt_tenant_create))
-            .route(MQTT_TENANT_DELETE_PATH, post(mqtt_tenant_delete))
             // system alarm
             .route(MQTT_SYSTEM_ALARM_LIST_PATH, get(system_alarm_list))
             .route(MQTT_BAN_LOG_LIST_PATH, get(ban_log_list))

@@ -20,7 +20,7 @@ mod tests {
     use metadata_struct::meta::node::BrokerNode;
     use node_call::{NodeCallData, NodeCallManager};
     use prost::Message;
-    use protocol::broker::broker_mqtt::GetQosDataByClientIdReply;
+    use protocol::broker::broker::GetQosDataByClientIdReply;
     use std::sync::Arc;
     use tokio::sync::broadcast;
     use tokio::time::{sleep, Duration};

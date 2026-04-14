@@ -973,6 +973,214 @@ curl -X POST http://localhost:8080/api/tenant/update \
 
 ---
 
+### 12. 主题管理
+
+> 主题、ACL、黑名单、连接器、Schema、租户均为集群级公共资源，接口统一使用 `/cluster` 前缀。
+
+#### 12.1 主题列表查询
+- **接口**: `GET /api/cluster/topic/list`
+- **描述**: 查询主题列表，支持按租户过滤、主题名模糊搜索和主题类型过滤
+- **请求参数**:
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户精确过滤 |
+| `topic_name` | string | 否 | 按主题名模糊搜索 |
+| `topic_type` | string | 否 | `all`（默认）、`normal`、`system`（含 `$`） |
+| `limit` | u32 | 否 | 每页大小 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段：`topic_name`、`tenant` |
+| `sort_by` | string | 否 | `asc` / `desc` |
+
+- **响应示例**:
+```json
+{ "code": 0, "data": { "data": [ { "topic_id": "...", "topic_name": "sensor/temperature", "tenant": "default" } ], "total_count": 25 } }
+```
+
+#### 12.2 主题详情查询
+- **接口**: `GET /api/cluster/topic/detail`
+- **描述**: 查询指定主题的详细信息（保留消息、订阅列表、存储分片）
+- **请求参数**: `tenant`（必填）、`topic_name`（必填）
+
+#### 12.3 删除主题
+- **接口**: `POST /api/cluster/topic/delete`
+- **描述**: 删除指定主题（软删除，后台异步清理分片数据）
+- **请求参数**: `{ "tenant": "default", "topic_name": "sensor/temperature" }`
+- **响应**: 成功返回 "success"
+
+#### 12.4 主题重写规则列表
+- **接口**: `GET /api/cluster/topic-rewrite/list`
+- **请求参数**: `tenant`、`name`、`limit`、`page`、`sort_field`、`sort_by`
+
+#### 12.5 创建主题重写规则
+- **接口**: `POST /api/cluster/topic-rewrite/create`
+- **请求参数**: `{ "name", "tenant", "action", "source_topic", "dest_topic", "regex", "desc" }`
+
+#### 12.6 删除主题重写规则
+- **接口**: `POST /api/cluster/topic-rewrite/delete`
+- **请求参数**: `{ "tenant": "default", "name": "my-rule" }`
+
+---
+
+### 13. ACL 管理
+
+#### 13.1 ACL 列表查询
+- **接口**: `GET /api/cluster/acl/list`
+- **描述**: 查询 ACL 规则列表，支持 `tenant`、`name`、`resource_name` 模糊搜索
+- **请求参数**: `tenant`、`name`、`resource_name`、`limit`、`page`、`sort_field`、`sort_by`
+
+#### 13.2 创建 ACL 规则
+- **接口**: `POST /api/cluster/acl/create`
+- **请求参数**:
+```json
+{
+  "tenant": "default",
+  "name": "rule-name",
+  "resource_type": "ClientId",
+  "resource_name": "client001",
+  "action": "Publish",
+  "permission": "Allow",
+  "topic": "sensor/+",
+  "ip": "",
+  "desc": ""
+}
+```
+- `resource_type`: `ClientId` | `User` | `Ip`
+- `action`: `Publish` | `Subscribe` | `All`
+- `permission`: `Allow` | `Deny`
+
+#### 13.3 删除 ACL 规则
+- **接口**: `POST /api/cluster/acl/delete`
+- **请求参数**: `{ "tenant": "default", "name": "rule-name" }`
+
+---
+
+### 14. 黑名单管理
+
+#### 14.1 黑名单列表查询
+- **接口**: `GET /api/cluster/blacklist/list`
+- **请求参数**: `tenant`、`name`、`resource_name`、`limit`、`page`、`sort_field`、`sort_by`
+
+#### 14.2 创建黑名单
+- **接口**: `POST /api/cluster/blacklist/create`
+- **请求参数**:
+```json
+{
+  "name": "bl-bad-client",
+  "tenant": "default",
+  "blacklist_type": "ClientId",
+  "resource_name": "bad_client",
+  "end_time": 1735689599,
+  "desc": ""
+}
+```
+- `blacklist_type`: `ClientId` | `User` | `Ip` | `ClientIdMatch` | `UserMatch` | `IPCIDR`
+
+#### 14.3 删除黑名单
+- **接口**: `POST /api/cluster/blacklist/delete`
+- **请求参数**: `{ "tenant": "default", "name": "bl-bad-client" }`
+
+---
+
+### 15. 连接器管理
+
+#### 15.1 连接器列表查询
+- **接口**: `GET /api/cluster/connector/list`
+- **请求参数**: `tenant`、`connector_name`、`limit`、`page`、`sort_field`、`sort_by`
+
+#### 15.2 连接器详情
+- **接口**: `GET /api/cluster/connector/detail`
+- **请求参数**: `tenant`、`connector_name`
+
+#### 15.3 创建连接器
+- **接口**: `POST /api/cluster/connector/create`
+- **请求参数**:
+```json
+{
+  "connector_name": "kafka-sink",
+  "connector_type": "kafka",
+  "tenant": "default",
+  "topic_name": "sensor/temperature",
+  "config": "{ ... }",
+  "failure_strategy": { "strategy": "discard" }
+}
+```
+- `connector_type`: `kafka` | `pulsar` | `rabbitmq` | `postgres` | `mysql` | `mongodb` | `elasticsearch` | `redis` | `webhook` | `opentsdb` | `mqtt` | `clickhouse` | `influxdb` | `cassandra` | `s3` | `file` | `greptime`
+- `failure_strategy.strategy`: `discard` | `discard_after_retry` | `dead_message_queue`
+
+#### 15.4 删除连接器
+- **接口**: `POST /api/cluster/connector/delete`
+- **请求参数**: `{ "tenant": "default", "connector_name": "kafka-sink" }`
+
+---
+
+### 16. Schema 管理
+
+#### 16.1 Schema 列表查询
+- **接口**: `GET /api/cluster/schema/list`
+- **请求参数**: `tenant`、`name`、`limit`、`page`、`sort_field`、`sort_by`
+
+#### 16.2 创建 Schema
+- **接口**: `POST /api/cluster/schema/create`
+- **请求参数**:
+```json
+{
+  "tenant": "default",
+  "schema_name": "sensor-schema",
+  "schema_type": "json",
+  "schema": "{ \"type\": \"object\" }",
+  "desc": ""
+}
+```
+- `schema_type`: `json` | `avro` | `protobuf`
+
+#### 16.3 删除 Schema
+- **接口**: `POST /api/cluster/schema/delete`
+- **请求参数**: `{ "tenant": "default", "schema_name": "sensor-schema" }`
+
+#### 16.4 Schema 绑定列表
+- **接口**: `GET /api/cluster/schema-bind/list`
+- **请求参数**: `tenant`、`resource_name`、`schema_name`、`limit`、`page`
+
+#### 16.5 创建 Schema 绑定
+- **接口**: `POST /api/cluster/schema-bind/create`
+- **请求参数**: `{ "tenant": "default", "schema_name": "sensor-schema", "resource_name": "sensor/+" }`
+
+#### 16.6 删除 Schema 绑定
+- **接口**: `POST /api/cluster/schema-bind/delete`
+- **请求参数**: `{ "tenant": "default", "schema_name": "sensor-schema", "resource_name": "sensor/+" }`
+
+---
+
+### 17. 租户管理（集群级）
+
+> 以下接口为集群级租户管理，替代原 `/mqtt/tenant/*` 接口。
+
+#### 17.1 租户列表查询
+- **接口**: `GET /api/cluster/tenant/list`
+- **请求参数**: `tenant_name`、`limit`、`page`、`sort_field`、`sort_by`
+
+#### 17.2 创建租户
+- **接口**: `POST /api/cluster/tenant/create`
+- **请求参数**:
+```json
+{
+  "tenant_name": "my-tenant",
+  "desc": "",
+  "max_connections_per_node": 10000,
+  "max_create_connection_rate_per_second": 100,
+  "max_topics": 10000,
+  "max_sessions": 10000,
+  "max_publish_rate": 10000
+}
+```
+
+#### 17.3 删除租户
+- **接口**: `POST /api/cluster/tenant/delete`
+- **请求参数**: `{ "tenant_name": "my-tenant" }`
+
+---
+
 ## 注意事项
 
 1. **响应格式**: 成功时 `code` 为 `0`，`error` 为 `null`；失败时 `code` 为 `100`，`error` 包含错误信息

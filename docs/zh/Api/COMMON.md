@@ -18,6 +18,89 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 
 ---
 
+## 全量接口列表
+
+### /cluster — 集群资源接口
+
+| 分类 | 方法 | URI | 说明 |
+|------|------|-----|------|
+| Config | `GET` | `/api/cluster/config/get` | 获取集群配置 |
+| Config | `POST` | `/api/cluster/config/set` | 更新集群配置 |
+| Health | `GET` | `/api/cluster/healthy` | 集群健康检查 |
+| Tenant | `GET` | `/api/cluster/tenant/list` | 租户列表查询 |
+| Tenant | `POST` | `/api/cluster/tenant/create` | 创建租户 |
+| Tenant | `POST` | `/api/cluster/tenant/update` | 更新租户 |
+| Tenant | `POST` | `/api/cluster/tenant/delete` | 删除租户 |
+| Topic | `GET` | `/api/cluster/topic/list` | 主题列表查询 |
+| Topic | `GET` | `/api/cluster/topic/detail` | 主题详情查询 |
+| Topic | `POST` | `/api/cluster/topic/delete` | 删除主题 |
+| Topic | `GET` | `/api/cluster/topic-rewrite/list` | 主题重写规则列表 |
+| Topic | `POST` | `/api/cluster/topic-rewrite/create` | 创建主题重写规则 |
+| Topic | `POST` | `/api/cluster/topic-rewrite/delete` | 删除主题重写规则 |
+| User | `GET` | `/api/cluster/user/list` | 用户列表查询 |
+| User | `POST` | `/api/cluster/user/create` | 创建用户 |
+| User | `POST` | `/api/cluster/user/delete` | 删除用户 |
+| ACL | `GET` | `/api/cluster/acl/list` | ACL 列表查询 |
+| ACL | `POST` | `/api/cluster/acl/create` | 创建 ACL 规则 |
+| ACL | `POST` | `/api/cluster/acl/delete` | 删除 ACL 规则 |
+| Blacklist | `GET` | `/api/cluster/blacklist/list` | 黑名单列表查询 |
+| Blacklist | `POST` | `/api/cluster/blacklist/create` | 创建黑名单 |
+| Blacklist | `POST` | `/api/cluster/blacklist/delete` | 删除黑名单 |
+| Connector | `GET` | `/api/cluster/connector/list` | 连接器列表查询 |
+| Connector | `GET` | `/api/cluster/connector/detail` | 连接器详情查询 |
+| Connector | `POST` | `/api/cluster/connector/create` | 创建连接器 |
+| Connector | `POST` | `/api/cluster/connector/delete` | 删除连接器 |
+| Schema | `GET` | `/api/cluster/schema/list` | Schema 列表查询 |
+| Schema | `POST` | `/api/cluster/schema/create` | 创建 Schema |
+| Schema | `POST` | `/api/cluster/schema/delete` | 删除 Schema |
+| Schema | `GET` | `/api/cluster/schema-bind/list` | Schema 绑定列表查询 |
+| Schema | `POST` | `/api/cluster/schema-bind/create` | 创建 Schema 绑定 |
+| Schema | `POST` | `/api/cluster/schema-bind/delete` | 删除 Schema 绑定 |
+
+### /mqtt — MQTT Broker 接口
+
+| 分类 | 方法 | URI | 说明 |
+|------|------|-----|------|
+| Overview | `GET` | `/api/mqtt/overview` | 集群概览信息 |
+| Monitor | `GET` | `/api/mqtt/monitor/data` | 监控数据查询 |
+| Client | `GET` | `/api/mqtt/client/list` | 客户端列表查询 |
+| Session | `GET` | `/api/mqtt/session/list` | 会话列表查询 |
+| Subscribe | `GET` | `/api/mqtt/subscribe/list` | 订阅列表查询 |
+| Subscribe | `GET` | `/api/mqtt/subscribe/detail` | 订阅详情查询 |
+| Subscribe | `GET` | `/api/mqtt/auto-subscribe/list` | 自动订阅规则列表 |
+| Subscribe | `POST` | `/api/mqtt/auto-subscribe/create` | 创建自动订阅规则 |
+| Subscribe | `POST` | `/api/mqtt/auto-subscribe/delete` | 删除自动订阅规则 |
+| Subscribe | `GET` | `/api/mqtt/slow-subscribe/list` | 慢订阅列表查询 |
+| Flapping | `GET` | `/api/mqtt/flapping_detect/list` | 连接抖动检测列表 |
+| Alarm | `GET` | `/api/mqtt/system-alarm/list` | 系统告警列表 |
+| Alarm | `GET` | `/api/mqtt/ban-log/list` | 封禁日志列表 |
+| Message | `POST` | `/api/mqtt/message/send` | 发送消息 |
+| Message | `POST` | `/api/mqtt/message/read` | 读取消息 |
+
+### /storage-engine — 存储引擎接口
+
+| 分类 | 方法 | URI | 说明 |
+|------|------|-----|------|
+| Shard | `POST` | `/api/storage-engine/shard/list` | Shard 列表查询 |
+| Shard | `POST` | `/api/storage-engine/shard/create` | 创建 Shard |
+| Shard | `POST` | `/api/storage-engine/shard/delete` | 删除 Shard |
+| Segment | `POST` | `/api/storage-engine/segment/list` | Segment 列表查询 |
+| Offset | `POST` | `/api/storage-engine/offset/timestamp` | 按时间戳查询 Offset |
+| Offset | `POST` | `/api/storage-engine/offset/group` | 按消费组查询 Offset |
+| Offset | `POST` | `/api/storage-engine/offset/commit` | 提交 Offset |
+
+### 通用接口
+
+| 分类 | 方法 | URI | 说明 |
+|------|------|-----|------|
+| Info | `GET` | `/` | 获取服务版本信息 |
+| Status | `GET` | `/api/status` | 集群状态查询 |
+| Health | `GET` | `/health/ready` | 就绪健康检查 |
+| Health | `GET` | `/health/node` | 节点健康检查 |
+| Health | `GET` | `/health/cluster` | 集群健康检查 |
+
+---
+
 ## 通用响应格式
 
 ### 成功响应
@@ -275,7 +358,7 @@ curl -X GET http://localhost:8080/
 curl -X GET http://localhost:8080/api/status
 
 # 带分页的列表查询
-curl "http://localhost:8080/api/mqtt/user/list?limit=10&page=1&sort_field=username&sort_by=asc"
+curl "http://localhost:8080/api/cluster/user/list?limit=10&page=1&sort_field=username&sort_by=asc"
 ```
 
 ### 错误处理示例

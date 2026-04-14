@@ -13,14 +13,15 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use protocol::broker::broker_common::{
-    BatchDeleteGroupsReply, BatchDeleteGroupsRequest, BatchDeleteTopicsReply,
-    BatchDeleteTopicsRequest, UpdateCacheReply, UpdateCacheRequest,
+use protocol::broker::broker::{
+    GetQosDataByClientIdReply, GetQosDataByClientIdRequest, GetShardSegmentDeleteStatusReply,
+    GetShardSegmentDeleteStatusRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
+    UpdateCacheReply, UpdateCacheRequest,
 };
 
 use crate::pool::ClientPool;
 
-macro_rules! generate_broker_common_call {
+macro_rules! generate_broker_call {
     ($fn_name:ident, $req_ty:ty, $rep_ty:ty) => {
         pub async fn $fn_name(
             client_pool: &ClientPool,
@@ -32,18 +33,20 @@ macro_rules! generate_broker_common_call {
     };
 }
 
-generate_broker_common_call!(
-    broker_common_update_cache,
-    UpdateCacheRequest,
-    UpdateCacheReply
+generate_broker_call!(broker_update_cache, UpdateCacheRequest, UpdateCacheReply);
+generate_broker_call!(
+    broker_send_last_will_message,
+    SendLastWillMessageRequest,
+    SendLastWillMessageReply
 );
-generate_broker_common_call!(
-    broker_common_batch_delete_topics,
-    BatchDeleteTopicsRequest,
-    BatchDeleteTopicsReply
+generate_broker_call!(
+    broker_get_qos_data_by_client_id,
+    GetQosDataByClientIdRequest,
+    GetQosDataByClientIdReply
 );
-generate_broker_common_call!(
-    broker_common_batch_delete_groups,
-    BatchDeleteGroupsRequest,
-    BatchDeleteGroupsReply
+
+generate_broker_call!(
+    broker_get_shard_segment_delete_status,
+    GetShardSegmentDeleteStatusRequest,
+    GetShardSegmentDeleteStatusReply
 );

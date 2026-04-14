@@ -50,7 +50,20 @@ mod tests {
             .retained(false)
             .finalize();
 
-        // create connection
+        // subscribe first so the push thread is ready before the will arrives
+        let sub_client_id =
+            build_client_id(format!("last_will_message_test_sub_{network}_{qos}").as_str());
+        let sub_client_properties = ClientTestProperties {
+            mqtt_version: 5,
+            client_id: sub_client_id.to_string(),
+            addr: broker_addr_by_type(network),
+            ws: ws_by_type(network),
+            ssl: ssl_by_type(network),
+            ..Default::default()
+        };
+        let sub_cli = connect_server(&sub_client_properties);
+
+        // create connection and disconnect to trigger will
         let client_properties = ClientTestProperties {
             mqtt_version: 5,
             client_id: client_id.to_string(),
@@ -64,19 +77,6 @@ mod tests {
         sleep(Duration::from_secs(3)).await;
         distinct_conn(cli);
 
-        // subscribe
-        let client_id =
-            build_client_id(format!("last_will_message_test_sub_{network}_{qos}").as_str());
-        let client_properties = ClientTestProperties {
-            mqtt_version: 5,
-            client_id: client_id.to_string(),
-            addr: broker_addr_by_type(network),
-            ws: ws_by_type(network),
-            ssl: ssl_by_type(network),
-            ..Default::default()
-        };
-        let cli = connect_server(&client_properties);
-
         let call_fn = |msg: Message| {
             let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
             let bl0 = payload == will_message_content;
@@ -87,8 +87,8 @@ mod tests {
             bl0 && ct == content_type
         };
 
-        let res = subscribe_data_by_qos(&cli, &will_topic, qos, call_fn);
+        let res = subscribe_data_by_qos(&sub_cli, &will_topic, qos, call_fn);
         assert!(res.is_ok());
-        distinct_conn(cli);
+        distinct_conn(sub_cli);
     }
 }

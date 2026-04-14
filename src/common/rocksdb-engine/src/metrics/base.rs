@@ -12,26 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::{
-    error::{common::CommonError, ResultCommonError},
-    tools::now_second,
-    utils::serialize,
-};
+use common_base::{error::common::CommonError, tools::now_second};
 use dashmap::DashMap;
 use std::sync::Arc;
 
+use crate::metrics::expire::{DB_COLUMN_FAMILY_METRICS, DB_COLUMN_FAMILY_METRICS_PRE};
 use crate::metrics::MetricsValue;
-use crate::storage::broker::{
-    engine_delete_by_broker, engine_delete_prefix_by_broker, engine_prefix_list_by_broker,
-    engine_save_by_broker,
-};
-use crate::storage::family::DB_COLUMN_FAMILY_BROKER;
-use crate::warp::StorageDataWrap;
+use crate::storage::broker::{engine_prefix_list_by_broker, engine_save_by_broker};
 use crate::{rocksdb::RocksDBEngine, storage::broker::engine_get_by_broker};
-
-const DB_COLUMN_FAMILY_METRICS: &str = "/metrics/data";
-const DB_COLUMN_FAMILY_METRICS_PRE: &str = "/metrics/pre_num";
-const DB_COLUMN_FAMILY_METRICS_PREFIX: &str = "/metrics/";
 
 pub(crate) fn record_num(
     rocksdb_engine: &Arc<RocksDBEngine>,
@@ -66,7 +54,8 @@ pub(crate) fn record_pre_num(
     total: u64,
 ) -> Result<(), CommonError> {
     let db_key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS_PRE, key);
-    engine_save_by_broker(rocksdb_engine, &db_key, total)
+    let value = MetricsValue::new(total, now_second());
+    engine_save_by_broker(rocksdb_engine, &db_key, value)
 }
 
 pub(crate) async fn get_pre_num(
@@ -74,64 +63,12 @@ pub(crate) async fn get_pre_num(
     key: &str,
 ) -> Result<u64, CommonError> {
     let db_key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS_PRE, key);
-    let res = match engine_get_by_broker::<u64>(rocksdb_engine, &db_key)? {
+    let res = match engine_get_by_broker::<MetricsValue>(rocksdb_engine, &db_key)? {
         Some(data) => data,
         None => return Ok(0),
     };
-    Ok(res.data)
+    Ok(res.data.value)
 }
-pub fn delete_by_prefix(
-    rocksdb_engine: &Arc<RocksDBEngine>,
-    prefix_key: &str,
-) -> ResultCommonError {
-    let key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS, prefix_key);
-    engine_delete_prefix_by_broker(rocksdb_engine, &key)?;
-
-    let key = format!("{}/{}", DB_COLUMN_FAMILY_METRICS_PRE, prefix_key);
-    engine_delete_prefix_by_broker(rocksdb_engine, &key)?;
-    Ok(())
-}
-
-pub fn gc(rocksdb_engine: &Arc<RocksDBEngine>, save_time: u64) -> Result<(), CommonError> {
-    let now_time = now_second();
-
-    let cf = if let Some(cf) = rocksdb_engine.cf_handle(DB_COLUMN_FAMILY_BROKER) {
-        cf
-    } else {
-        return Err(CommonError::RocksDBFamilyNotAvailable(
-            DB_COLUMN_FAMILY_BROKER.to_string(),
-        ));
-    };
-    let mut iter = rocksdb_engine.db.raw_iterator_cf(&cf);
-    iter.seek(DB_COLUMN_FAMILY_METRICS_PREFIX);
-
-    while iter.valid() {
-        if let Some(key) = iter.key() {
-            if let Some(val) = iter.value() {
-                let key = String::from_utf8(key.to_vec())?;
-                if !key.starts_with(DB_COLUMN_FAMILY_METRICS_PREFIX) {
-                    break;
-                }
-                let value = val.to_vec();
-                match serialize::deserialize::<StorageDataWrap<MetricsValue>>(value.as_ref()) {
-                    Ok(v) => {
-                        if now_time > (v.create_time + save_time) {
-                            engine_delete_by_broker(rocksdb_engine, &key)?;
-                        }
-                    }
-                    Err(_) => {
-                        continue;
-                    }
-                }
-            }
-        }
-
-        iter.next();
-    }
-
-    Ok(())
-}
-
 #[macro_export]
 macro_rules! define_simple_metric {
     ($record_fn:ident, $get_fn:ident, $key:expr) => {
@@ -296,13 +233,10 @@ macro_rules! define_dimensional_metric_4d {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use common_base::{tools::now_second, uuid::unique_id};
-    use tokio::time::sleep;
 
     use crate::{
-        metrics::base::{gc, get_metric_data, get_pre_num, record_num, record_pre_num},
+        metrics::base::{get_metric_data, get_pre_num, record_num, record_pre_num},
         test::test_rocksdb_instance,
     };
 
@@ -313,18 +247,10 @@ mod tests {
         let time = now_second();
         let num = 100;
         let res = record_num(&rs_handler, &key, time, num);
-        println!("{:?}", res);
         assert!(res.is_ok());
 
         let data = get_metric_data(&rs_handler, &key).unwrap();
         assert_eq!(data.len(), 1);
-
-        sleep(Duration::from_secs(20)).await;
-
-        gc(&rs_handler, 10).unwrap();
-
-        let data = get_metric_data(&rs_handler, &key).unwrap();
-        assert_eq!(data.len(), 0);
 
         record_pre_num(&rs_handler, &key, 100).unwrap();
         let res = get_pre_num(&rs_handler, &key).await.unwrap();

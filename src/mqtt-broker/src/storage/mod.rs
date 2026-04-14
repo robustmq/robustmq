@@ -16,6 +16,7 @@ pub mod auto_subscribe;
 pub mod connector;
 pub mod local;
 pub mod message;
+pub mod retain;
 pub mod schema;
 pub mod session;
-pub mod topic;
+pub mod topic_rewrite;

@@ -228,7 +228,9 @@ impl DataRoute {
                 Ok(None)
             }
             StorageDataType::MqttSetTopic => {
-                self.route_mqtt.create_topic(storage_data.value.clone())?;
+                self.route_mqtt
+                    .create_topic(storage_data.value.clone())
+                    .await?;
                 Ok(None)
             }
             StorageDataType::MqttDeleteTopic => {

@@ -23,6 +23,7 @@ use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::SecurityUserStorage;
+use crate::storage::topic_delete::TopicDeleteStorage;
 use broker_core::cache::NodeCacheManager;
 use bytes::Bytes;
 use common_base::tools::now_millis;
@@ -92,7 +93,7 @@ impl DataRouteMqtt {
     }
 
     // Topic
-    pub fn create_topic(&self, value: Bytes) -> Result<(), MetaServiceError> {
+    pub async fn create_topic(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = CreateTopicRequest::decode(value.as_ref())?;
         let topic = Topic::decode(&req.content)?;
         let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
@@ -102,8 +103,18 @@ impl DataRouteMqtt {
 
     pub fn delete_topic(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteTopicRequest::decode(value.as_ref())?;
-        let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&req.tenant, &req.topic_name)?;
+        // save topic
+        let topic_storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
+        let mut topic = match topic_storage.get(&req.tenant, &req.topic_name)? {
+            Some(t) => t,
+            None => return Ok(()),
+        };
+        topic.mark_delete = true;
+        topic_storage.save(topic.clone())?;
+
+        // save topic delete
+        let delete_storage = TopicDeleteStorage::new(self.rocksdb_engine_handler.clone());
+        delete_storage.save(&topic)?;
         Ok(())
     }
 

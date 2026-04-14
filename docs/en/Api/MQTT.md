@@ -361,7 +361,7 @@
 ### 4. Topic Management
 
 #### 4.1 Topic List Query
-- **Endpoint**: `GET /api/mqtt/topic/list`
+- **Endpoint**: `GET /api/cluster/topic/list`
 - **Description**: Query MQTT topic list, supports filtering by tenant, fuzzy search by topic name, and topic type filtering
 - **Request Parameters**:
 
@@ -399,7 +399,7 @@
 ```
 
 #### 4.2 Topic Detail Query
-- **Endpoint**: `GET /api/mqtt/topic/detail`
+- **Endpoint**: `GET /api/cluster/topic/detail`
 - **Description**: Query detailed information for a specific topic, including basic topic information, retained message, and subscriber list
 - **Request Parameters**:
 
@@ -436,7 +436,7 @@
 ```
 
 #### 4.3 Delete Topic
-- **Endpoint**: `POST /api/mqtt/topic/delete`
+- **Endpoint**: `POST /api/cluster/topic/delete`
 - **Description**: Delete a specified topic
 - **Request Parameters**:
 
@@ -453,7 +453,7 @@
 - This operation is irreversible, use with caution
 
 #### 4.4 Topic Rewrite Rules List
-- **Endpoint**: `GET /api/mqtt/topic-rewrite/list`
+- **Endpoint**: `GET /api/cluster/topic-rewrite/list`
 - **Description**: Query topic rewrite rules list, supports fuzzy search by tenant and rule name
 - **Request Parameters**:
 
@@ -490,7 +490,7 @@
 ```
 
 #### 4.5 Create Topic Rewrite Rule
-- **Endpoint**: `POST /api/mqtt/topic-rewrite/create`
+- **Endpoint**: `POST /api/cluster/topic-rewrite/create`
 - **Description**: Create a new topic rewrite rule, `name` is used as the unique identifier
 - **Request Parameters**:
 ```json
@@ -508,7 +508,7 @@
 - **Response**: Returns "success" on success
 
 #### 4.6 Delete Topic Rewrite Rule
-- **Endpoint**: `POST /api/mqtt/topic-rewrite/delete`
+- **Endpoint**: `POST /api/cluster/topic-rewrite/delete`
 - **Description**: Delete topic rewrite rule by rule name
 - **Request Parameters**:
 ```json
@@ -751,7 +751,7 @@
 ### 6. User Management
 
 #### 6.1 User List Query
-- **Endpoint**: `GET /api/mqtt/user/list`
+- **Endpoint**: `GET /api/cluster/user/list`
 - **Description**: Query MQTT user list, supports filtering by tenant and fuzzy search by username
 - **Request Parameters**:
 ```json
@@ -794,7 +794,7 @@
 - `create_time`: User creation timestamp (seconds)
 
 #### 6.2 Create User
-- **Endpoint**: `POST /api/mqtt/user/create`
+- **Endpoint**: `POST /api/cluster/user/create`
 - **Description**: Create new MQTT user
 - **Request Parameters**:
 ```json
@@ -809,7 +809,7 @@
 - **Response**: Returns "success" on success
 
 #### 6.3 Delete User
-- **Endpoint**: `POST /api/mqtt/user/delete`
+- **Endpoint**: `POST /api/cluster/user/delete`
 - **Description**: Delete MQTT user
 - **Request Parameters**:
 ```json
@@ -826,7 +826,7 @@
 ### 7. ACL Management
 
 #### 7.1 ACL List Query
-- **Endpoint**: `GET /api/mqtt/acl/list`
+- **Endpoint**: `GET /api/cluster/acl/list`
 - **Description**: Query access control list, supports fuzzy search by tenant, name, and resource name (contains match)
 - **Request Parameters**:
 ```json
@@ -866,7 +866,7 @@
 ```
 
 #### 7.2 Create ACL Rule
-- **Endpoint**: `POST /api/mqtt/acl/create`
+- **Endpoint**: `POST /api/cluster/acl/create`
 - **Description**: Create new ACL rule, `name` is the unique identifier (unique within a tenant)
 - **Request Parameters**:
 ```json
@@ -891,7 +891,7 @@
 - **Response**: Returns "success" on success
 
 #### 7.3 Delete ACL Rule
-- **Endpoint**: `POST /api/mqtt/acl/delete`
+- **Endpoint**: `POST /api/cluster/acl/delete`
 - **Description**: Delete ACL rule by `name`
 - **Request Parameters**:
 ```json
@@ -908,7 +908,7 @@
 ### 8. Blacklist Management
 
 #### 8.1 Blacklist List Query
-- **Endpoint**: `GET /api/mqtt/blacklist/list`
+- **Endpoint**: `GET /api/cluster/blacklist/list`
 - **Description**: Query blacklist, supports fuzzy search by tenant, name, and resource name
 - **Request Parameters**:
 ```json
@@ -945,7 +945,7 @@
 ```
 
 #### 8.2 Create Blacklist Entry
-- **Endpoint**: `POST /api/mqtt/blacklist/create`
+- **Endpoint**: `POST /api/cluster/blacklist/create`
 - **Description**: Add new blacklist entry, `name` is the unique identifier
 - **Request Parameters**:
 ```json
@@ -966,7 +966,7 @@
 - **Response**: Returns "success" on success
 
 #### 8.3 Delete Blacklist Entry
-- **Endpoint**: `POST /api/mqtt/blacklist/delete`
+- **Endpoint**: `POST /api/cluster/blacklist/delete`
 - **Description**: Delete blacklist entry by `name`
 - **Request Parameters**:
 ```json
@@ -991,7 +991,7 @@
 ### 10. Schema Management
 
 #### 10.1 Schema List Query
-- **Endpoint**: `GET /api/mqtt/schema/list`
+- **Endpoint**: `GET /api/cluster/schema/list`
 - **Description**: Query Schema list, supports fuzzy search by tenant and name
 - **Request Parameters**:
 ```json
@@ -1026,7 +1026,7 @@
 ```
 
 #### 10.2 Create Schema
-- **Endpoint**: `POST /api/mqtt/schema/create`
+- **Endpoint**: `POST /api/cluster/schema/create`
 - **Description**: Create new Schema
 - **Request Parameters**:
 ```json
@@ -1042,7 +1042,7 @@
 - **Response**: Returns "success" on success
 
 #### 10.3 Delete Schema
-- **Endpoint**: `POST /api/mqtt/schema/delete`
+- **Endpoint**: `POST /api/cluster/schema/delete`
 - **Description**: Delete Schema
 - **Request Parameters**:
 ```json
@@ -1057,7 +1057,7 @@
 #### 10.4 Schema Binding Management
 
 ##### 10.4.1 Schema Binding List Query
-- **Endpoint**: `GET /api/mqtt/schema-bind/list`
+- **Endpoint**: `GET /api/cluster/schema-bind/list`
 - **Description**: Query Schema binding relationship list
 - **Request Parameters**:
 ```json
@@ -1090,7 +1090,7 @@
 ```
 
 ##### 10.4.2 Create Schema Binding
-- **Endpoint**: `POST /api/mqtt/schema-bind/create`
+- **Endpoint**: `POST /api/cluster/schema-bind/create`
 - **Description**: Create Schema binding relationship with resource
 - **Request Parameters**:
 ```json
@@ -1104,7 +1104,7 @@
 - **Response**: Returns "success" on success
 
 ##### 10.4.3 Delete Schema Binding
-- **Endpoint**: `POST /api/mqtt/schema-bind/delete`
+- **Endpoint**: `POST /api/cluster/schema-bind/delete`
 - **Description**: Delete Schema binding relationship
 - **Request Parameters**:
 ```json
@@ -1308,7 +1308,7 @@
 > MQTT Broker supports multi-tenant isolation. A tenant is the top-level namespace for resources (users, ACLs, topics, subscriptions, etc.).
 
 #### 13.1 Tenant List Query
-- **Endpoint**: `GET /api/mqtt/tenant/list`
+- **Endpoint**: `GET /api/cluster/tenant/list`
 - **Description**: Query MQTT tenant list, supports direct query by tenant name
 - **Request Parameters**:
 ```json
@@ -1358,7 +1358,7 @@
 - `max_publish_rate`: Maximum publish message rate per second
 
 #### 13.2 Create Tenant
-- **Endpoint**: `POST /api/mqtt/tenant/create`
+- **Endpoint**: `POST /api/cluster/tenant/create`
 - **Description**: Create new MQTT tenant
 - **Request Parameters**:
 ```json
@@ -1376,7 +1376,7 @@
 - **Response**: Returns "success" on success
 
 #### 13.3 Delete Tenant
-- **Endpoint**: `POST /api/mqtt/tenant/delete`
+- **Endpoint**: `POST /api/cluster/tenant/delete`
 - **Description**: Delete MQTT tenant
 - **Request Parameters**:
 ```json
@@ -1462,7 +1462,7 @@ curl "http://localhost:8080/api/mqtt/subscribe/list?tenant=default&limit=20&page
 
 ### Create Tenant
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/tenant/create \
+curl -X POST http://localhost:8080/api/cluster/tenant/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant_name": "production",
@@ -1472,7 +1472,7 @@ curl -X POST http://localhost:8080/api/mqtt/tenant/create \
 
 ### Delete Topic
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/topic/delete \
+curl -X POST http://localhost:8080/api/cluster/topic/delete \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1482,7 +1482,7 @@ curl -X POST http://localhost:8080/api/mqtt/topic/delete \
 
 ### Create User
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/user/create \
+curl -X POST http://localhost:8080/api/cluster/user/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1494,7 +1494,7 @@ curl -X POST http://localhost:8080/api/mqtt/user/create \
 
 ### Create ACL Rule
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/acl/create \
+curl -X POST http://localhost:8080/api/cluster/acl/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1510,7 +1510,7 @@ curl -X POST http://localhost:8080/api/mqtt/acl/create \
 
 ### Create Blacklist Entry (Wildcard Match)
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
+curl -X POST http://localhost:8080/api/cluster/blacklist/create \
   -H "Content-Type: application/json" \
   -d '{
     "name": "bl-bad-client-match",
@@ -1524,7 +1524,7 @@ curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
 
 ### Create Schema
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/schema/create \
+curl -X POST http://localhost:8080/api/cluster/schema/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",

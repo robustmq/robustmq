@@ -22,7 +22,7 @@ use crate::core::error::MqttBrokerError;
 use crate::core::sub_option::is_send_retain_msg_by_retain_handling;
 use crate::core::subscribe::is_new_sub;
 use crate::core::tool::ResultMqttBrokerError;
-use crate::storage::topic::TopicStorage;
+use crate::storage::retain::RetainStorage;
 use crate::subscribe::common::SubPublishParam;
 use crate::subscribe::common::{client_unavailable_error, get_sub_topic_name_list};
 use crate::subscribe::manager::SubscribeManager;
@@ -88,7 +88,7 @@ impl RetainMessageManager {
             return Ok(());
         }
 
-        let topic_storage = TopicStorage::new(self.client_pool.clone());
+        let topic_storage = RetainStorage::new(self.client_pool.clone());
         let had_retain = self.contain_retain(tenant, topic_name).await?;
 
         if had_retain && publish.payload.is_empty() {
@@ -223,7 +223,7 @@ impl RetainMessageManager {
         tenant: &str,
         topic: &str,
     ) -> Result<(), MqttBrokerError> {
-        let topic_storage = TopicStorage::new(self.client_pool.clone());
+        let topic_storage = RetainStorage::new(self.client_pool.clone());
         let retain_message = topic_storage.get_retain_message(tenant, topic).await?;
 
         if let Some(data) = retain_message {

@@ -33,8 +33,16 @@ pub async fn process_sub(
         None => format!("{}.*", mail_id),
     };
 
+    let tenant = DEFAULT_TENANT.to_string();
+    if ctx.cache_manager.get_email(&tenant, mail_id).is_none() {
+        return Err(NatsBrokerError::CommonError(format!(
+            "mailbox {} does not exist",
+            mail_id
+        )));
+    }
+
     let subscribe = NatsSubscribe {
-        tenant: DEFAULT_TENANT.to_string(),
+        tenant: tenant.clone(),
         connect_id: ctx.connect_id,
         sid: sid.to_string(),
         subject,

@@ -24,7 +24,7 @@ use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
-use protocol::broker::broker_common::{
+use protocol::broker::broker::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;

@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::notify::send_notify_by_delete_group;
 use crate::storage::common::offset::OffsetStorage;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
-use node_call::{NodeCallData, NodeCallManager};
+use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::warn;
+use tracing::{info, warn};
 
 // Scan every 5 minutes
 const GROUP_GC_INTERVAL_MS: u64 = 5 * 60 * 1000;
@@ -72,21 +73,9 @@ async fn gc_expired_groups(
             continue;
         }
 
-        // Notify all broker nodes to clean up in-memory group state.
-        if let Err(e) = node_call_manager
-            .send(NodeCallData::DeleteGroup(tenant.clone(), group.clone()))
-            .await
-        {
-            warn!(
-                "Failed to send DeleteGroup notify: tenant={}, group={}, error={}",
-                tenant, group, e
-            );
-            continue;
-        }
-
         // Delete all shard offset records for this group from RocksDB.
         let group_offsets = storage.group_offset(&tenant, &group)?;
-        for offset in group_offsets {
+        for offset in &group_offsets {
             if let Err(e) = storage.delete(&offset.tenant, &offset.group, &offset.shard_name) {
                 warn!(
                     "Failed to delete offset record: tenant={}, group={}, shard={}, error={}",
@@ -94,6 +83,22 @@ async fn gc_expired_groups(
                 );
             }
         }
+
+        // Notify all broker nodes to clean up their in-memory group state.
+        if let Err(e) = send_notify_by_delete_group(node_call_manager, &tenant, &group).await {
+            warn!(
+                "Failed to notify brokers to delete group: tenant={}, group={}, error={}",
+                tenant, group, e
+            );
+        }
+
+        info!(
+            "Group {} cleaned up successfully: tenant={}, last_write_time={}s ago, expire_sec={}",
+            group,
+            tenant,
+            now.saturating_sub(latest_ts),
+            expire_sec
+        );
     }
 
     Ok(())

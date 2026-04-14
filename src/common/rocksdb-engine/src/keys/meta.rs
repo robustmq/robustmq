@@ -359,3 +359,13 @@ pub fn storage_key_mq9_email_tenant_prefix(tenant: &str) -> String {
 pub fn storage_key_mq9_email_prefix() -> String {
     format!("{}mq9/email/", PREFIX_META)
 }
+
+#[inline]
+pub fn storage_key_cluster_delete_topic(topic_id: &str) -> String {
+    format!("{}cluster/delete-topic/{}", PREFIX_META, topic_id)
+}
+
+#[inline]
+pub fn storage_key_cluster_delete_topic_prefix() -> String {
+    format!("{}cluster/delete-topic/", PREFIX_META)
+}

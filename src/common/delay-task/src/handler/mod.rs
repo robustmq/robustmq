@@ -12,6 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod delete_topic;
 pub mod lastwill_expire;
 pub mod session_expire;

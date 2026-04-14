@@ -16,21 +16,13 @@ use crate::{UpdateCacheData, RPC_MAX_RETRIES, RPC_RETRY_BASE_MS};
 use bytes::Bytes;
 use common_base::error::common::CommonError;
 use grpc_clients::broker::common::call::{
-    broker_common_batch_delete_groups, broker_common_batch_delete_topics,
-    broker_common_update_cache,
-};
-use grpc_clients::broker::mqtt::call::{
-    broker_mqtt_delete_session, get_qos_data_by_client_id, send_last_will_message,
+    broker_get_qos_data_by_client_id, broker_send_last_will_message, broker_update_cache,
 };
 use grpc_clients::pool::ClientPool;
 use prost::Message;
-use protocol::broker::broker_common::{
-    BatchDeleteGroupsRequest, BatchDeleteTopicsRequest, DeleteGroupItem, DeleteTopicItem,
-    UpdateCacheRecord, UpdateCacheRequest,
-};
-use protocol::broker::broker_mqtt::{
-    DeleteSessionRequest, GetQosDataByClientIdReply, GetQosDataByClientIdRequest,
-    LastWillMessageItem, SendLastWillMessageRequest,
+use protocol::broker::broker::{
+    GetQosDataByClientIdReply, GetQosDataByClientIdRequest, LastWillMessageItem,
+    SendLastWillMessageRequest, UpdateCacheRecord, UpdateCacheRequest,
 };
 use std::future::Future;
 use std::sync::Arc;
@@ -83,23 +75,7 @@ pub async fn send_update_cache_batch(
     let addrs = [addr];
 
     retry_rpc(addr, "update cache", || {
-        broker_common_update_cache(client_pool, &addrs, request.clone())
-    })
-    .await;
-}
-
-pub async fn send_delete_session_batch(
-    client_pool: &Arc<ClientPool>,
-    addr: &str,
-    client_ids: &[String],
-) {
-    let request = DeleteSessionRequest {
-        client_id: client_ids.to_vec(),
-    };
-    let addrs = [addr];
-
-    retry_rpc(addr, "delete sessions", || {
-        broker_mqtt_delete_session(client_pool, &addrs, request.clone())
+        broker_update_cache(client_pool, &addrs, request.clone())
     })
     .await;
 }
@@ -120,7 +96,7 @@ pub async fn send_get_qos_data_batch(
     let request = GetQosDataByClientIdRequest { client_ids };
     let addrs = [addr];
 
-    match get_qos_data_by_client_id(client_pool, &addrs, request).await {
+    match broker_get_qos_data_by_client_id(client_pool, &addrs, request).await {
         Ok(reply) => {
             // Index the reply by client_id for O(1) lookup per item.
             let index: std::collections::HashMap<&str, _> = reply
@@ -154,50 +130,6 @@ pub async fn send_get_qos_data_batch(
     }
 }
 
-pub async fn send_delete_topic_batch(
-    client_pool: &Arc<ClientPool>,
-    addr: &str,
-    items: &[(String, String)],
-) {
-    let request = BatchDeleteTopicsRequest {
-        topics: items
-            .iter()
-            .map(|(tenant, topic_name)| DeleteTopicItem {
-                tenant: tenant.clone(),
-                topic_name: topic_name.clone(),
-            })
-            .collect(),
-    };
-    let addrs = [addr];
-
-    retry_rpc(addr, "batch delete topics", || {
-        broker_common_batch_delete_topics(client_pool, &addrs, request.clone())
-    })
-    .await;
-}
-
-pub async fn send_delete_group_batch(
-    client_pool: &Arc<ClientPool>,
-    addr: &str,
-    items: &[(String, String)],
-) {
-    let request = BatchDeleteGroupsRequest {
-        groups: items
-            .iter()
-            .map(|(tenant, group_name)| DeleteGroupItem {
-                tenant: tenant.clone(),
-                group_name: group_name.clone(),
-            })
-            .collect(),
-    };
-    let addrs = [addr];
-
-    retry_rpc(addr, "batch delete groups", || {
-        broker_common_batch_delete_groups(client_pool, &addrs, request.clone())
-    })
-    .await;
-}
-
 pub async fn send_last_will_batch(
     client_pool: &Arc<ClientPool>,
     addr: &str,
@@ -209,7 +141,7 @@ pub async fn send_last_will_batch(
     let addrs = [addr];
 
     retry_rpc(addr, "send last will messages", || {
-        send_last_will_message(client_pool, &addrs, request.clone())
+        broker_send_last_will_message(client_pool, &addrs, request.clone())
     })
     .await;
 }

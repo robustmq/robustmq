@@ -965,6 +965,246 @@ curl -X POST http://localhost:8080/api/tenant/update \
 
 ---
 
+## Cluster Resource APIs
+
+> Topic, User, ACL, Blacklist, Connector, Schema, and Tenant are all cluster-wide shared resources. Their APIs are unified under the `/cluster` prefix.
+
+### 12. Topic Management
+
+#### 12.1 Topic List Query
+- **Endpoint**: `GET /api/cluster/topic/list`
+- **Description**: Query the topic list with optional tenant filter, fuzzy topic name search, and topic type filter.
+- **Request Parameters**:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tenant` | string | No | Filter by tenant (exact match) |
+| `topic_name` | string | No | Fuzzy search by topic name |
+| `topic_type` | string | No | `all` (default), `normal`, `system` (contains `$`) |
+| `limit` | u32 | No | Page size |
+| `page` | u32 | No | Page number, starting from 1 |
+| `sort_field` | string | No | Sort field: `topic_name`, `tenant` |
+| `sort_by` | string | No | `asc` / `desc` |
+
+- **Response Example**:
+```json
+{ "code": 0, "data": { "data": [ { "topic_id": "...", "topic_name": "sensor/temperature", "tenant": "default" } ], "total_count": 25 } }
+```
+
+#### 12.2 Topic Detail Query
+- **Endpoint**: `GET /api/cluster/topic/detail`
+- **Description**: Query detailed information for a specific topic, including retain messages, subscriber list, and storage shards.
+- **Request Parameters**: `tenant` (required), `topic_name` (required)
+
+#### 12.3 Delete Topic
+- **Endpoint**: `POST /api/cluster/topic/delete`
+- **Description**: Delete a topic (soft delete; shard data is cleaned up asynchronously in the background).
+- **Request Body**: `{ "tenant": "default", "topic_name": "sensor/temperature" }`
+- **Response**: Returns `"success"` on success.
+
+#### 12.4 Topic Rewrite Rules List
+- **Endpoint**: `GET /api/cluster/topic-rewrite/list`
+- **Request Parameters**: `tenant`, `name`, `limit`, `page`, `sort_field`, `sort_by`
+
+#### 12.5 Create Topic Rewrite Rule
+- **Endpoint**: `POST /api/cluster/topic-rewrite/create`
+- **Request Body**: `{ "name", "tenant", "action", "source_topic", "dest_topic", "regex", "desc" }`
+- `action`: `All` | `Publish` | `Subscribe`
+
+#### 12.6 Delete Topic Rewrite Rule
+- **Endpoint**: `POST /api/cluster/topic-rewrite/delete`
+- **Request Body**: `{ "tenant": "default", "name": "my-rule" }`
+
+---
+
+### 13. User Management
+
+#### 13.1 User List Query
+- **Endpoint**: `GET /api/cluster/user/list`
+- **Request Parameters**: `tenant`, `username`, `limit`, `page`, `sort_field`, `sort_by`
+
+#### 13.2 Create User
+- **Endpoint**: `POST /api/cluster/user/create`
+- **Request Body**:
+```json
+{
+  "username": "alice",
+  "password": "secret",
+  "is_superuser": false
+}
+```
+
+#### 13.3 Delete User
+- **Endpoint**: `POST /api/cluster/user/delete`
+- **Request Body**: `{ "username": "alice" }`
+
+---
+
+### 14. ACL Management
+
+#### 14.1 ACL List Query
+- **Endpoint**: `GET /api/cluster/acl/list`
+- **Description**: Query ACL rules with optional fuzzy filtering on `tenant`, `name`, and `resource_name`.
+- **Request Parameters**: `tenant`, `name`, `resource_name`, `limit`, `page`, `sort_field`, `sort_by`
+
+#### 14.2 Create ACL Rule
+- **Endpoint**: `POST /api/cluster/acl/create`
+- **Request Body**:
+```json
+{
+  "tenant": "default",
+  "name": "rule-name",
+  "resource_type": "ClientId",
+  "resource_name": "client001",
+  "action": "Publish",
+  "permission": "Allow",
+  "topic": "sensor/+",
+  "ip": "",
+  "desc": ""
+}
+```
+- `resource_type`: `ClientId` | `User` | `Ip`
+- `action`: `Publish` | `Subscribe` | `All`
+- `permission`: `Allow` | `Deny`
+
+#### 14.3 Delete ACL Rule
+- **Endpoint**: `POST /api/cluster/acl/delete`
+- **Request Body**: `{ "tenant": "default", "name": "rule-name" }`
+
+---
+
+### 15. Blacklist Management
+
+#### 15.1 Blacklist List Query
+- **Endpoint**: `GET /api/cluster/blacklist/list`
+- **Request Parameters**: `tenant`, `name`, `resource_name`, `limit`, `page`, `sort_field`, `sort_by`
+
+#### 15.2 Create Blacklist Entry
+- **Endpoint**: `POST /api/cluster/blacklist/create`
+- **Request Body**:
+```json
+{
+  "name": "bl-bad-client",
+  "tenant": "default",
+  "blacklist_type": "ClientId",
+  "resource_name": "bad_client",
+  "end_time": 1735689599,
+  "desc": ""
+}
+```
+- `blacklist_type`: `ClientId` | `User` | `Ip` | `ClientIdMatch` | `UserMatch` | `IPCIDR`
+
+#### 15.3 Delete Blacklist Entry
+- **Endpoint**: `POST /api/cluster/blacklist/delete`
+- **Request Body**: `{ "tenant": "default", "name": "bl-bad-client" }`
+
+---
+
+### 16. Connector Management
+
+#### 16.1 Connector List Query
+- **Endpoint**: `GET /api/cluster/connector/list`
+- **Request Parameters**: `tenant`, `connector_name`, `limit`, `page`, `sort_field`, `sort_by`
+
+#### 16.2 Connector Detail
+- **Endpoint**: `GET /api/cluster/connector/detail`
+- **Request Parameters**: `tenant`, `connector_name`
+
+#### 16.3 Create Connector
+- **Endpoint**: `POST /api/cluster/connector/create`
+- **Request Body**:
+```json
+{
+  "connector_name": "kafka-sink",
+  "connector_type": "kafka",
+  "tenant": "default",
+  "topic_name": "sensor/temperature",
+  "config": "{ ... }",
+  "failure_strategy": { "strategy": "discard" }
+}
+```
+- `connector_type`: `kafka` | `pulsar` | `rabbitmq` | `postgres` | `mysql` | `mongodb` | `elasticsearch` | `redis` | `webhook` | `opentsdb` | `mqtt` | `clickhouse` | `influxdb` | `cassandra` | `s3` | `file` | `greptime`
+- `failure_strategy.strategy`: `discard` | `discard_after_retry` | `dead_message_queue`
+
+#### 16.4 Delete Connector
+- **Endpoint**: `POST /api/cluster/connector/delete`
+- **Request Body**: `{ "tenant": "default", "connector_name": "kafka-sink" }`
+
+---
+
+### 17. Schema Management
+
+#### 17.1 Schema List Query
+- **Endpoint**: `GET /api/cluster/schema/list`
+- **Request Parameters**: `tenant`, `name`, `limit`, `page`, `sort_field`, `sort_by`
+
+#### 17.2 Create Schema
+- **Endpoint**: `POST /api/cluster/schema/create`
+- **Request Body**:
+```json
+{
+  "tenant": "default",
+  "schema_name": "sensor-schema",
+  "schema_type": "json",
+  "schema": "{ \"type\": \"object\" }",
+  "desc": ""
+}
+```
+- `schema_type`: `json` | `avro` | `protobuf`
+
+#### 17.3 Delete Schema
+- **Endpoint**: `POST /api/cluster/schema/delete`
+- **Request Body**: `{ "tenant": "default", "schema_name": "sensor-schema" }`
+
+#### 17.4 Schema Binding List
+- **Endpoint**: `GET /api/cluster/schema-bind/list`
+- **Request Parameters**: `tenant`, `resource_name`, `schema_name`, `limit`, `page`
+
+#### 17.5 Create Schema Binding
+- **Endpoint**: `POST /api/cluster/schema-bind/create`
+- **Request Body**: `{ "tenant": "default", "schema_name": "sensor-schema", "resource_name": "sensor/+" }`
+
+#### 17.6 Delete Schema Binding
+- **Endpoint**: `POST /api/cluster/schema-bind/delete`
+- **Request Body**: `{ "tenant": "default", "schema_name": "sensor-schema", "resource_name": "sensor/+" }`
+
+---
+
+### 18. Tenant Management (Cluster-Wide)
+
+> These endpoints replace the former `/mqtt/tenant/*` endpoints. Full CRUD including update is supported.
+
+#### 18.1 List Tenants
+- **Endpoint**: `GET /api/cluster/tenant/list`
+- **Request Parameters**: `tenant_name`, `limit`, `page`, `sort_field`, `sort_by`
+
+#### 18.2 Create Tenant
+- **Endpoint**: `POST /api/cluster/tenant/create`
+- **Request Body**:
+```json
+{
+  "tenant_name": "my-tenant",
+  "desc": "",
+  "config": {
+    "max_connections_per_node": 10000,
+    "max_create_connection_rate_per_second": 100,
+    "max_topics": 10000,
+    "max_sessions": 10000,
+    "max_publish_rate": 10000
+  }
+}
+```
+
+#### 18.3 Update Tenant
+- **Endpoint**: `POST /api/cluster/tenant/update`
+- **Request Body**: `{ "tenant_name": "my-tenant", "desc": "updated", "config": { ... } }`
+
+#### 18.4 Delete Tenant
+- **Endpoint**: `POST /api/cluster/tenant/delete`
+- **Request Body**: `{ "tenant_name": "my-tenant" }`
+
+---
+
 ## Notes
 
 1. **Response Format**: On success, `code` is `0` and `error` is `null`; on failure, `code` is `100` and `error` contains the error message.

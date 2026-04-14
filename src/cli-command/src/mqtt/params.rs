@@ -14,7 +14,7 @@
 
 use crate::mqtt::command::MqttActionType;
 use crate::mqtt::pub_sub::{PublishArgsRequest, SubscribeArgsRequest};
-use admin_server::mqtt::connector::FailureStrategy;
+use admin_server::cluster::connector::FailureStrategy;
 use clap::builder::EnumValueParser;
 use clap::Parser;
 use core::option::Option::Some;
@@ -524,7 +524,7 @@ pub fn process_user_args(args: UserArgs) -> MqttActionType {
     match args.action {
         UserActionType::List => MqttActionType::ListUser,
         UserActionType::Create(arg) => {
-            MqttActionType::CreateUser(admin_server::mqtt::user::CreateUserReq {
+            MqttActionType::CreateUser(admin_server::cluster::user::CreateUserReq {
                 tenant: DEFAULT_TENANT.to_string(),
                 username: arg.username,
                 password: arg.password,
@@ -532,7 +532,7 @@ pub fn process_user_args(args: UserArgs) -> MqttActionType {
             })
         }
         UserActionType::Delete(arg) => {
-            MqttActionType::DeleteUser(admin_server::mqtt::user::DeleteUserReq {
+            MqttActionType::DeleteUser(admin_server::cluster::user::DeleteUserReq {
                 tenant: DEFAULT_TENANT.to_string(),
                 username: arg.username,
             })
@@ -544,7 +544,7 @@ pub fn process_acl_args(args: AclArgs) -> Result<MqttActionType, Box<dyn std::er
     match args.action {
         AclActionType::List => Ok(MqttActionType::ListAcl),
         AclActionType::Create(arg) => Ok(MqttActionType::CreateAcl(
-            admin_server::mqtt::acl::CreateAclReq {
+            admin_server::cluster::acl::CreateAclReq {
                 tenant: DEFAULT_TENANT.to_string(),
                 name: arg.name,
                 desc: arg.desc,
@@ -557,7 +557,7 @@ pub fn process_acl_args(args: AclArgs) -> Result<MqttActionType, Box<dyn std::er
             },
         )),
         AclActionType::Delete(arg) => Ok(MqttActionType::DeleteAcl(
-            admin_server::mqtt::acl::DeleteAclReq {
+            admin_server::cluster::acl::DeleteAclReq {
                 tenant: DEFAULT_TENANT.to_string(),
                 name: arg.name,
             },
@@ -571,7 +571,7 @@ pub fn process_blacklist_args(
     match args.action {
         BlackListActionType::List => Ok(MqttActionType::ListBlacklist),
         BlackListActionType::Create(arg) => Ok(MqttActionType::CreateBlacklist(
-            admin_server::mqtt::blacklist::CreateBlackListReq {
+            admin_server::cluster::blacklist::CreateBlackListReq {
                 name: arg.name,
                 tenant: DEFAULT_TENANT.to_string(),
                 blacklist_type: arg.blacklist_type.to_string(),
@@ -581,7 +581,7 @@ pub fn process_blacklist_args(
             },
         )),
         BlackListActionType::Delete(arg) => Ok(MqttActionType::DeleteBlacklist(
-            admin_server::mqtt::blacklist::DeleteBlackListReq {
+            admin_server::cluster::blacklist::DeleteBlackListReq {
                 tenant: DEFAULT_TENANT.to_string(),
                 name: arg.name,
             },
@@ -605,7 +605,7 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
     match args.action {
         ConnectorActionType::List(_) => MqttActionType::ListConnector,
         ConnectorActionType::Create(arg) => {
-            MqttActionType::CreateConnector(admin_server::mqtt::connector::CreateConnectorReq {
+            MqttActionType::CreateConnector(admin_server::cluster::connector::CreateConnectorReq {
                 connector_name: arg.connector_name,
                 connector_type: arg.connector_type,
                 config: arg.config,
@@ -618,7 +618,7 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
             })
         }
         ConnectorActionType::Delete(arg) => {
-            MqttActionType::DeleteConnector(admin_server::mqtt::connector::DeleteConnectorReq {
+            MqttActionType::DeleteConnector(admin_server::cluster::connector::DeleteConnectorReq {
                 tenant: arg.tenant,
                 connector_name: arg.connector_name,
             })
@@ -629,8 +629,8 @@ pub fn process_connector_args(args: ConnectorArgs) -> MqttActionType {
 pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
     match args.action {
         TopicRewriteActionType::List => MqttActionType::ListTopicRewrite,
-        TopicRewriteActionType::Create(arg) => {
-            MqttActionType::CreateTopicRewrite(admin_server::mqtt::topic::CreateTopicRewriteReq {
+        TopicRewriteActionType::Create(arg) => MqttActionType::CreateTopicRewrite(
+            admin_server::cluster::topic::CreateTopicRewriteReq {
                 name: arg.name,
                 desc: arg.desc,
                 tenant: arg.tenant,
@@ -638,21 +638,21 @@ pub fn process_topic_rewrite_args(args: TopicRewriteArgs) -> MqttActionType {
                 source_topic: arg.source_topic,
                 dest_topic: arg.dest_topic,
                 regex: arg.regex,
-            })
-        }
-        TopicRewriteActionType::Delete(arg) => {
-            MqttActionType::DeleteTopicRewrite(admin_server::mqtt::topic::DeleteTopicRewriteReq {
+            },
+        ),
+        TopicRewriteActionType::Delete(arg) => MqttActionType::DeleteTopicRewrite(
+            admin_server::cluster::topic::DeleteTopicRewriteReq {
                 tenant: arg.tenant,
                 name: arg.name,
-            })
-        }
+            },
+        ),
     }
 }
 
 pub fn process_schema_args(args: SchemaArgs) -> MqttActionType {
     match args.action {
         SchemaActionType::Create(arg) => {
-            MqttActionType::CreateSchema(admin_server::mqtt::schema::CreateSchemaReq {
+            MqttActionType::CreateSchema(admin_server::cluster::schema::CreateSchemaReq {
                 tenant: arg.tenant,
                 schema_name: arg.schema_name,
                 schema_type: arg.schema_type,
@@ -662,21 +662,21 @@ pub fn process_schema_args(args: SchemaArgs) -> MqttActionType {
         }
         SchemaActionType::List(_) => MqttActionType::ListSchema,
         SchemaActionType::Delete(arg) => {
-            MqttActionType::DeleteSchema(admin_server::mqtt::schema::DeleteSchemaReq {
+            MqttActionType::DeleteSchema(admin_server::cluster::schema::DeleteSchemaReq {
                 tenant: arg.tenant,
                 schema_name: arg.schema_name,
             })
         }
         SchemaActionType::ListBind(_) => MqttActionType::ListBindSchema,
         SchemaActionType::Bind(arg) => {
-            MqttActionType::BindSchema(admin_server::mqtt::schema::CreateSchemaBindReq {
+            MqttActionType::BindSchema(admin_server::cluster::schema::CreateSchemaBindReq {
                 tenant: arg.tenant,
                 schema_name: arg.schema_name,
                 resource_name: arg.resource_name,
             })
         }
         SchemaActionType::Unbind(arg) => {
-            MqttActionType::UnbindSchema(admin_server::mqtt::schema::DeleteSchemaBindReq {
+            MqttActionType::UnbindSchema(admin_server::cluster::schema::DeleteSchemaBindReq {
                 tenant: arg.tenant,
                 schema_name: arg.schema_name,
                 resource_name: arg.resource_name,

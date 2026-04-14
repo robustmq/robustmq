@@ -15,6 +15,7 @@
 use broker_core::cache::NodeCacheManager;
 use broker_core::dynamic_config::build_cluster_config;
 use broker_core::tenant::TenantStorage;
+use broker_core::topic::TopicStorage;
 use common_base::error::common::CommonError;
 use common_security::manager::SecurityManager;
 use common_security::storage::acl::AclStorage;
@@ -28,7 +29,7 @@ use mqtt_broker::core::tool::ResultMqttBrokerError;
 use mqtt_broker::storage::auto_subscribe::AutoSubscribeStorage;
 use mqtt_broker::storage::connector::ConnectorStorage;
 use mqtt_broker::storage::schema::SchemaStorage;
-use mqtt_broker::storage::topic::TopicStorage;
+use mqtt_broker::storage::topic_rewrite::TopicRewriteStorage;
 use nats_broker::core::cache::NatsCacheManager;
 use nats_broker::push::NatsSubscribeManager;
 use nats_broker::storage::email::Mq9EmailStorage;
@@ -164,7 +165,7 @@ async fn load_mqtt_cache(
         security_manager.metadata.add_blacklist(blacklist.clone());
     }
 
-    let topic_storage = TopicStorage::new(client_pool.clone());
+    let topic_storage = TopicRewriteStorage::new(client_pool.clone());
     let topic_rewrite_rules = topic_storage.all_topic_rewrite_rule().await.map_err(|e| {
         MqttBrokerError::CommonError(format!("Failed to load topic rewrite rules: {}", e))
     })?;

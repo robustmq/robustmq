@@ -24,12 +24,89 @@ pub const HEALTH_READY_PATH: &str = "/health/ready";
 pub const HEALTH_NODE_PATH: &str = "/health/node";
 pub const HEALTH_CLUSTER_PATH: &str = "/health/cluster";
 
-// Cluster API paths
+// ── /cluster ─────────────────────────────────────────────────────────────────
+
+// Cluster base
 pub const CLUSTER_CONFIG_SET_PATH: &str = "/cluster/config/set";
 pub const CLUSTER_CONFIG_GET_PATH: &str = "/cluster/config/get";
 pub const CLUSTER_HEALTHY_PATH: &str = "/cluster/healthy";
 
-// Storage Engine API paths
+// Cluster Topic API paths
+pub const CLUSTER_TOPIC_LIST_PATH: &str = "/cluster/topic/list";
+pub const CLUSTER_TOPIC_DETAIL_PATH: &str = "/cluster/topic/detail";
+pub const CLUSTER_TOPIC_DELETE_PATH: &str = "/cluster/topic/delete";
+
+// Cluster Topic Rewrite API paths
+pub const CLUSTER_TOPIC_REWRITE_LIST_PATH: &str = "/cluster/topic-rewrite/list";
+pub const CLUSTER_TOPIC_REWRITE_CREATE_PATH: &str = "/cluster/topic-rewrite/create";
+pub const CLUSTER_TOPIC_REWRITE_DELETE_PATH: &str = "/cluster/topic-rewrite/delete";
+
+// Cluster ACL API paths
+pub const CLUSTER_ACL_LIST_PATH: &str = "/cluster/acl/list";
+pub const CLUSTER_ACL_CREATE_PATH: &str = "/cluster/acl/create";
+pub const CLUSTER_ACL_DELETE_PATH: &str = "/cluster/acl/delete";
+
+// Cluster Blacklist API paths
+pub const CLUSTER_BLACKLIST_LIST_PATH: &str = "/cluster/blacklist/list";
+pub const CLUSTER_BLACKLIST_CREATE_PATH: &str = "/cluster/blacklist/create";
+pub const CLUSTER_BLACKLIST_DELETE_PATH: &str = "/cluster/blacklist/delete";
+
+// Cluster Connector API paths
+pub const CLUSTER_CONNECTOR_LIST_PATH: &str = "/cluster/connector/list";
+pub const CLUSTER_CONNECTOR_CREATE_PATH: &str = "/cluster/connector/create";
+pub const CLUSTER_CONNECTOR_DETAIL_PATH: &str = "/cluster/connector/detail";
+pub const CLUSTER_CONNECTOR_DELETE_PATH: &str = "/cluster/connector/delete";
+
+// Cluster Schema API paths
+pub const CLUSTER_SCHEMA_LIST_PATH: &str = "/cluster/schema/list";
+pub const CLUSTER_SCHEMA_CREATE_PATH: &str = "/cluster/schema/create";
+pub const CLUSTER_SCHEMA_DELETE_PATH: &str = "/cluster/schema/delete";
+pub const CLUSTER_SCHEMA_BIND_LIST_PATH: &str = "/cluster/schema-bind/list";
+pub const CLUSTER_SCHEMA_BIND_CREATE_PATH: &str = "/cluster/schema-bind/create";
+pub const CLUSTER_SCHEMA_BIND_DELETE_PATH: &str = "/cluster/schema-bind/delete";
+
+// Cluster User API paths
+pub const CLUSTER_USER_LIST_PATH: &str = "/cluster/user/list";
+pub const CLUSTER_USER_CREATE_PATH: &str = "/cluster/user/create";
+pub const CLUSTER_USER_DELETE_PATH: &str = "/cluster/user/delete";
+
+// ── /mqtt ─────────────────────────────────────────────────────────────────────
+
+// MQTT Overview
+pub const MQTT_OVERVIEW_PATH: &str = "/mqtt/overview";
+pub const MQTT_MONITOR_PATH: &str = "/mqtt/monitor/data";
+
+// MQTT Client
+pub const MQTT_CLIENT_LIST_PATH: &str = "/mqtt/client/list";
+
+// MQTT Session
+pub const MQTT_SESSION_LIST_PATH: &str = "/mqtt/session/list";
+
+// MQTT Subscribe
+pub const MQTT_SUBSCRIBE_LIST_PATH: &str = "/mqtt/subscribe/list";
+pub const MQTT_SUBSCRIBE_DETAIL_PATH: &str = "/mqtt/subscribe/detail";
+
+// MQTT Auto Subscribe
+pub const MQTT_AUTO_SUBSCRIBE_LIST_PATH: &str = "/mqtt/auto-subscribe/list";
+pub const MQTT_AUTO_SUBSCRIBE_CREATE_PATH: &str = "/mqtt/auto-subscribe/create";
+pub const MQTT_AUTO_SUBSCRIBE_DELETE_PATH: &str = "/mqtt/auto-subscribe/delete";
+
+// MQTT Slow Subscribe
+pub const MQTT_SLOW_SUBSCRIBE_LIST_PATH: &str = "/mqtt/slow-subscribe/list";
+
+// MQTT Flapping Detect
+pub const MQTT_FLAPPING_DETECT_LIST_PATH: &str = "/mqtt/flapping_detect/list";
+
+// MQTT System
+pub const MQTT_SYSTEM_ALARM_LIST_PATH: &str = "/mqtt/system-alarm/list";
+pub const MQTT_BAN_LOG_LIST_PATH: &str = "/mqtt/ban-log/list";
+
+// MQTT Message
+pub const MQTT_MESSAGE_SEND_PATH: &str = "/mqtt/message/send";
+pub const MQTT_MESSAGE_READ_PATH: &str = "/mqtt/message/read";
+
+// ── /storage-engine ───────────────────────────────────────────────────────────
+
 pub const STORAGE_ENGINE_SHARD_LIST_PATH: &str = "/storage-engine/shard/list";
 pub const STORAGE_ENGINE_SHARD_CREATE_PATH: &str = "/storage-engine/shard/create";
 pub const STORAGE_ENGINE_SHARD_DELETE_PATH: &str = "/storage-engine/shard/delete";
@@ -38,93 +115,19 @@ pub const STORAGE_ENGINE_OFFSET_BY_TIMESTAMP_PATH: &str = "/storage-engine/offse
 pub const STORAGE_ENGINE_OFFSET_BY_GROUP_PATH: &str = "/storage-engine/offset/group";
 pub const STORAGE_ENGINE_OFFSET_COMMIT_PATH: &str = "/storage-engine/offset/commit";
 
-// MQTT Overview API paths
-pub const MQTT_OVERVIEW_PATH: &str = "/mqtt/overview";
-pub const MQTT_MONITOR_PATH: &str = "/mqtt/monitor/data";
+// Cluster Tenant (full CRUD, lives in cluster/tenant.rs)
+pub const TENANT_LIST_PATH: &str = "/cluster/tenant/list";
+pub const TENANT_CREATE_PATH: &str = "/cluster/tenant/create";
+pub const TENANT_UPDATE_PATH: &str = "/cluster/tenant/update";
+pub const TENANT_DELETE_PATH: &str = "/cluster/tenant/delete";
 
-// MQTT Client API paths
-pub const MQTT_CLIENT_LIST_PATH: &str = "/mqtt/client/list";
-
-// MQTT Session API paths
-pub const MQTT_SESSION_LIST_PATH: &str = "/mqtt/session/list";
-
-// MQTT Topic API paths
-pub const MQTT_TOPIC_LIST_PATH: &str = "/mqtt/topic/list";
-pub const MQTT_TOPIC_DETAIL_PATH: &str = "/mqtt/topic/detail";
-pub const MQTT_TOPIC_DELETE_PATH: &str = "/mqtt/topic/delete";
-
-// MQTT Topic Rewrite API paths
-pub const MQTT_TOPIC_REWRITE_LIST_PATH: &str = "/mqtt/topic-rewrite/list";
-pub const MQTT_TOPIC_REWRITE_CREATE_PATH: &str = "/mqtt/topic-rewrite/create";
-pub const MQTT_TOPIC_REWRITE_DELETE_PATH: &str = "/mqtt/topic-rewrite/delete";
-
-// MQTT Subscribe API paths
-pub const MQTT_SUBSCRIBE_LIST_PATH: &str = "/mqtt/subscribe/list";
-pub const MQTT_SUBSCRIBE_DETAIL_PATH: &str = "/mqtt/subscribe/detail";
-
-// MQTT Auto Subscribe API paths
-pub const MQTT_AUTO_SUBSCRIBE_LIST_PATH: &str = "/mqtt/auto-subscribe/list";
-pub const MQTT_AUTO_SUBSCRIBE_CREATE_PATH: &str = "/mqtt/auto-subscribe/create";
-pub const MQTT_AUTO_SUBSCRIBE_DELETE_PATH: &str = "/mqtt/auto-subscribe/delete";
-
-// MQTT Slow Subscribe API paths
-pub const MQTT_SLOW_SUBSCRIBE_LIST_PATH: &str = "/mqtt/slow-subscribe/list";
-
-// MQTT User API paths
-pub const MQTT_USER_LIST_PATH: &str = "/mqtt/user/list";
-pub const MQTT_USER_CREATE_PATH: &str = "/mqtt/user/create";
-pub const MQTT_USER_DELETE_PATH: &str = "/mqtt/user/delete";
-
-// MQTT ACL API paths
-pub const MQTT_ACL_LIST_PATH: &str = "/mqtt/acl/list";
-pub const MQTT_ACL_CREATE_PATH: &str = "/mqtt/acl/create";
-pub const MQTT_ACL_DELETE_PATH: &str = "/mqtt/acl/delete";
-
-// MQTT Blacklist API paths
-pub const MQTT_BLACKLIST_LIST_PATH: &str = "/mqtt/blacklist/list";
-pub const MQTT_BLACKLIST_CREATE_PATH: &str = "/mqtt/blacklist/create";
-pub const MQTT_BLACKLIST_DELETE_PATH: &str = "/mqtt/blacklist/delete";
-
-// MQTT Flapping Detect API paths
-pub const MQTT_FLAPPING_DETECT_LIST_PATH: &str = "/mqtt/flapping_detect/list";
-
-// MQTT Connector API paths
-pub const MQTT_CONNECTOR_LIST_PATH: &str = "/mqtt/connector/list";
-pub const MQTT_CONNECTOR_CREATE_PATH: &str = "/mqtt/connector/create";
-pub const MQTT_CONNECTOR_DETAIL_PATH: &str = "/mqtt/connector/detail";
-pub const MQTT_CONNECTOR_DELETE_PATH: &str = "/mqtt/connector/delete";
-
-// MQTT Schema API paths
-pub const MQTT_SCHEMA_LIST_PATH: &str = "/mqtt/schema/list";
-pub const MQTT_SCHEMA_CREATE_PATH: &str = "/mqtt/schema/create";
-pub const MQTT_SCHEMA_DELETE_PATH: &str = "/mqtt/schema/delete";
-pub const MQTT_SCHEMA_BIND_LIST_PATH: &str = "/mqtt/schema-bind/list";
-pub const MQTT_SCHEMA_BIND_CREATE_PATH: &str = "/mqtt/schema-bind/create";
-pub const MQTT_SCHEMA_BIND_DELETE_PATH: &str = "/mqtt/schema-bind/delete";
-
-// Tenant API paths
-pub const TENANT_LIST_PATH: &str = "/tenant/list";
-pub const TENANT_CREATE_PATH: &str = "/tenant/create";
-pub const TENANT_UPDATE_PATH: &str = "/tenant/update";
-pub const TENANT_DELETE_PATH: &str = "/tenant/delete";
-
-// MQTT Tenant API paths
-pub const MQTT_TENANT_LIST_PATH: &str = "/mqtt/tenant/list";
-pub const MQTT_TENANT_CREATE_PATH: &str = "/mqtt/tenant/create";
-pub const MQTT_TENANT_DELETE_PATH: &str = "/mqtt/tenant/delete";
-
-// MQTT System API paths
-pub const MQTT_SYSTEM_ALARM_LIST_PATH: &str = "/mqtt/system-alarm/list";
-pub const MQTT_BAN_LOG_LIST_PATH: &str = "/mqtt/ban-log/list";
-
-// MQTT Message API paths
-pub const MQTT_MESSAGE_SEND_PATH: &str = "/mqtt/message/send";
-pub const MQTT_MESSAGE_READ_PATH: &str = "/mqtt/message/read";
+// ── MCP ───────────────────────────────────────────────────────────────────────
 
 // MCP Server path (outside /api prefix — mounted directly on root)
 pub const MCP_PATH: &str = "/mcp";
 
-// Utility functions for building API paths with prefix
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
 pub const API_PREFIX: &str = "/api";
 
 /// Build full API path with prefix
@@ -140,7 +143,7 @@ mod tests {
     fn test_api_path() {
         assert_eq!(api_path(MQTT_OVERVIEW_PATH), "/api/mqtt/overview");
         assert_eq!(api_path(CLUSTER_CONFIG_GET_PATH), "/api/cluster/config/get");
-        assert_eq!(api_path(MQTT_USER_LIST_PATH), "/api/mqtt/user/list");
+        assert_eq!(api_path(CLUSTER_USER_LIST_PATH), "/api/cluster/user/list");
     }
 
     #[test]

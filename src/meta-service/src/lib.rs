@@ -101,6 +101,7 @@ impl MetaServiceServer {
         let raft_manager = self.raft_manager.clone();
         let node_call_manager = self.node_call_manager.clone();
         let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        let client_pool = self.client_pool.clone();
         let group_offset_expire_sec = broker_config().meta_runtime.group_offset_expire_sec;
         let stop = self.stop.clone();
         self.task_supervisor.spawn(
@@ -111,6 +112,7 @@ impl MetaServiceServer {
                     raft_manager,
                     node_call_manager,
                     rocksdb_engine_handler,
+                    client_pool,
                     group_offset_expire_sec,
                     stop,
                 )

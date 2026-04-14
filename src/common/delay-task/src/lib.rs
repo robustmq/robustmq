@@ -37,7 +37,6 @@ pub const DELAY_TASK_INDEX_TOPIC: &str = "$delay-task-index";
 pub enum DelayTaskData {
     MQTTSessionExpire(String, String), // (tenant, client_id)
     MQTTLastwillExpire(String),
-    MQTTDeleteTopic(String, String), // (tenant, topic_name)
 }
 
 impl DelayTaskData {
@@ -45,7 +44,6 @@ impl DelayTaskData {
         match self {
             DelayTaskData::MQTTSessionExpire(_, _) => "MQTTSessionExpire",
             DelayTaskData::MQTTLastwillExpire(_) => "MQTTLastwillExpire",
-            DelayTaskData::MQTTDeleteTopic(_, _) => "MQTTDeleteTopic",
         }
     }
 }
