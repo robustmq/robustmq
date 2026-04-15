@@ -18,7 +18,6 @@ use crate::core::controller::ClusterController;
 use crate::raft::manager::MultiRaftManager;
 use broker_core::cache::NodeCacheManager;
 use common_base::task::{TaskKind, TaskSupervisor};
-use common_config::broker::broker_config;
 use delay_task::manager::DelayTaskManager;
 use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
@@ -42,7 +41,7 @@ pub struct MetaServiceServerParams {
     pub client_pool: Arc<ClientPool>,
     pub node_call_manager: Arc<NodeCallManager>,
     pub delay_task_manager: Arc<DelayTaskManager>,
-    pub broker_cache: Arc<NodeCacheManager>,
+    pub node_cache: Arc<NodeCacheManager>,
     pub task_supervisor: Arc<TaskSupervisor>,
 }
 pub struct MetaServiceServer {
@@ -51,6 +50,7 @@ pub struct MetaServiceServer {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
     node_call_manager: Arc<NodeCallManager>,
+    node_cache: Arc<NodeCacheManager>,
     stop: broadcast::Sender<bool>,
     task_supervisor: Arc<TaskSupervisor>,
 }
@@ -65,6 +65,7 @@ impl MetaServiceServer {
             rocksdb_engine_handler: params.rocksdb_engine_handler,
             client_pool: params.client_pool,
             node_call_manager: params.node_call_manager,
+            node_cache: params.node_cache,
             raft_manager: params.raft_manager,
             task_supervisor: params.task_supervisor,
             stop,
@@ -102,7 +103,7 @@ impl MetaServiceServer {
         let node_call_manager = self.node_call_manager.clone();
         let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
         let client_pool = self.client_pool.clone();
-        let group_offset_expire_sec = broker_config().meta_runtime.group_offset_expire_sec;
+        let node_cache = self.node_cache.clone();
         let stop = self.stop.clone();
         self.task_supervisor.spawn(
             TaskKind::MetaMonitorRaftLeaderChange.to_string(),
@@ -113,7 +114,7 @@ impl MetaServiceServer {
                     node_call_manager,
                     rocksdb_engine_handler,
                     client_pool,
-                    group_offset_expire_sec,
+                    node_cache,
                     stop,
                 )
                 .await;

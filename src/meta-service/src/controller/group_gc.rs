@@ -14,6 +14,7 @@
 
 use crate::core::notify::send_notify_by_delete_group;
 use crate::storage::common::offset::OffsetStorage;
+use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
@@ -24,22 +25,22 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::{info, warn};
 
-// Scan every 5 minutes
-const GROUP_GC_INTERVAL_MS: u64 = 5 * 60 * 1000;
+// Scan every 10 seconds
+const GROUP_GC_INTERVAL_MS: u64 = 10 * 1000;
 
 pub async fn start_group_gc_thread(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     node_call_manager: Arc<NodeCallManager>,
-    group_offset_expire_sec: u64,
+    node_cache: Arc<NodeCacheManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {
-        if let Err(e) = gc_expired_groups(
-            &rocksdb_engine_handler,
-            &node_call_manager,
-            group_offset_expire_sec,
-        )
-        .await
+        let expire_sec = node_cache
+            .get_cluster_config()
+            .meta_runtime
+            .group_offset_expire_sec;
+        if let Err(e) =
+            gc_expired_groups(&rocksdb_engine_handler, &node_call_manager, expire_sec).await
         {
             return Err(CommonError::CommonError(e.to_string()));
         }

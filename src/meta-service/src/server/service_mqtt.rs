@@ -78,7 +78,7 @@ pub struct GrpcMqttService {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     delay_task_manager: Arc<DelayTaskManager>,
     call_manager: Arc<NodeCallManager>,
-    broker_cache: Arc<NodeCacheManager>,
+    node_cache: Arc<NodeCacheManager>,
     client_pool: Arc<ClientPool>,
 }
 
@@ -89,7 +89,7 @@ impl GrpcMqttService {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         delay_task_manager: Arc<DelayTaskManager>,
         call_manager: Arc<NodeCallManager>,
-        broker_cache: Arc<NodeCacheManager>,
+        node_cache: Arc<NodeCacheManager>,
         client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcMqttService {
@@ -99,7 +99,7 @@ impl GrpcMqttService {
             delay_task_manager,
             call_manager,
             client_pool,
-            broker_cache,
+            node_cache,
         }
     }
 
@@ -176,7 +176,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        list_session_by_req(&self.broker_cache, &self.rocksdb_engine_handler, &req)
+        list_session_by_req(&self.node_cache, &self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
     }
@@ -211,7 +211,7 @@ impl MqttService for GrpcMqttService {
             &self.delay_task_manager,
             &self.call_manager,
             &self.rocksdb_engine_handler,
-            &self.broker_cache,
+            &self.node_cache,
             &req,
         )
         .await

@@ -15,10 +15,13 @@
 #[cfg(test)]
 mod tests {
     use admin_server::client::AdminHttpClient;
+    use admin_server::cluster::config::ClusterConfigSetReq;
     use admin_server::cluster::offset::{
         CommitOffsetReq, GetOffsetByGroupReq, GetOffsetByGroupResp,
     };
+    use common_base::http_response::AdminServerResponse;
     use common_base::uuid::unique_id;
+    use common_config::config::BrokerConfig;
     use std::collections::HashMap;
     use std::time::Duration;
     use tokio::time::sleep;
@@ -93,12 +96,35 @@ mod tests {
         assert_eq!(entry.shard_name, shard_name);
         assert_eq!(entry.offset, 20, "offset should be updated to 20");
 
-        // get cluster config
+        // ── 6. get cluster config ─────────────────────────────────────────────
+        let config_raw = client.get_cluster_config().await.unwrap();
+        let config_resp: AdminServerResponse<BrokerConfig> =
+            serde_json::from_str(&config_raw).unwrap();
+        let mut meta_runtime = config_resp.data.meta_runtime;
+        println!("current meta_runtime: {:#?}", meta_runtime);
 
-        // update MetaRuntime group_offset_expire_sec = 30
+        // ── 7. update MetaRuntime group_offset_expire_sec = 30 ───────────────
+        meta_runtime.group_offset_expire_sec = 120;
+        let set_req = ClusterConfigSetReq {
+            config_type: "MetaRuntime".to_string(),
+            config: serde_json::to_string(&meta_runtime).unwrap(),
+        };
+        client.set_cluster_config(&set_req).await.unwrap();
+        println!("updated group_offset_expire_sec to 30");
 
-        //  wait 40s
+        // ── 8. wait 40s for GC to expire the group ────────────────────────────
+        println!("waiting 150s for group GC...");
+        sleep(Duration::from_secs(150)).await;
 
-        // get group is null
+        // ── 9. get group — should be gone after GC ────────────────────────────
+        let resp = client
+            .get_offset_by_group::<_, GetOffsetByGroupResp>(&get_req)
+            .await
+            .unwrap();
+        println!("get group after GC: {:#?}", resp);
+        assert!(
+            resp.offsets.is_empty(),
+            "group should be removed after offset expiry GC"
+        );
     }
 }

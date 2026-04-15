@@ -17,6 +17,7 @@ use crate::{
     core::cache::MetaCacheManager,
     raft::manager::{MultiRaftManager, RaftStateMachineName},
 };
+use broker_core::cache::NodeCacheManager;
 use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -30,7 +31,7 @@ pub async fn monitoring_leader_transition(
     call_manager: Arc<NodeCallManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_pool: Arc<ClientPool>,
-    group_offset_expire_sec: u64,
+    node_cache: Arc<NodeCacheManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
     // Use the single metadata shard leader as the controller leadership source.
@@ -70,7 +71,7 @@ pub async fn monitoring_leader_transition(
                                     &call_manager,
                                     &rocksdb_engine_handler,
                                     &client_pool,
-                                    group_offset_expire_sec,
+                                    node_cache.clone(),
                                     controller_stop_recv.clone(),
                                 );
                                 controller_running = true;

@@ -58,20 +58,20 @@ use std::sync::Arc;
 pub struct DataRouteMqtt {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     cache_manager: Arc<MetaCacheManager>,
-    broker_cache: Arc<NodeCacheManager>,
+    node_cache: Arc<NodeCacheManager>,
     pub delay_task_manager: Arc<DelayTaskManager>,
 }
 impl DataRouteMqtt {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<MetaCacheManager>,
-        broker_cache: Arc<NodeCacheManager>,
+        node_cache: Arc<NodeCacheManager>,
         delay_task_manager: Arc<DelayTaskManager>,
     ) -> Self {
         DataRouteMqtt {
             rocksdb_engine_handler,
             cache_manager,
-            broker_cache,
+            node_cache,
             delay_task_manager,
         }
     }
@@ -166,7 +166,7 @@ impl DataRouteMqtt {
             if session.is_persist_session {
                 persist_sessions.push(session.clone());
             } else {
-                self.broker_cache.add_session(session.clone());
+                self.node_cache.add_session(session.clone());
             }
 
             let is_session_expire = session.connection_id.is_none()
@@ -206,8 +206,7 @@ impl DataRouteMqtt {
         let req = DeleteSessionRequest::decode(value.as_ref())?;
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.tenant, &req.client_id)?;
-        self.broker_cache
-            .delete_session(&req.tenant, &req.client_id);
+        self.node_cache.delete_session(&req.tenant, &req.client_id);
         Ok(())
     }
 
