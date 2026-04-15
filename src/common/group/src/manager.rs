@@ -102,7 +102,7 @@ impl OffsetManager {
     }
 
     pub fn heartbeat(&self, tenant: &str, group_name: &str) {
-        if now_second() % 60 != 0 {
+        if !now_second().is_multiple_of(60) {
             return;
         }
         let key = self.key(tenant, group_name);

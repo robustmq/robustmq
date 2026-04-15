@@ -268,16 +268,6 @@ impl AdminHttpClient {
         self.get_raw(&api_path("")).await
     }
 
-    /// Get cluster status information
-    pub async fn get_status(&self) -> Result<String, HttpClientError> {
-        self.get_raw(&api_path(STATUS_PATH)).await
-    }
-
-    /// Get cluster healthy status
-    pub async fn get_cluster_healthy(&self) -> Result<bool, HttpClientError> {
-        self.get(&api_path(CLUSTER_HEALTHY_PATH)).await
-    }
-
     /// Get cluster overview
     pub async fn get_cluster_overview<R>(&self) -> Result<R, HttpClientError>
     where
@@ -581,6 +571,16 @@ impl AdminHttpClient {
     {
         self.get_with_params(&api_path(MQTT_SYSTEM_ALARM_LIST_PATH), request)
             .await
+    }
+
+    /// Get cluster health status
+    pub async fn get_cluster_healthy(&self) -> Result<String, HttpClientError> {
+        self.get_raw(&api_path(HEALTH_CLUSTER_PATH)).await
+    }
+
+    /// Get cluster status / info
+    pub async fn get_status(&self) -> Result<String, HttpClientError> {
+        self.get_raw(&api_path("")).await
     }
 
     /// Set cluster configuration

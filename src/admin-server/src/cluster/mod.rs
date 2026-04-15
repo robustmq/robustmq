@@ -16,28 +16,24 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::state::HttpState;
-use axum::{extract::State, Json};
-use broker_core::{
-    cache::NodeCacheManager,
-    cluster::ClusterStorage,
-    dynamic_config::{
-        save_cluster_dynamic_config, update_cluster_dynamic_config, ClusterDynamicConfig,
-    },
-};
-use bytes::Bytes;
+use axum::extract::State;
+use broker_core::{cache::NodeCacheManager, cluster::ClusterStorage};
 use common_base::http_response::{error_response, success_response};
 use common_base::version::version;
 use metadata_struct::meta::{node::BrokerNode, status::MetaStatus};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ClusterConfigGetReq {}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct ClusterConfigSetReq {
-    pub config_type: String,
-    pub config: String,
-}
+pub mod acl;
+pub mod blacklist;
+pub mod config;
+pub mod connector;
+pub mod health;
+pub mod message;
+pub mod offset;
+pub mod schema;
+pub mod tenant;
+pub mod topic;
+pub mod user;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ClusterInfoResp {
@@ -49,65 +45,7 @@ pub struct ClusterInfoResp {
     pub nodes: HashSet<String>,
 }
 
-pub mod acl;
-pub mod blacklist;
-pub mod connector;
-pub mod health;
-pub mod message;
-pub mod offset;
-pub mod schema;
-pub mod tenant;
-pub mod topic;
-pub mod user;
-
-pub async fn index(State(_state): State<Arc<HttpState>>) -> String {
-    format!("RobustMQ API {}", version())
-}
-
-pub async fn cluster_config_set(
-    State(state): State<Arc<HttpState>>,
-    Json(params): Json<ClusterConfigSetReq>,
-) -> String {
-    let resource_type = match params.config_type.as_str() {
-        "MqttSlowSubscribeConfig" => ClusterDynamicConfig::MqttSlowSubscribeConfig,
-        "MqttFlappingDetect" => ClusterDynamicConfig::MqttFlappingDetect,
-        "MqttProtocol" => ClusterDynamicConfig::MqttProtocol,
-        "MqttOfflineMessage" => ClusterDynamicConfig::MqttOfflineMessage,
-        "MqttSystemMonitor" => ClusterDynamicConfig::MqttSystemMonitor,
-        "MqttSchema" => ClusterDynamicConfig::MqttSchema,
-        "MqttLimit" => ClusterDynamicConfig::MqttLimit,
-        "ClusterLimit" => ClusterDynamicConfig::ClusterLimit,
-        other => {
-            return error_response(format!("Unknown config_type: {other}"));
-        }
-    };
-
-    let config_bytes = Bytes::from(params.config.into_bytes());
-
-    if let Err(e) =
-        save_cluster_dynamic_config(&state.client_pool, resource_type, config_bytes.to_vec()).await
-    {
-        return error_response(format!("Failed to save config: {e}"));
-    }
-
-    if let Err(e) = update_cluster_dynamic_config(&state.broker_cache, resource_type, config_bytes)
-    {
-        return error_response(format!("Failed to update in-memory config: {e}"));
-    }
-
-    success_response("success")
-}
-
-pub async fn cluster_config_get(State(state): State<Arc<HttpState>>) -> String {
-    let broker_config = state.broker_cache.get_cluster_config();
-    success_response(broker_config)
-}
-
-pub async fn healthy() -> String {
-    success_response(true)
-}
-
-pub async fn cluster_info(State(state): State<Arc<HttpState>>) -> String {
+pub async fn index(State(state): State<Arc<HttpState>>) -> String {
     let cluster_storage = ClusterStorage::new(state.client_pool.clone());
     let result = match cluster_storage.meta_cluster_status().await {
         Ok(data) => data,

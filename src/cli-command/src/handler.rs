@@ -308,7 +308,7 @@ pub async fn handle_cluster(args: ClusterArgs) {
         ClusterAction::Config(config_args) => match config_args.action {
             ClusterConfigActionType::Get => ClusterActionType::GetConfig,
             ClusterConfigActionType::Set(set_args) => {
-                ClusterActionType::SetConfig(admin_server::cluster::ClusterConfigSetReq {
+                ClusterActionType::SetConfig(admin_server::cluster::config::ClusterConfigSetReq {
                     config_type: set_args.config_type,
                     config: set_args.config,
                 })
