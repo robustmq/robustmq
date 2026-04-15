@@ -28,6 +28,28 @@ use mq9_core::public::{is_system_mailbox, StoragePublicData, MQ9_SYSTEM_PUBLIC_M
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
+fn validate_prefix(prefix: &str) -> Result<(), NatsBrokerError> {
+    if prefix.is_empty() {
+        return Err(NatsBrokerError::CommonError(
+            "prefix must not be empty".to_string(),
+        ));
+    }
+    if !prefix
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.')
+    {
+        return Err(NatsBrokerError::CommonError(
+            "prefix may only contain lowercase letters, digits, and dots".to_string(),
+        ));
+    }
+    if prefix.starts_with('.') || prefix.ends_with('.') || prefix.contains("..") {
+        return Err(NatsBrokerError::CommonError(
+            "prefix must not start or end with a dot, or contain consecutive dots".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
     let params: CreateMailboxReq = serde_json::from_slice(payload).map_err(|e| {
         NatsBrokerError::CommonError(format!("invalid MAILBOX.CREATE payload: {}", e))
@@ -40,7 +62,13 @@ fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
             NatsBrokerError::CommonError("public mailbox requires a 'name' field".to_string())
         })?
     } else {
-        format!("mq9-{}-{}", unique_id(), unique_id())
+        match params.prefix {
+            Some(ref prefix) => {
+                validate_prefix(prefix)?;
+                format!("{}.{}.{}", prefix, unique_id(), unique_id())
+            }
+            None => format!("mail.id.{}.{}", unique_id(), unique_id()),
+        }
     };
 
     Ok(MQ9Email {

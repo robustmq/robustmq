@@ -22,6 +22,11 @@ pub struct CreateMailboxReq {
     #[serde(default)]
     pub public: bool,
     pub name: Option<String>,
+    /// Optional namespace prefix for private mailboxes.
+    /// Only lowercase letters, digits, and dots are allowed (e.g. "risk" or "risk.critical").
+    /// When set, the mail_id will be `{prefix}.{uuid}`.
+    /// When absent, the mail_id will be a bare `{uuid}`.
+    pub prefix: Option<String>,
     #[serde(default)]
     pub desc: String,
 }

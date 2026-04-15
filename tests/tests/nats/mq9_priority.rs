@@ -71,6 +71,7 @@ mod tests {
             ttl: None,
             public: false,
             name: None,
+            prefix: None,
             desc: "priority test mail".to_string(),
         };
         let reply = create_mail(&client, &req).await;

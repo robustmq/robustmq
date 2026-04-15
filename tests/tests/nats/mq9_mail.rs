@@ -54,6 +54,7 @@ mod tests {
             ttl: Some(TTL),
             public: false,
             name: None,
+            prefix: None,
             desc: "test private mail".to_string(),
         };
         let reply = create_mail(&nats_client, &req).await;
@@ -112,6 +113,7 @@ mod tests {
         let req = CreateMailboxReq {
             ttl: Some(TTL),
             public: true,
+            prefix: None,
             name: Some(public_name.clone()),
             desc: "test public mail".to_string(),
         };
@@ -182,5 +184,32 @@ mod tests {
             0,
             "public mail should be removed after TTL expiry"
         );
+    }
+
+    #[tokio::test]
+    async fn mq9_mail_prefix_test() {
+        let nats_client = nats_connect().await;
+
+        // ── create mail with prefix ───────────────────────────────────────────
+        let prefix = format!("risk.{}", &unique_id().to_lowercase()[..8]);
+        let req = CreateMailboxReq {
+            ttl: None,
+            public: false,
+            name: None,
+            prefix: Some(prefix.clone()),
+            desc: "prefix test mail".to_string(),
+        };
+        let reply = create_mail(&nats_client, &req).await;
+        println!("create prefix mail reply: {:?}", reply);
+
+        assert!(!reply.is_error(), "unexpected error: {}", reply.error);
+        let mail_id = reply.mail_id.as_deref().unwrap_or("");
+        assert!(
+            mail_id.starts_with(&prefix),
+            "mail_id '{}' should start with prefix '{}'",
+            mail_id,
+            prefix
+        );
+        assert!(reply.is_new.unwrap_or(false), "should be a new mailbox");
     }
 }
