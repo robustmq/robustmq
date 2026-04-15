@@ -29,12 +29,11 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::error;
 
-/// Send INFO to the client immediately after a NATS connection is established.
-/// Also marks the connection's protocol as NATS so the handler can route responses.
+/// Send INFO + PING to the client immediately after a NATS connection is established.
 ///
-/// After INFO, we immediately send a PING so that clients (e.g. async_nats) can
-/// complete their handshake without waiting for the keep-alive interval.
-/// This matches the behaviour of the reference NATS server (gnatsd).
+/// Standard NATS handshake: Server → INFO, Server → PING, Client → CONNECT, Client → PONG.
+/// The PING prompts the client to complete the handshake without waiting for the
+/// keep-alive tick. TCP_NODELAY is set on the socket so both packets are flushed immediately.
 pub async fn send_nats_info(
     node_cache: &Arc<NodeCacheManager>,
     connection_id: u64,
@@ -58,6 +57,20 @@ pub async fn send_nats_info(
         .await
     {
         error!(connection_id, "Failed to send NATS INFO: {}", e);
+        return;
+    }
+
+    let ping_wrapper = RobustMQPacketWrapper {
+        protocol: RobustMQProtocol::NATS,
+        extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
+        packet: RobustMQPacket::NATS(NatsPacket::Ping),
+    };
+
+    if let Err(e) = connection_manager
+        .write_tcp_frame(connection_id, ping_wrapper)
+        .await
+    {
+        error!(connection_id, "Failed to send NATS PING: {}", e);
     }
 }
 

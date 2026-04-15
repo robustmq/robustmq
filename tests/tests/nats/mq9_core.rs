@@ -14,12 +14,16 @@
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use async_nats::Client;
     use bytes::Bytes;
     use common_base::uuid::unique_id;
+    use futures::StreamExt;
     use metadata_struct::mq9::Priority;
     use mq9_core::command::Mq9Command;
     use mq9_core::protocol::{CreateMailboxReq, Mq9Reply};
+    use tokio::time::sleep;
 
     const NATS_ADDR: &str = "nats://127.0.0.1:4222";
 
@@ -77,6 +81,7 @@ mod tests {
         assert!(reply.is_new.unwrap_or(false), "should be a new mailbox");
         let mail_id = reply.mail_id.unwrap();
 
+        sleep(Duration::from_secs(3)).await;
         // ── 3. send 10 messages → all succeed ────────────────────────────────
         let mut sent_payloads = Vec::with_capacity(10);
         for i in 0..10usize {
@@ -124,5 +129,68 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_mailbox_send_sub() {}
+    async fn test_mailbox_send_sub() {
+        let client = nats_connect().await;
+
+        // ── 1. create mail ────────────────────────────────────────────────────
+        let req = CreateMailboxReq {
+            ttl: None,
+            public: false,
+            name: None,
+            desc: "send-sub test".to_string(),
+        };
+        let reply = create_mail(&client, &req).await;
+        assert!(!reply.is_error(), "create mail error: {}", reply.error);
+        let mail_id = reply.mail_id.unwrap();
+
+        sleep(Duration::from_secs(3)).await;
+        // ── 2. publish 10 messages ────────────────────────────────────────────
+        let mut sent_payloads = Vec::with_capacity(10);
+        for i in 0..10usize {
+            let payload_str = format!("sub-msg-{}-{}", i, unique_id());
+            let subject = Mq9Command::MailboxMsg {
+                mail_id: mail_id.clone(),
+                priority: Priority::Normal,
+            }
+            .to_subject();
+            let reply = nats_request(&client, subject, Bytes::from(payload_str.clone())).await;
+            assert!(!reply.is_error(), "pub {}: {}", i, reply.error);
+            sent_payloads.push(payload_str);
+        }
+
+        // ── 3. subscribe to mail ──────────────────────────────────────────────
+        let sub_subject = Mq9Command::MailboxSub {
+            mail_id: mail_id.clone(),
+        }
+        .to_subject();
+        let mut sub = client.subscribe(sub_subject).await.unwrap();
+
+        // ── 4. collect 10 messages with timeout ───────────────────────────────
+        let mut received = Vec::with_capacity(10);
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+        while received.len() < 10 {
+            let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+            if remaining.is_zero() {
+                break;
+            }
+            match tokio::time::timeout(remaining, sub.next()).await {
+                Ok(Some(msg)) => received.push(String::from_utf8_lossy(&msg.payload).to_string()),
+                _ => break,
+            }
+        }
+
+        assert_eq!(
+            received.len(),
+            10,
+            "expected 10 messages, got {}",
+            received.len()
+        );
+        for sent in &sent_payloads {
+            assert!(
+                received.iter().any(|r| r == sent),
+                "payload '{}' not found in received messages",
+                sent
+            );
+        }
+    }
 }
