@@ -15,8 +15,6 @@
 use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
-use crate::mq9::Priority;
-
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct NatsSubscribe {
     pub tenant: String,
@@ -24,7 +22,6 @@ pub struct NatsSubscribe {
     pub sid: String,
     pub subject: String,
     pub queue_group: String,
-    pub priority: Option<Priority>,
     pub create_time: u64,
 }
 

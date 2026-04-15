@@ -22,7 +22,7 @@ use protocol::meta::meta_service_common::{
 };
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::{error, warn};
+use tracing::error;
 
 const OFFSET_SYNC_INTERVAL_MS: u64 = 20;
 
@@ -55,10 +55,6 @@ async fn sync_offsets(manager: &OffsetManager) {
     for (tenant, group_name) in dirty {
         let key = manager.key(&tenant, &group_name);
         let Some(offset_map) = manager.offset_info.get(&key) else {
-            warn!(
-                "offset_sync_task: no offset_info for group '{}' tenant '{}'",
-                group_name, tenant
-            );
             continue;
         };
         let shard_offsets: Vec<SaveOffsetDataRequestOffset> = offset_map

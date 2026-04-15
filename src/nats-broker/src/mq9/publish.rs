@@ -22,7 +22,7 @@ use bytes::Bytes;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mq9::Priority;
 use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordProtocolDataMq9};
-use mq9_core::protocol::{Mq9Reply, PubMailboxReply};
+use mq9_core::protocol::Mq9Reply;
 use mq9_core::public::is_system_mailbox;
 use storage_adapter::priority::storage_priority_tag;
 
@@ -81,7 +81,7 @@ pub async fn process_pub(
             mail_id
         ))
     })?;
-    Ok(Mq9Reply::Pub(PubMailboxReply { msg_id: offset }))
+    Ok(Mq9Reply::ok_publish(offset))
 }
 
 fn build_message_tag(tenant: &str, mail_id: &str, priority: &Priority) -> Vec<String> {

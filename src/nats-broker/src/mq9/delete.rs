@@ -15,7 +15,7 @@
 use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
-use mq9_core::protocol::{DeleteMailboxMsgReply, Mq9Reply};
+use mq9_core::protocol::Mq9Reply;
 
 pub async fn process_delete(
     ctx: &NatsProcessContext,
@@ -32,5 +32,5 @@ pub async fn process_delete(
         .await
         .map_err(NatsBrokerError::from)?;
 
-    Ok(Mq9Reply::Delete(DeleteMailboxMsgReply { deleted: true }))
+    Ok(Mq9Reply::ok_delete())
 }

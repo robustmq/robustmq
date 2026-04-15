@@ -22,24 +22,18 @@ pub struct CreateMailboxReq {
     #[serde(default)]
     pub public: bool,
     pub name: Option<String>,
+    /// Optional namespace prefix for private mailboxes.
+    /// Only lowercase letters, digits, and dots are allowed (e.g. "risk" or "risk.critical").
+    /// When set, the mail_id will be `{prefix}.{uuid}`.
+    /// When absent, the mail_id will be a bare `{uuid}`.
+    pub prefix: Option<String>,
     #[serde(default)]
     pub desc: String,
 }
 
-// ── Replies ───────────────────────────────────────────────────────────────────
+// ── Sub-reply items ───────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CreateMailboxReply {
-    pub mail_id: String,
-    pub is_new: bool,
-}
-
-#[derive(Debug, Serialize)]
-pub struct PubMailboxReply {
-    pub msg_id: u64,
-}
-
-#[derive(Debug, Serialize)]
 pub struct ListMailboxMsgItem {
     pub msg_id: u64,
     pub payload: String,
@@ -48,24 +42,83 @@ pub struct ListMailboxMsgItem {
     pub create_time: u64,
 }
 
-#[derive(Debug, Serialize)]
-pub struct ListMailboxMsgReply {
-    pub mail_id: String,
-    pub messages: Vec<ListMailboxMsgItem>,
+// ── Unified flat reply ────────────────────────────────────────────────────────
+
+/// Flat JSON response for all mq9 commands.
+///
+/// All fields are `Option`; on success the relevant fields are populated and
+/// `error` is `None`. On failure only `error` is set.
+///
+/// Examples:
+/// - Create ok:  `{"mail_id":"mq9-…","is_new":true}`
+/// - Publish ok: `{"msg_id":8}`
+/// - List ok:    `{"mail_id":"mq9-…","messages":[…]}`
+/// - Delete ok:  `{"deleted":true}`
+/// - Error:      `{"error":"mailbox xxx does not exist"}`
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct Mq9Reply {
+    /// Always present. Empty string on success, error message on failure.
+    pub error: String,
+
+    // ── create fields ─────────────────────────────────────────────────────────
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mail_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_new: Option<bool>,
+
+    // ── publish fields ────────────────────────────────────────────────────────
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub msg_id: Option<u64>,
+
+    // ── list fields ───────────────────────────────────────────────────────────
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub messages: Option<Vec<ListMailboxMsgItem>>,
+
+    // ── delete fields ─────────────────────────────────────────────────────────
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deleted: Option<bool>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct DeleteMailboxMsgReply {
-    pub deleted: bool,
-}
+impl Mq9Reply {
+    pub fn ok_create(mail_id: String, is_new: bool) -> Self {
+        Mq9Reply {
+            mail_id: Some(mail_id),
+            is_new: Some(is_new),
+            ..Default::default()
+        }
+    }
 
-// ── Reply enum ────────────────────────────────────────────────────────────────
+    pub fn ok_publish(msg_id: u64) -> Self {
+        Mq9Reply {
+            msg_id: Some(msg_id),
+            ..Default::default()
+        }
+    }
 
-#[derive(Debug, Serialize)]
-#[serde(untagged)]
-pub enum Mq9Reply {
-    Create(CreateMailboxReply),
-    Pub(PubMailboxReply),
-    List(ListMailboxMsgReply),
-    Delete(DeleteMailboxMsgReply),
+    pub fn ok_list(mail_id: String, messages: Vec<ListMailboxMsgItem>) -> Self {
+        Mq9Reply {
+            mail_id: Some(mail_id),
+            messages: Some(messages),
+            ..Default::default()
+        }
+    }
+
+    pub fn ok_delete() -> Self {
+        Mq9Reply {
+            deleted: Some(true),
+            ..Default::default()
+        }
+    }
+
+    pub fn err(msg: impl Into<String>) -> Self {
+        Mq9Reply {
+            error: msg.into(),
+            ..Default::default()
+        }
+    }
+
+    pub fn is_error(&self) -> bool {
+        !self.error.is_empty()
+    }
 }

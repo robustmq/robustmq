@@ -23,7 +23,7 @@ mod tests {
     use metadata_struct::mq9::email::MQ9Email;
     use metadata_struct::tenant::DEFAULT_TENANT;
     use mq9_core::command::Mq9Command;
-    use mq9_core::protocol::{CreateMailboxReply, CreateMailboxReq};
+    use mq9_core::protocol::{CreateMailboxReq, Mq9Reply};
     use mq9_core::public::{StoragePublicData, MQ9_SYSTEM_PUBLIC_MAIL};
     use std::time::Duration;
     use tokio::time::sleep;
@@ -37,13 +37,11 @@ mod tests {
         async_nats::connect(NATS_ADDR).await.unwrap()
     }
 
-    async fn create_mail(client: &Client, req: &CreateMailboxReq) -> CreateMailboxReply {
+    async fn create_mail(client: &Client, req: &CreateMailboxReq) -> Mq9Reply {
         let payload = Bytes::from(serde_json::to_string(req).unwrap());
         let subject = Mq9Command::MailboxCreate.to_subject();
-
         let msg = client.request(subject, payload).await.unwrap();
-
-        serde_json::from_slice::<CreateMailboxReply>(&msg.payload).unwrap()
+        serde_json::from_slice::<Mq9Reply>(&msg.payload).unwrap()
     }
 
     #[tokio::test]
@@ -56,14 +54,19 @@ mod tests {
             ttl: Some(TTL),
             public: false,
             name: None,
+            prefix: None,
             desc: "test private mail".to_string(),
         };
         let reply = create_mail(&nats_client, &req).await;
         println!("create private mail reply: {:?}", reply);
 
-        assert!(!reply.mail_id.is_empty(), "mail_id should not be empty");
-        assert!(reply.is_new, "should be a new mail");
-        let mail_id = reply.mail_id.clone();
+        assert!(!reply.is_error(), "unexpected error: {}", reply.error);
+        assert!(
+            !reply.mail_id.as_deref().unwrap_or("").is_empty(),
+            "mail_id should not be empty"
+        );
+        assert!(reply.is_new.unwrap_or(false), "should be a new mail");
+        let mail_id = reply.mail_id.unwrap();
 
         // ── list mail via admin — verify mail exists ───────────────────────────
         let list_req = MailListReq {
@@ -110,17 +113,20 @@ mod tests {
         let req = CreateMailboxReq {
             ttl: Some(TTL),
             public: true,
+            prefix: None,
             name: Some(public_name.clone()),
             desc: "test public mail".to_string(),
         };
         let reply = create_mail(&nats_client, &req).await;
         println!("create public mail reply: {:?}", reply);
 
+        assert!(!reply.is_error(), "unexpected error: {}", reply.error);
         assert_eq!(
-            reply.mail_id, public_name,
+            reply.mail_id.as_deref().unwrap_or(""),
+            public_name,
             "public mail_id should equal the provided name"
         );
-        assert!(reply.is_new, "should be a new mail");
+        assert!(reply.is_new.unwrap_or(false), "should be a new mail");
 
         // ── list mail via admin — verify mail exists with correct flags ────────
         let list_req = MailListReq {
@@ -178,5 +184,32 @@ mod tests {
             0,
             "public mail should be removed after TTL expiry"
         );
+    }
+
+    #[tokio::test]
+    async fn mq9_mail_prefix_test() {
+        let nats_client = nats_connect().await;
+
+        // ── create mail with prefix ───────────────────────────────────────────
+        let prefix = format!("risk.{}", &unique_id().to_lowercase()[..8]);
+        let req = CreateMailboxReq {
+            ttl: None,
+            public: false,
+            name: None,
+            prefix: Some(prefix.clone()),
+            desc: "prefix test mail".to_string(),
+        };
+        let reply = create_mail(&nats_client, &req).await;
+        println!("create prefix mail reply: {:?}", reply);
+
+        assert!(!reply.is_error(), "unexpected error: {}", reply.error);
+        let mail_id = reply.mail_id.as_deref().unwrap_or("");
+        assert!(
+            mail_id.starts_with(&prefix),
+            "mail_id '{}' should start with prefix '{}'",
+            mail_id,
+            prefix
+        );
+        assert!(reply.is_new.unwrap_or(false), "should be a new mailbox");
     }
 }

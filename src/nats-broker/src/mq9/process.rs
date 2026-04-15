@@ -21,6 +21,7 @@ use crate::mq9::list::process_list;
 use crate::mq9::publish::process_pub;
 use bytes::Bytes;
 use mq9_core::command::Mq9Command;
+use mq9_core::protocol::Mq9Reply;
 use protocol::nats::packet::NatsPacket;
 
 pub async fn mq9_command(
@@ -58,10 +59,11 @@ pub async fn mq9_command(
     };
 
     if let Some(reply_subject) = reply_to {
-        let response = match result {
-            Ok(r) => serde_json::to_string(&r).unwrap_or_default(),
-            Err(e) => e.to_string(),
+        let reply = match result {
+            Ok(r) => r,
+            Err(e) => Mq9Reply::err(e.to_string()),
         };
+        let response = serde_json::to_string(&reply).unwrap_or_default();
         let _ = reply_nats_packet(ctx, reply_subject, Bytes::from(response)).await;
     }
 
