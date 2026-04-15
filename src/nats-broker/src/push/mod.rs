@@ -33,6 +33,7 @@ pub mod buckets;
 pub mod common;
 pub mod manager;
 pub mod mq9_fanout;
+pub mod mq9_queue;
 pub mod nats_fanout;
 pub mod nats_queue;
 pub mod parse;
