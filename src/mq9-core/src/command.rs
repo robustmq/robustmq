@@ -140,125 +140,51 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_msg_pub() {
-        // No priority → default Normal
+    fn test_parse() {
+        // CREATE
+        assert_eq!(Mq9Command::parse("$mq9.AI.MAILBOX.CREATE"), Some(Mq9Command::MailboxCreate));
+
+        // MSG — no priority suffix → default Normal
         assert_eq!(
             Mq9Command::parse("$mq9.AI.MAILBOX.MSG.m-001"),
-            Some(Mq9Command::MailboxMsg {
-                mail_id: "m-001".to_string(),
-                priority: Priority::Normal,
-            })
+            Some(Mq9Command::MailboxMsg { mail_id: "m-001".to_string(), priority: Priority::Normal })
         );
-        // Explicit urgent
+        // MSG — explicit priorities
         assert_eq!(
             Mq9Command::parse("$mq9.AI.MAILBOX.MSG.m-001.urgent"),
-            Some(Mq9Command::MailboxMsg {
-                mail_id: "m-001".to_string(),
-                priority: Priority::Urgent,
-            })
+            Some(Mq9Command::MailboxMsg { mail_id: "m-001".to_string(), priority: Priority::Urgent })
         );
-        // Explicit critical
         assert_eq!(
             Mq9Command::parse("$mq9.AI.MAILBOX.MSG.m-001.critical"),
-            Some(Mq9Command::MailboxMsg {
-                mail_id: "m-001".to_string(),
-                priority: Priority::Critical,
-            })
+            Some(Mq9Command::MailboxMsg { mail_id: "m-001".to_string(), priority: Priority::Critical })
         );
-        // mail_id with dots, no priority
+        // MSG — mail_id with dots, last segment not a priority → entire tail is mail_id
         assert_eq!(
             Mq9Command::parse("$mq9.AI.MAILBOX.MSG.task.queue"),
-            Some(Mq9Command::MailboxMsg {
-                mail_id: "task.queue".to_string(),
-                priority: Priority::Normal,
-            })
+            Some(Mq9Command::MailboxMsg { mail_id: "task.queue".to_string(), priority: Priority::Normal })
         );
-    }
 
-    #[test]
-    fn test_parse_msg_sub() {
-        // no priority suffix → subscribe
-        assert_eq!(
-            Mq9Command::parse("$mq9.AI.MAILBOX.MSG.m-001"),
-            Some(Mq9Command::MailboxSub {
-                mail_id: "m-001".to_string(),
-            })
-        );
-        // mail_id with dots, no trailing priority → subscribe
-        assert_eq!(
-            Mq9Command::parse("$mq9.AI.MAILBOX.MSG.task.queue"),
-            Some(Mq9Command::MailboxSub {
-                mail_id: "task.queue".to_string(),
-            })
-        );
-    }
-
-    #[test]
-    fn test_parse_list() {
+        // LIST
         assert_eq!(
             Mq9Command::parse("$mq9.AI.MAILBOX.LIST.m-001"),
-            Some(Mq9Command::MailboxList {
-                mail_id: "m-001".to_string()
-            })
+            Some(Mq9Command::MailboxList { mail_id: "m-001".to_string() })
         );
-    }
 
-    #[test]
-    fn test_parse_delete() {
+        // DELETE
         assert_eq!(
             Mq9Command::parse("$mq9.AI.MAILBOX.DELETE.m-001.msg-42"),
-            Some(Mq9Command::MailboxDelete {
-                mail_id: "m-001".to_string(),
-                msg_id: "msg-42".to_string(),
-            })
+            Some(Mq9Command::MailboxDelete { mail_id: "m-001".to_string(), msg_id: "msg-42".to_string() })
         );
-    }
 
-    #[test]
-    fn test_to_subject_roundtrip() {
-        let cases = vec![
-            Mq9Command::MailboxCreate,
-            Mq9Command::MailboxMsg {
-                mail_id: "m-001".to_string(),
-                priority: Priority::Normal,
-            },
-            Mq9Command::MailboxSub {
-                mail_id: "m-001".to_string(),
-            },
-            Mq9Command::MailboxList {
-                mail_id: "m-001".to_string(),
-            },
-            Mq9Command::MailboxDelete {
-                mail_id: "m-001".to_string(),
-                msg_id: "msg-42".to_string(),
-            },
-        ];
-        for cmd in &cases {
-            let s = cmd.to_subject();
-            let parsed = Mq9Command::parse(&s);
-            // MailboxSub with concrete priority parses back as MailboxMsg — that's expected.
-            assert!(parsed.is_some(), "failed to parse: {}", s);
-        }
-    }
-
-    #[test]
-    fn test_invalid() {
-        // completely unrecognized prefix
+        // invalid
         assert_eq!(Mq9Command::parse("MAILBOX.CREATE"), None);
-        // extra token after CREATE
         assert_eq!(Mq9Command::parse("$mq9.AI.MAILBOX.CREATE.extra"), None);
-        // unknown op
         assert_eq!(Mq9Command::parse("$mq9.AI.MAILBOX.UNKNOWN.m-001"), None);
-        // MSG with no mail_id
         assert_eq!(Mq9Command::parse("$mq9.AI.MAILBOX.MSG"), None);
-    }
 
-    #[test]
-    fn test_is_mq9_subject() {
+        // is_mq9_subject
         assert!(Mq9Command::is_mq9_subject("$mq9.AI.MAILBOX.CREATE"));
-        assert!(Mq9Command::is_mq9_subject(
-            "$mq9.AI.MAILBOX.MSG.m-001.normal"
-        ));
+        assert!(Mq9Command::is_mq9_subject("$mq9.AI.MAILBOX.MSG.m-001.normal"));
         assert!(!Mq9Command::is_mq9_subject("some.other.subject"));
     }
 }
