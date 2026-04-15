@@ -44,6 +44,7 @@ pub async fn cluster_config_set(
         "MqttSchema" => ClusterDynamicConfig::MqttSchema,
         "MqttLimit" => ClusterDynamicConfig::MqttLimit,
         "ClusterLimit" => ClusterDynamicConfig::ClusterLimit,
+        "MetaRuntime" => ClusterDynamicConfig::MetaRuntime,
         other => {
             return error_response(format!("Unknown config_type: {other}"));
         }

@@ -92,5 +92,13 @@ mod tests {
         let entry = &resp.offsets[0];
         assert_eq!(entry.shard_name, shard_name);
         assert_eq!(entry.offset, 20, "offset should be updated to 20");
+
+        // get cluster config
+
+        // update MetaRuntime group_offset_expire_sec = 30
+
+        //  wait 40s
+
+        // get group is null
     }
 }
