@@ -18,8 +18,8 @@ use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use common_config::config::{
-    BrokerConfig, MqttFlappingDetect, MqttOfflineMessage, MqttProtocolConfig, MqttSchema,
-    MqttSlowSubscribeConfig, MqttSystemMonitor,
+    BrokerConfig, MetaRuntime, MqttFlappingDetect, MqttOfflineMessage, MqttProtocolConfig,
+    MqttSchema, MqttSlowSubscribeConfig, MqttSystemMonitor,
 };
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
@@ -36,6 +36,7 @@ pub enum ClusterDynamicConfig {
     MqttSchema,
     MqttLimit,
     ClusterLimit,
+    MetaRuntime,
 }
 
 pub async fn build_cluster_config(
@@ -99,6 +100,9 @@ pub fn update_cluster_dynamic_config(
         }
         ClusterDynamicConfig::MqttLimit => {
             new_config.mqtt_limit = serde_json::from_slice(&config)?;
+        }
+        ClusterDynamicConfig::MetaRuntime => {
+            new_config.meta_runtime = serde_json::from_slice::<MetaRuntime>(&config)?;
         }
     }
     node_cache.set_cluster_config(new_config);

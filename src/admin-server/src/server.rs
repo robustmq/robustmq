@@ -21,10 +21,9 @@ use crate::{
     cluster::{
         acl::{acl_create, acl_delete, acl_list},
         blacklist::{blacklist_create, blacklist_delete, blacklist_list},
-        cluster_config_get, cluster_config_set, cluster_info,
+        config::{cluster_config_get, cluster_config_set},
         connector::{connector_create, connector_delete, connector_detail, connector_list},
         health::{health_cluster, health_node, health_ready},
-        healthy,
         message::{read_message, send_message},
         schema::{
             schema_bind_create, schema_bind_delete, schema_bind_list, schema_create, schema_delete,
@@ -127,8 +126,6 @@ impl AdminServer {
 
     fn common_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
-            .route(STATUS_PATH, get(cluster_info))
-            .route(CLUSTER_HEALTHY_PATH, get(healthy))
             .route(HEALTH_READY_PATH, get(health_ready))
             .route(HEALTH_NODE_PATH, get(health_node))
             .route(HEALTH_CLUSTER_PATH, get(health_cluster))

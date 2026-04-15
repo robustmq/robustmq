@@ -20,6 +20,7 @@ use common_base::uuid::unique_id;
 use common_config::config::BrokerConfig;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use common_config::storage::StorageType;
+use common_group::manager::OffsetManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
@@ -39,7 +40,6 @@ use storage_engine::commitlog::offset::CommitLogOffset;
 use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use storage_engine::core::cache::StorageCacheManager;
 use storage_engine::filesegment::write::WriteManager;
-use storage_engine::group::OffsetManager;
 use storage_engine::handler::adapter::{StorageEngineHandler, StorageEngineHandlerParams};
 
 #[async_trait]
@@ -111,11 +111,7 @@ pub async fn test_build_storage_driver_manager() -> Result<Arc<StorageDriverMana
     let client_pool = Arc::new(ClientPool::new(8));
     let client_connection_manager =
         Arc::new(ClientConnectionManager::new(cache_manager.clone(), 5));
-    let offset_manager = Arc::new(OffsetManager::new(
-        client_pool.clone(),
-        rocksdb_engine_handler.clone(),
-        true,
-    ));
+    let offset_manager = Arc::new(OffsetManager::new(client_pool.clone()));
     let write_manager = Arc::new(WriteManager::new(
         rocksdb_engine_handler.clone(),
         cache_manager.clone(),
@@ -134,7 +130,6 @@ pub async fn test_build_storage_driver_manager() -> Result<Arc<StorageDriverMana
         memory_storage_engine,
         rocksdb_engine_handler: rocksdb_engine_handler.clone(),
         client_connection_manager,
-        offset_manager: offset_manager.clone(),
         write_manager,
         rocksdb_storage_engine,
     };

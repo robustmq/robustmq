@@ -14,6 +14,7 @@
 
 use crate::connection::network_connection_gc;
 use common_base::{node_status::NodeStatus, task::TaskKind};
+use common_group::storage::start_offset_sync_task;
 use common_security::sync::start_auth_sync_thread;
 use connector::start_connector;
 use delay_message::manager::start_delay_message_manager_thread;
@@ -112,12 +113,12 @@ impl BrokerServer {
             });
 
         // offset async commit
-        let offset_cache = self.offset_manager.clone();
-        let tx = stop.clone();
+        let offset_manager = self.offset_manager.clone();
+        let stop_send = stop.clone();
         self.task_supervisor.spawn(
             TaskKind::OffsetAsyncCommit.to_string(),
             Box::pin(async move {
-                offset_cache.offset_async_save_thread(tx).await;
+                start_offset_sync_task(offset_manager, stop_send).await;
             }),
         );
 
@@ -184,13 +185,6 @@ impl BrokerServer {
                     error!("mqtt stop signal, error message:{}", e);
                 }
                 sleep(Duration::from_secs(3));
-            }
-
-            if let Err(e) = self.offset_manager.flush().await {
-                error!(
-                    "Offset manager flush operation failed. Error message: {}",
-                    e
-                );
             }
 
             if let Err(e) = self.delay_task_manager.stop().await {

@@ -17,7 +17,6 @@ use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
 use crate::filesegment::offset::FileSegmentOffset;
-use crate::group::OffsetManager;
 use crate::{
     clients::manager::ClientConnectionManager,
     commitlog::memory::engine::MemoryStorageEngine,
@@ -54,7 +53,6 @@ pub struct StorageEngineHandlerParams {
     pub client_connection_manager: Arc<ClientConnectionManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub write_manager: Arc<WriteManager>,
-    pub offset_manager: Arc<OffsetManager>,
 }
 
 #[derive(Clone)]
@@ -66,7 +64,6 @@ pub struct StorageEngineHandler {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub write_manager: Arc<WriteManager>,
     pub client_pool: Arc<ClientPool>,
-    pub offset_manager: Arc<OffsetManager>,
 }
 
 impl StorageEngineHandler {
@@ -79,7 +76,6 @@ impl StorageEngineHandler {
             rocksdb_engine_handler: params.rocksdb_engine_handler,
             client_connection_manager: params.client_connection_manager,
             write_manager: params.write_manager,
-            offset_manager: params.offset_manager,
         }
     }
 

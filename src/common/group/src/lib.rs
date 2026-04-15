@@ -12,11 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod common;
-pub mod engine;
-pub mod group_gc;
-pub mod mqtt;
-pub mod nats;
-pub mod node_call;
-pub mod offset_test;
-pub mod topic_test;
+pub mod manager;
+pub mod storage;

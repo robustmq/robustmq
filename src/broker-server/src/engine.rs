@@ -27,7 +27,6 @@ use storage_engine::{
     commitlog::rocksdb::engine::RocksDBStorageEngine,
     core::cache::StorageCacheManager,
     filesegment::write::WriteManager,
-    group::OffsetManager,
     handler::adapter::{StorageEngineHandler, StorageEngineHandlerParams},
     StorageEngineParams, StorageEngineServer,
 };
@@ -41,7 +40,6 @@ pub fn build_storage_engine_params(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     broker_cache: Arc<NodeCacheManager>,
     connection_manager: Arc<NetworkConnectionManager>,
-    offset_manager: Arc<OffsetManager>,
     global_limit_manager: Arc<GlobalRateLimiterManager>,
     task_supervisor: Arc<TaskSupervisor>,
 ) -> StorageEngineParams {
@@ -73,7 +71,6 @@ pub fn build_storage_engine_params(
         client_connection_manager: client_connection_manager.clone(),
         rocksdb_engine_handler: rocksdb_engine_handler.clone(),
         write_manager: write_manager.clone(),
-        offset_manager: offset_manager.clone(),
     }));
 
     StorageEngineParams {

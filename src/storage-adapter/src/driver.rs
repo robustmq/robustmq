@@ -16,6 +16,7 @@ use crate::{engine::EngineStorageAdapter, storage::StorageAdapter};
 use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use common_config::storage::StorageType;
+use common_group::manager::OffsetManager;
 use dashmap::DashMap;
 use metadata_struct::{
     adapter::adapter_shard::AdapterShardDetail,
@@ -32,7 +33,7 @@ use std::{
     collections::HashMap,
     sync::{atomic::AtomicU64, Arc},
 };
-use storage_engine::{group::OffsetManager, handler::adapter::StorageEngineHandler};
+use storage_engine::handler::adapter::StorageEngineHandler;
 
 pub type ArcStorageAdapter = Arc<dyn StorageAdapter + Send + Sync>;
 

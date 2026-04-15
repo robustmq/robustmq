@@ -76,7 +76,7 @@ pub async fn build_meta_service(
         node_call_manager,
         raft_manager,
         delay_task_manager,
-        broker_cache,
+        node_cache: broker_cache,
         task_supervisor,
     }
 }

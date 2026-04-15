@@ -44,6 +44,7 @@ members = [
     "src/common/llm-engine",
     "src/common/healthy",
     "src/common/security",
+    "src/common/group",
     "src/protocol",
     "src/connector",
     "src/storage-engine",
@@ -360,6 +361,7 @@ node-call = { path = "src/common/node-call" }
 llm-engine = { path = "src/common/llm-engine" }
 common-healthy = { path = "src/common/healthy" }
 common-security = { path = "src/common/security" }
+common-group = { path = "src/common/group" }
 # Protocol & Macros
 protocol = { path = "src/protocol" }
 connector = { path = "src/connector" }

@@ -12,4 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod mq9_core;
 pub mod mq9_mail;
+pub mod mq9_priority;

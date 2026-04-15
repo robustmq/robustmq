@@ -90,7 +90,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v6
         with:
-          version: latest
+          version: 9
 
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2

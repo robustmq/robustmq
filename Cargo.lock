@@ -1079,6 +1079,7 @@ dependencies = [
  "broker-core",
  "common-base",
  "common-config",
+ "common-group",
  "common-healthy",
  "common-metrics",
  "common-security",
@@ -1642,6 +1643,23 @@ dependencies = [
  "serde",
  "serde_json",
  "toml",
+]
+
+[[package]]
+name = "common-group"
+version = "0.3.9"
+dependencies = [
+ "common-base",
+ "common-config",
+ "common-metrics",
+ "dashmap 6.1.0",
+ "grpc-clients",
+ "metadata-struct",
+ "protocol",
+ "rocksdb",
+ "rocksdb-engine",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -4782,6 +4800,7 @@ dependencies = [
  "chrono",
  "common-base",
  "common-config",
+ "common-group",
  "common-metrics",
  "common-security",
  "connector",
@@ -7539,6 +7558,7 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
+ "common-group",
  "common-security",
  "dashmap 6.1.0",
  "futures",
@@ -8755,6 +8775,7 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
+ "common-group",
  "dashmap 6.1.0",
  "futures",
  "grpc-clients",
@@ -8783,6 +8804,7 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
+ "common-group",
  "common-metrics",
  "dashmap 6.1.0",
  "futures",

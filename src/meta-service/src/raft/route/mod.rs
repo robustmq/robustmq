@@ -56,13 +56,13 @@ impl DataRoute {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<MetaCacheManager>,
         delay_task_manager: Arc<DelayTaskManager>,
-        broker_cache: Arc<NodeCacheManager>,
+        node_cache: Arc<NodeCacheManager>,
     ) -> DataRoute {
         let route_kv = DataRouteKv::new(rocksdb_engine_handler.clone());
         let route_mqtt = DataRouteMqtt::new(
             rocksdb_engine_handler.clone(),
             cache_manager.clone(),
-            broker_cache.clone(),
+            node_cache.clone(),
             delay_task_manager.clone(),
         );
 

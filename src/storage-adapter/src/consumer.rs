@@ -190,6 +190,11 @@ impl GroupConsumer {
         if self.auto_commit && !records.is_empty() {
             self.commit().await?;
         }
+
+        self.driver
+            .offset_manager
+            .heartbeat(tenant, &self.group_name);
+
         Ok(records)
     }
 

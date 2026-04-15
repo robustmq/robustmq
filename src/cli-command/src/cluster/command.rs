@@ -16,7 +16,7 @@ use crate::mqtt::pub_sub::error_info;
 use crate::output::OutputFormat;
 use admin_server::{
     client::AdminHttpClient,
-    cluster::{tenant::TenantListRow, ClusterConfigSetReq, ClusterInfoResp},
+    cluster::{config::ClusterConfigSetReq, tenant::TenantListRow, ClusterInfoResp},
 };
 use chrono::{Local, TimeZone};
 use common_config::config::BrokerConfig;
@@ -94,7 +94,7 @@ impl ClusterCommand {
     async fn set_cluster_config(
         &self,
         params: ClusterCliCommandParam,
-        cli_request: admin_server::cluster::ClusterConfigSetReq,
+        cli_request: admin_server::cluster::config::ClusterConfigSetReq,
     ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));

@@ -93,8 +93,7 @@ pub async fn get_offset_by_group(
     }
 
     let offsets = match state
-        .engine_context
-        .engine_adapter_handler
+        .storage_driver_manager
         .offset_manager
         .get_offset(&params.tenant, &params.group_name)
         .await
@@ -121,8 +120,7 @@ pub async fn commit_offset(
     }
 
     if let Err(e) = state
-        .engine_context
-        .engine_adapter_handler
+        .storage_driver_manager
         .offset_manager
         .commit_offset(&params.tenant, &params.group_name, &params.offsets)
         .await

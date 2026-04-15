@@ -13,42 +13,20 @@
 # limitations under the License.
 
 [package]
-name = "storage-engine"
+name = "common-group"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-
 [dependencies]
 common-base.workspace = true
-common-group.workspace = true
-bytes.workspace = true
-thiserror.workspace = true
-tonic.workspace = true
-protocol.workspace = true
-tokio.workspace = true
-grpc-clients.workspace = true
-tokio-util.workspace = true
-futures.workspace = true
+common-config.workspace = true
+common-metrics.workspace = true
 dashmap.workspace = true
-tracing.workspace = true
-tokio-rustls.workspace = true
-futures-util.workspace = true
+grpc-clients.workspace = true
 metadata-struct.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-prost.workspace = true
+protocol.workspace = true
 rocksdb-engine.workspace = true
 rocksdb.workspace = true
-common-config.workspace = true
-tracing-appender.workspace = true
-network-server.workspace = true
-axum.workspace = true
-async-trait.workspace = true
-broker-core.workspace = true
-twox-hash.workspace = true
-rkyv.workspace = true
-parking_lot.workspace = true
-memmap2.workspace = true
-rate-limit.workspace = true
-common-metrics.workspace = true
+tokio.workspace = true
+tracing.workspace = true

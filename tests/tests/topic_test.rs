@@ -21,12 +21,19 @@ mod tests {
     use common_base::http_response::AdminServerResponse;
     use common_base::uuid::unique_id;
     use common_config::storage::StorageType;
+    use grpc_clients::broker::common::call::broker_get_shard_segment_delete_status;
+    use grpc_clients::meta::mqtt::call::placement_list_topic;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::adapter::adapter_shard::AdapterShardDetailExtend;
+    use metadata_struct::mqtt::topic::Topic as MqttTopic;
     use metadata_struct::storage::segment::SegmentStatus;
     use metadata_struct::storage::shard::{
         EngineShardStatus, DEFAULT_MAX_SEGMENT_SIZE, DEFAULT_RETENTION_SEC,
     };
     use metadata_struct::topic::Topic;
+    use protocol::broker::broker::{GetShardSegmentDeleteStatusRequest, ShardSegmentStatusItem};
+    use protocol::meta::meta_service_mqtt::ListTopicRequest;
+    use std::sync::Arc;
     use std::time::Duration;
     use tokio::time::sleep;
 
@@ -186,6 +193,51 @@ mod tests {
             segment_data_final.data.segment_list.len(),
             0,
             "segments should be removed after topic delete"
+        );
+
+        // ── verify physical shard is deleted (via broker grpc) ────────────────
+        let client_pool = Arc::new(ClientPool::new(3));
+        let shard_status_req = GetShardSegmentDeleteStatusRequest {
+            items: vec![ShardSegmentStatusItem {
+                shard_name: shard_name.clone(),
+                segment_seq: None,
+            }],
+        };
+        let shard_status_reply = broker_get_shard_segment_delete_status(
+            &client_pool,
+            &["localhost:1228"],
+            shard_status_req,
+        )
+        .await
+        .unwrap();
+        println!("shard segment delete status: {:#?}", shard_status_reply);
+        assert!(
+            shard_status_reply.results.iter().all(|r| r.deleted),
+            "all shard segments should be reported deleted by broker after topic delete"
+        );
+
+        // ── verify meta topic is deleted (via placement grpc) ─────────────────
+        let topic_list_req = ListTopicRequest {
+            tenant: tenant.clone(),
+            topic_name: topic_name.clone(),
+        };
+        let mut topic_stream =
+            placement_list_topic(&client_pool, &["127.0.0.1:1228"], topic_list_req)
+                .await
+                .unwrap();
+        let mut found_in_meta = false;
+        while let Some(reply) = topic_stream.message().await.unwrap() {
+            if let Ok(t) = MqttTopic::decode(&reply.topic) {
+                if t.topic_name == topic_name {
+                    found_in_meta = true;
+                    break;
+                }
+            }
+        }
+        assert!(
+            !found_in_meta,
+            "meta topic '{}' should be deleted after topic delete",
+            topic_name
         );
     }
 }

@@ -34,6 +34,7 @@ use broker_core::cache::NodeCacheManager;
 use broker_core::tenant::try_init_default_tenant;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_config::broker::broker_config;
+use common_group::manager::OffsetManager;
 use common_security::login::super_user::try_init_system_user;
 use common_security::manager::SecurityManager;
 use connector::manager::ConnectorManager;
@@ -50,7 +51,6 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
-use storage_engine::group::OffsetManager;
 use tokio::sync::broadcast::{self};
 use tokio::sync::mpsc;
 use tracing::{error, info};
@@ -92,7 +92,6 @@ pub struct MqttBrokerServer {
     delay_message_manager: Arc<DelayMessageManager>,
     metrics_cache_manager: Arc<MQTTMetricsCache>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    offset_manager: Arc<OffsetManager>,
     push_manager: Arc<PushManager>,
     task_supervisor: Arc<TaskSupervisor>,
     server: Arc<Server>,
@@ -156,7 +155,6 @@ impl MqttBrokerServer {
             server,
             metrics_cache_manager: params.metrics_cache_manager,
             rocksdb_engine_handler: params.rocksdb_engine_handler,
-            offset_manager: params.offset_manager,
             push_manager: params.push_manager,
             task_supervisor: params.task_supervisor,
             command,
@@ -197,11 +195,6 @@ impl MqttBrokerServer {
         // init system user
         if let Err(e) = try_init_system_user(&self.client_pool).await {
             error!("Failed to initialize system user: {}", e);
-            std::process::exit(1);
-        }
-
-        if let Err(e) = self.offset_manager.try_comparison_and_save_offset().await {
-            error!("Failed to synchronize offset data: {}", e);
             std::process::exit(1);
         }
 

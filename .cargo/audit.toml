@@ -35,6 +35,10 @@ ignore = [
     # New vulnerabilities (2026-03-21)
     "RUSTSEC-2026-0049", # rustls-webpki CRL matching - blocked by mongodb 2.8 (needs rustls 0.21) and rumqttc 0.25.1; no upstream fix yet
     "RUSTSEC-2026-0002", # lru 0.12.5 IterMut Stacked Borrows - blocked by r2d2_mysql 25.0.0 -> mysql 25.x; no upstream fix yet
+
+    # New vulnerabilities (2026-04-15)
+    "RUSTSEC-2026-0098", # rustls-webpki URI name constraints - indirect via mongodb/rustls 0.21, tonic/rustls 0.22, rumqttc; blocked by upstream
+    "RUSTSEC-2026-0099", # rustls-webpki wildcard name constraints - same indirect chain as above; blocked by upstream
 ]
 
 # Ignore yanked crates
