@@ -47,8 +47,8 @@ pub async fn process_sub(
         return Ok(());
     }
 
-    if let Some(Mq9Command::MailboxSub { mail_id, priority }) = Mq9Command::parse(subject) {
-        return mq9_subscribe::process_sub(ctx, &mail_id, priority.as_ref(), sid, queue_group)
+    if let Some(Mq9Command::MailboxSub { mail_id }) = Mq9Command::parse(subject) {
+        return mq9_subscribe::process_sub(ctx, &mail_id, sid, queue_group)
             .await
             .map_err(|e| NatsPacket::Err(e.to_string()));
     }
@@ -58,7 +58,6 @@ pub async fn process_sub(
         connect_id: ctx.connect_id,
         sid: sid.to_string(),
         subject: subject.to_string(),
-        priority: None,
         queue_group: queue_group.unwrap_or_default().to_string(),
         create_time: now_second(),
     };

@@ -16,23 +16,15 @@ use crate::core::error::NatsBrokerError;
 use crate::handler::command::NatsProcessContext;
 use crate::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
 use common_base::tools::now_second;
-use metadata_struct::mq9::Priority;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::tenant::DEFAULT_TENANT;
 
 pub async fn process_sub(
     ctx: &NatsProcessContext,
     mail_id: &str,
-    priority: Option<&Priority>,
     sid: &str,
     queue_group: Option<&str>,
 ) -> Result<(), NatsBrokerError> {
-    // subject stored is the full subscription pattern, e.g. `mail-id.*` or `mail-id.high`
-    let subject = match priority {
-        Some(p) => format!("{}.{}", mail_id, p),
-        None => format!("{}.*", mail_id),
-    };
-
     let tenant = DEFAULT_TENANT.to_string();
     if ctx.cache_manager.get_mail(&tenant, mail_id).is_none() {
         return Err(NatsBrokerError::CommonError(format!(
@@ -45,9 +37,8 @@ pub async fn process_sub(
         tenant: tenant.clone(),
         connect_id: ctx.connect_id,
         sid: sid.to_string(),
-        subject,
+        subject: mail_id.to_string(),
         queue_group: queue_group.unwrap_or_default().to_string(),
-        priority: priority.cloned(),
         create_time: now_second(),
     };
 

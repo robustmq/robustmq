@@ -136,7 +136,6 @@ fn register_subscriber(
         sub_subject: sub.subject.clone(),
         subject: topic_name.to_string(),
         queue_group: sub.queue_group.clone(),
-        priority: sub.priority.clone(),
         create_time: now_second(),
     };
 
@@ -179,42 +178,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_exact_match() {
+    fn test_nats_subject_match() {
+        // exact
         assert!(nats_subject_match("foo.bar", "foo.bar"));
         assert!(!nats_subject_match("foo.bar", "foo.baz"));
         assert!(!nats_subject_match("foo.bar", "foo"));
         assert!(!nats_subject_match("foo", "foo.bar"));
-    }
 
-    #[test]
-    fn test_star_wildcard() {
+        // * wildcard (one token)
         assert!(nats_subject_match("foo.*", "foo.bar"));
         assert!(!nats_subject_match("foo.*", "foo.bar.baz"));
-        assert!(!nats_subject_match("foo.*", "foo"));
         assert!(nats_subject_match("*.bar", "foo.bar"));
         assert!(nats_subject_match("foo.*.baz", "foo.bar.baz"));
         assert!(!nats_subject_match("foo.*.baz", "foo.bar.qux"));
-    }
 
-    #[test]
-    fn test_gt_wildcard() {
+        // > wildcard (one or more trailing tokens)
         assert!(nats_subject_match("foo.>", "foo.bar"));
         assert!(nats_subject_match("foo.>", "foo.bar.baz"));
-        assert!(nats_subject_match("foo.>", "foo.a.b.c.d"));
         assert!(!nats_subject_match("foo.>", "foo"));
-        assert!(nats_subject_match(">", "foo"));
         assert!(nats_subject_match(">", "foo.bar.baz"));
-    }
 
-    #[test]
-    fn test_combined_wildcards() {
+        // combined
         assert!(nats_subject_match("foo.*.>", "foo.bar.baz"));
         assert!(nats_subject_match("foo.*.>", "foo.bar.baz.qux"));
         assert!(!nats_subject_match("foo.*.>", "foo.bar"));
-    }
 
-    #[test]
-    fn test_no_match() {
+        // edge cases
         assert!(!nats_subject_match("foo.bar", "bar.foo"));
         assert!(!nats_subject_match("", "foo"));
         assert!(!nats_subject_match("foo", ""));

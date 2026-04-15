@@ -270,7 +270,6 @@ mod tests {
             uniq_id: unique_id(),
             tenant: "default".to_string(),
             connect_id,
-            priority: None,
             sid: sid.to_string(),
             sub_subject: topic.to_string(),
             subject: topic.to_string(),

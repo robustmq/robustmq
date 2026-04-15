@@ -16,7 +16,6 @@ use crate::push::buckets::NatsBucketsManager;
 use crate::push::parse::ParseSubscribeData;
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::mq9::Priority;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use std::sync::Arc;
 use tokio::sync::{mpsc::Sender, RwLock};
@@ -34,7 +33,6 @@ pub struct NatsSubscriber {
     pub subject: String,
     /// Non-empty for queue-group subscriptions.
     pub queue_group: String,
-    pub priority: Option<Priority>,
     pub create_time: u64,
 }
 
@@ -215,7 +213,6 @@ mod tests {
             tenant: "default".to_string(),
             connect_id,
             sid: sid.to_string(),
-            priority: None,
             subject: subject.to_string(),
             queue_group: String::new(),
             create_time: 0,
@@ -227,7 +224,6 @@ mod tests {
             uniq_id: unique_id(),
             tenant: "default".to_string(),
             connect_id,
-            priority: None,
             sid: sid.to_string(),
             sub_subject: topic.to_string(),
             subject: topic.to_string(),
