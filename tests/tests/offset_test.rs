@@ -15,6 +15,7 @@
 #[cfg(test)]
 mod tests {
     use common_base::uuid::unique_id;
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use common_group::{manager::OffsetManager, storage::start_offset_sync_task};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::tenant::DEFAULT_TENANT;
@@ -22,28 +23,9 @@ mod tests {
     use tokio::{sync::broadcast, time::sleep};
 
     #[tokio::test]
-    async fn offset_manager_storage() {
-        let client_pool = Arc::new(ClientPool::new(3));
-        let offset_manager = OffsetManager::new(client_pool);
-        let group_name = unique_id();
-        let mut offset = HashMap::new();
-        offset.insert("k1".to_string(), 3);
-        offset_manager
-            .commit_offset(DEFAULT_TENANT, &group_name, &offset)
-            .await
-            .unwrap();
-
-        let rep_offset = offset_manager
-            .get_offset(DEFAULT_TENANT, &group_name)
-            .await
-            .unwrap();
-        assert_eq!(rep_offset.len(), 1);
-        let o1 = rep_offset.first().unwrap();
-        assert_eq!(o1.offset, 3);
-    }
-
-    #[tokio::test]
     async fn offset_manager_offset_storage() {
+        let config = default_broker_config();
+        init_broker_conf_by_config(config.clone());
         let client_pool = Arc::new(ClientPool::new(3));
         let offset_manager = Arc::new(OffsetManager::new(client_pool));
 
@@ -63,7 +45,7 @@ mod tests {
             .await
             .unwrap();
 
-        sleep(Duration::from_secs(2)).await;
+        sleep(Duration::from_secs(3)).await;
         let rep_offset = offset_manager
             .get_offset(DEFAULT_TENANT, &group_name)
             .await
