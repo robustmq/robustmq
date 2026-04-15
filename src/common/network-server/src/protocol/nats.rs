@@ -58,22 +58,6 @@ pub async fn send_nats_info(
         .await
     {
         error!(connection_id, "Failed to send NATS INFO: {}", e);
-        return;
-    }
-
-    // Send an immediate PING so the client can complete its handshake right away
-    // instead of waiting for the keep-alive tick (which may be tens of seconds away).
-    let ping_wrapper = RobustMQPacketWrapper {
-        protocol: RobustMQProtocol::NATS,
-        extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
-        packet: RobustMQPacket::NATS(NatsPacket::Ping),
-    };
-
-    if let Err(e) = connection_manager
-        .write_tcp_frame(connection_id, ping_wrapper)
-        .await
-    {
-        error!(connection_id, "Failed to send initial NATS PING: {}", e);
     }
 }
 

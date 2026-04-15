@@ -47,8 +47,12 @@ pub async fn process_sub(
         return Ok(());
     }
 
-    if let Some(Mq9Command::MailboxSub { mail_id }) = Mq9Command::parse(subject) {
-        return mq9_subscribe::process_sub(ctx, &mail_id, sid, queue_group)
+    if Mq9Command::is_mq9_subject(subject) {
+        // Extract mail_id: subject is `$mq9.AI.MAILBOX.MSG.{mail_id}`
+        let mail_id = subject
+            .strip_prefix("$mq9.AI.MAILBOX.MSG.")
+            .unwrap_or(subject);
+        return mq9_subscribe::process_sub(ctx, mail_id, sid, queue_group)
             .await
             .map_err(|e| NatsPacket::Err(e.to_string()));
     }
@@ -90,10 +94,9 @@ pub async fn process_unsub(
     ctx.cache_manager.remove_inbox_by_sid(sid);
 
     if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
-        if let Some(Mq9Command::MailboxSub { mail_id, .. }) = Mq9Command::parse(&subscribe.subject)
-        {
+        if Mq9Command::is_mq9_subject(&subscribe.subject) {
             ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
-            return mq9_subscribe::process_unsub(ctx, &mail_id, sid)
+            return mq9_subscribe::process_unsub(ctx, &subscribe.subject, sid)
                 .await
                 .map_err(|e| NatsPacket::Err(e.to_string()));
         }

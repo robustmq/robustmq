@@ -96,8 +96,9 @@ impl Mq9Command {
 
 /// Parse the tail after `$mq9.AI.MAILBOX.MSG.` into a [`Mq9Command`].
 ///
-/// - Last segment is a known priority token → [`Mq9Command::MailboxMsg`] (publish).
-/// - No priority suffix (no dot, or last segment not a priority token) → [`Mq9Command::MailboxSub`] (subscribe).
+/// - Last segment is a known priority token → [`Mq9Command::MailboxMsg`] with that priority.
+/// - No priority suffix (no dot, or last segment not a priority token) → [`Mq9Command::MailboxMsg`] with `Normal`.
+/// - Subscribe uses a separate `SUB` packet and is matched via [`Mq9Command::MailboxSub`] directly.
 fn parse_msg(tail: &str) -> Option<Mq9Command> {
     if tail.is_empty() {
         return None;
@@ -110,12 +111,13 @@ fn parse_msg(tail: &str) -> Option<Mq9Command> {
                 priority: p,
             });
         }
-        // last segment is not a priority token → entire tail is the mail_id → subscribe
+        // last segment is not a priority token → entire tail is the mail_id
     }
 
-    // No dot, or last segment not a priority → entire tail is mail_id → subscribe
-    Some(Mq9Command::MailboxSub {
+    // No dot, or last segment not a priority → entire tail is mail_id, default Normal
+    Some(Mq9Command::MailboxMsg {
         mail_id: tail.to_string(),
+        priority: Priority::Normal,
     })
 }
 
