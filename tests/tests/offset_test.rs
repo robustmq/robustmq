@@ -15,18 +15,16 @@
 #[cfg(test)]
 mod tests {
     use common_base::uuid::unique_id;
-    use common_group::OffsetManager;
+    use common_group::{manager::OffsetManager, storage::start_offset_sync_task};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::tenant::DEFAULT_TENANT;
-    use rocksdb_engine::test::test_rocksdb_instance;
     use std::{collections::HashMap, sync::Arc, time::Duration};
     use tokio::{sync::broadcast, time::sleep};
 
     #[tokio::test]
     async fn offset_manager_storage() {
-        let rocksdb_engine_handler = test_rocksdb_instance();
         let client_pool = Arc::new(ClientPool::new(3));
-        let offset_manager = OffsetManager::new(client_pool, rocksdb_engine_handler, false);
+        let offset_manager = OffsetManager::new(client_pool);
         let group_name = unique_id();
         let mut offset = HashMap::new();
         offset.insert("k1".to_string(), 3);
@@ -46,16 +44,15 @@ mod tests {
 
     #[tokio::test]
     async fn offset_manager_offset_storage() {
-        let rocksdb_engine_handler = test_rocksdb_instance();
         let client_pool = Arc::new(ClientPool::new(3));
-        let offset_manager = OffsetManager::new(client_pool, rocksdb_engine_handler, true);
+        let offset_manager = Arc::new(OffsetManager::new(client_pool));
 
         // start meta service
         let (stop_send, _) = broadcast::channel(2);
 
         let raw_offset_manager = offset_manager.clone();
         tokio::spawn(async move {
-            raw_offset_manager.offset_async_save_thread(stop_send).await;
+            start_offset_sync_task(raw_offset_manager, stop_send).await;
         });
 
         let group_name = unique_id();

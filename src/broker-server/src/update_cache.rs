@@ -20,6 +20,7 @@ use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
+use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use metadata_struct::tenant::Tenant;
@@ -269,7 +270,20 @@ pub async fn update_cluster_cache_metadata(
             }
         }
 
-        BrokerUpdateCacheResourceType::Group => {}
+        BrokerUpdateCacheResourceType::Group => {
+            let group: MqttGroupLeader = serialize::deserialize(&record.data)?;
+            match record.action_type() {
+                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                    // No need to handle create/update because group offset is actively pulled
+                }
+                BrokerUpdateCacheActionType::Delete => {
+                    mqtt_params
+                        .storage_driver_manager
+                        .offset_manager
+                        .remove_group(&group.tenant, &group.group_name);
+                }
+            }
+        }
         _ => {}
     }
     Ok(())
