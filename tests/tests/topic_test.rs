@@ -223,7 +223,7 @@ mod tests {
         };
         let mut topic_stream = placement_list_topic(
             &client_pool,
-            &[crate::common::get_placement_addr()],
+            &["127.0.0.1:1228"],
             topic_list_req,
         )
         .await
