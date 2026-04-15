@@ -23,7 +23,7 @@ mod tests {
     use metadata_struct::mq9::email::MQ9Email;
     use metadata_struct::tenant::DEFAULT_TENANT;
     use mq9_core::command::Mq9Command;
-    use mq9_core::protocol::{CreateMailboxReply, CreateMailboxReq};
+    use mq9_core::protocol::{CreateMailboxReq, Mq9Reply};
     use mq9_core::public::{StoragePublicData, MQ9_SYSTEM_PUBLIC_MAIL};
     use std::time::Duration;
     use tokio::time::sleep;
@@ -37,13 +37,11 @@ mod tests {
         async_nats::connect(NATS_ADDR).await.unwrap()
     }
 
-    async fn create_mail(client: &Client, req: &CreateMailboxReq) -> CreateMailboxReply {
+    async fn create_mail(client: &Client, req: &CreateMailboxReq) -> Mq9Reply {
         let payload = Bytes::from(serde_json::to_string(req).unwrap());
         let subject = Mq9Command::MailboxCreate.to_subject();
-
         let msg = client.request(subject, payload).await.unwrap();
-
-        serde_json::from_slice::<CreateMailboxReply>(&msg.payload).unwrap()
+        serde_json::from_slice::<Mq9Reply>(&msg.payload).unwrap()
     }
 
     #[tokio::test]
@@ -61,9 +59,13 @@ mod tests {
         let reply = create_mail(&nats_client, &req).await;
         println!("create private mail reply: {:?}", reply);
 
-        assert!(!reply.mail_id.is_empty(), "mail_id should not be empty");
-        assert!(reply.is_new, "should be a new mail");
-        let mail_id = reply.mail_id.clone();
+        assert!(!reply.is_error(), "unexpected error: {}", reply.error);
+        assert!(
+            !reply.mail_id.as_deref().unwrap_or("").is_empty(),
+            "mail_id should not be empty"
+        );
+        assert!(reply.is_new.unwrap_or(false), "should be a new mail");
+        let mail_id = reply.mail_id.unwrap();
 
         // ── list mail via admin — verify mail exists ───────────────────────────
         let list_req = MailListReq {
@@ -116,11 +118,13 @@ mod tests {
         let reply = create_mail(&nats_client, &req).await;
         println!("create public mail reply: {:?}", reply);
 
+        assert!(!reply.is_error(), "unexpected error: {}", reply.error);
         assert_eq!(
-            reply.mail_id, public_name,
+            reply.mail_id.as_deref().unwrap_or(""),
+            public_name,
             "public mail_id should equal the provided name"
         );
-        assert!(reply.is_new, "should be a new mail");
+        assert!(reply.is_new.unwrap_or(false), "should be a new mail");
 
         // ── list mail via admin — verify mail exists with correct flags ────────
         let list_req = MailListReq {

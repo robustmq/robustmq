@@ -17,7 +17,7 @@ use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
 use crate::nats::subscribe::subject_message_tag;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
-use mq9_core::protocol::{ListMailboxMsgItem, ListMailboxMsgReply, Mq9Reply};
+use mq9_core::protocol::{ListMailboxMsgItem, Mq9Reply};
 use std::collections::HashMap;
 
 const BATCH_SIZE: u64 = 500;
@@ -87,8 +87,5 @@ pub async fn process_list(
         }
     }
 
-    Ok(Mq9Reply::List(ListMailboxMsgReply {
-        mail_id: mail_id.to_string(),
-        messages,
-    }))
+    Ok(Mq9Reply::ok_list(mail_id.to_string(), messages))
 }

@@ -23,7 +23,7 @@ use common_config::broker::broker_config;
 use metadata_struct::mq9::email::MQ9Email;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::tenant::DEFAULT_TENANT;
-use mq9_core::protocol::{CreateMailboxReply, CreateMailboxReq, Mq9Reply};
+use mq9_core::protocol::{CreateMailboxReq, Mq9Reply};
 use mq9_core::public::{is_system_mailbox, StoragePublicData, MQ9_SYSTEM_PUBLIC_MAIL};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -90,7 +90,7 @@ pub async fn process_create(
         .await?;
     }
 
-    Ok(Mq9Reply::Create(CreateMailboxReply { mail_id, is_new }))
+    Ok(Mq9Reply::ok_create(mail_id, is_new))
 }
 
 pub async fn save_public_data(
