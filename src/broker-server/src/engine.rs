@@ -15,7 +15,6 @@
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
 use common_config::{broker::broker_config, storage::memory::StorageDriverMemoryConfig};
-use common_group::OffsetManager;
 use common_healthy::port::wait_for_engine_ready;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager as NetworkConnectionManager;
@@ -41,7 +40,6 @@ pub fn build_storage_engine_params(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     broker_cache: Arc<NodeCacheManager>,
     connection_manager: Arc<NetworkConnectionManager>,
-    offset_manager: Arc<OffsetManager>,
     global_limit_manager: Arc<GlobalRateLimiterManager>,
     task_supervisor: Arc<TaskSupervisor>,
 ) -> StorageEngineParams {
@@ -73,7 +71,6 @@ pub fn build_storage_engine_params(
         client_connection_manager: client_connection_manager.clone(),
         rocksdb_engine_handler: rocksdb_engine_handler.clone(),
         write_manager: write_manager.clone(),
-        offset_manager: offset_manager.clone(),
     }));
 
     StorageEngineParams {

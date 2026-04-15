@@ -12,103 +12,77 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
+use crate::manager::OffsetManager;
+use common_base::error::ResultCommonError;
+use common_base::tools::loop_select_ticket;
 use common_config::broker::broker_config;
-use dashmap::DashMap;
-use grpc_clients::meta::common::call::{get_offset_data, save_offset_data};
-use grpc_clients::pool::ClientPool;
-use metadata_struct::adapter::adapter_offset::AdapterConsumerGroupOffset;
+use grpc_clients::meta::common::call::save_offset_data;
 use protocol::meta::meta_service_common::{
-    GetOffsetDataRequest, SaveOffsetData, SaveOffsetDataRequest, SaveOffsetDataRequestOffset,
+    SaveOffsetData, SaveOffsetDataRequest, SaveOffsetDataRequestOffset,
 };
-use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::broadcast;
+use tracing::{error, warn};
 
-#[derive(Clone)]
-pub struct OffsetStorageManager {
-    client_pool: Arc<ClientPool>,
-    addrs: Vec<String>,
+const OFFSET_SYNC_INTERVAL_MS: u64 = 20;
+
+pub async fn start_offset_sync_task(
+    manager: Arc<OffsetManager>,
+    stop_send: broadcast::Sender<bool>,
+) {
+    let ac_fn = async || -> ResultCommonError {
+        sync_offsets(&manager).await;
+        Ok(())
+    };
+    loop_select_ticket(ac_fn, OFFSET_SYNC_INTERVAL_MS, &stop_send).await;
 }
 
-impl OffsetStorageManager {
-    pub fn new(client_pool: Arc<ClientPool>) -> Self {
-        let conf = broker_config();
-        OffsetStorageManager {
-            client_pool,
-            addrs: conf.get_meta_service_addr(),
-        }
-    }
+async fn sync_offsets(manager: &OffsetManager) {
+    // Drain update_group_info — collect dirty groups and clear the map.
+    let dirty: Vec<(String, String)> = manager
+        .update_group_info
+        .iter()
+        .map(|e| (e.tenant.clone(), e.group_name.clone()))
+        .collect();
 
-    pub async fn get_offset(
-        &self,
-        tenant: &str,
-        group: &str,
-    ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
-        let request = GetOffsetDataRequest {
-            tenant: tenant.to_owned(),
-            group: group.to_owned(),
+    if dirty.is_empty() {
+        return;
+    }
+    manager.update_group_info.clear();
+
+    // Build SaveOffsetData entries from offset_info.
+    let mut offsets = Vec::with_capacity(dirty.len());
+    for (tenant, group_name) in dirty {
+        let key = manager.key(&tenant, &group_name);
+        let Some(offset_map) = manager.offset_info.get(&key) else {
+            warn!(
+                "offset_sync_task: no offset_info for group '{}' tenant '{}'",
+                group_name, tenant
+            );
+            continue;
         };
-        let reply = get_offset_data(&self.client_pool, &self.addrs, request).await?;
-        let mut results = Vec::new();
-        for raw in reply.offsets {
-            results.push(AdapterConsumerGroupOffset {
-                shard_name: raw.shard_name,
-                offset: raw.offset,
-                ..Default::default()
-            });
-        }
-        Ok(results)
-    }
-
-    pub async fn commit_offset(
-        &self,
-        tenant: &str,
-        group_name: &str,
-        offset: &HashMap<String, u64>,
-    ) -> Result<(), CommonError> {
-        let offsets = offset
+        let shard_offsets: Vec<SaveOffsetDataRequestOffset> = offset_map
             .iter()
-            .map(|(key, value)| SaveOffsetDataRequestOffset {
-                shard_name: key.to_string(),
-                offset: *value,
+            .map(|(shard_name, &offset)| SaveOffsetDataRequestOffset {
+                shard_name: shard_name.clone(),
+                offset,
             })
             .collect();
 
-        let request = SaveOffsetDataRequest {
-            offsets: vec![SaveOffsetData {
-                tenant: tenant.to_string(),
-                group: group_name.to_string(),
-                offsets,
-            }],
-        };
-        save_offset_data(&self.client_pool, &self.addrs, request).await?;
-        Ok(())
+        offsets.push(SaveOffsetData {
+            group: group_name,
+            tenant,
+            offsets: shard_offsets,
+        });
     }
 
-    pub async fn batch_commit_offset(
-        &self,
-        tenant: &str,
-        offset_datas: &DashMap<String, Vec<AdapterConsumerGroupOffset>>,
-    ) -> Result<(), CommonError> {
-        let mut offsets = Vec::new();
-        for data in offset_datas.iter() {
-            let val = data
-                .value()
-                .iter()
-                .map(|shard_offset| SaveOffsetDataRequestOffset {
-                    shard_name: shard_offset.shard_name.to_string(),
-                    offset: shard_offset.offset,
-                })
-                .collect();
-            offsets.push(SaveOffsetData {
-                tenant: tenant.to_string(),
-                group: data.key().to_string(),
-                offsets: val,
-            });
-        }
+    if offsets.is_empty() {
+        return;
+    }
 
-        let request = SaveOffsetDataRequest { offsets };
-        save_offset_data(&self.client_pool, &self.addrs, request).await?;
-        Ok(())
+    let request = SaveOffsetDataRequest { offsets };
+    let addrs = broker_config().get_meta_service_addr();
+    if let Err(e) = save_offset_data(&manager.client_pool, &addrs, request).await {
+        error!("offset_sync_task: failed to save offset data: {}", e);
     }
 }

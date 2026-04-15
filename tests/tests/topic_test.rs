@@ -221,13 +221,10 @@ mod tests {
             tenant: tenant.clone(),
             topic_name: topic_name.clone(),
         };
-        let mut topic_stream = placement_list_topic(
-            &client_pool,
-            &["127.0.0.1:1228"],
-            topic_list_req,
-        )
-        .await
-        .unwrap();
+        let mut topic_stream =
+            placement_list_topic(&client_pool, &["127.0.0.1:1228"], topic_list_req)
+                .await
+                .unwrap();
         let mut found_in_meta = false;
         while let Some(reply) = topic_stream.message().await.unwrap() {
             if let Ok(t) = MqttTopic::decode(&reply.topic) {

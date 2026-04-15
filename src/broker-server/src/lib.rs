@@ -26,7 +26,7 @@ use common_base::{
     task::TaskSupervisor,
 };
 use common_config::{broker::broker_config, config::BrokerConfig};
-use common_group::OffsetManager;
+use common_group::manager::OffsetManager;
 use common_healthy::port::wait_for_grpc_ready;
 use common_metrics::init_metrics;
 use common_security::manager::SecurityManager;
@@ -170,11 +170,7 @@ impl BrokerServer {
         let broker_cache = Arc::new(NodeCacheManager::new(config.clone()));
         let connection_manager = Arc::new(NetworkConnectionManager::new());
         let task_supervisor = Arc::new(TaskSupervisor::new());
-        let offset_manager = Arc::new(OffsetManager::new(
-            client_pool.clone(),
-            rocksdb_engine_handler.clone(),
-            config.storage_runtime.offset_enable_cache,
-        ));
+        let offset_manager = Arc::new(OffsetManager::new(client_pool.clone()));
         let node_call_manager = Arc::new(NodeCallManager::new(
             client_pool.clone(),
             broker_cache.clone(),
@@ -228,7 +224,6 @@ impl BrokerServer {
             base.rocksdb_engine_handler.clone(),
             base.broker_cache.clone(),
             base.connection_manager.clone(),
-            base.offset_manager.clone(),
             base.global_rate_limiter.clone(),
             base.task_supervisor.clone(),
         );

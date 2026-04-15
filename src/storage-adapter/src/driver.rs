@@ -16,7 +16,7 @@ use crate::{engine::EngineStorageAdapter, storage::StorageAdapter};
 use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use common_config::storage::StorageType;
-use common_group::OffsetManager;
+use common_group::manager::OffsetManager;
 use dashmap::DashMap;
 use metadata_struct::{
     adapter::adapter_shard::AdapterShardDetail,

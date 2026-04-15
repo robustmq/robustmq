@@ -30,7 +30,6 @@ use crate::{
 };
 use common_base::error::common::CommonError;
 use common_config::storage::StorageType;
-use common_group::OffsetManager;
 use common_metrics::storage_engine::{
     record_storage_engine_ops, record_storage_engine_ops_duration, record_storage_engine_ops_fail,
 };
@@ -54,7 +53,6 @@ pub struct StorageEngineHandlerParams {
     pub client_connection_manager: Arc<ClientConnectionManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub write_manager: Arc<WriteManager>,
-    pub offset_manager: Arc<OffsetManager>,
 }
 
 #[derive(Clone)]
@@ -66,7 +64,6 @@ pub struct StorageEngineHandler {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub write_manager: Arc<WriteManager>,
     pub client_pool: Arc<ClientPool>,
-    pub offset_manager: Arc<OffsetManager>,
 }
 
 impl StorageEngineHandler {
@@ -79,7 +76,6 @@ impl StorageEngineHandler {
             rocksdb_engine_handler: params.rocksdb_engine_handler,
             client_connection_manager: params.client_connection_manager,
             write_manager: params.write_manager,
-            offset_manager: params.offset_manager,
         }
     }
 
