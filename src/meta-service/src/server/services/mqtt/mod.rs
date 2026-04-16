@@ -15,7 +15,7 @@
 pub mod acl;
 pub mod connector;
 pub mod session;
-pub mod share_sub;
+pub mod share_group;
 pub mod subscribe;
 pub mod topic;
 pub mod user;

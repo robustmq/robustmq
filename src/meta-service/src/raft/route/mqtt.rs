@@ -34,10 +34,10 @@ use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
-use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::session::MqttSession;
+use metadata_struct::mqtt::share_group::ShareGroupLeader;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
@@ -308,7 +308,7 @@ impl DataRouteMqtt {
 
     // Group Leader
     pub fn create_group_leader(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let leader = MqttGroupLeader::decode(&value)?;
+        let leader = ShareGroupLeader::decode(&value)?;
         let storage = MqttGroupLeaderStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(&leader.tenant, &leader.group_name, leader.broker_id)?;
         self.cache_manager.add_group_leader(leader);
@@ -316,7 +316,7 @@ impl DataRouteMqtt {
     }
 
     pub fn delete_group_leader(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let leader = MqttGroupLeader::decode(&value)?;
+        let leader = ShareGroupLeader::decode(&value)?;
         let storage = MqttGroupLeaderStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&leader.tenant, &leader.group_name)?;
         self.cache_manager

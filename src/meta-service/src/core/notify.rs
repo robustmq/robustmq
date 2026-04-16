@@ -21,8 +21,8 @@ use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mq9::email::MQ9Email;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
-use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use metadata_struct::mqtt::session::MqttSession;
+use metadata_struct::mqtt::share_group::ShareGroupLeader;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
@@ -558,7 +558,7 @@ pub async fn send_notify_by_delete_group(
     tenant: &str,
     group_name: &str,
 ) -> Result<(), MetaServiceError> {
-    let group = MqttGroupLeader {
+    let group = ShareGroupLeader {
         tenant: tenant.to_string(),
         group_name: group_name.to_string(),
         ..Default::default()

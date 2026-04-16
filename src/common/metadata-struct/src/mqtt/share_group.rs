@@ -16,14 +16,21 @@ use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
-pub struct MqttGroupLeader {
+pub struct ShareGroupMember {
+    broker_id: u64,
+    connect_id: u64,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub struct ShareGroupLeader {
     pub tenant: String,
     pub group_name: String,
     pub broker_id: u64,
+    pub members: Vec<ShareGroupMember>,
     pub create_time: u64,
 }
 
-impl MqttGroupLeader {
+impl ShareGroupLeader {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         serialize::serialize(self)
     }

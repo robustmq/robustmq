@@ -26,7 +26,7 @@ use crate::server::services::mqtt::session::{
     create_session_by_req, delete_session_by_req, get_last_will_message_by_req,
     list_session_by_req, save_last_will_message_by_req,
 };
-use crate::server::services::mqtt::share_sub::get_share_sub_leader_by_req;
+use crate::server::services::mqtt::share_group::get_share_sub_leader_by_req;
 use crate::server::services::mqtt::subscribe::{
     create_auto_subscribe_rule_by_req, delete_auto_subscribe_rule_by_req, delete_subscribe_by_req,
     list_auto_subscribe_rule_by_req, list_subscribe_by_req, set_subscribe_by_req,

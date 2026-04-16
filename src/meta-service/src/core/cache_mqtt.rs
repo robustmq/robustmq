@@ -15,10 +15,10 @@
 use crate::core::cache::MetaCacheManager;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
 use metadata_struct::connector::MQTTConnector;
-use metadata_struct::mqtt::group_leader::MqttGroupLeader;
+use metadata_struct::mqtt::share_group::ShareGroupLeader;
 
 impl MetaCacheManager {
-    pub fn add_group_leader(&self, group_info: MqttGroupLeader) {
+    pub fn add_group_leader(&self, group_info: ShareGroupLeader) {
         let key = format!("{}/{}", group_info.tenant, group_info.group_name);
         self.group_leader.insert(key, group_info);
     }

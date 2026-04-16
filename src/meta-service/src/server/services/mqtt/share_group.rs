@@ -18,7 +18,7 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::{core::cache::MetaCacheManager, storage::mqtt::group_leader::MqttGroupLeaderStorage};
 use bytes::Bytes;
 use common_base::tools::now_second;
-use metadata_struct::mqtt::group_leader::MqttGroupLeader;
+use metadata_struct::mqtt::share_group::ShareGroupLeader;
 use protocol::meta::meta_service_mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest, SubLeaderInfo,
 };
@@ -49,10 +49,11 @@ pub async fn get_group_leader(
 
     let target_broker_id =
         generate_group_leader(cache_manager, rocksdb_engine_handler, tenant).await?;
-    let leader_info = MqttGroupLeader {
+    let leader_info = ShareGroupLeader {
         tenant: tenant.to_string(),
         group_name: group_name.to_string(),
         broker_id: target_broker_id,
+        members: Vec::new(),
         create_time: now_second(),
     };
     let data = StorageData::new(
