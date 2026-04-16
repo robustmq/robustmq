@@ -16,6 +16,7 @@ use crate::core::cache::NatsCacheManager;
 use crate::push::mq9_fanout::Mq9FanoutPushManager;
 use crate::push::nats_fanout::FanoutPushManager;
 use crate::push::nats_queue::QueuePushManager;
+use crate::push::parse::{parse_by_new_subscribe, parse_by_new_topic};
 use crate::push::parse::{ParseAction, ParseSubscribeData};
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::uuid::unique_id;
@@ -44,7 +45,6 @@ async fn start_parse_thread(
     mut rx: Receiver<ParseSubscribeData>,
     stop_sx: broadcast::Sender<bool>,
 ) {
-    use crate::push::parse::{parse_by_new_subscribe, parse_by_new_topic};
     let mut stop_rx = stop_sx.subscribe();
 
     loop {

@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cache;
-pub mod cache_engine;
-pub mod cache_mqtt;
-pub mod cluster;
-pub mod controller;
-pub mod error;
-pub mod group_leader;
-pub mod heartbeat;
-pub mod leader_switch;
-pub mod log;
-pub mod notify;
-pub mod segment;
-pub mod segment_meta;
-pub mod shard;
+pub async fn trigger_leader_switch() {
+    group_leader_switch().await;
+    segment_leader_switch().await;
+}
+
+pub async fn group_leader_switch() {
+    todo!("group leader switch")
+}
+
+pub async fn segment_leader_switch() {
+    todo!("segment leader switch")
+}
