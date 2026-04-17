@@ -21,7 +21,6 @@ use crate::{
     },
 };
 use axum::extract::{Query, State};
-use common_config::broker::broker_config;
 use mqtt_broker::{
     core::sub_share::{decode_share_info, get_share_sub_leader, is_mqtt_share_subscribe},
     subscribe::common::Subscriber,

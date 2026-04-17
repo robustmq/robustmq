@@ -51,10 +51,10 @@ use protocol::meta::meta_service_common::{
     DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest, DeleteShareGroupReply,
     DeleteShareGroupRequest, DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest,
     GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
-    GetRequest, GetResourceConfigReply, GetResourceConfigRequest, ListShareGroupReply,
-    ListShareGroupRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
-    ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, ListTenantReply, ListTenantRequest,
-    NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply,
+    GetRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
+    ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest,
+    ListShareGroupReply, ListShareGroupRequest, ListTenantReply, ListTenantRequest, NodeListReply,
+    NodeListRequest, RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply,
     ReportMonitorRequest, SaveOffsetDataReply, SaveOffsetDataRequest, SetReply, SetRequest,
     SetResourceConfigReply, SetResourceConfigRequest, SnapshotReply, SnapshotRequest,
     UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
@@ -585,13 +585,10 @@ impl MetaServiceService for GrpcPlacementService {
     ) -> Result<Response<ListShareGroupReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        list_share_group_by_req(
-            &self.rocksdb_engine_handler,
-            &req,
-        )
-        .await
-        .map_err(Self::to_status)
-        .map(Response::new)
+        list_share_group_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(Self::to_status)
+            .map(Response::new)
     }
 
     async fn create_share_group(
@@ -618,10 +615,15 @@ impl MetaServiceService for GrpcPlacementService {
     ) -> Result<Response<DeleteShareGroupReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        delete_share_group_by_req(&self.raft_manager, &self.rocksdb_engine_handler, &self.mqtt_call_manager, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        delete_share_group_by_req(
+            &self.raft_manager,
+            &self.rocksdb_engine_handler,
+            &self.mqtt_call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     async fn add_share_group_member(
@@ -630,10 +632,15 @@ impl MetaServiceService for GrpcPlacementService {
     ) -> Result<Response<AddShareGroupMemberReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        add_share_group_member_by_req(&self.cluster_cache, &self.raft_manager, &self.mqtt_call_manager, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        add_share_group_member_by_req(
+            &self.cluster_cache,
+            &self.raft_manager,
+            &self.mqtt_call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     async fn delete_share_group_member(
@@ -642,9 +649,14 @@ impl MetaServiceService for GrpcPlacementService {
     ) -> Result<Response<DeleteShareGroupMemberReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        delete_share_group_member_by_req(&self.cluster_cache, &self.raft_manager, &self.mqtt_call_manager, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        delete_share_group_member_by_req(
+            &self.cluster_cache,
+            &self.raft_manager,
+            &self.mqtt_call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 }

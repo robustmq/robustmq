@@ -14,6 +14,7 @@
 
 use broker_core::cache::NodeCacheManager;
 use broker_core::dynamic_config::build_cluster_config;
+use broker_core::share_group::ShareGroupStorage;
 use broker_core::tenant::TenantStorage;
 use broker_core::topic::TopicStorage;
 use common_base::error::common::CommonError;
@@ -121,13 +122,24 @@ async fn load_common_cache(
         broker_cache.add_tenant(tenant.clone());
     }
 
+    let share_group_storage = ShareGroupStorage::new(client_pool.clone());
+    let share_groups = share_group_storage
+        .list_all()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load share groups: {}", e)))?;
+    let share_group_count = share_groups.len();
+    for group in share_groups {
+        broker_cache.add_share_group(group);
+    }
+
     info!(
-        "Common cache loaded: topics={}, connectors={}, schemas={}, schema_binds={}, tenants={}",
+        "Common cache loaded: topics={}, connectors={}, schemas={}, schema_binds={}, tenants={}, share_groups={}",
         topic_list.len(),
         connectors.len(),
         schemas.len(),
         schema_binds.len(),
         tenants.len(),
+        share_group_count,
     );
 
     Ok(())

@@ -335,7 +335,11 @@ impl DataRouteMqtt {
             Some(l) => l,
             None => return Ok(()),
         };
-        if leader.members.iter().any(|m| m.broker_id == member.broker_id && m.connect_id == member.connect_id) {
+        if leader
+            .members
+            .iter()
+            .any(|m| m.broker_id == member.broker_id && m.connect_id == member.connect_id)
+        {
             return Ok(());
         }
         leader.members.push(member);
@@ -352,10 +356,16 @@ impl DataRouteMqtt {
             Some(l) => l,
             None => return Ok(()),
         };
-        if !leader.members.iter().any(|m| m.broker_id == member.broker_id && m.connect_id == member.connect_id) {
+        if !leader
+            .members
+            .iter()
+            .any(|m| m.broker_id == member.broker_id && m.connect_id == member.connect_id)
+        {
             return Ok(());
         }
-        leader.members.retain(|m| !(m.broker_id == member.broker_id && m.connect_id == member.connect_id));
+        leader
+            .members
+            .retain(|m| !(m.broker_id == member.broker_id && m.connect_id == member.connect_id));
         self.cache_manager.add_group_leader(leader.clone());
         storage.save(leader)?;
         Ok(())

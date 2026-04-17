@@ -274,9 +274,12 @@ pub async fn update_cluster_cache_metadata(
             let group: ShareGroupLeader = serialize::deserialize(&record.data)?;
             match record.action_type() {
                 BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
-                    // No need to handle create/update because group offset is actively pulled
+                    mqtt_params.node_cache.add_share_group(group);
                 }
                 BrokerUpdateCacheActionType::Delete => {
+                    mqtt_params
+                        .node_cache
+                        .remove_share_group(&group.tenant, &group.group_name);
                     mqtt_params
                         .storage_driver_manager
                         .offset_manager

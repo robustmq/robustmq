@@ -52,7 +52,7 @@ pub async fn is_share_sub_leader(
         };
 
     let conf = broker_config();
-    return Ok(group_info.broker_id == conf.broker_id);
+    Ok(group_info.broker_id == conf.broker_id)
 }
 
 pub async fn get_share_sub_leader(

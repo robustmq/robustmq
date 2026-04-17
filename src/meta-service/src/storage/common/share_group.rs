@@ -43,9 +43,16 @@ impl ShareGroupStorage {
         engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, group)
     }
 
-    pub fn get(&self, tenant: &str, group_name: &str) -> Result<Option<ShareGroupLeader>, CommonError> {
+    pub fn get(
+        &self,
+        tenant: &str,
+        group_name: &str,
+    ) -> Result<Option<ShareGroupLeader>, CommonError> {
         let key = storage_key_share_group(tenant, group_name);
-        Ok(engine_get_by_meta_data::<ShareGroupLeader>(&self.rocksdb_engine_handler, &key)?.map(|w| w.data))
+        Ok(
+            engine_get_by_meta_data::<ShareGroupLeader>(&self.rocksdb_engine_handler, &key)?
+                .map(|w| w.data),
+        )
     }
 
     pub fn delete(&self, tenant: &str, group_name: &str) -> ResultCommonError {
