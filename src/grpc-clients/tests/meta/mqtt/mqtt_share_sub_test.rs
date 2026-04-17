@@ -19,11 +19,12 @@ mod tests {
     use crate::common::get_placement_addr;
     use common_base::role::{ROLE_BROKER, ROLE_ENGINE, ROLE_META};
     use common_base::tools::now_second;
-    use grpc_clients::meta::common::call::{placement_get_share_group, register_node};
+    use grpc_clients::meta::common::call::{placement_list_share_group, register_node};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::meta::extend::NodeExtend;
     use metadata_struct::meta::node::BrokerNode;
-    use protocol::meta::meta_service_common::{GetShareGroupRequest, RegisterNodeRequest};
+    use metadata_struct::mqtt::share_group::ShareGroupLeader;
+    use protocol::meta::meta_service_common::{ListShareGroupRequest, RegisterNodeRequest};
 
     #[tokio::test]
     async fn mqtt_share_sub_test() {
@@ -53,26 +54,25 @@ mod tests {
         };
         register_node(&client_pool, &addrs, request).await.unwrap();
 
-        let request = GetShareGroupRequest {
+        let request = ListShareGroupRequest {
             tenant: "default".to_string(),
-            group_list: vec![group_name.clone()],
+            group: group_name.clone(),
         };
-        let data = placement_get_share_group(&client_pool, &addrs, request)
+        let data = placement_list_share_group(&client_pool, &addrs, request)
             .await
             .unwrap();
-        assert_eq!(data.leader.len(), 1);
-        let leader = data.leader.first().unwrap();
+        assert_eq!(data.groups.len(), 1);
+        let leader = ShareGroupLeader::decode(data.groups.first().unwrap()).unwrap();
         assert_eq!(leader.group_name, group_name);
         assert_eq!(leader.broker_id, node_id);
-        assert_eq!(leader.broker_addr, node_ip);
 
-        let request = GetShareGroupRequest {
+        let request = ListShareGroupRequest {
             tenant: "default".to_string(),
-            group_list: Vec::new(),
+            group: String::new(),
         };
-        let data = placement_get_share_group(&client_pool, &addrs, request)
+        let data = placement_list_share_group(&client_pool, &addrs, request)
             .await
             .unwrap();
-        assert!(data.leader.is_empty());
+        assert!(data.groups.is_empty());
     }
 }

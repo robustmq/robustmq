@@ -14,16 +14,12 @@
 
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
-use crate::raft::route::data::{StorageData, StorageDataType};
-use crate::{core::cache::MetaCacheManager, storage::mqtt::group_leader::MqttGroupLeaderStorage};
-use bytes::Bytes;
-use common_base::tools::now_second;
-use metadata_struct::mqtt::share_group::ShareGroupLeader;
+use crate::{core::cache::MetaCacheManager, storage::common::share_group::ShareGroupStorage};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 
 pub async fn get_group_leader(
-    raft_manager: &Arc<MultiRaftManager>,
+    _raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     tenant: &str,
@@ -36,7 +32,7 @@ pub async fn get_group_leader(
         }
     }
 
-    let storage = MqttGroupLeaderStorage::new(rocksdb_engine_handler.clone());
+    let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
     let list = storage.list_by_tenant(tenant)?;
     if let Some(leader) = list.get(group_name) {
         if cache_manager.node_list.contains_key(&leader.broker_id) {
@@ -44,23 +40,7 @@ pub async fn get_group_leader(
         }
     }
 
-    let target_broker_id =
-        generate_group_leader(cache_manager, rocksdb_engine_handler, tenant).await?;
-    let leader_info = ShareGroupLeader {
-        tenant: tenant.to_string(),
-        group_name: group_name.to_string(),
-        broker_id: target_broker_id,
-        members: Vec::new(),
-        create_time: now_second(),
-    };
-    let data = StorageData::new(
-        StorageDataType::MqttSetGroupLeader,
-        Bytes::copy_from_slice(&leader_info.encode()?),
-    );
-    raft_manager.write_data(group_name, data).await?;
-    storage.save(tenant, group_name, target_broker_id)?;
-
-    Ok(target_broker_id)
+    Err(MetaServiceError::ShareGroupDoesNotExist(cache_key))
 }
 
 pub async fn generate_group_leader(
@@ -68,7 +48,7 @@ pub async fn generate_group_leader(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     tenant: &str,
 ) -> Result<u64, MetaServiceError> {
-    let storage = MqttGroupLeaderStorage::new(rocksdb_engine_handler.clone());
+    let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
     let list = storage.list_by_tenant(tenant)?;
     let mut broker_ids: Vec<u64> = cache_manager
         .node_list
@@ -136,10 +116,32 @@ mod tests {
         });
 
         let tenant = "test_tenant";
-        let storage = MqttGroupLeaderStorage::new(rocksdb_engine_handler.clone());
-        storage.save(tenant, "g1", 1).unwrap();
-        storage.save(tenant, "g2", 1).unwrap();
-        storage.save(tenant, "g3", 2).unwrap();
+        let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
+        use metadata_struct::mqtt::share_group::ShareGroupLeader;
+        storage
+            .save(ShareGroupLeader {
+                tenant: tenant.to_string(),
+                group_name: "g1".to_string(),
+                broker_id: 1,
+                ..Default::default()
+            })
+            .unwrap();
+        storage
+            .save(ShareGroupLeader {
+                tenant: tenant.to_string(),
+                group_name: "g2".to_string(),
+                broker_id: 1,
+                ..Default::default()
+            })
+            .unwrap();
+        storage
+            .save(ShareGroupLeader {
+                tenant: tenant.to_string(),
+                group_name: "g3".to_string(),
+                broker_id: 2,
+                ..Default::default()
+            })
+            .unwrap();
 
         let target = generate_group_leader(&cache_manager, &rocksdb_engine_handler, tenant)
             .await

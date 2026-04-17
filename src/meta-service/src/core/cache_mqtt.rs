@@ -28,6 +28,11 @@ impl MetaCacheManager {
         self.group_leader.remove(&key);
     }
 
+    pub fn get_group_leader(&self, tenant: &str, group_name: &str) -> Option<ShareGroupLeader> {
+        let key = format!("{}/{}", tenant, group_name);
+        self.group_leader.get(&key).map(|v| v.clone())
+    }
+
     pub fn add_connector(&self, connector: MQTTConnector) {
         self.connector_list
             .insert(connector.connector_name.clone(), connector);

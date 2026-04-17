@@ -553,6 +553,19 @@ pub async fn send_notify_by_delete_mq9_mail(
 }
 
 // Group
+pub async fn send_notify_by_set_group(
+    call_manager: &Arc<NodeCallManager>,
+    group: ShareGroupLeader,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::Group,
+        serialize::serialize(&group)?,
+    )
+    .await
+}
+
 pub async fn send_notify_by_delete_group(
     call_manager: &Arc<NodeCallManager>,
     tenant: &str,

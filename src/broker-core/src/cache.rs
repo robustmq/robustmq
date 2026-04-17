@@ -18,7 +18,7 @@ use common_config::config::BrokerConfig;
 use dashmap::{DashMap, DashSet};
 use metadata_struct::{
     meta::node::BrokerNode,
-    mqtt::{session::MqttSession, topic::Topic},
+    mqtt::{session::MqttSession, share_group::ShareGroupLeader, topic::Topic},
     tenant::Tenant,
 };
 use std::sync::Arc;
@@ -45,6 +45,9 @@ pub struct NodeCacheManager {
     // tenant -> {"{tenant}/{topic_name}"}
     pub topic_tenant_index: DashMap<String, DashSet<String>>,
 
+    // ("{tenant}/{group_name}", ShareGroupLeader)
+    pub share_group_list: DashMap<String, ShareGroupLeader>,
+
     // ("{tenant}/{client_id}", MqttSession)
     pub session_list: DashMap<String, MqttSession>,
     // tenant -> {"{tenant}/{client_id}"}
@@ -62,6 +65,7 @@ impl NodeCacheManager {
             node_lists: DashMap::with_capacity(2),
             cluster_config: ArcSwap::new(Arc::new(cluster)),
             status: Arc::new(RwLock::new(NodeStatus::Starting)),
+            share_group_list: DashMap::new(),
             session_list: DashMap::new(),
             session_tenant_index: DashMap::with_capacity(8),
             topic_list: DashMap::new(),
@@ -191,6 +195,22 @@ impl NodeCacheManager {
             .get(tenant)
             .map(|s| s.len())
             .unwrap_or(0)
+    }
+
+    // ShareGroup
+    pub fn add_share_group(&self, group: ShareGroupLeader) {
+        let key = format!("{}/{}", group.tenant, group.group_name);
+        self.share_group_list.insert(key, group);
+    }
+
+    pub fn remove_share_group(&self, tenant: &str, group_name: &str) {
+        let key = format!("{tenant}/{group_name}");
+        self.share_group_list.remove(&key);
+    }
+
+    pub fn get_share_group(&self, tenant: &str, group_name: &str) -> Option<ShareGroupLeader> {
+        let key = format!("{tenant}/{group_name}");
+        self.share_group_list.get(&key).map(|g| g.clone())
     }
 
     // get start time

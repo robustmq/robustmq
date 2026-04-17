@@ -18,4 +18,5 @@ pub mod lock;
 pub mod node;
 pub mod offset;
 pub mod schema;
+pub mod share_group;
 pub mod tenant;

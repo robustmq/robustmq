@@ -301,6 +301,16 @@ impl DataRoute {
                     .delete_group_leader(storage_data.value.clone())?;
                 Ok(None)
             }
+            StorageDataType::MqttAddGroupMember => {
+                self.route_mqtt
+                    .add_group_member(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::MqttDeleteGroupMember => {
+                self.route_mqtt
+                    .delete_group_member(storage_data.value.clone())?;
+                Ok(None)
+            }
 
             // auto subscribe
             StorageDataType::MqttCreateAutoSubscribeRule => {

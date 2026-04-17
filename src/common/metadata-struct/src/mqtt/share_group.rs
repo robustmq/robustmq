@@ -17,8 +17,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct ShareGroupMember {
-    broker_id: u64,
-    connect_id: u64,
+    pub broker_id: u64,
+    pub connect_id: u64,
+}
+
+impl ShareGroupMember {
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
+    }
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]

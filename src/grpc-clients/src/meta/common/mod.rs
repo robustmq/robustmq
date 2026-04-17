@@ -23,8 +23,8 @@ use protocol::meta::meta_service_common::{
     DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest, DeleteShareGroupReply,
     DeleteShareGroupRequest, DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest,
     GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
-    GetRequest, GetResourceConfigReply, GetResourceConfigRequest, GetShareGroupReply,
-    GetShareGroupRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
+    GetRequest, GetResourceConfigReply, GetResourceConfigRequest, ListShareGroupReply,
+    ListShareGroupRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
     ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, ListTenantReply, ListTenantRequest,
     NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
     SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply, SetResourceConfigRequest,
@@ -351,12 +351,12 @@ impl_retriable_request!(
 
 // ShareGroup
 impl_retriable_request!(
-    GetShareGroupRequest,
+    ListShareGroupRequest,
     MetaServiceServiceClient<Channel>,
-    GetShareGroupReply,
-    get_share_group,
+    ListShareGroupReply,
+    list_share_group,
     "PlacementService",
-    "GetShareGroup",
+    "ListShareGroup",
     true
 );
 

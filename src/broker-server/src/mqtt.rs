@@ -139,7 +139,6 @@ pub(crate) async fn build_broker_mqtt_params(
         connection_manager.clone(),
         rocksdb_engine_handler.clone(),
         subscribe_manager.clone(),
-        client_pool.clone(),
     ));
 
     let session_batcher = SessionBatcher::new();

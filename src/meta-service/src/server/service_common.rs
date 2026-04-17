@@ -35,7 +35,7 @@ use crate::server::services::common::tenant::{
 };
 use crate::server::services::mqtt::share_group::{
     add_share_group_member_by_req, create_share_group_by_req, delete_share_group_by_req,
-    delete_share_group_member_by_req, get_share_group_by_req,
+    delete_share_group_member_by_req, list_share_group_by_req,
 };
 use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
@@ -51,8 +51,8 @@ use protocol::meta::meta_service_common::{
     DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest, DeleteShareGroupReply,
     DeleteShareGroupRequest, DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest,
     GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
-    GetRequest, GetResourceConfigReply, GetResourceConfigRequest, GetShareGroupReply,
-    GetShareGroupRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
+    GetRequest, GetResourceConfigReply, GetResourceConfigRequest, ListShareGroupReply,
+    ListShareGroupRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
     ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, ListTenantReply, ListTenantRequest,
     NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply,
     ReportMonitorRequest, SaveOffsetDataReply, SaveOffsetDataRequest, SetReply, SetRequest,
@@ -579,15 +579,13 @@ impl MetaServiceService for GrpcPlacementService {
             .map(Response::new)
     }
 
-    async fn get_share_group(
+    async fn list_share_group(
         &self,
-        request: Request<GetShareGroupRequest>,
-    ) -> Result<Response<GetShareGroupReply>, Status> {
+        request: Request<ListShareGroupRequest>,
+    ) -> Result<Response<ListShareGroupReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        get_share_group_by_req(
-            &self.cluster_cache,
-            &self.raft_manager,
+        list_share_group_by_req(
             &self.rocksdb_engine_handler,
             &req,
         )
@@ -602,10 +600,16 @@ impl MetaServiceService for GrpcPlacementService {
     ) -> Result<Response<CreateShareGroupReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        create_share_group_by_req(&req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        create_share_group_by_req(
+            &self.cluster_cache,
+            &self.raft_manager,
+            &self.rocksdb_engine_handler,
+            &self.mqtt_call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     async fn delete_share_group(
@@ -614,7 +618,7 @@ impl MetaServiceService for GrpcPlacementService {
     ) -> Result<Response<DeleteShareGroupReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        delete_share_group_by_req(&req)
+        delete_share_group_by_req(&self.raft_manager, &self.rocksdb_engine_handler, &self.mqtt_call_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)
@@ -626,7 +630,7 @@ impl MetaServiceService for GrpcPlacementService {
     ) -> Result<Response<AddShareGroupMemberReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        add_share_group_member_by_req(&req)
+        add_share_group_member_by_req(&self.cluster_cache, &self.raft_manager, &self.mqtt_call_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)
@@ -638,7 +642,7 @@ impl MetaServiceService for GrpcPlacementService {
     ) -> Result<Response<DeleteShareGroupMemberReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        delete_share_group_member_by_req(&req)
+        delete_share_group_member_by_req(&self.cluster_cache, &self.raft_manager, &self.mqtt_call_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)

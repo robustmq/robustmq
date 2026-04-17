@@ -12,49 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap, sync::Arc};
-
-use common_base::{
-    error::{common::CommonError, ResultCommonError},
-    tools::now_second,
-};
+use common_base::error::{common::CommonError, ResultCommonError};
 use metadata_struct::mqtt::share_group::ShareGroupLeader;
 use rocksdb_engine::{
     keys::meta::{
-        storage_key_mqtt_group_leader, storage_key_mqtt_group_leader_prefix,
-        storage_key_mqtt_group_leader_tenant_prefix,
+        storage_key_share_group, storage_key_share_group_prefix,
+        storage_key_share_group_tenant_prefix,
     },
     rocksdb::RocksDBEngine,
     storage::meta_data::{
-        engine_delete_by_meta_data, engine_prefix_list_by_meta_data, engine_save_by_meta_data,
+        engine_delete_by_meta_data, engine_get_by_meta_data, engine_prefix_list_by_meta_data,
+        engine_save_by_meta_data,
     },
 };
+use std::{collections::HashMap, sync::Arc};
 
-pub struct MqttGroupLeaderStorage {
+pub struct ShareGroupStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
-impl MqttGroupLeaderStorage {
+impl ShareGroupStorage {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        MqttGroupLeaderStorage {
+        ShareGroupStorage {
             rocksdb_engine_handler,
         }
     }
 
-    pub fn save(&self, tenant: &str, group_name: &str, broker_id: u64) -> ResultCommonError {
-        let key = storage_key_mqtt_group_leader(tenant, group_name);
-        let data = ShareGroupLeader {
-            tenant: tenant.to_string(),
-            group_name: group_name.to_string(),
-            broker_id,
-            members: Vec::new(),
-            create_time: now_second(),
-        };
-        engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, data)
+    pub fn save(&self, group: ShareGroupLeader) -> ResultCommonError {
+        let key = storage_key_share_group(&group.tenant, &group.group_name);
+        engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, group)
+    }
+
+    pub fn get(&self, tenant: &str, group_name: &str) -> Result<Option<ShareGroupLeader>, CommonError> {
+        let key = storage_key_share_group(tenant, group_name);
+        Ok(engine_get_by_meta_data::<ShareGroupLeader>(&self.rocksdb_engine_handler, &key)?.map(|w| w.data))
     }
 
     pub fn delete(&self, tenant: &str, group_name: &str) -> ResultCommonError {
-        let key = storage_key_mqtt_group_leader(tenant, group_name);
+        let key = storage_key_share_group(tenant, group_name);
         engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)
     }
 
@@ -62,7 +57,7 @@ impl MqttGroupLeaderStorage {
         &self,
         tenant: &str,
     ) -> Result<HashMap<String, ShareGroupLeader>, CommonError> {
-        let prefix_key = storage_key_mqtt_group_leader_tenant_prefix(tenant);
+        let prefix_key = storage_key_share_group_tenant_prefix(tenant);
         let result = engine_prefix_list_by_meta_data::<ShareGroupLeader>(
             &self.rocksdb_engine_handler,
             &prefix_key,
@@ -75,7 +70,7 @@ impl MqttGroupLeaderStorage {
     }
 
     pub fn list_all(&self) -> Result<HashMap<String, ShareGroupLeader>, CommonError> {
-        let prefix_key = storage_key_mqtt_group_leader_prefix();
+        let prefix_key = storage_key_share_group_prefix();
         let result = engine_prefix_list_by_meta_data::<ShareGroupLeader>(
             &self.rocksdb_engine_handler,
             &prefix_key,

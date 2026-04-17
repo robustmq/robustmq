@@ -12,70 +12,143 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
-use crate::core::group_leader::get_group_leader;
+use crate::core::notify::{send_notify_by_delete_group, send_notify_by_set_group};
+use crate::core::{cache::MetaCacheManager, group_leader::generate_group_leader};
 use crate::raft::manager::MultiRaftManager;
+use crate::raft::route::data::{StorageData, StorageDataType};
+use crate::storage::common::share_group::ShareGroupStorage;
+use bytes::Bytes;
+use common_base::tools::now_second;
+use common_base::uuid::unique_id;
+use metadata_struct::mqtt::share_group::{ShareGroupLeader, ShareGroupLeaderSource};
+use node_call::NodeCallManager;
+use prost::Message as _;
 use protocol::meta::meta_service_common::{
     AddShareGroupMemberReply, AddShareGroupMemberRequest, CreateShareGroupReply,
     CreateShareGroupRequest, DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest,
-    DeleteShareGroupReply, DeleteShareGroupRequest, GetShareGroupReply, GetShareGroupRequest,
-    ShareGroupLeaderInfo,
+    DeleteShareGroupReply, DeleteShareGroupRequest, ListShareGroupReply, ListShareGroupRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
-pub async fn get_share_group_by_req(
-    cache_manager: &Arc<MetaCacheManager>,
-    raft_manager: &Arc<MultiRaftManager>,
+pub async fn list_share_group_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: &GetShareGroupRequest,
-) -> Result<GetShareGroupReply, MetaServiceError> {
-    let mut results = Vec::new();
-    for group_name in req.group_list.iter() {
-        let leader_broker = get_group_leader(
-            raft_manager,
-            cache_manager,
-            rocksdb_engine_handler,
-            &req.tenant,
-            group_name,
-        )
-        .await?;
+    req: &ListShareGroupRequest,
+) -> Result<ListShareGroupReply, MetaServiceError> {
+    let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
 
-        let leader = match cache_manager.get_broker_node(leader_broker) {
-            Some(node) => ShareGroupLeaderInfo {
-                group_name: group_name.clone(),
-                broker_id: node.node_id,
-                broker_addr: node.node_ip,
-                extend_info: node.extend.encode()?,
-            },
-            None => return Err(MetaServiceError::NoAvailableBrokerNode),
-        };
-        results.push(leader);
-    }
-    Ok(GetShareGroupReply { leader: results })
+    let leaders: Vec<ShareGroupLeader> = if !req.tenant.is_empty() && !req.group.is_empty() {
+        storage.get(&req.tenant, &req.group)?.into_iter().collect()
+    } else if !req.tenant.is_empty() {
+        storage.list_by_tenant(&req.tenant)?.into_values().collect()
+    } else {
+        storage.list_all()?.into_values().collect()
+    };
+
+    let groups = leaders
+        .iter()
+        .map(|l| l.encode())
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(ListShareGroupReply { groups })
 }
 
 pub async fn create_share_group_by_req(
-    _req: &CreateShareGroupRequest,
+    cache_manager: &Arc<MetaCacheManager>,
+    raft_manager: &Arc<MultiRaftManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    call_manager: &Arc<NodeCallManager>,
+    req: &CreateShareGroupRequest,
 ) -> Result<CreateShareGroupReply, MetaServiceError> {
+    let target_broker_id =
+        generate_group_leader(cache_manager, rocksdb_engine_handler, &req.tenant).await?;
+
+    let source = match req.source {
+        1 => ShareGroupLeaderSource::NATS,
+        2 => ShareGroupLeaderSource::MQTT,
+        _ => ShareGroupLeaderSource::MQ9,
+    };
+
+    let leader = ShareGroupLeader {
+        uuid: unique_id(),
+        tenant: req.tenant.clone(),
+        group_name: req.group.clone(),
+        broker_id: target_broker_id,
+        source,
+        members: Vec::new(),
+        create_time: now_second(),
+    };
+
+    let data = StorageData::new(
+        StorageDataType::MqttSetGroupLeader,
+        Bytes::copy_from_slice(&leader.encode()?),
+    );
+    raft_manager.write_data(&req.group, data).await?;
+    send_notify_by_set_group(call_manager, leader).await?;
+
     Ok(CreateShareGroupReply {})
 }
 
 pub async fn delete_share_group_by_req(
-    _req: &DeleteShareGroupRequest,
+    raft_manager: &Arc<MultiRaftManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    call_manager: &Arc<NodeCallManager>,
+    req: &DeleteShareGroupRequest,
 ) -> Result<DeleteShareGroupReply, MetaServiceError> {
+    let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
+    let leader = storage
+        .get(&req.tenant, &req.group)?
+        .unwrap_or_else(|| ShareGroupLeader {
+            tenant: req.tenant.clone(),
+            group_name: req.group.clone(),
+            ..Default::default()
+        });
+
+    let data = StorageData::new(
+        StorageDataType::MqttDeleteGroupLeader,
+        Bytes::copy_from_slice(&leader.encode()?),
+    );
+    raft_manager.write_data(&req.group, data).await?;
+    send_notify_by_delete_group(call_manager, &req.tenant, &req.group).await?;
+
     Ok(DeleteShareGroupReply {})
 }
 
 pub async fn add_share_group_member_by_req(
-    _req: &AddShareGroupMemberRequest,
+    cache_manager: &Arc<MetaCacheManager>,
+    raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
+    req: &AddShareGroupMemberRequest,
 ) -> Result<AddShareGroupMemberReply, MetaServiceError> {
+    let data = StorageData::new(
+        StorageDataType::MqttAddGroupMember,
+        Bytes::copy_from_slice(&req.encode_to_vec()),
+    );
+    raft_manager.write_data(&req.group, data).await?;
+
+    if let Some(leader) = cache_manager.get_group_leader(&req.tenant, &req.group) {
+        send_notify_by_set_group(call_manager, leader).await?;
+    }
+
     Ok(AddShareGroupMemberReply {})
 }
 
 pub async fn delete_share_group_member_by_req(
-    _req: &DeleteShareGroupMemberRequest,
+    cache_manager: &Arc<MetaCacheManager>,
+    raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
+    req: &DeleteShareGroupMemberRequest,
 ) -> Result<DeleteShareGroupMemberReply, MetaServiceError> {
+    let data = StorageData::new(
+        StorageDataType::MqttDeleteGroupMember,
+        Bytes::copy_from_slice(&req.encode_to_vec()),
+    );
+    raft_manager.write_data(&req.group, data).await?;
+
+    if let Some(leader) = cache_manager.get_group_leader(&req.tenant, &req.group) {
+        send_notify_by_set_group(call_manager, leader).await?;
+    }
+
     Ok(DeleteShareGroupMemberReply {})
 }

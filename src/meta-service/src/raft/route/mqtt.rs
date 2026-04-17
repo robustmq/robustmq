@@ -14,10 +14,10 @@
 
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
+use crate::storage::common::share_group::ShareGroupStorage;
 use crate::storage::mqtt::acl::AclStorage;
 use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::storage::mqtt::connector::MqttConnectorStorage;
-use crate::storage::mqtt::group_leader::MqttGroupLeaderStorage;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
@@ -37,11 +37,14 @@ use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::session::MqttSession;
-use metadata_struct::mqtt::share_group::ShareGroupLeader;
+use metadata_struct::mqtt::share_group::{ShareGroupLeader, ShareGroupMember};
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use prost::Message as _;
+use protocol::meta::meta_service_common::{
+    AddShareGroupMemberRequest, DeleteShareGroupMemberRequest,
+};
 use protocol::meta::meta_service_mqtt::{
     CreateAclRequest, CreateAutoSubscribeRuleRequest, CreateBlacklistRequest,
     CreateConnectorRequest, CreateSessionRequest, CreateTopicRequest,
@@ -309,18 +312,52 @@ impl DataRouteMqtt {
     // Group Leader
     pub fn create_group_leader(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let leader = ShareGroupLeader::decode(&value)?;
-        let storage = MqttGroupLeaderStorage::new(self.rocksdb_engine_handler.clone());
-        storage.save(&leader.tenant, &leader.group_name, leader.broker_id)?;
+        let storage = ShareGroupStorage::new(self.rocksdb_engine_handler.clone());
+        storage.save(leader.clone())?;
         self.cache_manager.add_group_leader(leader);
         Ok(())
     }
 
     pub fn delete_group_leader(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let leader = ShareGroupLeader::decode(&value)?;
-        let storage = MqttGroupLeaderStorage::new(self.rocksdb_engine_handler.clone());
+        let storage = ShareGroupStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&leader.tenant, &leader.group_name)?;
         self.cache_manager
             .remove_group_leader(&leader.tenant, &leader.group_name);
+        Ok(())
+    }
+
+    pub fn add_group_member(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = AddShareGroupMemberRequest::decode(value.as_ref())?;
+        let member = ShareGroupMember::decode(&req.data)?;
+        let storage = ShareGroupStorage::new(self.rocksdb_engine_handler.clone());
+        let mut leader = match storage.get(&req.tenant, &req.group)? {
+            Some(l) => l,
+            None => return Ok(()),
+        };
+        if leader.members.iter().any(|m| m.broker_id == member.broker_id && m.connect_id == member.connect_id) {
+            return Ok(());
+        }
+        leader.members.push(member);
+        self.cache_manager.add_group_leader(leader.clone());
+        storage.save(leader)?;
+        Ok(())
+    }
+
+    pub fn delete_group_member(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = DeleteShareGroupMemberRequest::decode(value.as_ref())?;
+        let member = ShareGroupMember::decode(&req.data)?;
+        let storage = ShareGroupStorage::new(self.rocksdb_engine_handler.clone());
+        let mut leader = match storage.get(&req.tenant, &req.group)? {
+            Some(l) => l,
+            None => return Ok(()),
+        };
+        if !leader.members.iter().any(|m| m.broker_id == member.broker_id && m.connect_id == member.connect_id) {
+            return Ok(());
+        }
+        leader.members.retain(|m| !(m.broker_id == member.broker_id && m.connect_id == member.connect_id));
+        self.cache_manager.add_group_leader(leader.clone());
+        storage.save(leader)?;
         Ok(())
     }
 

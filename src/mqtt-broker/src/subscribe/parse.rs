@@ -285,8 +285,8 @@ async fn parse_subscribe(
 
     if is_mqtt_share_subscribe(&sub.filter.path) {
         add_share_push(
+            cache_manager,
             &context.subscribe_manager,
-            &context.client_pool,
             &AddSharePushContext {
                 tenant: sub.tenant.clone(),
                 topic_name: new_topic_name,
@@ -314,8 +314,8 @@ async fn parse_subscribe(
 }
 
 async fn add_share_push(
+    cache_manager: &Arc<MQTTCacheManager>,
     subscribe_manager: &Arc<SubscribeManager>,
-    client_pool: &Arc<ClientPool>,
     req: &AddSharePushContext,
 ) -> ResultMqttBrokerError {
     let (group_name, sub_name) = decode_share_info(&req.filter.path);
@@ -328,7 +328,7 @@ async fn add_share_push(
         );
 
         // If the current node is not the Leader, then there is no need to process it and no error needs to be reported.
-        if !is_share_sub_leader(client_pool, &req.tenant, &group_name_full).await? {
+        if !is_share_sub_leader(cache_manager, &req.tenant, &group_name_full).await? {
             return Ok(());
         }
 
