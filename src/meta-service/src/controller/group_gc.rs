@@ -13,12 +13,18 @@
 // limitations under the License.
 
 use crate::core::notify::send_notify_by_delete_group;
+use crate::raft::manager::MultiRaftManager;
+use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::common::offset::OffsetStorage;
+use crate::storage::common::share_group::ShareGroupStorage;
 use broker_core::cache::NodeCacheManager;
+use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use node_call::NodeCallManager;
+use prost::Message as _;
+use protocol::meta::meta_service_common::DeleteShareGroupRequest;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -30,6 +36,7 @@ const GROUP_GC_INTERVAL_MS: u64 = 10 * 1000;
 
 pub async fn start_group_gc_thread(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    raft_manager: Arc<MultiRaftManager>,
     node_call_manager: Arc<NodeCallManager>,
     node_cache: Arc<NodeCacheManager>,
     stop_send: broadcast::Sender<bool>,
@@ -39,8 +46,13 @@ pub async fn start_group_gc_thread(
             .get_cluster_config()
             .meta_runtime
             .group_offset_expire_sec;
-        if let Err(e) =
-            gc_expired_groups(&rocksdb_engine_handler, &node_call_manager, expire_sec).await
+        if let Err(e) = gc_expired_groups(
+            &rocksdb_engine_handler,
+            &raft_manager,
+            &node_call_manager,
+            expire_sec,
+        )
+        .await
         {
             return Err(CommonError::CommonError(e.to_string()));
         }
@@ -51,6 +63,7 @@ pub async fn start_group_gc_thread(
 
 async fn gc_expired_groups(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    raft_manager: &Arc<MultiRaftManager>,
     node_call_manager: &Arc<NodeCallManager>,
     expire_sec: u64,
 ) -> Result<(), CommonError> {
@@ -74,13 +87,51 @@ async fn gc_expired_groups(
             continue;
         }
 
-        // Delete all shard offset records for this group from RocksDB.
-        let group_offsets = storage.group_offset(&tenant, &group)?;
-        for offset in &group_offsets {
-            if let Err(e) = storage.delete(&offset.tenant, &offset.group, &offset.shard_name) {
+        // Delete all shard offset records for this group via raft.
+        let delete_req = DeleteShareGroupRequest {
+            tenant: tenant.clone(),
+            group: group.clone(),
+        };
+        let data = StorageData::new(
+            StorageDataType::OffsetDelete,
+            Bytes::from(delete_req.encode_to_vec()),
+        );
+        if let Err(e) = raft_manager.write_data(&group, data).await {
+            warn!(
+                "Failed to delete offset records via raft: tenant={}, group={}, error={}",
+                tenant, group, e
+            );
+            continue;
+        }
+
+        // Delete share group via raft only if it exists.
+        let share_group_storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
+        match share_group_storage.get(&tenant, &group) {
+            Ok(Some(leader)) => match leader.encode() {
+                Ok(encoded) => {
+                    let data = StorageData::new(
+                        StorageDataType::MqttDeleteGroupLeader,
+                        Bytes::from(encoded),
+                    );
+                    if let Err(e) = raft_manager.write_data(&group, data).await {
+                        warn!(
+                            "Failed to delete share group via raft: tenant={}, group={}, error={}",
+                            tenant, group, e
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to encode ShareGroupLeader for deletion: tenant={}, group={}, error={}",
+                        tenant, group, e
+                    );
+                }
+            },
+            Ok(None) => {}
+            Err(e) => {
                 warn!(
-                    "Failed to delete offset record: tenant={}, group={}, shard={}, error={}",
-                    offset.tenant, offset.group, offset.shard_name, e
+                    "Failed to check share group existence: tenant={}, group={}, error={}",
+                    tenant, group, e
                 );
             }
         }
