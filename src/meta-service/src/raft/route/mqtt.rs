@@ -106,18 +106,23 @@ impl DataRouteMqtt {
 
     pub fn delete_topic(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteTopicRequest::decode(value.as_ref())?;
-        // save topic
         let topic_storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         let mut topic = match topic_storage.get(&req.tenant, &req.topic_name)? {
             Some(t) => t,
             None => return Ok(()),
         };
-        topic.mark_delete = true;
-        topic_storage.save(topic.clone())?;
-
-        // save topic delete
         let delete_storage = TopicDeleteStorage::new(self.rocksdb_engine_handler.clone());
-        delete_storage.save(&topic)?;
+
+        if topic.mark_delete {
+            // Final cleanup: shards already confirmed deleted, remove all records.
+            delete_storage.delete(&topic.topic_id)?;
+            topic_storage.delete(&req.tenant, &req.topic_name)?;
+        } else {
+            // Initial mark: flag topic for deletion and enqueue in TopicDeleteStorage.
+            topic.mark_delete = true;
+            topic_storage.save(topic.clone())?;
+            delete_storage.save(&topic)?;
+        }
         Ok(())
     }
 

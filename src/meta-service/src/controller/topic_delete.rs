@@ -17,8 +17,9 @@ use crate::core::error::MetaServiceError;
 use crate::core::notify::{send_notify_by_delete_shard, send_notify_by_delete_topic};
 use crate::core::shard::delete_shard_by_real;
 use crate::raft::manager::MultiRaftManager;
-use crate::storage::mqtt::topic::MqttTopicStorage;
+use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::topic_delete::TopicDeleteStorage;
+use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
@@ -27,7 +28,9 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::storage::shard::EngineShard;
 use node_call::NodeCallManager;
+use prost::Message as _;
 use protocol::broker::broker::{GetShardSegmentDeleteStatusRequest, ShardSegmentStatusItem};
+use protocol::meta::meta_service_mqtt::DeleteTopicRequest;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tokio::sync::{broadcast, Semaphore};
@@ -216,27 +219,25 @@ async fn check_all_shards_deleted(
     true
 }
 
-/// Delete topic records from RocksDB and clean up shard metadata from cache/raft.
+/// Delete topic records and clean up shard metadata via raft.
 async fn clean_topic_resources(
     topic: &Topic,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    _rocksdb_engine_handler: &Arc<RocksDBEngine>,
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
 ) {
-    // Remove from TopicDeleteStorage.
-    let delete_storage = TopicDeleteStorage::new(rocksdb_engine_handler.clone());
-    if let Err(e) = delete_storage.delete(&topic.topic_id) {
-        warn!(
-            "Failed to delete topic from TopicDeleteStorage: topic_id={}, error={}",
-            topic.topic_id, e
-        );
-    }
 
-    // Remove from MqttTopicStorage.
-    let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-    if let Err(e) = topic_storage.delete(&topic.tenant, &topic.topic_name) {
+    let req = DeleteTopicRequest {
+        tenant: topic.tenant.clone(),
+        topic_name: topic.topic_name.clone(),
+    };
+    let data = StorageData::new(
+        StorageDataType::MqttDeleteTopic,
+        Bytes::from(req.encode_to_vec()),
+    );
+    if let Err(e) = raft_manager.write_data(&topic.topic_name, data).await {
         warn!(
-            "Failed to delete topic from MqttTopicStorage: tenant={}, topic_name={}, error={}",
+            "Failed to clean topic via raft: tenant={}, topic_name={}, error={}",
             topic.tenant, topic.topic_name, e
         );
     }
