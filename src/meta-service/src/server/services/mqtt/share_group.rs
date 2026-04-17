@@ -16,18 +16,21 @@ use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::core::group_leader::get_group_leader;
 use crate::raft::manager::MultiRaftManager;
-use protocol::meta::meta_service_mqtt::{
-    GetShareSubLeaderReply, GetShareSubLeaderRequest, SubLeaderInfo,
+use protocol::meta::meta_service_common::{
+    AddShareGroupMemberReply, AddShareGroupMemberRequest, CreateShareGroupReply,
+    CreateShareGroupRequest, DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest,
+    DeleteShareGroupReply, DeleteShareGroupRequest, GetShareGroupReply, GetShareGroupRequest,
+    ShareGroupLeaderInfo,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
-pub async fn get_share_sub_leader_by_req(
+pub async fn get_share_group_by_req(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: &GetShareSubLeaderRequest,
-) -> Result<GetShareSubLeaderReply, MetaServiceError> {
+    req: &GetShareGroupRequest,
+) -> Result<GetShareGroupReply, MetaServiceError> {
     let mut results = Vec::new();
     for group_name in req.group_list.iter() {
         let leader_broker = get_group_leader(
@@ -40,7 +43,7 @@ pub async fn get_share_sub_leader_by_req(
         .await?;
 
         let leader = match cache_manager.get_broker_node(leader_broker) {
-            Some(node) => SubLeaderInfo {
+            Some(node) => ShareGroupLeaderInfo {
                 group_name: group_name.clone(),
                 broker_id: node.node_id,
                 broker_addr: node.node_ip,
@@ -50,5 +53,29 @@ pub async fn get_share_sub_leader_by_req(
         };
         results.push(leader);
     }
-    Ok(GetShareSubLeaderReply { leader: results })
+    Ok(GetShareGroupReply { leader: results })
+}
+
+pub async fn create_share_group_by_req(
+    _req: &CreateShareGroupRequest,
+) -> Result<CreateShareGroupReply, MetaServiceError> {
+    Ok(CreateShareGroupReply {})
+}
+
+pub async fn delete_share_group_by_req(
+    _req: &DeleteShareGroupRequest,
+) -> Result<DeleteShareGroupReply, MetaServiceError> {
+    Ok(DeleteShareGroupReply {})
+}
+
+pub async fn add_share_group_member_by_req(
+    _req: &AddShareGroupMemberRequest,
+) -> Result<AddShareGroupMemberReply, MetaServiceError> {
+    Ok(AddShareGroupMemberReply {})
+}
+
+pub async fn delete_share_group_member_by_req(
+    _req: &DeleteShareGroupMemberRequest,
+) -> Result<DeleteShareGroupMemberReply, MetaServiceError> {
+    Ok(DeleteShareGroupMemberReply {})
 }

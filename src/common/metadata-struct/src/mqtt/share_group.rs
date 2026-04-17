@@ -23,9 +23,11 @@ pub struct ShareGroupMember {
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct ShareGroupLeader {
+    pub uuid: String,
     pub tenant: String,
     pub group_name: String,
     pub broker_id: u64,
+    pub source: ShareGroupLeaderSource,
     pub members: Vec<ShareGroupMember>,
     pub create_time: u64,
 }
@@ -38,4 +40,12 @@ impl ShareGroupLeader {
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
         serialize::deserialize(data)
     }
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub enum ShareGroupLeaderSource {
+    #[default]
+    MQ9,
+    NATS,
+    MQTT,
 }

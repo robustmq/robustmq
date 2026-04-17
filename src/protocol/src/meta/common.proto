@@ -72,6 +72,17 @@ service MetaServiceService {
 
   rpc ListTenant(ListTenantRequest) returns (stream ListTenantReply) {}
 
+  // ShareGroup
+  rpc GetShareGroup(GetShareGroupRequest) returns (GetShareGroupReply) {}
+
+  rpc CreateShareGroup(CreateShareGroupRequest) returns (CreateShareGroupReply) {}
+
+  rpc DeleteShareGroup(DeleteShareGroupRequest) returns (DeleteShareGroupReply) {}
+
+  rpc AddShareGroupMember(AddShareGroupMemberRequest) returns (AddShareGroupMemberReply) {}
+
+  rpc DeleteShareGroupMember(DeleteShareGroupMemberRequest) returns (DeleteShareGroupMemberReply) {}
+
   // KV
   rpc Set(SetRequest) returns (SetReply) {}
 
@@ -377,3 +388,49 @@ message ChangeMembershipRequest {
 message ChangeMembershipReply {
   bytes value = 1;
 }
+
+message GetShareGroupRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  repeated string group_list = 2;
+}
+
+message GetShareGroupReply {
+  repeated ShareGroupLeaderInfo leader = 1;
+}
+
+message ShareGroupLeaderInfo {
+  string group_name = 1;
+  uint64 broker_id = 2;
+  string broker_addr = 3;
+  bytes extend_info = 4;
+}
+
+message CreateShareGroupRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string group = 2 [(validate.rules).string.min_len = 1];
+}
+
+message CreateShareGroupReply {}
+
+message DeleteShareGroupRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string group = 2 [(validate.rules).string.min_len = 1];
+}
+
+message DeleteShareGroupReply {}
+
+message AddShareGroupMemberRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string group = 2 [(validate.rules).string.min_len = 1];
+  bytes data = 3 [(validate.rules).bytes.min_len = 1];
+}
+
+message AddShareGroupMemberReply {}
+
+message DeleteShareGroupMemberRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string group = 2 [(validate.rules).string.min_len = 1];
+  bytes data = 3 [(validate.rules).bytes.min_len = 1];
+}
+
+message DeleteShareGroupMemberReply {}

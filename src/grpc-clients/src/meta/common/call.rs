@@ -14,14 +14,17 @@
 
 use common_base::error::common::CommonError;
 use protocol::meta::meta_service_common::{
-    AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, BindSchemaReply,
-    BindSchemaRequest, ChangeMembershipReply, ChangeMembershipRequest, ClusterStatusReply,
-    ClusterStatusRequest, CreateSchemaReply, CreateSchemaRequest, CreateTenantReply,
+    AddLearnerReply, AddLearnerRequest, AddShareGroupMemberReply, AddShareGroupMemberRequest,
+    AppendReply, AppendRequest, BindSchemaReply, BindSchemaRequest, ChangeMembershipReply,
+    ChangeMembershipRequest, ClusterStatusReply, ClusterStatusRequest, CreateSchemaReply,
+    CreateSchemaRequest, CreateShareGroupReply, CreateShareGroupRequest, CreateTenantReply,
     CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
-    DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest, DeleteTenantReply,
-    DeleteTenantRequest, ExistsReply, ExistsRequest, GetOffsetDataReply, GetOffsetDataRequest,
-    GetPrefixReply, GetPrefixRequest, GetReply, GetRequest, GetResourceConfigReply,
-    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
+    DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
+    DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest, DeleteShareGroupReply,
+    DeleteShareGroupRequest, DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest,
+    GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
+    GetRequest, GetResourceConfigReply, GetResourceConfigRequest, GetShareGroupReply,
+    GetShareGroupRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
     ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, ListTenantReply, ListTenantRequest,
     NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
     SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply, SetResourceConfigRequest,
@@ -201,4 +204,36 @@ generate_meta_service_call!(
     ChangeMembershipRequest,
     ChangeMembershipReply,
     ChangeMembership
+);
+
+// ShareGroup
+generate_meta_service_call!(
+    placement_get_share_group,
+    GetShareGroupRequest,
+    GetShareGroupReply,
+    GetShareGroup
+);
+generate_meta_service_call!(
+    placement_create_share_group,
+    CreateShareGroupRequest,
+    CreateShareGroupReply,
+    CreateShareGroup
+);
+generate_meta_service_call!(
+    placement_delete_share_group,
+    DeleteShareGroupRequest,
+    DeleteShareGroupReply,
+    DeleteShareGroup
+);
+generate_meta_service_call!(
+    placement_add_share_group_member,
+    AddShareGroupMemberRequest,
+    AddShareGroupMemberReply,
+    AddShareGroupMember
+);
+generate_meta_service_call!(
+    placement_delete_share_group_member,
+    DeleteShareGroupMemberRequest,
+    DeleteShareGroupMemberReply,
+    DeleteShareGroupMember
 );

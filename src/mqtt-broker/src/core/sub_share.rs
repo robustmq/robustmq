@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
-use grpc_clients::{meta::mqtt::call::placement_get_share_sub_leader, pool::ClientPool};
-use protocol::meta::meta_service_mqtt::{GetShareSubLeaderRequest, SubLeaderInfo};
+use grpc_clients::{meta::common::call::placement_get_share_group, pool::ClientPool};
+use protocol::meta::meta_service_common::{GetShareGroupRequest, ShareGroupLeaderInfo};
 use std::{collections::HashMap, sync::Arc, vec};
 
 pub const SHARE_SUB_PREFIX: &str = "$share";
@@ -73,14 +73,13 @@ pub async fn fetch_share_sub_leader(
     client_pool: &Arc<ClientPool>,
     tenant: &str,
     group_name: Vec<String>,
-) -> Result<HashMap<String, SubLeaderInfo>, CommonError> {
+) -> Result<HashMap<String, ShareGroupLeaderInfo>, CommonError> {
     let conf = broker_config();
-    let req = GetShareSubLeaderRequest {
+    let req = GetShareGroupRequest {
         tenant: tenant.to_owned(),
         group_list: group_name.to_owned(),
     };
-    let reply =
-        placement_get_share_sub_leader(client_pool, &conf.get_meta_service_addr(), req).await?;
+    let reply = placement_get_share_group(client_pool, &conf.get_meta_service_addr(), req).await?;
     let mut results = HashMap::new();
     for raw in reply.leader.iter() {
         results.insert(raw.group_name.clone(), raw.clone());

@@ -24,15 +24,14 @@ use protocol::meta::meta_service_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetLastWillMessageReply,
-    GetLastWillMessageRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-    GetTopicRetainMessageReply, GetTopicRetainMessageRequest, ListAclReply, ListAclRequest,
-    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListConnectorReply, ListConnectorRequest, ListSessionReply,
-    ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
-    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
-    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetSubscribeReply, SetSubscribeRequest,
-    SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateConnectorReply,
-    UpdateConnectorRequest,
+    GetLastWillMessageRequest, GetTopicRetainMessageReply, GetTopicRetainMessageRequest,
+    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
+    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
+    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest, SetSubscribeReply,
+    SetSubscribeRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
+    UpdateConnectorReply, UpdateConnectorRequest,
 };
 use tonic::Streaming;
 
@@ -50,12 +49,6 @@ macro_rules! generate_mqtt_service_call {
     };
 }
 
-generate_mqtt_service_call!(
-    placement_get_share_sub_leader,
-    GetShareSubLeaderRequest,
-    GetShareSubLeaderReply,
-    GetShareSubLeader
-);
 generate_mqtt_service_call!(
     placement_create_user,
     CreateUserRequest,

@@ -14,14 +14,17 @@
 
 use protocol::meta::meta_service_common::meta_service_service_client::MetaServiceServiceClient;
 use protocol::meta::meta_service_common::{
-    AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, BindSchemaReply,
-    BindSchemaRequest, ChangeMembershipReply, ChangeMembershipRequest, ClusterStatusReply,
-    ClusterStatusRequest, CreateSchemaReply, CreateSchemaRequest, CreateTenantReply,
+    AddLearnerReply, AddLearnerRequest, AddShareGroupMemberReply, AddShareGroupMemberRequest,
+    AppendReply, AppendRequest, BindSchemaReply, BindSchemaRequest, ChangeMembershipReply,
+    ChangeMembershipRequest, ClusterStatusReply, ClusterStatusRequest, CreateSchemaReply,
+    CreateSchemaRequest, CreateShareGroupReply, CreateShareGroupRequest, CreateTenantReply,
     CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
-    DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest, DeleteTenantReply,
-    DeleteTenantRequest, ExistsReply, ExistsRequest, GetOffsetDataReply, GetOffsetDataRequest,
-    GetPrefixReply, GetPrefixRequest, GetReply, GetRequest, GetResourceConfigReply,
-    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
+    DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
+    DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest, DeleteShareGroupReply,
+    DeleteShareGroupRequest, DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest,
+    GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
+    GetRequest, GetResourceConfigReply, GetResourceConfigRequest, GetShareGroupReply,
+    GetShareGroupRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
     ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, ListTenantReply, ListTenantRequest,
     NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
     SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply, SetResourceConfigRequest,
@@ -343,5 +346,56 @@ impl_retriable_request!(
     change_membership,
     "PlacementService",
     "ChangeMembership",
+    true
+);
+
+// ShareGroup
+impl_retriable_request!(
+    GetShareGroupRequest,
+    MetaServiceServiceClient<Channel>,
+    GetShareGroupReply,
+    get_share_group,
+    "PlacementService",
+    "GetShareGroup",
+    true
+);
+
+impl_retriable_request!(
+    CreateShareGroupRequest,
+    MetaServiceServiceClient<Channel>,
+    CreateShareGroupReply,
+    create_share_group,
+    "PlacementService",
+    "CreateShareGroup",
+    true
+);
+
+impl_retriable_request!(
+    DeleteShareGroupRequest,
+    MetaServiceServiceClient<Channel>,
+    DeleteShareGroupReply,
+    delete_share_group,
+    "PlacementService",
+    "DeleteShareGroup",
+    true
+);
+
+impl_retriable_request!(
+    AddShareGroupMemberRequest,
+    MetaServiceServiceClient<Channel>,
+    AddShareGroupMemberReply,
+    add_share_group_member,
+    "PlacementService",
+    "AddShareGroupMember",
+    true
+);
+
+impl_retriable_request!(
+    DeleteShareGroupMemberRequest,
+    MetaServiceServiceClient<Channel>,
+    DeleteShareGroupMemberReply,
+    delete_share_group_member,
+    "PlacementService",
+    "DeleteShareGroupMember",
     true
 );

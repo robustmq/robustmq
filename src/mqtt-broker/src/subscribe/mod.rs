@@ -27,7 +27,7 @@ use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
-use protocol::meta::meta_service_mqtt::SubLeaderInfo;
+use protocol::meta::meta_service_common::ShareGroupLeaderInfo;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 use storage_adapter::driver::StorageDriverManager;
@@ -241,7 +241,7 @@ impl PushManager {
         }
     }
 
-    pub fn start_share_push_thread(&self, group_info_list: &HashMap<String, SubLeaderInfo>) {
+    pub fn start_share_push_thread(&self, group_info_list: &HashMap<String, ShareGroupLeaderInfo>) {
         let conf = broker_config();
         for tenant_entry in self.subscribe_manager.share_push.iter() {
             let tenant = tenant_entry.key().clone();
@@ -294,7 +294,7 @@ impl PushManager {
         }
     }
 
-    pub fn stop_share_push_thread(&self, group_info_list: &HashMap<String, SubLeaderInfo>) {
+    pub fn stop_share_push_thread(&self, group_info_list: &HashMap<String, ShareGroupLeaderInfo>) {
         let conf = broker_config();
         let threads_to_stop: Vec<String> = self
             .share_buckets_push_thread
@@ -332,7 +332,9 @@ impl PushManager {
         }
     }
 
-    async fn get_group_leader_list(&self) -> Result<HashMap<String, SubLeaderInfo>, CommonError> {
+    async fn get_group_leader_list(
+        &self,
+    ) -> Result<HashMap<String, ShareGroupLeaderInfo>, CommonError> {
         let mut tenant_groups: HashMap<String, Vec<String>> = HashMap::new();
         for tenant_entry in self.subscribe_manager.share_push.iter() {
             let tenant = tenant_entry.key().clone();
