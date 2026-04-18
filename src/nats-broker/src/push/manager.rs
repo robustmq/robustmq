@@ -16,25 +16,10 @@ use crate::push::buckets::NatsBucketsManager;
 use crate::push::parse::ParseSubscribeData;
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::nats::subscribe::NatsSubscribe;
+use metadata_struct::nats::{subscribe::NatsSubscribe, subscriber::NatsSubscriber};
 use std::sync::Arc;
 use tokio::sync::{mpsc::Sender, RwLock};
 use tracing::error;
-
-#[derive(Debug, Clone)]
-pub struct NatsSubscriber {
-    pub uniq_id: String,
-    pub tenant: String,
-    pub connect_id: u64,
-    pub sid: String,
-    /// Original subscription subject pattern (may contain wildcards).
-    pub sub_subject: String,
-    /// Concrete subject name matched against sub_subject.
-    pub subject: String,
-    /// Non-empty for queue-group subscriptions.
-    pub queue_group: String,
-    pub create_time: u64,
-}
 
 #[derive(Default)]
 pub struct NatsSubscribeManager {
@@ -225,6 +210,7 @@ mod tests {
             tenant: "default".to_string(),
             connect_id,
             sid: sid.to_string(),
+            broker_id: 1,
             sub_subject: topic.to_string(),
             subject: topic.to_string(),
             queue_group: String::new(),

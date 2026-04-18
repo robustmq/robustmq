@@ -15,12 +15,14 @@
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use grpc_clients::meta::common::call::{
-    placement_create_share_group, placement_delete_share_group, placement_list_share_group,
+    placement_add_share_group_member, placement_create_share_group, placement_delete_share_group,
+    placement_delete_share_group_member, placement_list_share_group,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::share_group::ShareGroupLeader;
+use metadata_struct::mqtt::share_group::{ShareGroupLeader, ShareGroupMember};
 use protocol::meta::meta_service_common::{
-    CreateShareGroupRequest, DeleteShareGroupRequest, ListShareGroupRequest,
+    AddShareGroupMemberRequest, CreateShareGroupRequest, DeleteShareGroupMemberRequest,
+    DeleteShareGroupRequest, ListShareGroupRequest,
 };
 use std::sync::Arc;
 
@@ -110,5 +112,47 @@ impl ShareGroupStorage {
             results.push(ShareGroupLeader::decode(raw)?);
         }
         Ok(results)
+    }
+
+    pub async fn add_member(
+        &self,
+        tenant: &str,
+        group_name: &str,
+        member: &ShareGroupMember,
+    ) -> Result<(), CommonError> {
+        let config = broker_config();
+        let request = AddShareGroupMemberRequest {
+            tenant: tenant.to_owned(),
+            group: group_name.to_owned(),
+            data: member.encode()?,
+        };
+        placement_add_share_group_member(
+            &self.client_pool,
+            &config.get_meta_service_addr(),
+            request,
+        )
+        .await?;
+        Ok(())
+    }
+
+    pub async fn delete_member(
+        &self,
+        tenant: &str,
+        group_name: &str,
+        member: &ShareGroupMember,
+    ) -> Result<(), CommonError> {
+        let config = broker_config();
+        let request = DeleteShareGroupMemberRequest {
+            tenant: tenant.to_owned(),
+            group: group_name.to_owned(),
+            data: member.encode()?,
+        };
+        placement_delete_share_group_member(
+            &self.client_pool,
+            &config.get_meta_service_addr(),
+            request,
+        )
+        .await?;
+        Ok(())
     }
 }

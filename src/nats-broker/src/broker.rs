@@ -112,6 +112,7 @@ impl NatsBrokerServer {
         start_push(
             &self.subscribe_manager,
             self.cache_manager.clone(),
+            self.client_pool.clone(),
             self.connection_manager.clone(),
             self.storage_driver_manager.clone(),
             self.task_supervisor.clone(),

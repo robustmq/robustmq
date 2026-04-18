@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::push::manager::NatsSubscriber;
 use common_base::uuid::unique_id;
 use dashmap::DashMap;
+use metadata_struct::nats::subscriber::NatsSubscriber;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -270,6 +270,7 @@ mod tests {
             uniq_id: unique_id(),
             tenant: "default".to_string(),
             connect_id,
+            broker_id: 1,
             sid: sid.to_string(),
             sub_subject: topic.to_string(),
             subject: topic.to_string(),

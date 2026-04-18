@@ -32,6 +32,7 @@ use tracing::{debug, error, info};
 
 pub mod buckets;
 pub mod common;
+pub mod queue;
 pub mod manager;
 pub mod mq9_fanout;
 pub mod mq9_queue;
@@ -42,6 +43,7 @@ pub mod parse;
 async fn start_parse_thread(
     cache_manager: Arc<NatsCacheManager>,
     subscribe_manager: Arc<NatsSubscribeManager>,
+    client_pool: Arc<grpc_clients::pool::ClientPool>,
     mut rx: Receiver<ParseSubscribeData>,
     stop_sx: broadcast::Sender<bool>,
 ) {
@@ -74,13 +76,13 @@ async fn start_parse_thread(
 
                 match (&data.action, &data.source, &data.subscribe, &data.topic) {
                     (ParseAction::Add, source, Some(sub), None) => {
-                        parse_by_new_subscribe(&cache_manager, &subscribe_manager, sub, source);
+                        parse_by_new_subscribe(&cache_manager, &subscribe_manager, client_pool.clone(), sub, source).await;
                     }
                     (ParseAction::Remove, _, Some(sub), None) => {
                         subscribe_manager.remove_push_by_sid(sub.connect_id, &sub.sid);
                     }
                     (ParseAction::Add, _, None, Some(topic)) => {
-                        parse_by_new_topic(&subscribe_manager, topic);
+                        parse_by_new_topic(&subscribe_manager, client_pool.clone(), topic).await;
                     }
                     (ParseAction::Remove, _, None, Some(topic)) => {
                         subscribe_manager.remove_by_topic(&topic.topic_name);
@@ -97,6 +99,7 @@ async fn start_parse_thread(
 pub async fn start_push(
     subscribe_manager: &Arc<NatsSubscribeManager>,
     cache_manager: Arc<NatsCacheManager>,
+    client_pool: Arc<grpc_clients::pool::ClientPool>,
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     task_supervisor: Arc<TaskSupervisor>,
@@ -109,9 +112,10 @@ pub async fn start_push(
 
     let sm = subscribe_manager.clone();
     let cm = cache_manager;
+    let cp = client_pool;
     let sx = stop_sx.clone();
     task_supervisor.spawn(TaskKind::NATSSubscribeParse.to_string(), async move {
-        start_parse_thread(cm, sm, parse_rx, sx).await;
+        start_parse_thread(cm, sm, cp, parse_rx, sx).await;
     });
 
     // nats core fanout push
