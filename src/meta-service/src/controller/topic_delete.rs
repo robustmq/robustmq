@@ -226,7 +226,6 @@ async fn clean_topic_resources(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
 ) {
-
     let req = DeleteTopicRequest {
         tenant: topic.tenant.clone(),
         topic_name: topic.topic_name.clone(),

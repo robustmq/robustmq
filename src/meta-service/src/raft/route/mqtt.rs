@@ -37,10 +37,11 @@ use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::session::MqttSession;
-use metadata_struct::mqtt::share_group::{ShareGroupLeader, ShareGroupMember};
+use metadata_struct::mqtt::share_group::ShareGroupLeader;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
+use metadata_struct::nats::subscriber::NatsSubscriber;
 use prost::Message as _;
 use protocol::meta::meta_service_common::{
     AddShareGroupMemberRequest, DeleteShareGroupMemberRequest,
@@ -334,7 +335,7 @@ impl DataRouteMqtt {
 
     pub fn add_group_member(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = AddShareGroupMemberRequest::decode(value.as_ref())?;
-        let member = ShareGroupMember::decode(&req.data)?;
+        let member = NatsSubscriber::decode(&req.data)?;
         let storage = ShareGroupStorage::new(self.rocksdb_engine_handler.clone());
         let mut leader = match storage.get(&req.tenant, &req.group)? {
             Some(l) => l,
@@ -355,7 +356,7 @@ impl DataRouteMqtt {
 
     pub fn delete_group_member(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteShareGroupMemberRequest::decode(value.as_ref())?;
-        let member = ShareGroupMember::decode(&req.data)?;
+        let member = NatsSubscriber::decode(&req.data)?;
         let storage = ShareGroupStorage::new(self.rocksdb_engine_handler.clone());
         let mut leader = match storage.get(&req.tenant, &req.group)? {
             Some(l) => l,

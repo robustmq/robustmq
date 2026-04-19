@@ -27,12 +27,12 @@ pub struct NatsSubscribeManager {
 
     /// NATS core fanout push buckets (subject-based, wildcards).
     pub nats_core_fanout_push: NatsBucketsManager,
-    /// NATS core queue-group push buckets (key: `{subject}#{queue_group}`).
+    /// NATS core queue-group push buckets (key: `{tenant}#{queue_group}`).
     pub nats_core_queue_push: DashMap<String, NatsBucketsManager>,
 
     /// MQ9 fanout push buckets (mail_id-based).
     pub mq9_fanout_push: NatsBucketsManager,
-    /// MQ9 queue-group push buckets (key: `{mail_id}#{queue_group}`).
+    /// MQ9 queue-group push buckets (key: `{tenant}#{queue_group}`).
     pub mq9_queue_push: DashMap<String, NatsBucketsManager>,
 
     pub not_push_client: DashMap<u64, u64>,
@@ -43,9 +43,9 @@ impl NatsSubscribeManager {
     pub fn new() -> Self {
         NatsSubscribeManager {
             subscribe_list: DashMap::with_capacity(256),
-            nats_core_fanout_push: NatsBucketsManager::new(None),
+            nats_core_fanout_push: NatsBucketsManager::new(),
             nats_core_queue_push: DashMap::with_capacity(16),
-            mq9_fanout_push: NatsBucketsManager::new(None),
+            mq9_fanout_push: NatsBucketsManager::new(),
             mq9_queue_push: DashMap::with_capacity(16),
             not_push_client: DashMap::with_capacity(32),
             parse_sender: Arc::new(RwLock::new(None)),
@@ -102,10 +102,10 @@ impl NatsSubscribeManager {
     }
 
     pub fn add_nats_core_queue_subscriber(&self, subscriber: NatsSubscriber, queue_group: &str) {
-        let queue_key = format!("{}#{}", subscriber.subject, queue_group);
+        let queue_key = format!("{}#{}", subscriber.tenant, queue_group);
         self.nats_core_queue_push
-            .entry(queue_key.clone())
-            .or_insert_with(|| NatsBucketsManager::new(Some(queue_key.clone())))
+            .entry(queue_key)
+            .or_default()
             .add(&subscriber);
     }
 
@@ -115,10 +115,10 @@ impl NatsSubscribeManager {
     }
 
     pub fn add_mq9_queue_subscriber(&self, subscriber: NatsSubscriber, queue_group: &str) {
-        let queue_key = format!("{}#{}", subscriber.subject, queue_group);
+        let queue_key = format!("{}#{}", subscriber.tenant, queue_group);
         self.mq9_queue_push
-            .entry(queue_key.clone())
-            .or_insert_with(|| NatsBucketsManager::new(Some(queue_key.clone())))
+            .entry(queue_key)
+            .or_default()
             .add(&subscriber);
     }
 
@@ -142,16 +142,16 @@ impl NatsSubscribeManager {
 
     pub fn remove_by_topic(&self, topic_name: &str) {
         self.nats_core_fanout_push.remove_by_topic(topic_name);
-        let prefix = format!("{}#", topic_name);
-        self.nats_core_queue_push
-            .retain(|key, _| !key.starts_with(&prefix));
+        for entry in self.nats_core_queue_push.iter() {
+            entry.value().remove_by_topic(topic_name);
+        }
     }
 
     pub fn remove_by_mail_id(&self, mail_id: &str) {
         self.mq9_fanout_push.remove_by_topic(mail_id);
-        let prefix = format!("{}#", mail_id);
-        self.mq9_queue_push
-            .retain(|key, _| !key.starts_with(&prefix));
+        for entry in self.mq9_queue_push.iter() {
+            entry.value().remove_by_topic(mail_id);
+        }
     }
 
     pub fn remove_push_by_sid(&self, connect_id: u64, sid: &str) {

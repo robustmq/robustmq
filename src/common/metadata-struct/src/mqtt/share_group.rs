@@ -12,24 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::nats::subscriber::NatsSubscriber;
 use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
-pub struct ShareGroupMember {
-    pub broker_id: u64,
-    pub connect_id: u64,
-}
-
-impl ShareGroupMember {
-    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
-        serialize::serialize(self)
-    }
-
-    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
-        serialize::deserialize(data)
-    }
-}
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct ShareGroupLeader {
@@ -38,7 +23,7 @@ pub struct ShareGroupLeader {
     pub group_name: String,
     pub broker_id: u64,
     pub source: ShareGroupLeaderSource,
-    pub members: Vec<ShareGroupMember>,
+    pub members: Vec<NatsSubscriber>,
     pub create_time: u64,
 }
 

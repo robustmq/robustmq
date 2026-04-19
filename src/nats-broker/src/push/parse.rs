@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::NatsCacheManager;
+use crate::core::error::NatsBrokerError;
 use crate::push::manager::NatsSubscribeManager;
 use crate::push::queue::add_member_by_group;
 use common_base::tools::now_second;
@@ -75,7 +76,7 @@ pub(crate) async fn parse_by_new_subscribe(
     client_pool: Arc<ClientPool>,
     sub: &NatsSubscribe,
     source: &SubscribeSource,
-) {
+) -> Result<(), NatsBrokerError> {
     debug!(
         "Matching new subscribe: connect_id={}, sid={}, subject={}, source={:?}",
         sub.connect_id, sub.sid, sub.subject, source
@@ -99,23 +100,24 @@ pub(crate) async fn parse_by_new_subscribe(
                         &topic.topic_name,
                         source,
                     )
-                    .await;
+                    .await?;
                 }
             }
         }
         SubscribeSource::Mq9 => {
-            register_subscriber(subscribe_manager, client_pool, sub, &sub.subject, source).await;
+            register_subscriber(subscribe_manager, client_pool, sub, &sub.subject, source).await?;
         }
     }
+    Ok(())
 }
 
 pub(crate) async fn parse_by_new_topic(
     subscribe_manager: &Arc<NatsSubscribeManager>,
     client_pool: Arc<ClientPool>,
     topic: &Topic,
-) {
+) -> Result<(), NatsBrokerError> {
     if topic.source != TopicSource::NATS {
-        return;
+        return Ok(());
     }
     debug!("Matching new topic: {}", topic.topic_name);
 
@@ -134,9 +136,10 @@ pub(crate) async fn parse_by_new_topic(
                 &topic.topic_name,
                 &SubscribeSource::NatsCore,
             )
-            .await;
+            .await?;
         }
     }
+    Ok(())
 }
 
 async fn register_subscriber(
@@ -145,7 +148,7 @@ async fn register_subscriber(
     sub: &NatsSubscribe,
     topic_name: &str,
     source: &SubscribeSource,
-) {
+) -> Result<(), NatsBrokerError> {
     let conf = broker_config();
     let subscriber = NatsSubscriber {
         uniq_id: unique_id(),
@@ -164,17 +167,18 @@ async fn register_subscriber(
             if sub.queue_group.is_empty() {
                 subscribe_manager.add_nats_core_fanout_subscriber(subscriber);
             } else {
-                add_member_by_group(client_pool, sub).await;
+                add_member_by_group(client_pool, &subscriber).await?;
             }
         }
         SubscribeSource::Mq9 => {
             if sub.queue_group.is_empty() {
                 subscribe_manager.add_mq9_fanout_subscriber(subscriber);
             } else {
-                add_member_by_group(client_pool, sub).await;
+                add_member_by_group(client_pool, &subscriber).await?;
             }
         }
     }
+    Ok(())
 }
 
 pub fn nats_subject_match(pattern: &str, topic: &str) -> bool {

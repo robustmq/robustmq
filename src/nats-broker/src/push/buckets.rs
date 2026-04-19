@@ -19,19 +19,14 @@ use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
-/// Bucket-based subscriber index for NATS directly-push.
+/// Bucket-based subscriber index for NATS push.
 ///
 /// Each bucket holds subscribers for one dedicated push thread.
 /// Indexed by `connect_id`, `connect_id#sid`, and `topic_name` for O(1) removal.
 ///
-/// # Bucket assignment (directly-push mode)
-/// Before any subscribers arrive, the broker pre-registers exactly `push_thread_num`
-/// buckets via `register_bucket`. New subscribers are placed into buckets via a
-/// monotonic round-robin counter, so load is spread evenly without scanning.
-/// Pre-registered buckets are never deleted when empty — they are permanent.
-///
-/// # Fixed-bucket mode (queue-group)
-/// When `bucket_id` is `Some`, every subscriber goes into that one bucket.
+/// Buckets are pre-registered via `register_bucket` before any subscribers arrive.
+/// New subscribers are placed into buckets via round-robin. Pre-registered buckets
+/// are permanent — never deleted when empty.
 #[derive(Clone, Default)]
 pub struct NatsBucketsManager {
     // (bucket_id, (seq, NatsSubscriber))
@@ -49,27 +44,22 @@ pub struct NatsBucketsManager {
     // seq → bucket_id  for O(1) removal without scanning all buckets
     seq_bucket: DashMap<u64, String>,
 
-    // group_name (nats_fanout_{connect_id}_{sid}_{topic}) → seq  for deduplication
+    // uniq_id → seq  for deduplication
     sub_seq: DashMap<String, u64>,
-
-    // Bucket IDs registered via register_bucket — never auto-deleted when empty.
-    registered_buckets: DashMap<String, ()>,
 
     // Ordered list of pre-registered bucket IDs for round-robin placement.
     // Populated by register_bucket; immutable after startup.
+    // Also used to determine which buckets are permanent (never deleted when empty).
     bucket_order: Arc<std::sync::RwLock<Vec<String>>>,
 
     // Round-robin counter for distributing subscribers across pre-registered buckets.
     round_robin: Arc<AtomicU64>,
 
     seq_num: Arc<AtomicU64>,
-
-    /// When `Some`, all inserts go to this fixed bucket (queue-group mode).
-    bucket_id: Option<String>,
 }
 
 impl NatsBucketsManager {
-    pub fn new(bucket_id: Option<String>) -> Self {
+    pub fn new() -> Self {
         NatsBucketsManager {
             seq_num: Arc::new(AtomicU64::new(0)),
             round_robin: Arc::new(AtomicU64::new(0)),
@@ -79,9 +69,7 @@ impl NatsBucketsManager {
             topic_sub: DashMap::with_capacity(8),
             seq_bucket: DashMap::with_capacity(256),
             sub_seq: DashMap::with_capacity(256),
-            registered_buckets: DashMap::with_capacity(16),
             bucket_order: Arc::new(std::sync::RwLock::new(Vec::new())),
-            bucket_id,
         }
     }
 
@@ -91,7 +79,6 @@ impl NatsBucketsManager {
         self.buckets_data_list
             .entry(bucket_id.clone())
             .or_insert_with(|| DashMap::with_capacity(2));
-        self.registered_buckets.insert(bucket_id.clone(), ());
         self.bucket_order.write().unwrap().push(bucket_id);
     }
 
@@ -171,29 +158,11 @@ impl NatsBucketsManager {
     }
 
     fn pick_bucket(&self) -> String {
-        if let Some(fixed) = &self.bucket_id {
-            return fixed.clone();
-        }
-
         let order = self.bucket_order.read().unwrap();
         if !order.is_empty() {
             let idx = self.round_robin.fetch_add(1, Ordering::Relaxed) as usize % order.len();
             return order[idx].clone();
         }
-        drop(order);
-
-        let n = self.buckets_data_list.len();
-        if n > 0 {
-            let mut keys: Vec<String> = self
-                .buckets_data_list
-                .iter()
-                .map(|e| e.key().clone())
-                .collect();
-            keys.sort_unstable();
-            let idx = self.round_robin.fetch_add(1, Ordering::Relaxed) as usize % n;
-            return keys[idx].clone();
-        }
-
         unique_id()
     }
 
@@ -242,16 +211,15 @@ impl NatsBucketsManager {
 
         self.sub_seq.remove(&subscriber.uniq_id);
 
-        let is_registered = self.registered_buckets.contains_key(&bucket_id);
-        if !is_registered {
-            let should_remove = self
+        let is_registered = self.bucket_order.read().unwrap().contains(&bucket_id);
+        if !is_registered
+            && self
                 .buckets_data_list
                 .get(&bucket_id)
                 .map(|b| b.is_empty())
-                .unwrap_or(false);
-            if should_remove {
-                self.buckets_data_list.remove(&bucket_id);
-            }
+                .unwrap_or(false)
+        {
+            self.buckets_data_list.remove(&bucket_id);
         }
     }
 }
@@ -280,69 +248,46 @@ mod tests {
     }
 
     #[test]
-    fn test_add_and_len() {
-        let mgr = NatsBucketsManager::new(None);
-        mgr.add(&make_sub(1, "s1", "foo"));
+    fn test_add_dedup_and_len() {
+        let mgr = NatsBucketsManager::new();
+        let sub = make_sub(1, "s1", "foo");
+        mgr.add(&sub);
+        mgr.add(&sub); // duplicate — ignored
         mgr.add(&make_sub(2, "s2", "bar"));
         assert_eq!(mgr.sub_len(), 2);
     }
 
     #[test]
-    fn test_dedup_same_group_name() {
-        let mgr = NatsBucketsManager::new(None);
-        let sub = make_sub(1, "s1", "foo");
-        mgr.add(&sub);
-        mgr.add(&sub); // duplicate
-        mgr.add(&sub); // duplicate
-        assert_eq!(mgr.sub_len(), 1);
-    }
-
-    #[test]
-    fn test_round_robin_across_registered_buckets() {
-        let mgr = NatsBucketsManager::new(None);
+    fn test_round_robin_and_bucket_lifecycle() {
+        let mgr = NatsBucketsManager::new();
         mgr.register_bucket("b0".to_string());
         mgr.register_bucket("b1".to_string());
         mgr.register_bucket("b2".to_string());
 
+        // Round-robin distributes evenly across 3 registered buckets.
         for i in 0..9u64 {
-            mgr.add(&make_sub(i, "s1", &format!("topic{}", i)));
+            mgr.add(&make_sub(i, "s1", &format!("t{}", i)));
         }
-
-        // 9 subs across 3 buckets → 3 each
         assert_eq!(mgr.buckets_data_list.get("b0").unwrap().len(), 3);
         assert_eq!(mgr.buckets_data_list.get("b1").unwrap().len(), 3);
         assert_eq!(mgr.buckets_data_list.get("b2").unwrap().len(), 3);
-    }
 
-    #[test]
-    fn test_registered_bucket_not_deleted_when_empty() {
-        let mgr = NatsBucketsManager::new(None);
-        mgr.register_bucket("b0".to_string());
-        mgr.add(&make_sub(1, "s1", "foo"));
+        // Registered buckets persist even when emptied; dynamic buckets are removed.
+        mgr.remove_by_connect_id(0); // in b0
+        assert_eq!(mgr.sub_len(), 8);
+        assert_eq!(mgr.buckets_data_list.len(), 3); // b0 kept
 
-        assert_eq!(mgr.buckets_data_list.len(), 1);
-        mgr.remove_by_connect_id(1);
-
-        // bucket still exists even though it is empty
-        assert_eq!(mgr.buckets_data_list.len(), 1);
-        assert!(mgr.buckets_data_list.contains_key("b0"));
-        assert_eq!(mgr.sub_len(), 0);
-    }
-
-    #[test]
-    fn test_dynamic_bucket_deleted_when_empty() {
-        // No pre-registered buckets → fallback creates dynamic buckets
-        let mgr = NatsBucketsManager::new(None);
-        mgr.add(&make_sub(1, "s1", "foo"));
-        assert_eq!(mgr.buckets_data_list.len(), 1);
-
-        mgr.remove_by_connect_id(1);
-        assert_eq!(mgr.buckets_data_list.len(), 0);
+        // Dynamic bucket (no register_bucket call) is cleaned up when empty.
+        let mgr2 = NatsBucketsManager::new();
+        mgr2.add(&make_sub(1, "s1", "foo"));
+        assert_eq!(mgr2.buckets_data_list.len(), 1);
+        mgr2.remove_by_connect_id(1);
+        assert_eq!(mgr2.buckets_data_list.len(), 0);
     }
 
     #[test]
     fn test_remove_by_connect_id() {
-        let mgr = NatsBucketsManager::new(None);
+        let mgr = NatsBucketsManager::new();
         mgr.add(&make_sub(1, "s1", "foo"));
         mgr.add(&make_sub(1, "s2", "bar"));
         mgr.add(&make_sub(2, "s1", "baz"));
@@ -356,9 +301,9 @@ mod tests {
 
     #[test]
     fn test_remove_by_sid() {
-        let mgr = NatsBucketsManager::new(None);
+        let mgr = NatsBucketsManager::new();
         mgr.add(&make_sub(1, "s1", "foo"));
-        mgr.add(&make_sub(1, "s1", "bar")); // same sid, different topic (wildcard)
+        mgr.add(&make_sub(1, "s1", "bar"));
         mgr.add(&make_sub(1, "s2", "baz"));
 
         mgr.remove_by_sid(1, "s1");
@@ -367,38 +312,12 @@ mod tests {
 
     #[test]
     fn test_remove_by_topic() {
-        let mgr = NatsBucketsManager::new(None);
+        let mgr = NatsBucketsManager::new();
         mgr.add(&make_sub(1, "s1", "foo"));
         mgr.add(&make_sub(2, "s2", "foo"));
         mgr.add(&make_sub(3, "s3", "bar"));
 
         mgr.remove_by_topic("foo");
         assert_eq!(mgr.sub_len(), 1);
-    }
-
-    #[test]
-    fn test_fixed_bucket() {
-        let mgr = NatsBucketsManager::new(Some("group-a".to_string()));
-        mgr.add(&make_sub(1, "s1", "foo"));
-        mgr.add(&make_sub(2, "s2", "foo"));
-        assert_eq!(mgr.buckets_data_list.len(), 1);
-        assert!(mgr.buckets_data_list.contains_key("group-a"));
-    }
-
-    #[test]
-    fn test_o1_removal_via_seq_bucket_index() {
-        let mgr = NatsBucketsManager::new(None);
-        mgr.register_bucket("b0".to_string());
-        mgr.register_bucket("b1".to_string());
-
-        for i in 0..10u64 {
-            mgr.add(&make_sub(i, "s1", &format!("t{}", i)));
-        }
-        assert_eq!(mgr.sub_len(), 10);
-        assert_eq!(mgr.seq_bucket.len(), 10);
-
-        mgr.remove_by_connect_id(3);
-        assert_eq!(mgr.sub_len(), 9);
-        assert_eq!(mgr.seq_bucket.len(), 9);
     }
 }

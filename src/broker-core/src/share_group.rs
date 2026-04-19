@@ -19,7 +19,8 @@ use grpc_clients::meta::common::call::{
     placement_delete_share_group_member, placement_list_share_group,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::share_group::{ShareGroupLeader, ShareGroupMember};
+use metadata_struct::mqtt::share_group::ShareGroupLeader;
+use metadata_struct::nats::subscriber::NatsSubscriber;
 use protocol::meta::meta_service_common::{
     AddShareGroupMemberRequest, CreateShareGroupRequest, DeleteShareGroupMemberRequest,
     DeleteShareGroupRequest, ListShareGroupRequest,
@@ -118,7 +119,7 @@ impl ShareGroupStorage {
         &self,
         tenant: &str,
         group_name: &str,
-        member: &ShareGroupMember,
+        member: &NatsSubscriber,
     ) -> Result<(), CommonError> {
         let config = broker_config();
         let request = AddShareGroupMemberRequest {
@@ -139,7 +140,7 @@ impl ShareGroupStorage {
         &self,
         tenant: &str,
         group_name: &str,
-        member: &ShareGroupMember,
+        member: &NatsSubscriber,
     ) -> Result<(), CommonError> {
         let config = broker_config();
         let request = DeleteShareGroupMemberRequest {

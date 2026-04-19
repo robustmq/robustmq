@@ -32,13 +32,13 @@ use tracing::{debug, error, info};
 
 pub mod buckets;
 pub mod common;
-pub mod queue;
 pub mod manager;
 pub mod mq9_fanout;
 pub mod mq9_queue;
 pub mod nats_fanout;
 pub mod nats_queue;
 pub mod parse;
+pub mod queue;
 
 async fn start_parse_thread(
     cache_manager: Arc<NatsCacheManager>,
@@ -76,13 +76,17 @@ async fn start_parse_thread(
 
                 match (&data.action, &data.source, &data.subscribe, &data.topic) {
                     (ParseAction::Add, source, Some(sub), None) => {
-                        parse_by_new_subscribe(&cache_manager, &subscribe_manager, client_pool.clone(), sub, source).await;
+                        if let Err(e) = parse_by_new_subscribe(&cache_manager, &subscribe_manager, client_pool.clone(), sub, source).await{
+                             error!("{}",e.to_string());
+                        }
                     }
                     (ParseAction::Remove, _, Some(sub), None) => {
                         subscribe_manager.remove_push_by_sid(sub.connect_id, &sub.sid);
                     }
                     (ParseAction::Add, _, None, Some(topic)) => {
-                        parse_by_new_topic(&subscribe_manager, client_pool.clone(), topic).await;
+                        if let Err(e) = parse_by_new_topic(&subscribe_manager, client_pool.clone(), topic).await{
+                            error!("{}",e.to_string());
+                        }
                     }
                     (ParseAction::Remove, _, None, Some(topic)) => {
                         subscribe_manager.remove_by_topic(&topic.topic_name);
@@ -96,6 +100,7 @@ async fn start_parse_thread(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn start_push(
     subscribe_manager: &Arc<NatsSubscribeManager>,
     cache_manager: Arc<NatsCacheManager>,
@@ -205,11 +210,17 @@ async fn queue_group_watcher(
                     }
                     running_groups.insert(queue_key.clone());
 
+                    let (tenant, group_name) = queue_key
+                        .split_once('#')
+                        .map(|(t, g)| (t.to_string(), g.to_string()))
+                        .unwrap_or_else(|| (queue_key.clone(), String::new()));
+
                     let mut mgr = QueuePushManager::new(
                         subscribe_manager.clone(),
                         connection_manager.clone(),
                         storage_driver_manager.clone(),
-                        queue_key.clone(),
+                        tenant,
+                        group_name,
                     );
                     let sx = stop_sx.clone();
                     task_supervisor.spawn(

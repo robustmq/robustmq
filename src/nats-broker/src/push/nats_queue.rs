@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::core::error::NatsBrokerError;
-use crate::core::tenant::get_tenant;
 use crate::push::common::{adaptive_sleep, should_stop, BATCH_SIZE};
 use crate::push::manager::NatsSubscribeManager;
 use crate::push::nats_fanout::send_packet;
@@ -21,7 +20,6 @@ use metadata_struct::nats::subscriber::NatsSubscriber;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use storage_adapter::consumer::GroupConsumer;
 use storage_adapter::driver::StorageDriverManager;
@@ -33,10 +31,10 @@ pub struct QueuePushManager {
     subscribe_manager: Arc<NatsSubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
-    queue_key: String,
-    topic_name: String,
+    tenant: String,
+    group_name: String,
     consumer: Option<GroupConsumer>,
-    round_robin: Arc<AtomicU64>,
+    round_robin: u64,
 }
 
 impl QueuePushManager {
@@ -44,27 +42,27 @@ impl QueuePushManager {
         subscribe_manager: Arc<NatsSubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
         storage_driver_manager: Arc<StorageDriverManager>,
-        queue_key: String,
+        tenant: String,
+        group_name: String,
     ) -> Self {
-        let topic_name = queue_key
-            .split_once('#')
-            .map(|(t, _)| t.to_string())
-            .unwrap_or_else(|| queue_key.clone());
-
         QueuePushManager {
             subscribe_manager,
             connection_manager,
             storage_driver_manager,
-            queue_key,
-            topic_name,
+            tenant,
+            group_name,
             consumer: None,
-            round_robin: Arc::new(AtomicU64::new(0)),
+            round_robin: 0,
         }
+    }
+
+    fn queue_key(&self) -> String {
+        format!("{}#{}", self.tenant, self.group_name)
     }
 
     pub async fn start(&mut self, stop_sx: &broadcast::Sender<bool>) {
         let mut stop_rx = stop_sx.subscribe();
-        let label = format!("NATS QueuePushManager[{}]", self.queue_key);
+        let label = format!("NATS QueuePushManager[{}]", self.queue_key());
         loop {
             select! {
                 val = stop_rx.recv() => {
@@ -84,131 +82,137 @@ impl QueuePushManager {
     }
 
     async fn send_messages(&mut self) -> Result<usize, NatsBrokerError> {
-        let is_empty = self
-            .subscribe_manager
-            .nats_core_queue_push
-            .get(&self.queue_key)
-            .map(|b| b.sub_len() == 0)
-            .unwrap_or(true);
+        // Collect subscribers grouped by subject from all buckets in this group.
+        let subjects: Vec<(String, Vec<NatsSubscriber>)> = {
+            let Some(bucket_mgr) = self
+                .subscribe_manager
+                .nats_core_queue_push
+                .get(&self.queue_key())
+            else {
+                return Ok(0);
+            };
+            if bucket_mgr.sub_len() == 0 {
+                return Ok(0);
+            }
+            let mut by_subject: std::collections::HashMap<String, Vec<NatsSubscriber>> =
+                std::collections::HashMap::new();
+            for bucket in bucket_mgr.buckets_data_list.iter() {
+                for sub in bucket.value().iter() {
+                    by_subject
+                        .entry(sub.subject.clone())
+                        .or_default()
+                        .push(sub.value().clone());
+                }
+            }
+            by_subject.into_iter().collect()
+        };
 
-        if is_empty {
+        if subjects.is_empty() {
             return Ok(0);
         }
 
-        let tenant = self
-            .subscribe_manager
-            .nats_core_queue_push
-            .get(&self.queue_key)
-            .and_then(|b| {
-                b.buckets_data_list
-                    .iter()
-                    .next()
-                    .and_then(|bucket| bucket.iter().next().map(|e| e.tenant.clone()))
-            })
-            .unwrap_or_else(get_tenant);
         let read_config = AdapterReadConfig {
             max_record_num: BATCH_SIZE,
             max_size: 1024 * 1024 * 30,
         };
 
-        let consumer = self.consumer.get_or_insert_with(|| {
-            GroupConsumer::new_manual(self.storage_driver_manager.clone(), self.queue_key.clone())
-        });
-
-        let records = consumer
-            .next_messages(&tenant, &self.topic_name, &read_config)
-            .await
-            .map_err(NatsBrokerError::from)?;
-
-        if records.is_empty() {
-            return Ok(0);
+        // Lazily init consumer; kept across calls for offset continuity.
+        let queue_key = self.queue_key();
+        if self.consumer.is_none() {
+            self.consumer = Some(GroupConsumer::new_manual(
+                self.storage_driver_manager.clone(),
+                queue_key,
+            ));
         }
+        let consumer = self.consumer.as_ref().unwrap();
 
         let mut pushed = 0;
-        let mut all_delivered = true;
-        for record in &records {
-            match self.round_robin_send(record).await {
-                Ok(true) => pushed += 1,
-                Ok(false) => {
-                    all_delivered = false;
-                    warn!(
-                        "NATS queue [{}]: no subscriber available for record, will retry",
-                        self.queue_key
-                    );
-                }
-                Err(e) => warn!("NATS queue send error [{}]: {}", self.queue_key, e),
-            }
-        }
 
-        if all_delivered {
-            self.consumer
-                .as_mut()
-                .unwrap()
-                .commit()
+        for (topic_name, subs) in subjects {
+            let records = consumer
+                .next_messages(&self.tenant, &topic_name, &read_config)
                 .await
                 .map_err(NatsBrokerError::from)?;
+
+            if records.is_empty() {
+                continue;
+            }
+
+            let mut topic_all_delivered = true;
+            for record in &records {
+                let start_idx = self.round_robin as usize % subs.len();
+                self.round_robin = self.round_robin.wrapping_add(1);
+                match round_robin_send(
+                    record,
+                    &subs,
+                    start_idx,
+                    &self.subscribe_manager,
+                    &self.connection_manager,
+                )
+                .await
+                {
+                    Ok(true) => pushed += 1,
+                    Ok(false) => {
+                        topic_all_delivered = false;
+                        warn!(
+                            "NATS queue [{}] topic {}: no subscriber available, will retry",
+                            self.queue_key(),
+                            topic_name
+                        );
+                    }
+                    Err(e) => warn!(
+                        "NATS queue send error [{}] topic {}: {}",
+                        self.queue_key(),
+                        topic_name,
+                        e
+                    ),
+                }
+            }
+
+            // Commit per-topic: only advance offset when all records in this topic were delivered.
+            if topic_all_delivered {
+                consumer.commit().await.map_err(NatsBrokerError::from)?;
+            }
         }
 
         Ok(pushed)
     }
+}
 
-    async fn round_robin_send(&self, record: &StorageRecord) -> Result<bool, NatsBrokerError> {
-        let subscribers: Vec<NatsSubscriber> = {
-            let Some(bucket_mgr) = self
-                .subscribe_manager
-                .nats_core_queue_push
-                .get(&self.queue_key)
-            else {
-                return Ok(false);
-            };
-            let Some(bucket) = bucket_mgr.buckets_data_list.get(&self.queue_key) else {
-                return Ok(false);
-            };
-            if bucket.is_empty() {
-                return Ok(false);
-            }
-            let mut list: Vec<NatsSubscriber> = bucket.iter().map(|e| e.value().clone()).collect();
-            list.sort_unstable_by(|a, b| a.connect_id.cmp(&b.connect_id).then(a.sid.cmp(&b.sid)));
-            list
-        };
+async fn round_robin_send(
+    record: &StorageRecord,
+    subscribers: &[NatsSubscriber],
+    start_idx: usize,
+    subscribe_manager: &Arc<NatsSubscribeManager>,
+    connection_manager: &Arc<ConnectionManager>,
+) -> Result<bool, NatsBrokerError> {
+    for i in 0..subscribers.len() {
+        let subscriber = &subscribers[(start_idx + i) % subscribers.len()];
 
-        let len = subscribers.len();
-        let start_idx = self.round_robin.fetch_add(1, Ordering::Relaxed) as usize % len;
-
-        for i in 0..len {
-            let subscriber = &subscribers[(start_idx + i) % len];
-
-            if !self
-                .subscribe_manager
-                .allow_push_client(subscriber.connect_id)
-            {
-                continue;
-            }
-
-            match send_packet(&self.connection_manager, subscriber, record).await {
-                Ok(true) => return Ok(true),
-                Ok(false) => {}
-                Err(NatsBrokerError::ConnectionNotFound(_)) => {
-                    warn!(
-                        "NATS queue subscriber gone: connect_id={} sid={}",
-                        subscriber.connect_id, subscriber.sid
-                    );
-                    self.subscribe_manager
-                        .remove_push_by_sid(subscriber.connect_id, &subscriber.sid);
-                    self.subscribe_manager
-                        .add_not_push_client(subscriber.connect_id);
-                }
-                Err(e) => {
-                    debug!(
-                        "NATS queue send failed [connect_id={}, sid={}]: {}",
-                        subscriber.connect_id, subscriber.sid, e
-                    );
-                    self.subscribe_manager
-                        .add_not_push_client(subscriber.connect_id);
-                }
-            }
+        if !subscribe_manager.allow_push_client(subscriber.connect_id) {
+            continue;
         }
 
-        Ok(false)
+        match send_packet(connection_manager, subscriber, record).await {
+            Ok(true) => return Ok(true),
+            Ok(false) => {}
+            Err(NatsBrokerError::ConnectionNotFound(_)) => {
+                warn!(
+                    "NATS queue subscriber gone: connect_id={} sid={}",
+                    subscriber.connect_id, subscriber.sid
+                );
+                subscribe_manager.remove_push_by_sid(subscriber.connect_id, &subscriber.sid);
+                subscribe_manager.add_not_push_client(subscriber.connect_id);
+            }
+            Err(e) => {
+                debug!(
+                    "NATS queue send failed [connect_id={}, sid={}]: {}",
+                    subscriber.connect_id, subscriber.sid, e
+                );
+                subscribe_manager.add_not_push_client(subscriber.connect_id);
+            }
+        }
     }
+
+    Ok(false)
 }

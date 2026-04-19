@@ -1,25 +1,30 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use crate::core::error::NatsBrokerError;
+use broker_core::share_group::ShareGroupStorage;
+use grpc_clients::pool::ClientPool;
+use metadata_struct::nats::subscriber::NatsSubscriber;
 use std::sync::Arc;
 
-use broker_core::share_group::ShareGroupStorage;
-use common_config::broker::broker_config;
-use grpc_clients::pool::ClientPool;
-use metadata_struct::{mqtt::share_group::ShareGroupMember, nats::subscribe::NatsSubscribe};
-
-pub async fn add_member_by_group(client_pool: Arc<ClientPool>, sub: &NatsSubscribe) {
-    let conf = broker_config();
+pub async fn add_member_by_group(
+    client_pool: Arc<ClientPool>,
+    sub: &NatsSubscriber,
+) -> Result<(), NatsBrokerError> {
     let storage = ShareGroupStorage::new(client_pool);
-    let member = ShareGroupMember {
-        broker_id: conf.broker_id,
-        connect_id: sub.connect_id,
-    };
-    if let Err(e) = storage.add_member(&sub.tenant, &sub.queue_group, &member).await {
-        tracing::warn!(
-            "Failed to add group member: tenant={}, group={}, error={}",
-            sub.tenant, sub.queue_group, e
-        );
-    }
+    storage
+        .add_member(&sub.tenant, &sub.queue_group, sub)
+        .await?;
+    Ok(())
 }
-
-pub async fn remove_member_by_connect_id(_connect_id: u64) {}
-
-pub async fn remove_member_by_group(_connect_id: u64, _tenant: &str, _group: &str) {}
