@@ -23,7 +23,7 @@ use protocol::nats::packet::NatsPacket;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 /// Per-connection timeout for sending a single PING frame.
 const PING_SEND_TIMEOUT: Duration = Duration::from_secs(1);

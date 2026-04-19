@@ -130,20 +130,20 @@ impl NatsSubscribeManager {
 
         // remove nats core fanout
         self.nats_core_fanout_push.remove_by_connect_id(connect_id);
+
+        // remove nats core queue
         for entry in self.nats_core_queue_push.iter() {
             entry.value().remove_by_connect_id(connect_id);
         }
-
-        // remove nats core queue
         self.nats_core_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
 
         // remove mq9 fanout
         self.mq9_fanout_push.remove_by_connect_id(connect_id);
+
+        // remove mq9 queue
         for entry in self.mq9_queue_push.iter() {
             entry.value().remove_by_connect_id(connect_id);
         }
-
-        // remove mq9 queue
         self.mq9_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
 
         // remove not push client
@@ -158,36 +158,35 @@ impl NatsSubscribeManager {
         for entry in self.nats_core_queue_push.iter() {
             entry.value().remove_by_topic(subject);
         }
-
         self.nats_core_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
 
         // remove mq9 queue
         self.mq9_fanout_push.remove_by_topic(subject);
+
+        // remove mq9 queue
         for entry in self.mq9_queue_push.iter() {
             entry.value().remove_by_topic(subject);
         }
-
-        // remove mq9 queue
         self.mq9_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
     }
 
     pub fn remove_push_by_sub(&self, connect_id: u64, sid: &str) {
         // remove nats core fanout
         self.nats_core_fanout_push.remove_by_sid(connect_id, sid);
+
+        // remove nats core queue
         for entry in self.nats_core_queue_push.iter() {
             entry.value().remove_by_sid(connect_id, sid);
         }
-
-        // remove nats core queue
         self.nats_core_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
 
         // remove mq9 queue
         self.mq9_fanout_push.remove_by_sid(connect_id, sid);
+
+        // remove mq9 queue
         for entry in self.mq9_queue_push.iter() {
             entry.value().remove_by_sid(connect_id, sid);
         }
-
-        // remove mq9 queue
         self.mq9_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
     }
 
