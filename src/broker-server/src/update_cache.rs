@@ -21,6 +21,7 @@ use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::share_group::ShareGroupLeader;
+use metadata_struct::nats::subscriber::NatsSubscriber;
 use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use metadata_struct::tenant::Tenant;
@@ -33,8 +34,12 @@ use nats_broker::core::topic::{create_topic_by_nats_and_mq9, delete_topic_by_nat
 use nats_broker::{
     broker::NatsBrokerServerParams, core::dynamic_cache::update_nats_cache_metadata,
 };
+use prost::Message;
 use protocol::broker::broker::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
+};
+use protocol::meta::meta_service_common::{
+    AddShareGroupMemberRequest, DeleteShareGroupMemberRequest,
 };
 use std::str::FromStr;
 use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
@@ -62,7 +67,7 @@ pub async fn update_cache(
             }
         }
 
-        // Cluster — Node, Config, Tenant, User, Acl, Blacklist, Group, Connector, Schema, Topic
+        // Cluster — Node, Config, Tenant, User, Acl, Blacklist, Group, ShareGroupMember, Connector, Schema, Topic
         BrokerUpdateCacheResourceType::ClusterResourceConfig
         | BrokerUpdateCacheResourceType::Node
         | BrokerUpdateCacheResourceType::Tenant
@@ -70,6 +75,7 @@ pub async fn update_cache(
         | BrokerUpdateCacheResourceType::Acl
         | BrokerUpdateCacheResourceType::Blacklist
         | BrokerUpdateCacheResourceType::Group
+        | BrokerUpdateCacheResourceType::ShareGroupMember
         | BrokerUpdateCacheResourceType::Connector
         | BrokerUpdateCacheResourceType::Schema
         | BrokerUpdateCacheResourceType::SchemaResource
@@ -287,6 +293,32 @@ pub async fn update_cluster_cache_metadata(
                 }
             }
         }
+
+        BrokerUpdateCacheResourceType::ShareGroupMember => match record.action_type() {
+            BrokerUpdateCacheActionType::Create => {
+                let req = AddShareGroupMemberRequest::decode(record.data.as_slice())
+                    .map_err(|e| CommonError::CommonError(e.to_string()))?;
+                let member: NatsSubscriber = serialize::deserialize(&req.data)?;
+                nats_params
+                    .broker_cache
+                    .add_share_group_member(&req.tenant, &req.group, &member);
+                nats_params
+                    .subscribe_manager
+                    .add_nats_core_queue_subscriber(&member);
+            }
+            BrokerUpdateCacheActionType::Delete => {
+                let req = DeleteShareGroupMemberRequest::decode(record.data.as_slice())
+                    .map_err(|e| CommonError::CommonError(e.to_string()))?;
+                let member: NatsSubscriber = serialize::deserialize(&req.data)?;
+                nats_params.broker_cache.remove_share_group_member(
+                    &req.tenant,
+                    &req.group,
+                    &member.uniq_id,
+                );
+            }
+            BrokerUpdateCacheActionType::Update => {}
+        },
+
         _ => {}
     }
     Ok(())

@@ -19,6 +19,7 @@ use dashmap::{DashMap, DashSet};
 use metadata_struct::{
     meta::node::BrokerNode,
     mqtt::{session::MqttSession, share_group::ShareGroupLeader, topic::Topic},
+    nats::subscriber::NatsSubscriber,
     tenant::Tenant,
 };
 use std::sync::Arc;
@@ -211,6 +212,22 @@ impl NodeCacheManager {
     pub fn get_share_group(&self, tenant: &str, group_name: &str) -> Option<ShareGroupLeader> {
         let key = format!("{tenant}/{group_name}");
         self.share_group_list.get(&key).map(|g| g.clone())
+    }
+
+    pub fn add_share_group_member(&self, tenant: &str, group_name: &str, member: &NatsSubscriber) {
+        let key = format!("{tenant}/{group_name}");
+        if let Some(mut group) = self.share_group_list.get_mut(&key) {
+            if !group.members.iter().any(|m| m.uniq_id == member.uniq_id) {
+                group.members.push(member.clone());
+            }
+        }
+    }
+
+    pub fn remove_share_group_member(&self, tenant: &str, group_name: &str, uniq_id: &str) {
+        let key = format!("{tenant}/{group_name}");
+        if let Some(mut group) = self.share_group_list.get_mut(&key) {
+            group.members.retain(|m| m.uniq_id != uniq_id);
+        }
     }
 
     // get start time

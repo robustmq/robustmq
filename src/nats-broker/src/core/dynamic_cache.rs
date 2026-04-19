@@ -43,7 +43,7 @@ pub async fn update_nats_cache_metadata(
                 }
                 BrokerUpdateCacheActionType::Delete => {
                     subscribe_manager.remove_subscribe(subscribe.connect_id, &subscribe.sid);
-                    subscribe_manager.remove_push_by_sid(subscribe.connect_id, &subscribe.sid);
+                    subscribe_manager.remove_push_by_sub(subscribe.connect_id, &subscribe.sid);
                     ParseSubscribeData::new_subscribe(
                         ParseAction::Remove,
                         SubscribeSource::NatsCore,

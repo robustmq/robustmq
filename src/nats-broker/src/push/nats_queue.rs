@@ -201,7 +201,7 @@ async fn round_robin_send(
                     "NATS queue subscriber gone: connect_id={} sid={}",
                     subscriber.connect_id, subscriber.sid
                 );
-                subscribe_manager.remove_push_by_sid(subscriber.connect_id, &subscriber.sid);
+                subscribe_manager.remove_push_by_sub(subscriber.connect_id, &subscriber.sid);
                 subscribe_manager.add_not_push_client(subscriber.connect_id);
             }
             Err(e) => {

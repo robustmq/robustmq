@@ -28,3 +28,14 @@ pub async fn add_member_by_group(
         .await?;
     Ok(())
 }
+
+pub async fn delete_member_by_group(
+    client_pool: Arc<ClientPool>,
+    sub: &NatsSubscriber,
+) -> Result<(), NatsBrokerError> {
+    let storage = ShareGroupStorage::new(client_pool);
+    storage
+        .delete_member(&sub.tenant, &sub.queue_group, sub)
+        .await?;
+    Ok(())
+}

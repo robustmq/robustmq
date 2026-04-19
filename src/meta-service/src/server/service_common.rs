@@ -632,15 +632,10 @@ impl MetaServiceService for GrpcPlacementService {
     ) -> Result<Response<AddShareGroupMemberReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        add_share_group_member_by_req(
-            &self.cluster_cache,
-            &self.raft_manager,
-            &self.mqtt_call_manager,
-            &req,
-        )
-        .await
-        .map_err(Self::to_status)
-        .map(Response::new)
+        add_share_group_member_by_req(&self.raft_manager, &self.mqtt_call_manager, &req)
+            .await
+            .map_err(Self::to_status)
+            .map(Response::new)
     }
 
     async fn delete_share_group_member(
@@ -649,14 +644,9 @@ impl MetaServiceService for GrpcPlacementService {
     ) -> Result<Response<DeleteShareGroupMemberReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        delete_share_group_member_by_req(
-            &self.cluster_cache,
-            &self.raft_manager,
-            &self.mqtt_call_manager,
-            &req,
-        )
-        .await
-        .map_err(Self::to_status)
-        .map(Response::new)
+        delete_share_group_member_by_req(&self.raft_manager, &self.mqtt_call_manager, &req)
+            .await
+            .map_err(Self::to_status)
+            .map(Response::new)
     }
 }

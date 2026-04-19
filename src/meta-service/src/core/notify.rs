@@ -35,6 +35,9 @@ use metadata_struct::storage::{
 use metadata_struct::tenant::Tenant;
 use node_call::{NodeCallData, NodeCallManager, UpdateCacheData};
 use protocol::broker::broker::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
+use protocol::meta::meta_service_common::{
+    AddShareGroupMemberRequest, DeleteShareGroupMemberRequest,
+};
 use std::sync::Arc;
 
 // Tenant
@@ -581,6 +584,34 @@ pub async fn send_notify_by_delete_group(
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::Group,
         serialize::serialize(&group)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_add_group_member(
+    call_manager: &Arc<NodeCallManager>,
+    req: &AddShareGroupMemberRequest,
+) -> Result<(), MetaServiceError> {
+    use prost::Message;
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::ShareGroupMember,
+        req.encode_to_vec(),
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_group_member(
+    call_manager: &Arc<NodeCallManager>,
+    req: &DeleteShareGroupMemberRequest,
+) -> Result<(), MetaServiceError> {
+    use prost::Message;
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::ShareGroupMember,
+        req.encode_to_vec(),
     )
     .await
 }

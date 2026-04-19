@@ -13,7 +13,10 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
-use crate::core::notify::{send_notify_by_delete_group, send_notify_by_set_group};
+use crate::core::notify::{
+    send_notify_by_add_group_member, send_notify_by_delete_group,
+    send_notify_by_delete_group_member, send_notify_by_set_group,
+};
 use crate::core::{cache::MetaCacheManager, group_leader::generate_group_leader};
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
@@ -116,7 +119,6 @@ pub async fn delete_share_group_by_req(
 }
 
 pub async fn add_share_group_member_by_req(
-    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
     req: &AddShareGroupMemberRequest,
@@ -126,16 +128,11 @@ pub async fn add_share_group_member_by_req(
         Bytes::copy_from_slice(&req.encode_to_vec()),
     );
     raft_manager.write_data(&req.group, data).await?;
-
-    if let Some(leader) = cache_manager.get_group_leader(&req.tenant, &req.group) {
-        send_notify_by_set_group(call_manager, leader).await?;
-    }
-
+    send_notify_by_add_group_member(call_manager, req).await?;
     Ok(AddShareGroupMemberReply {})
 }
 
 pub async fn delete_share_group_member_by_req(
-    cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
     req: &DeleteShareGroupMemberRequest,
@@ -145,10 +142,6 @@ pub async fn delete_share_group_member_by_req(
         Bytes::copy_from_slice(&req.encode_to_vec()),
     );
     raft_manager.write_data(&req.group, data).await?;
-
-    if let Some(leader) = cache_manager.get_group_leader(&req.tenant, &req.group) {
-        send_notify_by_set_group(call_manager, leader).await?;
-    }
-
+    send_notify_by_delete_group_member(call_manager, req).await?;
     Ok(DeleteShareGroupMemberReply {})
 }

@@ -1095,6 +1095,7 @@ dependencies = [
  "network-server",
  "node-call",
  "pprof-monitor",
+ "prost 0.14.3",
  "protocol",
  "rate-limit",
  "rocksdb-engine",

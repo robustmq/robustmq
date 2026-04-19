@@ -120,7 +120,7 @@ impl FanoutPushManager {
         }
 
         for (connect_id, sid, uniq_id) in stale {
-            self.subscribe_manager.remove_push_by_sid(connect_id, &sid);
+            self.subscribe_manager.remove_push_by_sub(connect_id, &sid);
             self.consumers.remove(&uniq_id);
         }
 

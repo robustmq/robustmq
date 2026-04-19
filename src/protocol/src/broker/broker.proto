@@ -102,6 +102,7 @@ enum BrokerUpdateCacheResourceType {
   NatsSubscribe = 17;
   Mq9Email = 18;
   Group = 19;
+  ShareGroupMember = 20;
 }
 
 enum BrokerUpdateCacheActionType {
