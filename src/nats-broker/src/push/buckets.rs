@@ -116,38 +116,32 @@ impl NatsBucketsManager {
             .insert(seq, subscriber.clone());
     }
 
-    pub fn remove_by_connect_id(&self, connect_id: u64) {
+    pub fn remove_by_connect_id(&self, connect_id: u64) -> Vec<NatsSubscriber> {
         let seqs: Vec<u64> = self
             .connect_id_sub
             .get(&connect_id)
             .map(|s| s.iter().copied().collect())
             .unwrap_or_default();
-        for seq in seqs {
-            self.remove_by_seq(seq);
-        }
+        seqs.into_iter().filter_map(|seq| self.remove_by_seq(seq)).collect()
     }
 
-    pub fn remove_by_sid(&self, connect_id: u64, sid: &str) {
+    pub fn remove_by_sid(&self, connect_id: u64, sid: &str) -> Vec<NatsSubscriber> {
         let key = sid_key(connect_id, sid);
         let seqs: Vec<u64> = self
             .connect_id_sid_sub
             .get(&key)
             .map(|s| s.iter().copied().collect())
             .unwrap_or_default();
-        for seq in seqs {
-            self.remove_by_seq(seq);
-        }
+        seqs.into_iter().filter_map(|seq| self.remove_by_seq(seq)).collect()
     }
 
-    pub fn remove_by_topic(&self, topic_name: &str) {
+    pub fn remove_by_topic(&self, topic_name: &str) -> Vec<NatsSubscriber> {
         let seqs: Vec<u64> = self
             .topic_sub
             .get(topic_name)
             .map(|s| s.iter().copied().collect())
             .unwrap_or_default();
-        for seq in seqs {
-            self.remove_by_seq(seq);
-        }
+        seqs.into_iter().filter_map(|seq| self.remove_by_seq(seq)).collect()
     }
 
     pub fn sub_len(&self) -> u64 {
@@ -166,19 +160,19 @@ impl NatsBucketsManager {
         unique_id()
     }
 
-    fn remove_by_seq(&self, seq: u64) {
+    fn remove_by_seq(&self, seq: u64) -> Option<NatsSubscriber> {
         let bucket_id = match self.seq_bucket.remove(&seq) {
             Some((_, bid)) => bid,
-            None => return,
+            None => return None,
         };
 
         let subscriber = if let Some(bucket) = self.buckets_data_list.get(&bucket_id) {
             match bucket.remove(&seq) {
                 Some((_, sub)) => sub,
-                None => return,
+                None => return None,
             }
         } else {
-            return;
+            return None;
         };
 
         // Clean connect_id index
@@ -221,6 +215,8 @@ impl NatsBucketsManager {
         {
             self.buckets_data_list.remove(&bucket_id);
         }
+
+        Some(subscriber)
     }
 }
 

@@ -68,13 +68,17 @@ pub async fn process_sub(
 
     ctx.subscribe_manager.add_subscribe(subscribe.clone());
 
-    ctx.subscribe_manager
-        .send_parse_event(ParseSubscribeData::new_subscribe(
-            ParseAction::Add,
-            SubscribeSource::NatsCore,
-            subscribe,
-        ))
-        .await;
+    if queue_group.is_some() {
+        // save queue group
+    } else {
+        ctx.subscribe_manager
+            .send_parse_event(ParseSubscribeData::new_subscribe(
+                ParseAction::Add,
+                SubscribeSource::NatsCore,
+                subscribe,
+            ))
+            .await;
+    }
 
     Ok(())
 }

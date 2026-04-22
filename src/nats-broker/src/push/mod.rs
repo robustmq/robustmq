@@ -18,6 +18,7 @@ use crate::push::nats_fanout::FanoutPushManager;
 use crate::push::nats_queue::QueuePushManager;
 use crate::push::parse::{parse_by_new_subscribe, parse_by_new_topic};
 use crate::push::parse::{ParseAction, ParseSubscribeData};
+use crate::push::queue::delete_members_by_group;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::uuid::unique_id;
 pub use manager::NatsSubscribeManager;
@@ -89,7 +90,8 @@ async fn start_parse_thread(
                         }
                     }
                     (ParseAction::Remove, _, None, Some(topic)) => {
-                        subscribe_manager.remove_by_subject(&topic.topic_name);
+                        let removed = subscribe_manager.remove_by_subject(&topic.topic_name);
+                        delete_members_by_group(&client_pool, removed).await;
                     }
                     _ => {
                         error!("Unexpected ParseSubscribeData: {:?}", data);
@@ -117,7 +119,7 @@ pub async fn start_push(
 
     let sm = subscribe_manager.clone();
     let cm = cache_manager;
-    let cp = client_pool;
+    let cp = client_pool.clone();
     let sx = stop_sx.clone();
     task_supervisor.spawn(TaskKind::NATSSubscribeParse.to_string(), async move {
         start_parse_thread(cm, sm, cp, parse_rx, sx).await;
@@ -135,6 +137,7 @@ pub async fn start_push(
             subscribe_manager.clone(),
             connection_manager.clone(),
             storage_driver_manager.clone(),
+            client_pool.clone(),
             bucket_id.clone(),
         );
         let sx = stop_sx.clone();
@@ -156,6 +159,7 @@ pub async fn start_push(
             subscribe_manager.clone(),
             connection_manager.clone(),
             storage_driver_manager.clone(),
+            client_pool.clone(),
             bucket_id.clone(),
         );
         let sx = stop_sx.clone();
@@ -169,10 +173,11 @@ pub async fn start_push(
     let sm = subscribe_manager.clone();
     let conn = connection_manager.clone();
     let stor = storage_driver_manager.clone();
+    let cp2 = client_pool.clone();
     let sup = task_supervisor.clone();
     let sx = stop_sx.clone();
     task_supervisor.spawn(TaskKind::NATSQueuePush.to_string(), async move {
-        queue_group_watcher(sm, conn, stor, sup, sx).await;
+        queue_group_watcher(sm, conn, stor, cp2, sup, sx).await;
     });
 }
 
@@ -180,6 +185,7 @@ async fn queue_group_watcher(
     subscribe_manager: Arc<NatsSubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
+    client_pool: Arc<grpc_clients::pool::ClientPool>,
     task_supervisor: Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
 ) {
@@ -219,6 +225,7 @@ async fn queue_group_watcher(
                         subscribe_manager.clone(),
                         connection_manager.clone(),
                         storage_driver_manager.clone(),
+                        client_pool.clone(),
                         tenant,
                         group_name,
                     );

@@ -90,6 +90,7 @@ pub async fn update_cache(
             if let Err(e) = update_nats_cache_metadata(
                 &nats_params.cache_manager,
                 &nats_params.subscribe_manager,
+                &nats_params.client_pool,
                 record,
             )
             .await

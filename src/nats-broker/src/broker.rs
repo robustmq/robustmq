@@ -81,6 +81,7 @@ impl NatsBrokerServer {
             params.connection_manager.clone(),
             params.cache_manager.clone(),
             params.subscribe_manager.clone(),
+            params.client_pool.clone(),
         );
         NatsBrokerServer {
             server,

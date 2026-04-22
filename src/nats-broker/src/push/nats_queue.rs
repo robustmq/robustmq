@@ -16,6 +16,7 @@ use crate::core::error::NatsBrokerError;
 use crate::push::common::{adaptive_sleep, should_stop, BATCH_SIZE};
 use crate::push::manager::NatsSubscribeManager;
 use crate::push::nats_fanout::send_packet;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::nats::subscriber::NatsSubscriber;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
@@ -31,6 +32,7 @@ pub struct QueuePushManager {
     subscribe_manager: Arc<NatsSubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
+    client_pool: Arc<ClientPool>,
     tenant: String,
     group_name: String,
     consumer: Option<GroupConsumer>,
@@ -42,6 +44,7 @@ impl QueuePushManager {
         subscribe_manager: Arc<NatsSubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
         storage_driver_manager: Arc<StorageDriverManager>,
+        client_pool: Arc<ClientPool>,
         tenant: String,
         group_name: String,
     ) -> Self {
@@ -49,6 +52,7 @@ impl QueuePushManager {
             subscribe_manager,
             connection_manager,
             storage_driver_manager,
+            client_pool,
             tenant,
             group_name,
             consumer: None,
@@ -148,6 +152,7 @@ impl QueuePushManager {
                     start_idx,
                     &self.subscribe_manager,
                     &self.connection_manager,
+                    &self.client_pool,
                 )
                 .await
                 {
@@ -185,6 +190,7 @@ async fn round_robin_send(
     start_idx: usize,
     subscribe_manager: &Arc<NatsSubscribeManager>,
     connection_manager: &Arc<ConnectionManager>,
+    client_pool: &Arc<ClientPool>,
 ) -> Result<bool, NatsBrokerError> {
     for i in 0..subscribers.len() {
         let subscriber = &subscribers[(start_idx + i) % subscribers.len()];
@@ -201,7 +207,6 @@ async fn round_robin_send(
                     "NATS queue subscriber gone: connect_id={} sid={}",
                     subscriber.connect_id, subscriber.sid
                 );
-                subscribe_manager.remove_push_by_sub(subscriber.connect_id, &subscriber.sid);
                 subscribe_manager.add_not_push_client(subscriber.connect_id);
             }
             Err(e) => {
