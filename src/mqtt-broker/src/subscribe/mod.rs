@@ -248,7 +248,7 @@ impl PushManager {
                     .node_cache
                     .get_share_group(&tenant, &group_name)
                 {
-                    group.broker_id == conf.broker_id
+                    group.leader_broker == conf.broker_id
                 } else {
                     false
                 };
@@ -306,7 +306,7 @@ impl PushManager {
                     .node_cache
                     .get_share_group(tenant, group_name)
                 {
-                    group.broker_id == conf.broker_id
+                    group.leader_broker == conf.broker_id
                 } else {
                     false
                 };

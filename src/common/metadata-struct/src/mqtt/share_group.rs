@@ -12,22 +12,50 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::nats::subscriber::NatsSubscriber;
 use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
-pub struct ShareGroupLeader {
-    pub uuid: String,
+pub struct ShareGroupMember {
     pub tenant: String,
     pub group_name: String,
     pub broker_id: u64,
-    pub source: ShareGroupLeaderSource,
-    pub members: Vec<NatsSubscriber>,
+    pub connect_id: u64,
     pub create_time: u64,
 }
 
-impl ShareGroupLeader {
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum ShareGroupParams {
+    MQTT(ShareGroupParamsMqtt),
+    NATS(ShareGroupParamsNats),
+    MQ9(ShareGroupParamsNats),
+}
+
+impl Default for ShareGroupParams {
+    fn default() -> Self {
+        ShareGroupParams::MQTT(ShareGroupParamsMqtt::default())
+    }
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub struct ShareGroupParamsNats {}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub struct ShareGroupParamsMqtt {
+    path: String,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub struct ShareGroup {
+    pub uuid: String,
+    pub tenant: String,
+    pub group_name: String,
+    pub leader_broker: u64,
+    pub sub_params: ShareGroupParams,
+    pub create_time: u64,
+}
+
+impl ShareGroup {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         serialize::serialize(self)
     }
@@ -35,12 +63,4 @@ impl ShareGroupLeader {
     pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
         serialize::deserialize(data)
     }
-}
-
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
-pub enum ShareGroupLeaderSource {
-    #[default]
-    MQ9,
-    NATS,
-    MQTT,
 }

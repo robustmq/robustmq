@@ -23,7 +23,7 @@ mod tests {
     use grpc_clients::pool::ClientPool;
     use metadata_struct::meta::extend::NodeExtend;
     use metadata_struct::meta::node::BrokerNode;
-    use metadata_struct::mqtt::share_group::ShareGroupLeader;
+    use metadata_struct::mqtt::share_group::ShareGroup;
     use protocol::meta::meta_service_common::{ListShareGroupRequest, RegisterNodeRequest};
 
     #[tokio::test]
@@ -62,9 +62,9 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(data.groups.len(), 1);
-        let leader = ShareGroupLeader::decode(data.groups.first().unwrap()).unwrap();
+        let leader = ShareGroup::decode(data.groups.first().unwrap()).unwrap();
         assert_eq!(leader.group_name, group_name);
-        assert_eq!(leader.broker_id, node_id);
+        assert_eq!(leader.leader_broker, node_id);
 
         let request = ListShareGroupRequest {
             tenant: "default".to_string(),

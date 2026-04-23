@@ -19,7 +19,7 @@ use grpc_clients::meta::common::call::{
     placement_delete_share_group_member, placement_list_share_group,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::share_group::ShareGroupLeader;
+use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupParams};
 use metadata_struct::nats::subscriber::NatsSubscriber;
 use protocol::meta::meta_service_common::{
     AddShareGroupMemberRequest, CreateShareGroupRequest, DeleteShareGroupMemberRequest,
@@ -40,13 +40,14 @@ impl ShareGroupStorage {
         &self,
         tenant: &str,
         group_name: &str,
-        source: i32,
+        source: ShareGroupParams,
     ) -> Result<(), CommonError> {
         let config = broker_config();
+        let params = serde_json::to_vec(&source)?;
         let request = CreateShareGroupRequest {
             tenant: tenant.to_owned(),
             group: group_name.to_owned(),
-            source,
+            params,
         };
         placement_create_share_group(&self.client_pool, &config.get_meta_service_addr(), request)
             .await?;
@@ -68,7 +69,7 @@ impl ShareGroupStorage {
         &self,
         tenant: &str,
         group_name: &str,
-    ) -> Result<Option<ShareGroupLeader>, CommonError> {
+    ) -> Result<Option<ShareGroup>, CommonError> {
         let config = broker_config();
         let request = ListShareGroupRequest {
             tenant: tenant.to_owned(),
@@ -78,12 +79,12 @@ impl ShareGroupStorage {
             placement_list_share_group(&self.client_pool, &config.get_meta_service_addr(), request)
                 .await?;
         if let Some(raw) = reply.groups.first() {
-            return Ok(Some(ShareGroupLeader::decode(raw)?));
+            return Ok(Some(ShareGroup::decode(raw)?));
         }
         Ok(None)
     }
 
-    pub async fn list_all(&self) -> Result<Vec<ShareGroupLeader>, CommonError> {
+    pub async fn list_all(&self) -> Result<Vec<ShareGroup>, CommonError> {
         let config = broker_config();
         let request = ListShareGroupRequest {
             tenant: String::new(),
@@ -94,12 +95,12 @@ impl ShareGroupStorage {
                 .await?;
         let mut results = Vec::with_capacity(reply.groups.len());
         for raw in reply.groups.iter() {
-            results.push(ShareGroupLeader::decode(raw)?);
+            results.push(ShareGroup::decode(raw)?);
         }
         Ok(results)
     }
 
-    pub async fn list_by_tenant(&self, tenant: &str) -> Result<Vec<ShareGroupLeader>, CommonError> {
+    pub async fn list_by_tenant(&self, tenant: &str) -> Result<Vec<ShareGroup>, CommonError> {
         let config = broker_config();
         let request = ListShareGroupRequest {
             tenant: tenant.to_owned(),
@@ -110,7 +111,7 @@ impl ShareGroupStorage {
                 .await?;
         let mut results = Vec::with_capacity(reply.groups.len());
         for raw in reply.groups.iter() {
-            results.push(ShareGroupLeader::decode(raw)?);
+            results.push(ShareGroup::decode(raw)?);
         }
         Ok(results)
     }

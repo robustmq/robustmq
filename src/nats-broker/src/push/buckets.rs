@@ -122,7 +122,9 @@ impl NatsBucketsManager {
             .get(&connect_id)
             .map(|s| s.iter().copied().collect())
             .unwrap_or_default();
-        seqs.into_iter().filter_map(|seq| self.remove_by_seq(seq)).collect()
+        seqs.into_iter()
+            .filter_map(|seq| self.remove_by_seq(seq))
+            .collect()
     }
 
     pub fn remove_by_sid(&self, connect_id: u64, sid: &str) -> Vec<NatsSubscriber> {
@@ -132,7 +134,9 @@ impl NatsBucketsManager {
             .get(&key)
             .map(|s| s.iter().copied().collect())
             .unwrap_or_default();
-        seqs.into_iter().filter_map(|seq| self.remove_by_seq(seq)).collect()
+        seqs.into_iter()
+            .filter_map(|seq| self.remove_by_seq(seq))
+            .collect()
     }
 
     pub fn remove_by_topic(&self, topic_name: &str) -> Vec<NatsSubscriber> {
@@ -141,7 +145,9 @@ impl NatsBucketsManager {
             .get(topic_name)
             .map(|s| s.iter().copied().collect())
             .unwrap_or_default();
-        seqs.into_iter().filter_map(|seq| self.remove_by_seq(seq)).collect()
+        seqs.into_iter()
+            .filter_map(|seq| self.remove_by_seq(seq))
+            .collect()
     }
 
     pub fn sub_len(&self) -> u64 {

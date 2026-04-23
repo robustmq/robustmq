@@ -26,17 +26,17 @@ pub async fn get_group_leader(
     group_name: &str,
 ) -> Result<u64, MetaServiceError> {
     let cache_key = format!("{}/{}", tenant, group_name);
-    if let Some(leader) = cache_manager.group_leader.get(&cache_key) {
-        if cache_manager.node_list.contains_key(&leader.broker_id) {
-            return Ok(leader.broker_id);
+    if let Some(group) = cache_manager.group_leader.get(&cache_key) {
+        if cache_manager.node_list.contains_key(&group.leader_broker) {
+            return Ok(group.leader_broker);
         }
     }
 
     let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
     let list = storage.list_by_tenant(tenant)?;
-    if let Some(leader) = list.get(group_name) {
-        if cache_manager.node_list.contains_key(&leader.broker_id) {
-            return Ok(leader.broker_id);
+    if let Some(group) = list.get(group_name) {
+        if cache_manager.node_list.contains_key(&group.leader_broker) {
+            return Ok(group.leader_broker);
         }
     }
 
@@ -67,7 +67,7 @@ pub async fn generate_group_leader(
     }
 
     for leader in list.values() {
-        if let Some(count) = leader_count_by_broker.get_mut(&leader.broker_id) {
+        if let Some(count) = leader_count_by_broker.get_mut(&leader.leader_broker) {
             *count += 1;
         }
     }
@@ -117,28 +117,28 @@ mod tests {
 
         let tenant = "test_tenant";
         let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
-        use metadata_struct::mqtt::share_group::ShareGroupLeader;
+        use metadata_struct::mqtt::share_group::ShareGroup;
         storage
-            .save(ShareGroupLeader {
+            .save(ShareGroup {
                 tenant: tenant.to_string(),
                 group_name: "g1".to_string(),
-                broker_id: 1,
+                leader_broker: 1,
                 ..Default::default()
             })
             .unwrap();
         storage
-            .save(ShareGroupLeader {
+            .save(ShareGroup {
                 tenant: tenant.to_string(),
                 group_name: "g2".to_string(),
-                broker_id: 1,
+                leader_broker: 1,
                 ..Default::default()
             })
             .unwrap();
         storage
-            .save(ShareGroupLeader {
+            .save(ShareGroup {
                 tenant: tenant.to_string(),
                 group_name: "g3".to_string(),
-                broker_id: 2,
+                leader_broker: 2,
                 ..Default::default()
             })
             .unwrap();

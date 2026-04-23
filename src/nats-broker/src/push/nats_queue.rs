@@ -190,7 +190,7 @@ async fn round_robin_send(
     start_idx: usize,
     subscribe_manager: &Arc<NatsSubscribeManager>,
     connection_manager: &Arc<ConnectionManager>,
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
 ) -> Result<bool, NatsBrokerError> {
     for i in 0..subscribers.len() {
         let subscriber = &subscribers[(start_idx + i) % subscribers.len()];

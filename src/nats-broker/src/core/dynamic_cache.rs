@@ -28,7 +28,7 @@ use std::sync::Arc;
 pub async fn update_nats_cache_metadata(
     cache_manager: &Arc<NatsCacheManager>,
     subscribe_manager: &Arc<NatsSubscribeManager>,
-    client_pool: &Arc<ClientPool>,
+    _client_pool: &Arc<ClientPool>,
     record: &UpdateCacheRecord,
 ) -> Result<(), CommonError> {
     match record.resource_type() {

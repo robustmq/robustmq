@@ -18,7 +18,6 @@ use crate::push::common::{adaptive_sleep, should_stop, BATCH_SIZE};
 use crate::push::manager::NatsSubscribeManager;
 use bytes::Bytes;
 use dashmap::DashMap;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::nats::subscriber::NatsSubscriber;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
@@ -36,7 +35,6 @@ pub struct Mq9FanoutPushManager {
     subscribe_manager: Arc<NatsSubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
-    client_pool: Arc<ClientPool>,
     bucket_id: String,
     consumers: DashMap<String, Arc<PriorityGroupConsumer>>,
 }
@@ -46,14 +44,12 @@ impl Mq9FanoutPushManager {
         subscribe_manager: Arc<NatsSubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
         storage_driver_manager: Arc<StorageDriverManager>,
-        client_pool: Arc<ClientPool>,
         bucket_id: String,
     ) -> Self {
         Mq9FanoutPushManager {
             subscribe_manager,
             connection_manager,
             storage_driver_manager,
-            client_pool,
             bucket_id,
             consumers: DashMap::with_capacity(64),
         }

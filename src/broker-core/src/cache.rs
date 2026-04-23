@@ -18,8 +18,11 @@ use common_config::config::BrokerConfig;
 use dashmap::{DashMap, DashSet};
 use metadata_struct::{
     meta::node::BrokerNode,
-    mqtt::{session::MqttSession, share_group::ShareGroupLeader, topic::Topic},
-    nats::subscriber::NatsSubscriber,
+    mqtt::{
+        session::MqttSession,
+        share_group::{ShareGroup, ShareGroupMember},
+        topic::Topic,
+    },
     tenant::Tenant,
 };
 use std::sync::Arc;
@@ -47,7 +50,8 @@ pub struct NodeCacheManager {
     pub topic_tenant_index: DashMap<String, DashSet<String>>,
 
     // ("{tenant}/{group_name}", ShareGroupLeader)
-    pub share_group_list: DashMap<String, ShareGroupLeader>,
+    pub share_group_list: DashMap<String, ShareGroup>,
+    pub share_group_members: DashMap<String, Vec<ShareGroupMember>>,
 
     // ("{tenant}/{client_id}", MqttSession)
     pub session_list: DashMap<String, MqttSession>,
@@ -67,6 +71,7 @@ impl NodeCacheManager {
             cluster_config: ArcSwap::new(Arc::new(cluster)),
             status: Arc::new(RwLock::new(NodeStatus::Starting)),
             share_group_list: DashMap::new(),
+            share_group_members: DashMap::new(),
             session_list: DashMap::new(),
             session_tenant_index: DashMap::with_capacity(8),
             topic_list: DashMap::new(),
@@ -199,7 +204,7 @@ impl NodeCacheManager {
     }
 
     // ShareGroup
-    pub fn add_share_group(&self, group: ShareGroupLeader) {
+    pub fn add_share_group(&self, group: ShareGroup) {
         let key = format!("{}/{}", group.tenant, group.group_name);
         self.share_group_list.insert(key, group);
     }
@@ -209,24 +214,25 @@ impl NodeCacheManager {
         self.share_group_list.remove(&key);
     }
 
-    pub fn get_share_group(&self, tenant: &str, group_name: &str) -> Option<ShareGroupLeader> {
+    pub fn get_share_group(&self, tenant: &str, group_name: &str) -> Option<ShareGroup> {
         let key = format!("{tenant}/{group_name}");
         self.share_group_list.get(&key).map(|g| g.clone())
     }
 
-    pub fn add_share_group_member(&self, tenant: &str, group_name: &str, member: &NatsSubscriber) {
-        let key = format!("{tenant}/{group_name}");
-        if let Some(mut group) = self.share_group_list.get_mut(&key) {
-            if !group.members.iter().any(|m| m.uniq_id == member.uniq_id) {
-                group.members.push(member.clone());
-            }
-        }
+    pub fn add_share_group_member(&self, member: &ShareGroupMember) {
+        let key = format!("{}/{}", member.tenant, member.group_name);
+        self.share_group_members
+            .entry(key)
+            .or_default()
+            .push(member.clone());
     }
 
-    pub fn remove_share_group_member(&self, tenant: &str, group_name: &str, uniq_id: &str) {
-        let key = format!("{tenant}/{group_name}");
-        if let Some(mut group) = self.share_group_list.get_mut(&key) {
-            group.members.retain(|m| m.uniq_id != uniq_id);
+    pub fn remove_share_group_member(&self, member: &ShareGroupMember) {
+        let key = format!("{}/{}", member.tenant, member.group_name);
+        if let Some(mut members) = self.share_group_members.get_mut(&key) {
+            members.retain(|m| {
+                !(m.broker_id == member.broker_id && m.connect_id == member.connect_id)
+            });
         }
     }
 

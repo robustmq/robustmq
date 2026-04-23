@@ -402,26 +402,10 @@ message ListShareGroupReply {
   repeated bytes groups = 1;
 }
 
-message ShareGroupLeaderInfo {
-  string tenant = 1;
-  string group_name = 2;
-  uint64 broker_id = 3;
-  string broker_addr = 4;
-  bytes extend_info = 5;
-  repeated ShareGroupMemberInfo members = 6;
-  uint64 create_time = 7;
-}
-
-message ShareGroupMemberInfo {
-  uint64 broker_id = 1;
-  uint64 connect_id = 2;
-}
-
 message CreateShareGroupRequest {
   string tenant = 1 [(validate.rules).string.min_len = 1];
   string group = 2 [(validate.rules).string.min_len = 1];
-  // Source of the share group: MQ9=0, NATS=1, MQTT=2
-  int32 source = 3;
+  bytes params = 3;
 }
 
 message CreateShareGroupReply {}

@@ -27,6 +27,7 @@ use crate::storage::topic_delete::TopicDeleteStorage;
 use broker_core::cache::NodeCacheManager;
 use bytes::Bytes;
 use common_base::tools::now_millis;
+use common_base::utils::serialize;
 use delay_task::manager::DelayTaskManager;
 use delay_task::{DelayTask, DelayTaskData};
 use metadata_struct::auth::acl::SecurityAcl;
@@ -37,11 +38,10 @@ use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::session::MqttSession;
-use metadata_struct::mqtt::share_group::ShareGroupLeader;
+use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupMember};
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
-use metadata_struct::nats::subscriber::NatsSubscriber;
 use prost::Message as _;
 use protocol::meta::meta_service_common::{
     AddShareGroupMemberRequest, DeleteShareGroupMemberRequest,
@@ -317,7 +317,7 @@ impl DataRouteMqtt {
 
     // Group Leader
     pub fn create_group_leader(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let leader = ShareGroupLeader::decode(&value)?;
+        let leader = ShareGroup::decode(&value)?;
         let storage = ShareGroupStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(leader.clone())?;
         self.cache_manager.add_group_leader(leader);
@@ -325,7 +325,7 @@ impl DataRouteMqtt {
     }
 
     pub fn delete_group_leader(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let leader = ShareGroupLeader::decode(&value)?;
+        let leader = ShareGroup::decode(&value)?;
         let storage = ShareGroupStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&leader.tenant, &leader.group_name)?;
         self.cache_manager
@@ -335,45 +335,17 @@ impl DataRouteMqtt {
 
     pub fn add_group_member(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = AddShareGroupMemberRequest::decode(value.as_ref())?;
-        let member = NatsSubscriber::decode(&req.data)?;
+        let member: ShareGroupMember = serialize::deserialize(&req.data)?;
         let storage = ShareGroupStorage::new(self.rocksdb_engine_handler.clone());
-        let mut leader = match storage.get(&req.tenant, &req.group)? {
-            Some(l) => l,
-            None => return Ok(()),
-        };
-        if leader
-            .members
-            .iter()
-            .any(|m| m.broker_id == member.broker_id && m.connect_id == member.connect_id)
-        {
-            return Ok(());
-        }
-        leader.members.push(member);
-        self.cache_manager.add_group_leader(leader.clone());
-        storage.save(leader)?;
+        storage.save_member(&req.tenant, &req.group, &member)?;
         Ok(())
     }
 
     pub fn delete_group_member(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteShareGroupMemberRequest::decode(value.as_ref())?;
-        let member = NatsSubscriber::decode(&req.data)?;
+        let member: ShareGroupMember = serialize::deserialize(&req.data)?;
         let storage = ShareGroupStorage::new(self.rocksdb_engine_handler.clone());
-        let mut leader = match storage.get(&req.tenant, &req.group)? {
-            Some(l) => l,
-            None => return Ok(()),
-        };
-        if !leader
-            .members
-            .iter()
-            .any(|m| m.broker_id == member.broker_id && m.connect_id == member.connect_id)
-        {
-            return Ok(());
-        }
-        leader
-            .members
-            .retain(|m| !(m.broker_id == member.broker_id && m.connect_id == member.connect_id));
-        self.cache_manager.add_group_leader(leader.clone());
-        storage.save(leader)?;
+        storage.delete_member(&req.tenant, &req.group, member.broker_id, member.connect_id)?;
         Ok(())
     }
 

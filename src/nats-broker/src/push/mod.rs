@@ -137,7 +137,6 @@ pub async fn start_push(
             subscribe_manager.clone(),
             connection_manager.clone(),
             storage_driver_manager.clone(),
-            client_pool.clone(),
             bucket_id.clone(),
         );
         let sx = stop_sx.clone();
@@ -159,7 +158,6 @@ pub async fn start_push(
             subscribe_manager.clone(),
             connection_manager.clone(),
             storage_driver_manager.clone(),
-            client_pool.clone(),
             bucket_id.clone(),
         );
         let sx = stop_sx.clone();

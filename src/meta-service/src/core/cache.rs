@@ -26,7 +26,7 @@ use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
-use metadata_struct::mqtt::share_group::ShareGroupLeader;
+use metadata_struct::mqtt::share_group::ShareGroup;
 use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
@@ -54,7 +54,7 @@ pub struct MetaCacheManager {
     pub connector_heartbeat: DashMap<String, ConnectorHeartbeat>,
 
     // (group_name, broker_id)
-    pub group_leader: DashMap<String, ShareGroupLeader>,
+    pub group_leader: DashMap<String, ShareGroup>,
 
     // Storage Engine
     //（shard_name, JournalShard）

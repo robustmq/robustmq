@@ -174,6 +174,27 @@ pub fn storage_key_share_group_prefix() -> String {
 }
 
 #[inline]
+pub fn storage_key_share_group_member(
+    tenant: &str,
+    group_name: &str,
+    broker_id: u64,
+    connect_id: u64,
+) -> String {
+    format!(
+        "{}cluster/share_group_member/{}/{}/{}/{}",
+        PREFIX_META, tenant, group_name, broker_id, connect_id
+    )
+}
+
+#[inline]
+pub fn storage_key_share_group_member_prefix(tenant: &str, group_name: &str) -> String {
+    format!(
+        "{}cluster/share_group_member/{}/{}/",
+        PREFIX_META, tenant, group_name
+    )
+}
+
+#[inline]
 pub fn storage_key_mqtt_subscribe(client_id: &str, path: &str) -> String {
     format!("{}mqtt/subscribe/{}/{}", PREFIX_META, client_id, path)
 }

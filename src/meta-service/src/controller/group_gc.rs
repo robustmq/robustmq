@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::notify::send_notify_by_delete_group;
+use crate::core::notify::send_notify_by_delete_group_offset;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::common::offset::OffsetStorage;
@@ -137,7 +137,8 @@ async fn gc_expired_groups(
         }
 
         // Notify all broker nodes to clean up their in-memory group state.
-        if let Err(e) = send_notify_by_delete_group(node_call_manager, &tenant, &group).await {
+        if let Err(e) = send_notify_by_delete_group_offset(node_call_manager, &tenant, &group).await
+        {
             warn!(
                 "Failed to notify brokers to delete group: tenant={}, group={}, error={}",
                 tenant, group, e

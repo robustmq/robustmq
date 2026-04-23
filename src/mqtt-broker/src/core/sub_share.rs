@@ -52,7 +52,7 @@ pub async fn is_share_sub_leader(
         };
 
     let conf = broker_config();
-    Ok(group_info.broker_id == conf.broker_id)
+    Ok(group_info.leader_broker == conf.broker_id)
 }
 
 pub async fn get_share_sub_leader(
@@ -61,7 +61,7 @@ pub async fn get_share_sub_leader(
     group_name: &str,
 ) -> Option<u64> {
     if let Some(group) = cache_manager.node_cache.get_share_group(tenant, group_name) {
-        return Some(group.broker_id);
+        return Some(group.leader_broker);
     }
     None
 }
