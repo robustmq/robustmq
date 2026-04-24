@@ -15,7 +15,6 @@
 use crate::core::cache::NatsCacheManager;
 use crate::core::write_client::write_nats_packet;
 use crate::push::manager::NatsSubscribeManager;
-use crate::push::queue::delete_members_by_group;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use common_config::broker::broker_config;
@@ -109,8 +108,7 @@ impl NatsClientKeepAlive {
             for connect_id in stale_ids {
                 close_stale_connection(&self.connection_manager, connect_id).await;
                 self.cache_manager.remove_connection(connect_id);
-                let removed = self.subscribe_manager.remove_by_connection(connect_id);
-                delete_members_by_group(&self.client_pool, removed).await;
+                self.subscribe_manager.remove_by_connection(connect_id);
             }
         }
 

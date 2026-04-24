@@ -20,6 +20,8 @@ pub struct ShareGroupMember {
     pub tenant: String,
     pub group_name: String,
     pub broker_id: u64,
+    pub sub_path: String,
+    pub sid: String,
     pub connect_id: u64,
     pub create_time: u64,
 }

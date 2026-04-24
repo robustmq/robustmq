@@ -102,7 +102,10 @@ impl NatsSubscribeManager {
     }
 
     pub fn add_nats_core_queue_subscriber(&self, subscriber: &NatsSubscriber) {
-        let queue_key = format!("{}#{}", subscriber.tenant, subscriber.queue_group);
+        let queue_key = format!(
+            "{}#{}#{}",
+            subscriber.tenant, subscriber.queue_group, subscriber.subject
+        );
         self.nats_core_queue_push
             .entry(queue_key)
             .or_default()
@@ -115,7 +118,10 @@ impl NatsSubscribeManager {
     }
 
     pub fn add_mq9_queue_subscriber(&self, subscriber: &NatsSubscriber) {
-        let queue_key = format!("{}#{}", subscriber.tenant, subscriber.queue_group);
+        let queue_key = format!(
+            "{}#{}#{}",
+            subscriber.tenant, subscriber.queue_group, subscriber.subject
+        );
         self.mq9_queue_push
             .entry(queue_key)
             .or_default()

@@ -18,7 +18,6 @@ use crate::push::nats_fanout::FanoutPushManager;
 use crate::push::nats_queue::QueuePushManager;
 use crate::push::parse::{parse_by_new_subscribe, parse_by_new_topic};
 use crate::push::parse::{ParseAction, ParseSubscribeData};
-use crate::push::queue::delete_members_by_group;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::uuid::unique_id;
 pub use manager::NatsSubscribeManager;
@@ -39,7 +38,6 @@ pub mod mq9_queue;
 pub mod nats_fanout;
 pub mod nats_queue;
 pub mod parse;
-pub mod queue;
 
 async fn start_parse_thread(
     cache_manager: Arc<NatsCacheManager>,
@@ -77,7 +75,7 @@ async fn start_parse_thread(
 
                 match (&data.action, &data.source, &data.subscribe, &data.topic) {
                     (ParseAction::Add, source, Some(sub), None) => {
-                        if let Err(e) = parse_by_new_subscribe(&cache_manager, &subscribe_manager, client_pool.clone(), sub, source).await{
+                        if let Err(e) = parse_by_new_subscribe(&cache_manager, &subscribe_manager, sub, source).await{
                              error!("{}",e.to_string());
                         }
                     }
@@ -85,13 +83,12 @@ async fn start_parse_thread(
                         subscribe_manager.remove_push_by_sub(sub.connect_id, &sub.sid);
                     }
                     (ParseAction::Add, _, None, Some(topic)) => {
-                        if let Err(e) = parse_by_new_topic(&subscribe_manager, client_pool.clone(), topic).await{
+                        if let Err(e) = parse_by_new_topic(&subscribe_manager, topic).await{
                             error!("{}",e.to_string());
                         }
                     }
                     (ParseAction::Remove, _, None, Some(topic)) => {
-                        let removed = subscribe_manager.remove_by_subject(&topic.topic_name);
-                        delete_members_by_group(&client_pool, removed).await;
+                        subscribe_manager.remove_by_subject(&topic.topic_name);
                     }
                     _ => {
                         error!("Unexpected ParseSubscribeData: {:?}", data);
