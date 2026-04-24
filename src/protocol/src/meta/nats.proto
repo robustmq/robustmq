@@ -17,19 +17,19 @@ message CreateNatsSubscribeRequest {
 message CreateNatsSubscribeReply {}
 
 message DeleteNatsSubscribeRequest {
-  string tenant = 1 [(validate.rules).string.min_len = 1];
-  repeated NatsSubscribeKey keys = 2;
+  repeated NatsSubscribeKey keys = 1;
 }
 
 message NatsSubscribeKey {
-  uint64 connect_id = 1;
-  string sid = 2;
+  uint64 broker_id = 1;
+  uint64 connect_id = 2;
+  string sid = 3;
 }
 
 message DeleteNatsSubscribeReply {}
 
 message ListNatsSubscribeRequest {
-  string tenant = 1;
+  uint64 broker_id = 1;
   uint64 connect_id = 2;
 }
 

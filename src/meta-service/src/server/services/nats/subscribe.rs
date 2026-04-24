@@ -42,14 +42,14 @@ pub fn list_nats_subscribe_by_req(
     req: &ListNatsSubscribeRequest,
 ) -> ListNatsSubscribeStream {
     let storage = NatsSubscribeStorage::new(rocksdb_engine_handler.clone());
-    let subscribes: Vec<NatsSubscribe> = if req.connect_id != 0 {
+    let subscribes: Vec<NatsSubscribe> = if req.broker_id != 0 && req.connect_id != 0 {
         storage
-            .list_by_tenant(&req.tenant)?
+            .list_by_broker(req.broker_id)?
             .into_iter()
             .filter(|s| s.connect_id == req.connect_id)
             .collect()
-    } else if !req.tenant.is_empty() {
-        storage.list_by_tenant(&req.tenant)?
+    } else if req.broker_id != 0 {
+        storage.list_by_broker(req.broker_id)?
     } else {
         storage.list()?
     };
@@ -85,9 +85,9 @@ pub async fn delete_nats_subscribe_by_req(
 ) -> Result<DeleteNatsSubscribeReply, MetaServiceError> {
     let storage = NatsSubscribeStorage::new(rocksdb_engine_handler.clone());
     let data = StorageData::new(StorageDataType::NatsDeleteSubscribe, encode_to_bytes(req));
-    raft_manager.write_data(&req.tenant, data).await?;
+    raft_manager.write_data("nats/subscribe", data).await?;
     for key in &req.keys {
-        if let Some(subscribe) = storage.get(&req.tenant, key.connect_id, &key.sid)? {
+        if let Some(subscribe) = storage.get(key.broker_id, key.connect_id, &key.sid)? {
             send_notify_by_delete_nats_subscribe(call_manager, subscribe).await?;
         }
     }

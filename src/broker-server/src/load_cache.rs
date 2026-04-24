@@ -244,7 +244,7 @@ pub async fn load_nats_cache(
     client_pool: &Arc<ClientPool>,
 ) -> Result<(), CommonError> {
     let subscribe_storage = NatsSubscribeStorage::new(client_pool.clone());
-    let subscribes = subscribe_storage.list("", 0).await?;
+    let subscribes = subscribe_storage.list(0, 0).await?;
     let subscribe_count = subscribes.len();
     for subscribe in subscribes {
         subscribe_manager.add_subscribe(subscribe);

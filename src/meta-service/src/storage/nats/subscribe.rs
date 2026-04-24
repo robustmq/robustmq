@@ -15,8 +15,8 @@
 use common_base::error::common::CommonError;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use rocksdb_engine::keys::meta::{
-    storage_key_nats_subscribe, storage_key_nats_subscribe_prefix,
-    storage_key_nats_subscribe_tenant_prefix,
+    storage_key_nats_subscribe, storage_key_nats_subscribe_broker_prefix,
+    storage_key_nats_subscribe_prefix,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_data::{
@@ -38,17 +38,17 @@ impl NatsSubscribeStorage {
 
     pub fn save(&self, subscribe: &NatsSubscribe) -> Result<(), CommonError> {
         let key =
-            storage_key_nats_subscribe(&subscribe.tenant, subscribe.connect_id, &subscribe.sid);
+            storage_key_nats_subscribe(subscribe.broker_id, subscribe.connect_id, &subscribe.sid);
         engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, subscribe)
     }
 
     pub fn get(
         &self,
-        tenant: &str,
+        broker_id: u64,
         connect_id: u64,
         sid: &str,
     ) -> Result<Option<NatsSubscribe>, CommonError> {
-        let key = storage_key_nats_subscribe(tenant, connect_id, sid);
+        let key = storage_key_nats_subscribe(broker_id, connect_id, sid);
         Ok(
             engine_get_by_meta_data::<NatsSubscribe>(&self.rocksdb_engine_handler, &key)?
                 .map(|data| data.data),
@@ -64,8 +64,8 @@ impl NatsSubscribeStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn list_by_tenant(&self, tenant: &str) -> Result<Vec<NatsSubscribe>, CommonError> {
-        let prefix = storage_key_nats_subscribe_tenant_prefix(tenant);
+    pub fn list_by_broker(&self, broker_id: u64) -> Result<Vec<NatsSubscribe>, CommonError> {
+        let prefix = storage_key_nats_subscribe_broker_prefix(broker_id);
         let data = engine_prefix_list_by_meta_data::<NatsSubscribe>(
             &self.rocksdb_engine_handler,
             &prefix,
@@ -73,8 +73,8 @@ impl NatsSubscribeStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn delete(&self, tenant: &str, connect_id: u64, sid: &str) -> Result<(), CommonError> {
-        let key = storage_key_nats_subscribe(tenant, connect_id, sid);
+    pub fn delete(&self, broker_id: u64, connect_id: u64, sid: &str) -> Result<(), CommonError> {
+        let key = storage_key_nats_subscribe(broker_id, connect_id, sid);
         engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)
     }
 }
