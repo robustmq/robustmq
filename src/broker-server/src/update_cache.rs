@@ -329,7 +329,7 @@ pub async fn update_cluster_cache_metadata(
                     })
                     .await;
             }
-            
+
             BrokerUpdateCacheActionType::Delete => {
                 let req = DeleteShareGroupMemberRequest::decode(record.data.as_slice())
                     .map_err(|e| CommonError::CommonError(e.to_string()))?;

@@ -18,7 +18,7 @@ use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::nats::{subscribe::NatsSubscribe, subscriber::NatsSubscriber};
 use std::sync::Arc;
-use tokio::sync::{mpsc::Sender, RwLock};
+use tokio::sync::{broadcast, mpsc::Sender, RwLock};
 use tracing::error;
 
 #[derive(Default)]
@@ -27,12 +27,14 @@ pub struct NatsSubscribeManager {
 
     /// NATS core fanout push buckets (subject-based, wildcards).
     pub nats_core_fanout_push: NatsBucketsManager,
-    /// NATS core queue-group push buckets (key: `{tenant}#{queue_group}`).
+    /// NATS core queue-group push buckets (key: `{tenant}#{queue_group}#{subject}`).
     pub nats_core_queue_push: DashMap<String, NatsBucketsManager>,
+    /// Running queue-group push tasks; value is the per-task stop sender.
+    pub nats_core_queue_push_thread: DashMap<String, broadcast::Sender<bool>>,
 
     /// MQ9 fanout push buckets (mail_id-based).
     pub mq9_fanout_push: NatsBucketsManager,
-    /// MQ9 queue-group push buckets (key: `{tenant}#{queue_group}`).
+    /// MQ9 queue-group push buckets (key: `{tenant}#{queue_group}#{subject}`).
     pub mq9_queue_push: DashMap<String, NatsBucketsManager>,
 
     pub not_push_client: DashMap<u64, u64>,
@@ -45,6 +47,7 @@ impl NatsSubscribeManager {
             subscribe_list: DashMap::with_capacity(256),
             nats_core_fanout_push: NatsBucketsManager::new(),
             nats_core_queue_push: DashMap::with_capacity(16),
+            nats_core_queue_push_thread: DashMap::with_capacity(16),
             mq9_fanout_push: NatsBucketsManager::new(),
             mq9_queue_push: DashMap::with_capacity(16),
             not_push_client: DashMap::with_capacity(32),

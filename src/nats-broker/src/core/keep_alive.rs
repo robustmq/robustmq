@@ -18,7 +18,6 @@ use crate::push::manager::NatsSubscribeManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use common_config::broker::broker_config;
-use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::nats::packet::NatsPacket;
 use std::sync::Arc;
@@ -36,7 +35,6 @@ pub struct NatsClientKeepAlive {
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<NatsCacheManager>,
     subscribe_manager: Arc<NatsSubscribeManager>,
-    client_pool: Arc<ClientPool>,
 }
 
 impl NatsClientKeepAlive {
@@ -44,13 +42,11 @@ impl NatsClientKeepAlive {
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<NatsCacheManager>,
         subscribe_manager: Arc<NatsSubscribeManager>,
-        client_pool: Arc<ClientPool>,
     ) -> Self {
         NatsClientKeepAlive {
             connection_manager,
             cache_manager,
             subscribe_manager,
-            client_pool,
         }
     }
 

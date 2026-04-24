@@ -15,6 +15,7 @@
 use crate::core::cache::NatsCacheManager;
 use crate::core::error::NatsBrokerError;
 use crate::push::manager::NatsSubscribeManager;
+use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::tools::now_second;
 use common_base::uuid::unique_id;
 use common_config::broker::broker_config;
@@ -22,7 +23,9 @@ use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::nats::subscriber::NatsSubscriber;
 use metadata_struct::topic::{Topic, TopicSource};
 use std::sync::Arc;
-use tracing::debug;
+use tokio::sync::broadcast;
+use tokio::sync::mpsc::Receiver;
+use tracing::{debug, error, info};
 
 #[derive(Clone, Debug)]
 pub enum ParseAction {
@@ -181,6 +184,81 @@ fn match_tokens(pat: &[&str], top: &[&str]) -> bool {
         (None, _) | (_, None) => false,
         (Some(&"*"), _) => match_tokens(&pat[1..], &top[1..]),
         (Some(p), Some(t)) => p == t && match_tokens(&pat[1..], &top[1..]),
+    }
+}
+
+pub(crate) async fn start_subscribe_parse_thread(
+    subscribe_manager: &Arc<NatsSubscribeManager>,
+    cache_manager: Arc<NatsCacheManager>,
+    task_supervisor: &Arc<TaskSupervisor>,
+    stop_sx: &broadcast::Sender<bool>,
+) {
+    let (parse_tx, parse_rx) = tokio::sync::mpsc::channel(1024);
+    subscribe_manager.set_parse_sender(parse_tx).await;
+
+    let sm = subscribe_manager.clone();
+    let sx = stop_sx.clone();
+    task_supervisor.spawn(TaskKind::NATSSubscribeParse.to_string(), async move {
+        start_parse_thread(cache_manager, sm, parse_rx, sx).await;
+    });
+}
+
+async fn start_parse_thread(
+    cache_manager: Arc<NatsCacheManager>,
+    subscribe_manager: Arc<NatsSubscribeManager>,
+    mut rx: Receiver<ParseSubscribeData>,
+    stop_sx: broadcast::Sender<bool>,
+) {
+    let mut stop_rx = stop_sx.subscribe();
+
+    loop {
+        tokio::select! {
+            val = stop_rx.recv() => {
+                match val {
+                    Ok(true) => {
+                        info!("NATS subscribe parse thread stopping");
+                        break;
+                    }
+                    Ok(false) => {}
+                    Err(broadcast::error::RecvError::Closed) => {
+                        info!("NATS subscribe parse thread stop channel closed");
+                        break;
+                    }
+                    Err(broadcast::error::RecvError::Lagged(n)) => {
+                        debug!("NATS subscribe parse thread stop channel lagged, skipped {}", n);
+                    }
+                }
+            }
+
+            result = rx.recv() => {
+                let Some(data) = result else {
+                    info!("NATS subscribe parse thread request channel closed");
+                    break;
+                };
+
+                match (&data.action, &data.source, &data.subscribe, &data.topic) {
+                    (ParseAction::Add, source, Some(sub), None) => {
+                        if let Err(e) = parse_by_new_subscribe(&cache_manager, &subscribe_manager, sub, source).await {
+                            error!("{}", e.to_string());
+                        }
+                    }
+                    (ParseAction::Remove, _, Some(sub), None) => {
+                        subscribe_manager.remove_push_by_sub(sub.connect_id, &sub.sid);
+                    }
+                    (ParseAction::Add, _, None, Some(topic)) => {
+                        if let Err(e) = parse_by_new_topic(&subscribe_manager, topic).await {
+                            error!("{}", e.to_string());
+                        }
+                    }
+                    (ParseAction::Remove, _, None, Some(topic)) => {
+                        subscribe_manager.remove_by_subject(&topic.topic_name);
+                    }
+                    _ => {
+                        error!("Unexpected ParseSubscribeData: {:?}", data);
+                    }
+                }
+            }
+        }
     }
 }
 
