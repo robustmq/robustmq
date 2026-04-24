@@ -132,17 +132,15 @@ impl ShareGroupStorage {
 
     pub async fn delete_member(
         &self,
-        tenant: &str,
-        group_name: &str,
         broker_id: u64,
         connect_id: u64,
+        sid: &str,
     ) -> Result<(), CommonError> {
         let config = broker_config();
         let request = DeleteShareGroupMemberRequest {
-            tenant: tenant.to_string(),
-            group_name: group_name.to_owned(),
             broker_id,
             connect_id,
+            sid: sid.to_string(),
         };
         placement_delete_share_group_member(
             &self.client_pool,

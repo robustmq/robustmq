@@ -424,10 +424,9 @@ message AddShareGroupMemberRequest {
 message AddShareGroupMemberReply {}
 
 message DeleteShareGroupMemberRequest {
-  string tenant = 1 [(validate.rules).string.min_len = 1];
-  string group_name = 2 [(validate.rules).string.min_len = 1];
-  uint64 broker_id = 3;
-  uint64 connect_id = 4;
+  uint64 broker_id = 1;
+  uint64 connect_id = 2;
+  string sid = 3 [(validate.rules).string.min_len = 1];
 }
 
 message DeleteShareGroupMemberReply {}

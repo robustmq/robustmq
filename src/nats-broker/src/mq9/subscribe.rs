@@ -82,18 +82,10 @@ pub async fn process_unsub(
     sid: &str,
 ) -> Result<(), NatsBrokerError> {
     ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
-    let tenant = DEFAULT_TENANT.to_string();
     if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
         let conf = broker_config();
-        if let Some(queue_name) = subscribe.queue_group {
-            delete_member_by_group(
-                &ctx.client_pool,
-                &tenant,
-                &queue_name,
-                conf.broker_id,
-                ctx.connect_id,
-            )
-            .await?;
+        if subscribe.queue_group.is_some() {
+            delete_member_by_group(&ctx.client_pool, conf.broker_id, ctx.connect_id, sid).await?;
         } else {
             ctx.subscribe_manager
                 .send_parse_event(ParseSubscribeData::new_subscribe(

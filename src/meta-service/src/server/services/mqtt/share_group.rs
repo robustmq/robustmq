@@ -156,14 +156,12 @@ pub async fn delete_share_group_member_by_req(
     req: &DeleteShareGroupMemberRequest,
 ) -> Result<DeleteShareGroupMemberReply, MetaServiceError> {
     let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
-    if let Some(member) =
-        storage.get_member(&req.tenant, &req.group_name, req.broker_id, req.connect_id)?
-    {
+    if let Some(member) = storage.get_member(req.broker_id, req.connect_id, &req.sid)? {
         let data = StorageData::new(
             StorageDataType::MqttDeleteGroupMember,
             Bytes::copy_from_slice(&req.encode_to_vec()),
         );
-        raft_manager.write_data(&req.group_name, data).await?;
+        raft_manager.write_data(&member.group_name, data).await?;
         send_notify_by_delete_share_group_member(call_manager, &member).await?;
     };
 

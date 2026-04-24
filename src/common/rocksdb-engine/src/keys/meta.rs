@@ -174,23 +174,18 @@ pub fn storage_key_share_group_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_share_group_member(
-    tenant: &str,
-    group_name: &str,
-    broker_id: u64,
-    connect_id: u64,
-) -> String {
+pub fn storage_key_share_group_member(broker_id: u64, connect_id: u64, sid: &str) -> String {
     format!(
-        "{}cluster/share_group_member/{}/{}/{}/{}",
-        PREFIX_META, tenant, group_name, broker_id, connect_id
+        "{}cluster/share_group_member/{}/{}/{}",
+        PREFIX_META, broker_id, connect_id, sid
     )
 }
 
 #[inline]
-pub fn storage_key_share_group_member_prefix(tenant: &str, group_name: &str) -> String {
+pub fn storage_key_share_group_member_prefix(broker_id: u64, connect_id: u64) -> String {
     format!(
         "{}cluster/share_group_member/{}/{}/",
-        PREFIX_META, tenant, group_name
+        PREFIX_META, broker_id, connect_id
     )
 }
 

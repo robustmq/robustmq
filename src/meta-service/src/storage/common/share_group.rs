@@ -84,25 +84,18 @@ impl ShareGroupStorage {
         Ok(results)
     }
 
-    pub fn save_member(
-        &self,
-        tenant: &str,
-        group_name: &str,
-        member: &ShareGroupMember,
-    ) -> ResultCommonError {
-        let key =
-            storage_key_share_group_member(tenant, group_name, member.broker_id, member.connect_id);
+    pub fn save_member(&self, member: &ShareGroupMember) -> ResultCommonError {
+        let key = storage_key_share_group_member(member.broker_id, member.connect_id, &member.sid);
         engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, member.clone())
     }
 
     pub fn get_member(
         &self,
-        tenant: &str,
-        group_name: &str,
         broker_id: u64,
         connect_id: u64,
+        sid: &str,
     ) -> Result<Option<ShareGroupMember>, CommonError> {
-        let key = storage_key_share_group_member(tenant, group_name, broker_id, connect_id);
+        let key = storage_key_share_group_member(broker_id, connect_id, sid);
         Ok(
             engine_get_by_meta_data::<ShareGroupMember>(&self.rocksdb_engine_handler, &key)?
                 .map(|w| w.data),
@@ -111,10 +104,10 @@ impl ShareGroupStorage {
 
     pub fn list_members(
         &self,
-        tenant: &str,
-        group_name: &str,
+        broker_id: u64,
+        connect_id: u64,
     ) -> Result<Vec<ShareGroupMember>, CommonError> {
-        let prefix_key = storage_key_share_group_member_prefix(tenant, group_name);
+        let prefix_key = storage_key_share_group_member_prefix(broker_id, connect_id);
         let result = engine_prefix_list_by_meta_data::<ShareGroupMember>(
             &self.rocksdb_engine_handler,
             &prefix_key,
@@ -122,14 +115,8 @@ impl ShareGroupStorage {
         Ok(result.into_iter().map(|w| w.data).collect())
     }
 
-    pub fn delete_member(
-        &self,
-        tenant: &str,
-        group_name: &str,
-        broker_id: u64,
-        connect_id: u64,
-    ) -> ResultCommonError {
-        let key = storage_key_share_group_member(tenant, group_name, broker_id, connect_id);
+    pub fn delete_member(&self, broker_id: u64, connect_id: u64, sid: &str) -> ResultCommonError {
+        let key = storage_key_share_group_member(broker_id, connect_id, sid);
         engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)
     }
 }
