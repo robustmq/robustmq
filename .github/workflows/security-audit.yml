@@ -48,7 +48,10 @@ jobs:
       - name: Run cargo audit (vulnerabilities only)
         # Only fail on actual security vulnerabilities, not unmaintained warnings
         # Unmaintained dependencies are reported but don't fail the build
-        run: cargo audit
+        # RUSTSEC-2026-0104: rustls-webpki 0.101.7 (mongodb->rustls 0.21) and
+        # 0.102.8 (async-nats/rumqttc) cannot be upgraded until upstream crates
+        # publish fixes; 0.103.x has been patched to 0.103.13 in Cargo.lock.
+        run: cargo audit --ignore RUSTSEC-2026-0104
       
       - name: Check for unmaintained dependencies (warning only)
         # Report unmaintained dependencies but don't fail

@@ -18,7 +18,6 @@ use crate::push::manager::NatsSubscribeManager;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::tools::now_second;
 use common_base::uuid::unique_id;
-use common_config::broker::broker_config;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::nats::subscriber::NatsSubscriber;
 use metadata_struct::topic::{Topic, TopicSource};
@@ -139,7 +138,6 @@ async fn register_subscriber(
     topic_name: &str,
     source: &SubscribeSource,
 ) -> Result<(), NatsBrokerError> {
-    let conf = broker_config();
     let subscriber = NatsSubscriber {
         uniq_id: unique_id(),
         tenant: sub.tenant.clone(),
@@ -147,7 +145,7 @@ async fn register_subscriber(
         sid: sub.sid.clone(),
         sub_subject: sub.subject.clone(),
         subject: topic_name.to_string(),
-        broker_id: conf.broker_id,
+        broker_id: sub.broker_id,
         queue_group: sub.queue_group.clone(),
         create_time: now_second(),
     };

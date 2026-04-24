@@ -252,6 +252,7 @@ mod tests {
 
     fn make_subscribe(connect_id: u64, sid: &str, subject: &str) -> NatsSubscribe {
         NatsSubscribe {
+            broker_id: 1,
             tenant: "default".to_string(),
             connect_id,
             sid: sid.to_string(),
@@ -261,22 +262,35 @@ mod tests {
         }
     }
 
-    fn make_subscriber(connect_id: u64, sid: &str, topic: &str) -> NatsSubscriber {
+    fn make_subscriber(connect_id: u64, sid: &str, subject: &str) -> NatsSubscriber {
         NatsSubscriber {
             uniq_id: unique_id(),
+            broker_id: 1,
             tenant: "default".to_string(),
             connect_id,
             sid: sid.to_string(),
-            broker_id: 1,
-            sub_subject: topic.to_string(),
-            subject: topic.to_string(),
+            sub_subject: subject.to_string(),
+            subject: subject.to_string(),
             queue_group: String::new(),
             create_time: now_second(),
         }
     }
 
+    fn make_queue_subscriber(
+        connect_id: u64,
+        sid: &str,
+        subject: &str,
+        group: &str,
+    ) -> NatsSubscriber {
+        let mut sub = make_subscriber(connect_id, sid, subject);
+        sub.queue_group = group.to_string();
+        sub
+    }
+
+    // --- subscribe list ---
+
     #[test]
-    fn test_add_and_remove_subscribe() {
+    fn test_subscribe_add_get_remove() {
         let mgr = NatsSubscribeManager::new();
         mgr.add_subscribe(make_subscribe(1, "s1", "foo.bar"));
         assert_eq!(mgr.subscribe_count(), 1);
@@ -284,10 +298,11 @@ mod tests {
 
         mgr.remove_subscribe(1, "s1");
         assert_eq!(mgr.subscribe_count(), 0);
+        assert!(mgr.get_subscribe(1, "s1").is_none());
     }
 
     #[test]
-    fn test_list_subscribes_by_connection() {
+    fn test_subscribe_list_by_connection() {
         let mgr = NatsSubscribeManager::new();
         mgr.add_subscribe(make_subscribe(1, "s1", "foo"));
         mgr.add_subscribe(make_subscribe(1, "s2", "bar"));
@@ -295,28 +310,17 @@ mod tests {
 
         assert_eq!(mgr.list_subscribes_by_connection(1).len(), 2);
         assert_eq!(mgr.list_subscribes_by_connection(2).len(), 1);
+        assert_eq!(mgr.list_subscribes_by_connection(3).len(), 0);
     }
 
-    #[test]
-    fn test_nats_core_fanout_subscriber() {
-        let mgr = NatsSubscribeManager::new();
-        mgr.add_nats_core_fanout_subscriber(make_subscriber(1, "s1", "foo.bar"));
-        assert_eq!(mgr.nats_core_fanout_push.sub_len(), 1);
-    }
+    // --- fanout push ---
 
     #[test]
-    fn test_mq9_fanout_subscriber() {
-        let mgr = NatsSubscribeManager::new();
-        mgr.add_mq9_fanout_subscriber(make_subscriber(1, "s1", "my-mailbox"));
-        assert_eq!(mgr.mq9_fanout_push.sub_len(), 1);
-    }
-
-    #[test]
-    fn test_remove_by_connection() {
+    fn test_fanout_add_and_remove_by_connection() {
         let mgr = NatsSubscribeManager::new();
         mgr.add_subscribe(make_subscribe(1, "s1", "foo"));
         mgr.add_nats_core_fanout_subscriber(make_subscriber(1, "s1", "foo"));
-        mgr.add_mq9_fanout_subscriber(make_subscriber(1, "s2", "my-mailbox"));
+        mgr.add_mq9_fanout_subscriber(make_subscriber(1, "s2", "mailbox"));
         mgr.add_subscribe(make_subscribe(2, "s1", "baz"));
 
         mgr.remove_by_connection(1);
@@ -327,10 +331,10 @@ mod tests {
     }
 
     #[test]
-    fn test_remove_push_by_sid() {
+    fn test_fanout_remove_by_sid() {
         let mgr = NatsSubscribeManager::new();
         mgr.add_nats_core_fanout_subscriber(make_subscriber(1, "s1", "foo"));
-        mgr.add_mq9_fanout_subscriber(make_subscriber(1, "s1", "my-mailbox"));
+        mgr.add_mq9_fanout_subscriber(make_subscriber(1, "s1", "mailbox"));
         mgr.add_nats_core_fanout_subscriber(make_subscriber(1, "s2", "bar"));
 
         mgr.remove_push_by_sub(1, "s1");
@@ -339,27 +343,27 @@ mod tests {
         assert_eq!(mgr.mq9_fanout_push.sub_len(), 0);
     }
 
+    // --- queue push ---
+
+    #[test]
+    fn test_queue_subscriber_key_and_count() {
+        let mgr = NatsSubscribeManager::new();
+        mgr.add_nats_core_queue_subscriber(&make_queue_subscriber(1, "s1", "orders", "workers"));
+        mgr.add_nats_core_queue_subscriber(&make_queue_subscriber(2, "s2", "orders", "workers"));
+
+        // key format: {tenant}#{queue_group}#{subject}
+        let key = "default#workers#orders";
+        assert!(mgr.nats_core_queue_push.contains_key(key));
+        assert_eq!(mgr.nats_core_queue_push.get(key).unwrap().sub_len(), 2);
+    }
+
+    // --- not_push_client ---
+
     #[test]
     fn test_not_push_client() {
         let mgr = NatsSubscribeManager::new();
         assert!(mgr.allow_push_client(1));
         mgr.add_not_push_client(1);
         assert!(!mgr.allow_push_client(1));
-    }
-
-    #[test]
-    fn test_nats_core_queue_subscriber() {
-        let mgr = NatsSubscribeManager::new();
-        let mut sub1 = make_subscriber(1, "s1", "orders");
-        sub1.queue_group = "workers".to_string();
-        let mut sub2 = make_subscriber(2, "s2", "orders");
-        sub2.queue_group = "workers".to_string();
-
-        mgr.add_nats_core_queue_subscriber(&sub1);
-        mgr.add_nats_core_queue_subscriber(&sub2);
-
-        let key = "orders#workers";
-        assert!(mgr.nats_core_queue_push.contains_key(key));
-        assert_eq!(mgr.nats_core_queue_push.get(key).unwrap().sub_len(), 2);
     }
 }

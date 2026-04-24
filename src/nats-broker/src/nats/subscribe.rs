@@ -58,6 +58,7 @@ pub async fn process_sub(
     }
 
     let subscribe = NatsSubscribe {
+        broker_id: broker_config().broker_id,
         tenant: DEFAULT_TENANT.to_string(),
         connect_id: ctx.connect_id,
         sid: sid.to_string(),
