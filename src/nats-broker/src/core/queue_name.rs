@@ -15,41 +15,28 @@
 use crate::core::error::NatsBrokerError;
 use broker_core::share_group::ShareGroupStorage;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::nats::subscriber::NatsSubscriber;
+use metadata_struct::mqtt::share_group::ShareGroupMember;
 use std::sync::Arc;
 
 pub async fn add_member_by_group(
-    client_pool: Arc<ClientPool>,
-    sub: &NatsSubscriber,
+    client_pool: &Arc<ClientPool>,
+    sub: &ShareGroupMember,
 ) -> Result<(), NatsBrokerError> {
-    let storage = ShareGroupStorage::new(client_pool);
-    storage
-        .add_member(&sub.tenant, &sub.queue_group, sub)
-        .await?;
+    let storage = ShareGroupStorage::new(client_pool.clone());
+    storage.add_member(sub).await?;
     Ok(())
 }
 
 pub async fn delete_member_by_group(
-    client_pool: Arc<ClientPool>,
-    sub: &NatsSubscriber,
+    client_pool: &Arc<ClientPool>,
+    tenant: &str,
+    group_name: &str,
+    broker_id: u64,
+    connect_id: u64,
 ) -> Result<(), NatsBrokerError> {
-    let storage = ShareGroupStorage::new(client_pool);
+    let storage = ShareGroupStorage::new(client_pool.clone());
     storage
-        .delete_member(&sub.tenant, &sub.queue_group, sub)
+        .delete_member(tenant, group_name, broker_id, connect_id)
         .await?;
     Ok(())
-}
-
-pub async fn delete_members_by_group(client_pool: &Arc<ClientPool>, subs: Vec<NatsSubscriber>) {
-    for sub in &subs {
-        if let Err(e) = delete_member_by_group(client_pool.clone(), sub).await {
-            tracing::error!(
-                "Failed to delete share group member [tenant={}, group={}, sid={}]: {}",
-                sub.tenant,
-                sub.queue_group,
-                sub.sid,
-                e
-            );
-        }
-    }
 }

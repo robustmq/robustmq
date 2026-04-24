@@ -19,8 +19,7 @@ use grpc_clients::meta::common::call::{
     placement_delete_share_group_member, placement_list_share_group,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupParams};
-use metadata_struct::nats::subscriber::NatsSubscriber;
+use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupMember, ShareGroupParams};
 use protocol::meta::meta_service_common::{
     AddShareGroupMemberRequest, CreateShareGroupRequest, DeleteShareGroupMemberRequest,
     DeleteShareGroupRequest, ListShareGroupRequest,
@@ -116,18 +115,12 @@ impl ShareGroupStorage {
         Ok(results)
     }
 
-    pub async fn add_member(
-        &self,
-        tenant: &str,
-        group_name: &str,
-        member: &NatsSubscriber,
-    ) -> Result<(), CommonError> {
+    pub async fn add_member(&self, member: &ShareGroupMember) -> Result<(), CommonError> {
         let config = broker_config();
         let request = AddShareGroupMemberRequest {
-            tenant: tenant.to_owned(),
-            group: group_name.to_owned(),
             data: member.encode()?,
         };
+
         placement_add_share_group_member(
             &self.client_pool,
             &config.get_meta_service_addr(),
@@ -141,13 +134,15 @@ impl ShareGroupStorage {
         &self,
         tenant: &str,
         group_name: &str,
-        member: &NatsSubscriber,
+        broker_id: u64,
+        connect_id: u64,
     ) -> Result<(), CommonError> {
         let config = broker_config();
         let request = DeleteShareGroupMemberRequest {
-            tenant: tenant.to_owned(),
-            group: group_name.to_owned(),
-            data: member.encode()?,
+            tenant: tenant.to_string(),
+            group_name: group_name.to_owned(),
+            broker_id,
+            connect_id,
         };
         placement_delete_share_group_member(
             &self.client_pool,

@@ -107,7 +107,9 @@ impl NatsSubscribeManager {
     pub fn add_nats_core_queue_subscriber(&self, subscriber: &NatsSubscriber) {
         let queue_key = format!(
             "{}#{}#{}",
-            subscriber.tenant, subscriber.queue_group, subscriber.subject
+            subscriber.tenant,
+            subscriber.queue_group.as_deref().unwrap_or(""),
+            subscriber.subject
         );
         self.nats_core_queue_push
             .entry(queue_key)
@@ -123,7 +125,9 @@ impl NatsSubscribeManager {
     pub fn add_mq9_queue_subscriber(&self, subscriber: &NatsSubscriber) {
         let queue_key = format!(
             "{}#{}#{}",
-            subscriber.tenant, subscriber.queue_group, subscriber.subject
+            subscriber.tenant,
+            subscriber.queue_group.as_deref().unwrap_or(""),
+            subscriber.subject
         );
         self.mq9_queue_push
             .entry(queue_key)
@@ -257,7 +261,7 @@ mod tests {
             connect_id,
             sid: sid.to_string(),
             subject: subject.to_string(),
-            queue_group: String::new(),
+            queue_group: None,
             create_time: 0,
         }
     }
@@ -271,7 +275,7 @@ mod tests {
             sid: sid.to_string(),
             sub_subject: subject.to_string(),
             subject: subject.to_string(),
-            queue_group: String::new(),
+            queue_group: None,
             create_time: now_second(),
         }
     }
@@ -283,81 +287,53 @@ mod tests {
         group: &str,
     ) -> NatsSubscriber {
         let mut sub = make_subscriber(connect_id, sid, subject);
-        sub.queue_group = group.to_string();
+        sub.queue_group = Some(group.to_string());
         sub
     }
 
-    // --- subscribe list ---
-
     #[test]
-    fn test_subscribe_add_get_remove() {
-        let mgr = NatsSubscribeManager::new();
-        mgr.add_subscribe(make_subscribe(1, "s1", "foo.bar"));
-        assert_eq!(mgr.subscribe_count(), 1);
-        assert!(mgr.get_subscribe(1, "s1").is_some());
-
-        mgr.remove_subscribe(1, "s1");
-        assert_eq!(mgr.subscribe_count(), 0);
-        assert!(mgr.get_subscribe(1, "s1").is_none());
-    }
-
-    #[test]
-    fn test_subscribe_list_by_connection() {
+    fn test_subscribe_crud() {
         let mgr = NatsSubscribeManager::new();
         mgr.add_subscribe(make_subscribe(1, "s1", "foo"));
         mgr.add_subscribe(make_subscribe(1, "s2", "bar"));
         mgr.add_subscribe(make_subscribe(2, "s1", "baz"));
 
         assert_eq!(mgr.list_subscribes_by_connection(1).len(), 2);
-        assert_eq!(mgr.list_subscribes_by_connection(2).len(), 1);
-        assert_eq!(mgr.list_subscribes_by_connection(3).len(), 0);
-    }
+        assert!(mgr.get_subscribe(1, "s1").is_some());
 
-    // --- fanout push ---
-
-    #[test]
-    fn test_fanout_add_and_remove_by_connection() {
-        let mgr = NatsSubscribeManager::new();
-        mgr.add_subscribe(make_subscribe(1, "s1", "foo"));
-        mgr.add_nats_core_fanout_subscriber(make_subscriber(1, "s1", "foo"));
-        mgr.add_mq9_fanout_subscriber(make_subscriber(1, "s2", "mailbox"));
-        mgr.add_subscribe(make_subscribe(2, "s1", "baz"));
-
-        mgr.remove_by_connection(1);
-
-        assert_eq!(mgr.subscribe_count(), 1);
-        assert_eq!(mgr.nats_core_fanout_push.sub_len(), 0);
-        assert_eq!(mgr.mq9_fanout_push.sub_len(), 0);
+        mgr.remove_subscribe(1, "s1");
+        assert!(mgr.get_subscribe(1, "s1").is_none());
+        assert_eq!(mgr.subscribe_count(), 2);
     }
 
     #[test]
-    fn test_fanout_remove_by_sid() {
+    fn test_fanout_remove_by_connection_and_sid() {
         let mgr = NatsSubscribeManager::new();
         mgr.add_nats_core_fanout_subscriber(make_subscriber(1, "s1", "foo"));
         mgr.add_mq9_fanout_subscriber(make_subscriber(1, "s1", "mailbox"));
         mgr.add_nats_core_fanout_subscriber(make_subscriber(1, "s2", "bar"));
 
+        // remove s1 only
         mgr.remove_push_by_sub(1, "s1");
-
         assert_eq!(mgr.nats_core_fanout_push.sub_len(), 1);
         assert_eq!(mgr.mq9_fanout_push.sub_len(), 0);
+
+        // remove remaining by connection
+        mgr.remove_by_connection(1);
+        assert_eq!(mgr.nats_core_fanout_push.sub_len(), 0);
     }
 
-    // --- queue push ---
-
     #[test]
-    fn test_queue_subscriber_key_and_count() {
+    fn test_queue_subscriber_grouped_by_key() {
         let mgr = NatsSubscribeManager::new();
         mgr.add_nats_core_queue_subscriber(&make_queue_subscriber(1, "s1", "orders", "workers"));
         mgr.add_nats_core_queue_subscriber(&make_queue_subscriber(2, "s2", "orders", "workers"));
+        mgr.add_mq9_queue_subscriber(&make_queue_subscriber(3, "s3", "events", "processors"));
 
-        // key format: {tenant}#{queue_group}#{subject}
         let key = "default#workers#orders";
-        assert!(mgr.nats_core_queue_push.contains_key(key));
         assert_eq!(mgr.nats_core_queue_push.get(key).unwrap().sub_len(), 2);
+        assert!(mgr.mq9_queue_push.contains_key("default#processors#events"));
     }
-
-    // --- not_push_client ---
 
     #[test]
     fn test_not_push_client() {

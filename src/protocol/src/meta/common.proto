@@ -418,17 +418,16 @@ message DeleteShareGroupRequest {
 message DeleteShareGroupReply {}
 
 message AddShareGroupMemberRequest {
-  string tenant = 1 [(validate.rules).string.min_len = 1];
-  string group = 2 [(validate.rules).string.min_len = 1];
-  bytes data = 3 [(validate.rules).bytes.min_len = 1];
+  bytes data = 1 [(validate.rules).bytes.min_len = 1];
 }
 
 message AddShareGroupMemberReply {}
 
 message DeleteShareGroupMemberRequest {
   string tenant = 1 [(validate.rules).string.min_len = 1];
-  string group = 2 [(validate.rules).string.min_len = 1];
-  bytes data = 3 [(validate.rules).bytes.min_len = 1];
+  string group_name = 2 [(validate.rules).string.min_len = 1];
+  uint64 broker_id = 3;
+  uint64 connect_id = 4;
 }
 
 message DeleteShareGroupMemberReply {}

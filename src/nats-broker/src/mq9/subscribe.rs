@@ -13,10 +13,14 @@
 // limitations under the License.
 
 use crate::core::error::NatsBrokerError;
+use crate::core::queue_name::{add_member_by_group, delete_member_by_group};
 use crate::handler::command::NatsProcessContext;
 use crate::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
+use metadata_struct::mqtt::share_group::{
+    ShareGroupMember, ShareGroupParams, ShareGroupParamsNats,
+};
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::tenant::DEFAULT_TENANT;
 
@@ -34,19 +38,32 @@ pub async fn process_sub(
         )));
     }
 
-    if let Some(_queue_name) = queue_group {
-    } else {
-        let subscribe = NatsSubscribe {
-            broker_id: broker_config().broker_id,
+    let subscribe = NatsSubscribe {
+        broker_id: broker_config().broker_id,
+        tenant: tenant.clone(),
+        connect_id: ctx.connect_id,
+        sid: sid.to_string(),
+        subject: mail_id.to_string(),
+        queue_group: queue_group.map(|s| s.to_string()),
+        create_time: now_second(),
+    };
+
+    ctx.subscribe_manager.add_subscribe(subscribe.clone());
+
+    if let Some(queue_name) = queue_group {
+        let conf = broker_config();
+        let sub = ShareGroupMember {
+            broker_id: conf.broker_id,
             tenant: tenant.clone(),
-            connect_id: ctx.connect_id,
+            group_name: queue_name.to_string(),
+            sub_path: mail_id.to_string(),
             sid: sid.to_string(),
-            subject: mail_id.to_string(),
-            queue_group: queue_group.unwrap_or_default().to_string(),
+            params: ShareGroupParams::MQ9(ShareGroupParamsNats {}),
+            connect_id: ctx.connect_id,
             create_time: now_second(),
         };
-
-        ctx.subscribe_manager.add_subscribe(subscribe.clone());
+        add_member_by_group(&ctx.client_pool, &sub).await?;
+    } else {
         ctx.subscribe_manager
             .send_parse_event(ParseSubscribeData::new_subscribe(
                 ParseAction::Add,
@@ -64,16 +81,29 @@ pub async fn process_unsub(
     _mail_id: &str,
     sid: &str,
 ) -> Result<(), NatsBrokerError> {
+    ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
+    let tenant = DEFAULT_TENANT.to_string();
     if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
-        ctx.subscribe_manager
-            .send_parse_event(ParseSubscribeData::new_subscribe(
-                ParseAction::Remove,
-                SubscribeSource::Mq9,
-                subscribe,
-            ))
-            .await;
+        let conf = broker_config();
+        if let Some(queue_name) = subscribe.queue_group {
+            delete_member_by_group(
+                &ctx.client_pool,
+                &tenant,
+                &queue_name,
+                conf.broker_id,
+                ctx.connect_id,
+            )
+            .await?;
+        } else {
+            ctx.subscribe_manager
+                .send_parse_event(ParseSubscribeData::new_subscribe(
+                    ParseAction::Remove,
+                    SubscribeSource::Mq9,
+                    subscribe,
+                ))
+                .await;
+        }
     }
 
-    ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
     Ok(())
 }

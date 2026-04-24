@@ -63,7 +63,7 @@ pub async fn process_sub(
         connect_id: ctx.connect_id,
         sid: sid.to_string(),
         subject: subject.to_string(),
-        queue_group: queue_group.unwrap_or_default().to_string(),
+        queue_group: queue_group.map(|s| s.to_string()),
         create_time: now_second(),
     };
 

@@ -244,7 +244,7 @@ mod tests {
             sid: sid.to_string(),
             sub_subject: topic.to_string(),
             subject: topic.to_string(),
-            queue_group: String::new(),
+            queue_group: None,
             create_time: now_second(),
         }
     }

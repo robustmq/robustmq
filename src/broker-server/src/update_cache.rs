@@ -323,7 +323,7 @@ pub async fn update_cluster_cache_metadata(
                             sid: member.sid,
                             broker_id: member.broker_id,
                             subject: member.sub_path,
-                            queue_group: member.group_name,
+                            queue_group: Some(member.group_name),
                             create_time: member.create_time,
                         }),
                         topic: None,
@@ -334,7 +334,13 @@ pub async fn update_cluster_cache_metadata(
             BrokerUpdateCacheActionType::Delete => {
                 let req = DeleteShareGroupMemberRequest::decode(record.data.as_slice())
                     .map_err(|e| CommonError::CommonError(e.to_string()))?;
-                let member: ShareGroupMember = serialize::deserialize(&req.data)?;
+                let member = ShareGroupMember {
+                    tenant: req.tenant.clone(),
+                    group_name: req.group_name.clone(),
+                    broker_id: req.broker_id,
+                    connect_id: req.connect_id,
+                    ..Default::default()
+                };
                 nats_params.broker_cache.remove_share_group_member(&member);
                 nats_params
                     .subscribe_manager
@@ -342,13 +348,13 @@ pub async fn update_cluster_cache_metadata(
                         action: ParseAction::Remove,
                         source: SubscribeSource::NatsCore,
                         subscribe: Some(NatsSubscribe {
-                            tenant: member.tenant,
-                            connect_id: member.connect_id,
-                            sid: member.sid,
-                            broker_id: member.broker_id,
-                            subject: member.sub_path,
-                            queue_group: member.group_name,
-                            create_time: member.create_time,
+                            tenant: req.tenant,
+                            connect_id: req.connect_id,
+                            broker_id: req.broker_id,
+                            queue_group: Some(req.group_name),
+                            sid: String::new(),
+                            subject: String::new(),
+                            create_time: 0,
                         }),
                         topic: None,
                     })

@@ -152,14 +152,14 @@ async fn register_subscriber(
 
     match source {
         SubscribeSource::NatsCore => {
-            if sub.queue_group.is_empty() {
+            if sub.queue_group.as_deref().unwrap_or("").is_empty() {
                 subscribe_manager.add_nats_core_fanout_subscriber(subscriber);
             } else {
                 subscribe_manager.add_nats_core_queue_subscriber(&subscriber);
             }
         }
         SubscribeSource::Mq9 => {
-            if sub.queue_group.is_empty() {
+            if sub.queue_group.as_deref().unwrap_or("").is_empty() {
                 subscribe_manager.add_mq9_fanout_subscriber(subscriber);
             } else {
                 subscribe_manager.add_mq9_queue_subscriber(&subscriber);

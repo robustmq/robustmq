@@ -22,7 +22,7 @@ pub struct NatsSubscribe {
     pub connect_id: u64,
     pub sid: String,
     pub subject: String,
-    pub queue_group: String,
+    pub queue_group: Option<String>,
     pub create_time: u64,
 }
 

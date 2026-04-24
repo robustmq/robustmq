@@ -633,6 +633,7 @@ impl MetaServiceService for GrpcPlacementService {
         let req = request.into_inner();
         self.validate_request(&req)?;
         add_share_group_member_by_req(
+            &self.cluster_cache,
             &self.raft_manager,
             &self.rocksdb_engine_handler,
             &self.mqtt_call_manager,

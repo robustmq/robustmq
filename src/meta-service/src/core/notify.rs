@@ -23,6 +23,7 @@ use metadata_struct::mq9::email::MQ9Email;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::share_group::ShareGroup;
+use metadata_struct::mqtt::share_group::ShareGroupMember;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
@@ -35,9 +36,6 @@ use metadata_struct::storage::{
 use metadata_struct::tenant::Tenant;
 use node_call::{NodeCallData, NodeCallManager, UpdateCacheData};
 use protocol::broker::broker::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
-use protocol::meta::meta_service_common::{
-    AddShareGroupMemberRequest, DeleteShareGroupMemberRequest,
-};
 use std::sync::Arc;
 
 // Tenant
@@ -609,28 +607,26 @@ pub async fn send_notify_by_delete_share_group(
 
 pub async fn send_notify_by_add_share_group_member(
     call_manager: &Arc<NodeCallManager>,
-    req: &AddShareGroupMemberRequest,
+    member: &ShareGroupMember,
 ) -> Result<(), MetaServiceError> {
-    use prost::Message;
     send_update_cache(
         call_manager,
         BrokerUpdateCacheActionType::Create,
         BrokerUpdateCacheResourceType::ShareGroupMember,
-        req.encode_to_vec(),
+        serialize::serialize(&member)?,
     )
     .await
 }
 
 pub async fn send_notify_by_delete_share_group_member(
     call_manager: &Arc<NodeCallManager>,
-    req: &DeleteShareGroupMemberRequest,
+    member: &ShareGroupMember,
 ) -> Result<(), MetaServiceError> {
-    use prost::Message;
     send_update_cache(
         call_manager,
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::ShareGroupMember,
-        req.encode_to_vec(),
+        serialize::serialize(&member)?,
     )
     .await
 }

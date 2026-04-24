@@ -27,7 +27,7 @@ pub struct NatsSubscriber {
     pub subject: String,
     pub broker_id: u64,
     /// Non-empty for queue-group subscriptions.
-    pub queue_group: String,
+    pub queue_group: Option<String>,
     pub create_time: u64,
 }
 

@@ -337,15 +337,14 @@ impl DataRouteMqtt {
         let req = AddShareGroupMemberRequest::decode(value.as_ref())?;
         let member: ShareGroupMember = serialize::deserialize(&req.data)?;
         let storage = ShareGroupStorage::new(self.rocksdb_engine_handler.clone());
-        storage.save_member(&req.tenant, &req.group, &member)?;
+        storage.save_member(&member.tenant, &member.group_name, &member)?;
         Ok(())
     }
 
     pub fn delete_group_member(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteShareGroupMemberRequest::decode(value.as_ref())?;
-        let member: ShareGroupMember = serialize::deserialize(&req.data)?;
         let storage = ShareGroupStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete_member(&req.tenant, &req.group, member.broker_id, member.connect_id)?;
+        storage.delete_member(&req.tenant, &req.group_name, req.broker_id, req.connect_id)?;
         Ok(())
     }
 

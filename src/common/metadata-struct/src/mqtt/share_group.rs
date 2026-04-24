@@ -22,8 +22,19 @@ pub struct ShareGroupMember {
     pub broker_id: u64,
     pub sub_path: String,
     pub sid: String,
+    pub params: ShareGroupParams,
     pub connect_id: u64,
     pub create_time: u64,
+}
+
+impl ShareGroupMember {
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -39,13 +50,21 @@ impl Default for ShareGroupParams {
     }
 }
 
+impl ShareGroupParams {
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
+    }
+}
+
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct ShareGroupParamsNats {}
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
-pub struct ShareGroupParamsMqtt {
-    path: String,
-}
+pub struct ShareGroupParamsMqtt {}
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct ShareGroup {
