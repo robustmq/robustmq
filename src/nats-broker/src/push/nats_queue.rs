@@ -35,6 +35,7 @@ pub struct QueuePushManager {
     client_pool: Arc<ClientPool>,
     tenant: String,
     group_name: String,
+    subject: String,
     consumer: Option<GroupConsumer>,
     round_robin: u64,
 }
@@ -47,6 +48,7 @@ impl QueuePushManager {
         client_pool: Arc<ClientPool>,
         tenant: String,
         group_name: String,
+        subject: String,
     ) -> Self {
         QueuePushManager {
             subscribe_manager,
@@ -55,13 +57,14 @@ impl QueuePushManager {
             client_pool,
             tenant,
             group_name,
+            subject,
             consumer: None,
             round_robin: 0,
         }
     }
 
     fn queue_key(&self) -> String {
-        format!("{}#{}", self.tenant, self.group_name)
+        format!("{}#{}#{}", self.tenant, self.group_name, self.subject)
     }
 
     pub async fn start(&mut self, stop_sx: &broadcast::Sender<bool>) {
@@ -86,32 +89,24 @@ impl QueuePushManager {
     }
 
     async fn send_messages(&mut self) -> Result<usize, NatsBrokerError> {
-        // Collect subscribers grouped by subject from all buckets in this group.
-        let subjects: Vec<(String, Vec<NatsSubscriber>)> = {
-            let Some(bucket_mgr) = self
-                .subscribe_manager
-                .nats_core_queue_push
-                .get(&self.queue_key())
+        let queue_key = self.queue_key();
+
+        let subs: Vec<NatsSubscriber> = {
+            let Some(bucket_mgr) = self.subscribe_manager.nats_core_queue_push.get(&queue_key)
             else {
                 return Ok(0);
             };
             if bucket_mgr.sub_len() == 0 {
                 return Ok(0);
             }
-            let mut by_subject: std::collections::HashMap<String, Vec<NatsSubscriber>> =
-                std::collections::HashMap::new();
-            for bucket in bucket_mgr.buckets_data_list.iter() {
-                for sub in bucket.value().iter() {
-                    by_subject
-                        .entry(sub.subject.clone())
-                        .or_default()
-                        .push(sub.value().clone());
-                }
-            }
-            by_subject.into_iter().collect()
+            bucket_mgr
+                .buckets_data_list
+                .iter()
+                .flat_map(|b| b.value().iter().map(|s| s.value().clone()).collect::<Vec<_>>())
+                .collect()
         };
 
-        if subjects.is_empty() {
+        if subs.is_empty() {
             return Ok(0);
         }
 
@@ -120,64 +115,53 @@ impl QueuePushManager {
             max_size: 1024 * 1024 * 30,
         };
 
-        // Lazily init consumer; kept across calls for offset continuity.
-        let queue_key = self.queue_key();
         if self.consumer.is_none() {
             self.consumer = Some(GroupConsumer::new_manual(
                 self.storage_driver_manager.clone(),
-                queue_key,
+                queue_key.clone(),
             ));
         }
         let consumer = self.consumer.as_ref().unwrap();
 
+        let records = consumer
+            .next_messages(&self.tenant, &self.subject, &read_config)
+            .await
+            .map_err(NatsBrokerError::from)?;
+
+        if records.is_empty() {
+            return Ok(0);
+        }
+
         let mut pushed = 0;
+        let mut all_delivered = true;
 
-        for (topic_name, subs) in subjects {
-            let records = consumer
-                .next_messages(&self.tenant, &topic_name, &read_config)
-                .await
-                .map_err(NatsBrokerError::from)?;
-
-            if records.is_empty() {
-                continue;
-            }
-
-            let mut topic_all_delivered = true;
-            for record in &records {
-                let start_idx = self.round_robin as usize % subs.len();
-                self.round_robin = self.round_robin.wrapping_add(1);
-                match round_robin_send(
-                    record,
-                    &subs,
-                    start_idx,
-                    &self.subscribe_manager,
-                    &self.connection_manager,
-                    &self.client_pool,
-                )
-                .await
-                {
-                    Ok(true) => pushed += 1,
-                    Ok(false) => {
-                        topic_all_delivered = false;
-                        warn!(
-                            "NATS queue [{}] topic {}: no subscriber available, will retry",
-                            self.queue_key(),
-                            topic_name
-                        );
-                    }
-                    Err(e) => warn!(
-                        "NATS queue send error [{}] topic {}: {}",
-                        self.queue_key(),
-                        topic_name,
-                        e
-                    ),
+        for record in &records {
+            let start_idx = self.round_robin as usize % subs.len();
+            self.round_robin = self.round_robin.wrapping_add(1);
+            match round_robin_send(
+                record,
+                &subs,
+                start_idx,
+                &self.subscribe_manager,
+                &self.connection_manager,
+                &self.client_pool,
+            )
+            .await
+            {
+                Ok(true) => pushed += 1,
+                Ok(false) => {
+                    all_delivered = false;
+                    warn!(
+                        "NATS queue [{}]: no subscriber available, will retry",
+                        queue_key
+                    );
                 }
+                Err(e) => warn!("NATS queue send error [{}]: {}", queue_key, e),
             }
+        }
 
-            // Commit per-topic: only advance offset when all records in this topic were delivered.
-            if topic_all_delivered {
-                consumer.commit().await.map_err(NatsBrokerError::from)?;
-            }
+        if all_delivered {
+            consumer.commit().await.map_err(NatsBrokerError::from)?;
         }
 
         Ok(pushed)

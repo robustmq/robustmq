@@ -206,10 +206,10 @@ fn start_new_queue_group_tasks(
             continue;
         }
 
-        let (tenant, group_name) = queue_key
-            .split_once('#')
-            .map(|(t, g)| (t.to_string(), g.to_string()))
-            .unwrap_or_else(|| (queue_key.clone(), String::new()));
+        let mut parts = queue_key.splitn(3, '#');
+        let tenant = parts.next().unwrap_or("").to_string();
+        let group_name = parts.next().unwrap_or("").to_string();
+        let subject = parts.next().unwrap_or("").to_string();
 
         let (task_stop_sx, _) = broadcast::channel(1);
         subscribe_manager
@@ -223,6 +223,7 @@ fn start_new_queue_group_tasks(
             client_pool.clone(),
             tenant,
             group_name,
+            subject,
         );
         task_supervisor.spawn(
             format!("{}_{}", TaskKind::NATSQueuePush, queue_key),
