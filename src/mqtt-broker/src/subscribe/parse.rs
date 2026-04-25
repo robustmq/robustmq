@@ -35,7 +35,6 @@ use protocol::{
     broker::broker::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType},
     mqtt::common::{Filter, MqttProtocol},
 };
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::{
     select,
@@ -64,15 +63,15 @@ struct AddDirectlyPushContext {
     pub rewrite_sub_path: Option<String>,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone)]
 struct AddSharePushContext {
+    pub client_pool: Arc<ClientPool>,
     pub tenant: String,
     pub topic_name: String,
     pub client_id: String,
     pub protocol: MqttProtocol,
     pub sub_identifier: Option<usize>,
     pub filter: Filter,
-    pub pkid: u16,
 }
 
 #[derive(Clone)]
@@ -288,13 +287,13 @@ async fn parse_subscribe(
             cache_manager,
             &context.subscribe_manager,
             &AddSharePushContext {
+                client_pool: context.client_pool.clone(),
                 tenant: sub.tenant.clone(),
                 topic_name: new_topic_name,
                 client_id: sub.client_id.clone(),
                 protocol: sub.protocol.clone(),
                 sub_identifier,
                 filter: sub.filter.clone(),
-                pkid: sub.pkid,
             },
         )
         .await?;
@@ -327,8 +326,14 @@ async fn add_share_push(
             req.client_id, group_name_full, req.topic_name
         );
 
-        // If the current node is not the Leader, then there is no need to process it and no error needs to be reported.
-        if !is_share_sub_leader(cache_manager, &req.tenant, &group_name_full).await? {
+        if !is_share_sub_leader(
+            cache_manager,
+            &req.client_pool,
+            &req.tenant,
+            &group_name_full,
+        )
+        .await?
+        {
             return Ok(());
         }
 

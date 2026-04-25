@@ -13,8 +13,10 @@
 // limitations under the License.
 
 use crate::core::cache::MQTTCacheManager;
+use broker_core::share_group::ShareGroupStorage;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
+use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
 
 pub const SHARE_SUB_PREFIX: &str = "$share";
@@ -41,18 +43,25 @@ pub fn full_group_name(group_name: &str, sub_name: &str) -> String {
 
 pub async fn is_share_sub_leader(
     cache_manager: &Arc<MQTTCacheManager>,
+    client_pool: &Arc<ClientPool>,
     tenant: &str,
     group_name: &str,
 ) -> Result<bool, CommonError> {
-    let group_info =
-        if let Some(group) = cache_manager.node_cache.get_share_group(tenant, group_name) {
-            group.clone()
-        } else {
-            return Ok(false);
-        };
-
     let conf = broker_config();
-    Ok(group_info.leader_broker == conf.broker_id)
+
+    if let Some(group) = cache_manager.node_cache.get_share_group(tenant, group_name) {
+        return Ok(group.leader_broker == conf.broker_id);
+    }
+
+    let storage = ShareGroupStorage::new(client_pool.clone());
+    match storage.get(tenant, group_name).await? {
+        Some(group) => {
+            let is_leader = group.leader_broker == conf.broker_id;
+            cache_manager.node_cache.add_share_group(group);
+            Ok(is_leader)
+        }
+        None => Ok(false),
+    }
 }
 
 pub async fn get_share_sub_leader(
