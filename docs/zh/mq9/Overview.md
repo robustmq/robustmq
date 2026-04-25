@@ -58,7 +58,7 @@ mq9 只有一个核心抽象：**邮箱（MAILBOX）**。
 
 顺着这个类比往下走：
 
-- **地址**：每个邮箱有一个 `mail_id`，就是它的通信地址。私有邮箱的地址系统生成、不可猜测，像一个只有你知道的收件箱；公开邮箱的地址用户自定义（如 `task.queue`），像一个对外公开的部门信箱，任何人都能找到并投递。
+- **地址**：每个邮箱有一个 `mail_address`，就是它的通信地址。私有邮箱的地址系统生成、不可猜测，像一个只有你知道的收件箱；公开邮箱的地址用户自定义（如 `task.queue`），像一个对外公开的部门信箱，任何人都能找到并投递。
 
 - **信件**：发给邮箱的每条消息都有优先级——普通信件（normal，默认）、加急（urgent）、特急（critical）。优先级编码在投递地址里，不在信件内容里。收件时按优先级顺序先收特急、再收加急、最后普通，同级按到达顺序。
 
@@ -66,14 +66,14 @@ mq9 只有一个核心抽象：**邮箱（MAILBOX）**。
 
 - **信箱寿命**：邮箱在创建时声明 TTL，到期自动销毁，所有未取的消息随之清理。不需要手动关闭，任务结束就忘掉，系统自己负责清理。
 
-- **安全边界**：`mail_id` 不可猜测即安全边界。知道地址就能投递和接收，不知道地址就无从操作。没有 token，没有 ACL，地址本身就是凭证。
+- **安全边界**：`mail_address` 不可猜测即安全边界。知道地址就能投递和接收，不知道地址就无从操作。没有 token，没有 ACL，地址本身就是凭证。
 
 **两种邮箱：**
 
 | | 私有邮箱 | 公开邮箱 |
 |---|---|---|
-| `mail_id` | 系统生成，不可猜测 | 用户自定义，有意义的名字 |
-| 可发现性 | 不公开，只有知道 `mail_id` 的 Agent 能找到 | 自动注册到 `PUBLIC.LIST`，任何 Agent 可发现 |
+| `mail_address` | 系统生成，不可猜测 | 用户自定义，有意义的名字 |
+| 可发现性 | 不公开，只有知道 `mail_address` 的 Agent 能找到 | 自动注册到 `PUBLIC.LIST`，任何 Agent 可发现 |
 | 适合场景 | 点对点私信、任务结果回传 | 任务队列、公共频道、能力公告 |
 
 ---
@@ -83,12 +83,12 @@ mq9 只有一个核心抽象：**邮箱（MAILBOX）**。
 | 操作 | Subject | 说明 |
 |------|---------|------|
 | 创建邮箱 | `$mq9.AI.MAILBOX.CREATE` | 创建私有或公开邮箱，幂等 |
-| 发消息（normal）| `$mq9.AI.MAILBOX.MSG.{mail_id}` | 默认优先级，无后缀 |
-| 发消息（urgent）| `$mq9.AI.MAILBOX.MSG.{mail_id}.urgent` | 紧急优先级 |
-| 发消息（critical）| `$mq9.AI.MAILBOX.MSG.{mail_id}.critical` | 最高优先级 |
-| 订阅邮箱 | `$mq9.AI.MAILBOX.MSG.{mail_id}.*` | 订阅所有优先级 |
-| 列出消息 | `$mq9.AI.MAILBOX.LIST.{mail_id}` | 返回消息元数据（不消费） |
-| 删除消息 | `$mq9.AI.MAILBOX.DELETE.{mail_id}.{msg_id}` | 删除指定消息 |
+| 发消息（normal）| `$mq9.AI.MAILBOX.MSG.{mail_address}` | 默认优先级，无后缀 |
+| 发消息（urgent）| `$mq9.AI.MAILBOX.MSG.{mail_address}.urgent` | 紧急优先级 |
+| 发消息（critical）| `$mq9.AI.MAILBOX.MSG.{mail_address}.critical` | 最高优先级 |
+| 订阅邮箱 | `$mq9.AI.MAILBOX.MSG.{mail_address}.*` | 订阅所有优先级 |
+| 列出消息 | `$mq9.AI.MAILBOX.LIST.{mail_address}` | 返回消息元数据（不消费） |
+| 删除消息 | `$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}` | 删除指定消息 |
 | 发现公开邮箱 | `$mq9.AI.PUBLIC.LIST` | 系统内置，订阅即全量推送 |
 
 **三个优先级：**
@@ -105,7 +105,7 @@ mq9 只有一个核心抽象：**邮箱（MAILBOX）**。
 
 **先存储后推送**：消息到达先写存储层，在线订阅者走实时路径，不在线则等待，下次订阅时全量推送所有未过期消息。Agent 重连不漏消息。
 
-**mail_id 不绑定 Agent 身份**：mq9 只认 `mail_id`，不认 `agent_id`。一个 Agent 可以为不同任务申请不同的邮箱，用完不管，TTL 自动清理。通道级设计，不是身份级设计。
+**mail_address 不绑定 Agent 身份**：mq9 只认 `mail_address`，不认 `agent_id`。一个 Agent 可以为不同任务申请不同的邮箱，用完不管，TTL 自动清理。通道级设计，不是身份级设计。
 
 **不创建新概念**：订阅复用 NATS 原生 sub 语义，竞争消费复用 NATS queue group，reply-to 复用 NATS 原生机制。
 

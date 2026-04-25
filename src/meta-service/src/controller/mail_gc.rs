@@ -71,16 +71,16 @@ async fn gc_expired_mails(
         // Delete via raft so all nodes apply the same deletion.
         let req = DeleteEmailRequest {
             tenant: email.tenant.clone(),
-            mail_id: email.mail_id.clone(),
+            mail_address: email.mail_address.clone(),
         };
         let data = StorageData::new(
             StorageDataType::Mq9DeleteEmail,
             Bytes::from(req.encode_to_vec()),
         );
-        if let Err(e) = raft_manager.write_data(&email.mail_id, data).await {
+        if let Err(e) = raft_manager.write_data(&email.mail_address, data).await {
             warn!(
-                "Failed to delete expired mail via raft: tenant={}, mail_id={}, error={}",
-                email.tenant, email.mail_id, e
+                "Failed to delete expired mail via raft: tenant={}, mail_address={}, error={}",
+                email.tenant, email.mail_address, e
             );
             continue;
         }
@@ -88,14 +88,14 @@ async fn gc_expired_mails(
         // Notify broker nodes to evict from in-memory cache.
         if let Err(e) = send_notify_by_delete_mq9_mail(node_call_manager, email.clone()).await {
             warn!(
-                "Failed to notify brokers to delete mail: tenant={}, mail_id={}, error={}",
-                email.tenant, email.mail_id, e
+                "Failed to notify brokers to delete mail: tenant={}, mail_address={}, error={}",
+                email.tenant, email.mail_address, e
             );
         }
 
         info!(
             "Email {} cleaned up successfully: tenant={}, create_time={}s ago, ttl={}s",
-            email.mail_id, email.tenant, elapsed, email.ttl
+            email.mail_address, email.tenant, elapsed, email.ttl
         );
     }
 

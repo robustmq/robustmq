@@ -23,7 +23,7 @@ pub struct NatsCacheManager {
     pub node_cache: Arc<NodeCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub connection_info: DashMap<u64, NatsConnection>,
-    /// Key: "{tenant}/{mail_id}"
+    /// Key: "{tenant}/{mail_address}"
     pub mail_info: DashMap<String, MQ9Email>,
     /// Key: inbox subject, Value: sid
     pub inbox_data: DashMap<String, String>,
@@ -57,17 +57,17 @@ impl NatsCacheManager {
     }
 
     pub fn add_mail(&self, email: MQ9Email) {
-        let key = format!("{}/{}", email.tenant, email.mail_id);
+        let key = format!("{}/{}", email.tenant, email.mail_address);
         self.mail_info.insert(key, email);
     }
 
-    pub fn get_mail(&self, tenant: &str, mail_id: &str) -> Option<MQ9Email> {
-        let key = format!("{}/{}", tenant, mail_id);
+    pub fn get_mail(&self, tenant: &str, mail_address: &str) -> Option<MQ9Email> {
+        let key = format!("{}/{}", tenant, mail_address);
         self.mail_info.get(&key).map(|e| e.value().clone())
     }
 
-    pub fn remove_mail(&self, tenant: &str, mail_id: &str) {
-        let key = format!("{}/{}", tenant, mail_id);
+    pub fn remove_mail(&self, tenant: &str, mail_address: &str) {
+        let key = format!("{}/{}", tenant, mail_address);
         self.mail_info.remove(&key);
     }
 

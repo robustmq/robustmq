@@ -170,30 +170,30 @@ export NATS_URL=nats://117.72.92.117:4222
 
 ```bash
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
-# → {"mail_id":"m-xxxxxxxx"}
+# → {"mail_address":"m-xxxxxxxx"}
 ```
 
 ### mq9 Send Messages
 
 ```bash
 # Normal (default, no suffix)
-nats pub '$mq9.AI.MAILBOX.MSG.{mail_id}' '{"type":"task","payload":"hello mq9"}'
+nats pub '$mq9.AI.MAILBOX.MSG.{mail_address}' '{"type":"task","payload":"hello mq9"}'
 
 # Urgent
-nats pub '$mq9.AI.MAILBOX.MSG.{mail_id}.urgent' '{"type":"interrupt"}'
+nats pub '$mq9.AI.MAILBOX.MSG.{mail_address}.urgent' '{"type":"interrupt"}'
 
 # Critical (highest priority)
-nats pub '$mq9.AI.MAILBOX.MSG.{mail_id}.critical' '{"type":"abort"}'
+nats pub '$mq9.AI.MAILBOX.MSG.{mail_address}.critical' '{"type":"abort"}'
 ```
 
 ### mq9 Subscribe
 
 ```bash
 # Subscribe to all priorities
-nats sub '$mq9.AI.MAILBOX.MSG.{mail_id}.*'
+nats sub '$mq9.AI.MAILBOX.MSG.{mail_address}.*'
 
 # Subscribe to a single priority
-nats sub '$mq9.AI.MAILBOX.MSG.{mail_id}.critical'
+nats sub '$mq9.AI.MAILBOX.MSG.{mail_address}.critical'
 ```
 
 ### mq9 Public Mailbox (Task Queue)

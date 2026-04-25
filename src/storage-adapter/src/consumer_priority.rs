@@ -123,7 +123,7 @@ impl PriorityGroupConsumer {
     }
 
     /// Read messages in priority order (critical → urgent → normal) using per-priority tags.
-    /// `base_tag` has the form `{tenant}_{mail_id}`; each consumer appends its own priority
+    /// `base_tag` has the form `{tenant}_{mail_address}`; each consumer appends its own priority
     /// suffix (`_critical`, `_urgent`, `_normal`) so that only matching records are returned.
     pub async fn next_messages_by_tags(
         &self,

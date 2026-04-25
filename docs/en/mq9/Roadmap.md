@@ -46,7 +46,7 @@ Phase 1 is pull-based — consumers query and choose. Phase 2 is push-based — 
 
 **What changes:**
 
-- Messages can optionally omit the `mail_id` and instead carry a semantic intent description
+- Messages can optionally omit the `mail_address` and instead carry a semantic intent description
 - The broker vector-matches the message intent against registered Agent capability descriptions
 - Routing to the best-matching Agent happens inside the broker, transparently to the sender
 

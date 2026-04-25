@@ -32,7 +32,7 @@ use serde_json::{json, Value};
 #[derive(Debug, Deserialize)]
 pub struct CreateMailboxArgs {
     pub tenant: String,
-    pub mail_id: String,
+    pub mail_address: String,
     /// Optional description.
     pub desc: Option<String>,
     /// Whether the mailbox is public (visible in the system public mailbox list).
@@ -49,7 +49,7 @@ pub struct ListMailboxesArgs {
 #[derive(Debug, Deserialize)]
 pub struct DeleteMailboxArgs {
     pub tenant: String,
-    pub mail_id: String,
+    pub mail_address: String,
 }
 
 /// Create a new mailbox via Mq9EmailStorage.
@@ -62,7 +62,7 @@ pub async fn create_mailbox(
     use metadata_struct::mq9::email::MQ9Email;
 
     let email = MQ9Email {
-        mail_id: args.mail_id.clone(),
+        mail_address: args.mail_address.clone(),
         tenant: args.tenant.clone(),
         desc: args.desc.unwrap_or_default(),
         public: args.public.unwrap_or(false),
@@ -76,7 +76,7 @@ pub async fn create_mailbox(
         .create(&email)
         .await?;
 
-    Ok(json!({ "mail_id": args.mail_id, "created": true }))
+    Ok(json!({ "mail_address": args.mail_address, "created": true }))
 }
 
 /// List all mailboxes belonging to a tenant via Mq9EmailStorage.
@@ -92,7 +92,7 @@ pub async fn list_mailboxes(
         .into_iter()
         .map(|e| {
             json!({
-                "mail_id":     e.mail_id,
+                "mail_address":     e.mail_address,
                 "tenant":      e.tenant,
                 "desc":        e.desc,
                 "public":      e.public,
@@ -111,8 +111,8 @@ pub async fn delete_mailbox(
     args: DeleteMailboxArgs,
 ) -> Result<Value, CommonError> {
     Mq9EmailStorage::new(ctx.cache_manager.client_pool.clone())
-        .delete(&args.tenant, &args.mail_id)
+        .delete(&args.tenant, &args.mail_address)
         .await?;
 
-    Ok(json!({ "mail_id": args.mail_id, "deleted": true }))
+    Ok(json!({ "mail_address": args.mail_address, "deleted": true }))
 }

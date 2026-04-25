@@ -8,14 +8,14 @@ mq9 围绕八个具体的 Agent 通信模式设计，每个模式对应特定的
 
 编排者启动一个子 Agent 执行耗时任务，无法阻塞等待结果——它还有其他工作要做。子 Agent 独立完成后将结果存入编排者控制的邮箱。由于 mq9 采用先存储后推送，即使编排者在子 Agent 完成时正忙或临时断线，结果也会在那里等待。
 
-编排者在启动时创建私有邮箱，将 `mail_id` 通过任务载荷传递给子 Agent。无需轮询、无需注册回调、无需共享状态——一个邮箱搞定。
+编排者在启动时创建私有邮箱，将 `mail_address` 通过任务载荷传递给子 Agent。无需轮询、无需注册回调、无需共享状态——一个邮箱搞定。
 
 ```bash
 # 编排者：创建私有回复邮箱（TTL 覆盖预期最长任务时间）
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl": 3600}'
-# 响应: {"mail_id": "mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
+# 响应: {"mail_address": "mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
 
-# 通过带外方式（如任务载荷）将 mail_id 传给子 Agent
+# 通过带外方式（如任务载荷）将 mail_address 传给子 Agent
 nats pub '$mq9.AI.MAILBOX.MSG.m-task-dispatch.normal' \
   '{"task": "summarize /data/corpus", "reply_to": "mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}'
 
@@ -119,7 +119,7 @@ nats sub '$mq9.AI.MAILBOX.MSG.alerts.*'
 云端编排者需要向可能因间歇性网络而离线数小时的边缘 Agent 下发指令。边缘 Agent 重连后必须按正确优先级顺序收到所有待处理指令——高优先级中止或重配置指令先于常规任务。云端无需任何消息中间件桥接或重试逻辑。
 
 ```bash
-# 云端：向边缘 Agent 的私有邮箱发布指令（mail_id 在部署时共享）
+# 云端：向边缘 Agent 的私有邮箱发布指令（mail_address 在部署时共享）
 # 最高优先级重配置
 nats pub '$mq9.AI.MAILBOX.MSG.m-edge-agent-9a3f.critical' '{
   "cmd": "reconfigure",
@@ -153,7 +153,7 @@ async def run():
 
     # Agent：创建私有回复邮箱用于接收审批响应
     reply = await nc.request("$mq9.AI.MAILBOX.CREATE", b'{"ttl": 7200}')
-    reply_id = json.loads(reply.data)["mail_id"]
+    reply_id = json.loads(reply.data)["mail_address"]
 
     # Agent：发布决策供人工审查
     await nc.publish(
@@ -184,12 +184,12 @@ asyncio.run(run())
 
 ### 7. 异步请求-回复
 
-Agent A 需要 Agent B 的处理结果，但 B 可能不是立即可用，A 又不能阻塞。A 创建一个私有回复邮箱，在请求中通过 `reply_to` 字段嵌入 `mail_id`，然后继续其他工作。B 按自己的节奏处理请求，将结果发送到 A 的回复邮箱。A 在准备消费响应时订阅回复邮箱。
+Agent A 需要 Agent B 的处理结果，但 B 可能不是立即可用，A 又不能阻塞。A 创建一个私有回复邮箱，在请求中通过 `reply_to` 字段嵌入 `mail_address`，然后继续其他工作。B 按自己的节奏处理请求，将结果发送到 A 的回复邮箱。A 在准备消费响应时订阅回复邮箱。
 
 ```bash
 # Agent A：创建私有回复邮箱
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl": 600}'
-# 响应: {"mail_id": "m-reply-a1b2c3"}
+# 响应: {"mail_address": "m-reply-a1b2c3"}
 
 # Agent A：向 Agent B 的邮箱发送请求，包含 reply_to 字段
 nats pub '$mq9.AI.MAILBOX.MSG.m-agent-b-inbox.normal' '{
@@ -229,7 +229,7 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{
 
 # 另一个 Agent：订阅 PUBLIC.LIST 发现可用能力
 nats sub '$mq9.AI.PUBLIC.LIST'
-# 收到条目如: {"name": "agent.code-review", "desc": "...", "mail_id": "agent.code-review"}
+# 收到条目如: {"name": "agent.code-review", "desc": "...", "mail_address": "agent.code-review"}
 
 # 消费方 Agent：直接向发现的能力发送任务
 nats pub '$mq9.AI.MAILBOX.MSG.agent.code-review.normal' '{

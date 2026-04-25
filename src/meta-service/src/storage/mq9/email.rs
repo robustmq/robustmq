@@ -36,12 +36,12 @@ impl Mq9EmailStorage {
     }
 
     pub fn save(&self, email: &MQ9Email) -> Result<(), CommonError> {
-        let key = storage_key_mq9_email(&email.tenant, &email.mail_id);
+        let key = storage_key_mq9_email(&email.tenant, &email.mail_address);
         engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, email)
     }
 
-    pub fn get(&self, tenant: &str, mail_id: &str) -> Result<Option<MQ9Email>, CommonError> {
-        let key = storage_key_mq9_email(tenant, mail_id);
+    pub fn get(&self, tenant: &str, mail_address: &str) -> Result<Option<MQ9Email>, CommonError> {
+        let key = storage_key_mq9_email(tenant, mail_address);
         Ok(
             engine_get_by_meta_data::<MQ9Email>(&self.rocksdb_engine_handler, &key)?
                 .map(|data| data.data),
@@ -62,8 +62,8 @@ impl Mq9EmailStorage {
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn delete(&self, tenant: &str, mail_id: &str) -> Result<(), CommonError> {
-        let key = storage_key_mq9_email(tenant, mail_id);
+    pub fn delete(&self, tenant: &str, mail_address: &str) -> Result<(), CommonError> {
+        let key = storage_key_mq9_email(tenant, mail_address);
         engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)
     }
 }

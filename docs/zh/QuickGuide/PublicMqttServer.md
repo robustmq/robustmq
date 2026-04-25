@@ -110,30 +110,30 @@ export NATS_URL=nats://117.72.92.117:4222
 
 ```bash
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
-# → {"mail_id":"m-xxxxxxxx"}
+# → {"mail_address":"m-xxxxxxxx"}
 ```
 
 ### mq9 发送消息
 
 ```bash
 # 默认优先级（normal，无后缀）
-nats pub '$mq9.AI.MAILBOX.MSG.{mail_id}' '{"type":"task","payload":"hello mq9"}'
+nats pub '$mq9.AI.MAILBOX.MSG.{mail_address}' '{"type":"task","payload":"hello mq9"}'
 
 # 紧急
-nats pub '$mq9.AI.MAILBOX.MSG.{mail_id}.urgent' '{"type":"interrupt"}'
+nats pub '$mq9.AI.MAILBOX.MSG.{mail_address}.urgent' '{"type":"interrupt"}'
 
 # 最高优先级
-nats pub '$mq9.AI.MAILBOX.MSG.{mail_id}.critical' '{"type":"abort"}'
+nats pub '$mq9.AI.MAILBOX.MSG.{mail_address}.critical' '{"type":"abort"}'
 ```
 
 ### mq9 订阅消息
 
 ```bash
 # 订阅所有优先级
-nats sub '$mq9.AI.MAILBOX.MSG.{mail_id}.*'
+nats sub '$mq9.AI.MAILBOX.MSG.{mail_address}.*'
 
 # 只订阅某一优先级
-nats sub '$mq9.AI.MAILBOX.MSG.{mail_id}.critical'
+nats sub '$mq9.AI.MAILBOX.MSG.{mail_address}.critical'
 ```
 
 ### mq9 公开邮箱（任务队列）

@@ -19,13 +19,13 @@ const primitives = computed(() => [
     title: t('邮箱', 'Mailbox'),
     subtitle: t('点对点异步投递', 'Point-to-point async delivery'),
     desc: t(
-      '创建邮箱，拿到 mail_id。发件方直接投到对方 mail_id，不需要知道对方在不在线，消息等着，对方上线全量收到。私有邮箱 mail_id 系统生成不可猜测，公开邮箱 mail_id 用户自定义。',
-      'Create a mailbox, get a mail_id. Send to the recipient\'s mail_id — no need to know if they\'re online. Messages wait; the recipient gets all of them when they come back. Private mailbox mail_ids are unguessable; public mailbox mail_ids are user-defined.'
+      '创建邮箱，拿到 mail_address。发件方直接投到对方 mail_address，不需要知道对方在不在线，消息等着，对方上线全量收到。私有邮箱 mail_address 系统生成不可猜测，公开邮箱 mail_address 用户自定义。',
+      'Create a mailbox, get a mail_address. Send to the recipient\'s mail_address — no need to know if they\'re online. Messages wait; the recipient gets all of them when they come back. Private mailbox mail_addresss are unguessable; public mailbox mail_addresss are user-defined.'
     ),
     color: '#a855f7',
     code: `# Create a mailbox
 nats pub '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
-# → {"mail_id":"m-001"}
+# → {"mail_address":"m-001"}
 
 # Send (offline-safe, default priority)
 nats pub '$mq9.AI.MAILBOX.m-001' \\
@@ -39,14 +39,14 @@ nats sub '$mq9.AI.MAILBOX.m-001.*'`,
     title: t('公开邮箱', 'Public Mailbox'),
     subtitle: t('任意可发可订的公共频道', 'Public channel — anyone can publish or subscribe'),
     desc: t(
-      '创建 public 邮箱，mail_id 用户自定义，自动注册到 PUBLIC.LIST。任何人知道 mail_id 即可发可订。支持 queue group 竞争消费。PUBLIC.LIST 是公开邮箱的发现地址，无需注册中心。',
-      'Create a public mailbox with a user-defined mail_id — auto-registered to PUBLIC.LIST. Anyone can publish or subscribe. Supports queue group competing consumers. PUBLIC.LIST is the discovery address — no registry service needed.'
+      '创建 public 邮箱，mail_address 用户自定义，自动注册到 PUBLIC.LIST。任何人知道 mail_address 即可发可订。支持 queue group 竞争消费。PUBLIC.LIST 是公开邮箱的发现地址，无需注册中心。',
+      'Create a public mailbox with a user-defined mail_address — auto-registered to PUBLIC.LIST. Anyone can publish or subscribe. Supports queue group competing consumers. PUBLIC.LIST is the discovery address — no registry service needed.'
     ),
     color: '#7c3aed',
     code: `# Create a public mailbox
 nats pub '$mq9.AI.MAILBOX.CREATE' \\
   '{"ttl":86400,"public":true,"name":"task.queue"}'
-# → {"mail_id":"task.queue"}
+# → {"mail_address":"task.queue"}
 
 # Publish (default priority, no suffix)
 nats pub '$mq9.AI.MAILBOX.task.queue' \\
@@ -329,14 +329,14 @@ const scenarios = computed(() => [
           <pre class="mq9-code mq9-cta-code"><code>curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
 broker-server start
 
-# Create a mailbox — returns mail_id
+# Create a mailbox — returns mail_address
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
 
 # Send (default priority, no suffix — works even if recipient is offline)
-nats pub '$mq9.AI.MAILBOX.{mail_id}' '{"msg_id":"msg-1","from":"...","type":"task","ts":1234567890}'
+nats pub '$mq9.AI.MAILBOX.{mail_address}' '{"msg_id":"msg-1","from":"...","type":"task","ts":1234567890}'
 
 # Send critical (highest priority, persisted)
-nats pub '$mq9.AI.MAILBOX.{mail_id}.critical' '{"msg_id":"msg-2","type":"abort"}'</code></pre>
+nats pub '$mq9.AI.MAILBOX.{mail_address}.critical' '{"msg_id":"msg-2","type":"abort"}'</code></pre>
           <div class="mq9-cta-links">
             <a class="mq9-btn-primary" :href="isZh ? '/zh/OverView/What-is-RobustMQ' : '/en/OverView/What-is-RobustMQ'">{{ t('查看文档', 'Read the Docs') }}</a>
             <a class="mq9-btn-ghost" href="https://github.com/robustmq/robustmq" target="_blank" rel="noopener">GitHub</a>

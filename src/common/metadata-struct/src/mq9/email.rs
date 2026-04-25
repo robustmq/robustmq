@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 pub struct MQ9Email {
     /// Unique mailbox identifier. System-generated UUID for private mailboxes;
     /// user-defined name for public mailboxes.
-    pub mail_id: String,
+    pub mail_address: String,
     pub tenant: String,
     pub desc: String,
     /// Whether this mailbox is registered to PUBLIC.LIST.

@@ -24,8 +24,8 @@ pub struct CreateMailboxReq {
     pub name: Option<String>,
     /// Optional namespace prefix for private mailboxes.
     /// Only lowercase letters, digits, and dots are allowed (e.g. "risk" or "risk.critical").
-    /// When set, the mail_id will be `{prefix}.{uuid}`.
-    /// When absent, the mail_id will be a bare `{uuid}`.
+    /// When set, the mail_address will be `{prefix}.{uuid}`.
+    /// When absent, the mail_address will be a bare `{uuid}`.
     pub prefix: Option<String>,
     #[serde(default)]
     pub desc: String,
@@ -50,9 +50,9 @@ pub struct ListMailboxMsgItem {
 /// `error` is `None`. On failure only `error` is set.
 ///
 /// Examples:
-/// - Create ok:  `{"mail_id":"mq9-…","is_new":true}`
+/// - Create ok:  `{"mail_address":"mq9-…","is_new":true}`
 /// - Publish ok: `{"msg_id":8}`
-/// - List ok:    `{"mail_id":"mq9-…","messages":[…]}`
+/// - List ok:    `{"mail_address":"mq9-…","messages":[…]}`
 /// - Delete ok:  `{"deleted":true}`
 /// - Error:      `{"error":"mailbox xxx does not exist"}`
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -62,7 +62,7 @@ pub struct Mq9Reply {
 
     // ── create fields ─────────────────────────────────────────────────────────
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mail_id: Option<String>,
+    pub mail_address: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_new: Option<bool>,
@@ -81,9 +81,9 @@ pub struct Mq9Reply {
 }
 
 impl Mq9Reply {
-    pub fn ok_create(mail_id: String, is_new: bool) -> Self {
+    pub fn ok_create(mail_address: String, is_new: bool) -> Self {
         Mq9Reply {
-            mail_id: Some(mail_id),
+            mail_address: Some(mail_address),
             is_new: Some(is_new),
             ..Default::default()
         }
@@ -96,9 +96,9 @@ impl Mq9Reply {
         }
     }
 
-    pub fn ok_list(mail_id: String, messages: Vec<ListMailboxMsgItem>) -> Self {
+    pub fn ok_list(mail_address: String, messages: Vec<ListMailboxMsgItem>) -> Self {
         Mq9Reply {
-            mail_id: Some(mail_id),
+            mail_address: Some(mail_address),
             messages: Some(messages),
             ..Default::default()
         }

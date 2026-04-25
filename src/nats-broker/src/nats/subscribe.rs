@@ -48,11 +48,11 @@ pub async fn process_sub(
     }
 
     if Mq9Command::is_mq9_subject(subject) {
-        // Extract mail_id: subject is `$mq9.AI.MAILBOX.MSG.{mail_id}`
-        let mail_id = subject
+        // Extract mail_address: subject is `$mq9.AI.MAILBOX.MSG.{mail_address}`
+        let mail_address = subject
             .strip_prefix("$mq9.AI.MAILBOX.MSG.")
             .unwrap_or(subject);
-        return mq9_subscribe::process_sub(ctx, mail_id, sid, queue_group)
+        return mq9_subscribe::process_sub(ctx, mail_address, sid, queue_group)
             .await
             .map_err(|e| NatsPacket::Err(e.to_string()));
     }

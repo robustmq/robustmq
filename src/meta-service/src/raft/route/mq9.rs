@@ -44,7 +44,7 @@ impl DataRouteMq9 {
     pub fn delete_email(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let req = DeleteEmailRequest::decode(value.as_ref())?;
         let storage = Mq9EmailStorage::new(self.rocksdb_engine_handler.clone());
-        storage.delete(&req.tenant, &req.mail_id)?;
+        storage.delete(&req.tenant, &req.mail_address)?;
         Ok(())
     }
 }

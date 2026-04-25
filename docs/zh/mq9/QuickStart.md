@@ -28,7 +28,7 @@ export NATS_URL=nats://demo.robustmq.com:4222
 
 ## 创建邮箱
 
-邮箱是 mq9 的基本通信地址。使用 `nats req`（请求/回复）创建邮箱，服务端通过 NATS reply-to 返回分配的 `mail_id`：
+邮箱是 mq9 的基本通信地址。使用 `nats req`（请求/回复）创建邮箱，服务端通过 NATS reply-to 返回分配的 `mail_address`：
 
 ```bash
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":60}'
@@ -37,10 +37,10 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":60}'
 响应：
 
 ```json
-{"mail_id":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
+{"mail_address":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
 ```
 
-`mail_id` 是唯一的访问凭证。任何知道它的人都能向这个邮箱发消息或订阅。私有通信场景下请妥善保管。
+`mail_address` 是唯一的访问凭证。任何知道它的人都能向这个邮箱发消息或订阅。私有通信场景下请妥善保管。
 
 此处 TTL 设为 60 秒仅供演示方便。生产环境中请根据任务的预期生命周期选择合适的 TTL——TTL 到期后邮箱及其所有消息自动销毁，无需手动清理。
 
@@ -51,11 +51,11 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":60}'
 mq9 支持三个优先级：`critical`、`urgent`、`normal`（默认，无后缀）。发送消息的 subject 格式为：
 
 ```
-$mq9.AI.MAILBOX.MSG.{mail_id}.{priority}   # urgent 或 critical
-$mq9.AI.MAILBOX.MSG.{mail_id}              # 默认（normal），无后缀
+$mq9.AI.MAILBOX.MSG.{mail_address}.{priority}   # urgent 或 critical
+$mq9.AI.MAILBOX.MSG.{mail_address}              # 默认（normal），无后缀
 ```
 
-将 `mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag` 替换为上一步拿到的 `mail_id`：
+将 `mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag` 替换为上一步拿到的 `mail_address`：
 
 ```bash
 # 最高优先级——立即处理；适用于中止信号、紧急指令、安全事件
@@ -70,7 +70,7 @@ nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag' '{
 
 发送是即发即忘（`nats pub`）。服务端立即将每条消息写入存储，发送方无需等待订阅者在线。
 
-> **禁止通配符发布。** Subject `$mq9.AI.MAILBOX.MSG.*.*` 会被服务端拒绝，发送时必须指定精确的 `mail_id`。
+> **禁止通配符发布。** Subject `$mq9.AI.MAILBOX.MSG.*.*` 会被服务端拒绝，发送时必须指定精确的 `mail_address`。
 
 ---
 
@@ -131,14 +131,14 @@ nats req '$mq9.AI.MAILBOX.DELETE.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.
 竞争消费场景下，Worker 完成任务后可以显式删除任务消息来确认完成。Subject 格式为：
 
 ```
-$mq9.AI.MAILBOX.DELETE.{mail_id}.{msg_id}
+$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}
 ```
 
 ---
 
 ## 创建公开邮箱
 
-公开邮箱的 `mail_id` 由用户自定义——你选择的名字就是地址。适用于多方需要共同发现地址、无需带外协调的共享任务队列或能力公告。
+公开邮箱的 `mail_address` 由用户自定义——你选择的名字就是地址。适用于多方需要共同发现地址、无需带外协调的共享任务队列或能力公告。
 
 ```bash
 nats req '$mq9.AI.MAILBOX.CREATE' '{
@@ -152,10 +152,10 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{
 响应：
 
 ```json
-{"mail_id":"task.queue"}
+{"mail_address":"task.queue"}
 ```
 
-`mail_id` 就是你提供的 `name`。邮箱自动注册到 `$mq9.AI.PUBLIC.LIST`，任何订阅该系统地址的 Agent 都可以发现它。TTL 到期后自动从列表中移除。
+`mail_address` 就是你提供的 `name`。邮箱自动注册到 `$mq9.AI.PUBLIC.LIST`，任何订阅该系统地址的 Agent 都可以发现它。TTL 到期后自动从列表中移除。
 
 CREATE 是幂等的：如果名为 `task.queue` 的邮箱已存在，此调用返回成功但不重置 TTL。Worker 启动时可以安全地调用它而不必担心覆盖已有邮箱。
 

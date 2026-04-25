@@ -111,7 +111,7 @@ impl Mq9FanoutPushManager {
                 }
                 Err(e) => {
                     debug!(
-                        "MQ9 push failed [connect_id={}, mail_id={}, sid={}]: {}",
+                        "MQ9 push failed [connect_id={}, mail_address={}, sid={}]: {}",
                         subscriber.connect_id, subscriber.subject, subscriber.sid, e
                     );
                     self.subscribe_manager

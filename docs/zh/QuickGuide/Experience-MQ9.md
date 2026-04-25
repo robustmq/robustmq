@@ -40,7 +40,7 @@ export NATS_URL=nats://localhost:4222
 
 ## 创建邮箱
 
-邮箱是 mq9 的基本通信地址。使用 `nats req` 创建，服务端返回分配的 `mail_id`：
+邮箱是 mq9 的基本通信地址。使用 `nats req` 创建，服务端返回分配的 `mail_address`：
 
 ```bash
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
@@ -49,10 +49,10 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
 响应：
 
 ```json
-{"mail_id":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
+{"mail_address":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
 ```
 
-将下面示例中的 `mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag` 替换为你实际拿到的 `mail_id`。
+将下面示例中的 `mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag` 替换为你实际拿到的 `mail_address`。
 
 ---
 
@@ -144,14 +144,14 @@ from robustmq import Mq9Client
 client = Mq9Client("nats://localhost:4222")
 
 # 创建邮箱
-mail_id = client.create_mailbox(ttl=3600)
+mail_address = client.create_mailbox(ttl=3600)
 
 # 发送消息
-client.publish(mail_id, {"type": "task", "payload": "run job"})
-client.publish(mail_id, {"type": "abort"}, priority="critical")
+client.publish(mail_address, {"type": "task", "payload": "run job"})
+client.publish(mail_address, {"type": "abort"}, priority="critical")
 
 # 订阅
-for msg in client.subscribe(mail_id):
+for msg in client.subscribe(mail_address):
     print(msg)
 ```
 
@@ -186,18 +186,18 @@ async def main():
     # 创建邮箱
     resp = await nc.request("$mq9.AI.MAILBOX.CREATE",
                             json.dumps({"ttl": 3600}).encode())
-    mail_id = json.loads(resp.data)["mail_id"]
+    mail_address = json.loads(resp.data)["mail_address"]
 
     # 发送消息
-    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_id}",
+    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_address}",
                      json.dumps({"type": "task"}).encode())
-    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_id}.critical",
+    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_address}.critical",
                      json.dumps({"type": "abort"}).encode())
 
     # 订阅所有优先级
     async def handler(msg):
         print(json.loads(msg.data))
-    await nc.subscribe(f"$mq9.AI.MAILBOX.MSG.{mail_id}.*", cb=handler)
+    await nc.subscribe(f"$mq9.AI.MAILBOX.MSG.{mail_address}.*", cb=handler)
     await asyncio.sleep(2)
     await nc.close()
 

@@ -39,7 +39,7 @@ const MAX_LIMIT: u32 = 500;
 #[derive(Debug, Deserialize)]
 pub struct ListMessagesArgs {
     pub tenant: String,
-    pub mail_id: String,
+    pub mail_address: String,
     /// Start read offset (inclusive). Default 0.
     pub offset: Option<u64>,
     /// Maximum number of messages to return. Default 20, max 500.
@@ -49,7 +49,7 @@ pub struct ListMessagesArgs {
 #[derive(Debug, Deserialize)]
 pub struct DeleteMessageArgs {
     pub tenant: String,
-    pub mail_id: String,
+    pub mail_address: String,
     /// Message offset / ID returned by list or send.
     pub msg_id: u64,
 }
@@ -57,7 +57,7 @@ pub struct DeleteMessageArgs {
 #[derive(Debug, Deserialize)]
 pub struct SendMessageArgs {
     pub tenant: String,
-    pub mail_id: String,
+    pub mail_address: String,
     /// Message priority string (e.g. "normal", "high"). Default "normal".
     pub priority: Option<String>,
     /// Message body as a UTF-8 string.
@@ -72,7 +72,7 @@ pub async fn list_messages(
 ) -> Result<Value, CommonError> {
     let limit = args.limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as u64;
     let start_offset = args.offset.unwrap_or(0);
-    let tag = subject_message_tag(&args.tenant, &args.mail_id);
+    let tag = subject_message_tag(&args.tenant, &args.mail_address);
 
     let read_config = AdapterReadConfig {
         max_record_num: limit,
@@ -86,7 +86,13 @@ pub async fn list_messages(
     let _ = start_offset; // driver reads from shard start; caller can paginate via returned msg_ids
 
     let records = driver
-        .read_by_tag(&args.tenant, &args.mail_id, &tag, &offsets, &read_config)
+        .read_by_tag(
+            &args.tenant,
+            &args.mail_address,
+            &tag,
+            &offsets,
+            &read_config,
+        )
         .await?;
 
     let messages: Vec<Value> = records
@@ -110,7 +116,7 @@ pub async fn list_messages(
         .collect();
 
     Ok(json!({
-        "mail_id":  args.mail_id,
+        "mail_address":  args.mail_address,
         "messages": messages,
     }))
 }
@@ -122,7 +128,7 @@ pub async fn delete_message(
     args: DeleteMessageArgs,
 ) -> Result<Value, CommonError> {
     driver
-        .delete_by_offset(&args.tenant, &args.mail_id, args.msg_id)
+        .delete_by_offset(&args.tenant, &args.mail_address, args.msg_id)
         .await?;
 
     Ok(json!({ "msg_id": args.msg_id, "deleted": true }))
@@ -137,19 +143,19 @@ pub async fn send_message(
     // Verify the mailbox exists in cache.
     if ctx
         .cache_manager
-        .get_mail(&args.tenant, &args.mail_id)
+        .get_mail(&args.tenant, &args.mail_address)
         .is_none()
     {
         return Err(CommonError::CommonError(format!(
             "mailbox {} does not exist",
-            args.mail_id
+            args.mail_address
         )));
     }
 
     let priority_str = args.priority.unwrap_or_else(|| "normal".to_string());
-    let tag = subject_message_tag(&args.tenant, &args.mail_id);
+    let tag = subject_message_tag(&args.tenant, &args.mail_address);
 
-    let record = AdapterWriteRecord::new(args.mail_id.clone(), Bytes::from(args.payload))
+    let record = AdapterWriteRecord::new(args.mail_address.clone(), Bytes::from(args.payload))
         .with_tags(vec![tag])
         .with_protocol_data(Some(StorageRecordProtocolData {
             mq9: Some(StorageRecordProtocolDataMq9 {
@@ -162,9 +168,9 @@ pub async fn send_message(
 
     let storage = MessageStorage::new(driver.clone().into());
     let offsets = storage
-        .write(&args.tenant, &args.mail_id, vec![record])
+        .write(&args.tenant, &args.mail_address, vec![record])
         .await?;
 
     let msg_id = offsets.into_iter().next().unwrap_or(0);
-    Ok(json!({ "msg_id": msg_id, "mail_id": args.mail_id }))
+    Ok(json!({ "msg_id": msg_id, "mail_address": args.mail_address }))
 }

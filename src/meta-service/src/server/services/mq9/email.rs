@@ -63,7 +63,7 @@ pub async fn create_email_by_req(
 
     // Idempotency: if the mailbox already exists, return success silently.
     let storage = Mq9EmailStorage::new(rocksdb_engine_handler.clone());
-    if storage.get(&req.tenant, &email.mail_id)?.is_some() {
+    if storage.get(&req.tenant, &email.mail_address)?.is_some() {
         return Ok(CreateEmailReply {});
     }
 
@@ -82,7 +82,7 @@ pub async fn delete_email_by_req(
     req: &DeleteEmailRequest,
 ) -> Result<DeleteEmailReply, MetaServiceError> {
     let storage = Mq9EmailStorage::new(rocksdb_engine_handler.clone());
-    if let Some(email) = storage.get(&req.tenant, &req.mail_id)? {
+    if let Some(email) = storage.get(&req.tenant, &req.mail_address)? {
         let data = StorageData::new(StorageDataType::Mq9DeleteEmail, encode_to_bytes(req));
         raft_manager.write_data(&req.tenant, data).await?;
         send_notify_by_delete_mq9_mail(call_manager, email).await?;

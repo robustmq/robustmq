@@ -24,11 +24,11 @@ mq9 provides two mailbox types. The type is chosen at creation time and cannot b
 
 | | Private | Public |
 |---|---|---|
-| `mail_id` | Server-generated UUID (not guessable) | User-defined string (e.g. `task.queue`) |
-| Discovery | Not discoverable — only parties who already know the `mail_id` can interact | Automatically registered to `$mq9.AI.PUBLIC.LIST`; discoverable by anyone |
+| `mail_address` | Server-generated UUID (not guessable) | User-defined string (e.g. `task.queue`) |
+| Discovery | Not discoverable — only parties who already know the `mail_address` can interact | Automatically registered to `$mq9.AI.PUBLIC.LIST`; discoverable by anyone |
 | Use case | Point-to-point messaging, task result delivery, private replies | Task queues, broadcast channels, capability announcements |
 
-**Security model:** The unguessability of the `mail_id` is the only access control boundary. There are no bearer tokens, no ACL entries, no auth headers. A party that knows the `mail_id` can send messages and subscribe; a party that does not know it cannot interact with the mailbox in any way. For private mailboxes, treat the `mail_id` as a secret shared only with intended participants.
+**Security model:** The unguessability of the `mail_address` is the only access control boundary. There are no bearer tokens, no ACL entries, no auth headers. A party that knows the `mail_address` can send messages and subscribe; a party that does not know it cannot interact with the mailbox in any way. For private mailboxes, treat the `mail_address` as a secret shared only with intended participants.
 
 Public mailboxes trade that opacity for discoverability. The name is the address — choose it to be meaningful and self-describing (e.g. `vision.results`, `task.queue`) rather than opaque.
 
@@ -39,9 +39,9 @@ Public mailboxes trade that opacity for discoverability. The name is the address
 Every message is sent to one of three priority levels: `critical`, `urgent`, or `normal` (default, no suffix). Priority is encoded in the subject:
 
 ```
-$mq9.AI.MAILBOX.MSG.{mail_id}.critical   # highest priority
-$mq9.AI.MAILBOX.MSG.{mail_id}.urgent     # urgent
-$mq9.AI.MAILBOX.MSG.{mail_id}            # default (normal), no suffix
+$mq9.AI.MAILBOX.MSG.{mail_address}.critical   # highest priority
+$mq9.AI.MAILBOX.MSG.{mail_address}.urgent     # urgent
+$mq9.AI.MAILBOX.MSG.{mail_address}            # default (normal), no suffix
 ```
 
 **Ordering guarantees:**
@@ -133,7 +133,7 @@ All subscribers using the same queue group name (`workers` above) share message 
 
 **Dynamic membership:** Workers can join or leave the queue group at any time. The broker adjusts routing immediately with no configuration change or coordinator involvement.
 
-**Crash tolerance:** Because mq9 uses store-first delivery, a message is not removed from storage by the act of delivery alone. If a worker receives a message and crashes before it deletes the message, the message remains in storage. It will be re-delivered when any group member reconnects. Workers that require at-least-once processing should explicitly delete (`$mq9.AI.MAILBOX.DELETE.{mail_id}.{msg_id}`) the message after successful completion.
+**Crash tolerance:** Because mq9 uses store-first delivery, a message is not removed from storage by the act of delivery alone. If a worker receives a message and crashes before it deletes the message, the message remains in storage. It will be re-delivered when any group member reconnects. Workers that require at-least-once processing should explicitly delete (`$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}`) the message after successful completion.
 
 **Recommended pattern:** Combine a public mailbox with a queue group for a zero-config distributed task queue. The mailbox name serves as the queue address, discoverable via `$mq9.AI.PUBLIC.LIST`. Workers subscribe with `--queue` on startup. No queue configuration, no broker-side consumer group definition, no coordinator.
 

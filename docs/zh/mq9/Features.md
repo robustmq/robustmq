@@ -24,11 +24,11 @@ mq9 提供两种邮箱类型，在创建时选定，无法更改。
 
 | | 私有邮箱 | 公开邮箱 |
 |---|---|---|
-| `mail_id` | 服务端生成的 UUID（不可猜测） | 用户自定义字符串（如 `task.queue`） |
-| 可发现性 | 不可发现——只有已知 `mail_id` 的 Agent 才能交互 | 自动注册到 `$mq9.AI.PUBLIC.LIST`，任何人可发现 |
+| `mail_address` | 服务端生成的 UUID（不可猜测） | 用户自定义字符串（如 `task.queue`） |
+| 可发现性 | 不可发现——只有已知 `mail_address` 的 Agent 才能交互 | 自动注册到 `$mq9.AI.PUBLIC.LIST`，任何人可发现 |
 | 适用场景 | 点对点通信、任务结果返回、私有回复 | 任务队列、广播频道、能力公告 |
 
-**安全模型：** `mail_id` 的不可猜测性是唯一的访问控制边界。没有 bearer token，没有 ACL，没有认证头。知道 `mail_id` 的 Agent 即可发送消息和订阅；不知道的 Agent 无法与邮箱进行任何交互。私有邮箱应将 `mail_id` 视为只与预期参与方共享的密钥。
+**安全模型：** `mail_address` 的不可猜测性是唯一的访问控制边界。没有 bearer token，没有 ACL，没有认证头。知道 `mail_address` 的 Agent 即可发送消息和订阅；不知道的 Agent 无法与邮箱进行任何交互。私有邮箱应将 `mail_address` 视为只与预期参与方共享的密钥。
 
 公开邮箱以可发现性换取透明性，名字即地址——选择有意义、能自描述的名字（如 `vision.results`、`task.queue`），而不是晦涩的 UUID。
 
@@ -39,9 +39,9 @@ mq9 提供两种邮箱类型，在创建时选定，无法更改。
 每条消息发送到三个优先级之一：`critical`、`urgent`、`normal`（默认，无后缀）。优先级编码在 subject 中：
 
 ```
-$mq9.AI.MAILBOX.MSG.{mail_id}.critical   # 最高优先级
-$mq9.AI.MAILBOX.MSG.{mail_id}.urgent     # 紧急
-$mq9.AI.MAILBOX.MSG.{mail_id}            # 默认（normal），无后缀
+$mq9.AI.MAILBOX.MSG.{mail_address}.critical   # 最高优先级
+$mq9.AI.MAILBOX.MSG.{mail_address}.urgent     # 紧急
+$mq9.AI.MAILBOX.MSG.{mail_address}            # 默认（normal），无后缀
 ```
 
 **排序保证：**
@@ -134,7 +134,7 @@ nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
 
 **动态成员：** Worker 可以随时加入或退出队列组，Broker 立即调整路由，无需任何配置变更或协调器介入。
 
-**容灾容错：** 由于 mq9 使用先存储后推送，投递动作本身不会从存储中删除消息。如果 Worker 收到消息后崩溃，消息仍留在存储中，当任意组成员重连时会重新投递。需要至少一次处理的 Worker 应在成功完成后显式删除（`$mq9.AI.MAILBOX.DELETE.{mail_id}.{msg_id}`）消息。
+**容灾容错：** 由于 mq9 使用先存储后推送，投递动作本身不会从存储中删除消息。如果 Worker 收到消息后崩溃，消息仍留在存储中，当任意组成员重连时会重新投递。需要至少一次处理的 Worker 应在成功完成后显式删除（`$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}`）消息。
 
 **推荐模式：** 将公开邮箱与队列组结合，构建零配置分布式任务队列。邮箱名作为队列地址，可通过 `$mq9.AI.PUBLIC.LIST` 发现。Worker 启动时用 `--queue` 订阅。无需队列配置，无需 Broker 侧消费者组定义，无需协调器。
 

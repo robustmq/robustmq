@@ -18,12 +18,12 @@ pip install langchain-mq9
 
 | 工具 | mq9 操作 | 输入 | 输出 |
 |------|---------|------|------|
-| `CreateMailboxTool` | 创建私有邮箱 | `{"ttl": 3600}` | `{"mail_id": "..."}` |
-| `CreatePublicMailboxTool` | 创建公开邮箱 | `{"name": "...", "ttl": ..., "desc": "..."}` | `{"mail_id": "..."}` |
-| `SendMessageTool` | 发送消息 | `{"mail_id": "...", "content": "...", "priority": "normal"}` | ack |
-| `GetMessagesTool` | 订阅并接收消息（含消息体） | `{"mail_id": "...", "limit": 10}` | 含消息体的消息列表 |
-| `ListMessagesTool` | 列出消息元数据（不含消息体） | `{"mail_id": "..."}` | 元数据列表 |
-| `DeleteMessageTool` | 删除消息 | `{"mail_id": "...", "msg_id": "..."}` | `{"deleted": true}` |
+| `CreateMailboxTool` | 创建私有邮箱 | `{"ttl": 3600}` | `{"mail_address": "..."}` |
+| `CreatePublicMailboxTool` | 创建公开邮箱 | `{"name": "...", "ttl": ..., "desc": "..."}` | `{"mail_address": "..."}` |
+| `SendMessageTool` | 发送消息 | `{"mail_address": "...", "content": "...", "priority": "normal"}` | ack |
+| `GetMessagesTool` | 订阅并接收消息（含消息体） | `{"mail_address": "...", "limit": 10}` | 含消息体的消息列表 |
+| `ListMessagesTool` | 列出消息元数据（不含消息体） | `{"mail_address": "..."}` | 元数据列表 |
+| `DeleteMessageTool` | 删除消息 | `{"mail_address": "...", "msg_id": "..."}` | `{"deleted": true}` |
 
 > **说明：** `GetMessagesTool` 通过短暂订阅收集最多 `limit` 条消息，返回实际消息内容。`ListMessagesTool` 只返回元数据（msg_id、priority、ts），不下载消息体——用它可以廉价地检视邮箱内容，再决定检索或删除哪些消息。
 
@@ -62,16 +62,16 @@ toolkit = Mq9Toolkit(server="nats://localhost:4222")
 tools_by_name = {t.name: t for t in toolkit.get_tools()}
 
 class State(TypedDict):
-    mail_id: str
+    mail_address: str
     messages: list
     done: bool
 
 def create_mailbox(state: State) -> State:
     result = tools_by_name["create_mailbox"].run({"ttl": 3600})
-    return {**state, "mail_id": result["mail_id"]}
+    return {**state, "mail_address": result["mail_address"]}
 
 def check_mailbox(state: State) -> State:
-    msgs = tools_by_name["get_messages"].run({"mail_id": state["mail_id"], "limit": 5})
+    msgs = tools_by_name["get_messages"].run({"mail_address": state["mail_address"], "limit": 5})
     return {**state, "messages": msgs, "done": len(msgs) > 0}
 
 def should_continue(state: State) -> str:
@@ -85,7 +85,7 @@ graph.add_edge("create_mailbox", "check_mailbox")
 graph.add_conditional_edges("check_mailbox", should_continue)
 
 app = graph.compile()
-result = app.invoke({"mail_id": "", "messages": [], "done": False})
+result = app.invoke({"mail_address": "", "messages": [], "done": False})
 ```
 
 ---
@@ -104,7 +104,7 @@ async def orchestrator():
         reply_box = await client.create(ttl=300)
 
         # 将任务发送到 Worker 的公开队列
-        task = {"type": "analyze", "doc_id": "abc123", "reply_to": reply_box.mail_id}
+        task = {"type": "analyze", "doc_id": "abc123", "reply_to": reply_box.mail_address}
         await client.send("task.queue", task, priority=Priority.NORMAL)
 
         # 等待结果
@@ -115,7 +115,7 @@ async def orchestrator():
             result.update(msg.data if isinstance(msg.data, dict) else {})
             result_event.set()
 
-        sub = await client.subscribe(reply_box.mail_id, on_result)
+        sub = await client.subscribe(reply_box.mail_address, on_result)
         await asyncio.wait_for(result_event.wait(), timeout=30.0)
         await sub.unsubscribe()
 

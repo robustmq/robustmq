@@ -6,7 +6,7 @@ mq9 支持两种接入方式，核心区别在于抽象层次：
 
 **RobustMQ SDK** 封装了完整的邮箱语义。你直接操作邮箱——`create()`、`send()`、`subscribe()`——不需要知道底层 subject 是什么，不需要了解 NATS 协议，不需要手动拼接字符串。就像用邮件客户端发邮件，不用关心 SMTP 协议一样。适合想快速集成、不想处理协议细节的场景。
 
-**NATS 原生 SDK** 更底层。你直接操作 NATS subject，需要理解 mq9 的 subject 命名规范（`$mq9.AI.MAILBOX.MSG.{mail_id}.{priority}` 等），使用 `publish`/`request`/`subscribe` 等 NATS 原语。优点是零额外依赖，任何语言的 NATS 客户端开箱即用；代价是需要手动处理协议细节。适合已有 NATS 基础、或需要最小依赖的场景。
+**NATS 原生 SDK** 更底层。你直接操作 NATS subject，需要理解 mq9 的 subject 命名规范（`$mq9.AI.MAILBOX.MSG.{mail_address}.{priority}` 等），使用 `publish`/`request`/`subscribe` 等 NATS 原语。优点是零额外依赖，任何语言的 NATS 客户端开箱即用；代价是需要手动处理协议细节。适合已有 NATS 基础、或需要最小依赖的场景。
 
 两种方式功能完全等价，按实际需求选择即可。
 
@@ -32,11 +32,11 @@ mq9 支持两种接入方式，核心区别在于抽象层次：
 | 方法 | 说明 | 返回 |
 |------|------|------|
 | `connect()` | 连接 NATS 服务器 | — |
-| `create(ttl, public?, name?, desc?)` | 创建邮箱 | `Mailbox(mail_id, public, name, desc)` |
-| `send(mail_id, payload, priority?)` | 发送消息（即发即忘） | — |
-| `subscribe(mail_id, callback, priority?, queue_group?)` | 订阅邮箱 | `Subscription` |
-| `list(mail_id)` | 列出消息元数据（不含消息体） | `list[MessageMeta(msg_id, priority, ts)]` |
-| `delete(mail_id, msg_id)` | 删除消息 | — |
+| `create(ttl, public?, name?, desc?)` | 创建邮箱 | `Mailbox(mail_address, public, name, desc)` |
+| `send(mail_address, payload, priority?)` | 发送消息（即发即忘） | — |
+| `subscribe(mail_address, callback, priority?, queue_group?)` | 订阅邮箱 | `Subscription` |
+| `list(mail_address)` | 列出消息元数据（不含消息体） | `list[MessageMeta(msg_id, priority, ts)]` |
+| `delete(mail_address, msg_id)` | 删除消息 | — |
 | `close()` | 断开连接 | — |
 
 ---
@@ -55,12 +55,12 @@ async def main():
     async with Client(server="nats://localhost:4222") as client:
         # 创建私有邮箱（TTL 1 小时）
         mailbox = await client.create(ttl=3600)
-        print(f"邮箱: {mailbox.mail_id}")
+        print(f"邮箱: {mailbox.mail_address}")
 
         # 按不同优先级发送消息
-        await client.send(mailbox.mail_id, {"task": "analyze", "doc": "abc123"}, priority=Priority.CRITICAL)
-        await client.send(mailbox.mail_id, "urgent interrupt", priority=Priority.URGENT)
-        await client.send(mailbox.mail_id, b"routine task", priority=Priority.NORMAL)
+        await client.send(mailbox.mail_address, {"task": "analyze", "doc": "abc123"}, priority=Priority.CRITICAL)
+        await client.send(mailbox.mail_address, "urgent interrupt", priority=Priority.URGENT)
+        await client.send(mailbox.mail_address, b"routine task", priority=Priority.NORMAL)
 
         # 订阅并处理收到的消息
         received = []
@@ -68,19 +68,19 @@ async def main():
             received.append(msg)
             print(f"收到 [{msg.subject}]: {msg.data}")
 
-        sub = await client.subscribe(mailbox.mail_id, handler)
+        sub = await client.subscribe(mailbox.mail_address, handler)
 
         await asyncio.sleep(1)  # 等待投递
         await sub.unsubscribe()
 
         # 列出元数据
-        metas = await client.list(mailbox.mail_id)
+        metas = await client.list(mailbox.mail_address)
         for meta in metas:
             print(f"  msg_id={meta.msg_id} priority={meta.priority} ts={meta.ts}")
 
         # 删除消息
         if metas:
-            await client.delete(mailbox.mail_id, metas[0].msg_id)
+            await client.delete(mailbox.mail_address, metas[0].msg_id)
 
 asyncio.run(main())
 ```
@@ -92,9 +92,9 @@ asyncio.run(main())
 queue = await client.create(ttl=86400, public=True, name="task.queue", desc="Worker 队列")
 
 # Worker 1（在单独的协程或进程中运行）
-sub1 = await client.subscribe(queue.mail_id, worker_handler, queue_group="workers")
+sub1 = await client.subscribe(queue.mail_address, worker_handler, queue_group="workers")
 # Worker 2
-sub2 = await client.subscribe(queue.mail_id, worker_handler, queue_group="workers")
+sub2 = await client.subscribe(queue.mail_address, worker_handler, queue_group="workers")
 # 每条任务只投递给一个 Worker
 ```
 
@@ -274,27 +274,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 创建邮箱
     let mailbox = client.create(3600).await?;
-    println!("邮箱: {}", mailbox.mail_id);
+    println!("邮箱: {}", mailbox.mail_address);
 
     // 发送消息
-    client.send(&mailbox.mail_id, b"hello from rust", Priority::Normal).await?;
+    client.send(&mailbox.mail_address, b"hello from rust", Priority::Normal).await?;
 
     // 订阅
-    let mut sub = client.subscribe(&mailbox.mail_id, SubscribeOptions::all_priorities()).await?;
+    let mut sub = client.subscribe(&mailbox.mail_address, SubscribeOptions::all_priorities()).await?;
     if let Some(msg) = sub.next().await {
         println!("收到: {:?}", msg.data);
     }
     sub.unsubscribe().await?;
 
     // 列出
-    let metas = client.list(&mailbox.mail_id).await?;
+    let metas = client.list(&mailbox.mail_address).await?;
     for m in &metas {
         println!("msg_id={} priority={}", m.msg_id, m.priority);
     }
 
     // 删除
     if let Some(first) = metas.first() {
-        client.delete(&mailbox.mail_id, &first.msg_id).await?;
+        client.delete(&mailbox.mail_address, &first.msg_id).await?;
     }
 
     client.close().await?;
@@ -397,15 +397,15 @@ async def main():
         json.dumps({"ttl": 3600}).encode(),
         timeout=5
     )
-    mail_id = json.loads(reply.data)["mail_id"]
-    print(f"邮箱创建成功: {mail_id}")
+    mail_address = json.loads(reply.data)["mail_address"]
+    print(f"邮箱创建成功: {mail_address}")
 
     # --- 按不同优先级发送消息 ---
-    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_id}.critical",
+    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_address}.critical",
                      json.dumps({"type": "abort", "task_id": "t-001"}).encode())
-    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_id}.urgent",
+    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_address}.urgent",
                      json.dumps({"type": "interrupt", "task_id": "t-002"}).encode())
-    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_id}",
+    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_address}",
                      json.dumps({"type": "task", "payload": "process dataset A"}).encode())
 
     # --- 订阅所有优先级 ---
@@ -416,13 +416,13 @@ async def main():
         print(f"收到 [{msg.subject}]: {data}")
         received.append(data)
 
-    sub = await nc.subscribe(f"$mq9.AI.MAILBOX.MSG.{mail_id}.*", cb=handler)
+    sub = await nc.subscribe(f"$mq9.AI.MAILBOX.MSG.{mail_address}.*", cb=handler)
     await asyncio.sleep(1)
     await sub.unsubscribe()
 
     # --- 列出消息元数据 ---
     reply = await nc.request(
-        f"$mq9.AI.MAILBOX.LIST.{mail_id}",
+        f"$mq9.AI.MAILBOX.LIST.{mail_address}",
         b"{}",
         timeout=5
     )
@@ -435,7 +435,7 @@ async def main():
     if meta.get("messages"):
         msg_id = meta["messages"][0]["msg_id"]
         await nc.request(
-            f"$mq9.AI.MAILBOX.DELETE.{mail_id}.{msg_id}",
+            f"$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}",
             b"{}",
             timeout=5
         )
@@ -447,7 +447,7 @@ async def main():
         json.dumps({"ttl": 86400, "public": True, "name": "task.queue", "desc": "Worker 队列"}).encode(),
         timeout=5
     )
-    print(f"公开邮箱: {json.loads(reply.data)['mail_id']}")
+    print(f"公开邮箱: {json.loads(reply.data)['mail_address']}")
 
     await nc.close()
 
@@ -510,7 +510,7 @@ func main() {
     }
     var createResp map[string]string
     json.Unmarshal(msg.Data, &createResp)
-    mailID := createResp["mail_id"]
+    mailID := createResp["mail_address"]
     fmt.Printf("邮箱创建成功: %s\n", mailID)
 
     // --- 发送消息 ---
@@ -571,21 +571,21 @@ async function main() {
     "$mq9.AI.MAILBOX.CREATE",
     sc.encode(JSON.stringify({ ttl: 3600 }))
   );
-  const { mail_id } = JSON.parse(sc.decode(createResp.data));
-  console.log(`邮箱创建成功: ${mail_id}`);
+  const { mail_address } = JSON.parse(sc.decode(createResp.data));
+  console.log(`邮箱创建成功: ${mail_address}`);
 
   // --- 发送消息 ---
   nc.publish(
-    `$mq9.AI.MAILBOX.MSG.${mail_id}.critical`,
+    `$mq9.AI.MAILBOX.MSG.${mail_address}.critical`,
     sc.encode(JSON.stringify({ type: "abort", task_id: "t-001" }))
   );
   nc.publish(
-    `$mq9.AI.MAILBOX.MSG.${mail_id}`,
+    `$mq9.AI.MAILBOX.MSG.${mail_address}`,
     sc.encode(JSON.stringify({ type: "task", payload: "process dataset A" }))
   );
 
   // --- 订阅 ---
-  const sub = nc.subscribe(`$mq9.AI.MAILBOX.MSG.${mail_id}.*`);
+  const sub = nc.subscribe(`$mq9.AI.MAILBOX.MSG.${mail_address}.*`);
   (async () => {
     for await (const msg of sub) {
       console.log(`收到 [${msg.subject}]:`, JSON.parse(sc.decode(msg.data)));
@@ -597,7 +597,7 @@ async function main() {
 
   // --- 列出消息元数据 ---
   const listResp = await nc.request(
-    `$mq9.AI.MAILBOX.LIST.${mail_id}`,
+    `$mq9.AI.MAILBOX.LIST.${mail_address}`,
     sc.encode("{}")
   );
   const { messages } = JSON.parse(sc.decode(listResp.data));
@@ -646,20 +646,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .request("$mq9.AI.MAILBOX.CREATE".to_string(), payload.into())
         .await?;
     let create_resp: serde_json::Value = serde_json::from_slice(&response.payload)?;
-    let mail_id = create_resp["mail_id"].as_str().unwrap();
-    println!("邮箱创建成功: {}", mail_id);
+    let mail_address = create_resp["mail_address"].as_str().unwrap();
+    println!("邮箱创建成功: {}", mail_address);
 
     // --- 发送消息 ---
     let task = serde_json::json!({"type": "task", "payload": "process dataset A"})
         .to_string()
         .into_bytes();
     client
-        .publish(format!("$mq9.AI.MAILBOX.MSG.{}", mail_id), task.into())
+        .publish(format!("$mq9.AI.MAILBOX.MSG.{}", mail_address), task.into())
         .await?;
 
     // --- 订阅 ---
     let mut subscriber = client
-        .subscribe(format!("$mq9.AI.MAILBOX.MSG.{}.*", mail_id))
+        .subscribe(format!("$mq9.AI.MAILBOX.MSG.{}.*", mail_address))
         .await?;
 
     tokio::time::sleep(Duration::from_millis(500)).await;
@@ -675,7 +675,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // --- 列出消息元数据 ---
     let list_resp = client
         .request(
-            format!("$mq9.AI.MAILBOX.LIST.{}", mail_id),
+            format!("$mq9.AI.MAILBOX.LIST.{}", mail_address),
             b"{}".as_ref().into(),
         )
         .await?;
@@ -722,7 +722,7 @@ public class Mq9Example {
             Message createResp = nc.request("$mq9.AI.MAILBOX.CREATE",
                     createPayload, Duration.ofSeconds(5));
             Map<?, ?> createData = mapper.readValue(createResp.getData(), Map.class);
-            String mailId = (String) createData.get("mail_id");
+            String mailId = (String) createData.get("mail_address");
             System.out.println("邮箱创建成功: " + mailId);
 
             // --- 发送消息 ---
@@ -776,7 +776,7 @@ await nats.ConnectAsync();
 var createPayload = JsonSerializer.SerializeToUtf8Bytes(new { ttl = 3600 });
 var createResp = await nats.RequestAsync<byte[], JsonElement>(
     "$mq9.AI.MAILBOX.CREATE", createPayload);
-var mailId = createResp.Data.GetProperty("mail_id").GetString()!;
+var mailId = createResp.Data.GetProperty("mail_address").GetString()!;
 Console.WriteLine($"邮箱创建成功: {mailId}");
 
 // --- 发送消息 ---
@@ -817,12 +817,12 @@ if (messages.GetArrayLength() > 0)
 |------|---------|---------|
 | 创建私有邮箱 | `request` | `$mq9.AI.MAILBOX.CREATE` |
 | 创建公开邮箱 | `request` | `$mq9.AI.MAILBOX.CREATE` |
-| 发送消息 | `publish` | `$mq9.AI.MAILBOX.MSG.{mail_id}.{priority}` |
-| 订阅（所有优先级） | `subscribe` | `$mq9.AI.MAILBOX.MSG.{mail_id}.*` |
-| 订阅（单一优先级） | `subscribe` | `$mq9.AI.MAILBOX.MSG.{mail_id}.{priority}` |
-| 队列组订阅 | `queueSubscribe` | `$mq9.AI.MAILBOX.MSG.{mail_id}.*` |
-| 列出元数据 | `request` | `$mq9.AI.MAILBOX.LIST.{mail_id}` |
-| 删除消息 | `request` | `$mq9.AI.MAILBOX.DELETE.{mail_id}.{msg_id}` |
+| 发送消息 | `publish` | `$mq9.AI.MAILBOX.MSG.{mail_address}.{priority}` |
+| 订阅（所有优先级） | `subscribe` | `$mq9.AI.MAILBOX.MSG.{mail_address}.*` |
+| 订阅（单一优先级） | `subscribe` | `$mq9.AI.MAILBOX.MSG.{mail_address}.{priority}` |
+| 队列组订阅 | `queueSubscribe` | `$mq9.AI.MAILBOX.MSG.{mail_address}.*` |
+| 列出元数据 | `request` | `$mq9.AI.MAILBOX.LIST.{mail_address}` |
+| 删除消息 | `request` | `$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}` |
 | 发现公开邮箱 | `subscribe` | `$mq9.AI.PUBLIC.LIST` |
 
 完整协议规范见[协议设计](./Protocol.md)。

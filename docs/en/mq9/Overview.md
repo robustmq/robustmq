@@ -58,7 +58,7 @@ Why a mailbox? Because mq9 treats Agents like people. The most natural async com
 
 Following that analogy:
 
-- **Address**: Every mailbox has a `mail_id` — its communication address. Private mailbox addresses are system-generated and unguessable, like a personal inbox only you know; public mailbox addresses are user-defined (e.g. `task.queue`), like a public department inbox that anyone can find and deliver to.
+- **Address**: Every mailbox has a `mail_address` — its communication address. Private mailbox addresses are system-generated and unguessable, like a personal inbox only you know; public mailbox addresses are user-defined (e.g. `task.queue`), like a public department inbox that anyone can find and deliver to.
 
 - **Letters**: Every message sent to a mailbox has a priority — normal (default), urgent, or critical. Priority is encoded in the delivery address, not the message content. Messages are delivered in priority order: critical first, then urgent, then normal; FIFO within the same priority.
 
@@ -66,14 +66,14 @@ Following that analogy:
 
 - **Mailbox lifetime**: Mailboxes declare a TTL at creation; they auto-destroy on expiry, taking all pending messages with them. No manual cleanup needed — forget about it when the task ends, the system handles it.
 
-- **Security boundary**: An unguessable `mail_id` is the security boundary. Knowing the address lets you send and receive; without it, there's no way to interact. No token, no ACL — the address itself is the credential.
+- **Security boundary**: An unguessable `mail_address` is the security boundary. Knowing the address lets you send and receive; without it, there's no way to interact. No token, no ACL — the address itself is the credential.
 
 **Two kinds of mailboxes:**
 
 | | Private mailbox | Public mailbox |
 |---|---|---|
-| `mail_id` | System-generated, unguessable | User-defined, meaningful name |
-| Discoverability | Private — only Agents who know the `mail_id` can find it | Auto-registered to `PUBLIC.LIST`, discoverable by anyone |
+| `mail_address` | System-generated, unguessable | User-defined, meaningful name |
+| Discoverability | Private — only Agents who know the `mail_address` can find it | Auto-registered to `PUBLIC.LIST`, discoverable by anyone |
 | Use cases | Point-to-point messaging, task result delivery | Task queues, public channels, capability announcements |
 
 ---
@@ -83,12 +83,12 @@ Following that analogy:
 | Operation | Subject | Description |
 |-----------|---------|-------------|
 | Create mailbox | `$mq9.AI.MAILBOX.CREATE` | Create a private or public mailbox; idempotent |
-| Send (normal) | `$mq9.AI.MAILBOX.MSG.{mail_id}` | Default priority, no suffix |
-| Send (urgent) | `$mq9.AI.MAILBOX.MSG.{mail_id}.urgent` | Urgent priority |
-| Send (critical) | `$mq9.AI.MAILBOX.MSG.{mail_id}.critical` | Highest priority |
-| Subscribe | `$mq9.AI.MAILBOX.MSG.{mail_id}.*` | Subscribe to all priorities |
-| List messages | `$mq9.AI.MAILBOX.LIST.{mail_id}` | Return message metadata (non-consuming) |
-| Delete message | `$mq9.AI.MAILBOX.DELETE.{mail_id}.{msg_id}` | Delete a specific message |
+| Send (normal) | `$mq9.AI.MAILBOX.MSG.{mail_address}` | Default priority, no suffix |
+| Send (urgent) | `$mq9.AI.MAILBOX.MSG.{mail_address}.urgent` | Urgent priority |
+| Send (critical) | `$mq9.AI.MAILBOX.MSG.{mail_address}.critical` | Highest priority |
+| Subscribe | `$mq9.AI.MAILBOX.MSG.{mail_address}.*` | Subscribe to all priorities |
+| List messages | `$mq9.AI.MAILBOX.LIST.{mail_address}` | Return message metadata (non-consuming) |
+| Delete message | `$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}` | Delete a specific message |
 | Discover public mailboxes | `$mq9.AI.PUBLIC.LIST` | System-managed; subscribing triggers a full push |
 
 **Three priority levels:**
@@ -105,7 +105,7 @@ Following that analogy:
 
 **Store first, then push**: Messages are written to the storage layer on arrival. Online subscribers take the real-time path; offline subscribers wait, and receive all non-expired messages in full on the next subscription. Agents that reconnect never miss messages.
 
-**mail_id is not tied to Agent identity**: mq9 recognizes `mail_id`, not `agent_id`. One Agent can create different mailboxes for different tasks, leave them alone when done, and TTL handles cleanup automatically. Channel-level design, not identity-level.
+**mail_address is not tied to Agent identity**: mq9 recognizes `mail_address`, not `agent_id`. One Agent can create different mailboxes for different tasks, leave them alone when done, and TTL handles cleanup automatically. Channel-level design, not identity-level.
 
 **No new concepts invented**: Subscriptions reuse NATS native sub semantics. Competing consumers reuse NATS native queue groups. Reply-to reuses NATS native mechanisms.
 

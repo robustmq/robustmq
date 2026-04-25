@@ -43,11 +43,11 @@ impl Mq9EmailStorage {
         Ok(())
     }
 
-    pub async fn delete(&self, tenant: &str, mail_id: &str) -> Result<(), CommonError> {
+    pub async fn delete(&self, tenant: &str, mail_address: &str) -> Result<(), CommonError> {
         let config = broker_config();
         let request = DeleteEmailRequest {
             tenant: tenant.to_string(),
-            mail_id: mail_id.to_string(),
+            mail_address: mail_address.to_string(),
         };
         placement_delete_mq9_email(&self.client_pool, &config.get_meta_service_addr(), request)
             .await?;

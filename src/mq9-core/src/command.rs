@@ -21,22 +21,28 @@ const PREFIX: &str = "$mq9.AI";
 ///
 /// Full subject strings:
 /// - `$mq9.AI.MAILBOX.CREATE`
-/// - `$mq9.AI.MAILBOX.MSG.{mail_id}.{critical|urgent|normal|low}` — publish
-/// - `$mq9.AI.MAILBOX.MSG.{mail_id}`                               — subscribe (no priority)
-/// - `$mq9.AI.MAILBOX.LIST.{mail_id}`
-/// - `$mq9.AI.MAILBOX.DELETE.{mail_id}.{msg_id}`
+/// - `$mq9.AI.MAILBOX.MSG.{mail_address}.{critical|urgent|normal|low}` — publish
+/// - `$mq9.AI.MAILBOX.MSG.{mail_address}`                               — subscribe (no priority)
+/// - `$mq9.AI.MAILBOX.LIST.{mail_address}`
+/// - `$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mq9Command {
     /// `$mq9.AI.MAILBOX.CREATE`
     MailboxCreate,
-    /// `$mq9.AI.MAILBOX.MSG.{mail_id}.{priority}` — publish a message.
-    MailboxMsg { mail_id: String, priority: Priority },
-    /// `$mq9.AI.MAILBOX.MSG.{mail_id}` — subscribe to a mailbox (server pushes by priority).
-    MailboxSub { mail_id: String },
-    /// `$mq9.AI.MAILBOX.LIST.{mail_id}`
-    MailboxList { mail_id: String },
-    /// `$mq9.AI.MAILBOX.DELETE.{mail_id}.{msg_id}`
-    MailboxDelete { mail_id: String, msg_id: String },
+    /// `$mq9.AI.MAILBOX.MSG.{mail_address}.{priority}` — publish a message.
+    MailboxMsg {
+        mail_address: String,
+        priority: Priority,
+    },
+    /// `$mq9.AI.MAILBOX.MSG.{mail_address}` — subscribe to a mailbox (server pushes by priority).
+    MailboxSub { mail_address: String },
+    /// `$mq9.AI.MAILBOX.LIST.{mail_address}`
+    MailboxList { mail_address: String },
+    /// `$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}`
+    MailboxDelete {
+        mail_address: String,
+        msg_id: String,
+    },
 }
 
 impl Mq9Command {
@@ -47,17 +53,23 @@ impl Mq9Command {
     pub fn to_subject(&self) -> String {
         match self {
             Mq9Command::MailboxCreate => format!("{}.MAILBOX.CREATE", PREFIX),
-            Mq9Command::MailboxMsg { mail_id, priority } => {
-                format!("{}.MAILBOX.MSG.{}.{}", PREFIX, mail_id, priority)
+            Mq9Command::MailboxMsg {
+                mail_address,
+                priority,
+            } => {
+                format!("{}.MAILBOX.MSG.{}.{}", PREFIX, mail_address, priority)
             }
-            Mq9Command::MailboxSub { mail_id } => {
-                format!("{}.MAILBOX.MSG.{}", PREFIX, mail_id)
+            Mq9Command::MailboxSub { mail_address } => {
+                format!("{}.MAILBOX.MSG.{}", PREFIX, mail_address)
             }
-            Mq9Command::MailboxList { mail_id } => {
-                format!("{}.MAILBOX.LIST.{}", PREFIX, mail_id)
+            Mq9Command::MailboxList { mail_address } => {
+                format!("{}.MAILBOX.LIST.{}", PREFIX, mail_address)
             }
-            Mq9Command::MailboxDelete { mail_id, msg_id } => {
-                format!("{}.MAILBOX.DELETE.{}.{}", PREFIX, mail_id, msg_id)
+            Mq9Command::MailboxDelete {
+                mail_address,
+                msg_id,
+            } => {
+                format!("{}.MAILBOX.DELETE.{}.{}", PREFIX, mail_address, msg_id)
             }
         }
     }
@@ -79,13 +91,13 @@ impl Mq9Command {
             "CREATE" if tail.is_empty() => Some(Mq9Command::MailboxCreate),
             "MSG" if !tail.is_empty() => parse_msg(tail),
             "LIST" if !tail.is_empty() => Some(Mq9Command::MailboxList {
-                mail_id: tail.to_string(),
+                mail_address: tail.to_string(),
             }),
             "DELETE" if !tail.is_empty() => {
-                // msg_id is always the last dot-separated token; mail_id is everything before.
-                let (mail_id, msg_id) = tail.rsplit_once('.')?;
+                // msg_id is always the last dot-separated token; mail_address is everything before.
+                let (mail_address, msg_id) = tail.rsplit_once('.')?;
                 Some(Mq9Command::MailboxDelete {
-                    mail_id: mail_id.to_string(),
+                    mail_address: mail_address.to_string(),
                     msg_id: msg_id.to_string(),
                 })
             }
@@ -107,16 +119,16 @@ fn parse_msg(tail: &str) -> Option<Mq9Command> {
     if let Some((prefix, last)) = tail.rsplit_once('.') {
         if let Some(p) = Priority::parse(last) {
             return Some(Mq9Command::MailboxMsg {
-                mail_id: prefix.to_string(),
+                mail_address: prefix.to_string(),
                 priority: p,
             });
         }
-        // last segment is not a priority token → entire tail is the mail_id
+        // last segment is not a priority token → entire tail is the mail_address
     }
 
-    // No dot, or last segment not a priority → entire tail is mail_id, default Normal
+    // No dot, or last segment not a priority → entire tail is mail_address, default Normal
     Some(Mq9Command::MailboxMsg {
-        mail_id: tail.to_string(),
+        mail_address: tail.to_string(),
         priority: Priority::Normal,
     })
 }
@@ -151,7 +163,7 @@ mod tests {
         assert_eq!(
             Mq9Command::parse("$mq9.AI.MAILBOX.MSG.m-001"),
             Some(Mq9Command::MailboxMsg {
-                mail_id: "m-001".to_string(),
+                mail_address: "m-001".to_string(),
                 priority: Priority::Normal
             })
         );
@@ -159,22 +171,22 @@ mod tests {
         assert_eq!(
             Mq9Command::parse("$mq9.AI.MAILBOX.MSG.m-001.urgent"),
             Some(Mq9Command::MailboxMsg {
-                mail_id: "m-001".to_string(),
+                mail_address: "m-001".to_string(),
                 priority: Priority::Urgent
             })
         );
         assert_eq!(
             Mq9Command::parse("$mq9.AI.MAILBOX.MSG.m-001.critical"),
             Some(Mq9Command::MailboxMsg {
-                mail_id: "m-001".to_string(),
+                mail_address: "m-001".to_string(),
                 priority: Priority::Critical
             })
         );
-        // MSG — mail_id with dots, last segment not a priority → entire tail is mail_id
+        // MSG — mail_address with dots, last segment not a priority → entire tail is mail_address
         assert_eq!(
             Mq9Command::parse("$mq9.AI.MAILBOX.MSG.task.queue"),
             Some(Mq9Command::MailboxMsg {
-                mail_id: "task.queue".to_string(),
+                mail_address: "task.queue".to_string(),
                 priority: Priority::Normal
             })
         );
@@ -183,7 +195,7 @@ mod tests {
         assert_eq!(
             Mq9Command::parse("$mq9.AI.MAILBOX.LIST.m-001"),
             Some(Mq9Command::MailboxList {
-                mail_id: "m-001".to_string()
+                mail_address: "m-001".to_string()
             })
         );
 
@@ -191,7 +203,7 @@ mod tests {
         assert_eq!(
             Mq9Command::parse("$mq9.AI.MAILBOX.DELETE.m-001.msg-42"),
             Some(Mq9Command::MailboxDelete {
-                mail_id: "m-001".to_string(),
+                mail_address: "m-001".to_string(),
                 msg_id: "msg-42".to_string()
             })
         );
