@@ -132,14 +132,23 @@ async fn load_common_cache(
         broker_cache.add_share_group(group);
     }
 
+    let share_group_members = share_group_storage.list_all_members().await.map_err(|e| {
+        MqttBrokerError::CommonError(format!("Failed to load share group members: {}", e))
+    })?;
+    let share_group_member_count = share_group_members.len();
+    for member in share_group_members {
+        broker_cache.add_share_group_member(&member);
+    }
+
     info!(
-        "Common cache loaded: topics={}, connectors={}, schemas={}, schema_binds={}, tenants={}, share_groups={}",
+        "Common cache loaded: topics={}, connectors={}, schemas={}, schema_binds={}, tenants={}, share_groups={}, share_group_members={}",
         topic_list.len(),
         connectors.len(),
         schemas.len(),
         schema_binds.len(),
         tenants.len(),
         share_group_count,
+        share_group_member_count,
     );
 
     Ok(())

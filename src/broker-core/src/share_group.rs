@@ -17,12 +17,13 @@ use common_config::broker::broker_config;
 use grpc_clients::meta::common::call::{
     placement_add_share_group_member, placement_create_share_group, placement_delete_share_group,
     placement_delete_share_group_member, placement_list_share_group,
+    placement_list_share_group_member,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupMember, ShareGroupParams};
 use protocol::meta::meta_service_common::{
     AddShareGroupMemberRequest, CreateShareGroupRequest, DeleteShareGroupMemberRequest,
-    DeleteShareGroupRequest, ListShareGroupRequest,
+    DeleteShareGroupRequest, ListShareGroupMemberRequest, ListShareGroupRequest,
 };
 use std::sync::Arc;
 
@@ -111,6 +112,22 @@ impl ShareGroupStorage {
         let mut results = Vec::with_capacity(reply.groups.len());
         for raw in reply.groups.iter() {
             results.push(ShareGroup::decode(raw)?);
+        }
+        Ok(results)
+    }
+
+    pub async fn list_all_members(&self) -> Result<Vec<ShareGroupMember>, CommonError> {
+        let config = broker_config();
+        let request = ListShareGroupMemberRequest { connect_id: 0 };
+        let reply = placement_list_share_group_member(
+            &self.client_pool,
+            &config.get_meta_service_addr(),
+            request,
+        )
+        .await?;
+        let mut results = Vec::with_capacity(reply.members.len());
+        for raw in reply.members.iter() {
+            results.push(ShareGroupMember::decode(raw)?);
         }
         Ok(results)
     }

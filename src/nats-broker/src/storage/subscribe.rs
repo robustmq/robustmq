@@ -42,7 +42,9 @@ impl NatsSubscribeStorage {
         for s in subscribes {
             encoded.push(s.encode()?);
         }
-        let request = CreateNatsSubscribeRequest { subscribes: encoded };
+        let request = CreateNatsSubscribeRequest {
+            subscribes: encoded,
+        };
         placement_create_nats_subscribe(
             &self.client_pool,
             &config.get_meta_service_addr(),

@@ -18,8 +18,8 @@ use metadata_struct::mqtt::share_group::ShareGroupMember;
 use rocksdb_engine::{
     keys::meta::{
         storage_key_share_group, storage_key_share_group_member,
-        storage_key_share_group_member_prefix, storage_key_share_group_prefix,
-        storage_key_share_group_tenant_prefix,
+        storage_key_share_group_member_all_prefix, storage_key_share_group_member_prefix,
+        storage_key_share_group_prefix, storage_key_share_group_tenant_prefix,
     },
     rocksdb::RocksDBEngine,
     storage::meta_data::{
@@ -108,6 +108,15 @@ impl ShareGroupStorage {
         connect_id: u64,
     ) -> Result<Vec<ShareGroupMember>, CommonError> {
         let prefix_key = storage_key_share_group_member_prefix(broker_id, connect_id);
+        let result = engine_prefix_list_by_meta_data::<ShareGroupMember>(
+            &self.rocksdb_engine_handler,
+            &prefix_key,
+        )?;
+        Ok(result.into_iter().map(|w| w.data).collect())
+    }
+
+    pub fn list_all_members(&self) -> Result<Vec<ShareGroupMember>, CommonError> {
+        let prefix_key = storage_key_share_group_member_all_prefix();
         let result = engine_prefix_list_by_meta_data::<ShareGroupMember>(
             &self.rocksdb_engine_handler,
             &prefix_key,

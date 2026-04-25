@@ -31,7 +31,8 @@ use prost::Message as _;
 use protocol::meta::meta_service_common::{
     AddShareGroupMemberReply, AddShareGroupMemberRequest, CreateShareGroupReply,
     CreateShareGroupRequest, DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest,
-    DeleteShareGroupReply, DeleteShareGroupRequest, ListShareGroupReply, ListShareGroupRequest,
+    DeleteShareGroupReply, DeleteShareGroupRequest, ListShareGroupMemberReply,
+    ListShareGroupMemberRequest, ListShareGroupReply, ListShareGroupRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -56,6 +57,23 @@ pub async fn list_share_group_by_req(
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(ListShareGroupReply { groups })
+}
+
+pub fn list_share_group_member_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: &ListShareGroupMemberRequest,
+) -> Result<ListShareGroupMemberReply, MetaServiceError> {
+    let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
+    let members = if req.connect_id != 0 {
+        storage.list_members(0, req.connect_id)?
+    } else {
+        storage.list_all_members()?
+    };
+    let members = members
+        .iter()
+        .map(|m| m.encode())
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(ListShareGroupMemberReply { members })
 }
 
 pub async fn create_share_group_by_req(

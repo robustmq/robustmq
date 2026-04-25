@@ -25,12 +25,13 @@ use protocol::meta::meta_service_common::{
     GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
     GetRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
     ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest,
-    ListShareGroupReply, ListShareGroupRequest, ListTenantReply, ListTenantRequest, NodeListReply,
-    NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
-    SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply, SetResourceConfigRequest,
-    SnapshotReply, SnapshotRequest, UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply,
-    UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest, UpdateTenantReply,
-    UpdateTenantRequest, VoteReply, VoteRequest,
+    ListShareGroupMemberReply, ListShareGroupMemberRequest, ListShareGroupReply,
+    ListShareGroupRequest, ListTenantReply, ListTenantRequest, NodeListReply, NodeListRequest,
+    RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply, SaveOffsetDataRequest, SetReply,
+    SetRequest, SetResourceConfigReply, SetResourceConfigRequest, SnapshotReply, SnapshotRequest,
+    UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
+    UpdateSchemaReply, UpdateSchemaRequest, UpdateTenantReply, UpdateTenantRequest, VoteReply,
+    VoteRequest,
 };
 use tonic::Streaming;
 
@@ -207,6 +208,12 @@ generate_meta_service_call!(
 );
 
 // ShareGroup
+generate_meta_service_call!(
+    placement_list_share_group_member,
+    ListShareGroupMemberRequest,
+    ListShareGroupMemberReply,
+    ListShareGroupMember
+);
 generate_meta_service_call!(
     placement_list_share_group,
     ListShareGroupRequest,
