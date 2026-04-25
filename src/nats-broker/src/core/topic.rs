@@ -22,7 +22,7 @@
 //   - NATS: topic name = NATS subject name
 //     e.g. subject "orders.created"  →  topic name "orders.created"
 //   - MQ9:  topic name = mail ID
-//     e.g. mail id "user-inbox-42"   →  topic name "user-inbox-42"
+//     e.g. mail address "user-inbox-42"   →  topic name "user-inbox-42"
 
 use crate::{
     core::{cache::NatsCacheManager, error::NatsBrokerError},

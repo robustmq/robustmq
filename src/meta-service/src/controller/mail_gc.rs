@@ -15,23 +15,23 @@
 use crate::core::notify::send_notify_by_delete_mq9_mail;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
-use crate::storage::mq9::email::Mq9EmailStorage;
+use crate::storage::mq9::mail::Mq9MailStorage;
 use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use node_call::NodeCallManager;
 use prost::Message as _;
-use protocol::meta::meta_service_mq9::DeleteEmailRequest;
+use protocol::meta::meta_service_mq9::DeleteMailRequest;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::{info, warn};
 
 // Scan every 5 minutes
-const EMAIL_GC_INTERVAL_MS: u64 = 60 * 1000;
+const MAIL_GC_INTERVAL_MS: u64 = 60 * 1000;
 
-pub async fn start_email_gc_thread(
+pub async fn start_mail_gc_thread(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     raft_manager: Arc<MultiRaftManager>,
     node_call_manager: Arc<NodeCallManager>,
@@ -45,7 +45,7 @@ pub async fn start_email_gc_thread(
         }
         Ok(())
     };
-    loop_select_ticket(ac_fn, EMAIL_GC_INTERVAL_MS, &stop_send).await;
+    loop_select_ticket(ac_fn, MAIL_GC_INTERVAL_MS, &stop_send).await;
 }
 
 async fn gc_expired_mails(
@@ -53,49 +53,49 @@ async fn gc_expired_mails(
     raft_manager: &Arc<MultiRaftManager>,
     node_call_manager: &Arc<NodeCallManager>,
 ) -> Result<(), CommonError> {
-    let storage = Mq9EmailStorage::new(rocksdb_engine_handler.clone());
-    let all_emails = storage.list()?;
+    let storage = Mq9MailStorage::new(rocksdb_engine_handler.clone());
+    let all_mails = storage.list()?;
     let now = now_second();
 
-    for email in all_emails {
+    for mail in all_mails {
         // ttl == 0 means no expiry; skip.
-        if email.ttl == 0 {
+        if mail.ttl == 0 {
             continue;
         }
 
-        let elapsed = now.saturating_sub(email.create_time);
-        if elapsed < email.ttl {
+        let elapsed = now.saturating_sub(mail.create_time);
+        if elapsed < mail.ttl {
             continue;
         }
 
         // Delete via raft so all nodes apply the same deletion.
-        let req = DeleteEmailRequest {
-            tenant: email.tenant.clone(),
-            mail_address: email.mail_address.clone(),
+        let req = DeleteMailRequest {
+            tenant: mail.tenant.clone(),
+            mail_address: mail.mail_address.clone(),
         };
         let data = StorageData::new(
-            StorageDataType::Mq9DeleteEmail,
+            StorageDataType::Mq9DeleteMail,
             Bytes::from(req.encode_to_vec()),
         );
-        if let Err(e) = raft_manager.write_data(&email.mail_address, data).await {
+        if let Err(e) = raft_manager.write_data(&mail.mail_address, data).await {
             warn!(
                 "Failed to delete expired mail via raft: tenant={}, mail_address={}, error={}",
-                email.tenant, email.mail_address, e
+                mail.tenant, mail.mail_address, e
             );
             continue;
         }
 
         // Notify broker nodes to evict from in-memory cache.
-        if let Err(e) = send_notify_by_delete_mq9_mail(node_call_manager, email.clone()).await {
+        if let Err(e) = send_notify_by_delete_mq9_mail(node_call_manager, mail.clone()).await {
             warn!(
                 "Failed to notify brokers to delete mail: tenant={}, mail_address={}, error={}",
-                email.tenant, email.mail_address, e
+                mail.tenant, mail.mail_address, e
             );
         }
 
         info!(
-            "Email {} cleaned up successfully: tenant={}, create_time={}s ago, ttl={}s",
-            email.mail_address, email.tenant, elapsed, email.ttl
+            "Mail {} cleaned up successfully: tenant={}, create_time={}s ago, ttl={}s",
+            mail.mail_address, mail.tenant, elapsed, mail.ttl
         );
     }
 

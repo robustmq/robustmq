@@ -33,7 +33,7 @@ pub fn is_system_mailbox(mail_address: &str) -> bool {
     mail_address == MQ9_SYSTEM_PUBLIC_MAIL
 }
 
-pub async fn try_init_system_email(
+pub async fn try_init_system_mail(
     node_cache: &Arc<NodeCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_pool: &Arc<ClientPool>,

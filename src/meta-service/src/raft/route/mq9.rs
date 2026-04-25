@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
-use crate::storage::mq9::email::Mq9EmailStorage;
+use crate::storage::mq9::mail::Mq9MailStorage;
 use bytes::Bytes;
-use metadata_struct::mq9::email::MQ9Email;
+use metadata_struct::mq9::mail::MQ9Mail;
 use prost::Message as _;
-use protocol::meta::meta_service_mq9::{CreateEmailRequest, DeleteEmailRequest};
+use protocol::meta::meta_service_mq9::{CreateMailRequest, DeleteMailRequest};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
@@ -33,17 +33,17 @@ impl DataRouteMq9 {
         }
     }
 
-    pub fn create_email(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let req = CreateEmailRequest::decode(value.as_ref())?;
-        let email = MQ9Email::decode(&req.content)?;
-        let storage = Mq9EmailStorage::new(self.rocksdb_engine_handler.clone());
-        storage.save(&email)?;
+    pub fn create_mail(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = CreateMailRequest::decode(value.as_ref())?;
+        let mail = MQ9Mail::decode(&req.content)?;
+        let storage = Mq9MailStorage::new(self.rocksdb_engine_handler.clone());
+        storage.save(&mail)?;
         Ok(())
     }
 
-    pub fn delete_email(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let req = DeleteEmailRequest::decode(value.as_ref())?;
-        let storage = Mq9EmailStorage::new(self.rocksdb_engine_handler.clone());
+    pub fn delete_mail(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = DeleteMailRequest::decode(value.as_ref())?;
+        let storage = Mq9MailStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.tenant, &req.mail_address)?;
         Ok(())
     }

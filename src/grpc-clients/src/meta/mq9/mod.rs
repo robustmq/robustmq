@@ -14,8 +14,8 @@
 
 use protocol::meta::meta_service_mq9::mq9_service_client::Mq9ServiceClient;
 use protocol::meta::meta_service_mq9::{
-    CreateEmailReply, CreateEmailRequest, DeleteEmailReply, DeleteEmailRequest, ListEmailReply,
-    ListEmailRequest,
+    CreateMailReply, CreateMailRequest, DeleteMailReply, DeleteMailRequest, ListMailReply,
+    ListMailRequest,
 };
 use tonic::transport::Channel;
 use tonic::Streaming;
@@ -25,31 +25,31 @@ use crate::macros::impl_retriable_request;
 pub mod call;
 
 impl_retriable_request!(
-    CreateEmailRequest,
+    CreateMailRequest,
     Mq9ServiceClient<Channel>,
-    CreateEmailReply,
-    create_email,
+    CreateMailReply,
+    create_mail,
     "Mq9Service",
-    "CreateEmail",
+    "CreateMail",
     true
 );
 
 impl_retriable_request!(
-    DeleteEmailRequest,
+    DeleteMailRequest,
     Mq9ServiceClient<Channel>,
-    DeleteEmailReply,
-    delete_email,
+    DeleteMailReply,
+    delete_mail,
     "Mq9Service",
-    "DeleteEmail",
+    "DeleteMail",
     true
 );
 
 impl_retriable_request!(
-    ListEmailRequest,
+    ListMailRequest,
     Mq9ServiceClient<Channel>,
-    Streaming<ListEmailReply>,
-    list_email,
+    Streaming<ListMailReply>,
+    list_mail,
     "Mq9Service",
-    "ListEmail",
+    "ListMail",
     true
 );

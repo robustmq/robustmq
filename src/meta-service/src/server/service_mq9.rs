@@ -13,15 +13,15 @@
 // limitations under the License.
 
 use crate::raft::manager::MultiRaftManager;
-use crate::server::services::mq9::email::{
-    create_email_by_req, delete_email_by_req, list_email_by_req,
+use crate::server::services::mq9::mail::{
+    create_mail_by_req, delete_mail_by_req, list_mail_by_req,
 };
 use node_call::NodeCallManager;
 use prost_validate::Validator;
 use protocol::meta::meta_service_mq9::mq9_service_server::Mq9Service;
 use protocol::meta::meta_service_mq9::{
-    CreateEmailReply, CreateEmailRequest, DeleteEmailReply, DeleteEmailRequest, ListEmailReply,
-    ListEmailRequest,
+    CreateMailReply, CreateMailRequest, DeleteMailReply, DeleteMailRequest, ListMailReply,
+    ListMailRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -60,15 +60,15 @@ impl GrpcMq9Service {
 
 #[tonic::async_trait]
 impl Mq9Service for GrpcMq9Service {
-    type ListEmailStream = Pin<Box<dyn Stream<Item = Result<ListEmailReply, Status>> + Send>>;
+    type ListMailStream = Pin<Box<dyn Stream<Item = Result<ListMailReply, Status>> + Send>>;
 
-    async fn create_email(
+    async fn create_mail(
         &self,
-        request: Request<CreateEmailRequest>,
-    ) -> Result<Response<CreateEmailReply>, Status> {
+        request: Request<CreateMailRequest>,
+    ) -> Result<Response<CreateMailReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        create_email_by_req(
+        create_mail_by_req(
             &self.raft_manager,
             &self.call_manager,
             &self.rocksdb_engine_handler,
@@ -79,13 +79,13 @@ impl Mq9Service for GrpcMq9Service {
         .map(Response::new)
     }
 
-    async fn delete_email(
+    async fn delete_mail(
         &self,
-        request: Request<DeleteEmailRequest>,
-    ) -> Result<Response<DeleteEmailReply>, Status> {
+        request: Request<DeleteMailRequest>,
+    ) -> Result<Response<DeleteMailReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        delete_email_by_req(
+        delete_mail_by_req(
             &self.raft_manager,
             &self.call_manager,
             &self.rocksdb_engine_handler,
@@ -96,12 +96,12 @@ impl Mq9Service for GrpcMq9Service {
         .map(Response::new)
     }
 
-    async fn list_email(
+    async fn list_mail(
         &self,
-        request: Request<ListEmailRequest>,
-    ) -> Result<Response<Self::ListEmailStream>, Status> {
+        request: Request<ListMailRequest>,
+    ) -> Result<Response<Self::ListMailStream>, Status> {
         let req = request.into_inner();
-        list_email_by_req(&self.rocksdb_engine_handler, &req)
+        list_mail_by_req(&self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
     }

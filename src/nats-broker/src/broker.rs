@@ -22,7 +22,7 @@ use common_base::task::{TaskKind, TaskSupervisor};
 use common_config::broker::broker_config;
 use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
-use mq9_core::public::try_init_system_email;
+use mq9_core::public::try_init_system_mail;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::global::GlobalRateLimiterManager;
@@ -98,7 +98,7 @@ impl NatsBrokerServer {
     pub async fn start(&self) {
         let conf = broker_config();
 
-        if let Err(e) = try_init_system_email(
+        if let Err(e) = try_init_system_mail(
             &self.cache_manager.node_cache,
             &self.storage_driver_manager,
             &self.client_pool,

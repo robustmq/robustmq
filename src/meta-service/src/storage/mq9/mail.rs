@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use metadata_struct::mq9::email::MQ9Email;
+use metadata_struct::mq9::mail::MQ9Mail;
 use rocksdb_engine::keys::meta::{
-    storage_key_mq9_email, storage_key_mq9_email_prefix, storage_key_mq9_email_tenant_prefix,
+    storage_key_mq9_mail, storage_key_mq9_mail_prefix, storage_key_mq9_mail_tenant_prefix,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_data::{
@@ -24,46 +24,46 @@ use rocksdb_engine::storage::meta_data::{
 };
 use std::sync::Arc;
 
-pub struct Mq9EmailStorage {
+pub struct Mq9MailStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
-impl Mq9EmailStorage {
+impl Mq9MailStorage {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        Mq9EmailStorage {
+        Mq9MailStorage {
             rocksdb_engine_handler,
         }
     }
 
-    pub fn save(&self, email: &MQ9Email) -> Result<(), CommonError> {
-        let key = storage_key_mq9_email(&email.tenant, &email.mail_address);
-        engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, email)
+    pub fn save(&self, mail: &MQ9Mail) -> Result<(), CommonError> {
+        let key = storage_key_mq9_mail(&mail.tenant, &mail.mail_address);
+        engine_save_by_meta_data(&self.rocksdb_engine_handler, &key, mail)
     }
 
-    pub fn get(&self, tenant: &str, mail_address: &str) -> Result<Option<MQ9Email>, CommonError> {
-        let key = storage_key_mq9_email(tenant, mail_address);
+    pub fn get(&self, tenant: &str, mail_address: &str) -> Result<Option<MQ9Mail>, CommonError> {
+        let key = storage_key_mq9_mail(tenant, mail_address);
         Ok(
-            engine_get_by_meta_data::<MQ9Email>(&self.rocksdb_engine_handler, &key)?
+            engine_get_by_meta_data::<MQ9Mail>(&self.rocksdb_engine_handler, &key)?
                 .map(|data| data.data),
         )
     }
 
-    pub fn list(&self) -> Result<Vec<MQ9Email>, CommonError> {
-        let prefix = storage_key_mq9_email_prefix();
+    pub fn list(&self) -> Result<Vec<MQ9Mail>, CommonError> {
+        let prefix = storage_key_mq9_mail_prefix();
         let data =
-            engine_prefix_list_by_meta_data::<MQ9Email>(&self.rocksdb_engine_handler, &prefix)?;
+            engine_prefix_list_by_meta_data::<MQ9Mail>(&self.rocksdb_engine_handler, &prefix)?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
-    pub fn list_by_tenant(&self, tenant: &str) -> Result<Vec<MQ9Email>, CommonError> {
-        let prefix = storage_key_mq9_email_tenant_prefix(tenant);
+    pub fn list_by_tenant(&self, tenant: &str) -> Result<Vec<MQ9Mail>, CommonError> {
+        let prefix = storage_key_mq9_mail_tenant_prefix(tenant);
         let data =
-            engine_prefix_list_by_meta_data::<MQ9Email>(&self.rocksdb_engine_handler, &prefix)?;
+            engine_prefix_list_by_meta_data::<MQ9Mail>(&self.rocksdb_engine_handler, &prefix)?;
         Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
     pub fn delete(&self, tenant: &str, mail_address: &str) -> Result<(), CommonError> {
-        let key = storage_key_mq9_email(tenant, mail_address);
+        let key = storage_key_mq9_mail(tenant, mail_address);
         engine_delete_by_meta_data(&self.rocksdb_engine_handler, &key)
     }
 }

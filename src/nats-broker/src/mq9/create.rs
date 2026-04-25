@@ -15,12 +15,12 @@
 use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
-use crate::storage::email::Mq9EmailStorage;
+use crate::storage::mail::Mq9MailStorage;
 use crate::storage::message::MessageStorage;
 use bytes::Bytes;
 use common_base::{tools::now_second, uuid::unique_id};
 use common_config::broker::broker_config;
-use metadata_struct::mq9::email::MQ9Email;
+use metadata_struct::mq9::mail::MQ9Mail;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use mq9_core::protocol::{CreateMailboxReq, Mq9Reply};
@@ -50,7 +50,7 @@ fn validate_prefix(prefix: &str) -> Result<(), NatsBrokerError> {
     Ok(())
 }
 
-fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
+fn build_mail(payload: &Bytes) -> Result<MQ9Mail, NatsBrokerError> {
     let params: CreateMailboxReq = serde_json::from_slice(payload).map_err(|e| {
         NatsBrokerError::CommonError(format!("invalid MAILBOX.CREATE payload: {}", e))
     })?;
@@ -71,7 +71,7 @@ fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
         }
     };
 
-    Ok(MQ9Email {
+    Ok(MQ9Mail {
         mail_address,
         tenant,
         desc: params.desc,
@@ -87,8 +87,8 @@ pub async fn process_create(
     ctx: &NatsProcessContext,
     payload: &Bytes,
 ) -> Result<Mq9Reply, NatsBrokerError> {
-    let email = build_email(payload)?;
-    let mail_address = email.mail_address.clone();
+    let mail = build_mail(payload)?;
+    let mail_address = mail.mail_address.clone();
 
     if is_system_mailbox(&mail_address) {
         return Err(NatsBrokerError::CommonError(format!(
@@ -99,21 +99,21 @@ pub async fn process_create(
 
     let is_new = ctx
         .cache_manager
-        .get_mail(&email.tenant, &email.mail_address)
+        .get_mail(&mail.tenant, &mail.mail_address)
         .is_none();
 
     if is_new {
-        Mq9EmailStorage::new(ctx.client_pool.clone())
-            .create(&email)
+        Mq9MailStorage::new(ctx.client_pool.clone())
+            .create(&mail)
             .await?;
     }
 
-    if email.public {
+    if mail.public {
         save_public_data(
             &ctx.storage_driver_manager,
-            &email.mail_address,
-            &email.desc,
-            email.ttl,
+            &mail.mail_address,
+            &mail.desc,
+            mail.ttl,
         )
         .await?;
     }

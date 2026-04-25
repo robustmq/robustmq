@@ -336,12 +336,12 @@ impl DataRoute {
             }
 
             // mq9
-            StorageDataType::Mq9CreateEmail => {
-                self.route_mq9.create_email(storage_data.value.clone())?;
+            StorageDataType::Mq9CreateMail => {
+                self.route_mq9.create_mail(storage_data.value.clone())?;
                 Ok(None)
             }
-            StorageDataType::Mq9DeleteEmail => {
-                self.route_mq9.delete_email(storage_data.value.clone())?;
+            StorageDataType::Mq9DeleteMail => {
+                self.route_mq9.delete_mail(storage_data.value.clone())?;
                 Ok(None)
             }
         }

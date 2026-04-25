@@ -86,7 +86,7 @@ pub async fn update_cache(
         }
 
         // NATS / MQ9
-        BrokerUpdateCacheResourceType::NatsSubscribe | BrokerUpdateCacheResourceType::Mq9Email => {
+        BrokerUpdateCacheResourceType::NatsSubscribe | BrokerUpdateCacheResourceType::Mq9Mail => {
             if let Err(e) = update_nats_cache_metadata(
                 &nats_params.cache_manager,
                 &nats_params.subscribe_manager,

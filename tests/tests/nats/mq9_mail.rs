@@ -20,7 +20,7 @@ mod tests {
     use async_nats::Client;
     use bytes::Bytes;
     use common_base::uuid::unique_id;
-    use metadata_struct::mq9::email::MQ9Email;
+    use metadata_struct::mq9::mail::MQ9Mail;
     use metadata_struct::tenant::DEFAULT_TENANT;
     use mq9_core::command::Mq9Command;
     use mq9_core::protocol::{CreateMailboxReq, Mq9Reply};
@@ -62,26 +62,26 @@ mod tests {
 
         assert!(!reply.is_error(), "unexpected error: {}", reply.error);
         assert!(
-            !reply.mail_id.as_deref().unwrap_or("").is_empty(),
-            "mail_id should not be empty"
+            !reply.mail_address.as_deref().unwrap_or("").is_empty(),
+            "mail_address should not be empty"
         );
         assert!(reply.is_new.unwrap_or(false), "should be a new mail");
-        let mail_id = reply.mail_id.unwrap();
+        let mail_address = reply.mail_address.unwrap();
 
         // ── list mail via admin — verify mail exists ───────────────────────────
         let list_req = MailListReq {
-            mail_id: Some(mail_id.clone()),
+            mail_address: Some(mail_address.clone()),
             ..Default::default()
         };
         let mail_list = admin_client
-            .get_mail_list::<_, Vec<MQ9Email>>(&list_req)
+            .get_mail_list::<_, Vec<MQ9Mail>>(&list_req)
             .await
             .unwrap();
         println!("mail list after create: {:#?}", mail_list);
 
         assert_eq!(mail_list.data.len(), 1, "expected exactly 1 mail");
         let mail = &mail_list.data[0];
-        assert_eq!(mail.mail_id, mail_id);
+        assert_eq!(mail.mail_address, mail_address);
         assert!(!mail.public, "should be private");
         assert_eq!(mail.ttl, TTL);
         assert!(mail.create_time > 0);
@@ -92,7 +92,7 @@ mod tests {
 
         // ── list mail — verify mail is gone ───────────────────────────────────
         let mail_list_after = admin_client
-            .get_mail_list::<_, Vec<MQ9Email>>(&list_req)
+            .get_mail_list::<_, Vec<MQ9Mail>>(&list_req)
             .await
             .unwrap();
         println!("mail list after TTL expiry: {:#?}", mail_list_after);
@@ -122,26 +122,26 @@ mod tests {
 
         assert!(!reply.is_error(), "unexpected error: {}", reply.error);
         assert_eq!(
-            reply.mail_id.as_deref().unwrap_or(""),
+            reply.mail_address.as_deref().unwrap_or(""),
             public_name,
-            "public mail_id should equal the provided name"
+            "public mail_address should equal the provided name"
         );
         assert!(reply.is_new.unwrap_or(false), "should be a new mail");
 
         // ── list mail via admin — verify mail exists with correct flags ────────
         let list_req = MailListReq {
-            mail_id: Some(public_name.clone()),
+            mail_address: Some(public_name.clone()),
             ..Default::default()
         };
         let mail_list = admin_client
-            .get_mail_list::<_, Vec<MQ9Email>>(&list_req)
+            .get_mail_list::<_, Vec<MQ9Mail>>(&list_req)
             .await
             .unwrap();
         println!("public mail list after create: {:#?}", mail_list);
 
         assert_eq!(mail_list.data.len(), 1, "expected exactly 1 public mail");
         let mail = &mail_list.data[0];
-        assert_eq!(mail.mail_id, public_name);
+        assert_eq!(mail.mail_address, public_name);
         assert!(mail.public, "should be public");
         assert_eq!(mail.ttl, TTL);
         assert!(mail.create_time > 0);
@@ -160,7 +160,7 @@ mod tests {
 
         let found = read_resp.messages.iter().any(|row| {
             serde_json::from_str::<StoragePublicData>(&row.content)
-                .map(|d| d.mail_id == public_name)
+                .map(|d| d.mail_address == public_name)
                 .unwrap_or(false)
         });
         assert!(
@@ -175,7 +175,7 @@ mod tests {
 
         // ── list mail — verify mail is gone ───────────────────────────────────
         let mail_list_after = admin_client
-            .get_mail_list::<_, Vec<MQ9Email>>(&list_req)
+            .get_mail_list::<_, Vec<MQ9Mail>>(&list_req)
             .await
             .unwrap();
         println!("public mail list after TTL expiry: {:#?}", mail_list_after);
@@ -203,11 +203,11 @@ mod tests {
         println!("create prefix mail reply: {:?}", reply);
 
         assert!(!reply.is_error(), "unexpected error: {}", reply.error);
-        let mail_id = reply.mail_id.as_deref().unwrap_or("");
+        let mail_address = reply.mail_address.as_deref().unwrap_or("");
         assert!(
-            mail_id.starts_with(&prefix),
-            "mail_id '{}' should start with prefix '{}'",
-            mail_id,
+            mail_address.starts_with(&prefix),
+            "mail_address '{}' should start with prefix '{}'",
+            mail_address,
             prefix
         );
         assert!(reply.is_new.unwrap_or(false), "should be a new mailbox");

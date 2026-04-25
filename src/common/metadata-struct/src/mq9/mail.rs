@@ -16,7 +16,7 @@ use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-pub struct MQ9Email {
+pub struct MQ9Mail {
     /// Unique mailbox identifier. System-generated UUID for private mailboxes;
     /// user-defined name for public mailboxes.
     pub mail_address: String,
@@ -29,7 +29,7 @@ pub struct MQ9Email {
     pub create_time: u64,
 }
 
-impl MQ9Email {
+impl MQ9Mail {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         serialize::serialize(self)
     }

@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use protocol::meta::meta_service_mq9::{
-    CreateEmailReply, CreateEmailRequest, DeleteEmailReply, DeleteEmailRequest, ListEmailReply,
-    ListEmailRequest,
+    CreateMailReply, CreateMailRequest, DeleteMailReply, DeleteMailRequest, ListMailReply,
+    ListMailRequest,
 };
 use tonic::Streaming;
 
@@ -34,17 +34,17 @@ macro_rules! generate_mq9_service_call {
 }
 
 generate_mq9_service_call!(
-    placement_create_mq9_email,
-    CreateEmailRequest,
-    CreateEmailReply
+    placement_create_mq9_mail,
+    CreateMailRequest,
+    CreateMailReply
 );
 generate_mq9_service_call!(
-    placement_delete_mq9_email,
-    DeleteEmailRequest,
-    DeleteEmailReply
+    placement_delete_mq9_mail,
+    DeleteMailRequest,
+    DeleteMailReply
 );
 generate_mq9_service_call!(
-    placement_list_mq9_email,
-    ListEmailRequest,
-    Streaming<ListEmailReply>
+    placement_list_mq9_mail,
+    ListMailRequest,
+    Streaming<ListMailReply>
 );

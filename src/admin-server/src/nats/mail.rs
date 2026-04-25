@@ -21,7 +21,7 @@ use crate::{
 };
 use axum::extract::{Query, State};
 use common_base::http_response::{error_response, success_response};
-use metadata_struct::mq9::email::MQ9Email;
+use metadata_struct::mq9::mail::MQ9Mail;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -35,7 +35,7 @@ pub struct MailListReq {
     pub sort_by: Option<String>,
 }
 
-impl Queryable for MQ9Email {
+impl Queryable for MQ9Mail {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
             "mail_address" => Some(self.mail_address.clone()),
@@ -64,7 +64,7 @@ pub async fn mail_list(
         None,
     );
 
-    let mails: Vec<MQ9Email> = nats_context
+    let mails: Vec<MQ9Mail> = nats_context
         .cache_manager
         .mail_info
         .iter()

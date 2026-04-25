@@ -74,16 +74,16 @@ mq9 solves it directly: **send a message, the recipient gets it when they come o
 | Operation | Subject | What it does |
 |-----------|---------|-------------|
 | **MAILBOX.CREATE** | `$mq9.AI.MAILBOX.CREATE` | Create a private or public mailbox |
-| **Send** | `$mq9.AI.MAILBOX.MSG.{mail_id}` / `.urgent` / `.critical` | Deliver a message — three levels: `critical` / `urgent` / `normal` (default, no suffix) |
-| **Subscribe** | `$mq9.AI.MAILBOX.MSG.{mail_id}.*` | Receive all priorities; new arrivals pushed in real time |
+| **Send** | `$mq9.AI.MAILBOX.MSG.{mail_address}` / `.urgent` / `.critical` | Deliver a message — three levels: `critical` / `urgent` / `normal` (default, no suffix) |
+| **Subscribe** | `$mq9.AI.MAILBOX.MSG.{mail_address}.*` | Receive all priorities; new arrivals pushed in real time |
 | **Discover** | `$mq9.AI.PUBLIC.LIST` | Discover all public mailboxes |
 
 </div>
 
 ```bash
-# Create a private mailbox — returns mail_id
+# Create a private mailbox — returns mail_address
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
-# → {"mail_id":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag","is_new":true}
+# → {"mail_address":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag","is_new":true}
 
 # Send to another Agent's mailbox (works even if they're offline)
 nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag' \
@@ -191,14 +191,14 @@ nats sub "robustmq.multi.protocol"
 ### mq9 Agent Mailbox in Action
 
 ```bash
-# Agent A creates a mailbox — returns mail_id
+# Agent A creates a mailbox — returns mail_address
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
 
 # Agent B sends to Agent A (works even if A is offline)
-nats pub '$mq9.AI.MAILBOX.MSG.{mail_id_a}' '{"type":"task","payload":"hello","ts":1234567890}'
+nats pub '$mq9.AI.MAILBOX.MSG.{mail_address_a}' '{"type":"task","payload":"hello","ts":1234567890}'
 
 # Agent A subscribes and receives all non-expired messages in priority order
-nats sub '$mq9.AI.MAILBOX.MSG.{mail_id_a}.*'
+nats sub '$mq9.AI.MAILBOX.MSG.{mail_address_a}.*'
 ```
 
 ### Web Dashboard
