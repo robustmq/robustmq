@@ -42,3 +42,4 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file-path: .github/labeler-config.yml
+          config-file-ref: main
