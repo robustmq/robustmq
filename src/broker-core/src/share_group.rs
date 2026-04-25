@@ -42,7 +42,7 @@ impl ShareGroupStorage {
         source: ShareGroupParams,
     ) -> Result<(), CommonError> {
         let config = broker_config();
-        let params = serde_json::to_vec(&source)?;
+        let params = source.encode()?;
         let request = CreateShareGroupRequest {
             tenant: tenant.to_owned(),
             group: group_name.to_owned(),
