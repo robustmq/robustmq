@@ -34,7 +34,7 @@ The mailbox and all its messages are automatically destroyed. No client-side cle
 
 ## Can multiple agents write to the same mailbox?
 
-Yes. Any agent that knows the `mail_id` can publish to it. There is no sender allowlist or ownership restriction. For private mailboxes, access control is achieved by keeping the `mail_id` secret. For public mailboxes, any agent that knows the name can publish.
+Yes. Any agent that knows the `mail_address` can publish to it. There is no sender allowlist or ownership restriction. For private mailboxes, access control is achieved by keeping the `mail_address` secret. For public mailboxes, any agent that knows the name can publish.
 
 ---
 
@@ -76,7 +76,7 @@ For very large binary transfers (models, datasets, files), store the data in ext
 
 ## What is the difference between private and public mailboxes?
 
-Private mailboxes use a server-generated UUID as the `mail_id`. Because the ID is not guessable, only agents that were explicitly given the `mail_id` can send to or subscribe from it. Public mailboxes use a user-defined name as the `mail_id` — any agent that knows the name can interact. Use private mailboxes for point-to-point communication between known parties; use public mailboxes for shared task queues, service endpoints, and capability announcements.
+Private mailboxes use a server-generated UUID as the `mail_address`. Because the ID is not guessable, only agents that were explicitly given the `mail_address` can send to or subscribe from it. Public mailboxes use a user-defined name as the `mail_address` — any agent that knows the name can interact. Use private mailboxes for point-to-point communication between known parties; use public mailboxes for shared task queues, service endpoints, and capability announcements.
 
 ---
 
@@ -91,7 +91,7 @@ No. mq9 store-first semantics, priority ordering, TTL auto-cleanup, and `PUBLIC.
 | Code | Meaning | When it occurs |
 |------|---------|----------------|
 | 400 | Bad request | Missing required fields (e.g. `name` for a public mailbox CREATE) |
-| 403 | Forbidden | Wildcard `mail_id` subscription (`$mq9.AI.MAILBOX.MSG.*.*`) |
+| 403 | Forbidden | Wildcard `mail_address` subscription (`$mq9.AI.MAILBOX.MSG.*.*`) |
 | 404 | Not found | Mailbox or message does not exist |
 | 409 | Conflict | Public mailbox name already taken by a different mailbox |
 | 410 | Gone | Mailbox TTL has expired |

@@ -70,9 +70,9 @@ pub enum MetaServiceInterface {
     ListBlackList,
 
     // mq9 service interface
-    CreateEmail,
-    DeleteEmail,
-    ListEmail,
+    CreateMail,
+    DeleteMail,
+    ListMail,
 
     // Open Raft
     Vote,

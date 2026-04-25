@@ -27,6 +27,9 @@ pub enum NatsBrokerError {
     #[error("Connection not found: {0}")]
     ConnectionNotFound(u64),
 
+    #[error("Queue group empty, stopping task: {0}")]
+    QueueGroupEmpty(String),
+
     #[error("{0}")]
     FromSerdeJsonError(#[from] serde_json::Error),
 }

@@ -16,15 +16,15 @@ use crate::core::connection::NatsConnection;
 use broker_core::cache::NodeCacheManager;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mq9::email::MQ9Email;
+use metadata_struct::mq9::mail::MQ9Mail;
 use std::sync::Arc;
 
 pub struct NatsCacheManager {
     pub node_cache: Arc<NodeCacheManager>,
     pub client_pool: Arc<ClientPool>,
     pub connection_info: DashMap<u64, NatsConnection>,
-    /// Key: "{tenant}/{mail_id}"
-    pub mail_info: DashMap<String, MQ9Email>,
+    /// Key: "{tenant}/{mail_address}"
+    pub mail_info: DashMap<String, MQ9Mail>,
     /// Key: inbox subject, Value: sid
     pub inbox_data: DashMap<String, String>,
 }
@@ -56,18 +56,18 @@ impl NatsCacheManager {
         self.inbox_data.get(inbox).map(|e| e.value().clone())
     }
 
-    pub fn add_mail(&self, email: MQ9Email) {
-        let key = format!("{}/{}", email.tenant, email.mail_id);
-        self.mail_info.insert(key, email);
+    pub fn add_mail(&self, mail: MQ9Mail) {
+        let key = format!("{}/{}", mail.tenant, mail.mail_address);
+        self.mail_info.insert(key, mail);
     }
 
-    pub fn get_mail(&self, tenant: &str, mail_id: &str) -> Option<MQ9Email> {
-        let key = format!("{}/{}", tenant, mail_id);
+    pub fn get_mail(&self, tenant: &str, mail_address: &str) -> Option<MQ9Mail> {
+        let key = format!("{}/{}", tenant, mail_address);
         self.mail_info.get(&key).map(|e| e.value().clone())
     }
 
-    pub fn remove_mail(&self, tenant: &str, mail_id: &str) {
-        let key = format!("{}/{}", tenant, mail_id);
+    pub fn remove_mail(&self, tenant: &str, mail_address: &str) {
+        let key = format!("{}/{}", tenant, mail_address);
         self.mail_info.remove(&key);
     }
 

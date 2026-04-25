@@ -40,7 +40,7 @@ export NATS_URL=nats://localhost:4222
 
 ## Create a Mailbox
 
-A mailbox is the fundamental communication address in mq9. Use `nats req` to create one — the server returns the assigned `mail_id`:
+A mailbox is the fundamental communication address in mq9. Use `nats req` to create one — the server returns the assigned `mail_address`:
 
 ```bash
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
@@ -49,10 +49,10 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
 Response:
 
 ```json
-{"mail_id":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
+{"mail_address":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
 ```
 
-Replace `mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag` with the `mail_id` returned to you in all examples below.
+Replace `mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag` with the `mail_address` returned to you in all examples below.
 
 ---
 
@@ -144,14 +144,14 @@ from robustmq import Mq9Client
 client = Mq9Client("nats://localhost:4222")
 
 # Create a mailbox
-mail_id = client.create_mailbox(ttl=3600)
+mail_address = client.create_mailbox(ttl=3600)
 
 # Send messages
-client.publish(mail_id, {"type": "task", "payload": "run job"})
-client.publish(mail_id, {"type": "abort"}, priority="critical")
+client.publish(mail_address, {"type": "task", "payload": "run job"})
+client.publish(mail_address, {"type": "abort"}, priority="critical")
 
 # Subscribe
-for msg in client.subscribe(mail_id):
+for msg in client.subscribe(mail_address):
     print(msg)
 ```
 
@@ -186,18 +186,18 @@ async def main():
     # Create a mailbox
     resp = await nc.request("$mq9.AI.MAILBOX.CREATE",
                             json.dumps({"ttl": 3600}).encode())
-    mail_id = json.loads(resp.data)["mail_id"]
+    mail_address = json.loads(resp.data)["mail_address"]
 
     # Send messages
-    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_id}",
+    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_address}",
                      json.dumps({"type": "task"}).encode())
-    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_id}.critical",
+    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_address}.critical",
                      json.dumps({"type": "abort"}).encode())
 
     # Subscribe to all priorities
     async def handler(msg):
         print(json.loads(msg.data))
-    await nc.subscribe(f"$mq9.AI.MAILBOX.MSG.{mail_id}.*", cb=handler)
+    await nc.subscribe(f"$mq9.AI.MAILBOX.MSG.{mail_address}.*", cb=handler)
     await asyncio.sleep(2)
     await nc.close()
 

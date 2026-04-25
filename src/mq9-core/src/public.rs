@@ -28,12 +28,12 @@ use storage_adapter::{driver::StorageDriverManager, topic::create_topic_full};
 
 pub const MQ9_SYSTEM_PUBLIC_MAIL: &str = "$SYSTEM.PUBLIC";
 
-/// Returns true if the given mail_id is a reserved system mailbox.
-pub fn is_system_mailbox(mail_id: &str) -> bool {
-    mail_id == MQ9_SYSTEM_PUBLIC_MAIL
+/// Returns true if the given mail_address is a reserved system mailbox.
+pub fn is_system_mailbox(mail_address: &str) -> bool {
+    mail_address == MQ9_SYSTEM_PUBLIC_MAIL
 }
 
-pub async fn try_init_system_email(
+pub async fn try_init_system_mail(
     node_cache: &Arc<NodeCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_pool: &Arc<ClientPool>,
@@ -63,7 +63,7 @@ pub async fn try_init_system_email(
 
 #[derive(Serialize, Deserialize)]
 pub struct StoragePublicData {
-    pub mail_id: String,
+    pub mail_address: String,
     pub desc: String,
     pub ttl: u64,
     pub create_at: u64,

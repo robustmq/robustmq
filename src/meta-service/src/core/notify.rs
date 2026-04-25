@@ -19,7 +19,7 @@ use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
-use metadata_struct::mq9::email::MQ9Email;
+use metadata_struct::mq9::mail::MQ9Mail;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::share_group::ShareGroup;
@@ -526,29 +526,29 @@ pub async fn send_notify_by_delete_nats_subscribe(
     .await
 }
 
-// MQ9 Email
-pub async fn send_notify_by_create_mq9_email(
+// MQ9 Mail
+pub async fn send_notify_by_create_mq9_mail(
     call_manager: &Arc<NodeCallManager>,
-    email: MQ9Email,
+    mail: MQ9Mail,
 ) -> Result<(), MetaServiceError> {
     send_update_cache(
         call_manager,
         BrokerUpdateCacheActionType::Create,
-        BrokerUpdateCacheResourceType::Mq9Email,
-        serialize::serialize(&email)?,
+        BrokerUpdateCacheResourceType::Mq9Mail,
+        serialize::serialize(&mail)?,
     )
     .await
 }
 
 pub async fn send_notify_by_delete_mq9_mail(
     call_manager: &Arc<NodeCallManager>,
-    email: MQ9Email,
+    mail: MQ9Mail,
 ) -> Result<(), MetaServiceError> {
     send_update_cache(
         call_manager,
         BrokerUpdateCacheActionType::Delete,
-        BrokerUpdateCacheResourceType::Mq9Email,
-        serialize::serialize(&email)?,
+        BrokerUpdateCacheResourceType::Mq9Mail,
+        serialize::serialize(&mail)?,
     )
     .await
 }

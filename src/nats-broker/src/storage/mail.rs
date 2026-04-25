@@ -15,58 +15,58 @@
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use grpc_clients::meta::mq9::call::{
-    placement_create_mq9_email, placement_delete_mq9_email, placement_list_mq9_email,
+    placement_create_mq9_mail, placement_delete_mq9_mail, placement_list_mq9_mail,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mq9::email::MQ9Email;
-use protocol::meta::meta_service_mq9::{CreateEmailRequest, DeleteEmailRequest, ListEmailRequest};
+use metadata_struct::mq9::mail::MQ9Mail;
+use protocol::meta::meta_service_mq9::{CreateMailRequest, DeleteMailRequest, ListMailRequest};
 use std::sync::Arc;
 use tonic::Streaming;
 
-pub struct Mq9EmailStorage {
+pub struct Mq9MailStorage {
     client_pool: Arc<ClientPool>,
 }
 
-impl Mq9EmailStorage {
+impl Mq9MailStorage {
     pub fn new(client_pool: Arc<ClientPool>) -> Self {
-        Mq9EmailStorage { client_pool }
+        Mq9MailStorage { client_pool }
     }
 
-    pub async fn create(&self, email: &MQ9Email) -> Result<(), CommonError> {
+    pub async fn create(&self, mail: &MQ9Mail) -> Result<(), CommonError> {
         let config = broker_config();
-        let request = CreateEmailRequest {
-            tenant: email.tenant.clone(),
-            content: email.encode()?,
+        let request = CreateMailRequest {
+            tenant: mail.tenant.clone(),
+            content: mail.encode()?,
         };
-        placement_create_mq9_email(&self.client_pool, &config.get_meta_service_addr(), request)
+        placement_create_mq9_mail(&self.client_pool, &config.get_meta_service_addr(), request)
             .await?;
         Ok(())
     }
 
-    pub async fn delete(&self, tenant: &str, mail_id: &str) -> Result<(), CommonError> {
+    pub async fn delete(&self, tenant: &str, mail_address: &str) -> Result<(), CommonError> {
         let config = broker_config();
-        let request = DeleteEmailRequest {
+        let request = DeleteMailRequest {
             tenant: tenant.to_string(),
-            mail_id: mail_id.to_string(),
+            mail_address: mail_address.to_string(),
         };
-        placement_delete_mq9_email(&self.client_pool, &config.get_meta_service_addr(), request)
+        placement_delete_mq9_mail(&self.client_pool, &config.get_meta_service_addr(), request)
             .await?;
         Ok(())
     }
 
-    pub async fn list(&self, tenant: &str) -> Result<Vec<MQ9Email>, CommonError> {
+    pub async fn list(&self, tenant: &str) -> Result<Vec<MQ9Mail>, CommonError> {
         let config = broker_config();
-        let request = ListEmailRequest {
+        let request = ListMailRequest {
             tenant: tenant.to_string(),
         };
         let mut stream: Streaming<_> =
-            placement_list_mq9_email(&self.client_pool, &config.get_meta_service_addr(), request)
+            placement_list_mq9_mail(&self.client_pool, &config.get_meta_service_addr(), request)
                 .await?;
 
-        let mut emails = Vec::new();
+        let mut mails = Vec::new();
         while let Some(reply) = stream.message().await? {
-            emails.push(MQ9Email::decode(&reply.email)?);
+            mails.push(MQ9Mail::decode(&reply.mail)?);
         }
-        Ok(emails)
+        Ok(mails)
     }
 }

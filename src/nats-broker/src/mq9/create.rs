@@ -15,12 +15,12 @@
 use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
-use crate::storage::email::Mq9EmailStorage;
+use crate::storage::mail::Mq9MailStorage;
 use crate::storage::message::MessageStorage;
 use bytes::Bytes;
 use common_base::{tools::now_second, uuid::unique_id};
 use common_config::broker::broker_config;
-use metadata_struct::mq9::email::MQ9Email;
+use metadata_struct::mq9::mail::MQ9Mail;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use mq9_core::protocol::{CreateMailboxReq, Mq9Reply};
@@ -50,14 +50,14 @@ fn validate_prefix(prefix: &str) -> Result<(), NatsBrokerError> {
     Ok(())
 }
 
-fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
+fn build_mail(payload: &Bytes) -> Result<MQ9Mail, NatsBrokerError> {
     let params: CreateMailboxReq = serde_json::from_slice(payload).map_err(|e| {
         NatsBrokerError::CommonError(format!("invalid MAILBOX.CREATE payload: {}", e))
     })?;
 
     let tenant = get_tenant();
 
-    let mail_id = if params.public {
+    let mail_address = if params.public {
         params.name.ok_or_else(|| {
             NatsBrokerError::CommonError("public mailbox requires a 'name' field".to_string())
         })?
@@ -71,8 +71,8 @@ fn build_email(payload: &Bytes) -> Result<MQ9Email, NatsBrokerError> {
         }
     };
 
-    Ok(MQ9Email {
-        mail_id,
+    Ok(MQ9Mail {
+        mail_address,
         tenant,
         desc: params.desc,
         public: params.public,
@@ -87,55 +87,55 @@ pub async fn process_create(
     ctx: &NatsProcessContext,
     payload: &Bytes,
 ) -> Result<Mq9Reply, NatsBrokerError> {
-    let email = build_email(payload)?;
-    let mail_id = email.mail_id.clone();
+    let mail = build_mail(payload)?;
+    let mail_address = mail.mail_address.clone();
 
-    if is_system_mailbox(&mail_id) {
+    if is_system_mailbox(&mail_address) {
         return Err(NatsBrokerError::CommonError(format!(
             "mailbox '{}' is reserved and cannot be created by clients",
-            mail_id
+            mail_address
         )));
     }
 
     let is_new = ctx
         .cache_manager
-        .get_mail(&email.tenant, &email.mail_id)
+        .get_mail(&mail.tenant, &mail.mail_address)
         .is_none();
 
     if is_new {
-        Mq9EmailStorage::new(ctx.client_pool.clone())
-            .create(&email)
+        Mq9MailStorage::new(ctx.client_pool.clone())
+            .create(&mail)
             .await?;
     }
 
-    if email.public {
+    if mail.public {
         save_public_data(
             &ctx.storage_driver_manager,
-            &email.mail_id,
-            &email.desc,
-            email.ttl,
+            &mail.mail_address,
+            &mail.desc,
+            mail.ttl,
         )
         .await?;
     }
 
-    Ok(Mq9Reply::ok_create(mail_id, is_new))
+    Ok(Mq9Reply::ok_create(mail_address, is_new))
 }
 
 pub async fn save_public_data(
     storage_driver_manager: &Arc<StorageDriverManager>,
-    mail_id: &str,
+    mail_address: &str,
     desc: &str,
     ttl: u64,
 ) -> Result<(), NatsBrokerError> {
     let data = StoragePublicData {
-        mail_id: mail_id.to_string(),
+        mail_address: mail_address.to_string(),
         ttl,
         desc: desc.to_string(),
         create_at: now_second(),
     };
     let payload = serde_json::to_string(&data)?;
     let record = AdapterWriteRecord::new(MQ9_SYSTEM_PUBLIC_MAIL.to_string(), payload.clone())
-        .with_key(mail_id);
+        .with_key(mail_address);
     let _offsets = MessageStorage::new(storage_driver_manager.clone())
         .write(DEFAULT_TENANT, MQ9_SYSTEM_PUBLIC_MAIL, vec![record])
         .await?;

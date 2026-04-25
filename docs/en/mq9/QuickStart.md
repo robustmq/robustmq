@@ -28,7 +28,7 @@ export NATS_URL=nats://demo.robustmq.com:4222
 
 ## Create a Mailbox
 
-A mailbox is the fundamental communication address in mq9. Use `nats req` (request/reply) to create one — the server returns the assigned `mail_id` via NATS reply-to:
+A mailbox is the fundamental communication address in mq9. Use `nats req` (request/reply) to create one — the server returns the assigned `mail_address` via NATS reply-to:
 
 ```bash
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":60}'
@@ -37,10 +37,10 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":60}'
 Response:
 
 ```json
-{"mail_id":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
+{"mail_address":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
 ```
 
-The `mail_id` is the only access credential. Anyone who knows it can send messages to or subscribe from this mailbox. Keep it private for private communication.
+The `mail_address` is the only access credential. Anyone who knows it can send messages to or subscribe from this mailbox. Keep it private for private communication.
 
 TTL is set to 60 seconds here for demo convenience. In production, choose a TTL that matches your task's expected lifetime — the mailbox and all its messages are automatically destroyed when TTL expires, with no manual cleanup required.
 
@@ -51,11 +51,11 @@ TTL is set to 60 seconds here for demo convenience. In production, choose a TTL 
 mq9 supports three priority levels: `critical`, `urgent`, and `normal` (default, no suffix). The subject pattern for sending is:
 
 ```
-$mq9.AI.MAILBOX.MSG.{mail_id}.{priority}   # for urgent or critical
-$mq9.AI.MAILBOX.MSG.{mail_id}              # for normal (default, no suffix)
+$mq9.AI.MAILBOX.MSG.{mail_address}.{priority}   # for urgent or critical
+$mq9.AI.MAILBOX.MSG.{mail_address}              # for normal (default, no suffix)
 ```
 
-Replace `mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag` with the `mail_id` from the previous step:
+Replace `mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag` with the `mail_address` from the previous step:
 
 ```bash
 # Critical — highest priority, processed first; use for abort signals, emergency commands, security events
@@ -70,7 +70,7 @@ nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag' '{
 
 Sending is fire-and-forget (`nats pub`). The server writes each message to storage immediately. The sender does not wait for the subscriber to be online.
 
-> **Wildcard publishing is prohibited.** The subject `$mq9.AI.MAILBOX.MSG.*.*` is rejected by the server. You must specify an exact `mail_id` when sending.
+> **Wildcard publishing is prohibited.** The subject `$mq9.AI.MAILBOX.MSG.*.*` is rejected by the server. You must specify an exact `mail_address` when sending.
 
 ---
 
@@ -131,14 +131,14 @@ nats req '$mq9.AI.MAILBOX.DELETE.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.
 This is useful in competitive consumption workflows where a worker wants to explicitly acknowledge completion by removing the task message. The subject pattern is:
 
 ```
-$mq9.AI.MAILBOX.DELETE.{mail_id}.{msg_id}
+$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}
 ```
 
 ---
 
 ## Create a Public Mailbox
 
-A public mailbox has a user-defined `mail_id` — the name you choose becomes the address. Use this for shared task queues or capability announcements where multiple parties need to discover the address without out-of-band coordination.
+A public mailbox has a user-defined `mail_address` — the name you choose becomes the address. Use this for shared task queues or capability announcements where multiple parties need to discover the address without out-of-band coordination.
 
 ```bash
 nats req '$mq9.AI.MAILBOX.CREATE' '{
@@ -152,10 +152,10 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{
 Response:
 
 ```json
-{"mail_id":"task.queue"}
+{"mail_address":"task.queue"}
 ```
 
-The `mail_id` is exactly the `name` you provided. The mailbox is automatically registered to `$mq9.AI.PUBLIC.LIST` and becomes discoverable by anyone subscribing to that system address. When the TTL expires, it is automatically removed from the list.
+The `mail_address` is exactly the `name` you provided. The mailbox is automatically registered to `$mq9.AI.PUBLIC.LIST` and becomes discoverable by anyone subscribing to that system address. When the TTL expires, it is automatically removed from the list.
 
 CREATE is idempotent: if a mailbox named `task.queue` already exists, this call returns success without resetting its TTL. This makes it safe to call at worker startup without worrying about overwriting an existing mailbox.
 

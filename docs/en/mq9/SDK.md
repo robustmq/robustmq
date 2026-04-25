@@ -6,7 +6,7 @@ mq9 supports two integration paths. The core difference is the level of abstract
 
 **RobustMQ SDK** encapsulates complete mailbox semantics. You work directly with mailboxes — `create()`, `send()`, `subscribe()` — without needing to know what the underlying subjects look like, without understanding the NATS protocol, without manually constructing strings. Like using an email client to send mail without caring about SMTP. Best for teams that want fast integration and don't want to deal with protocol details.
 
-**Native NATS SDK** is lower-level. You work directly with NATS subjects and must understand mq9's subject naming convention (`$mq9.AI.MAILBOX.MSG.{mail_id}.{priority}` etc.), using NATS primitives like `publish`/`request`/`subscribe`. The advantage is zero extra dependencies — any NATS client in any language works out of the box. The tradeoff is that you handle protocol details manually. Best for teams already familiar with NATS, or where minimal dependencies matter.
+**Native NATS SDK** is lower-level. You work directly with NATS subjects and must understand mq9's subject naming convention (`$mq9.AI.MAILBOX.MSG.{mail_address}.{priority}` etc.), using NATS primitives like `publish`/`request`/`subscribe`. The advantage is zero extra dependencies — any NATS client in any language works out of the box. The tradeoff is that you handle protocol details manually. Best for teams already familiar with NATS, or where minimal dependencies matter.
 
 Both are functionally equivalent. Choose based on your needs.
 
@@ -32,11 +32,11 @@ The following methods are available in all language SDKs with consistent semanti
 | Method | Description | Returns |
 |--------|-------------|---------|
 | `connect()` | Connect to NATS server | — |
-| `create(ttl, public?, name?, desc?)` | Create mailbox | `Mailbox(mail_id, public, name, desc)` |
-| `send(mail_id, payload, priority?)` | Send message (fire-and-forget) | — |
-| `subscribe(mail_id, callback, priority?, queue_group?)` | Subscribe to mailbox | `Subscription` |
-| `list(mail_id)` | List message metadata (no payload) | `list[MessageMeta(msg_id, priority, ts)]` |
-| `delete(mail_id, msg_id)` | Delete a message | — |
+| `create(ttl, public?, name?, desc?)` | Create mailbox | `Mailbox(mail_address, public, name, desc)` |
+| `send(mail_address, payload, priority?)` | Send message (fire-and-forget) | — |
+| `subscribe(mail_address, callback, priority?, queue_group?)` | Subscribe to mailbox | `Subscription` |
+| `list(mail_address)` | List message metadata (no payload) | `list[MessageMeta(msg_id, priority, ts)]` |
+| `delete(mail_address, msg_id)` | Delete a message | — |
 | `close()` | Disconnect | — |
 
 ---
@@ -55,12 +55,12 @@ async def main():
     async with Client(server="nats://localhost:4222") as client:
         # Create private mailbox (TTL 1 hour)
         mailbox = await client.create(ttl=3600)
-        print(f"Mailbox: {mailbox.mail_id}")
+        print(f"Mailbox: {mailbox.mail_address}")
 
         # Send messages at different priorities
-        await client.send(mailbox.mail_id, {"task": "analyze", "doc": "abc123"}, priority=Priority.CRITICAL)
-        await client.send(mailbox.mail_id, "urgent interrupt", priority=Priority.URGENT)
-        await client.send(mailbox.mail_id, b"routine task", priority=Priority.NORMAL)
+        await client.send(mailbox.mail_address, {"task": "analyze", "doc": "abc123"}, priority=Priority.CRITICAL)
+        await client.send(mailbox.mail_address, "urgent interrupt", priority=Priority.URGENT)
+        await client.send(mailbox.mail_address, b"routine task", priority=Priority.NORMAL)
 
         # Subscribe and process incoming messages
         received = []
@@ -68,19 +68,19 @@ async def main():
             received.append(msg)
             print(f"Received [{msg.subject}]: {msg.data}")
 
-        sub = await client.subscribe(mailbox.mail_id, handler)
+        sub = await client.subscribe(mailbox.mail_address, handler)
 
         await asyncio.sleep(1)  # wait for delivery
         await sub.unsubscribe()
 
         # List metadata
-        metas = await client.list(mailbox.mail_id)
+        metas = await client.list(mailbox.mail_address)
         for meta in metas:
             print(f"  msg_id={meta.msg_id} priority={meta.priority} ts={meta.ts}")
 
         # Delete a message
         if metas:
-            await client.delete(mailbox.mail_id, metas[0].msg_id)
+            await client.delete(mailbox.mail_address, metas[0].msg_id)
 
 asyncio.run(main())
 ```
@@ -92,9 +92,9 @@ asyncio.run(main())
 queue = await client.create(ttl=86400, public=True, name="task.queue", desc="Worker queue")
 
 # Worker 1 (run in separate coroutine or process)
-sub1 = await client.subscribe(queue.mail_id, worker_handler, queue_group="workers")
+sub1 = await client.subscribe(queue.mail_address, worker_handler, queue_group="workers")
 # Worker 2
-sub2 = await client.subscribe(queue.mail_id, worker_handler, queue_group="workers")
+sub2 = await client.subscribe(queue.mail_address, worker_handler, queue_group="workers")
 # Each task delivered to exactly one worker
 ```
 
@@ -274,27 +274,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create mailbox
     let mailbox = client.create(3600).await?;
-    println!("Mailbox: {}", mailbox.mail_id);
+    println!("Mailbox: {}", mailbox.mail_address);
 
     // Send message
-    client.send(&mailbox.mail_id, b"hello from rust", Priority::Normal).await?;
+    client.send(&mailbox.mail_address, b"hello from rust", Priority::Normal).await?;
 
     // Subscribe
-    let mut sub = client.subscribe(&mailbox.mail_id, SubscribeOptions::all_priorities()).await?;
+    let mut sub = client.subscribe(&mailbox.mail_address, SubscribeOptions::all_priorities()).await?;
     if let Some(msg) = sub.next().await {
         println!("Received: {:?}", msg.data);
     }
     sub.unsubscribe().await?;
 
     // List
-    let metas = client.list(&mailbox.mail_id).await?;
+    let metas = client.list(&mailbox.mail_address).await?;
     for m in &metas {
         println!("msg_id={} priority={}", m.msg_id, m.priority);
     }
 
     // Delete
     if let Some(first) = metas.first() {
-        client.delete(&mailbox.mail_id, &first.msg_id).await?;
+        client.delete(&mailbox.mail_address, &first.msg_id).await?;
     }
 
     client.close().await?;
@@ -401,15 +401,15 @@ async def main():
         json.dumps({"ttl": 3600}).encode(),
         timeout=5
     )
-    mail_id = json.loads(reply.data)["mail_id"]
-    print(f"Mailbox created: {mail_id}")
+    mail_address = json.loads(reply.data)["mail_address"]
+    print(f"Mailbox created: {mail_address}")
 
     # --- Send messages at different priorities ---
-    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_id}.critical",
+    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_address}.critical",
                      json.dumps({"type": "abort", "task_id": "t-001"}).encode())
-    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_id}.urgent",
+    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_address}.urgent",
                      json.dumps({"type": "interrupt", "task_id": "t-002"}).encode())
-    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_id}",
+    await nc.publish(f"$mq9.AI.MAILBOX.MSG.{mail_address}",
                      json.dumps({"type": "task", "payload": "process dataset A"}).encode())
 
     # --- Subscribe to all priorities ---
@@ -420,13 +420,13 @@ async def main():
         print(f"Got [{msg.subject}]: {data}")
         received.append(data)
 
-    sub = await nc.subscribe(f"$mq9.AI.MAILBOX.MSG.{mail_id}.*", cb=handler)
+    sub = await nc.subscribe(f"$mq9.AI.MAILBOX.MSG.{mail_address}.*", cb=handler)
     await asyncio.sleep(1)
     await sub.unsubscribe()
 
     # --- List message metadata ---
     reply = await nc.request(
-        f"$mq9.AI.MAILBOX.LIST.{mail_id}",
+        f"$mq9.AI.MAILBOX.LIST.{mail_address}",
         b"{}",
         timeout=5
     )
@@ -439,7 +439,7 @@ async def main():
     if meta.get("messages"):
         msg_id = meta["messages"][0]["msg_id"]
         await nc.request(
-            f"$mq9.AI.MAILBOX.DELETE.{mail_id}.{msg_id}",
+            f"$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}",
             b"{}",
             timeout=5
         )
@@ -451,7 +451,7 @@ async def main():
         json.dumps({"ttl": 86400, "public": True, "name": "task.queue", "desc": "Worker queue"}).encode(),
         timeout=5
     )
-    print(f"Public mailbox: {json.loads(reply.data)['mail_id']}")
+    print(f"Public mailbox: {json.loads(reply.data)['mail_address']}")
 
     await nc.close()
 
@@ -514,7 +514,7 @@ func main() {
     }
     var createResp map[string]string
     json.Unmarshal(msg.Data, &createResp)
-    mailID := createResp["mail_id"]
+    mailID := createResp["mail_address"]
     fmt.Printf("Mailbox created: %s\n", mailID)
 
     // --- Send messages ---
@@ -575,21 +575,21 @@ async function main() {
     "$mq9.AI.MAILBOX.CREATE",
     sc.encode(JSON.stringify({ ttl: 3600 }))
   );
-  const { mail_id } = JSON.parse(sc.decode(createResp.data));
-  console.log(`Mailbox created: ${mail_id}`);
+  const { mail_address } = JSON.parse(sc.decode(createResp.data));
+  console.log(`Mailbox created: ${mail_address}`);
 
   // --- Send messages ---
   nc.publish(
-    `$mq9.AI.MAILBOX.MSG.${mail_id}.critical`,
+    `$mq9.AI.MAILBOX.MSG.${mail_address}.critical`,
     sc.encode(JSON.stringify({ type: "abort", task_id: "t-001" }))
   );
   nc.publish(
-    `$mq9.AI.MAILBOX.MSG.${mail_id}`,
+    `$mq9.AI.MAILBOX.MSG.${mail_address}`,
     sc.encode(JSON.stringify({ type: "task", payload: "process dataset A" }))
   );
 
   // --- Subscribe ---
-  const sub = nc.subscribe(`$mq9.AI.MAILBOX.MSG.${mail_id}.*`);
+  const sub = nc.subscribe(`$mq9.AI.MAILBOX.MSG.${mail_address}.*`);
   (async () => {
     for await (const msg of sub) {
       console.log(`Got [${msg.subject}]:`, JSON.parse(sc.decode(msg.data)));
@@ -601,7 +601,7 @@ async function main() {
 
   // --- List message metadata ---
   const listResp = await nc.request(
-    `$mq9.AI.MAILBOX.LIST.${mail_id}`,
+    `$mq9.AI.MAILBOX.LIST.${mail_address}`,
     sc.encode("{}")
   );
   const { messages } = JSON.parse(sc.decode(listResp.data));
@@ -650,20 +650,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .request("$mq9.AI.MAILBOX.CREATE".to_string(), payload.into())
         .await?;
     let create_resp: serde_json::Value = serde_json::from_slice(&response.payload)?;
-    let mail_id = create_resp["mail_id"].as_str().unwrap();
-    println!("Mailbox created: {}", mail_id);
+    let mail_address = create_resp["mail_address"].as_str().unwrap();
+    println!("Mailbox created: {}", mail_address);
 
     // --- Send a message ---
     let task = serde_json::json!({"type": "task", "payload": "process dataset A"})
         .to_string()
         .into_bytes();
     client
-        .publish(format!("$mq9.AI.MAILBOX.MSG.{}", mail_id), task.into())
+        .publish(format!("$mq9.AI.MAILBOX.MSG.{}", mail_address), task.into())
         .await?;
 
     // --- Subscribe ---
     let mut subscriber = client
-        .subscribe(format!("$mq9.AI.MAILBOX.MSG.{}.*", mail_id))
+        .subscribe(format!("$mq9.AI.MAILBOX.MSG.{}.*", mail_address))
         .await?;
 
     tokio::time::sleep(Duration::from_millis(500)).await;
@@ -679,7 +679,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // --- List message metadata ---
     let list_resp = client
         .request(
-            format!("$mq9.AI.MAILBOX.LIST.{}", mail_id),
+            format!("$mq9.AI.MAILBOX.LIST.{}", mail_address),
             b"{}".as_ref().into(),
         )
         .await?;
@@ -726,7 +726,7 @@ public class Mq9Example {
             Message createResp = nc.request("$mq9.AI.MAILBOX.CREATE",
                     createPayload, Duration.ofSeconds(5));
             Map<?, ?> createData = mapper.readValue(createResp.getData(), Map.class);
-            String mailId = (String) createData.get("mail_id");
+            String mailId = (String) createData.get("mail_address");
             System.out.println("Mailbox created: " + mailId);
 
             // --- Send a message ---
@@ -780,7 +780,7 @@ await nats.ConnectAsync();
 var createPayload = JsonSerializer.SerializeToUtf8Bytes(new { ttl = 3600 });
 var createResp = await nats.RequestAsync<byte[], JsonElement>(
     "$mq9.AI.MAILBOX.CREATE", createPayload);
-var mailId = createResp.Data.GetProperty("mail_id").GetString()!;
+var mailId = createResp.Data.GetProperty("mail_address").GetString()!;
 Console.WriteLine($"Mailbox created: {mailId}");
 
 // --- Send a message ---
@@ -821,12 +821,12 @@ if (messages.GetArrayLength() > 0)
 |-----------|------------|---------|
 | Create private mailbox | `request` | `$mq9.AI.MAILBOX.CREATE` |
 | Create public mailbox | `request` | `$mq9.AI.MAILBOX.CREATE` |
-| Send message | `publish` | `$mq9.AI.MAILBOX.MSG.{mail_id}.{priority}` |
-| Subscribe (all priorities) | `subscribe` | `$mq9.AI.MAILBOX.MSG.{mail_id}.*` |
-| Subscribe (one priority) | `subscribe` | `$mq9.AI.MAILBOX.MSG.{mail_id}.{priority}` |
-| Queue group subscription | `queueSubscribe` | `$mq9.AI.MAILBOX.MSG.{mail_id}.*` |
-| List metadata | `request` | `$mq9.AI.MAILBOX.LIST.{mail_id}` |
-| Delete message | `request` | `$mq9.AI.MAILBOX.DELETE.{mail_id}.{msg_id}` |
+| Send message | `publish` | `$mq9.AI.MAILBOX.MSG.{mail_address}.{priority}` |
+| Subscribe (all priorities) | `subscribe` | `$mq9.AI.MAILBOX.MSG.{mail_address}.*` |
+| Subscribe (one priority) | `subscribe` | `$mq9.AI.MAILBOX.MSG.{mail_address}.{priority}` |
+| Queue group subscription | `queueSubscribe` | `$mq9.AI.MAILBOX.MSG.{mail_address}.*` |
+| List metadata | `request` | `$mq9.AI.MAILBOX.LIST.{mail_address}` |
+| Delete message | `request` | `$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}` |
 | Discover public mailboxes | `subscribe` | `$mq9.AI.PUBLIC.LIST` |
 
 Full protocol specification: [Protocol Design](./Protocol.md).

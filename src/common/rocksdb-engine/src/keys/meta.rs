@@ -362,18 +362,18 @@ pub fn storage_key_nats_subscribe_prefix() -> String {
 }
 
 #[inline]
-pub fn storage_key_mq9_email(tenant: &str, mail_id: &str) -> String {
-    format!("{}mq9/email/{}/{}", PREFIX_META, tenant, mail_id)
+pub fn storage_key_mq9_mail(tenant: &str, mail_address: &str) -> String {
+    format!("{}mq9/mail/{}/{}", PREFIX_META, tenant, mail_address)
 }
 
 #[inline]
-pub fn storage_key_mq9_email_tenant_prefix(tenant: &str) -> String {
-    format!("{}mq9/email/{}/", PREFIX_META, tenant)
+pub fn storage_key_mq9_mail_tenant_prefix(tenant: &str) -> String {
+    format!("{}mq9/mail/{}/", PREFIX_META, tenant)
 }
 
 #[inline]
-pub fn storage_key_mq9_email_prefix() -> String {
-    format!("{}mq9/email/", PREFIX_META)
+pub fn storage_key_mq9_mail_prefix() -> String {
+    format!("{}mq9/mail/", PREFIX_META)
 }
 
 #[inline]

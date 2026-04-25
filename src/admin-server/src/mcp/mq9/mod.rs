@@ -34,12 +34,12 @@ pub fn mq9_tools() -> Vec<Tool> {
                 "type": "object",
                 "properties": {
                     "tenant":  { "type": "string", "description": "Tenant name" },
-                    "mail_id": { "type": "string", "description": "Mailbox identifier" },
+                    "mail_address": { "type": "string", "description": "Mailbox identifier" },
                     "desc":    { "type": "string", "description": "Optional description" },
                     "public":  { "type": "boolean", "description": "Whether the mailbox is public (default false)" },
                     "ttl":     { "type": "integer", "description": "TTL in seconds (optional, uses broker default)" }
                 },
-                "required": ["tenant", "mail_id"]
+                "required": ["tenant", "mail_address"]
             }),
         },
         Tool {
@@ -49,11 +49,11 @@ pub fn mq9_tools() -> Vec<Tool> {
                 "type": "object",
                 "properties": {
                     "tenant":  { "type": "string",  "description": "Tenant name" },
-                    "mail_id": { "type": "string",  "description": "Mailbox identifier" },
+                    "mail_address": { "type": "string",  "description": "Mailbox identifier" },
                     "offset":  { "type": "integer", "description": "Start offset for pagination (default 0)" },
                     "limit":   { "type": "integer", "description": "Maximum number of messages to return (default 20, max 500)" }
                 },
-                "required": ["tenant", "mail_id"]
+                "required": ["tenant", "mail_address"]
             }),
         },
         Tool {
@@ -63,10 +63,10 @@ pub fn mq9_tools() -> Vec<Tool> {
                 "type": "object",
                 "properties": {
                     "tenant":  { "type": "string",  "description": "Tenant name" },
-                    "mail_id": { "type": "string",  "description": "Mailbox identifier" },
+                    "mail_address": { "type": "string",  "description": "Mailbox identifier" },
                     "msg_id":  { "type": "integer", "description": "Message offset / ID to delete" }
                 },
-                "required": ["tenant", "mail_id", "msg_id"]
+                "required": ["tenant", "mail_address", "msg_id"]
             }),
         },
         Tool {
@@ -76,11 +76,11 @@ pub fn mq9_tools() -> Vec<Tool> {
                 "type": "object",
                 "properties": {
                     "tenant":   { "type": "string", "description": "Tenant name" },
-                    "mail_id":  { "type": "string", "description": "Mailbox identifier" },
+                    "mail_address":  { "type": "string", "description": "Mailbox identifier" },
                     "priority": { "type": "string", "description": "Message priority (e.g. \"normal\", \"high\", default \"normal\")" },
                     "payload":  { "type": "string", "description": "Message body (UTF-8 string)" }
                 },
-                "required": ["tenant", "mail_id", "payload"]
+                "required": ["tenant", "mail_address", "payload"]
             }),
         },
     ]

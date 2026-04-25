@@ -48,12 +48,12 @@ mod tests {
 
     async fn publish(
         client: &Client,
-        mail_id: &str,
+        mail_address: &str,
         priority: Priority,
         payload: &str,
     ) -> Mq9Reply {
         let subject = Mq9Command::MailboxMsg {
-            mail_id: mail_id.to_string(),
+            mail_address: mail_address.to_string(),
             priority,
         }
         .to_subject();
@@ -76,7 +76,7 @@ mod tests {
         };
         let reply = create_mail(&client, &req).await;
         assert!(!reply.is_error(), "create mail error: {}", reply.error);
-        let mail_id = reply.mail_id.unwrap();
+        let mail_address = reply.mail_address.unwrap();
 
         sleep(Duration::from_secs(3)).await;
 
@@ -99,7 +99,7 @@ mod tests {
         for (payload, priority) in &msgs {
             let tag = format!("[{}] {}-{}", priority, payload, unique_id());
             println!("[SEND] {}", tag);
-            let reply = publish(&client, &mail_id, priority.clone(), &tag).await;
+            let reply = publish(&client, &mail_address, priority.clone(), &tag).await;
             assert!(
                 !reply.is_error(),
                 "pub '{}' error: {}",
@@ -110,7 +110,7 @@ mod tests {
 
         // ── 3. subscribe to mail ──────────────────────────────────────────────
         let sub_subject = Mq9Command::MailboxSub {
-            mail_id: mail_id.clone(),
+            mail_address: mail_address.clone(),
         }
         .to_subject();
         let mut sub = client.subscribe(sub_subject).await.unwrap();

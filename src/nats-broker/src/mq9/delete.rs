@@ -19,7 +19,7 @@ use mq9_core::protocol::Mq9Reply;
 
 pub async fn process_delete(
     ctx: &NatsProcessContext,
-    mail_id: &str,
+    mail_address: &str,
     msg_id: &str,
 ) -> Result<Mq9Reply, NatsBrokerError> {
     let offset: u64 = msg_id
@@ -28,7 +28,7 @@ pub async fn process_delete(
 
     let tenant = get_tenant();
     ctx.storage_driver_manager
-        .delete_by_offset(&tenant, mail_id, offset)
+        .delete_by_offset(&tenant, mail_address, offset)
         .await
         .map_err(NatsBrokerError::from)?;
 

@@ -43,13 +43,15 @@ pub async fn mq9_command(
 
     let result = match parsed {
         Mq9Command::MailboxCreate => process_create(ctx, payload).await,
-        Mq9Command::MailboxMsg { mail_id, priority } => {
-            process_pub(ctx, &mail_id, &priority, headers, payload).await
-        }
-        Mq9Command::MailboxList { mail_id } => process_list(ctx, &mail_id).await,
-        Mq9Command::MailboxDelete { mail_id, msg_id } => {
-            process_delete(ctx, &mail_id, &msg_id).await
-        }
+        Mq9Command::MailboxMsg {
+            mail_address,
+            priority,
+        } => process_pub(ctx, &mail_address, &priority, headers, payload).await,
+        Mq9Command::MailboxList { mail_address } => process_list(ctx, &mail_address).await,
+        Mq9Command::MailboxDelete {
+            mail_address,
+            msg_id,
+        } => process_delete(ctx, &mail_address, &msg_id).await,
         Mq9Command::MailboxSub { .. } => {
             // SUB subjects are handled in the subscribe path, not via PUB.
             return Some(NatsPacket::Err(

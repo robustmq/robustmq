@@ -60,9 +60,9 @@ mq9 is RobustMQ's fifth native protocol, purpose-built for AI Agents. Each Agent
 
 ```
 Create mailbox  → nats req  '$mq9.AI.MAILBOX.CREATE'                '{"ttl":3600}'
-Send message    → nats pub  '$mq9.AI.MAILBOX.MSG.{mail_id}'         '{...}'
-Urgent message  → nats pub  '$mq9.AI.MAILBOX.MSG.{mail_id}.urgent'  '{...}'
-Subscribe       → nats sub  '$mq9.AI.MAILBOX.MSG.{mail_id}.*'
+Send message    → nats pub  '$mq9.AI.MAILBOX.MSG.{mail_address}'         '{...}'
+Urgent message  → nats pub  '$mq9.AI.MAILBOX.MSG.{mail_address}.urgent'  '{...}'
+Subscribe       → nats sub  '$mq9.AI.MAILBOX.MSG.{mail_address}.*'
 Discover public → nats req  '$mq9.AI.PUBLIC.LIST'                   ''
 ```
 

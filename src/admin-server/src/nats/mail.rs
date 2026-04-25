@@ -21,24 +21,24 @@ use crate::{
 };
 use axum::extract::{Query, State};
 use common_base::http_response::{error_response, success_response};
-use metadata_struct::mq9::email::MQ9Email;
+use metadata_struct::mq9::mail::MQ9Mail;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct MailListReq {
     pub tenant: Option<String>,
-    pub mail_id: Option<String>,
+    pub mail_address: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
     pub sort_by: Option<String>,
 }
 
-impl Queryable for MQ9Email {
+impl Queryable for MQ9Mail {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
-            "mail_id" => Some(self.mail_id.clone()),
+            "mail_address" => Some(self.mail_address.clone()),
             "tenant" => Some(self.tenant.clone()),
             _ => None,
         }
@@ -64,7 +64,7 @@ pub async fn mail_list(
         None,
     );
 
-    let mails: Vec<MQ9Email> = nats_context
+    let mails: Vec<MQ9Mail> = nats_context
         .cache_manager
         .mail_info
         .iter()
@@ -75,8 +75,8 @@ pub async fn mail_list(
                     return false;
                 }
             }
-            if let Some(keyword) = params.mail_id.as_deref() {
-                if !mail.mail_id.contains(keyword) {
+            if let Some(keyword) = params.mail_address.as_deref() {
+                if !mail.mail_address.contains(keyword) {
                     return false;
                 }
             }

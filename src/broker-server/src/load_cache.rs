@@ -33,7 +33,7 @@ use mqtt_broker::storage::schema::SchemaStorage;
 use mqtt_broker::storage::topic_rewrite::TopicRewriteStorage;
 use nats_broker::core::cache::NatsCacheManager;
 use nats_broker::push::NatsSubscribeManager;
-use nats_broker::storage::email::Mq9EmailStorage;
+use nats_broker::storage::mail::Mq9MailStorage;
 use nats_broker::storage::subscribe::NatsSubscribeStorage;
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
@@ -250,16 +250,16 @@ pub async fn load_nats_cache(
         subscribe_manager.add_subscribe(subscribe);
     }
 
-    let email_storage = Mq9EmailStorage::new(client_pool.clone());
-    let emails = email_storage.list("").await?;
-    let email_count = emails.len();
-    for email in emails {
-        cache_manager.add_mail(email);
+    let mail_storage = Mq9MailStorage::new(client_pool.clone());
+    let mails = mail_storage.list("").await?;
+    let mail_count = mails.len();
+    for mail in mails {
+        cache_manager.add_mail(mail);
     }
 
     info!(
-        "NATS cache loaded: subscribes={}, emails={}",
-        subscribe_count, email_count
+        "NATS cache loaded: subscribes={}, mails={}",
+        subscribe_count, mail_count
     );
     Ok(())
 }

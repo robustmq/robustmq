@@ -100,7 +100,7 @@ enum BrokerUpdateCacheResourceType {
   AutoSubscribeRule = 15;
   TopicRewriteRule = 16;
   NatsSubscribe = 17;
-  Mq9Email = 18;
+  Mq9Mail = 18;
   ShareGroup = 19;
   ShareGroupMember = 20;
   GroupOffset = 21;

@@ -28,24 +28,24 @@ use storage_adapter::priority::storage_priority_tag;
 
 pub async fn process_pub(
     ctx: &NatsProcessContext,
-    mail_id: &str,
+    mail_address: &str,
     priority: &Priority,
     headers: &Option<Bytes>,
     payload: &Bytes,
 ) -> Result<Mq9Reply, NatsBrokerError> {
     let tenant = get_tenant();
 
-    if is_system_mailbox(mail_id) {
+    if is_system_mailbox(mail_address) {
         return Err(NatsBrokerError::CommonError(format!(
             "mailbox '{}' is reserved and cannot receive messages from clients",
-            mail_id
+            mail_address
         )));
     }
 
-    if ctx.cache_manager.get_mail(&tenant, mail_id).is_none() {
+    if ctx.cache_manager.get_mail(&tenant, mail_address).is_none() {
         return Err(NatsBrokerError::CommonError(format!(
             "mailbox {} does not exist",
-            mail_id
+            mail_address
         )));
     }
 
@@ -55,13 +55,13 @@ pub async fn process_pub(
         &ctx.client_pool,
         &ctx.subscribe_manager,
         &tenant,
-        mail_id,
+        mail_address,
         true,
     )
     .await?;
 
-    let record = AdapterWriteRecord::new(mail_id.to_string(), payload.clone())
-        .with_tags(build_message_tag(&tenant, mail_id, priority))
+    let record = AdapterWriteRecord::new(mail_address.to_string(), payload.clone())
+        .with_tags(build_message_tag(&tenant, mail_address, priority))
         .with_protocol_data(Some(StorageRecordProtocolData {
             mq9: Some(StorageRecordProtocolDataMq9 {
                 priority: priority.to_string(),
@@ -72,20 +72,20 @@ pub async fn process_pub(
         }));
 
     let offsets = MessageStorage::new(ctx.storage_driver_manager.clone())
-        .write(&tenant, mail_id, vec![record])
+        .write(&tenant, mail_address, vec![record])
         .await?;
 
     let offset = offsets.into_iter().next().ok_or_else(|| {
         NatsBrokerError::CommonError(format!(
             "write to mailbox {} failed: no offset returned",
-            mail_id
+            mail_address
         ))
     })?;
     Ok(Mq9Reply::ok_publish(offset))
 }
 
-fn build_message_tag(tenant: &str, mail_id: &str, priority: &Priority) -> Vec<String> {
-    let subject_tag = subject_message_tag(tenant, mail_id);
+fn build_message_tag(tenant: &str, mail_address: &str, priority: &Priority) -> Vec<String> {
+    let subject_tag = subject_message_tag(tenant, mail_address);
     let subject_priority = storage_priority_tag(&subject_tag, priority);
     vec![subject_tag, subject_priority]
 }

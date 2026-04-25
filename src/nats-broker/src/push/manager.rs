@@ -32,7 +32,7 @@ pub struct NatsSubscribeManager {
     /// Running queue-group push tasks; value is the per-task stop sender.
     pub nats_core_queue_push_thread: DashMap<String, broadcast::Sender<bool>>,
 
-    /// MQ9 fanout push buckets (mail_id-based).
+    /// MQ9 fanout push buckets (mail_address-based).
     pub mq9_fanout_push: NatsBucketsManager,
     /// MQ9 queue-group push buckets (key: `{tenant}#{queue_group}#{subject}`).
     pub mq9_queue_push: DashMap<String, NatsBucketsManager>,

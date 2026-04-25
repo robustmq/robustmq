@@ -53,7 +53,7 @@ mod tests {
         // ── 1. send to non-existent mail → error ─────────────────────────────
         let fake_id = format!("nonexistent-{}", unique_id());
         let subject = Mq9Command::MailboxMsg {
-            mail_id: fake_id.clone(),
+            mail_address: fake_id.clone(),
             priority: Priority::Normal,
         }
         .to_subject();
@@ -76,11 +76,11 @@ mod tests {
         let reply = create_mail(&client, &req).await;
         assert!(!reply.is_error(), "unexpected error: {}", reply.error);
         assert!(
-            !reply.mail_id.as_deref().unwrap_or("").is_empty(),
-            "mail_id should not be empty"
+            !reply.mail_address.as_deref().unwrap_or("").is_empty(),
+            "mail_address should not be empty"
         );
         assert!(reply.is_new.unwrap_or(false), "should be a new mailbox");
-        let mail_id = reply.mail_id.unwrap();
+        let mail_address = reply.mail_address.unwrap();
 
         sleep(Duration::from_secs(3)).await;
         // ── 3. send 10 messages → all succeed ────────────────────────────────
@@ -88,7 +88,7 @@ mod tests {
         for i in 0..10usize {
             let payload_str = format!("message-{}-{}", i, unique_id());
             let subject = Mq9Command::MailboxMsg {
-                mail_id: mail_id.clone(),
+                mail_address: mail_address.clone(),
                 priority: Priority::Normal,
             }
             .to_subject();
@@ -108,7 +108,7 @@ mod tests {
 
         // ── 4. list messages → get back all 10 ───────────────────────────────
         let list_subject = Mq9Command::MailboxList {
-            mail_id: mail_id.clone(),
+            mail_address: mail_address.clone(),
         }
         .to_subject();
         let reply = nats_request(&client, list_subject, Bytes::new()).await;
@@ -143,7 +143,7 @@ mod tests {
         };
         let reply = create_mail(&client, &req).await;
         assert!(!reply.is_error(), "create mail error: {}", reply.error);
-        let mail_id = reply.mail_id.unwrap();
+        let mail_address = reply.mail_address.unwrap();
 
         sleep(Duration::from_secs(3)).await;
         // ── 2. publish 10 messages ────────────────────────────────────────────
@@ -151,7 +151,7 @@ mod tests {
         for i in 0..10usize {
             let payload_str = format!("sub-msg-{}-{}", i, unique_id());
             let subject = Mq9Command::MailboxMsg {
-                mail_id: mail_id.clone(),
+                mail_address: mail_address.clone(),
                 priority: Priority::Normal,
             }
             .to_subject();
@@ -162,7 +162,7 @@ mod tests {
 
         // ── 3. subscribe to mail ──────────────────────────────────────────────
         let sub_subject = Mq9Command::MailboxSub {
-            mail_id: mail_id.clone(),
+            mail_address: mail_address.clone(),
         }
         .to_subject();
         let mut sub = client.subscribe(sub_subject).await.unwrap();

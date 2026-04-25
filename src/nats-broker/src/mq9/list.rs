@@ -25,10 +25,10 @@ const MAX_LIST_MSGS: usize = 1000;
 
 pub async fn process_list(
     ctx: &NatsProcessContext,
-    mail_id: &str,
+    mail_address: &str,
 ) -> Result<Mq9Reply, NatsBrokerError> {
     let tenant = get_tenant();
-    let tag = subject_message_tag(&tenant, mail_id);
+    let tag = subject_message_tag(&tenant, mail_address);
     let read_config = AdapterReadConfig {
         max_record_num: BATCH_SIZE,
         max_size: 1024 * 1024 * 30,
@@ -45,7 +45,7 @@ pub async fn process_list(
 
         let records = ctx
             .storage_driver_manager
-            .read_by_tag(&tenant, mail_id, &tag, &offsets, &read_config)
+            .read_by_tag(&tenant, mail_address, &tag, &offsets, &read_config)
             .await
             .map_err(NatsBrokerError::from)?;
 
@@ -87,5 +87,5 @@ pub async fn process_list(
         }
     }
 
-    Ok(Mq9Reply::ok_list(mail_id.to_string(), messages))
+    Ok(Mq9Reply::ok_list(mail_address.to_string(), messages))
 }

@@ -26,15 +26,15 @@ use metadata_struct::tenant::DEFAULT_TENANT;
 
 pub async fn process_sub(
     ctx: &NatsProcessContext,
-    mail_id: &str,
+    mail_address: &str,
     sid: &str,
     queue_group: Option<&str>,
 ) -> Result<(), NatsBrokerError> {
     let tenant = DEFAULT_TENANT.to_string();
-    if ctx.cache_manager.get_mail(&tenant, mail_id).is_none() {
+    if ctx.cache_manager.get_mail(&tenant, mail_address).is_none() {
         return Err(NatsBrokerError::CommonError(format!(
             "mailbox {} does not exist",
-            mail_id
+            mail_address
         )));
     }
 
@@ -43,7 +43,7 @@ pub async fn process_sub(
         tenant: tenant.clone(),
         connect_id: ctx.connect_id,
         sid: sid.to_string(),
-        subject: mail_id.to_string(),
+        subject: mail_address.to_string(),
         queue_group: queue_group.map(|s| s.to_string()),
         create_time: now_second(),
     };
@@ -56,7 +56,7 @@ pub async fn process_sub(
             broker_id: conf.broker_id,
             tenant: tenant.clone(),
             group_name: queue_name.to_string(),
-            sub_path: mail_id.to_string(),
+            sub_path: mail_address.to_string(),
             sid: sid.to_string(),
             params: ShareGroupParams::MQ9(ShareGroupParamsNats {}),
             connect_id: ctx.connect_id,
@@ -78,7 +78,7 @@ pub async fn process_sub(
 
 pub async fn process_unsub(
     ctx: &NatsProcessContext,
-    _mail_id: &str,
+    _mail_address: &str,
     sid: &str,
 ) -> Result<(), NatsBrokerError> {
     ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);

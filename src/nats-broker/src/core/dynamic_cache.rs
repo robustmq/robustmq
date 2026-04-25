@@ -18,7 +18,7 @@ use crate::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
 use common_base::error::common::CommonError;
 use common_base::utils::serialize;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mq9::email::MQ9Email;
+use metadata_struct::mq9::mail::MQ9Mail;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use protocol::broker::broker::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
@@ -55,16 +55,16 @@ pub async fn update_nats_cache_metadata(
             subscribe_manager.send_parse_event(data).await;
         }
 
-        BrokerUpdateCacheResourceType::Mq9Email => {
-            let email: MQ9Email = serialize::deserialize(&record.data)?;
+        BrokerUpdateCacheResourceType::Mq9Mail => {
+            let mail: MQ9Mail = serialize::deserialize(&record.data)?;
             match record.action_type() {
                 BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
-                    cache_manager.add_mail(email);
+                    cache_manager.add_mail(mail);
                 }
                 BrokerUpdateCacheActionType::Delete => {
-                    cache_manager.remove_mail(&email.tenant, &email.mail_id);
-                    // mail id is globally unique. Once the metadata of a mail is deleted,
-                    // there will be no duplicate mail ids in the future.
+                    cache_manager.remove_mail(&mail.tenant, &mail.mail_address);
+                    // mail address is globally unique. Once the metadata of a mail is deleted,
+                    // there will be no duplicate mail addresss in the future.
                     // That is to say, data will no longer be written to this mail and will not be consumed.
                     // At this point, the underlying data will naturally expire.
                 }

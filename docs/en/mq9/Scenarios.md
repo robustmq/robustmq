@@ -8,14 +8,14 @@ mq9 is designed around eight concrete Agent communication patterns. Each pattern
 
 An orchestrator spawns a sub-agent for a long-running task and cannot block waiting for the result — it has other work to do. The sub-agent completes independently and deposits its result into a mailbox the orchestrator controls. Because mq9 uses store-first delivery, the result is waiting even if the orchestrator is busy or temporarily disconnected when the sub-agent finishes.
 
-The orchestrator creates a private mailbox and shares the `mail_id` with the sub-agent at spawn time. No polling, no callback registration, no shared state — just a mailbox.
+The orchestrator creates a private mailbox and shares the `mail_address` with the sub-agent at spawn time. No polling, no callback registration, no shared state — just a mailbox.
 
 ```bash
 # Orchestrator: create private reply mailbox (TTL covers max expected task duration)
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl": 3600}'
-# Response: {"mail_id": "mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
+# Response: {"mail_address": "mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
 
-# Share mail_id with sub-agent out-of-band (e.g. in the task payload)
+# Share mail_address with sub-agent out-of-band (e.g. in the task payload)
 nats pub '$mq9.AI.MAILBOX.MSG.m-task-dispatch.normal' \
   '{"task": "summarize /data/corpus", "reply_to": "mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}'
 
@@ -119,7 +119,7 @@ nats sub '$mq9.AI.MAILBOX.MSG.alerts.*'
 A cloud orchestrator needs to deliver commands to edge agents that may be offline for hours due to intermittent connectivity. When the edge agent reconnects, it must receive all pending commands in the correct priority order — `critical` abort or reconfigure commands before routine `normal` tasks. No message broker bridging or retry logic is required on the cloud side.
 
 ```bash
-# Cloud: publish commands to edge agent's private mailbox (mail_id shared at provisioning)
+# Cloud: publish commands to edge agent's private mailbox (mail_address shared at provisioning)
 # Critical-priority reconfiguration
 nats pub '$mq9.AI.MAILBOX.MSG.m-edge-agent-9a3f.critical' '{
   "cmd": "reconfigure",
@@ -153,7 +153,7 @@ async def run():
 
     # Agent: create private reply mailbox for the approval response
     reply = await nc.request("$mq9.AI.MAILBOX.CREATE", b'{"ttl": 7200}')
-    reply_id = json.loads(reply.data)["mail_id"]
+    reply_id = json.loads(reply.data)["mail_address"]
 
     # Agent: publish decision for human review
     await nc.publish(
@@ -184,12 +184,12 @@ asyncio.run(run())
 
 ### 7. Async Request-Reply
 
-Agent A needs a result from Agent B, but B may not be available immediately and A cannot afford to block. A creates a private reply mailbox, embeds the `mail_id` in the request as a `reply_to` field, and continues other work. B processes the request at its own pace and sends the result to A's reply mailbox. A subscribes to the reply mailbox whenever it is ready to consume the response.
+Agent A needs a result from Agent B, but B may not be available immediately and A cannot afford to block. A creates a private reply mailbox, embeds the `mail_address` in the request as a `reply_to` field, and continues other work. B processes the request at its own pace and sends the result to A's reply mailbox. A subscribes to the reply mailbox whenever it is ready to consume the response.
 
 ```bash
 # Agent A: create private reply mailbox
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl": 600}'
-# Response: {"mail_id": "m-reply-a1b2c3"}
+# Response: {"mail_address": "m-reply-a1b2c3"}
 
 # Agent A: send request to Agent B's mailbox with reply_to field
 nats pub '$mq9.AI.MAILBOX.MSG.m-agent-b-inbox.normal' '{
@@ -229,7 +229,7 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{
 
 # Another agent: subscribe to PUBLIC.LIST to discover available capabilities
 nats sub '$mq9.AI.PUBLIC.LIST'
-# Receives entries like: {"name": "agent.code-review", "desc": "...", "mail_id": "agent.code-review"}
+# Receives entries like: {"name": "agent.code-review", "desc": "...", "mail_address": "agent.code-review"}
 
 # Consumer agent: send a task directly to the discovered capability
 nats pub '$mq9.AI.MAILBOX.MSG.agent.code-review.normal' '{

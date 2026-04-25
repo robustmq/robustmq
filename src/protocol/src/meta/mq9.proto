@@ -4,29 +4,29 @@ package meta.service.mq9;
 import "meta/validate.proto";
 
 service Mq9Service {
-  rpc CreateEmail(CreateEmailRequest) returns (CreateEmailReply) {}
-  rpc DeleteEmail(DeleteEmailRequest) returns (DeleteEmailReply) {}
-  rpc ListEmail(ListEmailRequest) returns (stream ListEmailReply) {}
+  rpc CreateMail(CreateMailRequest) returns (CreateMailReply) {}
+  rpc DeleteMail(DeleteMailRequest) returns (DeleteMailReply) {}
+  rpc ListMail(ListMailRequest) returns (stream ListMailReply) {}
 }
 
-message CreateEmailRequest {
+message CreateMailRequest {
   string tenant = 1 [(validate.rules).string.min_len = 1];
   bytes content = 2 [(validate.rules).bytes.min_len = 1];
 }
 
-message CreateEmailReply {}
+message CreateMailReply {}
 
-message DeleteEmailRequest {
+message DeleteMailRequest {
   string tenant = 1 [(validate.rules).string.min_len = 1];
-  string mail_id = 2 [(validate.rules).string.min_len = 1];
+  string mail_address = 2 [(validate.rules).string.min_len = 1];
 }
 
-message DeleteEmailReply {}
+message DeleteMailReply {}
 
-message ListEmailRequest {
+message ListMailRequest {
   string tenant = 1;
 }
 
-message ListEmailReply {
-  bytes email = 1;
+message ListMailReply {
+  bytes mail = 1;
 }
