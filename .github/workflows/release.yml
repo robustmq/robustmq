@@ -82,15 +82,17 @@ jobs:
         run: |
           brew install protobuf cmake
 
-      - name: Setup Node.js (for frontend build)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Install pnpm
         uses: pnpm/action-setup@v6
         with:
           version: 9
+
+      - name: Setup Node.js (for frontend build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: 'build/robustmq-copilot/pnpm-lock.yaml'
 
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
