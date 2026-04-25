@@ -4820,7 +4820,7 @@ dependencies = [
  "md5 0.8.0",
  "metadata-struct",
  "mongodb",
- "mysql 27.0.0",
+ "mysql 28.0.0",
  "network-server",
  "node-call",
  "os_info",
@@ -4931,9 +4931,9 @@ dependencies = [
 
 [[package]]
 name = "mysql"
-version = "27.0.0"
+version = "28.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "090068bc0a24762663338da78414148333d1ee246a7293c10a517ddf1548b291"
+checksum = "4a732193888328fc060ab901c0ed1355521267a51ffbfd9a0b3786434c6b8e7f"
 dependencies = [
  "bufstream",
  "bytes",
@@ -4943,7 +4943,7 @@ dependencies = [
  "io-enum",
  "libc",
  "lru 0.16.3",
- "mysql_common 0.36.2",
+ "mysql_common 0.37.1",
  "named_pipe",
  "pem",
  "percent-encoding",
@@ -5011,9 +5011,9 @@ dependencies = [
 
 [[package]]
 name = "mysql_common"
-version = "0.36.2"
+version = "0.37.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20e7f6a15265801679ddf1ddb38fd74b4555a677a78378d4561fbe5f0b1d4d72"
+checksum = "bffc2127d4035fa5a614935c663a15a4468e64e798473e0cc21c8df40a607588"
 dependencies = [
  "base64 0.22.1",
  "bitflags 2.11.0",
@@ -8781,7 +8781,7 @@ dependencies = [
  "futures",
  "grpc-clients",
  "metadata-struct",
- "mysql 27.0.0",
+ "mysql 28.0.0",
  "opendal",
  "protocol",
  "r2d2_mysql",
@@ -9115,7 +9115,7 @@ name = "third-driver"
 version = "0.3.10"
 dependencies = [
  "common-base",
- "mysql 27.0.0",
+ "mysql 28.0.0",
  "r2d2",
  "r2d2_mysql",
  "r2d2_postgres",
