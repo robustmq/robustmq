@@ -14,6 +14,7 @@
 
 use super::cache::MetaCacheManager;
 use super::error::MetaServiceError;
+use crate::core::leader_switch::trigger_leader_switch;
 use crate::core::notify::{send_notify_by_add_node, send_notify_by_delete_node};
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
@@ -50,6 +51,7 @@ pub async fn un_register_node_by_req(
     if let Some(node) = cluster_cache.get_broker_node(req.node_id) {
         sync_delete_node(raft_manager, &req).await?;
         send_notify_by_delete_node(mqtt_call_manager, node.clone()).await?;
+        trigger_leader_switch().await;
     }
     Ok(UnRegisterNodeReply::default())
 }

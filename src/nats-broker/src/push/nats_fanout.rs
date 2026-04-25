@@ -16,9 +16,9 @@ use crate::core::error::NatsBrokerError;
 use crate::nats::subscribe::subject_message_tag;
 use crate::push::common::{adaptive_sleep, should_stop, BATCH_SIZE};
 use crate::push::manager::NatsSubscribeManager;
-use crate::push::manager::NatsSubscriber;
 use bytes::Bytes;
 use dashmap::DashMap;
+use metadata_struct::nats::subscriber::NatsSubscriber;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
@@ -120,7 +120,7 @@ impl FanoutPushManager {
         }
 
         for (connect_id, sid, uniq_id) in stale {
-            self.subscribe_manager.remove_push_by_sid(connect_id, &sid);
+            self.subscribe_manager.remove_push_by_sub(connect_id, &sid);
             self.consumers.remove(&uniq_id);
         }
 

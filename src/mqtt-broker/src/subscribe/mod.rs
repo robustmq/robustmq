@@ -13,25 +13,23 @@
 // limitations under the License.
 
 use crate::{
-    core::{cache::MQTTCacheManager, sub_share::fetch_share_sub_leader},
+    core::cache::MQTTCacheManager,
     subscribe::{
         buckets::SubPushThreadData, directly_push::DirectlyPushManager, manager::SubscribeManager,
         share_push::SharePushManager,
     },
 };
 use common_base::{
-    error::{common::CommonError, ResultCommonError},
+    error::ResultCommonError,
     tools::{loop_select_ticket, now_second},
 };
 use common_config::broker::broker_config;
 use dashmap::DashMap;
-use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
-use protocol::meta::meta_service_mqtt::SubLeaderInfo;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
-use tokio::{sync::broadcast, task::JoinSet};
+use tokio::sync::broadcast;
 use tracing::{debug, info, warn};
 
 pub mod buckets;
@@ -50,7 +48,6 @@ pub struct PushManager {
     connection_manager: Arc<ConnectionManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     subscribe_manager: Arc<SubscribeManager>,
-    client_pool: Arc<ClientPool>,
     // Each Bucket has one push thread
     //(bucket_id,SubPushThreadData)
     pub directly_buckets_push_thread: DashMap<String, SubPushThreadData>,
@@ -65,7 +62,6 @@ impl PushManager {
         connection_manager: Arc<ConnectionManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         subscribe_manager: Arc<SubscribeManager>,
-        client_pool: Arc<ClientPool>,
     ) -> Self {
         PushManager {
             cache_manager,
@@ -73,7 +69,6 @@ impl PushManager {
             connection_manager,
             rocksdb_engine_handler,
             subscribe_manager,
-            client_pool,
             directly_buckets_push_thread: DashMap::new(),
             share_buckets_push_thread: DashMap::new(),
         }
@@ -87,9 +82,8 @@ impl PushManager {
 
             // share
             self.cleanup_empty_share_groups();
-            let group_info_list = self.get_group_leader_list().await?;
-            self.start_share_push_thread(&group_info_list);
-            self.stop_share_push_thread(&group_info_list);
+            self.start_share_push_thread();
+            self.stop_share_push_thread();
             Ok(())
         };
         let ac_fn = async || -> ResultCommonError {
@@ -241,7 +235,7 @@ impl PushManager {
         }
     }
 
-    pub fn start_share_push_thread(&self, group_info_list: &HashMap<String, SubLeaderInfo>) {
+    pub fn start_share_push_thread(&self) {
         let conf = broker_config();
         for tenant_entry in self.subscribe_manager.share_push.iter() {
             let tenant = tenant_entry.key().clone();
@@ -249,8 +243,12 @@ impl PushManager {
                 let group_name = row.key().clone();
                 let thread_key = share_thread_key(&tenant, &group_name);
 
-                let is_leader = if let Some(group) = group_info_list.get(&group_name) {
-                    group.broker_id == conf.broker_id
+                let is_leader = if let Some(group) = self
+                    .cache_manager
+                    .node_cache
+                    .get_share_group(&tenant, &group_name)
+                {
+                    group.leader_broker == conf.broker_id
                 } else {
                     false
                 };
@@ -294,16 +292,21 @@ impl PushManager {
         }
     }
 
-    pub fn stop_share_push_thread(&self, group_info_list: &HashMap<String, SubLeaderInfo>) {
+    pub fn stop_share_push_thread(&self) {
         let conf = broker_config();
         let threads_to_stop: Vec<String> = self
             .share_buckets_push_thread
             .iter()
             .filter(|row| {
                 // thread_key is "tenant#group_name"; extract group_name for leader lookup
+                let tenant = row.key().split_once('#').map(|x| x.0).unwrap_or(row.key());
                 let group_name = row.key().split_once('#').map(|x| x.1).unwrap_or(row.key());
-                let is_leader = if let Some(group) = group_info_list.get(group_name) {
-                    group.broker_id == conf.broker_id
+                let is_leader = if let Some(group) = self
+                    .cache_manager
+                    .node_cache
+                    .get_share_group(tenant, group_name)
+                {
+                    group.leader_broker == conf.broker_id
                 } else {
                     false
                 };
@@ -330,34 +333,6 @@ impl PushManager {
                 }
             }
         }
-    }
-
-    async fn get_group_leader_list(&self) -> Result<HashMap<String, SubLeaderInfo>, CommonError> {
-        let mut tenant_groups: HashMap<String, Vec<String>> = HashMap::new();
-        for tenant_entry in self.subscribe_manager.share_push.iter() {
-            let tenant = tenant_entry.key().clone();
-            for group_entry in tenant_entry.value().iter() {
-                tenant_groups
-                    .entry(tenant.clone())
-                    .or_default()
-                    .push(group_entry.key().clone());
-            }
-        }
-
-        let mut join_set = JoinSet::new();
-        for (tenant, group_list) in tenant_groups {
-            let client_pool = self.client_pool.clone();
-            join_set.spawn(async move {
-                fetch_share_sub_leader(&client_pool, &tenant, group_list).await
-            });
-        }
-
-        let mut results = HashMap::new();
-        while let Some(res) = join_set.join_next().await {
-            let leaders = res.map_err(|e| CommonError::CommonError(e.to_string()))??;
-            results.extend(leaders);
-        }
-        Ok(results)
     }
 }
 

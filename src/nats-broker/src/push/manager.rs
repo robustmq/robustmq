@@ -16,25 +16,10 @@ use crate::push::buckets::NatsBucketsManager;
 use crate::push::parse::ParseSubscribeData;
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use metadata_struct::nats::subscribe::NatsSubscribe;
+use metadata_struct::nats::{subscribe::NatsSubscribe, subscriber::NatsSubscriber};
 use std::sync::Arc;
-use tokio::sync::{mpsc::Sender, RwLock};
+use tokio::sync::{broadcast, mpsc::Sender, RwLock};
 use tracing::error;
-
-#[derive(Debug, Clone)]
-pub struct NatsSubscriber {
-    pub uniq_id: String,
-    pub tenant: String,
-    pub connect_id: u64,
-    pub sid: String,
-    /// Original subscription subject pattern (may contain wildcards).
-    pub sub_subject: String,
-    /// Concrete subject name matched against sub_subject.
-    pub subject: String,
-    /// Non-empty for queue-group subscriptions.
-    pub queue_group: String,
-    pub create_time: u64,
-}
 
 #[derive(Default)]
 pub struct NatsSubscribeManager {
@@ -42,12 +27,14 @@ pub struct NatsSubscribeManager {
 
     /// NATS core fanout push buckets (subject-based, wildcards).
     pub nats_core_fanout_push: NatsBucketsManager,
-    /// NATS core queue-group push buckets (key: `{subject}#{queue_group}`).
+    /// NATS core queue-group push buckets (key: `{tenant}#{queue_group}#{subject}`).
     pub nats_core_queue_push: DashMap<String, NatsBucketsManager>,
+    /// Running queue-group push tasks; value is the per-task stop sender.
+    pub nats_core_queue_push_thread: DashMap<String, broadcast::Sender<bool>>,
 
     /// MQ9 fanout push buckets (mail_id-based).
     pub mq9_fanout_push: NatsBucketsManager,
-    /// MQ9 queue-group push buckets (key: `{mail_id}#{queue_group}`).
+    /// MQ9 queue-group push buckets (key: `{tenant}#{queue_group}#{subject}`).
     pub mq9_queue_push: DashMap<String, NatsBucketsManager>,
 
     pub not_push_client: DashMap<u64, u64>,
@@ -58,9 +45,10 @@ impl NatsSubscribeManager {
     pub fn new() -> Self {
         NatsSubscribeManager {
             subscribe_list: DashMap::with_capacity(256),
-            nats_core_fanout_push: NatsBucketsManager::new(None),
+            nats_core_fanout_push: NatsBucketsManager::new(),
             nats_core_queue_push: DashMap::with_capacity(16),
-            mq9_fanout_push: NatsBucketsManager::new(None),
+            nats_core_queue_push_thread: DashMap::with_capacity(16),
+            mq9_fanout_push: NatsBucketsManager::new(),
             mq9_queue_push: DashMap::with_capacity(16),
             not_push_client: DashMap::with_capacity(32),
             parse_sender: Arc::new(RwLock::new(None)),
@@ -116,12 +104,17 @@ impl NatsSubscribeManager {
         self.nats_core_fanout_push.add(&subscriber);
     }
 
-    pub fn add_nats_core_queue_subscriber(&self, subscriber: NatsSubscriber, queue_group: &str) {
-        let queue_key = format!("{}#{}", subscriber.subject, queue_group);
+    pub fn add_nats_core_queue_subscriber(&self, subscriber: &NatsSubscriber) {
+        let queue_key = format!(
+            "{}#{}#{}",
+            subscriber.tenant,
+            subscriber.queue_group.as_deref().unwrap_or(""),
+            subscriber.subject
+        );
         self.nats_core_queue_push
-            .entry(queue_key.clone())
-            .or_insert_with(|| NatsBucketsManager::new(Some(queue_key.clone())))
-            .add(&subscriber);
+            .entry(queue_key)
+            .or_default()
+            .add(subscriber);
     }
 
     // mq9 add fanout/queue
@@ -129,56 +122,109 @@ impl NatsSubscribeManager {
         self.mq9_fanout_push.add(&subscriber);
     }
 
-    pub fn add_mq9_queue_subscriber(&self, subscriber: NatsSubscriber, queue_group: &str) {
-        let queue_key = format!("{}#{}", subscriber.subject, queue_group);
+    pub fn add_mq9_queue_subscriber(&self, subscriber: &NatsSubscriber) {
+        let queue_key = format!(
+            "{}#{}#{}",
+            subscriber.tenant,
+            subscriber.queue_group.as_deref().unwrap_or(""),
+            subscriber.subject
+        );
         self.mq9_queue_push
-            .entry(queue_key.clone())
-            .or_insert_with(|| NatsBucketsManager::new(Some(queue_key.clone())))
-            .add(&subscriber);
+            .entry(queue_key)
+            .or_default()
+            .add(subscriber);
     }
 
     // remove
-    pub fn remove_by_connection(&self, connect_id: u64) {
+    pub fn remove_by_connection(&self, connect_id: u64) -> Vec<NatsSubscriber> {
+        // remove subscribe
         self.subscribe_list
             .retain(|_, s| s.connect_id != connect_id);
 
+        // remove nats core fanout
         self.nats_core_fanout_push.remove_by_connect_id(connect_id);
-        for entry in self.nats_core_queue_push.iter() {
-            entry.value().remove_by_connect_id(connect_id);
-        }
 
+        // remove mq9 fanout
         self.mq9_fanout_push.remove_by_connect_id(connect_id);
-        for entry in self.mq9_queue_push.iter() {
-            entry.value().remove_by_connect_id(connect_id);
-        }
 
+        // remove not push client
         self.not_push_client.remove(&connect_id);
+
+        // remove queue subscribers and return them
+        self.remove_queue_subscribers_by_connect_id(connect_id)
     }
 
-    pub fn remove_by_topic(&self, topic_name: &str) {
-        self.nats_core_fanout_push.remove_by_topic(topic_name);
-        let prefix = format!("{}#", topic_name);
-        self.nats_core_queue_push
-            .retain(|key, _| !key.starts_with(&prefix));
+    pub fn remove_by_subject(&self, subject: &str) -> Vec<NatsSubscriber> {
+        // remove nats core fanout
+        self.nats_core_fanout_push.remove_by_topic(subject);
+
+        // remove mq9 fanout
+        self.mq9_fanout_push.remove_by_topic(subject);
+
+        // remove queue subscribers and return them
+        self.remove_queue_subscribers_by_topic(subject)
     }
 
-    pub fn remove_by_mail_id(&self, mail_id: &str) {
-        self.mq9_fanout_push.remove_by_topic(mail_id);
-        let prefix = format!("{}#", mail_id);
-        self.mq9_queue_push
-            .retain(|key, _| !key.starts_with(&prefix));
-    }
-
-    pub fn remove_push_by_sid(&self, connect_id: u64, sid: &str) {
+    pub fn remove_push_by_sub(&self, connect_id: u64, sid: &str) -> Vec<NatsSubscriber> {
+        // remove nats core fanout
         self.nats_core_fanout_push.remove_by_sid(connect_id, sid);
-        for entry in self.nats_core_queue_push.iter() {
-            entry.value().remove_by_sid(connect_id, sid);
-        }
 
+        // remove mq9 fanout
         self.mq9_fanout_push.remove_by_sid(connect_id, sid);
-        for entry in self.mq9_queue_push.iter() {
-            entry.value().remove_by_sid(connect_id, sid);
+
+        // remove queue subscribers and return them
+        self.remove_queue_subscribers_by_sid(connect_id, sid)
+    }
+
+    fn remove_queue_subscribers_by_connect_id(&self, connect_id: u64) -> Vec<NatsSubscriber> {
+        let mut removed = Vec::new();
+
+        // nats core queue
+        for entry in self.nats_core_queue_push.iter() {
+            removed.extend(entry.value().remove_by_connect_id(connect_id));
         }
+        self.nats_core_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
+
+        // mq9 queue
+        for entry in self.mq9_queue_push.iter() {
+            removed.extend(entry.value().remove_by_connect_id(connect_id));
+        }
+        self.mq9_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
+        removed
+    }
+
+    fn remove_queue_subscribers_by_topic(&self, subject: &str) -> Vec<NatsSubscriber> {
+        let mut removed = Vec::new();
+
+        // nats core queue
+        for entry in self.nats_core_queue_push.iter() {
+            removed.extend(entry.value().remove_by_topic(subject));
+        }
+        self.nats_core_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
+
+        // mq9 queue
+        for entry in self.mq9_queue_push.iter() {
+            removed.extend(entry.value().remove_by_topic(subject));
+        }
+        self.mq9_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
+        removed
+    }
+
+    fn remove_queue_subscribers_by_sid(&self, connect_id: u64, sid: &str) -> Vec<NatsSubscriber> {
+        let mut removed = Vec::new();
+
+        // nats core queue
+        for entry in self.nats_core_queue_push.iter() {
+            removed.extend(entry.value().remove_by_sid(connect_id, sid));
+        }
+        self.nats_core_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
+
+        // mq9 queue
+        for entry in self.mq9_queue_push.iter() {
+            removed.extend(entry.value().remove_by_sid(connect_id, sid));
+        }
+        self.mq9_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
+        removed
     }
 
     // not push client
@@ -210,90 +256,83 @@ mod tests {
 
     fn make_subscribe(connect_id: u64, sid: &str, subject: &str) -> NatsSubscribe {
         NatsSubscribe {
+            broker_id: 1,
             tenant: "default".to_string(),
             connect_id,
             sid: sid.to_string(),
             subject: subject.to_string(),
-            queue_group: String::new(),
+            queue_group: None,
             create_time: 0,
         }
     }
 
-    fn make_subscriber(connect_id: u64, sid: &str, topic: &str) -> NatsSubscriber {
+    fn make_subscriber(connect_id: u64, sid: &str, subject: &str) -> NatsSubscriber {
         NatsSubscriber {
             uniq_id: unique_id(),
+            broker_id: 1,
             tenant: "default".to_string(),
             connect_id,
             sid: sid.to_string(),
-            sub_subject: topic.to_string(),
-            subject: topic.to_string(),
-            queue_group: String::new(),
+            sub_subject: subject.to_string(),
+            subject: subject.to_string(),
+            queue_group: None,
             create_time: now_second(),
         }
     }
 
-    #[test]
-    fn test_add_and_remove_subscribe() {
-        let mgr = NatsSubscribeManager::new();
-        mgr.add_subscribe(make_subscribe(1, "s1", "foo.bar"));
-        assert_eq!(mgr.subscribe_count(), 1);
-        assert!(mgr.get_subscribe(1, "s1").is_some());
-
-        mgr.remove_subscribe(1, "s1");
-        assert_eq!(mgr.subscribe_count(), 0);
+    fn make_queue_subscriber(
+        connect_id: u64,
+        sid: &str,
+        subject: &str,
+        group: &str,
+    ) -> NatsSubscriber {
+        let mut sub = make_subscriber(connect_id, sid, subject);
+        sub.queue_group = Some(group.to_string());
+        sub
     }
 
     #[test]
-    fn test_list_subscribes_by_connection() {
+    fn test_subscribe_crud() {
         let mgr = NatsSubscribeManager::new();
         mgr.add_subscribe(make_subscribe(1, "s1", "foo"));
         mgr.add_subscribe(make_subscribe(1, "s2", "bar"));
         mgr.add_subscribe(make_subscribe(2, "s1", "baz"));
 
         assert_eq!(mgr.list_subscribes_by_connection(1).len(), 2);
-        assert_eq!(mgr.list_subscribes_by_connection(2).len(), 1);
+        assert!(mgr.get_subscribe(1, "s1").is_some());
+
+        mgr.remove_subscribe(1, "s1");
+        assert!(mgr.get_subscribe(1, "s1").is_none());
+        assert_eq!(mgr.subscribe_count(), 2);
     }
 
     #[test]
-    fn test_nats_core_fanout_subscriber() {
-        let mgr = NatsSubscribeManager::new();
-        mgr.add_nats_core_fanout_subscriber(make_subscriber(1, "s1", "foo.bar"));
-        assert_eq!(mgr.nats_core_fanout_push.sub_len(), 1);
-    }
-
-    #[test]
-    fn test_mq9_fanout_subscriber() {
-        let mgr = NatsSubscribeManager::new();
-        mgr.add_mq9_fanout_subscriber(make_subscriber(1, "s1", "my-mailbox"));
-        assert_eq!(mgr.mq9_fanout_push.sub_len(), 1);
-    }
-
-    #[test]
-    fn test_remove_by_connection() {
-        let mgr = NatsSubscribeManager::new();
-        mgr.add_subscribe(make_subscribe(1, "s1", "foo"));
-        mgr.add_nats_core_fanout_subscriber(make_subscriber(1, "s1", "foo"));
-        mgr.add_mq9_fanout_subscriber(make_subscriber(1, "s2", "my-mailbox"));
-        mgr.add_subscribe(make_subscribe(2, "s1", "baz"));
-
-        mgr.remove_by_connection(1);
-
-        assert_eq!(mgr.subscribe_count(), 1);
-        assert_eq!(mgr.nats_core_fanout_push.sub_len(), 0);
-        assert_eq!(mgr.mq9_fanout_push.sub_len(), 0);
-    }
-
-    #[test]
-    fn test_remove_push_by_sid() {
+    fn test_fanout_remove_by_connection_and_sid() {
         let mgr = NatsSubscribeManager::new();
         mgr.add_nats_core_fanout_subscriber(make_subscriber(1, "s1", "foo"));
-        mgr.add_mq9_fanout_subscriber(make_subscriber(1, "s1", "my-mailbox"));
+        mgr.add_mq9_fanout_subscriber(make_subscriber(1, "s1", "mailbox"));
         mgr.add_nats_core_fanout_subscriber(make_subscriber(1, "s2", "bar"));
 
-        mgr.remove_push_by_sid(1, "s1");
-
+        // remove s1 only
+        mgr.remove_push_by_sub(1, "s1");
         assert_eq!(mgr.nats_core_fanout_push.sub_len(), 1);
         assert_eq!(mgr.mq9_fanout_push.sub_len(), 0);
+
+        // remove remaining by connection
+        mgr.remove_by_connection(1);
+        assert_eq!(mgr.nats_core_fanout_push.sub_len(), 0);
+    }
+
+    #[test]
+    fn test_queue_subscriber_grouped_by_key() {
+        let mgr = NatsSubscribeManager::new();
+        mgr.add_nats_core_queue_subscriber(&make_queue_subscriber(1, "s1", "orders", "workers"));
+        mgr.add_nats_core_queue_subscriber(&make_queue_subscriber(2, "s2", "orders", "workers"));
+        mgr.add_mq9_queue_subscriber(&make_queue_subscriber(3, "s3", "events", "processors"));
+
+        let key = "default#workers#orders";
+        assert_eq!(mgr.nats_core_queue_push.get(key).unwrap().sub_len(), 2);
+        assert!(mgr.mq9_queue_push.contains_key("default#processors#events"));
     }
 
     #[test]
@@ -302,21 +341,5 @@ mod tests {
         assert!(mgr.allow_push_client(1));
         mgr.add_not_push_client(1);
         assert!(!mgr.allow_push_client(1));
-    }
-
-    #[test]
-    fn test_nats_core_queue_subscriber() {
-        let mgr = NatsSubscribeManager::new();
-        let mut sub1 = make_subscriber(1, "s1", "orders");
-        sub1.queue_group = "workers".to_string();
-        let mut sub2 = make_subscriber(2, "s2", "orders");
-        sub2.queue_group = "workers".to_string();
-
-        mgr.add_nats_core_queue_subscriber(sub1, "workers");
-        mgr.add_nats_core_queue_subscriber(sub2, "workers");
-
-        let key = "orders#workers";
-        assert!(mgr.nats_core_queue_push.contains_key(key));
-        assert_eq!(mgr.nats_core_queue_push.get(key).unwrap().sub_len(), 2);
     }
 }

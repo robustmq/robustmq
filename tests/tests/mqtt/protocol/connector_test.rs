@@ -101,6 +101,7 @@ mod tests {
         let connector = results.data.first().unwrap();
         assert_eq!(connector.status, "Running".to_string());
 
+        sleep(Duration::from_secs(3)).await;
         // get status
         let request = ConnectorDetailReq {
             tenant: DEFAULT_TENANT.to_string(),

@@ -72,6 +72,17 @@ service MetaServiceService {
 
   rpc ListTenant(ListTenantRequest) returns (stream ListTenantReply) {}
 
+  // ShareGroup
+  rpc ListShareGroup(ListShareGroupRequest) returns (ListShareGroupReply) {}
+
+  rpc CreateShareGroup(CreateShareGroupRequest) returns (CreateShareGroupReply) {}
+
+  rpc DeleteShareGroup(DeleteShareGroupRequest) returns (DeleteShareGroupReply) {}
+
+  rpc AddShareGroupMember(AddShareGroupMemberRequest) returns (AddShareGroupMemberReply) {}
+
+  rpc DeleteShareGroupMember(DeleteShareGroupMemberRequest) returns (DeleteShareGroupMemberReply) {}
+
   // KV
   rpc Set(SetRequest) returns (SetReply) {}
 
@@ -377,3 +388,45 @@ message ChangeMembershipRequest {
 message ChangeMembershipReply {
   bytes value = 1;
 }
+
+// ListShareGroup supports three query dimensions:
+//   all:    tenant and group both empty
+//   tenant: only tenant is set
+//   group:  both tenant and group are set
+message ListShareGroupRequest {
+  string tenant = 1;
+  string group = 2;
+}
+
+message ListShareGroupReply {
+  repeated bytes groups = 1;
+}
+
+message CreateShareGroupRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string group = 2 [(validate.rules).string.min_len = 1];
+  bytes params = 3;
+}
+
+message CreateShareGroupReply {}
+
+message DeleteShareGroupRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string group = 2 [(validate.rules).string.min_len = 1];
+}
+
+message DeleteShareGroupReply {}
+
+message AddShareGroupMemberRequest {
+  bytes data = 1 [(validate.rules).bytes.min_len = 1];
+}
+
+message AddShareGroupMemberReply {}
+
+message DeleteShareGroupMemberRequest {
+  uint64 broker_id = 1;
+  uint64 connect_id = 2;
+  string sid = 3 [(validate.rules).string.min_len = 1];
+}
+
+message DeleteShareGroupMemberReply {}

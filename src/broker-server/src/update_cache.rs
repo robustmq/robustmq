@@ -20,7 +20,8 @@ use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
-use metadata_struct::mqtt::group_leader::MqttGroupLeader;
+use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupMember};
+use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use metadata_struct::tenant::Tenant;
@@ -30,12 +31,15 @@ use mqtt_broker::{
     broker::MqttBrokerServerParams, core::dynamic_cache::update_mqtt_cache_metadata,
 };
 use nats_broker::core::topic::{create_topic_by_nats_and_mq9, delete_topic_by_nats_and_mq9};
+use nats_broker::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
 use nats_broker::{
     broker::NatsBrokerServerParams, core::dynamic_cache::update_nats_cache_metadata,
 };
+use prost::Message;
 use protocol::broker::broker::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
 };
+use protocol::meta::meta_service_common::AddShareGroupMemberRequest;
 use std::str::FromStr;
 use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
 
@@ -62,17 +66,19 @@ pub async fn update_cache(
             }
         }
 
-        // Cluster — Node, Config, Tenant, User, Acl, Blacklist, Group, Connector, Schema, Topic
+        // Cluster — Node, Config, Tenant, User, Acl, Blacklist, Group, ShareGroupMember, Connector, Schema, Topic
         BrokerUpdateCacheResourceType::ClusterResourceConfig
         | BrokerUpdateCacheResourceType::Node
         | BrokerUpdateCacheResourceType::Tenant
         | BrokerUpdateCacheResourceType::User
         | BrokerUpdateCacheResourceType::Acl
         | BrokerUpdateCacheResourceType::Blacklist
-        | BrokerUpdateCacheResourceType::Group
+        | BrokerUpdateCacheResourceType::ShareGroup
+        | BrokerUpdateCacheResourceType::ShareGroupMember
         | BrokerUpdateCacheResourceType::Connector
         | BrokerUpdateCacheResourceType::Schema
         | BrokerUpdateCacheResourceType::SchemaResource
+        | BrokerUpdateCacheResourceType::GroupOffset
         | BrokerUpdateCacheResourceType::Topic => {
             if let Err(e) = update_cluster_cache_metadata(mqtt_params, nats_params, record).await {
                 return Err(CommonError::CommonError(e.to_string()));
@@ -84,6 +90,7 @@ pub async fn update_cache(
             if let Err(e) = update_nats_cache_metadata(
                 &nats_params.cache_manager,
                 &nats_params.subscribe_manager,
+                &nats_params.client_pool,
                 record,
             )
             .await
@@ -270,12 +277,10 @@ pub async fn update_cluster_cache_metadata(
             }
         }
 
-        BrokerUpdateCacheResourceType::Group => {
-            let group: MqttGroupLeader = serialize::deserialize(&record.data)?;
+        BrokerUpdateCacheResourceType::GroupOffset => {
+            let group: ShareGroup = serialize::deserialize(&record.data)?;
             match record.action_type() {
-                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
-                    // No need to handle create/update because group offset is actively pulled
-                }
+                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {}
                 BrokerUpdateCacheActionType::Delete => {
                     mqtt_params
                         .storage_driver_manager
@@ -284,6 +289,69 @@ pub async fn update_cluster_cache_metadata(
                 }
             }
         }
+
+        BrokerUpdateCacheResourceType::ShareGroup => {
+            let group: ShareGroup = serialize::deserialize(&record.data)?;
+            match record.action_type() {
+                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                    mqtt_params.node_cache.add_share_group(group);
+                }
+                BrokerUpdateCacheActionType::Delete => {
+                    mqtt_params
+                        .node_cache
+                        .remove_share_group(&group.tenant, &group.group_name);
+                }
+            }
+        }
+
+        BrokerUpdateCacheResourceType::ShareGroupMember => match record.action_type() {
+            BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                let req = AddShareGroupMemberRequest::decode(record.data.as_slice())
+                    .map_err(|e| CommonError::CommonError(e.to_string()))?;
+                let member: ShareGroupMember = serialize::deserialize(&req.data)?;
+                nats_params.broker_cache.add_share_group_member(&member);
+                nats_params
+                    .subscribe_manager
+                    .send_parse_event(ParseSubscribeData {
+                        action: ParseAction::Add,
+                        source: SubscribeSource::NatsCore,
+                        subscribe: Some(NatsSubscribe {
+                            tenant: member.tenant,
+                            connect_id: member.connect_id,
+                            sid: member.sid,
+                            broker_id: member.broker_id,
+                            subject: member.sub_path,
+                            queue_group: Some(member.group_name),
+                            create_time: member.create_time,
+                        }),
+                        topic: None,
+                    })
+                    .await;
+            }
+
+            BrokerUpdateCacheActionType::Delete => {
+                let member: ShareGroupMember = serialize::deserialize(&record.data)?;
+                nats_params.broker_cache.remove_share_group_member(&member);
+                nats_params
+                    .subscribe_manager
+                    .send_parse_event(ParseSubscribeData {
+                        action: ParseAction::Remove,
+                        source: SubscribeSource::NatsCore,
+                        subscribe: Some(NatsSubscribe {
+                            tenant: member.tenant,
+                            connect_id: member.connect_id,
+                            broker_id: member.broker_id,
+                            queue_group: Some(member.group_name),
+                            sid: member.sid,
+                            subject: member.sub_path,
+                            create_time: member.create_time,
+                        }),
+                        topic: None,
+                    })
+                    .await;
+            }
+        },
+
         _ => {}
     }
     Ok(())

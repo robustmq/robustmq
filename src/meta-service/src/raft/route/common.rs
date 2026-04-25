@@ -20,8 +20,9 @@ use metadata_struct::tenant::{Tenant, TenantConfig};
 use prost::Message as _;
 use protocol::meta::meta_service_common::{
     BindSchemaRequest, CreateSchemaRequest, CreateTenantRequest, DeleteResourceConfigRequest,
-    DeleteSchemaRequest, DeleteTenantRequest, RegisterNodeRequest, SaveOffsetDataRequest,
-    SetResourceConfigRequest, UnBindSchemaRequest, UnRegisterNodeRequest, UpdateTenantRequest,
+    DeleteSchemaRequest, DeleteShareGroupRequest, DeleteTenantRequest, RegisterNodeRequest,
+    SaveOffsetDataRequest, SetResourceConfigRequest, UnBindSchemaRequest, UnRegisterNodeRequest,
+    UpdateTenantRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -142,7 +143,13 @@ impl DataRouteCluster {
         Ok(())
     }
 
-    pub fn delete_offset_data(&self, _: Bytes) -> Result<(), MetaServiceError> {
+    pub fn delete_offset_data(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = DeleteShareGroupRequest::decode(value.as_ref())?;
+        let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
+        let offsets = offset_storage.group_offset(&req.tenant, &req.group)?;
+        for offset in &offsets {
+            offset_storage.delete(&offset.tenant, &offset.group, &offset.shard_name)?;
+        }
         Ok(())
     }
 

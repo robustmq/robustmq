@@ -11,24 +11,3 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-use common_base::{error::common::CommonError, utils::serialize};
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Default, Clone, Debug)]
-pub struct MqttGroupLeader {
-    pub tenant: String,
-    pub group_name: String,
-    pub broker_id: u64,
-    pub create_time: u64,
-}
-
-impl MqttGroupLeader {
-    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
-        serialize::serialize(self)
-    }
-
-    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
-        serialize::deserialize(data)
-    }
-}

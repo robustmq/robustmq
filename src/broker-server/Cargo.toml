@@ -36,6 +36,7 @@ common-group.workspace = true
 common-security.workspace = true
 tower.workspace = true
 protocol.workspace = true
+prost.workspace = true
 common-config.workspace = true
 grpc-clients.workspace = true
 tracing-appender.workspace = true

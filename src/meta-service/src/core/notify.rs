@@ -21,8 +21,9 @@ use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mq9::email::MQ9Email;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
-use metadata_struct::mqtt::group_leader::MqttGroupLeader;
 use metadata_struct::mqtt::session::MqttSession;
+use metadata_struct::mqtt::share_group::ShareGroup;
+use metadata_struct::mqtt::share_group::ShareGroupMember;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
@@ -553,12 +554,25 @@ pub async fn send_notify_by_delete_mq9_mail(
 }
 
 // Group
-pub async fn send_notify_by_delete_group(
+pub async fn send_notify_by_set_share_group(
+    call_manager: &Arc<NodeCallManager>,
+    group: ShareGroup,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::ShareGroup,
+        serialize::serialize(&group)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_group_offset(
     call_manager: &Arc<NodeCallManager>,
     tenant: &str,
     group_name: &str,
 ) -> Result<(), MetaServiceError> {
-    let group = MqttGroupLeader {
+    let group = ShareGroup {
         tenant: tenant.to_string(),
         group_name: group_name.to_string(),
         ..Default::default()
@@ -566,8 +580,53 @@ pub async fn send_notify_by_delete_group(
     send_update_cache(
         call_manager,
         BrokerUpdateCacheActionType::Delete,
-        BrokerUpdateCacheResourceType::Group,
+        BrokerUpdateCacheResourceType::GroupOffset,
         serialize::serialize(&group)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_share_group(
+    call_manager: &Arc<NodeCallManager>,
+    tenant: &str,
+    group_name: &str,
+) -> Result<(), MetaServiceError> {
+    let group = ShareGroup {
+        tenant: tenant.to_string(),
+        group_name: group_name.to_string(),
+        ..Default::default()
+    };
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::ShareGroup,
+        serialize::serialize(&group)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_add_share_group_member(
+    call_manager: &Arc<NodeCallManager>,
+    member: &ShareGroupMember,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::ShareGroupMember,
+        serialize::serialize(&member)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_share_group_member(
+    call_manager: &Arc<NodeCallManager>,
+    member: &ShareGroupMember,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::ShareGroupMember,
+        serialize::serialize(&member)?,
     )
     .await
 }

@@ -79,6 +79,9 @@ pub enum MetaServiceError {
     #[error("Node {0} does not exist")]
     NodeDoesNotExist(u64),
 
+    #[error("ShareGroup {0} does not exist")]
+    ShareGroupDoesNotExist(String),
+
     #[error("User {0} does not exist")]
     UserDoesNotExist(String),
 

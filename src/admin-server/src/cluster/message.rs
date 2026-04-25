@@ -114,15 +114,29 @@ async fn read_message_inner(
     state: Arc<HttpState>,
     params: ReadMessageReq,
 ) -> Result<Vec<ReadMessageRow>, CommonError> {
+    let shard_info = state
+        .storage_driver_manager
+        .list_storage_resource(&params.tenant, &params.topic)
+        .await?;
+    let detail = shard_info.get(&0).unwrap();
+
+    let offset = if params.offset < detail.offset.start_offset {
+        detail.offset.start_offset
+    } else if params.offset > detail.offset.end_offset {
+        detail.offset.end_offset
+    } else {
+        params.offset
+    };
+
     let message_storage = MessageStorage::new(state.storage_driver_manager.clone());
-    let mut results = Vec::new();
-    let mut data = HashMap::new();
-    data.insert(params.topic.clone(), params.offset);
+    let mut offsets = HashMap::new();
+    offsets.insert(params.topic.clone(), offset);
 
     let data = message_storage
-        .read_topic_message(&params.tenant, &params.topic, &data, 100)
+        .read_topic_message(&params.tenant, &params.topic, &offsets, 100)
         .await?;
 
+    let mut results = Vec::new();
     for row in data {
         let content = String::from_utf8_lossy(&row.data).to_string();
         results.push(ReadMessageRow {

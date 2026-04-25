@@ -21,7 +21,6 @@ use crate::{
     },
 };
 use axum::extract::{Query, State};
-use common_config::broker::broker_config;
 use mqtt_broker::{
     core::sub_share::{decode_share_info, get_share_sub_leader, is_mqtt_share_subscribe},
     subscribe::common::Subscriber,
@@ -272,20 +271,7 @@ pub async fn subscribe_detail(
 ) -> String {
     let leader_id = if is_mqtt_share_subscribe(&params.path) {
         let (group, _) = decode_share_info(&params.path);
-        let leader = match get_share_sub_leader(&state.client_pool, &params.tenant, &group).await {
-            Ok(data) => data,
-            Err(e) => {
-                return error_response(e.to_string());
-            }
-        };
-
-        let conf = broker_config();
-        // Forward the request to the leader of the group
-        if leader == conf.broker_id {
-            Some(leader)
-        } else {
-            None
-        }
+        get_share_sub_leader(&state.mqtt_context.cache_manager, &params.tenant, &group).await
     } else {
         None
     };

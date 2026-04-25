@@ -17,6 +17,7 @@ use crate::push::manager::NatsSubscribeManager;
 use crate::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
 use common_base::error::common::CommonError;
 use common_base::utils::serialize;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::mq9::email::MQ9Email;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use protocol::broker::broker::{
@@ -27,6 +28,7 @@ use std::sync::Arc;
 pub async fn update_nats_cache_metadata(
     cache_manager: &Arc<NatsCacheManager>,
     subscribe_manager: &Arc<NatsSubscribeManager>,
+    _client_pool: &Arc<ClientPool>,
     record: &UpdateCacheRecord,
 ) -> Result<(), CommonError> {
     match record.resource_type() {
@@ -43,7 +45,6 @@ pub async fn update_nats_cache_metadata(
                 }
                 BrokerUpdateCacheActionType::Delete => {
                     subscribe_manager.remove_subscribe(subscribe.connect_id, &subscribe.sid);
-                    subscribe_manager.remove_push_by_sid(subscribe.connect_id, &subscribe.sid);
                     ParseSubscribeData::new_subscribe(
                         ParseAction::Remove,
                         SubscribeSource::NatsCore,

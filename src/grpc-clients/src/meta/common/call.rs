@@ -14,16 +14,19 @@
 
 use common_base::error::common::CommonError;
 use protocol::meta::meta_service_common::{
-    AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, BindSchemaReply,
-    BindSchemaRequest, ChangeMembershipReply, ChangeMembershipRequest, ClusterStatusReply,
-    ClusterStatusRequest, CreateSchemaReply, CreateSchemaRequest, CreateTenantReply,
+    AddLearnerReply, AddLearnerRequest, AddShareGroupMemberReply, AddShareGroupMemberRequest,
+    AppendReply, AppendRequest, BindSchemaReply, BindSchemaRequest, ChangeMembershipReply,
+    ChangeMembershipRequest, ClusterStatusReply, ClusterStatusRequest, CreateSchemaReply,
+    CreateSchemaRequest, CreateShareGroupReply, CreateShareGroupRequest, CreateTenantReply,
     CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
-    DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest, DeleteTenantReply,
-    DeleteTenantRequest, ExistsReply, ExistsRequest, GetOffsetDataReply, GetOffsetDataRequest,
-    GetPrefixReply, GetPrefixRequest, GetReply, GetRequest, GetResourceConfigReply,
-    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, ListBindSchemaReply,
-    ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest, ListTenantReply, ListTenantRequest,
-    NodeListReply, NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
+    DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
+    DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest, DeleteShareGroupReply,
+    DeleteShareGroupRequest, DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest,
+    GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
+    GetRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
+    ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest,
+    ListShareGroupReply, ListShareGroupRequest, ListTenantReply, ListTenantRequest, NodeListReply,
+    NodeListRequest, RegisterNodeReply, RegisterNodeRequest, SaveOffsetDataReply,
     SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply, SetResourceConfigRequest,
     SnapshotReply, SnapshotRequest, UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply,
     UnRegisterNodeRequest, UpdateSchemaReply, UpdateSchemaRequest, UpdateTenantReply,
@@ -201,4 +204,36 @@ generate_meta_service_call!(
     ChangeMembershipRequest,
     ChangeMembershipReply,
     ChangeMembership
+);
+
+// ShareGroup
+generate_meta_service_call!(
+    placement_list_share_group,
+    ListShareGroupRequest,
+    ListShareGroupReply,
+    GetShareGroup
+);
+generate_meta_service_call!(
+    placement_create_share_group,
+    CreateShareGroupRequest,
+    CreateShareGroupReply,
+    CreateShareGroup
+);
+generate_meta_service_call!(
+    placement_delete_share_group,
+    DeleteShareGroupRequest,
+    DeleteShareGroupReply,
+    DeleteShareGroup
+);
+generate_meta_service_call!(
+    placement_add_share_group_member,
+    AddShareGroupMemberRequest,
+    AddShareGroupMemberReply,
+    AddShareGroupMember
+);
+generate_meta_service_call!(
+    placement_delete_share_group_member,
+    DeleteShareGroupMemberRequest,
+    DeleteShareGroupMemberReply,
+    DeleteShareGroupMember
 );

@@ -13,11 +13,16 @@
 // limitations under the License.
 
 use crate::core::notify::send_notify_by_delete_mq9_mail;
+use crate::raft::manager::MultiRaftManager;
+use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mq9::email::Mq9EmailStorage;
+use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use node_call::NodeCallManager;
+use prost::Message as _;
+use protocol::meta::meta_service_mq9::DeleteEmailRequest;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -28,11 +33,14 @@ const EMAIL_GC_INTERVAL_MS: u64 = 60 * 1000;
 
 pub async fn start_email_gc_thread(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    raft_manager: Arc<MultiRaftManager>,
     node_call_manager: Arc<NodeCallManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {
-        if let Err(e) = gc_expired_mails(&rocksdb_engine_handler, &node_call_manager).await {
+        if let Err(e) =
+            gc_expired_mails(&rocksdb_engine_handler, &raft_manager, &node_call_manager).await
+        {
             return Err(CommonError::CommonError(e.to_string()));
         }
         Ok(())
@@ -42,6 +50,7 @@ pub async fn start_email_gc_thread(
 
 async fn gc_expired_mails(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    raft_manager: &Arc<MultiRaftManager>,
     node_call_manager: &Arc<NodeCallManager>,
 ) -> Result<(), CommonError> {
     let storage = Mq9EmailStorage::new(rocksdb_engine_handler.clone());
@@ -59,10 +68,18 @@ async fn gc_expired_mails(
             continue;
         }
 
-        // Delete from RocksDB.
-        if let Err(e) = storage.delete(&email.tenant, &email.mail_id) {
+        // Delete via raft so all nodes apply the same deletion.
+        let req = DeleteEmailRequest {
+            tenant: email.tenant.clone(),
+            mail_id: email.mail_id.clone(),
+        };
+        let data = StorageData::new(
+            StorageDataType::Mq9DeleteEmail,
+            Bytes::from(req.encode_to_vec()),
+        );
+        if let Err(e) = raft_manager.write_data(&email.mail_id, data).await {
             warn!(
-                "Failed to delete expired mail: tenant={}, mail_id={}, error={}",
+                "Failed to delete expired mail via raft: tenant={}, mail_id={}, error={}",
                 email.tenant, email.mail_id, e
             );
             continue;

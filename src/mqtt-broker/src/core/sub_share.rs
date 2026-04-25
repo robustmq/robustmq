@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::MQTTCacheManager;
+use broker_core::share_group::ShareGroupStorage;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
-use grpc_clients::{meta::mqtt::call::placement_get_share_sub_leader, pool::ClientPool};
-use protocol::meta::meta_service_mqtt::{GetShareSubLeaderRequest, SubLeaderInfo};
-use std::{collections::HashMap, sync::Arc, vec};
+use grpc_clients::pool::ClientPool;
+use std::sync::Arc;
 
 pub const SHARE_SUB_PREFIX: &str = "$share";
 
@@ -41,51 +42,37 @@ pub fn full_group_name(group_name: &str, sub_name: &str) -> String {
 }
 
 pub async fn is_share_sub_leader(
+    cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
     tenant: &str,
     group_name: &str,
 ) -> Result<bool, CommonError> {
-    let reply = fetch_share_sub_leader(client_pool, tenant, vec![group_name.to_string()]).await?;
     let conf = broker_config();
-    if let Some(raw) = reply.get(group_name) {
-        return Ok(raw.broker_id == conf.broker_id);
+
+    if let Some(group) = cache_manager.node_cache.get_share_group(tenant, group_name) {
+        return Ok(group.leader_broker == conf.broker_id);
     }
-    Err(CommonError::CommonError(format!(
-        "share subscription leader not found for group: {group_name}"
-    )))
+
+    let storage = ShareGroupStorage::new(client_pool.clone());
+    match storage.get(tenant, group_name).await? {
+        Some(group) => {
+            let is_leader = group.leader_broker == conf.broker_id;
+            cache_manager.node_cache.add_share_group(group);
+            Ok(is_leader)
+        }
+        None => Ok(false),
+    }
 }
 
 pub async fn get_share_sub_leader(
-    client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<MQTTCacheManager>,
     tenant: &str,
     group_name: &str,
-) -> Result<u64, CommonError> {
-    let reply = fetch_share_sub_leader(client_pool, tenant, vec![group_name.to_string()]).await?;
-    if let Some(raw) = reply.get(group_name) {
-        return Ok(raw.broker_id);
+) -> Option<u64> {
+    if let Some(group) = cache_manager.node_cache.get_share_group(tenant, group_name) {
+        return Some(group.leader_broker);
     }
-    Err(CommonError::CommonError(format!(
-        "share subscription leader not found for group: {group_name}"
-    )))
-}
-
-pub async fn fetch_share_sub_leader(
-    client_pool: &Arc<ClientPool>,
-    tenant: &str,
-    group_name: Vec<String>,
-) -> Result<HashMap<String, SubLeaderInfo>, CommonError> {
-    let conf = broker_config();
-    let req = GetShareSubLeaderRequest {
-        tenant: tenant.to_owned(),
-        group_list: group_name.to_owned(),
-    };
-    let reply =
-        placement_get_share_sub_leader(client_pool, &conf.get_meta_service_addr(), req).await?;
-    let mut results = HashMap::new();
-    for raw in reply.leader.iter() {
-        results.insert(raw.group_name.clone(), raw.clone());
-    }
-    Ok(results)
+    None
 }
 
 #[cfg(test)]

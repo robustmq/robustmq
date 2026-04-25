@@ -19,22 +19,28 @@ mod tests {
     use crate::common::get_placement_addr;
     use common_base::role::{ROLE_BROKER, ROLE_ENGINE, ROLE_META};
     use common_base::tools::now_second;
-    use grpc_clients::meta::common::call::register_node;
-    use grpc_clients::meta::mqtt::call::placement_get_share_sub_leader;
+    use common_base::uuid::unique_id;
+    use grpc_clients::meta::common::call::{
+        placement_create_share_group, placement_list_share_group, register_node,
+    };
     use grpc_clients::pool::ClientPool;
     use metadata_struct::meta::extend::NodeExtend;
     use metadata_struct::meta::node::BrokerNode;
-    use protocol::meta::meta_service_common::RegisterNodeRequest;
-    use protocol::meta::meta_service_mqtt::GetShareSubLeaderRequest;
+    use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupParams, ShareGroupParamsNats};
+    use protocol::meta::meta_service_common::{
+        CreateShareGroupRequest, ListShareGroupRequest, RegisterNodeRequest,
+    };
 
     #[tokio::test]
     async fn mqtt_share_sub_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
-        let group_name: String = "test_group".to_string();
+        let group_name: String = unique_id();
+        let tenant: String = unique_id();
         let node_ip: String = "127.0.0.1".to_string();
         let node_id: u64 = 1;
 
+        // register node so group leader election has a target
         let node = BrokerNode {
             roles: vec![
                 ROLE_BROKER.to_string(),
@@ -50,31 +56,58 @@ mod tests {
             storage_fold: vec!["./data/broker/engine".to_string()],
             engine_addr: "127.0.0.1:1778".to_string(),
         };
-        let request = RegisterNodeRequest {
-            node: node.encode().unwrap(),
-        };
-        register_node(&client_pool, &addrs, request).await.unwrap();
+        register_node(
+            &client_pool,
+            &addrs,
+            RegisterNodeRequest {
+                node: node.encode().unwrap(),
+            },
+        )
+        .await
+        .unwrap();
 
-        let request = GetShareSubLeaderRequest {
-            tenant: "default".to_string(),
-            group_list: vec![group_name.clone()],
-        };
-        let data = placement_get_share_sub_leader(&client_pool, &addrs, request)
-            .await
-            .unwrap();
-        assert_eq!(data.leader.len(), 1);
-        let leader = data.leader.first().unwrap();
+        // list before create — should be empty
+        let data = placement_list_share_group(
+            &client_pool,
+            &addrs,
+            ListShareGroupRequest {
+                tenant: tenant.clone(),
+                group: group_name.clone(),
+            },
+        )
+        .await
+        .unwrap();
+        assert!(data.groups.is_empty());
+
+        // create group
+        placement_create_share_group(
+            &client_pool,
+            &addrs,
+            CreateShareGroupRequest {
+                tenant: tenant.clone(),
+                group: group_name.clone(),
+                params: ShareGroupParams::NATS(ShareGroupParamsNats {})
+                    .encode()
+                    .unwrap(),
+            },
+        )
+        .await
+        .unwrap();
+
+        // list after create — should return exactly 1
+        let data = placement_list_share_group(
+            &client_pool,
+            &addrs,
+            ListShareGroupRequest {
+                tenant: tenant.clone(),
+                group: group_name.clone(),
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(data.groups.len(), 1);
+        let leader = ShareGroup::decode(data.groups.first().unwrap()).unwrap();
         assert_eq!(leader.group_name, group_name);
-        assert_eq!(leader.broker_id, node_id);
-        assert_eq!(leader.broker_addr, node_ip);
-
-        let request = GetShareSubLeaderRequest {
-            tenant: "default".to_string(),
-            group_list: Vec::new(),
-        };
-        let data = placement_get_share_sub_leader(&client_pool, &addrs, request)
-            .await
-            .unwrap();
-        assert!(data.leader.is_empty());
+        assert_eq!(leader.leader_broker, node_id);
     }
 }

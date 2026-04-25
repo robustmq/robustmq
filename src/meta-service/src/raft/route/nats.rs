@@ -47,7 +47,7 @@ impl DataRouteNats {
         let req = DeleteNatsSubscribeRequest::decode(value.as_ref())?;
         let storage = NatsSubscribeStorage::new(self.rocksdb_engine_handler.clone());
         for key in &req.keys {
-            storage.delete(&req.tenant, key.connect_id, &key.sid)?;
+            storage.delete(key.broker_id, key.connect_id, &key.sid)?;
         }
         Ok(())
     }

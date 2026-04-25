@@ -21,9 +21,6 @@ service MqttService {
   rpc SetTopicRetainMessage(SetTopicRetainMessageRequest) returns (SetTopicRetainMessageReply) {}
   rpc GetTopicRetainMessage(GetTopicRetainMessageRequest) returns (GetTopicRetainMessageReply) {}
 
-  // Share Subscription
-  rpc GetShareSubLeader(GetShareSubLeaderRequest) returns (GetShareSubLeaderReply) {}
-
   // Last Will
   rpc SaveLastWillMessage(SaveLastWillMessageRequest) returns (SaveLastWillMessageReply) {}
   rpc GetLastWillMessage(GetLastWillMessageRequest) returns (GetLastWillMessageReply) {}
@@ -61,21 +58,6 @@ service MqttService {
   rpc ListAutoSubscribeRule(ListAutoSubscribeRuleRequest) returns (ListAutoSubscribeRuleReply) {}
 }
 
-message GetShareSubLeaderRequest {
-  string tenant = 1;
-  repeated string group_list = 2;
-}
-
-message GetShareSubLeaderReply {
-  repeated SubLeaderInfo leader = 1;
-}
-
-message SubLeaderInfo{
-  string group_name = 1;
-  uint64 broker_id = 2;
-  string broker_addr = 3;
-  bytes extend_info = 4;
-}
 
 message ListUserRequest {
   string tenant = 1;

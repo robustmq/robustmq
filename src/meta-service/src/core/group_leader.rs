@@ -14,55 +14,33 @@
 
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
-use crate::raft::route::data::{StorageData, StorageDataType};
-use crate::{core::cache::MetaCacheManager, storage::mqtt::group_leader::MqttGroupLeaderStorage};
-use bytes::Bytes;
-use common_base::tools::now_second;
-use metadata_struct::mqtt::group_leader::MqttGroupLeader;
-use protocol::meta::meta_service_mqtt::{
-    GetShareSubLeaderReply, GetShareSubLeaderRequest, SubLeaderInfo,
-};
+use crate::{core::cache::MetaCacheManager, storage::common::share_group::ShareGroupStorage};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 
 pub async fn get_group_leader(
-    raft_manager: &Arc<MultiRaftManager>,
+    _raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     tenant: &str,
     group_name: &str,
 ) -> Result<u64, MetaServiceError> {
     let cache_key = format!("{}/{}", tenant, group_name);
-    if let Some(leader) = cache_manager.group_leader.get(&cache_key) {
-        if cache_manager.node_list.contains_key(&leader.broker_id) {
-            return Ok(leader.broker_id);
+    if let Some(group) = cache_manager.group_leader.get(&cache_key) {
+        if cache_manager.node_list.contains_key(&group.leader_broker) {
+            return Ok(group.leader_broker);
         }
     }
 
-    let storage = MqttGroupLeaderStorage::new(rocksdb_engine_handler.clone());
+    let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
     let list = storage.list_by_tenant(tenant)?;
-    if let Some(leader) = list.get(group_name) {
-        if cache_manager.node_list.contains_key(&leader.broker_id) {
-            return Ok(leader.broker_id);
+    if let Some(group) = list.get(group_name) {
+        if cache_manager.node_list.contains_key(&group.leader_broker) {
+            return Ok(group.leader_broker);
         }
     }
 
-    let target_broker_id =
-        generate_group_leader(cache_manager, rocksdb_engine_handler, tenant).await?;
-    let leader_info = MqttGroupLeader {
-        tenant: tenant.to_string(),
-        group_name: group_name.to_string(),
-        broker_id: target_broker_id,
-        create_time: now_second(),
-    };
-    let data = StorageData::new(
-        StorageDataType::MqttSetGroupLeader,
-        Bytes::copy_from_slice(&leader_info.encode()?),
-    );
-    raft_manager.write_data(group_name, data).await?;
-    storage.save(tenant, group_name, target_broker_id)?;
-
-    Ok(target_broker_id)
+    Err(MetaServiceError::ShareGroupDoesNotExist(cache_key))
 }
 
 pub async fn generate_group_leader(
@@ -70,7 +48,7 @@ pub async fn generate_group_leader(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     tenant: &str,
 ) -> Result<u64, MetaServiceError> {
-    let storage = MqttGroupLeaderStorage::new(rocksdb_engine_handler.clone());
+    let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
     let list = storage.list_by_tenant(tenant)?;
     let mut broker_ids: Vec<u64> = cache_manager
         .node_list
@@ -89,7 +67,7 @@ pub async fn generate_group_leader(
     }
 
     for leader in list.values() {
-        if let Some(count) = leader_count_by_broker.get_mut(&leader.broker_id) {
+        if let Some(count) = leader_count_by_broker.get_mut(&leader.leader_broker) {
             *count += 1;
         }
     }
@@ -104,37 +82,6 @@ pub async fn generate_group_leader(
         .ok_or(MetaServiceError::NoAvailableBrokerNode)?;
 
     Ok(target_broker_id)
-}
-
-pub async fn get_share_sub_leader_by_req(
-    cache_manager: &Arc<MetaCacheManager>,
-    raft_manager: &Arc<MultiRaftManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: &GetShareSubLeaderRequest,
-) -> Result<GetShareSubLeaderReply, MetaServiceError> {
-    let mut results = Vec::new();
-    for group_name in req.group_list.iter() {
-        let leader_broker = get_group_leader(
-            raft_manager,
-            cache_manager,
-            rocksdb_engine_handler,
-            &req.tenant,
-            group_name,
-        )
-        .await?;
-
-        let leader = match cache_manager.get_broker_node(leader_broker) {
-            Some(node) => SubLeaderInfo {
-                group_name: group_name.clone(),
-                broker_id: node.node_id,
-                broker_addr: node.node_ip,
-                extend_info: node.extend.encode()?,
-            },
-            None => return Err(MetaServiceError::NoAvailableBrokerNode),
-        };
-        results.push(leader);
-    }
-    Ok(GetShareSubLeaderReply { leader: results })
 }
 
 #[cfg(test)]
@@ -169,10 +116,32 @@ mod tests {
         });
 
         let tenant = "test_tenant";
-        let storage = MqttGroupLeaderStorage::new(rocksdb_engine_handler.clone());
-        storage.save(tenant, "g1", 1).unwrap();
-        storage.save(tenant, "g2", 1).unwrap();
-        storage.save(tenant, "g3", 2).unwrap();
+        let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
+        use metadata_struct::mqtt::share_group::ShareGroup;
+        storage
+            .save(ShareGroup {
+                tenant: tenant.to_string(),
+                group_name: "g1".to_string(),
+                leader_broker: 1,
+                ..Default::default()
+            })
+            .unwrap();
+        storage
+            .save(ShareGroup {
+                tenant: tenant.to_string(),
+                group_name: "g2".to_string(),
+                leader_broker: 1,
+                ..Default::default()
+            })
+            .unwrap();
+        storage
+            .save(ShareGroup {
+                tenant: tenant.to_string(),
+                group_name: "g3".to_string(),
+                leader_broker: 2,
+                ..Default::default()
+            })
+            .unwrap();
 
         let target = generate_group_leader(&cache_manager, &rocksdb_engine_handler, tenant)
             .await

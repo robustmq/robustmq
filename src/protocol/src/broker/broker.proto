@@ -101,7 +101,9 @@ enum BrokerUpdateCacheResourceType {
   TopicRewriteRule = 16;
   NatsSubscribe = 17;
   Mq9Email = 18;
-  Group = 19;
+  ShareGroup = 19;
+  ShareGroupMember = 20;
+  GroupOffset = 21;
 }
 
 enum BrokerUpdateCacheActionType {

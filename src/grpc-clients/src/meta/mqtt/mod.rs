@@ -24,15 +24,14 @@ use protocol::meta::meta_service_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetLastWillMessageReply,
-    GetLastWillMessageRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-    GetTopicRetainMessageReply, GetTopicRetainMessageRequest, ListAclReply, ListAclRequest,
-    ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
-    ListBlacklistRequest, ListConnectorReply, ListConnectorRequest, ListSessionReply,
-    ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
-    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
-    SaveLastWillMessageReply, SaveLastWillMessageRequest, SetSubscribeReply, SetSubscribeRequest,
-    SetTopicRetainMessageReply, SetTopicRetainMessageRequest, UpdateConnectorReply,
-    UpdateConnectorRequest,
+    GetLastWillMessageRequest, GetTopicRetainMessageReply, GetTopicRetainMessageRequest,
+    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
+    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
+    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
+    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest, SetSubscribeReply,
+    SetSubscribeRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
+    UpdateConnectorReply, UpdateConnectorRequest,
 };
 use tonic::transport::Channel;
 use tonic::Streaming;
@@ -40,16 +39,6 @@ use tonic::Streaming;
 use crate::macros::impl_retriable_request;
 
 pub mod call;
-
-impl_retriable_request!(
-    GetShareSubLeaderRequest,
-    MqttServiceClient<Channel>,
-    GetShareSubLeaderReply,
-    get_share_sub_leader,
-    "MqttService",
-    "GetShareSubLeader",
-    true
-);
 
 impl_retriable_request!(
     CreateUserRequest,

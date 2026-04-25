@@ -16,7 +16,6 @@ use crate::core::BridgePluginReadConfig;
 use crate::failure::{failure_message_process, FailureRecordInfo};
 use crate::manager::ConnectorManager;
 use crate::storage::connector::ConnectorStorage;
-use crate::storage::message::MessageStorage;
 use crate::traits::ConnectorSink;
 use common_base::error::common::CommonError;
 use common_base::tools::{now_millis, now_second};
@@ -28,10 +27,10 @@ use common_metrics::mqtt::connector::{
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connector::status::MQTTStatus;
 use metadata_struct::connector::FailureHandlingStrategy;
-use metadata_struct::storage::record::StorageRecord;
-use std::collections::HashMap;
+use metadata_struct::storage::{adapter_read_config::AdapterReadConfig, record::StorageRecord};
 use std::sync::Arc;
 use std::time::Duration;
+use storage_adapter::consumer::GroupConsumer;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::{select, sync::mpsc, time::sleep};
 use tracing::{error, info};
@@ -48,8 +47,6 @@ enum ReadErrorAction {
 
 struct SendFailureParams<'a> {
     data_list: &'a [StorageRecord],
-    max_offsets: &'a HashMap<String, u64>,
-    offsets: &'a mut HashMap<String, u64>,
     start_time: u128,
     message_count: u64,
     retry_times: u32,
@@ -59,8 +56,6 @@ struct SendFailureParams<'a> {
 struct SendSuccessParams<'a> {
     strategy: &'a FailureHandlingStrategy,
     fail_messages: &'a [FailureRecordInfo],
-    max_offsets: &'a HashMap<String, u64>,
-    offsets: &'a mut HashMap<String, u64>,
     start_time: u128,
     message_count: u64,
 }
@@ -70,7 +65,6 @@ struct BatchCtx<'a> {
     connector_type: &'a str,
     tenant: &'a str,
     storage_driver_manager: &'a Arc<StorageDriverManager>,
-    message_storage: &'a MessageStorage,
     connector_manager: &'a Arc<ConnectorManager>,
 }
 
@@ -86,7 +80,6 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     sink.validate().await?;
 
     let mut resource = Some(sink.init_sink().await?);
-    let message_storage = MessageStorage::new(storage_driver_manager.clone());
     let connector_tenant = config.tenant.clone();
     let connector_type = connector_manager
         .get_connector(&connector_name)
@@ -98,26 +91,18 @@ pub async fn run_connector_loop<S: ConnectorSink>(
         connector_type: &connector_type,
         tenant: &connector_tenant,
         storage_driver_manager,
-        message_storage: &message_storage,
         connector_manager,
     };
 
-    let mut run_result: Result<(), CommonError> = Ok(());
-    let mut offsets = match message_storage
-        .get_group_offset(&connector_tenant, &connector_name)
-        .await
-    {
-        Ok(offsets) => offsets,
-        Err(e) => {
-            run_result = Err(e);
-            HashMap::new()
-        }
+    let consumer = GroupConsumer::new_manual(storage_driver_manager.clone(), &connector_name);
+    let read_config = AdapterReadConfig {
+        max_record_num: config.record_num,
+        max_size: 1024 * 1024 * 30,
     };
 
+    let mut run_result: Result<(), CommonError> = Ok(());
+
     'run: loop {
-        if run_result.is_err() {
-            break;
-        }
         select! {
             val = stop_recv.recv() => {
                 match val {
@@ -126,7 +111,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                 }
             },
 
-            val = message_storage.read_topic_message(&config.tenant, &config.topic_name, &offsets, config.record_num) => {
+            val = consumer.next_messages(&config.tenant, &config.topic_name, &read_config) => {
                 match val {
                     Ok(data) => {
                         connector_manager.report_heartbeat(&connector_tenant, &connector_name);
@@ -140,8 +125,6 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                         let message_count = data.len() as u64;
                         let mut retry_times: u32 = 0;
 
-                        let  max_offsets = extract_max_offsets(&data);
-
                         loop {
                             match sink.send_batch(
                                 &data,
@@ -154,11 +137,10 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                                 Ok(fail_messages) => {
                                     if let Err(e) = handle_send_success(
                                         &ctx,
+                                        &consumer,
                                         SendSuccessParams {
                                             strategy: &config.strategy,
                                             fail_messages: &fail_messages,
-                                            max_offsets: &max_offsets,
-                                            offsets: &mut offsets,
                                             start_time,
                                             message_count,
                                         },
@@ -173,11 +155,10 @@ pub async fn run_connector_loop<S: ConnectorSink>(
                                 Err(e) => {
                                     match handle_send_failure(
                                         &ctx,
+                                        &consumer,
                                         &config,
                                         SendFailureParams {
                                             data_list: &data,
-                                            max_offsets: &max_offsets,
-                                            offsets: &mut offsets,
                                             start_time,
                                             message_count,
                                             retry_times,
@@ -232,9 +213,10 @@ pub async fn run_connector_loop<S: ConnectorSink>(
 
 async fn handle_send_success(
     ctx: &BatchCtx<'_>,
+    consumer: &GroupConsumer,
     params: SendSuccessParams<'_>,
 ) -> Result<(), CommonError> {
-    commit_batch_offsets(ctx, params.max_offsets, params.offsets).await?;
+    commit_consumer_offsets(ctx, consumer).await?;
     process_fail_messages(
         ctx.storage_driver_manager,
         params.strategy,
@@ -255,6 +237,7 @@ async fn handle_send_success(
 
 async fn handle_send_failure(
     ctx: &BatchCtx<'_>,
+    consumer: &GroupConsumer,
     config: &BridgePluginReadConfig,
     params: SendFailureParams<'_>,
 ) -> Result<SendResultAction, CommonError> {
@@ -295,7 +278,7 @@ async fn handle_send_failure(
     )
     .await
     {
-        commit_batch_offsets(ctx, params.max_offsets, params.offsets).await?;
+        commit_consumer_offsets(ctx, consumer).await?;
         sleep(Duration::from_millis(100)).await;
         return Ok(SendResultAction::BatchDone);
     }
@@ -356,30 +339,21 @@ async fn process_fail_messages(
     fail_messages: &[FailureRecordInfo],
 ) {
     for context in fail_messages {
-        if failure_message_process(storage_driver_manager, strategy, 99999, context).await {
-            break;
-        }
+        failure_message_process(storage_driver_manager, strategy, 99999, context).await;
     }
 }
 
-async fn commit_batch_offsets(
+async fn commit_consumer_offsets(
     ctx: &BatchCtx<'_>,
-    max_offsets: &HashMap<String, u64>,
-    offsets: &mut HashMap<String, u64>,
+    consumer: &GroupConsumer,
 ) -> Result<(), CommonError> {
-    for (k, v) in max_offsets {
-        offsets.insert(k.to_string(), *v);
-    }
-    ctx.message_storage
-        .commit_group_offset(ctx.tenant, ctx.connector_name, offsets)
-        .await
-        .inspect_err(|_| {
-            record_connector_offset_commit_failure(
-                ctx.tenant,
-                ctx.connector_type.to_string(),
-                ctx.connector_name.to_string(),
-            );
-        })
+    consumer.commit().await.inspect_err(|_| {
+        record_connector_offset_commit_failure(
+            ctx.tenant,
+            ctx.connector_type.to_string(),
+            ctx.connector_name.to_string(),
+        );
+    })
 }
 
 async fn stop_connector(
@@ -408,19 +382,6 @@ fn should_stop_by_read_error(error: &CommonError) -> bool {
         }
         _ => false,
     }
-}
-
-fn extract_max_offsets(data: &Vec<StorageRecord>) -> HashMap<String, u64> {
-    let mut max_offsets = HashMap::new();
-    for record in data {
-        let shard = record.metadata.shard.clone();
-        let offset = record.metadata.offset;
-
-        let current_offset = max_offsets.get(&shard).copied().unwrap_or(0);
-        max_offsets.insert(shard, current_offset.max(offset + 1));
-    }
-
-    max_offsets
 }
 
 pub fn update_last_active(

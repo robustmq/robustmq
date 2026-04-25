@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::NatsCacheManager;
+use crate::core::write_client::write_nats_packet;
 use crate::push::manager::NatsSubscribeManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
@@ -22,7 +23,7 @@ use protocol::nats::packet::NatsPacket;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 /// Per-connection timeout for sending a single PING frame.
 const PING_SEND_TIMEOUT: Duration = Duration::from_secs(1);
@@ -58,76 +59,53 @@ impl NatsClientKeepAlive {
 
     async fn tick(&self) -> ResultCommonError {
         let conf = broker_config();
-        let ping_interval = conf.nats_runtime.ping_interval;
-        let ping_max = conf.nats_runtime.ping_max;
-        let chunk_size = conf.nats_runtime.ping_send_chunk;
-
-        let all_ids = self.collect_connection_ids();
 
         let alive_ids = self
-            .close_stale_connections(&all_ids, ping_interval * ping_max)
+            .close_stale_connections(conf.nats_runtime.ping_interval * conf.nats_runtime.ping_max)
             .await;
 
-        self.send_ping_to_alive(&alive_ids, chunk_size, ping_interval)
-            .await;
+        self.send_ping_to_alive(
+            &alive_ids,
+            conf.nats_runtime.ping_send_chunk,
+            conf.nats_runtime.ping_interval,
+        )
+        .await;
 
-        debug!(
-            alive = alive_ids.len(),
-            total = all_ids.len(),
-            "NATS keep-alive tick completed"
-        );
         Ok(())
     }
 
-    fn collect_connection_ids(&self) -> Vec<u64> {
-        self.connection_manager
-            .connections
-            .iter()
-            .filter(|e| {
-                e.value()
-                    .protocol
-                    .as_ref()
-                    .map(|p| p.is_nats())
-                    .unwrap_or(false)
-            })
-            .map(|e| *e.key())
-            .collect()
-    }
-
-    /// Returns the subset of `ids` whose connections are still active.
-    /// Timed-out connections are closed in parallel.
-    async fn close_stale_connections(&self, ids: &[u64], timeout_threshold: u64) -> Vec<u64> {
+    /// Returns the subset of NATS connections that are still active.
+    /// Timed-out connections are closed in place.
+    async fn close_stale_connections(&self, timeout_threshold: u64) -> Vec<u64> {
         let now = now_second();
-        let mut alive_ids = Vec::with_capacity(ids.len());
+        let mut alive_ids = Vec::new();
         let mut stale_ids = Vec::new();
 
-        for &connect_id in ids {
-            if let Some(conn) = self.connection_manager.get_connect(connect_id) {
-                let elapsed = now.saturating_sub(conn.last_heartbeat_time);
-                if elapsed >= timeout_threshold {
-                    debug!(
-                        connect_id,
-                        elapsed, timeout_threshold, "NATS keep-alive timeout, closing connection"
-                    );
-                    stale_ids.push(connect_id);
-                } else {
-                    alive_ids.push(connect_id);
-                }
+        for entry in self.connection_manager.connections.iter() {
+            let conn = entry.value();
+            if !conn.protocol.as_ref().map(|p| p.is_nats()).unwrap_or(false) {
+                continue;
+            }
+            let connect_id = *entry.key();
+            let elapsed = now.saturating_sub(conn.last_heartbeat_time);
+            if elapsed >= timeout_threshold {
+                debug!(
+                    connect_id,
+                    elapsed, timeout_threshold, "NATS keep-alive timeout, closing connection"
+                );
+                stale_ids.push(connect_id);
+            } else {
+                alive_ids.push(connect_id);
             }
         }
 
         // Close all stale connections in a single background task (fire and forget).
         if !stale_ids.is_empty() {
-            let cm = self.connection_manager.clone();
-            let cache = self.cache_manager.clone();
-            let subscribe = self.subscribe_manager.clone();
-            tokio::spawn(async move {
-                for connect_id in stale_ids {
-                    close_stale_connection(&cm, connect_id).await;
-                    cache.remove_connection(connect_id);
-                    subscribe.remove_by_connection(connect_id);
-                }
-            });
+            for connect_id in stale_ids {
+                close_stale_connection(&self.connection_manager, connect_id).await;
+                self.cache_manager.remove_connection(connect_id);
+                self.subscribe_manager.remove_by_connection(connect_id);
+            }
         }
 
         alive_ids
@@ -178,14 +156,14 @@ async fn close_stale_connection(cm: &Arc<ConnectionManager>, connect_id: u64) {
     }
 
     cm.close_connect(connect_id).await;
-    info!(
+    debug!(
         connect_id,
         "NATS stale connection closed (keep-alive timeout)"
     );
 }
 
 async fn send_ping_to_connection(cm: &Arc<ConnectionManager>, connect_id: u64) {
-    let send_fut = crate::core::write_client::write_nats_packet(cm, connect_id, NatsPacket::Ping);
+    let send_fut = write_nats_packet(cm, connect_id, NatsPacket::Ping);
 
     match tokio::time::timeout(PING_SEND_TIMEOUT, send_fut).await {
         Ok(Ok(())) => debug!(connect_id, "Sent PING to NATS connection"),

@@ -58,23 +58,28 @@ pub async fn process_sub(
     }
 
     let subscribe = NatsSubscribe {
+        broker_id: broker_config().broker_id,
         tenant: DEFAULT_TENANT.to_string(),
         connect_id: ctx.connect_id,
         sid: sid.to_string(),
         subject: subject.to_string(),
-        queue_group: queue_group.unwrap_or_default().to_string(),
+        queue_group: queue_group.map(|s| s.to_string()),
         create_time: now_second(),
     };
 
     ctx.subscribe_manager.add_subscribe(subscribe.clone());
 
-    ctx.subscribe_manager
-        .send_parse_event(ParseSubscribeData::new_subscribe(
-            ParseAction::Add,
-            SubscribeSource::NatsCore,
-            subscribe,
-        ))
-        .await;
+    if queue_group.is_some() {
+        // save queue group
+    } else {
+        ctx.subscribe_manager
+            .send_parse_event(ParseSubscribeData::new_subscribe(
+                ParseAction::Add,
+                SubscribeSource::NatsCore,
+                subscribe,
+            ))
+            .await;
+    }
 
     Ok(())
 }
