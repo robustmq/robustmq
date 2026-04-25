@@ -69,10 +69,15 @@ impl NatsService for GrpcNatsService {
     ) -> Result<Response<CreateNatsSubscribeReply>, Status> {
         let req = request.into_inner();
         self.validate_request(&req)?;
-        create_nats_subscribe_by_req(&self.raft_manager, &self.call_manager, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        create_nats_subscribe_by_req(
+            &self.raft_manager,
+            &self.call_manager,
+            &self.rocksdb_engine_handler,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     async fn delete_nats_subscribe(

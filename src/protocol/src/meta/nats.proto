@@ -10,8 +10,7 @@ service NatsService {
 }
 
 message CreateNatsSubscribeRequest {
-  string tenant = 1 [(validate.rules).string.min_len = 1];
-  repeated bytes subscribes = 2;
+  repeated bytes subscribes = 1;
 }
 
 message CreateNatsSubscribeReply {}
@@ -29,8 +28,7 @@ message NatsSubscribeKey {
 message DeleteNatsSubscribeReply {}
 
 message ListNatsSubscribeRequest {
-  uint64 broker_id = 1;
-  uint64 connect_id = 2;
+  uint64 connect_id = 1;
 }
 
 message ListNatsSubscribeReply {
