@@ -199,6 +199,9 @@ fn start_new_queue_group_tasks(
 ) {
     for entry in subscribe_manager.nats_core_queue_push.iter() {
         let queue_key = entry.key().clone();
+        if entry.value().buckets_data_list.is_empty() {
+            continue;
+        }
         if subscribe_manager
             .nats_core_queue_push_thread
             .contains_key(&queue_key)

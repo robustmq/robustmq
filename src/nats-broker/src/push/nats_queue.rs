@@ -26,7 +26,7 @@ use storage_adapter::consumer::GroupConsumer;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::select;
 use tokio::sync::broadcast;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 pub struct QueuePushManager {
     subscribe_manager: Arc<NatsSubscribeManager>,
@@ -78,6 +78,10 @@ impl QueuePushManager {
                 res = self.send_messages() => {
                     match res {
                         Ok(count) => adaptive_sleep(count).await,
+                        Err(NatsBrokerError::QueueGroupEmpty(_)) => {
+                            info!("{} queue group empty, exiting.", label);
+                            break;
+                        }
                         Err(e) => {
                             error!("{} error: {}", label, e);
                             adaptive_sleep(0).await;
@@ -88,22 +92,30 @@ impl QueuePushManager {
         }
     }
 
-    async fn send_messages(&mut self) -> Result<usize, NatsBrokerError> {
-        let queue_key = self.queue_key();
-
-        let subs: Vec<NatsSubscriber> = {
-            let Some(bucket_mgr) = self.subscribe_manager.nats_core_queue_push.get(&queue_key)
-            else {
-                return Ok(0);
-            };
-            if bucket_mgr.sub_len() == 0 {
-                return Ok(0);
-            }
+    fn active_subscribers(&self, queue_key: &str) -> Option<Vec<NatsSubscriber>> {
+        let bucket_mgr = self.subscribe_manager.nats_core_queue_push.get(queue_key)?;
+        if bucket_mgr.buckets_data_list.is_empty() {
+            return None;
+        }
+        Some(
             bucket_mgr
                 .buckets_data_list
                 .iter()
-                .flat_map(|b| b.value().iter().map(|s| s.value().clone()).collect::<Vec<_>>())
-                .collect()
+                .flat_map(|b| {
+                    b.value()
+                        .iter()
+                        .map(|s| s.value().clone())
+                        .collect::<Vec<_>>()
+                })
+                .filter(|s| self.subscribe_manager.allow_push_client(s.connect_id))
+                .collect(),
+        )
+    }
+
+    async fn send_messages(&mut self) -> Result<usize, NatsBrokerError> {
+        let queue_key = self.queue_key();
+        let Some(subs) = self.active_subscribers(&queue_key) else {
+            return Err(NatsBrokerError::QueueGroupEmpty(queue_key));
         };
 
         if subs.is_empty() {
