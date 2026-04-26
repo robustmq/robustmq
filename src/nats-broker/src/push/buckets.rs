@@ -83,7 +83,8 @@ impl NatsBucketsManager {
     }
 
     pub fn add(&self, subscriber: &NatsSubscriber) {
-        if self.sub_seq.contains_key(&subscriber.uniq_id) {
+        let sid_key = sid_key(subscriber.broker_id, subscriber.connect_id, &subscriber.sid);
+        if self.connect_id_sid_sub.contains_key(&sid_key) {
             return;
         }
 
@@ -94,7 +95,6 @@ impl NatsBucketsManager {
             .or_default()
             .insert(seq);
 
-        let sid_key = sid_key(subscriber.broker_id, subscriber.connect_id, &subscriber.sid);
         self.connect_id_sid_sub
             .entry(sid_key)
             .or_default()

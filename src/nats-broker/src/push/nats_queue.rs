@@ -50,6 +50,7 @@ impl QueuePushManager {
         group_name: String,
         subject: String,
     ) -> Self {
+        println!("QueuePushManager.subject:{}", subject);
         QueuePushManager {
             subscribe_manager,
             connection_manager,
@@ -152,7 +153,6 @@ impl QueuePushManager {
                 .ok();
         }
 
-        println!("records:{:?}", records.len());
         if records.is_empty() {
             return Ok(0);
         }

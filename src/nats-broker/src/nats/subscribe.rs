@@ -96,15 +96,15 @@ pub async fn process_sub(
         add_member_by_group(&ctx.client_pool, &sub)
             .await
             .map_err(|e| NatsPacket::Err(e.to_string()))?;
-    } else {
-        ctx.subscribe_manager
-            .send_parse_event(ParseSubscribeData::new_subscribe(
-                ParseAction::Add,
-                SubscribeSource::NatsCore,
-                subscribe,
-            ))
-            .await;
     }
+
+    ctx.subscribe_manager
+        .send_parse_event(ParseSubscribeData::new_subscribe(
+            ParseAction::Add,
+            SubscribeSource::NatsCore,
+            subscribe,
+        ))
+        .await;
 
     Ok(())
 }
