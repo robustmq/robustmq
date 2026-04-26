@@ -13,9 +13,12 @@
 // limitations under the License.
 
 use crate::core::error::NatsBrokerError;
+use crate::core::queue_name::send_share_group_message_to_other_broker;
 use crate::push::common::{adaptive_sleep, should_stop, BATCH_SIZE};
 use crate::push::manager::NatsSubscribeManager;
 use crate::push::nats_fanout::send_packet;
+use broker_core::cache::NodeCacheManager;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::nats::subscriber::NatsSubscriber;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
@@ -28,10 +31,22 @@ use tokio::select;
 use tokio::sync::broadcast;
 use tracing::{debug, error, info, warn};
 
+pub struct QueuePushManagerParams {
+    pub subscribe_manager: Arc<NatsSubscribeManager>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub node_cache: Arc<NodeCacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub tenant: String,
+    pub group_name: String,
+    pub subject: String,
+}
+
 pub struct QueuePushManager {
     subscribe_manager: Arc<NatsSubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
+    node_cache: Arc<NodeCacheManager>,
     client_pool: Arc<ClientPool>,
     tenant: String,
     group_name: String,
@@ -41,24 +56,16 @@ pub struct QueuePushManager {
 }
 
 impl QueuePushManager {
-    pub fn new(
-        subscribe_manager: Arc<NatsSubscribeManager>,
-        connection_manager: Arc<ConnectionManager>,
-        storage_driver_manager: Arc<StorageDriverManager>,
-        client_pool: Arc<ClientPool>,
-        tenant: String,
-        group_name: String,
-        subject: String,
-    ) -> Self {
-        println!("QueuePushManager.subject:{}", subject);
+    pub fn new(p: QueuePushManagerParams) -> Self {
         QueuePushManager {
-            subscribe_manager,
-            connection_manager,
-            storage_driver_manager,
-            client_pool,
-            tenant,
-            group_name,
-            subject,
+            subscribe_manager: p.subscribe_manager,
+            connection_manager: p.connection_manager,
+            storage_driver_manager: p.storage_driver_manager,
+            node_cache: p.node_cache,
+            client_pool: p.client_pool,
+            tenant: p.tenant,
+            group_name: p.group_name,
+            subject: p.subject,
             consumer: None,
             round_robin: 0,
         }
@@ -168,6 +175,7 @@ impl QueuePushManager {
                 start_idx,
                 &self.subscribe_manager,
                 &self.connection_manager,
+                &self.node_cache,
                 &self.client_pool,
             )
             .await
@@ -180,7 +188,10 @@ impl QueuePushManager {
                         queue_key
                     );
                 }
-                Err(e) => warn!("NATS queue send error [{}]: {}", queue_key, e),
+                Err(e) => {
+                    all_delivered = false;
+                    warn!("NATS queue send error [{}]: {}", queue_key, e);
+                }
             }
         }
 
@@ -208,8 +219,10 @@ async fn round_robin_send(
     start_idx: usize,
     subscribe_manager: &Arc<NatsSubscribeManager>,
     connection_manager: &Arc<ConnectionManager>,
-    _client_pool: &Arc<ClientPool>,
+    node_cache: &Arc<NodeCacheManager>,
+    client_pool: &Arc<ClientPool>,
 ) -> Result<bool, NatsBrokerError> {
+    let conf = broker_config();
     for i in 0..subscribers.len() {
         let subscriber = &subscribers[(start_idx + i) % subscribers.len()];
 
@@ -217,22 +230,49 @@ async fn round_robin_send(
             continue;
         }
 
-        match send_packet(connection_manager, subscriber, record).await {
-            Ok(true) => return Ok(true),
-            Ok(false) => {}
-            Err(NatsBrokerError::ConnectionNotFound(_)) => {
-                warn!(
-                    "NATS queue subscriber gone: connect_id={} sid={}",
-                    subscriber.connect_id, subscriber.sid
-                );
-                subscribe_manager.add_not_push_client(subscriber.connect_id);
+        if conf.broker_id == subscriber.broker_id {
+            match send_packet(
+                connection_manager,
+                subscriber.connect_id,
+                &subscriber.subject,
+                &subscriber.sid,
+                record,
+            )
+            .await
+            {
+                Ok(()) => return Ok(true),
+                Err(NatsBrokerError::ConnectionNotFound(_)) => {
+                    warn!(
+                        "NATS queue subscriber gone: connect_id={} sid={}",
+                        subscriber.connect_id, subscriber.sid
+                    );
+                    subscribe_manager.add_not_push_client(subscriber.connect_id);
+                }
+                Err(e) => {
+                    debug!(
+                        "NATS queue send failed [connect_id={}, sid={}]: {}",
+                        subscriber.connect_id, subscriber.sid, e
+                    );
+                    subscribe_manager.add_not_push_client(subscriber.connect_id);
+                }
             }
-            Err(e) => {
-                debug!(
-                    "NATS queue send failed [connect_id={}, sid={}]: {}",
-                    subscriber.connect_id, subscriber.sid, e
-                );
-                subscribe_manager.add_not_push_client(subscriber.connect_id);
+        } else {
+            match send_share_group_message_to_other_broker(
+                subscriber,
+                record,
+                node_cache,
+                client_pool,
+            )
+            .await
+            {
+                Ok(()) => return Ok(true),
+                Err(e) => {
+                    warn!(
+                        "NATS queue remote send failed [broker_id={}, connect_id={}, sid={}]: {}",
+                        subscriber.broker_id, subscriber.connect_id, subscriber.sid, e
+                    );
+                    subscribe_manager.add_not_push_client(subscriber.connect_id);
+                }
             }
         }
     }

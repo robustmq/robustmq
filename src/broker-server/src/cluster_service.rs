@@ -13,15 +13,18 @@
 // limitations under the License.
 
 use crate::update_cache::update_cache;
+use metadata_struct::storage::record::StorageRecord;
 use mqtt_broker::{
     broker::MqttBrokerServerParams, core::inner::send_last_will_message_by_req,
     core::qos::get_qos_data_by_req,
 };
 use nats_broker::broker::NatsBrokerServerParams;
+use nats_broker::push::nats_fanout::send_packet;
 use protocol::broker::broker::{
     broker_service_server::BrokerService, GetQosDataByClientIdReply, GetQosDataByClientIdRequest,
     GetShardSegmentDeleteStatusReply, GetShardSegmentDeleteStatusRequest, SendLastWillMessageReply,
-    SendLastWillMessageRequest, ShardSegmentDeleteStatus, UpdateCacheReply, UpdateCacheRequest,
+    SendLastWillMessageRequest, SendNatsShareGroupMessageReply, SendNatsShareGroupMessageRequest,
+    ShardSegmentDeleteStatus, UpdateCacheReply, UpdateCacheRequest,
 };
 use storage_engine::core::{segment::segment_already_delete, shard::shard_already_delete};
 use storage_engine::StorageEngineParams;
@@ -132,5 +135,34 @@ impl BrokerService for GrpcBrokerService {
         }
 
         Ok(Response::new(GetShardSegmentDeleteStatusReply { results }))
+    }
+
+    async fn send_nats_share_group_message(
+        &self,
+        request: Request<SendNatsShareGroupMessageRequest>,
+    ) -> Result<Response<SendNatsShareGroupMessageReply>, Status> {
+        let req = request.into_inner();
+        if let Some(subscribe) = self
+            .nats_params
+            .subscribe_manager
+            .get_subscribe(req.connect_id, &req.sid)
+        {
+            let record =
+                StorageRecord::decode(&req.record).map_err(|e| Status::internal(e.to_string()))?;
+            send_packet(
+                &self.nats_params.connection_manager,
+                subscribe.connect_id,
+                &subscribe.subject,
+                &subscribe.sid,
+                &record,
+            )
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+            return Ok(Response::new(SendNatsShareGroupMessageReply {}));
+        }
+        Err(Status::not_found(format!(
+            "subscriber not found: connect_id={}, sid={}",
+            req.connect_id, req.sid
+        )))
     }
 }

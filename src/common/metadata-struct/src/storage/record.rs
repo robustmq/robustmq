@@ -13,7 +13,11 @@
 // limitations under the License.
 
 use bytes::Bytes;
-use common_base::{tools::now_second, utils::crc::calc_crc32};
+use common_base::{
+    error::common::CommonError,
+    tools::now_second,
+    utils::{crc::calc_crc32, serialize},
+};
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use serde::{Deserialize, Serialize};
 
@@ -149,6 +153,16 @@ pub struct StorageRecord {
     pub metadata: StorageRecordMetadata,
     pub protocol_data: Option<StorageRecordProtocolData>,
     pub data: Bytes,
+}
+
+impl StorageRecord {
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        serialize::serialize(self)
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, CommonError> {
+        serialize::deserialize(data)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]

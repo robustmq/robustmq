@@ -57,6 +57,8 @@ pub struct NatsSubscribeManager {
     pub mq9_fanout_push: NatsBucketsManager,
     /// MQ9 queue-group push buckets (key: `{tenant}#{queue_group}#{subject}`).
     pub mq9_queue_push: DashMap<String, NatsBucketsManager>,
+    /// Running MQ9 queue-group push tasks; value is the per-task runtime info.
+    pub mq9_queue_push_thread: DashMap<String, Arc<QueuePushThreadInfo>>,
 
     pub not_push_client: DashMap<u64, u64>,
     parse_sender: Arc<RwLock<Option<Sender<ParseSubscribeData>>>>,
@@ -71,6 +73,7 @@ impl NatsSubscribeManager {
             nats_core_queue_push_thread: DashMap::with_capacity(16),
             mq9_fanout_push: NatsBucketsManager::new(),
             mq9_queue_push: DashMap::with_capacity(16),
+            mq9_queue_push_thread: DashMap::with_capacity(16),
             not_push_client: DashMap::with_capacity(32),
             parse_sender: Arc::new(RwLock::new(None)),
         }

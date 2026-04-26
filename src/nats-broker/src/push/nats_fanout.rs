@@ -167,9 +167,16 @@ impl FanoutPushManager {
 
         let mut pushed = 0;
         for record in &records {
-            match send_packet(&self.connection_manager, subscriber, record).await {
-                Ok(true) => pushed += 1,
-                Ok(false) => {}
+            match send_packet(
+                &self.connection_manager,
+                subscriber.connect_id,
+                &subscriber.subject,
+                &subscriber.sid,
+                record,
+            )
+            .await
+            {
+                Ok(()) => pushed += 1,
                 Err(NatsBrokerError::ConnectionNotFound(_)) => {
                     return Err(NatsBrokerError::ConnectionNotFound(subscriber.connect_id));
                 }
@@ -189,11 +196,11 @@ impl FanoutPushManager {
 
 pub async fn send_packet(
     connection_manager: &Arc<ConnectionManager>,
-    subscriber: &NatsSubscriber,
+    connect_id: u64,
+    subject: &str,
+    sid: &str,
     record: &StorageRecord,
-) -> Result<bool, NatsBrokerError> {
-    let connect_id = subscriber.connect_id;
-
+) -> Result<(), NatsBrokerError> {
     if connection_manager.get_connect(connect_id).is_none() {
         return Err(NatsBrokerError::ConnectionNotFound(connect_id));
     }
@@ -202,16 +209,16 @@ pub async fn send_packet(
 
     let packet = if let Some(headers) = headers {
         NatsPacket::HMsg {
-            subject: subscriber.subject.clone(),
-            sid: subscriber.sid.clone(),
+            subject: subject.to_string(),
+            sid: sid.to_string(),
             reply_to,
             headers,
             payload: Bytes::copy_from_slice(&record.data),
         }
     } else {
         NatsPacket::Msg {
-            subject: subscriber.subject.clone(),
-            sid: subscriber.sid.clone(),
+            subject: subject.to_string(),
+            sid: sid.to_string(),
             reply_to,
             payload: Bytes::copy_from_slice(&record.data),
         }
@@ -219,7 +226,7 @@ pub async fn send_packet(
 
     crate::core::write_client::write_nats_packet(connection_manager, connect_id, packet).await?;
 
-    Ok(true)
+    Ok(())
 }
 
 fn extract_nats_meta(record: &StorageRecord) -> (Option<String>, Option<Bytes>) {

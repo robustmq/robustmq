@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
+use grpc_clients::pool::ClientPool;
 pub use manager::NatsSubscribeManager;
 use network_server::common::connection_manager::ConnectionManager;
 use std::sync::Arc;
@@ -21,7 +23,10 @@ use tokio::sync::broadcast;
 
 use crate::{
     core::cache::NatsCacheManager,
-    push::{parse::start_subscribe_parse_thread, thread::start_sub_push_thread},
+    push::{
+        parse::start_subscribe_parse_thread,
+        thread::{start_sub_push_thread, SubPushThreadParams},
+    },
 };
 pub mod buckets;
 pub mod common;
@@ -33,30 +38,37 @@ pub mod nats_queue;
 pub mod parse;
 pub mod thread;
 
-#[allow(clippy::too_many_arguments)]
-pub async fn start_sub_task(
-    subscribe_manager: &Arc<NatsSubscribeManager>,
-    cache_manager: Arc<NatsCacheManager>,
-    client_pool: Arc<grpc_clients::pool::ClientPool>,
-    connection_manager: Arc<ConnectionManager>,
-    storage_driver_manager: Arc<StorageDriverManager>,
-    task_supervisor: Arc<TaskSupervisor>,
-    push_thread_num: usize,
-    stop_sx: broadcast::Sender<bool>,
-) {
-    // parse thread
-    start_subscribe_parse_thread(subscribe_manager, cache_manager, &task_supervisor, &stop_sx)
-        .await;
+pub struct SubTaskParams {
+    pub cache_manager: Arc<NatsCacheManager>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub node_cache: Arc<NodeCacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub task_supervisor: Arc<TaskSupervisor>,
+    pub push_thread_num: usize,
+    pub stop_sx: broadcast::Sender<bool>,
+}
 
-    // push thread
+pub async fn start_sub_task(subscribe_manager: &Arc<NatsSubscribeManager>, p: SubTaskParams) {
+    start_subscribe_parse_thread(
+        subscribe_manager,
+        p.cache_manager,
+        &p.task_supervisor,
+        &p.stop_sx,
+    )
+    .await;
+
     start_sub_push_thread(
         subscribe_manager,
-        client_pool,
-        connection_manager,
-        storage_driver_manager,
-        task_supervisor,
-        push_thread_num,
-        stop_sx,
+        SubPushThreadParams {
+            connection_manager: p.connection_manager,
+            storage_driver_manager: p.storage_driver_manager,
+            node_cache: p.node_cache,
+            client_pool: p.client_pool,
+            task_supervisor: p.task_supervisor,
+            push_thread_num: p.push_thread_num,
+            stop_sx: p.stop_sx,
+        },
     )
     .await;
 }

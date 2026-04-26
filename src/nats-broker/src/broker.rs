@@ -14,7 +14,7 @@
 
 use crate::{
     core::{cache::NatsCacheManager, keep_alive::NatsClientKeepAlive},
-    push::{manager::NatsSubscribeManager, start_sub_task},
+    push::{manager::NatsSubscribeManager, start_sub_task, SubTaskParams},
     server::{NatsServer, NatsServerParams},
 };
 use broker_core::cache::NodeCacheManager;
@@ -111,13 +111,16 @@ impl NatsBrokerServer {
 
         start_sub_task(
             &self.subscribe_manager,
-            self.cache_manager.clone(),
-            self.client_pool.clone(),
-            self.connection_manager.clone(),
-            self.storage_driver_manager.clone(),
-            self.task_supervisor.clone(),
-            conf.nats_runtime.push_thread_num,
-            self.stop_sx.clone(),
+            SubTaskParams {
+                cache_manager: self.cache_manager.clone(),
+                connection_manager: self.connection_manager.clone(),
+                storage_driver_manager: self.storage_driver_manager.clone(),
+                node_cache: self.cache_manager.node_cache.clone(),
+                client_pool: self.client_pool.clone(),
+                task_supervisor: self.task_supervisor.clone(),
+                push_thread_num: conf.nats_runtime.push_thread_num,
+                stop_sx: self.stop_sx.clone(),
+            },
         )
         .await;
 

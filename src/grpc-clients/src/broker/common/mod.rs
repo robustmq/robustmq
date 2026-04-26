@@ -17,7 +17,8 @@ use protocol::broker::broker::{
     broker_service_client::BrokerServiceClient, GetQosDataByClientIdReply,
     GetQosDataByClientIdRequest, GetShardSegmentDeleteStatusReply,
     GetShardSegmentDeleteStatusRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
-    UpdateCacheReply, UpdateCacheRequest,
+    SendNatsShareGroupMessageReply, SendNatsShareGroupMessageRequest, UpdateCacheReply,
+    UpdateCacheRequest,
 };
 use tonic::transport::Channel;
 
@@ -57,4 +58,13 @@ impl_retriable_request!(
     get_shard_segment_delete_status,
     "BrokerService",
     "GetShardSegmentDeleteStatus"
+);
+
+impl_retriable_request!(
+    SendNatsShareGroupMessageRequest,
+    BrokerServiceClient<Channel>,
+    SendNatsShareGroupMessageReply,
+    send_nats_share_group_message,
+    "BrokerService",
+    "SendNatsShareGroupMessage"
 );

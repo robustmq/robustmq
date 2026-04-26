@@ -200,7 +200,7 @@ impl Mq9FanoutPushManager {
     }
 }
 
-async fn send_mq9_packet(
+pub async fn send_mq9_packet(
     connection_manager: &Arc<ConnectionManager>,
     subscriber: &NatsSubscriber,
     record: &StorageRecord,

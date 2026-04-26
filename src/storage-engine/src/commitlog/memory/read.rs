@@ -31,7 +31,7 @@ impl MemoryStorageEngine {
 
         let mut records = Vec::with_capacity(read_config.max_record_num as usize);
         let mut total_size = 0;
-        let end_offset = start_offset.saturating_add(read_config.max_record_num);
+        let end_offset = self.commit_log_offset.get_latest_offset(shard)?;
         for current_offset in start_offset..end_offset {
             let Some(record) = shard_state.data.get(&current_offset) else {
                 continue;
