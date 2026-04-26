@@ -139,39 +139,43 @@ pub async fn share_group_detail(
     // We don't know the subject here, so we match by prefix "{tenant}#{group_name}#"
     let queue_key_prefix = format!("{}#{}#", params.tenant, params.group_name);
 
-    let (push_subscribers, push_thread_info) =
-        if let Some(nats_ctx) = &state.nats_context {
-            let sm = &nats_ctx.subscribe_manager;
+    let (push_subscribers, push_thread_info) = if let Some(nats_ctx) = &state.nats_context {
+        let sm = &nats_ctx.subscribe_manager;
 
-            let subscribers: Vec<NatsSubscriber> = sm
-                .nats_core_queue_push
-                .iter()
-                .filter(|e| e.key().starts_with(&queue_key_prefix))
-                .flat_map(|e| {
-                    e.value()
-                        .buckets_data_list
-                        .iter()
-                        .flat_map(|b| b.value().iter().map(|s| s.value().clone()).collect::<Vec<_>>())
-                        .collect::<Vec<_>>()
-                })
-                .collect();
+        let subscribers: Vec<NatsSubscriber> = sm
+            .nats_core_queue_push
+            .iter()
+            .filter(|e| e.key().starts_with(&queue_key_prefix))
+            .flat_map(|e| {
+                e.value()
+                    .buckets_data_list
+                    .iter()
+                    .flat_map(|b| {
+                        b.value()
+                            .iter()
+                            .map(|s| s.value().clone())
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
 
-            let thread_info = sm
-                .nats_core_queue_push_thread
-                .iter()
-                .find(|e| e.key().starts_with(&queue_key_prefix))
-                .map(|e| {
-                    let info = e.value();
-                    QueuePushThreadInfoView {
-                        total_pushed: *info.total_pushed.lock().unwrap(),
-                        last_pull_time: *info.last_pull_time.lock().unwrap(),
-                    }
-                });
+        let thread_info = sm
+            .nats_core_queue_push_thread
+            .iter()
+            .find(|e| e.key().starts_with(&queue_key_prefix))
+            .map(|e| {
+                let info = e.value();
+                QueuePushThreadInfoView {
+                    total_pushed: *info.total_pushed.lock().unwrap(),
+                    last_pull_time: *info.last_pull_time.lock().unwrap(),
+                }
+            });
 
-            (subscribers, thread_info)
-        } else {
-            (vec![], None)
-        };
+        (subscribers, thread_info)
+    } else {
+        (vec![], None)
+    };
 
     success_response(ShareGroupDetailResp {
         group,

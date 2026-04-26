@@ -73,8 +73,7 @@ mod tests {
             tenant: DEFAULT_TENANT.to_string(),
             group_name: queue_group.clone(),
         };
-        let detail: ShareGroupDetailResp =
-            admin.get_share_group_detail(&detail_req).await.unwrap();
+        let detail: ShareGroupDetailResp = admin.get_share_group_detail(&detail_req).await.unwrap();
         println!("[after sleep] share group detail: {:#?}", detail);
 
         // publish 6 messages after subscribers are stable
@@ -115,12 +114,17 @@ mod tests {
         let mut all: Vec<_> = r1.iter().chain(r2.iter()).chain(r3.iter()).collect();
         all.sort();
         all.dedup();
-        assert_eq!(all.len(), 7, "expected 7 unique messages, got {}", all.len());
+        assert_eq!(
+            all.len(),
+            7,
+            "expected 7 unique messages, got {}",
+            all.len()
+        );
 
         // each subscriber should receive at least 1 message (roughly balanced: 2~3 each)
-        assert!(r1.len() >= 1, "sub1 received nothing");
-        assert!(r2.len() >= 1, "sub2 received nothing");
-        assert!(r3.len() >= 1, "sub3 received nothing");
+        assert!(!r1.is_empty(), "sub1 received nothing");
+        assert!(!r2.is_empty(), "sub2 received nothing");
+        assert!(!r3.is_empty(), "sub3 received nothing");
 
         // verify share group exists via admin API
         let admin = admin_client();
@@ -147,8 +151,7 @@ mod tests {
             tenant: DEFAULT_TENANT.to_string(),
             group_name: queue_group.clone(),
         };
-        let detail: ShareGroupDetailResp =
-            admin.get_share_group_detail(&detail_req).await.unwrap();
+        let detail: ShareGroupDetailResp = admin.get_share_group_detail(&detail_req).await.unwrap();
         println!("share group detail: {:#?}", detail);
 
         assert_eq!(
