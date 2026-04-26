@@ -65,9 +65,9 @@ fn build_mail(payload: &Bytes) -> Result<MQ9Mail, NatsBrokerError> {
         match params.prefix {
             Some(ref prefix) => {
                 validate_prefix(prefix)?;
-                format!("{}.{}.{}", prefix, unique_id(), unique_id())
+                format!("{}@{}.{}", prefix, unique_id(), unique_id())
             }
-            None => format!("mail.id.{}.{}", unique_id(), unique_id()),
+            None => format!("mail@{}.{}", unique_id(), unique_id()),
         }
     };
 
