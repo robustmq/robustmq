@@ -91,7 +91,11 @@ pub async fn create_share_group_by_req(
     let target_broker_id =
         generate_group_leader(cache_manager, rocksdb_engine_handler, &req.tenant).await?;
 
-    let sub_params = ShareGroupParams::decode(&req.params)?;
+    let sub_params = if req.params.is_empty() {
+        ShareGroupParams::default()
+    } else {
+        ShareGroupParams::decode(&req.params)?
+    };
 
     let leader = ShareGroup {
         uuid: unique_id(),
@@ -146,7 +150,7 @@ pub async fn add_share_group_member_by_req(
         let create_req = CreateShareGroupRequest {
             tenant: member.tenant.clone(),
             group: member.group_name.clone(),
-            params: vec![],
+            params: member.params.encode()?,
         };
         create_share_group_by_req(
             cache_manager,

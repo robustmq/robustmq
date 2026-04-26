@@ -35,11 +35,9 @@ use nats_broker::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource}
 use nats_broker::{
     broker::NatsBrokerServerParams, core::dynamic_cache::update_nats_cache_metadata,
 };
-use prost::Message;
 use protocol::broker::broker::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
 };
-use protocol::meta::meta_service_common::AddShareGroupMemberRequest;
 use std::str::FromStr;
 use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
 
@@ -306,9 +304,7 @@ pub async fn update_cluster_cache_metadata(
 
         BrokerUpdateCacheResourceType::ShareGroupMember => match record.action_type() {
             BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
-                let req = AddShareGroupMemberRequest::decode(record.data.as_slice())
-                    .map_err(|e| CommonError::CommonError(e.to_string()))?;
-                let member: ShareGroupMember = serialize::deserialize(&req.data)?;
+                let member: ShareGroupMember = serialize::deserialize(&record.data)?;
                 nats_params.broker_cache.add_share_group_member(&member);
                 // member is also a subscription
                 nats_params
