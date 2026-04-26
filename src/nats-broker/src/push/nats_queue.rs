@@ -190,7 +190,10 @@ impl QueuePushManager {
                         queue_key
                     );
                 }
-                Err(e) => warn!("NATS queue send error [{}]: {}", queue_key, e),
+                Err(e) => {
+                    all_delivered = false;
+                    warn!("NATS queue send error [{}]: {}", queue_key, e);
+                }
             }
         }
 
