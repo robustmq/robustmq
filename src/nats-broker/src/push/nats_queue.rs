@@ -140,6 +140,18 @@ impl QueuePushManager {
             .await
             .map_err(NatsBrokerError::from)?;
 
+        // update last_pull_time on every pull attempt regardless of result
+        if let Some(info) = self
+            .subscribe_manager
+            .nats_core_queue_push_thread
+            .get(&queue_key)
+        {
+            info.last_pull_time
+                .lock()
+                .map(|mut t| *t = common_base::tools::now_second())
+                .ok();
+        }
+
         if records.is_empty() {
             return Ok(0);
         }
@@ -177,7 +189,11 @@ impl QueuePushManager {
         }
 
         if pushed > 0 {
-            if let Some(info) = self.subscribe_manager.nats_core_queue_push_thread.get(&queue_key) {
+            if let Some(info) = self
+                .subscribe_manager
+                .nats_core_queue_push_thread
+                .get(&queue_key)
+            {
                 info.record_push(pushed as u64);
             }
         }
