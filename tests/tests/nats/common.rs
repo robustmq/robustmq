@@ -12,9 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod common;
-pub mod mq9_core;
-pub mod mq9_mail;
-pub mod mq9_priority;
-pub mod nats_core;
-pub mod nats_queue;
+use admin_server::client::AdminHttpClient;
+use async_nats::Client;
+
+pub const NATS_ADDR: &str = "nats://127.0.0.1:4222";
+pub const ADMIN_ADDR: &str = "http://127.0.0.1:8080";
+pub const DEFAULT_TENANT: &str = "default";
+
+pub async fn nats_connect() -> Client {
+    async_nats::connect(NATS_ADDR).await.unwrap()
+}
+
+pub fn admin_client() -> AdminHttpClient {
+    AdminHttpClient::new(ADMIN_ADDR)
+}
