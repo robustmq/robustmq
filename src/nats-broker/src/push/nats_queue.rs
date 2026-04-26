@@ -16,11 +16,16 @@ use crate::core::error::NatsBrokerError;
 use crate::push::common::{adaptive_sleep, should_stop, BATCH_SIZE};
 use crate::push::manager::NatsSubscribeManager;
 use crate::push::nats_fanout::send_packet;
+use broker_core::cache::NodeCacheManager;
+use common_base::error::common::CommonError;
+use common_config::broker::broker_config;
+use grpc_clients::broker::common::call::broker_send_nats_share_group_message;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::nats::subscriber::NatsSubscriber;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
+use protocol::broker::broker::SendNatsShareGroupMessageRequest;
 use std::sync::Arc;
 use storage_adapter::consumer::GroupConsumer;
 use storage_adapter::driver::StorageDriverManager;
@@ -28,10 +33,22 @@ use tokio::select;
 use tokio::sync::broadcast;
 use tracing::{debug, error, info, warn};
 
+pub struct QueuePushManagerParams {
+    pub subscribe_manager: Arc<NatsSubscribeManager>,
+    pub connection_manager: Arc<ConnectionManager>,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub node_cache: Arc<NodeCacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub tenant: String,
+    pub group_name: String,
+    pub subject: String,
+}
+
 pub struct QueuePushManager {
     subscribe_manager: Arc<NatsSubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
+    node_cache: Arc<NodeCacheManager>,
     client_pool: Arc<ClientPool>,
     tenant: String,
     group_name: String,
@@ -41,24 +58,16 @@ pub struct QueuePushManager {
 }
 
 impl QueuePushManager {
-    pub fn new(
-        subscribe_manager: Arc<NatsSubscribeManager>,
-        connection_manager: Arc<ConnectionManager>,
-        storage_driver_manager: Arc<StorageDriverManager>,
-        client_pool: Arc<ClientPool>,
-        tenant: String,
-        group_name: String,
-        subject: String,
-    ) -> Self {
-        println!("QueuePushManager.subject:{}", subject);
+    pub fn new(p: QueuePushManagerParams) -> Self {
         QueuePushManager {
-            subscribe_manager,
-            connection_manager,
-            storage_driver_manager,
-            client_pool,
-            tenant,
-            group_name,
-            subject,
+            subscribe_manager: p.subscribe_manager,
+            connection_manager: p.connection_manager,
+            storage_driver_manager: p.storage_driver_manager,
+            node_cache: p.node_cache,
+            client_pool: p.client_pool,
+            tenant: p.tenant,
+            group_name: p.group_name,
+            subject: p.subject,
             consumer: None,
             round_robin: 0,
         }
@@ -168,6 +177,7 @@ impl QueuePushManager {
                 start_idx,
                 &self.subscribe_manager,
                 &self.connection_manager,
+                &self.node_cache,
                 &self.client_pool,
             )
             .await
@@ -208,8 +218,10 @@ async fn round_robin_send(
     start_idx: usize,
     subscribe_manager: &Arc<NatsSubscribeManager>,
     connection_manager: &Arc<ConnectionManager>,
-    _client_pool: &Arc<ClientPool>,
+    node_cache: &Arc<NodeCacheManager>,
+    client_pool: &Arc<ClientPool>,
 ) -> Result<bool, NatsBrokerError> {
+    let conf = broker_config();
     for i in 0..subscribers.len() {
         let subscriber = &subscribers[(start_idx + i) % subscribers.len()];
 
@@ -217,25 +229,81 @@ async fn round_robin_send(
             continue;
         }
 
-        match send_packet(connection_manager, subscriber, record).await {
-            Ok(true) => return Ok(true),
-            Ok(false) => {}
-            Err(NatsBrokerError::ConnectionNotFound(_)) => {
-                warn!(
-                    "NATS queue subscriber gone: connect_id={} sid={}",
-                    subscriber.connect_id, subscriber.sid
-                );
-                subscribe_manager.add_not_push_client(subscriber.connect_id);
+        if conf.broker_id == subscriber.broker_id {
+            match send_packet(
+                connection_manager,
+                subscriber.connect_id,
+                &subscriber.subject,
+                &subscriber.sid,
+                record,
+            )
+            .await
+            {
+                Ok(()) => return Ok(true),
+                Err(NatsBrokerError::ConnectionNotFound(_)) => {
+                    warn!(
+                        "NATS queue subscriber gone: connect_id={} sid={}",
+                        subscriber.connect_id, subscriber.sid
+                    );
+                    subscribe_manager.add_not_push_client(subscriber.connect_id);
+                }
+                Err(e) => {
+                    debug!(
+                        "NATS queue send failed [connect_id={}, sid={}]: {}",
+                        subscriber.connect_id, subscriber.sid, e
+                    );
+                    subscribe_manager.add_not_push_client(subscriber.connect_id);
+                }
             }
-            Err(e) => {
-                debug!(
-                    "NATS queue send failed [connect_id={}, sid={}]: {}",
-                    subscriber.connect_id, subscriber.sid, e
-                );
-                subscribe_manager.add_not_push_client(subscriber.connect_id);
+        } else {
+            match send_share_group_message_to_other_broker(
+                subscriber,
+                record,
+                node_cache,
+                client_pool,
+            )
+            .await
+            {
+                Ok(()) => return Ok(true),
+                Err(e) => {
+                    warn!(
+                        "NATS queue remote send failed [broker_id={}, connect_id={}, sid={}]: {}",
+                        subscriber.broker_id, subscriber.connect_id, subscriber.sid, e
+                    );
+                    subscribe_manager.add_not_push_client(subscriber.connect_id);
+                }
             }
         }
     }
 
     Ok(false)
+}
+
+async fn send_share_group_message_to_other_broker(
+    subscriber: &NatsSubscriber,
+    record: &StorageRecord,
+    node_cache: &Arc<NodeCacheManager>,
+    client_pool: &Arc<ClientPool>,
+) -> Result<(), CommonError> {
+    let node = node_cache
+        .node_lists
+        .get(&subscriber.broker_id)
+        .ok_or_else(|| {
+            CommonError::CommonError(format!(
+                "broker node not found: broker_id={}",
+                subscriber.broker_id
+            ))
+        })?;
+    let addr = node.grpc_addr.clone();
+    drop(node);
+
+    let record_bytes = record.encode()?;
+    let request = SendNatsShareGroupMessageRequest {
+        connect_id: subscriber.connect_id,
+        sid: subscriber.sid.clone(),
+        record: record_bytes,
+    };
+
+    broker_send_nats_share_group_message(client_pool, &[addr], request).await?;
+    Ok(())
 }

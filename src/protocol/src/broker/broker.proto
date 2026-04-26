@@ -22,6 +22,7 @@ service BrokerService {
   rpc SendLastWillMessage(SendLastWillMessageRequest) returns (SendLastWillMessageReply) {}
   rpc GetQosDataByClientId(GetQosDataByClientIdRequest) returns (GetQosDataByClientIdReply) {}
   rpc GetShardSegmentDeleteStatus(GetShardSegmentDeleteStatusRequest) returns (GetShardSegmentDeleteStatusReply) {}
+  rpc SendNatsShareGroupMessage(SendNatsShareGroupMessageRequest) returns (SendNatsShareGroupMessageReply) {}
 }
 
 message UpdateCacheRequest {
@@ -80,6 +81,14 @@ message ShardSegmentDeleteStatus {
 message GetShardSegmentDeleteStatusReply {
   repeated ShardSegmentDeleteStatus results = 1;
 }
+
+message SendNatsShareGroupMessageRequest {
+  uint64 connect_id = 1;
+  string sid = 2;
+  bytes record = 3;
+}
+
+message SendNatsShareGroupMessageReply {}
 
 enum BrokerUpdateCacheResourceType {
   Session = 0;

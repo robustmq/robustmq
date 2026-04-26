@@ -15,52 +15,60 @@
 use crate::push::manager::QueuePushThreadInfo;
 use crate::push::mq9_fanout::Mq9FanoutPushManager;
 use crate::push::nats_fanout::FanoutPushManager;
-use crate::push::nats_queue::QueuePushManager;
+use crate::push::nats_queue::{QueuePushManager, QueuePushManagerParams};
 use crate::push::NatsSubscribeManager;
+use broker_core::cache::NodeCacheManager;
 use common_base::error::ResultCommonError;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::tools::loop_select_ticket;
 use common_base::uuid::unique_id;
+use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
 use tracing::{info, warn};
 
+pub(crate) struct SubPushThreadParams {
+    pub connection_manager: Arc<ConnectionManager>,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub node_cache: Arc<NodeCacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub task_supervisor: Arc<TaskSupervisor>,
+    pub push_thread_num: usize,
+    pub stop_sx: broadcast::Sender<bool>,
+}
+
 pub(crate) async fn start_sub_push_thread(
     subscribe_manager: &Arc<NatsSubscribeManager>,
-    client_pool: Arc<grpc_clients::pool::ClientPool>,
-    connection_manager: Arc<ConnectionManager>,
-    storage_driver_manager: Arc<StorageDriverManager>,
-    task_supervisor: Arc<TaskSupervisor>,
-    push_thread_num: usize,
-    stop_sx: broadcast::Sender<bool>,
+    p: SubPushThreadParams,
 ) {
     start_nats_core_fanout_push_threads(
         subscribe_manager,
-        &connection_manager,
-        &storage_driver_manager,
-        &task_supervisor,
-        push_thread_num,
-        &stop_sx,
+        &p.connection_manager,
+        &p.storage_driver_manager,
+        &p.task_supervisor,
+        p.push_thread_num,
+        &p.stop_sx,
     );
 
     start_mq9_fanout_push_threads(
         subscribe_manager,
-        &connection_manager,
-        &storage_driver_manager,
-        &task_supervisor,
-        push_thread_num,
-        &stop_sx,
+        &p.connection_manager,
+        &p.storage_driver_manager,
+        &p.task_supervisor,
+        p.push_thread_num,
+        &p.stop_sx,
     );
 
     start_nats_queue_push_watcher(
         subscribe_manager,
-        connection_manager,
-        storage_driver_manager,
-        client_pool,
-        &task_supervisor,
-        stop_sx,
+        p.connection_manager,
+        p.storage_driver_manager,
+        p.node_cache,
+        p.client_pool,
+        &p.task_supervisor,
+        p.stop_sx,
     );
 }
 
@@ -126,7 +134,8 @@ fn start_nats_queue_push_watcher(
     subscribe_manager: &Arc<NatsSubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
-    client_pool: Arc<grpc_clients::pool::ClientPool>,
+    node_cache: Arc<NodeCacheManager>,
+    client_pool: Arc<ClientPool>,
     task_supervisor: &Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
 ) {
@@ -137,6 +146,7 @@ fn start_nats_queue_push_watcher(
             sm,
             connection_manager,
             storage_driver_manager,
+            node_cache,
             client_pool,
             sup,
             stop_sx,
@@ -149,7 +159,8 @@ async fn nats_core_queue_push_thread(
     subscribe_manager: Arc<NatsSubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
-    client_pool: Arc<grpc_clients::pool::ClientPool>,
+    node_cache: Arc<NodeCacheManager>,
+    client_pool: Arc<ClientPool>,
     task_supervisor: Arc<TaskSupervisor>,
     stop_sx: broadcast::Sender<bool>,
 ) {
@@ -159,6 +170,7 @@ async fn nats_core_queue_push_thread(
             &subscribe_manager,
             &connection_manager,
             &storage_driver_manager,
+            &node_cache,
             &client_pool,
             &task_supervisor,
         );
@@ -195,7 +207,8 @@ fn start_new_queue_group_tasks(
     subscribe_manager: &Arc<NatsSubscribeManager>,
     connection_manager: &Arc<ConnectionManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
-    client_pool: &Arc<grpc_clients::pool::ClientPool>,
+    node_cache: &Arc<NodeCacheManager>,
+    client_pool: &Arc<ClientPool>,
     task_supervisor: &Arc<TaskSupervisor>,
 ) {
     for entry in subscribe_manager.nats_core_queue_push.iter() {
@@ -221,15 +234,16 @@ fn start_new_queue_group_tasks(
             .nats_core_queue_push_thread
             .insert(queue_key.clone(), thread_info.clone());
 
-        let mut mgr = QueuePushManager::new(
-            subscribe_manager.clone(),
-            connection_manager.clone(),
-            storage_driver_manager.clone(),
-            client_pool.clone(),
+        let mut mgr = QueuePushManager::new(QueuePushManagerParams {
+            subscribe_manager: subscribe_manager.clone(),
+            connection_manager: connection_manager.clone(),
+            storage_driver_manager: storage_driver_manager.clone(),
+            node_cache: node_cache.clone(),
+            client_pool: client_pool.clone(),
             tenant,
             group_name,
             subject,
-        );
+        });
         task_supervisor.spawn(
             format!("{}_{}", TaskKind::NATSQueuePush, queue_key),
             async move { mgr.start(&task_stop_sx).await },
