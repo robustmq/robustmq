@@ -37,9 +37,13 @@ jobs:
       pull-requests: write # required to add labels to pull requests
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
       - name: Run Issue PR Labeler
         uses: hoho4190/issue-pr-labeler@v3.1.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file-path: .github/labeler-config.yml
-          config-file-ref: main
