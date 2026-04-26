@@ -58,7 +58,7 @@ mod tests {
         // wait for all three subscribers to be registered and push tasks to start
         sleep(Duration::from_secs(10)).await;
 
-        // print share group and detail after sleep to verify subscriber state
+        // verify subscriber state after sleep
         let admin = admin_client();
         let list_req = ShareGroupListReq {
             tenant: Some(DEFAULT_TENANT.to_string()),
@@ -68,6 +68,12 @@ mod tests {
         let group_list: PageReplyData<Vec<ShareGroup>> =
             admin.get_share_group_list(&list_req).await.unwrap();
         println!("[after sleep] share group list: {:#?}", group_list);
+        assert_eq!(
+            group_list.data.len(),
+            1,
+            "[after sleep] expected 1 share group"
+        );
+        assert_eq!(group_list.data[0].group_name, queue_group);
 
         let detail_req = ShareGroupDetailReq {
             tenant: DEFAULT_TENANT.to_string(),
@@ -75,6 +81,22 @@ mod tests {
         };
         let detail: ShareGroupDetailResp = admin.get_share_group_detail(&detail_req).await.unwrap();
         println!("[after sleep] share group detail: {:#?}", detail);
+        assert_eq!(
+            detail.members.len(),
+            3,
+            "[after sleep] expected 3 members, got {}",
+            detail.members.len()
+        );
+        assert_eq!(
+            detail.push_subscribers.len(),
+            3,
+            "[after sleep] expected 3 push_subscribers, got {}",
+            detail.push_subscribers.len()
+        );
+        assert!(
+            detail.push_thread_info.is_some(),
+            "[after sleep] push thread not running"
+        );
 
         // publish 6 messages after subscribers are stable
         for i in 0..6u32 {
@@ -121,10 +143,15 @@ mod tests {
             all.len()
         );
 
-        // each subscriber should receive at least 1 message (roughly balanced: 2~3 each)
-        assert!(!r1.is_empty(), "sub1 received nothing");
-        assert!(!r2.is_empty(), "sub2 received nothing");
-        assert!(!r3.is_empty(), "sub3 received nothing");
+        // distribution must be [2, 2, 3] in any order
+        let mut counts = [r1.len(), r2.len(), r3.len()];
+        counts.sort();
+        assert_eq!(
+            counts,
+            [2, 2, 3],
+            "expected distribution [2,2,3], got {:?}",
+            counts
+        );
 
         // verify share group exists via admin API
         let admin = admin_client();
@@ -145,25 +172,5 @@ mod tests {
         );
         assert_eq!(group_list.data[0].group_name, queue_group);
         assert_eq!(group_list.data[0].tenant, DEFAULT_TENANT);
-
-        // verify share group detail: 3 members
-        let detail_req = ShareGroupDetailReq {
-            tenant: DEFAULT_TENANT.to_string(),
-            group_name: queue_group.clone(),
-        };
-        let detail: ShareGroupDetailResp = admin.get_share_group_detail(&detail_req).await.unwrap();
-        println!("share group detail: {:#?}", detail);
-
-        assert_eq!(
-            detail.members.len(),
-            3,
-            "expected 3 members, got {}",
-            detail.members.len()
-        );
-        for member in &detail.members {
-            assert_eq!(member.tenant, DEFAULT_TENANT);
-            assert_eq!(member.group_name, queue_group);
-            assert_eq!(member.sub_path, subject);
-        }
     }
 }

@@ -118,7 +118,6 @@ impl QueuePushManager {
         let Some(subs) = self.active_subscribers(&queue_key) else {
             return Err(NatsBrokerError::QueueGroupEmpty(queue_key));
         };
-        println!("subs:{:?}", subs.len());
         if subs.is_empty() {
             return Ok(0);
         }
