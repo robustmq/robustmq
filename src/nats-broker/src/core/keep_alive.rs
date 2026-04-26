@@ -13,8 +13,10 @@
 // limitations under the License.
 
 use crate::core::cache::NatsCacheManager;
+use crate::core::queue_name::delete_member_by_group;
 use crate::core::write_client::write_nats_packet;
 use crate::push::manager::NatsSubscribeManager;
+use crate::storage::subscribe::NatsSubscribeStorage;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use common_config::broker::broker_config;
@@ -25,9 +27,7 @@ use std::time::Duration;
 use tokio::sync::broadcast;
 use tracing::{debug, warn};
 
-/// Per-connection timeout for sending a single PING frame.
 const PING_SEND_TIMEOUT: Duration = Duration::from_secs(1);
-/// Per-connection timeout for sending the -ERR frame before closing.
 const ERR_SEND_TIMEOUT: Duration = Duration::from_secs(1);
 
 #[derive(Clone)]
@@ -59,23 +59,17 @@ impl NatsClientKeepAlive {
 
     async fn tick(&self) -> ResultCommonError {
         let conf = broker_config();
-
-        let alive_ids = self
-            .close_stale_connections(conf.nats_runtime.ping_interval * conf.nats_runtime.ping_max)
-            .await;
-
-        self.send_ping_to_alive(
+        let timeout = conf.nats_runtime.ping_interval * conf.nats_runtime.ping_max;
+        let alive_ids = self.close_stale_connections(timeout).await;
+        self.ping_alive_connections(
             &alive_ids,
             conf.nats_runtime.ping_send_chunk,
             conf.nats_runtime.ping_interval,
         )
         .await;
-
         Ok(())
     }
 
-    /// Returns the subset of NATS connections that are still active.
-    /// Timed-out connections are closed in place.
     async fn close_stale_connections(&self, timeout_threshold: u64) -> Vec<u64> {
         let now = now_second();
         let mut alive_ids = Vec::new();
@@ -99,28 +93,67 @@ impl NatsClientKeepAlive {
             }
         }
 
-        // Close all stale connections in a single background task (fire and forget).
-        if !stale_ids.is_empty() {
-            for connect_id in stale_ids {
-                close_stale_connection(&self.connection_manager, connect_id).await;
-                self.cache_manager.remove_connection(connect_id);
-                self.subscribe_manager.remove_by_connection(connect_id);
-            }
+        for connect_id in stale_ids {
+            self.close_and_cleanup(connect_id).await;
         }
 
         alive_ids
     }
 
-    /// Sends PING to all alive connections in parallel chunks.
-    /// Waits for all chunk tasks with a total timeout of `ping_interval / 2`.
-    async fn send_ping_to_alive(&self, alive_ids: &[u64], chunk_size: usize, ping_interval: u64) {
+    async fn close_and_cleanup(&self, connect_id: u64) {
+        // close network connection
+        send_err_and_close(&self.connection_manager, connect_id).await;
+
+        // remove connection cache
+        self.cache_manager.remove_connection(connect_id);
+
+        // remove fanout subscribe
+        self.subscribe_manager
+            .remove_fanout_by_connection(connect_id);
+
+        // remove queue name subscribe
+        self.cleanup_queue_name_subscriptions(connect_id).await;
+    }
+
+    async fn cleanup_queue_name_subscriptions(&self, connect_id: u64) {
+        let conf = broker_config();
+        let storage = NatsSubscribeStorage::new(self.cache_manager.client_pool.clone());
+        let subscribes = self
+            .subscribe_manager
+            .list_subscribes_by_connection(connect_id);
+
+        for sub in subscribes {
+            if let Err(e) = storage.delete(conf.broker_id, connect_id, &sub.sid).await {
+                warn!(connect_id, sid = %sub.sid, "Failed to delete subscribe: {}", e);
+            }
+            if sub.queue_group.is_some() {
+                if let Err(e) = delete_member_by_group(
+                    &self.cache_manager.client_pool,
+                    conf.broker_id,
+                    connect_id,
+                    &sub.sid,
+                )
+                .await
+                {
+                    warn!(connect_id, sid = %sub.sid, "Failed to delete share group member: {}", e);
+                }
+            }
+        }
+    }
+
+    async fn ping_alive_connections(
+        &self,
+        alive_ids: &[u64],
+        chunk_size: usize,
+        ping_interval: u64,
+    ) {
         let mut handles = Vec::new();
         for chunk in alive_ids.chunks(chunk_size) {
             let chunk: Vec<u64> = chunk.to_vec();
             let cm = self.connection_manager.clone();
             handles.push(tokio::spawn(async move {
                 for connect_id in chunk {
-                    send_ping_to_connection(&cm, connect_id).await;
+                    send_ping(&cm, connect_id).await;
                 }
             }));
         }
@@ -141,20 +174,17 @@ impl NatsClientKeepAlive {
     }
 }
 
-/// Best-effort: send -ERR to the connection according to its type, then close it.
-async fn close_stale_connection(cm: &Arc<ConnectionManager>, connect_id: u64) {
-    let send_fut = crate::core::write_client::write_nats_packet(
+async fn send_err_and_close(cm: &Arc<ConnectionManager>, connect_id: u64) {
+    let send_fut = write_nats_packet(
         cm,
         connect_id,
         NatsPacket::Err("Stale Connection".to_string()),
     );
-
     match tokio::time::timeout(ERR_SEND_TIMEOUT, send_fut).await {
         Ok(Ok(())) => {}
         Ok(Err(e)) => debug!(connect_id, "Failed to send -ERR: {}", e),
         Err(_) => warn!(connect_id, "Timed out sending -ERR on stale connection"),
     }
-
     cm.close_connect(connect_id).await;
     debug!(
         connect_id,
@@ -162,9 +192,8 @@ async fn close_stale_connection(cm: &Arc<ConnectionManager>, connect_id: u64) {
     );
 }
 
-async fn send_ping_to_connection(cm: &Arc<ConnectionManager>, connect_id: u64) {
+async fn send_ping(cm: &Arc<ConnectionManager>, connect_id: u64) {
     let send_fut = write_nats_packet(cm, connect_id, NatsPacket::Ping);
-
     match tokio::time::timeout(PING_SEND_TIMEOUT, send_fut).await {
         Ok(Ok(())) => debug!(connect_id, "Sent PING to NATS connection"),
         Ok(Err(e)) => debug!(connect_id, "Failed to send PING: {}", e),

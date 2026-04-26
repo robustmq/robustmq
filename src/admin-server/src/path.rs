@@ -122,6 +122,10 @@ pub const TENANT_CREATE_PATH: &str = "/cluster/tenant/create";
 pub const TENANT_UPDATE_PATH: &str = "/cluster/tenant/update";
 pub const TENANT_DELETE_PATH: &str = "/cluster/tenant/delete";
 
+// Cluster Share Group API paths
+pub const CLUSTER_SHARE_GROUP_LIST_PATH: &str = "/cluster/share-group/list";
+pub const CLUSTER_SHARE_GROUP_DETAIL_PATH: &str = "/cluster/share-group/detail";
+
 // ── /mq9 ─────────────────────────────────────────────────────────────────────
 
 pub const MQ9_MAIL_LIST_PATH: &str = "/mq9/mail/list";

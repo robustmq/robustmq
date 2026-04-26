@@ -94,7 +94,7 @@ impl NatsBucketsManager {
             .or_default()
             .insert(seq);
 
-        let sid_key = sid_key(subscriber.connect_id, &subscriber.sid);
+        let sid_key = sid_key(subscriber.broker_id, subscriber.connect_id, &subscriber.sid);
         self.connect_id_sid_sub
             .entry(sid_key)
             .or_default()
@@ -127,8 +127,8 @@ impl NatsBucketsManager {
             .collect()
     }
 
-    pub fn remove_by_sid(&self, connect_id: u64, sid: &str) -> Vec<NatsSubscriber> {
-        let key = sid_key(connect_id, sid);
+    pub fn remove_by_sid(&self, broker_id: u64, connect_id: u64, sid: &str) -> Vec<NatsSubscriber> {
+        let key = sid_key(broker_id, connect_id, sid);
         let seqs: Vec<u64> = self
             .connect_id_sid_sub
             .get(&key)
@@ -191,7 +191,7 @@ impl NatsBucketsManager {
         }
 
         // Clean connect_id#sid index
-        let sk = sid_key(subscriber.connect_id, &subscriber.sid);
+        let sk = sid_key(subscriber.broker_id, subscriber.connect_id, &subscriber.sid);
         if let Some(mut seqs) = self.connect_id_sid_sub.get_mut(&sk) {
             seqs.remove(&seq);
             if seqs.is_empty() {
@@ -226,8 +226,8 @@ impl NatsBucketsManager {
     }
 }
 
-fn sid_key(connect_id: u64, sid: &str) -> String {
-    format!("{}#{}", connect_id, sid)
+fn sid_key(broker_id: u64, connect_id: u64, sid: &str) -> String {
+    format!("{}#{}#{}", broker_id, connect_id, sid)
 }
 
 #[cfg(test)]
@@ -308,7 +308,7 @@ mod tests {
         mgr.add(&make_sub(1, "s1", "bar"));
         mgr.add(&make_sub(1, "s2", "baz"));
 
-        mgr.remove_by_sid(1, "s1");
+        mgr.remove_by_sid(1, 1, "s1");
         assert_eq!(mgr.sub_len(), 1);
     }
 

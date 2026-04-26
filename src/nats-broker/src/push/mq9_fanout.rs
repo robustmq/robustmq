@@ -78,7 +78,7 @@ impl Mq9FanoutPushManager {
 
     async fn send_messages(&self) -> Result<usize, NatsBrokerError> {
         let mut processed = 0;
-        let mut stale: Vec<(u64, String, String)> = Vec::new();
+        let mut stale: Vec<(u64, u64, String, String)> = Vec::new();
 
         let subscribers: Vec<NatsSubscriber> = self
             .subscribe_manager
@@ -104,6 +104,7 @@ impl Mq9FanoutPushManager {
                         subscriber.connect_id, subscriber.sid
                     );
                     stale.push((
+                        subscriber.broker_id,
                         subscriber.connect_id,
                         subscriber.sid.clone(),
                         subscriber.uniq_id.clone(),
@@ -120,8 +121,9 @@ impl Mq9FanoutPushManager {
             }
         }
 
-        for (connect_id, sid, uniq_id) in stale {
-            self.subscribe_manager.remove_push_by_sub(connect_id, &sid);
+        for (broker_id, connect_id, sid, uniq_id) in stale {
+            self.subscribe_manager
+                .remove_push_by_sub(broker_id, connect_id, &sid);
             self.consumers.remove(&uniq_id);
         }
 

@@ -310,6 +310,7 @@ pub async fn update_cluster_cache_metadata(
                     .map_err(|e| CommonError::CommonError(e.to_string()))?;
                 let member: ShareGroupMember = serialize::deserialize(&req.data)?;
                 nats_params.broker_cache.add_share_group_member(&member);
+                // member is also a subscription
                 nats_params
                     .subscribe_manager
                     .send_parse_event(ParseSubscribeData {
@@ -332,6 +333,8 @@ pub async fn update_cluster_cache_metadata(
             BrokerUpdateCacheActionType::Delete => {
                 let member: ShareGroupMember = serialize::deserialize(&record.data)?;
                 nats_params.broker_cache.remove_share_group_member(&member);
+
+                // member is also a subscription
                 nats_params
                     .subscribe_manager
                     .send_parse_event(ParseSubscribeData {

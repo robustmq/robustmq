@@ -862,6 +862,29 @@ impl AdminHttpClient {
         self.get_with_params(&api_path(MQ9_MAIL_LIST_PATH), request)
             .await
     }
+
+    /// Get share group list
+    pub async fn get_share_group_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.get_with_params(&api_path(CLUSTER_SHARE_GROUP_LIST_PATH), request)
+            .await
+    }
+
+    /// Get share group detail (group info + member list)
+    pub async fn get_share_group_detail<T, R>(&self, request: &T) -> Result<R, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.get_with_params(&api_path(CLUSTER_SHARE_GROUP_DETAIL_PATH), request)
+            .await
+    }
 }
 
 #[cfg(test)]
