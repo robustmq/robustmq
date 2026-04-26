@@ -52,7 +52,7 @@ pub async fn process_sub(
 
     if let Some(queue_name) = queue_group {
         let conf = broker_config();
-        let sub = ShareGroupMember {
+        let member = ShareGroupMember {
             broker_id: conf.broker_id,
             tenant: tenant.clone(),
             group_name: queue_name.to_string(),
@@ -62,16 +62,16 @@ pub async fn process_sub(
             connect_id: ctx.connect_id,
             create_time: now_second(),
         };
-        add_member_by_group(&ctx.client_pool, &sub).await?;
-    } else {
-        ctx.subscribe_manager
-            .send_parse_event(ParseSubscribeData::new_subscribe(
-                ParseAction::Add,
-                SubscribeSource::Mq9,
-                subscribe,
-            ))
-            .await;
+        add_member_by_group(&ctx.client_pool, &member).await?;
     }
+
+    ctx.subscribe_manager
+        .send_parse_event(ParseSubscribeData::new_subscribe(
+            ParseAction::Add,
+            SubscribeSource::Mq9,
+            subscribe,
+        ))
+        .await;
 
     Ok(())
 }
@@ -85,15 +85,14 @@ pub async fn process_unsub(
         let conf = broker_config();
         if subscribe.queue_group.is_some() {
             delete_member_by_group(&ctx.client_pool, conf.broker_id, ctx.connect_id, sid).await?;
-        } else {
-            ctx.subscribe_manager
-                .send_parse_event(ParseSubscribeData::new_subscribe(
-                    ParseAction::Remove,
-                    SubscribeSource::Mq9,
-                    subscribe,
-                ))
-                .await;
         }
+        ctx.subscribe_manager
+            .send_parse_event(ParseSubscribeData::new_subscribe(
+                ParseAction::Remove,
+                SubscribeSource::Mq9,
+                subscribe,
+            ))
+            .await;
     }
 
     ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
