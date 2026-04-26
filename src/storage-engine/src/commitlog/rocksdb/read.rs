@@ -44,7 +44,7 @@ impl RocksDBStorageEngine {
                 break;
             }
 
-            let batch_end = (cursor + 100).min(end_offset.saturating_add(1));
+            let batch_end = cursor.saturating_add(100).min(end_offset.saturating_add(1));
             let keys: Vec<String> = (cursor..batch_end)
                 .map(|i| shard_record_key(shard, i))
                 .collect();
