@@ -22,6 +22,7 @@ use crate::{
 use axum::extract::{Query, State};
 use common_base::http_response::{error_response, success_response};
 use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupMember};
+use metadata_struct::nats::subscriber::NatsSubscriber;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -45,6 +46,10 @@ pub struct ShareGroupDetailReq {
 pub struct ShareGroupDetailResp {
     pub group: ShareGroup,
     pub members: Vec<ShareGroupMember>,
+    /// Active push subscribers in nats_core_queue_push for this queue group.
+    pub push_subscribers: Vec<NatsSubscriber>,
+    /// Whether a push task thread is currently running for this queue group.
+    pub push_thread_running: bool,
 }
 
 impl Queryable for ShareGroup {
@@ -124,5 +129,41 @@ pub async fn share_group_detail(
         .map(|m| m.clone())
         .unwrap_or_default();
 
-    success_response(ShareGroupDetailResp { group, members })
+    // queue_key format used in NatsSubscribeManager: "{tenant}#{group_name}#{subject}"
+    // We don't know the subject here, so we match by prefix "{tenant}#{group_name}#"
+    let queue_key_prefix = format!("{}#{}#", params.tenant, params.group_name);
+
+    let (push_subscribers, push_thread_running) =
+        if let Some(nats_ctx) = &state.nats_context {
+            let sm = &nats_ctx.subscribe_manager;
+
+            let subscribers: Vec<NatsSubscriber> = sm
+                .nats_core_queue_push
+                .iter()
+                .filter(|e| e.key().starts_with(&queue_key_prefix))
+                .flat_map(|e| {
+                    e.value()
+                        .buckets_data_list
+                        .iter()
+                        .flat_map(|b| b.value().iter().map(|s| s.value().clone()).collect::<Vec<_>>())
+                        .collect::<Vec<_>>()
+                })
+                .collect();
+
+            let thread_running = sm
+                .nats_core_queue_push_thread
+                .iter()
+                .any(|e| e.key().starts_with(&queue_key_prefix));
+
+            (subscribers, thread_running)
+        } else {
+            (vec![], false)
+        };
+
+    success_response(ShareGroupDetailResp {
+        group,
+        members,
+        push_subscribers,
+        push_thread_running,
+    })
 }
