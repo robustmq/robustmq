@@ -176,6 +176,12 @@ impl QueuePushManager {
             consumer.commit().await.map_err(NatsBrokerError::from)?;
         }
 
+        if pushed > 0 {
+            if let Some(info) = self.subscribe_manager.nats_core_queue_push_thread.get(&queue_key) {
+                info.record_push(pushed as u64);
+            }
+        }
+
         Ok(pushed)
     }
 }

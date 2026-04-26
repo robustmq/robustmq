@@ -43,13 +43,19 @@ pub struct ShareGroupDetailReq {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct QueuePushThreadInfoView {
+    pub total_pushed: u64,
+    pub last_pull_time: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ShareGroupDetailResp {
     pub group: ShareGroup,
     pub members: Vec<ShareGroupMember>,
     /// Active push subscribers in nats_core_queue_push for this queue group.
     pub push_subscribers: Vec<NatsSubscriber>,
-    /// Whether a push task thread is currently running for this queue group.
-    pub push_thread_running: bool,
+    /// Runtime info of the push task thread; None if no thread is running.
+    pub push_thread_info: Option<QueuePushThreadInfoView>,
 }
 
 impl Queryable for ShareGroup {
@@ -133,7 +139,7 @@ pub async fn share_group_detail(
     // We don't know the subject here, so we match by prefix "{tenant}#{group_name}#"
     let queue_key_prefix = format!("{}#{}#", params.tenant, params.group_name);
 
-    let (push_subscribers, push_thread_running) =
+    let (push_subscribers, push_thread_info) =
         if let Some(nats_ctx) = &state.nats_context {
             let sm = &nats_ctx.subscribe_manager;
 
@@ -150,20 +156,27 @@ pub async fn share_group_detail(
                 })
                 .collect();
 
-            let thread_running = sm
+            let thread_info = sm
                 .nats_core_queue_push_thread
                 .iter()
-                .any(|e| e.key().starts_with(&queue_key_prefix));
+                .find(|e| e.key().starts_with(&queue_key_prefix))
+                .map(|e| {
+                    let info = e.value();
+                    QueuePushThreadInfoView {
+                        total_pushed: *info.total_pushed.lock().unwrap(),
+                        last_pull_time: *info.last_pull_time.lock().unwrap(),
+                    }
+                });
 
-            (subscribers, thread_running)
+            (subscribers, thread_info)
         } else {
-            (vec![], false)
+            (vec![], None)
         };
 
     success_response(ShareGroupDetailResp {
         group,
         members,
         push_subscribers,
-        push_thread_running,
+        push_thread_info,
     })
 }

@@ -17,9 +17,30 @@ use crate::push::parse::ParseSubscribeData;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::nats::{subscribe::NatsSubscribe, subscriber::NatsSubscriber};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::sync::{broadcast, mpsc::Sender, RwLock};
 use tracing::error;
+
+pub struct QueuePushThreadInfo {
+    pub stop_tx: broadcast::Sender<bool>,
+    pub total_pushed: Mutex<u64>,
+    pub last_pull_time: Mutex<u64>,
+}
+
+impl QueuePushThreadInfo {
+    pub fn new(stop_tx: broadcast::Sender<bool>) -> Self {
+        QueuePushThreadInfo {
+            stop_tx,
+            total_pushed: Mutex::new(0),
+            last_pull_time: Mutex::new(0),
+        }
+    }
+
+    pub fn record_push(&self, count: u64) {
+        *self.total_pushed.lock().unwrap() += count;
+        *self.last_pull_time.lock().unwrap() = now_second();
+    }
+}
 
 #[derive(Default)]
 pub struct NatsSubscribeManager {
@@ -29,8 +50,8 @@ pub struct NatsSubscribeManager {
     pub nats_core_fanout_push: NatsBucketsManager,
     /// NATS core queue-group push buckets (key: `{tenant}#{queue_group}#{subject}`).
     pub nats_core_queue_push: DashMap<String, NatsBucketsManager>,
-    /// Running queue-group push tasks; value is the per-task stop sender.
-    pub nats_core_queue_push_thread: DashMap<String, broadcast::Sender<bool>>,
+    /// Running queue-group push tasks; value is the per-task runtime info.
+    pub nats_core_queue_push_thread: DashMap<String, Arc<QueuePushThreadInfo>>,
 
     /// MQ9 fanout push buckets (mail_address-based).
     pub mq9_fanout_push: NatsBucketsManager,
