@@ -14,6 +14,7 @@
 
 use crate::push::manager::QueuePushThreadInfo;
 use crate::push::mq9_fanout::Mq9FanoutPushManager;
+use crate::push::mq9_queue::{Mq9QueuePushManager, Mq9QueuePushManagerParams};
 use crate::push::nats_fanout::FanoutPushManager;
 use crate::push::nats_queue::{QueuePushManager, QueuePushManagerParams};
 use crate::push::NatsSubscribeManager;
@@ -62,6 +63,16 @@ pub(crate) async fn start_sub_push_thread(
     );
 
     start_nats_queue_push_watcher(
+        subscribe_manager,
+        p.connection_manager.clone(),
+        p.storage_driver_manager.clone(),
+        p.node_cache.clone(),
+        p.client_pool.clone(),
+        &p.task_supervisor,
+        p.stop_sx.clone(),
+    );
+
+    start_mq9_queue_push_watcher(
         subscribe_manager,
         p.connection_manager,
         p.storage_driver_manager,
@@ -249,5 +260,124 @@ fn start_new_queue_group_tasks(
             async move { mgr.start(&task_stop_sx).await },
         );
         info!("NATS queue group task started: {}", queue_key);
+    }
+}
+
+fn start_mq9_queue_push_watcher(
+    subscribe_manager: &Arc<NatsSubscribeManager>,
+    connection_manager: Arc<ConnectionManager>,
+    storage_driver_manager: Arc<StorageDriverManager>,
+    node_cache: Arc<NodeCacheManager>,
+    client_pool: Arc<ClientPool>,
+    task_supervisor: &Arc<TaskSupervisor>,
+    stop_sx: broadcast::Sender<bool>,
+) {
+    let sm = subscribe_manager.clone();
+    let sup = task_supervisor.clone();
+    task_supervisor.spawn(TaskKind::MQ9QueuePush.to_string(), async move {
+        mq9_queue_push_thread(
+            sm,
+            connection_manager,
+            storage_driver_manager,
+            node_cache,
+            client_pool,
+            sup,
+            stop_sx,
+        )
+        .await;
+    });
+}
+
+async fn mq9_queue_push_thread(
+    subscribe_manager: Arc<NatsSubscribeManager>,
+    connection_manager: Arc<ConnectionManager>,
+    storage_driver_manager: Arc<StorageDriverManager>,
+    node_cache: Arc<NodeCacheManager>,
+    client_pool: Arc<ClientPool>,
+    task_supervisor: Arc<TaskSupervisor>,
+    stop_sx: broadcast::Sender<bool>,
+) {
+    let ac_fn = async || -> ResultCommonError {
+        stop_empty_mq9_queue_group_tasks(&subscribe_manager);
+        start_new_mq9_queue_group_tasks(
+            &subscribe_manager,
+            &connection_manager,
+            &storage_driver_manager,
+            &node_cache,
+            &client_pool,
+            &task_supervisor,
+        );
+        Ok(())
+    };
+    loop_select_ticket(ac_fn, 100, &stop_sx).await;
+}
+
+fn stop_empty_mq9_queue_group_tasks(subscribe_manager: &Arc<NatsSubscribeManager>) {
+    let empty_keys: Vec<String> = subscribe_manager
+        .mq9_queue_push_thread
+        .iter()
+        .filter(|e| !subscribe_manager.mq9_queue_push.contains_key(e.key()))
+        .map(|e| e.key().clone())
+        .collect();
+
+    for queue_key in empty_keys {
+        if let Some((_, info)) = subscribe_manager.mq9_queue_push_thread.remove(&queue_key) {
+            if let Err(e) = info.stop_tx.send(true) {
+                warn!(
+                    "Failed to send stop signal to MQ9 queue task [{}]: {}",
+                    queue_key, e
+                );
+            }
+            info!("MQ9 queue group task stopped: {}", queue_key);
+        }
+    }
+}
+
+fn start_new_mq9_queue_group_tasks(
+    subscribe_manager: &Arc<NatsSubscribeManager>,
+    connection_manager: &Arc<ConnectionManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
+    node_cache: &Arc<NodeCacheManager>,
+    client_pool: &Arc<ClientPool>,
+    task_supervisor: &Arc<TaskSupervisor>,
+) {
+    for entry in subscribe_manager.mq9_queue_push.iter() {
+        let queue_key = entry.key().clone();
+        if entry.value().buckets_data_list.is_empty() {
+            continue;
+        }
+        if subscribe_manager
+            .mq9_queue_push_thread
+            .contains_key(&queue_key)
+        {
+            continue;
+        }
+
+        let mut parts = queue_key.splitn(3, '#');
+        let tenant = parts.next().unwrap_or("").to_string();
+        let group_name = parts.next().unwrap_or("").to_string();
+        let subject = parts.next().unwrap_or("").to_string();
+
+        let (task_stop_sx, _) = broadcast::channel(1);
+        let thread_info = Arc::new(QueuePushThreadInfo::new(task_stop_sx.clone()));
+        subscribe_manager
+            .mq9_queue_push_thread
+            .insert(queue_key.clone(), thread_info.clone());
+
+        let mut mgr = Mq9QueuePushManager::new(Mq9QueuePushManagerParams {
+            subscribe_manager: subscribe_manager.clone(),
+            connection_manager: connection_manager.clone(),
+            storage_driver_manager: storage_driver_manager.clone(),
+            node_cache: node_cache.clone(),
+            client_pool: client_pool.clone(),
+            tenant,
+            group_name,
+            subject,
+        });
+        task_supervisor.spawn(
+            format!("{}_{}", TaskKind::MQ9QueuePush, queue_key),
+            async move { mgr.start(&task_stop_sx).await },
+        );
+        info!("MQ9 queue group task started: {}", queue_key);
     }
 }

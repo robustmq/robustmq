@@ -13,19 +13,17 @@
 // limitations under the License.
 
 use crate::core::error::NatsBrokerError;
+use crate::core::queue_name::send_share_group_message_to_other_broker;
 use crate::push::common::{adaptive_sleep, should_stop, BATCH_SIZE};
 use crate::push::manager::NatsSubscribeManager;
 use crate::push::nats_fanout::send_packet;
 use broker_core::cache::NodeCacheManager;
-use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
-use grpc_clients::broker::common::call::broker_send_nats_share_group_message;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::nats::subscriber::NatsSubscriber;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
-use protocol::broker::broker::SendNatsShareGroupMessageRequest;
 use std::sync::Arc;
 use storage_adapter::consumer::GroupConsumer;
 use storage_adapter::driver::StorageDriverManager;
@@ -280,33 +278,4 @@ async fn round_robin_send(
     }
 
     Ok(false)
-}
-
-async fn send_share_group_message_to_other_broker(
-    subscriber: &NatsSubscriber,
-    record: &StorageRecord,
-    node_cache: &Arc<NodeCacheManager>,
-    client_pool: &Arc<ClientPool>,
-) -> Result<(), CommonError> {
-    let node = node_cache
-        .node_lists
-        .get(&subscriber.broker_id)
-        .ok_or_else(|| {
-            CommonError::CommonError(format!(
-                "broker node not found: broker_id={}",
-                subscriber.broker_id
-            ))
-        })?;
-    let addr = node.grpc_addr.clone();
-    drop(node);
-
-    let record_bytes = record.encode()?;
-    let request = SendNatsShareGroupMessageRequest {
-        connect_id: subscriber.connect_id,
-        sid: subscriber.sid.clone(),
-        record: record_bytes,
-    };
-
-    broker_send_nats_share_group_message(client_pool, &[addr], request).await?;
-    Ok(())
 }

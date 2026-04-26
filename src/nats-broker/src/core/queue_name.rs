@@ -13,9 +13,15 @@
 // limitations under the License.
 
 use crate::core::error::NatsBrokerError;
+use broker_core::cache::NodeCacheManager;
 use broker_core::share_group::ShareGroupStorage;
+use common_base::error::common::CommonError;
+use grpc_clients::broker::common::call::broker_send_nats_share_group_message;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::share_group::ShareGroupMember;
+use metadata_struct::nats::subscriber::NatsSubscriber;
+use metadata_struct::storage::record::StorageRecord;
+use protocol::broker::broker::SendNatsShareGroupMessageRequest;
 use std::sync::Arc;
 
 pub async fn add_member_by_group(
@@ -24,6 +30,35 @@ pub async fn add_member_by_group(
 ) -> Result<(), NatsBrokerError> {
     let storage = ShareGroupStorage::new(client_pool.clone());
     storage.add_member(sub).await?;
+    Ok(())
+}
+
+pub async fn send_share_group_message_to_other_broker(
+    subscriber: &NatsSubscriber,
+    record: &StorageRecord,
+    node_cache: &Arc<NodeCacheManager>,
+    client_pool: &Arc<ClientPool>,
+) -> Result<(), CommonError> {
+    let node = node_cache
+        .node_lists
+        .get(&subscriber.broker_id)
+        .ok_or_else(|| {
+            CommonError::CommonError(format!(
+                "broker node not found: broker_id={}",
+                subscriber.broker_id
+            ))
+        })?;
+    let addr = node.grpc_addr.clone();
+    drop(node);
+
+    let record_bytes = record.encode()?;
+    let request = SendNatsShareGroupMessageRequest {
+        connect_id: subscriber.connect_id,
+        sid: subscriber.sid.clone(),
+        record: record_bytes,
+    };
+
+    broker_send_nats_share_group_message(client_pool, &[addr], request).await?;
     Ok(())
 }
 
