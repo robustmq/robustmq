@@ -30,32 +30,46 @@ impl RocksDBStorageEngine {
     pub async fn read_by_offset(
         &self,
         shard: &str,
-        offset: u64,
+        start_offset: u64,
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        let cf = self.get_cf()?;
+        let end_offset = self.commitlog_offset.get_latest_offset(shard)?;
 
-        let keys: Vec<String> = (offset..offset.saturating_add(read_config.max_record_num))
-            .map(|i| shard_record_key(shard, i))
-            .collect();
         let mut records = Vec::new();
-        let mut total_size = 0;
+        let mut total_size = 0u64;
+        let mut cursor = start_offset;
 
-        let batch_results = self
-            .rocksdb_engine_handler
-            .multi_get::<StorageRecord>(cf, &keys)?;
-        for record_opt in batch_results {
-            let Some(record) = record_opt else {
-                break;
-            };
-
-            let record_bytes = record.data.len() as u64;
-            if total_size + record_bytes > read_config.max_size {
+        'outer: loop {
+            if cursor > end_offset {
                 break;
             }
 
-            total_size += record_bytes;
-            records.push(record);
+            let batch_end = (cursor + 100).min(end_offset.saturating_add(1));
+            let keys: Vec<String> = (cursor..batch_end)
+                .map(|i| shard_record_key(shard, i))
+                .collect();
+
+            let cf = self.get_cf()?;
+            let batch_results = self
+                .rocksdb_engine_handler
+                .multi_get::<StorageRecord>(cf, &keys)?;
+
+            for record_opt in batch_results {
+                let Some(record) = record_opt else {
+                    continue;
+                };
+                if records.len() >= read_config.max_record_num as usize {
+                    break 'outer;
+                }
+                let record_bytes = record.data.len() as u64;
+                if total_size + record_bytes > read_config.max_size {
+                    break 'outer;
+                }
+                total_size += record_bytes;
+                records.push(record);
+            }
+
+            cursor = batch_end;
         }
 
         Ok(records)
@@ -77,7 +91,7 @@ impl RocksDBStorageEngine {
         // Filter and collect offsets >= specified offset
         let mut offsets = Vec::new();
         for (_key, value) in tag_entries {
-            let record_offset = deserialize::<IndexInfo>(&value)?;
+            let record_offset: IndexInfo = deserialize::<IndexInfo>(&value)?;
 
             if let Some(so) = start_offset {
                 if record_offset.offset < so {
