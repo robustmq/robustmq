@@ -81,7 +81,6 @@ pub async fn process_unsub(
     _mail_address: &str,
     sid: &str,
 ) -> Result<(), NatsBrokerError> {
-    ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
     if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
         let conf = broker_config();
         if subscribe.queue_group.is_some() {
@@ -96,6 +95,9 @@ pub async fn process_unsub(
                 .await;
         }
     }
+
+    ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
+    ctx.cache_manager.remove_inbox_by_sid(sid);
 
     Ok(())
 }

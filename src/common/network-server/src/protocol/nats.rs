@@ -34,6 +34,7 @@ use tracing::error;
 /// Standard NATS handshake: Server → INFO, Server → PING, Client → CONNECT, Client → PONG.
 /// The PING prompts the client to complete the handshake without waiting for the
 /// keep-alive tick. TCP_NODELAY is set on the socket so both packets are flushed immediately.
+#[allow(clippy::needless_return)]
 pub async fn send_nats_info(
     node_cache: &Arc<NodeCacheManager>,
     connection_id: u64,

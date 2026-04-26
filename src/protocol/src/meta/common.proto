@@ -79,6 +79,8 @@ service MetaServiceService {
 
   rpc DeleteShareGroup(DeleteShareGroupRequest) returns (DeleteShareGroupReply) {}
 
+  rpc ListShareGroupMember(ListShareGroupMemberRequest) returns (ListShareGroupMemberReply) {}
+
   rpc AddShareGroupMember(AddShareGroupMemberRequest) returns (AddShareGroupMemberReply) {}
 
   rpc DeleteShareGroupMember(DeleteShareGroupMemberRequest) returns (DeleteShareGroupMemberReply) {}
@@ -416,6 +418,15 @@ message DeleteShareGroupRequest {
 }
 
 message DeleteShareGroupReply {}
+
+// ListShareGroupMember: connect_id=0 means all members
+message ListShareGroupMemberRequest {
+  uint64 connect_id = 1;
+}
+
+message ListShareGroupMemberReply {
+  repeated bytes members = 1;
+}
 
 message AddShareGroupMemberRequest {
   bytes data = 1 [(validate.rules).bytes.min_len = 1];

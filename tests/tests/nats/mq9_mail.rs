@@ -21,21 +21,17 @@ mod tests {
     use bytes::Bytes;
     use common_base::uuid::unique_id;
     use metadata_struct::mq9::mail::MQ9Mail;
-    use metadata_struct::tenant::DEFAULT_TENANT;
     use mq9_core::command::Mq9Command;
     use mq9_core::protocol::{CreateMailboxReq, Mq9Reply};
     use mq9_core::public::{StoragePublicData, MQ9_SYSTEM_PUBLIC_MAIL};
     use std::time::Duration;
     use tokio::time::sleep;
 
-    const NATS_ADDR: &str = "nats://127.0.0.1:4222";
+    use crate::nats::common::{nats_connect, DEFAULT_TENANT};
+
     const TTL: u64 = 30;
     // GC runs every 60s; wait TTL + one full GC interval to be sure
     const WAIT_AFTER_TTL: u64 = TTL + 65;
-
-    async fn nats_connect() -> Client {
-        async_nats::connect(NATS_ADDR).await.unwrap()
-    }
 
     async fn create_mail(client: &Client, req: &CreateMailboxReq) -> Mq9Reply {
         let payload = Bytes::from(serde_json::to_string(req).unwrap());

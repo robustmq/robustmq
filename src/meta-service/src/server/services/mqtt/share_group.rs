@@ -31,7 +31,8 @@ use prost::Message as _;
 use protocol::meta::meta_service_common::{
     AddShareGroupMemberReply, AddShareGroupMemberRequest, CreateShareGroupReply,
     CreateShareGroupRequest, DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest,
-    DeleteShareGroupReply, DeleteShareGroupRequest, ListShareGroupReply, ListShareGroupRequest,
+    DeleteShareGroupReply, DeleteShareGroupRequest, ListShareGroupMemberReply,
+    ListShareGroupMemberRequest, ListShareGroupReply, ListShareGroupRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -58,6 +59,23 @@ pub async fn list_share_group_by_req(
     Ok(ListShareGroupReply { groups })
 }
 
+pub fn list_share_group_member_by_req(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: &ListShareGroupMemberRequest,
+) -> Result<ListShareGroupMemberReply, MetaServiceError> {
+    let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
+    let members = if req.connect_id != 0 {
+        storage.list_members(0, req.connect_id)?
+    } else {
+        storage.list_all_members()?
+    };
+    let members = members
+        .iter()
+        .map(|m| m.encode())
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(ListShareGroupMemberReply { members })
+}
+
 pub async fn create_share_group_by_req(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
@@ -73,7 +91,11 @@ pub async fn create_share_group_by_req(
     let target_broker_id =
         generate_group_leader(cache_manager, rocksdb_engine_handler, &req.tenant).await?;
 
-    let sub_params = ShareGroupParams::decode(&req.params)?;
+    let sub_params = if req.params.is_empty() {
+        ShareGroupParams::default()
+    } else {
+        ShareGroupParams::decode(&req.params)?
+    };
 
     let leader = ShareGroup {
         uuid: unique_id(),
@@ -128,7 +150,7 @@ pub async fn add_share_group_member_by_req(
         let create_req = CreateShareGroupRequest {
             tenant: member.tenant.clone(),
             group: member.group_name.clone(),
-            params: vec![],
+            params: member.params.encode()?,
         };
         create_share_group_by_req(
             cache_manager,

@@ -50,6 +50,7 @@ impl QueuePushManager {
         group_name: String,
         subject: String,
     ) -> Self {
+        println!("QueuePushManager.subject:{}", subject);
         QueuePushManager {
             subscribe_manager,
             connection_manager,
@@ -117,7 +118,6 @@ impl QueuePushManager {
         let Some(subs) = self.active_subscribers(&queue_key) else {
             return Err(NatsBrokerError::QueueGroupEmpty(queue_key));
         };
-
         if subs.is_empty() {
             return Ok(0);
         }
@@ -139,6 +139,18 @@ impl QueuePushManager {
             .next_messages(&self.tenant, &self.subject, &read_config)
             .await
             .map_err(NatsBrokerError::from)?;
+
+        // update last_pull_time on every pull attempt regardless of result
+        if let Some(info) = self
+            .subscribe_manager
+            .nats_core_queue_push_thread
+            .get(&queue_key)
+        {
+            info.last_pull_time
+                .lock()
+                .map(|mut t| *t = common_base::tools::now_second())
+                .ok();
+        }
 
         if records.is_empty() {
             return Ok(0);
@@ -174,6 +186,16 @@ impl QueuePushManager {
 
         if all_delivered {
             consumer.commit().await.map_err(NatsBrokerError::from)?;
+        }
+
+        if pushed > 0 {
+            if let Some(info) = self
+                .subscribe_manager
+                .nats_core_queue_push_thread
+                .get(&queue_key)
+            {
+                info.record_push(pushed as u64);
+            }
         }
 
         Ok(pushed)

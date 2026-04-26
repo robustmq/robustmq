@@ -35,7 +35,7 @@ use crate::server::services::common::tenant::{
 };
 use crate::server::services::mqtt::share_group::{
     add_share_group_member_by_req, create_share_group_by_req, delete_share_group_by_req,
-    delete_share_group_member_by_req, list_share_group_by_req,
+    delete_share_group_member_by_req, list_share_group_by_req, list_share_group_member_by_req,
 };
 use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
@@ -53,13 +53,13 @@ use protocol::meta::meta_service_common::{
     GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
     GetRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
     ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest,
-    ListShareGroupReply, ListShareGroupRequest, ListTenantReply, ListTenantRequest, NodeListReply,
-    NodeListRequest, RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply,
-    ReportMonitorRequest, SaveOffsetDataReply, SaveOffsetDataRequest, SetReply, SetRequest,
-    SetResourceConfigReply, SetResourceConfigRequest, SnapshotReply, SnapshotRequest,
-    UnBindSchemaReply, UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
-    UpdateSchemaReply, UpdateSchemaRequest, UpdateTenantReply, UpdateTenantRequest, VoteReply,
-    VoteRequest,
+    ListShareGroupMemberReply, ListShareGroupMemberRequest, ListShareGroupReply,
+    ListShareGroupRequest, ListTenantReply, ListTenantRequest, NodeListReply, NodeListRequest,
+    RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply, ReportMonitorRequest,
+    SaveOffsetDataReply, SaveOffsetDataRequest, SetReply, SetRequest, SetResourceConfigReply,
+    SetResourceConfigRequest, SnapshotReply, SnapshotRequest, UnBindSchemaReply,
+    UnBindSchemaRequest, UnRegisterNodeReply, UnRegisterNodeRequest, UpdateSchemaReply,
+    UpdateSchemaRequest, UpdateTenantReply, UpdateTenantRequest, VoteReply, VoteRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -587,6 +587,16 @@ impl MetaServiceService for GrpcPlacementService {
         self.validate_request(&req)?;
         list_share_group_by_req(&self.rocksdb_engine_handler, &req)
             .await
+            .map_err(Self::to_status)
+            .map(Response::new)
+    }
+
+    async fn list_share_group_member(
+        &self,
+        request: Request<ListShareGroupMemberRequest>,
+    ) -> Result<Response<ListShareGroupMemberReply>, Status> {
+        let req = request.into_inner();
+        list_share_group_member_by_req(&self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
     }

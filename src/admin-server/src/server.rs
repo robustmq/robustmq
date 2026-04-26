@@ -29,6 +29,7 @@ use crate::{
             schema_bind_create, schema_bind_delete, schema_bind_list, schema_create, schema_delete,
             schema_list,
         },
+        share_group::{share_group_detail, share_group_list},
         tenant::{tenant_create, tenant_delete, tenant_list, tenant_update},
         topic::{topic_create, topic_delete, topic_detail, topic_list},
         user::{user_create, user_delete, user_list},
@@ -191,6 +192,9 @@ impl AdminServer {
             .route(CLUSTER_USER_LIST_PATH, get(user_list))
             .route(CLUSTER_USER_CREATE_PATH, post(user_create))
             .route(CLUSTER_USER_DELETE_PATH, post(user_delete))
+            // share-group
+            .route(CLUSTER_SHARE_GROUP_LIST_PATH, get(share_group_list))
+            .route(CLUSTER_SHARE_GROUP_DETAIL_PATH, get(share_group_detail))
             // offset
             .route(
                 CLUSTER_OFFSET_BY_TIMESTAMP_PATH,

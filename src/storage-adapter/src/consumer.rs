@@ -94,7 +94,6 @@ impl GroupConsumer {
             .driver
             .read_by_offset(tenant, topic_name, &shard_offsets, read_config)
             .await?;
-
         self.after_read(tenant, topic_name, records).await
     }
 

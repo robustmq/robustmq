@@ -73,6 +73,7 @@ impl BrokerServer {
             rate_limiter: self.global_rate_limiter.clone(),
             nats_context: Some(NatsContext {
                 cache_manager: self.nats_params.cache_manager.clone(),
+                subscribe_manager: self.nats_params.subscribe_manager.clone(),
             }),
         });
         let http_port = self.config.http_port;

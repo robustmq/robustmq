@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::push::manager::QueuePushThreadInfo;
 use crate::push::mq9_fanout::Mq9FanoutPushManager;
 use crate::push::nats_fanout::FanoutPushManager;
 use crate::push::nats_queue::QueuePushManager;
@@ -175,11 +176,11 @@ fn stop_empty_queue_group_tasks(subscribe_manager: &Arc<NatsSubscribeManager>) {
         .collect();
 
     for queue_key in empty_keys {
-        if let Some((_, stop_tx)) = subscribe_manager
+        if let Some((_, info)) = subscribe_manager
             .nats_core_queue_push_thread
             .remove(&queue_key)
         {
-            if let Err(e) = stop_tx.send(true) {
+            if let Err(e) = info.stop_tx.send(true) {
                 warn!(
                     "Failed to send stop signal to queue group task [{}]: {}",
                     queue_key, e
@@ -215,9 +216,10 @@ fn start_new_queue_group_tasks(
         let subject = parts.next().unwrap_or("").to_string();
 
         let (task_stop_sx, _) = broadcast::channel(1);
+        let thread_info = Arc::new(QueuePushThreadInfo::new(task_stop_sx.clone()));
         subscribe_manager
             .nats_core_queue_push_thread
-            .insert(queue_key.clone(), task_stop_sx.clone());
+            .insert(queue_key.clone(), thread_info.clone());
 
         let mut mgr = QueuePushManager::new(
             subscribe_manager.clone(),

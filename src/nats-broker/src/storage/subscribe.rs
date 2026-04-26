@@ -36,18 +36,13 @@ impl NatsSubscribeStorage {
         NatsSubscribeStorage { client_pool }
     }
 
-    pub async fn save(
-        &self,
-        tenant: &str,
-        subscribes: Vec<&NatsSubscribe>,
-    ) -> Result<(), CommonError> {
+    pub async fn save(&self, subscribes: Vec<NatsSubscribe>) -> Result<(), CommonError> {
         let config = broker_config();
         let mut encoded = Vec::with_capacity(subscribes.len());
         for s in subscribes {
             encoded.push(s.encode()?);
         }
         let request = CreateNatsSubscribeRequest {
-            tenant: tenant.to_string(),
             subscribes: encoded,
         };
         placement_create_nats_subscribe(
@@ -82,16 +77,9 @@ impl NatsSubscribeStorage {
         Ok(())
     }
 
-    pub async fn list(
-        &self,
-        broker_id: u64,
-        connect_id: u64,
-    ) -> Result<Vec<NatsSubscribe>, CommonError> {
+    pub async fn list(&self, connect_id: u64) -> Result<Vec<NatsSubscribe>, CommonError> {
         let config = broker_config();
-        let request = ListNatsSubscribeRequest {
-            broker_id,
-            connect_id,
-        };
+        let request = ListNatsSubscribeRequest { connect_id };
         let mut stream: Streaming<ListNatsSubscribeReply> = placement_list_nats_subscribe(
             &self.client_pool,
             &config.get_meta_service_addr(),

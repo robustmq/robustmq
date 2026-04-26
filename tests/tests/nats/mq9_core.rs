@@ -25,11 +25,7 @@ mod tests {
     use mq9_core::protocol::{CreateMailboxReq, Mq9Reply};
     use tokio::time::sleep;
 
-    const NATS_ADDR: &str = "nats://127.0.0.1:4222";
-
-    async fn nats_connect() -> Client {
-        async_nats::connect(NATS_ADDR).await.unwrap()
-    }
+    use crate::nats::common::nats_connect;
 
     async fn nats_request(client: &Client, subject: String, payload: Bytes) -> Mq9Reply {
         let msg = client.request(subject, payload).await.unwrap();

@@ -38,7 +38,6 @@ impl RocksDBStorageEngine {
         let keys: Vec<String> = (offset..offset.saturating_add(read_config.max_record_num))
             .map(|i| shard_record_key(shard, i))
             .collect();
-
         let mut records = Vec::new();
         let mut total_size = 0;
 

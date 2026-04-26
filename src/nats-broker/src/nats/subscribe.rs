@@ -14,16 +14,21 @@
 
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
+use metadata_struct::mqtt::share_group::{
+    ShareGroupMember, ShareGroupParams, ShareGroupParamsNats,
+};
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use mq9_core::command::Mq9Command;
 use protocol::nats::packet::NatsPacket;
 
 use crate::core::error::NatsProtocolError;
+use crate::core::queue_name::{add_member_by_group, delete_member_by_group};
 use crate::core::subject::is_inbox_subject;
 use crate::handler::command::NatsProcessContext;
 use crate::mq9::subscribe as mq9_subscribe;
 use crate::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
+use crate::storage::subscribe::NatsSubscribeStorage;
 
 pub fn subject_message_tag(tenant: &str, subject: &str) -> String {
     format!("{}_{}", tenant, subject)
@@ -57,9 +62,10 @@ pub async fn process_sub(
             .map_err(|e| NatsPacket::Err(e.to_string()));
     }
 
+    let tenant = DEFAULT_TENANT.to_string();
     let subscribe = NatsSubscribe {
         broker_id: broker_config().broker_id,
-        tenant: DEFAULT_TENANT.to_string(),
+        tenant: tenant.clone(),
         connect_id: ctx.connect_id,
         sid: sid.to_string(),
         subject: subject.to_string(),
@@ -67,19 +73,38 @@ pub async fn process_sub(
         create_time: now_second(),
     };
 
-    ctx.subscribe_manager.add_subscribe(subscribe.clone());
+    // save subscribe
+    let storage = NatsSubscribeStorage::new(ctx.client_pool.clone());
+    storage
+        .save(vec![subscribe.clone()])
+        .await
+        .map_err(|e| NatsPacket::Err(e.to_string()))?;
 
-    if queue_group.is_some() {
-        // save queue group
-    } else {
-        ctx.subscribe_manager
-            .send_parse_event(ParseSubscribeData::new_subscribe(
-                ParseAction::Add,
-                SubscribeSource::NatsCore,
-                subscribe,
-            ))
-            .await;
+    if let Some(queue_name) = queue_group {
+        // save queue name
+        let conf = broker_config();
+        let sub = ShareGroupMember {
+            broker_id: conf.broker_id,
+            tenant: tenant.clone(),
+            group_name: queue_name.to_string(),
+            sub_path: subject.to_string(),
+            sid: sid.to_string(),
+            params: ShareGroupParams::NATS(ShareGroupParamsNats {}),
+            connect_id: ctx.connect_id,
+            create_time: now_second(),
+        };
+        add_member_by_group(&ctx.client_pool, &sub)
+            .await
+            .map_err(|e| NatsPacket::Err(e.to_string()))?;
     }
+
+    ctx.subscribe_manager
+        .send_parse_event(ParseSubscribeData::new_subscribe(
+            ParseAction::Add,
+            SubscribeSource::NatsCore,
+            subscribe,
+        ))
+        .await;
 
     Ok(())
 }
@@ -95,25 +120,30 @@ pub async fn process_unsub(
         ));
     }
 
-    // inbox: no subscribe_manager entry, remove directly by sid.
-    ctx.cache_manager.remove_inbox_by_sid(sid);
-
     if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
         if Mq9Command::is_mq9_subject(&subscribe.subject) {
-            ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
             return mq9_subscribe::process_unsub(ctx, &subscribe.subject, sid)
                 .await
                 .map_err(|e| NatsPacket::Err(e.to_string()));
         }
-        ctx.subscribe_manager
-            .send_parse_event(ParseSubscribeData::new_subscribe(
-                ParseAction::Remove,
-                SubscribeSource::NatsCore,
-                subscribe,
-            ))
-            .await;
+
+        let conf = broker_config();
+        if subscribe.queue_group.is_some() {
+            delete_member_by_group(&ctx.client_pool, conf.broker_id, ctx.connect_id, sid)
+                .await
+                .map_err(|e| NatsPacket::Err(e.to_string()))?;
+        } else {
+            ctx.subscribe_manager
+                .send_parse_event(ParseSubscribeData::new_subscribe(
+                    ParseAction::Remove,
+                    SubscribeSource::NatsCore,
+                    subscribe,
+                ))
+                .await;
+        }
     }
 
     ctx.subscribe_manager.remove_subscribe(ctx.connect_id, sid);
+    ctx.cache_manager.remove_inbox_by_sid(sid);
     Ok(())
 }

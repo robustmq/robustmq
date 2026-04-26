@@ -17,9 +17,30 @@ use crate::push::parse::ParseSubscribeData;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::nats::{subscribe::NatsSubscribe, subscriber::NatsSubscriber};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::sync::{broadcast, mpsc::Sender, RwLock};
 use tracing::error;
+
+pub struct QueuePushThreadInfo {
+    pub stop_tx: broadcast::Sender<bool>,
+    pub total_pushed: Mutex<u64>,
+    pub last_pull_time: Mutex<u64>,
+}
+
+impl QueuePushThreadInfo {
+    pub fn new(stop_tx: broadcast::Sender<bool>) -> Self {
+        QueuePushThreadInfo {
+            stop_tx,
+            total_pushed: Mutex::new(0),
+            last_pull_time: Mutex::new(0),
+        }
+    }
+
+    pub fn record_push(&self, count: u64) {
+        *self.total_pushed.lock().unwrap() += count;
+        *self.last_pull_time.lock().unwrap() = now_second();
+    }
+}
 
 #[derive(Default)]
 pub struct NatsSubscribeManager {
@@ -29,8 +50,8 @@ pub struct NatsSubscribeManager {
     pub nats_core_fanout_push: NatsBucketsManager,
     /// NATS core queue-group push buckets (key: `{tenant}#{queue_group}#{subject}`).
     pub nats_core_queue_push: DashMap<String, NatsBucketsManager>,
-    /// Running queue-group push tasks; value is the per-task stop sender.
-    pub nats_core_queue_push_thread: DashMap<String, broadcast::Sender<bool>>,
+    /// Running queue-group push tasks; value is the per-task runtime info.
+    pub nats_core_queue_push_thread: DashMap<String, Arc<QueuePushThreadInfo>>,
 
     /// MQ9 fanout push buckets (mail_address-based).
     pub mq9_fanout_push: NatsBucketsManager,
@@ -136,7 +157,7 @@ impl NatsSubscribeManager {
     }
 
     // remove
-    pub fn remove_by_connection(&self, connect_id: u64) -> Vec<NatsSubscriber> {
+    pub fn remove_fanout_by_connection(&self, connect_id: u64) {
         // remove subscribe
         self.subscribe_list
             .retain(|_, s| s.connect_id != connect_id);
@@ -149,79 +170,44 @@ impl NatsSubscribeManager {
 
         // remove not push client
         self.not_push_client.remove(&connect_id);
-
-        // remove queue subscribers and return them
-        self.remove_queue_subscribers_by_connect_id(connect_id)
     }
 
-    pub fn remove_by_subject(&self, subject: &str) -> Vec<NatsSubscriber> {
+    pub fn remove_fanout_by_subject(&self, subject: &str) {
         // remove nats core fanout
         self.nats_core_fanout_push.remove_by_topic(subject);
 
         // remove mq9 fanout
         self.mq9_fanout_push.remove_by_topic(subject);
-
-        // remove queue subscribers and return them
-        self.remove_queue_subscribers_by_topic(subject)
     }
 
-    pub fn remove_push_by_sub(&self, connect_id: u64, sid: &str) -> Vec<NatsSubscriber> {
-        // remove nats core fanout
-        self.nats_core_fanout_push.remove_by_sid(connect_id, sid);
-
-        // remove mq9 fanout
-        self.mq9_fanout_push.remove_by_sid(connect_id, sid);
-
-        // remove queue subscribers and return them
-        self.remove_queue_subscribers_by_sid(connect_id, sid)
+    pub fn remove_push_by_sub(
+        &self,
+        broker_id: u64,
+        connect_id: u64,
+        sid: &str,
+    ) -> Vec<NatsSubscriber> {
+        self.nats_core_fanout_push
+            .remove_by_sid(broker_id, connect_id, sid);
+        self.mq9_fanout_push
+            .remove_by_sid(broker_id, connect_id, sid);
+        self.remove_queue_subscribers_by_sid(broker_id, connect_id, sid)
     }
 
-    fn remove_queue_subscribers_by_connect_id(&self, connect_id: u64) -> Vec<NatsSubscriber> {
+    fn remove_queue_subscribers_by_sid(
+        &self,
+        broker_id: u64,
+        connect_id: u64,
+        sid: &str,
+    ) -> Vec<NatsSubscriber> {
         let mut removed = Vec::new();
 
-        // nats core queue
         for entry in self.nats_core_queue_push.iter() {
-            removed.extend(entry.value().remove_by_connect_id(connect_id));
+            removed.extend(entry.value().remove_by_sid(broker_id, connect_id, sid));
         }
         self.nats_core_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
 
-        // mq9 queue
         for entry in self.mq9_queue_push.iter() {
-            removed.extend(entry.value().remove_by_connect_id(connect_id));
-        }
-        self.mq9_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
-        removed
-    }
-
-    fn remove_queue_subscribers_by_topic(&self, subject: &str) -> Vec<NatsSubscriber> {
-        let mut removed = Vec::new();
-
-        // nats core queue
-        for entry in self.nats_core_queue_push.iter() {
-            removed.extend(entry.value().remove_by_topic(subject));
-        }
-        self.nats_core_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
-
-        // mq9 queue
-        for entry in self.mq9_queue_push.iter() {
-            removed.extend(entry.value().remove_by_topic(subject));
-        }
-        self.mq9_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
-        removed
-    }
-
-    fn remove_queue_subscribers_by_sid(&self, connect_id: u64, sid: &str) -> Vec<NatsSubscriber> {
-        let mut removed = Vec::new();
-
-        // nats core queue
-        for entry in self.nats_core_queue_push.iter() {
-            removed.extend(entry.value().remove_by_sid(connect_id, sid));
-        }
-        self.nats_core_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
-
-        // mq9 queue
-        for entry in self.mq9_queue_push.iter() {
-            removed.extend(entry.value().remove_by_sid(connect_id, sid));
+            removed.extend(entry.value().remove_by_sid(broker_id, connect_id, sid));
         }
         self.mq9_queue_push.retain(|_, mgr| mgr.sub_len() > 0);
         removed
@@ -314,12 +300,12 @@ mod tests {
         mgr.add_nats_core_fanout_subscriber(make_subscriber(1, "s2", "bar"));
 
         // remove s1 only
-        mgr.remove_push_by_sub(1, "s1");
+        mgr.remove_push_by_sub(1, 1, "s1");
         assert_eq!(mgr.nats_core_fanout_push.sub_len(), 1);
         assert_eq!(mgr.mq9_fanout_push.sub_len(), 0);
 
         // remove remaining by connection
-        mgr.remove_by_connection(1);
+        mgr.remove_fanout_by_connection(1);
         assert_eq!(mgr.nats_core_fanout_push.sub_len(), 0);
     }
 

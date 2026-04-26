@@ -23,6 +23,7 @@ use mqtt_broker::{
     subscribe::{manager::SubscribeManager, PushManager},
 };
 use nats_broker::core::cache::NatsCacheManager;
+use nats_broker::push::manager::NatsSubscribeManager;
 use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::{metrics::mqtt::MQTTMetricsCache, rocksdb::RocksDBEngine};
@@ -49,6 +50,7 @@ pub struct HttpState {
 #[derive(Clone)]
 pub struct NatsContext {
     pub cache_manager: Arc<NatsCacheManager>,
+    pub subscribe_manager: Arc<NatsSubscribeManager>,
 }
 
 #[derive(Clone)]

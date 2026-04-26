@@ -31,6 +31,7 @@ pub mod health;
 pub mod message;
 pub mod offset;
 pub mod schema;
+pub mod share_group;
 pub mod tenant;
 pub mod topic;
 pub mod user;

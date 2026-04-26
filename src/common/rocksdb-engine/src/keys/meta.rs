@@ -174,6 +174,10 @@ pub fn storage_key_share_group_prefix() -> String {
 }
 
 #[inline]
+pub fn storage_key_share_group_member_all_prefix() -> String {
+    format!("{}cluster/share_group_member/", PREFIX_META)
+}
+
 pub fn storage_key_share_group_member(broker_id: u64, connect_id: u64, sid: &str) -> String {
     format!(
         "{}cluster/share_group_member/{}/{}/{}",

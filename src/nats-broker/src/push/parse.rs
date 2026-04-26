@@ -241,7 +241,7 @@ async fn start_parse_thread(
                         }
                     }
                     (ParseAction::Remove, _, Some(sub), None) => {
-                        subscribe_manager.remove_push_by_sub(sub.connect_id, &sub.sid);
+                        subscribe_manager.remove_push_by_sub(sub.broker_id, sub.connect_id, &sub.sid);
                     }
                     (ParseAction::Add, _, None, Some(topic)) => {
                         if let Err(e) = parse_by_new_topic(&subscribe_manager, topic).await {
@@ -249,7 +249,7 @@ async fn start_parse_thread(
                         }
                     }
                     (ParseAction::Remove, _, None, Some(topic)) => {
-                        subscribe_manager.remove_by_subject(&topic.topic_name);
+                        subscribe_manager.remove_fanout_by_subject(&topic.topic_name);
                     }
                     _ => {
                         error!("Unexpected ParseSubscribeData: {:?}", data);
