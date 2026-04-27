@@ -1,6 +1,6 @@
-import { createContentLoader } from 'vitepress'
 import fs from 'fs'
 import path from 'path'
+import { execFileSync } from 'child_process'
 
 // Pinned post number (change to pin a different post)
 const PINNED_POST_NUMBER = 43
@@ -14,6 +14,49 @@ interface BlogPost {
   tags?: string[]
   modifiedTime?: string
   pinned?: boolean
+}
+
+const gitDateCache = new Map<string, string>()
+
+function getGitCreatedDate(filePath: string): string {
+  if (gitDateCache.has(filePath)) {
+    return gitDateCache.get(filePath) || ''
+  }
+
+  try {
+    const output = execFileSync(
+      'git',
+      ['log', '--diff-filter=A', '--follow', '--format=%ad', '--date=short', '--', filePath],
+      { encoding: 'utf-8' }
+    )
+    const date = output.trim().split('\n').filter(Boolean).pop() || ''
+    gitDateCache.set(filePath, date)
+    return date
+  } catch (error) {
+    const stdout = error instanceof Error && 'stdout' in error
+      ? String((error as { stdout?: unknown }).stdout || '').trim()
+      : ''
+    const date = stdout.split('\n').filter(Boolean).pop() || ''
+    gitDateCache.set(filePath, date)
+    return date
+  }
+}
+
+function formatPostDate(date: string, lang: 'zh' | 'en'): string {
+  if (!date) {
+    return ''
+  }
+
+  if (lang === 'zh') {
+    return date
+  }
+
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC'
+  })
 }
 
 // 关键字提取函数（从标题和内容提取）
@@ -93,14 +136,7 @@ export default {
       const content = fs.readFileSync(filePath, 'utf-8')
       const number = parseInt(file.replace('.md', ''))
       
-      // 获取文件修改时间
-      const stats = fs.statSync(filePath)
-      const modifiedDate = new Date(stats.mtime)
-      const modifiedTime = modifiedDate.toLocaleDateString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).replace(/\//g, '-')
+      const publishedDate = formatPostDate(getGitCreatedDate(filePath), 'zh')
       
       // 提取标题（第一行的 # 标题）
       const titleMatch = content.match(/^#\s+(.+)$/m)
@@ -148,8 +184,8 @@ export default {
         excerpt,
         number,
         tags,
-        date: modifiedTime,
-        modifiedTime,
+        date: publishedDate,
+        modifiedTime: publishedDate,
         pinned: number === PINNED_POST_NUMBER
       })
     }
@@ -173,14 +209,7 @@ export default {
       const content = fs.readFileSync(filePath, 'utf-8')
       const number = parseInt(file.replace('.md', ''))
       
-      // 获取文件修改时间
-      const stats = fs.statSync(filePath)
-      const modifiedDate = new Date(stats.mtime)
-      const modifiedTime = modifiedDate.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      })
+      const publishedDate = formatPostDate(getGitCreatedDate(filePath), 'en')
       
       const titleMatch = content.match(/^#\s+(.+)$/m)
       const title = titleMatch ? titleMatch[1] : file
@@ -226,8 +255,8 @@ export default {
         excerpt,
         number,
         tags,
-        date: modifiedTime,
-        modifiedTime,
+        date: publishedDate,
+        modifiedTime: publishedDate,
         pinned: number === PINNED_POST_NUMBER
       })
     }
