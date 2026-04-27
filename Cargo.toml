@@ -214,7 +214,7 @@ paho-mqtt = { version = "0.13.3", default-features = false, features = [
     "bundled",
     "ssl",
 ] }
-clickhouse = "0.14.2"
+clickhouse = "0.15.0"
 scylla = "0.15"
 
 # ====================
