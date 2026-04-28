@@ -15,6 +15,7 @@
 #[cfg(test)]
 mod tests {
     use crate::mqtt::protocol::common::create_test_env;
+    use crate::nats::common::{nats_connect, DEFAULT_TENANT};
     use admin_server::cluster::message::ReadMessageReq;
     use admin_server::nats::mail::MailListReq;
     use async_nats::Client;
@@ -26,7 +27,6 @@ mod tests {
     use mq9_core::public::{StoragePublicData, MQ9_SYSTEM_PUBLIC_MAIL};
     use std::time::Duration;
     use tokio::time::sleep;
-    use crate::nats::common::{nats_connect, DEFAULT_TENANT};
 
     const TTL: u64 = 30;
     // GC runs every 60s; wait TTL + one full GC interval to be sure
