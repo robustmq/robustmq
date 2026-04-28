@@ -28,23 +28,36 @@ use mq9_core::public::{is_system_mailbox, StoragePublicData, MQ9_SYSTEM_PUBLIC_M
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
-fn validate_prefix(prefix: &str) -> Result<(), NatsBrokerError> {
-    if prefix.is_empty() {
+const MQ9_MAIL_SUFFIX: &str = "@mq9";
+
+fn build_mail_address(name: Option<&str>) -> Result<String, NatsBrokerError> {
+    match name {
+        Some(n) => {
+            validate_mail_name(n)?;
+            Ok(format!("{}{}", n, MQ9_MAIL_SUFFIX))
+        }
+        None => Ok(format!("{}{}", unique_id(), MQ9_MAIL_SUFFIX)),
+    }
+}
+
+fn validate_mail_name(name: &str) -> Result<(), NatsBrokerError> {
+    if name.is_empty() {
         return Err(NatsBrokerError::CommonError(
             "prefix must not be empty".to_string(),
         ));
     }
-    if !prefix
+    if !name
         .chars()
         .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.')
     {
         return Err(NatsBrokerError::CommonError(
-            "prefix may only contain lowercase letters, digits, and dots".to_string(),
+            "name may only contain lowercase letters, digits, and dots".to_string(),
         ));
     }
-    if prefix.starts_with('.') || prefix.ends_with('.') || prefix.contains("..") {
+    let is_alphanumeric = |c: char| c.is_ascii_lowercase() || c.is_ascii_digit();
+    if !name.starts_with(is_alphanumeric) || !name.ends_with(is_alphanumeric) {
         return Err(NatsBrokerError::CommonError(
-            "prefix must not start or end with a dot, or contain consecutive dots".to_string(),
+            "prefix must start and end with a lowercase letter or digit".to_string(),
         ));
     }
     Ok(())
@@ -56,20 +69,7 @@ fn build_mail(payload: &Bytes) -> Result<MQ9Mail, NatsBrokerError> {
     })?;
 
     let tenant = get_tenant();
-
-    let mail_address = if params.public {
-        params.name.ok_or_else(|| {
-            NatsBrokerError::CommonError("public mailbox requires a 'name' field".to_string())
-        })?
-    } else {
-        match params.prefix {
-            Some(ref prefix) => {
-                validate_prefix(prefix)?;
-                format!("{}@{}.{}", prefix, unique_id(), unique_id())
-            }
-            None => format!("mail@{}.{}", unique_id(), unique_id()),
-        }
-    };
+    let mail_address = build_mail_address(params.name.as_deref())?;
 
     Ok(MQ9Mail {
         mail_address,
@@ -140,4 +140,30 @@ pub async fn save_public_data(
         .write(DEFAULT_TENANT, MQ9_SYSTEM_PUBLIC_MAIL, vec![record])
         .await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{build_mail_address, validate_mail_name, MQ9_MAIL_SUFFIX};
+
+    #[test]
+    fn test_validate_mail_name() {
+        assert!(validate_mail_name("a1.b2.c3").is_ok());
+        assert!(validate_mail_name("").is_err());
+        assert!(validate_mail_name("Abc").is_err());
+        assert!(validate_mail_name("a-b").is_err());
+        assert!(validate_mail_name(".leading").is_err());
+        assert!(validate_mail_name("trailing.").is_err());
+    }
+
+    #[test]
+    fn test_build_mail_address() {
+        assert_eq!(
+            build_mail_address(Some("alice")).unwrap(),
+            format!("alice{}", MQ9_MAIL_SUFFIX)
+        );
+        assert!(build_mail_address(Some(".abc")).is_err());
+        let auto = build_mail_address(None).unwrap();
+        assert!(auto.ends_with(MQ9_MAIL_SUFFIX));
+    }
 }

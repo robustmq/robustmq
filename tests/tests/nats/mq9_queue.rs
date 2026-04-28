@@ -56,7 +56,6 @@ mod tests {
         let req = CreateMailboxReq {
             ttl: None,
             public: false,
-            prefix: None,
             name: None,
             desc: "mq9_queue test".to_string(),
         };
