@@ -105,7 +105,7 @@ async def orchestrator():
 
         # 将任务发送到 Worker 的公开队列
         task = {"type": "analyze", "doc_id": "abc123", "reply_to": reply_box.mail_address}
-        await client.send("task.queue", task, priority=Priority.NORMAL)
+        await client.send("task.queue@mq9", task, priority=Priority.NORMAL)
 
         # 等待结果
         result_event = asyncio.Event()
@@ -124,7 +124,7 @@ async def orchestrator():
 async def worker():
     async with Client("nats://localhost:4222") as client:
         # 确保任务队列存在
-        await client.create(ttl=86400, public=True, name="task.queue", desc="任务队列")
+        await client.create(ttl=86400, public=True, name="task.queue@mq9", desc="任务队列")
 
         async def process(msg):
             task = msg.data
@@ -133,7 +133,7 @@ async def worker():
             result = {"status": "done", "output": "分析完成"}
             await client.send(task["reply_to"], result, priority=Priority.CRITICAL)
 
-        sub = await client.subscribe("task.queue", process, queue_group="workers")
+        sub = await client.subscribe("task.queue@mq9", process, queue_group="workers")
         await asyncio.sleep(60)  # 运行 60 秒
         await sub.unsubscribe()
 

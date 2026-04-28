@@ -89,7 +89,7 @@ asyncio.run(main())
 
 ```python
 # 创建公开任务队列
-queue = await client.create(ttl=86400, public=True, name="task.queue", desc="Worker 队列")
+queue = await client.create(ttl=86400, public=True, name="task.queue@mq9", desc="Worker 队列")
 
 # Worker 1（在单独的协程或进程中运行）
 sub1 = await client.subscribe(queue.mail_address, worker_handler, queue_group="workers")
@@ -444,7 +444,7 @@ async def main():
     # --- 创建公开邮箱 ---
     reply = await nc.request(
         "$mq9.AI.MAILBOX.CREATE",
-        json.dumps({"ttl": 86400, "public": True, "name": "task.queue", "desc": "Worker 队列"}).encode(),
+        json.dumps({"ttl": 86400, "public": True, "name": "task.queue@mq9", "desc": "Worker 队列"}).encode(),
         timeout=5
     )
     print(f"公开邮箱: {json.loads(reply.data)['mail_address']}")
@@ -466,7 +466,7 @@ async def worker(worker_id: str):
         data = json.loads(msg.data)
         print(f"Worker {worker_id} 收到任务: {data}")
 
-    sub = await nc.subscribe("$mq9.AI.MAILBOX.MSG.task.queue.*",
+    sub = await nc.subscribe("$mq9.AI.MAILBOX.MSG.task.queue@mq9.*",
                              queue="workers", cb=handler)
     await asyncio.sleep(30)
     await sub.unsubscribe()
@@ -542,7 +542,7 @@ func main() {
     }
 
     // --- 队列组（竞争消费） ---
-    qsub, _ := nc.QueueSubscribe("$mq9.AI.MAILBOX.MSG.task.queue.*", "workers",
+    qsub, _ := nc.QueueSubscribe("$mq9.AI.MAILBOX.MSG.task.queue@mq9.*", "workers",
         func(msg *nats.Msg) {
             fmt.Printf("Worker 收到: %s\n", string(msg.Data))
         })
@@ -606,7 +606,7 @@ async function main() {
   );
 
   // --- 队列组 ---
-  const qsub = nc.subscribe(`$mq9.AI.MAILBOX.MSG.task.queue.*`, {
+  const qsub = nc.subscribe(`$mq9.AI.MAILBOX.MSG.task.queue@mq9.*`, {
     queue: "workers",
   });
   (async () => {
@@ -750,7 +750,7 @@ public class Mq9Example {
             Dispatcher queueDispatcher = nc.createDispatcher(msg -> {
                 System.out.println("Worker 收到: " + new String(msg.getData()));
             });
-            queueDispatcher.subscribe("$mq9.AI.MAILBOX.MSG.task.queue.*", "workers");
+            queueDispatcher.subscribe("$mq9.AI.MAILBOX.MSG.task.queue@mq9.*", "workers");
         }
     }
 }

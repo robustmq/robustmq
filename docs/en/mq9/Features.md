@@ -24,13 +24,13 @@ mq9 provides two mailbox types. The type is chosen at creation time and cannot b
 
 | | Private | Public |
 |---|---|---|
-| `mail_address` | Server-generated UUID (not guessable) | User-defined string (e.g. `task.queue`) |
+| `mail_address` | Server-generated UUID (not guessable) | User-defined string (e.g. `task.queue@mq9`) |
 | Discovery | Not discoverable — only parties who already know the `mail_address` can interact | Automatically registered to `$mq9.AI.PUBLIC.LIST`; discoverable by anyone |
 | Use case | Point-to-point messaging, task result delivery, private replies | Task queues, broadcast channels, capability announcements |
 
 **Security model:** The unguessability of the `mail_address` is the only access control boundary. There are no bearer tokens, no ACL entries, no auth headers. A party that knows the `mail_address` can send messages and subscribe; a party that does not know it cannot interact with the mailbox in any way. For private mailboxes, treat the `mail_address` as a secret shared only with intended participants.
 
-Public mailboxes trade that opacity for discoverability. The name is the address — choose it to be meaningful and self-describing (e.g. `vision.results`, `task.queue`) rather than opaque.
+Public mailboxes trade that opacity for discoverability. The name is the address — choose it to be meaningful and self-describing (e.g. `vision.results@mq9`, `task.queue@mq9`) rather than opaque.
 
 ---
 
@@ -123,10 +123,10 @@ Multiple subscribers can compete for messages on the same mailbox by joining a q
 
 ```bash
 # Worker 1 (receives all priority messages)
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
+nats sub '$mq9.AI.MAILBOX.MSG.task.queue@mq9.*' --queue workers
 
 # Worker 2
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
+nats sub '$mq9.AI.MAILBOX.MSG.task.queue@mq9.*' --queue workers
 ```
 
 All subscribers using the same queue group name (`workers` above) share message delivery. The broker routes each message to one member using load balancing. The group name is arbitrary — any string works.

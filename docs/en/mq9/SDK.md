@@ -89,7 +89,7 @@ asyncio.run(main())
 
 ```python
 # Public task queue with queue group
-queue = await client.create(ttl=86400, public=True, name="task.queue", desc="Worker queue")
+queue = await client.create(ttl=86400, public=True, name="task.queue@mq9", desc="Worker queue")
 
 # Worker 1 (run in separate coroutine or process)
 sub1 = await client.subscribe(queue.mail_address, worker_handler, queue_group="workers")
@@ -448,7 +448,7 @@ async def main():
     # --- Create a public mailbox ---
     reply = await nc.request(
         "$mq9.AI.MAILBOX.CREATE",
-        json.dumps({"ttl": 86400, "public": True, "name": "task.queue", "desc": "Worker queue"}).encode(),
+        json.dumps({"ttl": 86400, "public": True, "name": "task.queue@mq9", "desc": "Worker queue"}).encode(),
         timeout=5
     )
     print(f"Public mailbox: {json.loads(reply.data)['mail_address']}")
@@ -470,7 +470,7 @@ async def worker(worker_id: str):
         data = json.loads(msg.data)
         print(f"Worker {worker_id} got task: {data}")
 
-    sub = await nc.subscribe("$mq9.AI.MAILBOX.MSG.task.queue.*",
+    sub = await nc.subscribe("$mq9.AI.MAILBOX.MSG.task.queue@mq9.*",
                              queue="workers", cb=handler)
     await asyncio.sleep(30)
     await sub.unsubscribe()
@@ -546,7 +546,7 @@ func main() {
     }
 
     // --- Queue group (competing consumers) ---
-    qsub, _ := nc.QueueSubscribe("$mq9.AI.MAILBOX.MSG.task.queue.*", "workers",
+    qsub, _ := nc.QueueSubscribe("$mq9.AI.MAILBOX.MSG.task.queue@mq9.*", "workers",
         func(msg *nats.Msg) {
             fmt.Printf("Worker got: %s\n", string(msg.Data))
         })
@@ -610,7 +610,7 @@ async function main() {
   );
 
   // --- Queue group ---
-  const qsub = nc.subscribe(`$mq9.AI.MAILBOX.MSG.task.queue.*`, {
+  const qsub = nc.subscribe(`$mq9.AI.MAILBOX.MSG.task.queue@mq9.*`, {
     queue: "workers",
   });
   (async () => {
@@ -754,7 +754,7 @@ public class Mq9Example {
             Dispatcher queueDispatcher = nc.createDispatcher(msg -> {
                 System.out.println("Worker got: " + new String(msg.getData()));
             });
-            queueDispatcher.subscribe("$mq9.AI.MAILBOX.MSG.task.queue.*", "workers");
+            queueDispatcher.subscribe("$mq9.AI.MAILBOX.MSG.task.queue@mq9.*", "workers");
         }
     }
 }
