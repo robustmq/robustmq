@@ -23,9 +23,10 @@ mod tests {
     use metadata_struct::{
         mqtt::retain_message::MQTTRetainMessage, tenant::DEFAULT_TENANT, topic::Topic,
     };
-    use mqtt_broker::storage::retain::RetainStorage;
+    use mqtt_broker::storage::retain::{RetainStorage, RETAIN_MESSAGE_TOPIC};
     use std::sync::Arc;
     use std::time::Duration;
+    use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
     use tokio::time::sleep;
 
     #[tokio::test]
@@ -69,9 +70,12 @@ mod tests {
         let config = default_broker_config();
         init_broker_conf_by_config(config.clone());
 
+        let storage_driver_manager = test_build_storage_driver_manager().await.unwrap();
+        test_add_topic(&storage_driver_manager, RETAIN_MESSAGE_TOPIC);
+
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_pool.clone());
-        let retain_storage = RetainStorage::new(client_pool.clone());
+        let retain_storage = RetainStorage::new(storage_driver_manager.clone());
 
         let topic_name: String = unique_id();
         let content = "Robust Data".to_string();
@@ -101,8 +105,7 @@ mod tests {
         assert!(result_message.is_some());
 
         let msg = result_message.unwrap();
-        let payload = msg.payload;
-        assert_eq!(payload, content);
+        assert_eq!(msg.payload, Bytes::from(content.clone()));
 
         retain_storage
             .delete_retain_message(&topic.tenant, &topic_name)

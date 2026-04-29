@@ -14,6 +14,7 @@
 
 pub mod auto_subscribe;
 pub mod connector;
+pub mod last_will;
 pub mod local;
 pub mod message;
 pub mod retain;

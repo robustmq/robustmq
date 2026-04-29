@@ -53,6 +53,7 @@ pub struct SessionListRow {
 use axum::extract::Query;
 use common_base::http_response::{error_response, success_response};
 use metadata_struct::mqtt::session::MqttSession;
+use mqtt_broker::storage::last_will::LastWillStorage;
 use mqtt_broker::storage::session::SessionStorage;
 use std::sync::Arc;
 
@@ -101,10 +102,10 @@ pub async fn session_list(
     let sorted = apply_sorting(rows, &options);
     let pagination = apply_pagination(sorted, &options);
 
-    let storage = SessionStorage::new(state.client_pool.clone());
+    let last_will_storage = LastWillStorage::new(state.client_pool.clone());
     let mut data = Vec::with_capacity(pagination.0.len());
     for mut row in pagination.0 {
-        let last_will = match storage.get_last_will_message(row.client_id.clone()).await {
+        let last_will = match last_will_storage.get_last_will_message(row.client_id.clone()).await {
             Ok(v) => v,
             Err(e) => return error_response(e.to_string()),
         };

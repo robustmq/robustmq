@@ -16,15 +16,12 @@ use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::meta::mqtt::call::{
-    placement_create_session, placement_delete_session, placement_get_last_will_message,
-    placement_list_session, placement_save_last_will_message,
+    placement_create_session, placement_delete_session, placement_list_session,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::meta::meta_service_mqtt::{
-    CreateSessionRaw, CreateSessionRequest, DeleteSessionRequest, GetLastWillMessageRequest,
-    ListSessionRequest, SaveLastWillMessageRequest,
+    CreateSessionRaw, CreateSessionRequest, DeleteSessionRequest, ListSessionRequest,
 };
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
@@ -226,45 +223,4 @@ impl SessionStorage {
         Ok(results)
     }
 
-    pub async fn save_last_will_message(
-        &self,
-        client_id: String,
-        last_will_message: Vec<u8>,
-    ) -> Result<(), CommonError> {
-        let config = broker_config();
-        let request = SaveLastWillMessageRequest {
-            client_id,
-            last_will_message,
-        };
-
-        placement_save_last_will_message(
-            &self.client_pool,
-            &config.get_meta_service_addr(),
-            request,
-        )
-        .await?;
-
-        Ok(())
-    }
-
-    pub async fn get_last_will_message(
-        &self,
-        client_id: String,
-    ) -> Result<Option<MqttLastWillData>, CommonError> {
-        let config = broker_config();
-        let request = GetLastWillMessageRequest { client_id };
-
-        let reply = placement_get_last_will_message(
-            &self.client_pool,
-            &config.get_meta_service_addr(),
-            request,
-        )
-        .await?;
-        if reply.message.is_empty() {
-            return Ok(None);
-        }
-
-        let data = MqttLastWillData::decode(&reply.message)?;
-        Ok(Some(data))
-    }
 }

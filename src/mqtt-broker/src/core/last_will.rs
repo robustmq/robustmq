@@ -17,8 +17,8 @@ use super::error::MqttBrokerError;
 use super::topic::try_init_topic;
 use crate::core::offline_message::build_mqtt_protocol_data;
 use crate::core::{retain::RetainMessageManager, tool::ResultMqttBrokerError};
+use crate::storage::last_will::LastWillStorage;
 use crate::storage::message::MessageStorage;
-use crate::storage::session::SessionStorage;
 use bytes::Bytes;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
@@ -135,7 +135,7 @@ pub async fn save_last_will_message(
         return Ok(());
     }
 
-    let session_storage = SessionStorage::new(client_pool.clone());
+    let last_will_storage = LastWillStorage::new(client_pool.clone());
     let lastwill = MqttLastWillData {
         tenant: tenant.to_string(),
         client_id: client_id.to_string(),
@@ -143,7 +143,7 @@ pub async fn save_last_will_message(
         last_will_properties: last_will_properties.clone(),
     };
 
-    session_storage
+    last_will_storage
         .save_last_will_message(client_id.to_string(), lastwill.encode()?)
         .await?;
 
