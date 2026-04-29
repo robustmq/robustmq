@@ -129,7 +129,7 @@ pub(crate) async fn build_broker_mqtt_params(
     let schema_manager = Arc::new(SchemaRegisterManager::new());
     let retain_message_manager = RetainMessageManager::new(
         cache_manager.clone(),
-        client_pool.clone(),
+        storage_driver_manager.clone(),
         connection_manager.clone(),
         stop_sx,
     );

@@ -32,11 +32,11 @@ use common_base::tools::now_second;
 use common_metrics::mqtt::packets::{record_retain_recv_metrics, record_retain_sent_metrics};
 use common_metrics::mqtt::statistics::{record_mqtt_retained_dec, record_mqtt_retained_inc};
 use dashmap::DashMap;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::mqtt::common::{MqttPacket, Publish, PublishProperties, QoS, Subscribe};
 use std::sync::Arc;
+use storage_adapter::driver::StorageDriverManager;
 use tokio::select;
 use tokio::sync::{broadcast, mpsc, Semaphore};
 use tracing::{debug, error, warn};
@@ -50,7 +50,7 @@ struct SendRetainData {
 
 pub struct RetainMessageManager {
     cache_manager: Arc<MQTTCacheManager>,
-    client_pool: Arc<ClientPool>,
+    storage_driver_manager: Arc<StorageDriverManager>,
     connection_manager: Arc<ConnectionManager>,
     topic_retain_data: DashMap<String, DashMap<String, MQTTRetainMessage>>,
     last_update_time: DashMap<String, DashMap<String, u64>>,
@@ -60,14 +60,14 @@ pub struct RetainMessageManager {
 impl RetainMessageManager {
     pub fn new(
         cache_manager: Arc<MQTTCacheManager>,
-        client_pool: Arc<ClientPool>,
+        storage_driver_manager: Arc<StorageDriverManager>,
         connection_manager: Arc<ConnectionManager>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Arc<RetainMessageManager> {
         let (send_retain_message_queue, rx) = mpsc::channel::<SendRetainData>(3000);
         let manager = Arc::new(RetainMessageManager {
             cache_manager,
-            client_pool,
+            storage_driver_manager,
             connection_manager,
             topic_retain_data: DashMap::new(),
             last_update_time: DashMap::new(),
@@ -88,7 +88,7 @@ impl RetainMessageManager {
             return Ok(());
         }
 
-        let topic_storage = RetainStorage::new(self.client_pool.clone());
+        let topic_storage = RetainStorage::new(self.storage_driver_manager.clone());
         let had_retain = self.contain_retain(tenant, topic_name).await?;
 
         if had_retain && publish.payload.is_empty() {
@@ -223,7 +223,7 @@ impl RetainMessageManager {
         tenant: &str,
         topic: &str,
     ) -> Result<(), MqttBrokerError> {
-        let topic_storage = RetainStorage::new(self.client_pool.clone());
+        let topic_storage = RetainStorage::new(self.storage_driver_manager.clone());
         let retain_message = topic_storage.get_retain_message(tenant, topic).await?;
 
         if let Some(data) = retain_message {

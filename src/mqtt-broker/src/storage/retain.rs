@@ -14,43 +14,35 @@
 
 use crate::core::error::MqttBrokerError;
 use crate::core::tool::ResultMqttBrokerError;
-use common_config::broker::broker_config;
-use grpc_clients::meta::mqtt::call::{
-    placement_get_topic_retain_message, placement_set_topic_retain_message,
-};
-use grpc_clients::pool::ClientPool;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
-use protocol::meta::meta_service_mqtt::{
-    GetTopicRetainMessageRequest, SetTopicRetainMessageRequest,
-};
 use std::sync::Arc;
+use storage_adapter::driver::StorageDriverManager;
+
+pub const RETAIN_MESSAGE_TOPIC: &str = "$retain-message";
 
 pub struct RetainStorage {
-    client_pool: Arc<ClientPool>,
+    storage_driver_manager: Arc<StorageDriverManager>,
 }
 
 impl RetainStorage {
-    pub fn new(client_pool: Arc<ClientPool>) -> Self {
-        RetainStorage { client_pool }
+    pub fn new(storage_driver_manager: Arc<StorageDriverManager>) -> Self {
+        RetainStorage {
+            storage_driver_manager,
+        }
     }
+
     pub async fn set_retain_message(
         &self,
         tenant: &str,
         topic_name: &str,
         retain_message: &MQTTRetainMessage,
     ) -> ResultMqttBrokerError {
-        let config = broker_config();
-        let request = SetTopicRetainMessageRequest {
-            tenant: tenant.to_string(),
-            topic_name: topic_name.to_string(),
-            retain_message: Some(retain_message.encode()?.to_vec()),
-        };
-        placement_set_topic_retain_message(
-            &self.client_pool,
-            &config.get_meta_service_addr(),
-            request,
-        )
-        .await?;
+        let data = retain_message.encode()?;
+        let record = AdapterWriteRecord::new(RETAIN_MESSAGE_TOPIC, data).with_key(topic_name);
+        self.storage_driver_manager
+            .write(tenant, RETAIN_MESSAGE_TOPIC, &[record])
+            .await?;
         Ok(())
     }
 
@@ -59,18 +51,9 @@ impl RetainStorage {
         tenant: &str,
         topic_name: &str,
     ) -> ResultMqttBrokerError {
-        let config = broker_config();
-        let request = SetTopicRetainMessageRequest {
-            tenant: tenant.to_string(),
-            topic_name: topic_name.to_owned(),
-            ..Default::default()
-        };
-        placement_set_topic_retain_message(
-            &self.client_pool,
-            &config.get_meta_service_addr(),
-            request,
-        )
-        .await?;
+        self.storage_driver_manager
+            .delete_by_key(tenant, RETAIN_MESSAGE_TOPIC, topic_name)
+            .await?;
         Ok(())
     }
 
@@ -79,21 +62,12 @@ impl RetainStorage {
         tenant: &str,
         topic_name: &str,
     ) -> Result<Option<MQTTRetainMessage>, MqttBrokerError> {
-        let config = broker_config();
-        let request = GetTopicRetainMessageRequest {
-            tenant: tenant.to_owned(),
-            topic_name: topic_name.to_owned(),
-        };
-
-        let reply = placement_get_topic_retain_message(
-            &self.client_pool,
-            &config.get_meta_service_addr(),
-            request,
-        )
-        .await?;
-
-        if let Some(data) = reply.retain_message {
-            let message = MQTTRetainMessage::decode(&data)?;
+        let records = self
+            .storage_driver_manager
+            .read_by_key(tenant, RETAIN_MESSAGE_TOPIC, topic_name)
+            .await?;
+        if let Some(record) = records.into_iter().next() {
+            let message = MQTTRetainMessage::decode(&record.data)?;
             return Ok(Some(message));
         }
         Ok(None)

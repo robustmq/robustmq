@@ -237,16 +237,6 @@ impl DataRoute {
                 self.route_mqtt.delete_topic(storage_data.value.clone())?;
                 Ok(None)
             }
-            StorageDataType::MqttSetRetainMessage => {
-                self.route_mqtt
-                    .set_retain_message(storage_data.value.clone())?;
-                Ok(None)
-            }
-            StorageDataType::MqttDeleteRetainMessage => {
-                self.route_mqtt
-                    .delete_retain_message(storage_data.value.clone())?;
-                Ok(None)
-            }
             StorageDataType::MqttSetSession => {
                 self.route_mqtt
                     .create_session(storage_data.value.clone())

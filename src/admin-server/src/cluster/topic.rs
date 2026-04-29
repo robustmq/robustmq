@@ -229,7 +229,7 @@ async fn read_topic_detail(
         .get(&topic.tenant)
         .and_then(|t| t.get(&topic.topic_name).map(|v| v.clone()))
         .unwrap_or_default();
-    let storage = RetainStorage::new(state.client_pool.clone());
+    let storage = RetainStorage::new(state.mqtt_context.storage_driver_manager.clone());
     let retain_message = storage
         .get_retain_message(&topic.tenant, &topic.topic_name)
         .await?;

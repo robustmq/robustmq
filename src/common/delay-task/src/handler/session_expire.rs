@@ -82,7 +82,6 @@ pub async fn handle_session_expire(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 fn get_session(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     broker_cache: &Arc<NodeCacheManager>,

@@ -24,14 +24,13 @@ use protocol::meta::meta_service_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetLastWillMessageReply,
-    GetLastWillMessageRequest, GetTopicRetainMessageReply, GetTopicRetainMessageRequest,
-    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
-    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
-    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
-    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest, SetSubscribeReply,
-    SetSubscribeRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
-    UpdateConnectorReply, UpdateConnectorRequest,
+    GetLastWillMessageRequest, ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply,
+    ListAutoSubscribeRuleRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectorReply,
+    ListConnectorRequest, ListSessionReply, ListSessionRequest, ListSubscribeReply,
+    ListSubscribeRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
+    ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest, SaveLastWillMessageReply,
+    SaveLastWillMessageRequest, SetSubscribeReply, SetSubscribeRequest, UpdateConnectorReply,
+    UpdateConnectorRequest,
 };
 use tonic::Streaming;
 
@@ -85,20 +84,6 @@ generate_mqtt_service_call!(
     Streaming<ListTopicReply>,
     ListTopic
 );
-generate_mqtt_service_call!(
-    placement_set_topic_retain_message,
-    SetTopicRetainMessageRequest,
-    SetTopicRetainMessageReply,
-    SetTopicRetainMessage
-);
-
-generate_mqtt_service_call!(
-    placement_get_topic_retain_message,
-    GetTopicRetainMessageRequest,
-    GetTopicRetainMessageReply,
-    GetTopicRetainMessage
-);
-
 generate_mqtt_service_call!(
     placement_create_session,
     CreateSessionRequest,

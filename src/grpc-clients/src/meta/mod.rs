@@ -48,7 +48,6 @@ pub enum MetaServiceInterface {
     CreateTopic,
     DeleteTopic,
     ListTopic,
-    SetTopicRetainMessage,
     SetNXExclusiveTopic,
     DeleteExclusiveTopic,
     CreateSession,

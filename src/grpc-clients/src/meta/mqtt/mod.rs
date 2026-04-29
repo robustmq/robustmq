@@ -24,14 +24,13 @@ use protocol::meta::meta_service_mqtt::{
     DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
     DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetLastWillMessageReply,
-    GetLastWillMessageRequest, GetTopicRetainMessageReply, GetTopicRetainMessageRequest,
-    ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest,
-    ListBlacklistReply, ListBlacklistRequest, ListConnectorReply, ListConnectorRequest,
-    ListSessionReply, ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply,
-    ListTopicRequest, ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply,
-    ListUserRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest, SetSubscribeReply,
-    SetSubscribeRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
-    UpdateConnectorReply, UpdateConnectorRequest,
+    GetLastWillMessageRequest, ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply,
+    ListAutoSubscribeRuleRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectorReply,
+    ListConnectorRequest, ListSessionReply, ListSessionRequest, ListSubscribeReply,
+    ListSubscribeRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
+    ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest, SaveLastWillMessageReply,
+    SaveLastWillMessageRequest, SetSubscribeReply, SetSubscribeRequest, UpdateConnectorReply,
+    UpdateConnectorRequest,
 };
 use tonic::transport::Channel;
 use tonic::Streaming;
@@ -97,26 +96,6 @@ impl_retriable_request!(
     list_topic,
     "MqttService",
     "ListTopic",
-    true
-);
-
-impl_retriable_request!(
-    SetTopicRetainMessageRequest,
-    MqttServiceClient<Channel>,
-    SetTopicRetainMessageReply,
-    set_topic_retain_message,
-    "MqttService",
-    "SetTopicRetainMessage",
-    true
-);
-
-impl_retriable_request!(
-    GetTopicRetainMessageRequest,
-    MqttServiceClient<Channel>,
-    GetTopicRetainMessageReply,
-    get_topic_retain_message,
-    "MqttService",
-    "GetTopicRetainMessage",
     true
 );
 
