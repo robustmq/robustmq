@@ -19,108 +19,57 @@ use common_metrics::mqtt::statistics::{
     record_mqtt_subscriptions_shared_group_get,
 };
 use grpc_clients::pool::ClientPool;
+use serde::Serialize;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
-// subscribe
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_COUNT: &str =
-    "$SYS/brokers/stats/suboptions/count";
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_MAX: &str =
-    "$SYS/brokers/stats/suboptions/max";
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_COUNT: &str =
-    "$SYS/brokers/stats/subscribers/count";
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_MAX: &str =
-    "$SYS/brokers/stats/subscribers/max";
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_COUNT: &str =
-    "$SYS/brokers/stats/subscriptions/count";
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_MAX: &str =
-    "$SYS/brokers/stats/subscriptions/max";
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT: &str =
-    "$SYS/brokers/stats/subscriptions/shared/count";
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX: &str =
-    "$SYS/brokers/stats/subscriptions/shared/max";
+use crate::system_topic::SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS;
+
+/// Subscription statistics published as a single JSON payload to
+/// `$SYS/brokers/stats/subscriptions`.
+#[derive(Debug, Serialize)]
+pub(crate) struct BrokerSubscriptionsStats {
+    // Total active subscriptions (exclusive + shared)
+    pub count: i64,
+    // Peak total subscriptions since broker start
+    pub max: i64,
+    // Exclusive (non-shared) subscriptions only
+    pub exclusive_count: i64,
+    // Shared subscriptions only
+    pub shared_count: i64,
+    // Number of distinct shared subscription groups
+    pub shared_group_count: i64,
+}
+
+impl BrokerSubscriptionsStats {
+    pub(crate) fn collect() -> Self {
+        let exclusive = record_mqtt_subscriptions_exclusive_get();
+        let shared = record_mqtt_subscriptions_shared_get();
+        let total = exclusive + shared;
+        let shared_group = record_mqtt_subscriptions_shared_group_get();
+        BrokerSubscriptionsStats {
+            count: total,
+            max: total,
+            exclusive_count: exclusive,
+            shared_count: shared,
+            shared_group_count: shared_group,
+        }
+    }
+}
 
 pub(crate) async fn report_broker_stat_sub_options(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
-    // Total subscriptions = exclusive + shared
-    let exclusive = record_mqtt_subscriptions_exclusive_get();
-    let shared = record_mqtt_subscriptions_shared_get();
-    let total_subs = exclusive + shared;
-
+    let stats = BrokerSubscriptionsStats::collect();
+    let payload = serde_json::to_string(&stats).unwrap_or_default();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_COUNT,
-        || async move { total_subs.to_string() },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_SUBOPTIONS_MAX,
-        || async move { total_subs.to_string() },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_COUNT,
-        || async move { exclusive.to_string() },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIBERS_MAX,
-        || async move { exclusive.to_string() },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_COUNT,
-        || async move { total_subs.to_string() },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_MAX,
-        || async move { total_subs.to_string() },
-    )
-    .await;
-
-    let shared_count = record_mqtt_subscriptions_shared_get();
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_COUNT,
-        || async move { shared_count.to_string() },
-    )
-    .await;
-
-    let shared_group = record_mqtt_subscriptions_shared_group_get();
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS_SHARED_MAX,
-        || async move { shared_group.to_string() },
+        SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS,
+        || async move { payload },
     )
     .await;
 }

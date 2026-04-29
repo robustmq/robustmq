@@ -18,36 +18,44 @@ use common_metrics::mqtt::packets::{
     record_mqtt_total_bytes_received_get, record_mqtt_total_bytes_sent_get,
 };
 use grpc_clients::pool::ClientPool;
+use serde::Serialize;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
-// metrics
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED: &str =
-    "$SYS/brokers/metrics/bytes/received";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT: &str = "$SYS/brokers/metrics/bytes/sent";
+use crate::system_topic::SYSTEM_TOPIC_BROKERS_METRICS_BYTES;
+
+/// Aggregated byte counters published as a single JSON payload to
+/// `$SYS/brokers/metrics/bytes`.
+#[derive(Debug, Serialize)]
+pub(crate) struct BrokerBytesMetrics {
+    // Total bytes received from clients
+    pub received: u64,
+    // Total bytes sent to clients
+    pub sent: u64,
+}
+
+impl BrokerBytesMetrics {
+    pub(crate) fn collect() -> Self {
+        BrokerBytesMetrics {
+            received: record_mqtt_total_bytes_received_get(),
+            sent: record_mqtt_total_bytes_sent_get(),
+        }
+    }
+}
 
 pub(crate) async fn report_broker_metrics_bytes(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
-    let received = record_mqtt_total_bytes_received_get();
+    let metrics = BrokerBytesMetrics::collect();
+    let payload = serde_json::to_string(&metrics).unwrap_or_default();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_BYTES_RECEIVED,
-        || async move { received.to_string() },
-    )
-    .await;
-
-    let sent = record_mqtt_total_bytes_sent_get();
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_BYTES_SENT,
-        || async move { sent.to_string() },
+        SYSTEM_TOPIC_BROKERS_METRICS_BYTES,
+        || async move { payload },
     )
     .await;
 }

@@ -16,39 +16,48 @@ use crate::core::cache::MQTTCacheManager;
 use crate::system_topic::report_system_data;
 use common_metrics::mqtt::statistics::{record_mqtt_connections_get, record_mqtt_sessions_get};
 use grpc_clients::pool::ClientPool;
+use serde::Serialize;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
-// Stats
-// connections
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT: &str =
-    "$SYS/brokers/stats/connections/count";
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX: &str =
-    "$SYS/brokers/stats/connections/max";
+use crate::system_topic::SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS;
+
+/// Connection/session statistics published as a single JSON payload to
+/// `$SYS/brokers/stats/connections`.
+#[derive(Debug, Serialize)]
+pub(crate) struct BrokerConnectionsStats {
+    // Currently active connections
+    pub count: i64,
+    // Peak connection count since broker start (approximated by session count,
+    // as sessions persist beyond disconnection)
+    pub max: i64,
+    // Total persisted sessions (includes disconnected clients with clean_session=false)
+    pub sessions: i64,
+}
+
+impl BrokerConnectionsStats {
+    pub(crate) fn collect() -> Self {
+        BrokerConnectionsStats {
+            count: record_mqtt_connections_get(),
+            max: record_mqtt_sessions_get(),
+            sessions: record_mqtt_sessions_get(),
+        }
+    }
+}
 
 pub(crate) async fn report_broker_stat_connections(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
-    let current = record_mqtt_connections_get();
+    let stats = BrokerConnectionsStats::collect();
+    let payload = serde_json::to_string(&stats).unwrap_or_default();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_COUNT,
-        || async move { current.to_string() },
-    )
-    .await;
-
-    // max is approximated by the session count (sessions persist beyond disconnection)
-    let max = record_mqtt_sessions_get();
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS_MAX,
-        || async move { max.to_string() },
+        SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS,
+        || async move { payload },
     )
     .await;
 }

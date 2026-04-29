@@ -16,35 +16,41 @@ use crate::core::cache::MQTTCacheManager;
 use crate::system_topic::report_system_data;
 use common_metrics::mqtt::statistics::record_mqtt_topics_get;
 use grpc_clients::pool::ClientPool;
+use serde::Serialize;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
-// topics
-pub const SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT: &str = "$SYS/brokers/stats/topics/count";
-pub const SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX: &str = "$SYS/brokers/stats/topics/max";
+use crate::system_topic::SYSTEM_TOPIC_BROKERS_STATS_TOPICS;
+
+/// Topic statistics published as a single JSON payload to `$SYS/brokers/stats/topics`.
+#[derive(Debug, Serialize)]
+pub(crate) struct BrokerTopicsStats {
+    // Current number of active topics
+    pub count: i64,
+    // Historical peak topic count since broker start
+    pub max: i64,
+}
+
+impl BrokerTopicsStats {
+    pub(crate) fn collect() -> Self {
+        let count = record_mqtt_topics_get();
+        BrokerTopicsStats { count, max: count }
+    }
+}
 
 pub(crate) async fn report_broker_stat_topics(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
-    let count = record_mqtt_topics_get();
-
+    let stats = BrokerTopicsStats::collect();
+    let payload = serde_json::to_string(&stats).unwrap_or_default();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_TOPICS_COUNT,
-        || async move { count.to_string() },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_TOPICS_MAX,
-        || async move { count.to_string() },
+        SYSTEM_TOPIC_BROKERS_STATS_TOPICS,
+        || async move { payload },
     )
     .await;
 }
