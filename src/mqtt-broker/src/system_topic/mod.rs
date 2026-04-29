@@ -32,10 +32,20 @@ use tracing::warn;
 
 // Cluster status information
 pub const SYSTEM_TOPIC_BROKERS: &str = "$SYS/brokers";
-pub const SYSTEM_TOPIC_BROKERS_VERSION: &str = "$SYS/brokers/version";
-pub const SYSTEM_TOPIC_BROKERS_UPTIME: &str = "$SYS/brokers/uptime";
-pub const SYSTEM_TOPIC_BROKERS_DATETIME: &str = "$SYS/brokers/datetime";
-pub const SYSTEM_TOPIC_BROKERS_SYSDESCR: &str = "$SYS/brokers/sysdescr";
+// Broker runtime status (version, uptime, datetime, sysdescr) as a single JSON payload
+pub(crate) const SYSTEM_TOPIC_BROKERS_INFO: &str = "$SYS/brokers/info";
+
+// Metrics topics
+pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_BYTES: &str = "$SYS/brokers/metrics/bytes";
+pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_MESSAGES: &str = "$SYS/brokers/metrics/messages";
+pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS: &str = "$SYS/brokers/metrics/packets";
+
+// Stats topics
+pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_CONNECTIONS: &str = "$SYS/brokers/stats/connections";
+pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_ROUTES: &str = "$SYS/brokers/stats/routes";
+pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_SUBSCRIPTIONS: &str =
+    "$SYS/brokers/stats/subscriptions";
+pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_TOPICS: &str = "$SYS/brokers/stats/topics";
 
 pub mod broker;
 pub mod packet;
@@ -112,9 +122,7 @@ pub(crate) async fn report_broker_info(
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
     broker::report_cluster_status(client_pool, metadata_cache, storage_driver_manager).await;
-    broker::report_broker_version(client_pool, metadata_cache, storage_driver_manager).await;
-    broker::report_broker_time(client_pool, metadata_cache, storage_driver_manager).await;
-    broker::report_broker_sysdescr(client_pool, metadata_cache, storage_driver_manager).await;
+    broker::report_broker_info_metrics(client_pool, metadata_cache, storage_driver_manager).await;
 }
 
 pub(crate) async fn report_packet_info(

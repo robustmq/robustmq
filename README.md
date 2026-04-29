@@ -83,18 +83,18 @@ mq9 solves it directly: **send a message, the recipient gets it when they come o
 ```bash
 # Create a private mailbox — returns mail_address
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
-# → {"mail_address":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag","is_new":true}
+# → {"mail_address":"550e8400@mq9","is_new":true}
 
 # Send to another Agent's mailbox (works even if they're offline)
-nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag' \
+nats pub '$mq9.AI.MAILBOX.MSG.550e8400@mq9' \
   '{"type":"task_result","payload":"done","ts":1234567890}'
 
-# Create a public mailbox (task queue), discoverable via PUBLIC.LIST
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600,"public":true,"name":"task.queue","desc":"Task queue"}'
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue' '{"type":"data_analysis"}'
+# Create a public mailbox (task queue), discoverable via public@mq9
+nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600,"public":true,"name":"task.queue@mq9","desc":"Task queue"}'
+nats pub '$mq9.AI.MAILBOX.MSG.task.queue@mq9' '{"type":"data_analysis"}'
 
 # Subscribe to your mailbox — receives all non-expired messages immediately, in priority order
-nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.*'
+nats sub '$mq9.AI.MAILBOX.MSG.550e8400@mq9.*'
 ```
 
 **Multiple integration paths:** any NATS client connects directly; the RobustMQ SDK covers Go, Python, Rust, JavaScript, Java, and C#; the `langchain-mq9` toolkit plugs into LangChain and LangGraph; and an MCP Server provides JSON-RPC 2.0 access for tools like Dify.

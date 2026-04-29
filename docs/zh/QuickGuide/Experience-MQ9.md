@@ -49,10 +49,10 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
 响应：
 
 ```json
-{"mail_address":"mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag"}
+{"mail_address":"d7a5072lko83@mq9"}
 ```
 
-将下面示例中的 `mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag` 替换为你实际拿到的 `mail_address`。
+将下面示例中的 `d7a5072lko83@mq9` 替换为你实际拿到的 `mail_address`。
 
 ---
 
@@ -62,13 +62,13 @@ mq9 支持三个优先级：`critical`（最高）、`urgent`（紧急）、`nor
 
 ```bash
 # 最高优先级
-nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.critical' '{"type":"abort","task_id":"t-001"}'
+nats pub '$mq9.AI.MAILBOX.MSG.d7a5072lko83@mq9.critical' '{"type":"abort","task_id":"t-001"}'
 
 # 紧急
-nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.urgent' '{"type":"interrupt","task_id":"t-002"}'
+nats pub '$mq9.AI.MAILBOX.MSG.d7a5072lko83@mq9.urgent' '{"type":"interrupt","task_id":"t-002"}'
 
 # 默认优先级（normal，无后缀）
-nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag' '{"type":"task","payload":"process dataset A"}'
+nats pub '$mq9.AI.MAILBOX.MSG.d7a5072lko83@mq9' '{"type":"task","payload":"process dataset A"}'
 ```
 
 消息即发即忘，发送方无需等待接收方在线。
@@ -81,7 +81,7 @@ nats pub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag' '{
 
 ```bash
 # 订阅所有优先级（critical、urgent、normal）
-nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.*'
+nats sub '$mq9.AI.MAILBOX.MSG.d7a5072lko83@mq9.*'
 ```
 
 订阅后立即收到上面发送的所有消息，顺序为 critical → urgent → normal。这是 mq9 的**先存储后推送**语义——无论订阅发生在消息前还是后，结果一样。
@@ -89,8 +89,8 @@ nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.*'
 只订阅某一优先级：
 
 ```bash
-nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.critical'
-nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.urgent'
+nats sub '$mq9.AI.MAILBOX.MSG.d7a5072lko83@mq9.critical'
+nats sub '$mq9.AI.MAILBOX.MSG.d7a5072lko83@mq9.urgent'
 ```
 
 ---
@@ -101,18 +101,18 @@ nats sub '$mq9.AI.MAILBOX.MSG.mail-d7a5072lko83gp7amga0-d7a5072lko83gp7amgag.urg
 
 ```bash
 # 创建公开邮箱
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600,"public":true,"name":"task.queue"}'
+nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600,"public":true,"name":"task.queue@mq9"}'
 
 # 终端 1：Worker 订阅
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
+nats sub '$mq9.AI.MAILBOX.MSG.task.queue@mq9.*' --queue workers
 
 # 终端 2：另一个 Worker
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
+nats sub '$mq9.AI.MAILBOX.MSG.task.queue@mq9.*' --queue workers
 
 # 发送任务
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue' '{"task":"job-1"}'
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue' '{"task":"job-2"}'
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue' '{"task":"job-3"}'
+nats pub '$mq9.AI.MAILBOX.MSG.task.queue@mq9' '{"task":"job-1"}'
+nats pub '$mq9.AI.MAILBOX.MSG.task.queue@mq9' '{"task":"job-2"}'
+nats pub '$mq9.AI.MAILBOX.MSG.task.queue@mq9' '{"task":"job-3"}'
 ```
 
 每条任务只会被一个 Worker 收到。

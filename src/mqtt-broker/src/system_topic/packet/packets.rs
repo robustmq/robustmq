@@ -29,207 +29,115 @@ use common_metrics::mqtt::packets::{
     record_mqtt_total_packets_unsubscribe_get,
 };
 use grpc_clients::pool::ClientPool;
+use serde::Serialize;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
-// MQTT Packet Received and Sent
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_RECEIVED: &str =
-    "$SYS/brokers/metrics/packets/received";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SENT: &str =
-    "$SYS/brokers/metrics/packets/sent";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNECT: &str =
-    "$SYS/brokers/metrics/packets/connect";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNACK: &str =
-    "$SYS/brokers/metrics/packets/connack";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_RECEIVED: &str =
-    "$SYS/brokers/metrics/packets/publish/received";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_SENT: &str =
-    "$SYS/brokers/metrics/packets/publish/sent";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_RECEIVED: &str =
-    "$SYS/brokers/metrics/packets/puback/received";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_SENT: &str =
-    "$SYS/brokers/metrics/packets/puback/sent";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_MISSED: &str =
-    "$SYS/brokers/metrics/packets/puback/missed";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_RECEIVED: &str =
-    "$SYS/brokers/metrics/packets/pubrec/received";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_SENT: &str =
-    "$SYS/brokers/metrics/packets/pubrec/sent";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_MISSED: &str =
-    "$SYS/brokers/metrics/packets/pubrec/missed";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_RECEIVED: &str =
-    "$SYS/brokers/metrics/packets/pubrel/received";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_SENT: &str =
-    "$SYS/brokers/metrics/packets/pubrel/sent";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_MISSED: &str =
-    "$SYS/brokers/metrics/packets/pubrel/missed";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_RECEIVED: &str =
-    "$SYS/brokers/metrics/packets/pubcomp/received";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_SENT: &str =
-    "$SYS/brokers/metrics/packets/pubcomp/sent";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_MISSED: &str =
-    "$SYS/brokers/metrics/packets/pubcomp/missed";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBSCRIBE: &str =
-    "$SYS/brokers/metrics/packets/subscribe";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBACK: &str =
-    "$SYS/brokers/metrics/packets/suback";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE: &str =
-    "$SYS/brokers/metrics/packets/unsubscribe";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK: &str =
-    "$SYS/brokers/metrics/packets/unsuback";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGREQ: &str =
-    "$SYS/brokers/metrics/packets/pingreq";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGRESP: &str =
-    "$SYS/brokers/metrics/packets/pingresp";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED: &str =
-    "$SYS/brokers/metrics/packets/disconnect/received";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT: &str =
-    "$SYS/brokers/metrics/packets/disconnect/sent";
-pub(crate) const SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH: &str =
-    "$SYS/brokers/metrics/packets/auth";
+use crate::system_topic::SYSTEM_TOPIC_BROKERS_METRICS_PACKETS;
+
+/// Aggregated packet counters published as a single JSON payload to
+/// `$SYS/brokers/metrics/packets`.
+#[derive(Debug, Serialize)]
+pub(crate) struct BrokerPacketsMetrics {
+    // Total packets received / sent across all types
+    pub received: u64,
+    pub sent: u64,
+
+    // CONNECT / CONNACK
+    pub connect: u64,
+    pub connack: u64,
+
+    // PUBLISH
+    pub publish_received: u64,
+    pub publish_sent: u64,
+
+    // PUBACK (QoS 1 acknowledgement)
+    pub puback_received: u64,
+    pub puback_sent: u64,
+    pub puback_missed: u64,
+
+    // PUBREC (QoS 2 step 1)
+    pub pubrec_received: u64,
+    pub pubrec_sent: u64,
+    pub pubrec_missed: u64,
+
+    // PUBREL (QoS 2 step 2)
+    pub pubrel_received: u64,
+    pub pubrel_sent: u64,
+    pub pubrel_missed: u64,
+
+    // PUBCOMP (QoS 2 step 3)
+    pub pubcomp_received: u64,
+    pub pubcomp_sent: u64,
+    pub pubcomp_missed: u64,
+
+    // SUBSCRIBE / SUBACK
+    pub subscribe: u64,
+    pub suback: u64,
+
+    // UNSUBSCRIBE / UNSUBACK
+    pub unsubscribe: u64,
+    pub unsuback: u64,
+
+    // PINGREQ / PINGRESP (keep-alive)
+    pub pingreq: u64,
+    pub pingresp: u64,
+
+    // DISCONNECT
+    pub disconnect_received: u64,
+    pub disconnect_sent: u64,
+
+    // AUTH (MQTT 5.0 enhanced authentication)
+    pub auth: u64,
+}
+
+impl BrokerPacketsMetrics {
+    pub(crate) fn collect() -> Self {
+        BrokerPacketsMetrics {
+            received: record_mqtt_total_packets_received_get(),
+            sent: record_mqtt_total_packets_sent_get(),
+            connect: record_mqtt_total_packets_connect_get(),
+            connack: record_mqtt_total_packets_connack_get(),
+            publish_received: record_mqtt_total_packets_publish_received_get(),
+            publish_sent: record_mqtt_total_packets_publish_sent_get(),
+            puback_received: record_mqtt_total_packets_puback_received_get(),
+            puback_sent: record_mqtt_total_packets_puback_sent_get(),
+            puback_missed: 0,
+            pubrec_received: record_mqtt_total_packets_pubrec_received_get(),
+            pubrec_sent: record_mqtt_total_packets_pubrec_sent_get(),
+            pubrec_missed: 0,
+            pubrel_received: record_mqtt_total_packets_pubrel_received_get(),
+            pubrel_sent: record_mqtt_total_packets_pubrel_sent_get(),
+            pubrel_missed: 0,
+            pubcomp_received: record_mqtt_total_packets_pubcomp_received_get(),
+            pubcomp_sent: record_mqtt_total_packets_pubcomp_sent_get(),
+            pubcomp_missed: 0,
+            subscribe: record_mqtt_total_packets_subscribe_get(),
+            suback: record_mqtt_total_packets_suback_get(),
+            unsubscribe: record_mqtt_total_packets_unsubscribe_get(),
+            unsuback: record_mqtt_total_packets_unsuback_get(),
+            pingreq: record_mqtt_total_packets_pingreq_get(),
+            pingresp: record_mqtt_total_packets_pingresp_get(),
+            disconnect_received: record_mqtt_total_packets_disconnect_received_get(),
+            disconnect_sent: record_mqtt_total_packets_disconnect_sent_get(),
+            auth: record_mqtt_total_packets_auth_get(),
+        }
+    }
+}
 
 pub(crate) async fn report_broker_metrics_packets(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
-    macro_rules! report {
-        ($topic:expr, $value:expr) => {
-            let v = $value;
-            report_system_data(
-                client_pool,
-                metadata_cache,
-                storage_driver_manager,
-                $topic,
-                || async move { v.to_string() },
-            )
-            .await;
-        };
-    }
-
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_RECEIVED,
-        record_mqtt_total_packets_received_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SENT,
-        record_mqtt_total_packets_sent_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNECT,
-        record_mqtt_total_packets_connect_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_CONNACK,
-        record_mqtt_total_packets_connack_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_RECEIVED,
-        record_mqtt_total_packets_publish_received_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBLISH_SENT,
-        record_mqtt_total_packets_publish_sent_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_RECEIVED,
-        record_mqtt_total_packets_puback_received_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_SENT,
-        record_mqtt_total_packets_puback_sent_get()
-    );
-    // missed: not tracked, report 0
+    let metrics = BrokerPacketsMetrics::collect();
+    let payload = serde_json::to_string(&metrics).unwrap_or_default();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBACK_MISSED,
-        || async { "0".to_string() },
+        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS,
+        || async move { payload },
     )
     .await;
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_RECEIVED,
-        record_mqtt_total_packets_pubrec_received_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_SENT,
-        record_mqtt_total_packets_pubrec_sent_get()
-    );
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREC_MISSED,
-        || async { "0".to_string() },
-    )
-    .await;
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_RECEIVED,
-        record_mqtt_total_packets_pubrel_received_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_SENT,
-        record_mqtt_total_packets_pubrel_sent_get()
-    );
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBREL_MISSED,
-        || async { "0".to_string() },
-    )
-    .await;
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_RECEIVED,
-        record_mqtt_total_packets_pubcomp_received_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_SENT,
-        record_mqtt_total_packets_pubcomp_sent_get()
-    );
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PUBCOMP_MISSED,
-        || async { "0".to_string() },
-    )
-    .await;
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBSCRIBE,
-        record_mqtt_total_packets_subscribe_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_SUBACK,
-        record_mqtt_total_packets_suback_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBSCRIBE,
-        record_mqtt_total_packets_unsubscribe_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_UNSUBACK,
-        record_mqtt_total_packets_unsuback_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGREQ,
-        record_mqtt_total_packets_pingreq_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_PINGRESP,
-        record_mqtt_total_packets_pingresp_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_RECEIVED,
-        record_mqtt_total_packets_disconnect_received_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_DISCONNECT_SENT,
-        record_mqtt_total_packets_disconnect_sent_get()
-    );
-    report!(
-        SYSTEM_TOPIC_BROKERS_METRICS_PACKETS_AUTH,
-        record_mqtt_total_packets_auth_get()
-    );
 }

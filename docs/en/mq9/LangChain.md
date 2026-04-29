@@ -105,7 +105,7 @@ async def orchestrator():
 
         # Send task to worker's public queue
         task = {"type": "analyze", "doc_id": "abc123", "reply_to": reply_box.mail_address}
-        await client.send("task.queue", task, priority=Priority.NORMAL)
+        await client.send("task.queue@mq9", task, priority=Priority.NORMAL)
 
         # Wait for result
         result_event = asyncio.Event()
@@ -124,7 +124,7 @@ async def orchestrator():
 async def worker():
     async with Client("nats://localhost:4222") as client:
         # Ensure task queue exists
-        await client.create(ttl=86400, public=True, name="task.queue", desc="Task queue")
+        await client.create(ttl=86400, public=True, name="task.queue@mq9", desc="Task queue")
 
         async def process(msg):
             task = msg.data
@@ -133,7 +133,7 @@ async def worker():
             result = {"status": "done", "output": "analysis complete"}
             await client.send(task["reply_to"], result, priority=Priority.CRITICAL)
 
-        sub = await client.subscribe("task.queue", process, queue_group="workers")
+        sub = await client.subscribe("task.queue@mq9", process, queue_group="workers")
         await asyncio.sleep(60)  # run for 60 seconds
         await sub.unsubscribe()
 

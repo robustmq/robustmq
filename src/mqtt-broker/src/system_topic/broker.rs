@@ -14,8 +14,7 @@
 
 use super::{
     build_system_topic_payload, replace_topic_name, report_system_data, write_topic_data,
-    SYSTEM_TOPIC_BROKERS, SYSTEM_TOPIC_BROKERS_DATETIME, SYSTEM_TOPIC_BROKERS_SYSDESCR,
-    SYSTEM_TOPIC_BROKERS_UPTIME, SYSTEM_TOPIC_BROKERS_VERSION,
+    SYSTEM_TOPIC_BROKERS, SYSTEM_TOPIC_BROKERS_INFO,
 };
 use crate::core::cache::MQTTCacheManager;
 use broker_core::cache::NodeCacheManager;
@@ -24,6 +23,7 @@ use chrono::DateTime;
 use common_base::tools::now_second;
 use common_base::version::version;
 use grpc_clients::pool::ClientPool;
+use serde::Serialize;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::{error, warn};
@@ -52,70 +52,55 @@ pub(crate) async fn report_cluster_status(
     }
 }
 
-pub(crate) async fn report_broker_version(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<MQTTCacheManager>,
-    storage_driver_manager: &Arc<StorageDriverManager>,
-) {
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_VERSION,
-        || async { version() },
-    )
-    .await;
+/// Broker runtime status published as a single JSON payload to `$SYS/brokers/info`.
+#[derive(Debug, Serialize)]
+pub(crate) struct BrokerInfoMetrics {
+    // Broker software version
+    pub version: String,
+    // Human-readable uptime since broker start (e.g. "2 days, 3 hours, 10 minutes, 5 seconds")
+    pub uptime: String,
+    // Current wall-clock time formatted as "YYYY-MM-DD HH:MM:SS"
+    pub datetime: String,
+    // Operating system description
+    pub os_info: String,
 }
 
-pub(crate) async fn report_broker_time(
-    client_pool: &Arc<ClientPool>,
-    metadata_cache: &Arc<MQTTCacheManager>,
-    storage_driver_manager: &Arc<StorageDriverManager>,
-) {
-    //  report system uptime
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_UPTIME,
-        || async {
-            let secs = now_second() - metadata_cache.node_cache.get_start_time();
-            let days = secs / 86400;
-            let hours = (secs % 86400) / 3600;
-            let minutes = (secs % 3600) / 60;
-            let seconds = secs % 60;
-            format!("{days} days, {hours} hours, {minutes} minutes, {seconds} seconds")
-        },
-    )
-    .await;
+impl BrokerInfoMetrics {
+    pub(crate) fn collect(start_time: u64) -> Self {
+        let secs = now_second().saturating_sub(start_time);
+        let days = secs / 86400;
+        let hours = (secs % 86400) / 3600;
+        let minutes = (secs % 3600) / 60;
+        let seconds = secs % 60;
 
-    // report system datetime
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_DATETIME,
-        || async {
-            let ts = now_second() as i64;
-            DateTime::from_timestamp(ts, 0)
-                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
-                .unwrap_or_else(|| ts.to_string())
-        },
-    )
-    .await;
+        let ts = now_second() as i64;
+        let datetime = DateTime::from_timestamp(ts, 0)
+            .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+            .unwrap_or_else(|| ts.to_string());
+
+        BrokerInfoMetrics {
+            version: version(),
+            uptime: format!("{days} days, {hours} hours, {minutes} minutes, {seconds} seconds"),
+            datetime,
+            os_info: os_info::get().to_string(),
+        }
+    }
 }
 
-pub(crate) async fn report_broker_sysdescr(
+pub(crate) async fn report_broker_info_metrics(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
+    let start_time = metadata_cache.node_cache.get_start_time();
+    let metrics = BrokerInfoMetrics::collect(start_time);
+    let payload = serde_json::to_string(&metrics).unwrap_or_default();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_SYSDESCR,
-        || async { format!("{}", os_info::get()) },
+        SYSTEM_TOPIC_BROKERS_INFO,
+        || async move { payload },
     )
     .await;
 }

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
 use common_config::storage::StorageType;
@@ -24,9 +22,10 @@ use metadata_struct::{
     topic::{Topic, TopicSource},
 };
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use storage_adapter::{driver::StorageDriverManager, topic::create_topic_full};
 
-pub const MQ9_SYSTEM_PUBLIC_MAIL: &str = "$SYSTEM.PUBLIC";
+pub const MQ9_SYSTEM_PUBLIC_MAIL: &str = "public@mq9";
 
 /// Returns true if the given mail_address is a reserved system mailbox.
 pub fn is_system_mailbox(mail_address: &str) -> bool {

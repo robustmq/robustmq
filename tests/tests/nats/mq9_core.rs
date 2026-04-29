@@ -65,7 +65,6 @@ mod tests {
         let req = CreateMailboxReq {
             ttl: None,
             public: false,
-            prefix: None,
             name: None,
             desc: "mq9_core test mail".to_string(),
         };
@@ -134,7 +133,6 @@ mod tests {
             ttl: None,
             public: false,
             name: None,
-            prefix: None,
             desc: "send-sub test".to_string(),
         };
         let reply = create_mail(&client, &req).await;

@@ -58,7 +58,7 @@ Why a mailbox? Because mq9 treats Agents like people. The most natural async com
 
 Following that analogy:
 
-- **Address**: Every mailbox has a `mail_address` — its communication address. Private mailbox addresses are system-generated and unguessable, like a personal inbox only you know; public mailbox addresses are user-defined (e.g. `task.queue`), like a public department inbox that anyone can find and deliver to.
+- **Address**: Every mailbox has a `mail_address` — its communication address. Private mailbox addresses are system-generated and unguessable, like a personal inbox only you know; public mailbox addresses are user-defined (e.g. `task.queue@mq9`), like a public department inbox that anyone can find and deliver to.
 
 - **Letters**: Every message sent to a mailbox has a priority — normal (default), urgent, or critical. Priority is encoded in the delivery address, not the message content. Messages are delivered in priority order: critical first, then urgent, then normal; FIFO within the same priority.
 

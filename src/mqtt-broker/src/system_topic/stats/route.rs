@@ -18,36 +18,44 @@ use common_metrics::mqtt::statistics::{
     record_mqtt_subscriptions_exclusive_get, record_mqtt_subscriptions_shared_get,
 };
 use grpc_clients::pool::ClientPool;
+use serde::Serialize;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
-// routes
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT: &str = "$SYS/brokers/stats/routes/count";
-pub(crate) const SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX: &str = "$SYS/brokers/stats/routes/max";
+use crate::system_topic::SYSTEM_TOPIC_BROKERS_STATS_ROUTES;
+
+/// Route statistics published as a single JSON payload to `$SYS/brokers/stats/routes`.
+///
+/// In MQTT, routes ≈ total active subscriptions (each subscription creates a routing entry).
+#[derive(Debug, Serialize)]
+pub(crate) struct BrokerRoutesStats {
+    // Current number of active routes
+    pub count: i64,
+    // Peak route count since broker start
+    pub max: i64,
+}
+
+impl BrokerRoutesStats {
+    pub(crate) fn collect() -> Self {
+        let count =
+            record_mqtt_subscriptions_exclusive_get() + record_mqtt_subscriptions_shared_get();
+        BrokerRoutesStats { count, max: count }
+    }
+}
 
 pub(crate) async fn report_broker_stat_routes(
     client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) {
-    // In MQTT, routes ≈ total active subscriptions (each subscription creates a routing entry)
-    let routes = record_mqtt_subscriptions_exclusive_get() + record_mqtt_subscriptions_shared_get();
-
+    let stats = BrokerRoutesStats::collect();
+    let payload = serde_json::to_string(&stats).unwrap_or_default();
     report_system_data(
         client_pool,
         metadata_cache,
         storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_ROUTES_COUNT,
-        || async move { routes.to_string() },
-    )
-    .await;
-
-    report_system_data(
-        client_pool,
-        metadata_cache,
-        storage_driver_manager,
-        SYSTEM_TOPIC_BROKERS_STATS_ROUTES_MAX,
-        || async move { routes.to_string() },
+        SYSTEM_TOPIC_BROKERS_STATS_ROUTES,
+        || async move { payload },
     )
     .await;
 }
