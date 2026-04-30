@@ -16,7 +16,7 @@ use super::cache::MQTTCacheManager;
 use super::error::MqttBrokerError;
 use super::topic::try_init_topic;
 use crate::core::offline_message::build_mqtt_protocol_data;
-use crate::core::{retain::RetainMessageManager, tool::ResultMqttBrokerError};
+use crate::core::{retain::save_retain_message, tool::ResultMqttBrokerError};
 use crate::storage::last_will::LastWillStorage;
 use crate::storage::message::MessageStorage;
 use bytes::Bytes;
@@ -29,7 +29,6 @@ use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
 pub async fn send_last_will_message(
-    retain_message_manager: &Arc<RetainMessageManager>,
     cache_manager: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_pool: &Arc<ClientPool>,
@@ -62,14 +61,15 @@ pub async fn send_last_will_message(
             .await?;
 
     // save retain message
-    retain_message_manager
-        .save_retain_message(
-            &last_will.tenant,
-            &topic_name,
-            &publish,
-            &publish_properties,
-        )
-        .await?;
+    save_retain_message(
+        storage_driver_manager,
+        cache_manager,
+        &last_will.tenant,
+        &topic_name,
+        &publish,
+        &publish_properties,
+    )
+    .await?;
 
     // save message
     let mqtt_data = build_mqtt_protocol_data(

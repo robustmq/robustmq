@@ -19,7 +19,7 @@ use common_security::manager::SecurityManager;
 use connector::manager::ConnectorManager;
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::{
-    core::{cache::MQTTCacheManager, retain::RetainMessageManager},
+    core::cache::MQTTCacheManager,
     subscribe::{manager::SubscribeManager, PushManager},
 };
 use nats_broker::core::cache::NatsCacheManager;
@@ -61,7 +61,6 @@ pub struct MQTTContext {
     pub metrics_manager: Arc<MQTTMetricsCache>,
     pub connector_manager: Arc<ConnectorManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
-    pub retain_message_manager: Arc<RetainMessageManager>,
     pub push_manager: Arc<PushManager>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
 }

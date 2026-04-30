@@ -87,7 +87,6 @@ impl BrokerService for GrpcBrokerService {
         send_last_will_message_by_req(
             &self.mqtt_params.cache_manager,
             &self.mqtt_params.client_pool,
-            &self.mqtt_params.retain_message_manager,
             &self.mqtt_params.storage_driver_manager,
             &req,
         )

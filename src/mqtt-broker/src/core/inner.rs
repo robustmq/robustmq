@@ -15,7 +15,6 @@
 use crate::core::cache::MQTTCacheManager;
 use crate::core::error::MqttBrokerError;
 use crate::core::last_will::send_last_will_message;
-use crate::core::retain::RetainMessageManager;
 use crate::storage::last_will::LastWillStorage;
 use broker_core::tool::wait_cluster_running;
 use grpc_clients::pool::ClientPool;
@@ -27,7 +26,6 @@ use tracing::{debug, warn};
 pub async fn send_last_will_message_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
-    retain_message_manager: &Arc<RetainMessageManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     req: &SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, MqttBrokerError> {
@@ -64,14 +62,8 @@ pub async fn send_last_will_message_by_req(
             }
         };
 
-        if let Err(e) = send_last_will_message(
-            retain_message_manager,
-            cache_manager,
-            storage_driver_manager,
-            client_pool,
-            &data,
-        )
-        .await
+        if let Err(e) =
+            send_last_will_message(cache_manager, storage_driver_manager, client_pool, &data).await
         {
             last_will_storage
                 .delete_last_will_message(&item.tenant, &item.client_id)

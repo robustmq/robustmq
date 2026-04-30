@@ -16,7 +16,6 @@ use crate::core::cache::MQTTCacheManager;
 use crate::core::connection::{build_server_disconnect_conn_context, disconnect_connection};
 use crate::core::error::MqttBrokerError;
 use crate::core::event::EventReportManager;
-use crate::core::retain::RetainMessageManager;
 use crate::mqtt::connect::build_connect_ack_fail_packet;
 use crate::mqtt::disconnect::build_distinct_packet;
 use crate::mqtt::{MqttService, MqttServiceConnectContext, MqttServiceContext};
@@ -84,11 +83,11 @@ pub struct CommandContext {
     pub security_manager: Arc<SecurityManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub broker_cache: Arc<NodeCacheManager>,
-    pub retain_message_manager: Arc<RetainMessageManager>,
     pub mqtt_limit_manager: Arc<MQTTRateLimiterManager>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub node_call: Arc<NodeCallManager>,
     pub event_manager: Arc<EventReportManager>,
+    pub stop_sx: tokio::sync::broadcast::Sender<bool>,
 }
 
 #[async_trait]
@@ -682,10 +681,10 @@ impl MQTTHandlerCommand {
             session_batcher: context.session_batcher.clone(),
             security_manager: context.security_manager.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
-            retain_message_manager: context.retain_message_manager.clone(),
             limit_manager: context.mqtt_limit_manager.clone(),
             node_call: context.node_call.clone(),
             event_manager: context.event_manager.clone(),
+            stop_sx: context.stop_sx.clone(),
         };
         let mqtt3_service = MqttService::new(mqtt3_context);
         let mqtt4_context = MqttServiceContext {
@@ -700,10 +699,10 @@ impl MQTTHandlerCommand {
             session_batcher: context.session_batcher.clone(),
             security_manager: context.security_manager.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
-            retain_message_manager: context.retain_message_manager.clone(),
             limit_manager: context.mqtt_limit_manager.clone(),
             node_call: context.node_call.clone(),
             event_manager: context.event_manager.clone(),
+            stop_sx: context.stop_sx.clone(),
         };
         let mqtt4_service = MqttService::new(mqtt4_context);
         let mqtt5_context = MqttServiceContext {
@@ -718,10 +717,10 @@ impl MQTTHandlerCommand {
             session_batcher: context.session_batcher.clone(),
             security_manager: context.security_manager.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
-            retain_message_manager: context.retain_message_manager.clone(),
             limit_manager: context.mqtt_limit_manager.clone(),
             node_call: context.node_call.clone(),
             event_manager: context.event_manager.clone(),
+            stop_sx: context.stop_sx.clone(),
         };
         let mqtt5_service = MqttService::new(mqtt5_context);
         MQTTHandlerCommand {

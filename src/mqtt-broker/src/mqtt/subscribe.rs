@@ -102,15 +102,17 @@ impl MqttService {
         self.ensure_share_groups_exist(&connection.tenant, subscribe)
             .await;
 
-        if let Err(e) = self
-            .retain_message_manager
-            .try_send_retain_message(
-                &connection.tenant,
-                &connection.client_id,
+        if let Err(e) =
+            crate::core::retain::try_send_retain_message(crate::core::retain::SendRetainContext {
+                storage_driver_manager: &self.storage_driver_manager,
+                cache_manager: &self.cache_manager,
+                connection_manager: &self.connection_manager,
+                subscribe_manager: &self.subscribe_manager,
+                tenant: &connection.tenant,
+                client_id: &connection.client_id,
                 subscribe,
-                &self.cache_manager,
-                &self.subscribe_manager,
-            )
+                stop_sx: &self.stop_sx,
+            })
             .await
         {
             return response_packet_mqtt_sub_ack(
