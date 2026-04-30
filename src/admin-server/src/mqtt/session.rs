@@ -21,7 +21,6 @@ use crate::{
 };
 use axum::extract::State;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
-use metadata_struct::tenant::DEFAULT_TENANT;
 use serde::{Deserialize, Serialize};
 
 const MAX_SAMPLE_SIZE: usize = 100;
@@ -106,7 +105,7 @@ pub async fn session_list(
     let mut data = Vec::with_capacity(pagination.0.len());
     for mut row in pagination.0 {
         let last_will = match last_will_storage
-            .get_last_will_message(DEFAULT_TENANT, &row.client_id)
+            .get_last_will_message(&row.tenant, &row.client_id)
             .await
         {
             Ok(v) => v,

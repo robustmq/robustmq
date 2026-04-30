@@ -17,6 +17,10 @@ use crate::core::tool::ResultMqttBrokerError;
 use broker_core::inner_topic::LAST_WILL_MESSAGE_TOPIC;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
+// The inner topic "$last-will-message" is a single broker-wide topic created under DEFAULT_TENANT.
+// To isolate last-will messages across tenants and avoid key collisions between clients with the
+// same client_id in different tenants, the storage key is composed as "{tenant}/{client_id}".
+use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
@@ -37,10 +41,11 @@ impl LastWillStorage {
         client_id: &str,
         last_will: &MqttLastWillData,
     ) -> ResultMqttBrokerError {
+        let key = last_will_key(tenant, client_id);
         let data = last_will.encode()?;
-        let record = AdapterWriteRecord::new(LAST_WILL_MESSAGE_TOPIC, data).with_key(client_id);
+        let record = AdapterWriteRecord::new(LAST_WILL_MESSAGE_TOPIC, data).with_key(&key);
         self.storage_driver_manager
-            .write(tenant, LAST_WILL_MESSAGE_TOPIC, &[record])
+            .write(DEFAULT_TENANT, LAST_WILL_MESSAGE_TOPIC, &[record])
             .await?;
         Ok(())
     }
@@ -50,9 +55,10 @@ impl LastWillStorage {
         tenant: &str,
         client_id: &str,
     ) -> Result<Option<MqttLastWillData>, MqttBrokerError> {
+        let key = last_will_key(tenant, client_id);
         let records = self
             .storage_driver_manager
-            .read_by_key(tenant, LAST_WILL_MESSAGE_TOPIC, client_id)
+            .read_by_key(DEFAULT_TENANT, LAST_WILL_MESSAGE_TOPIC, &key)
             .await?;
         if let Some(record) = records.into_iter().next() {
             let data = MqttLastWillData::decode(&record.data)?;
@@ -66,9 +72,14 @@ impl LastWillStorage {
         tenant: &str,
         client_id: &str,
     ) -> ResultMqttBrokerError {
+        let key = last_will_key(tenant, client_id);
         self.storage_driver_manager
-            .delete_by_key(tenant, LAST_WILL_MESSAGE_TOPIC, client_id)
+            .delete_by_key(DEFAULT_TENANT, LAST_WILL_MESSAGE_TOPIC, &key)
             .await?;
         Ok(())
     }
+}
+
+fn last_will_key(tenant: &str, client_id: &str) -> String {
+    format!("{}/{}", tenant, client_id)
 }
