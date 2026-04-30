@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::manager::DelayMessageManager;
 use broker_core::inner_topic::{DELAY_QUEUE_INDEX_TOPIC, DELAY_QUEUE_MESSAGE_TOPIC};
 use common_base::error::common::CommonError;
 use common_base::utils::serialize::serialize;

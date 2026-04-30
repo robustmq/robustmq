@@ -14,6 +14,7 @@
 
 #[cfg(test)]
 mod tests {
+    use broker_core::inner_topic::RETAIN_MESSAGE_TOPIC;
     use broker_core::topic::TopicStorage;
     use bytes::Bytes;
     use common_base::{tools::now_second, uuid::unique_id};
@@ -23,7 +24,7 @@ mod tests {
     use metadata_struct::{
         mqtt::retain_message::MQTTRetainMessage, tenant::DEFAULT_TENANT, topic::Topic,
     };
-    use mqtt_broker::storage::retain::{RetainStorage, RETAIN_MESSAGE_TOPIC};
+    use mqtt_broker::storage::retain::RetainStorage;
     use std::sync::Arc;
     use std::time::Duration;
     use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
