@@ -228,8 +228,8 @@ pub async fn delay_task_process(
             )
             .await?;
         }
-        DelayTaskData::MQTTLastwillExpire(client_id) => {
-            handle_lastwill_expire(node_call_manager, client_id).await?;
+        DelayTaskData::MQTTLastwillExpire(tenant, client_id) => {
+            handle_lastwill_expire(node_call_manager, tenant, client_id).await?;
         }
     }
 

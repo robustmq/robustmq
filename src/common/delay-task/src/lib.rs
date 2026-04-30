@@ -32,15 +32,15 @@ use std::sync::Arc;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DelayTaskData {
-    MQTTSessionExpire(String, String), // (tenant, client_id)
-    MQTTLastwillExpire(String),
+    MQTTSessionExpire(String, String),  // (tenant, client_id)
+    MQTTLastwillExpire(String, String), // (tenant, client_id)
 }
 
 impl DelayTaskData {
     pub fn task_type_name(&self) -> &'static str {
         match self {
             DelayTaskData::MQTTSessionExpire(_, _) => "MQTTSessionExpire",
-            DelayTaskData::MQTTLastwillExpire(_) => "MQTTLastwillExpire",
+            DelayTaskData::MQTTLastwillExpire(_, _) => "MQTTLastwillExpire",
         }
     }
 }

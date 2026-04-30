@@ -19,14 +19,18 @@ use tracing::debug;
 
 pub async fn handle_lastwill_expire(
     node_call_manager: &Arc<NodeCallManager>,
+    tenant: &str,
     client_id: &str,
 ) -> Result<(), CommonError> {
     node_call_manager
-        .send(NodeCallData::SendLastWillMessage(client_id.to_string()))
+        .send(NodeCallData::SendLastWillMessage {
+            tenant: tenant.to_string(),
+            client_id: client_id.to_string(),
+        })
         .await?;
     debug!(
-        "Lastwill expire handling completed: client_id={}",
-        client_id
+        "Lastwill expire handling completed: tenant={}, client_id={}",
+        tenant, client_id
     );
     Ok(())
 }

@@ -61,13 +61,16 @@ pub async fn handle_session_expire(
             delay_task_manager
                 .create_task(DelayTask::build_persistent(
                     client_id.to_string(),
-                    DelayTaskData::MQTTLastwillExpire(client_id.to_string()),
+                    DelayTaskData::MQTTLastwillExpire(tenant.to_string(), client_id.to_string()),
                     delay_target_time,
                 ))
                 .await?;
         } else if session.is_contain_last_will {
             node_call_manager
-                .send(NodeCallData::SendLastWillMessage(client_id.to_string()))
+                .send(NodeCallData::SendLastWillMessage {
+                    tenant: tenant.to_string(),
+                    client_id: client_id.to_string(),
+                })
                 .await?;
         }
     }

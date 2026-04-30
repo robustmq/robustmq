@@ -45,7 +45,7 @@ pub struct UpdateCacheData {
 #[derive(Clone, Debug)]
 pub enum NodeCallData {
     UpdateCache(UpdateCacheData),
-    SendLastWillMessage(String),
+    SendLastWillMessage { tenant: String, client_id: String },
     GetQosData(String),
 }
 
@@ -61,7 +61,7 @@ impl NodeCallData {
     pub fn partition_key(&self) -> Option<&str> {
         match self {
             NodeCallData::UpdateCache(_) => None,
-            NodeCallData::SendLastWillMessage(client_id) => Some(client_id.as_str()),
+            NodeCallData::SendLastWillMessage { client_id, .. } => Some(client_id.as_str()),
             NodeCallData::GetQosData(_) => None,
         }
     }

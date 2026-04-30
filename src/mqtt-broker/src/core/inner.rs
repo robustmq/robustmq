@@ -19,7 +19,6 @@ use crate::core::retain::RetainMessageManager;
 use crate::storage::last_will::LastWillStorage;
 use broker_core::tool::wait_cluster_running;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::tenant::DEFAULT_TENANT;
 use protocol::broker::broker::{SendLastWillMessageReply, SendLastWillMessageRequest};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -38,25 +37,28 @@ pub async fn send_last_will_message_by_req(
 
     debug!(
         "Received last will notifications, count: {}",
-        req.client_ids.len()
+        req.items.len()
     );
 
     let last_will_storage = LastWillStorage::new(storage_driver_manager.clone());
 
-    for client_id in &req.client_ids {
+    for item in &req.items {
         let data = match last_will_storage
-            .get_last_will_message(DEFAULT_TENANT, client_id)
+            .get_last_will_message(&item.tenant, &item.client_id)
             .await
         {
             Ok(Some(data)) => data,
             Ok(None) => {
-                warn!("No last will message found for client_id={}", client_id);
+                warn!(
+                    "No last will message found for tenant={}, client_id={}",
+                    item.tenant, item.client_id
+                );
                 continue;
             }
             Err(e) => {
                 warn!(
-                    "Failed to load last will message for client_id={}: {}",
-                    client_id, e
+                    "Failed to load last will message for tenant={}, client_id={}: {}",
+                    item.tenant, item.client_id, e
                 );
                 continue;
             }
@@ -71,9 +73,12 @@ pub async fn send_last_will_message_by_req(
         )
         .await
         {
+            last_will_storage
+                .delete_last_will_message(&item.tenant, &item.client_id)
+                .await?;
             warn!(
-                "Failed to send last will message for client_id={}: {}",
-                client_id, e
+                "Failed to send last will message for tenant={}, client_id={}: {}",
+                item.tenant, item.client_id, e
             );
         }
     }

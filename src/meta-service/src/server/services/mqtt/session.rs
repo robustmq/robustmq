@@ -183,7 +183,7 @@ pub async fn delete_session_by_req(
         delay_task_manager
             .create_task(DelayTask::build_persistent(
                 req.client_id.clone(),
-                DelayTaskData::MQTTLastwillExpire(req.client_id.clone()),
+                DelayTaskData::MQTTLastwillExpire(req.tenant.clone(), req.client_id.clone()),
                 now_second() + delay,
             ))
             .await?;

@@ -42,8 +42,13 @@ message UpdateCacheReply {
 
 message SendLastWillMessageReply {}
 
+message LastWillClientItem {
+  string tenant = 1;
+  string client_id = 2;
+}
+
 message SendLastWillMessageRequest {
-  repeated string client_ids = 1;
+  repeated LastWillClientItem items = 1;
 }
 
 message GetQosDataByClientIdRequest {
