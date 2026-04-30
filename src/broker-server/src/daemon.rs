@@ -91,14 +91,9 @@ impl BrokerServer {
 
         // delay message
         let delay_message_manager = self.mqtt_params.delay_message_manager.clone();
-        let broker_cache = self.broker_cache.clone();
         let task_supervisor = self.task_supervisor.clone();
-        if let Err(e) = start_delay_message_manager_thread(
-            &delay_message_manager,
-            &task_supervisor,
-            &broker_cache,
-        )
-        .await
+        if let Err(e) =
+            start_delay_message_manager_thread(&delay_message_manager, &task_supervisor).await
         {
             error!("Failed to start delay message manager, error:{}", e);
             std::process::exit(1);

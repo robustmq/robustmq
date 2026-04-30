@@ -170,13 +170,15 @@ fn spawn_worker(
 
 async fn dispatch_batch(client_pool: &Arc<ClientPool>, addr: &str, batch: Vec<NodeCallRequest>) {
     let mut cache_updates = Vec::new();
-    let mut last_will_messages = Vec::new();
+    let mut last_will_messages: Vec<(String, String)> = Vec::new();
     let mut get_qos_data = Vec::new();
 
     for req in batch {
         match req.data {
             NodeCallData::UpdateCache(data) => cache_updates.push(data),
-            NodeCallData::SendLastWillMessage(item) => last_will_messages.push(item),
+            NodeCallData::SendLastWillMessage { tenant, client_id } => {
+                last_will_messages.push((tenant, client_id))
+            }
             NodeCallData::GetQosData(client_id) => {
                 let reply_tx = req.reply_txs.into_iter().flatten().next();
                 get_qos_data.push((client_id, reply_tx));

@@ -18,7 +18,6 @@ use crate::storage::common::share_group::ShareGroupStorage;
 use crate::storage::mqtt::acl::AclStorage;
 use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::storage::mqtt::connector::MqttConnectorStorage;
-use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::storage::mqtt::topic::MqttTopicStorage;
@@ -35,8 +34,6 @@ use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
-use metadata_struct::mqtt::lastwill::MqttLastWillData;
-use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupMember};
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
@@ -52,8 +49,7 @@ use protocol::meta::meta_service_mqtt::{
     CreateTopicRewriteRuleRequest, CreateUserRequest, DeleteAclRequest,
     DeleteAutoSubscribeRuleRequest, DeleteBlacklistRequest, DeleteConnectorRequest,
     DeleteSessionRequest, DeleteSubscribeRequest, DeleteTopicRequest,
-    DeleteTopicRewriteRuleRequest, DeleteUserRequest, SaveLastWillMessageRequest,
-    SetSubscribeRequest, SetTopicRetainMessageRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserRequest, SetSubscribeRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -124,43 +120,6 @@ impl DataRouteMqtt {
             topic_storage.save(topic.clone())?;
             delete_storage.save(&topic)?;
         }
-        Ok(())
-    }
-
-    // Retain Message
-    pub fn set_retain_message(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let req = SetTopicRetainMessageRequest::decode(value.as_ref())?;
-        let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-
-        if storage.get(&req.tenant, &req.topic_name)?.is_none() {
-            return Ok(());
-        }
-
-        if let Some(retain) = req.retain_message {
-            let message = MQTTRetainMessage::decode(&retain)?;
-            storage.save_retain_message(message)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn delete_retain_message(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let req = SetTopicRetainMessageRequest::decode(value.as_ref())?;
-        let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
-
-        if storage.get(&req.tenant, &req.topic_name)?.is_none() {
-            return Ok(());
-        }
-        storage.delete_retain_message(&req.tenant, &req.topic_name)?;
-        Ok(())
-    }
-
-    // LastWill Message
-    pub fn save_last_will_message(&self, value: Bytes) -> Result<(), MetaServiceError> {
-        let req = SaveLastWillMessageRequest::decode(value.as_ref())?;
-        let storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
-        let last_will_message = MqttLastWillData::decode(&req.last_will_message)?;
-        storage.save(&req.client_id, last_will_message)?;
         Ok(())
     }
 

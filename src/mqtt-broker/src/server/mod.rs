@@ -14,7 +14,7 @@
 
 use crate::core::command::create_command;
 use crate::core::event::EventReportManager;
-use crate::core::retain::RetainMessageManager;
+
 use crate::core::tool::ResultMqttBrokerError;
 use crate::storage::session::SessionBatcher;
 use crate::{
@@ -60,7 +60,6 @@ pub struct TcpServerContext {
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub delay_message_manager: Arc<DelayMessageManager>,
     pub schema_manager: Arc<SchemaRegisterManager>,
-    pub retain_message_manager: Arc<RetainMessageManager>,
     pub client_pool: Arc<ClientPool>,
     pub session_batcher: Arc<SessionBatcher>,
     pub stop_sx: broadcast::Sender<bool>,
@@ -92,11 +91,11 @@ impl Server {
             security_manager: context.security_manager.clone(),
             rocksdb_engine_handler: context.rocksdb_engine_handler.clone(),
             broker_cache: context.broker_cache.clone(),
-            retain_message_manager: context.retain_message_manager.clone(),
             mqtt_limit_manager: context.mqtt_limit_manager.clone(),
             global_limit_manager: context.global_limit_manager.clone(),
             node_call: context.node_call.clone(),
             event_manager: context.event_manager.clone(),
+            stop_sx: context.stop_sx.clone(),
         };
 
         let command = create_command(command_context);

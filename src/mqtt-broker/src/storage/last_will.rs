@@ -14,61 +14,61 @@
 
 use crate::core::error::MqttBrokerError;
 use crate::core::tool::ResultMqttBrokerError;
-use broker_core::inner_topic::RETAIN_MESSAGE_TOPIC;
+use broker_core::inner_topic::LAST_WILL_MESSAGE_TOPIC;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
-use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
+use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
-pub struct RetainStorage {
+pub struct LastWillStorage {
     storage_driver_manager: Arc<StorageDriverManager>,
 }
 
-impl RetainStorage {
+impl LastWillStorage {
     pub fn new(storage_driver_manager: Arc<StorageDriverManager>) -> Self {
-        RetainStorage {
+        LastWillStorage {
             storage_driver_manager,
         }
     }
 
-    pub async fn set_retain_message(
+    pub async fn save_last_will_message(
         &self,
         tenant: &str,
-        topic_name: &str,
-        retain_message: &MQTTRetainMessage,
+        client_id: &str,
+        last_will: &MqttLastWillData,
     ) -> ResultMqttBrokerError {
-        let data = retain_message.encode()?;
-        let record = AdapterWriteRecord::new(RETAIN_MESSAGE_TOPIC, data).with_key(topic_name);
+        let data = last_will.encode()?;
+        let record = AdapterWriteRecord::new(LAST_WILL_MESSAGE_TOPIC, data).with_key(client_id);
         self.storage_driver_manager
-            .write(tenant, RETAIN_MESSAGE_TOPIC, &[record])
+            .write(tenant, LAST_WILL_MESSAGE_TOPIC, &[record])
             .await?;
         Ok(())
     }
 
-    pub async fn delete_retain_message(
+    pub async fn get_last_will_message(
         &self,
         tenant: &str,
-        topic_name: &str,
-    ) -> ResultMqttBrokerError {
-        self.storage_driver_manager
-            .delete_by_key(tenant, RETAIN_MESSAGE_TOPIC, topic_name)
-            .await?;
-        Ok(())
-    }
-
-    pub async fn get_retain_message(
-        &self,
-        tenant: &str,
-        topic_name: &str,
-    ) -> Result<Option<MQTTRetainMessage>, MqttBrokerError> {
+        client_id: &str,
+    ) -> Result<Option<MqttLastWillData>, MqttBrokerError> {
         let records = self
             .storage_driver_manager
-            .read_by_key(tenant, RETAIN_MESSAGE_TOPIC, topic_name)
+            .read_by_key(tenant, LAST_WILL_MESSAGE_TOPIC, client_id)
             .await?;
         if let Some(record) = records.into_iter().next() {
-            let message = MQTTRetainMessage::decode(&record.data)?;
-            return Ok(Some(message));
+            let data = MqttLastWillData::decode(&record.data)?;
+            return Ok(Some(data));
         }
         Ok(None)
+    }
+
+    pub async fn delete_last_will_message(
+        &self,
+        tenant: &str,
+        client_id: &str,
+    ) -> ResultMqttBrokerError {
+        self.storage_driver_manager
+            .delete_by_key(tenant, LAST_WILL_MESSAGE_TOPIC, client_id)
+            .await?;
+        Ok(())
     }
 }

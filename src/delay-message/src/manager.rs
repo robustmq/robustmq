@@ -12,13 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::delay::{delete_delay_index_info, delete_delay_message, save_delay_index_info};
-use crate::{
-    delay::{init_inner_topic, save_delay_message},
-    pop::spawn_delay_message_pop_threads,
-    recover::recover_delay_queue,
+use crate::delay::{
+    delete_delay_index_info, delete_delay_message, save_delay_index_info, save_delay_message,
 };
-use broker_core::cache::NodeCacheManager;
+use crate::{pop::spawn_delay_message_pop_threads, recover::recover_delay_queue};
 use common_base::task::TaskSupervisor;
 use common_base::uuid::unique_id;
 use common_base::{error::common::CommonError, tools::now_second};
@@ -61,10 +58,7 @@ pub const DELAY_MESSAGE_SAVE_MS: &str = "delay_message_save_ms";
 pub async fn start_delay_message_manager_thread(
     delay_message_manager: &Arc<DelayMessageManager>,
     task_supervisor: &Arc<TaskSupervisor>,
-    broker_cache: &Arc<NodeCacheManager>,
 ) -> Result<(), CommonError> {
-    init_inner_topic(delay_message_manager, broker_cache).await?;
-
     spawn_delay_message_pop_threads(
         delay_message_manager,
         task_supervisor,

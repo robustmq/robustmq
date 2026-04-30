@@ -15,7 +15,6 @@
 use crate::core::error::MetaServiceError;
 use crate::core::notify::{send_notify_by_add_session, send_notify_by_delete_session};
 use crate::raft::manager::MultiRaftManager;
-use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::mqtt::subscribe::MqttSubscribeStorage;
 use crate::{
     raft::route::data::{StorageData, StorageDataType},
@@ -31,8 +30,7 @@ use metadata_struct::mqtt::session::MqttSession;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
     CreateSessionReply, CreateSessionRequest, DeleteSessionReply, DeleteSessionRequest,
-    DeleteSubscribeRequest, GetLastWillMessageReply, GetLastWillMessageRequest, ListSessionReply,
-    ListSessionRequest, SaveLastWillMessageReply, SaveLastWillMessageRequest,
+    DeleteSubscribeRequest, ListSessionReply, ListSessionRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -180,13 +178,12 @@ pub async fn delete_session_by_req(
     }
 
     // Check for last will message and schedule expiration
-    let will_storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
-    if let Some(will_message) = will_storage.get(&req.client_id)? {
+    if session.is_contain_last_will {
         let delay = session.last_will_delay_interval.unwrap_or_default();
         delay_task_manager
             .create_task(DelayTask::build_persistent(
-                will_message.client_id.clone(),
-                DelayTaskData::MQTTLastwillExpire(will_message.client_id.clone()),
+                req.client_id.clone(),
+                DelayTaskData::MQTTLastwillExpire(req.tenant.clone(), req.client_id.clone()),
                 now_second() + delay,
             ))
             .await?;
@@ -194,33 +191,4 @@ pub async fn delete_session_by_req(
     send_notify_by_delete_session(call_manager, session.clone()).await?;
 
     Ok(DeleteSessionReply {})
-}
-
-// Last Will Message Operations
-pub async fn save_last_will_message_by_req(
-    raft_manager: &Arc<MultiRaftManager>,
-    req: &SaveLastWillMessageRequest,
-) -> Result<SaveLastWillMessageReply, MetaServiceError> {
-    let data = StorageData::new(
-        StorageDataType::MqttSaveLastWillMessage,
-        encode_to_bytes(req),
-    );
-    raft_manager.write_data(&req.client_id, data).await?;
-
-    Ok(SaveLastWillMessageReply {})
-}
-
-pub async fn get_last_will_message_by_req(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: &GetLastWillMessageRequest,
-) -> Result<GetLastWillMessageReply, MetaServiceError> {
-    let storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
-
-    let message = storage
-        .get(&req.client_id)?
-        .map(|will| will.encode())
-        .transpose()?
-        .unwrap_or_default();
-
-    Ok(GetLastWillMessageReply { message })
 }

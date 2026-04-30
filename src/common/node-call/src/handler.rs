@@ -21,7 +21,7 @@ use grpc_clients::broker::common::call::{
 use grpc_clients::pool::ClientPool;
 use prost::Message;
 use protocol::broker::broker::{
-    GetQosDataByClientIdReply, GetQosDataByClientIdRequest, LastWillMessageItem,
+    GetQosDataByClientIdReply, GetQosDataByClientIdRequest, LastWillClientItem,
     SendLastWillMessageRequest, UpdateCacheRecord, UpdateCacheRequest,
 };
 use std::future::Future;
@@ -133,10 +133,16 @@ pub async fn send_get_qos_data_batch(
 pub async fn send_last_will_batch(
     client_pool: &Arc<ClientPool>,
     addr: &str,
-    items: &[LastWillMessageItem],
+    items: &[(String, String)],
 ) {
     let request = SendLastWillMessageRequest {
-        items: items.to_vec(),
+        items: items
+            .iter()
+            .map(|(tenant, client_id)| LastWillClientItem {
+                tenant: tenant.clone(),
+                client_id: client_id.clone(),
+            })
+            .collect(),
     };
     let addrs = [addr];
 

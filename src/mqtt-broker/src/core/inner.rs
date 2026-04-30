@@ -15,10 +15,9 @@
 use crate::core::cache::MQTTCacheManager;
 use crate::core::error::MqttBrokerError;
 use crate::core::last_will::send_last_will_message;
-use crate::core::retain::RetainMessageManager;
+use crate::storage::last_will::LastWillStorage;
 use broker_core::tool::wait_cluster_running;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use protocol::broker::broker::{SendLastWillMessageReply, SendLastWillMessageRequest};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -27,7 +26,6 @@ use tracing::{debug, warn};
 pub async fn send_last_will_message_by_req(
     cache_manager: &Arc<MQTTCacheManager>,
     client_pool: &Arc<ClientPool>,
-    retain_message_manager: &Arc<RetainMessageManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     req: &SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, MqttBrokerError> {
@@ -36,34 +34,43 @@ pub async fn send_last_will_message_by_req(
         .map_err(MqttBrokerError::CommonError)?;
 
     debug!(
-        "Received batch last will messages from meta service, count: {}",
+        "Received last will notifications, count: {}",
         req.items.len()
     );
 
+    let last_will_storage = LastWillStorage::new(storage_driver_manager.clone());
+
     for item in &req.items {
-        let data = match MqttLastWillData::decode(&item.last_will_message) {
-            Ok(data) => data,
+        let data = match last_will_storage
+            .get_last_will_message(&item.tenant, &item.client_id)
+            .await
+        {
+            Ok(Some(data)) => data,
+            Ok(None) => {
+                warn!(
+                    "No last will message found for tenant={}, client_id={}",
+                    item.tenant, item.client_id
+                );
+                continue;
+            }
             Err(e) => {
                 warn!(
-                    "Failed to decode last will message for client_id={}: {}",
-                    item.client_id, e
+                    "Failed to load last will message for tenant={}, client_id={}: {}",
+                    item.tenant, item.client_id, e
                 );
                 continue;
             }
         };
 
-        if let Err(e) = send_last_will_message(
-            retain_message_manager,
-            cache_manager,
-            storage_driver_manager,
-            client_pool,
-            &data,
-        )
-        .await
+        if let Err(e) =
+            send_last_will_message(cache_manager, storage_driver_manager, client_pool, &data).await
         {
+            last_will_storage
+                .delete_last_will_message(&item.tenant, &item.client_id)
+                .await?;
             warn!(
-                "Failed to send last will message for client_id={}: {}",
-                item.client_id, e
+                "Failed to send last will message for tenant={}, client_id={}: {}",
+                item.tenant, item.client_id, e
             );
         }
     }

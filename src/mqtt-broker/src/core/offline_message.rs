@@ -21,7 +21,7 @@ use super::{
     message::build_message_expire,
 };
 use crate::{
-    core::{qos::save_temporary_qos2_message, retain::RetainMessageManager},
+    core::{qos::save_temporary_qos2_message, retain::save_retain_message},
     storage::message::MessageStorage,
     subscribe::manager::SubscribeManager,
 };
@@ -59,7 +59,6 @@ pub struct SaveMessageContext {
     pub publish: Publish,
     pub publish_properties: Option<PublishProperties>,
     pub subscribe_manager: Arc<SubscribeManager>,
-    pub retain_message_manager: Arc<RetainMessageManager>,
     pub client_id: String,
     pub topic: Topic,
     pub delay_info: Option<DelayPublishTopic>,
@@ -68,15 +67,15 @@ pub struct SaveMessageContext {
 pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>, MqttBrokerError> {
     // Whether or not offline messages are enabled
     // persistent storage must be used to retain the messages.
-    context
-        .retain_message_manager
-        .save_retain_message(
-            &context.topic.tenant,
-            &context.topic.topic_name,
-            &context.publish,
-            &context.publish_properties,
-        )
-        .await?;
+    save_retain_message(
+        &context.storage_driver_manager,
+        &context.cache_manager,
+        &context.topic.tenant,
+        &context.topic.topic_name,
+        &context.publish,
+        &context.publish_properties,
+    )
+    .await?;
 
     // offline message
     let offline_message_disabled = !context

@@ -26,10 +26,7 @@ use rocksdb_engine::{
 use std::sync::Arc;
 use tracing::debug;
 
-use crate::{
-    handler::lastwill_expire::get_last_will_message, manager::DelayTaskManager, DelayTask,
-    DelayTaskData,
-};
+use crate::{manager::DelayTaskManager, DelayTask, DelayTaskData};
 
 pub async fn handle_session_expire(
     node_call_manager: &Arc<NodeCallManager>,
@@ -64,14 +61,17 @@ pub async fn handle_session_expire(
             delay_task_manager
                 .create_task(DelayTask::build_persistent(
                     client_id.to_string(),
-                    DelayTaskData::MQTTLastwillExpire(client_id.to_string()),
+                    DelayTaskData::MQTTLastwillExpire(tenant.to_string(), client_id.to_string()),
                     delay_target_time,
                 ))
                 .await?;
-        } else if let Some(will_message) = get_last_will_message(rocksdb_engine_handler, client_id)?
-        {
-            let data = NodeCallData::SendLastWillMessage(will_message);
-            node_call_manager.send(data).await?;
+        } else if session.is_contain_last_will {
+            node_call_manager
+                .send(NodeCallData::SendLastWillMessage {
+                    tenant: tenant.to_string(),
+                    client_id: client_id.to_string(),
+                })
+                .await?;
         }
     }
 

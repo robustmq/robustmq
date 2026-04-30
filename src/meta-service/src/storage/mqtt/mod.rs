@@ -27,7 +27,6 @@
 pub mod acl;
 pub mod blacklist;
 pub mod connector;
-pub mod lastwill;
 pub mod session;
 pub mod subscribe;
 pub mod topic;

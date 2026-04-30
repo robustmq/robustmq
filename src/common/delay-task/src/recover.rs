@@ -14,8 +14,9 @@
 
 use crate::manager::DelayTaskManager;
 use crate::pop::spawn_task_process;
-use crate::{DelayTask, DELAY_TASK_INDEX_TOPIC};
+use crate::DelayTask;
 use broker_core::cache::NodeCacheManager;
+use broker_core::inner_topic::DELAY_TASK_INDEX_TOPIC;
 use common_base::tools::now_second;
 use common_base::utils::serialize;
 use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
