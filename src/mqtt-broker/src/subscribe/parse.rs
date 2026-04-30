@@ -72,6 +72,7 @@ struct AddSharePushContext {
     pub protocol: MqttProtocol,
     pub sub_identifier: Option<usize>,
     pub filter: Filter,
+    pub rewrite_sub_path: Option<String>,
 }
 
 #[derive(Clone)]
@@ -294,6 +295,7 @@ async fn parse_subscribe(
                 protocol: sub.protocol.clone(),
                 sub_identifier,
                 filter: sub.filter.clone(),
+                rewrite_sub_path: context.rewrite_sub_path.clone(),
             },
         )
         .await?;
@@ -320,7 +322,10 @@ async fn add_share_push(
     let (group_name, sub_name) = decode_share_info(&req.filter.path);
     let group_name_full = full_group_name(&group_name, &sub_name);
 
-    if is_match_sub_and_topic(&sub_name, &req.topic_name).is_ok() {
+    // Use the rewritten sub path for topic matching when a rewrite rule applies.
+    let match_path = req.rewrite_sub_path.as_deref().unwrap_or(&sub_name);
+
+    if is_match_sub_and_topic(match_path, &req.topic_name).is_ok() {
         debug!(
             "Adding share subscription: client='{}', group='{}', topic='{}'",
             req.client_id, group_name_full, req.topic_name
@@ -346,7 +351,7 @@ async fn add_share_push(
             &req.filter,
             req.sub_identifier,
             req.filter.path.clone(),
-            None,
+            req.rewrite_sub_path.clone(),
         );
 
         subscribe_manager.add_share_sub(&sub);

@@ -13,29 +13,24 @@
 // limitations under the License.
 
 use crate::core::cache::MQTTCacheManager;
+use crate::core::error::MqttBrokerError;
 use crate::core::sub_option::message_is_same_client;
-use crate::subscribe::common::{message_is_exceeds_max_message_size, message_is_expire};
-use crate::subscribe::common::{record_sub_send_metrics, stale_subscriber_error};
-use crate::subscribe::push::{
-    push_data, BATCH_SIZE, HIGH_LOAD_SLEEP_MS, IDLE_SLEEP_MS, LOW_LOAD_SLEEP_MS, LOW_LOAD_THRESHOLD,
+use crate::subscribe::common::{
+    client_unavailable_error, message_is_exceeds_max_message_size, message_is_expire,
+    record_sub_send_metrics, stale_subscriber_error, Subscriber,
 };
-use crate::{
-    core::error::MqttBrokerError,
-    subscribe::{
-        common::{client_unavailable_error, Subscriber},
-        manager::SubscribeManager,
-        push_model::{get_push_model, PushModel},
-    },
-};
+use crate::subscribe::manager::SubscribeManager;
+use crate::subscribe::push::{adaptive_sleep, handle_stop_signal, push_data, BATCH_SIZE};
+use crate::subscribe::push_model::{get_push_model, PushModel};
 use dashmap::DashMap;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 use storage_adapter::{consumer::GroupConsumer, driver::StorageDriverManager};
-use tokio::{select, sync::broadcast, sync::broadcast::Sender, time::sleep};
-use tracing::{debug, error, info, warn};
+use tokio::{select, sync::broadcast::Sender};
+use tracing::{debug, error, warn};
 
 pub struct DirectlyPushManager {
     subscribe_manager: Arc<SubscribeManager>,
@@ -43,7 +38,7 @@ pub struct DirectlyPushManager {
     cache_manager: Arc<MQTTCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     storage_driver_manager: Arc<StorageDriverManager>,
-    consumers: DashMap<String, GroupConsumer>,
+    consumers: DashMap<String, Arc<GroupConsumer>>,
     uuid: String,
 }
 
@@ -71,39 +66,19 @@ impl DirectlyPushManager {
         let mut stop_rx = stop_sx.subscribe();
         loop {
             select! {
-                val = stop_rx.recv() =>{
-                    match val {
-                        Ok(true) => {
-                            info!("DirectlyPushManager[{}] stopped", self.uuid);
-                            break;
-                        }
-                        Ok(false) => {}
-                        Err(broadcast::error::RecvError::Closed) => {
-                            info!("DirectlyPushManager[{}] stop channel closed, exiting.", self.uuid);
-                            break;
-                        }
-                        Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                            debug!(
-                                "DirectlyPushManager[{}] stop channel lagged, skipped {} messages.",
-                                self.uuid, skipped
-                            );
-                        }
+                val = stop_rx.recv() => {
+                    if handle_stop_signal(val, &format!("DirectlyPushManager[{}]", self.uuid)) {
+                        break;
                     }
                 }
-                res = self.send_messages(stop_sx) =>{
+                res = self.send_messages(stop_sx) => {
                     match res {
                         Ok(processed_count) => {
-                            if processed_count == 0 {
-                                sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
-                            } else if processed_count < LOW_LOAD_THRESHOLD as usize {
-                                sleep(Duration::from_millis(LOW_LOAD_SLEEP_MS)).await;
-                            } else {
-                                sleep(Duration::from_millis(HIGH_LOAD_SLEEP_MS)).await;
-                            }
+                            adaptive_sleep(processed_count as u64).await;
                         }
                         Err(e) => {
                             error!("DirectlyPushManager[{}] send messages failed: {}", self.uuid, e);
-                            sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
+                            adaptive_sleep(0).await;
                         }
                     }
                 }
@@ -113,38 +88,38 @@ impl DirectlyPushManager {
 
     pub async fn send_messages(&self, stop_sx: &Sender<bool>) -> Result<usize, MqttBrokerError> {
         let mut processed_count = 0;
-        // (tenant, client_id, sub_path, group_name)
+        // (tenant, client_id, sub_path, group_name) of subscribers whose topic no longer exists.
         let mut stale_subs: Vec<(String, String, String, String)> = Vec::new();
 
-        if let Some(data) = self
+        // Collect subscribers first to release the DashMap shard lock before any .await.
+        let subscribers: Vec<Subscriber> = self
             .subscribe_manager
             .directly_push
             .buckets_data_list
             .get(&self.uuid)
-        {
-            for row in data.iter() {
-                match self.process_subscriber_messages(&row, stop_sx).await {
-                    Ok(count) => {
-                        processed_count += count;
-                    }
-                    Err(e) => {
-                        if stale_subscriber_error(&e) {
-                            warn!(
-                                "Removing stale subscriber [client_id: {}, topic: {}, sub_path: {}]: {}",
-                                row.client_id, row.topic_name, row.sub_path, e
-                            );
-                            stale_subs.push((
-                                row.tenant.clone(),
-                                row.client_id.clone(),
-                                row.sub_path.clone(),
-                                row.group_name.clone(),
-                            ));
-                        } else {
-                            debug!(
-                                "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}],error message: {}",
-                                row.client_id, row.group_name, row.topic_name, row.sub_path, e
-                            );
-                        }
+            .map(|data| data.iter().map(|row| row.value().clone()).collect())
+            .unwrap_or_default();
+
+        for subscriber in &subscribers {
+            match self.process_subscriber_messages(subscriber, stop_sx).await {
+                Ok(count) => processed_count += count,
+                Err(e) => {
+                    if stale_subscriber_error(&e) {
+                        warn!(
+                            "Removing stale subscriber [client_id: {}, topic: {}, sub_path: {}]: {}",
+                            subscriber.client_id, subscriber.topic_name, subscriber.sub_path, e
+                        );
+                        stale_subs.push((
+                            subscriber.tenant.clone(),
+                            subscriber.client_id.clone(),
+                            subscriber.sub_path.clone(),
+                            subscriber.group_name.clone(),
+                        ));
+                    } else {
+                        debug!(
+                            "Failed to process messages for subscriber [client_id: {}, group: {}, topic: {}, sub_path: {}], error: {}",
+                            subscriber.client_id, subscriber.group_name, subscriber.topic_name, subscriber.sub_path, e
+                        );
                     }
                 }
             }
@@ -171,15 +146,21 @@ impl DirectlyPushManager {
             max_size: 1024 * 1024 * 30,
         };
 
-        let consumer = self
-            .consumers
+        // Insert if absent, then clone the Arc so the DashMap Ref is dropped before .await.
+        self.consumers
             .entry(subscriber.group_name.clone())
             .or_insert_with(|| {
-                GroupConsumer::new_manual(
+                Arc::new(GroupConsumer::new_manual(
                     self.storage_driver_manager.clone(),
                     subscriber.group_name.clone(),
-                )
+                ))
             });
+
+        let consumer = self
+            .consumers
+            .get(&subscriber.group_name)
+            .expect("consumer just inserted")
+            .clone();
 
         let data_list = consumer
             .next_messages(&subscriber.tenant, &subscriber.topic_name, &read_config)
@@ -192,50 +173,52 @@ impl DirectlyPushManager {
         let model = get_push_model(&subscriber.client_id, &subscriber.topic_name);
 
         for record in data_list {
-            if !is_discard_message(&self.cache_manager, &record, subscriber).await? {
-                let success = match push_data(
-                    &self.connection_manager,
-                    &self.cache_manager,
-                    &self.rocksdb_engine_handler,
-                    subscriber,
-                    &record,
-                    stop_sx,
-                )
-                .await
-                {
-                    Ok(pushed) => {
-                        if pushed {
-                            processed_count += 1;
-                        }
-                        pushed
-                    }
-                    Err(e) => {
-                        if !client_unavailable_error(&e) {
-                            warn!(
-                                "Directly push fail, offset [{}], error message:{}",
-                                record.metadata.offset, e
-                            );
-                        }
-                        if model == PushModel::RetryFailure {
-                            break;
-                        }
-                        false
-                    }
-                };
-
-                record_sub_send_metrics(
-                    &subscriber.tenant,
-                    &subscriber.client_id,
-                    &subscriber.sub_path,
-                    &subscriber.topic_name,
-                    0,
-                    success,
-                );
+            if is_discard_message(&self.cache_manager, &record, subscriber).await? {
+                continue;
             }
+
+            let success = match push_data(
+                &self.connection_manager,
+                &self.cache_manager,
+                &self.rocksdb_engine_handler,
+                subscriber,
+                &record,
+                stop_sx,
+            )
+            .await
+            {
+                Ok(pushed) => {
+                    if pushed {
+                        processed_count += 1;
+                    }
+                    pushed
+                }
+                Err(e) => {
+                    if !client_unavailable_error(&e) {
+                        warn!(
+                            "Directly push fail, offset [{}], error: {}",
+                            record.metadata.offset, e
+                        );
+                    }
+                    if model == PushModel::RetryFailure {
+                        // Skip commit so this record is re-delivered on the next iteration.
+                        return Ok(processed_count);
+                    }
+                    false
+                }
+            };
+
+            record_sub_send_metrics(
+                &subscriber.tenant,
+                &subscriber.client_id,
+                &subscriber.sub_path,
+                &subscriber.topic_name,
+                0,
+                success,
+            );
         }
 
         consumer.commit().await?;
-
         Ok(processed_count)
     }
 }

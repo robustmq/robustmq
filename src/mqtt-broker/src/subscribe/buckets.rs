@@ -71,30 +71,21 @@ impl BucketsManager {
             .seq_num
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-        if let Some(mut data) = self.client_id_sub.get_mut(&subscriber.client_id) {
-            data.insert(seq);
-        } else {
-            let mut set = HashSet::new();
-            set.insert(seq);
-            self.client_id_sub.insert(subscriber.client_id.clone(), set);
-        }
+        self.client_id_sub
+            .entry(subscriber.client_id.clone())
+            .or_default()
+            .insert(seq);
 
         let key = self.client_sub_path_key(&subscriber.client_id, &subscriber.sub_path);
-        if let Some(mut data) = self.client_id_sub_path_sub.get_mut(&key) {
-            data.insert(seq);
-        } else {
-            let mut set = HashSet::new();
-            set.insert(seq);
-            self.client_id_sub_path_sub.insert(key, set);
-        }
+        self.client_id_sub_path_sub
+            .entry(key)
+            .or_default()
+            .insert(seq);
 
-        if let Some(mut data) = self.topic_sub.get_mut(&subscriber.topic_name) {
-            data.insert(seq);
-        } else {
-            let mut set = HashSet::new();
-            set.insert(seq);
-            self.topic_sub.insert(subscriber.topic_name.clone(), set);
-        }
+        self.topic_sub
+            .entry(subscriber.topic_name.clone())
+            .or_default()
+            .insert(seq);
 
         self.add_data_list(seq, subscriber);
     }
@@ -228,6 +219,14 @@ impl BucketsManager {
                     }
                 }
 
+                if let Some(mut data) = self.topic_sub.get_mut(&subscriber.topic_name) {
+                    data.remove(seq);
+                    if data.is_empty() {
+                        drop(data);
+                        self.topic_sub.remove(&subscriber.topic_name);
+                    }
+                }
+
                 if row.is_empty() {
                     empty_bucket_id = Some(row.key().clone());
                 }
@@ -250,7 +249,7 @@ impl BucketsManager {
     }
 
     fn client_sub_path_key(&self, client_id: &str, sub_path: &str) -> String {
-        format!("{client_id}_{sub_path}")
+        format!("{client_id}#{sub_path}")
     }
 }
 
