@@ -209,7 +209,7 @@ impl MqttService {
             &client_id,
             &context.last_will,
             &context.last_will_properties,
-            &self.client_pool,
+            &self.storage_driver_manager,
         )
         .await
         {

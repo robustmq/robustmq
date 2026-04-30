@@ -14,43 +14,39 @@
 
 use crate::core::error::MqttBrokerError;
 use crate::core::tool::ResultMqttBrokerError;
-use common_config::broker::broker_config;
-use grpc_clients::meta::mqtt::call::{
-    placement_get_topic_retain_message, placement_set_topic_retain_message,
-};
-use grpc_clients::pool::ClientPool;
+use broker_core::inner_topic::RETAIN_MESSAGE_TOPIC;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
-use protocol::meta::meta_service_mqtt::{
-    GetTopicRetainMessageRequest, SetTopicRetainMessageRequest,
-};
+// The inner topic "$retain-message" is a single broker-wide topic created under DEFAULT_TENANT.
+// To isolate retain messages across tenants and avoid key collisions between topics with the same
+// name in different tenants, the storage key is composed as "{tenant}/{topic_name}".
+use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
+use storage_adapter::driver::StorageDriverManager;
 
 pub struct RetainStorage {
-    client_pool: Arc<ClientPool>,
+    storage_driver_manager: Arc<StorageDriverManager>,
 }
 
 impl RetainStorage {
-    pub fn new(client_pool: Arc<ClientPool>) -> Self {
-        RetainStorage { client_pool }
+    pub fn new(storage_driver_manager: Arc<StorageDriverManager>) -> Self {
+        RetainStorage {
+            storage_driver_manager,
+        }
     }
+
     pub async fn set_retain_message(
         &self,
         tenant: &str,
         topic_name: &str,
         retain_message: &MQTTRetainMessage,
     ) -> ResultMqttBrokerError {
-        let config = broker_config();
-        let request = SetTopicRetainMessageRequest {
-            tenant: tenant.to_string(),
-            topic_name: topic_name.to_string(),
-            retain_message: Some(retain_message.encode()?.to_vec()),
-        };
-        placement_set_topic_retain_message(
-            &self.client_pool,
-            &config.get_meta_service_addr(),
-            request,
-        )
-        .await?;
+        let key = retain_key(tenant, topic_name);
+        let data = retain_message.encode()?;
+        let record = AdapterWriteRecord::new(RETAIN_MESSAGE_TOPIC, data).with_key(&key);
+        self.storage_driver_manager
+            .write(DEFAULT_TENANT, RETAIN_MESSAGE_TOPIC, &[record])
+            .await?;
         Ok(())
     }
 
@@ -59,18 +55,10 @@ impl RetainStorage {
         tenant: &str,
         topic_name: &str,
     ) -> ResultMqttBrokerError {
-        let config = broker_config();
-        let request = SetTopicRetainMessageRequest {
-            tenant: tenant.to_string(),
-            topic_name: topic_name.to_owned(),
-            ..Default::default()
-        };
-        placement_set_topic_retain_message(
-            &self.client_pool,
-            &config.get_meta_service_addr(),
-            request,
-        )
-        .await?;
+        let key = retain_key(tenant, topic_name);
+        self.storage_driver_manager
+            .delete_by_key(DEFAULT_TENANT, RETAIN_MESSAGE_TOPIC, &key)
+            .await?;
         Ok(())
     }
 
@@ -79,23 +67,19 @@ impl RetainStorage {
         tenant: &str,
         topic_name: &str,
     ) -> Result<Option<MQTTRetainMessage>, MqttBrokerError> {
-        let config = broker_config();
-        let request = GetTopicRetainMessageRequest {
-            tenant: tenant.to_owned(),
-            topic_name: topic_name.to_owned(),
-        };
-
-        let reply = placement_get_topic_retain_message(
-            &self.client_pool,
-            &config.get_meta_service_addr(),
-            request,
-        )
-        .await?;
-
-        if let Some(data) = reply.retain_message {
-            let message = MQTTRetainMessage::decode(&data)?;
+        let key = retain_key(tenant, topic_name);
+        let records = self
+            .storage_driver_manager
+            .read_by_key(DEFAULT_TENANT, RETAIN_MESSAGE_TOPIC, &key)
+            .await?;
+        if let Some(record) = records.into_iter().next() {
+            let message = MQTTRetainMessage::decode(&record.data)?;
             return Ok(Some(message));
         }
         Ok(None)
     }
+}
+
+fn retain_key(tenant: &str, topic_name: &str) -> String {
+    format!("{}/{}", tenant, topic_name)
 }

@@ -17,6 +17,7 @@ pub mod cache;
 pub mod cluster;
 pub mod dynamic_config;
 pub mod heartbeat;
+pub mod inner_topic;
 pub mod share_group;
 pub mod tenant;
 pub mod tool;

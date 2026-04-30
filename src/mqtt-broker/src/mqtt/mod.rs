@@ -32,10 +32,11 @@ use schema_register::schema::SchemaRegisterManager;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
+use tokio::sync::broadcast;
 
 use crate::core::cache::MQTTCacheManager;
 use crate::core::event::EventReportManager;
-use crate::core::retain::RetainMessageManager;
+
 use crate::storage::session::SessionBatcher;
 use crate::subscribe::manager::SubscribeManager;
 
@@ -54,9 +55,9 @@ pub struct MqttService {
     session_batcher: Arc<SessionBatcher>,
     security_manager: Arc<SecurityManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    retain_message_manager: Arc<RetainMessageManager>,
     limit_manager: Arc<MQTTRateLimiterManager>,
     event_manager: Arc<EventReportManager>,
+    pub(crate) stop_sx: broadcast::Sender<bool>,
 }
 
 #[derive(Clone)]
@@ -72,10 +73,10 @@ pub struct MqttServiceContext {
     pub session_batcher: Arc<SessionBatcher>,
     pub security_manager: Arc<SecurityManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
-    pub retain_message_manager: Arc<RetainMessageManager>,
     pub limit_manager: Arc<MQTTRateLimiterManager>,
     pub node_call: Arc<NodeCallManager>,
     pub event_manager: Arc<EventReportManager>,
+    pub stop_sx: broadcast::Sender<bool>,
 }
 
 #[derive(Clone)]
@@ -103,9 +104,9 @@ impl MqttService {
             security_manager: context.security_manager,
             schema_manager: context.schema_manager,
             rocksdb_engine_handler: context.rocksdb_engine_handler,
-            retain_message_manager: context.retain_message_manager,
             limit_manager: context.limit_manager,
             event_manager: context.event_manager,
+            stop_sx: context.stop_sx,
         }
     }
 }

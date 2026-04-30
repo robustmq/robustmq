@@ -20,7 +20,7 @@ use crate::core::keep_alive::ClientKeepAlive;
 use crate::core::metrics_cache::metrics_record_thread;
 use crate::core::pkid_manager::clean_pkid_data;
 use crate::core::qos::init_qos2_inner_topic;
-use crate::core::retain::RetainMessageManager;
+
 use crate::core::system_alarm::SystemAlarm;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::core::topic_rewrite::start_topic_rewrite_convert_thread;
@@ -71,7 +71,6 @@ pub struct MqttBrokerServerParams {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub node_cache: Arc<NodeCacheManager>,
     pub offset_manager: Arc<OffsetManager>,
-    pub retain_message_manager: Arc<RetainMessageManager>,
     pub push_manager: Arc<PushManager>,
     pub task_supervisor: Arc<TaskSupervisor>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
@@ -130,7 +129,6 @@ impl MqttBrokerServer {
                 security_manager: params.security_manager.clone(),
                 rocksdb_engine_handler: params.rocksdb_engine_handler.clone(),
                 broker_cache: params.node_cache.clone(),
-                retain_message_manager: params.retain_message_manager.clone(),
                 mqtt_limit_manager: limit_manager.clone(),
                 global_limit_manager: params.global_limit_manager.clone(),
                 node_call: params.node_call.clone(),

@@ -12,12 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod auto_subscribe;
-pub mod connector;
-pub mod last_will;
-pub mod local;
-pub mod message;
-pub mod retain;
-pub mod schema;
-pub mod session;
-pub mod topic_rewrite;
+pub const LAST_WILL_MESSAGE_TOPIC: &str = "$last-will-message";
+pub const RETAIN_MESSAGE_TOPIC: &str = "$retain-message";
+pub const DELAY_TASK_INDEX_TOPIC: &str = "$delay-task-index";
+pub const DELAY_QUEUE_MESSAGE_TOPIC: &str = "$delay-queue-message";
+pub const DELAY_QUEUE_INDEX_TOPIC: &str = "$delay-queue-index";

@@ -12,23 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::manager::DelayMessageManager;
-use broker_core::cache::NodeCacheManager;
+use broker_core::inner_topic::{DELAY_QUEUE_INDEX_TOPIC, DELAY_QUEUE_MESSAGE_TOPIC};
 use common_base::error::common::CommonError;
 use common_base::utils::serialize::serialize;
-use common_config::storage::StorageType;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::delay_info::DelayMessageIndexInfo;
-use metadata_struct::mqtt::topic::Topic;
-use metadata_struct::storage::shard::EngineShardConfig;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
-use storage_adapter::topic::create_topic_full;
-use tracing::{debug, info};
-
-pub const DELAY_QUEUE_MESSAGE_TOPIC: &str = "$delay-queue-message";
-pub const DELAY_QUEUE_INDEX_TOPIC: &str = "$delay-queue-index";
+use tracing::debug;
 
 pub(crate) async fn save_delay_message(
     storage_driver_manager: &Arc<StorageDriverManager>,
@@ -117,46 +109,6 @@ pub(crate) async fn delete_delay_index_info(
         "Deleted delay index info: unique_id={}",
         delay_info.unique_id
     );
-    Ok(())
-}
-
-pub(crate) async fn init_inner_topic(
-    delay_message_manager: &Arc<DelayMessageManager>,
-    broker_cache: &Arc<NodeCacheManager>,
-) -> Result<(), CommonError> {
-    for topic_name in [
-        DELAY_QUEUE_MESSAGE_TOPIC.to_string(),
-        DELAY_QUEUE_INDEX_TOPIC.to_string(),
-    ] {
-        if let Some(topic) = broker_cache.get_topic_by_name(DEFAULT_TENANT, &topic_name) {
-            // Topic exists in metadata; ensure the storage shard is also provisioned.
-            info!(
-                "Delay message inner topic '{}' already exists, ensuring storage shard is provisioned",
-                topic_name
-            );
-            let shard_config = EngineShardConfig {
-                replica_num: topic.replication,
-                storage_type: topic.storage_type,
-                max_segment_size: topic.config.max_segment_size,
-                max_record_num: topic.config.max_record_num,
-                retention_sec: topic.config.retention_sec,
-            };
-            delay_message_manager
-                .storage_driver_manager
-                .create_storage_resource(DEFAULT_TENANT, &topic_name, &shard_config)
-                .await?;
-            continue;
-        }
-
-        let topic = Topic::new(DEFAULT_TENANT, &topic_name, StorageType::EngineRocksDB);
-        create_topic_full(
-            broker_cache,
-            &delay_message_manager.storage_driver_manager,
-            &delay_message_manager.client_pool,
-            &topic,
-        )
-        .await?;
-    }
     Ok(())
 }
 

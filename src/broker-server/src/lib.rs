@@ -47,6 +47,7 @@ use rocksdb_engine::{
 };
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
+use storage_adapter::topic::init_inner_topics;
 use storage_engine::StorageEngineParams;
 use tokio::{runtime::Runtime, sync::broadcast};
 use tracing::error;
@@ -82,8 +83,7 @@ struct BaseComponents {
 pub struct BrokerServer {
     pub(crate) server_runtime: Runtime,
     pub(crate) meta_runtime: Runtime,
-    /// Dedicated runtime for broker tasks; tasks spawned during construction
-    /// (e.g. RetainMessageManager's send thread) land here, not on server_runtime.
+    /// Dedicated runtime for broker tasks.
     pub(crate) broker_runtime: Runtime,
     pub(crate) engine_runtime: Runtime,
     pub(crate) meta_params: MetaServiceServerParams,
@@ -182,8 +182,7 @@ impl BrokerServer {
             "meta-runtime",
             resolve_meta_worker_threads(config.runtime.meta_worker_threads),
         );
-        // broker_runtime is created here so tasks spawned during MQTT param
-        // construction (e.g. RetainMessageManager) land on broker_runtime.
+        // broker_runtime is created here for broker-specific tasks.
         let broker_runtime = create_runtime(
             "broker-runtime",
             resolve_broker_worker_threads(config.runtime.broker_worker_threads),
@@ -301,7 +300,6 @@ impl BrokerServer {
                 task_supervisor: base.task_supervisor.clone(),
                 global_limit_manager: base.global_rate_limiter.clone(),
                 node_call: base.node_call_manager.clone(),
-                stop_sx: main_stop_send.clone(),
                 request_channel: shared_request_channel.clone(),
                 security_manager: security_manager.clone(),
             },
@@ -392,6 +390,19 @@ impl BrokerServer {
                 app_stop.clone(),
             )
             .await;
+        });
+
+        // Phase 5.5: Initialize internal topics
+        let broker_cache = self.broker_cache.clone();
+        let storage_driver_manager = self.mqtt_params.storage_driver_manager.clone();
+        let client_pool = self.client_pool.clone();
+        self.server_runtime.block_on(async {
+            if let Err(e) =
+                init_inner_topics(&broker_cache, &storage_driver_manager, &client_pool).await
+            {
+                error!("Failed to initialize inner topics: {}", e);
+                std::process::exit(1);
+            }
         });
 
         // Phase 6: Engine service

@@ -22,10 +22,7 @@ use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::{
     broker::{MqttBrokerServer, MqttBrokerServerParams},
-    core::{
-        cache::MQTTCacheManager as MqttCacheManager, event::EventReportManager,
-        retain::RetainMessageManager,
-    },
+    core::{cache::MQTTCacheManager as MqttCacheManager, event::EventReportManager},
     storage::session::SessionBatcher,
     subscribe::{manager::SubscribeManager, PushManager},
 };
@@ -51,7 +48,6 @@ pub struct MqttBuildParams {
     pub task_supervisor: Arc<TaskSupervisor>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub node_call: Arc<NodeCallManager>,
-    pub stop_sx: broadcast::Sender<bool>,
     pub request_channel: Arc<RequestChannel>,
     pub security_manager: Arc<SecurityManager>,
 }
@@ -69,7 +65,6 @@ pub fn build_mqtt_params(
     let ts = p.task_supervisor;
     let glm = p.global_limit_manager;
     let nc = p.node_call;
-    let stop = p.stop_sx;
     let request_channel = p.request_channel;
     let security_manager = p.security_manager;
 
@@ -84,7 +79,6 @@ pub fn build_mqtt_params(
             ts,
             glm,
             nc,
-            stop,
             request_channel,
             security_manager,
         )
@@ -99,8 +93,7 @@ pub fn build_mqtt_params(
     })
 }
 
-/// Build [`MqttBrokerServerParams`] on the caller's runtime so that tasks
-/// spawned during construction (e.g. `RetainMessageManager`) land there.
+/// Build [`MqttBrokerServerParams`] on the caller's runtime.
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn build_broker_mqtt_params(
     client_pool: Arc<ClientPool>,
@@ -112,7 +105,6 @@ pub(crate) async fn build_broker_mqtt_params(
     task_supervisor: Arc<TaskSupervisor>,
     global_limit_manager: Arc<GlobalRateLimiterManager>,
     node_call: Arc<NodeCallManager>,
-    stop_sx: broadcast::Sender<bool>,
     request_channel: Arc<RequestChannel>,
     security_manager: Arc<SecurityManager>,
 ) -> Result<MqttBrokerServerParams, CommonError> {
@@ -127,12 +119,6 @@ pub(crate) async fn build_broker_mqtt_params(
     );
     let metrics_cache_manager = Arc::new(MQTTMetricsCache::new(rocksdb_engine_handler.clone()));
     let schema_manager = Arc::new(SchemaRegisterManager::new());
-    let retain_message_manager = RetainMessageManager::new(
-        cache_manager.clone(),
-        client_pool.clone(),
-        connection_manager.clone(),
-        stop_sx,
-    );
     let push_manager = Arc::new(PushManager::new(
         cache_manager.clone(),
         storage_driver_manager.clone(),
@@ -160,7 +146,6 @@ pub(crate) async fn build_broker_mqtt_params(
         rocksdb_engine_handler,
         node_cache: broker_cache,
         offset_manager,
-        retain_message_manager,
         push_manager,
         task_supervisor,
         global_limit_manager,

@@ -29,9 +29,8 @@ use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, DeleteTopicReply, DeleteTopicRequest,
-    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, GetTopicRetainMessageReply,
-    GetTopicRetainMessageRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
-    ListTopicRewriteRuleRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
+    DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, ListTopicReply, ListTopicRequest,
+    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -123,49 +122,6 @@ pub async fn delete_topic_by_req(
     send_notify_by_delete_topic(call_manager, topic).await?;
 
     Ok(DeleteTopicReply {})
-}
-
-// Retain Message Operations
-pub async fn set_topic_retain_message_by_req(
-    raft_manager: &Arc<MultiRaftManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: &SetTopicRetainMessageRequest,
-) -> Result<SetTopicRetainMessageReply, MetaServiceError> {
-    let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-
-    topic_storage
-        .get(&req.tenant, &req.topic_name)?
-        .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
-
-    if req.retain_message.is_none() {
-        let data = StorageData::new(
-            StorageDataType::MqttDeleteRetainMessage,
-            encode_to_bytes(req),
-        );
-        raft_manager.write_data(&req.topic_name, data).await?;
-    } else {
-        let data = StorageData::new(StorageDataType::MqttSetRetainMessage, encode_to_bytes(req));
-        raft_manager.write_data(&req.topic_name, data).await?;
-    };
-
-    Ok(SetTopicRetainMessageReply {})
-}
-
-pub async fn get_topic_retain_message_by_req(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    req: &GetTopicRetainMessageRequest,
-) -> Result<GetTopicRetainMessageReply, MetaServiceError> {
-    let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
-
-    if let Some(message) = topic_storage.get_retain_message(&req.tenant, &req.topic_name)? {
-        return Ok(GetTopicRetainMessageReply {
-            retain_message: Some(message.encode()?),
-        });
-    }
-
-    Ok(GetTopicRetainMessageReply {
-        retain_message: None,
-    })
 }
 
 // Topic Rewrite Rule Operations

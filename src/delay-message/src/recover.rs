@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::delay::DELAY_QUEUE_INDEX_TOPIC;
 use crate::manager::DelayMessageManager;
 use crate::pop::delay_message_process;
+use broker_core::inner_topic::DELAY_QUEUE_INDEX_TOPIC;
 use common_base::tools::now_second;
 use common_base::utils::serialize::{self};
 use common_metrics::mqtt::delay::{record_delay_msg_recover, record_delay_msg_recover_expired};
