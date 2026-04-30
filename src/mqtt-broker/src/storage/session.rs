@@ -222,5 +222,4 @@ impl SessionStorage {
 
         Ok(results)
     }
-
 }

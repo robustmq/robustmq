@@ -28,7 +28,6 @@ use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishPrope
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
-#[allow(clippy::too_many_arguments)]
 pub async fn send_last_will_message(
     retain_message_manager: &Arc<RetainMessageManager>,
     cache_manager: &Arc<MQTTCacheManager>,
@@ -129,13 +128,13 @@ pub async fn save_last_will_message(
     client_id: &str,
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
-    client_pool: &Arc<ClientPool>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) -> ResultMqttBrokerError {
     if last_will.is_none() {
         return Ok(());
     }
 
-    let last_will_storage = LastWillStorage::new(client_pool.clone());
+    let last_will_storage = LastWillStorage::new(storage_driver_manager.clone());
     let lastwill = MqttLastWillData {
         tenant: tenant.to_string(),
         client_id: client_id.to_string(),
@@ -144,7 +143,7 @@ pub async fn save_last_will_message(
     };
 
     last_will_storage
-        .save_last_will_message(client_id.to_string(), lastwill.encode()?)
+        .save_last_will_message(tenant, client_id, &lastwill)
         .await?;
 
     Ok(())

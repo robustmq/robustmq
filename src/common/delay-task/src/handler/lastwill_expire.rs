@@ -13,55 +13,20 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use node_call::{NodeCallData, NodeCallManager};
-use protocol::broker::broker::LastWillMessageItem;
-use rocksdb_engine::{
-    keys::meta::storage_key_mqtt_last_will,
-    rocksdb::RocksDBEngine,
-    storage::meta_data::{engine_delete_by_meta_data, engine_get_by_meta_data},
-};
 use std::sync::Arc;
 use tracing::debug;
 
 pub async fn handle_lastwill_expire(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     node_call_manager: &Arc<NodeCallManager>,
     client_id: &str,
 ) -> Result<(), CommonError> {
-    let mut has_lastwill = false;
-    if let Some(lastwill) = get_last_will_message(rocksdb_engine_handler, client_id)? {
-        has_lastwill = true;
-        node_call_manager
-            .send(NodeCallData::SendLastWillMessage(lastwill))
-            .await?;
-
-        let key = storage_key_mqtt_last_will(client_id);
-        engine_delete_by_meta_data(rocksdb_engine_handler, &key)?
-    }
+    node_call_manager
+        .send(NodeCallData::SendLastWillMessage(client_id.to_string()))
+        .await?;
     debug!(
-        "Lastwill expire handling completed: client_id={}, lastwill_found={}",
-        client_id, has_lastwill
+        "Lastwill expire handling completed: client_id={}",
+        client_id
     );
     Ok(())
-}
-
-#[allow(clippy::result_large_err)]
-pub(crate) fn get_last_will_message(
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    client_id: &str,
-) -> Result<Option<LastWillMessageItem>, CommonError> {
-    let key = storage_key_mqtt_last_will(client_id);
-    if let Some(lastwill) =
-        engine_get_by_meta_data::<MqttLastWillData>(rocksdb_engine_handler, &key)?
-            .map(|data| data.data)
-    {
-        let data = lastwill.encode()?;
-        let will_message = LastWillMessageItem {
-            client_id: client_id.to_string(),
-            last_will_message: data,
-        };
-        return Ok(Some(will_message));
-    }
-    Ok(None)
 }

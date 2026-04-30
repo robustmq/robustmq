@@ -23,14 +23,12 @@ use protocol::meta::meta_service_mqtt::{
     DeleteBlacklistReply, DeleteBlacklistRequest, DeleteConnectorReply, DeleteConnectorRequest,
     DeleteSessionReply, DeleteSessionRequest, DeleteSubscribeReply, DeleteSubscribeRequest,
     DeleteTopicReply, DeleteTopicRequest, DeleteTopicRewriteRuleReply,
-    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, GetLastWillMessageReply,
-    GetLastWillMessageRequest, ListAclReply, ListAclRequest, ListAutoSubscribeRuleReply,
-    ListAutoSubscribeRuleRequest, ListBlacklistReply, ListBlacklistRequest, ListConnectorReply,
-    ListConnectorRequest, ListSessionReply, ListSessionRequest, ListSubscribeReply,
-    ListSubscribeRequest, ListTopicReply, ListTopicRequest, ListTopicRewriteRuleReply,
-    ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest, SaveLastWillMessageReply,
-    SaveLastWillMessageRequest, SetSubscribeReply, SetSubscribeRequest, UpdateConnectorReply,
-    UpdateConnectorRequest,
+    DeleteTopicRewriteRuleRequest, DeleteUserReply, DeleteUserRequest, ListAclReply,
+    ListAclRequest, ListAutoSubscribeRuleReply, ListAutoSubscribeRuleRequest, ListBlacklistReply,
+    ListBlacklistRequest, ListConnectorReply, ListConnectorRequest, ListSessionReply,
+    ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
+    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
+    SetSubscribeReply, SetSubscribeRequest, UpdateConnectorReply, UpdateConnectorRequest,
 };
 use tonic::Streaming;
 
@@ -101,18 +99,6 @@ generate_mqtt_service_call!(
     ListSessionRequest,
     Streaming<ListSessionReply>,
     ListSession
-);
-generate_mqtt_service_call!(
-    placement_save_last_will_message,
-    SaveLastWillMessageRequest,
-    SaveLastWillMessageReply,
-    SaveLastWillMessage
-);
-generate_mqtt_service_call!(
-    placement_get_last_will_message,
-    GetLastWillMessageRequest,
-    GetLastWillMessageReply,
-    GetLastWillMessage
 );
 generate_mqtt_service_call!(create_acl, CreateAclRequest, CreateAclReply, CreateAcl);
 generate_mqtt_service_call!(delete_acl, DeleteAclRequest, DeleteAclReply, DeleteAcl);

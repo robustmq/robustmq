@@ -54,7 +54,6 @@ pub enum MetaServiceInterface {
     DeleteSession,
     ListSession,
     UpdateSession,
-    SaveLastWillMessage,
     SetResourceConfig,
     GetResourceConfig,
     DeleteResourceConfig,
