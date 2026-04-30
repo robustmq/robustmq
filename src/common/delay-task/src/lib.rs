@@ -18,7 +18,6 @@ pub mod manager;
 pub mod pop;
 pub mod recover;
 
-use crate::delay::init_inner_topic;
 use crate::manager::DelayTaskManager;
 use crate::pop::spawn_delay_task_pop_threads;
 use crate::recover::recover_delay_queue;
@@ -30,8 +29,6 @@ use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-
-pub const DELAY_TASK_INDEX_TOPIC: &str = "$delay-task-index";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DelayTaskData {
@@ -98,7 +95,6 @@ pub async fn start_delay_task_manager_thread(
     node_call_manager: &Arc<NodeCallManager>,
     task_supervisor: &Arc<TaskSupervisor>,
 ) -> Result<(), CommonError> {
-    init_inner_topic(delay_task_manager, broker_cache).await?;
     spawn_delay_task_pop_threads(
         rocksdb_engine_handler,
         delay_task_manager,

@@ -47,6 +47,7 @@ use rocksdb_engine::{
 };
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
+use storage_adapter::topic::init_inner_topics;
 use storage_engine::StorageEngineParams;
 use tokio::{runtime::Runtime, sync::broadcast};
 use tracing::error;
@@ -392,6 +393,19 @@ impl BrokerServer {
                 app_stop.clone(),
             )
             .await;
+        });
+
+        // Phase 5.5: Initialize internal topics
+        let broker_cache = self.broker_cache.clone();
+        let storage_driver_manager = self.mqtt_params.storage_driver_manager.clone();
+        let client_pool = self.client_pool.clone();
+        self.server_runtime.block_on(async {
+            if let Err(e) =
+                init_inner_topics(&broker_cache, &storage_driver_manager, &client_pool).await
+            {
+                error!("Failed to initialize inner topics: {}", e);
+                std::process::exit(1);
+            }
         });
 
         // Phase 6: Engine service

@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::delay::{delete_delay_index_info, delete_delay_message, DELAY_QUEUE_MESSAGE_TOPIC};
+use crate::delay::{delete_delay_index_info, delete_delay_message};
 use crate::manager::{DelayMessageManager, ShardCmd, DELAY_MESSAGE_SAVE_MS};
+use broker_core::inner_topic::DELAY_QUEUE_MESSAGE_TOPIC;
 use common_base::error::common::CommonError;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::tools::now_second;

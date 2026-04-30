@@ -14,12 +14,11 @@
 
 use crate::core::error::MqttBrokerError;
 use crate::core::tool::ResultMqttBrokerError;
+use broker_core::inner_topic::LAST_WILL_MESSAGE_TOPIC;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mqtt::lastwill::MqttLastWillData;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
-
-pub const LAST_WILL_MESSAGE_TOPIC: &str = "$last-will-message";
 
 pub struct LastWillStorage {
     storage_driver_manager: Arc<StorageDriverManager>,

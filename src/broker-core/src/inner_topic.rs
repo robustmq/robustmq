@@ -12,13 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(clippy::result_large_err)]
-pub mod cache;
-pub mod cluster;
-pub mod dynamic_config;
-pub mod heartbeat;
-pub mod inner_topic;
-pub mod share_group;
-pub mod tenant;
-pub mod tool;
-pub mod topic;
+pub const LAST_WILL_MESSAGE_TOPIC: &str = "$last-will-message";
+pub const RETAIN_MESSAGE_TOPIC: &str = "$retain-message";
+pub const DELAY_TASK_INDEX_TOPIC: &str = "$delay-task-index";
+pub const DELAY_QUEUE_MESSAGE_TOPIC: &str = "$delay-queue-message";
+pub const DELAY_QUEUE_INDEX_TOPIC: &str = "$delay-queue-index";

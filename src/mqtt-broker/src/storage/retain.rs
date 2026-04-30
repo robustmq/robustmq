@@ -14,12 +14,11 @@
 
 use crate::core::error::MqttBrokerError;
 use crate::core::tool::ResultMqttBrokerError;
+use broker_core::inner_topic::RETAIN_MESSAGE_TOPIC;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mqtt::retain_message::MQTTRetainMessage;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
-
-pub const RETAIN_MESSAGE_TOPIC: &str = "$retain-message";
 
 pub struct RetainStorage {
     storage_driver_manager: Arc<StorageDriverManager>,

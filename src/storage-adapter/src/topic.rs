@@ -13,14 +13,23 @@
 // limitations under the License.
 
 use crate::driver::StorageDriverManager;
-use broker_core::cache::NodeCacheManager;
+use broker_core::{
+    cache::NodeCacheManager,
+    inner_topic::{
+        DELAY_QUEUE_INDEX_TOPIC, DELAY_QUEUE_MESSAGE_TOPIC, DELAY_TASK_INDEX_TOPIC,
+        LAST_WILL_MESSAGE_TOPIC, RETAIN_MESSAGE_TOPIC,
+    },
+};
 use common_base::error::common::CommonError;
-use common_config::broker::broker_config;
+use common_config::{broker::broker_config, storage::StorageType};
 use grpc_clients::{meta::mqtt::call::placement_create_topic, pool::ClientPool};
-use metadata_struct::{mqtt::topic::Topic, storage::shard::EngineShardConfig};
+use metadata_struct::{
+    mqtt::topic::Topic, storage::shard::EngineShardConfig, tenant::DEFAULT_TENANT,
+};
 use protocol::meta::meta_service_mqtt::CreateTopicRequest;
 use std::{sync::Arc, time::Duration};
 use tokio::time::{sleep, timeout};
+use tracing::info;
 
 pub async fn create_topic_full(
     broker_cache: &Arc<NodeCacheManager>,
@@ -68,5 +77,65 @@ pub async fn create_topic_full(
     storage_driver_manager
         .create_storage_resource(&topic.tenant, &topic.topic_name, &shard_config)
         .await?;
+    Ok(())
+}
+
+/// Initialize all internal (built-in) topics required by the broker.
+///
+/// Should be called once during startup, after the meta service is ready
+/// and the broker cache is populated.
+pub async fn init_inner_topics(
+    broker_cache: &Arc<NodeCacheManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
+    client_pool: &Arc<ClientPool>,
+) -> Result<(), CommonError> {
+    for topic_name in [
+        RETAIN_MESSAGE_TOPIC,
+        LAST_WILL_MESSAGE_TOPIC,
+        DELAY_TASK_INDEX_TOPIC,
+        DELAY_QUEUE_MESSAGE_TOPIC,
+        DELAY_QUEUE_INDEX_TOPIC,
+    ] {
+        init_single_inner_topic(
+            broker_cache,
+            storage_driver_manager,
+            client_pool,
+            topic_name,
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+async fn init_single_inner_topic(
+    broker_cache: &Arc<NodeCacheManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
+    client_pool: &Arc<ClientPool>,
+    topic_name: &str,
+) -> Result<(), CommonError> {
+    if let Some(topic) = broker_cache.get_topic_by_name(DEFAULT_TENANT, topic_name) {
+        info!(
+            "Inner topic '{}' already exists, ensuring storage shard is provisioned",
+            topic_name
+        );
+        let shard_config = EngineShardConfig {
+            replica_num: topic.replication,
+            storage_type: topic.storage_type,
+            max_segment_size: topic.config.max_segment_size,
+            max_record_num: topic.config.max_record_num,
+            retention_sec: topic.config.retention_sec,
+        };
+        storage_driver_manager
+            .create_storage_resource(DEFAULT_TENANT, topic_name, &shard_config)
+            .await?;
+        return Ok(());
+    }
+
+    info!("Inner topic '{}' not found, creating...", topic_name);
+
+    let topic = Topic::new(DEFAULT_TENANT, topic_name, StorageType::EngineRocksDB);
+    create_topic_full(broker_cache, storage_driver_manager, client_pool, &topic).await?;
+
+    info!("Inner topic '{}' created successfully", topic_name);
     Ok(())
 }
