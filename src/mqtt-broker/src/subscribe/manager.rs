@@ -44,9 +44,14 @@ pub struct SubscribeManager {
     pub directly_push: BucketsManager,
 
     // share sub
-    // (tenant, (group_name, BucketsManager))
-    pub share_push: DashMap<String, DashMap<String, BucketsManager>>,
+    // (tenant, ("group_name/topic_name", Arc<BucketsManager>))
+    // One BucketsManager per (group, topic) pair so that subscribers for different
+    // topics within the same group are never mixed and dispatched incorrectly.
+    // Arc avoids deep-cloning the entire BucketsManager on every push cycle snapshot.
+    pub share_push: DashMap<String, DashMap<String, Arc<BucketsManager>>>,
+
     // (tenant, (group_name, HashSet<ShareSubscribeTopicInfo>))
+    // Kept for fast lookup of which topics belong to a group (used by the cache layer).
     pub share_group_topics: DashMap<String, DashMap<String, HashSet<ShareSubscribeTopicInfo>>>,
 
     // (tenant, (topic, HashSet<TopicSubscribeInfo>))
@@ -116,12 +121,14 @@ impl SubscribeManager {
             &subscriber.sub_path,
         );
 
-        // share_push
+        // share_push: keyed by "group_name/topic_name" so each (group, topic) pair
+        // gets its own BucketsManager with only the subscribers for that exact topic.
+        let share_key = share_push_key(&subscriber.group_name, &subscriber.topic_name);
         self.share_push
             .entry(subscriber.tenant.clone())
             .or_default()
-            .entry(subscriber.group_name.clone())
-            .or_insert_with(|| BucketsManager::new(Some(subscriber.group_name.clone()), 10000))
+            .entry(share_key.clone())
+            .or_insert_with(|| Arc::new(BucketsManager::new(Some(share_key), 10000)))
             .add(subscriber);
 
         // share_group_topics
@@ -192,10 +199,10 @@ impl SubscribeManager {
 
         self.directly_push.remove_by_topic(topic_name);
 
+        // Remove all share_push entries whose key ends with "/topic_name".
         if let Some(tenant_share) = self.share_push.get(tenant) {
-            for row in tenant_share.iter() {
-                row.remove_by_topic(topic_name);
-            }
+            let suffix = format!("/{}", topic_name);
+            tenant_share.retain(|k, _| !k.ends_with(&suffix));
         }
     }
 
@@ -206,8 +213,9 @@ impl SubscribeManager {
     }
 
     pub async fn add_wait_parse_data(&self, data: ParseSubscribeData) {
-        let read = self.update_cache_sender.read().await;
-        if let Some(sender) = read.clone() {
+        // Clone the sender before dropping the read lock so .await doesn't hold the lock.
+        let sender = self.update_cache_sender.read().await.clone();
+        if let Some(sender) = sender {
             if let Err(e) = sender.send(data).await {
                 error!("{}", e);
             }
@@ -229,9 +237,8 @@ impl SubscribeManager {
                     drop(time);
                     tenant_map.remove(client_id);
                     return true;
-                } else {
-                    return false;
                 }
+                return false;
             }
         }
         true
@@ -283,18 +290,26 @@ impl SubscribeManager {
     }
 
     pub fn share_sub_len(&self) -> u64 {
-        let mut len = 0;
-        for tenant_entry in self.share_push.iter() {
-            for raw in tenant_entry.value().iter() {
-                len += raw.value().sub_len();
-            }
-        }
-        len
+        self.share_push
+            .iter()
+            .flat_map(|t| {
+                t.value()
+                    .iter()
+                    .map(|r| r.value().sub_len())
+                    .collect::<Vec<_>>()
+            })
+            .sum()
     }
 
     fn subscribe_key(&self, client_id: &str, path: &str) -> String {
         format!("{client_id}#{path}")
     }
+}
+
+/// Compose the share_push inner-map key from a group name and a topic name.
+/// Format: "{group_name}/{topic_name}"
+pub fn share_push_key(group_name: &str, topic_name: &str) -> String {
+    format!("{}/{}", group_name, topic_name)
 }
 
 #[cfg(test)]

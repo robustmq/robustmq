@@ -13,25 +13,29 @@
 // limitations under the License.
 
 use crate::core::cache::MQTTCacheManager;
+use crate::core::error::MqttBrokerError;
 use crate::core::sub_option::message_is_same_client;
-use crate::subscribe::common::{message_is_exceeds_max_message_size, message_is_expire};
-use crate::subscribe::common::{record_sub_send_metrics, stale_subscriber_error};
-use crate::subscribe::push::{
-    push_data, BATCH_SIZE, HIGH_LOAD_SLEEP_MS, IDLE_SLEEP_MS, LOW_LOAD_SLEEP_MS, LOW_LOAD_THRESHOLD,
+use crate::subscribe::buckets::BucketsManager;
+use crate::subscribe::common::{
+    client_unavailable_error, message_is_exceeds_max_message_size, message_is_expire,
+    record_sub_send_metrics, stale_subscriber_error, Subscriber,
 };
-use crate::{
-    core::error::MqttBrokerError,
-    subscribe::{common::client_unavailable_error, manager::SubscribeManager},
-};
+use crate::subscribe::manager::{share_push_key, SubscribeManager};
+use crate::subscribe::push::{adaptive_sleep, handle_stop_signal, push_data, BATCH_SIZE};
 use metadata_struct::storage::{adapter_read_config::AdapterReadConfig, record::StorageRecord};
 use network_server::common::connection_manager::ConnectionManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::atomic::AtomicU64;
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 use storage_adapter::{consumer::GroupConsumer, driver::StorageDriverManager};
-use tokio::{select, sync::broadcast, sync::broadcast::Sender, time::sleep};
+use tokio::{select, sync::broadcast::Sender};
 use tracing::{debug, error, info};
 
+/// Manages message push for a single (tenant, group_name, topic_name) triple.
+///
+/// Each shared-subscription group+topic combination gets its own `SharePushManager`
+/// instance, ensuring subscribers for different topics within the same group are
+/// never mixed during dispatch.
 pub struct SharePushManager {
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
@@ -40,10 +44,14 @@ pub struct SharePushManager {
     consumer: GroupConsumer,
     tenant: String,
     group_name: String,
+    topic_name: String,
+    /// share_push inner-map key: "group_name/topic_name"
+    share_key: String,
     seq: AtomicU64,
 }
 
 impl SharePushManager {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<MQTTCacheManager>,
@@ -52,7 +60,9 @@ impl SharePushManager {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         tenant: String,
         group_name: String,
+        topic_name: String,
     ) -> Self {
+        let share_key = share_push_key(&group_name, &topic_name);
         SharePushManager {
             subscribe_manager,
             consumer: GroupConsumer::new_manual(storage_driver_manager, group_name.clone()),
@@ -60,53 +70,36 @@ impl SharePushManager {
             rocksdb_engine_handler,
             connection_manager,
             tenant,
+            topic_name,
+            share_key,
             group_name,
             seq: AtomicU64::new(0),
         }
     }
 
     pub async fn start(&mut self, stop_sx: &Sender<bool>) {
-        info!("SharePushManager[{}] started", self.group_name);
+        let label = format!("SharePushManager[{}/{}]", self.group_name, self.topic_name);
+        info!("{} started", label);
         let mut stop_rx = stop_sx.subscribe();
         loop {
             select! {
-                val = stop_rx.recv() =>{
-                    match val {
-                        Ok(true) => {
-                            info!("SharePushManager[{}] stopped", self.group_name);
-                            break;
-                        }
-                        Ok(false) => {}
-                        Err(broadcast::error::RecvError::Closed) => {
-                            info!("SharePushManager[{}] stop channel closed, exiting.", self.group_name);
-                            break;
-                        }
-                        Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                            debug!(
-                                "SharePushManager[{}] stop channel lagged, skipped {} messages.",
-                                self.group_name, skipped
-                            );
-                        }
+                val = stop_rx.recv() => {
+                    if handle_stop_signal(val, &label) {
+                        break;
                     }
                 }
-                res = self.send_messages(stop_sx) =>{
+                res = self.send_messages(stop_sx) => {
                     match res {
                         Ok(processed_count) => {
-                            if processed_count == 0 {
-                                sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
-                            } else if processed_count < LOW_LOAD_THRESHOLD {
-                                sleep(Duration::from_millis(LOW_LOAD_SLEEP_MS)).await;
-                            } else {
-                                sleep(Duration::from_millis(HIGH_LOAD_SLEEP_MS)).await;
-                            }
+                            adaptive_sleep(processed_count).await;
                         }
                         Err(e) => {
                             if stale_subscriber_error(&e) {
-                                info!("SharePushManager[{}] stopping: topic no longer exists ({})", self.group_name, e);
+                                info!("{} stopping: topic no longer exists ({})", label, e);
                                 break;
                             }
-                            error!("SharePushManager[{}] send messages failed: {}", self.group_name, e);
-                            sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
+                            error!("{} send messages failed: {}", label, e);
+                            adaptive_sleep(0).await;
                         }
                     }
                 }
@@ -115,46 +108,26 @@ impl SharePushManager {
     }
 
     pub async fn send_messages(&mut self, stop_sx: &Sender<bool>) -> Result<u64, MqttBrokerError> {
-        let topic_list = self
-            .subscribe_manager
-            .share_group_topics
-            .get(&self.tenant)
-            .and_then(|t| t.get(&self.group_name).map(|v| v.clone()));
-
-        let topic_list = match topic_list {
-            Some(list) if !list.is_empty() => list,
-            _ => return Ok(0),
-        };
-
-        let buckets = self
+        let Some(buckets) = self
             .subscribe_manager
             .share_push
             .get(&self.tenant)
-            .and_then(|t| t.get(&self.group_name).map(|v| v.clone()));
-
-        let buckets = match buckets {
-            Some(b) => b,
-            None => return Ok(0),
+            .and_then(|t| t.get(&self.share_key).map(|v| v.clone()))
+        else {
+            return Ok(0);
         };
 
-        let seqs = buckets.get_sub_client_seqs(&self.group_name);
+        let seqs = buckets.get_sub_client_seqs(&self.share_key);
         if seqs.is_empty() {
             return Ok(0);
         }
 
-        let mut total = 0;
-        for topic in topic_list.iter() {
-            total += self
-                .process_topic_messages(&topic.topic, &buckets, &seqs, stop_sx)
-                .await?;
-        }
-        Ok(total)
+        self.process_topic_messages(&buckets, &seqs, stop_sx).await
     }
 
     async fn process_topic_messages(
         &mut self,
-        topic_name: &str,
-        buckets: &crate::subscribe::buckets::BucketsManager,
+        buckets: &Arc<BucketsManager>,
         seqs: &[u64],
         stop_sx: &Sender<bool>,
     ) -> Result<u64, MqttBrokerError> {
@@ -163,10 +136,11 @@ impl SharePushManager {
             max_size: 1024 * 1024 * 30,
         };
 
-        let tenant = self.tenant.clone();
+        let tenant = self.tenant.as_str();
+        let topic_name = self.topic_name.as_str();
         let data_list = self
             .consumer
-            .next_messages(&tenant, topic_name, &read_config)
+            .next_messages(tenant, topic_name, &read_config)
             .await?;
 
         if data_list.is_empty() {
@@ -174,61 +148,59 @@ impl SharePushManager {
         }
 
         let mut processed_count = 0;
-        let mut all_dispatched = true;
 
         for record in data_list {
             if message_is_expire(&record) {
                 continue;
             }
 
-            let dispatched = self
+            if !self
                 .dispatch_record_to_group(&record, buckets, seqs, stop_sx)
-                .await?;
-
-            if !dispatched {
+                .await?
+            {
+                // No subscriber could accept the message. Stop processing the batch and
+                // skip commit so the same batch is re-read on the next iteration.
+                // (pending_offsets is shard-level max: committing here would silently
+                // skip every later record in this batch on restart.)
                 debug!(
-                    "Failed to push message after {} attempts for group {}, skipping record",
+                    "Failed to push message after {} attempts for group {}/{}, stopping batch",
                     seqs.len(),
-                    self.group_name
+                    self.group_name,
+                    self.topic_name
                 );
-                all_dispatched = false;
-                break;
+                return Ok(processed_count);
             }
 
             processed_count += 1;
         }
 
-        if all_dispatched {
-            self.consumer.commit().await?;
-        }
-
+        self.consumer.commit().await?;
         Ok(processed_count)
     }
 
     async fn dispatch_record_to_group(
         &self,
         record: &StorageRecord,
-        buckets: &crate::subscribe::buckets::BucketsManager,
+        buckets: &Arc<BucketsManager>,
         seqs: &[u64],
         stop_sx: &Sender<bool>,
     ) -> Result<bool, MqttBrokerError> {
-        let max_attempts = seqs.len();
-        for _ in 0..max_attempts {
+        for _ in 0..seqs.len() {
             let row_seq = self.seq.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            let index = row_seq % (seqs.len() as u64);
+            // Map the monotonic counter to a position in the seqs slice, then use the
+            // actual seq value stored there — seqs are global AtomicU64 values, not 0-based indices.
+            let actual_seq = seqs[(row_seq % seqs.len() as u64) as usize];
 
-            let subscriber = match buckets.get_subscribe_by_key_seq(&self.group_name, index) {
-                Some(s) => s,
-                None => continue,
+            let Some(subscriber) = buckets.get_subscribe_by_key_seq(&self.share_key, actual_seq)
+            else {
+                continue;
             };
 
-            match self
+            if self
                 .try_push_to_subscriber(record, &subscriber, stop_sx)
-                .await
+                .await?
             {
-                Ok(true) => return Ok(true),
-                Ok(false) => continue,
-                Err(e) => return Err(e),
+                return Ok(true);
             }
         }
         Ok(false)
@@ -237,7 +209,7 @@ impl SharePushManager {
     async fn try_push_to_subscriber(
         &self,
         record: &StorageRecord,
-        subscriber: &crate::subscribe::common::Subscriber,
+        subscriber: &Subscriber,
         stop_sx: &Sender<bool>,
     ) -> Result<bool, MqttBrokerError> {
         if !self
@@ -247,13 +219,11 @@ impl SharePushManager {
             return Ok(false);
         }
 
-        match message_is_exceeds_max_message_size(
-            &self.cache_manager,
-            &subscriber.client_id,
-            record,
-        )
-        .await
-        {
+        let exceeds =
+            message_is_exceeds_max_message_size(&self.cache_manager, &subscriber.client_id, record)
+                .await;
+        match exceeds {
+            Ok(false) => {}
             Ok(true) => return Ok(false),
             Err(e) => {
                 if !client_unavailable_error(&e) {
@@ -262,14 +232,13 @@ impl SharePushManager {
                 }
                 return Ok(false);
             }
-            Ok(false) => {}
         }
 
         if message_is_same_client(subscriber, record) {
             return Ok(false);
         }
 
-        let success = match push_data(
+        if let Err(e) = push_data(
             &self.connection_manager,
             &self.cache_manager,
             &self.rocksdb_engine_handler,
@@ -279,15 +248,12 @@ impl SharePushManager {
         )
         .await
         {
-            Ok(pushed) => pushed,
-            Err(e) => {
-                if !client_unavailable_error(&e) {
-                    self.subscribe_manager
-                        .add_not_push_client(&subscriber.tenant, &subscriber.client_id);
-                }
-                return Ok(false);
+            if !client_unavailable_error(&e) {
+                self.subscribe_manager
+                    .add_not_push_client(&subscriber.tenant, &subscriber.client_id);
             }
-        };
+            return Ok(false);
+        }
 
         record_sub_send_metrics(
             &subscriber.tenant,
@@ -295,7 +261,7 @@ impl SharePushManager {
             &subscriber.sub_path,
             &subscriber.topic_name,
             0,
-            success,
+            true,
         );
 
         Ok(true)

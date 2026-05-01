@@ -46,7 +46,7 @@ use tokio::sync::broadcast;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc;
 use tokio::time::{sleep, timeout};
-use tracing::warn;
+use tracing::{debug, info, warn};
 
 // Timeout constants
 const ACK_WAIT_TIMEOUT_SECS: u64 = 5;
@@ -105,7 +105,7 @@ pub async fn build_publish_message(
             MqttBrokerError::ConnectionNullSkipPushMessage(subscriber.client_id.to_owned())
         })?;
 
-    let qos = build_pub_qos(subscriber).await;
+    let qos = build_pub_qos(subscriber);
     let p_kid = cache_manager
         .pkid_manager
         .generate_publish_to_client_pkid(&subscriber.client_id, &qos)
@@ -137,13 +137,11 @@ fn build_retain_flag(msg: &StorageRecord, preserve_retain: bool) -> bool {
         return false;
     }
 
-    if let Some(protocol_data) = msg.protocol_data.clone() {
-        if let Some(mqtt_data) = protocol_data.mqtt {
-            return mqtt_data.retain;
-        }
-    }
-
-    false
+    msg.protocol_data
+        .as_ref()
+        .and_then(|pd| pd.mqtt.as_ref())
+        .map(|m| m.retain)
+        .unwrap_or(false)
 }
 
 fn build_publish_properties(
@@ -177,7 +175,6 @@ fn build_publish_properties(
                 response_topic: mqtt_data.response_topic.clone(),
                 correlation_data: mqtt_data.correlation_data.clone(),
                 content_type: mqtt_data.content_type.clone(),
-                user_properties: user_properties.clone(),
                 ..Default::default()
             };
         }
@@ -260,7 +257,7 @@ pub async fn send_publish_packet_to_client(
     }
 }
 
-async fn build_pub_qos(subscriber: &Subscriber) -> QoS {
+fn build_pub_qos(subscriber: &Subscriber) -> QoS {
     min_qos(QoS::ExactlyOnce, subscriber.qos)
 }
 
@@ -694,6 +691,45 @@ where
         }
     }
     Ok(())
+}
+
+/// Adaptive sleep based on how many messages were processed in the last cycle.
+/// Returns immediately (no sleep) if `processed_count` is high enough that the
+/// caller should keep running at full speed; otherwise yields the thread so
+/// that other tasks can run.
+pub async fn adaptive_sleep(processed_count: u64) {
+    if processed_count == 0 {
+        sleep(Duration::from_millis(IDLE_SLEEP_MS)).await;
+    } else if processed_count < LOW_LOAD_THRESHOLD {
+        sleep(Duration::from_millis(LOW_LOAD_SLEEP_MS)).await;
+    } else {
+        sleep(Duration::from_millis(HIGH_LOAD_SLEEP_MS)).await;
+    }
+}
+
+/// Handle one value from a stop-channel `recv()` inside a push loop.
+///
+/// Returns `true` if the loop should break (channel closed or explicit stop),
+/// `false` if the loop should continue.
+pub fn handle_stop_signal(val: Result<bool, broadcast::error::RecvError>, label: &str) -> bool {
+    match val {
+        Ok(true) => {
+            info!("[{}] stopped", label);
+            true
+        }
+        Ok(false) => false,
+        Err(broadcast::error::RecvError::Closed) => {
+            info!("[{}] stop channel closed, exiting.", label);
+            true
+        }
+        Err(broadcast::error::RecvError::Lagged(skipped)) => {
+            debug!(
+                "[{}] stop channel lagged, skipped {} messages.",
+                label, skipped
+            );
+            false
+        }
+    }
 }
 
 /// Sleep in small intervals while checking for stop signal

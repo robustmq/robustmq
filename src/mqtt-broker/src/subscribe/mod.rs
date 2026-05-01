@@ -157,9 +157,9 @@ impl PushManager {
                 );
 
                 let stop_sx = sub_thread_stop_sx.clone();
-                tokio::spawn(Box::pin(async move {
+                tokio::spawn(async move {
                     push_manager.start(&stop_sx).await;
-                }));
+                });
 
                 self.directly_buckets_push_thread
                     .insert(bucket_id, thread_data);
@@ -192,8 +192,9 @@ impl PushManager {
     }
 
     fn cleanup_empty_share_groups(&self) {
-        // Collect (tenant, group_name) pairs whose BucketsManager is empty
-        let empty_groups: Vec<(String, String)> = self
+        // Collect (tenant, share_key) pairs whose BucketsManager is empty.
+        // share_key format: "group_name/topic_name"
+        let empty_entries: Vec<(String, String)> = self
             .subscribe_manager
             .share_push
             .iter()
@@ -208,30 +209,61 @@ impl PushManager {
             })
             .collect();
 
-        for (tenant, group_name) in &empty_groups {
-            let thread_key = share_thread_key(tenant, group_name);
+        for (tenant, share_key) in &empty_entries {
+            let thread_key = share_thread_key(tenant, share_key);
             if let Some((_, thread_data)) = self.share_buckets_push_thread.remove(&thread_key) {
                 debug!(
-                    "Stopping thread for empty share group: {}/{}",
-                    tenant, group_name
+                    "Stopping thread for empty share entry: {}/{}",
+                    tenant, share_key
                 );
                 if let Err(e) = thread_data.sender.send(true) {
                     warn!(
-                        "Failed to send stop signal to share group {}/{}: {}",
-                        tenant, group_name, e
+                        "Failed to send stop signal to share entry {}/{}: {}",
+                        tenant, share_key, e
                     );
                 }
             }
         }
 
-        for (tenant, group_name) in empty_groups {
+        for (tenant, share_key) in empty_entries {
+            // Before removing, capture the group_name from a subscriber so we can
+            // clean up share_group_topics. share_key contains '/' inside group_name_full,
+            // so we must not use split('/') to extract the group name.
+            let group_name: Option<String> = self
+                .subscribe_manager
+                .share_push
+                .get(&tenant)
+                .and_then(|t| t.get(&share_key).map(|b| b.clone()))
+                .and_then(|buckets| {
+                    buckets.buckets_data_list.iter().find_map(|bucket| {
+                        bucket
+                            .value()
+                            .iter()
+                            .next()
+                            .map(|e| e.value().group_name.clone())
+                    })
+                });
+
             if let Some(tenant_map) = self.subscribe_manager.share_push.get(&tenant) {
-                tenant_map.remove(&group_name);
+                tenant_map.remove(&share_key);
             }
-            if let Some(tenant_map) = self.subscribe_manager.share_group_topics.get(&tenant) {
-                tenant_map.remove(&group_name);
+
+            // Clean up share_group_topics when no more entries remain for that group.
+            if let Some(group_name) = group_name {
+                if let Some(tenant_map) = self.subscribe_manager.share_push.get(&tenant) {
+                    let prefix = format!("{}/", group_name);
+                    let group_still_has_topics =
+                        tenant_map.iter().any(|e| e.key().starts_with(&prefix));
+                    if !group_still_has_topics {
+                        if let Some(topics_map) =
+                            self.subscribe_manager.share_group_topics.get(&tenant)
+                        {
+                            topics_map.remove(&group_name);
+                        }
+                    }
+                }
             }
-            debug!("Removed empty share group: {}/{}", tenant, group_name);
+            debug!("Removed empty share entry: {}/{}", tenant, share_key);
         }
     }
 
@@ -240,13 +272,30 @@ impl PushManager {
         for tenant_entry in self.subscribe_manager.share_push.iter() {
             let tenant = tenant_entry.key().clone();
             for row in tenant_entry.value().iter() {
-                let group_name = row.key().clone();
-                let thread_key = share_thread_key(&tenant, &group_name);
+                // share_key format: "{group_name_full}/{topic_name}"
+                // group_name_full itself may contain '/', so split_once('/') is wrong.
+                // Instead, read group_name and topic_name from an actual subscriber stored
+                // in the BucketsManager — these fields are set correctly at subscribe time.
+                let share_key = row.key().clone();
+                let thread_key = share_thread_key(&tenant, &share_key);
+
+                // Pick one subscriber to get the canonical group_name and topic_name.
+                let sample = row
+                    .value()
+                    .buckets_data_list
+                    .iter()
+                    .find_map(|bucket| bucket.value().iter().next().map(|e| e.value().clone()));
+
+                let Some(sample) = sample else {
+                    continue;
+                };
+                let group_name = &sample.group_name;
+                let topic_name = &sample.topic_name;
 
                 let is_leader = if let Some(group) = self
                     .cache_manager
                     .node_cache
-                    .get_share_group(&tenant, &group_name)
+                    .get_share_group(&tenant, group_name)
                 {
                     group.leader_broker == conf.broker_id
                 } else {
@@ -255,8 +304,8 @@ impl PushManager {
 
                 if is_leader && !self.share_buckets_push_thread.contains_key(&thread_key) {
                     info!(
-                        "Starting share push thread for group: {}/{}",
-                        tenant, group_name
+                        "Starting share push thread for {}/{}/{}",
+                        tenant, group_name, topic_name
                     );
 
                     let (sub_thread_stop_sx, _) = broadcast::channel(1);
@@ -277,6 +326,7 @@ impl PushManager {
                         self.rocksdb_engine_handler.clone(),
                         tenant.clone(),
                         group_name.clone(),
+                        topic_name.clone(),
                     );
 
                     let stop_sx = sub_thread_stop_sx.clone();
@@ -298,36 +348,52 @@ impl PushManager {
             .share_buckets_push_thread
             .iter()
             .filter(|row| {
-                // thread_key is "tenant#group_name"; extract group_name for leader lookup
-                let tenant = row.key().split_once('#').map(|x| x.0).unwrap_or(row.key());
-                let group_name = row.key().split_once('#').map(|x| x.1).unwrap_or(row.key());
-                let is_leader = if let Some(group) = self
+                // thread_key format: "tenant#share_key"
+                // share_key format: "{group_name_full}/{topic_name}"
+                // group_name_full may contain '/', so we must not use split_once to extract it.
+                // Instead read the canonical group_name from a subscriber in share_push.
+                let (tenant, share_key) = split_thread_key(row.key());
+
+                // Look up the group_name_full from a subscriber in share_push.
+                // If the share_key no longer exists, stop the thread.
+                let group_name = self
+                    .subscribe_manager
+                    .share_push
+                    .get(tenant)
+                    .and_then(|t| t.get(share_key).map(|b| b.clone()))
+                    .and_then(|buckets| {
+                        buckets.buckets_data_list.iter().find_map(|bucket| {
+                            bucket
+                                .value()
+                                .iter()
+                                .next()
+                                .map(|e| e.value().group_name.clone())
+                        })
+                    });
+
+                let Some(group_name) = group_name else {
+                    // share_key no longer in share_push — stop the thread.
+                    return true;
+                };
+
+                let is_leader = self
                     .cache_manager
                     .node_cache
-                    .get_share_group(tenant, group_name)
-                {
-                    group.leader_broker == conf.broker_id
-                } else {
-                    false
-                };
-                let (tenant, group) = split_thread_key(row.key());
+                    .get_share_group(tenant, &group_name)
+                    .map(|group| group.leader_broker == conf.broker_id)
+                    .unwrap_or(false);
+
                 !is_leader
-                    || !self
-                        .subscribe_manager
-                        .share_push
-                        .get(tenant)
-                        .map(|t| t.contains_key(group))
-                        .unwrap_or(false)
             })
             .map(|row| row.key().clone())
             .collect();
 
         for thread_key in threads_to_stop {
             if let Some((_, thread_data)) = self.share_buckets_push_thread.remove(&thread_key) {
-                info!("Stopping share push thread for group: {}", thread_key);
+                info!("Stopping share push thread: {}", thread_key);
                 if let Err(e) = thread_data.sender.send(true) {
                     warn!(
-                        "Failed to send stop signal to share group {}: {}",
+                        "Failed to send stop signal to share thread {}: {}",
                         thread_key, e
                     );
                 }
@@ -336,10 +402,14 @@ impl PushManager {
     }
 }
 
-fn share_thread_key(tenant: &str, group_name: &str) -> String {
-    format!("{}#{}", tenant, group_name)
+/// Compose the push-thread map key.
+/// Format: "{tenant}#{group_name}/{topic_name}"
+fn share_thread_key(tenant: &str, share_key: &str) -> String {
+    format!("{}#{}", tenant, share_key)
 }
 
+/// Split a thread key back into (tenant, share_key).
+/// share_key format: "group_name/topic_name"
 fn split_thread_key(key: &str) -> (&str, &str) {
     if let Some(pos) = key.find('#') {
         (&key[..pos], &key[pos + 1..])
