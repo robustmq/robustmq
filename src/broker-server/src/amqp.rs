@@ -57,7 +57,7 @@ impl BrokerServer {
 
         let (stop_send, _) = broadcast::channel(2);
         let mut params = self.amqp_params.clone();
-        params.stop_sx = stop_send;
+        params.stop_sx = stop_send.clone();
         let server = AmqpBrokerServer::new(params);
         self.broker_runtime.spawn(Box::pin(async move {
             server.start().await;
