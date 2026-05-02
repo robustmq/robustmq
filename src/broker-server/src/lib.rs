@@ -422,7 +422,9 @@ impl BrokerServer {
         // Phase 8: Build command registry and start handler pool.
         let (network_handler_stop_send, _) = broadcast::channel(2);
         let commands = self.create_command_registry(mqtt_cmd);
-        self.start_broker_handler_pool(commands, network_handler_stop_send.clone());
+        self.server_runtime.block_on(async {
+            self.start_broker_handler_pool(commands, network_handler_stop_send.clone());
+        });
 
         // Phase 9: Broker protocol acceptors
         let kafka_stop_send = self.start_kafka_broker();
