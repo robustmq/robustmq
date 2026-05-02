@@ -371,8 +371,8 @@ impl BrokerServer {
         self.start_load_cache();
 
         // Phase 4: NodeCallManager
-        let (app_stop, _) = broadcast::channel::<bool>(2);
-        let raw_app_stop = app_stop.clone();
+        let (broker_common_stop, _) = broadcast::channel::<bool>(2);
+        let raw_app_stop = broker_common_stop.clone();
         self.server_runtime.block_on(async {
             self.start_node_call_manager(raw_app_stop.clone());
             self.wait_for_node_call_manager_ready().await;
@@ -387,7 +387,7 @@ impl BrokerServer {
                 &client_pool,
                 &broker_cache,
                 &task_supervisor,
-                app_stop.clone(),
+                broker_common_stop.clone(),
             )
             .await;
         });
@@ -408,56 +408,75 @@ impl BrokerServer {
         // Phase 6: Engine service
         let engine_stop_send = self.start_engine_service();
 
-        // Phase 7: Shared handler pool — must start before protocol acceptors begin
-        // pushing packets into the channel.
-        let mqtt_result = self
-            .server_runtime
-            .block_on(async { self.start_mqtt_broker(app_stop.clone()).await });
-        let mqtt_stop_send = mqtt_result.as_ref().map(|(sx, _)| sx.clone());
-        let mqtt_cmd = mqtt_result.map(|(_, cmd)| cmd);
-        let (kafka_cmd, amqp_cmd, nats_cmd) = if is_broker_node(&self.config.roles) {
-            (
-                Some(kafka_broker::handler::command::create_command_with_storage(
-                    self.kafka_params.storage_driver_manager.clone(),
-                )),
-                Some(amqp_broker::handler::command::create_command_with_state(
-                    self.connection_manager.clone(),
-                    self.amqp_params.storage_driver_manager.clone(),
-                )),
-                Some(nats_broker::handler::command::create_command(
-                    self.connection_manager.clone(),
-                    self.nats_params.cache_manager.clone(),
-                    self.nats_params.subscribe_manager.clone(),
-                    self.nats_params.storage_driver_manager.clone(),
-                    self.nats_params.client_pool.clone(),
-                    self.nats_params.security_manager.clone(),
-                )),
-            )
-        } else {
-            (None, None, None)
-        };
-        let commands = CommandRegistry {
+        // Phase 7: Start MQTT broker, extract stop sender and command adapter.
+        let (mqtt_stop_send, mqtt_cmd) = self.server_runtime.block_on(async {
+            match self.create_mqtt_server().await {
+                Some((stop_send, server, cmd)) => {
+                    self.spawn_mqtt_broker(server);
+                    (Some(stop_send), Some(cmd))
+                }
+                None => (None, None),
+            }
+        });
+
+        // Phase 8: Build command registry and start handler pool.
+        let (network_handler_stop_send, _) = broadcast::channel(2);
+        let commands = self.create_command_registry(mqtt_cmd);
+        self.start_broker_handler_pool(commands, network_handler_stop_send.clone());
+
+        // Phase 9: Broker protocol acceptors
+        let kafka_stop_send = self.start_kafka_broker();
+        let amqp_stop_send = self.start_amqp_broker();
+        let nats_stop_send = self.start_nats_broker();
+
+        // Phase 10: Background services
+        self.server_runtime.block_on(async {
+            self.start_background_services(broker_common_stop.clone(), monitor_interval_ms)
+                .await;
+        });
+
+        self.awaiting_stop(
+            broker_common_stop,
+            meta_stop_send,
+            network_handler_stop_send,
+            mqtt_stop_send,
+            kafka_stop_send,
+            amqp_stop_send,
+            nats_stop_send,
+            engine_stop_send,
+        );
+    }
+
+    fn create_command_registry(
+        &self,
+        mqtt_cmd: Option<network_server::command::ArcCommandAdapter>,
+    ) -> CommandRegistry {
+        if !is_broker_node(&self.config.roles) {
+            return CommandRegistry::default();
+        }
+
+        let kafka_cmd = Some(kafka_broker::handler::command::create_command_with_storage(
+            self.kafka_params.storage_driver_manager.clone(),
+        ));
+        let amqp_cmd = Some(amqp_broker::handler::command::create_command_with_state(
+            self.connection_manager.clone(),
+            self.amqp_params.storage_driver_manager.clone(),
+        ));
+        let nats_cmd = Some(nats_broker::handler::command::create_command(
+            self.connection_manager.clone(),
+            self.nats_params.cache_manager.clone(),
+            self.nats_params.subscribe_manager.clone(),
+            self.nats_params.storage_driver_manager.clone(),
+            self.nats_params.client_pool.clone(),
+            self.nats_params.security_manager.clone(),
+        ));
+
+        CommandRegistry {
             mqtt: mqtt_cmd,
             kafka: kafka_cmd,
             amqp: amqp_cmd,
             nats: nats_cmd,
             storage_engine: None,
-        };
-        self.server_runtime.block_on(async {
-            self.start_broker_handler_pool(commands, app_stop.clone());
-        });
-
-        // Phase 8: Broker protocol acceptors
-        self.start_kafka_broker(app_stop.clone());
-        self.start_amqp_broker(app_stop.clone());
-        self.start_nats_broker(app_stop.clone());
-
-        // Phase 9: Background services
-        self.server_runtime.block_on(async {
-            self.start_background_services(app_stop.clone(), monitor_interval_ms)
-                .await;
-        });
-
-        self.awaiting_stop(meta_stop_send, mqtt_stop_send, engine_stop_send);
+        }
     }
 }

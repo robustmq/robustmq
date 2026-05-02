@@ -50,15 +50,18 @@ pub fn build_amqp_params(p: AmqpBuildParams) -> AmqpBrokerServerParams {
 }
 
 impl BrokerServer {
-    pub fn start_amqp_broker(&self, stop: broadcast::Sender<bool>) {
+    pub fn start_amqp_broker(&self) -> Option<broadcast::Sender<bool>> {
         if !is_broker_node(&self.config.roles) {
-            return;
+            return None;
         }
+
+        let (stop_send, _) = broadcast::channel(2);
         let mut params = self.amqp_params.clone();
-        params.stop_sx = stop;
+        params.stop_sx = stop_send.clone();
         let server = AmqpBrokerServer::new(params);
         self.broker_runtime.spawn(Box::pin(async move {
             server.start().await;
         }));
+        Some(stop_send.clone())
     }
 }

@@ -155,19 +155,21 @@ pub(crate) async fn build_broker_mqtt_params(
 }
 
 impl BrokerServer {
-    pub async fn start_mqtt_broker(
+    pub async fn create_mqtt_server(
         &self,
-        stop: broadcast::Sender<bool>,
-    ) -> Option<(broadcast::Sender<bool>, ArcCommandAdapter)> {
+    ) -> Option<(broadcast::Sender<bool>, MqttBrokerServer, ArcCommandAdapter)> {
         if !is_broker_node(&self.config.roles) {
             return None;
         }
-        let stop_handle = stop.clone();
-        let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop).await;
+        let (stop_send, _) = broadcast::channel(2);
+        let server = MqttBrokerServer::new(self.mqtt_params.clone(), stop_send.clone()).await;
         let command = server.command.clone();
+        Some((stop_send, server, command))
+    }
+
+    pub fn spawn_mqtt_broker(&self, server: MqttBrokerServer) {
         self.broker_runtime.spawn(Box::pin(async move {
             server.start().await;
         }));
-        Some((stop_handle, command))
     }
 }

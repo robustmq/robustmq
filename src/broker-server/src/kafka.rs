@@ -50,15 +50,17 @@ pub fn build_kafka_params(p: KafkaBuildParams) -> KafkaBrokerServerParams {
 }
 
 impl BrokerServer {
-    pub fn start_kafka_broker(&self, stop: broadcast::Sender<bool>) {
+    pub fn start_kafka_broker(&self) -> Option<broadcast::Sender<bool>> {
         if !is_broker_node(&self.config.roles) {
-            return;
+            return None;
         }
         let mut params = self.kafka_params.clone();
-        params.stop_sx = stop;
+        let (stop_send, _) = broadcast::channel(2);
+        params.stop_sx = stop_send.clone();
         let server = KafkaBrokerServer::new(params);
         self.broker_runtime.spawn(Box::pin(async move {
             server.start().await;
         }));
+        Some(stop_send)
     }
 }

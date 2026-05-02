@@ -62,15 +62,17 @@ pub fn build_nats_params(p: NatsBuildParams) -> NatsBrokerServerParams {
 }
 
 impl BrokerServer {
-    pub fn start_nats_broker(&self, stop: broadcast::Sender<bool>) {
+    pub fn start_nats_broker(&self) -> Option<broadcast::Sender<bool>> {
         if !is_broker_node(&self.config.roles) {
-            return;
+            return None;
         }
         let mut params = self.nats_params.clone();
-        params.stop_sx = stop;
+        let (stop_send, _) = broadcast::channel(2);
+        params.stop_sx = stop_send.clone();
         let server = NatsBrokerServer::new(params);
         self.broker_runtime.spawn(Box::pin(async move {
             server.start().await;
         }));
+        Some(stop_send)
     }
 }

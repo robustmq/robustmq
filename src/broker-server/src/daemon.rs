@@ -21,9 +21,9 @@ use delay_message::manager::start_delay_message_manager_thread;
 use delay_task::start_delay_task_manager_thread;
 use network_server::command::CommandRegistry;
 use network_server::common::handler::handler_process;
-use std::{thread::sleep, time::Duration};
+use std::time::Duration;
 use system_info::{start_system_info_collection, start_tokio_runtime_info_collection};
-use tokio::{signal, sync::broadcast};
+use tokio::{signal, sync::broadcast, time::sleep};
 use tracing::{error, info};
 
 use crate::BrokerServer;
@@ -54,7 +54,6 @@ impl BrokerServer {
     }
 
     pub async fn wait_for_node_call_manager_ready(&self) {
-        use tokio::time::{sleep, Duration};
         loop {
             if self.node_call_manager.is_ready().await {
                 return;
@@ -110,12 +109,10 @@ impl BrokerServer {
         // offset async commit
         let offset_manager = self.offset_manager.clone();
         let stop_send = stop.clone();
-        self.task_supervisor.spawn(
-            TaskKind::OffsetAsyncCommit.to_string(),
-            Box::pin(async move {
+        self.task_supervisor
+            .spawn(TaskKind::OffsetAsyncCommit.to_string(), async move {
                 start_offset_sync_task(offset_manager, stop_send).await;
-            }),
-        );
+            });
 
         // sync auth info
         start_auth_sync_thread(
@@ -150,7 +147,7 @@ impl BrokerServer {
         let connector_manager = self.mqtt_params.connector_manager.clone();
         let client_pool = self.client_pool.clone();
         let task_supervisor = self.task_supervisor.clone();
-        self.server_runtime.spawn(Box::pin(async move {
+        self.server_runtime.spawn(async move {
             start_connector(
                 &client_pool,
                 &message_storage,
@@ -159,47 +156,90 @@ impl BrokerServer {
                 &stop,
             )
             .await;
-        }));
+        });
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn awaiting_stop(
         &self,
+        broker_common_stop: broadcast::Sender<bool>,
         meta_stop: Option<broadcast::Sender<bool>>,
+        network_handler_stop_send: broadcast::Sender<bool>,
         mqtt_stop: Option<broadcast::Sender<bool>>,
+        kafka_stop: Option<broadcast::Sender<bool>>,
+        amqp_stop: Option<broadcast::Sender<bool>>,
+        nats_stop: Option<broadcast::Sender<bool>>,
         engine_stop: Option<broadcast::Sender<bool>>,
     ) {
-        self.server_runtime.block_on(Box::pin(async {
+        self.server_runtime.block_on(async {
             self.broker_cache.set_status(NodeStatus::Running).await;
             signal::ctrl_c().await.expect("failed to listen for event");
             info!("When ctrl + c is received, the service starts to stop");
 
             self.broker_cache.set_status(NodeStatus::Stopping).await;
 
+            // Stop Phase 1: Broker Network
+            if let Err(e) = network_handler_stop_send.send(true) {
+                error!("{}", e);
+            }
+
+            // Stop Phase 2: MQTT Broker
             if let Some(sx) = mqtt_stop {
                 if let Err(e) = sx.send(true) {
                     error!("mqtt stop signal, error message:{}", e);
                 }
-                sleep(Duration::from_secs(3));
+                sleep(Duration::from_secs(1)).await;
             }
 
+            // Stop Phase 3: NATS Broker
+            if let Some(sx) = nats_stop {
+                if let Err(e) = sx.send(true) {
+                    error!("nats stop signal, error message:{}", e);
+                }
+                sleep(Duration::from_secs(1)).await;
+            }
+
+            // Stop Phase 4: Kafka Broker
+            if let Some(sx) = kafka_stop {
+                if let Err(e) = sx.send(true) {
+                    error!("kafka stop signal, error message:{}", e);
+                }
+                sleep(Duration::from_secs(1)).await;
+            }
+
+            // Stop Phase 5: AMQP Broker
+            if let Some(sx) = amqp_stop {
+                if let Err(e) = sx.send(true) {
+                    error!("amqp stop signal, error message:{}", e);
+                }
+                sleep(Duration::from_secs(1)).await;
+            }
+
+            // Stop Phase 6: Common
             if let Err(e) = self.delay_task_manager.stop().await {
                 error!("delay task stop signal, error message{}", e);
             }
 
+            // Stop Phase 7: Broker Common
+            if let Err(e) = broker_common_stop.send(true) {
+                error!("broker common stop signal, error message:{}", e);
+            }
+
+            // Stop Phase 8: Storage Engine
             if let Some(sx) = engine_stop {
                 if let Err(e) = sx.send(true) {
                     error!("storage engine stop signal, error message:{}", e);
                 }
-                sleep(Duration::from_secs(3));
+                sleep(Duration::from_secs(1)).await;
             }
 
+            // Stop Phase 9: Meta Service
             if let Some(sx) = meta_stop {
                 if let Err(e) = sx.send(true) {
                     error!("meta stop signal, error message:{}", e);
                 }
             }
-
-            sleep(Duration::from_secs(3));
-        }));
+            sleep(Duration::from_secs(1)).await;
+        });
     }
 }
