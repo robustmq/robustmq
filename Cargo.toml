@@ -165,7 +165,7 @@ quinn = { version = "0.11.6", default-features = false, features = [
 # ====================
 md5 = "0.8.0"
 sha1 = "0.10.6"
-sha2 = "0.10.9"
+sha2 = "0.11.0"
 bcrypt = "0.17.1"
 pbkdf2 = "0.12.2"
 hmac = "0.12.1"
