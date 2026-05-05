@@ -206,7 +206,7 @@ pulsar = { version = "6.7.2", default-features = false, features = [
     "auth-oauth2",
 ] }
 lapin = { version = "2.5.0", default-features = false, features = ["rustls"] }
-amq-protocol = "7.2.3"
+amq-protocol = "10.3.0"
 cookie-factory = "0.3.3"
 nom = { version = "7.0", features = ["std"] }
 elasticsearch = { version = "8.19.0-alpha.1", default-features = false }
