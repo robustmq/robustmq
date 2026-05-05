@@ -57,7 +57,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.3.11"
+version = "0.4.0"
 edition = "2021"
 license = "Apache-2.0"
 
@@ -87,7 +87,7 @@ tokio-util = { version = "0.7.18", default-features = false, features = [
     "rt",
     "time",
 ] }
-futures = "0.4.0"
+futures = "0.3.31"
 futures-util = "0.3.31"
 async-trait = "0.1.88"
 async-stream = "0.3.6"
