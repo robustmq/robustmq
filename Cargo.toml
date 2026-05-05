@@ -65,7 +65,7 @@ license = "Apache-2.0"
 # ====================
 # Async Runtime & Utilities
 # ====================
-tokio = { version = "1.51.1", default-features = false, features = [
+tokio = { version = "1.52.2", default-features = false, features = [
     "macros",
     "rt-multi-thread",
     "sync",
@@ -102,7 +102,7 @@ serde_json = "1.0"
 serde_bytes = "0.11"
 bincode = "1.3.3"
 toml = "1.1.2"
-rkyv = { version = "0.8.15" }
+rkyv = { version = "0.8.16" }
 
 # ====================
 # Web Framework (Axum)
@@ -143,9 +143,9 @@ protofish = "0.5.3"
 # ====================
 # TLS & Security
 # ====================
-rustls = { version = "0.23.38", default-features = false, features = ["ring"] }
+rustls = { version = "0.23.40", default-features = false, features = ["ring"] }
 rustls-pemfile = "2.2.0"
-rustls-pki-types = "1.11.0"
+rustls-pki-types = "1.14.1"
 tokio-rustls = { version = "0.26", default-features = false, features = [
     "logging",
     "tls12",
@@ -181,7 +181,7 @@ jsonwebtoken = { version = "10.0.0", default-features = false, features = [
 # ====================
 rocksdb = { version = "0.22.0", default-features = false, features = ["multi-threaded-cf", "lz4", "zstd"] }
 mysql = { version = "27.0.0", default-features = false }
-redis = { version = "1.2.0", default-features = false, features = ["r2d2", "tokio-comp", "connection-manager"] }
+redis = { version = "1.2.1", default-features = false, features = ["r2d2", "tokio-comp", "connection-manager"] }
 mongodb = { version = "2.8", default-features = false, features = ["tokio-runtime"] }
 sqlx = { version = "0.8", default-features = false }
 r2d2 = "0.8.10"
@@ -220,7 +220,7 @@ scylla = "0.15"
 # ====================
 # Distributed Systems
 # ====================
-openraft = { version = "0.9.22", features = ["serde", "storage-v2", "loosen-follower-log-revert"] }
+openraft = { version = "0.9.24", features = ["serde", "storage-v2", "loosen-follower-log-revert"] }
 
 # ====================
 # Observability & Logging
@@ -233,7 +233,7 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
     "env-filter",
     "json",
 ] }
-tracing-appender = "0.2.0"
+tracing-appender = "0.2.5"
 prometheus = "0.14.0"
 prometheus-client = "0.23.1"
 console-subscriber = "0.4.1"
@@ -251,7 +251,7 @@ pprof = { version = "0.14.0", features = ["flamegraph"] }
 # ====================
 # CLI & Command Line Tools
 # ====================
-clap = { version = "4.6.0", default-features = false, features = ["std", "derive"] }
+clap = { version = "4.6.1", default-features = false, features = ["std", "derive"] }
 clap-cargo = "0.14.1"
 prettytable-rs = "0.10"
 
@@ -268,7 +268,7 @@ apache-avro = "0.17.0"
 anyhow = "1.0.102"
 thiserror = "2.0"
 bytes = { version = "1", features = ["serde"] }
-uuid = { version = "1.23.0", default-features = false, features = ["v4"] }
+uuid = { version = "1.23.1", default-features = false, features = ["v4"] }
 xid = "1.1"
 dashmap = { version = "6.1.0", default-features = false, features = ["serde"] }
 arc-swap = "1.9"
@@ -292,7 +292,7 @@ strum_macros = "0.28"
 governor = "0.10.1"
 os_info = "3.8.2"
 sysinfo = "0.29.10"
-local-ip-address = "0.6.11"
+local-ip-address = "0.6.12"
 num_cpus = "1.16"
 chrono-tz = "0.10.3"
 parking_lot = "0.12.5"
