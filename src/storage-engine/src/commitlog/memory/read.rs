@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{commitlog::memory::engine::MemoryStorageEngine, core::error::StorageEngineError};
+use crate::{
+    commitlog::memory::engine::MemoryStorageEngine,
+    core::{error::StorageEngineError, message_ttl::is_record_expired},
+};
 use metadata_struct::storage::{
     adapter_offset::AdapterOffsetStrategy, adapter_read_config::AdapterReadConfig,
     record::StorageRecord,
@@ -32,10 +35,14 @@ impl MemoryStorageEngine {
         let mut records = Vec::with_capacity(read_config.max_record_num as usize);
         let mut total_size = 0;
         let end_offset = self.commit_log_offset.get_latest_offset(shard)?;
-        for current_offset in start_offset..end_offset {
+        for current_offset in start_offset..=end_offset {
             let Some(record) = shard_state.data.get(&current_offset) else {
                 continue;
             };
+
+            if is_record_expired(&record.metadata) {
+                continue;
+            }
 
             let record_bytes = record.data.len() as u64;
             if total_size + record_bytes > read_config.max_size {
@@ -83,6 +90,14 @@ impl MemoryStorageEngine {
                 continue;
             };
 
+            if is_record_expired(&record.metadata) {
+                continue;
+            }
+
+            if records.len() >= read_config.max_record_num as usize {
+                break;
+            }
+
             let record_bytes = record.data.len() as u64;
             if total_size + record_bytes > read_config.max_size {
                 break;
@@ -90,10 +105,6 @@ impl MemoryStorageEngine {
 
             total_size += record_bytes;
             records.push(record.clone());
-
-            if records.len() >= read_config.max_record_num as usize {
-                break;
-            }
         }
 
         Ok(records)
@@ -115,6 +126,10 @@ impl MemoryStorageEngine {
         let Some(record) = shard_state.data.get(&*offset) else {
             return Ok(Vec::new());
         };
+
+        if is_record_expired(&record.metadata) {
+            return Ok(Vec::new());
+        }
 
         Ok(vec![record.clone()])
     }

@@ -11,3 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+use common_base::tools::now_second;
+use metadata_struct::storage::record::StorageRecordMetadata;
+
+/// Returns true if the record has expired and should be skipped.
+/// `expire_at == 0` means no expiry.
+pub fn is_record_expired(metadata: &StorageRecordMetadata) -> bool {
+    metadata.expire_at > 0 && metadata.expire_at < now_second()
+}
