@@ -25,33 +25,58 @@ use prost::Message as _;
 use protocol::meta::meta_service_common::{
     RegisterNodeReply, RegisterNodeRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 pub async fn register_node_by_req(
-    cluster_cache: &Arc<MetaCacheManager>,
+    meta_cache: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    _client_pool: &Arc<grpc_clients::pool::ClientPool>,
     mqtt_call_manager: &Arc<NodeCallManager>,
     req: RegisterNodeRequest,
 ) -> Result<RegisterNodeReply, MetaServiceError> {
     let node = BrokerNode::decode(&req.node)?;
-    cluster_cache.report_broker_heart(node.node_id);
+    meta_cache.report_broker_heart(node.node_id);
     sync_save_node(raft_manager, &node).await?;
     send_notify_by_add_node(mqtt_call_manager, node.clone()).await?;
     Ok(RegisterNodeReply::default())
 }
 
 pub async fn un_register_node_by_req(
-    cluster_cache: &Arc<MetaCacheManager>,
+    meta_cache: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
-    _client_pool: &Arc<grpc_clients::pool::ClientPool>,
-    mqtt_call_manager: &Arc<NodeCallManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    call_manager: &Arc<NodeCallManager>,
     req: UnRegisterNodeRequest,
 ) -> Result<UnRegisterNodeReply, MetaServiceError> {
-    if let Some(node) = cluster_cache.get_broker_node(req.node_id) {
-        sync_delete_node(raft_manager, &req).await?;
-        send_notify_by_delete_node(mqtt_call_manager, node.clone()).await?;
-        trigger_leader_switch().await;
+    remove_node(
+        meta_cache,
+        raft_manager,
+        rocksdb_engine_handler,
+        call_manager,
+        req.node_id,
+    )
+    .await?;
+    Ok(UnRegisterNodeReply::default())
+}
+
+pub async fn remove_node(
+    meta_cache: &Arc<MetaCacheManager>,
+    raft_manager: &Arc<MultiRaftManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    call_manager: &Arc<NodeCallManager>,
+    node_id: u64,
+) -> Result<UnRegisterNodeReply, MetaServiceError> {
+    if let Some(node) = meta_cache.get_broker_node(node_id) {
+        sync_delete_node(raft_manager, &UnRegisterNodeRequest { node_id }).await?;
+        send_notify_by_delete_node(call_manager, node.clone()).await?;
+        trigger_leader_switch(
+            meta_cache.clone(),
+            raft_manager.clone(),
+            rocksdb_engine_handler.clone(),
+            call_manager.clone(),
+            node_id,
+        )
+        .await;
     }
     Ok(UnRegisterNodeReply::default())
 }

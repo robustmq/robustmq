@@ -209,7 +209,7 @@ pub async fn update_segment_status(
     Ok(())
 }
 
-async fn sync_save_segment_info(
+pub async fn sync_save_segment_info(
     raft_manager: &Arc<MultiRaftManager>,
     segment: &EngineSegment,
 ) -> Result<(), MetaServiceError> {

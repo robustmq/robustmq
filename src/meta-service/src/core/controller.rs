@@ -20,28 +20,29 @@ use common_base::tools::loop_select_ticket;
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
 pub struct ClusterController {
     cluster_cache: Arc<MetaCacheManager>,
     raft_manager: Arc<MultiRaftManager>,
-    client_pool: Arc<ClientPool>,
     node_call_manager: Arc<NodeCallManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl ClusterController {
     pub fn new(
         cluster_cache: Arc<MetaCacheManager>,
         raft_manager: Arc<MultiRaftManager>,
-        client_pool: Arc<ClientPool>,
         node_call_manager: Arc<NodeCallManager>,
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> ClusterController {
         ClusterController {
             cluster_cache,
             raft_manager,
-            client_pool,
             node_call_manager,
+            rocksdb_engine_handler,
         }
     }
 
@@ -51,8 +52,8 @@ impl ClusterController {
             config.meta_runtime.heartbeat_timeout_ms,
             self.cluster_cache.clone(),
             self.raft_manager.clone(),
-            self.client_pool.clone(),
             self.node_call_manager.clone(),
+            self.rocksdb_engine_handler.clone(),
         );
 
         let ac_fn = async || -> ResultCommonError {

@@ -149,7 +149,6 @@ impl MetaServiceService for GrpcPlacementService {
         register_node_by_req(
             &self.cluster_cache,
             &self.raft_manager,
-            &self.client_pool,
             &self.mqtt_call_manager,
             req,
         )
@@ -168,7 +167,7 @@ impl MetaServiceService for GrpcPlacementService {
         un_register_node_by_req(
             &self.cluster_cache,
             &self.raft_manager,
-            &self.client_pool,
+            &self.rocksdb_engine_handler,
             &self.mqtt_call_manager,
             req,
         )
