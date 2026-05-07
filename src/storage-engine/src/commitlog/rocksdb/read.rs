@@ -58,6 +58,7 @@ impl RocksDBStorageEngine {
                 let Some(record) = record_opt else {
                     continue;
                 };
+
                 if records.len() >= read_config.max_record_num as usize {
                     break 'outer;
                 }

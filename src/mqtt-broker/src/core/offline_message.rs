@@ -107,8 +107,9 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
     }
 
     // save message
+    let message_expire =
+        build_message_expire(&context.cache_manager, &context.publish_properties).await;
     let mqtt_data = build_mqtt_protocol_data(
-        &context.cache_manager,
         &context.client_id,
         &context.publish,
         &context.publish_properties,
@@ -123,7 +124,8 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         mqtt: Some(mqtt_data),
         nats: None,
         mq9: None,
-    }));
+    }))
+    .with_expire_at(message_expire);
 
     save_simple_message(
         &context.storage_driver_manager,
@@ -163,13 +165,10 @@ async fn save_simple_message(
 }
 
 pub async fn build_mqtt_protocol_data(
-    cache_manager: &Arc<MQTTCacheManager>,
     client_id: &str,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
 ) -> StorageRecordProtocolDataMqtt {
-    let message_expire = build_message_expire(cache_manager, publish_properties).await;
-
     if let Some(properties) = publish_properties {
         StorageRecordProtocolDataMqtt {
             client_id: client_id.to_string(),
@@ -178,7 +177,6 @@ pub async fn build_mqtt_protocol_data(
             response_topic: properties.response_topic.clone(),
             correlation_data: properties.correlation_data.clone(),
             content_type: properties.content_type.clone(),
-            expire_at: message_expire,
             user_properties: properties.user_properties.clone(),
         }
     } else {

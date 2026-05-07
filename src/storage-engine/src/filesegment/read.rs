@@ -162,6 +162,7 @@ mod tests {
                 tags: Some(vec![format!("tag-{}", i)]),
                 value: Bytes::from(format!("data-{i}")),
                 protocol_data: None,
+                expire_at: 0,
             });
         }
 

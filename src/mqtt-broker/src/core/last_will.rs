@@ -15,6 +15,7 @@
 use super::cache::MQTTCacheManager;
 use super::error::MqttBrokerError;
 use super::topic::try_init_topic;
+use crate::core::message::build_message_expire;
 use crate::core::offline_message::build_mqtt_protocol_data;
 use crate::core::{retain::save_retain_message, tool::ResultMqttBrokerError};
 use crate::storage::last_will::LastWillStorage;
@@ -72,20 +73,18 @@ pub async fn send_last_will_message(
     .await?;
 
     // save message
-    let mqtt_data = build_mqtt_protocol_data(
-        cache_manager,
-        &last_will.client_id,
-        &publish,
-        &publish_properties,
-    )
-    .await;
+    let mqtt_data =
+        build_mqtt_protocol_data(&last_will.client_id, &publish, &publish_properties).await;
 
+    let message_expire = build_message_expire(cache_manager, &publish_properties).await;
     let record = AdapterWriteRecord::new(topic_name.to_string(), publish.payload.clone())
         .with_protocol_data(Some(StorageRecordProtocolData {
             mqtt: Some(mqtt_data),
             nats: None,
             mq9: None,
-        }));
+        }))
+        .with_expire_at(message_expire);
+
     let message_storage = MessageStorage::new(storage_driver_manager.clone());
     message_storage
         .append_topic_message(&topic.tenant, &topic.topic_name, vec![record])

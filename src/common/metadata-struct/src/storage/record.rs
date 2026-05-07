@@ -38,6 +38,7 @@ pub struct StorageRecordMetadata {
     pub key: Option<String>,
     pub tags: Option<Vec<String>>,
     pub create_t: u64,
+    pub expire_at: u64,
     pub crc_num: u32,
 }
 
@@ -52,6 +53,7 @@ impl StorageRecordMetadata {
         Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         offset: u64,
         shard: &str,
@@ -59,6 +61,7 @@ impl StorageRecordMetadata {
         header: &Option<Vec<StorageHeader>>,
         key: &Option<String>,
         tags: &Option<Vec<String>>,
+        expire_at: u64,
         data: &Bytes,
     ) -> Self {
         StorageRecordMetadata {
@@ -70,6 +73,7 @@ impl StorageRecordMetadata {
             tags: tags.clone(),
             create_t: now_second(),
             crc_num: calc_crc32(data),
+            expire_at,
         }
     }
 
@@ -84,6 +88,7 @@ impl StorageRecordMetadata {
             tags: None,
             create_t: now_second(),
             crc_num: 0,
+            expire_at: 0,
         }
     }
 
@@ -178,7 +183,6 @@ impl StorageRecordProtocolData {}
 pub struct StorageRecordProtocolDataMqtt {
     pub client_id: String,
     pub retain: bool,
-    pub expire_at: u64,
     pub format_indicator: Option<u8>,
     pub response_topic: Option<String>,
     pub correlation_data: Option<Bytes>,

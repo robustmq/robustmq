@@ -60,15 +60,10 @@ pub struct SubPublishParam {
 }
 
 pub fn message_is_expire(message: &StorageRecord) -> bool {
-    if let Some(protocol_data) = message.protocol_data.clone() {
-        if let Some(mqtt_data) = protocol_data.mqtt {
-            if mqtt_data.expire_at == 0 {
-                return false;
-            }
-            return mqtt_data.expire_at < now_second();
-        }
+    if message.metadata.expire_at == 0 {
+        return false;
     }
-    false
+    message.metadata.expire_at < now_second()
 }
 
 pub async fn message_is_exceeds_max_message_size(

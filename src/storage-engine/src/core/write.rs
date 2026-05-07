@@ -160,6 +160,7 @@ async fn write_segment_to_local(
             key: record.key.clone(),
             tags: record.tags.clone(),
             value: record.data.clone(),
+            expire_at: record.expire_at,
             protocol_data: record.protocol_data.clone(),
         })
         .collect();
