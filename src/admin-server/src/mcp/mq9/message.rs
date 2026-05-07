@@ -128,7 +128,7 @@ pub async fn delete_message(
     args: DeleteMessageArgs,
 ) -> Result<Value, CommonError> {
     driver
-        .delete_by_offset(&args.tenant, &args.mail_address, args.msg_id)
+        .delete_by_offsets(&args.tenant, &args.mail_address, &[args.msg_id])
         .await?;
 
     Ok(json!({ "msg_id": args.msg_id, "deleted": true }))

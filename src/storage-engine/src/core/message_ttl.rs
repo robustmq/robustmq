@@ -12,19 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod batch_call;
-pub mod cache;
-pub mod dynamic_cache;
-pub mod error;
-pub mod expire;
-pub mod message_ttl;
-pub mod offset_index;
-pub mod read_key;
-pub mod read_offset;
-pub mod read_tag;
-pub mod segment;
-pub mod shard;
-// pub mod shard_offset;
-pub mod test_tool;
-pub mod tool;
-pub mod write;
+use common_base::tools::now_second;
+use metadata_struct::storage::record::StorageRecordMetadata;
+
+/// Returns true if the record has expired and should be skipped.
+/// `expire_at == 0` means no expiry.
+pub fn is_record_expired(metadata: &StorageRecordMetadata) -> bool {
+    metadata.expire_at > 0 && metadata.expire_at < now_second()
+}

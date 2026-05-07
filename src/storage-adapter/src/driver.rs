@@ -126,7 +126,7 @@ impl StorageDriverManager {
             .get(&(partition as u32))
             .cloned()
             .unwrap_or_else(|| Topic::build_storage_name(&topic.topic_id, partition as u32));
-        driver.batch_write(&partition_name, data).await
+        driver.write(&partition_name, data).await
     }
 
     pub async fn read_by_offset(
@@ -172,43 +172,45 @@ impl StorageDriverManager {
         Ok(results)
     }
 
-    pub async fn read_by_key(
+    pub async fn read_by_keys(
         &self,
         tenant: &str,
         topic_name: &str,
-        key: &str,
-    ) -> Result<Vec<StorageRecord>, CommonError> {
+        keys: &[&str],
+    ) -> Result<HashMap<String, Vec<StorageRecord>>, CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
-        let mut results = Vec::new();
+        let mut results: HashMap<String, Vec<StorageRecord>> = HashMap::new();
         for (_, shard_name) in topic.storage_name_list {
-            let resp = driver.read_by_key(&shard_name, key).await?;
-            results.extend(resp);
+            let shard_result = driver.read_by_keys(&shard_name, keys).await?;
+            for (key, records) in shard_result {
+                results.entry(key).or_default().extend(records);
+            }
         }
         Ok(results)
     }
 
-    pub async fn delete_by_key(
+    pub async fn delete_by_keys(
         &self,
         tenant: &str,
         topic_name: &str,
-        key: &str,
+        keys: &[&str],
     ) -> Result<(), CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         for (_, shard_name) in topic.storage_name_list {
-            driver.delete_by_key(&shard_name, key).await?
+            driver.delete_by_keys(&shard_name, keys).await?
         }
         Ok(())
     }
 
-    pub async fn delete_by_offset(
+    pub async fn delete_by_offsets(
         &self,
         tenant: &str,
         topic_name: &str,
-        offset: u64,
+        offsets: &[u64],
     ) -> Result<(), CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         for (_, shard_name) in topic.storage_name_list {
-            driver.delete_by_offset(&shard_name, offset).await?
+            driver.delete_by_offsets(&shard_name, offsets).await?
         }
         Ok(())
     }

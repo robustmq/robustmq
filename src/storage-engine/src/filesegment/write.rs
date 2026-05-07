@@ -56,6 +56,7 @@ pub struct WriteChannelDataRecord {
     pub key: Option<String>,
     pub value: Bytes,
     pub tags: Option<Vec<String>>,
+    pub expire_at: u64,
     pub protocol_data: Option<StorageRecordProtocolData>,
 }
 
@@ -301,6 +302,7 @@ pub fn create_io_thread(
                             &row.header,
                             &row.key,
                             &row.tags,
+                            row.expire_at,
                             &row.value,
                         ),
 
@@ -555,6 +557,7 @@ mod tests {
                         &None,
                         &Some(format!("key-{}", i)),
                         &Some(vec![format!("tag-{}", i)]),
+                        0,
                         &data,
                     ),
                     data,
@@ -671,6 +674,7 @@ mod tests {
                 tags: Some(vec![format!("tag-{}", i)]),
                 value: Bytes::from(format!("data-{}", i)),
                 protocol_data: None,
+                expire_at: 0,
             });
         }
 
@@ -734,6 +738,7 @@ mod tests {
             tags: None,
             value: Bytes::from("data-1"),
             protocol_data: None,
+            expire_at: 0,
         }];
 
         let result = write_manager.write(&non_exist_segment, data_list).await;
@@ -763,6 +768,7 @@ mod tests {
             tags: None,
             value: Bytes::from("data-1"),
             protocol_data: None,
+            expire_at: 0,
         }];
 
         let result = write_manager.write(&segment_iden, data_list).await;

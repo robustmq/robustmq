@@ -13,37 +13,37 @@
 # limitations under the License.
 
 cluster_name = "robustmq-cluster"
-broker_id = 1
+broker_id = 3
 broker_ip = "127.0.0.1"
 roles = ["meta", "broker", "engine"]
-grpc_port = 1128
-http_port = 8080
-meta_addrs = { 1 = "127.0.0.1:1128", 2 = "127.0.0.1:1228", 3 = "127.0.0.1:1328" }
+grpc_port = 1328
+http_port = 8083
+meta_addrs = { 1 = "127.0.0.1:1128",2 = "127.0.0.1:1228",3 = "127.0.0.1:1328" }
 
 [mqtt_server]
-tcp_port = 1883
-tls_port = 1885
-websocket_port = 8183
-websockets_port = 8185
-quic_port = 9183
+tcp_port = 3883
+tls_port = 3885
+websocket_port = 8383
+websockets_port = 8385
+quic_port = 9383
 
 [rocksdb]
-data_path = "./data/broker-1/data"
+data_path = "./data/broker-3/data"
 max_open_files = 10000
 
 [log]
 log_config = "./config/logger.toml"
-log_path = "./data/broker-1/logs"
+log_path = "./data/broker-3/logs"
 
 [storage_runtime]
-tcp_port = 1178
+tcp_port = 1378
 max_segment_size = 1073741824
-data_path = ["./data/broker-1/engine"]
+data_path = ["./data/broker-3/engine"]
 io_thread_num = 4
 
 
 [nats_runtime]
-tcp_port = 4222
-tls_port = 4223
-ws_port  = 4080
-wss_port = 4443
+tcp_port = 3222
+tls_port = 3223
+ws_port  = 3080
+wss_port = 3443

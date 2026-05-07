@@ -43,6 +43,10 @@ impl EngineSegment {
         None
     }
 
+    pub fn leader_epoch_incr(&mut self) {
+        self.leader_epoch += 1;
+    }
+
     pub fn name(&self) -> String {
         format!("{},{}", self.shard_name, self.segment_seq)
     }

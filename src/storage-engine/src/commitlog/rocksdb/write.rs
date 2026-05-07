@@ -81,6 +81,8 @@ impl RocksDBStorageEngine {
 
         let _guard = lock.lock().await;
 
+        self.key_compaction(shard_name, messages).await?;
+
         let cf = self.get_cf()?;
         let mut offset = self.commitlog_offset.get_latest_offset(shard_name)?;
 
@@ -145,12 +147,21 @@ impl RocksDBStorageEngine {
     }
 
     pub async fn delete_by_key(&self, shard: &str, key: &str) -> Result<(), StorageEngineError> {
-        let index = if let Some(index) = self.get_offset_by_key(shard, key).await? {
-            index
-        } else {
-            return Ok(());
-        };
-        self.delete_by_offset(shard, index.offset).await
+        self.delete_by_keys(shard, std::slice::from_ref(&key)).await
+    }
+
+    pub async fn delete_by_keys(
+        &self,
+        shard: &str,
+        keys: &[&str],
+    ) -> Result<(), StorageEngineError> {
+        let mut offsets = Vec::with_capacity(keys.len());
+        for key in keys {
+            if let Some(index) = self.get_offset_by_key(shard, key).await? {
+                offsets.push(index.offset);
+            }
+        }
+        self.delete_by_offsets(shard, &offsets).await
     }
 
     pub async fn delete_by_offset(
@@ -158,41 +169,67 @@ impl RocksDBStorageEngine {
         shard: &str,
         offset: u64,
     ) -> Result<(), StorageEngineError> {
+        self.delete_by_offsets(shard, std::slice::from_ref(&offset))
+            .await
+    }
+
+    pub async fn delete_by_offsets(
+        &self,
+        shard: &str,
+        offsets: &[u64],
+    ) -> Result<(), StorageEngineError> {
+        if offsets.is_empty() {
+            return Ok(());
+        }
         let cf = self.get_cf()?;
-        let record_key = shard_record_key(shard, offset);
-
-        let record =
-            match self
-                .rocksdb_engine_handler
-                .read::<metadata_struct::storage::record::StorageRecord>(cf.clone(), &record_key)?
-            {
-                Some(r) => r,
-                None => return Ok(()),
-            };
-
         let mut batch = WriteBatch::default();
 
-        batch.delete_cf(&cf, record_key.as_bytes());
+        for &offset in offsets {
+            let record_key = shard_record_key(shard, offset);
+            let Some(record) = self
+                .rocksdb_engine_handler
+                .read::<metadata_struct::storage::record::StorageRecord>(
+                cf.clone(),
+                &record_key,
+            )?
+            else {
+                continue;
+            };
 
-        if let Some(key) = &record.metadata.key {
-            let key_index_key = key_index_key(shard, key);
-            batch.delete_cf(&cf, key_index_key.as_bytes());
-        }
+            batch.delete_cf(&cf, record_key.as_bytes());
 
-        if let Some(tags) = &record.metadata.tags {
-            for tag in tags.iter() {
-                let tag_index_key = tag_index_key(shard, tag, offset);
-                batch.delete_cf(&cf, tag_index_key.as_bytes());
+            if let Some(key) = &record.metadata.key {
+                batch.delete_cf(&cf, key_index_key(shard, key).as_bytes());
             }
-        }
 
-        if record.metadata.create_t > 0 && offset.is_multiple_of(5000) {
-            let timestamp_index_key = timestamp_index_key(shard, record.metadata.create_t, offset);
-            batch.delete_cf(&cf, timestamp_index_key.as_bytes());
+            if let Some(tags) = &record.metadata.tags {
+                for tag in tags.iter() {
+                    batch.delete_cf(&cf, tag_index_key(shard, tag, offset).as_bytes());
+                }
+            }
+
+            if record.metadata.create_t > 0 && offset.is_multiple_of(5000) {
+                batch.delete_cf(
+                    &cf,
+                    timestamp_index_key(shard, record.metadata.create_t, offset).as_bytes(),
+                );
+            }
         }
 
         self.rocksdb_engine_handler.write_batch(batch)?;
         Ok(())
+    }
+
+    async fn key_compaction(
+        &self,
+        shard_name: &str,
+        messages: &[AdapterWriteRecord],
+    ) -> Result<(), StorageEngineError> {
+        let keys: Vec<&str> = messages.iter().filter_map(|m| m.key.as_deref()).collect();
+        if keys.is_empty() {
+            return Ok(());
+        }
+        self.delete_by_keys(shard_name, &keys).await
     }
 }
 

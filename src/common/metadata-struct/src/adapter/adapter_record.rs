@@ -32,6 +32,7 @@ pub struct AdapterWriteRecord {
     pub header: Option<Vec<RecordHeader>>,
     pub key: Option<String>,
     pub tags: Option<Vec<String>>,
+    pub expire_at: u64,
     pub data: Bytes,
     pub protocol_data: Option<StorageRecordProtocolData>,
 }
@@ -65,6 +66,11 @@ impl AdapterWriteRecord {
 
     pub fn with_protocol_data(mut self, protocol_data: Option<StorageRecordProtocolData>) -> Self {
         self.protocol_data = protocol_data;
+        self
+    }
+
+    pub fn with_expire_at(mut self, expire_at: u64) -> Self {
+        self.expire_at = expire_at;
         self
     }
 

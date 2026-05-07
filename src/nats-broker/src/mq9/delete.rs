@@ -28,7 +28,7 @@ pub async fn process_delete(
 
     let tenant = get_tenant();
     ctx.storage_driver_manager
-        .delete_by_offset(&tenant, mail_address, offset)
+        .delete_by_offsets(&tenant, mail_address, &[offset])
         .await
         .map_err(NatsBrokerError::from)?;
 

@@ -33,6 +33,7 @@ use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
 use metadata_struct::tenant::DEFAULT_TENANT;
 use metadata_struct::topic::Topic;
 use rocksdb_engine::test::test_rocksdb_instance;
+use std::collections::HashMap;
 use std::sync::Arc;
 use storage_engine::clients::manager::ClientConnectionManager;
 use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
@@ -56,12 +57,6 @@ pub trait StorageAdapter {
     async fn write(
         &self,
         shard: &str,
-        data: &AdapterWriteRecord,
-    ) -> Result<AdapterWriteRespRow, CommonError>;
-
-    async fn batch_write(
-        &self,
-        shard: &str,
         data: &[AdapterWriteRecord],
     ) -> Result<Vec<AdapterWriteRespRow>, CommonError>;
 
@@ -80,11 +75,15 @@ pub trait StorageAdapter {
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, CommonError>;
 
-    async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<StorageRecord>, CommonError>;
+    async fn read_by_keys(
+        &self,
+        shard: &str,
+        keys: &[&str],
+    ) -> Result<HashMap<String, Vec<StorageRecord>>, CommonError>;
 
-    async fn delete_by_key(&self, shard: &str, key: &str) -> Result<(), CommonError>;
+    async fn delete_by_keys(&self, shard: &str, keys: &[&str]) -> Result<(), CommonError>;
 
-    async fn delete_by_offset(&self, shard: &str, offset: u64) -> Result<(), CommonError>;
+    async fn delete_by_offsets(&self, shard: &str, offsets: &[u64]) -> Result<(), CommonError>;
 
     async fn get_offset_by_timestamp(
         &self,

@@ -125,8 +125,8 @@ impl MetaServiceServer {
         let ctrl = ClusterController::new(
             self.cache_manager.clone(),
             self.raft_manager.clone(),
-            self.client_pool.clone(),
             self.node_call_manager.clone(),
+            self.rocksdb_engine_handler.clone(),
         );
         let stop = self.stop.clone();
         self.task_supervisor.spawn(

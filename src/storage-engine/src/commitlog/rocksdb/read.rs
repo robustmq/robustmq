@@ -14,7 +14,7 @@
 
 use crate::{
     commitlog::rocksdb::engine::{IndexInfo, RocksDBStorageEngine},
-    core::error::StorageEngineError,
+    core::{error::StorageEngineError, message_ttl::is_record_expired},
 };
 use common_base::utils::serialize::deserialize;
 use metadata_struct::storage::{
@@ -58,6 +58,11 @@ impl RocksDBStorageEngine {
                 let Some(record) = record_opt else {
                     continue;
                 };
+
+                if is_record_expired(&record.metadata) {
+                    continue;
+                }
+
                 if records.len() >= read_config.max_record_num as usize {
                     break 'outer;
                 }
@@ -88,7 +93,7 @@ impl RocksDBStorageEngine {
             .rocksdb_engine_handler
             .read_prefix(cf.clone(), &tag_offset_key_prefix)?;
 
-        // Filter and collect offsets >= specified offset
+        // Filter offsets >= start_offset
         let mut offsets = Vec::new();
         for (_key, value) in tag_entries {
             let record_offset: IndexInfo = deserialize::<IndexInfo>(&value)?;
@@ -100,9 +105,6 @@ impl RocksDBStorageEngine {
             }
 
             offsets.push(record_offset.offset);
-            if offsets.len() >= read_config.max_record_num as usize {
-                break;
-            }
         }
 
         if offsets.is_empty() {
@@ -115,7 +117,8 @@ impl RocksDBStorageEngine {
             .map(|off| shard_record_key(shard, *off))
             .collect();
 
-        // Batch read records
+        // Batch read records; apply max_record_num/max_size limits here,
+        // after fetching, so holes and expired entries don't cause under-reads.
         let batch_results = self
             .rocksdb_engine_handler
             .multi_get::<StorageRecord>(cf, &keys)?;
@@ -126,6 +129,14 @@ impl RocksDBStorageEngine {
             let Some(record) = record_opt else {
                 continue;
             };
+
+            if is_record_expired(&record.metadata) {
+                continue;
+            }
+
+            if records.len() >= read_config.max_record_num as usize {
+                break;
+            }
 
             let record_bytes = record.data.len() as u64;
             if total_size + record_bytes > read_config.max_size {
@@ -158,6 +169,10 @@ impl RocksDBStorageEngine {
         else {
             return Ok(Vec::new());
         };
+
+        if is_record_expired(&record.metadata) {
+            return Ok(Vec::new());
+        }
 
         Ok(vec![record])
     }

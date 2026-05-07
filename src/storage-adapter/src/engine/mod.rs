@@ -20,6 +20,7 @@ use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWr
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
 use metadata_struct::storage::record::StorageRecord;
+use std::collections::HashMap;
 use std::sync::Arc;
 use storage_engine::handler::adapter::StorageEngineHandler;
 pub struct EngineStorageAdapter {
@@ -52,30 +53,9 @@ impl StorageAdapter for EngineStorageAdapter {
     async fn write(
         &self,
         shard: &str,
-        record: &AdapterWriteRecord,
-    ) -> Result<AdapterWriteRespRow, CommonError> {
-        let res = self
-            .adapter
-            .batch_write(shard, std::slice::from_ref(record))
-            .await?;
-
-        if let Some(offset) = res.first() {
-            return Ok(offset.clone());
-        }
-
-        return Err(CommonError::CommonError(
-            "Data writing failed, although it indicated success,
-             but the Offset does not exist. Check if there is any error in the logic."
-                .to_string(),
-        ));
-    }
-
-    async fn batch_write(
-        &self,
-        shard: &str,
         records: &[AdapterWriteRecord],
     ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
-        self.adapter.batch_write(shard, records).await
+        self.adapter.write(shard, records).await
     }
 
     async fn read_by_offset(
@@ -101,22 +81,35 @@ impl StorageAdapter for EngineStorageAdapter {
             .await
     }
 
-    async fn read_by_key(&self, shard: &str, key: &str) -> Result<Vec<StorageRecord>, CommonError> {
-        self.adapter.read_by_key(shard, key).await
+    async fn read_by_keys(
+        &self,
+        shard: &str,
+        keys: &[&str],
+    ) -> Result<HashMap<String, Vec<StorageRecord>>, CommonError> {
+        let mut result = HashMap::with_capacity(keys.len());
+        for &key in keys {
+            let records = self
+                .adapter
+                .read_by_key(shard, key)
+                .await
+                .map_err(|e| CommonError::CommonError(e.to_string()))?;
+            result.insert(key.to_string(), records);
+        }
+        Ok(result)
     }
 
-    async fn delete_by_key(&self, shard: &str, key: &str) -> Result<(), CommonError> {
-        if let Err(e) = self.adapter.delete_by_key(shard, key).await {
-            return Err(CommonError::CommonError(e.to_string()));
-        }
-        Ok(())
+    async fn delete_by_keys(&self, shard: &str, keys: &[&str]) -> Result<(), CommonError> {
+        self.adapter
+            .delete_by_keys(shard, keys)
+            .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
-    async fn delete_by_offset(&self, shard: &str, offset: u64) -> Result<(), CommonError> {
-        if let Err(e) = self.adapter.delete_by_offset(shard, offset).await {
-            return Err(CommonError::CommonError(e.to_string()));
-        }
-        Ok(())
+    async fn delete_by_offsets(&self, shard: &str, offsets: &[u64]) -> Result<(), CommonError> {
+        self.adapter
+            .delete_by_offsets(shard, offsets)
+            .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
     async fn get_offset_by_timestamp(

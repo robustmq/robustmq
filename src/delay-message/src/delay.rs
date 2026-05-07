@@ -58,7 +58,7 @@ pub(crate) async fn delete_delay_message(
     unique_id: &str,
 ) -> Result<(), CommonError> {
     storage_driver_manager
-        .delete_by_key(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, unique_id)
+        .delete_by_keys(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, &[unique_id])
         .await?;
     debug!(
         "Deleted delay message: shard={}, unique_id={}",
@@ -99,10 +99,10 @@ pub(crate) async fn delete_delay_index_info(
     delay_info: &DelayMessageIndexInfo,
 ) -> Result<(), CommonError> {
     storage_driver_manager
-        .delete_by_key(
+        .delete_by_keys(
             DEFAULT_TENANT,
             DELAY_QUEUE_INDEX_TOPIC,
-            &delay_info.unique_id,
+            &[delay_info.unique_id.as_str()],
         )
         .await?;
     debug!(
