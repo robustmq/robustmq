@@ -18,7 +18,6 @@ use crate::raft::manager::MultiRaftManager;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use common_config::broker::broker_config;
-use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;

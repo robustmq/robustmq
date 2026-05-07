@@ -40,7 +40,7 @@ pub async fn trigger_leader_switch(
     remove_id: u64,
 ) {
     tokio::spawn(async move {
-        let fnc = async move || -> Result<(), MetaServiceError> {
+        let result: Result<(), MetaServiceError> = async {
             group_leader_switch(
                 &meta_cache,
                 &raft_manager,
@@ -52,8 +52,9 @@ pub async fn trigger_leader_switch(
             segment_leader_switch(&meta_cache, &raft_manager, &mqtt_call_manager, remove_id)
                 .await?;
             Ok(())
-        };
-        if let Err(e) = fnc().await {
+        }
+        .await;
+        if let Err(e) = result {
             error!("leader switch failed for removed node {}: {}", remove_id, e);
         }
     });
@@ -74,21 +75,19 @@ pub async fn group_leader_switch(
         .collect();
 
     let mut switched = 0u32;
-    for group_leader in affected {
+    for mut group_leader in affected {
         let new_leader_broker =
-            generate_group_leader(meta_cache, rocksdb_engine_handler, &group_leader.tenant)
-                .await?;
-        let mut new_group_leader = group_leader.clone();
-        new_group_leader.leader_broker = new_leader_broker;
+            generate_group_leader(meta_cache, rocksdb_engine_handler, &group_leader.tenant).await?;
+        group_leader.leader_broker = new_leader_broker;
 
         let data = StorageData::new(
             StorageDataType::MqttSetGroupLeader,
-            Bytes::copy_from_slice(&new_group_leader.encode()?),
+            Bytes::copy_from_slice(&group_leader.encode()?),
         );
         raft_manager
             .write_data(&group_leader.group_name, data)
             .await?;
-        send_notify_by_set_share_group(call_manager, new_group_leader).await?;
+        send_notify_by_set_share_group(call_manager, group_leader).await?;
         switched += 1;
     }
     info!(
