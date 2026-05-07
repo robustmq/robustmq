@@ -58,7 +58,7 @@ pub(crate) async fn delete_delay_task_index(
     task_id: &str,
 ) -> Result<(), CommonError> {
     storage_driver_manager
-        .delete_by_key(DEFAULT_TENANT, DELAY_TASK_INDEX_TOPIC, task_id)
+        .delete_by_keys(DEFAULT_TENANT, DELAY_TASK_INDEX_TOPIC, &[task_id])
         .await?;
     debug!("Deleted delay task index: task_id={}", task_id);
     Ok(())

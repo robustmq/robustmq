@@ -110,8 +110,10 @@ pub async fn get_temporary_qos2_message(
 ) -> Result<Option<Qos2TemporaryMessage>, MqttBrokerError> {
     let key = uniq_key(client_id, pkid);
     let results = storage_driver_manager
-        .read_by_key(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, &key)
-        .await?;
+        .read_by_keys(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, &[key.as_str()])
+        .await?
+        .remove(&key)
+        .unwrap_or_default();
 
     if results.is_empty() {
         return Ok(None);

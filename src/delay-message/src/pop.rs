@@ -176,12 +176,14 @@ async fn send_delay_message_to_shard(
 ) -> Result<u64, CommonError> {
     // read data
     let results = storage_driver_manager
-        .read_by_key(
+        .read_by_keys(
             DEFAULT_TENANT,
             DELAY_QUEUE_MESSAGE_TOPIC,
-            &delay_message.unique_id,
+            &[delay_message.unique_id.as_str()],
         )
-        .await?;
+        .await?
+        .remove(&delay_message.unique_id)
+        .unwrap_or_default();
 
     if results.is_empty() {
         return Err(CommonError::CommonError(format!(

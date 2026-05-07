@@ -58,8 +58,10 @@ impl LastWillStorage {
         let key = last_will_key(tenant, client_id);
         let records = self
             .storage_driver_manager
-            .read_by_key(DEFAULT_TENANT, LAST_WILL_MESSAGE_TOPIC, &key)
-            .await?;
+            .read_by_keys(DEFAULT_TENANT, LAST_WILL_MESSAGE_TOPIC, &[key.as_str()])
+            .await?
+            .remove(&key)
+            .unwrap_or_default();
         if let Some(record) = records.into_iter().next() {
             let data = MqttLastWillData::decode(&record.data)?;
             return Ok(Some(data));
@@ -74,7 +76,7 @@ impl LastWillStorage {
     ) -> ResultMqttBrokerError {
         let key = last_will_key(tenant, client_id);
         self.storage_driver_manager
-            .delete_by_key(DEFAULT_TENANT, LAST_WILL_MESSAGE_TOPIC, &key)
+            .delete_by_keys(DEFAULT_TENANT, LAST_WILL_MESSAGE_TOPIC, &[key.as_str()])
             .await?;
         Ok(())
     }

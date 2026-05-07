@@ -170,7 +170,7 @@ impl StorageEngineHandler {
         Ok(())
     }
 
-    pub async fn batch_write(
+    pub async fn write(
         &self,
         shard: &str,
         records: &[AdapterWriteRecord],
@@ -317,8 +317,16 @@ impl StorageEngineHandler {
         shard_name: &str,
         key: &str,
     ) -> Result<(), StorageEngineError> {
+        self.delete_by_keys(shard_name, &[key]).await
+    }
+
+    pub async fn delete_by_keys(
+        &self,
+        shard_name: &str,
+        keys: &[&str],
+    ) -> Result<(), StorageEngineError> {
         let start = std::time::Instant::now();
-        let result = self.delete_by_key_inner(shard_name, key).await;
+        let result = self.delete_by_keys_inner(shard_name, keys).await;
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_storage_engine_ops("delete_by_key");
         record_storage_engine_ops_duration("delete_by_key", duration_ms);
@@ -328,25 +336,30 @@ impl StorageEngineHandler {
         result
     }
 
-    async fn delete_by_key_inner(
+    async fn delete_by_keys_inner(
         &self,
         shard_name: &str,
-        key: &str,
+        keys: &[&str],
     ) -> Result<(), StorageEngineError> {
+        if keys.is_empty() {
+            return Ok(());
+        }
         let Some(shard) = self.cache_manager.shards.get(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
 
         match shard.config.storage_type {
             StorageType::EngineMemory => {
-                self.memory_storage_engine
-                    .delete_by_key(shard_name, key)
-                    .await?;
+                for key in keys {
+                    self.memory_storage_engine
+                        .delete_by_key(shard_name, key)
+                        .await?;
+                }
             }
 
             StorageType::EngineRocksDB => {
                 self.rocksdb_storage_engine
-                    .delete_by_key(shard_name, key)
+                    .delete_by_keys(shard_name, keys)
                     .await?;
             }
 
@@ -371,8 +384,16 @@ impl StorageEngineHandler {
         shard_name: &str,
         offset: u64,
     ) -> Result<(), StorageEngineError> {
+        self.delete_by_offsets(shard_name, &[offset]).await
+    }
+
+    pub async fn delete_by_offsets(
+        &self,
+        shard_name: &str,
+        offsets: &[u64],
+    ) -> Result<(), StorageEngineError> {
         let start = std::time::Instant::now();
-        let result = self.delete_by_offset_inner(shard_name, offset).await;
+        let result = self.delete_by_offsets_inner(shard_name, offsets).await;
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_storage_engine_ops("delete_by_offset");
         record_storage_engine_ops_duration("delete_by_offset", duration_ms);
@@ -382,25 +403,30 @@ impl StorageEngineHandler {
         result
     }
 
-    async fn delete_by_offset_inner(
+    async fn delete_by_offsets_inner(
         &self,
         shard_name: &str,
-        offset: u64,
+        offsets: &[u64],
     ) -> Result<(), StorageEngineError> {
+        if offsets.is_empty() {
+            return Ok(());
+        }
         let Some(shard) = self.cache_manager.shards.get(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
 
         match shard.config.storage_type {
             StorageType::EngineMemory => {
-                self.memory_storage_engine
-                    .delete_by_offset(shard_name, offset)
-                    .await?;
+                for &offset in offsets {
+                    self.memory_storage_engine
+                        .delete_by_offset(shard_name, offset)
+                        .await?;
+                }
             }
 
             StorageType::EngineRocksDB => {
                 self.rocksdb_storage_engine
-                    .delete_by_offset(shard_name, offset)
+                    .delete_by_offsets(shard_name, offsets)
                     .await?;
             }
 
@@ -412,7 +438,7 @@ impl StorageEngineHandler {
 
             _ => {
                 return Err(StorageEngineError::CommonErrorStr(format!(
-                    "Unsupported storage type {:?} for shard {} when getting delete by key",
+                    "Unsupported storage type {:?} for shard {} when delete by offset",
                     shard.config.storage_type, shard_name
                 )))
             }
