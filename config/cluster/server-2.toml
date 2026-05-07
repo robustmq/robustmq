@@ -18,7 +18,7 @@ broker_ip = "127.0.0.1"
 roles = ["meta", "broker", "engine"]
 grpc_port = 1228
 http_port = 8082
-meta_addrs = { 1 = "127.0.0.1:1128",2 = "127.0.0.1:1228",3 = "127.0.0.1:1328" }
+meta_addrs = { 1 = "127.0.0.1:1128",2 = "127.0.0.1:1228"}
 
 [mqtt_server]
 tcp_port = 2883
@@ -43,7 +43,7 @@ io_thread_num = 4
 
 
 [nats_runtime]
-tcp_port = 4222
-tls_port = 4223
-ws_port  = 4080
-wss_port = 4443
+tcp_port = 2222
+tls_port = 2223
+ws_port  = 2080
+wss_port = 2443

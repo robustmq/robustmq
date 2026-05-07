@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{commitlog::memory::engine::MemoryStorageEngine, core::error::StorageEngineError};
+use std::sync::Arc;
+
+use crate::{
+    commitlog::memory::engine::{MemoryStorageEngine, ShardState},
+    core::error::StorageEngineError,
+};
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
     convert::convert_adapter_record_to_storage,
@@ -105,6 +110,8 @@ impl MemoryStorageEngine {
         let shard = self.get_or_create_shard(shard_name);
         let _guard = shard.write_lock.lock().await;
 
+        self.key_compaction(&shard, messages);
+
         let mut offset_res = Vec::with_capacity(messages.len());
         let mut index_entries = Vec::with_capacity(messages.len());
         let mut offset = self.commit_log_offset.get_latest_offset(shard_name)?;
@@ -128,6 +135,30 @@ impl MemoryStorageEngine {
         self.commit_log_offset
             .save_latest_offset(shard_name, offset)?;
         Ok(offset_res)
+    }
+
+    fn key_compaction(&self, shard: &Arc<ShardState>, messages: &[AdapterWriteRecord]) {
+        for record in messages.iter() {
+            let Some(key) = record.key.as_deref() else {
+                continue;
+            };
+            let Some((_, offset)) = shard.key_index.remove(key) else {
+                continue;
+            };
+            let Some((_, removed)) = shard.data.remove(&offset) else {
+                continue;
+            };
+            if let Some(tags) = &removed.metadata.tags {
+                for tag in tags.iter() {
+                    if let Some(mut offsets) = shard.tag_index.get_mut(tag) {
+                        offsets.retain(|&o| o != offset);
+                    }
+                }
+            }
+            if removed.metadata.create_t > 0 && offset.is_multiple_of(5000) {
+                shard.timestamp_index.remove(&removed.metadata.create_t);
+            }
+        }
     }
 }
 
