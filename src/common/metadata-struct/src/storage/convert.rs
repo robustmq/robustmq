@@ -40,6 +40,7 @@ pub fn convert_adapter_record_to_storage(
         .with_key(record.key)
         .with_tags(record.tags)
         .with_timestamp(now_second())
+        .with_expire_at(record.expire_at)
         .with_crc_from_data(&record.data);
 
     StorageRecord {
