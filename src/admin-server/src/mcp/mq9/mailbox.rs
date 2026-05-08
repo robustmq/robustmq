@@ -65,10 +65,9 @@ pub async fn create_mailbox(
         mail_address: args.mail_address.clone(),
         tenant: args.tenant.clone(),
         desc: args.desc.unwrap_or_default(),
-        public: args.public.unwrap_or(false),
         ttl: args
             .ttl
-            .unwrap_or_else(|| broker_config().nats_runtime.mq9_mailbox_ttl),
+            .unwrap_or_else(|| broker_config().nats_runtime.mq9_mailbox_default_ttl),
         create_time: now_second(),
     };
 
@@ -95,7 +94,6 @@ pub async fn list_mailboxes(
                 "mail_address":     e.mail_address,
                 "tenant":      e.tenant,
                 "desc":        e.desc,
-                "public":      e.public,
                 "ttl":         e.ttl,
                 "create_time": e.create_time,
             })

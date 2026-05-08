@@ -17,13 +17,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct MQ9Mail {
-    /// Unique mailbox identifier. System-generated UUID for private mailboxes;
-    /// user-defined name for public mailboxes.
-    pub mail_address: String,
     pub tenant: String,
+    pub mail_address: String,
     pub desc: String,
-    /// Whether this mailbox is registered to PUBLIC.LIST.
-    pub public: bool,
     /// Lifetime in seconds. 0 means no expiry.
     pub ttl: u64,
     pub create_time: u64,

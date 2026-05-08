@@ -22,17 +22,17 @@ use bytes::Bytes;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mq9::Priority;
 use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordProtocolDataMq9};
-use mq9_core::protocol::Mq9Reply;
+use mq9_core::protocol::MsgSendReply;
 use mq9_core::public::is_system_mailbox;
 use storage_adapter::priority::storage_priority_tag;
 
-pub async fn process_pub(
+pub async fn process_send(
     ctx: &NatsProcessContext,
     mail_address: &str,
     priority: &Priority,
     headers: &Option<Bytes>,
     payload: &Bytes,
-) -> Result<Mq9Reply, NatsBrokerError> {
+) -> Result<MsgSendReply, NatsBrokerError> {
     let tenant = get_tenant();
 
     if is_system_mailbox(mail_address) {
@@ -81,7 +81,10 @@ pub async fn process_pub(
             mail_address
         ))
     })?;
-    Ok(Mq9Reply::ok_publish(offset))
+    Ok(MsgSendReply {
+        error: String::new(),
+        msg_id: offset,
+    })
 }
 
 fn build_message_tag(tenant: &str, mail_address: &str, priority: &Priority) -> Vec<String> {

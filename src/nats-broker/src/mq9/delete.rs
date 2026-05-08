@@ -15,13 +15,13 @@
 use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
-use mq9_core::protocol::Mq9Reply;
+use mq9_core::protocol::MsgDeleteReply;
 
 pub async fn process_delete(
     ctx: &NatsProcessContext,
     mail_address: &str,
     msg_id: &str,
-) -> Result<Mq9Reply, NatsBrokerError> {
+) -> Result<MsgDeleteReply, NatsBrokerError> {
     let offset: u64 = msg_id
         .parse()
         .map_err(|_| NatsBrokerError::CommonError(format!("invalid msg_id: {}", msg_id)))?;
@@ -32,5 +32,8 @@ pub async fn process_delete(
         .await
         .map_err(NatsBrokerError::from)?;
 
-    Ok(Mq9Reply::ok_delete())
+    Ok(MsgDeleteReply {
+        error: String::new(),
+        deleted: true,
+    })
 }

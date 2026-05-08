@@ -22,24 +22,28 @@ mod tests {
     use futures::StreamExt;
     use metadata_struct::mq9::Priority;
     use mq9_core::command::Mq9Command;
-    use mq9_core::protocol::{CreateMailboxReq, Mq9Reply};
+    use mq9_core::protocol::{MailboxCreateReply, MailboxCreateReq, MsgQueryReply, MsgSendReply};
     use tokio::time::sleep;
 
     use crate::nats::common::nats_connect;
 
-    async fn nats_request(client: &Client, subject: String, payload: Bytes) -> Mq9Reply {
+    async fn request<T: serde::de::DeserializeOwned>(
+        client: &Client,
+        subject: String,
+        payload: Bytes,
+    ) -> T {
         let msg = client.request(subject, payload).await.unwrap();
-        serde_json::from_slice::<Mq9Reply>(&msg.payload).unwrap_or_else(|_| {
+        serde_json::from_slice::<T>(&msg.payload).unwrap_or_else(|_| {
             panic!(
-                "failed to parse Mq9Reply, raw: {}",
+                "failed to parse reply, raw: {}",
                 String::from_utf8_lossy(&msg.payload)
             )
         })
     }
 
-    async fn create_mail(client: &Client, req: &CreateMailboxReq) -> Mq9Reply {
+    async fn create_mail(client: &Client, req: &MailboxCreateReq) -> MailboxCreateReply {
         let payload = Bytes::from(serde_json::to_string(req).unwrap());
-        nats_request(client, Mq9Command::MailboxCreate.to_subject(), payload).await
+        request(client, Mq9Command::MailboxCreate.to_subject(), payload).await
     }
 
     #[tokio::test]
@@ -47,14 +51,14 @@ mod tests {
         let client = nats_connect().await;
 
         // ── 1. send to non-existent mail → error ─────────────────────────────
-        let fake_id = format!("nonexistent-{}", unique_id());
-        let subject = Mq9Command::MailboxMsg {
+        let fake_id = format!("nonexistent{}", unique_id());
+        let subject = Mq9Command::MsgSend {
             mail_address: fake_id.clone(),
             priority: Priority::Normal,
         }
         .to_subject();
-        let reply = nats_request(&client, subject, Bytes::from("hello")).await;
-        assert!(reply.is_error(), "expected an error reply");
+        let reply: MsgSendReply = request(&client, subject, Bytes::from("hello")).await;
+        assert!(!reply.error.is_empty(), "expected an error reply");
         assert!(
             reply.error.contains("does not exist"),
             "expected 'does not exist' in error, got: {}",
@@ -62,63 +66,61 @@ mod tests {
         );
 
         // ── 2. create mail → success ──────────────────────────────────────────
-        let req = CreateMailboxReq {
+        let req = MailboxCreateReq {
+            name: Some(format!("test{}", &unique_id().to_lowercase()[..8])),
             ttl: None,
-            public: false,
-            name: None,
-            desc: "mq9_core test mail".to_string(),
+            desc: None,
         };
         let reply = create_mail(&client, &req).await;
-        assert!(!reply.is_error(), "unexpected error: {}", reply.error);
+        assert!(reply.error.is_empty(), "unexpected error: {}", reply.error);
         assert!(
-            !reply.mail_address.as_deref().unwrap_or("").is_empty(),
+            !reply.mail_address.is_empty(),
             "mail_address should not be empty"
         );
-        assert!(reply.is_new.unwrap_or(false), "should be a new mailbox");
-        let mail_address = reply.mail_address.unwrap();
+        let mail_address = reply.mail_address;
 
         sleep(Duration::from_secs(3)).await;
         // ── 3. send 10 messages → all succeed ────────────────────────────────
         let mut sent_payloads = Vec::with_capacity(10);
         for i in 0..10usize {
             let payload_str = format!("message-{}-{}", i, unique_id());
-            let subject = Mq9Command::MailboxMsg {
+            let subject = Mq9Command::MsgSend {
                 mail_address: mail_address.clone(),
                 priority: Priority::Normal,
             }
             .to_subject();
-            let reply = nats_request(&client, subject, Bytes::from(payload_str.clone())).await;
+            let reply: MsgSendReply =
+                request(&client, subject, Bytes::from(payload_str.clone())).await;
             assert!(
-                !reply.is_error(),
+                reply.error.is_empty(),
                 "msg {}: unexpected error: {}",
                 i,
                 reply.error
             );
             assert!(
-                reply.msg_id.unwrap_or(0) > 0 || i == 0,
+                reply.msg_id > 0 || i == 0,
                 "msg_id should be a valid offset"
             );
             sent_payloads.push(payload_str);
         }
 
-        // ── 4. list messages → get back all 10 ───────────────────────────────
-        let list_subject = Mq9Command::MailboxList {
+        // ── 4. query messages → get back all 10 ──────────────────────────────
+        let query_subject = Mq9Command::MsgQuery {
             mail_address: mail_address.clone(),
         }
         .to_subject();
-        let reply = nats_request(&client, list_subject, Bytes::new()).await;
-        assert!(!reply.is_error(), "unexpected error: {}", reply.error);
-        let messages = reply.messages.unwrap();
+        let reply: MsgQueryReply = request(&client, query_subject, Bytes::new()).await;
+        assert!(reply.error.is_empty(), "unexpected error: {}", reply.error);
         assert_eq!(
-            messages.len(),
+            reply.messages.len(),
             10,
             "expected 10 messages, got {}",
-            messages.len()
+            reply.messages.len()
         );
         for sent in &sent_payloads {
             assert!(
-                messages.iter().any(|m| &m.payload == sent),
-                "payload '{}' not found in list reply",
+                reply.messages.iter().any(|m| &m.payload == sent),
+                "payload '{}' not found in query reply",
                 sent
             );
         }
@@ -129,33 +131,33 @@ mod tests {
         let client = nats_connect().await;
 
         // ── 1. create mail ────────────────────────────────────────────────────
-        let req = CreateMailboxReq {
+        let req = MailboxCreateReq {
+            name: Some(format!("test{}", &unique_id().to_lowercase()[..8])),
             ttl: None,
-            public: false,
-            name: None,
-            desc: "send-sub test".to_string(),
+            desc: None,
         };
         let reply = create_mail(&client, &req).await;
-        assert!(!reply.is_error(), "create mail error: {}", reply.error);
-        let mail_address = reply.mail_address.unwrap();
+        assert!(reply.error.is_empty(), "create mail error: {}", reply.error);
+        let mail_address = reply.mail_address;
 
         sleep(Duration::from_secs(3)).await;
         // ── 2. publish 10 messages ────────────────────────────────────────────
         let mut sent_payloads = Vec::with_capacity(10);
         for i in 0..10usize {
             let payload_str = format!("sub-msg-{}-{}", i, unique_id());
-            let subject = Mq9Command::MailboxMsg {
+            let subject = Mq9Command::MsgSend {
                 mail_address: mail_address.clone(),
                 priority: Priority::Normal,
             }
             .to_subject();
-            let reply = nats_request(&client, subject, Bytes::from(payload_str.clone())).await;
-            assert!(!reply.is_error(), "pub {}: {}", i, reply.error);
+            let reply: MsgSendReply =
+                request(&client, subject, Bytes::from(payload_str.clone())).await;
+            assert!(reply.error.is_empty(), "pub {}: {}", i, reply.error);
             sent_payloads.push(payload_str);
         }
 
         // ── 3. subscribe to mail ──────────────────────────────────────────────
-        let sub_subject = Mq9Command::MailboxSub {
+        let sub_subject = Mq9Command::MsgSub {
             mail_address: mail_address.clone(),
         }
         .to_subject();

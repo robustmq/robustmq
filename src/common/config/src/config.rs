@@ -833,7 +833,7 @@ pub struct NatsRuntime {
     pub push_queue_thread_num: usize,
     /// Default TTL in seconds for MQ9 mailboxes when the client does not specify one.
     #[serde(default = "default_nats_mq9_mailbox_ttl")]
-    pub mq9_mailbox_ttl: u64,
+    pub mq9_mailbox_default_ttl: u64,
 }
 
 impl Default for NatsRuntime {
@@ -851,7 +851,7 @@ impl Default for NatsRuntime {
             core_shard_num: default_nats_core_shard_num(),
             push_thread_num: default_nats_push_thread_num(),
             push_queue_thread_num: default_nats_push_queue_thread_num(),
-            mq9_mailbox_ttl: default_nats_mq9_mailbox_ttl(),
+            mq9_mailbox_default_ttl: default_nats_mq9_mailbox_ttl(),
         }
     }
 }

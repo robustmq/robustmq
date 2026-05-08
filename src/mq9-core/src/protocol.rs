@@ -17,19 +17,30 @@ use serde::{Deserialize, Serialize};
 // ── Requests ──────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CreateMailboxReq {
-    pub ttl: Option<u64>,
-    #[serde(default)]
-    pub public: bool,
+pub struct MailboxCreateReq {
     pub name: Option<String>,
-    #[serde(default)]
-    pub desc: String,
+    pub ttl: Option<u64>,
+    pub desc: Option<String>,
 }
 
-// ── Sub-reply items ───────────────────────────────────────────────────────────
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct MsgQueryReq {
+    pub key: Option<String>,
+    pub limit: Option<u64>,
+    pub since: Option<u64>,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ListMailboxMsgItem {
+pub struct MsgSubReq {
+    pub deliver: String,
+    pub since: Option<u64>,
+    pub inbox: String,
+}
+
+// ── Reply item ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MsgItem {
     pub msg_id: u64,
     pub payload: String,
     pub priority: String,
@@ -37,83 +48,72 @@ pub struct ListMailboxMsgItem {
     pub create_time: u64,
 }
 
-// ── Unified flat reply ────────────────────────────────────────────────────────
+// ── Per-command reply types ───────────────────────────────────────────────────
 
-/// Flat JSON response for all mq9 commands.
-///
-/// All fields are `Option`; on success the relevant fields are populated and
-/// `error` is `None`. On failure only `error` is set.
-///
-/// Examples:
-/// - Create ok:  `{"mail_address":"mq9-…","is_new":true}`
-/// - Publish ok: `{"msg_id":8}`
-/// - List ok:    `{"mail_address":"mq9-…","messages":[…]}`
-/// - Delete ok:  `{"deleted":true}`
-/// - Error:      `{"error":"mailbox xxx does not exist"}`
 #[derive(Debug, Serialize, Deserialize, Default)]
-pub struct Mq9Reply {
-    /// Always present. Empty string on success, error message on failure.
+pub struct MailboxCreateReply {
     pub error: String,
-
-    // ── create fields ─────────────────────────────────────────────────────────
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mail_address: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_new: Option<bool>,
-
-    // ── publish fields ────────────────────────────────────────────────────────
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub msg_id: Option<u64>,
-
-    // ── list fields ───────────────────────────────────────────────────────────
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub messages: Option<Vec<ListMailboxMsgItem>>,
-
-    // ── delete fields ─────────────────────────────────────────────────────────
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub deleted: Option<bool>,
+    pub mail_address: String,
 }
 
-impl Mq9Reply {
-    pub fn ok_create(mail_address: String, is_new: bool) -> Self {
-        Mq9Reply {
-            mail_address: Some(mail_address),
-            is_new: Some(is_new),
-            ..Default::default()
-        }
-    }
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct MsgSendReply {
+    pub error: String,
+    pub msg_id: u64,
+}
 
-    pub fn ok_publish(msg_id: u64) -> Self {
-        Mq9Reply {
-            msg_id: Some(msg_id),
-            ..Default::default()
-        }
-    }
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct MsgSubReply {
+    pub error: String,
+}
 
-    pub fn ok_list(mail_address: String, messages: Vec<ListMailboxMsgItem>) -> Self {
-        Mq9Reply {
-            mail_address: Some(mail_address),
-            messages: Some(messages),
-            ..Default::default()
-        }
-    }
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct MsgAckReply {
+    pub error: String,
+}
 
-    pub fn ok_delete() -> Self {
-        Mq9Reply {
-            deleted: Some(true),
-            ..Default::default()
-        }
-    }
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct MsgQueryReply {
+    pub error: String,
+    pub messages: Vec<MsgItem>,
+}
 
-    pub fn err(msg: impl Into<String>) -> Self {
-        Mq9Reply {
-            error: msg.into(),
-            ..Default::default()
-        }
-    }
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct MsgDeleteReply {
+    pub error: String,
+    pub deleted: bool,
+}
 
-    pub fn is_error(&self) -> bool {
-        !self.error.is_empty()
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct AgentRegisterReply {
+    pub error: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct AgentUnregisterReply {
+    pub error: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct AgentReportReply {
+    pub error: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct AgentDiscoverReply {
+    pub error: String,
+    pub agents: Vec<serde_json::Value>,
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+pub fn err_reply(error: impl Into<String>) -> String {
+    #[derive(Serialize)]
+    struct ErrOnly {
+        error: String,
     }
+    serde_json::to_string(&ErrOnly {
+        error: error.into(),
+    })
+    .unwrap_or_default()
 }

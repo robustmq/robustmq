@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::NatsCacheManager;
 use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
@@ -19,21 +20,20 @@ use crate::storage::mail::Mq9MailStorage;
 use crate::storage::message::MessageStorage;
 use bytes::Bytes;
 use common_base::{tools::now_second, uuid::unique_id};
-use common_config::broker::broker_config;
 use metadata_struct::mq9::mail::MQ9Mail;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::tenant::DEFAULT_TENANT;
-use mq9_core::protocol::{CreateMailboxReq, Mq9Reply};
+use mq9_core::protocol::{MailboxCreateReply, MailboxCreateReq};
 use mq9_core::public::{is_system_mailbox, StoragePublicData, MQ9_SYSTEM_PUBLIC_MAIL};
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
 const MQ9_MAIL_SUFFIX: &str = "@mq9";
 
-fn build_mail_address(name: Option<&str>) -> Result<String, NatsBrokerError> {
+fn build_mail_address(name: Option<String>) -> Result<String, NatsBrokerError> {
     match name {
         Some(n) => {
-            validate_mail_name(n)?;
+            validate_mail_name(&n)?;
             Ok(format!("{}{}", n, MQ9_MAIL_SUFFIX))
         }
         None => Ok(format!("{}{}", unique_id(), MQ9_MAIL_SUFFIX)),
@@ -63,22 +63,36 @@ fn validate_mail_name(name: &str) -> Result<(), NatsBrokerError> {
     Ok(())
 }
 
-fn build_mail(payload: &Bytes) -> Result<MQ9Mail, NatsBrokerError> {
-    let params: CreateMailboxReq = serde_json::from_slice(payload).map_err(|e| {
-        NatsBrokerError::CommonError(format!("invalid MAILBOX.CREATE payload: {}", e))
-    })?;
+fn build_mail(
+    cache_manager: &Arc<NatsCacheManager>,
+    payload: &Bytes,
+) -> Result<MQ9Mail, NatsBrokerError> {
+    let create_req: MailboxCreateReq = if payload.is_empty() {
+        MailboxCreateReq {
+            name: None,
+            ttl: None,
+            desc: None,
+        }
+    } else {
+        serde_json::from_slice(payload).map_err(|e| {
+            NatsBrokerError::CommonError(format!("invalid MAILBOX.CREATE payload: {}", e))
+        })?
+    };
 
     let tenant = get_tenant();
-    let mail_address = build_mail_address(params.name.as_deref())?;
+    let mail_address = build_mail_address(create_req.name)?;
 
     Ok(MQ9Mail {
         mail_address,
         tenant,
-        desc: params.desc,
-        public: params.public,
-        ttl: params
-            .ttl
-            .unwrap_or_else(|| broker_config().nats_runtime.mq9_mailbox_ttl),
+        desc: create_req.desc.unwrap_or_default(),
+        ttl: create_req.ttl.unwrap_or_else(|| {
+            cache_manager
+                .node_cache
+                .get_cluster_config()
+                .nats_runtime
+                .mq9_mailbox_default_ttl
+        }),
         create_time: now_second(),
     })
 }
@@ -86,9 +100,20 @@ fn build_mail(payload: &Bytes) -> Result<MQ9Mail, NatsBrokerError> {
 pub async fn process_create(
     ctx: &NatsProcessContext,
     payload: &Bytes,
-) -> Result<Mq9Reply, NatsBrokerError> {
-    let mail = build_mail(payload)?;
+) -> Result<MailboxCreateReply, NatsBrokerError> {
+    let mail = build_mail(&ctx.cache_manager, payload)?;
     let mail_address = mail.mail_address.clone();
+
+    if ctx
+        .cache_manager
+        .get_mail(&mail.tenant, &mail.mail_address)
+        .is_some()
+    {
+        return Err(NatsBrokerError::CommonError(format!(
+            "mailbox {} already exists",
+            mail_address
+        )));
+    }
 
     if is_system_mailbox(&mail_address) {
         return Err(NatsBrokerError::CommonError(format!(
@@ -97,28 +122,14 @@ pub async fn process_create(
         )));
     }
 
-    let is_new = ctx
-        .cache_manager
-        .get_mail(&mail.tenant, &mail.mail_address)
-        .is_none();
-
-    if is_new {
-        Mq9MailStorage::new(ctx.client_pool.clone())
-            .create(&mail)
-            .await?;
-    }
-
-    if mail.public {
-        save_public_data(
-            &ctx.storage_driver_manager,
-            &mail.mail_address,
-            &mail.desc,
-            mail.ttl,
-        )
+    Mq9MailStorage::new(ctx.client_pool.clone())
+        .create(&mail)
         .await?;
-    }
 
-    Ok(Mq9Reply::ok_create(mail_address, is_new))
+    Ok(MailboxCreateReply {
+        error: String::new(),
+        mail_address,
+    })
 }
 
 pub async fn save_public_data(
@@ -159,10 +170,10 @@ mod tests {
     #[test]
     fn test_build_mail_address() {
         assert_eq!(
-            build_mail_address(Some("alice")).unwrap(),
+            build_mail_address(Some("alice".to_string())).unwrap(),
             format!("alice{}", MQ9_MAIL_SUFFIX)
         );
-        assert!(build_mail_address(Some(".abc")).is_err());
+        assert!(build_mail_address(Some(".abc".to_string())).is_err());
         let auto = build_mail_address(None).unwrap();
         assert!(auto.ends_with(MQ9_MAIL_SUFFIX));
     }

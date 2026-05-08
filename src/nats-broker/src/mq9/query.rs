@@ -16,17 +16,26 @@ use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
 use crate::nats::subscribe::subject_message_tag;
+use bytes::Bytes;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
-use mq9_core::protocol::{ListMailboxMsgItem, Mq9Reply};
+use mq9_core::protocol::{MsgItem, MsgQueryReply, MsgQueryReq};
 use std::collections::HashMap;
 
 const BATCH_SIZE: u64 = 500;
-const MAX_LIST_MSGS: usize = 1000;
+const MAX_QUERY_MSGS: usize = 1000;
 
-pub async fn process_list(
+pub async fn process_query(
     ctx: &NatsProcessContext,
     mail_address: &str,
-) -> Result<Mq9Reply, NatsBrokerError> {
+    payload: &Bytes,
+) -> Result<MsgQueryReply, NatsBrokerError> {
+    let req: MsgQueryReq = if payload.is_empty() {
+        MsgQueryReq::default()
+    } else {
+        serde_json::from_slice(payload)
+            .map_err(|e| NatsBrokerError::CommonError(format!("invalid query request: {}", e)))?
+    };
+
     let tenant = get_tenant();
     let tag = subject_message_tag(&tenant, mail_address);
     let read_config = AdapterReadConfig {
@@ -34,12 +43,14 @@ pub async fn process_list(
         max_size: 1024 * 1024 * 30,
     };
 
+    let limit = req.limit.unwrap_or(MAX_QUERY_MSGS as u64) as usize;
+    let limit = limit.min(MAX_QUERY_MSGS);
+
     let mut messages = Vec::new();
-    // Track per-shard offsets to paginate through all records.
     let mut offsets: HashMap<String, u64> = HashMap::new();
 
     loop {
-        if messages.len() >= MAX_LIST_MSGS {
+        if messages.len() >= limit {
             break;
         }
 
@@ -54,15 +65,21 @@ pub async fn process_list(
         }
 
         for record in &records {
-            if messages.len() >= MAX_LIST_MSGS {
+            if messages.len() >= limit {
                 break;
             }
-            // Advance per-shard offset past this record.
+
             let shard = &record.metadata.shard;
             let next = record.metadata.offset + 1;
             let entry = offsets.entry(shard.clone()).or_insert(0);
             if next > *entry {
                 *entry = next;
+            }
+
+            if let Some(since) = req.since {
+                if record.metadata.create_t < since {
+                    continue;
+                }
             }
 
             let (priority, header) = record
@@ -77,7 +94,7 @@ pub async fn process_list(
                 })
                 .unwrap_or_default();
 
-            messages.push(ListMailboxMsgItem {
+            messages.push(MsgItem {
                 msg_id: record.metadata.offset,
                 payload: String::from_utf8_lossy(&record.data).into_owned(),
                 priority,
@@ -87,5 +104,8 @@ pub async fn process_list(
         }
     }
 
-    Ok(Mq9Reply::ok_list(mail_address.to_string(), messages))
+    Ok(MsgQueryReply {
+        error: String::new(),
+        messages,
+    })
 }

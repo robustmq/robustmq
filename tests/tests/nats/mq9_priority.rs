@@ -22,24 +22,28 @@ mod tests {
     use futures::StreamExt;
     use metadata_struct::mq9::Priority;
     use mq9_core::command::Mq9Command;
-    use mq9_core::protocol::{CreateMailboxReq, Mq9Reply};
+    use mq9_core::protocol::{MailboxCreateReply, MailboxCreateReq, MsgSendReply};
     use tokio::time::sleep;
 
     use crate::nats::common::nats_connect;
 
-    async fn nats_request(client: &Client, subject: String, payload: Bytes) -> Mq9Reply {
+    async fn request<T: serde::de::DeserializeOwned>(
+        client: &Client,
+        subject: String,
+        payload: Bytes,
+    ) -> T {
         let msg = client.request(subject, payload).await.unwrap();
-        serde_json::from_slice::<Mq9Reply>(&msg.payload).unwrap_or_else(|_| {
+        serde_json::from_slice::<T>(&msg.payload).unwrap_or_else(|_| {
             panic!(
-                "failed to parse Mq9Reply, raw: {}",
+                "failed to parse reply, raw: {}",
                 String::from_utf8_lossy(&msg.payload)
             )
         })
     }
 
-    async fn create_mail(client: &Client, req: &CreateMailboxReq) -> Mq9Reply {
+    async fn create_mail(client: &Client, req: &MailboxCreateReq) -> MailboxCreateReply {
         let payload = Bytes::from(serde_json::to_string(req).unwrap());
-        nats_request(client, Mq9Command::MailboxCreate.to_subject(), payload).await
+        request(client, Mq9Command::MailboxCreate.to_subject(), payload).await
     }
 
     async fn publish(
@@ -47,13 +51,13 @@ mod tests {
         mail_address: &str,
         priority: Priority,
         payload: &str,
-    ) -> Mq9Reply {
-        let subject = Mq9Command::MailboxMsg {
+    ) -> MsgSendReply {
+        let subject = Mq9Command::MsgSend {
             mail_address: mail_address.to_string(),
             priority,
         }
         .to_subject();
-        nats_request(client, subject, Bytes::from(payload.to_string())).await
+        request(client, subject, Bytes::from(payload.to_string())).await
     }
 
     // Messages sent with mixed priorities must be delivered in
@@ -63,15 +67,14 @@ mod tests {
         let client = nats_connect().await;
 
         // ── 1. create mail ────────────────────────────────────────────────────
-        let req = CreateMailboxReq {
+        let req = MailboxCreateReq {
+            name: Some(format!("test{}", &unique_id().to_lowercase()[..8])),
             ttl: None,
-            public: false,
-            name: None,
-            desc: "priority test mail".to_string(),
+            desc: None,
         };
         let reply = create_mail(&client, &req).await;
-        assert!(!reply.is_error(), "create mail error: {}", reply.error);
-        let mail_address = reply.mail_address.unwrap();
+        assert!(reply.error.is_empty(), "create mail error: {}", reply.error);
+        let mail_address = reply.mail_address;
 
         sleep(Duration::from_secs(3)).await;
 
@@ -96,7 +99,7 @@ mod tests {
             println!("[SEND] {}", tag);
             let reply = publish(&client, &mail_address, priority.clone(), &tag).await;
             assert!(
-                !reply.is_error(),
+                reply.error.is_empty(),
                 "pub '{}' error: {}",
                 payload,
                 reply.error
@@ -104,7 +107,7 @@ mod tests {
         }
 
         // ── 3. subscribe to mail ──────────────────────────────────────────────
-        let sub_subject = Mq9Command::MailboxSub {
+        let sub_subject = Mq9Command::MsgSub {
             mail_address: mail_address.clone(),
         }
         .to_subject();

@@ -27,24 +27,28 @@ mod tests {
     use metadata_struct::mq9::Priority;
     use metadata_struct::mqtt::share_group::ShareGroup;
     use mq9_core::command::Mq9Command;
-    use mq9_core::protocol::{CreateMailboxReq, Mq9Reply};
+    use mq9_core::protocol::{MailboxCreateReply, MailboxCreateReq, MsgSendReply};
     use tokio::time::sleep;
 
     use crate::nats::common::{admin_client, nats_connect, DEFAULT_TENANT};
 
-    async fn nats_request(client: &Client, subject: String, payload: Bytes) -> Mq9Reply {
+    async fn request<T: serde::de::DeserializeOwned>(
+        client: &Client,
+        subject: String,
+        payload: Bytes,
+    ) -> T {
         let msg = client.request(subject, payload).await.unwrap();
-        serde_json::from_slice::<Mq9Reply>(&msg.payload).unwrap_or_else(|_| {
+        serde_json::from_slice::<T>(&msg.payload).unwrap_or_else(|_| {
             panic!(
-                "failed to parse Mq9Reply, raw: {}",
+                "failed to parse reply, raw: {}",
                 String::from_utf8_lossy(&msg.payload)
             )
         })
     }
 
-    async fn create_mail(client: &Client, req: &CreateMailboxReq) -> Mq9Reply {
+    async fn create_mail(client: &Client, req: &MailboxCreateReq) -> MailboxCreateReply {
         let payload = Bytes::from(serde_json::to_string(req).unwrap());
-        nats_request(client, Mq9Command::MailboxCreate.to_subject(), payload).await
+        request(client, Mq9Command::MailboxCreate.to_subject(), payload).await
     }
 
     #[tokio::test]
@@ -53,15 +57,14 @@ mod tests {
         let queue_group = format!("qg-{}", unique_id());
 
         // ── 1. create mailbox ─────────────────────────────────────────────────
-        let req = CreateMailboxReq {
+        let req = MailboxCreateReq {
+            name: Some(format!("test{}", &unique_id().to_lowercase()[..8])),
             ttl: None,
-            public: false,
-            name: None,
-            desc: "mq9_queue test".to_string(),
+            desc: None,
         };
         let reply = create_mail(&client, &req).await;
-        assert!(!reply.is_error(), "create mail error: {}", reply.error);
-        let mail_address = reply.mail_address.unwrap();
+        assert!(reply.error.is_empty(), "create mail error: {}", reply.error);
+        let mail_address = reply.mail_address;
 
         sleep(Duration::from_secs(3)).await;
 
@@ -71,18 +74,19 @@ mod tests {
         let mut sent_payloads = Vec::with_capacity(7);
         for i in 0..7usize {
             let payload_str = format!("msg-{}-{}", i, unique_id());
-            let subject = Mq9Command::MailboxMsg {
+            let subject = Mq9Command::MsgSend {
                 mail_address: mail_address.clone(),
                 priority: Priority::Normal,
             }
             .to_subject();
-            let reply = nats_request(&client, subject, Bytes::from(payload_str.clone())).await;
-            assert!(!reply.is_error(), "pub {}: {}", i, reply.error);
+            let reply: MsgSendReply =
+                request(&client, subject, Bytes::from(payload_str.clone())).await;
+            assert!(reply.error.is_empty(), "pub {}: {}", i, reply.error);
             sent_payloads.push(payload_str);
         }
 
         // ── 3. subscribe three times with the same queue group ────────────────
-        let sub_subject = Mq9Command::MailboxSub {
+        let sub_subject = Mq9Command::MsgSub {
             mail_address: mail_address.clone(),
         }
         .to_subject();
