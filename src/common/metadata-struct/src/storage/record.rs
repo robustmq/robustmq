@@ -151,6 +151,12 @@ impl StorageRecordMetadata {
         self.crc_num = crc_num;
         self
     }
+
+    /// Set expire_at (chainable)
+    pub fn with_expire_at(mut self, expire_at: u64) -> Self {
+        self.expire_at = expire_at;
+        self
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
