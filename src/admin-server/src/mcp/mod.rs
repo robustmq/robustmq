@@ -18,7 +18,7 @@ pub mod protocol;
 
 use crate::state::HttpState;
 use async_nats::Client;
-use axum::{extract::State, routing::post, Json, Router};
+use axum::{extract::State, http::StatusCode, routing::{get, post}, Json, Router};
 use mq9::{
     agent::{DiscoverAgentsArgs, RegisterAgentArgs, UnregisterAgentArgs},
     mailbox::CreateMailboxArgs,
@@ -29,7 +29,26 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 pub fn mcp_route() -> Router<Arc<HttpState>> {
-    Router::new().route("/mcp", post(handle_mcp))
+    Router::new()
+        .route("/mcp", post(handle_mcp))
+        // MCP 2025-03-26: OAuth discovery endpoints — respond with no-auth required
+        .route("/.well-known/oauth-protected-resource", get(oauth_protected_resource))
+        .route("/.well-known/oauth-protected-resource/mcp", get(oauth_protected_resource))
+        .route("/.well-known/oauth-authorization-server", get(|| async { StatusCode::NOT_FOUND }))
+        .route("/.well-known/oauth-authorization-server/mcp", get(|| async { StatusCode::NOT_FOUND }))
+        .route("/.well-known/openid-configuration", get(|| async { StatusCode::NOT_FOUND }))
+        .route("/.well-known/openid-configuration/mcp", get(|| async { StatusCode::NOT_FOUND }))
+        .route("/mcp/.well-known/openid-configuration", get(|| async { StatusCode::NOT_FOUND }))
+}
+
+/// Declare that /mcp requires no OAuth authentication.
+/// MCP clients check this endpoint to determine auth requirements.
+async fn oauth_protected_resource() -> Json<Value> {
+    Json(json!({
+        "resource": "http://localhost:8080/mcp",
+        "bearer_methods_supported": [],
+        "resource_documentation": "https://github.com/robustmq/robustmq"
+    }))
 }
 
 async fn handle_mcp(
