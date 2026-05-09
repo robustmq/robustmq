@@ -14,6 +14,7 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::handler::command::NatsProcessContext;
+use a2a_types::AgentCard;
 use bytes::Bytes;
 use mq9_core::protocol::{
     AgentDiscoverReply, AgentRegisterReply, AgentReportReply, AgentUnregisterReply,
