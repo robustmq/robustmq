@@ -82,7 +82,7 @@ pub fn mq9_tools() -> Vec<Tool> {
                     },
                     "reset_to": {
                         "type": "string",
-                        "description": "Where to start reading. Omit to resume from the last acked position. Use 'earliest' to re-read from the beginning, 'latest' to skip history and receive only new messages, a Unix timestamp (seconds) to start from a specific time, or a msg_id number to start from a specific message."
+                        "description": "Where to start reading. Omit to resume from the last acked position. Supported values: 'earliest' (re-read from the beginning), 'latest' (skip history, only new messages), 'time:<unix_seconds>' (start from a specific timestamp, e.g. 'time:1746000000'), 'id:<msg_id>' (start from a specific message, e.g. 'id:42')."
                     },
                     "max_messages": {
                         "type": "integer",

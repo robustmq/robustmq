@@ -130,6 +130,13 @@ pub async fn fetch_messages(
 }
 
 /// Parse the `reset_to` shorthand into low-level fetch parameters.
+///
+/// Supported values:
+/// - omitted      → resume from last acked position (no force reset)
+/// - "earliest"   → reset to the beginning of the mailbox
+/// - "latest"     → skip history, only receive new messages
+/// - "time:<ts>"  → reset to the given Unix timestamp (seconds)
+/// - "id:<id>"    → reset to the given msg_id
 fn parse_reset_to(
     reset_to: Option<&str>,
 ) -> (DeliverPolicy, Option<u64>, Option<u64>, Option<bool>) {
@@ -138,18 +145,17 @@ fn parse_reset_to(
         Some("earliest") => (DeliverPolicy::Earliest, None, None, Some(true)),
         Some("latest") => (DeliverPolicy::Latest, None, None, Some(true)),
         Some(s) => {
-            // Try parsing as a raw integer: if it looks like a timestamp (> 1e9) → FromTime,
-            // otherwise treat as msg_id → FromId.
-            if let Ok(n) = s.parse::<u64>() {
-                if n > 1_000_000_000 {
-                    (DeliverPolicy::FromTime, Some(n), None, Some(true))
-                } else {
-                    (DeliverPolicy::FromId, None, Some(n), Some(true))
+            if let Some(ts_str) = s.strip_prefix("time:") {
+                if let Ok(ts) = ts_str.parse::<u64>() {
+                    return (DeliverPolicy::FromTime, Some(ts), None, Some(true));
                 }
-            } else {
-                // Unrecognized → default to earliest with force reset
-                (DeliverPolicy::Earliest, None, None, Some(true))
             }
+            if let Some(id_str) = s.strip_prefix("id:") {
+                if let Ok(id) = id_str.parse::<u64>() {
+                    return (DeliverPolicy::FromId, None, Some(id), Some(true));
+                }
+            }
+            (DeliverPolicy::Earliest, None, None, Some(true))
         }
     }
 }

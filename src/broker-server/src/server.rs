@@ -80,7 +80,20 @@ impl BrokerServer {
         let http_port = self.config.http_port;
         self.server_runtime.spawn(async move {
             let nats_url = format!("nats://127.0.0.1:{}", nats_tcp_port);
-            let nats_client = async_nats::connect(&nats_url).await.ok();
+            // NATS server starts slightly after admin-server; retry until it is ready.
+            let nats_client = {
+                let mut client = None;
+                for _ in 0..10 {
+                    match async_nats::connect(&nats_url).await {
+                        Ok(c) => {
+                            client = Some(c);
+                            break;
+                        }
+                        Err(_) => tokio::time::sleep(std::time::Duration::from_millis(500)).await,
+                    }
+                }
+                client
+            };
 
             let state = Arc::new(HttpState {
                 nats_context: nats_client.map(|nats_client| NatsContext {

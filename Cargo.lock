@@ -7706,6 +7706,7 @@ dependencies = [
  "prost 0.14.3",
  "protocol",
  "quinn",
+ "reqwest 0.12.28",
  "rocksdb-engine",
  "rustls 0.23.38",
  "rustls-pemfile 2.2.0",
