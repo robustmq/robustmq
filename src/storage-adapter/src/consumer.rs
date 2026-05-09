@@ -162,6 +162,13 @@ impl GroupConsumer {
             .insert(OffsetKey::new(tenant, topic, shard), offset);
     }
 
+    pub fn set_current_offsets(&self, tenant: &str, topic: &str, shard_offsets: &HashMap<String, u64>) {
+        for (shard, &offset) in shard_offsets {
+            self.current_offsets
+                .insert(OffsetKey::new(tenant, topic, shard), offset);
+        }
+    }
+
     /// Merge pending offsets into current_offsets without persisting to the offset store.
     ///
     /// Moves the in-memory consume position forward to the end of the last read batch,

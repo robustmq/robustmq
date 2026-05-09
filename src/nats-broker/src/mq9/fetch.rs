@@ -44,20 +44,22 @@ pub async fn process_fetch(
         .unwrap_or(DEFAULT_NUM_MSGS);
 
     let consumer =
-        PriorityGroupConsumer::new(ctx.storage_driver_manager.clone(), req.group_name.clone());
+        PriorityGroupConsumer::new_manual(ctx.storage_driver_manager.clone(), req.group_name.clone());
 
     let group_exists = !ctx
         .storage_driver_manager
-        .get_offset_by_group(&tenant, &req.group_name)
+        .get_offset_by_group(&tenant, &format!("{}-normal", req.group_name))
         .await
         .map_err(NatsBrokerError::from)?
         .is_empty();
 
     if req.force_deliver.unwrap_or(false) && group_exists {
-        force_reset_offset(ctx, &tenant, mail_address, &req).await?;
+        let shard_offsets = force_reset_offset(ctx, &tenant, mail_address, &req).await?;
+        consumer.set_current_offsets(&tenant, mail_address, &shard_offsets);
+    } else {
+        let strategy = deliver_to_strategy(&req);
+        consumer.set_start_offset_strategy(strategy).await;
     }
-    let strategy = deliver_to_strategy(&req);
-    consumer.set_start_offset_strategy(strategy).await;
 
     let base_tag = subject_message_tag(&tenant, mail_address);
     let read_config = AdapterReadConfig {
@@ -84,7 +86,7 @@ async fn force_reset_offset(
     tenant: &str,
     mail_address: &str,
     req: &MsgFetchReq,
-) -> Result<(), NatsBrokerError> {
+) -> Result<HashMap<String, u64>, NatsBrokerError> {
     let storage = &ctx.storage_driver_manager;
 
     let shard_offsets: HashMap<String, u64> = match &req.deliver {
@@ -134,14 +136,14 @@ async fn force_reset_offset(
         }
     };
 
-    let consumer = PriorityGroupConsumer::new_manual(
+    let reset_consumer = PriorityGroupConsumer::new_manual(
         ctx.storage_driver_manager.clone(),
         req.group_name.clone(),
     );
-    consumer.stage_offsets(tenant, mail_address, &shard_offsets);
-    consumer.commit().await.map_err(NatsBrokerError::from)?;
+    reset_consumer.stage_offsets(tenant, mail_address, &shard_offsets);
+    reset_consumer.commit().await.map_err(NatsBrokerError::from)?;
 
-    Ok(())
+    Ok(shard_offsets)
 }
 
 fn deliver_to_strategy(req: &MsgFetchReq) -> StartOffsetStrategy {
