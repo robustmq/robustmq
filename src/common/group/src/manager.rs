@@ -52,6 +52,27 @@ impl OffsetManager {
         group: &str,
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
         let start = std::time::Instant::now();
+
+        // Check local cache first — commit_offset writes here synchronously,
+        // so a FETCH immediately after an ACK on the same node sees the new offset
+        // without waiting for the background flush to reach meta-service.
+        let key = self.key(tenant, group);
+        if let Some(cached) = self.offset_info.get(&key) {
+            let results = cached
+                .iter()
+                .map(|(shard_name, &offset)| AdapterConsumerGroupOffset {
+                    group: group.to_string(),
+                    shard_name: shard_name.clone(),
+                    offset,
+                    ..Default::default()
+                })
+                .collect();
+            let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+            record_storage_engine_ops("get_offset_by_group");
+            record_storage_engine_ops_duration("get_offset_by_group", duration_ms);
+            return Ok(results);
+        }
+
         let request = GetOffsetDataRequest {
             tenant: tenant.to_owned(),
             group: group.to_owned(),
@@ -69,6 +90,16 @@ impl OffsetManager {
                 ..Default::default()
             });
         }
+
+        // Populate local cache so subsequent calls on this node avoid the RPC.
+        if !results.is_empty() {
+            let shard_map: HashMap<String, u64> = results
+                .iter()
+                .map(|r| (r.shard_name.clone(), r.offset))
+                .collect();
+            self.offset_info.insert(key, shard_map);
+        }
+
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         record_storage_engine_ops("get_offset_by_group");
         record_storage_engine_ops_duration("get_offset_by_group", duration_ms);

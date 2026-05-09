@@ -61,18 +61,18 @@ pub async fn send_nats_info(
         return;
     }
 
-    // let ping_wrapper = RobustMQPacketWrapper {
-    //     protocol: RobustMQProtocol::NATS,
-    //     extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
-    //     packet: RobustMQPacket::NATS(NatsPacket::Ping),
-    // };
+    let ping_wrapper = RobustMQPacketWrapper {
+        protocol: RobustMQProtocol::NATS,
+        extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
+        packet: RobustMQPacket::NATS(NatsPacket::Ping),
+    };
 
-    // if let Err(e) = connection_manager
-    //     .write_tcp_frame(connection_id, ping_wrapper)
-    //     .await
-    // {
-    //     error!(connection_id, "Failed to send NATS PING: {}", e);
-    // }
+    if let Err(e) = connection_manager
+        .write_tcp_frame(connection_id, ping_wrapper)
+        .await
+    {
+        error!(connection_id, "Failed to send NATS PING: {}", e);
+    }
 }
 
 fn build_nats_info(

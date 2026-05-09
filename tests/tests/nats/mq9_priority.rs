@@ -14,8 +14,6 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use async_nats::Client;
     use bytes::Bytes;
     use common_base::uuid::unique_id;
@@ -25,6 +23,7 @@ mod tests {
         DeliverPolicy, MailboxCreateReply, MailboxCreateReq, MsgFetchConfig, MsgFetchReply,
         MsgFetchReq, MsgSendReply,
     };
+    use std::time::Duration;
     use tokio::time::sleep;
 
     use crate::nats::common::nats_connect;
@@ -95,7 +94,7 @@ mod tests {
 
         // ── 1. create mail ────────────────────────────────────────────────────
         let req = MailboxCreateReq {
-            name: Some(format!("test{}", &unique_id().to_lowercase()[..8])),
+            name: Some(format!("test{}", unique_id().to_lowercase())),
             ttl: None,
             desc: None,
         };
