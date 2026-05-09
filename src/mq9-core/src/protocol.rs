@@ -90,6 +90,7 @@ pub struct MsgItem {
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct MailboxCreateReply {
     pub error: String,
+    #[serde(default)]
     pub mail_address: String,
 }
 
@@ -103,6 +104,7 @@ pub struct MsgSendReply {
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct MsgFetchReply {
     pub error: String,
+    #[serde(default)]
     pub messages: Vec<MsgItem>,
 }
 
@@ -114,6 +116,7 @@ pub struct MsgAckReply {
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct MsgQueryReply {
     pub error: String,
+    #[serde(default)]
     pub messages: Vec<MsgItem>,
 }
 
@@ -142,6 +145,7 @@ pub struct AgentReportReply {
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AgentDiscoverReply {
     pub error: String,
+    #[serde(default)]
     pub agents: Vec<serde_json::Value>,
 }
 

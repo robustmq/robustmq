@@ -19,7 +19,12 @@ pub mod protocol;
 use crate::path::MCP_PATH;
 use crate::state::HttpState;
 use async_nats::Client;
-use axum::{extract::State, http::StatusCode, routing::{get, post}, Json, Router};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    routing::{get, post},
+    Json, Router,
+};
 use mq9::{
     agent::{DiscoverAgentsArgs, RegisterAgentArgs, UnregisterAgentArgs},
     mailbox::CreateMailboxArgs,
