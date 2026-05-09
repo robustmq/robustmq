@@ -20,6 +20,7 @@ use crate::handler::command::NatsProcessContext;
 use crate::nats::subscribe::subject_message_tag;
 use crate::storage::message::MessageStorage;
 use bytes::Bytes;
+use common_base::tools::now_second;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mq9::Priority;
 use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordProtocolDataMq9};
@@ -29,6 +30,8 @@ use storage_adapter::priority::storage_priority_tag;
 
 const HEADER_MSG_KEY: &str = "mq9-key";
 const HEADER_DELAY: &str = "mq9-delay";
+const HEADER_TTL: &str = "mq9-ttl";
+const HEADER_TAGS: &str = "mq9-tags";
 
 /// Parsed mq9-specific headers from a NATS HMSG header block.
 pub struct Mq9Headers {
@@ -36,6 +39,10 @@ pub struct Mq9Headers {
     pub msg_key: Option<String>,
     /// `mq9-delay`: seconds to delay delivery.
     pub delay_secs: Option<u64>,
+    /// `mq9-ttl`: message-level TTL in seconds; expires at send_time + ttl.
+    pub ttl_secs: Option<u64>,
+    /// `mq9-tags`: comma-separated user tags, e.g. `billing,urgent,vip`.
+    pub tags: Vec<String>,
 }
 
 /// Parse the raw NATS header block into `Mq9Headers`.
@@ -44,6 +51,8 @@ pub struct Mq9Headers {
 fn parse_mq9_headers(raw: &Bytes) -> Mq9Headers {
     let mut msg_key = None;
     let mut delay_secs = None;
+    let mut ttl_secs = None;
+    let mut tags = vec![];
 
     let text = match std::str::from_utf8(raw) {
         Ok(s) => s,
@@ -51,6 +60,8 @@ fn parse_mq9_headers(raw: &Bytes) -> Mq9Headers {
             return Mq9Headers {
                 msg_key,
                 delay_secs,
+                ttl_secs: None,
+                tags: vec![],
             }
         }
     };
@@ -65,6 +76,14 @@ fn parse_mq9_headers(raw: &Bytes) -> Mq9Headers {
             match key.trim() {
                 HEADER_MSG_KEY => msg_key = Some(val.trim().to_string()),
                 HEADER_DELAY => delay_secs = val.trim().parse().ok(),
+                HEADER_TTL => ttl_secs = val.trim().parse().ok(),
+                HEADER_TAGS => {
+                    tags = val
+                        .split(',')
+                        .map(|t| t.trim().to_string())
+                        .filter(|t| !t.is_empty())
+                        .collect();
+                }
                 _ => {}
             }
         }
@@ -73,6 +92,8 @@ fn parse_mq9_headers(raw: &Bytes) -> Mq9Headers {
     Mq9Headers {
         msg_key,
         delay_secs,
+        ttl_secs,
+        tags,
     }
 }
 
@@ -112,8 +133,13 @@ pub async fn process_send(
     )
     .await?;
 
+    let mut system_tags = build_message_tag(&tenant, mail_address, priority);
+    if let Some(h) = &mq9_headers {
+        system_tags.extend(h.tags.clone());
+    }
+
     let mut record = AdapterWriteRecord::new(mail_address.to_string(), payload.clone())
-        .with_tags(build_message_tag(&tenant, mail_address, priority))
+        .with_tags(system_tags)
         .with_protocol_data(Some(StorageRecordProtocolData {
             mq9: Some(StorageRecordProtocolDataMq9 {
                 priority: priority.to_string(),
@@ -126,6 +152,9 @@ pub async fn process_send(
     if let Some(h) = &mq9_headers {
         if let Some(key) = &h.msg_key {
             record = record.with_key(key);
+        }
+        if let Some(ttl) = h.ttl_secs {
+            record = record.with_expire_at(now_second() + ttl);
         }
     }
 
@@ -175,10 +204,21 @@ mod tests {
 
     #[test]
     fn test_parse_mq9_headers() {
-        let raw = Bytes::from("NATS/1.0\r\nmq9-key: k1\r\nmq9-delay: 30\r\n\r\n");
+        let raw = Bytes::from(
+            "NATS/1.0\r\nmq9-key: k1\r\nmq9-delay: 30\r\nmq9-ttl: 60\r\nmq9-tags: billing,urgent,vip\r\n\r\n",
+        );
         let h = parse_mq9_headers(&raw);
         assert_eq!(h.msg_key.as_deref(), Some("k1"));
         assert_eq!(h.delay_secs, Some(30));
+        assert_eq!(h.ttl_secs, Some(60));
+        assert_eq!(h.tags, vec!["billing", "urgent", "vip"]);
+    }
+
+    #[test]
+    fn test_parse_mq9_tags_with_spaces() {
+        let raw = Bytes::from("NATS/1.0\r\nmq9-tags: a , b , c\r\n\r\n");
+        let h = parse_mq9_headers(&raw);
+        assert_eq!(h.tags, vec!["a", "b", "c"]);
     }
 
     #[test]

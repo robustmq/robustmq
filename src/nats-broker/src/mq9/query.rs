@@ -15,14 +15,13 @@
 use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
-use crate::nats::subscribe::subject_message_tag;
 use bytes::Bytes;
+use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use mq9_core::protocol::{MsgItem, MsgQueryReply, MsgQueryReq};
 use std::collections::HashMap;
 
-const BATCH_SIZE: u64 = 500;
-const MAX_QUERY_MSGS: usize = 1000;
+const MAX_QUERY_MSGS: usize = 100;
 
 pub async fn process_query(
     ctx: &NatsProcessContext,
@@ -36,76 +35,130 @@ pub async fn process_query(
             .map_err(|e| NatsBrokerError::CommonError(format!("invalid query request: {}", e)))?
     };
 
-    let tenant = get_tenant();
-    let tag = subject_message_tag(&tenant, mail_address);
-    let read_config = AdapterReadConfig {
-        max_record_num: BATCH_SIZE,
-        max_size: 1024 * 1024 * 30,
-    };
-
     let limit = req.limit.unwrap_or(MAX_QUERY_MSGS as u64) as usize;
     let limit = limit.min(MAX_QUERY_MSGS);
 
-    let mut messages = Vec::new();
-    let mut offsets: HashMap<String, u64> = HashMap::new();
-
-    loop {
-        if messages.len() >= limit {
-            break;
-        }
-
-        let records = ctx
-            .storage_driver_manager
-            .read_by_tag(&tenant, mail_address, &tag, &offsets, &read_config)
-            .await
-            .map_err(NatsBrokerError::from)?;
-
-        if records.is_empty() {
-            break;
-        }
-
-        for record in &records {
-            if messages.len() >= limit {
-                break;
-            }
-
-            let shard = &record.metadata.shard;
-            let next = record.metadata.offset + 1;
-            let entry = offsets.entry(shard.clone()).or_insert(0);
-            if next > *entry {
-                *entry = next;
-            }
-
-            if let Some(since) = req.since {
-                if record.metadata.create_t < since {
-                    continue;
-                }
-            }
-
-            let (priority, header) = record
-                .protocol_data
-                .as_ref()
-                .and_then(|pd| pd.mq9.as_ref())
-                .map(|mq9| {
-                    (
-                        mq9.priority.clone(),
-                        mq9.header.as_ref().map(|h| h.to_vec()),
-                    )
-                })
-                .unwrap_or_default();
-
-            messages.push(MsgItem {
-                msg_id: record.metadata.offset,
-                payload: String::from_utf8_lossy(&record.data).into_owned(),
-                priority,
-                header,
-                create_time: record.metadata.create_t,
-            });
-        }
-    }
+    let messages = if let Some(key) = &req.key {
+        query_by_key(ctx, mail_address, key, limit).await?
+    } else if let Some(tags) = &req.tags {
+        query_by_tags(ctx, mail_address, tags, limit).await?
+    } else {
+        query_by_since(ctx, mail_address, req.since, limit).await?
+    };
 
     Ok(MsgQueryReply {
         error: String::new(),
         messages,
     })
+}
+
+async fn query_by_key(
+    ctx: &NatsProcessContext,
+    mail_address: &str,
+    key: &str,
+    limit: usize,
+) -> Result<Vec<MsgItem>, NatsBrokerError> {
+    let tenant = get_tenant();
+    let key_refs: Vec<&str> = vec![key];
+    let result = ctx
+        .storage_driver_manager
+        .read_by_keys(&tenant, mail_address, &key_refs)
+        .await
+        .map_err(NatsBrokerError::from)?;
+
+    let records = result.into_values().flatten();
+    let messages = records.take(limit).map(to_msg_item).collect();
+
+    Ok(messages)
+}
+
+async fn query_by_tags(
+    ctx: &NatsProcessContext,
+    mail_address: &str,
+    tags: &[String],
+    limit: usize,
+) -> Result<Vec<MsgItem>, NatsBrokerError> {
+    if tags.is_empty() {
+        return query_by_since(ctx, mail_address, None, limit).await;
+    }
+
+    let tenant = get_tenant();
+    let read_config = AdapterReadConfig {
+        max_record_num: limit as u64,
+        max_size: 1024 * 1024 * 30,
+    };
+
+    let mut seen_ids: std::collections::HashSet<u64> = std::collections::HashSet::new();
+    let mut messages = Vec::new();
+
+    for tag in tags {
+        let records = ctx
+            .storage_driver_manager
+            .read_by_tag(&tenant, mail_address, tag, &HashMap::new(), &read_config)
+            .await
+            .map_err(NatsBrokerError::from)?;
+
+        for record in records {
+            if seen_ids.insert(record.metadata.offset) {
+                messages.push(to_msg_item(record));
+            }
+        }
+    }
+
+    Ok(messages)
+}
+
+async fn query_by_since(
+    ctx: &NatsProcessContext,
+    mail_address: &str,
+    since: Option<u64>,
+    limit: usize,
+) -> Result<Vec<MsgItem>, NatsBrokerError> {
+    let tenant = get_tenant();
+    let read_config = AdapterReadConfig {
+        max_record_num: limit as u64,
+        max_size: 1024 * 1024 * 30,
+    };
+
+    let start_offset = if let Some(ts) = since {
+        ctx.storage_driver_manager
+            .get_offset_by_timestamp(&tenant, mail_address, ts, AdapterOffsetStrategy::Earliest)
+            .await
+            .map_err(NatsBrokerError::from)?
+    } else {
+        0
+    };
+
+    let mut offsets: HashMap<String, u64> = HashMap::new();
+    offsets.insert(mail_address.to_string(), start_offset);
+
+    let records = ctx
+        .storage_driver_manager
+        .read_by_offset(&tenant, mail_address, &offsets, &read_config)
+        .await
+        .map_err(NatsBrokerError::from)?;
+
+    Ok(records.into_iter().map(to_msg_item).collect())
+}
+
+fn to_msg_item(record: metadata_struct::storage::record::StorageRecord) -> MsgItem {
+    let (priority, header) = record
+        .protocol_data
+        .as_ref()
+        .and_then(|pd| pd.mq9.as_ref())
+        .map(|mq9| {
+            (
+                mq9.priority.clone(),
+                mq9.header.as_ref().map(|h| h.to_vec()),
+            )
+        })
+        .unwrap_or_default();
+
+    MsgItem {
+        msg_id: record.metadata.offset,
+        payload: String::from_utf8_lossy(&record.data).into_owned(),
+        priority,
+        header,
+        create_time: record.metadata.create_t,
+    }
 }

@@ -26,8 +26,9 @@ pub struct MailboxCreateReq {
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct MsgQueryReq {
     pub key: Option<String>,
-    pub limit: Option<u64>,
+    pub tags: Option<Vec<String>>,
     pub since: Option<u64>,
+    pub limit: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
