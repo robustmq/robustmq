@@ -31,7 +31,6 @@ const DEFAULT_NUM_MSGS: u32 = 100;
 pub async fn process_fetch(
     ctx: &NatsProcessContext,
     mail_address: &str,
-    _reply_to: Option<&str>,
     payload: &Bytes,
 ) -> Result<MsgFetchReply, NatsBrokerError> {
     let req: MsgFetchReq =
@@ -47,8 +46,6 @@ pub async fn process_fetch(
     let consumer =
         PriorityGroupConsumer::new(ctx.storage_driver_manager.clone(), req.group_name.clone());
 
-    // force_deliver only makes sense when the group already has a committed offset.
-    // If no prior offset exists, deliver strategy is applied as the initial offset directly.
     let group_exists = !ctx
         .storage_driver_manager
         .get_offset_by_group(&tenant, &req.group_name)
@@ -58,10 +55,9 @@ pub async fn process_fetch(
 
     if req.force_deliver.unwrap_or(false) && group_exists {
         force_reset_offset(ctx, &tenant, mail_address, &req).await?;
-    } else {
-        let strategy = deliver_to_strategy(&req);
-        consumer.set_start_offset_strategy(strategy).await;
     }
+    let strategy = deliver_to_strategy(&req);
+    consumer.set_start_offset_strategy(strategy).await;
 
     let base_tag = subject_message_tag(&tenant, mail_address);
     let read_config = AdapterReadConfig {

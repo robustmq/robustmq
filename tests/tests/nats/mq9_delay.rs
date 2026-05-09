@@ -137,7 +137,10 @@ mod tests {
             send_reply.error
         );
         // delay messages return msg_id=-1 (not yet written to storage)
-        assert_eq!(send_reply.msg_id, -1, "expected msg_id=-1 for delay message");
+        assert_eq!(
+            send_reply.msg_id, -1,
+            "expected msg_id=-1 for delay message"
+        );
 
         // ── 3. query immediately → message not visible yet ────────────────────
         let query_before = query_all(&client, &mail_address).await;

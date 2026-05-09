@@ -12,29 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use bytes::Bytes;
 use common_base::tools::now_second;
 use delay_message::manager::{
     DelayMessageManager, DELAY_MESSAGE_FLAG, DELAY_MESSAGE_RECV_MS, DELAY_MESSAGE_TARGET_MS,
 };
 use metadata_struct::storage::adapter_record::{AdapterWriteRecord, RecordHeader};
+use std::sync::Arc;
 
 use crate::core::error::NatsBrokerError;
 
-/// Saves a delay message with metadata in UserProperties.
+/// Saves a delay message, merging delay metadata into the record's headers.
 pub async fn save_delay_message(
     delay_message_manager: &Arc<DelayMessageManager>,
     tenant: &str,
     subject: &str,
-    payload: &Bytes,
+    record: &AdapterWriteRecord,
     delay_secs: u64,
 ) -> Result<Option<String>, NatsBrokerError> {
     let recv_time = now_second();
-    let trigger_time = now_second() + delay_secs;
+    let trigger_time = recv_time + delay_secs;
 
-    let headers = vec![
+    let mut merged_headers: Vec<RecordHeader> = record.header().to_vec();
+    merged_headers.extend([
         RecordHeader {
             name: DELAY_MESSAGE_FLAG.to_string(),
             value: "true".to_string(),
@@ -47,9 +46,9 @@ pub async fn save_delay_message(
             name: DELAY_MESSAGE_TARGET_MS.to_string(),
             value: trigger_time.to_string(),
         },
-    ];
+    ]);
 
-    let record = AdapterWriteRecord::new(subject.to_string(), payload.clone()).with_header(headers);
+    let record = record.clone().with_header(merged_headers);
 
     delay_message_manager
         .send(tenant, subject, trigger_time, record)

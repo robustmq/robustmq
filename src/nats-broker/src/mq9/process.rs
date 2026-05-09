@@ -58,7 +58,7 @@ pub async fn mq9_command(
             Err(e) => err_reply(e.to_string()),
         },
         Mq9Command::MsgFetch { mail_address } => {
-            match process_fetch(ctx, &mail_address, reply_to, payload).await {
+            match process_fetch(ctx, &mail_address, payload).await {
                 Ok(r) => serde_json::to_string(&r).unwrap_or_default(),
                 Err(e) => err_reply(e.to_string()),
             }

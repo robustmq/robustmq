@@ -163,7 +163,7 @@ pub async fn process_send(
                 &ctx.delay_message_manager,
                 &tenant,
                 mail_address,
-                payload,
+                &record,
                 delay_secs,
             )
             .await?;
