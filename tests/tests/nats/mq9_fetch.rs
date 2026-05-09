@@ -69,24 +69,7 @@ mod tests {
         reply
     }
 
-    async fn fetch_with(
-        client: &Client,
-        mail_address: &str,
-        group_name: &str,
-        deliver: DeliverPolicy,
-        from_time: Option<u64>,
-        from_id: Option<u64>,
-        force_deliver: Option<bool>,
-        num_msgs: Option<u32>,
-    ) -> MsgFetchReply {
-        let req = MsgFetchReq {
-            group_name: group_name.to_string(),
-            deliver,
-            from_time,
-            from_id,
-            force_deliver,
-            config: num_msgs.map(|n| MsgFetchConfig { num_msgs: Some(n) }),
-        };
+    async fn fetch_with(client: &Client, mail_address: &str, req: MsgFetchReq) -> MsgFetchReply {
         let payload = Bytes::from(serde_json::to_string(&req).unwrap());
         let subject = Mq9Command::MsgFetch {
             mail_address: mail_address.to_string(),
@@ -106,12 +89,14 @@ mod tests {
         fetch_with(
             client,
             mail_address,
-            group_name,
-            DeliverPolicy::Earliest,
-            None,
-            None,
-            None,
-            num_msgs,
+            MsgFetchReq {
+                group_name: group_name.to_string(),
+                deliver: DeliverPolicy::Earliest,
+                from_time: None,
+                from_id: None,
+                force_deliver: None,
+                config: num_msgs.map(|n| MsgFetchConfig { num_msgs: Some(n) }),
+            },
         )
         .await
     }
@@ -182,12 +167,14 @@ mod tests {
         let reply = fetch_with(
             &client,
             &mail_address,
-            &group,
-            DeliverPolicy::Latest,
-            None,
-            None,
-            None,
-            None,
+            MsgFetchReq {
+                group_name: group.clone(),
+                deliver: DeliverPolicy::Latest,
+                from_time: None,
+                from_id: None,
+                force_deliver: None,
+                config: None,
+            },
         )
         .await;
         assert_eq!(
@@ -220,12 +207,14 @@ mod tests {
         let reply = fetch_with(
             &client,
             &mail_address,
-            &group,
-            DeliverPolicy::FromTime,
-            Some(mid_ts),
-            None,
-            None,
-            None,
+            MsgFetchReq {
+                group_name: group.clone(),
+                deliver: DeliverPolicy::FromTime,
+                from_time: Some(mid_ts),
+                from_id: None,
+                force_deliver: None,
+                config: None,
+            },
         )
         .await;
         assert_eq!(
@@ -259,12 +248,14 @@ mod tests {
         let reply = fetch_with(
             &client,
             &mail_address,
-            &group,
-            DeliverPolicy::FromId,
-            None,
-            Some(from_id),
-            None,
-            None,
+            MsgFetchReq {
+                group_name: group.clone(),
+                deliver: DeliverPolicy::FromId,
+                from_time: None,
+                from_id: Some(from_id),
+                force_deliver: None,
+                config: None,
+            },
         )
         .await;
         assert_eq!(
@@ -419,12 +410,14 @@ mod tests {
         let forced = fetch_with(
             &client,
             &mail_address,
-            &group,
-            DeliverPolicy::Earliest,
-            None,
-            None,
-            Some(true),
-            None,
+            MsgFetchReq {
+                group_name: group.clone(),
+                deliver: DeliverPolicy::Earliest,
+                from_time: None,
+                from_id: None,
+                force_deliver: Some(true),
+                config: None,
+            },
         )
         .await;
         assert_eq!(

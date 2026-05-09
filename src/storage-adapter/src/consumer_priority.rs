@@ -177,10 +177,18 @@ impl PriorityGroupConsumer {
         }
     }
 
-    pub fn set_current_offsets(&self, tenant: &str, topic: &str, shard_offsets: &HashMap<String, u64>) {
-        self.critical_consumer.set_current_offsets(tenant, topic, shard_offsets);
-        self.urgent_consumer.set_current_offsets(tenant, topic, shard_offsets);
-        self.normal_consumer.set_current_offsets(tenant, topic, shard_offsets);
+    pub fn set_current_offsets(
+        &self,
+        tenant: &str,
+        topic: &str,
+        shard_offsets: &HashMap<String, u64>,
+    ) {
+        self.critical_consumer
+            .set_current_offsets(tenant, topic, shard_offsets);
+        self.urgent_consumer
+            .set_current_offsets(tenant, topic, shard_offsets);
+        self.normal_consumer
+            .set_current_offsets(tenant, topic, shard_offsets);
     }
 
     pub async fn commit(&self) -> Result<(), CommonError> {

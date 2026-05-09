@@ -43,8 +43,10 @@ pub async fn process_fetch(
         .and_then(|c| c.num_msgs)
         .unwrap_or(DEFAULT_NUM_MSGS);
 
-    let consumer =
-        PriorityGroupConsumer::new_manual(ctx.storage_driver_manager.clone(), req.group_name.clone());
+    let consumer = PriorityGroupConsumer::new_manual(
+        ctx.storage_driver_manager.clone(),
+        req.group_name.clone(),
+    );
 
     let group_exists = !ctx
         .storage_driver_manager
@@ -141,7 +143,10 @@ async fn force_reset_offset(
         req.group_name.clone(),
     );
     reset_consumer.stage_offsets(tenant, mail_address, &shard_offsets);
-    reset_consumer.commit().await.map_err(NatsBrokerError::from)?;
+    reset_consumer
+        .commit()
+        .await
+        .map_err(NatsBrokerError::from)?;
 
     Ok(shard_offsets)
 }
