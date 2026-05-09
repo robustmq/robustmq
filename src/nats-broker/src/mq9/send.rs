@@ -25,7 +25,6 @@ use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mq9::Priority;
 use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordProtocolDataMq9};
 use mq9_core::protocol::MsgSendReply;
-use mq9_core::public::is_system_mailbox;
 use storage_adapter::priority::storage_priority_tag;
 
 const HEADER_MSG_KEY: &str = "mq9-key";
@@ -105,13 +104,6 @@ pub async fn process_send(
     payload: &Bytes,
 ) -> Result<MsgSendReply, NatsBrokerError> {
     let tenant = get_tenant();
-
-    if is_system_mailbox(mail_address) {
-        return Err(NatsBrokerError::CommonError(format!(
-            "mailbox '{}' is reserved and cannot receive messages from clients",
-            mail_address
-        )));
-    }
 
     if ctx.cache_manager.get_mail(&tenant, mail_address).is_none() {
         return Err(NatsBrokerError::CommonError(format!(

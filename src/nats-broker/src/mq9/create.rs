@@ -17,16 +17,11 @@ use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
 use crate::storage::mail::Mq9MailStorage;
-use crate::storage::message::MessageStorage;
 use bytes::Bytes;
 use common_base::{tools::now_second, uuid::unique_id};
 use metadata_struct::mq9::mail::MQ9Mail;
-use metadata_struct::storage::adapter_record::AdapterWriteRecord;
-use metadata_struct::tenant::DEFAULT_TENANT;
 use mq9_core::protocol::{MailboxCreateReply, MailboxCreateReq};
-use mq9_core::public::{is_system_mailbox, StoragePublicData, MQ9_SYSTEM_PUBLIC_MAIL};
 use std::sync::Arc;
-use storage_adapter::driver::StorageDriverManager;
 
 fn build_mail_address(name: Option<String>) -> Result<String, NatsBrokerError> {
     match name {
@@ -113,13 +108,6 @@ pub async fn process_create(
         )));
     }
 
-    if is_system_mailbox(&mail_address) {
-        return Err(NatsBrokerError::CommonError(format!(
-            "mailbox '{}' is reserved and cannot be created by clients",
-            mail_address
-        )));
-    }
-
     Mq9MailStorage::new(ctx.client_pool.clone())
         .create(&mail)
         .await?;
@@ -128,27 +116,6 @@ pub async fn process_create(
         error: String::new(),
         mail_address,
     })
-}
-
-pub async fn save_public_data(
-    storage_driver_manager: &Arc<StorageDriverManager>,
-    mail_address: &str,
-    desc: &str,
-    ttl: u64,
-) -> Result<(), NatsBrokerError> {
-    let data = StoragePublicData {
-        mail_address: mail_address.to_string(),
-        ttl,
-        desc: desc.to_string(),
-        create_at: now_second(),
-    };
-    let payload = serde_json::to_string(&data)?;
-    let record = AdapterWriteRecord::new(MQ9_SYSTEM_PUBLIC_MAIL.to_string(), payload.clone())
-        .with_key(mail_address);
-    let _offsets = MessageStorage::new(storage_driver_manager.clone())
-        .write(DEFAULT_TENANT, MQ9_SYSTEM_PUBLIC_MAIL, vec![record])
-        .await?;
-    Ok(())
 }
 
 #[cfg(test)]

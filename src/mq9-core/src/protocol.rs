@@ -23,6 +23,12 @@ pub struct AgentRegisterReq {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct AgentReportReq {
+    pub name: String,
+    pub report_info: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MailboxCreateReq {
     pub name: Option<String>,
     pub ttl: Option<u64>,
