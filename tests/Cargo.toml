@@ -55,3 +55,4 @@ node-call.workspace = true
 prost.workspace = true
 mq9-core.workspace = true
 async-nats.workspace = true
+a2a-types.workspace = true

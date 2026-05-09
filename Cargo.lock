@@ -7682,6 +7682,7 @@ dependencies = [
 name = "robustmq-test"
 version = "0.4.0"
 dependencies = [
+ "a2a-types",
  "admin-server",
  "apache-avro",
  "async-nats",
