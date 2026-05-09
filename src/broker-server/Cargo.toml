@@ -59,3 +59,4 @@ delay-task.workspace = true
 node-call.workspace = true
 connector.workspace = true
 common-healthy.workspace = true
+async-nats.workspace = true

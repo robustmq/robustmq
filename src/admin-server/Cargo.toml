@@ -50,6 +50,7 @@ connector.workspace = true
 common-healthy.workspace = true
 nats-broker.workspace = true
 mq9-core.workspace = true
+async-nats.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

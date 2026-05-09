@@ -49,7 +49,11 @@ impl BrokerServer {
 
     pub fn start_admin_server(&self) {
         let broker_cache = self.broker_cache.clone();
-        let state = Arc::new(HttpState {
+        let nats_cache_manager = self.nats_params.cache_manager.clone();
+        let nats_subscribe_manager = self.nats_params.subscribe_manager.clone();
+        let nats_tcp_port = self.config.nats_runtime.tcp_port;
+
+        let partial_state = HttpState {
             client_pool: self.client_pool.clone(),
             connection_manager: self.mqtt_params.connection_manager.clone(),
             mqtt_context: MQTTContext {
@@ -70,13 +74,22 @@ impl BrokerServer {
             broker_cache,
             storage_driver_manager: self.mqtt_params.storage_driver_manager.clone(),
             rate_limiter: self.global_rate_limiter.clone(),
-            nats_context: Some(NatsContext {
-                cache_manager: self.nats_params.cache_manager.clone(),
-                subscribe_manager: self.nats_params.subscribe_manager.clone(),
-            }),
-        });
+            nats_context: None,
+        };
+
         let http_port = self.config.http_port;
         self.server_runtime.spawn(async move {
+            let nats_url = format!("nats://127.0.0.1:{}", nats_tcp_port);
+            let nats_client = async_nats::connect(&nats_url).await.ok();
+
+            let state = Arc::new(HttpState {
+                nats_context: nats_client.map(|nats_client| NatsContext {
+                    cache_manager: nats_cache_manager,
+                    subscribe_manager: nats_subscribe_manager,
+                    nats_client,
+                }),
+                ..partial_state
+            });
             AdminServer::new().start(http_port, state).await;
         });
     }

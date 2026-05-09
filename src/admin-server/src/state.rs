@@ -51,6 +51,9 @@ pub struct HttpState {
 pub struct NatsContext {
     pub cache_manager: Arc<NatsCacheManager>,
     pub subscribe_manager: Arc<NatsSubscribeManager>,
+    /// NATS client connected to the local broker. Used by the MCP server to
+    /// forward mq9 protocol requests without re-implementing broker logic.
+    pub nats_client: async_nats::Client,
 }
 
 #[derive(Clone)]

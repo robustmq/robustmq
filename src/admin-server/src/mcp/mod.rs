@@ -12,25 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! MCP (Model Context Protocol) server for RobustMQ Admin.
-//!
-//! Exposes a single `POST /mcp` endpoint that speaks JSON-RPC 2.0.
-//! AI agents (Dify, Claude, etc.) discover available tools via `tools/list`
-//! and invoke them via `tools/call`.
-//!
-//! Protocol subdirectories:
-//! - `mq9/`   — mq9 mailbox operations
-//! - `mqtt/`  — (future) MQTT operations
-//! - `kafka/` — (future) Kafka-compatible operations
-
+pub mod error;
 pub mod mq9;
 pub mod protocol;
 
 use crate::state::HttpState;
+use async_nats::Client;
 use axum::{extract::State, routing::post, Json, Router};
 use mq9::{
+    agent::{DiscoverAgentsArgs, RegisterAgentArgs, UnregisterAgentArgs},
     mailbox::CreateMailboxArgs,
-    message::{DeleteMessageArgs, ListMessagesArgs, SendMessageArgs},
+    message::{AckMessageArgs, FetchMessagesArgs, QueryMailboxArgs, SendMessageArgs},
 };
 use protocol::{McpRequest, McpResponse, ToolsListResult};
 use serde_json::{json, Value};
@@ -58,21 +50,20 @@ async fn dispatch(
     match req.method.as_str() {
         "ping" => Ok(McpResponse::ok(id, json!({}))),
 
-        "initialize" => {
-            let result = json!({
+        "initialize" => Ok(McpResponse::ok(
+            id,
+            json!({
                 "protocolVersion": "2024-11-05",
                 "capabilities": { "tools": {} },
                 "serverInfo": {
-                    "name": "robustmq-admin-mcp",
+                    "name": "robustmq-mq9-mcp",
                     "version": env!("CARGO_PKG_VERSION")
                 }
-            });
-            Ok(McpResponse::ok(id, result))
-        }
+            }),
+        )),
 
         "tools/list" => {
             let tools = mq9::mq9_tools();
-            // Future: append mqtt_tools(), kafka_tools(), …
             let result = serde_json::to_value(ToolsListResult { tools })?;
             Ok(McpResponse::ok(id, result))
         }
@@ -88,7 +79,13 @@ async fn dispatch(
                 .cloned()
                 .unwrap_or(Value::Object(Default::default()));
 
-            dispatch_tool_call(&state, id, tool_name, args).await
+            let nats_client = state
+                .nats_context
+                .as_ref()
+                .map(|ctx| &ctx.nats_client)
+                .ok_or("mq9 tools require nats-broker to be running")?;
+
+            dispatch_tool_call(nats_client, id, tool_name, args).await
         }
 
         _ => Ok(McpResponse::err(id, -32601, "Method not found")),
@@ -96,34 +93,43 @@ async fn dispatch(
 }
 
 async fn dispatch_tool_call(
-    state: &Arc<HttpState>,
+    client: &Client,
     id: Option<Value>,
     tool_name: &str,
     args: Value,
 ) -> Result<McpResponse, Box<dyn std::error::Error + Send + Sync>> {
-    // All mq9 tools require the nats context.
-    let nats_ctx = state
-        .nats_context
-        .as_ref()
-        .ok_or("mq9 operations require nats-broker to be running")?;
-    let driver = state.storage_driver_manager.as_ref();
-
     let result = match tool_name {
         "mq9_create_mailbox" => {
             let a: CreateMailboxArgs = serde_json::from_value(args)?;
-            mq9::mailbox::create_mailbox(nats_ctx, a).await?
-        }
-        "mq9_list_messages" => {
-            let a: ListMessagesArgs = serde_json::from_value(args)?;
-            mq9::message::list_messages(nats_ctx, driver, a).await?
-        }
-        "mq9_delete_message" => {
-            let a: DeleteMessageArgs = serde_json::from_value(args)?;
-            mq9::message::delete_message(nats_ctx, driver, a).await?
+            mq9::mailbox::create_mailbox(client, a).await?
         }
         "mq9_send_message" => {
             let a: SendMessageArgs = serde_json::from_value(args)?;
-            mq9::message::send_message(nats_ctx, driver, a).await?
+            mq9::message::send_message(client, a).await?
+        }
+        "mq9_fetch_messages" => {
+            let a: FetchMessagesArgs = serde_json::from_value(args)?;
+            mq9::message::fetch_messages(client, a).await?
+        }
+        "mq9_ack_message" => {
+            let a: AckMessageArgs = serde_json::from_value(args)?;
+            mq9::message::ack_message(client, a).await?
+        }
+        "mq9_query_mailbox" => {
+            let a: QueryMailboxArgs = serde_json::from_value(args)?;
+            mq9::message::query_mailbox(client, a).await?
+        }
+        "mq9_register_agent" => {
+            let a: RegisterAgentArgs = serde_json::from_value(args)?;
+            mq9::agent::register_agent(client, a).await?
+        }
+        "mq9_discover_agents" => {
+            let a: DiscoverAgentsArgs = serde_json::from_value(args)?;
+            mq9::agent::discover_agents(client, a).await?
+        }
+        "mq9_unregister_agent" => {
+            let a: UnregisterAgentArgs = serde_json::from_value(args)?;
+            mq9::agent::unregister_agent(client, a).await?
         }
         _ => {
             return Ok(McpResponse::err(
