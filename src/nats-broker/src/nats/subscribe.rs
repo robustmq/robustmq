@@ -53,9 +53,8 @@ pub async fn process_sub(
     }
 
     if Mq9Command::is_mq9_subject(subject) {
-        // Extract mail_address: subject is `$mq9.AI.MAILBOX.MSG.{mail_address}`
         let mail_address = subject
-            .strip_prefix("$mq9.AI.MAILBOX.MSG.")
+            .strip_prefix(Mq9Command::msg_sub_prefix())
             .unwrap_or(subject);
         return mq9_subscribe::process_sub(ctx, mail_address, sid, queue_group)
             .await

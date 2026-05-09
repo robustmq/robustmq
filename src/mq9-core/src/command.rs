@@ -81,6 +81,12 @@ impl Mq9Command {
         subject.starts_with(PREFIX)
     }
 
+    /// Returns the fixed subject prefix for `MsgSub`, i.e. `"$mq9.AI.MSG.SUB."`.
+    /// Use this to strip the prefix and extract the mail_address from a SUB subject.
+    pub fn msg_sub_prefix() -> &'static str {
+        concat!("$mq9.AI", ".MSG.SUB.")
+    }
+
     pub fn to_subject(&self) -> String {
         match self {
             Mq9Command::MailboxCreate => format!("{}.MAILBOX.CREATE", PREFIX),
