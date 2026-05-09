@@ -211,17 +211,18 @@ pub async fn send_mq9_packet(
         return Err(NatsBrokerError::ConnectionNotFound(connect_id));
     }
 
-    let headers = record
+    let (headers, reply_to) = record
         .protocol_data
         .as_ref()
         .and_then(|pd| pd.mq9.as_ref())
-        .and_then(|mq9| mq9.header.clone());
+        .map(|mq9| (mq9.header.clone(), mq9.reply_to.clone()))
+        .unwrap_or_default();
 
     let packet = if let Some(headers) = headers {
         NatsPacket::HMsg {
             subject: subscriber.sub_subject.clone(),
             sid: subscriber.sid.clone(),
-            reply_to: None,
+            reply_to,
             headers,
             payload: Bytes::copy_from_slice(&record.data),
         }
@@ -229,7 +230,7 @@ pub async fn send_mq9_packet(
         NatsPacket::Msg {
             subject: subscriber.sub_subject.clone(),
             sid: subscriber.sid.clone(),
-            reply_to: None,
+            reply_to,
             payload: Bytes::copy_from_slice(&record.data),
         }
     };

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::error::{NatsBrokerError, NatsProtocolError};
-use crate::core::subject::try_get_or_init_subject;
+use crate::core::subject::{is_inbox_subject, try_get_or_init_subject};
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
 use crate::mq9::process::mq9_command;
@@ -45,6 +45,11 @@ pub async fn process_pub(
                 NatsProtocolError::AuthorizationViolation.message(),
             ));
         }
+    }
+
+    if is_inbox_subject(subject) {
+        // todo send to client
+        //return;
     }
 
     if Mq9Command::is_mq9_subject(subject) {

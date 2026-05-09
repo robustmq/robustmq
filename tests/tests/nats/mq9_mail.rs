@@ -44,7 +44,7 @@ mod tests {
 
         // ── create private mail (ttl=30) ──────────────────────────────────────
         let req = MailboxCreateReq {
-            name: Some(format!("{}", &unique_id().to_lowercase())),
+            name: Some(unique_id().to_lowercase().to_string()),
             ttl: Some(TTL),
             desc: None,
         };

@@ -206,4 +206,5 @@ pub struct StorageRecordProtocolDataNats {
 pub struct StorageRecordProtocolDataMq9 {
     pub priority: String,
     pub header: Option<Bytes>,
+    pub reply_to: Option<String>,
 }

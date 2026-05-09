@@ -101,6 +101,7 @@ pub async fn process_send(
     mail_address: &str,
     priority: &Priority,
     headers: &Option<Bytes>,
+    reply_to: Option<&str>,
     payload: &Bytes,
 ) -> Result<MsgSendReply, NatsBrokerError> {
     let tenant = get_tenant();
@@ -140,6 +141,7 @@ pub async fn process_send(
             mq9: Some(StorageRecordProtocolDataMq9 {
                 priority: priority.to_string(),
                 header: headers.clone(),
+                reply_to: reply_to.map(|rp| rp.to_string()),
             }),
             nats: None,
             mqtt: None,

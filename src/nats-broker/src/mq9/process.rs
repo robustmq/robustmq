@@ -52,7 +52,7 @@ pub async fn mq9_command(
         Mq9Command::MsgSend {
             mail_address,
             priority,
-        } => match process_send(ctx, &mail_address, &priority, headers, payload).await {
+        } => match process_send(ctx, &mail_address, &priority, headers, reply_to, payload).await {
             Ok(r) => serde_json::to_string(&r).unwrap_or_default(),
             Err(e) => err_reply(e.to_string()),
         },

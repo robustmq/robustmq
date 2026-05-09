@@ -161,6 +161,7 @@ pub async fn send_message(
             mq9: Some(StorageRecordProtocolDataMq9 {
                 priority: priority_str,
                 header: None,
+                reply_to: None,
             }),
             nats: None,
             mqtt: None,
