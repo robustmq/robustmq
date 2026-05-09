@@ -19,14 +19,12 @@ use metadata_struct::mqtt::share_group::{
 };
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::tenant::DEFAULT_TENANT;
-use mq9_core::command::Mq9Command;
 use protocol::nats::packet::NatsPacket;
 
 use crate::core::error::NatsProtocolError;
 use crate::core::queue_name::{add_member_by_group, delete_member_by_group};
 use crate::core::subject::is_inbox_subject;
 use crate::handler::command::NatsProcessContext;
-use crate::mq9::subscribe as mq9_subscribe;
 use crate::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
 use crate::storage::subscribe::NatsSubscribeStorage;
 
@@ -50,15 +48,6 @@ pub async fn process_sub(
         ctx.cache_manager
             .add_inbox(subject.to_string(), sid.to_string());
         return Ok(());
-    }
-
-    if Mq9Command::is_mq9_subject(subject) {
-        let mail_address = subject
-            .strip_prefix(Mq9Command::msg_sub_prefix())
-            .unwrap_or(subject);
-        return mq9_subscribe::process_sub(ctx, mail_address, sid, queue_group)
-            .await
-            .map_err(|e| NatsPacket::Err(e.to_string()));
     }
 
     let tenant = DEFAULT_TENANT.to_string();
@@ -120,12 +109,6 @@ pub async fn process_unsub(
     }
 
     if let Some(subscribe) = ctx.subscribe_manager.get_subscribe(ctx.connect_id, sid) {
-        if Mq9Command::is_mq9_subject(&subscribe.subject) {
-            return mq9_subscribe::process_unsub(ctx, &subscribe.subject, sid)
-                .await
-                .map_err(|e| NatsPacket::Err(e.to_string()));
-        }
-
         let conf = broker_config();
         if subscribe.queue_group.is_some() {
             delete_member_by_group(&ctx.client_pool, conf.broker_id, ctx.connect_id, sid)

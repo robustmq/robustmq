@@ -14,15 +14,17 @@
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use std::time::Duration;
 
     use async_nats::Client;
     use bytes::Bytes;
     use common_base::uuid::unique_id;
-    use futures::StreamExt;
     use metadata_struct::mq9::Priority;
     use mq9_core::command::Mq9Command;
-    use mq9_core::protocol::{MailboxCreateReply, MailboxCreateReq, MsgSendReply};
+    use mq9_core::protocol::{
+        DeliverPolicy, MailboxCreateReply, MailboxCreateReq, MsgFetchConfig, MsgFetchReply,
+        MsgFetchReq, MsgSendReply,
+    };
     use tokio::time::sleep;
 
     use crate::nats::common::nats_connect;
@@ -60,11 +62,36 @@ mod tests {
         request(client, subject, Bytes::from(payload.to_string())).await
     }
 
+    async fn fetch(
+        client: &Client,
+        mail_address: &str,
+        group_name: &str,
+        num_msgs: u32,
+    ) -> MsgFetchReply {
+        let req = MsgFetchReq {
+            group_name: group_name.to_string(),
+            deliver: DeliverPolicy::Earliest,
+            from_time: None,
+            from_id: None,
+            force_deliver: None,
+            config: Some(MsgFetchConfig {
+                num_msgs: Some(num_msgs),
+            }),
+        };
+        let payload = Bytes::from(serde_json::to_string(&req).unwrap());
+        let subject = Mq9Command::MsgFetch {
+            mail_address: mail_address.to_string(),
+        }
+        .to_subject();
+        request(client, subject, payload).await
+    }
+
     // Messages sent with mixed priorities must be delivered in
     // Critical → Urgent → Normal order regardless of send order.
     #[tokio::test]
     async fn test_priority() {
         let client = nats_connect().await;
+        let group_name = format!("grp-{}", unique_id());
 
         // ── 1. create mail ────────────────────────────────────────────────────
         let req = MailboxCreateReq {
@@ -106,48 +133,35 @@ mod tests {
             );
         }
 
-        // ── 3. subscribe to mail ──────────────────────────────────────────────
-        let sub_subject = Mq9Command::MsgSub {
-            mail_address: mail_address.clone(),
-        }
-        .to_subject();
-        let mut sub = client.subscribe(sub_subject).await.unwrap();
-
-        // ── 4. collect 10 messages with timeout ───────────────────────────────
-        let mut received: Vec<String> = Vec::with_capacity(10);
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
-        while received.len() < 10 {
-            let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-            if remaining.is_zero() {
-                break;
-            }
-            match tokio::time::timeout(remaining, sub.next()).await {
-                Ok(Some(msg)) => {
-                    let payload = String::from_utf8_lossy(&msg.payload).to_string();
-                    let ts = SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap()
-                        .as_millis();
-                    println!("[RECV {}ms] {}", ts, payload);
-                    received.push(payload);
-                }
-                _ => break,
-            }
-        }
-
+        // ── 3. fetch all 10 messages ──────────────────────────────────────────
+        let fetch_reply = fetch(&client, &mail_address, &group_name, 10).await;
+        assert!(
+            fetch_reply.error.is_empty(),
+            "fetch error: {}",
+            fetch_reply.error
+        );
         assert_eq!(
-            received.len(),
+            fetch_reply.messages.len(),
             10,
             "expected 10 messages, got {}",
-            received.len()
+            fetch_reply.messages.len()
         );
 
-        // ── 5. verify priority order: all Critical before Urgent before Normal ─
-        // Each received payload starts with the priority label we embedded above.
+        let received: Vec<String> = fetch_reply
+            .messages
+            .iter()
+            .map(|m| m.payload.clone())
+            .collect();
+
+        for (i, payload) in received.iter().enumerate() {
+            println!("[RECV {}] {}", i, payload);
+        }
+
+        // ── 4. verify priority order: all Critical before Urgent before Normal ─
         fn priority_rank(payload: &str) -> u8 {
-            if payload.starts_with("critical") {
+            if payload.contains("[critical]") || payload.contains("critical-") {
                 0
-            } else if payload.starts_with("urgent") {
+            } else if payload.contains("[urgent]") || payload.contains("urgent-") {
                 1
             } else {
                 2

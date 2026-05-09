@@ -152,6 +152,16 @@ impl GroupConsumer {
         Ok(())
     }
 
+    /// Stage a single shard offset directly into pending_offsets.
+    ///
+    /// Useful when the caller knows the exact target offset (e.g. ACK with msg_id,
+    /// force-deliver reset) and wants to use the normal `commit()` path without
+    /// going through a read cycle.
+    pub fn stage_shard_offset(&self, tenant: &str, topic: &str, shard: &str, offset: u64) {
+        self.pending_offsets
+            .insert(OffsetKey::new(tenant, topic, shard), offset);
+    }
+
     /// Merge pending offsets into current_offsets without persisting to the offset store.
     ///
     /// Moves the in-memory consume position forward to the end of the last read batch,

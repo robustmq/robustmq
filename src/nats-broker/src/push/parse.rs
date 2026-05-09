@@ -35,7 +35,6 @@ pub enum ParseAction {
 #[derive(Clone, Debug, PartialEq)]
 pub enum SubscribeSource {
     NatsCore,
-    Mq9,
 }
 
 #[derive(Clone, Debug)]
@@ -96,9 +95,6 @@ pub(crate) async fn parse_by_new_subscribe(
                 }
             }
         }
-        SubscribeSource::Mq9 => {
-            register_subscriber(subscribe_manager, sub, &sub.subject, source).await?;
-        }
     }
     Ok(())
 }
@@ -156,13 +152,6 @@ async fn register_subscriber(
                 subscribe_manager.add_nats_core_fanout_subscriber(subscriber);
             } else {
                 subscribe_manager.add_nats_core_queue_subscriber(&subscriber);
-            }
-        }
-        SubscribeSource::Mq9 => {
-            if sub.queue_group.as_deref().unwrap_or("").is_empty() {
-                subscribe_manager.add_mq9_fanout_subscriber(subscriber);
-            } else {
-                subscribe_manager.add_mq9_queue_subscriber(&subscriber);
             }
         }
     }

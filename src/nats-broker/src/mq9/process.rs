@@ -20,6 +20,7 @@ use crate::mq9::agent::{
 };
 use crate::mq9::create::process_create;
 use crate::mq9::delete::process_delete;
+use crate::mq9::fetch::{process_ack, process_fetch};
 use crate::mq9::query::process_query;
 use crate::mq9::send::process_send;
 use bytes::Bytes;
@@ -56,20 +57,17 @@ pub async fn mq9_command(
             Ok(r) => serde_json::to_string(&r).unwrap_or_default(),
             Err(e) => err_reply(e.to_string()),
         },
-        Mq9Command::MsgSub { .. } => {
-            // SUB is handled in the subscribe path via NATS SUB frames, not PUB.
-            return Some(NatsPacket::Err(
-                "use NATS SUB to subscribe to a mailbox".to_string(),
-            ));
+        Mq9Command::MsgFetch { mail_address } => {
+            match process_fetch(ctx, &mail_address, reply_to, payload).await {
+                Ok(r) => serde_json::to_string(&r).unwrap_or_default(),
+                Err(e) => err_reply(e.to_string()),
+            }
         }
-        Mq9Command::MsgAck {
-            mail_address,
-            msg_id,
-        } => {
-            // TODO: implement ACK
-            let _ = (mail_address, msg_id);
-            err_reply("MSG.ACK not implemented yet")
-        }
+        Mq9Command::MsgAck { mail_address } => match process_ack(ctx, &mail_address, payload).await
+        {
+            Ok(r) => serde_json::to_string(&r).unwrap_or_default(),
+            Err(e) => err_reply(e.to_string()),
+        },
         Mq9Command::MsgQuery { mail_address } => {
             match process_query(ctx, &mail_address, payload).await {
                 Ok(r) => serde_json::to_string(&r).unwrap_or_default(),

@@ -16,21 +16,18 @@
 mod tests {
     use std::time::Duration;
 
-    use admin_server::cluster::share_group::{
-        ShareGroupDetailReq, ShareGroupDetailResp, ShareGroupListReq,
-    };
-    use admin_server::tool::PageReplyData;
     use async_nats::Client;
     use bytes::Bytes;
     use common_base::uuid::unique_id;
-    use futures::StreamExt;
     use metadata_struct::mq9::Priority;
-    use metadata_struct::mqtt::share_group::ShareGroup;
     use mq9_core::command::Mq9Command;
-    use mq9_core::protocol::{MailboxCreateReply, MailboxCreateReq, MsgSendReply};
+    use mq9_core::protocol::{
+        DeliverPolicy, MailboxCreateReply, MailboxCreateReq, MsgAckReply, MsgAckReq,
+        MsgFetchConfig, MsgFetchReply, MsgFetchReq, MsgSendReply,
+    };
     use tokio::time::sleep;
 
-    use crate::nats::common::{admin_client, nats_connect, DEFAULT_TENANT};
+    use crate::nats::common::nats_connect;
 
     async fn request<T: serde::de::DeserializeOwned>(
         client: &Client,
@@ -51,10 +48,56 @@ mod tests {
         request(client, Mq9Command::MailboxCreate.to_subject(), payload).await
     }
 
+    async fn fetch(
+        client: &Client,
+        mail_address: &str,
+        group_name: &str,
+        num_msgs: u32,
+    ) -> MsgFetchReply {
+        let req = MsgFetchReq {
+            group_name: group_name.to_string(),
+            deliver: DeliverPolicy::Earliest,
+            from_time: None,
+            from_id: None,
+            force_deliver: None,
+            config: Some(MsgFetchConfig {
+                num_msgs: Some(num_msgs),
+            }),
+        };
+        let payload = Bytes::from(serde_json::to_string(&req).unwrap());
+        let subject = Mq9Command::MsgFetch {
+            mail_address: mail_address.to_string(),
+        }
+        .to_subject();
+        request(client, subject, payload).await
+    }
+
+    async fn ack(
+        client: &Client,
+        mail_address: &str,
+        group_name: &str,
+        msg_id: u64,
+    ) -> MsgAckReply {
+        let req = MsgAckReq {
+            group_name: group_name.to_string(),
+            mail_address: mail_address.to_string(),
+            msg_id,
+        };
+        let payload = Bytes::from(serde_json::to_string(&req).unwrap());
+        let subject = Mq9Command::MsgAck {
+            mail_address: mail_address.to_string(),
+        }
+        .to_subject();
+        request(client, subject, payload).await
+    }
+
+    // Two independent consumer groups each fetch all messages independently.
+    // After ACK, re-fetch yields no new messages for that group.
     #[tokio::test]
-    async fn test_mq9_queue() {
+    async fn test_mq9_fetch_ack() {
         let client = nats_connect().await;
-        let queue_group = format!("qg-{}", unique_id());
+        let group_a = format!("grp-a-{}", unique_id());
+        let group_b = format!("grp-b-{}", unique_id());
 
         // ── 1. create mailbox ─────────────────────────────────────────────────
         let req = MailboxCreateReq {
@@ -68,9 +111,7 @@ mod tests {
 
         sleep(Duration::from_secs(3)).await;
 
-        // ── 2. publish 7 messages before subscribers exist ────────────────────
-        // MQ9 uses Earliest offset strategy, so pre-published messages are
-        // delivered after subscribers connect.
+        // ── 2. publish 7 messages ─────────────────────────────────────────────
         let mut sent_payloads = Vec::with_capacity(7);
         for i in 0..7usize {
             let payload_str = format!("msg-{}-{}", i, unique_id());
@@ -85,114 +126,82 @@ mod tests {
             sent_payloads.push(payload_str);
         }
 
-        // ── 3. subscribe three times with the same queue group ────────────────
-        let sub_subject = Mq9Command::MsgSub {
-            mail_address: mail_address.clone(),
-        }
-        .to_subject();
-        let sub1 = client
-            .queue_subscribe(sub_subject.clone(), queue_group.clone())
-            .await
-            .unwrap();
-        let sub2 = client
-            .queue_subscribe(sub_subject.clone(), queue_group.clone())
-            .await
-            .unwrap();
-        let sub3 = client
-            .queue_subscribe(sub_subject.clone(), queue_group.clone())
-            .await
-            .unwrap();
-
-        // ── 4. wait for push tasks to start ──────────────────────────────────
-        sleep(Duration::from_secs(10)).await;
-
-        // ── 5. verify group membership via admin API ──────────────────────────
-        let admin = admin_client();
-        let list_req = ShareGroupListReq {
-            tenant: Some(DEFAULT_TENANT.to_string()),
-            group_name: Some(queue_group.clone()),
-            ..Default::default()
-        };
-        let group_list: PageReplyData<Vec<ShareGroup>> =
-            admin.get_share_group_list(&list_req).await.unwrap();
-        println!("[after sleep] share group list: {:#?}", group_list);
-        assert_eq!(
-            group_list.data.len(),
-            1,
-            "[after sleep] expected 1 share group"
+        // ── 3. group A fetches all 7 ──────────────────────────────────────────
+        let fetch_a = fetch(&client, &mail_address, &group_a, 10).await;
+        assert!(
+            fetch_a.error.is_empty(),
+            "group A fetch error: {}",
+            fetch_a.error
         );
-        assert_eq!(group_list.data[0].group_name, queue_group);
-
-        let detail_req = ShareGroupDetailReq {
-            tenant: DEFAULT_TENANT.to_string(),
-            group_name: queue_group.clone(),
-        };
-        let detail: ShareGroupDetailResp = admin.get_share_group_detail(&detail_req).await.unwrap();
-        println!("[after sleep] share group detail: {:#?}", detail);
         assert_eq!(
-            detail.members.len(),
-            3,
-            "[after sleep] expected 3 members, got {}",
-            detail.members.len()
-        );
-
-        // ── 6. collect messages from each subscriber within a 10s window ──────
-        let collect = |mut sub: async_nats::Subscriber| async move {
-            let mut msgs = Vec::new();
-            let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
-            loop {
-                let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-                if remaining.is_zero() {
-                    break;
-                }
-                match tokio::time::timeout(remaining, sub.next()).await {
-                    Ok(Some(msg)) => msgs.push(String::from_utf8_lossy(&msg.payload).to_string()),
-                    _ => break,
-                }
-            }
-            msgs
-        };
-
-        let r1 = collect(sub1).await;
-        let r2 = collect(sub2).await;
-        let r3 = collect(sub3).await;
-
-        println!("sub1 received ({} msgs): {:?}", r1.len(), r1);
-        println!("sub2 received ({} msgs): {:?}", r2.len(), r2);
-        println!("sub3 received ({} msgs): {:?}", r3.len(), r3);
-
-        // ── 7. total must be 7, no duplicates ─────────────────────────────────
-        let mut all: Vec<_> = r1.iter().chain(r2.iter()).chain(r3.iter()).collect();
-        all.sort();
-        all.dedup();
-        assert_eq!(
-            all.len(),
+            fetch_a.messages.len(),
             7,
-            "expected 7 unique messages, got {}",
-            all.len()
+            "group A: expected 7 messages, got {}",
+            fetch_a.messages.len()
+        );
+        let received_a: Vec<String> = fetch_a.messages.iter().map(|m| m.payload.clone()).collect();
+        println!("group A received: {:?}", received_a);
+        for sent in &sent_payloads {
+            assert!(
+                received_a.iter().any(|r| r == sent),
+                "group A missing payload '{}'",
+                sent
+            );
+        }
+
+        // ── 4. group B fetches all 7 independently ────────────────────────────
+        let fetch_b = fetch(&client, &mail_address, &group_b, 10).await;
+        assert!(
+            fetch_b.error.is_empty(),
+            "group B fetch error: {}",
+            fetch_b.error
+        );
+        assert_eq!(
+            fetch_b.messages.len(),
+            7,
+            "group B: expected 7 messages, got {}",
+            fetch_b.messages.len()
+        );
+        let received_b: Vec<String> = fetch_b.messages.iter().map(|m| m.payload.clone()).collect();
+        println!("group B received: {:?}", received_b);
+        for sent in &sent_payloads {
+            assert!(
+                received_b.iter().any(|r| r == sent),
+                "group B missing payload '{}'",
+                sent
+            );
+        }
+
+        // ── 5. group A acks the last message → next fetch yields nothing ──────
+        let last_msg_id = fetch_a.messages.last().unwrap().msg_id;
+        let ack_reply = ack(&client, &mail_address, &group_a, last_msg_id).await;
+        assert!(ack_reply.error.is_empty(), "ack error: {}", ack_reply.error);
+
+        let fetch_a2 = fetch(&client, &mail_address, &group_a, 10).await;
+        assert!(
+            fetch_a2.error.is_empty(),
+            "group A re-fetch error: {}",
+            fetch_a2.error
+        );
+        assert_eq!(
+            fetch_a2.messages.len(),
+            0,
+            "group A: expected 0 messages after ack, got {}",
+            fetch_a2.messages.len()
         );
 
-        // ── 8. distribution must be [2, 2, 3] in any order ───────────────────
-        let mut counts = [r1.len(), r2.len(), r3.len()];
-        counts.sort();
-        assert_eq!(
-            counts,
-            [2, 2, 3],
-            "expected distribution [2,2,3], got {:?}",
-            counts
+        // ── 6. group B has not acked yet → can still re-fetch same messages ───
+        let fetch_b2 = fetch(&client, &mail_address, &group_b, 10).await;
+        assert!(
+            fetch_b2.error.is_empty(),
+            "group B re-fetch error: {}",
+            fetch_b2.error
         );
-
-        // ── 9. verify share group still exists ───────────────────────────────
-        let group_list2: PageReplyData<Vec<ShareGroup>> =
-            admin.get_share_group_list(&list_req).await.unwrap();
-        println!("share group list (final): {:#?}", group_list2);
         assert_eq!(
-            group_list2.data.len(),
-            1,
-            "expected 1 share group, got {}",
-            group_list2.data.len()
+            fetch_b2.messages.len(),
+            7,
+            "group B: expected 7 messages (not acked), got {}",
+            fetch_b2.messages.len()
         );
-        assert_eq!(group_list2.data[0].group_name, queue_group);
-        assert_eq!(group_list2.data[0].tenant, DEFAULT_TENANT);
     }
 }

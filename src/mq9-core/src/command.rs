@@ -28,8 +28,8 @@ const PREFIX: &str = "$mq9.AI";
 ///   $mq9.AI.MSG.SEND.{mail_address}
 ///   $mq9.AI.MSG.SEND.{mail_address}.urgent
 ///   $mq9.AI.MSG.SEND.{mail_address}.critical
-///   $mq9.AI.MSG.SUB.{mail_address}
-///   $mq9.AI.MSG.ACK.{mail_address}.{msg_id}
+///   $mq9.AI.MSG.FETCH.{mail_address}
+///   $mq9.AI.MSG.ACK.{mail_address}
 ///   $mq9.AI.MSG.QUERY.{mail_address}
 ///   $mq9.AI.MSG.DELETE.{mail_address}.{msg_id}
 ///
@@ -50,13 +50,10 @@ pub enum Mq9Command {
         mail_address: String,
         priority: Priority,
     },
-    /// `$mq9.AI.MSG.SUB.{mail_address}`
-    MsgSub { mail_address: String },
-    /// `$mq9.AI.MSG.ACK.{mail_address}.{msg_id}`
-    MsgAck {
-        mail_address: String,
-        msg_id: String,
-    },
+    /// `$mq9.AI.MSG.FETCH.{mail_address}`
+    MsgFetch { mail_address: String },
+    /// `$mq9.AI.MSG.ACK.{mail_address}`
+    MsgAck { mail_address: String },
     /// `$mq9.AI.MSG.QUERY.{mail_address}`
     MsgQuery { mail_address: String },
     /// `$mq9.AI.MSG.DELETE.{mail_address}.{msg_id}`
@@ -81,12 +78,6 @@ impl Mq9Command {
         subject.starts_with(PREFIX)
     }
 
-    /// Returns the fixed subject prefix for `MsgSub`, i.e. `"$mq9.AI.MSG.SUB."`.
-    /// Use this to strip the prefix and extract the mail_address from a SUB subject.
-    pub fn msg_sub_prefix() -> &'static str {
-        concat!("$mq9.AI", ".MSG.SUB.")
-    }
-
     pub fn to_subject(&self) -> String {
         match self {
             Mq9Command::MailboxCreate => format!("{}.MAILBOX.CREATE", PREFIX),
@@ -98,13 +89,12 @@ impl Mq9Command {
                 Priority::Normal => format!("{}.MSG.SEND.{}", PREFIX, mail_address),
                 p => format!("{}.MSG.SEND.{}.{}", PREFIX, mail_address, p),
             },
-            Mq9Command::MsgSub { mail_address } => {
-                format!("{}.MSG.SUB.{}", PREFIX, mail_address)
+            Mq9Command::MsgFetch { mail_address } => {
+                format!("{}.MSG.FETCH.{}", PREFIX, mail_address)
             }
-            Mq9Command::MsgAck {
-                mail_address,
-                msg_id,
-            } => format!("{}.MSG.ACK.{}.{}", PREFIX, mail_address, msg_id),
+            Mq9Command::MsgAck { mail_address } => {
+                format!("{}.MSG.ACK.{}", PREFIX, mail_address)
+            }
             Mq9Command::MsgQuery { mail_address } => {
                 format!("{}.MSG.QUERY.{}", PREFIX, mail_address)
             }
@@ -148,16 +138,12 @@ fn parse_msg(tail: &str) -> Option<Mq9Command> {
     }
     match cmd {
         "SEND" => Some(parse_msg_send(rest)),
-        "SUB" => Some(Mq9Command::MsgSub {
+        "FETCH" => Some(Mq9Command::MsgFetch {
             mail_address: rest.to_string(),
         }),
-        "ACK" => {
-            let (mail_address, msg_id) = rest.rsplit_once('.')?;
-            Some(Mq9Command::MsgAck {
-                mail_address: mail_address.to_string(),
-                msg_id: msg_id.to_string(),
-            })
-        }
+        "ACK" => Some(Mq9Command::MsgAck {
+            mail_address: rest.to_string(),
+        }),
         "QUERY" => Some(Mq9Command::MsgQuery {
             mail_address: rest.to_string(),
         }),
@@ -248,10 +234,10 @@ mod tests {
     }
 
     #[test]
-    fn test_msg_sub() {
+    fn test_msg_fetch() {
         assert_eq!(
-            Mq9Command::parse("$mq9.AI.MSG.SUB.task.001.callback"),
-            Some(Mq9Command::MsgSub {
+            Mq9Command::parse("$mq9.AI.MSG.FETCH.task.001.callback"),
+            Some(Mq9Command::MsgFetch {
                 mail_address: "task.001.callback".to_string(),
             })
         );
@@ -260,10 +246,9 @@ mod tests {
     #[test]
     fn test_msg_ack() {
         assert_eq!(
-            Mq9Command::parse("$mq9.AI.MSG.ACK.task.001.callback.42"),
+            Mq9Command::parse("$mq9.AI.MSG.ACK.task.001.callback"),
             Some(Mq9Command::MsgAck {
                 mail_address: "task.001.callback".to_string(),
-                msg_id: "42".to_string(),
             })
         );
     }
@@ -338,7 +323,7 @@ mod tests {
                 mail_address: "agent.inbox".to_string(),
                 priority: Priority::Urgent,
             },
-            Mq9Command::MsgSub {
+            Mq9Command::MsgFetch {
                 mail_address: "task.001".to_string(),
             },
             Mq9Command::MsgQuery {

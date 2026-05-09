@@ -43,11 +43,35 @@ pub struct MsgQueryReq {
     pub limit: Option<u64>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeliverPolicy {
+    Earliest,
+    Latest,
+    FromTime,
+    FromId,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
-pub struct MsgSubReq {
-    pub deliver: String,
-    pub since: Option<u64>,
-    pub inbox: String,
+pub struct MsgAckReq {
+    pub group_name: String,
+    pub mail_address: String,
+    pub msg_id: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MsgFetchConfig {
+    pub num_msgs: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MsgFetchReq {
+    pub group_name: String,
+    pub deliver: DeliverPolicy,
+    pub from_time: Option<u64>,
+    pub from_id: Option<u64>,
+    pub force_deliver: Option<bool>,
+    pub config: Option<MsgFetchConfig>,
 }
 
 // ── Reply item ────────────────────────────────────────────────────────────────
@@ -77,8 +101,9 @@ pub struct MsgSendReply {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
-pub struct MsgSubReply {
+pub struct MsgFetchReply {
     pub error: String,
+    pub messages: Vec<MsgItem>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
