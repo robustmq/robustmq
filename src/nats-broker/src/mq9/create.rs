@@ -74,7 +74,6 @@ fn build_mail(
 
     let tenant = get_tenant();
     let mail_address = build_mail_address(create_req.name)?;
-
     Ok(MQ9Mail {
         mail_address,
         tenant,
