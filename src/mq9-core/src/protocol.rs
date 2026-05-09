@@ -72,6 +72,7 @@ pub struct MailboxCreateReply {
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct MsgSendReply {
     pub error: String,
+    #[serde(default)]
     pub msg_id: i64,
 }
 
@@ -94,6 +95,7 @@ pub struct MsgQueryReply {
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct MsgDeleteReply {
     pub error: String,
+    #[serde(default)]
     pub deleted: bool,
 }
 
