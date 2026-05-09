@@ -160,21 +160,8 @@ pub async fn process_agent_report(
 }
 
 pub async fn process_agent_discover(
-    ctx: &NatsProcessContext,
+    _ctx: &NatsProcessContext,
     _payload: &Bytes,
 ) -> Result<AgentDiscoverReply, NatsBrokerError> {
-    let tenant = get_tenant();
-    let agents = Mq9AgentStorage::new(ctx.client_pool.clone())
-        .list(&tenant)
-        .await?;
-
-    let agent_values: Vec<serde_json::Value> = agents
-        .into_iter()
-        .filter_map(|a| serde_json::from_str(&a.agent_info).ok())
-        .collect();
-
-    Ok(AgentDiscoverReply {
-        error: String::new(),
-        agents: agent_values,
-    })
+    Ok(AgentDiscoverReply::default())
 }

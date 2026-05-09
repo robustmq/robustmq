@@ -76,7 +76,7 @@ pub struct EngineShardConfig {
 pub const DEFAULT_MAX_SEGMENT_SIZE: u64 = 1073741824;
 
 /// 24 hours in seconds
-pub const DEFAULT_RETENTION_SEC: u64 = 86400;
+pub const DEFAULT_RETENTION_SEC: u64 = 7 * 86400;
 
 impl Default for EngineShardConfig {
     fn default() -> Self {
