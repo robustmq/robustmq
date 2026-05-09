@@ -38,7 +38,7 @@ jobs:
       github.event.pull_request.merged == true &&
       startsWith(github.event.pull_request.title, 'release:')
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: 240
 
     strategy:
       fail-fast: false
@@ -110,7 +110,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: "release-${{ matrix.platform }}"
-          save-if: "false"
+          save-if: "true"
 
       - name: Run make release
         env:
