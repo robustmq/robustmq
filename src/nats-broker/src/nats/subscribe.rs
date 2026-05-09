@@ -52,15 +52,6 @@ pub async fn process_sub(
         return Ok(());
     }
 
-    if Mq9Command::is_mq9_subject(subject) {
-        let mail_address = subject
-            .strip_prefix(Mq9Command::msg_sub_prefix())
-            .unwrap_or(subject);
-        return mq9_subscribe::process_sub(ctx, mail_address, sid, queue_group)
-            .await
-            .map_err(|e| NatsPacket::Err(e.to_string()));
-    }
-
     let tenant = DEFAULT_TENANT.to_string();
     let subscribe = NatsSubscribe {
         broker_id: broker_config().broker_id,
