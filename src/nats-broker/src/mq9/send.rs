@@ -127,9 +127,14 @@ pub async fn process_send(
 
     let mut system_tags = build_message_tag(&tenant, mail_address, priority);
     if let Some(h) = &mq9_headers {
-        system_tags.extend(h.tags.clone());
+        system_tags.extend(
+            h.tags
+                .iter()
+                .map(|t| super::scoped_tag(&tenant, mail_address, t)),
+        );
     }
 
+    println!("system_tags:{:?}", system_tags);
     let mut record = AdapterWriteRecord::new(mail_address.to_string(), payload.clone())
         .with_tags(system_tags)
         .with_protocol_data(Some(StorageRecordProtocolData {
@@ -143,7 +148,7 @@ pub async fn process_send(
 
     if let Some(h) = &mq9_headers {
         if let Some(key) = &h.msg_key {
-            record = record.with_key(key);
+            record = record.with_key(super::scoped_key(&tenant, mail_address, key));
         }
         if let Some(ttl) = h.ttl_secs {
             record = record.with_expire_at(now_second() + ttl);

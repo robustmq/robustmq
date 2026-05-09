@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::error::NatsBrokerError;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
+use crate::{core::error::NatsBrokerError, nats::subscribe::subject_message_tag};
 use bytes::Bytes;
 use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
 use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
@@ -42,8 +42,10 @@ pub async fn process_query(
         query_by_key(ctx, mail_address, key, limit).await?
     } else if let Some(tags) = &req.tags {
         query_by_tags(ctx, mail_address, tags, limit).await?
+    } else if let Some(since) = &req.since {
+        query_by_since(ctx, mail_address, *since, limit).await?
     } else {
-        query_by_since(ctx, mail_address, req.since, limit).await?
+        query_all(ctx, mail_address, limit).await?
     };
 
     Ok(MsgQueryReply {
@@ -59,7 +61,8 @@ async fn query_by_key(
     limit: usize,
 ) -> Result<Vec<MsgItem>, NatsBrokerError> {
     let tenant = get_tenant();
-    let key_refs: Vec<&str> = vec![key];
+    let sk = super::scoped_key(&tenant, mail_address, key);
+    let key_refs: Vec<&str> = vec![sk.as_str()];
     let result = ctx
         .storage_driver_manager
         .read_by_keys(&tenant, mail_address, &key_refs)
@@ -79,7 +82,7 @@ async fn query_by_tags(
     limit: usize,
 ) -> Result<Vec<MsgItem>, NatsBrokerError> {
     if tags.is_empty() {
-        return query_by_since(ctx, mail_address, None, limit).await;
+        return query_by_since(ctx, mail_address, 0, limit).await;
     }
 
     let tenant = get_tenant();
@@ -92,9 +95,10 @@ async fn query_by_tags(
     let mut messages = Vec::new();
 
     for tag in tags {
+        let st = super::scoped_tag(&tenant, mail_address, tag);
         let records = ctx
             .storage_driver_manager
-            .read_by_tag(&tenant, mail_address, tag, &HashMap::new(), &read_config)
+            .read_by_tag(&tenant, mail_address, &st, &HashMap::new(), &read_config)
             .await
             .map_err(NatsBrokerError::from)?;
 
@@ -108,10 +112,35 @@ async fn query_by_tags(
     Ok(messages)
 }
 
+async fn query_all(
+    ctx: &NatsProcessContext,
+    mail_address: &str,
+    limit: usize,
+) -> Result<Vec<MsgItem>, NatsBrokerError> {
+    let tenant = get_tenant();
+    let system_tag = subject_message_tag(&tenant, mail_address);
+    let read_config = AdapterReadConfig {
+        max_record_num: limit as u64,
+        max_size: 1024 * 1024 * 30,
+    };
+    let records = ctx
+        .storage_driver_manager
+        .read_by_tag(
+            &tenant,
+            mail_address,
+            &system_tag,
+            &HashMap::new(),
+            &read_config,
+        )
+        .await
+        .map_err(NatsBrokerError::from)?;
+    Ok(records.into_iter().map(to_msg_item).collect())
+}
+
 async fn query_by_since(
     ctx: &NatsProcessContext,
     mail_address: &str,
-    since: Option<u64>,
+    since: u64,
     limit: usize,
 ) -> Result<Vec<MsgItem>, NatsBrokerError> {
     let tenant = get_tenant();
@@ -120,14 +149,16 @@ async fn query_by_since(
         max_size: 1024 * 1024 * 30,
     };
 
-    let start_offset = if let Some(ts) = since {
-        ctx.storage_driver_manager
-            .get_offset_by_timestamp(&tenant, mail_address, ts, AdapterOffsetStrategy::Earliest)
-            .await
-            .map_err(NatsBrokerError::from)?
-    } else {
-        0
-    };
+    let start_offset = ctx
+        .storage_driver_manager
+        .get_offset_by_timestamp(
+            &tenant,
+            mail_address,
+            since,
+            AdapterOffsetStrategy::Earliest,
+        )
+        .await
+        .map_err(NatsBrokerError::from)?;
 
     let mut offsets: HashMap<String, u64> = HashMap::new();
     offsets.insert(mail_address.to_string(), start_offset);
