@@ -15,7 +15,10 @@
 pub mod agent_core;
 pub mod common;
 pub mod mq9_core;
+pub mod mq9_delay;
 pub mod mq9_mail;
+pub mod mq9_msg_id;
+pub mod mq9_msg_ttl;
 pub mod mq9_priority;
 pub mod nats_core;
 pub mod nats_queue;
