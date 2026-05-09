@@ -16,6 +16,7 @@ pub mod error;
 pub mod mq9;
 pub mod protocol;
 
+use crate::path::MCP_PATH;
 use crate::state::HttpState;
 use async_nats::Client;
 use axum::{extract::State, http::StatusCode, routing::{get, post}, Json, Router};
@@ -30,7 +31,7 @@ use std::sync::Arc;
 
 pub fn mcp_route() -> Router<Arc<HttpState>> {
     Router::new()
-        .route("/mcp", post(handle_mcp))
+        .route(MCP_PATH, post(handle_mcp))
         // MCP 2025-03-26: OAuth discovery endpoints — respond with no-auth required
         .route("/.well-known/oauth-protected-resource", get(oauth_protected_resource))
         .route("/.well-known/oauth-protected-resource/mcp", get(oauth_protected_resource))
@@ -39,6 +40,13 @@ pub fn mcp_route() -> Router<Arc<HttpState>> {
         .route("/.well-known/openid-configuration", get(|| async { StatusCode::NOT_FOUND }))
         .route("/.well-known/openid-configuration/mcp", get(|| async { StatusCode::NOT_FOUND }))
         .route("/mcp/.well-known/openid-configuration", get(|| async { StatusCode::NOT_FOUND }))
+        // OAuth dynamic client registration — return 400 to indicate registration is not supported
+        .route("/register", post(|| async {
+            (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({
+                "error": "invalid_client_metadata",
+                "error_description": "Dynamic client registration is not supported. No authentication required."
+            })))
+        }))
 }
 
 /// Declare that /mcp requires no OAuth authentication.

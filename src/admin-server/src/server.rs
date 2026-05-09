@@ -83,9 +83,9 @@ impl AdminServer {
     pub async fn start(&self, port: u32, state: Arc<HttpState>) {
         let ip = format!("0.0.0.0:{port}");
         let route = Router::new()
-            .merge(self.static_route())
-            .nest("/api", self.api_route())
             .merge(mcp_route())
+            .nest("/api", self.api_route())
+            .merge(self.static_route())
             .with_state(state.clone())
             .layer(middleware::from_fn_with_state(state, rate_limit_middleware))
             .layer(middleware::from_fn(base_middleware))
