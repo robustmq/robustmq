@@ -92,7 +92,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_mailbox_core() {
+    async fn test_mailbox_query() {
         let client = nats_connect().await;
 
         // ── 1. send to non-existent mail → error ─────────────────────────────
@@ -125,6 +125,7 @@ mod tests {
         let mail_address = reply.mail_address;
 
         sleep(Duration::from_secs(3)).await;
+
         // ── 3. send 10 messages → all succeed ────────────────────────────────
         let mut sent_payloads = Vec::with_capacity(10);
         for i in 0..10usize {
@@ -172,7 +173,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_mailbox_send_fetch() {
+    async fn test_mailbox_send_fetch_base() {
         let client = nats_connect().await;
         let group_name = format!("grp-{}", unique_id());
 

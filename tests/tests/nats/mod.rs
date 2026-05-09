@@ -17,6 +17,5 @@ pub mod common;
 pub mod mq9_core;
 pub mod mq9_mail;
 pub mod mq9_priority;
-pub mod mq9_queue;
 pub mod nats_core;
 pub mod nats_queue;
