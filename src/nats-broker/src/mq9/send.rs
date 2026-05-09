@@ -134,7 +134,6 @@ pub async fn process_send(
         );
     }
 
-    println!("system_tags:{:?}", system_tags);
     let mut record = AdapterWriteRecord::new(mail_address.to_string(), payload.clone())
         .with_tags(system_tags)
         .with_protocol_data(Some(StorageRecordProtocolData {
