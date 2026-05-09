@@ -28,15 +28,13 @@ use mq9_core::public::{is_system_mailbox, StoragePublicData, MQ9_SYSTEM_PUBLIC_M
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 
-const MQ9_MAIL_SUFFIX: &str = "@mq9";
-
 fn build_mail_address(name: Option<String>) -> Result<String, NatsBrokerError> {
     match name {
         Some(n) => {
             validate_mail_name(&n)?;
-            Ok(format!("{}{}", n, MQ9_MAIL_SUFFIX))
+            Ok(n)
         }
-        None => Ok(format!("{}{}", unique_id(), MQ9_MAIL_SUFFIX)),
+        None => Ok(unique_id()),
     }
 }
 
@@ -155,7 +153,7 @@ pub async fn save_public_data(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_mail_address, validate_mail_name, MQ9_MAIL_SUFFIX};
+    use super::{build_mail_address, validate_mail_name};
 
     #[test]
     fn test_validate_mail_name() {
@@ -171,10 +169,10 @@ mod tests {
     fn test_build_mail_address() {
         assert_eq!(
             build_mail_address(Some("alice".to_string())).unwrap(),
-            format!("alice{}", MQ9_MAIL_SUFFIX)
+            "alice"
         );
         assert!(build_mail_address(Some(".abc".to_string())).is_err());
         let auto = build_mail_address(None).unwrap();
-        assert!(auto.ends_with(MQ9_MAIL_SUFFIX));
+        assert!(!auto.is_empty());
     }
 }

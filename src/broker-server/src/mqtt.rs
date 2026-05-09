@@ -18,7 +18,7 @@ use common_base::{error::common::CommonError, role::is_broker_node, task::TaskSu
 use common_group::manager::OffsetManager;
 use common_security::manager::SecurityManager;
 use connector::manager::ConnectorManager;
-use delay_message::manager::DelayMessageManager;
+pub use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use mqtt_broker::{
     broker::{MqttBrokerServer, MqttBrokerServerParams},
@@ -50,6 +50,7 @@ pub struct MqttBuildParams {
     pub node_call: Arc<NodeCallManager>,
     pub request_channel: Arc<RequestChannel>,
     pub security_manager: Arc<SecurityManager>,
+    pub delay_message_manager: Arc<DelayMessageManager>,
 }
 
 pub fn build_mqtt_params(
@@ -67,6 +68,7 @@ pub fn build_mqtt_params(
     let nc = p.node_call;
     let request_channel = p.request_channel;
     let security_manager = p.security_manager;
+    let delay_message_manager = p.delay_message_manager;
 
     broker_runtime.block_on(async move {
         match build_broker_mqtt_params(
@@ -81,6 +83,7 @@ pub fn build_mqtt_params(
             nc,
             request_channel,
             security_manager,
+            delay_message_manager,
         )
         .await
         {
@@ -107,6 +110,7 @@ pub(crate) async fn build_broker_mqtt_params(
     node_call: Arc<NodeCallManager>,
     request_channel: Arc<RequestChannel>,
     security_manager: Arc<SecurityManager>,
+    delay_message_manager: Arc<DelayMessageManager>,
 ) -> Result<MqttBrokerServerParams, CommonError> {
     let cache_manager = Arc::new(MqttCacheManager::new(
         client_pool.clone(),
@@ -114,9 +118,6 @@ pub(crate) async fn build_broker_mqtt_params(
     ));
     let subscribe_manager = Arc::new(SubscribeManager::new());
     let connector_manager = Arc::new(ConnectorManager::new());
-    let delay_message_manager = Arc::new(
-        DelayMessageManager::new(client_pool.clone(), storage_driver_manager.clone(), 5).await?,
-    );
     let metrics_cache_manager = Arc::new(MQTTMetricsCache::new(rocksdb_engine_handler.clone()));
     let schema_manager = Arc::new(SchemaRegisterManager::new());
     let push_manager = Arc::new(PushManager::new(

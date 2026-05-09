@@ -21,6 +21,7 @@ use broker_core::cache::NodeCacheManager;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_config::broker::broker_config;
 use common_security::manager::SecurityManager;
+use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use mq9_core::public::try_init_system_mail;
 use network_server::common::channel::RequestChannel;
@@ -44,6 +45,7 @@ pub struct NatsBrokerServerParams {
     pub request_channel: Arc<RequestChannel>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub security_manager: Arc<SecurityManager>,
+    pub delay_message_manager: Arc<DelayMessageManager>,
 }
 
 pub struct NatsBrokerServer {

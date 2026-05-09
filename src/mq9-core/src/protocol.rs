@@ -59,7 +59,7 @@ pub struct MailboxCreateReply {
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct MsgSendReply {
     pub error: String,
-    pub msg_id: u64,
+    pub msg_id: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]

@@ -17,6 +17,7 @@ use crate::nats::{connect, ping, publish, subscribe};
 use crate::push::manager::NatsSubscribeManager;
 use async_trait::async_trait;
 use common_security::manager::SecurityManager;
+use delay_message::manager::DelayMessageManager;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
@@ -37,6 +38,7 @@ pub struct NatsProcessContext {
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub client_pool: Arc<ClientPool>,
     pub security_manager: Arc<SecurityManager>,
+    pub delay_message_manager: Arc<DelayMessageManager>,
 }
 
 #[derive(Clone)]
@@ -47,6 +49,7 @@ pub struct NatsHandlerCommand {
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub client_pool: Arc<ClientPool>,
     pub security_manager: Arc<SecurityManager>,
+    pub delay_message_manager: Arc<DelayMessageManager>,
 }
 
 impl NatsHandlerCommand {
@@ -57,6 +60,7 @@ impl NatsHandlerCommand {
         storage_driver_manager: Arc<StorageDriverManager>,
         client_pool: Arc<ClientPool>,
         security_manager: Arc<SecurityManager>,
+        delay_message_manager: Arc<DelayMessageManager>,
     ) -> Self {
         NatsHandlerCommand {
             connection_manager,
@@ -65,6 +69,7 @@ impl NatsHandlerCommand {
             storage_driver_manager,
             client_pool,
             security_manager,
+            delay_message_manager,
         }
     }
 }
@@ -92,6 +97,7 @@ impl Command for NatsHandlerCommand {
             storage_driver_manager: self.storage_driver_manager.clone(),
             client_pool: self.client_pool.clone(),
             security_manager: self.security_manager.clone(),
+            delay_message_manager: self.delay_message_manager.clone(),
         };
 
         // Helper: convert Result<(), NatsPacket> into Option<NatsPacket> with verbose.
@@ -187,6 +193,7 @@ pub fn create_command(
     storage_driver_manager: Arc<StorageDriverManager>,
     client_pool: Arc<ClientPool>,
     security_manager: Arc<SecurityManager>,
+    delay_message_manager: Arc<DelayMessageManager>,
 ) -> Arc<Box<dyn Command + Send + Sync>> {
     Arc::new(Box::new(NatsHandlerCommand::new(
         connection_manager,
@@ -195,5 +202,6 @@ pub fn create_command(
         storage_driver_manager,
         client_pool,
         security_manager,
+        delay_message_manager,
     )))
 }

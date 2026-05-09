@@ -30,6 +30,7 @@ use common_group::manager::OffsetManager;
 use common_healthy::port::wait_for_grpc_ready;
 use common_metrics::init_metrics;
 use common_security::manager::SecurityManager;
+use delay_message::manager::DelayMessageManager;
 use delay_task::manager::DelayTaskManager;
 use grpc_clients::pool::ClientPool;
 use kafka_broker::broker::KafkaBrokerServerParams;
@@ -119,11 +120,22 @@ impl BrokerServer {
 
         let (base, meta_runtime, broker_runtime, engine_runtime) = Self::init_base(config);
 
-        let (engine_params, storage_driver_manager, delay_task_manager, meta_params) =
-            Self::init_storage(config, &base, &meta_runtime);
+        let (
+            engine_params,
+            storage_driver_manager,
+            delay_task_manager,
+            delay_message_manager,
+            meta_params,
+        ) = Self::init_storage(config, &base, &meta_runtime);
 
         let (mqtt_params, kafka_params, amqp_params, nats_params, shared_request_channel) =
-            Self::init_protocol_params(config, &base, &storage_driver_manager, &broker_runtime);
+            Self::init_protocol_params(
+                config,
+                &base,
+                &storage_driver_manager,
+                &delay_message_manager,
+                &broker_runtime,
+            );
 
         BrokerServer {
             server_runtime: base.server_runtime,
@@ -216,6 +228,7 @@ impl BrokerServer {
         StorageEngineParams,
         Arc<StorageDriverManager>,
         Arc<DelayTaskManager>,
+        Arc<DelayMessageManager>,
         MetaServiceServerParams,
     ) {
         let engine_params = engine::build_storage_engine_params(
@@ -248,6 +261,22 @@ impl BrokerServer {
             config.delay_task.delay_task_handler_concurrency,
         ));
 
+        let delay_message_manager = meta_runtime.block_on(async {
+            match DelayMessageManager::new(
+                base.client_pool.clone(),
+                storage_driver_manager.clone(),
+                5,
+            )
+            .await
+            {
+                Ok(m) => Arc::new(m),
+                Err(e) => {
+                    error!("Failed to build delay message manager: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        });
+
         let meta_params = meta_runtime.block_on(meta::build_meta_service(
             base.rocksdb_engine_handler.clone(),
             delay_task_manager.clone(),
@@ -260,6 +289,7 @@ impl BrokerServer {
             engine_params,
             storage_driver_manager,
             delay_task_manager,
+            delay_message_manager,
             meta_params,
         )
     }
@@ -270,6 +300,7 @@ impl BrokerServer {
         config: &BrokerConfig,
         base: &BaseComponents,
         storage_driver_manager: &Arc<StorageDriverManager>,
+        delay_message_manager: &Arc<DelayMessageManager>,
         broker_runtime: &Runtime,
     ) -> (
         MqttBrokerServerParams,
@@ -302,6 +333,7 @@ impl BrokerServer {
                 node_call: base.node_call_manager.clone(),
                 request_channel: shared_request_channel.clone(),
                 security_manager: security_manager.clone(),
+                delay_message_manager: delay_message_manager.clone(),
             },
             broker_runtime,
         );
@@ -336,6 +368,7 @@ impl BrokerServer {
             shared_request_channel: shared_request_channel.clone(),
             storage_driver_manager: storage_driver_manager.clone(),
             security_manager,
+            delay_message_manager: delay_message_manager.clone(),
         });
 
         (
@@ -471,6 +504,7 @@ impl BrokerServer {
             self.nats_params.storage_driver_manager.clone(),
             self.nats_params.client_pool.clone(),
             self.nats_params.security_manager.clone(),
+            self.nats_params.delay_message_manager.clone(),
         ));
 
         CommandRegistry {
