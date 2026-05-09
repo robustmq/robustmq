@@ -17,6 +17,12 @@ use serde::{Deserialize, Serialize};
 // ── Requests ──────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct AgentRegisterReq {
+    pub name: String,
+    pub payload: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MailboxCreateReq {
     pub name: Option<String>,
     pub ttl: Option<u64>,

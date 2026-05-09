@@ -16,7 +16,7 @@
 mod tests {
     use crate::mqtt::protocol::common::create_test_env;
     use crate::nats::common::nats_connect;
-    use admin_server::nats::mail::MailListReq;
+    use admin_server::mq9::mail::MailListReq;
     use async_nats::Client;
     use bytes::Bytes;
     use common_base::uuid::unique_id;

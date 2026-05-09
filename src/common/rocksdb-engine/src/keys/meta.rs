@@ -381,6 +381,21 @@ pub fn storage_key_mq9_mail_prefix() -> String {
 }
 
 #[inline]
+pub fn storage_key_mq9_agent(tenant: &str, name: &str) -> String {
+    format!("{}mq9/agent/{}/{}", PREFIX_META, tenant, name)
+}
+
+#[inline]
+pub fn storage_key_mq9_agent_tenant_prefix(tenant: &str) -> String {
+    format!("{}mq9/agent/{}/", PREFIX_META, tenant)
+}
+
+#[inline]
+pub fn storage_key_mq9_agent_prefix() -> String {
+    format!("{}mq9/agent/", PREFIX_META)
+}
+
+#[inline]
 pub fn storage_key_cluster_delete_topic(topic_id: &str) -> String {
     format!("{}cluster/delete-topic/{}", PREFIX_META, topic_id)
 }

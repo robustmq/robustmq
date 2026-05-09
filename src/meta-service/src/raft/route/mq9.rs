@@ -13,11 +13,15 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
+use crate::storage::mq9::agent::Mq9AgentStorage;
 use crate::storage::mq9::mail::Mq9MailStorage;
 use bytes::Bytes;
+use metadata_struct::mq9::agent::MQ9Agent;
 use metadata_struct::mq9::mail::MQ9Mail;
 use prost::Message as _;
-use protocol::meta::meta_service_mq9::{CreateMailRequest, DeleteMailRequest};
+use protocol::meta::meta_service_mq9::{
+    CreateAgentRequest, CreateMailRequest, DeleteAgentRequest, DeleteMailRequest,
+};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
@@ -45,6 +49,21 @@ impl DataRouteMq9 {
         let req = DeleteMailRequest::decode(value.as_ref())?;
         let storage = Mq9MailStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.tenant, &req.mail_address)?;
+        Ok(())
+    }
+
+    pub fn create_agent(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = CreateAgentRequest::decode(value.as_ref())?;
+        let agent = MQ9Agent::decode(&req.content)?;
+        let storage = Mq9AgentStorage::new(self.rocksdb_engine_handler.clone());
+        storage.save(&agent)?;
+        Ok(())
+    }
+
+    pub fn delete_agent(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = DeleteAgentRequest::decode(value.as_ref())?;
+        let storage = Mq9AgentStorage::new(self.rocksdb_engine_handler.clone());
+        storage.delete(&req.tenant, &req.name)?;
         Ok(())
     }
 }

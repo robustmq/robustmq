@@ -863,6 +863,19 @@ impl AdminHttpClient {
             .await
     }
 
+    /// Get agent list
+    pub async fn get_agent_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.get_with_params(&api_path(MQ9_AGENT_LIST_PATH), request)
+            .await
+    }
+
     /// Get share group list
     pub async fn get_share_group_list<T, R>(
         &self,

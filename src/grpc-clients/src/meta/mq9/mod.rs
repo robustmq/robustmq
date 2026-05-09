@@ -14,8 +14,9 @@
 
 use protocol::meta::meta_service_mq9::mq9_service_client::Mq9ServiceClient;
 use protocol::meta::meta_service_mq9::{
-    CreateMailReply, CreateMailRequest, DeleteMailReply, DeleteMailRequest, ListMailReply,
-    ListMailRequest,
+    CreateAgentReply, CreateAgentRequest, CreateMailReply, CreateMailRequest, DeleteAgentReply,
+    DeleteAgentRequest, DeleteMailReply, DeleteMailRequest, ListAgentReply, ListAgentRequest,
+    ListMailReply, ListMailRequest,
 };
 use tonic::transport::Channel;
 use tonic::Streaming;
@@ -51,5 +52,35 @@ impl_retriable_request!(
     list_mail,
     "Mq9Service",
     "ListMail",
+    true
+);
+
+impl_retriable_request!(
+    CreateAgentRequest,
+    Mq9ServiceClient<Channel>,
+    CreateAgentReply,
+    create_agent,
+    "Mq9Service",
+    "CreateAgent",
+    true
+);
+
+impl_retriable_request!(
+    DeleteAgentRequest,
+    Mq9ServiceClient<Channel>,
+    DeleteAgentReply,
+    delete_agent,
+    "Mq9Service",
+    "DeleteAgent",
+    true
+);
+
+impl_retriable_request!(
+    ListAgentRequest,
+    Mq9ServiceClient<Channel>,
+    Streaming<ListAgentReply>,
+    list_agent,
+    "Mq9Service",
+    "ListAgent",
     true
 );

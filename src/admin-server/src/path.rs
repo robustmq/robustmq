@@ -129,6 +129,7 @@ pub const CLUSTER_SHARE_GROUP_DETAIL_PATH: &str = "/cluster/share-group/detail";
 // ── /mq9 ─────────────────────────────────────────────────────────────────────
 
 pub const MQ9_MAIL_LIST_PATH: &str = "/mq9/mail/list";
+pub const MQ9_AGENT_LIST_PATH: &str = "/mq9/agent/list";
 
 // ── MCP ───────────────────────────────────────────────────────────────────────
 

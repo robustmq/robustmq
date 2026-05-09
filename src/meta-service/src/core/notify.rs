@@ -19,6 +19,7 @@ use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
+use metadata_struct::mq9::agent::MQ9Agent;
 use metadata_struct::mq9::mail::MQ9Mail;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::session::MqttSession;
@@ -627,6 +628,32 @@ pub async fn send_notify_by_delete_share_group_member(
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::ShareGroupMember,
         serialize::serialize(&member)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_create_mq9_agent(
+    call_manager: &Arc<NodeCallManager>,
+    agent: MQ9Agent,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::Mq9Agent,
+        serialize::serialize(&agent)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_mq9_agent(
+    call_manager: &Arc<NodeCallManager>,
+    agent: MQ9Agent,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Mq9Agent,
+        serialize::serialize(&agent)?,
     )
     .await
 }

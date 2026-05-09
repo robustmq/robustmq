@@ -18,6 +18,7 @@ use crate::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
 use common_base::error::common::CommonError;
 use common_base::utils::serialize;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mq9::agent::MQ9Agent;
 use metadata_struct::mq9::mail::MQ9Mail;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use protocol::broker::broker::{
@@ -67,6 +68,18 @@ pub async fn update_nats_cache_metadata(
                     // there will be no duplicate mail addresss in the future.
                     // That is to say, data will no longer be written to this mail and will not be consumed.
                     // At this point, the underlying data will naturally expire.
+                }
+            }
+        }
+
+        BrokerUpdateCacheResourceType::Mq9Agent => {
+            let agent: MQ9Agent = serialize::deserialize(&record.data)?;
+            match record.action_type() {
+                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                    cache_manager.add_agent(agent);
+                }
+                BrokerUpdateCacheActionType::Delete => {
+                    cache_manager.remove_agent(&agent.tenant, &agent.name);
                 }
             }
         }

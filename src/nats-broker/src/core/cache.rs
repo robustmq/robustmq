@@ -16,6 +16,7 @@ use crate::core::connection::NatsConnection;
 use broker_core::cache::NodeCacheManager;
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
+use metadata_struct::mq9::agent::MQ9Agent;
 use metadata_struct::mq9::mail::MQ9Mail;
 use std::sync::Arc;
 
@@ -27,6 +28,8 @@ pub struct NatsCacheManager {
     pub mail_info: DashMap<String, MQ9Mail>,
     /// Key: inbox subject, Value: sid
     pub inbox_data: DashMap<String, String>,
+    /// Key: "{tenant}/{name}"
+    pub agent_info: DashMap<String, MQ9Agent>,
 }
 
 impl NatsCacheManager {
@@ -37,6 +40,7 @@ impl NatsCacheManager {
             connection_info: DashMap::with_capacity(1024),
             mail_info: DashMap::new(),
             inbox_data: DashMap::new(),
+            agent_info: DashMap::new(),
         }
     }
 
@@ -69,6 +73,21 @@ impl NatsCacheManager {
     pub fn remove_mail(&self, tenant: &str, mail_address: &str) {
         let key = format!("{}/{}", tenant, mail_address);
         self.mail_info.remove(&key);
+    }
+
+    pub fn add_agent(&self, agent: MQ9Agent) {
+        let key = format!("{}/{}", agent.tenant, agent.name);
+        self.agent_info.insert(key, agent);
+    }
+
+    pub fn get_agent(&self, tenant: &str, name: &str) -> Option<MQ9Agent> {
+        let key = format!("{}/{}", tenant, name);
+        self.agent_info.get(&key).map(|e| e.value().clone())
+    }
+
+    pub fn remove_agent(&self, tenant: &str, name: &str) {
+        let key = format!("{}/{}", tenant, name);
+        self.agent_info.remove(&key);
     }
 
     pub fn add_connection(&self, connection: NatsConnection) {

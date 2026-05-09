@@ -328,6 +328,14 @@ impl DataRoute {
                 self.route_mq9.delete_mail(storage_data.value.clone())?;
                 Ok(None)
             }
+            StorageDataType::Mq9CreateAgent => {
+                self.route_mq9.create_agent(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::Mq9DeleteAgent => {
+                self.route_mq9.delete_agent(storage_data.value.clone())?;
+                Ok(None)
+            }
         }
     }
 }

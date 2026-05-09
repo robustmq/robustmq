@@ -99,6 +99,8 @@ pub enum StorageDataType {
     // mq9
     Mq9CreateMail,
     Mq9DeleteMail,
+    Mq9CreateAgent,
+    Mq9DeleteAgent,
 }
 
 impl fmt::Display for StorageDataType {
@@ -174,6 +176,8 @@ impl fmt::Display for StorageDataType {
 
             StorageDataType::Mq9CreateMail => write!(f, "Mq9CreateMail"),
             StorageDataType::Mq9DeleteMail => write!(f, "Mq9DeleteMail"),
+            StorageDataType::Mq9CreateAgent => write!(f, "Mq9CreateAgent"),
+            StorageDataType::Mq9DeleteAgent => write!(f, "Mq9DeleteAgent"),
         }
     }
 }

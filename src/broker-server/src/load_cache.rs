@@ -33,6 +33,7 @@ use mqtt_broker::storage::schema::SchemaStorage;
 use mqtt_broker::storage::topic_rewrite::TopicRewriteStorage;
 use nats_broker::core::cache::NatsCacheManager;
 use nats_broker::push::NatsSubscribeManager;
+use nats_broker::storage::agent::Mq9AgentStorage;
 use nats_broker::storage::mail::Mq9MailStorage;
 use nats_broker::storage::subscribe::NatsSubscribeStorage;
 use schema_register::schema::SchemaRegisterManager;
@@ -266,9 +267,16 @@ pub async fn load_nats_cache(
         cache_manager.add_mail(mail);
     }
 
+    let agent_storage = Mq9AgentStorage::new(client_pool.clone());
+    let agents = agent_storage.list("").await?;
+    let agent_count = agents.len();
+    for agent in agents {
+        cache_manager.add_agent(agent);
+    }
+
     info!(
-        "NATS cache loaded: subscribes={}, mails={}",
-        subscribe_count, mail_count
+        "NATS cache loaded: subscribes={}, mails={}, agents={}",
+        subscribe_count, mail_count, agent_count
     );
     Ok(())
 }

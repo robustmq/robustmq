@@ -7,6 +7,10 @@ service Mq9Service {
   rpc CreateMail(CreateMailRequest) returns (CreateMailReply) {}
   rpc DeleteMail(DeleteMailRequest) returns (DeleteMailReply) {}
   rpc ListMail(ListMailRequest) returns (stream ListMailReply) {}
+
+  rpc CreateAgent(CreateAgentRequest) returns (CreateAgentReply) {}
+  rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentReply) {}
+  rpc ListAgent(ListAgentRequest) returns (stream ListAgentReply) {}
 }
 
 message CreateMailRequest {
@@ -29,4 +33,26 @@ message ListMailRequest {
 
 message ListMailReply {
   bytes mail = 1;
+}
+
+message CreateAgentRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  bytes content = 2 [(validate.rules).bytes.min_len = 1];
+}
+
+message CreateAgentReply {}
+
+message DeleteAgentRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string name = 2 [(validate.rules).string.min_len = 1];
+}
+
+message DeleteAgentReply {}
+
+message ListAgentRequest {
+  string tenant = 1;
+}
+
+message ListAgentReply {
+  bytes agent = 1;
 }
