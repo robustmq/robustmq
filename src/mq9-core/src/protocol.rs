@@ -43,19 +43,14 @@ pub struct MsgQueryReq {
     pub limit: Option<u64>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DeliverPolicy {
     Earliest,
+    #[default]
     Latest,
     FromTime,
     FromId,
-}
-
-impl Default for DeliverPolicy {
-    fn default() -> Self {
-        DeliverPolicy::Latest
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

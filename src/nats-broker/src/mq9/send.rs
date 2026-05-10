@@ -122,7 +122,10 @@ pub async fn process_send(
     }
 
     let mq9_headers = headers.as_ref().map(parse_mq9_headers);
-    let priority = mq9_headers.as_ref().map(|h| h.priority.clone()).unwrap_or(Priority::Normal);
+    let priority = mq9_headers
+        .as_ref()
+        .map(|h| h.priority.clone())
+        .unwrap_or(Priority::Normal);
 
     try_get_or_init_subject(
         &ctx.cache_manager,

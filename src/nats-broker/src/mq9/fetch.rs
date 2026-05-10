@@ -63,8 +63,7 @@ pub async fn process_fetch(
                 .map_err(NatsBrokerError::from)?
                 .is_empty();
             if req.force_deliver.unwrap_or(false) && group_exists {
-                let shard_offsets =
-                    force_reset_offset(ctx, &tenant, mail_address, &req).await?;
+                let shard_offsets = force_reset_offset(ctx, &tenant, mail_address, &req).await?;
                 c.set_current_offsets(&tenant, mail_address, &shard_offsets);
             } else {
                 let strategy = deliver_to_strategy(&req);
@@ -74,10 +73,8 @@ pub async fn process_fetch(
         }
         None => {
             let tmp_group = Uuid::new_v4().to_string();
-            let c = PriorityGroupConsumer::new_manual(
-                ctx.storage_driver_manager.clone(),
-                tmp_group,
-            );
+            let c =
+                PriorityGroupConsumer::new_manual(ctx.storage_driver_manager.clone(), tmp_group);
             let strategy = deliver_to_strategy(&req);
             c.set_start_offset_strategy(strategy).await;
             (c, false)
