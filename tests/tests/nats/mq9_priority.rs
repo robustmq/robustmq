@@ -14,7 +14,7 @@
 
 #[cfg(test)]
 mod tests {
-    use async_nats::Client;
+    use async_nats::{Client, HeaderMap};
     use bytes::Bytes;
     use common_base::uuid::unique_id;
     use metadata_struct::mq9::Priority;
@@ -55,10 +55,20 @@ mod tests {
     ) -> MsgSendReply {
         let subject = Mq9Command::MsgSend {
             mail_address: mail_address.to_string(),
-            priority,
         }
         .to_subject();
-        request(client, subject, Bytes::from(payload.to_string())).await
+        let mut headers = HeaderMap::new();
+        headers.insert("mq9-priority", priority.to_string().as_str());
+        let msg = client
+            .request_with_headers(subject, headers, Bytes::from(payload.to_string()))
+            .await
+            .unwrap();
+        serde_json::from_slice::<MsgSendReply>(&msg.payload).unwrap_or_else(|_| {
+            panic!(
+                "failed to parse send reply: {}",
+                String::from_utf8_lossy(&msg.payload)
+            )
+        })
     }
 
     async fn fetch(
@@ -68,13 +78,14 @@ mod tests {
         num_msgs: u32,
     ) -> MsgFetchReply {
         let req = MsgFetchReq {
-            group_name: group_name.to_string(),
+            group_name: Some(group_name.to_string()),
             deliver: DeliverPolicy::Earliest,
             from_time: None,
             from_id: None,
             force_deliver: None,
             config: Some(MsgFetchConfig {
                 num_msgs: Some(num_msgs),
+                max_wait_ms: None,
             }),
         };
         let payload = Bytes::from(serde_json::to_string(&req).unwrap());
