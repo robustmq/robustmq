@@ -56,7 +56,9 @@ impl ClusterController {
         );
 
         let ac_fn = async || -> ResultCommonError {
-            heartbeat.start().await;
+            if self.raft_manager.is_metadata_leader() {
+                heartbeat.start().await;
+            }
             Ok(())
         };
 
