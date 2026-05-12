@@ -31,6 +31,7 @@ const HEADER_MSG_KEY: &str = "mq9-key";
 const HEADER_DELAY: &str = "mq9-delay";
 const HEADER_TTL: &str = "mq9-ttl";
 const HEADER_TAGS: &str = "mq9-tags";
+const HEADER_PRIORITY: &str = "mq9-priority";
 
 /// Parsed mq9-specific headers from a NATS HMSG header block.
 pub struct Mq9Headers {
@@ -42,6 +43,8 @@ pub struct Mq9Headers {
     pub ttl_secs: Option<u64>,
     /// `mq9-tags`: comma-separated user tags, e.g. `billing,urgent,vip`.
     pub tags: Vec<String>,
+    /// `mq9-priority`: `normal` | `urgent` | `critical`. Defaults to `normal`.
+    pub priority: Priority,
 }
 
 /// Parse the raw NATS header block into `Mq9Headers`.
@@ -52,6 +55,7 @@ fn parse_mq9_headers(raw: &Bytes) -> Mq9Headers {
     let mut delay_secs = None;
     let mut ttl_secs = None;
     let mut tags = vec![];
+    let mut priority = Priority::Normal;
 
     let text = match std::str::from_utf8(raw) {
         Ok(s) => s,
@@ -61,6 +65,7 @@ fn parse_mq9_headers(raw: &Bytes) -> Mq9Headers {
                 delay_secs,
                 ttl_secs: None,
                 tags: vec![],
+                priority,
             }
         }
     };
@@ -83,6 +88,9 @@ fn parse_mq9_headers(raw: &Bytes) -> Mq9Headers {
                         .filter(|t| !t.is_empty())
                         .collect();
                 }
+                HEADER_PRIORITY => {
+                    priority = Priority::parse(val.trim()).unwrap_or(Priority::Normal);
+                }
                 _ => {}
             }
         }
@@ -93,13 +101,13 @@ fn parse_mq9_headers(raw: &Bytes) -> Mq9Headers {
         delay_secs,
         ttl_secs,
         tags,
+        priority,
     }
 }
 
 pub async fn process_send(
     ctx: &NatsProcessContext,
     mail_address: &str,
-    priority: &Priority,
     headers: &Option<Bytes>,
     reply_to: Option<&str>,
     payload: &Bytes,
@@ -114,6 +122,10 @@ pub async fn process_send(
     }
 
     let mq9_headers = headers.as_ref().map(parse_mq9_headers);
+    let priority = mq9_headers
+        .as_ref()
+        .map(|h| h.priority.clone())
+        .unwrap_or(Priority::Normal);
 
     try_get_or_init_subject(
         &ctx.cache_manager,
@@ -126,7 +138,7 @@ pub async fn process_send(
     )
     .await?;
 
-    let mut system_tags = build_message_tag(&tenant, mail_address, priority);
+    let mut system_tags = build_message_tag(&tenant, mail_address, &priority);
     if let Some(h) = &mq9_headers {
         system_tags.extend(
             h.tags
@@ -203,13 +215,14 @@ mod tests {
     #[test]
     fn test_parse_mq9_headers() {
         let raw = Bytes::from(
-            "NATS/1.0\r\nmq9-key: k1\r\nmq9-delay: 30\r\nmq9-ttl: 60\r\nmq9-tags: billing,urgent,vip\r\n\r\n",
+            "NATS/1.0\r\nmq9-key: k1\r\nmq9-delay: 30\r\nmq9-ttl: 60\r\nmq9-tags: billing,urgent,vip\r\nmq9-priority: critical\r\n\r\n",
         );
         let h = parse_mq9_headers(&raw);
         assert_eq!(h.msg_key.as_deref(), Some("k1"));
         assert_eq!(h.delay_secs, Some(30));
         assert_eq!(h.ttl_secs, Some(60));
         assert_eq!(h.tags, vec!["billing", "urgent", "vip"]);
+        assert_eq!(h.priority, Priority::Critical);
     }
 
     #[test]

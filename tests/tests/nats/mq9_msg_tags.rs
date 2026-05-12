@@ -19,7 +19,6 @@ mod tests {
     use async_nats::{Client, HeaderMap};
     use bytes::Bytes;
     use common_base::uuid::unique_id;
-    use metadata_struct::mq9::Priority;
     use mq9_core::command::Mq9Command;
     use mq9_core::protocol::{
         MailboxCreateReply, MailboxCreateReq, MsgQueryReply, MsgQueryReq, MsgSendReply,
@@ -55,7 +54,6 @@ mod tests {
     ) -> MsgSendReply {
         let subject = Mq9Command::MsgSend {
             mail_address: mail_address.to_string(),
-            priority: Priority::Normal,
         }
         .to_subject();
 
@@ -195,7 +193,6 @@ mod tests {
 
         let untagged_subject = Mq9Command::MsgSend {
             mail_address: mail_address.clone(),
-            priority: Priority::Normal,
         }
         .to_subject();
         let msg = client

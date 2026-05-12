@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use async_nats::Client;
+use async_nats::{Client, HeaderMap, HeaderName, HeaderValue};
 use bytes::Bytes;
-use metadata_struct::mq9::Priority;
 use mq9_core::command::Mq9Command;
 use mq9_core::protocol::{
     DeliverPolicy, MsgAckReply, MsgAckReq, MsgDeleteReply, MsgFetchConfig, MsgFetchReq,
@@ -37,20 +36,21 @@ pub struct SendMessageArgs {
 }
 
 pub async fn send_message(client: &Client, args: SendMessageArgs) -> Result<Value, McpToolError> {
-    let priority = args
-        .priority
-        .as_deref()
-        .and_then(Priority::parse)
-        .unwrap_or(Priority::Normal);
-
     let subject = Mq9Command::MsgSend {
         mail_address: args.mail_address.clone(),
-        priority,
     }
     .to_subject();
 
+    let mut headers = HeaderMap::new();
+    if let Some(p) = &args.priority {
+        headers.insert(
+            HeaderName::from_static("mq9-priority"),
+            HeaderValue::from(p.as_str()),
+        );
+    }
+
     let msg = client
-        .request(subject, Bytes::from(args.payload))
+        .request_with_headers(subject, headers, Bytes::from(args.payload))
         .await
         .map_err(|e| McpToolError::BrokerError(e.to_string()))?;
 
@@ -70,11 +70,14 @@ pub async fn send_message(client: &Client, args: SendMessageArgs) -> Result<Valu
 #[derive(Debug, Deserialize)]
 pub struct FetchMessagesArgs {
     pub mail_address: String,
-    /// Consumer group name. Use a stable identifier per caller (e.g. agent ID).
-    pub group_name: String,
-    /// Where to start reading.
-    /// "earliest" | "latest" | unix-timestamp (integer) | msg_id (integer prefixed "id:").
-    /// Omit to resume from the last acknowledged position.
+    /// Consumer group name. When provided, the broker tracks the read position per group
+    /// so the next fetch resumes where the last ack left off (stateful consumption).
+    /// When omitted, the broker uses a transient group — no position is saved and every
+    /// call starts fresh from `reset_to` (stateless / one-shot consumption).
+    pub group_name: Option<String>,
+    /// Where to start reading. Only takes effect when there is no saved position,
+    /// or when explicitly overriding with force reset.
+    /// "earliest" | "latest" (default) | "time:<unix_ts>" | "id:<msg_id>"
     pub reset_to: Option<String>,
     /// Maximum number of messages to return (default 100).
     pub max_messages: Option<u32>,
@@ -92,9 +95,10 @@ pub async fn fetch_messages(
         from_time,
         from_id,
         force_deliver,
-        config: args
-            .max_messages
-            .map(|n| MsgFetchConfig { num_msgs: Some(n) }),
+        config: Some(MsgFetchConfig {
+            num_msgs: args.max_messages,
+            max_wait_ms: None,
+        }),
     };
 
     let payload = Bytes::from(serde_json::to_string(&req)?);
@@ -132,16 +136,16 @@ pub async fn fetch_messages(
 /// Parse the `reset_to` shorthand into low-level fetch parameters.
 ///
 /// Supported values:
-/// - omitted      → resume from last acked position (no force reset)
-/// - "earliest"   → reset to the beginning of the mailbox
-/// - "latest"     → skip history, only receive new messages
-/// - "time:<ts>"  → reset to the given Unix timestamp (seconds)
-/// - "id:<id>"    → reset to the given msg_id
+/// - omitted        → resume from saved position; if none, start from latest (no force reset)
+/// - "earliest"     → force reset to the beginning of the mailbox
+/// - "latest"       → force reset, only receive new messages from now
+/// - "time:<ts>"    → force reset to the given Unix timestamp (seconds)
+/// - "id:<msg_id>"  → force reset to the given msg_id
 fn parse_reset_to(
     reset_to: Option<&str>,
 ) -> (DeliverPolicy, Option<u64>, Option<u64>, Option<bool>) {
     match reset_to {
-        None => (DeliverPolicy::Earliest, None, None, None),
+        None => (DeliverPolicy::Latest, None, None, None),
         Some("earliest") => (DeliverPolicy::Earliest, None, None, Some(true)),
         Some("latest") => (DeliverPolicy::Latest, None, None, Some(true)),
         Some(s) => {
@@ -155,7 +159,7 @@ fn parse_reset_to(
                     return (DeliverPolicy::FromId, None, Some(id), Some(true));
                 }
             }
-            (DeliverPolicy::Earliest, None, None, Some(true))
+            (DeliverPolicy::Latest, None, None, Some(true))
         }
     }
 }

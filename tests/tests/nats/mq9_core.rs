@@ -17,7 +17,6 @@ mod tests {
     use async_nats::Client;
     use bytes::Bytes;
     use common_base::uuid::unique_id;
-    use metadata_struct::mq9::Priority;
     use mq9_core::command::Mq9Command;
     use mq9_core::protocol::{
         DeliverPolicy, MailboxCreateReply, MailboxCreateReq, MsgAckReply, MsgAckReq, MsgFetchReply,
@@ -54,13 +53,14 @@ mod tests {
         num_msgs: u32,
     ) -> MsgFetchReply {
         let req = MsgFetchReq {
-            group_name: group_name.to_string(),
+            group_name: Some(group_name.to_string()),
             deliver: DeliverPolicy::Earliest,
             from_time: None,
             from_id: None,
             force_deliver: None,
             config: Some(mq9_core::protocol::MsgFetchConfig {
                 num_msgs: Some(num_msgs),
+                max_wait_ms: None,
             }),
         };
         let payload = Bytes::from(serde_json::to_string(&req).unwrap());
@@ -98,7 +98,6 @@ mod tests {
         let fake_id = format!("nonexistent{}", unique_id());
         let subject = Mq9Command::MsgSend {
             mail_address: fake_id.clone(),
-            priority: Priority::Normal,
         }
         .to_subject();
         let reply: MsgSendReply = request(&client, subject, Bytes::from("hello")).await;
@@ -131,7 +130,6 @@ mod tests {
             let payload_str = format!("message-{}-{}", i, unique_id());
             let subject = Mq9Command::MsgSend {
                 mail_address: mail_address.clone(),
-                priority: Priority::Normal,
             }
             .to_subject();
             let reply: MsgSendReply =
@@ -194,7 +192,6 @@ mod tests {
             let payload_str = format!("fetch-msg-{}-{}", i, unique_id());
             let subject = Mq9Command::MsgSend {
                 mail_address: mail_address.clone(),
-                priority: Priority::Normal,
             }
             .to_subject();
             let reply: MsgSendReply =

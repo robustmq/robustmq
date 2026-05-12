@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metadata_struct::mq9::Priority;
-
 /// Subject namespace prefix: `$mq9.AI`
 const PREFIX: &str = "$mq9.AI";
 
@@ -26,8 +24,6 @@ const PREFIX: &str = "$mq9.AI";
 ///
 /// Message communication:
 ///   $mq9.AI.MSG.SEND.{mail_address}
-///   $mq9.AI.MSG.SEND.{mail_address}.urgent
-///   $mq9.AI.MSG.SEND.{mail_address}.critical
 ///   $mq9.AI.MSG.FETCH.{mail_address}
 ///   $mq9.AI.MSG.ACK.{mail_address}
 ///   $mq9.AI.MSG.QUERY.{mail_address}
@@ -45,11 +41,8 @@ pub enum Mq9Command {
     MailboxCreate,
 
     // ── Message communication ─────────────────────────────────────────────────
-    /// `$mq9.AI.MSG.SEND.{mail_address}[.urgent|.critical]`
-    MsgSend {
-        mail_address: String,
-        priority: Priority,
-    },
+    /// `$mq9.AI.MSG.SEND.{mail_address}` — priority via `mq9-priority` header
+    MsgSend { mail_address: String },
     /// `$mq9.AI.MSG.FETCH.{mail_address}`
     MsgFetch { mail_address: String },
     /// `$mq9.AI.MSG.ACK.{mail_address}`
@@ -82,13 +75,9 @@ impl Mq9Command {
         match self {
             Mq9Command::MailboxCreate => format!("{}.MAILBOX.CREATE", PREFIX),
 
-            Mq9Command::MsgSend {
-                mail_address,
-                priority,
-            } => match priority {
-                Priority::Normal => format!("{}.MSG.SEND.{}", PREFIX, mail_address),
-                p => format!("{}.MSG.SEND.{}.{}", PREFIX, mail_address, p),
-            },
+            Mq9Command::MsgSend { mail_address } => {
+                format!("{}.MSG.SEND.{}", PREFIX, mail_address)
+            }
             Mq9Command::MsgFetch { mail_address } => {
                 format!("{}.MSG.FETCH.{}", PREFIX, mail_address)
             }
@@ -137,7 +126,9 @@ fn parse_msg(tail: &str) -> Option<Mq9Command> {
         return None;
     }
     match cmd {
-        "SEND" => Some(parse_msg_send(rest)),
+        "SEND" => Some(Mq9Command::MsgSend {
+            mail_address: rest.to_string(),
+        }),
         "FETCH" => Some(Mq9Command::MsgFetch {
             mail_address: rest.to_string(),
         }),
@@ -155,25 +146,6 @@ fn parse_msg(tail: &str) -> Option<Mq9Command> {
             })
         }
         _ => None,
-    }
-}
-
-/// Parse the tail after `$mq9.AI.MSG.SEND.` into a [`Mq9Command::MsgSend`].
-///
-/// Priority is carried as the last segment if it matches a known token;
-/// otherwise the entire tail is the mail_address with Normal priority.
-fn parse_msg_send(tail: &str) -> Mq9Command {
-    if let Some((prefix, last)) = tail.rsplit_once('.') {
-        if let Some(p) = Priority::parse(last) {
-            return Mq9Command::MsgSend {
-                mail_address: prefix.to_string(),
-                priority: p,
-            };
-        }
-    }
-    Mq9Command::MsgSend {
-        mail_address: tail.to_string(),
-        priority: Priority::Normal,
     }
 }
 
@@ -207,28 +179,16 @@ mod tests {
 
     #[test]
     fn test_msg_send() {
-        // no priority suffix → Normal
         assert_eq!(
             Mq9Command::parse("$mq9.AI.MSG.SEND.task.001.callback"),
             Some(Mq9Command::MsgSend {
                 mail_address: "task.001.callback".to_string(),
-                priority: Priority::Normal,
             })
         );
-        // urgent
         assert_eq!(
-            Mq9Command::parse("$mq9.AI.MSG.SEND.agent.inbox.urgent"),
+            Mq9Command::parse("$mq9.AI.MSG.SEND.agent.inbox"),
             Some(Mq9Command::MsgSend {
                 mail_address: "agent.inbox".to_string(),
-                priority: Priority::Urgent,
-            })
-        );
-        // critical
-        assert_eq!(
-            Mq9Command::parse("$mq9.AI.MSG.SEND.agent.inbox.critical"),
-            Some(Mq9Command::MsgSend {
-                mail_address: "agent.inbox".to_string(),
-                priority: Priority::Critical,
             })
         );
     }
@@ -317,11 +277,6 @@ mod tests {
             Mq9Command::MailboxCreate,
             Mq9Command::MsgSend {
                 mail_address: "agent.inbox".to_string(),
-                priority: Priority::Normal,
-            },
-            Mq9Command::MsgSend {
-                mail_address: "agent.inbox".to_string(),
-                priority: Priority::Urgent,
             },
             Mq9Command::MsgFetch {
                 mail_address: "task.001".to_string(),

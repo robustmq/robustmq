@@ -13,18 +13,18 @@ The orchestrator creates a private mailbox and shares the `mail_address` with th
 ```bash
 # Orchestrator: create private reply mailbox (TTL covers max expected task duration)
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl": 3600}'
-# Response: {"mail_address": "d7a5072l@mq9"}
+# Response: {"mail_address": "d7a5072l"}
 
 # Share mail_address with sub-agent out-of-band (e.g. in the task payload)
-nats pub '$mq9.AI.MAILBOX.MSG.task.dispatch@mq9' \
-  '{"task": "summarize /data/corpus", "reply_to": "d7a5072l@mq9"}'
+nats pub '$mq9.AI.MAILBOX.MSG.task.dispatch' \
+  '{"task": "summarize /data/corpus", "reply_to": "d7a5072l"}'
 
 # Sub-agent: deliver result when done
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9' \
+nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l' \
   '{"status": "ok", "summary": "..."}'
 
 # Orchestrator: subscribe whenever ready — result is already stored
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9.*'
+nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.*'
 ```
 
 **Key mq9 features:** private mailbox, store-first delivery, async result pickup.
@@ -40,20 +40,20 @@ A producer sends tasks into a shared queue. Multiple workers compete to consume 
 nats req '$mq9.AI.MAILBOX.CREATE' '{
   "ttl": 86400,
   "public": true,
-  "name": "task.queue@mq9",
+  "name": "task.queue",
   "desc": "Shared worker task queue"
 }'
 
 # Workers: subscribe with the same queue group — each message delivered to exactly one worker
 # Terminal 1
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue@mq9.*' --queue workers
+nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
 # Terminal 2
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue@mq9.*' --queue workers
+nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
 
 # Producer: publish tasks at appropriate priorities
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue@mq9.critical' '{"task": "reindex", "id": "t-101"}'
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue@mq9.urgent'   '{"task": "interrupt", "id": "t-102"}'
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue@mq9'          '{"task": "summarize", "id": "t-103"}'
+nats pub '$mq9.AI.MAILBOX.MSG.task.queue.critical' '{"task": "reindex", "id": "t-101"}'
+nats pub '$mq9.AI.MAILBOX.MSG.task.queue.urgent'   '{"task": "interrupt", "id": "t-102"}'
+nats pub '$mq9.AI.MAILBOX.MSG.task.queue'          '{"task": "summarize", "id": "t-103"}'
 ```
 
 **Key mq9 features:** public mailbox, queue group (competitive consumption), priority ordering.
@@ -69,7 +69,7 @@ An orchestrator needs to know which workers are currently alive without polling 
 nats req '$mq9.AI.MAILBOX.CREATE' '{
   "ttl": 30,
   "public": true,
-  "name": "worker.health.worker42@mq9",
+  "name": "worker.health.worker42",
   "desc": "Worker 42 heartbeat"
 }'
 
@@ -79,7 +79,7 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{
 nats req '$mq9.AI.MAILBOX.CREATE' '{
   "ttl": 30,
   "public": true,
-  "name": "worker.health.worker42@mq9"
+  "name": "worker.health.worker42"
 }'
 
 # Orchestrator: watch the public list for registrations and expirations
@@ -96,7 +96,7 @@ Any agent can detect an anomaly and broadcast an alert to all registered handler
 
 ```bash
 # Alert sender: publish to a shared alert mailbox with highest priority
-nats pub '$mq9.AI.MAILBOX.MSG.alerts@mq9.critical' '{
+nats pub '$mq9.AI.MAILBOX.MSG.alerts.critical' '{
   "type": "anomaly",
   "agent": "monitor-7",
   "detail": "CPU > 95% for 5m",
@@ -104,10 +104,10 @@ nats pub '$mq9.AI.MAILBOX.MSG.alerts@mq9.critical' '{
 }'
 
 # Handler A: subscribe — receives alert immediately or when it reconnects
-nats sub '$mq9.AI.MAILBOX.MSG.alerts@mq9.*'
+nats sub '$mq9.AI.MAILBOX.MSG.alerts.*'
 
 # Handler B: subscribes later and still gets the alert from storage
-nats sub '$mq9.AI.MAILBOX.MSG.alerts@mq9.*'
+nats sub '$mq9.AI.MAILBOX.MSG.alerts.*'
 ```
 
 **Key mq9 features:** store-first delivery (handlers receive alerts even if offline), critical priority, public mailbox.
@@ -121,19 +121,19 @@ A cloud orchestrator needs to deliver commands to edge agents that may be offlin
 ```bash
 # Cloud: publish commands to edge agent's private mailbox (mail_address shared at provisioning)
 # Critical-priority reconfiguration
-nats pub '$mq9.AI.MAILBOX.MSG.edge.device@mq9.critical' '{
+nats pub '$mq9.AI.MAILBOX.MSG.edge.device.critical' '{
   "cmd": "reconfigure",
   "params": {"sampling_rate": 100}
 }'
 
 # Default-priority (normal) routine task
-nats pub '$mq9.AI.MAILBOX.MSG.edge.device@mq9' '{
+nats pub '$mq9.AI.MAILBOX.MSG.edge.device' '{
   "cmd": "run_diagnostic",
   "target": "sensor-bank-2"
 }'
 
 # Edge agent: subscribe on reconnect — receives all stored commands in priority order
-nats sub '$mq9.AI.MAILBOX.MSG.edge.device@mq9.*'
+nats sub '$mq9.AI.MAILBOX.MSG.edge.device.*'
 ```
 
 **Key mq9 features:** offline delivery (store-first), priority ordering on reconnect, private mailbox.
@@ -157,7 +157,7 @@ async def run():
 
     # Agent: publish decision for human review
     await nc.publish(
-        f"$mq9.AI.MAILBOX.MSG.approvals@mq9",
+        f"$mq9.AI.MAILBOX.MSG.approvals",
         json.dumps({
             "action": "delete_dataset",
             "target": "ds-prod-2024",
@@ -166,7 +166,7 @@ async def run():
     )
 
     # Human (via any NATS client or UI): subscribes to approvals, reviews, publishes decision
-    # nats sub '$mq9.AI.MAILBOX.MSG.approvals@mq9.*'
+    # nats sub '$mq9.AI.MAILBOX.MSG.approvals.*'
     # nats pub '$mq9.AI.MAILBOX.MSG.<reply_id>' '{"approved": true, "reviewer": "alice"}'
 
     # Agent: subscribe to reply mailbox when ready to continue
@@ -189,25 +189,25 @@ Agent A needs a result from Agent B, but B may not be available immediately and 
 ```bash
 # Agent A: create private reply mailbox
 nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl": 600}'
-# Response: {"mail_address": "agent.a@mq9"}
+# Response: {"mail_address": "agent.a"}
 
 # Agent A: send request to Agent B's mailbox with reply_to field
-nats pub '$mq9.AI.MAILBOX.MSG.agent.b@mq9' '{
+nats pub '$mq9.AI.MAILBOX.MSG.agent.b' '{
   "request": "translate",
   "text": "Hello world",
   "lang": "fr",
-  "reply_to": "agent.a@mq9"
+  "reply_to": "agent.a"
 }'
 
 # Agent A: continues other work here ...
 
 # Agent B: processes request and sends result to reply mailbox
-nats pub '$mq9.AI.MAILBOX.MSG.agent.a@mq9' '{
+nats pub '$mq9.AI.MAILBOX.MSG.agent.a' '{
   "result": "Bonjour le monde"
 }'
 
 # Agent A: subscribes to reply mailbox when ready — result already stored
-nats sub '$mq9.AI.MAILBOX.MSG.agent.a@mq9.*'
+nats sub '$mq9.AI.MAILBOX.MSG.agent.a.*'
 ```
 
 **Key mq9 features:** private mailbox as reply address, store-first delivery, non-blocking async pattern.
@@ -223,16 +223,16 @@ Agents announce their capabilities by creating public mailboxes with descriptive
 nats req '$mq9.AI.MAILBOX.CREATE' '{
   "ttl": 3600,
   "public": true,
-  "name": "agent.codereview@mq9",
+  "name": "agent.codereview",
   "desc": "Accepts code review requests; returns findings as JSON"
 }'
 
 # Another agent: subscribe to PUBLIC.LIST to discover available capabilities
 nats sub '$mq9.AI.PUBLIC.LIST'
-# Receives entries like: {"name": "agent.codereview@mq9", "desc": "...", "mail_address": "agent.codereview@mq9"}
+# Receives entries like: {"name": "agent.codereview", "desc": "...", "mail_address": "agent.codereview"}
 
 # Consumer agent: send a task directly to the discovered capability
-nats pub '$mq9.AI.MAILBOX.MSG.agent.codereview@mq9' '{
+nats pub '$mq9.AI.MAILBOX.MSG.agent.codereview' '{
   "file": "src/main.rs",
   "context": "performance review"
 }'

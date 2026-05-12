@@ -57,13 +57,13 @@ $mq9.AI
 
 ### mail_address Format
 
-Private mailbox `mail_address` values are server-generated, in the format `{uuid}@mq9`, for example:
+Private mailbox `mail_address` values are server-generated, in the format `{uuid}`, for example:
 
 ```text
-d7a5072l@mq9
+d7a5072l
 ```
 
-Public mailbox `mail_address` values are user-defined via the `name` field at creation time. Dot-separated names with the `@mq9` suffix are supported, e.g. `task.queue@mq9`, `vision.results@mq9`.
+Public mailbox `mail_address` values are user-defined via the `name` field at creation time. Dot-separated names are supported, e.g. `task.queue`, `vision.results`.
 
 `mail_address` unguessability is the security boundary: knowing the `mail_address` lets you send and subscribe; without it, there is no way to interact with the mailbox. No token, no ACL.
 
@@ -73,7 +73,7 @@ Public mailbox `mail_address` values are user-defined via the `name` field at cr
 
 **Mailbox** — mq9's fundamental communication address. Created via `MAILBOX.CREATE`, which returns a `mail_address`. Not bound to Agent identity — one Agent can create different mailboxes for different tasks.
 
-**TTL** — The lifetime declared at mailbox creation. When it expires, the mailbox and all its messages are automatically destroyed with no manual cleanup needed. `MAILBOX.CREATE` is idempotent: calling it again with the same name silently returns success; TTL is fixed by the first creation.
+**TTL** — The lifetime declared at mailbox creation. When it expires, the mailbox and all its messages are automatically destroyed with no manual cleanup needed. `MAILBOX.CREATE` is **not** idempotent: calling it again with the same name returns an error.
 
 **Priority** — Every message belongs to one of three priority levels, encoded in the subject suffix:
 
@@ -105,15 +105,14 @@ Subject: `$mq9.AI.MAILBOX.CREATE` · NATS primitive: request/reply
 |-------|------|----------|---------|-------------|
 | `ttl` | uint64 | No | server default | Mailbox lifetime in seconds; mailbox and messages auto-destroyed on expiry |
 | `public` | bool | No | `false` | Whether to make the mailbox public; `true` auto-registers it to `$mq9.AI.PUBLIC.LIST` |
-| `name` | string | Required for public | — | Custom `mail_address` for a public mailbox; dot-separated names with `@mq9` suffix supported (e.g. `task.queue@mq9`) |
+| `name` | string | Required for public | — | Custom `mail_address` for a public mailbox; dot-separated names with `` suffix supported (e.g. `task.queue`) |
 | `desc` | string | No | `""` | Mailbox description; recommended for public mailboxes, included in PUBLIC.LIST pushes |
 
 #### CREATE Response Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `mail_address` | string | Mailbox identifier. Private mailboxes use `{uuid}@mq9` format; public mailboxes use the `name` value from the request |
-| `is_new` | bool | `true` if this call created a new mailbox; `false` if it already existed (idempotent return) |
+| `mail_address` | string | Mailbox identifier. Private mailboxes use `{uuid}` format; public mailboxes use the `name` value from the request |
 
 #### CREATE Examples
 
@@ -124,7 +123,7 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
 ```
 
 ```json
-{"mail_address":"d7a5072l@mq9","is_new":true}
+{"mail_address":"d7a5072l"}
 ```
 
 Create a public mailbox:
@@ -133,26 +132,16 @@ Create a public mailbox:
 nats req '$mq9.AI.MAILBOX.CREATE' '{
   "ttl": 86400,
   "public": true,
-  "name": "task.queue@mq9",
+  "name": "task.queue",
   "desc": "Shared worker task queue"
 }'
 ```
 
 ```json
-{"mail_address":"task.queue@mq9","is_new":true}
+{"mail_address":"task.queue"}
 ```
 
-Idempotent call (mailbox already exists):
-
-```bash
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":86400,"public":true,"name":"task.queue@mq9"}'
-```
-
-```json
-{"mail_address":"task.queue@mq9","is_new":false}
-```
-
-> CREATE is idempotent. If the mailbox already exists, it returns success with `is_new: false`; the original TTL is preserved. Workers can safely call this at startup without checking whether the mailbox exists.
+> CREATE is **not** idempotent. If the mailbox already exists, it returns an error (`mailbox xxx already exists`). Check for existence before calling if needed.
 
 ---
 
@@ -197,16 +186,16 @@ mq9 does not enforce message body format — payload is any byte sequence. The f
 
 ```bash
 # critical — highest priority
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9.critical' \
+nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l.critical' \
   '{"type":"abort","task_id":"t-001","ts":1712600001}'
 
 # urgent
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9.urgent' \
+nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l.urgent' \
   '{"type":"interrupt","task_id":"t-002","ts":1712600002}'
 
 # normal — default, no suffix
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9' \
-  '{"type":"task","payload":{"job":"process dataset A"},"reply_to":"sender001@mq9","ts":1712600003}'
+nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l' \
+  '{"type":"task","payload":{"job":"process dataset A"},"reply_to":"sender001","ts":1712600003}'
 ```
 
 ---
@@ -239,19 +228,19 @@ The server does not track consumption state. Re-subscribing replays all non-expi
 
 ```bash
 # Subscribe to all priorities (recommended)
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9.*'
+nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.*'
 
 # critical only
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9.critical'
+nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.critical'
 
 # urgent only
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9.urgent'
+nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.urgent'
 
 # normal only
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9'
+nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l'
 
 # Competing consumers (Queue Group) — each message delivered to exactly one worker
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue@mq9.*' --queue workers
+nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
 ```
 
 ---
@@ -286,12 +275,12 @@ Messages array elements:
 #### LIST Examples
 
 ```bash
-nats req '$mq9.AI.MAILBOX.LIST.d7a5072l@mq9' '{}'
+nats req '$mq9.AI.MAILBOX.LIST.d7a5072l' '{}'
 ```
 
 ```json
 {
-  "mail_address": "d7a5072l@mq9",
+  "mail_address": "d7a5072l",
   "messages": [
     {
       "msg_id": 1001,
@@ -330,7 +319,7 @@ Delete a specific message from mailbox storage. In competing consumer scenarios,
 
 Request body is an empty JSON object: `{}`
 
-The `mail_address` and `msg_id` are encoded in the subject. Parsing rule: the token after the last `.` is the `msg_id`; everything before it is the `mail_address`. For example, `task.queue@mq9.1003` parses as `mail_address=task.queue@mq9`, `msg_id=1003`.
+The `mail_address` and `msg_id` are encoded in the subject. Parsing rule: the token after the last `.` is the `msg_id`; everything before it is the `mail_address`. For example, `task.queue.1003` parses as `mail_address=task.queue`, `msg_id=1003`.
 
 #### DELETE Response Fields
 
@@ -341,7 +330,7 @@ The `mail_address` and `msg_id` are encoded in the subject. Parsing rule: the to
 #### DELETE Examples
 
 ```bash
-nats req '$mq9.AI.MAILBOX.DELETE.d7a5072l@mq9.1002' '{}'
+nats req '$mq9.AI.MAILBOX.DELETE.d7a5072l.1002' '{}'
 ```
 
 ```json
@@ -351,7 +340,7 @@ nats req '$mq9.AI.MAILBOX.DELETE.d7a5072l@mq9.1002' '{}'
 Public mailbox (mail_address contains dots):
 
 ```bash
-nats req '$mq9.AI.MAILBOX.DELETE.task.queue@mq9.1003' '{}'
+nats req '$mq9.AI.MAILBOX.DELETE.task.queue.1003' '{}'
 ```
 
 ```json
@@ -393,9 +382,9 @@ nats sub '$mq9.AI.PUBLIC.LIST'
 ```
 
 ```json
-{"event":"created","mail_address":"task.queue@mq9","desc":"Shared worker task queue","ttl":86400}
-{"event":"created","mail_address":"vision.results@mq9","desc":"Vision processing results","ttl":3600}
-{"event":"expired","mail_address":"vision.results@mq9"}
+{"event":"created","mail_address":"task.queue","desc":"Shared worker task queue","ttl":86400}
+{"event":"created","mail_address":"vision.results","desc":"Vision processing results","ttl":3600}
+{"event":"expired","mail_address":"vision.results"}
 ```
 
 ---

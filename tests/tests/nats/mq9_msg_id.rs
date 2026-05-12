@@ -19,7 +19,6 @@ mod tests {
     use async_nats::{Client, HeaderMap};
     use bytes::Bytes;
     use common_base::uuid::unique_id;
-    use metadata_struct::mq9::Priority;
     use mq9_core::command::Mq9Command;
     use mq9_core::protocol::{
         DeliverPolicy, MailboxCreateReply, MailboxCreateReq, MsgFetchConfig, MsgFetchReply,
@@ -57,7 +56,6 @@ mod tests {
     ) -> MsgSendReply {
         let subject = Mq9Command::MsgSend {
             mail_address: mail_address.to_string(),
-            priority: Priority::Normal,
         }
         .to_subject();
 
@@ -96,13 +94,14 @@ mod tests {
         num_msgs: u32,
     ) -> MsgFetchReply {
         let req = MsgFetchReq {
-            group_name: group_name.to_string(),
+            group_name: Some(group_name.to_string()),
             deliver: DeliverPolicy::Earliest,
             from_time: None,
             from_id: None,
             force_deliver: None,
             config: Some(MsgFetchConfig {
                 num_msgs: Some(num_msgs),
+                max_wait_ms: None,
             }),
         };
         let payload = Bytes::from(serde_json::to_string(&req).unwrap());

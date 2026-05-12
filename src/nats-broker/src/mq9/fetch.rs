@@ -25,8 +25,10 @@ use mq9_core::protocol::{
 use std::collections::HashMap;
 use storage_adapter::consumer::StartOffsetStrategy;
 use storage_adapter::consumer_priority::PriorityGroupConsumer;
+use uuid::Uuid;
 
 const DEFAULT_NUM_MSGS: u32 = 100;
+const DEFAULT_MAX_WAIT_MS: u64 = 500;
 
 pub async fn process_fetch(
     ctx: &NatsProcessContext,
@@ -42,26 +44,43 @@ pub async fn process_fetch(
         .as_ref()
         .and_then(|c| c.num_msgs)
         .unwrap_or(DEFAULT_NUM_MSGS);
+    let max_wait_ms = req
+        .config
+        .as_ref()
+        .and_then(|c| c.max_wait_ms)
+        .unwrap_or(DEFAULT_MAX_WAIT_MS);
 
-    let consumer = PriorityGroupConsumer::new_manual(
-        ctx.storage_driver_manager.clone(),
-        req.group_name.clone(),
-    );
-
-    let group_exists = !ctx
-        .storage_driver_manager
-        .get_offset_by_group(&tenant, &format!("{}-normal", req.group_name))
-        .await
-        .map_err(NatsBrokerError::from)?
-        .is_empty();
-
-    if req.force_deliver.unwrap_or(false) && group_exists {
-        let shard_offsets = force_reset_offset(ctx, &tenant, mail_address, &req).await?;
-        consumer.set_current_offsets(&tenant, mail_address, &shard_offsets);
-    } else {
-        let strategy = deliver_to_strategy(&req);
-        consumer.set_start_offset_strategy(strategy).await;
-    }
+    let (consumer, stateful) = match &req.group_name {
+        Some(group_name) => {
+            let c = PriorityGroupConsumer::new_manual(
+                ctx.storage_driver_manager.clone(),
+                group_name.clone(),
+            );
+            let group_exists = !ctx
+                .storage_driver_manager
+                .get_offset_by_group(&tenant, &format!("{}-normal", group_name))
+                .await
+                .map_err(NatsBrokerError::from)?
+                .is_empty();
+            if req.force_deliver.unwrap_or(false) && group_exists {
+                let shard_offsets = force_reset_offset(ctx, &tenant, mail_address, &req).await?;
+                c.set_current_offsets(&tenant, mail_address, &shard_offsets);
+            } else {
+                let strategy = deliver_to_strategy(&req);
+                c.set_start_offset_strategy(strategy).await;
+            }
+            (c, true)
+        }
+        None => {
+            let tmp_group = Uuid::new_v4().to_string();
+            let c =
+                PriorityGroupConsumer::new_manual(ctx.storage_driver_manager.clone(), tmp_group);
+            let strategy = deliver_to_strategy(&req);
+            c.set_start_offset_strategy(strategy).await;
+            (c, false)
+        }
+    };
+    let _ = stateful; // offset commit is controlled by process_ack, not here
 
     let base_tag = subject_message_tag(&tenant, mail_address);
     let read_config = AdapterReadConfig {
@@ -73,6 +92,10 @@ pub async fn process_fetch(
         .next_messages_by_tags(&tenant, mail_address, &base_tag, &read_config)
         .await
         .map_err(NatsBrokerError::from)?;
+
+    if records.is_empty() && max_wait_ms > 0 {
+        tokio::time::sleep(std::time::Duration::from_millis(max_wait_ms)).await;
+    }
 
     let messages = records.into_iter().map(to_msg_item).collect();
     Ok(MsgFetchReply {
@@ -140,7 +163,7 @@ async fn force_reset_offset(
 
     let reset_consumer = PriorityGroupConsumer::new_manual(
         ctx.storage_driver_manager.clone(),
-        req.group_name.clone(),
+        req.group_name.clone().unwrap_or_default(),
     );
     reset_consumer.stage_offsets(tenant, mail_address, &shard_offsets);
     reset_consumer

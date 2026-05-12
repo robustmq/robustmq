@@ -49,10 +49,10 @@ nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
 Response:
 
 ```json
-{"mail_address":"d7a5072l@mq9"}
+{"mail_address":"d7a5072l"}
 ```
 
-Replace `d7a5072l@mq9` with the `mail_address` returned to you in all examples below.
+Replace `d7a5072l` with the `mail_address` returned to you in all examples below.
 
 ---
 
@@ -62,13 +62,13 @@ mq9 supports three priority levels: `critical` (highest), `urgent`, and `normal`
 
 ```bash
 # Highest priority
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9.critical' '{"type":"abort","task_id":"t-001"}'
+nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l.critical' '{"type":"abort","task_id":"t-001"}'
 
 # Urgent
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9.urgent' '{"type":"interrupt","task_id":"t-002"}'
+nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l.urgent' '{"type":"interrupt","task_id":"t-002"}'
 
 # Normal (default, no suffix)
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9' '{"type":"task","payload":"process dataset A"}'
+nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l' '{"type":"task","payload":"process dataset A"}'
 ```
 
 Sending is fire-and-forget. The sender does not wait for the recipient to be online.
@@ -81,7 +81,7 @@ Open another terminal and subscribe to the mailbox:
 
 ```bash
 # Subscribe to all priorities (critical, urgent, and normal)
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9.*'
+nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.*'
 ```
 
 All messages sent above are delivered immediately in priority order: critical → urgent → normal. This is mq9's **store-first** semantics — it makes no difference whether the subscription happens before or after the messages are sent.
@@ -89,8 +89,8 @@ All messages sent above are delivered immediately in priority order: critical �
 To subscribe to a single priority level:
 
 ```bash
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9.critical'
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l@mq9.urgent'
+nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.critical'
+nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.urgent'
 ```
 
 ---
@@ -101,18 +101,18 @@ Create a public task queue and have multiple workers compete for messages:
 
 ```bash
 # Create a public mailbox
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600,"public":true,"name":"task.queue@mq9"}'
+nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600,"public":true,"name":"task.queue"}'
 
 # Terminal 1: Worker subscribes
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue@mq9.*' --queue workers
+nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
 
 # Terminal 2: Another worker
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue@mq9.*' --queue workers
+nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
 
 # Send tasks
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue@mq9' '{"task":"job-1"}'
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue@mq9' '{"task":"job-2"}'
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue@mq9' '{"task":"job-3"}'
+nats pub '$mq9.AI.MAILBOX.MSG.task.queue' '{"task":"job-1"}'
+nats pub '$mq9.AI.MAILBOX.MSG.task.queue' '{"task":"job-2"}'
+nats pub '$mq9.AI.MAILBOX.MSG.task.queue' '{"task":"job-3"}'
 ```
 
 Each task is delivered to exactly one worker.

@@ -43,10 +43,11 @@ pub struct MsgQueryReq {
     pub limit: Option<u64>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DeliverPolicy {
     Earliest,
+    #[default]
     Latest,
     FromTime,
     FromId,
@@ -62,11 +63,17 @@ pub struct MsgAckReq {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MsgFetchConfig {
     pub num_msgs: Option<u32>,
+    /// If the mailbox is empty, the server waits this many milliseconds before returning.
+    /// Defaults to 500 ms when not specified.
+    pub max_wait_ms: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MsgFetchReq {
-    pub group_name: String,
+    /// Consumer group name. When omitted, a transient random group is used —
+    /// no offset is committed and every call starts fresh from `deliver`.
+    pub group_name: Option<String>,
+    #[serde(default = "DeliverPolicy::default")]
     pub deliver: DeliverPolicy,
     pub from_time: Option<u64>,
     pub from_id: Option<u64>,

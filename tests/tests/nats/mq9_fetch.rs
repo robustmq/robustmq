@@ -20,7 +20,6 @@ mod tests {
     use bytes::Bytes;
     use common_base::tools::now_second;
     use common_base::uuid::unique_id;
-    use metadata_struct::mq9::Priority;
     use mq9_core::command::Mq9Command;
     use mq9_core::protocol::{
         DeliverPolicy, MailboxCreateReply, MailboxCreateReq, MsgAckReply, MsgAckReq,
@@ -61,7 +60,6 @@ mod tests {
     async fn send_msg(client: &Client, mail_address: &str, payload: &str) -> MsgSendReply {
         let subject = Mq9Command::MsgSend {
             mail_address: mail_address.to_string(),
-            priority: Priority::Normal,
         }
         .to_subject();
         let reply: MsgSendReply = request(client, subject, Bytes::from(payload.to_string())).await;
@@ -90,12 +88,15 @@ mod tests {
             client,
             mail_address,
             MsgFetchReq {
-                group_name: group_name.to_string(),
+                group_name: Some(group_name.to_string()),
                 deliver: DeliverPolicy::Earliest,
                 from_time: None,
                 from_id: None,
                 force_deliver: None,
-                config: num_msgs.map(|n| MsgFetchConfig { num_msgs: Some(n) }),
+                config: num_msgs.map(|n| MsgFetchConfig {
+                    num_msgs: Some(n),
+                    max_wait_ms: None,
+                }),
             },
         )
         .await
@@ -168,7 +169,7 @@ mod tests {
             &client,
             &mail_address,
             MsgFetchReq {
-                group_name: group.clone(),
+                group_name: Some(group.clone()),
                 deliver: DeliverPolicy::Latest,
                 from_time: None,
                 from_id: None,
@@ -208,7 +209,7 @@ mod tests {
             &client,
             &mail_address,
             MsgFetchReq {
-                group_name: group.clone(),
+                group_name: Some(group.clone()),
                 deliver: DeliverPolicy::FromTime,
                 from_time: Some(mid_ts),
                 from_id: None,
@@ -249,7 +250,7 @@ mod tests {
             &client,
             &mail_address,
             MsgFetchReq {
-                group_name: group.clone(),
+                group_name: Some(group.clone()),
                 deliver: DeliverPolicy::FromId,
                 from_time: None,
                 from_id: Some(from_id),
@@ -411,7 +412,7 @@ mod tests {
             &client,
             &mail_address,
             MsgFetchReq {
-                group_name: group.clone(),
+                group_name: Some(group.clone()),
                 deliver: DeliverPolicy::Earliest,
                 from_time: None,
                 from_id: None,
