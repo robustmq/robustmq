@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashSet;
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 use common_base::error::common::CommonError;
@@ -76,10 +77,11 @@ where
     }
 
     let method = Req::method_name();
-    let mut times = 1;
+    let mut times = 0;
     let mut tried_addrs = HashSet::new();
     loop {
         let index = times % addrs.len();
+        times += 1;
         let addr = addrs[index].as_ref();
         let target_addr = if Req::IS_WRITE_REQUEST {
             client_pool
@@ -93,7 +95,6 @@ where
             if times > retry_times() {
                 return Err(CommonError::CommonError("Not found leader".to_string()));
             }
-            times += 1;
             continue;
         }
 
@@ -128,7 +129,6 @@ where
                 if times > retry_times() {
                     return Err(CommonError::CommonError("Not found leader".to_string()));
                 }
-                times += 1;
                 sleep(Duration::from_secs(retry_sleep_time(times))).await;
             }
         }
@@ -136,16 +136,10 @@ where
 }
 
 pub fn get_forward_addr(err: &CommonError) -> Option<String> {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"rpc_addr: ([^}]+)").unwrap());
+
     let error_info = err.to_string();
-    let re = Regex::new(r"rpc_addr: ([^}]+)").unwrap();
-    if let Some(caps) = re.captures(&error_info) {
-        if let Some(rpc_addr) = caps.get(1) {
-            let mut leader_addr = rpc_addr.as_str().to_string();
-            leader_addr = leader_addr.replace("\\", "");
-            leader_addr = leader_addr.replace("\"", "");
-            leader_addr = leader_addr.replace(" ", "");
-            return Some(leader_addr);
-        }
-    }
-    None
+    let raw = re.captures(&error_info)?.get(1)?.as_str();
+    Some(raw.replace(['\\', '"', ' '], ""))
 }

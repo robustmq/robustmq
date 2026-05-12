@@ -73,13 +73,11 @@ pub async fn report_heartbeat(
         let cluster_storage = ClusterStorage::new(client_pool.clone());
         let config = broker_config();
 
-        // Send heartbeat with 1 second timeout
         match timeout(Duration::from_secs(3), cluster_storage.heartbeat()).await {
             Ok(Ok(())) => {
                 debug!("Heartbeat report success for node {}", config.broker_id);
             }
             Ok(Err(e)) => {
-                // Heartbeat failed
                 if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
                     warn!(
                         "Node {} does not exist in Meta Service, attempting to re-register",
@@ -121,20 +119,17 @@ pub async fn report_heartbeat(
 #[derive(Deserialize, Serialize, Debug)]
 struct MetaServiceStatus {
     pub running_state: serde_json::Value,
-    pub current_leader: u64,
+    pub current_leader: Option<u64>,
 }
 
 impl MetaServiceStatus {
-    /// A state machine is ready when:
-    /// 1. `running_state` is `{"Ok": ...}` (no error)
-    /// 2. `current_leader != 0` (a leader has been elected)
     fn is_ready(&self) -> bool {
         let running_ok = self
             .running_state
             .as_object()
             .map(|m| m.contains_key("Ok"))
             .unwrap_or(false);
-        running_ok && self.current_leader != 0
+        running_ok && self.current_leader.unwrap_or(0) != 0
     }
 }
 
@@ -142,32 +137,18 @@ pub async fn check_meta_service_status(client_pool: Arc<ClientPool>) {
     let fun = async move || -> Result<Option<bool>, CommonError> {
         let cluster_storage = ClusterStorage::new(client_pool.clone());
         let data = cluster_storage.meta_cluster_status().await?;
-
-        // The status JSON is a map of raft shard name -> MetaServiceStatus,
-        // e.g. {"metadata_0": {...}, "offset_3": {...}, "data_7": {...}}.
-        // The cluster is ready only when every shard is ready.
         let shard_statuses: std::collections::BTreeMap<String, MetaServiceStatus> =
             serde_json::from_str(&data)?;
-
         if shard_statuses.is_empty() {
             return Ok(None);
         }
 
-        let not_ready: Vec<String> = shard_statuses
-            .iter()
-            .filter(|(_, s)| !s.is_ready())
-            .map(|(name, s)| {
-                format!(
-                    "{}(running_state={}, leader={})",
-                    name, s.running_state, s.current_leader
-                )
-            })
-            .collect();
+        let all_ready = shard_statuses.values().all(|s| s.is_ready());
 
-        if not_ready.is_empty() {
+        if all_ready {
             let summary: Vec<String> = shard_statuses
                 .iter()
-                .map(|(name, s)| format!("{}→node{}", name, s.current_leader))
+                .map(|(name, s)| format!("{}→node:{}", name, s.current_leader.unwrap_or(0)))
                 .collect();
             info!(
                 "Meta Service cluster is ready. All raft shards have elected a leader: [{}]",
@@ -176,12 +157,6 @@ pub async fn check_meta_service_status(client_pool: Arc<ClientPool>) {
             return Ok(Some(true));
         }
 
-        let total = shard_statuses.len();
-        let ready = total - not_ready.len();
-        info!(
-            "Meta Service cluster not ready yet: {}/{} shards ready. Not ready: {:?}",
-            ready, total, not_ready
-        );
         Ok(None)
     };
 
@@ -189,10 +164,14 @@ pub async fn check_meta_service_status(client_pool: Arc<ClientPool>) {
         match fun().await {
             Ok(Some(true)) => break,
             Ok(_) => {
+                info!("Waiting for Meta Service cluster to elect a leader, retrying in 1s...");
                 sleep(Duration::from_secs(1)).await;
             }
             Err(e) => {
-                info!("Meta Service cluster is not yet ready: {}", e);
+                info!(
+                    "Waiting for Meta Service cluster to be ready ({}), retrying in 1s...",
+                    e
+                );
                 sleep(Duration::from_secs(1)).await;
             }
         }
