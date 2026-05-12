@@ -13,13 +13,12 @@
 // limitations under the License.
 
 use common_base::{
-    error::{common::CommonError, ResultCommonError},
+    error::ResultCommonError,
     task::{TaskKind, TaskSupervisor},
     tools::loop_select_ticket,
 };
 use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
@@ -116,56 +115,13 @@ pub async fn report_heartbeat(
     loop_select_ticket(ac_fn, 3000, &stop_send).await;
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-struct MetaServiceStatus {
-    pub running_state: serde_json::Value,
-    pub current_leader: Option<u64>,
-}
-
-impl MetaServiceStatus {
-    fn is_ready(&self) -> bool {
-        let running_ok = self
-            .running_state
-            .as_object()
-            .map(|m| m.contains_key("Ok"))
-            .unwrap_or(false);
-        running_ok && self.current_leader.unwrap_or(0) != 0
-    }
-}
-
 pub async fn check_meta_service_status(client_pool: Arc<ClientPool>) {
-    let fun = async move || -> Result<Option<bool>, CommonError> {
-        let cluster_storage = ClusterStorage::new(client_pool.clone());
-        let data = cluster_storage.meta_cluster_status().await?;
-        let shard_statuses: std::collections::BTreeMap<String, MetaServiceStatus> =
-            serde_json::from_str(&data)?;
-        if shard_statuses.is_empty() {
-            return Ok(None);
-        }
-
-        let all_ready = shard_statuses.values().all(|s| s.is_ready());
-
-        if all_ready {
-            let summary: Vec<String> = shard_statuses
-                .iter()
-                .map(|(name, s)| format!("{}→node:{}", name, s.current_leader.unwrap_or(0)))
-                .collect();
-            info!(
-                "Meta Service cluster is ready. All raft shards have elected a leader: [{}]",
-                summary.join(", ")
-            );
-            return Ok(Some(true));
-        }
-
-        Ok(None)
-    };
-
     loop {
-        match fun().await {
-            Ok(Some(true)) => break,
-            Ok(_) => {
-                info!("Waiting for Meta Service cluster to elect a leader, retrying in 1s...");
-                sleep(Duration::from_secs(1)).await;
+        let cluster_storage = ClusterStorage::new(client_pool.clone());
+        match cluster_storage.raft_ping().await {
+            Ok(()) => {
+                info!("Meta Service cluster is ready");
+                break;
             }
             Err(e) => {
                 info!(

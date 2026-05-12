@@ -741,11 +741,41 @@ impl Default for StorageRuntime {
     }
 }
 
-#[derive(Default, Debug, Deserialize, Serialize, Clone)]
-pub struct KafkaRuntime {}
+fn default_kafka_tcp_port() -> u32 {
+    9092
+}
 
-#[derive(Default, Debug, Deserialize, Serialize, Clone)]
-pub struct AmqpRuntime {}
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct KafkaRuntime {
+    #[serde(default = "default_kafka_tcp_port")]
+    pub tcp_port: u32,
+}
+
+impl Default for KafkaRuntime {
+    fn default() -> Self {
+        KafkaRuntime {
+            tcp_port: default_kafka_tcp_port(),
+        }
+    }
+}
+
+fn default_amqp_tcp_port() -> u32 {
+    5672
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AmqpRuntime {
+    #[serde(default = "default_amqp_tcp_port")]
+    pub tcp_port: u32,
+}
+
+impl Default for AmqpRuntime {
+    fn default() -> Self {
+        AmqpRuntime {
+            tcp_port: default_amqp_tcp_port(),
+        }
+    }
+}
 
 fn default_nats_tcp_port() -> u32 {
     4222

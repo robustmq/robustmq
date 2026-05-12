@@ -29,6 +29,7 @@ grpc-clients.workspace = true
 rate-limit.workspace = true
 metadata-struct.workspace = true
 common-base.workspace = true
+common-config.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 storage-adapter.workspace = true

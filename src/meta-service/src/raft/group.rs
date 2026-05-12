@@ -136,10 +136,18 @@ impl RaftGroup {
             }
             Ok(Err(e)) => {
                 record_write_failure(&shard);
-                warn!(
-                    "Raft write failed. shard={}, data_type={}, duration_ms={:.2}, error={}",
-                    shard, data_type, duration_ms, e
-                );
+                let e_str = e.to_string();
+                if e_str.contains("has to forward request to") {
+                    debug!(
+                        "Raft write failed. shard={}, data_type={}, duration_ms={:.2}, error={}",
+                        shard, data_type, duration_ms, e_str
+                    );
+                } else {
+                    warn!(
+                        "Raft write failed. shard={}, data_type={}, duration_ms={:.2}, error={}",
+                        shard, data_type, duration_ms, e_str
+                    );
+                }
                 Err(e.into())
             }
             Err(_) => {

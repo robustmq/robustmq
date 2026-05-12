@@ -47,3 +47,9 @@ tcp_port = 2222
 tls_port = 2223
 ws_port  = 2080
 wss_port = 2443
+
+[kafka_runtime]
+tcp_port = 2092
+
+[amqp_runtime]
+tcp_port = 2672

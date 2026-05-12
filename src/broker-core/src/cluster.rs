@@ -18,7 +18,7 @@ use common_base::tools::{get_local_ip, now_second};
 use common_config::broker::broker_config;
 use common_config::config::BrokerConfig;
 use grpc_clients::meta::common::call::{
-    cluster_status, delete_resource_config, get_resource_config, heartbeat, node_list,
+    cluster_status, delete_resource_config, get_resource_config, heartbeat, kv_set, node_list,
     register_node, set_resource_config, unregister_node,
 };
 use grpc_clients::pool::ClientPool;
@@ -26,7 +26,8 @@ use metadata_struct::meta::extend::{MqttNodeExtend, NatsNodeExtend, NodeExtend};
 use metadata_struct::meta::node::BrokerNode;
 use protocol::meta::meta_service_common::{
     ClusterStatusRequest, DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest,
-    NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+    NodeListRequest, RegisterNodeRequest, SetRequest, SetResourceConfigRequest,
+    UnRegisterNodeRequest,
 };
 use std::sync::Arc;
 
@@ -45,6 +46,16 @@ impl ClusterStorage {
         let reply =
             cluster_status(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
         Ok(reply.content)
+    }
+
+    pub async fn raft_ping(&self) -> Result<(), CommonError> {
+        let conf = broker_config();
+        let request = SetRequest {
+            key: "__robustmq_raft_ping__".to_string(),
+            value: "1".to_string(),
+        };
+        kv_set(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
+        Ok(())
     }
 
     pub async fn node_list(&self) -> Result<Vec<BrokerNode>, CommonError> {
