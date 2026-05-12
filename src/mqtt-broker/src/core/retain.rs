@@ -134,20 +134,14 @@ pub async fn try_send_retain_message(ctx: SendRetainContext<'_>) -> Result<(), M
 
             if retain_message.expired_at > 0 && now_second() >= retain_message.expired_at {
                 // Clean up expired retain message from storage and update metrics
-                if let Err(e) = storage
-                    .delete_retain_message(ctx.tenant, &topic_name)
-                    .await
-                {
+                if let Err(e) = storage.delete_retain_message(ctx.tenant, &topic_name).await {
                     warn!(
                         "Failed to delete expired retain message: topic={}, error={}",
                         topic_name, e
                     );
                 } else {
                     record_mqtt_retained_dec();
-                    debug!(
-                        "Expired retain message cleaned up: topic={}",
-                        topic_name
-                    );
+                    debug!("Expired retain message cleaned up: topic={}", topic_name);
                 }
                 continue;
             }
