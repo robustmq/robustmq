@@ -15,6 +15,7 @@
 use crate::server::{AmqpServer, AmqpServerParams};
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
@@ -22,7 +23,6 @@ use rate_limit::global::GlobalRateLimiterManager;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
-use common_config::broker::broker_config;
 use tracing::{error, info};
 
 #[derive(Clone)]
