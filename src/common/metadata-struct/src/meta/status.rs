@@ -26,14 +26,14 @@ pub struct MetaStatus {
     pub snapshot: Option<serde_json::Value>,
     pub purged: Option<serde_json::Value>,
     pub state: String,
-    pub current_leader: u64,
-    pub millis_since_quorum_ack: u64,
+    pub current_leader: Option<u64>,
+    pub millis_since_quorum_ack: Option<u64>,
     #[serde(default)]
     pub last_quorum_acked: u128,
     pub membership_config: MembershipConfig,
     #[serde(default)]
     pub heartbeat: HashMap<String, u128>,
-    pub replication: HashMap<String, ReplicationState>,
+    pub replication: Option<HashMap<String, Option<ReplicationState>>>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
@@ -121,7 +121,7 @@ mod tests {
         assert_eq!(status.id, 1);
         assert_eq!(status.current_term, 1);
         assert_eq!(status.state, "Leader");
-        assert_eq!(status.current_leader, 1);
+        assert_eq!(status.current_leader, Some(1));
         assert_eq!(status.last_log_index, 422);
         assert!(status.is_leader());
         assert!(!status.is_follower());

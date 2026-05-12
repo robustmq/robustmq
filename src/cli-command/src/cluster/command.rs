@@ -231,17 +231,38 @@ impl ClusterCommand {
                 ]);
                 let mut shards: Vec<(&String, _)> = info.meta.iter().collect();
                 shards.sort_by_key(|(k, _)| *k);
-                for (shard, status) in shards {
+                for (shard, status) in &shards {
                     raft_table.add_row(row![
                         shard,
                         status.state,
-                        status.current_leader,
+                        status.current_leader.unwrap_or(0),
                         status.current_term,
                         status.last_log_index,
                         status.last_applied.index,
                     ]);
                 }
                 raft_table.printstd();
+                println!();
+
+                // ── Raft Members (from metadata_0 membership) ─────────────
+                println!("=== Raft Members ===");
+                let mut member_table = Table::new();
+                member_table.set_titles(row!["node_id", "rpc_addr"]);
+                if let Some((_, meta_status)) =
+                    shards.iter().find(|(k, _)| k.as_str() == "metadata_0")
+                {
+                    let mut members: Vec<_> = meta_status
+                        .membership_config
+                        .membership
+                        .nodes
+                        .values()
+                        .collect();
+                    members.sort_by_key(|n| n.node_id);
+                    for node in members {
+                        member_table.add_row(row![node.node_id, node.rpc_addr]);
+                    }
+                }
+                member_table.printstd();
             }
             Err(e) => error_info(e.to_string()),
         }

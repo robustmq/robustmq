@@ -49,6 +49,7 @@ pub async fn register_node_and_start_heartbeat(
         Ok(()) => {
             let raw_client_pool = client_pool.clone();
             let broker_cache = cache_manager.clone();
+
             task_supervisor.spawn(
                 TaskKind::BrokerNodeHeartbeat.to_string(),
                 Box::pin(async move {

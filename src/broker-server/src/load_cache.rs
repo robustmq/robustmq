@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use broker_core::cache::NodeCacheManager;
+use broker_core::cluster::ClusterStorage;
 use broker_core::dynamic_config::build_cluster_config;
 use broker_core::share_group::ShareGroupStorage;
 use broker_core::tenant::TenantStorage;
@@ -73,6 +74,15 @@ async fn load_common_cache(
     connector_manager: &Arc<ConnectorManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
 ) -> ResultMqttBrokerError {
+    let cluster_storage = ClusterStorage::new(client_pool.clone());
+    let nodes = cluster_storage
+        .node_list()
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(format!("Failed to load node list: {}", e)))?;
+    for node in nodes.iter() {
+        broker_cache.add_node(node.clone());
+    }
+
     let cluster = build_cluster_config(client_pool).await.map_err(|e| {
         MqttBrokerError::CommonError(format!("Failed to load cluster config: {}", e))
     })?;
@@ -142,7 +152,8 @@ async fn load_common_cache(
     }
 
     info!(
-        "Common cache loaded: topics={}, connectors={}, schemas={}, schema_binds={}, tenants={}, share_groups={}, share_group_members={}",
+        "Common cache loaded: nodes={}, topics={}, connectors={}, schemas={}, schema_binds={}, tenants={}, share_groups={}, share_group_members={}",
+        nodes.len(),
         topic_list.len(),
         connectors.len(),
         schemas.len(),
