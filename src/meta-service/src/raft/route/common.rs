@@ -216,7 +216,6 @@ mod tests {
 
     #[tokio::test]
     async fn register_unregister_node() {
-        let config = default_broker_config();
         let node_id = 999;
         let node_ip = "127.0.0.1".to_string();
 
