@@ -10927,6 +10927,7 @@ checksum = "1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b"
 name = "search-engine"
 version = "0.4.0"
 dependencies = [
+ "a2a-types",
  "arrow-array",
  "arrow-schema",
  "common-base",
