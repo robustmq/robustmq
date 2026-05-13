@@ -49,6 +49,8 @@ zstd.workspace = true
 delay-task.workspace = true
 storage-adapter.workspace = true
 node-call.workspace = true
+search-engine.workspace = true
+llm-engine.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

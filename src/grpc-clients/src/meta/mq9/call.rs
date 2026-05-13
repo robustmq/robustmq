@@ -16,7 +16,7 @@ use common_base::error::common::CommonError;
 use protocol::meta::meta_service_mq9::{
     CreateAgentReply, CreateAgentRequest, CreateMailReply, CreateMailRequest, DeleteAgentReply,
     DeleteAgentRequest, DeleteMailReply, DeleteMailRequest, ListAgentReply, ListAgentRequest,
-    ListMailReply, ListMailRequest,
+    ListMailReply, ListMailRequest, SearchAgentReply, SearchAgentRequest,
 };
 use tonic::Streaming;
 
@@ -63,4 +63,9 @@ generate_mq9_service_call!(
     placement_list_mq9_agent,
     ListAgentRequest,
     Streaming<ListAgentReply>
+);
+generate_mq9_service_call!(
+    placement_search_mq9_agent,
+    SearchAgentRequest,
+    SearchAgentReply
 );

@@ -12,5 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod agent_test;
 pub mod engine;
 pub mod mqtt;

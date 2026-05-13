@@ -14,7 +14,7 @@
 
 use crate::raft::manager::MultiRaftManager;
 use crate::server::services::mq9::agent::{
-    create_agent_by_req, delete_agent_by_req, list_agent_by_req,
+    create_agent_by_req, delete_agent_by_req, list_agent_by_req, search_agent_by_req,
 };
 use crate::server::services::mq9::mail::{
     create_mail_by_req, delete_mail_by_req, list_mail_by_req,
@@ -25,7 +25,7 @@ use protocol::meta::meta_service_mq9::mq9_service_server::Mq9Service;
 use protocol::meta::meta_service_mq9::{
     CreateAgentReply, CreateAgentRequest, CreateMailReply, CreateMailRequest, DeleteAgentReply,
     DeleteAgentRequest, DeleteMailReply, DeleteMailRequest, ListAgentReply, ListAgentRequest,
-    ListMailReply, ListMailRequest,
+    ListMailReply, ListMailRequest, SearchAgentReply, SearchAgentRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -151,6 +151,18 @@ impl Mq9Service for GrpcMq9Service {
     ) -> Result<Response<Self::ListAgentStream>, Status> {
         let req = request.into_inner();
         list_agent_by_req(&self.rocksdb_engine_handler, &req)
+            .map_err(Self::to_status)
+            .map(Response::new)
+    }
+
+    async fn search_agent(
+        &self,
+        request: Request<SearchAgentRequest>,
+    ) -> Result<Response<SearchAgentReply>, Status> {
+        let req = request.into_inner();
+        self.validate_request(&req)?;
+        search_agent_by_req(&req)
+            .await
             .map_err(Self::to_status)
             .map(Response::new)
     }

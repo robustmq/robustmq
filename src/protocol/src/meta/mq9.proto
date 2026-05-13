@@ -11,6 +11,7 @@ service Mq9Service {
   rpc CreateAgent(CreateAgentRequest) returns (CreateAgentReply) {}
   rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentReply) {}
   rpc ListAgent(ListAgentRequest) returns (stream ListAgentReply) {}
+  rpc SearchAgent(SearchAgentRequest) returns (SearchAgentReply) {}
 }
 
 message CreateMailRequest {
@@ -55,4 +56,23 @@ message ListAgentRequest {
 
 message ListAgentReply {
   bytes agent = 1;
+}
+
+// query_type: "vector" for semantic search, "fts" for full-text search.
+message SearchAgentRequest {
+  string tenant = 1;
+  string query = 2 [(validate.rules).string.min_len = 1];
+  string query_type = 3 [(validate.rules).string.min_len = 1];
+  uint32 limit = 4;
+}
+
+message AgentSearchItem {
+  string agent_id = 1;
+  string name = 2;
+  string description = 3;
+  string agent_info = 4;
+}
+
+message SearchAgentReply {
+  repeated AgentSearchItem items = 1;
 }

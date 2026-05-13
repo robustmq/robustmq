@@ -21,8 +21,8 @@ use common_base::utils::serialize::encode_to_bytes;
 use metadata_struct::mq9::agent::MQ9Agent;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_mq9::{
-    CreateAgentReply, CreateAgentRequest, DeleteAgentReply, DeleteAgentRequest, ListAgentReply,
-    ListAgentRequest,
+    AgentSearchItem, CreateAgentReply, CreateAgentRequest, DeleteAgentReply, DeleteAgentRequest,
+    ListAgentReply, ListAgentRequest, SearchAgentReply, SearchAgentRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -87,4 +87,50 @@ pub async fn delete_agent_by_req(
         send_notify_by_delete_mq9_agent(call_manager, agent).await?;
     }
     Ok(DeleteAgentReply {})
+}
+
+pub async fn search_agent_by_req(
+    req: &SearchAgentRequest,
+) -> Result<SearchAgentReply, MetaServiceError> {
+    let limit = if req.limit == 0 {
+        10
+    } else {
+        req.limit as usize
+    };
+    let tenant = if req.tenant.is_empty() {
+        None
+    } else {
+        Some(req.tenant.as_str())
+    };
+
+    let results = match req.query_type.as_str() {
+        "vector" => {
+            let vector = llm_engine::embedding::fastembed::embed(&req.query)
+                .await
+                .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
+            search_engine::agent::search_agents_by_vector(vector, limit, tenant)
+                .await
+                .map_err(|e| MetaServiceError::CommonError(e.to_string()))?
+        }
+        "fts" => search_engine::agent::search_agents_by_text(&req.query, limit)
+            .await
+            .map_err(|e| MetaServiceError::CommonError(e.to_string()))?,
+        other => {
+            return Err(MetaServiceError::CommonError(format!(
+                "unknown query_type '{other}', expected 'vector' or 'fts'"
+            )));
+        }
+    };
+
+    let items = results
+        .into_iter()
+        .map(|r| AgentSearchItem {
+            agent_id: r.agent_id,
+            name: r.name,
+            description: r.description,
+            agent_info: r.agent_info,
+        })
+        .collect();
+
+    Ok(SearchAgentReply { items })
 }
