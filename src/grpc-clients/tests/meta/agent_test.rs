@@ -78,7 +78,6 @@ mod tests {
         }
     }
 
-    /// Registers an agent and returns the encoded content bytes.
     async fn register_agent(
         client_pool: &Arc<ClientPool>,
         addrs: &[String],
@@ -138,7 +137,6 @@ mod tests {
         agents
     }
 
-    // Test 1: register → list → unregister → list
     #[tokio::test]
     async fn test_agent_register_list_unregister() {
         let client_pool = Arc::new(ClientPool::new(3));
@@ -150,37 +148,24 @@ mod tests {
             "An agent for integration testing",
         );
 
-        // list before register — empty
         let before = list_agents(&client_pool, &addrs, &tenant).await;
         assert!(before.is_empty());
 
-        // register
         register_agent(&client_pool, &addrs, &tenant, &card).await;
 
-        // list after register — contains the agent
         let after = list_agents(&client_pool, &addrs, &tenant).await;
         assert_eq!(after.len(), 1);
         assert_eq!(after[0].name, card.name);
         assert_eq!(after[0].tenant, tenant);
 
-        // unregister
         delete_agent(&client_pool, &addrs, &tenant, &card.name).await;
 
-        // list after unregister — empty again
         let after_delete = list_agents(&client_pool, &addrs, &tenant).await;
         assert!(after_delete.is_empty());
     }
 
-    // Test 2: register → search (vector + fts) → unregister → search (vector + fts)
     #[tokio::test]
     async fn test_agent_search_vector_and_fts() {
-        // fastembed must be initialized for vector search to work in tests
-        llm_engine::embedding::fastembed::init_for_test(None).ok();
-        // lancedb must be initialized
-        search_engine::lancedb::init("/tmp/robustmq-test-lancedb")
-            .await
-            .ok();
-
         let client_pool = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
         let tenant = unique_id();
@@ -190,13 +175,10 @@ mod tests {
             "Agent specialized in payment processing, invoices, and financial transactions",
         );
 
-        // register
         register_agent(&client_pool, &addrs, &tenant, &card).await;
 
-        // give the async index write a moment to complete
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-        // vector search: natural language query
         let vector_reply = placement_search_mq9_agent(
             &client_pool,
             &addrs,
@@ -209,13 +191,9 @@ mod tests {
         )
         .await
         .unwrap();
-        assert!(
-            !vector_reply.items.is_empty(),
-            "vector search should return results after register"
-        );
+        assert!(!vector_reply.items.is_empty());
         assert_eq!(vector_reply.items[0].name, card.name);
 
-        // fts search: keyword query
         let fts_reply = placement_search_mq9_agent(
             &client_pool,
             &addrs,
@@ -228,18 +206,13 @@ mod tests {
         )
         .await
         .unwrap();
-        assert!(
-            !fts_reply.items.is_empty(),
-            "fts search should return results after register"
-        );
+        assert!(!fts_reply.items.is_empty());
         assert_eq!(fts_reply.items[0].name, card.name);
 
-        // unregister
         delete_agent(&client_pool, &addrs, &tenant, &card.name).await;
 
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-        // vector search after unregister — should be empty
         let vector_after = placement_search_mq9_agent(
             &client_pool,
             &addrs,
@@ -252,12 +225,8 @@ mod tests {
         )
         .await
         .unwrap();
-        assert!(
-            vector_after.items.is_empty(),
-            "vector search should return no results after unregister"
-        );
+        assert!(vector_after.items.is_empty());
 
-        // fts search after unregister — should be empty
         let fts_after = placement_search_mq9_agent(
             &client_pool,
             &addrs,
@@ -270,9 +239,6 @@ mod tests {
         )
         .await
         .unwrap();
-        assert!(
-            fts_after.items.is_empty(),
-            "fts search should return no results after unregister"
-        );
+        assert!(fts_after.items.is_empty());
     }
 }
