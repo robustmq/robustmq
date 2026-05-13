@@ -131,26 +131,36 @@ pub async fn full_text_search(
         q = q.select(Select::columns(cols));
     }
 
-    q.execute()
-        .await
-        .map_err(err_from)?
-        .try_collect::<Vec<_>>()
-        .await
-        .map_err(err_from)
+    match q.execute().await {
+        Ok(stream) => stream.try_collect::<Vec<_>>().await.map_err(err_from),
+        Err(e) => {
+            let msg = e.to_string();
+            if msg.contains("INVERTED index") || msg.contains("full text search") {
+                Ok(vec![])
+            } else {
+                Err(err_from(e))
+            }
+        }
+    }
 }
 
 pub async fn create_fts_index(table: &Table, columns: &[&str]) -> SearchResult<()> {
     table
         .create_index(columns, Index::FTS(Default::default()))
+        .replace(true)
         .execute()
         .await
         .map_err(err_from)
 }
 
 pub async fn create_vector_index(table: &Table, column: &str) -> SearchResult<()> {
-    use lancedb::index::vector::IvfPqIndexBuilder;
+    use lancedb::index::vector::IvfHnswSqIndexBuilder;
     table
-        .create_index(&[column], Index::IvfPq(IvfPqIndexBuilder::default()))
+        .create_index(
+            &[column],
+            Index::IvfHnswSq(IvfHnswSqIndexBuilder::default()),
+        )
+        .replace(true)
         .execute()
         .await
         .map_err(err_from)

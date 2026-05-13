@@ -51,7 +51,7 @@ fn make_schema() -> Arc<Schema> {
         Field::new("tenant", DataType::Utf8, false),
         Field::new("name", DataType::Utf8, false),
         Field::new("description", DataType::Utf8, false),
-        Field::new("skill_summary", DataType::Utf8, false),
+        Field::new("search_text", DataType::Utf8, false),
         Field::new("agent_info", DataType::Utf8, false),
         Field::new(
             "vector",
@@ -72,7 +72,12 @@ fn make_batch(
 ) -> SearchResult<RecordBatch> {
     let schema = make_schema();
     let id = agent_id(tenant, &card.name);
-    let skill_summary = build_skill_summary(card);
+    let search_text = format!(
+        "{} {} {}",
+        card.name,
+        card.description,
+        build_skill_summary(card)
+    );
 
     let values: arrow_array::ArrayRef = Arc::new(arrow_array::Float32Array::from(vector));
     let vectors: arrow_array::ArrayRef = Arc::new(
@@ -87,7 +92,7 @@ fn make_batch(
             Arc::new(StringArray::from(vec![tenant])),
             Arc::new(StringArray::from(vec![card.name.as_str()])),
             Arc::new(StringArray::from(vec![card.description.as_str()])),
-            Arc::new(StringArray::from(vec![skill_summary.as_str()])),
+            Arc::new(StringArray::from(vec![search_text.as_str()])),
             Arc::new(StringArray::from(vec![agent_info_json])),
             vectors,
         ],
@@ -101,9 +106,17 @@ pub async fn register_agent(
     agent_info_json: &str,
     vector: Vec<f32>,
 ) -> SearchResult<()> {
+    let schema = make_schema();
     let table = match open_table(TABLE_NAME).await {
-        Ok(t) => t,
-        Err(_) => create_table(TABLE_NAME, make_schema()).await?,
+        Ok(t) => {
+            let current = t.schema().await.map_err(|e| err(e.to_string()))?;
+            if current.fields() != schema.fields() {
+                create_table(TABLE_NAME, schema).await?
+            } else {
+                t
+            }
+        }
+        Err(_) => create_table(TABLE_NAME, schema).await?,
     };
 
     let filter = format!("agent_id = '{}'", agent_id(tenant, &card.name));
@@ -112,7 +125,7 @@ pub async fn register_agent(
     let batch = make_batch(tenant, card, agent_info_json, vector)?;
     insert(&table, batch).await?;
 
-    create_fts_index(&table, &["name", "description", "skill_summary"]).await?;
+    create_fts_index(&table, &["search_text"]).await?;
     create_vector_index(&table, "vector").await
 }
 

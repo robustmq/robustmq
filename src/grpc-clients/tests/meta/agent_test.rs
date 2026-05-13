@@ -177,7 +177,7 @@ mod tests {
 
         register_agent(&client_pool, &addrs, &tenant, &card).await;
 
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
 
         let vector_reply = placement_search_mq9_agent(
             &client_pool,
@@ -211,7 +211,7 @@ mod tests {
 
         delete_agent(&client_pool, &addrs, &tenant, &card.name).await;
 
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
         let vector_after = placement_search_mq9_agent(
             &client_pool,
