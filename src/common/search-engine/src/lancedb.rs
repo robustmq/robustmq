@@ -16,9 +16,9 @@ use arrow_array::RecordBatch;
 use arrow_schema::Schema;
 use common_base::error::common::CommonError;
 use futures::TryStreamExt;
+use lance_index::scalar::FullTextSearchQuery;
 use lancedb::database::CreateTableMode;
 use lancedb::index::Index;
-use lance_index::scalar::FullTextSearchQuery;
 use lancedb::query::{ExecutableQuery, QueryBase, Select};
 use lancedb::{connect, Connection, Table};
 use std::sync::Arc;
@@ -64,7 +64,12 @@ pub async fn open_table(name: &str) -> SearchResult<Table> {
 }
 
 pub async fn insert(table: &Table, batch: RecordBatch) -> SearchResult<()> {
-    table.add(vec![batch]).execute().await.map(|_| ()).map_err(err_from)
+    table
+        .add(vec![batch])
+        .execute()
+        .await
+        .map(|_| ())
+        .map_err(err_from)
 }
 
 /// `updates`: list of (column_name, sql_expression) pairs.
@@ -149,6 +154,7 @@ mod tests {
     use super::*;
     use arrow_array::{FixedSizeListArray, Int64Array, StringArray};
     use arrow_schema::{DataType, Field};
+    use lance_arrow::FixedSizeListArrayExt;
 
     fn make_schema(dim: i32) -> Arc<Schema> {
         Arc::new(Schema::new(vec![
@@ -170,7 +176,7 @@ mod tests {
             "Rust is a systems programming language",
         ]));
         let flat: Vec<f32> = (0..3 * dim as usize).map(|i| i as f32 * 0.01).collect();
-        let values = Arc::new(arrow_array::Float32Array::from(flat));
+        let values: arrow_array::ArrayRef = Arc::new(arrow_array::Float32Array::from(flat));
         let vectors = Arc::new(FixedSizeListArray::try_new_from_values(values, dim).unwrap());
         RecordBatch::try_new(schema, vec![ids, texts, vectors]).unwrap()
     }
