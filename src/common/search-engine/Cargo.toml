@@ -20,6 +20,7 @@ license.workspace = true
 
 [dependencies]
 lancedb.workspace = true
+lance-index = "=4.0.0"
 arrow-array = "57"
 arrow-schema = "57"
 futures.workspace = true

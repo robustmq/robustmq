@@ -16,9 +16,10 @@ use arrow_array::RecordBatch;
 use arrow_schema::Schema;
 use common_base::error::common::CommonError;
 use futures::TryStreamExt;
-use lancedb::connection::CreateTableMode;
+use lancedb::database::CreateTableMode;
 use lancedb::index::Index;
-use lancedb::query::{ExecutableQuery, FullTextSearchQuery, QueryBase, Select};
+use lance_index::scalar::FullTextSearchQuery;
+use lancedb::query::{ExecutableQuery, QueryBase, Select};
 use lancedb::{connect, Connection, Table};
 use std::sync::Arc;
 use tokio::sync::OnceCell;
@@ -63,7 +64,7 @@ pub async fn open_table(name: &str) -> SearchResult<Table> {
 }
 
 pub async fn insert(table: &Table, batch: RecordBatch) -> SearchResult<()> {
-    table.add(vec![batch]).execute().await.map_err(err_from)
+    table.add(vec![batch]).execute().await.map(|_| ()).map_err(err_from)
 }
 
 /// `updates`: list of (column_name, sql_expression) pairs.
@@ -72,11 +73,11 @@ pub async fn update(table: &Table, filter: &str, updates: Vec<(&str, &str)>) -> 
     for (col, expr) in updates {
         builder = builder.column(col, expr);
     }
-    builder.execute().await.map_err(err_from)
+    builder.execute().await.map(|_| ()).map_err(err_from)
 }
 
 pub async fn delete(table: &Table, filter: &str) -> SearchResult<()> {
-    table.delete(filter).await.map_err(err_from)
+    table.delete(filter).await.map(|_| ()).map_err(err_from)
 }
 
 pub async fn vector_search(
