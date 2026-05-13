@@ -13,8 +13,9 @@
 // limitations under the License.
 
 #![allow(clippy::result_large_err)]
-use crate::core::cache::{load_cache, MetaCacheManager};
+use crate::core::cache::{load_cache_by_rocksdb, MetaCacheManager};
 use crate::core::controller::ClusterController;
+use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use broker_core::cache::NodeCacheManager;
 use common_base::task::{TaskKind, TaskSupervisor};
@@ -72,20 +73,15 @@ impl MetaServiceServer {
         }
     }
 
-    pub async fn start(&mut self) {
-        if let Err(e) = load_cache(&self.cache_manager, &self.rocksdb_engine_handler) {
-            error!("Failed to load cache: {}", e);
-            std::process::exit(1);
-        }
+    pub async fn start(&mut self) -> Result<(), MetaServiceError> {
+        load_cache_by_rocksdb(&self.cache_manager, &self.rocksdb_engine_handler)?;
 
-        if let Err(e) = self.raft_manager.start().await {
-            error!("Failed to start Raft manager: {}", e);
-            std::process::exit(1);
-        }
+        self.raft_manager.start().await?;
 
         self.start_background_services().await;
 
         self.awaiting_stop().await;
+        Ok(())
     }
 
     async fn start_background_services(&self) {

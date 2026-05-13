@@ -88,10 +88,13 @@ impl BrokerServer {
             return None;
         }
         let (stop_send, _) = broadcast::channel(2);
-        let place_params = self.meta_params.clone();
+        let meta_params = self.meta_params.clone();
         let tx = stop_send.clone();
         self.meta_runtime.spawn(Box::pin(async move {
-            MetaServiceServer::new(place_params, tx).start().await;
+            if let Err(e) = MetaServiceServer::new(meta_params, tx).start().await {
+                error!("Meta service failed to start: {}", e);
+                std::process::exit(1);
+            }
         }));
         Some(stop_send)
     }

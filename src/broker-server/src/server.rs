@@ -52,12 +52,16 @@ impl BrokerServer {
         let nats_subscribe_manager = self.nats_params.subscribe_manager.clone();
         let nats_tcp_port = self.config.nats_runtime.tcp_port;
 
-        let pprof_guard = match ProfilerGuard::new(100) {
-            Ok(guard) => Some(Arc::new(guard)),
-            Err(e) => {
-                error!("Failed to start pprof profiler: {}", e);
-                None
+        let pprof_guard = if self.config.runtime.pprof_enable {
+            match ProfilerGuard::new(100) {
+                Ok(guard) => Some(Arc::new(guard)),
+                Err(e) => {
+                    error!("Failed to start pprof profiler: {}", e);
+                    std::process::exit(1);
+                }
             }
+        } else {
+            None
         };
 
         let client_pool = self.client_pool.clone();

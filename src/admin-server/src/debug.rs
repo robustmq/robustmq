@@ -22,8 +22,11 @@ use crate::state::HttpState;
 pub async fn pprof_flamegraph(State(state): State<Arc<HttpState>>) -> Response {
     let Some(guard) = &state.pprof_guard else {
         return Response::builder()
-            .status(404)
-            .body(axum::body::Body::from(Bytes::from("pprof not enabled")))
+            .status(200)
+            .header(header::CONTENT_TYPE, "text/plain")
+            .body(axum::body::Body::from(Bytes::from(
+                "pprof is disabled. Set runtime.pprof_enable = true in config to enable it.",
+            )))
             .unwrap();
     };
 

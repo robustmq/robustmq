@@ -71,6 +71,7 @@ pub fn default_runtime() -> Runtime {
         channels_per_address: 4,
         tls_cert: "./config/certs/cert.pem".to_string(),
         tls_key: "./config/certs/key.pem".to_string(),
+        pprof_enable: false,
     }
 }
 

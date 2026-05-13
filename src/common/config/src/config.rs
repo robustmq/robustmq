@@ -300,6 +300,9 @@ pub struct Runtime {
 
     #[serde(default = "default_tls_key")]
     pub tls_key: String,
+
+    #[serde(default)]
+    pub pprof_enable: bool,
 }
 
 impl Default for Runtime {
