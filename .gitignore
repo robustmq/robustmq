@@ -25,6 +25,7 @@ src/storage-engine/data/
 src/delay-message/data/
 src/mqtt-broker/data/
 src/connector/data
+src/common/llm-engine/.fastembed_cache
 
 # Test data and temporary files
 /target/tmp/

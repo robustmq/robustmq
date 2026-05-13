@@ -15,6 +15,8 @@
 use crate::client::LLMResult;
 use common_base::error::common::CommonError;
 use fastembed::{InitOptionsUserDefined, TextEmbedding, TokenizerFiles, UserDefinedEmbeddingModel};
+#[cfg(test)]
+use fastembed::{EmbeddingModel, InitOptions};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
@@ -67,6 +69,22 @@ pub fn init(model_dir: &str) -> LLMResult<()> {
         .map_err(|_| err("fastembed model already initialized"))
 }
 
+/// Initialize the global fastembed model by downloading from HuggingFace.
+/// For testing only — requires network access.
+/// Uses AllMiniLML6V2Q (~7MB) by default if model is None.
+#[cfg(test)]
+pub fn init_for_test(model: Option<EmbeddingModel>) -> LLMResult<()> {
+    let model = TextEmbedding::try_new(
+        InitOptions::new(model.unwrap_or(EmbeddingModel::AllMiniLML6V2Q))
+            .with_show_download_progress(true),
+    )
+    .map_err(|e| err(format!("failed to init fastembed model: {e}")))?;
+
+    FASTEMBED_MODEL
+        .set(Arc::new(model))
+        .map_err(|_| err("fastembed model already initialized"))
+}
+
 fn get() -> LLMResult<Arc<TextEmbedding>> {
     FASTEMBED_MODEL.get().cloned().ok_or_else(|| {
         err("fastembed model not initialized, call embedding::fastembed::init() first")
@@ -95,4 +113,26 @@ pub async fn embed_batch(texts: Vec<String>) -> LLMResult<Vec<Vec<f32>>> {
     })
     .await
     .map_err(|e| err(format!("spawn_blocking failed: {e}")))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_embed() {
+        init_for_test(None).ok();
+
+        let vec = embed("RobustMQ is a cloud-native message queue").await.unwrap();
+        assert_eq!(vec.len(), 384);
+
+        let vecs = embed_batch(vec![
+            "hello world".to_string(),
+            "RobustMQ supports MQTT".to_string(),
+        ])
+        .await
+        .unwrap();
+        assert_eq!(vecs.len(), 2);
+        assert_eq!(vecs[0].len(), 384);
+    }
 }
