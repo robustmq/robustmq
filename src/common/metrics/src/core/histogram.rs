@@ -193,7 +193,6 @@ pub const DEFAULT_REQUEST_DURATION_BUCKETS: BucketType = BucketType::Exponential
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::*;
     use prometheus_client::encoding::EncodeLabelSet;
 
     #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq, Default)]
