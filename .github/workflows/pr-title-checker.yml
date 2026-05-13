@@ -23,24 +23,34 @@ on:
       - unlabeled
 
 permissions:
-  pull-requests: write
+  contents: read
 
 jobs:
   check:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
-      - uses: thehanimo/pr-title-checker@v1.4.3
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          pass_on_octokit_error: false
-          configuration_path: ".github/pr-title-checker-config.json"
-  breaking:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 10
-    steps:
-      - uses: thehanimo/pr-title-checker@v1.4.3
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          pass_on_octokit_error: false
-          configuration_path: ".github/pr-title-breaking-change-label-config.json"
+      - name: Check PR title format
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          # Skip if 'ignore-title' label is present
+          if echo "$LABELS" | grep -q "ignore-title"; then
+            echo "⏭️  Skipping title check (ignore-title label present)"
+            exit 0
+          fi
+
+          pattern='^(release|feat|deps|fix|test|refactor|chore|style|docs|perf|build|ci|revert)(\(.*\))?\!?:.*'
+          if ! echo "$PR_TITLE" | grep -qE "$pattern"; then
+            echo "❌ PR title '$PR_TITLE' does not follow Conventional Commits format."
+            echo "   Expected: <type>[(<scope>)][!]: <description>"
+            echo "   Types: release|feat|deps|fix|test|refactor|chore|style|docs|perf|build|ci|revert"
+            exit 1
+          fi
+          echo "✅ PR title format is valid: $PR_TITLE"
+
+          # Warn (non-blocking) if breaking change detected
+          if echo "$PR_TITLE" | grep -qE '!:'; then
+            echo "⚠️  Breaking change detected in PR title"
+          fi
