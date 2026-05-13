@@ -150,6 +150,12 @@ pub struct AgentReportReply {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
+pub struct AgentDiscoverReq {
+    pub query: Option<String>,
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AgentDiscoverReply {
     pub error: String,
     #[serde(default)]

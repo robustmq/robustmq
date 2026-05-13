@@ -25,8 +25,8 @@ use common_base::tools::now_second;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mq9::agent::MQ9Agent;
 use mq9_core::protocol::{
-    AgentDiscoverReply, AgentRegisterReply, AgentRegisterReq, AgentReportReply, AgentReportReq,
-    AgentUnregisterReply,
+    AgentDiscoverReply, AgentDiscoverReq, AgentRegisterReply, AgentRegisterReq, AgentReportReply,
+    AgentReportReq, AgentUnregisterReply,
 };
 use serde::{Deserialize, Serialize};
 
@@ -160,8 +160,38 @@ pub async fn process_agent_report(
 }
 
 pub async fn process_agent_discover(
-    _ctx: &NatsProcessContext,
-    _payload: &Bytes,
+    ctx: &NatsProcessContext,
+    payload: &Bytes,
 ) -> Result<AgentDiscoverReply, NatsBrokerError> {
-    Ok(AgentDiscoverReply::default())
+    let req: AgentDiscoverReq = if payload.is_empty() {
+        AgentDiscoverReq::default()
+    } else {
+        serde_json::from_slice(payload).map_err(|e| {
+            NatsBrokerError::CommonError(format!("invalid AGENT.DISCOVER payload: {}", e))
+        })?
+    };
+
+    let tenant = get_tenant();
+    let limit = req.limit.unwrap_or(20);
+    let storage = Mq9AgentStorage::new(ctx.client_pool.clone());
+
+    let agents = match req.query.as_deref().filter(|q| !q.is_empty()) {
+        Some(query) => storage.search(&tenant, query, "vector", limit).await?,
+        None => {
+            let list = storage.list(&tenant).await?;
+            list.into_iter()
+                .map(|a| {
+                    serde_json::json!({
+                        "name": a.name,
+                        "agent_info": a.agent_info,
+                    })
+                })
+                .collect()
+        }
+    };
+
+    Ok(AgentDiscoverReply {
+        error: String::new(),
+        agents,
+    })
 }

@@ -16,10 +16,13 @@ use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use grpc_clients::meta::mq9::call::{
     placement_create_mq9_agent, placement_delete_mq9_agent, placement_list_mq9_agent,
+    placement_search_mq9_agent,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mq9::agent::MQ9Agent;
-use protocol::meta::meta_service_mq9::{CreateAgentRequest, DeleteAgentRequest, ListAgentRequest};
+use protocol::meta::meta_service_mq9::{
+    CreateAgentRequest, DeleteAgentRequest, ListAgentRequest, SearchAgentRequest,
+};
 use std::sync::Arc;
 use tonic::Streaming;
 
@@ -68,5 +71,38 @@ impl Mq9AgentStorage {
             agents.push(MQ9Agent::decode(&reply.agent)?);
         }
         Ok(agents)
+    }
+
+    pub async fn search(
+        &self,
+        tenant: &str,
+        query: &str,
+        query_type: &str,
+        limit: u32,
+    ) -> Result<Vec<serde_json::Value>, CommonError> {
+        let config = broker_config();
+        let request = SearchAgentRequest {
+            tenant: tenant.to_string(),
+            query: query.to_string(),
+            query_type: query_type.to_string(),
+            limit,
+        };
+        let reply =
+            placement_search_mq9_agent(&self.client_pool, &config.get_meta_service_addr(), request)
+                .await?;
+
+        let items = reply
+            .items
+            .into_iter()
+            .map(|item| {
+                serde_json::json!({
+                    "agent_id": item.agent_id,
+                    "name": item.name,
+                    "description": item.description,
+                    "agent_info": item.agent_info,
+                })
+            })
+            .collect();
+        Ok(items)
     }
 }
