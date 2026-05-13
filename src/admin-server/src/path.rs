@@ -22,6 +22,8 @@
 pub const HEALTH_READY_PATH: &str = "/health/ready";
 pub const HEALTH_NODE_PATH: &str = "/health/node";
 pub const HEALTH_CLUSTER_PATH: &str = "/health/cluster";
+pub const DEBUG_PPROF_FLAMEGRAPH_PATH: &str = "/debug/pprof/flamegraph";
+pub const METRICS_PATH: &str = "/metrics";
 
 // ── /cluster ─────────────────────────────────────────────────────────────────
 

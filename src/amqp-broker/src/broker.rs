@@ -63,7 +63,7 @@ impl AmqpBrokerServer {
     pub async fn start(&self) {
         let port = broker_config().amqp_runtime.tcp_port;
         if let Err(e) = self.server.start(port).await {
-            error!("AMQP broker server failed to start: {}", e);
+            error!("AMQP broker server failed to start on port {}: {}", port, e);
             std::process::exit(1);
         }
         self.awaiting_stop().await;

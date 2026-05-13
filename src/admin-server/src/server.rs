@@ -14,6 +14,7 @@
 
 use crate::cluster::index;
 use crate::cluster::offset::{commit_offset, get_offset_by_group, get_offset_by_timestamp};
+use crate::debug::pprof_flamegraph;
 use crate::engine::segment::segment_list;
 use crate::engine::shard::{shard_create, shard_delete, shard_list};
 use crate::mcp::mcp_route;
@@ -59,6 +60,7 @@ use axum::{
     routing::post,
     Router,
 };
+use common_metrics::core::server::dump_metrics;
 use common_metrics::http::record_http_request;
 use std::path::PathBuf;
 use std::{net::SocketAddr, sync::Arc, time::Instant};
@@ -80,10 +82,12 @@ impl AdminServer {
         AdminServer {}
     }
 
-    pub async fn start(&self, port: u32, state: Arc<HttpState>) {
+    pub async fn start(&self, port: u32, state: Arc<HttpState>) -> Result<(), std::io::Error> {
         let ip = format!("0.0.0.0:{port}");
         let route = Router::new()
             .merge(mcp_route())
+            .route(DEBUG_PPROF_FLAMEGRAPH_PATH, get(pprof_flamegraph))
+            .route(METRICS_PATH, get(|| async { dump_metrics() }))
             .nest("/api", self.api_route())
             .merge(self.static_route())
             .with_state(state.clone())
@@ -91,20 +95,17 @@ impl AdminServer {
             .layer(middleware::from_fn(base_middleware))
             .layer(CorsLayer::permissive());
 
-        let listener = tokio::net::TcpListener::bind(&ip).await.unwrap();
+        let listener = tokio::net::TcpListener::bind(&ip).await?;
         info!(
             "Admin HTTP Server started successfully, listening port: {}, access logging and CORS enabled",
             port
         );
 
-        if let Err(e) = axum::serve(
+        axum::serve(
             listener,
             route.into_make_service_with_connect_info::<SocketAddr>(),
         )
         .await
-        {
-            panic!("{}", e.to_string());
-        }
     }
 
     fn static_route(&self) -> Router<Arc<HttpState>> {

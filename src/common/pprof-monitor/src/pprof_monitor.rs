@@ -40,8 +40,8 @@ pub async fn start_pprof_monitor(port: u16, frequency: i32) -> Arc<ProfilerGuard
             listener
         }
         Err(e) => {
-            error!("Failed to bind pprof server: {}", e);
-            return guard;
+            error!("Pprof server failed to start on port {}: {}", port, e);
+            std::process::exit(1);
         }
     };
     if let Err(e) = axum::serve(listener, app).await {

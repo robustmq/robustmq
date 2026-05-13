@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use axum::routing::get;
-use axum::Router;
 use prometheus_client::encoding::text::encode;
 use prometheus_client::registry::Registry;
 use std::sync::{LazyLock, Mutex, MutexGuard};
-use tracing::info;
 
 static REGISTRY: LazyLock<Mutex<Registry>> = LazyLock::new(|| Mutex::new(Registry::default()));
 
@@ -30,21 +27,6 @@ pub fn dump_metrics() -> String {
     let re = metrics_register_default();
     encode(&mut buffer, &re).unwrap();
     buffer
-}
-
-pub async fn register_prometheus_export(port: u32) {
-    let ip = format!("0.0.0.0:{port}");
-    let route = Router::new().route("/metrics", get(route_metrics));
-    let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
-    info!(
-        "Prometheus HTTP Server started successfully, listening port: {}",
-        port
-    );
-    axum::serve(listener, route).await.unwrap();
-}
-
-pub async fn route_metrics() -> String {
-    dump_metrics()
 }
 
 /// `NoLabelSet` is an empty label set type, used to build **unlabeled metrics**

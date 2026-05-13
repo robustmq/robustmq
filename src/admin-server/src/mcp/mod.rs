@@ -111,13 +111,16 @@ async fn dispatch(
                 .cloned()
                 .unwrap_or(Value::Object(Default::default()));
 
-            let nats_client = state
+            let nats_ctx = state
                 .nats_context
                 .as_ref()
-                .map(|ctx| &ctx.nats_client)
                 .ok_or("mq9 tools require nats-broker to be running")?;
+            let nats_url = format!("nats://127.0.0.1:{}", nats_ctx.nats_tcp_port);
+            let nats_client = async_nats::connect(&nats_url)
+                .await
+                .map_err(|e| format!("failed to connect to nats: {e}"))?;
 
-            dispatch_tool_call(nats_client, id, tool_name, args).await
+            dispatch_tool_call(&nats_client, id, tool_name, args).await
         }
 
         _ => Ok(McpResponse::err(id, -32601, "Method not found")),

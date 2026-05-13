@@ -381,14 +381,11 @@ impl BrokerServer {
     }
 
     pub fn start(&self) {
-        let config = broker_config();
-        let monitor_interval_ms = config.prometheus.monitor_interval_ms;
+        let monitor_interval_ms = 10_000u64;
 
         // Phase 1: Network-facing servers
         self.start_grpc_server();
         self.start_admin_server();
-        self.start_pprof_server();
-        self.start_prometheus_server();
 
         if !wait_for_grpc_ready(self.config.grpc_port) {
             std::process::exit(1);

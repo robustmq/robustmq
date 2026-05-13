@@ -15,6 +15,7 @@
 #![allow(clippy::result_large_err)]
 pub mod client;
 pub mod cluster;
+pub mod debug;
 pub mod engine;
 pub mod mcp;
 pub mod mq9;

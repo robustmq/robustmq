@@ -25,6 +25,7 @@ use mqtt_broker::{
 use nats_broker::core::cache::NatsCacheManager;
 use nats_broker::push::manager::NatsSubscribeManager;
 use network_server::common::connection_manager::ConnectionManager;
+use pprof::ProfilerGuard;
 use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::{metrics::mqtt::MQTTMetricsCache, rocksdb::RocksDBEngine};
 use schema_register::schema::SchemaRegisterManager;
@@ -41,19 +42,15 @@ pub struct HttpState {
     pub engine_context: StorageEngineContext,
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub rate_limiter: Arc<GlobalRateLimiterManager>,
-    /// Present only when the nats-broker is co-started with admin-server.
     pub nats_context: Option<NatsContext>,
+    pub pprof_guard: Option<Arc<ProfilerGuard<'static>>>,
 }
 
-/// Context carrying nats-broker runtime state.
-/// Injected into HttpState only when the nats-broker is running alongside admin-server.
 #[derive(Clone)]
 pub struct NatsContext {
     pub cache_manager: Arc<NatsCacheManager>,
     pub subscribe_manager: Arc<NatsSubscribeManager>,
-    /// NATS client connected to the local broker. Used by the MCP server to
-    /// forward mq9 protocol requests without re-implementing broker logic.
-    pub nats_client: async_nats::Client,
+    pub nats_tcp_port: u32,
 }
 
 #[derive(Clone)]

@@ -24,11 +24,6 @@ meta_addrs = { 1 = "127.0.0.1:1228" }
 data_path = "./data/data"
 max_open_files = 10000
 
-[pprof]
-enable = false
-port = 6777
-frequency = 1000
-
 [log]
 log_config = "./config/logger.toml"
 log_path = "./data/logs"
@@ -54,13 +49,6 @@ default_timeout = 2
 
 [message_storage]
 storage_type = "EngineRocksDB"
-
-[prometheus]
-enable = true
-port = 9091
-# Sampling interval (ms) for system and Tokio runtime metrics.
-# Smaller values provide finer granularity but increase metric write overhead.
-monitor_interval_ms = 10000
 
 [mqtt_system_topic]
 # Interval in milliseconds for publishing system topic data (e.g. stats, metrics).

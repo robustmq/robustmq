@@ -32,22 +32,20 @@ use super::default::{
     default_mqtt_slow_subscribe, default_mqtt_system_monitor, default_mqtt_tcp_port,
     default_mqtt_tls_port, default_mqtt_websocket_port, default_mqtt_websockets_port,
     default_network, default_offline_message_enable, default_offline_message_expire_ms,
-    default_offline_message_max_num, default_pprof_frequency, default_pprof_port,
-    default_queue_size, default_raft_write_timeout_sec, default_receive_max, default_rocksdb,
-    default_rocksdb_data_path, default_rocksdb_max_open_files, default_roles, default_runtime,
-    default_runtime_worker_threads, default_schema_echo_log, default_schema_enable,
-    default_schema_failed_operation, default_schema_log_level, default_schema_strategy,
-    default_session_expiry_interval, default_slow_subscribe_delay_type,
-    default_slow_subscribe_record_time, default_storage_expire_scan_task_num,
-    default_storage_io_thread_num, default_storage_max_segment_size,
-    default_storage_offset_enable_cache, default_storage_tcp_port,
-    default_system_monitor_cpu_watermark, default_system_monitor_memory_watermark,
-    default_system_monitor_topic_interval_ms, default_tls_cert, default_tls_key,
-    default_topic_alias_max,
+    default_offline_message_max_num, default_queue_size, default_raft_write_timeout_sec,
+    default_receive_max, default_rocksdb, default_rocksdb_data_path,
+    default_rocksdb_max_open_files, default_roles, default_runtime, default_runtime_worker_threads,
+    default_schema_echo_log, default_schema_enable, default_schema_failed_operation,
+    default_schema_log_level, default_schema_strategy, default_session_expiry_interval,
+    default_slow_subscribe_delay_type, default_slow_subscribe_record_time,
+    default_storage_expire_scan_task_num, default_storage_io_thread_num,
+    default_storage_max_segment_size, default_storage_offset_enable_cache,
+    default_storage_tcp_port, default_system_monitor_cpu_watermark,
+    default_system_monitor_memory_watermark, default_system_monitor_topic_interval_ms,
+    default_tls_cert, default_tls_key, default_topic_alias_max,
 };
+use crate::common::default_log;
 use crate::common::Log;
-use crate::common::Prometheus;
-use crate::common::{default_log, default_pprof, default_prometheus};
 use common_base::enum_type::delay_type::DelayType;
 use serde::{Deserialize, Serialize};
 use toml::Table;
@@ -129,17 +127,11 @@ pub struct BrokerConfig {
     #[serde(default = "default_meta_addrs")]
     pub meta_addrs: Table,
 
-    #[serde(default = "default_prometheus")]
-    pub prometheus: Prometheus,
-
     #[serde(default = "default_log")]
     pub log: Log,
 
     #[serde(default = "default_runtime")]
     pub runtime: Runtime,
-
-    #[serde(default = "default_pprof")]
-    pub pprof: PProf,
 
     #[serde(default = "default_rocksdb")]
     pub rocksdb: Rocksdb,
@@ -220,10 +212,8 @@ impl Default for BrokerConfig {
             grpc_port: default_grpc_port(),
             http_port: default_http_port(),
             meta_addrs: default_meta_addrs(),
-            prometheus: default_prometheus(),
             log: default_log(),
             runtime: default_runtime(),
-            pprof: default_pprof(),
             rocksdb: default_rocksdb(),
             llm_client: None,
             cluster_limit: ClusterLimit::default(),
@@ -683,22 +673,6 @@ impl Default for MqttSlowSubscribeConfig {
 impl MqttSlowSubscribeConfig {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).expect("Failed to serialize MqttSlowSubscribeConfig")
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct PProf {
-    #[serde(default)]
-    pub enable: bool,
-    #[serde(default = "default_pprof_port")]
-    pub port: u16,
-    #[serde(default = "default_pprof_frequency")]
-    pub frequency: i32,
-}
-
-impl Default for PProf {
-    fn default() -> Self {
-        default_pprof()
     }
 }
 

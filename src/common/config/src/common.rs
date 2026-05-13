@@ -16,30 +16,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 
-use crate::config::PProf;
-
 #[derive(Serialize, Deserialize, PartialEq, Default, Clone, Debug)]
 pub enum AvailableFlag {
     #[default]
     Disable,
     Enable,
-}
-
-// Prometheus
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Prometheus {
-    #[serde(default = "default_prometheus_enable")]
-    pub enable: bool,
-    #[serde(default = "default_prometheus_port")]
-    pub port: u32,
-    #[serde(default = "default_monitor_interval_ms")]
-    pub monitor_interval_ms: u64,
-}
-
-impl Default for Prometheus {
-    fn default() -> Self {
-        default_prometheus()
-    }
 }
 
 // Log
@@ -68,24 +49,6 @@ pub struct Telemetry {
     pub exporter_endpoint: String,
 }
 
-// Pprof
-#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
-pub struct Pprof {
-    #[serde(default = "default_false")]
-    pub enable: bool,
-    #[serde(default = "default_pprof_port")]
-    pub port: u16,
-    #[serde(default = "default_pprof_frequency")]
-    pub frequency: i32,
-}
-
-pub fn default_prometheus_enable() -> bool {
-    true
-}
-pub fn default_prometheus_port() -> u32 {
-    9091
-}
-
 pub fn default_log_config() -> String {
     "./config/logger.toml".to_string()
 }
@@ -93,36 +56,8 @@ pub fn default_log_path() -> String {
     "./logs".to_string()
 }
 
-pub fn default_prometheus() -> Prometheus {
-    Prometheus {
-        enable: true,
-        port: 9091,
-        monitor_interval_ms: default_monitor_interval_ms(),
-    }
-}
-
-pub fn default_monitor_interval_ms() -> u64 {
-    10000
-}
-
-pub fn default_pprof() -> PProf {
-    PProf {
-        enable: false,
-        port: default_pprof_port(),
-        frequency: default_pprof_frequency(),
-    }
-}
-
 pub fn default_false() -> bool {
     false
-}
-
-pub fn default_pprof_port() -> u16 {
-    6060
-}
-
-pub fn default_pprof_frequency() -> i32 {
-    100
 }
 
 pub fn default_log() -> Log {

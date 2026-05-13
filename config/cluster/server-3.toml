@@ -24,11 +24,6 @@ meta_addrs = { 1 = "127.0.0.1:1228", 2 = "127.0.0.1:2228", 3 = "127.0.0.1:3228" 
 data_path = "./data/broker-3/data"
 max_open_files = 10000
 
-[pprof]
-enable = false
-port = 6779
-frequency = 1000
-
 [log]
 log_config = "./config/logger.toml"
 log_path = "./data/broker-3/logs"
@@ -54,11 +49,6 @@ default_timeout = 2
 
 [message_storage]
 storage_type = "EngineRocksDB"
-
-[prometheus]
-enable = true
-port = 9093
-monitor_interval_ms = 10000
 
 [mqtt_system_topic]
 interval_ms = 60000
@@ -106,3 +96,9 @@ tcp_port = 6222
 tls_port = 6223
 ws_port  = 6080
 wss_port = 6443
+
+[kafka_runtime]
+tcp_port = 9292
+
+[amqp_runtime]
+tcp_port = 5872

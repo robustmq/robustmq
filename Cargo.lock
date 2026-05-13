@@ -74,6 +74,7 @@ dependencies = [
  "mqtt-broker",
  "nats-broker",
  "network-server",
+ "pprof",
  "protocol",
  "rate-limit",
  "reqwest 0.12.28",
@@ -1115,7 +1116,7 @@ dependencies = [
  "nats-broker",
  "network-server",
  "node-call",
- "pprof-monitor",
+ "pprof",
  "prost 0.14.3",
  "protocol",
  "rate-limit",
@@ -6343,18 +6344,6 @@ dependencies = [
  "symbolic-demangle",
  "tempfile",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "pprof-monitor"
-version = "0.4.0"
-dependencies = [
- "axum 0.8.9",
- "bytes",
- "mockall",
- "pprof",
- "tokio",
- "tracing",
 ]
 
 [[package]]

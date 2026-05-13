@@ -364,14 +364,6 @@ pub fn default_slow_subscribe_delay_type() -> DelayType {
     DelayType::Whole
 }
 
-// PProf
-pub fn default_pprof_port() -> u16 {
-    9090
-}
-pub fn default_pprof_frequency() -> i32 {
-    100
-}
-
 // StorageRuntime
 pub fn default_storage_tcp_port() -> u32 {
     1779
