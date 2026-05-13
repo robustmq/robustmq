@@ -142,65 +142,51 @@ pub fn get_monitor_data(
         }
 
         MonitorDataType::SubscribeSendSuccessNum => {
-            if params.client_id.is_some() && params.path.is_some() {
-                metrics_manager.get_subscribe_send_num(
-                    &params.client_id.unwrap(),
-                    &params.path.unwrap(),
-                    true,
-                )
+            if let (Some(client_id), Some(path)) = (params.client_id, params.path) {
+                metrics_manager.get_subscribe_send_num(&client_id, &path, true)
             } else {
                 Ok(DashMap::new())
             }
         }
         MonitorDataType::SubscribeSendFailureNum => {
-            if params.client_id.is_some() && params.path.is_some() {
-                metrics_manager.get_subscribe_send_num(
-                    &params.client_id.unwrap(),
-                    &params.path.unwrap(),
-                    false,
-                )
+            if let (Some(client_id), Some(path)) = (params.client_id, params.path) {
+                metrics_manager.get_subscribe_send_num(&client_id, &path, false)
             } else {
                 Ok(DashMap::new())
             }
         }
 
         MonitorDataType::SubscribeTopicSendSuccessNum => {
-            if params.client_id.is_some() && params.path.is_some() && params.topic_name.is_some() {
-                metrics_manager.get_subscribe_topic_send_num(
-                    &params.client_id.unwrap(),
-                    &params.path.unwrap(),
-                    &params.topic_name.unwrap(),
-                    true,
-                )
+            if let (Some(client_id), Some(path), Some(topic_name)) =
+                (params.client_id, params.path, params.topic_name)
+            {
+                metrics_manager.get_subscribe_topic_send_num(&client_id, &path, &topic_name, true)
             } else {
                 Ok(DashMap::new())
             }
         }
 
         MonitorDataType::SubscribeTopicSendFailureNum => {
-            if params.client_id.is_some() && params.path.is_some() && params.topic_name.is_some() {
-                metrics_manager.get_subscribe_topic_send_num(
-                    &params.client_id.unwrap(),
-                    &params.path.unwrap(),
-                    &params.topic_name.unwrap(),
-                    false,
-                )
+            if let (Some(client_id), Some(path), Some(topic_name)) =
+                (params.client_id, params.path, params.topic_name)
+            {
+                metrics_manager.get_subscribe_topic_send_num(&client_id, &path, &topic_name, false)
             } else {
                 Ok(DashMap::new())
             }
         }
 
         MonitorDataType::SessionInNum => {
-            if params.client_id.is_some() {
-                metrics_manager.get_session_in_num(&params.client_id.unwrap())
+            if let Some(client_id) = params.client_id {
+                metrics_manager.get_session_in_num(&client_id)
             } else {
                 Ok(DashMap::new())
             }
         }
 
         MonitorDataType::SessionOutNum => {
-            if params.client_id.is_some() {
-                metrics_manager.get_session_out_num(&params.client_id.unwrap())
+            if let Some(client_id) = params.client_id {
+                metrics_manager.get_session_out_num(&client_id)
             } else {
                 Ok(DashMap::new())
             }

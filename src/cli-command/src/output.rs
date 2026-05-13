@@ -14,14 +14,9 @@
 
 use clap::ValueEnum;
 
-#[derive(Clone, Debug, ValueEnum, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, ValueEnum, PartialEq, Eq)]
 pub enum OutputFormat {
+    #[default]
     Table,
     Json,
-}
-
-impl Default for OutputFormat {
-    fn default() -> Self {
-        Self::Table
-    }
 }

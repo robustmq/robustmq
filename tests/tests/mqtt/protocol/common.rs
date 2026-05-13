@@ -449,8 +449,8 @@ pub fn build_v5_conn_pros(
         .user_name(uname)
         .password(password);
 
-    if client_test_properties.will.is_some() {
-        conn_opts.will_message(client_test_properties.will.unwrap());
+    if let Some(will) = client_test_properties.will {
+        conn_opts.will_message(will);
     }
     conn_opts.finalize()
 }
