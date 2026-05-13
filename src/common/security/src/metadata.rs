@@ -344,7 +344,7 @@ impl SecurityMetadata {
             .map(|entry| (entry.key().clone(), entry.value().clone()))
             .collect();
 
-        authn_list.sort_by(|a, b| b.1.create_at.cmp(&a.1.create_at));
+        authn_list.sort_by_key(|b| std::cmp::Reverse(b.1.create_at));
         authn_list
     }
 

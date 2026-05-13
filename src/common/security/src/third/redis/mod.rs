@@ -124,7 +124,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
         let rows: Vec<HashMap<String, String>> = pipe.query(&mut conn)?;
         let mut results = Vec::with_capacity(usernames.len());
 
-        for (username, fields) in usernames.into_iter().zip(rows.into_iter()) {
+        for (username, fields) in usernames.into_iter().zip(rows) {
             if fields.is_empty() {
                 continue;
             }
@@ -167,7 +167,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
         }
         let rows: Vec<HashMap<String, String>> = pipe.query(&mut conn)?;
 
-        for (acl_id, fields) in acl_ids.into_iter().zip(rows.into_iter()) {
+        for (acl_id, fields) in acl_ids.into_iter().zip(rows) {
             if fields.is_empty() {
                 continue;
             }
@@ -229,7 +229,7 @@ impl AuthStorageAdapter for RedisAuthStorageAdapter {
         }
         let rows: Vec<HashMap<String, String>> = pipe.query(&mut conn)?;
 
-        for (id, fields) in blacklist_ids.into_iter().zip(rows.into_iter()) {
+        for (id, fields) in blacklist_ids.into_iter().zip(rows) {
             if fields.is_empty() {
                 continue;
             }
