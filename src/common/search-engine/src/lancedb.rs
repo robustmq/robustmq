@@ -154,6 +154,7 @@ mod tests {
     use super::*;
     use arrow_array::{FixedSizeListArray, Int64Array, StringArray};
     use arrow_schema::{DataType, Field};
+    use common_base::uuid::unique_id;
     use lance_arrow::FixedSizeListArrayExt;
 
     fn make_schema(dim: i32) -> Arc<Schema> {
@@ -182,10 +183,9 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "writes to /tmp/lancedb-test"]
     async fn test_basic_operations() {
-        let path = "/tmp/lancedb-test";
-        init(path).await.unwrap();
+        let path = format!("/tmp/{}", unique_id());
+        init(&path).await.unwrap();
 
         let dim = 4i32;
         let schema = make_schema(dim);
