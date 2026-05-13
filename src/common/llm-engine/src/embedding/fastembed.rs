@@ -32,10 +32,12 @@ fn err(msg: impl Into<String>) -> Box<CommonError> {
 
 pub fn init() -> LLMResult<()> {
     let conf = broker_config();
-    let embedding_model_path = match conf.llm_client.embedding_model_path.as_deref() {
-        Some(p) => p.to_string(),
-        None => return Ok(()),
-    };
+    let embedding_model_path = conf
+        .llm_client
+        .embedding_model_path
+        .as_deref()
+        .unwrap_or(&conf.data_path)
+        .to_string();
 
     let dir = PathBuf::from(embedding_model_path);
     if !dir.exists() {

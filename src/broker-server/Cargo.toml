@@ -61,3 +61,4 @@ connector.workspace = true
 common-healthy.workspace = true
 async-nats.workspace = true
 llm-engine.workspace = true
+search-engine.workspace = true

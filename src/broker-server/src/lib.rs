@@ -49,6 +49,7 @@ use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::family::{column_family_list, storage_data_fold},
 };
+use search_engine::lancedb;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
 use storage_adapter::topic::init_inner_topics;
@@ -452,6 +453,10 @@ impl BrokerServer {
 
             if let Err(e) = fastembed::init() {
                 error!("Failed to initialize fastembed: {}", e);
+                std::process::exit(1);
+            }
+            if let Err(e) = lancedb::init().await {
+                error!("Failed to initialize lancedb: {}", e);
                 std::process::exit(1);
             }
         });

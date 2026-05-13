@@ -15,6 +15,7 @@
 use arrow_array::RecordBatch;
 use arrow_schema::Schema;
 use common_base::error::common::CommonError;
+use common_config::broker::broker_config;
 use futures::TryStreamExt;
 use lance_index::scalar::FullTextSearchQuery;
 use lancedb::database::CreateTableMode;
@@ -36,8 +37,14 @@ fn err_from(e: impl std::fmt::Display) -> Box<CommonError> {
     err(e.to_string())
 }
 
-pub async fn init(path: &str) -> SearchResult<()> {
-    let conn = connect(path).execute().await.map_err(err_from)?;
+fn lancedb_path() -> String {
+    let conf = broker_config();
+    format!("{}/_lancedb", conf.data_path)
+}
+
+pub async fn init() -> SearchResult<()> {
+    let path = lancedb_path();
+    let conn = connect(&path).execute().await.map_err(err_from)?;
     DB.set(conn).map_err(|_| err("lancedb already initialized"))
 }
 
@@ -154,7 +161,6 @@ mod tests {
     use super::*;
     use arrow_array::{FixedSizeListArray, Int64Array, StringArray};
     use arrow_schema::{DataType, Field};
-    use common_base::uuid::unique_id;
     use lance_arrow::FixedSizeListArrayExt;
 
     fn make_schema(dim: i32) -> Arc<Schema> {
@@ -184,8 +190,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_basic_operations() {
-        let path = format!("/tmp/{}", unique_id());
-        init(&path).await.unwrap();
+        init().await.unwrap();
 
         let dim = 4i32;
         let schema = make_schema(dim);

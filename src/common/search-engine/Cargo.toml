@@ -27,5 +27,6 @@ arrow-array = "57"
 arrow-schema = "57"
 futures.workspace = true
 common-base.workspace = true
+common-config.workspace = true
 tokio.workspace = true
 tracing.workspace = true
