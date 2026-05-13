@@ -129,7 +129,7 @@ pub(crate) fn snapshot_name(snapshot_id: &str) -> String {
     let conf = broker_config();
     format!(
         "{}/{}.bin",
-        storage_raft_snapshot_fold(&conf.rocksdb.data_path),
+        storage_raft_snapshot_fold(&conf.data_path),
         snapshot_id
     )
 }
@@ -138,7 +138,7 @@ pub(crate) fn snapshot_meta(snapshot_id: &str) -> String {
     let conf = broker_config();
     format!(
         "{}/{}.meta",
-        storage_raft_snapshot_fold(&conf.rocksdb.data_path),
+        storage_raft_snapshot_fold(&conf.data_path),
         snapshot_id
     )
 }
@@ -147,7 +147,7 @@ pub(crate) fn machine_last_snapshot_id(machine: &str) -> String {
     let conf = broker_config();
     format!(
         "{}/{}.last_snapshot_id",
-        storage_raft_snapshot_fold(&conf.rocksdb.data_path),
+        storage_raft_snapshot_fold(&conf.data_path),
         machine
     )
 }

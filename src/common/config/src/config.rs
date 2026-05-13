@@ -14,16 +14,16 @@
 
 use super::default::{
     default_accept_thread_num, default_broker_id, default_broker_ip, default_channels_per_address,
-    default_cluster_name, default_delay_task, default_delay_task_handler_concurrency,
-    default_delay_task_queue_num, default_engine_runtime, default_flapping_ban_time,
-    default_flapping_max_connections, default_flapping_window_time, default_grpc_port,
-    default_handler_thread_num, default_heartbeat_check_time_ms, default_heartbeat_timeout_ms,
-    default_http_port, default_keep_alive_default_time, default_keep_alive_default_timeout,
-    default_keep_alive_enable, default_keep_alive_max_time, default_limit_max_connection_rate,
-    default_limit_max_connections_per_node, default_limit_max_publish_rate,
-    default_limit_max_sessions, default_limit_max_topics, default_max_admin_http_uri_rate,
-    default_max_message_expiry_interval, default_max_network_connection,
-    default_max_network_connection_rate, default_max_packet_size,
+    default_cluster_name, default_data_path, default_delay_task,
+    default_delay_task_handler_concurrency, default_delay_task_queue_num, default_engine_runtime,
+    default_flapping_ban_time, default_flapping_max_connections, default_flapping_window_time,
+    default_grpc_port, default_handler_thread_num, default_heartbeat_check_time_ms,
+    default_heartbeat_timeout_ms, default_http_port, default_keep_alive_default_time,
+    default_keep_alive_default_timeout, default_keep_alive_enable, default_keep_alive_max_time,
+    default_limit_max_connection_rate, default_limit_max_connections_per_node,
+    default_limit_max_publish_rate, default_limit_max_sessions, default_limit_max_topics,
+    default_max_admin_http_uri_rate, default_max_message_expiry_interval,
+    default_max_network_connection, default_max_network_connection_rate, default_max_packet_size,
     default_max_session_expiry_interval, default_meta_addrs, default_meta_runtime,
     default_mqtt_flapping_detect, default_mqtt_keep_alive, default_mqtt_limit_cluster,
     default_mqtt_limit_tenant, default_mqtt_offline_message, default_mqtt_protocol,
@@ -33,8 +33,7 @@ use super::default::{
     default_mqtt_tls_port, default_mqtt_websocket_port, default_mqtt_websockets_port,
     default_network, default_offline_message_enable, default_offline_message_expire_ms,
     default_offline_message_max_num, default_queue_size, default_raft_write_timeout_sec,
-    default_receive_max, default_rocksdb, default_rocksdb_data_path,
-    default_rocksdb_max_open_files, default_roles, default_runtime, default_runtime_worker_threads,
+    default_receive_max, default_roles, default_runtime, default_runtime_worker_threads,
     default_schema_echo_log, default_schema_enable, default_schema_failed_operation,
     default_schema_log_level, default_schema_strategy, default_session_expiry_interval,
     default_slow_subscribe_delay_type, default_slow_subscribe_record_time,
@@ -71,7 +70,8 @@ pub enum LLMPlatform {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
-pub struct LLMClientConfig {
+pub struct LLMConfig {
+    pub embedding: String,
     pub platform: LLMPlatform,
     pub model: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -80,7 +80,7 @@ pub struct LLMClientConfig {
     pub base_url: Option<String>,
 }
 
-impl LLMClientConfig {
+impl LLMConfig {
     pub fn validate(&self) -> Result<(), String> {
         if self.model.trim().is_empty() {
             return Err("model cannot be empty".to_string());
@@ -101,15 +101,6 @@ impl LLMClientConfig {
 
         Ok(())
     }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum EmbeddingConfig {
-    /// Use local fastembed model; model_dir must contain model.onnx + tokenizer files
-    Fastembed { model_dir: String },
-    /// Use remote API (reuses llm_client config)
-    Api,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -142,14 +133,11 @@ pub struct BrokerConfig {
     #[serde(default = "default_runtime")]
     pub runtime: Runtime,
 
-    #[serde(default = "default_rocksdb")]
-    pub rocksdb: Rocksdb,
+    #[serde(default = "default_data_path")]
+    pub data_path: String,
 
     #[serde(default)]
-    pub llm_client: Option<LLMClientConfig>,
-
-    #[serde(default)]
-    pub embedding: Option<EmbeddingConfig>,
+    pub llm_client: Option<LLMConfig>,
 
     #[serde(default)]
     pub cluster_limit: ClusterLimit,
@@ -226,9 +214,8 @@ impl Default for BrokerConfig {
             meta_addrs: default_meta_addrs(),
             log: default_log(),
             runtime: default_runtime(),
-            rocksdb: default_rocksdb(),
+            data_path: default_data_path(),
             llm_client: None,
-            embedding: None,
             cluster_limit: ClusterLimit::default(),
             delay_task: default_delay_task(),
 
@@ -414,20 +401,6 @@ impl Default for MQTTLimit {
                 max_publish_rate: 10000,
             },
         }
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct Rocksdb {
-    #[serde(default = "default_rocksdb_data_path")]
-    pub data_path: String,
-    #[serde(default = "default_rocksdb_max_open_files")]
-    pub max_open_files: i32,
-}
-
-impl Default for Rocksdb {
-    fn default() -> Self {
-        default_rocksdb()
     }
 }
 

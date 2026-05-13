@@ -36,7 +36,7 @@ pub fn column_family_list() -> Vec<String> {
 pub fn storage_data_fold(path: &str) -> String {
     let mut result = String::with_capacity(path.len() + 6);
     result.push_str(path);
-    result.push_str("/_data");
+    result.push_str("/_rocksdb");
     result
 }
 

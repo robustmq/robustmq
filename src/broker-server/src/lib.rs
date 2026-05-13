@@ -169,8 +169,8 @@ impl BrokerServer {
     fn init_base(config: &BrokerConfig) -> (BaseComponents, Runtime, Runtime, Runtime) {
         let client_pool = Arc::new(ClientPool::new(config.runtime.channels_per_address));
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(&config.rocksdb.data_path),
-            config.rocksdb.max_open_files,
+            &storage_data_fold(&config.data_path),
+            100000,
             column_family_list(),
         ));
         let global_rate_limiter = Arc::new(
@@ -448,6 +448,14 @@ impl BrokerServer {
                 error!("Failed to initialize system user: {}", e);
                 std::process::exit(1);
             }
+
+            // let conf = broker_config();
+            // if let Some(embedding) = conf.embedding{
+            //       if let Err(e) = fastembed::init(embedding).await {
+            //     error!("Failed to initialize system user: {}", e);
+            //     std::process::exit(1);
+            // }
+            // }
         });
 
         // Phase 8: Start MQTT broker, extract stop sender and command adapter.

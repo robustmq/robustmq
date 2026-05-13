@@ -14,6 +14,7 @@
 
 use crate::client::LLMResult;
 use common_base::error::common::CommonError;
+use common_config::broker::broker_config;
 #[cfg(test)]
 use fastembed::{EmbeddingModel, InitOptions};
 use fastembed::{InitOptionsUserDefined, TextEmbedding, TokenizerFiles, UserDefinedEmbeddingModel};
@@ -27,17 +28,17 @@ fn err(msg: impl Into<String>) -> Box<CommonError> {
     Box::new(CommonError::CommonError(msg.into()))
 }
 
-/// Initialize the global fastembed model from a local directory.
-/// Must be called once at startup before any embed calls.
-/// The directory must contain: model.onnx, tokenizer.json, config.json,
-/// special_tokens_map.json, tokenizer_config.json
-pub fn init(model_dir: &str) -> LLMResult<()> {
-    let dir = PathBuf::from(model_dir);
+fn lancedb_path() -> String {
+    let conf = broker_config();
+    format!("{}/_lancedb", conf.data_path)
+}
 
+pub fn init() -> LLMResult<()> {
+    let dir = PathBuf::from(lancedb_path());
     if !dir.exists() {
         tracing::info!(
-            "fastembed model directory '{}' does not exist, skipping initialization",
-            model_dir
+            "fastembed model directory '{:?}' does not exist, skipping initialization",
+            dir
         );
         return Ok(());
     }
@@ -60,7 +61,8 @@ pub fn init(model_dir: &str) -> LLMResult<()> {
     )
     .map_err(|e| {
         err(format!(
-            "failed to init fastembed model from {model_dir}: {e}"
+            "failed to init fastembed model from {:?}: {e}",
+            dir
         ))
     })?;
 
@@ -69,9 +71,6 @@ pub fn init(model_dir: &str) -> LLMResult<()> {
         .map_err(|_| err("fastembed model already initialized"))
 }
 
-/// Initialize the global fastembed model by downloading from HuggingFace.
-/// For testing only — requires network access.
-/// Uses AllMiniLML6V2Q (~7MB) by default if model is None.
 #[cfg(test)]
 pub fn init_for_test(model: Option<EmbeddingModel>) -> LLMResult<()> {
     let model = TextEmbedding::try_new(

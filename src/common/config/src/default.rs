@@ -15,8 +15,7 @@
 use crate::config::{
     DelayTask, MetaRuntime, MqttFlappingDetect, MqttKeepAlive, MqttOfflineMessage,
     MqttProtocolConfig, MqttRuntime, MqttSchema, MqttServer, MqttSlowSubscribeConfig,
-    MqttSystemMonitor, Network, Rocksdb, Runtime, SchemaFailedOperation, SchemaStrategy,
-    StorageRuntime,
+    MqttSystemMonitor, Network, Runtime, SchemaFailedOperation, SchemaStrategy, StorageRuntime,
 };
 use crate::storage::{StorageAdapterConfig, StorageType};
 use common_base::enum_type::delay_type::DelayType;
@@ -80,13 +79,6 @@ pub fn default_network() -> Network {
         accept_thread_num: 1,
         handler_thread_num: 64,
         queue_size: 5000,
-    }
-}
-
-pub fn default_rocksdb() -> Rocksdb {
-    Rocksdb {
-        max_open_files: 10000,
-        data_path: "./data".to_string(),
     }
 }
 
@@ -237,11 +229,8 @@ pub fn default_queue_size() -> usize {
 }
 
 // Rocksdb
-pub fn default_rocksdb_data_path() -> String {
+pub fn default_data_path() -> String {
     "./data".to_string()
-}
-pub fn default_rocksdb_max_open_files() -> i32 {
-    10000
 }
 
 // MetaRuntime

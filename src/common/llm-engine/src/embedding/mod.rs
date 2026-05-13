@@ -16,36 +16,32 @@ pub mod fastembed;
 
 use crate::client::{LLMClient, LLMResult};
 use common_base::error::common::CommonError;
-use common_config::config::{BrokerConfig, EmbeddingConfig};
+use common_config::config::BrokerConfig;
 
 fn err(msg: impl Into<String>) -> Box<CommonError> {
     Box::new(CommonError::CommonError(msg.into()))
 }
 
 pub async fn embed(text: &str, config: &BrokerConfig) -> LLMResult<Vec<f32>> {
-    match &config.embedding {
-        Some(EmbeddingConfig::Fastembed { .. }) => fastembed::embed(text).await,
-        Some(EmbeddingConfig::Api) => {
-            let llm = config
-                .llm_client
-                .as_ref()
-                .ok_or_else(|| err("embedding type is api but llm_client is not configured"))?;
-            LLMClient::new(llm.clone())?.embed(text).await
-        }
-        None => Err(err("embedding is not configured")),
+    let llm = config
+        .llm_client
+        .as_ref()
+        .ok_or_else(|| err("llm_client is not configured"))?;
+    match llm.embedding.as_str() {
+        "fastembed" => fastembed::embed(text).await,
+        "api" => LLMClient::new(llm.clone())?.embed(text).await,
+        other => Err(err(format!("unknown embedding type '{other}'"))),
     }
 }
 
 pub async fn embed_batch(texts: Vec<String>, config: &BrokerConfig) -> LLMResult<Vec<Vec<f32>>> {
-    match &config.embedding {
-        Some(EmbeddingConfig::Fastembed { .. }) => fastembed::embed_batch(texts).await,
-        Some(EmbeddingConfig::Api) => {
-            let llm = config
-                .llm_client
-                .as_ref()
-                .ok_or_else(|| err("embedding type is api but llm_client is not configured"))?;
-            LLMClient::new(llm.clone())?.embed_batch(texts).await
-        }
-        None => Err(err("embedding is not configured")),
+    let llm = config
+        .llm_client
+        .as_ref()
+        .ok_or_else(|| err("llm_client is not configured"))?;
+    match llm.embedding.as_str() {
+        "fastembed" => fastembed::embed_batch(texts).await,
+        "api" => LLMClient::new(llm.clone())?.embed_batch(texts).await,
+        other => Err(err(format!("unknown embedding type '{other}'"))),
     }
 }

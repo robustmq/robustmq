@@ -239,7 +239,7 @@ async fn build_snapshot_by_offset(
 
 pub fn cleanup_old_snapshots(machine: &str) -> std::io::Result<()> {
     let conf = broker_config();
-    let snapshot_dir = storage_raft_snapshot_fold(&conf.rocksdb.data_path);
+    let snapshot_dir = storage_raft_snapshot_fold(&conf.data_path);
 
     let entries = match std::fs::read_dir(&snapshot_dir) {
         Ok(entries) => entries,

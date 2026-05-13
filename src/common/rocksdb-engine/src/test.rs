@@ -24,7 +24,7 @@ pub fn test_rocksdb_instance() -> Arc<RocksDBEngine> {
     init_broker_conf_by_config(config.clone());
     Arc::new(RocksDBEngine::new(
         &test_temp_dir(),
-        config.rocksdb.max_open_files,
+        100000,
         column_family_list(),
     ))
 }

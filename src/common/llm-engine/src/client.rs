@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use common_config::config::{LLMClientConfig, LLMPlatform};
+use common_config::config::{LLMConfig, LLMPlatform};
 use genai::adapter::AdapterKind;
 use genai::chat::{ChatMessage, ChatRequest};
 use genai::resolver::{AuthData, Endpoint};
@@ -47,7 +47,7 @@ pub struct LLMClient {
 }
 
 impl LLMClient {
-    pub fn new(config: LLMClientConfig) -> LLMResult<Self> {
+    pub fn new(config: LLMConfig) -> LLMResult<Self> {
         config
             .validate()
             .map_err(|e| Box::new(CommonError::CommonError(e)))?;
@@ -159,7 +159,7 @@ impl LLMClient {
 #[cfg(test)]
 mod tests {
     use super::LLMClient;
-    use common_config::config::{LLMClientConfig, LLMPlatform};
+    use common_config::config::{LLMConfig, LLMPlatform};
 
     #[tokio::test]
     #[ignore = "requires OPENAI_API_KEY and real network access"]
@@ -170,7 +170,8 @@ mod tests {
             ))
         })?;
 
-        let config = LLMClientConfig {
+        let config = LLMConfig {
+            embedding: "api".to_string(),
             platform: LLMPlatform::OpenAI,
             model: "gpt-4o-mini".to_string(),
             token: Some(token),
@@ -187,7 +188,8 @@ mod tests {
     #[tokio::test]
     #[ignore = "requires local ollama service and model pre-pulled"]
     async fn test_ollama_chat() -> super::LLMResult<()> {
-        let config = LLMClientConfig {
+        let config = LLMConfig {
+            embedding: "fastembed".to_string(),
             platform: LLMPlatform::Ollama,
             model: std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5:3b".to_string()),
             token: None,

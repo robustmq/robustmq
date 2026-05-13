@@ -232,7 +232,7 @@ mod tests {
         let data = Bytes::copy_from_slice(&RegisterNodeRequest::encode_to_vec(&request));
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             &test_temp_dir(),
-            config.rocksdb.max_open_files,
+            100000,
             column_family_list(),
         ));
         let cluster_cache = Arc::new(MetaCacheManager::new(rocksdb_engine.clone()));
