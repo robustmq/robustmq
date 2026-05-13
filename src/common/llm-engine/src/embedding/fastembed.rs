@@ -14,9 +14,9 @@
 
 use crate::client::LLMResult;
 use common_base::error::common::CommonError;
-use fastembed::{InitOptionsUserDefined, TextEmbedding, TokenizerFiles, UserDefinedEmbeddingModel};
 #[cfg(test)]
 use fastembed::{EmbeddingModel, InitOptions};
+use fastembed::{InitOptionsUserDefined, TextEmbedding, TokenizerFiles, UserDefinedEmbeddingModel};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
@@ -123,7 +123,9 @@ mod tests {
     async fn test_embed() {
         init_for_test(None).ok();
 
-        let vec = embed("RobustMQ is a cloud-native message queue").await.unwrap();
+        let vec = embed("RobustMQ is a cloud-native message queue")
+            .await
+            .unwrap();
         assert_eq!(vec.len(), 384);
 
         let vecs = embed_batch(vec![
