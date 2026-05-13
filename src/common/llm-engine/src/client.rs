@@ -81,6 +81,45 @@ impl LLMClient {
         self.chat_with_system(None, prompt).await
     }
 
+    pub async fn embed(&self, input: &str) -> LLMResult<Vec<f32>> {
+        if input.trim().is_empty() {
+            return Err(Box::new(CommonError::CommonError(
+                "embed input cannot be empty".to_string(),
+            )));
+        }
+
+        let response = self
+            .client
+            .embed(&self.model_name, input, None)
+            .await
+            .map_err(|e| Box::new(CommonError::CommonError(format!("LLM embed failed: {e}"))))?;
+
+        response
+            .first_vector()
+            .cloned()
+            .ok_or_else(|| Box::new(CommonError::CommonError("embed response has no vector".to_string())))
+    }
+
+    pub async fn embed_batch(&self, inputs: Vec<String>) -> LLMResult<Vec<Vec<f32>>> {
+        if inputs.is_empty() {
+            return Err(Box::new(CommonError::CommonError(
+                "embed_batch inputs cannot be empty".to_string(),
+            )));
+        }
+
+        let response = self
+            .client
+            .embed_batch(&self.model_name, inputs, None)
+            .await
+            .map_err(|e| {
+                Box::new(CommonError::CommonError(format!(
+                    "LLM embed_batch failed: {e}"
+                )))
+            })?;
+
+        Ok(response.into_vectors())
+    }
+
     pub async fn chat_with_system(
         &self,
         system_prompt: Option<&str>,
