@@ -329,11 +329,9 @@ mod tests {
 
         assert_eq!(resp.len(), 2);
 
-        let mut i = 5;
-        for record_bytes in resp.iter() {
+        for (i, record_bytes) in (5..).zip(resp.iter()) {
             let record: StorageRecord = deserialize(record_bytes).unwrap();
             assert_eq!(record.metadata.offset, i);
-            i += 1;
         }
 
         // key
