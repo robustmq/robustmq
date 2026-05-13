@@ -171,7 +171,7 @@ impl BrokerServer {
     pub fn spawn_mqtt_broker(&self, server: MqttBrokerServer) {
         self.broker_runtime.spawn(Box::pin(async move {
             if let Err(e) = server.start().await {
-                tracing::error!("MQTT broker failed to start: {}", e);
+                tracing::error!("MQTT broker failed to start: {:#}", e);
                 std::process::exit(1);
             }
         }));

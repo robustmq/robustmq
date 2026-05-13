@@ -59,16 +59,16 @@ impl KafkaBrokerServer {
         }
     }
 
-    pub async fn start(&self) {
+    pub async fn start(&self) -> Result<(), std::io::Error> {
         let port = broker_config().kafka_runtime.tcp_port;
-        if let Err(e) = self.server.start(port).await {
-            error!(
+        self.server.start(port).await.map_err(|e| {
+            std::io::Error::other(format!(
                 "Kafka broker server failed to start on port {}: {}",
                 port, e
-            );
-            std::process::exit(1);
-        }
+            ))
+        })?;
         self.awaiting_stop().await;
+        Ok(())
     }
 
     pub async fn stop(&self) {

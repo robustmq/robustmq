@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::BrokerServer;
 use broker_core::cache::NodeCacheManager;
+use common_base::role::is_engine_node;
 use common_base::task::TaskSupervisor;
 use common_config::{broker::broker_config, storage::memory::StorageDriverMemoryConfig};
 use common_healthy::port::wait_for_engine_ready;
@@ -31,8 +33,6 @@ use storage_engine::{
     StorageEngineParams, StorageEngineServer,
 };
 use tokio::sync::broadcast;
-
-use crate::BrokerServer;
 
 /// Build [`StorageEngineParams`] synchronously; no async context needed.
 pub fn build_storage_engine_params(
@@ -90,10 +90,10 @@ pub fn build_storage_engine_params(
 
 impl BrokerServer {
     pub fn start_engine_service(&self) -> Option<broadcast::Sender<bool>> {
-        use common_base::role::is_engine_node;
         if !is_engine_node(&self.config.roles) {
             return None;
         }
+
         let (stop_send, _) = broadcast::channel(2);
 
         let server = StorageEngineServer::new(
@@ -101,11 +101,19 @@ impl BrokerServer {
             stop_send.clone(),
             self.task_supervisor.clone(),
         );
+
         self.engine_runtime.spawn(Box::pin(async move {
-            server.start().await;
+            if let Err(e) = server.start().await {
+                tracing::error!("{:#}", e);
+                std::process::exit(1);
+            }
         }));
 
         if !wait_for_engine_ready(self.config.storage_runtime.tcp_port) {
+            tracing::error!(
+                "Storage Engine failed to become ready on port {}, exiting",
+                self.config.storage_runtime.tcp_port
+            );
             std::process::exit(1);
         }
 

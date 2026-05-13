@@ -102,17 +102,18 @@ impl StorageEngineServer {
         }
     }
 
-    pub async fn start(&self) {
+    pub async fn start(&self) -> Result<(), std::io::Error> {
         self.start_daemon_thread();
 
-        self.start_tcp_server();
+        self.start_tcp_server().await?;
 
         self.waiting_stop().await;
+        Ok(())
     }
 
-    fn start_tcp_server(&self) {
+    async fn start_tcp_server(&self) -> Result<(), std::io::Error> {
         let server = self.server.clone();
-        tokio::spawn(async move { server.start().await });
+        server.start().await
     }
 
     fn start_daemon_thread(&self) {

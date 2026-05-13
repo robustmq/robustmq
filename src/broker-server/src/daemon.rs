@@ -173,7 +173,9 @@ impl BrokerServer {
     ) {
         self.server_runtime.block_on(async {
             self.broker_cache.set_status(NodeStatus::Running).await;
+
             signal::ctrl_c().await.expect("failed to listen for event");
+
             info!("When ctrl + c is received, the service starts to stop");
 
             self.broker_cache.set_status(NodeStatus::Stopping).await;
@@ -188,7 +190,6 @@ impl BrokerServer {
                 if let Err(e) = sx.send(true) {
                     error!("mqtt stop signal, error message:{}", e);
                 }
-                sleep(Duration::from_secs(1)).await;
             }
 
             // Stop Phase 3: NATS Broker
@@ -196,7 +197,6 @@ impl BrokerServer {
                 if let Err(e) = sx.send(true) {
                     error!("nats stop signal, error message:{}", e);
                 }
-                sleep(Duration::from_secs(1)).await;
             }
 
             // Stop Phase 4: Kafka Broker
@@ -204,7 +204,6 @@ impl BrokerServer {
                 if let Err(e) = sx.send(true) {
                     error!("kafka stop signal, error message:{}", e);
                 }
-                sleep(Duration::from_secs(1)).await;
             }
 
             // Stop Phase 5: AMQP Broker
@@ -212,7 +211,6 @@ impl BrokerServer {
                 if let Err(e) = sx.send(true) {
                     error!("amqp stop signal, error message:{}", e);
                 }
-                sleep(Duration::from_secs(1)).await;
             }
 
             // Stop Phase 6: Common
@@ -230,16 +228,15 @@ impl BrokerServer {
                 if let Err(e) = sx.send(true) {
                     error!("storage engine stop signal, error message:{}", e);
                 }
-                sleep(Duration::from_secs(1)).await;
             }
 
+            sleep(Duration::from_secs(5)).await;
             // Stop Phase 9: Meta Service
             if let Some(sx) = meta_stop {
                 if let Err(e) = sx.send(true) {
                     error!("meta stop signal, error message:{}", e);
                 }
             }
-            sleep(Duration::from_secs(1)).await;
         });
     }
 }

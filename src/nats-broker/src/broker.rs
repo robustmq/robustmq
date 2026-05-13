@@ -96,7 +96,7 @@ impl NatsBrokerServer {
         }
     }
 
-    pub async fn start(&self) {
+    pub async fn start(&self) -> Result<(), std::io::Error> {
         let conf = broker_config();
 
         start_sub_task(
@@ -121,11 +121,11 @@ impl NatsBrokerServer {
                 keep_alive.start_heartbeat_check(&stop_sx).await;
             });
 
-        if let Err(e) = self.server.start().await {
-            error!("NATS broker server failed to start: {}", e);
-            std::process::exit(1);
-        }
+        self.server.start().await.map_err(|e| {
+            std::io::Error::other(format!("NATS broker server failed to start: {}", e))
+        })?;
         self.awaiting_stop().await;
+        Ok(())
     }
 
     pub async fn stop(&self) {

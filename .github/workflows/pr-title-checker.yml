@@ -22,6 +22,9 @@ on:
       - labeled
       - unlabeled
 
+permissions:
+  pull-requests: write
+
 jobs:
   check:
     runs-on: ubuntu-22.04

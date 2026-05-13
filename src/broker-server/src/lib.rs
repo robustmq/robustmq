@@ -383,13 +383,15 @@ impl BrokerServer {
     }
 
     pub fn start(&self) {
-        let monitor_interval_ms = 10_000u64;
-
         // Phase 1: Network-facing servers
         self.start_grpc_server();
         self.start_admin_server();
 
         if !wait_for_grpc_ready(self.config.grpc_port) {
+            error!(
+                "GRPC server failed to become ready on port {}, exiting",
+                self.config.grpc_port
+            );
             std::process::exit(1);
         }
 
@@ -473,6 +475,7 @@ impl BrokerServer {
 
         // Phase 11: Background services
         self.server_runtime.block_on(async {
+            let monitor_interval_ms = 10_000u64;
             self.start_background_services(broker_common_stop.clone(), monitor_interval_ms)
                 .await;
         });

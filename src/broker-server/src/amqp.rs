@@ -60,7 +60,10 @@ impl BrokerServer {
         params.stop_sx = stop_send.clone();
         let server = AmqpBrokerServer::new(params);
         self.broker_runtime.spawn(Box::pin(async move {
-            server.start().await;
+            if let Err(e) = server.start().await {
+                tracing::error!("{:#}", e);
+                std::process::exit(1);
+            }
         }));
         Some(stop_send.clone())
     }
