@@ -52,7 +52,12 @@ impl LLMClient {
             .validate()
             .map_err(|e| Box::new(CommonError::CommonError(e)))?;
 
-        let adapter_kind = platform_to_adapter_kind(&config.platform);
+        let platform = config.platform.as_ref().ok_or_else(|| {
+            Box::new(CommonError::CommonError(
+                "platform is not configured".to_string(),
+            ))
+        })?;
+        let adapter_kind = platform_to_adapter_kind(platform);
         let base_url = config.base_url.clone();
         let token = config.token.clone();
 
@@ -73,7 +78,7 @@ impl LLMClient {
             })
             .build();
 
-        let model_name = config.model.clone();
+        let model_name = config.model.clone().unwrap_or_default();
         Ok(Self { model_name, client })
     }
 
@@ -171,9 +176,10 @@ mod tests {
         })?;
 
         let config = LLMConfig {
-            embedding: "api".to_string(),
-            platform: LLMPlatform::OpenAI,
-            model: "gpt-4o-mini".to_string(),
+            embedding: Some("api".to_string()),
+            embedding_model_path: None,
+            platform: Some(LLMPlatform::OpenAI),
+            model: Some("gpt-4o-mini".to_string()),
             token: Some(token),
             base_url: std::env::var("OPENAI_BASE_URL").ok(),
         };
@@ -189,9 +195,10 @@ mod tests {
     #[ignore = "requires local ollama service and model pre-pulled"]
     async fn test_ollama_chat() -> super::LLMResult<()> {
         let config = LLMConfig {
-            embedding: "fastembed".to_string(),
-            platform: LLMPlatform::Ollama,
-            model: std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5:3b".to_string()),
+            embedding: Some("fastembed".to_string()),
+            embedding_model_path: None,
+            platform: Some(LLMPlatform::Ollama),
+            model: Some(std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5:3b".to_string())),
             token: None,
             base_url: std::env::var("OLLAMA_BASE_URL").ok(),
         };

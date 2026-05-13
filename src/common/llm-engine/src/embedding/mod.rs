@@ -23,11 +23,8 @@ fn err(msg: impl Into<String>) -> Box<CommonError> {
 }
 
 pub async fn embed(text: &str, config: &BrokerConfig) -> LLMResult<Vec<f32>> {
-    let llm = config
-        .llm_client
-        .as_ref()
-        .ok_or_else(|| err("llm_client is not configured"))?;
-    match llm.embedding.as_str() {
+    let llm = &config.llm_client;
+    match llm.embedding.as_deref().unwrap_or_default() {
         "fastembed" => fastembed::embed(text).await,
         "api" => LLMClient::new(llm.clone())?.embed(text).await,
         other => Err(err(format!("unknown embedding type '{other}'"))),
@@ -35,11 +32,8 @@ pub async fn embed(text: &str, config: &BrokerConfig) -> LLMResult<Vec<f32>> {
 }
 
 pub async fn embed_batch(texts: Vec<String>, config: &BrokerConfig) -> LLMResult<Vec<Vec<f32>>> {
-    let llm = config
-        .llm_client
-        .as_ref()
-        .ok_or_else(|| err("llm_client is not configured"))?;
-    match llm.embedding.as_str() {
+    let llm = &config.llm_client;
+    match llm.embedding.as_deref().unwrap_or_default() {
         "fastembed" => fastembed::embed_batch(texts).await,
         "api" => LLMClient::new(llm.clone())?.embed_batch(texts).await,
         other => Err(err(format!("unknown embedding type '{other}'"))),

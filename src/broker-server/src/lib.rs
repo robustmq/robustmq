@@ -36,6 +36,7 @@ use delay_message::manager::DelayMessageManager;
 use delay_task::manager::DelayTaskManager;
 use grpc_clients::pool::ClientPool;
 use kafka_broker::broker::KafkaBrokerServerParams;
+use llm_engine::embedding::fastembed;
 use meta_service::MetaServiceServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
 use nats_broker::broker::NatsBrokerServerParams;
@@ -449,13 +450,10 @@ impl BrokerServer {
                 std::process::exit(1);
             }
 
-            // let conf = broker_config();
-            // if let Some(embedding) = conf.embedding{
-            //       if let Err(e) = fastembed::init(embedding).await {
-            //     error!("Failed to initialize system user: {}", e);
-            //     std::process::exit(1);
-            // }
-            // }
+            if let Err(e) = fastembed::init() {
+                error!("Failed to initialize fastembed: {}", e);
+                std::process::exit(1);
+            }
         });
 
         // Phase 8: Start MQTT broker, extract stop sender and command adapter.

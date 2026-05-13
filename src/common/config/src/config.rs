@@ -69,11 +69,15 @@ pub enum LLMPlatform {
     Ollama,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct LLMConfig {
-    pub embedding: String,
-    pub platform: LLMPlatform,
-    pub model: String,
+    // embedding
+    pub embedding: Option<String>,
+    pub embedding_model_path: Option<String>,
+
+    // llm api
+    pub platform: Option<LLMPlatform>,
+    pub model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub token: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -82,8 +86,10 @@ pub struct LLMConfig {
 
 impl LLMConfig {
     pub fn validate(&self) -> Result<(), String> {
-        if self.model.trim().is_empty() {
-            return Err("model cannot be empty".to_string());
+        if let Some(model) = &self.model {
+            if model.trim().is_empty() {
+                return Err("model cannot be empty".to_string());
+            }
         }
 
         if let Some(base_url) = &self.base_url {
@@ -92,7 +98,7 @@ impl LLMConfig {
             }
         }
 
-        if self.platform != LLMPlatform::Ollama {
+        if !matches!(self.platform, Some(LLMPlatform::Ollama)) {
             let token = self.token.as_deref().unwrap_or_default().trim();
             if token.is_empty() {
                 return Err("token is required for non-ollama platforms".to_string());
@@ -137,7 +143,7 @@ pub struct BrokerConfig {
     pub data_path: String,
 
     #[serde(default)]
-    pub llm_client: Option<LLMConfig>,
+    pub llm_client: LLMConfig,
 
     #[serde(default)]
     pub cluster_limit: ClusterLimit,
@@ -215,7 +221,7 @@ impl Default for BrokerConfig {
             log: default_log(),
             runtime: default_runtime(),
             data_path: default_data_path(),
-            llm_client: None,
+            llm_client: LLMConfig::default(),
             cluster_limit: ClusterLimit::default(),
             delay_task: default_delay_task(),
 
