@@ -94,10 +94,11 @@ impl LLMClient {
             .await
             .map_err(|e| Box::new(CommonError::CommonError(format!("LLM embed failed: {e}"))))?;
 
-        response
-            .first_vector()
-            .cloned()
-            .ok_or_else(|| Box::new(CommonError::CommonError("embed response has no vector".to_string())))
+        response.first_vector().cloned().ok_or_else(|| {
+            Box::new(CommonError::CommonError(
+                "embed response has no vector".to_string(),
+            ))
+        })
     }
 
     pub async fn embed_batch(&self, inputs: Vec<String>) -> LLMResult<Vec<Vec<f32>>> {

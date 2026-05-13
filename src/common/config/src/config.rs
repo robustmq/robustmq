@@ -103,6 +103,15 @@ impl LLMClientConfig {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum EmbeddingConfig {
+    /// Use local fastembed model; model_dir must contain model.onnx + tokenizer files
+    Fastembed { model_dir: String },
+    /// Use remote API (reuses llm_client config)
+    Api,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct BrokerConfig {
     // Global
@@ -138,6 +147,9 @@ pub struct BrokerConfig {
 
     #[serde(default)]
     pub llm_client: Option<LLMClientConfig>,
+
+    #[serde(default)]
+    pub embedding: Option<EmbeddingConfig>,
 
     #[serde(default)]
     pub cluster_limit: ClusterLimit,
@@ -216,6 +228,7 @@ impl Default for BrokerConfig {
             runtime: default_runtime(),
             rocksdb: default_rocksdb(),
             llm_client: None,
+            embedding: None,
             cluster_limit: ClusterLimit::default(),
             delay_task: default_delay_task(),
 

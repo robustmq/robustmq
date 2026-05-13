@@ -285,6 +285,7 @@ reqwest = { version = "0.12.23", default-features = false, features = [
     "http2",
 ] }
 genai = "0.5.3"
+fastembed = "4"
 tempfile = "3.27.0"
 chrono = { version = "0.4.44", default-features = false, features = ["std", "clock"] }
 bson = "2.9"
