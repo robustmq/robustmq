@@ -96,12 +96,12 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
     }
 
     // save delay message
-    if context.delay_info.is_some() {
+    if let Some(delay_info) = &context.delay_info {
         return save_delay_message(
             &context.delay_message_manager,
             &context.topic.tenant,
             &context.publish.payload,
-            context.delay_info.as_ref().unwrap(),
+            delay_info,
         )
         .await;
     }
