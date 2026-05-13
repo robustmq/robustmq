@@ -18,3 +18,4 @@ pub const DELAY_TASK_INDEX_TOPIC: &str = "$delay-task-index";
 pub const DELAY_QUEUE_MESSAGE_TOPIC: &str = "$delay-queue-message";
 pub const DELAY_QUEUE_INDEX_TOPIC: &str = "$delay-queue-index";
 pub const AGENT_REPORT_INFO_TOPIC: &str = "$agent-report-info";
+pub const QOS2_INNER_TOPIC: &str = "$sys/qos2-inner-topic";

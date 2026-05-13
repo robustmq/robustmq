@@ -17,7 +17,7 @@ use broker_core::{
     cache::NodeCacheManager,
     inner_topic::{
         AGENT_REPORT_INFO_TOPIC, DELAY_QUEUE_INDEX_TOPIC, DELAY_QUEUE_MESSAGE_TOPIC,
-        DELAY_TASK_INDEX_TOPIC, LAST_WILL_MESSAGE_TOPIC, RETAIN_MESSAGE_TOPIC,
+        DELAY_TASK_INDEX_TOPIC, LAST_WILL_MESSAGE_TOPIC, QOS2_INNER_TOPIC, RETAIN_MESSAGE_TOPIC,
     },
 };
 use common_base::error::common::CommonError;
@@ -96,6 +96,7 @@ pub async fn init_inner_topics(
         DELAY_QUEUE_MESSAGE_TOPIC,
         DELAY_QUEUE_INDEX_TOPIC,
         AGENT_REPORT_INFO_TOPIC,
+        QOS2_INNER_TOPIC,
     ] {
         init_single_inner_topic(
             broker_cache,

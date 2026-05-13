@@ -19,8 +19,6 @@ use crate::core::flapping_detect::clean_flapping_detect;
 use crate::core::keep_alive::ClientKeepAlive;
 use crate::core::metrics_cache::metrics_record_thread;
 use crate::core::pkid_manager::clean_pkid_data;
-use crate::core::qos::init_qos2_inner_topic;
-
 use crate::core::system_alarm::SystemAlarm;
 use crate::core::tool::ResultMqttBrokerError;
 use crate::core::topic_rewrite::start_topic_rewrite_convert_thread;
@@ -31,11 +29,9 @@ use crate::subscribe::parse::{start_update_parse_thread, ParseSubscribeData};
 use crate::subscribe::PushManager;
 use crate::system_topic::SystemTopic;
 use broker_core::cache::NodeCacheManager;
-use broker_core::tenant::try_init_default_tenant;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_config::broker::broker_config;
 use common_group::manager::OffsetManager;
-use common_security::login::super_user::try_init_system_user;
 use common_security::manager::SecurityManager;
 use connector::manager::ConnectorManager;
 use delay_message::manager::DelayMessageManager;
@@ -159,43 +155,18 @@ impl MqttBrokerServer {
         }
     }
 
-    pub async fn start(&self) {
-        self.start_daemon_thread().await;
+    pub async fn start(&self) -> ResultMqttBrokerError {
+        self.start_daemon_thread().await?;
 
         self.start_subscribe_push().await;
 
         self.start_server();
 
         self.awaiting_stop().await;
+        Ok(())
     }
 
-    async fn start_daemon_thread(&self) {
-        // init default tenant
-        if let Err(e) =
-            try_init_default_tenant(&self.cache_manager.node_cache, &self.client_pool).await
-        {
-            error!("Failed to initialize default tenant: {}", e);
-            std::process::exit(1);
-        }
-
-        // init qos inner topic
-        if let Err(e) = init_qos2_inner_topic(
-            &self.client_pool,
-            &self.storage_driver_manager,
-            &self.cache_manager.node_cache,
-        )
-        .await
-        {
-            error!("Failed to initialize qot inner topic: {}", e);
-            std::process::exit(1);
-        }
-
-        // init system user
-        if let Err(e) = try_init_system_user(&self.client_pool).await {
-            error!("Failed to initialize system user: {}", e);
-            std::process::exit(1);
-        }
-
+    async fn start_daemon_thread(&self) -> ResultMqttBrokerError {
         // session batch writer
         let session_batcher = self.session_batcher.clone();
         let client_pool = self.client_pool.clone();
@@ -299,6 +270,7 @@ impl MqttBrokerServer {
                     }
                 });
         }
+        Ok(())
     }
 
     fn start_server(&self) {
