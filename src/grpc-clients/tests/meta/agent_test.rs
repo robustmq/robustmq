@@ -184,9 +184,10 @@ mod tests {
             &addrs,
             SearchAgentRequest {
                 tenant: tenant.clone(),
-                query: "process a payment and generate invoice".to_string(),
-                query_type: "vector".to_string(),
+                semantic: "process a payment and generate invoice".to_string(),
+                text: String::new(),
                 limit: 5,
+                offset: 0,
             },
         )
         .await
@@ -199,9 +200,10 @@ mod tests {
             &addrs,
             SearchAgentRequest {
                 tenant: tenant.clone(),
-                query: "payment invoices".to_string(),
-                query_type: "fts".to_string(),
+                text: "payment invoices".to_string(),
+                semantic: String::new(),
                 limit: 5,
+                offset: 0,
             },
         )
         .await
@@ -218,9 +220,10 @@ mod tests {
             &addrs,
             SearchAgentRequest {
                 tenant: tenant.clone(),
-                query: "process a payment and generate invoice".to_string(),
-                query_type: "vector".to_string(),
+                semantic: "process a payment and generate invoice".to_string(),
+                text: String::new(),
                 limit: 5,
+                offset: 0,
             },
         )
         .await
@@ -232,9 +235,10 @@ mod tests {
             &addrs,
             SearchAgentRequest {
                 tenant: tenant.clone(),
-                query: "payment invoices".to_string(),
-                query_type: "fts".to_string(),
+                text: "payment invoices".to_string(),
+                semantic: String::new(),
                 limit: 5,
+                offset: 0,
             },
         )
         .await

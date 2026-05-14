@@ -58,12 +58,12 @@ message ListAgentReply {
   bytes agent = 1;
 }
 
-// query_type: "vector" for semantic search, "fts" for full-text search.
 message SearchAgentRequest {
   string tenant = 1;
-  string query = 2 [(validate.rules).string.min_len = 1];
-  string query_type = 3 [(validate.rules).string.min_len = 1];
+  string text = 2;
+  string semantic = 3;
   uint32 limit = 4;
+  uint32 offset = 5;
 }
 
 message AgentSearchItem {

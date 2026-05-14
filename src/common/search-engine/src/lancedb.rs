@@ -96,11 +96,15 @@ pub async fn vector_search(
     table: &Table,
     vector: Vec<f32>,
     limit: usize,
+    offset: usize,
     columns: Option<&[&str]>,
     filter: Option<&str>,
 ) -> SearchResult<Vec<RecordBatch>> {
     let mut q = table.vector_search(vector).map_err(err_from)?.limit(limit);
 
+    if offset > 0 {
+        q = q.offset(offset);
+    }
     if let Some(cols) = columns {
         q = q.select(Select::columns(cols));
     }
@@ -120,6 +124,7 @@ pub async fn full_text_search(
     table: &Table,
     query: &str,
     limit: usize,
+    offset: usize,
     columns: Option<&[&str]>,
 ) -> SearchResult<Vec<RecordBatch>> {
     let mut q = table
@@ -127,6 +132,9 @@ pub async fn full_text_search(
         .full_text_search(FullTextSearchQuery::new(query.to_string()))
         .limit(limit);
 
+    if offset > 0 {
+        q = q.offset(offset);
+    }
     if let Some(cols) = columns {
         q = q.select(Select::columns(cols));
     }
@@ -214,6 +222,7 @@ mod tests {
             &table,
             vec![0.0f32; dim as usize],
             3,
+            0,
             Some(&["id", "text"]),
             None,
         )
@@ -222,7 +231,7 @@ mod tests {
         assert!(!results.is_empty());
 
         create_fts_index(&table, &["text"]).await.unwrap();
-        let fts = full_text_search(&table, "message queue", 3, Some(&["id", "text"]))
+        let fts = full_text_search(&table, "message queue", 3, 0, Some(&["id", "text"]))
             .await
             .unwrap();
         assert!(!fts.is_empty());

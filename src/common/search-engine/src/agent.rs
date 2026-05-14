@@ -138,6 +138,7 @@ pub async fn unregister_agent(tenant: &str, name: &str) -> SearchResult<()> {
 pub async fn search_agents_by_vector(
     vector: Vec<f32>,
     limit: usize,
+    offset: usize,
     tenant: Option<&str>,
 ) -> SearchResult<Vec<AgentSearchResult>> {
     let table = open_table(TABLE_NAME).await?;
@@ -146,6 +147,7 @@ pub async fn search_agents_by_vector(
         &table,
         vector,
         limit,
+        offset,
         Some(&["agent_id", "name", "description", "agent_info"]),
         filter.as_deref(),
     )
@@ -156,12 +158,14 @@ pub async fn search_agents_by_vector(
 pub async fn search_agents_by_text(
     query: &str,
     limit: usize,
+    offset: usize,
 ) -> SearchResult<Vec<AgentSearchResult>> {
     let table = open_table(TABLE_NAME).await?;
     let batches = full_text_search(
         &table,
         query,
         limit,
+        offset,
         Some(&["agent_id", "name", "description", "agent_info"]),
     )
     .await?;

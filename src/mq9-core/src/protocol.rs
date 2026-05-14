@@ -151,8 +151,10 @@ pub struct AgentReportReply {
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AgentDiscoverReq {
-    pub query: Option<String>,
+    pub text: Option<String>,
+    pub semantic: Option<String>,
     pub limit: Option<u32>,
+    pub page: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]

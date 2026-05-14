@@ -97,29 +97,26 @@ pub async fn search_agent_by_req(
     } else {
         req.limit as usize
     };
+    let offset = req.offset as usize;
     let tenant = if req.tenant.is_empty() {
         None
     } else {
         Some(req.tenant.as_str())
     };
 
-    let results = match req.query_type.as_str() {
-        "vector" => {
-            let vector = llm_engine::embedding::fastembed::embed(&req.query)
-                .await
-                .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
-            search_engine::agent::search_agents_by_vector(vector, limit, tenant)
-                .await
-                .map_err(|e| MetaServiceError::CommonError(e.to_string()))?
-        }
-        "fts" => search_engine::agent::search_agents_by_text(&req.query, limit)
+    let results = if !req.semantic.is_empty() {
+        let vector = llm_engine::embedding::fastembed::embed(&req.semantic)
             .await
-            .map_err(|e| MetaServiceError::CommonError(e.to_string()))?,
-        other => {
-            return Err(MetaServiceError::CommonError(format!(
-                "unknown query_type '{other}', expected 'vector' or 'fts'"
-            )));
-        }
+            .map_err(|e| MetaServiceError::CommonError(e.to_string()))?;
+        search_engine::agent::search_agents_by_vector(vector, limit, offset, tenant)
+            .await
+            .map_err(|e| MetaServiceError::CommonError(e.to_string()))?
+    } else if !req.text.is_empty() {
+        search_engine::agent::search_agents_by_text(&req.text, limit, offset)
+            .await
+            .map_err(|e| MetaServiceError::CommonError(e.to_string()))?
+    } else {
+        vec![]
     };
 
     let items = results
