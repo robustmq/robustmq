@@ -33,6 +33,14 @@ pub struct SendMessageArgs {
     pub payload: String,
     /// Priority: "normal" | "urgent" | "critical". Default "normal".
     pub priority: Option<String>,
+    /// Dedup/compaction key. For the same key only the latest message is retained.
+    pub key: Option<String>,
+    /// Comma-separated tags, e.g. "billing,vip". Filterable via QUERY.
+    pub tags: Option<String>,
+    /// Delay delivery by this many seconds. msg_id will be -1 for delayed messages.
+    pub delay: Option<u64>,
+    /// Message-level TTL in seconds, independent of mailbox TTL.
+    pub ttl: Option<u64>,
 }
 
 pub async fn send_message(client: &Client, args: SendMessageArgs) -> Result<Value, McpToolError> {
@@ -46,6 +54,32 @@ pub async fn send_message(client: &Client, args: SendMessageArgs) -> Result<Valu
         headers.insert(
             HeaderName::from_static("mq9-priority"),
             HeaderValue::from(p.as_str()),
+        );
+    }
+    if let Some(k) = &args.key {
+        headers.insert(
+            HeaderName::from_static("mq9-key"),
+            HeaderValue::from(k.as_str()),
+        );
+    }
+    if let Some(t) = &args.tags {
+        headers.insert(
+            HeaderName::from_static("mq9-tags"),
+            HeaderValue::from(t.as_str()),
+        );
+    }
+    if let Some(d) = args.delay {
+        let v = d.to_string();
+        headers.insert(
+            HeaderName::from_static("mq9-delay"),
+            HeaderValue::from(v.as_str()),
+        );
+    }
+    if let Some(t) = args.ttl {
+        let v = t.to_string();
+        headers.insert(
+            HeaderName::from_static("mq9-ttl"),
+            HeaderValue::from(v.as_str()),
         );
     }
 
@@ -81,6 +115,9 @@ pub struct FetchMessagesArgs {
     pub reset_to: Option<String>,
     /// Maximum number of messages to return (default 100).
     pub max_messages: Option<u32>,
+    /// How long the server waits when the mailbox is empty before returning (milliseconds).
+    /// Default 500ms. Set to 0 to return immediately without waiting.
+    pub max_wait_ms: Option<u64>,
 }
 
 pub async fn fetch_messages(
@@ -97,7 +134,7 @@ pub async fn fetch_messages(
         force_deliver,
         config: Some(MsgFetchConfig {
             num_msgs: args.max_messages,
-            max_wait_ms: None,
+            max_wait_ms: args.max_wait_ms,
         }),
     };
 

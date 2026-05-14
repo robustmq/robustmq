@@ -155,6 +155,7 @@ const items = [
       { text: "快速开始", link: "/zh/mq9/QuickStart" },
       { text: "SDK 接入", link: "/zh/mq9/SDK" },
       { text: "LangChain 集成", link: "/zh/mq9/LangChain" },
+      { text: "MCP Server", link: "/zh/mq9/MCP" },
       { text: "常见问题", link: "/zh/mq9/FAQ" },
       { text: "发展规划", link: "/zh/mq9/Roadmap" },
     ],

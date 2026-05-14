@@ -33,7 +33,9 @@ mod tests {
     fn make_payment_agent(name: &str) -> AgentCard {
         AgentCard {
             name: name.to_string(),
-            description: "Agent specialized in payment processing, invoices, and financial transactions".to_string(),
+            description:
+                "Agent specialized in payment processing, invoices, and financial transactions"
+                    .to_string(),
             version: "1.0.0".to_string(),
             supported_interfaces: vec![AgentInterface {
                 url: "https://example.com/a2a/v1".to_string(),
@@ -53,7 +55,11 @@ mod tests {
                 id: "payment".to_string(),
                 name: "Payment".to_string(),
                 description: "Process payments and generate invoices".to_string(),
-                tags: vec!["payment".to_string(), "invoice".to_string(), "billing".to_string()],
+                tags: vec![
+                    "payment".to_string(),
+                    "invoice".to_string(),
+                    "billing".to_string(),
+                ],
                 examples: vec!["Pay invoice #1234".to_string()],
                 input_modes: vec![],
                 output_modes: vec![],
@@ -115,7 +121,10 @@ mod tests {
     #[tokio::test]
     async fn mq9_agent_discover_text_test() {
         let nats = nats_connect().await;
-        let agent_name = format!("payment-agent-{}", &uuid::Uuid::new_v4().simple().to_string()[..8]);
+        let agent_name = format!(
+            "payment-agent-{}",
+            &uuid::Uuid::new_v4().simple().to_string()[..8]
+        );
         let card = make_payment_agent(&agent_name);
 
         // ── 1. register ───────────────────────────────────────────────────────
@@ -143,7 +152,11 @@ mod tests {
 
         // ── 3. unregister ─────────────────────────────────────────────────────
         let unregister_reply = unregister_agent(&nats, &agent_name).await;
-        assert!(unregister_reply.error.is_empty(), "unregister failed: {}", unregister_reply.error);
+        assert!(
+            unregister_reply.error.is_empty(),
+            "unregister failed: {}",
+            unregister_reply.error
+        );
 
         sleep(Duration::from_secs(PROPAGATION_DELAY)).await;
 
@@ -167,7 +180,10 @@ mod tests {
     #[tokio::test]
     async fn mq9_agent_discover_semantic_test() {
         let nats = nats_connect().await;
-        let agent_name = format!("payment-agent-{}", &uuid::Uuid::new_v4().simple().to_string()[..8]);
+        let agent_name = format!(
+            "payment-agent-{}",
+            &uuid::Uuid::new_v4().simple().to_string()[..8]
+        );
         let card = make_payment_agent(&agent_name);
 
         // ── 1. register ───────────────────────────────────────────────────────
@@ -195,7 +211,11 @@ mod tests {
 
         // ── 3. unregister ─────────────────────────────────────────────────────
         let unregister_reply = unregister_agent(&nats, &agent_name).await;
-        assert!(unregister_reply.error.is_empty(), "unregister failed: {}", unregister_reply.error);
+        assert!(
+            unregister_reply.error.is_empty(),
+            "unregister failed: {}",
+            unregister_reply.error
+        );
 
         sleep(Duration::from_secs(PROPAGATION_DELAY)).await;
 

@@ -1,414 +1,455 @@
 # 协议设计
 
----
+## 概述
 
-## 1. 协议基础
+`$mq9.AI.*` 是 mq9 为 Agent 异步通信设计的协议。核心解决的问题：**Agent 之间的异步通信，发件方和收件方不需要同时在线。**
 
-mq9 是在 NATS subject 上定义的一套语义约定，运行在 RobustMQ 统一存储层之上。所有 mq9 操作都是标准的 NATS pub/sub 或 request/reply 调用，无需额外协议层或 SDK。
-
-### 为什么选择 NATS 协议
-
-mq9 选择 NATS 作为传输协议，而非自研通信协议，原因有三：
-
-- **客户端生态完整**：NATS 有覆盖 40+ 语言的官方和社区客户端，AI 领域常用的 Python、Go、JavaScript、Rust 均有成熟实现。选择 NATS 意味着 mq9 从第一天起就对所有这些语言的开发者开箱即用，无需等待 SDK 覆盖。
-
-- **语义匹配**：NATS 的 pub/sub 和 request/reply 原语恰好覆盖 mq9 所需的全部通信模式——fire-and-forget 发送、主动订阅、同步请求。subject 命名空间机制为 mq9 的邮箱地址系统提供了天然的表达方式。
-
-- **Broker 完全自研**：使用 NATS 协议不意味着使用 NATS Server。mq9 的 Broker 是 RobustMQ 用 Rust 自研实现的，运行在 RobustMQ 统一存储层之上。存储、优先级调度、TTL 管理、先存储后推送语义——全部是 RobustMQ 自身的能力。NATS 只是客户端与 Broker 之间的通信协议，就像 HTTP 是 Web 的传输协议一样。
-
-| 操作类型 | NATS 原语 | 说明 |
-|---------|---------|------|
-| 创建邮箱 | `nats req`（request/reply） | 客户端发请求，服务端通过 reply-to 返回结果 |
-| 发送消息 | `nats pub`（fire-and-forget） | 即发即忘，不等待确认 |
-| 订阅消息 | `nats sub`（subscribe） | 订阅即触发全量推送，后续实时推送 |
-| 列出消息 | `nats req`（request/reply） | 查询邮箱中的消息元数据 |
-| 删除消息 | `nats req`（request/reply） | 删除指定消息 |
-
-消息编码：请求体和响应体均为 JSON，UTF-8 编码。标准 NATS 连接，默认端口 `4222`。
+mq9 只解决通信问题——消息怎么可靠送达。消息内容是 byte 数组，不解析、不校验、不限制。上层是 A2A、MCP 还是其他协议，mq9 不干涉。
 
 ---
 
-## 2. Subject 命名规范
+## mail_address 格式规范
 
-所有 mq9 subject 以 `$mq9.AI` 为前缀。服务端对该前缀下的消息启用持久化和优先级调度，其他 NATS subject 行为不变。
+**字符集**：小写字母（a-z）、数字（0-9）、点（`.`）
+
+**长度**：1 到 128 字符
+
+**大小写**：严格小写，含大写字符的 mail_address 会被 broker 拒绝
+
+**位置规则**：`.` 只能出现在中间，开头和结尾必须是小写字母或数字；不允许连续的 `.`
+
+**语义**：`mail_address` 是不透明字符串，`.` 不参与协议路由或匹配，仅作视觉分组
+
+**编码**：不允许 URL percent-encoding
+
+| 合法示例 | 非法示例 |
+|---------|---------|
+| `task.001` | `task-001`（含连字符） |
+| `agent.inbox` | `task_001`（含下划线） |
+| `analytics.result` | `Task.001`（含大写） |
+| `acme.org.task.queue` | `.task.001`（点开头） |
+| `session.20260502` | `task.001.`（点结尾） |
+| | `task..001`（连续点） |
+
+**完整地址示例**：
 
 ```text
-$mq9.AI
-  └── MAILBOX
-        ├── CREATE                                   # 创建邮箱
-        ├── MSG.{mail_address}                            # 发送/订阅消息（normal，默认，无后缀）
-        ├── MSG.{mail_address}.urgent                     # 发送/订阅紧急消息
-        ├── MSG.{mail_address}.critical                   # 发送/订阅最高优先级消息
-        ├── MSG.{mail_address}.*                          # 订阅所有优先级
-        ├── LIST.{mail_address}                           # 列出邮箱消息元数据
-        └── DELETE.{mail_address}.{msg_id}                # 删除指定消息
-```
-
-| Subject | NATS 原语 | 说明 |
-|---------|---------|------|
-| `$mq9.AI.MAILBOX.CREATE` | request | 创建私有或公开邮箱 |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}` | pub/sub | 发送/订阅 normal 优先级消息（默认，无后缀） |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}.urgent` | pub/sub | 发送/订阅 urgent 优先级消息 |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}.critical` | pub/sub | 发送/订阅 critical 优先级消息 |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}.*` | sub | 订阅**所有**优先级（critical + urgent + normal） |
-| `$mq9.AI.MAILBOX.LIST.{mail_address}` | request | 列出邮箱中所有消息的元数据 |
-| `$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}` | request | 删除邮箱中的指定消息 |
-| `$mq9.AI.PUBLIC.LIST` | sub | 发现所有公开邮箱，系统内置 |
-
-### mail_address 格式
-
-私有邮箱的 `mail_address` 由服务端生成，格式为 `{uuid}`，例如：
-
-```text
-d7a5072lko83
-```
-
-公开邮箱的 `mail_address` 由用户在创建时通过 `name` 字段指定，支持点号分隔，例如 `task.queue`、`vision.results`。
-
-`mail_address` 不可猜测即安全边界：知道 `mail_address` 即可发消息和订阅，不知道则无从操作，无 token，无 ACL。
-
----
-
-## 3. 基础概念
-
-**邮箱（Mailbox）** — mq9 的基本通信地址。通过 `MAILBOX.CREATE` 创建，返回 `mail_address`。不绑定 Agent 身份，一个 Agent 可以为不同任务创建不同邮箱。
-
-**TTL** — 邮箱创建时声明的生存时间，到期后邮箱及其所有消息自动销毁，无需手动清理。`MAILBOX.CREATE` **不是幂等的**，对同一名称重复调用会返回错误。
-
-**优先级（Priority）** — 每条消息属于三个优先级之一，编码在 subject 后缀中：
-
-| 优先级 | Subject 形式 | 典型场景 |
-|--------|------------|---------|
-| `critical` | `MSG.{mail_address}.critical` | 中止信号、紧急指令、安全事件 |
-| `urgent` | `MSG.{mail_address}.urgent` | 任务中断、时效性指令 |
-| `normal`（默认） | `MSG.{mail_address}`（无后缀） | 任务分发、结果返回、常规通信 |
-
-同优先级内 FIFO，跨优先级 critical 先于 urgent 先于 normal，顺序由存储层保证，消费方无需自行排序。
-
-**先存储后推送** — 消息到达后先写存储，订阅者在线则同时实时推送，不在线则等待。每次订阅触发全量推送所有未过期消息，然后切换实时推送。Agent 重连不漏消息。
-
-**无服务端消费者状态** — 服务端不追踪已读/未读，不维护每消费者位点，没有 ACK，没有 offset。去重依赖客户端通过 `msg_id` 自行实现。
-
-**msg_id** — 服务端为每条消息分配的唯一标识（uint64），用于客户端去重和消息删除。
-
----
-
-## 4. 命令字
-
-### 4.1 创建邮箱（MAILBOX.CREATE）
-
-Subject：`$mq9.AI.MAILBOX.CREATE` · NATS 原语：request/reply
-
-#### CREATE 请求参数
-
-| 字段 | 类型 | 必填 | 默认值 | 说明 |
-|------|------|------|--------|------|
-| `ttl` | uint64 | 否 | 服务端默认 | 邮箱生存时间（秒），到期后邮箱及消息自动销毁 |
-| `public` | bool | 否 | `false` | 是否为公开邮箱，`true` 时自动注册到 `$mq9.AI.PUBLIC.LIST` |
-| `name` | string | 公开邮箱必填 | — | 公开邮箱的自定义 `mail_address`，支持点号分隔（如 `task.queue`） |
-| `desc` | string | 否 | `""` | 邮箱描述，公开邮箱建议填写，会随 PUBLIC.LIST 推送 |
-
-#### CREATE 响应字段
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `mail_address` | string | 邮箱唯一标识。私有邮箱为 `{uuid}` 格式，公开邮箱为请求中的 `name` 值 |
-
-
-#### CREATE 示例
-
-创建私有邮箱：
-
-```bash
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
-```
-
-```json
-{"mail_address":"d7a5072lko83"}
-```
-
-创建公开邮箱：
-
-```bash
-nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "ttl": 86400,
-  "public": true,
-  "name": "task.queue",
-  "desc": "共享 Worker 任务队列"
-}'
-```
-
-```json
-{"mail_address":"task.queue"}
-```
-
-重复创建（报错）：
-
-```bash
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":86400,"public":true,"name":"task.queue"}'
-```
-
-```json
-{"mail_address":"task.queue"}
-```
-
-> CREATE **不是幂等的**。邮箱已存在时返回错误（`mailbox xxx already exists`）。调用前可先检查是否存在。
-
----
-
-### 4.2 发送消息（MAILBOX.MSG pub）
-
-Subject：`$mq9.AI.MAILBOX.MSG.{mail_address}[.{priority}]` · NATS 原语：publish
-
-知道 `mail_address` 即可发送，无需授权。消息写入存储后立即返回，发送方不等待订阅者在线。
-
-#### MSG-pub Subject 编码规则
-
-| 优先级 | Subject |
-|--------|---------|
-| normal（默认） | `$mq9.AI.MAILBOX.MSG.{mail_address}`（无后缀） |
-| urgent | `$mq9.AI.MAILBOX.MSG.{mail_address}.urgent` |
-| critical | `$mq9.AI.MAILBOX.MSG.{mail_address}.critical` |
-
-> 禁止通配符发布。`$mq9.AI.MAILBOX.MSG.*.*` 等通配符 subject 会被服务端拒绝，发布时必须指定精确的 `mail_address`。
-
-#### MSG-pub 响应字段
-
-发布操作为 fire-and-forget，无响应体。若使用 request 模式发送则返回：
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `msg_id` | uint64 | 服务端为该消息分配的唯一标识，可用于后续 DELETE 操作 |
-
-#### MSG-pub 消息体（建议结构）
-
-mq9 不强制消息体格式，payload 为任意字节序列。以下是推荐的 JSON 约定：
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `from` | string | 发件方 `mail_address` |
-| `type` | string | 消息类型，业务自定义（如 `task_dispatch`、`task_result`、`abort`） |
-| `correlation_id` | string | 关联原始请求的标识，用于 request-reply 模式 |
-| `reply_to` | string | 回复地址，收件方将响应发送到此 `mail_address` |
-| `payload` | object | 消息内容，mq9 不解析 |
-| `ts` | int64 | 发送时间戳（Unix 秒） |
-
-#### MSG-pub 示例
-
-```bash
-# critical — 最高优先级
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072lko83.critical' \
-  '{"type":"abort","task_id":"t-001","ts":1712600001}'
-
-# urgent — 紧急
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072lko83.urgent' \
-  '{"type":"interrupt","task_id":"t-002","ts":1712600002}'
-
-# normal — 默认，无后缀
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072lko83' \
-  '{"type":"task","payload":{"job":"process dataset A"},"reply_to":"sender-001","ts":1712600003}'
+task.001
+agent.inbox
+analytics.result
+acme.task.queue
+session.20260502
+order.processing.urgent
+agent.001.inbox
 ```
 
 ---
 
-### 4.3 订阅消息（MAILBOX.MSG sub）
+## 基础概念
 
-Subject：`$mq9.AI.MAILBOX.MSG.{mail_address}[.{priority}|.*]` · NATS 原语：subscribe
+**mail_address**：通过 `MAILBOX.CREATE` 创建邮箱时由用户自定义的通信地址。不绑定 Agent 身份，一个 Agent 可以为不同任务申请不同的 mail_address。用完不管，TTL 自动清理。
 
-#### MSG-sub 订阅模式
+**mail_address 不可猜测即安全边界。** 知道 mail_address 就能发消息、能订阅。不知道 mail_address 就无从操作。没有 token，没有 ACL。
 
-| Subject | 含义 |
-|---------|------|
-| `$mq9.AI.MAILBOX.MSG.{mail_address}.*` | 订阅**所有**优先级（critical + urgent + normal） |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}.critical` | 仅订阅 critical 优先级 |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}.urgent` | 仅订阅 urgent 优先级 |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}` | 仅订阅 normal 优先级（无后缀） |
+**TTL**：邮箱创建时声明，到期自动销毁，消息随之清理。重复 CREATE 同名邮箱会报错（`mailbox xxx already exists`），创建前可先 QUERY 检查是否存在。
 
-> `.*` 匹配所有优先级。服务端在收到 `.*` 订阅时，将 critical、urgent、normal 三个优先级的消息全部推送给订阅者。这是订阅完整邮箱的标准方式。
+**priority**：可选。不指定为 normal 默认优先级，指定 urgent 或 critical 可提升处理顺序。同优先级 FIFO，跨优先级高优先处理。存储层保证顺序，消费方无需自行排序。
 
-#### MSG-sub 推送语义
+**msg_id**：每条消息的唯一标识（消息在存储中的 offset），客户端用于去重和删除操作。
 
-每次订阅触发以下序列：
+**消费语义**：FETCH 采用 pull 模式，支持有状态消费（传 `group_name`，broker 记录位点，重连后可续拉）和无状态消费（不传 `group_name`，每次按 `deliver` 策略独立消费，不记录位点）。
 
-1. 推送所有未过期的存储消息，顺序为 critical → urgent → normal，同优先级内 FIFO
-2. 推送完成后切换为实时推送：新消息到达后立即推送给在线订阅者
+**消息流程**：消息到达 → 写存储 → 客户端主动 FETCH 拉取 → ACK 确认 → broker 推进该 group 消费位点。
 
-服务端不追踪消费状态。重新订阅会从头重放所有未过期消息。
+---
 
-#### MSG-sub 示例
+## 协议总览
+
+| 分类 | Subject | 说明 |
+|------|---------|------|
+| Mailbox 管理 | `$mq9.AI.MAILBOX.CREATE` | 创建 mailbox |
+| 消息通信 | `$mq9.AI.MSG.SEND.{mail_address}` | 发送消息（优先级通过 `mq9-priority` header 指定） |
+| 消息通信 | `$mq9.AI.MSG.FETCH.{mail_address}` | 订阅 mailbox 消息 |
+| 消息通信 | `$mq9.AI.MSG.ACK.{mail_address}` | 消息 ACK |
+| 消息通信 | `$mq9.AI.MSG.QUERY.{mail_address}` | 查询 mailbox 内消息 |
+| 消息通信 | `$mq9.AI.MSG.DELETE.{mail_address}.{msg_id}` | 删除指定消息 |
+| Agent 管理 | `$mq9.AI.AGENT.REGISTER` | Agent 注册 |
+| Agent 管理 | `$mq9.AI.AGENT.UNREGISTER` | Agent 注销 |
+| Agent 管理 | `$mq9.AI.AGENT.REPORT` | Agent 状态上报 |
+| Agent 管理 | `$mq9.AI.AGENT.DISCOVER` | Agent 发现 |
+
+> 所有命令均采用 request/reply 模式（`nats request`），server 必定返回响应。
+
+---
+
+## 响应格式
+
+每个命令有独立的响应结构。所有响应均包含 `error` 字段：
+
+| 值 | 含义 |
+|----|------|
+| `""` | 成功 |
+| 非空字符串 | 失败，值为错误描述 |
+
+---
+
+## $mq9.AI.MAILBOX.CREATE
+
+创建 mailbox，mail_address 由用户自定义。
+
+### 请求字段
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 否 | mailbox 的 mail_address，需符合格式规范；不填则由 broker 自动生成 |
+| `ttl` | u64? | 否 | 存活时间（秒），0 表示永不过期 |
+
+### 响应字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `error` | string | 成功为空，失败为错误信息 |
+| `mail_address` | string | 创建成功后的邮箱地址 |
+
+### 示例
 
 ```bash
-# 订阅所有优先级（推荐）
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072lko83.*'
+nats request '$mq9.AI.MAILBOX.CREATE' '{"name": "agent.translator.inbox", "ttl": 0}'
+# 响应
+{"error":"","mail_address":"agent.translator.inbox"}
 
-# 仅订阅 critical
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072lko83.critical'
-
-# 仅订阅 urgent
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072lko83.urgent'
-
-# 仅订阅 normal
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072lko83'
-
-# 竞争消费（Queue Group）——每条消息只投递给其中一个 Worker
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
+# 重复创建 → 报错
+nats request '$mq9.AI.MAILBOX.CREATE' '{"name": "agent.translator.inbox"}'
+# 响应
+{"error":"mailbox agent.translator.inbox already exists","mail_address":""}
 ```
 
 ---
 
-### 4.4 列出消息（MAILBOX.LIST）
+## $mq9.AI.MSG.SEND.{mail_address}
 
-Subject：`$mq9.AI.MAILBOX.LIST.{mail_address}` · NATS 原语：request/reply
+向指定 mailbox 发送消息。Payload 是 byte 数组，mq9 不解析内容。
 
-查看邮箱中当前存储的消息元数据，不消费消息（消息仍留在存储中）。
+### 请求参数
 
-#### LIST 请求参数
+**Subject**：`$mq9.AI.MSG.SEND.{mail_address}`
 
-请求体为空 JSON 对象：`{}`
+**Payload**：任意 byte 数组，mq9 不解析内容。
 
-#### LIST 响应字段
+**Header（均可选）**
+
+| Header | 说明 |
+|--------|------|
+| `mq9-key: {key}` | 去重/压实 key。同 key 的消息存储层只保留最新一条，旧消息被覆盖 |
+| `mq9-delay: {seconds}` | 延迟投递秒数。消息写入后不立即可见，等 delay 到期再出现在 FETCH 结果中。延迟消息 `msg_id` 返回 `-1` |
+| `mq9-ttl: {seconds}` | 消息级 TTL（秒）。消息在 `发送时间 + ttl` 后自动过期，独立于邮箱 TTL |
+| `mq9-tags: {tag1},{tag2}` | 逗号分隔的用户标签，如 `billing,vip`。可通过 QUERY 的 `tags` 字段过滤 |
+| `mq9-priority: {value}` | 消息优先级：`normal`（默认）/ `urgent` / `critical`。不填默认 `normal` |
+
+### SEND 响应字段
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `mail_address` | string | 邮箱唯一标识 |
-| `messages` | array | 消息元数据列表 |
+| `error` | string | 成功为空，失败为错误信息（如 mailbox 不存在） |
+| `msg_id` | i64 | 消息写入存储后的 offset；延迟消息返回 `-1` |
 
-messages 数组元素：
+### 优先级说明
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `msg_id` | uint64 | 服务端分配的消息唯一标识，用于 DELETE |
-| `payload` | string | 消息体内容（原始字符串） |
-| `priority` | string | 优先级：`critical`、`urgent`、`normal` |
-| `header` | bytes \| null | NATS 消息头（可选） |
-| `create_time` | uint64 | 消息写入时间戳（Unix 秒） |
+| 值 | 典型场景 |
+|----|----------|
+| `normal`（默认） | 任务分发、结果返回、状态上报 |
+| `urgent` | 审批请求、重要通知 |
+| `critical` | 任务中断、紧急指令 |
+同优先级 FIFO，跨优先级 critical > urgent > normal。
 
-#### LIST 示例
+### SEND 示例
 
 ```bash
-nats req '$mq9.AI.MAILBOX.LIST.d7a5072lko83' '{}'
-```
+# 普通消息
+nats request '$mq9.AI.MSG.SEND.agent.translator.inbox' '{"text":"hello"}'
+# 响应
+{"error":"","msg_id":0}
 
-```json
-{
-  "mail_address": "d7a5072lko83",
-  "messages": [
-    {
-      "msg_id": 1001,
-      "payload": "{\"type\":\"abort\",\"task_id\":\"t-001\"}",
-      "priority": "critical",
-      "header": null,
-      "create_time": 1712600001
-    },
-    {
-      "msg_id": 1002,
-      "payload": "{\"type\":\"interrupt\",\"task_id\":\"t-002\"}",
-      "priority": "urgent",
-      "header": null,
-      "create_time": 1712600002
-    },
-    {
-      "msg_id": 1003,
-      "payload": "{\"type\":\"task\",\"payload\":{\"job\":\"process dataset A\"}}",
-      "priority": "normal",
-      "header": null,
-      "create_time": 1712600003
-    }
-  ]
-}
+# 带 key（同 key 存储层只保留最新一条）
+nats request '$mq9.AI.MSG.SEND.task.001.callback' \
+  -H "mq9-key:status" \
+  '{"status":"running"}'
+# 响应
+{"error":"","msg_id":1}
+
+# 带 tags（可通过 QUERY tags 字段过滤）
+nats request '$mq9.AI.MSG.SEND.agent.order.inbox' \
+  -H "mq9-tags:billing,vip" \
+  '{"order_id":"o-001"}'
+# 响应
+{"error":"","msg_id":2}
+
+# 延迟 60 秒投递（msg_id 返回 -1 表示延迟消息）
+nats request '$mq9.AI.MSG.SEND.agent.translator.inbox' \
+  -H "mq9-delay:60" \
+  '{"text":"delayed task"}'
+# 响应
+{"error":"","msg_id":-1}
+
+# 消息级 TTL 300 秒（独立于邮箱 TTL）
+nats request '$mq9.AI.MSG.SEND.agent.translator.inbox' \
+  -H "mq9-ttl:300" \
+  '{"text":"short-lived message"}'
+# 响应
+{"error":"","msg_id":3}
+
+# 紧急消息（通过 header 指定优先级）
+nats request '$mq9.AI.MSG.SEND.agent.translator.inbox' \
+  -H "mq9-priority:urgent" \
+  '{"alert":"please expedite"}'
+# 响应
+{"error":"","msg_id":4}
 ```
 
 ---
 
-### 4.5 删除消息（MAILBOX.DELETE）
+## $mq9.AI.MSG.FETCH.{mail_address}
 
-Subject：`$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}` · NATS 原语：request/reply
+从 mailbox 拉取消息。支持两种消费模式：有状态消费（传 `group_name`，服务端记录位点）和无状态消费（不传 `group_name`，每次按 `deliver` 策略从头开始）。
 
-从邮箱存储中删除指定消息。竞争消费场景下，Worker 成功处理消息后显式删除，避免重新投递。
+### FETCH 请求字段
 
-#### DELETE 请求参数
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `group_name` | string? | 否 | 消费组名称。传入时启用有状态消费，同组共享位点；**不传**时为无状态消费，每次按 `deliver` 策略开始，不记录位点 |
+| `deliver` | string | 否 | 起点策略，默认 `latest`；有状态消费时仅在无位点记录或 `force_deliver: true` 时生效 |
+| `from_time` | u64? | 否 | `deliver: "from_time"` 时生效，Unix 时间戳（秒） |
+| `from_id` | u64? | 否 | `deliver: "from_id"` 时生效，从该 msg_id 开始拉取（含） |
+| `force_deliver` | bool? | 否 | 仅有状态消费有效；`true` 时忽略已有位点，强制按 `deliver` 重新开始 |
+| `config` | object? | 否 | 拉取行为配置，见下方说明 |
 
-请求体为空 JSON 对象：`{}`
+### deliver 策略
 
-`mail_address` 和 `msg_id` 编码在 subject 中，解析规则：倒数第一个 `.` 之后的 token 为 `msg_id`，之前的所有内容为 `mail_address`。例如 `task.queue.1003` 解析为 `mail_address=task.queue`，`msg_id=1003`。
+| 值 | 说明 |
+|----|------|
+| `latest`（默认） | 从当前时刻起只拉新消息 |
+| `earliest` | 从 mailbox 最早的消息开始 |
+| `from_time` | 从指定时间戳之后开始，需配合 `from_time` 字段 |
+| `from_id` | 从指定 msg_id 开始（含该条），需配合 `from_id` 字段 |
 
-#### DELETE 响应字段
+### 有状态消费的位点行为（传 group_name）
+
+| 条件 | 行为 |
+|------|------|
+| 有位点记录 且 `force_deliver: false` | 从上次断点续拉，`deliver` 不生效 |
+| 有位点记录 且 `force_deliver: true` | 忽略位点，按 `deliver` 策略重新开始 |
+| 无位点记录 | 按 `deliver` 策略开始（首次消费） |
+
+### 无状态消费（不传 group_name）
+
+服务端生成临时随机 group，使用 `deliver` 策略定位起点，消费完成后不提交位点。适合探查、调试或一次性读取场景。
+
+### config 字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `num_msgs` | u32? | 100 | 单次最多拉取的消息条数 |
+| `max_wait_ms` | u64? | 500 | 服务端无数据时的等待时间（毫秒）。不传时默认 500ms；传 `0` 表示立即返回不等待。等待结束后返回空列表，避免客户端频繁轮询打爆服务端 |
+
+### FETCH 响应字段
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `deleted` | bool | `true` 表示删除成功；`false` 表示消息不存在或已过期 |
+| `error` | string | 成功为空，失败为错误信息（如 mailbox 不存在） |
+| `messages` | array | 消息列表，每条含 `msg_id`、`payload`、`priority`、`create_time` |
 
-#### DELETE 示例
-
-```bash
-nats req '$mq9.AI.MAILBOX.DELETE.d7a5072lko83.1002' '{}'
-```
-
-```json
-{"deleted":true}
-```
-
-公开邮箱（mail_address 含 ``）：
+### FETCH 示例
 
 ```bash
-nats req '$mq9.AI.MAILBOX.DELETE.task.queue.1003' '{}'
-```
+# 无状态消费：不传 group_name，每次从最新消息开始（默认 deliver: latest）
+nats request '$mq9.AI.MSG.FETCH.task.001.callback' '{}'
 
-```json
-{"deleted":true}
+# 无状态消费：每次从最早消息全量读取
+nats request '$mq9.AI.MSG.FETCH.task.001.callback' \
+  '{"deliver": "earliest"}'
+
+# 有状态消费：有位点则续拉，首次消费只拉新消息（默认 deliver: latest）
+nats request '$mq9.AI.MSG.FETCH.task.001.callback' \
+  '{"group_name": "worker-group-1"}'
+
+# 有状态消费：有位点则续拉，首次消费从最早消息开始
+nats request '$mq9.AI.MSG.FETCH.task.001.callback' \
+  '{"group_name": "worker-group-1", "deliver": "earliest"}'
+
+# 有状态消费：强制重置位点，从最早消息重新开始
+nats request '$mq9.AI.MSG.FETCH.task.001.callback' \
+  '{"group_name": "worker-group-1", "deliver": "earliest", "force_deliver": true}'
+
+# 指定单次拉取条数，不填默认 100 条
+nats request '$mq9.AI.MSG.FETCH.task.001.callback' \
+  '{"group_name": "worker-group-1", "config": {"num_msgs": 50}}'
 ```
 
 ---
 
-### 4.6 发现公开邮箱（PUBLIC.LIST）
+## $mq9.AI.MSG.ACK.{mail_address}
 
-Subject：`$mq9.AI.PUBLIC.LIST` · NATS 原语：subscribe
+确认消息已处理，broker 推进该消费组的消费位点。
 
-系统内置地址，由 Broker 维护，不接受用户写入。`public: true` 的邮箱创建后自动注册，TTL 到期自动移除。
+### ACK 请求字段
 
-订阅即全量推送——当前所有公开邮箱立即推送，后续新增和到期实时推送。
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `group_name` | string | 是 | 消费组名称，与 FETCH 时一致 |
+| `mail_address` | string | 是 | mailbox 地址 |
+| `msg_id` | u64 | 是 | 需要确认的消息 ID（来自 FETCH 响应） |
 
-#### PUBLIC.LIST 推送格式
-
-邮箱创建时：
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `event` | string | 固定为 `"created"` |
-| `mail_address` | string | 公开邮箱标识 |
-| `desc` | string | 创建时提供的描述 |
-| `ttl` | uint64 | 生存时间（秒） |
-
-邮箱到期时：
+### ACK 响应字段
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `event` | string | 固定为 `"expired"` |
-| `mail_address` | string | 已到期的邮箱标识 |
+| `error` | string | 成功为空，失败为错误信息 |
 
-#### PUBLIC.LIST 示例
+### ACK 示例
 
 ```bash
-nats sub '$mq9.AI.PUBLIC.LIST'
-```
-
-```json
-{"event":"created","mail_address":"task.queue","desc":"共享 Worker 任务队列","ttl":86400}
-{"event":"created","mail_address":"vision.results","desc":"视觉处理结果","ttl":3600}
-{"event":"expired","mail_address":"vision.results"}
+nats request '$mq9.AI.MSG.ACK.task.001.callback' \
+  '{"group_name": "worker-group-1", "mail_address": "task.001.callback", "msg_id": 5}'
+# 响应
+{"error":""}
 ```
 
 ---
 
-## 6. 与 NATS 原生协议的关系
+## $mq9.AI.MSG.QUERY.{mail_address}
 
-mq9 在 RobustMQ 的 NATS 协议层之上，通过 subject 命名约定和服务端增强实现：
+查询 mailbox 当前存储的消息，不影响订阅推送。
 
-| | NATS Core | mq9 |
-|--|---------|-----|
-| 持久化 | 无，订阅者离线消息丢失 | TTL 限定持久化，按优先级分层存储 |
-| 消费者状态 | 无 | 无（设计如此） |
-| 消息顺序 | 不保证跨 subject | 同 mail_address 内按优先级排序，同优先级 FIFO |
-| 接入方式 | 任何 NATS 客户端 | 任何 NATS 客户端，subject 遵循 `$mq9.AI.*` 约定 |
+### QUERY 请求字段
 
-mq9 只对 `$mq9.AI.*` 前缀的 subject 启用增强逻辑，其余 NATS 行为不变。已有 NATS 客户端无需任何修改，直接使用 mq9 subject 即可。
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `key` | string? | 按 key 查询，返回该 key 的最新消息 |
+| `limit` | u64? | 返回条数上限 |
+| `since` | u64? | 返回该时间戳之后的消息 |
+
+### QUERY 响应字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `error` | string | 成功为空 |
+| `messages` | array | 消息列表 |
+
+### QUERY 示例
+
+```bash
+# 查询所有消息
+nats request '$mq9.AI.MSG.QUERY.task.001.callback' '{}'
+
+# 查询 key=status 的最新消息
+nats request '$mq9.AI.MSG.QUERY.task.001.callback' '{"key": "status"}'
+
+# 最近 10 条
+nats request '$mq9.AI.MSG.QUERY.task.001.callback' '{"limit": 10}'
+
+# 某时间戳之后
+nats request '$mq9.AI.MSG.QUERY.task.001.callback' '{"since": 1234567890}'
+```
+
+---
+
+## $mq9.AI.MSG.DELETE.{mail_address}.{msg_id}
+
+删除 mailbox 中的指定消息。
+
+### DELETE 示例
+
+```bash
+nats request '$mq9.AI.MSG.DELETE.task.001.callback.2' ''
+# 响应
+{"error":"","deleted":true}
+```
+
+---
+
+## $mq9.AI.AGENT.REGISTER
+
+注册 Agent。Body 是上层协议的内容（当前示例为 A2A AgentCard），mq9 不干涉内容体，只要求携带 `mailbox` 字段作为路由标识。以后换其他协议同理。
+
+### REGISTER 示例
+
+```bash
+nats request '$mq9.AI.AGENT.REGISTER' \
+  '{ ...AgentCard，mailbox = "mq9://broker/agent.translator.inbox"... }'
+# 响应
+{"error":""}
+```
+
+---
+
+## $mq9.AI.AGENT.UNREGISTER
+
+注销 Agent。
+
+### UNREGISTER 示例
+
+```bash
+nats request '$mq9.AI.AGENT.UNREGISTER' \
+  '{ ...mailbox = "mq9://broker/agent.translator.inbox"... }'
+# 响应
+{"error":""}
+```
+
+---
+
+## $mq9.AI.AGENT.REPORT
+
+Agent 状态上报。Body 是上层协议内容，mq9 不干涉。
+
+### REPORT 示例
+
+```bash
+nats request '$mq9.AI.AGENT.REPORT' \
+  '{ ...mailbox = "mq9://broker/agent.translator.inbox", 状态字段由上层协议定义... }'
+# 响应
+{"error":""}
+```
+
+---
+
+## $mq9.AI.AGENT.DISCOVER
+
+按条件检索已注册的 Agent，返回原始注册内容列表，mq9 不转换不包装。
+
+### DISCOVER 请求字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `text` | string? | 全文检索关键词 |
+| `semantic` | string? | 语义检索自然语言描述（向量检索）。同时传入时优先于 `text`。 |
+| `limit` | number? | 每页返回结果数量上限（默认 20） |
+| `page` | number? | 页码，从 1 开始（默认 1） |
+
+不传 `text` 或 `semantic` 时，返回该租户下所有已注册的 Agent。
+
+### DISCOVER 示例
+
+```bash
+# 全文检索
+nats request '$mq9.AI.AGENT.DISCOVER' '{"text": "payment invoice"}'
+
+# 语义检索（向量检索，优先于 text）
+nats request '$mq9.AI.AGENT.DISCOVER' '{"semantic": "处理付款并生成发票"}'
+
+# 分页：第 2 页，每页 10 条
+nats request '$mq9.AI.AGENT.DISCOVER' '{"text": "payment", "limit": 10, "page": 2}'
+
+# 列出全部
+nats request '$mq9.AI.AGENT.DISCOVER' '{}'
+# 返回：[{ ...原始注册内容... }, ...]
+```
+
+---
+
+## 错误一览
+
+| 场景 | 响应示例 |
+|------|---------|
+| mailbox 不存在（SEND/SUB/QUERY/DELETE） | `{"error":"mailbox xxx does not exist"}` |
+| mailbox 已存在（CREATE 不幂等） | `{"error":"mailbox xxx already exists","mail_address":""}` |
+| msg_id 不存在（DELETE） | `{"error":"message not found"}` |

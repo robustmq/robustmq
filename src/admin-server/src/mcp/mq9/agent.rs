@@ -61,11 +61,15 @@ pub async fn register_agent(
 
 #[derive(Debug, Deserialize)]
 pub struct DiscoverAgentsArgs {
-    /// Natural-language description or tag query (e.g. "tag:translation").
-    /// The broker will match agents whose capabilities overlap with this query.
-    pub query: Option<String>,
-    /// Maximum number of agents to return (default 20).
+    /// Full-text keyword search (e.g. "payment invoice").
+    pub text: Option<String>,
+    /// Semantic / natural-language search (e.g. "process a payment and generate invoice").
+    /// Takes priority over `text` when both are provided.
+    pub semantic: Option<String>,
+    /// Maximum number of agents to return per page (default 20).
     pub limit: Option<u32>,
+    /// Page number, starting from 1 (default 1).
+    pub page: Option<u32>,
 }
 
 pub async fn discover_agents(
@@ -73,8 +77,10 @@ pub async fn discover_agents(
     args: DiscoverAgentsArgs,
 ) -> Result<Value, McpToolError> {
     let body = json!({
-        "query": args.query,
+        "text": args.text,
+        "semantic": args.semantic,
         "limit": args.limit.unwrap_or(20),
+        "page": args.page.unwrap_or(1),
     });
     let payload = Bytes::from(body.to_string());
 

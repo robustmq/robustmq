@@ -60,7 +60,23 @@ pub fn mq9_tools() -> Vec<Tool> {
                     "priority": {
                         "type": "string",
                         "enum": ["normal", "urgent", "critical"],
-                        "description": "Message priority. Default is 'normal'. Use 'urgent' or 'critical' for time-sensitive messages."
+                        "description": "Message priority. Default 'normal'. critical > urgent > normal. Same priority follows FIFO."
+                    },
+                    "key": {
+                        "type": "string",
+                        "description": "Dedup/compaction key. For the same key only the latest message is retained in storage, overwriting older ones."
+                    },
+                    "tags": {
+                        "type": "string",
+                        "description": "Comma-separated user tags, e.g. 'billing,vip'. Messages can be filtered by tags in mq9_query_mailbox."
+                    },
+                    "delay": {
+                        "type": "integer",
+                        "description": "Delay delivery by this many seconds. The message is invisible in fetch until the delay expires. Returns msg_id: -1."
+                    },
+                    "ttl": {
+                        "type": "integer",
+                        "description": "Message-level TTL in seconds. The message expires at send_time + ttl, independent of the mailbox TTL."
                     }
                 },
                 "required": ["mail_address", "payload"]
@@ -78,15 +94,19 @@ pub fn mq9_tools() -> Vec<Tool> {
                     },
                     "group_name": {
                         "type": "string",
-                        "description": "Consumer group identifier. Use a stable name (e.g. your agent ID) to track your read position across calls."
+                        "description": "Consumer group identifier. Use a stable name (e.g. your agent ID) to track your read position across calls. Omit for stateless one-shot reads."
                     },
                     "reset_to": {
                         "type": "string",
-                        "description": "Where to start reading. Omit to resume from the last acked position. Supported values: 'earliest' (re-read from the beginning), 'latest' (skip history, only new messages), 'time:<unix_seconds>' (start from a specific timestamp, e.g. 'time:1746000000'), 'id:<msg_id>' (start from a specific message, e.g. 'id:42')."
+                        "description": "Where to start reading. Omit to resume from the last acked position. Supported values: 'earliest' (re-read from the beginning), 'latest' (skip history, only new messages), 'time:<unix_seconds>' (e.g. 'time:1746000000'), 'id:<msg_id>' (e.g. 'id:42')."
                     },
                     "max_messages": {
                         "type": "integer",
-                        "description": "Maximum number of messages to return. Default 100."
+                        "description": "Maximum number of messages to return per call. Default 100."
+                    },
+                    "max_wait_ms": {
+                        "type": "integer",
+                        "description": "How long the server waits (milliseconds) when the mailbox is empty before returning. Default 500. Set to 0 to return immediately."
                     }
                 },
                 "required": ["mail_address", "group_name"]
@@ -165,20 +185,46 @@ pub fn mq9_tools() -> Vec<Tool> {
         },
         Tool {
             name: "mq9_discover_agents".to_string(),
-            description: "Find agents registered in the mq9 registry. Use this to locate agents with specific capabilities before sending them a message.".to_string(),
+            description: "Find agents registered in the mq9 registry. Use this to locate agents with specific capabilities before sending them a message. Prefer 'semantic' for natural-language queries and 'text' for keyword searches. When both are provided, 'semantic' takes priority.".to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
-                    "query": {
+                    "text": {
                         "type": "string",
-                        "description": "Natural-language capability query (e.g. 'translation agent') or tag query (e.g. 'tag:translation')."
+                        "description": "Full-text keyword search (e.g. 'payment invoice')."
+                    },
+                    "semantic": {
+                        "type": "string",
+                        "description": "Semantic / natural-language search using vector similarity (e.g. 'process a payment and generate invoice'). Takes priority over 'text' when both are provided."
                     },
                     "limit": {
                         "type": "integer",
-                        "description": "Maximum number of agents to return. Default 20."
+                        "description": "Maximum number of agents to return per page. Default 20."
+                    },
+                    "page": {
+                        "type": "integer",
+                        "description": "Page number, starting from 1. Default 1."
                     }
                 },
                 "required": []
+            }),
+        },
+        Tool {
+            name: "mq9_delete_message".to_string(),
+            description: "Delete a specific message from a mailbox by its msg_id.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "mail_address": {
+                        "type": "string",
+                        "description": "Mailbox address containing the message."
+                    },
+                    "msg_id": {
+                        "type": "integer",
+                        "description": "ID of the message to delete (from fetch or query response)."
+                    }
+                },
+                "required": ["mail_address", "msg_id"]
             }),
         },
         Tool {

@@ -28,7 +28,9 @@ use axum::{
 use mq9::{
     agent::{DiscoverAgentsArgs, RegisterAgentArgs, UnregisterAgentArgs},
     mailbox::CreateMailboxArgs,
-    message::{AckMessageArgs, FetchMessagesArgs, QueryMailboxArgs, SendMessageArgs},
+    message::{
+        AckMessageArgs, DeleteMessageArgs, FetchMessagesArgs, QueryMailboxArgs, SendMessageArgs,
+    },
 };
 use protocol::{McpRequest, McpResponse, ToolsListResult};
 use serde_json::{json, Value};
@@ -161,6 +163,10 @@ async fn dispatch_tool_call(
         "mq9_discover_agents" => {
             let a: DiscoverAgentsArgs = serde_json::from_value(args)?;
             mq9::agent::discover_agents(client, a).await?
+        }
+        "mq9_delete_message" => {
+            let a: DeleteMessageArgs = serde_json::from_value(args)?;
+            mq9::message::delete_message(client, a).await?
         }
         "mq9_unregister_agent" => {
             let a: UnregisterAgentArgs = serde_json::from_value(args)?;
