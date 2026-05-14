@@ -33,19 +33,13 @@ pub fn column_family_list() -> Vec<String> {
     ]
 }
 
-pub fn storage_data_fold(path: &str) -> String {
+pub fn rocksdb_data_fold(path: &str) -> String {
     let mut result = String::with_capacity(path.len() + 6);
     result.push_str(path);
     result.push_str("/_rocksdb");
     result
 }
 
-pub fn storage_raft_fold(path: &str) -> String {
-    let mut result = String::with_capacity(path.len() + 6);
-    result.push_str(path);
-    result.push_str("/_raft");
-    result
-}
 
 pub fn storage_raft_snapshot_fold(path: &str) -> String {
     let mut result = String::with_capacity(path.len() + 6);
@@ -56,7 +50,7 @@ pub fn storage_raft_snapshot_fold(path: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::family::{column_family_list, storage_data_fold, storage_raft_fold};
+    use crate::storage::family::{column_family_list, rocksdb_data_fold};
 
     #[tokio::test]
     async fn column_family_list_test() {
@@ -68,14 +62,7 @@ mod tests {
     #[tokio::test]
     async fn storage_data_fold_test() {
         let path = "/tmp/test";
-        let fold = storage_data_fold(path);
-        assert_eq!(fold, "/tmp/test/_data");
-    }
-
-    #[tokio::test]
-    async fn storage_raft_fold_test() {
-        let path = "/tmp/test";
-        let fold = storage_raft_fold(path);
-        assert_eq!(fold, "/tmp/test/_raft");
+        let fold = rocksdb_data_fold(path);
+        assert_eq!(fold, "/tmp/test/_rocksdb");
     }
 }

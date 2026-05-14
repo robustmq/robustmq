@@ -27,6 +27,7 @@ src/mqtt-broker/data/
 src/connector/data
 src/common/llm-engine/.fastembed_cache
 .fastembed_cache
+src/common/search-engine/data
 
 # Test data and temporary files
 /target/tmp/

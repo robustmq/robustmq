@@ -47,7 +47,7 @@ use node_call::NodeCallManager;
 use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
-    storage::family::{column_family_list, storage_data_fold},
+    storage::family::{column_family_list, rocksdb_data_fold},
 };
 use search_engine::lancedb;
 use std::sync::Arc;
@@ -171,7 +171,7 @@ impl BrokerServer {
     fn init_base(config: &BrokerConfig) -> (BaseComponents, Runtime, Runtime, Runtime) {
         let client_pool = Arc::new(ClientPool::new(config.runtime.channels_per_address));
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
-            &storage_data_fold(&config.data_path),
+            &rocksdb_data_fold(&config.data_path),
             100000,
             column_family_list(),
         ));

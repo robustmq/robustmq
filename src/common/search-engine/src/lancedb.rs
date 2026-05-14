@@ -171,6 +171,7 @@ mod tests {
     use super::*;
     use arrow_array::{FixedSizeListArray, Int64Array, StringArray};
     use arrow_schema::{DataType, Field};
+    use common_config::{broker::init_broker_conf_by_config, config::BrokerConfig};
     use lance_arrow::FixedSizeListArrayExt;
 
     fn make_schema(dim: i32) -> Arc<Schema> {
@@ -200,6 +201,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_basic_operations() {
+        init_broker_conf_by_config(BrokerConfig::default());
         init().await.unwrap();
 
         let dim = 4i32;
