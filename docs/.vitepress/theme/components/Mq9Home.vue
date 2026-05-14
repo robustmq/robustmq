@@ -16,111 +16,118 @@ onUnmounted(() => {
 const primitives = computed(() => [
   {
     icon: '📬',
-    title: t('邮箱', 'Mailbox'),
-    subtitle: t('点对点异步投递', 'Point-to-point async delivery'),
+    title: t('FETCH + ACK 消费', 'FETCH + ACK Consumption'),
+    subtitle: t('Pull 模式，断点续拉', 'Pull mode, resume-from-offset'),
     desc: t(
-      '创建邮箱，拿到 mail_address。发件方直接投到对方 mail_address，不需要知道对方在不在线，消息等着，对方上线全量收到。私有邮箱 mail_address 系统生成不可猜测，公开邮箱 mail_address 用户自定义。',
-      'Create a mailbox, get a mail_address. Send to the recipient\'s mail_address — no need to know if they\'re online. Messages wait; the recipient gets all of them when they come back. Private mailbox mail_addresss are unguessable; public mailbox mail_addresss are user-defined.'
+      '客户端主动 FETCH 拉取消息，处理完后 ACK 推进消费位点，下次 FETCH 从断点续拉，不重复消费。传 group_name 时 broker 记录位点（有状态消费）；不传时每次独立拉取（无状态消费）。',
+      'Clients actively FETCH to pull messages, then ACK to advance the offset. The next FETCH resumes from the last ACK — no duplicate delivery. Pass group_name for stateful consumption (broker tracks offset); omit for stateless.'
     ),
     color: '#a855f7',
-    code: `# Create a mailbox
-nats pub '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
-# → {"mail_address":"m-001"}
+    code: `# Send a message
+nats request '$mq9.AI.MSG.SEND.task.queue' \\
+  --header 'mq9-priority:critical' \\
+  '{"task":"reindex","id":"t-001"}'
+# → {"error":"","msg_id":1}
 
-# Send (offline-safe, default priority)
-nats pub '$mq9.AI.MAILBOX.m-001' \\
-  '{"msg_id":"msg-1","type":"task_result","ts":1234}'
+# FETCH (stateful — broker tracks offset)
+nats request '$mq9.AI.MSG.FETCH.task.queue' \\
+  '{"group_name":"workers","deliver":"earliest"}'
 
-# Subscribe (all priorities)
-nats sub '$mq9.AI.MAILBOX.m-001.*'`,
-  },
-  {
-    icon: '📡',
-    title: t('公开邮箱', 'Public Mailbox'),
-    subtitle: t('任意可发可订的公共频道', 'Public channel — anyone can publish or subscribe'),
-    desc: t(
-      '创建 public 邮箱，mail_address 用户自定义，自动注册到 PUBLIC.LIST。任何人知道 mail_address 即可发可订。支持 queue group 竞争消费。PUBLIC.LIST 是公开邮箱的发现地址，无需注册中心。',
-      'Create a public mailbox with a user-defined mail_address — auto-registered to PUBLIC.LIST. Anyone can publish or subscribe. Supports queue group competing consumers. PUBLIC.LIST is the discovery address — no registry service needed.'
-    ),
-    color: '#7c3aed',
-    code: `# Create a public mailbox
-nats pub '$mq9.AI.MAILBOX.CREATE' \\
-  '{"ttl":86400,"public":true,"name":"task.queue"}'
-# → {"mail_address":"task.queue"}
-
-# Publish (default priority, no suffix)
-nats pub '$mq9.AI.MAILBOX.task.queue' \\
-  '{"msg_id":"t-001","type":"analysis"}'
-
-# Compete via queue group
-nats sub '$mq9.AI.MAILBOX.task.queue.*' --queue workers
-
-# Discover public mailboxes
-nats sub '$mq9.AI.PUBLIC.LIST'`,
+# ACK to advance offset
+nats request '$mq9.AI.MSG.ACK.task.queue' \\
+  '{"group_name":"workers","mail_address":"task.queue","msg_id":1}'`,
   },
   {
     icon: '⚡',
-    title: t('优先级', 'Priority'),
-    subtitle: t('紧急消息先处理', 'Critical messages first'),
+    title: t('优先级 + 消息属性', 'Priority + Message Attributes'),
+    subtitle: t('紧急消息先出队，丰富的消息元数据', 'Critical messages first, rich message metadata'),
     desc: t(
-      '三个优先级：critical（最高）、urgent（紧急）、normal（默认，无后缀）。critical 和 urgent 持久化存储，normal 使用内存。边缘设备离线 8 小时后上线，critical 先于 urgent 先于 normal 处理。',
-      'Three priority levels: critical (highest), urgent, normal (default, no suffix). critical and urgent are persisted to RocksDB; normal uses memory. An edge device offline for 8 hours reconnects and gets critical messages first, then urgent, then normal.'
+      '三个优先级：critical / urgent / normal，通过 mq9-priority header 指定。另支持 key 去重压实、tags 过滤、delay 延迟投递、消息级 TTL，均通过 NATS header 传递，无需修改消息体。',
+      'Three priority levels via mq9-priority header. Also supports key deduplication, tags filtering, delayed delivery, and per-message TTL — all via NATS headers, no payload changes needed.'
+    ),
+    color: '#7c3aed',
+    code: `# Priority via header
+nats request '$mq9.AI.MSG.SEND.inbox' \\
+  --header 'mq9-priority:urgent' \\
+  '{"cmd":"interrupt"}'
+
+# Key dedup — only latest kept
+nats request '$mq9.AI.MSG.SEND.inbox' \\
+  --header 'mq9-key:task.status' \\
+  '{"status":"60%"}'
+
+# Delay + per-message TTL
+nats request '$mq9.AI.MSG.SEND.inbox' \\
+  --header 'mq9-delay:30' \\
+  --header 'mq9-ttl:300' \\
+  '{"type":"reminder"}'`,
+  },
+  {
+    icon: '🔍',
+    title: t('Agent 注册与发现', 'Agent Registry & Discovery'),
+    subtitle: t('全文检索 + 语义向量搜索', 'Full-text + semantic vector search'),
+    desc: t(
+      'Agent 启动时 REGISTER 注册能力描述，其他 Agent 通过 DISCOVER 按关键词或自然语言语义查找合适的 Agent。注册内容同时建立全文索引和向量索引，无需提前知道对方地址。',
+      'Agents REGISTER their capability description at startup. Others use DISCOVER to find them by keyword or natural language intent. Content is indexed for both full-text and vector search — no need to know the address in advance.'
     ),
     color: '#6d28d9',
-    code: `# critical — highest, persisted, processed first
-nats pub '$mq9.AI.MAILBOX.m-001.critical' \\
-  '{"msg_id":"c-1","type":"emergency_stop"}'
+    code: `# Register Agent with capability description
+nats request '$mq9.AI.AGENT.REGISTER' \\
+  '{"name":"agent.translator","payload":"Multilingual translation, EN/ZH/JA/KO"}'
 
-# urgent — high priority, persisted
-nats pub '$mq9.AI.MAILBOX.m-001.urgent' \\
-  '{"msg_id":"u-1","type":"interrupt"}'
+# Discover by semantic intent
+nats request '$mq9.AI.AGENT.DISCOVER' \\
+  '{"semantic":"translate Chinese to English","limit":5}'
 
-# normal — default, no suffix, memory storage
-nats pub '$mq9.AI.MAILBOX.m-001' \\
-  '{"msg_id":"n-1","type":"task"}'`,
+# Discover by keyword
+nats request '$mq9.AI.AGENT.DISCOVER' \\
+  '{"text":"translator","limit":10}'
+
+# Unregister at shutdown
+nats request '$mq9.AI.AGENT.UNREGISTER' '{"name":"agent.translator"}'`,
   },
 ])
 
 const scenarios = computed(() => [
   {
     num: '01',
-    title: t('子 Agent 通知主 Agent', 'Sub-Agent notifies Orchestrator'),
-    desc: t('子 Agent 完成任务，发结果到主 Agent 邮箱。主 Agent 不需要阻塞等待，空了来取。', 'Sub-Agent sends results to the orchestrator\'s mailbox. The orchestrator picks up results when ready — no blocking.'),
+    title: t('子 Agent 结果返回', 'Sub-Agent result delivery'),
+    desc: t('子 Agent 完成任务，将结果写入主 Agent 邮箱。主 Agent 随时 FETCH 取结果，不需要阻塞等待，消息已在邮箱里等着。', 'Sub-Agent writes results to the orchestrator\'s mailbox. The orchestrator FETCHes when ready — no blocking, messages are already waiting.'),
   },
   {
     num: '02',
-    title: t('感知所有子 Agent 状态', 'Monitor all Agent states'),
-    desc: t('Worker 创建公开邮箱定期上报状态，主 Agent 订阅 PUBLIC.LIST 发现所有 Worker。TTL 过期自动感知消亡，不需要注册或注销。', 'Workers create public mailboxes to report status. The orchestrator discovers them via PUBLIC.LIST. TTL expiry auto-signals death — no registration needed.'),
+    title: t('多 Worker 竞争消费任务队列', 'Multi-worker competing task queue'),
+    desc: t('多个 Worker 以相同 group_name 调用 FETCH，broker 保证每条任务只被一个 Worker 拿到。Worker 随时加入或退出，位点由 broker 维护，无需协调。', 'Multiple workers FETCH with the same group_name — broker ensures each task is picked up by exactly one worker. Workers join or leave freely; offset is broker-managed.'),
   },
   {
     num: '03',
-    title: t('任务队列竞争消费', 'Task queue with competing consumers'),
-    desc: t('创建公开邮箱作为任务队列，Worker 用 queue group 竞争消费，每条任务只被一个 Worker 处理。离线 Worker 上线后也能收到未过期任务。', 'Create a public mailbox as a task queue; Workers use queue group to compete. Each task is handled by exactly one Worker. Offline Workers receive non-expired tasks after reconnecting.'),
+    title: t('Agent 注册与健康感知', 'Agent registration and health tracking'),
+    desc: t('Worker 启动时 REGISTER 注册自身，定期 REPORT 上报状态。主 Agent 通过 DISCOVER 列出所有在线 Worker，Worker 下线后 UNREGISTER 注销。', 'Workers REGISTER at startup and REPORT periodically. The orchestrator uses DISCOVER to enumerate live workers. Workers UNREGISTER at shutdown.'),
   },
   {
     num: '04',
-    title: t('异常告警广播', 'Anomaly alert broadcast'),
-    desc: t('创建公开邮箱发异常事件，订阅者自行响应。离线的 handler 上线后也能收到未过期的告警。发布方不需要维护订阅列表。', 'Create a public mailbox and publish anomaly events. Subscribers respond independently. Offline handlers receive non-expired alerts after reconnecting. Publisher needs no subscriber list.'),
+    title: t('告警广播', 'Alert broadcasting'),
+    desc: t('检测方向共享邮箱发 critical 优先级告警，处理器 FETCH 拉取——即使临时离线，告警消息已落存储，重连后拉取即可。', 'Detectors publish critical-priority alerts to a shared mailbox. Handlers FETCH — even if temporarily offline, alerts are persisted and available on reconnect.'),
   },
   {
     num: '05',
-    title: t('边缘 Agent 离线积压', 'Edge Agent offline buffering'),
-    desc: t('云端给边缘 Agent 邮箱发指令，边缘断网消息持久化等待，联网后按优先级处理——critical 先于 urgent 先于 normal。', 'Cloud sends instructions to an edge Agent\'s mailbox. Messages persist during outage and are processed by priority on reconnect — critical before urgent before normal.'),
+    title: t('云端到边缘指令下发', 'Cloud-to-edge command delivery'),
+    desc: t('云端向边缘 Agent 邮箱发指令，边缘断网期间消息持久化等待，重连后 FETCH 按优先级顺序拿到所有待处理指令。', 'Cloud publishes commands to the edge Agent\'s mailbox. Messages persist during outage; on reconnect FETCH returns all pending commands in priority order.'),
   },
   {
     num: '06',
-    title: t('人机混合工作流', 'Human-in-the-loop workflows'),
-    desc: t('Agent 发审批请求到人类审批员邮箱，审批员处理后发结果回 Agent 邮箱。人和 Agent 用完全相同的协议，流程不中断。', 'Agent sends approval requests to a human\'s mailbox; the human replies to the Agent\'s mailbox. Humans and Agents use the exact same protocol — the workflow is uninterrupted.'),
+    title: t('人机混合审批工作流', 'Human-in-the-loop approval'),
+    desc: t('Agent 向审批邮箱发决策请求，人类通过同样的 FETCH 取到请求，处理后 SEND 结果回 Agent 的私有邮箱。人和 Agent 用完全相同的协议。', 'Agent sends a decision to the approvals mailbox. The human FETCHes it, reviews, and SENDs the result to the Agent\'s private mailbox — same protocol for both.'),
   },
   {
     num: '07',
     title: t('异步 Request-Reply', 'Async Request-Reply'),
-    desc: t('Agent A 发请求到 Agent B 邮箱，带 reply_to 和 correlation_id。B 上线后处理并回复到 A 邮箱。离线不丢，A 不阻塞。', 'Agent A sends a request to Agent B\'s mailbox with reply_to and correlation_id. B replies to A\'s mailbox when online. Nothing lost if offline; A doesn\'t block.'),
+    desc: t('Agent A 创建私有回复邮箱，发请求时带上 reply_to 字段。Agent B 处理后将结果 SEND 到回复邮箱，A 随时 FETCH 取结果，不需要阻塞。', 'Agent A creates a private reply mailbox and includes reply_to in the request. Agent B SENDs results there. A FETCHes when ready — no blocking required.'),
   },
   {
     num: '08',
-    title: t('能力注册与发现', 'Capability registration and discovery'),
-    desc: t('Agent 启动时创建公开邮箱声明能力，自动注册到 PUBLIC.LIST，其他 Agent 订阅即可感知整个网络。去中心化，零额外服务。', 'Agents create public mailboxes to declare capabilities at startup — auto-registered to PUBLIC.LIST. Subscribers sense the entire network. Decentralized — zero extra services.'),
+    title: t('语义能力发现', 'Semantic capability discovery'),
+    desc: t('Agent 通过 REGISTER 注册能力描述，其他 Agent 用 DISCOVER 按自然语言语义或关键词检索合适的 Agent，找到后直接 SEND 任务过去。', 'Agents REGISTER capability descriptions. Others use DISCOVER with natural language or keyword search to find the right Agent, then SEND tasks directly.'),
   },
 ])
 </script>
@@ -320,6 +327,91 @@ const scenarios = computed(() => [
       </div>
     </section>
 
+    <!-- ── AGENT PROTOCOL ── -->
+    <section class="mq9-section">
+      <div class="mq9-section-inner">
+        <div class="mq9-section-header">
+          <div class="mq9-section-tag">{{ t('协议总览', 'Protocol') }}</div>
+          <h2 class="mq9-section-title">{{ t('完整的 Agent 通信协议', 'Complete Agent Communication Protocol') }}</h2>
+          <p class="mq9-section-desc">{{ t('所有操作均通过 NATS request/reply 完成，server 必定返回响应。响应包含 error 字段，空字符串表示成功。', 'All operations use NATS request/reply — the server always returns a response. The response includes an error field; empty string means success.') }}</p>
+        </div>
+        <div class="mq9-proto-grid">
+          <div class="mq9-proto-group">
+            <div class="mq9-proto-group-label">{{ t('邮箱管理', 'Mailbox') }}</div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">$mq9.AI.MAILBOX.CREATE</code>
+              <span class="mq9-proto-desc">{{ t('创建邮箱，声明 TTL', 'Create mailbox, declare TTL') }}</span>
+            </div>
+          </div>
+          <div class="mq9-proto-group">
+            <div class="mq9-proto-group-label">{{ t('消息通信', 'Messaging') }}</div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">$mq9.AI.MSG.SEND.{addr}</code>
+              <span class="mq9-proto-desc">{{ t('发送消息，优先级通过 mq9-priority header 指定', 'Send; priority via mq9-priority header') }}</span>
+            </div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">$mq9.AI.MSG.FETCH.{addr}</code>
+              <span class="mq9-proto-desc">{{ t('Pull 拉取消息，支持有状态/无状态消费', 'Pull messages; stateful or stateless') }}</span>
+            </div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">$mq9.AI.MSG.ACK.{addr}</code>
+              <span class="mq9-proto-desc">{{ t('ACK 推进消费位点，支持断点续拉', 'ACK to advance offset, enable resume') }}</span>
+            </div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">$mq9.AI.MSG.QUERY.{addr}</code>
+              <span class="mq9-proto-desc">{{ t('查询消息，不影响消费位点', 'Query messages, offset unaffected') }}</span>
+            </div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">$mq9.AI.MSG.DELETE.{addr}.{id}</code>
+              <span class="mq9-proto-desc">{{ t('删除指定消息', 'Delete a specific message') }}</span>
+            </div>
+          </div>
+          <div class="mq9-proto-group">
+            <div class="mq9-proto-group-label">{{ t('消息 Header', 'Message Headers') }}</div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">mq9-priority: critical|urgent</code>
+              <span class="mq9-proto-desc">{{ t('消息优先级，normal 为默认不填', 'Message priority; normal is default') }}</span>
+            </div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">mq9-key: {key}</code>
+              <span class="mq9-proto-desc">{{ t('同 key 只保留最新一条（去重压实）', 'Keep only latest per key (dedup)') }}</span>
+            </div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">mq9-tags: tag1,tag2</code>
+              <span class="mq9-proto-desc">{{ t('标签，可通过 QUERY tags 字段过滤', 'Tags, filterable via QUERY') }}</span>
+            </div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">mq9-delay: {seconds}</code>
+              <span class="mq9-proto-desc">{{ t('延迟投递，指定秒数后消息才可见', 'Delay visibility by N seconds') }}</span>
+            </div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">mq9-ttl: {seconds}</code>
+              <span class="mq9-proto-desc">{{ t('消息级 TTL，独立于邮箱 TTL', 'Per-message TTL, independent of mailbox TTL') }}</span>
+            </div>
+          </div>
+          <div class="mq9-proto-group">
+            <div class="mq9-proto-group-label">{{ t('Agent 管理', 'Agent Registry') }}</div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">$mq9.AI.AGENT.REGISTER</code>
+              <span class="mq9-proto-desc">{{ t('注册 Agent 及能力描述', 'Register Agent with capability description') }}</span>
+            </div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">$mq9.AI.AGENT.UNREGISTER</code>
+              <span class="mq9-proto-desc">{{ t('注销 Agent', 'Unregister Agent') }}</span>
+            </div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">$mq9.AI.AGENT.REPORT</code>
+              <span class="mq9-proto-desc">{{ t('Agent 状态上报 / 心跳', 'Agent status heartbeat') }}</span>
+            </div>
+            <div class="mq9-proto-row">
+              <code class="mq9-proto-subject">$mq9.AI.AGENT.DISCOVER</code>
+              <span class="mq9-proto-desc">{{ t('全文检索 + 语义向量检索 Agent', 'Full-text + semantic vector search') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ── CTA ── -->
     <section class="mq9-section mq9-cta-section">
       <div class="mq9-section-inner">
@@ -329,14 +421,19 @@ const scenarios = computed(() => [
           <pre class="mq9-code mq9-cta-code"><code>curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
 broker-server start
 
-# Create a mailbox — returns mail_address
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
+# Create a mailbox
+nats request '$mq9.AI.MAILBOX.CREATE' '{"name":"my.inbox","ttl":3600}'
+# → {"error":"","mail_address":"my.inbox"}
 
-# Send (default priority, no suffix — works even if recipient is offline)
-nats pub '$mq9.AI.MAILBOX.{mail_address}' '{"msg_id":"msg-1","from":"...","type":"task","ts":1234567890}'
+# Send a message (default priority)
+nats request '$mq9.AI.MSG.SEND.my.inbox' '{"task":"summarize dataset A"}'
+# → {"error":"","msg_id":1}
 
-# Send critical (highest priority, persisted)
-nats pub '$mq9.AI.MAILBOX.{mail_address}.critical' '{"msg_id":"msg-2","type":"abort"}'</code></pre>
+# FETCH messages (stateful, resumes from last ACK)
+nats request '$mq9.AI.MSG.FETCH.my.inbox' '{"group_name":"worker","deliver":"earliest"}'
+
+# ACK to advance offset
+nats request '$mq9.AI.MSG.ACK.my.inbox' '{"group_name":"worker","mail_address":"my.inbox","msg_id":1}'</code></pre>
           <div class="mq9-cta-links">
             <a class="mq9-btn-primary" :href="isZh ? '/zh/OverView/What-is-RobustMQ' : '/en/OverView/What-is-RobustMQ'">{{ t('查看文档', 'Read the Docs') }}</a>
             <a class="mq9-btn-ghost" href="https://github.com/robustmq/robustmq" target="_blank" rel="noopener">GitHub</a>
@@ -477,6 +574,7 @@ nats pub '$mq9.AI.MAILBOX.{mail_address}.critical' '{"msg_id":"msg-2","type":"ab
 /* ── Section ── */
 .mq9-section { padding: 72px 24px; }
 .mq9-section-inner { max-width: 1000px; margin: 0 auto; }
+.mq9-primitives-inner { max-width: 1400px; }
 .mq9-section-header { text-align: center; margin-bottom: 48px; }
 .mq9-section-tag {
   display: inline-block;
@@ -535,7 +633,7 @@ nats pub '$mq9.AI.MAILBOX.{mail_address}.critical' '{"msg_id":"msg-2","type":"ab
 /* ── Primitives ── */
 .mq9-primitives-section { background: rgba(255,255,255,0.015); }
 .mq9-primitives-header { text-align: center; }
-.mq9-primitives { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-left: -150px; }
+.mq9-primitives { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 16px; }
 .mq9-primitive {
   padding: 20px;
   border-radius: 14px;
@@ -545,6 +643,12 @@ nats pub '$mq9.AI.MAILBOX.{mail_address}.critical' '{"msg_id":"msg-2","type":"ab
   flex-direction: column;
   gap: 12px;
   transition: border-color 0.2s;
+  align-self: stretch;
+  min-width: 0;
+  overflow: hidden;
+}
+.mq9-primitive .mq9-code {
+  flex: 1;
 }
 .mq9-primitive:hover { border-color: var(--pc, #a855f7); }
 .mq9-primitive-header { display: flex; align-items: flex-start; gap: 12px; }
@@ -695,6 +799,51 @@ nats pub '$mq9.AI.MAILBOX.{mail_address}.critical' '{"msg_id":"msg-2","type":"ab
   margin-top: 4px;
 }
 
+/* ── Protocol grid ── */
+.mq9-proto-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.mq9-proto-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mq9-proto-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #a855f7;
+  margin-bottom: 4px;
+}
+.mq9-proto-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  flex-wrap: wrap;
+}
+.mq9-proto-subject {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  color: #a5f3fc;
+  background: rgba(0,0,0,0.3);
+  padding: 2px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.mq9-proto-desc {
+  font-size: 13px;
+  color: #64748b;
+  flex: 1;
+}
+
 /* ── CTA ── */
 .mq9-cta-section { background: rgba(168,85,247,0.04); }
 .mq9-cta { text-align: center; max-width: 640px; margin: 0 auto; }
@@ -707,7 +856,7 @@ nats pub '$mq9.AI.MAILBOX.{mail_address}.critical' '{"msg_id":"msg-2","type":"ab
 @media (max-width: 768px) {
   .mq9-hero { padding: 72px 20px 60px; }
   .mq9-problem { grid-template-columns: 1fr; }
-  .mq9-primitives { grid-template-columns: 1fr; }
+  .mq9-primitives { grid-template-columns: 1fr; margin-left: 0; }
   .mq9-scenarios { grid-template-columns: 1fr; }
   .mq9-protocols { flex-direction: column; }
   .mq9-section { padding: 48px 20px; }
