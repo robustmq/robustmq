@@ -155,6 +155,7 @@ const items = [
       { text: "Quick Start", link: "/en/mq9/QuickStart" },
       { text: "SDK Integration", link: "/en/mq9/SDK" },
       { text: "LangChain Integration", link: "/en/mq9/LangChain" },
+      { text: "MCP Server", link: "/en/mq9/MCP" },
       { text: "FAQ", link: "/en/mq9/FAQ" },
       { text: "Roadmap", link: "/en/mq9/Roadmap" },
     ],

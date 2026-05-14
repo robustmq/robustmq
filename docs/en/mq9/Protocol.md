@@ -1,403 +1,456 @@
 # Protocol Design
 
----
+## Overview
 
-## 1. Protocol Foundation
+`$mq9.AI.*` is the protocol designed by mq9 for asynchronous Agent communication. The core problem it solves: **asynchronous communication between Agents where the sender and receiver do not need to be online at the same time.**
 
-mq9 is a semantic convention defined on top of NATS subjects, running on RobustMQ's unified storage layer. All mq9 operations are standard NATS pub/sub or request/reply calls — no extra protocol layer or SDK required.
-
-### Why NATS
-
-mq9 chose NATS as its transport protocol rather than building a custom one, for three reasons:
-
-- **Complete client ecosystem**: NATS has official and community clients covering 40+ languages. Python, Go, JavaScript, and Rust — the languages most common in AI — all have mature implementations. Choosing NATS means mq9 works out of the box for developers in all these languages from day one, with no need to wait for SDK coverage.
-
-- **Semantic fit**: NATS pub/sub and request/reply primitives cover all the communication patterns mq9 needs — fire-and-forget publishing, active subscription, synchronous requests. The subject namespace mechanism provides a natural way to express mq9's mailbox address system.
-
-- **Broker is fully self-developed**: Using the NATS protocol does not mean using NATS Server. mq9's Broker is implemented by RobustMQ in Rust, running on RobustMQ's unified storage layer. Storage, priority scheduling, TTL management, and store-first delivery semantics are all RobustMQ's own capabilities. NATS is only the communication protocol between the client and the Broker — like HTTP is to the Web.
-
-| Operation type | NATS primitive | Description |
-|---------------|---------------|-------------|
-| Create mailbox | `nats req` (request/reply) | Client sends a request; server returns result via reply-to |
-| Send message | `nats pub` (fire-and-forget) | Fire and forget; no acknowledgement required |
-| Subscribe | `nats sub` (subscribe) | Subscription triggers full replay, then real-time push |
-| List messages | `nats req` (request/reply) | Query message metadata in a mailbox |
-| Delete message | `nats req` (request/reply) | Delete a specific message |
-
-Message encoding: request and response bodies are JSON, UTF-8. Standard NATS connection, default port `4222`.
+mq9 only handles the communication problem — how messages are reliably delivered. Message content is a byte array; mq9 does not parse, validate, or restrict it. Whether the upper layer uses A2A, MCP, or another protocol is none of mq9's concern.
 
 ---
 
-## 2. Subject Naming
+## mail_address Format Specification
 
-All mq9 subjects use `$mq9.AI` as a prefix. The server enables persistence and priority scheduling for messages under this prefix; all other NATS subjects are unaffected.
+**Character set**: lowercase letters (a-z), digits (0-9), dots (`.`)
+
+**Length**: 1 to 128 characters
+
+**Case**: strictly lowercase; a mail_address containing uppercase characters will be rejected by the broker
+
+**Position rules**: `.` may only appear in the middle — the first and last characters must be a lowercase letter or digit; consecutive `.` are not allowed
+
+**Semantics**: `mail_address` is an opaque string; `.` does not participate in protocol routing or matching and serves only as a visual grouping aid
+
+**Encoding**: URL percent-encoding is not allowed
+
+| Valid examples | Invalid examples |
+|----------------|-----------------|
+| `task.001` | `task-001` (contains hyphen) |
+| `agent.inbox` | `task_001` (contains underscore) |
+| `analytics.result` | `Task.001` (contains uppercase) |
+| `acme.org.task.queue` | `.task.001` (leading dot) |
+| `session.20260502` | `task.001.` (trailing dot) |
+| | `task..001` (consecutive dots) |
+
+**Full address examples**:
 
 ```text
-$mq9.AI
-  └── MAILBOX
-        ├── CREATE                                   # Create a mailbox
-        ├── MSG.{mail_address}                            # Send/subscribe (normal, default, no suffix)
-        ├── MSG.{mail_address}.urgent                     # Send/subscribe urgent messages
-        ├── MSG.{mail_address}.critical                   # Send/subscribe highest-priority messages
-        ├── MSG.{mail_address}.*                          # Subscribe to all priorities
-        ├── LIST.{mail_address}                           # List mailbox message metadata
-        └── DELETE.{mail_address}.{msg_id}                # Delete a specific message
-```
-
-| Subject | NATS primitive | Description |
-|---------|---------------|-------------|
-| `$mq9.AI.MAILBOX.CREATE` | request | Create a private or public mailbox |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}` | pub/sub | Send/subscribe normal priority messages (default, no suffix) |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}.urgent` | pub/sub | Send/subscribe urgent priority messages |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}.critical` | pub/sub | Send/subscribe critical priority messages |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}.*` | sub | Subscribe to **all** priorities (critical + urgent + normal) |
-| `$mq9.AI.MAILBOX.LIST.{mail_address}` | request | List metadata for all messages in a mailbox |
-| `$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}` | request | Delete a specific message from a mailbox |
-| `$mq9.AI.PUBLIC.LIST` | sub | Discover all public mailboxes, system-managed |
-
-### mail_address Format
-
-Private mailbox `mail_address` values are server-generated, in the format `{uuid}`, for example:
-
-```text
-d7a5072l
-```
-
-Public mailbox `mail_address` values are user-defined via the `name` field at creation time. Dot-separated names are supported, e.g. `task.queue`, `vision.results`.
-
-`mail_address` unguessability is the security boundary: knowing the `mail_address` lets you send and subscribe; without it, there is no way to interact with the mailbox. No token, no ACL.
-
----
-
-## 3. Core Concepts
-
-**Mailbox** — mq9's fundamental communication address. Created via `MAILBOX.CREATE`, which returns a `mail_address`. Not bound to Agent identity — one Agent can create different mailboxes for different tasks.
-
-**TTL** — The lifetime declared at mailbox creation. When it expires, the mailbox and all its messages are automatically destroyed with no manual cleanup needed. `MAILBOX.CREATE` is **not** idempotent: calling it again with the same name returns an error.
-
-**Priority** — Every message belongs to one of three priority levels, encoded in the subject suffix:
-
-| Priority | Subject form | Typical use |
-|----------|-------------|-------------|
-| `critical` | `MSG.{mail_address}.critical` | Abort signals, emergency commands, security events |
-| `urgent` | `MSG.{mail_address}.urgent` | Task interrupts, time-sensitive instructions |
-| `normal` (default) | `MSG.{mail_address}` (no suffix) | Task dispatch, result delivery, routine communication |
-
-Same-priority messages are FIFO; across priorities, critical comes before urgent before normal. Ordering is guaranteed by the storage layer — consumers need not sort themselves.
-
-**Store-first, then push** — Messages are written to storage on arrival. If a subscriber is online, they are also pushed in real time. If offline, messages wait in storage. Each new subscription triggers a full replay of all non-expired messages, then switches to real-time push. Agents that reconnect never miss messages.
-
-**No server-side consumer state** — The server does not track read/unread status, does not maintain per-consumer position, has no ACK, no offset. Deduplication is the client's responsibility, using `msg_id`.
-
-**msg_id** — A unique identifier (uint64) assigned by the server to each message. Used for client-side deduplication and for DELETE operations.
-
----
-
-## 4. Commands
-
-### 4.1 Create Mailbox (MAILBOX.CREATE)
-
-Subject: `$mq9.AI.MAILBOX.CREATE` · NATS primitive: request/reply
-
-#### CREATE Request Parameters
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `ttl` | uint64 | No | server default | Mailbox lifetime in seconds; mailbox and messages auto-destroyed on expiry |
-| `public` | bool | No | `false` | Whether to make the mailbox public; `true` auto-registers it to `$mq9.AI.PUBLIC.LIST` |
-| `name` | string | Required for public | — | Custom `mail_address` for a public mailbox; dot-separated names with `` suffix supported (e.g. `task.queue`) |
-| `desc` | string | No | `""` | Mailbox description; recommended for public mailboxes, included in PUBLIC.LIST pushes |
-
-#### CREATE Response Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `mail_address` | string | Mailbox identifier. Private mailboxes use `{uuid}` format; public mailboxes use the `name` value from the request |
-
-#### CREATE Examples
-
-Create a private mailbox:
-
-```bash
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
-```
-
-```json
-{"mail_address":"d7a5072l"}
-```
-
-Create a public mailbox:
-
-```bash
-nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "ttl": 86400,
-  "public": true,
-  "name": "task.queue",
-  "desc": "Shared worker task queue"
-}'
-```
-
-```json
-{"mail_address":"task.queue"}
-```
-
-> CREATE is **not** idempotent. If the mailbox already exists, it returns an error (`mailbox xxx already exists`). Check for existence before calling if needed.
-
----
-
-### 4.2 Send Message (MAILBOX.MSG pub)
-
-Subject: `$mq9.AI.MAILBOX.MSG.{mail_address}[.{priority}]` · NATS primitive: publish
-
-Knowing the `mail_address` is enough to send — no authorization required. Messages are written to storage and return immediately; the sender does not wait for subscribers to be online.
-
-#### MSG-pub Subject Encoding
-
-| Priority | Subject |
-|----------|---------|
-| normal (default) | `$mq9.AI.MAILBOX.MSG.{mail_address}` (no suffix) |
-| urgent | `$mq9.AI.MAILBOX.MSG.{mail_address}.urgent` |
-| critical | `$mq9.AI.MAILBOX.MSG.{mail_address}.critical` |
-
-> Wildcard publishing is prohibited. Subjects like `$mq9.AI.MAILBOX.MSG.*.*` will be rejected by the server. Publishing requires an exact `mail_address`.
-
-#### MSG-pub Response Fields
-
-Publish is fire-and-forget with no response body. If sent using request mode:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `msg_id` | uint64 | Server-assigned unique identifier for this message; used for subsequent DELETE operations |
-
-#### MSG-pub Message Body (Recommended Structure)
-
-mq9 does not enforce message body format — payload is any byte sequence. The following JSON convention is recommended:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `from` | string | Sender's `mail_address` |
-| `type` | string | Message type, application-defined (e.g. `task_dispatch`, `task_result`, `abort`) |
-| `correlation_id` | string | Links to the original request; used in request-reply patterns |
-| `reply_to` | string | Reply address; the recipient sends their response to this `mail_address` |
-| `payload` | object | Message content; mq9 does not parse this |
-| `ts` | int64 | Send timestamp (Unix seconds) |
-
-#### MSG-pub Examples
-
-```bash
-# critical — highest priority
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l.critical' \
-  '{"type":"abort","task_id":"t-001","ts":1712600001}'
-
-# urgent
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l.urgent' \
-  '{"type":"interrupt","task_id":"t-002","ts":1712600002}'
-
-# normal — default, no suffix
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l' \
-  '{"type":"task","payload":{"job":"process dataset A"},"reply_to":"sender001","ts":1712600003}'
+task.001
+agent.inbox
+analytics.result
+acme.task.queue
+session.20260502
+order.processing.urgent
+agent.001.inbox
 ```
 
 ---
 
-### 4.3 Subscribe (MAILBOX.MSG sub)
+## Core Concepts
 
-Subject: `$mq9.AI.MAILBOX.MSG.{mail_address}[.{priority}|.*]` · NATS primitive: subscribe
+**mail_address**: The communication address defined by the user when creating a mailbox via `MAILBOX.CREATE`. It is not bound to an Agent identity — a single Agent may request different mail_addresses for different tasks. No cleanup is needed after use; TTL handles automatic expiry.
 
-#### MSG-sub Subscription Patterns
+**mail_address unguessability is the security boundary.** Knowing a mail_address is sufficient to send messages or subscribe. Without the mail_address there is nothing to operate on. No tokens, no ACLs.
 
-| Subject | Meaning |
-|---------|---------|
-| `$mq9.AI.MAILBOX.MSG.{mail_address}.*` | Subscribe to **all** priorities (critical + urgent + normal) |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}.critical` | critical only |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}.urgent` | urgent only |
-| `$mq9.AI.MAILBOX.MSG.{mail_address}` | normal only (no suffix) |
+**TTL**: Declared at mailbox creation time; the mailbox is automatically destroyed on expiry and its messages are cleaned up along with it. Creating a mailbox with a duplicate name returns an error (`mailbox xxx already exists`); you can use QUERY to check whether a mailbox exists before creating it.
 
-> `.*` matches all priorities. When the server receives a `.*` subscription, it pushes messages from all three priorities — critical, urgent, and normal — to the subscriber. This is the standard way to subscribe to a full mailbox.
+**priority**: Optional. If not specified, the default is normal priority; specifying `urgent` or `critical` raises the processing order. Same-priority messages follow FIFO; across priorities, higher priority is processed first. The storage layer guarantees ordering — consumers do not need to sort themselves.
 
-#### MSG-sub Push Semantics
+**msg_id**: The unique identifier of each message (its offset in storage), used by clients for deduplication and deletion operations.
 
-Each subscription triggers the following sequence:
+**Consumption semantics**: FETCH uses pull mode and supports both stateful consumption (pass `group_name` and the broker records the offset, resumable after reconnect) and stateless consumption (omit `group_name`, each call consumes independently according to the `deliver` policy with no offset recorded).
 
-1. All non-expired stored messages are pushed immediately, in order: critical → urgent → normal, FIFO within each priority
-2. After the replay completes, the subscription switches to real-time push: new messages are delivered immediately as they arrive
+**Message flow**: Message arrives → written to storage → client actively calls FETCH to pull → ACK to confirm → broker advances the consumption offset for that group.
 
-The server does not track consumption state. Re-subscribing replays all non-expired messages from the beginning.
+---
 
-#### MSG-sub Examples
+## Protocol Overview
+
+| Category | Subject | Description |
+|----------|---------|-------------|
+| Mailbox management | `$mq9.AI.MAILBOX.CREATE` | Create a mailbox |
+| Messaging | `$mq9.AI.MSG.SEND.{mail_address}` | Send a message (priority via `mq9-priority` header) |
+| Messaging | `$mq9.AI.MSG.FETCH.{mail_address}` | Fetch mailbox messages |
+| Messaging | `$mq9.AI.MSG.ACK.{mail_address}` | Acknowledge a message |
+| Messaging | `$mq9.AI.MSG.QUERY.{mail_address}` | Query messages in a mailbox |
+| Messaging | `$mq9.AI.MSG.DELETE.{mail_address}.{msg_id}` | Delete a specific message |
+| Agent management | `$mq9.AI.AGENT.REGISTER` | Register an Agent |
+| Agent management | `$mq9.AI.AGENT.UNREGISTER` | Unregister an Agent |
+| Agent management | `$mq9.AI.AGENT.REPORT` | Report Agent status |
+| Agent management | `$mq9.AI.AGENT.DISCOVER` | Discover Agents |
+
+> All commands use request/reply mode (`nats request`); the server always returns a response.
+
+---
+
+## Response Format
+
+Each command has its own response structure. All responses include an `error` field:
+
+| Value | Meaning |
+|-------|---------|
+| `""` | Success |
+| Non-empty string | Failure; the value is the error description |
+
+---
+
+## $mq9.AI.MAILBOX.CREATE
+
+Create a mailbox with a user-defined mail_address.
+
+### Request Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | No | The mail_address for the mailbox; must conform to the format specification. Auto-generated by the broker if omitted. |
+| `ttl` | u64? | No | Time-to-live in seconds; `0` means never expires |
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `error` | string | Empty on success; error message on failure |
+| `mail_address` | string | The mailbox address after successful creation |
+
+### Example
 
 ```bash
-# Subscribe to all priorities (recommended)
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.*'
+nats request '$mq9.AI.MAILBOX.CREATE' '{"name": "agent.translator.inbox", "ttl": 0}'
+# Response
+{"error":"","mail_address":"agent.translator.inbox"}
 
-# critical only
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.critical'
-
-# urgent only
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.urgent'
-
-# normal only
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l'
-
-# Competing consumers (Queue Group) — each message delivered to exactly one worker
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
+# Duplicate creation → error
+nats request '$mq9.AI.MAILBOX.CREATE' '{"name": "agent.translator.inbox"}'
+# Response
+{"error":"mailbox agent.translator.inbox already exists","mail_address":""}
 ```
 
 ---
 
-### 4.4 List Messages (MAILBOX.LIST)
+## $mq9.AI.MSG.SEND.{mail_address}
 
-Subject: `$mq9.AI.MAILBOX.LIST.{mail_address}` · NATS primitive: request/reply
+Send a message to the specified mailbox. The payload is a byte array; mq9 does not parse the content.
 
-View metadata for messages currently stored in a mailbox without consuming them (messages remain in storage).
+### Request Parameters
 
-#### LIST Request Parameters
+**Subject**: `$mq9.AI.MSG.SEND.{mail_address}`
 
-Request body is an empty JSON object: `{}`
+**Payload**: Arbitrary byte array; mq9 does not parse the content.
 
-#### LIST Response Fields
+**Headers (all optional)**
+
+| Header | Description |
+|--------|-------------|
+| `mq9-key: {key}` | Dedup/compaction key. For the same key, the storage layer retains only the latest message, overwriting older ones |
+| `mq9-delay: {seconds}` | Delay delivery by this many seconds. The message is not visible in FETCH results until the delay expires. Delayed messages return `msg_id: -1` |
+| `mq9-ttl: {seconds}` | Message-level TTL in seconds. The message expires at `send_time + ttl`, independent of the mailbox TTL |
+| `mq9-tags: {tag1},{tag2}` | Comma-separated user tags, e.g. `billing,vip`. Filterable via the `tags` field in QUERY |
+| `mq9-priority: {value}` | Message priority: `normal` (default) / `urgent` / `critical`. Defaults to `normal` if omitted |
+
+### SEND Response Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `mail_address` | string | Mailbox identifier |
-| `messages` | array | List of message metadata |
+| `error` | string | Empty on success; error message on failure (e.g., mailbox does not exist) |
+| `msg_id` | i64 | Storage offset assigned after write; `-1` for delayed messages |
 
-Messages array elements:
+### Priority Description
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `msg_id` | uint64 | Server-assigned message identifier; used for DELETE |
-| `payload` | string | Message body content (raw string) |
-| `priority` | string | Priority level: `critical`, `urgent`, or `normal` |
-| `header` | bytes \| null | NATS message headers (optional) |
-| `create_time` | uint64 | Message write timestamp (Unix seconds) |
+| Value | Typical use case |
+|-------|------------------|
+| `normal` (default) | Task dispatch, result return, status reporting |
+| `urgent` | Approval requests, important notifications |
+| `critical` | Task interruption, emergency instructions |
 
-#### LIST Examples
+Same-priority messages follow FIFO; across priorities: critical > urgent > normal.
+
+### SEND Example
 
 ```bash
-nats req '$mq9.AI.MAILBOX.LIST.d7a5072l' '{}'
-```
+# Normal message
+nats request '$mq9.AI.MSG.SEND.agent.translator.inbox' '{"text":"hello"}'
+# Response
+{"error":"","msg_id":0}
 
-```json
-{
-  "mail_address": "d7a5072l",
-  "messages": [
-    {
-      "msg_id": 1001,
-      "payload": "{\"type\":\"abort\",\"task_id\":\"t-001\"}",
-      "priority": "critical",
-      "header": null,
-      "create_time": 1712600001
-    },
-    {
-      "msg_id": 1002,
-      "payload": "{\"type\":\"interrupt\",\"task_id\":\"t-002\"}",
-      "priority": "urgent",
-      "header": null,
-      "create_time": 1712600002
-    },
-    {
-      "msg_id": 1003,
-      "payload": "{\"type\":\"task\",\"payload\":{\"job\":\"process dataset A\"}}",
-      "priority": "normal",
-      "header": null,
-      "create_time": 1712600003
-    }
-  ]
-}
+# With key (storage retains only the latest message for the same key)
+nats request '$mq9.AI.MSG.SEND.task.001.callback' \
+  -H "mq9-key:status" \
+  '{"status":"running"}'
+# Response
+{"error":"","msg_id":1}
+
+# With tags (filterable via QUERY tags field)
+nats request '$mq9.AI.MSG.SEND.agent.order.inbox' \
+  -H "mq9-tags:billing,vip" \
+  '{"order_id":"o-001"}'
+# Response
+{"error":"","msg_id":2}
+
+# Delayed delivery — 60 seconds (msg_id -1 means delayed)
+nats request '$mq9.AI.MSG.SEND.agent.translator.inbox' \
+  -H "mq9-delay:60" \
+  '{"text":"delayed task"}'
+# Response
+{"error":"","msg_id":-1}
+
+# Message-level TTL — expires 300 seconds after send (independent of mailbox TTL)
+nats request '$mq9.AI.MSG.SEND.agent.translator.inbox' \
+  -H "mq9-ttl:300" \
+  '{"text":"short-lived message"}'
+# Response
+{"error":"","msg_id":3}
+
+# Urgent message (priority via header)
+nats request '$mq9.AI.MSG.SEND.agent.translator.inbox' \
+  -H "mq9-priority:urgent" \
+  '{"alert":"please expedite"}'
+# Response
+{"error":"","msg_id":4}
 ```
 
 ---
 
-### 4.5 Delete Message (MAILBOX.DELETE)
+## $mq9.AI.MSG.FETCH.{mail_address}
 
-Subject: `$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}` · NATS primitive: request/reply
+Pull messages from a mailbox. Supports two consumption modes: stateful consumption (pass `group_name` and the server records the offset) and stateless consumption (omit `group_name` and each call starts independently according to the `deliver` policy).
 
-Delete a specific message from mailbox storage. In competing consumer scenarios, workers explicitly delete a message after successfully processing it to avoid redelivery.
+### FETCH Request Fields
 
-#### DELETE Request Parameters
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `group_name` | string? | No | Consumer group name. When provided, enables stateful consumption — members of the same group share an offset. When **omitted**, consumption is stateless: each call starts according to the `deliver` policy with no offset recorded. |
+| `deliver` | string | No | Starting point policy; defaults to `latest`. For stateful consumption, only takes effect when there is no existing offset record or when `force_deliver: true`. |
+| `from_time` | u64? | No | Effective when `deliver: "from_time"`; Unix timestamp in seconds |
+| `from_id` | u64? | No | Effective when `deliver: "from_id"`; fetch starts from this msg_id (inclusive) |
+| `force_deliver` | bool? | No | Only valid for stateful consumption. When `true`, the existing offset is ignored and consumption restarts according to `deliver` |
+| `config` | object? | No | Fetch behavior configuration; see below |
 
-Request body is an empty JSON object: `{}`
+### deliver Policy
 
-The `mail_address` and `msg_id` are encoded in the subject. Parsing rule: the token after the last `.` is the `msg_id`; everything before it is the `mail_address`. For example, `task.queue.1003` parses as `mail_address=task.queue`, `msg_id=1003`.
+| Value | Description |
+|-------|-------------|
+| `latest` (default) | Only pull new messages from this point forward |
+| `earliest` | Start from the oldest message in the mailbox |
+| `from_time` | Start from after a specified timestamp; requires the `from_time` field |
+| `from_id` | Start from a specified msg_id (inclusive); requires the `from_id` field |
 
-#### DELETE Response Fields
+### Offset Behavior for Stateful Consumption (group_name provided)
+
+| Condition | Behavior |
+|-----------|----------|
+| Offset record exists and `force_deliver: false` | Resume from the last checkpoint; `deliver` has no effect |
+| Offset record exists and `force_deliver: true` | Ignore the offset and restart according to the `deliver` policy |
+| No offset record | Start according to the `deliver` policy (first-time consumption) |
+
+### Stateless Consumption (group_name omitted)
+
+The server generates a temporary random group, uses the `deliver` policy to locate the starting point, and does not commit an offset after consumption. Suitable for inspection, debugging, or one-off reads.
+
+### config Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `num_msgs` | u32? | 100 | Maximum number of messages to pull in a single call |
+| `max_wait_ms` | u64? | 500 | How long the server waits when there is no data (milliseconds). Defaults to 500ms if omitted; `0` means return immediately without waiting. An empty list is returned when the wait expires, preventing clients from hammering the server in a tight poll loop. |
+
+### FETCH Response Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `deleted` | bool | `true` if successfully deleted; `false` if the message does not exist or has already expired |
+| `error` | string | Empty on success; error message on failure (e.g., mailbox does not exist) |
+| `messages` | array | List of messages; each entry contains `msg_id`, `payload`, `priority`, and `create_time` |
 
-#### DELETE Examples
-
-```bash
-nats req '$mq9.AI.MAILBOX.DELETE.d7a5072l.1002' '{}'
-```
-
-```json
-{"deleted":true}
-```
-
-Public mailbox (mail_address contains dots):
+### FETCH Example
 
 ```bash
-nats req '$mq9.AI.MAILBOX.DELETE.task.queue.1003' '{}'
-```
+# Stateless consumption: no group_name, starts from the latest message each time (default deliver: latest)
+nats request '$mq9.AI.MSG.FETCH.task.001.callback' '{}'
 
-```json
-{"deleted":true}
+# Stateless consumption: full read from the earliest message each time
+nats request '$mq9.AI.MSG.FETCH.task.001.callback' \
+  '{"deliver": "earliest"}'
+
+# Stateful consumption: resume from checkpoint if offset exists; first call pulls only new messages (default deliver: latest)
+nats request '$mq9.AI.MSG.FETCH.task.001.callback' \
+  '{"group_name": "worker-group-1"}'
+
+# Stateful consumption: resume from checkpoint if offset exists; first call starts from earliest message
+nats request '$mq9.AI.MSG.FETCH.task.001.callback' \
+  '{"group_name": "worker-group-1", "deliver": "earliest"}'
+
+# Stateful consumption: force reset offset and restart from earliest
+nats request '$mq9.AI.MSG.FETCH.task.001.callback' \
+  '{"group_name": "worker-group-1", "deliver": "earliest", "force_deliver": true}'
+
+# Specify max messages per call (default is 100)
+nats request '$mq9.AI.MSG.FETCH.task.001.callback' \
+  '{"group_name": "worker-group-1", "config": {"num_msgs": 50}}'
 ```
 
 ---
 
-### 4.6 Discover Public Mailboxes (PUBLIC.LIST)
+## $mq9.AI.MSG.ACK.{mail_address}
 
-Subject: `$mq9.AI.PUBLIC.LIST` · NATS primitive: subscribe
+Confirm that a message has been processed; the broker advances the consumption offset for the consumer group.
 
-A system-managed address maintained by the Broker; does not accept user writes. Mailboxes created with `public: true` are automatically registered on creation and removed when their TTL expires.
+### ACK Request Fields
 
-Subscribing triggers a full push of all current public mailboxes immediately, followed by real-time updates as mailboxes are added or expire.
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `group_name` | string | Yes | Consumer group name, matching the one used in FETCH |
+| `mail_address` | string | Yes | Mailbox address |
+| `msg_id` | u64 | Yes | The ID of the message to acknowledge (from the FETCH response) |
 
-#### PUBLIC.LIST Push Format
-
-When a mailbox is created:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `event` | string | Fixed value: `"created"` |
-| `mail_address` | string | Public mailbox identifier |
-| `desc` | string | Description provided at creation |
-| `ttl` | uint64 | Lifetime in seconds |
-
-When a mailbox expires:
+### ACK Response Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `event` | string | Fixed value: `"expired"` |
-| `mail_address` | string | Identifier of the expired mailbox |
+| `error` | string | Empty on success; error message on failure |
 
-#### PUBLIC.LIST Examples
+### ACK Example
 
 ```bash
-nats sub '$mq9.AI.PUBLIC.LIST'
-```
-
-```json
-{"event":"created","mail_address":"task.queue","desc":"Shared worker task queue","ttl":86400}
-{"event":"created","mail_address":"vision.results","desc":"Vision processing results","ttl":3600}
-{"event":"expired","mail_address":"vision.results"}
+nats request '$mq9.AI.MSG.ACK.task.001.callback' \
+  '{"group_name": "worker-group-1", "mail_address": "task.001.callback", "msg_id": 5}'
+# Response
+{"error":""}
 ```
 
 ---
 
-## 6. Relationship to Native NATS
+## $mq9.AI.MSG.QUERY.{mail_address}
 
-mq9 is built on top of RobustMQ's NATS protocol layer, using subject naming conventions and server-side enhancements:
+Query messages currently stored in a mailbox. Does not affect subscription delivery.
 
-| | NATS Core | mq9 |
-|--|----------|-----|
-| Persistence | None — messages lost if subscriber is offline | TTL-bounded persistence, priority-tiered storage |
-| Consumer state | None | None (by design) |
-| Message ordering | Not guaranteed across subjects | Within a mail_address: priority-ordered; within a priority: FIFO |
-| Access method | Any NATS client | Any NATS client; subjects follow the `$mq9.AI.*` convention |
+### QUERY Request Fields
 
-mq9 only enables enhanced logic for subjects under the `$mq9.AI.*` prefix; all other NATS behavior is unchanged. Existing NATS clients need no modification — use mq9 subjects directly.
+| Field | Type | Description |
+|-------|------|-------------|
+| `key` | string? | Query by key; returns the latest message for that key |
+| `limit` | u64? | Maximum number of messages to return |
+| `since` | u64? | Return messages after this timestamp |
+
+### QUERY Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `error` | string | Empty on success |
+| `messages` | array | List of messages |
+
+### QUERY Example
+
+```bash
+# Query all messages
+nats request '$mq9.AI.MSG.QUERY.task.001.callback' '{}'
+
+# Query the latest message with key=status
+nats request '$mq9.AI.MSG.QUERY.task.001.callback' '{"key": "status"}'
+
+# Most recent 10 messages
+nats request '$mq9.AI.MSG.QUERY.task.001.callback' '{"limit": 10}'
+
+# Messages after a specific timestamp
+nats request '$mq9.AI.MSG.QUERY.task.001.callback' '{"since": 1234567890}'
+```
+
+---
+
+## $mq9.AI.MSG.DELETE.{mail_address}.{msg_id}
+
+Delete a specific message from a mailbox.
+
+### DELETE Example
+
+```bash
+nats request '$mq9.AI.MSG.DELETE.task.001.callback.2' ''
+# Response
+{"error":"","deleted":true}
+```
+
+---
+
+## $mq9.AI.AGENT.REGISTER
+
+Register an Agent. The body contains upper-layer protocol content (the current example uses an A2A AgentCard); mq9 does not interfere with the body and only requires that it carry a `mailbox` field as the routing identifier. The same applies if a different protocol is used in the future.
+
+### REGISTER Example
+
+```bash
+nats request '$mq9.AI.AGENT.REGISTER' \
+  '{ ...AgentCard, mailbox = "mq9://broker/agent.translator.inbox"... }'
+# Response
+{"error":""}
+```
+
+---
+
+## $mq9.AI.AGENT.UNREGISTER
+
+Unregister an Agent.
+
+### UNREGISTER Example
+
+```bash
+nats request '$mq9.AI.AGENT.UNREGISTER' \
+  '{ ...mailbox = "mq9://broker/agent.translator.inbox"... }'
+# Response
+{"error":""}
+```
+
+---
+
+## $mq9.AI.AGENT.REPORT
+
+Report Agent status. The body contains upper-layer protocol content; mq9 does not interfere.
+
+### REPORT Example
+
+```bash
+nats request '$mq9.AI.AGENT.REPORT' \
+  '{ ...mailbox = "mq9://broker/agent.translator.inbox", status fields defined by the upper-layer protocol... }'
+# Response
+{"error":""}
+```
+
+---
+
+## $mq9.AI.AGENT.DISCOVER
+
+Search for registered Agents by criteria. Returns the raw list of registered content; mq9 does not transform or wrap it.
+
+### DISCOVER Request Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `text` | string? | Full-text search query (keyword-based) |
+| `semantic` | string? | Semantic search query (natural language, vector-based). Takes priority over `text` when both are provided. |
+| `limit` | number? | Maximum number of results per page (default 20) |
+| `page` | number? | Page number, starting from 1 (default 1) |
+
+When neither `text` nor `semantic` is provided, all registered Agents for the tenant are returned.
+
+### DISCOVER Example
+
+```bash
+# Full-text search
+nats request '$mq9.AI.AGENT.DISCOVER' '{"text": "payment invoice"}'
+
+# Semantic search (vector-based, takes priority over text)
+nats request '$mq9.AI.AGENT.DISCOVER' '{"semantic": "process a payment and generate invoice"}'
+
+# Pagination: page 2, 10 results per page
+nats request '$mq9.AI.AGENT.DISCOVER' '{"text": "payment", "limit": 10, "page": 2}'
+
+# List all
+nats request '$mq9.AI.AGENT.DISCOVER' '{}'
+# Returns: [{ ...raw registered content... }, ...]
+```
+
+---
+
+## Error Reference
+
+| Scenario | Response example |
+|----------|-----------------|
+| mailbox does not exist (SEND/SUB/QUERY/DELETE) | `{"error":"mailbox xxx does not exist"}` |
+| mailbox already exists (CREATE is not idempotent) | `{"error":"mailbox xxx already exists","mail_address":""}` |
+| msg_id does not exist (DELETE) | `{"error":"message not found"}` |

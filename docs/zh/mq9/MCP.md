@@ -317,7 +317,7 @@ http://<admin-server-host>:<port>/mcp
 | `limit` | integer | 否 | 每页返回的最大数量，默认 20。 |
 | `page` | integer | 否 | 页码，从 1 开始，默认 1。 |
 
-三个参数均省略时，返回该租户下所有已注册的 Agent 列表。
+`text` 和 `semantic` 均省略时，返回该租户下所有已注册的 Agent 列表。
 
 **返回**
 
