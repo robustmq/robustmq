@@ -18,7 +18,7 @@ The RobustMQ demo server is available at:
 nats://demo.robustmq.com:4222
 ```
 
-This is a shared environment. Anyone with the subject name can subscribe to it, so do not send sensitive data. All examples below connect to this server implicitly — pass `-s nats://demo.robustmq.com:4222` to each command, or set the `NATS_URL` environment variable once:
+This is a shared environment. Anyone with the subject name can interact with it, so do not send sensitive data. All examples below connect to this server — pass `-s nats://demo.robustmq.com:4222` to each command, or set the `NATS_URL` environment variable once:
 
 ```bash
 export NATS_URL=nats://demo.robustmq.com:4222
@@ -28,95 +28,117 @@ export NATS_URL=nats://demo.robustmq.com:4222
 
 ## Create a Mailbox
 
-A mailbox is the fundamental communication address in mq9. Use `nats req` (request/reply) to create one — the server returns the assigned `mail_address` via NATS reply-to:
+A mailbox is the fundamental communication address in mq9. Use `nats request` (request/reply) to create one — the server returns the assigned `mail_address` via NATS reply-to:
 
 ```bash
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":60}'
+nats request '$mq9.AI.MAILBOX.CREATE' '{"name":"quickstart.demo","ttl":300}'
 ```
 
 Response:
 
 ```json
-{"mail_address":"d7a5072l"}
+{"error":"","mail_address":"quickstart.demo"}
 ```
 
-The `mail_address` is the only access credential. Anyone who knows it can send messages to or subscribe from this mailbox. Keep it private for private communication.
+The `mail_address` is the only access credential. Anyone who knows it can send messages to or fetch messages from this mailbox. Keep it private for private communication.
 
-TTL is set to 60 seconds here for demo convenience. In production, choose a TTL that matches your task's expected lifetime — the mailbox and all its messages are automatically destroyed when TTL expires, with no manual cleanup required.
+TTL is set to 300 seconds here for demo convenience. In production, choose a TTL that matches your task's expected lifetime — the mailbox and all its messages are automatically destroyed when TTL expires, with no manual cleanup required.
 
 ---
 
-## Send Messages at Different Priorities
+## Send Messages
 
-mq9 supports three priority levels: `critical`, `urgent`, and `normal` (default, no suffix). The subject pattern for sending is:
-
-```
-$mq9.AI.MAILBOX.MSG.{mail_address}.{priority}   # for urgent or critical
-$mq9.AI.MAILBOX.MSG.{mail_address}              # for normal (default, no suffix)
-```
-
-Replace `d7a5072l` with the `mail_address` from the previous step:
+Send messages to the mailbox, specifying priority via the `mq9-priority` header:
 
 ```bash
-# Critical — highest priority, processed first; use for abort signals, emergency commands, security events
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l.critical' '{"type":"abort","task_id":"t-001"}'
+# Critical — highest priority, processed first; use for abort signals, emergency commands
+nats request '$mq9.AI.MSG.SEND.quickstart.demo' \
+  --header 'mq9-priority:critical' \
+  '{"type":"abort","task_id":"t-001"}'
 
 # Urgent — use for task interrupts, time-sensitive instructions
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l.urgent'   '{"type":"interrupt","task_id":"t-002"}'
+nats request '$mq9.AI.MSG.SEND.quickstart.demo' \
+  --header 'mq9-priority:urgent' \
+  '{"type":"interrupt","task_id":"t-002"}'
 
-# Normal (default, no suffix) — routine communication; use for task dispatch and result delivery
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l' '{"type":"task","payload":"process dataset A"}'
+# Normal (default, no header) — routine communication; use for task dispatch, result delivery
+nats request '$mq9.AI.MSG.SEND.quickstart.demo' \
+  '{"type":"task","payload":"process dataset A"}'
 ```
 
-Sending is fire-and-forget (`nats pub`). The server writes each message to storage immediately. The sender does not wait for the subscriber to be online.
+Each send call returns a response including the assigned `msg_id`:
 
-> **Wildcard publishing is prohibited.** The subject `$mq9.AI.MAILBOX.MSG.*.*` is rejected by the server. You must specify an exact `mail_address` when sending.
-
----
-
-## Subscribe and Receive
-
-Subscribe to receive messages:
-
-```bash
-# Subscribe to all priorities (critical, urgent, and normal)
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.*'
-```
-
-All messages sent above are pushed immediately upon subscribing — regardless of whether the subscriber was online when they were sent. This is mq9's **store-first semantics**: every subscription begins by delivering all non-expired stored messages in priority order (critical before urgent before normal, FIFO within the same level), then switches to real-time delivery for new messages.
-
-This means there is no difference between subscribing before or after messages are sent. An Agent that reconnects after a network outage receives everything it missed automatically.
-
-To subscribe to a single priority level only:
-
-```bash
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.urgent'
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.critical'
+```json
+{"error":"","msg_id":1}
 ```
 
 ---
 
-## List Message Metadata
+## Fetch Messages (FETCH)
 
-To inspect what messages are currently stored in a mailbox without consuming them, send a request to the LIST subject:
+mq9 uses **pull mode**: clients actively call FETCH to retrieve messages, rather than passively waiting for a push.
 
 ```bash
-nats req '$mq9.AI.MAILBOX.LIST.d7a5072l' '{}'
+nats request '$mq9.AI.MSG.FETCH.quickstart.demo' '{
+  "group_name": "my-worker",
+  "deliver": "earliest",
+  "config": {"num_msgs": 10}
+}'
 ```
 
-Response:
+The response contains messages sorted by priority (critical → urgent → normal, FIFO within each level):
 
 ```json
 {
+  "error": "",
   "messages": [
-    {"msg_id": "msg-001", "priority": "critical", "ts": 1712600001},
-    {"msg_id": "msg-002", "priority": "urgent",   "ts": 1712600002},
-    {"msg_id": "msg-003", "priority": "normal",   "ts": 1712600003}
+    {"msg_id": 1, "payload": "{\"type\":\"abort\",...}", "priority": "critical", "create_time": 1712600001},
+    {"msg_id": 2, "payload": "{\"type\":\"interrupt\",...}", "priority": "urgent", "create_time": 1712600002},
+    {"msg_id": 3, "payload": "{\"type\":\"task\",...}", "priority": "normal", "create_time": 1712600003}
   ]
 }
 ```
 
-The response returns `msg_id`, `priority`, and `ts` (Unix timestamp) for each stored message. Payloads are not included — LIST is for inspection, not retrieval. Use the `msg_id` values to target specific messages for deletion.
+When `group_name` is provided, the broker records the consumption offset. The next FETCH resumes from the last ACK position — no duplicate delivery.
+
+---
+
+## Acknowledge Messages (ACK)
+
+After processing a message, call ACK to advance the consumer group's offset:
+
+```bash
+nats request '$mq9.AI.MSG.ACK.quickstart.demo' '{
+  "group_name": "my-worker",
+  "mail_address": "quickstart.demo",
+  "msg_id": 3
+}'
+```
+
+Response:
+
+```json
+{"error":""}
+```
+
+The next FETCH after this ACK will return only messages after `msg_id: 3` — already-ACKed messages are not re-delivered.
+
+---
+
+## Query Messages (QUERY)
+
+QUERY inspects messages currently stored in the mailbox without affecting the consumption offset:
+
+```bash
+# Full scan
+nats request '$mq9.AI.MSG.QUERY.quickstart.demo' '{}'
+
+# Filter by tags (requires mq9-tags header when sending)
+nats request '$mq9.AI.MSG.QUERY.quickstart.demo' '{"tags":["urgent"]}'
+
+# By time range with limit
+nats request '$mq9.AI.MSG.QUERY.quickstart.demo' '{"since":1712600000,"limit":20}'
+```
 
 ---
 
@@ -125,74 +147,54 @@ The response returns `msg_id`, `priority`, and `ts` (Unix timestamp) for each st
 To remove a specific message from storage before its mailbox TTL expires:
 
 ```bash
-nats req '$mq9.AI.MAILBOX.DELETE.d7a5072l.msg-002' '{}'
+nats request '$mq9.AI.MSG.DELETE.quickstart.demo.2' '{}'
 ```
 
-This is useful in competitive consumption workflows where a worker wants to explicitly acknowledge completion by removing the task message. The subject pattern is:
-
-```
-$mq9.AI.MAILBOX.DELETE.{mail_address}.{msg_id}
-```
+Subject pattern: `$mq9.AI.MSG.DELETE.{mail_address}.{msg_id}`
 
 ---
 
-## Create a Public Mailbox
+## Agent Registry and Discovery
 
-A public mailbox has a user-defined `mail_address` — the name you choose becomes the address. Use this for shared task queues or capability announcements where multiple parties need to discover the address without out-of-band coordination.
+mq9 has a built-in Agent registry for publishing and searching Agent capabilities.
+
+**Register an Agent:**
 
 ```bash
-nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "ttl": 3600,
-  "public": true,
-  "name": "task.queue",
-  "desc": "Shared worker task queue"
+nats request '$mq9.AI.AGENT.REGISTER' '{
+  "name": "demo.translator",
+  "payload": "Multilingual translation agent; supports EN/ZH/JA/KO; returns results in real time"
 }'
 ```
 
-Response:
-
-```json
-{"mail_address":"task.queue"}
-```
-
-The `mail_address` is exactly the `name` you provided. The mailbox is automatically registered to `$mq9.AI.PUBLIC.LIST` and becomes discoverable by anyone subscribing to that system address. When the TTL expires, it is automatically removed from the list.
-
-CREATE is idempotent: if a mailbox named `task.queue` already exists, this call returns success without resetting its TTL. This makes it safe to call at worker startup without worrying about overwriting an existing mailbox.
-
----
-
-## Queue Group (Competitive Consumption)
-
-When multiple workers subscribe to the same mailbox with the same queue group name, mq9 delivers each message to exactly one worker. Open two terminals and run the same command in each:
-
-**Terminal 1:**
+**Search by semantic intent:**
 
 ```bash
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
+nats request '$mq9.AI.AGENT.DISCOVER' '{
+  "semantic": "I need to translate Chinese text into English",
+  "limit": 5
+}'
 ```
 
-**Terminal 2:**
+**Search by keyword:**
 
 ```bash
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
+nats request '$mq9.AI.AGENT.DISCOVER' '{
+  "text": "translator",
+  "limit": 10
+}'
 ```
 
-Now send several messages:
+**Unregister an Agent:**
 
 ```bash
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue' '{"task":"job-1"}'
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue' '{"task":"job-2"}'
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue' '{"task":"job-3"}'
+nats request '$mq9.AI.AGENT.UNREGISTER' '{"name":"demo.translator"}'
 ```
-
-Each message appears in exactly one terminal — the broker distributes them across the queue group. Workers can join or leave the group at any time; the queue adjusts automatically with no configuration change.
-
-Because mq9 uses store-first delivery, if a worker crashes before deleting a task message, the message remains in storage and is re-delivered when any group member reconnects. Combine a public mailbox with a queue group for a zero-config, crash-tolerant task queue.
 
 ---
 
 ## Next Steps
 
-- **Protocol** — Full subject reference, request parameters, message structure, and storage tier details: [Protocol](./Protocol.md)
-- **Features** — Deep dive into priority semantics, store-first delivery, TTL lifecycle, and competitive consumption: [Features](./Features.md)
-- **Overview** — Design rationale, positioning relative to NATS Core and JetStream, and eight canonical Agent scenarios: [Overview](./Overview.md)
+- **Protocol** — Full subject reference, request parameters, and message structure: [Protocol Design](./Protocol.md)
+- **Features** — Deep dive into FETCH+ACK consumption, priority, message attributes, and TTL lifecycle: [Features](./Features.md)
+- **Overview** — Design rationale and canonical Agent scenarios: [Overview](./Overview.md)

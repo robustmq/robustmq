@@ -2,102 +2,96 @@
 
 ## 使用 mq9 需要特殊 SDK 吗？
 
-不需要。任何 NATS 客户端都可以直接使用——Go、Python、Rust、JavaScript、Java、.NET 或 NATS CLI。mq9 是在 NATS 之上定义的 subject 命名约定。RobustMQ SDK 提供类型化封装和异步模式，但完全是可选的。只要能发 NATS 请求或发布到 subject，就能使用 mq9。
+不需要。任何 NATS 客户端都可以直接使用——Go、Python、Rust、JavaScript、Java、.NET 或 NATS CLI。mq9 是在 NATS 之上定义的 subject 命名约定，所有操作均通过 NATS request/reply 完成。RobustMQ SDK 提供类型化封装和异步模式，但完全是可选的。
 
 ---
 
 ## 发送消息时接收方不在线会怎样？
 
-消息立即写入服务端存储。接收方订阅时——哪怕是几分钟或几小时后——所有未过期消息会按优先级顺序立即推送。先存储后推送是有保障的，与发送方和接收方是否同时在线无关。
+消息立即写入服务端存储。接收方随时可以调用 FETCH 拉取——哪怕几分钟或几小时后——所有未过期消息会按优先级顺序返回。消息不会因接收方离线而丢失。
 
 ---
 
-## `list` 和 `subscribe` 有什么区别？
+## FETCH 和 QUERY 有什么区别？
 
-`list`（`MAILBOX.LIST`）返回当前邮箱中**所有消息的完整内容**，包含消息体、`msg_id`、`priority` 和 `ts`。这是一次全量查询，用来查看邮箱里现在有哪些消息。目前固定返回最多 1000 条。
+`FETCH`（`$mq9.AI.MSG.FETCH.*`）是消费操作，配合 `group_name` 时 broker 会记录消费位点，ACK 后推进，下次 FETCH 从断点续拉，不重复消费。
 
-`subscribe`（`MAILBOX.MSG.*`）是增量订阅。首次订阅时，服务端按优先级推送所有当前存储的消息；之后持续接收新到达的消息。
+`QUERY`（`$mq9.AI.MSG.QUERY.*`）是查询操作，返回邮箱中当前存储的消息，**不影响消费位点**，可按 key、tags、since 过滤。两次 QUERY 返回相同结果（消息没有变化时），适合调试和状态检视。
 
 ---
 
 ## 可以在创建后修改邮箱的 TTL 吗？
 
-不可以。TTL 在创建时固定。CREATE 是幂等的——再次以相同名称调用返回成功，但不更改现有 TTL，也不重置过期时钟。要更改 TTL，必须让邮箱过期后以新值重新创建。
+不可以。TTL 在创建时固定，不可更改，也不可续期。重复以相同名称 CREATE 会返回错误（`mailbox xxx already exists`）。要更改 TTL，必须等邮箱过期后以新值重新创建。
 
 ---
 
 ## 邮箱过期后会发生什么？
 
-邮箱及其所有消息自动销毁，无需客户端清理。如果订阅者当前连接到该邮箱的 subject，会被静默断开。过期时不会向订阅者发送任何通知。
+邮箱及其所有消息自动销毁，无需客户端清理。消费组的位点记录也随之清除。过期时不会向客户端发送任何通知。
 
 ---
 
 ## 可以有多个 Agent 向同一邮箱写入吗？
 
-可以。任何知道 `mail_address` 的 Agent 都能发布消息，没有发送方白名单或所有权限制。私有邮箱通过保密 `mail_address` 实现访问控制。公开邮箱则任何知道名称的 Agent 都能发布。
+可以。任何知道 `mail_address` 的 Agent 都能发送消息，没有发送方白名单或所有权限制。私有邮箱通过保密 `mail_address` 实现访问控制；公开邮箱则任何知道名称的 Agent 都能发送。
 
 ---
 
-## 两次订阅同一邮箱会怎样？
+## 多个 Worker 如何竞争消费同一邮箱？
 
-取决于是否指定了 queue group：
+多个 Worker 使用**相同的 `group_name`** 调用 FETCH，broker 保证每条消息只被其中一个 Worker 拿到（通过消费位点推进实现）。Worker 各自独立调用 FETCH，处理完后 ACK，broker 推进位点后该消息不会再被其他 Worker 重复消费。
 
-- **不指定 queue group（默认）**：全量订阅。每次订阅都会收到邮箱中所有未过期消息，两个订阅各自独立收到完整的消息集合。
-- **指定 queue group**：增量订阅。同一 queue group 内的订阅者共享消费进度，每条消息只投递给组内一个订阅者，实现负载均衡。
-
-队列组在 NATS CLI 中通过 `--queue <group-name>` 指定，客户端库中有对应参数。
+Worker 可以随时加入或退出，位点由 broker 维护，无需客户端协调。
 
 ---
 
-## 订阅者重连后优先级如何工作？
+## ACK 的 msg_id 应该传哪个值？
 
-重连后的行为同样取决于是否指定 queue group：
+传本次 FETCH 返回的**最后一条消息**的 `msg_id`。broker 会将该 group 的消费位点推进到此 msg_id，之后的 FETCH 从这里续拉。不需要对每条消息单独 ACK——一次 ACK 确认本批所有消息。
 
-- **不指定 queue group**：全量推送。服务端按优先级顺序（`critical` → `urgent` → `normal`）推送邮箱中所有未过期消息，同优先级内保持 FIFO 顺序。
-- **指定 queue group**：增量推送。按优先级顺序推送该队列组尚未消费的消息。
+---
 
-重连的 Agent 无论哪种模式都会先收到最关键的消息，无论原始发送顺序如何。
+## 重连后优先级如何工作？
+
+有状态消费（传 `group_name`）：重连后调用 FETCH，broker 从上次 ACK 位置续拉，按优先级顺序（`critical` → `urgent` → `normal`）返回未消费消息，同优先级内保持 FIFO 顺序。
+
+无状态消费（不传 `group_name`）：每次 FETCH 按 `deliver` 策略独立拉取，不记录位点。
 
 ---
 
 ## mq9 是 MQTT 或 Kafka 的替代品吗？
 
-不是。mq9 专门为 AI Agent 异步通信设计。MQTT 是 IoT 遥测和设备消息的正确选择。Kafka 是高吞吐量事件流和数据管道的正确选择。mq9 解决邮箱问题：临时 Agent、离线容错投递、轻量 TTL 生命周期。三种协议可以在同一个 RobustMQ 部署上同时运行，零桥接。
+不是。mq9 专门为 AI Agent 异步通信设计。MQTT 是 IoT 遥测和设备消息的正确选择。Kafka 是高吞吐量事件流和数据管道的正确选择。mq9 解决 Agent 邮箱问题：临时通道、离线容错投递、轻量 TTL 生命周期。三种协议可以在同一个 RobustMQ 部署上同时运行，零桥接。
 
 ---
 
 ## 消息体可以有多大？
 
-目前暂无硬性限制。长期目标是尽量不限制，或设置一个较大的上限（如 128 MB），具体数值仍在评估中。
-
-对于超大二进制传输（模型、数据集、文件），建议将数据存储在外部对象存储，在 mq9 消息体中传递引用 URL 或对象键，以保持消息轻量。
-
----
-
-## 私有邮箱和公开邮箱有什么区别？
-
-私有邮箱使用服务端生成的 UUID 作为 `mail_address`。由于 ID 不可猜测，只有显式获得 `mail_address` 的 Agent 才能发送或订阅。公开邮箱使用用户自定义的名称作为 `mail_address`——任何知道名称的 Agent 都能交互。点对点通信用私有邮箱；共享任务队列、服务端点和能力公告用公开邮箱。
+目前暂无硬性限制。对于超大二进制传输（模型、数据集、文件），建议将数据存储在外部对象存储，在 mq9 消息体中传递引用 URL 或对象键，以保持消息轻量。
 
 ---
 
 ## 不用 RobustMQ 能用 mq9 吗？普通 NATS 服务器可以吗？
 
-不可以。mq9 的先存储后推送语义、优先级排序、TTL 自动清理和 `PUBLIC.LIST` 均在 RobustMQ 服务端内部实现。普通 NATS 服务器不支持这些功能。NATS 客户端库用作传输层，但服务端必须是 RobustMQ。
+不可以。mq9 的消息持久化、优先级排序、TTL 自动清理、消费位点管理和 Agent 注册表均在 RobustMQ 服务端内部实现。普通 NATS 服务器不支持这些功能。NATS 客户端库用作传输层，但服务端必须是 RobustMQ。
 
 ---
 
-## 需要处理哪些错误码？
+## 需要处理哪些错误？
 
-| 错误码 | 含义 | 触发时机 |
-|--------|------|---------|
-| 400 | 请求错误 | 缺少必填字段（如公开邮箱 CREATE 缺少 `name`） |
-| 403 | 禁止 | 通配符 `mail_address` 订阅（`$mq9.AI.MAILBOX.MSG.*.*`） |
-| 404 | 未找到 | 邮箱或消息不存在 |
-| 409 | 冲突 | 公开邮箱名称已被其他邮箱占用 |
-| 410 | 已过期 | 邮箱 TTL 已到期 |
+所有响应均包含 `error` 字段，为空字符串表示成功，非空字符串为错误描述。常见错误：
+
+| 错误描述 | 触发原因 |
+|---------|---------|
+| `mailbox xxx already exists` | 重复 CREATE 同名邮箱 |
+| `mailbox not found` | 邮箱不存在或已过期 |
+| `message not found` | 指定 msg_id 的消息不存在或已过期 |
+| `invalid mail_address` | mail_address 格式不合法（含大写、连字符等） |
+| `agent not found` | UNREGISTER 或 REPORT 时 Agent 名称不存在 |
 
 ---
 
 ## mq9 和 NATS JetStream 有什么区别？
 
-JetStream 为 NATS 添加了流式持久化——是一个完整的类 Kafka 系统，包含命名流、持久化消费者、消息序列和重放功能。mq9 更轻量：邮箱 TTL、三级优先级、先存储后推送，没有流或消费者概念。JetStream 更适合大规模事件溯源、审计日志和基于 offset 的重放。mq9 更适合临时 Agent 间消息传递，TTL 生命周期和最小配置比 offset 追踪或流重放更重要的场景。
+JetStream 为 NATS 添加了流式持久化——是一个完整的类 Kafka 系统，包含命名流、持久化消费者、消息序列和重放功能。mq9 针对 Agent 场景做了专门优化：FETCH+ACK pull 消费、三级优先级、消息属性（key/tags/delay/ttl）、内置 Agent 注册表，没有流或 stream 概念。JetStream 更适合大规模事件溯源、审计日志和基于 offset 的重放；mq9 更适合 Agent 间轻量异步通信，TTL 生命周期和零配置比复杂流管理更重要的场景。

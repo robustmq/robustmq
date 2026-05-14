@@ -4,145 +4,158 @@ mq9 is designed around eight concrete Agent communication patterns. Each pattern
 
 ---
 
-### 1. Sub-Agent Result Delivery
+## 1. Sub-Agent Result Delivery
 
-An orchestrator spawns a sub-agent for a long-running task and cannot block waiting for the result — it has other work to do. The sub-agent completes independently and deposits its result into a mailbox the orchestrator controls. Because mq9 uses store-first delivery, the result is waiting even if the orchestrator is busy or temporarily disconnected when the sub-agent finishes.
+An orchestrator spawns a sub-agent for a long-running task and cannot block waiting for the result — it has other work to do. The sub-agent completes independently and deposits its result into a mailbox the orchestrator controls. Because mq9 stores messages first, the result is waiting even if the orchestrator is busy or temporarily disconnected when the sub-agent finishes.
 
 The orchestrator creates a private mailbox and shares the `mail_address` with the sub-agent at spawn time. No polling, no callback registration, no shared state — just a mailbox.
 
 ```bash
 # Orchestrator: create private reply mailbox (TTL covers max expected task duration)
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl": 3600}'
-# Response: {"mail_address": "d7a5072l"}
+nats request '$mq9.AI.MAILBOX.CREATE' '{"ttl": 3600}'
+# Response: {"mail_address": "d7a5072lko83"}
 
-# Share mail_address with sub-agent out-of-band (e.g. in the task payload)
-nats pub '$mq9.AI.MAILBOX.MSG.task.dispatch' \
-  '{"task": "summarize /data/corpus", "reply_to": "d7a5072l"}'
+# Orchestrator: send task to sub-agent's mailbox with reply_to
+nats request '$mq9.AI.MSG.SEND.task.dispatch' \
+  '{"task": "summarize /data/corpus", "reply_to": "d7a5072lko83"}'
 
-# Sub-agent: deliver result when done
-nats pub '$mq9.AI.MAILBOX.MSG.d7a5072l' \
+# Sub-agent: deposit result when done
+nats request '$mq9.AI.MSG.SEND.d7a5072lko83' \
   '{"status": "ok", "summary": "..."}'
 
-# Orchestrator: subscribe whenever ready — result is already stored
-nats sub '$mq9.AI.MAILBOX.MSG.d7a5072l.*'
+# Orchestrator: FETCH result whenever ready
+nats request '$mq9.AI.MSG.FETCH.d7a5072lko83' \
+  '{"group_name": "orchestrator", "deliver": "earliest"}'
+# ACK to advance offset
+nats request '$mq9.AI.MSG.ACK.d7a5072lko83' \
+  '{"group_name": "orchestrator", "mail_address": "d7a5072lko83", "msg_id": 1}'
 ```
 
-**Key mq9 features:** private mailbox, store-first delivery, async result pickup.
+**Key mq9 features:** private mailbox, store-first, FETCH+ACK async result pickup.
 
 ---
 
-### 2. Multi-Worker Task Queue
+## 2. Multi-Worker Task Queue
 
-A producer sends tasks into a shared queue. Multiple workers compete to consume — each task must be processed exactly once. Workers can join or leave at any time without reconfiguration. This is a classical work queue, but with built-in crash tolerance: if a worker dies before acknowledging a task, the message remains in storage and is re-delivered to the next available worker.
+A producer sends tasks into a shared queue. Multiple workers compete to consume — each task is processed exactly once. Workers can join or leave at any time without reconfiguration. If a worker crashes before ACKing, the message remains in storage and the next worker can pick it up.
 
 ```bash
-# Create shared public mailbox once (idempotent — safe to call at every worker start)
-nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "ttl": 86400,
-  "public": true,
+# Create shared mailbox once
+nats request '$mq9.AI.MAILBOX.CREATE' '{
   "name": "task.queue",
+  "ttl": 86400,
   "desc": "Shared worker task queue"
 }'
 
-# Workers: subscribe with the same queue group — each message delivered to exactly one worker
-# Terminal 1
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
-# Terminal 2
-nats sub '$mq9.AI.MAILBOX.MSG.task.queue.*' --queue workers
+# Producer: publish tasks with priority via mq9-priority header
+nats request '$mq9.AI.MSG.SEND.task.queue' \
+  --header 'mq9-priority:critical' \
+  '{"task": "reindex", "id": "t-101"}'
+nats request '$mq9.AI.MSG.SEND.task.queue' \
+  --header 'mq9-priority:urgent' \
+  '{"task": "interrupt", "id": "t-102"}'
+nats request '$mq9.AI.MSG.SEND.task.queue' \
+  '{"task": "summarize", "id": "t-103"}'
 
-# Producer: publish tasks at appropriate priorities
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue.critical' '{"task": "reindex", "id": "t-101"}'
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue.urgent'   '{"task": "interrupt", "id": "t-102"}'
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue'          '{"task": "summarize", "id": "t-103"}'
+# Worker A: fetch one message (stateful — broker tracks offset for this group)
+nats request '$mq9.AI.MSG.FETCH.task.queue' \
+  '{"group_name": "workers", "deliver": "earliest", "config": {"num_msgs": 1}}'
+# ACK after successful processing
+nats request '$mq9.AI.MSG.ACK.task.queue' \
+  '{"group_name": "workers", "mail_address": "task.queue", "msg_id": 1}'
 ```
 
-**Key mq9 features:** public mailbox, queue group (competitive consumption), priority ordering.
+**Key mq9 features:** named mailbox, stateful consumption (group_name tracks offset), three-tier priority ordering.
 
 ---
 
-### 3. Worker Health Tracking via TTL
+## 3. Worker Health Tracking via TTL
 
-An orchestrator needs to know which workers are currently alive without polling them. Workers send periodic heartbeats by refreshing their mailbox. If a worker dies, its mailbox TTL expires and it disappears from `PUBLIC.LIST` automatically. The orchestrator subscribes to `PUBLIC.LIST` to track registrations and expirations in real time — no health-check endpoint, no external watchdog service.
+An orchestrator needs to know which workers are alive without polling them. Workers register themselves via AGENT.REGISTER and send periodic heartbeats via AGENT.REPORT. If a worker dies, the orchestrator uses DISCOVER to see which agents are no longer responding.
 
 ```bash
-# Each worker: create a short-TTL public mailbox at startup (name encodes identity)
-nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "ttl": 30,
-  "public": true,
-  "name": "worker.health.worker42",
-  "desc": "Worker 42 heartbeat"
+# Worker at startup: register with capability description
+nats request '$mq9.AI.AGENT.REGISTER' '{
+  "name": "worker-42",
+  "payload": "Image processing worker, supports JPEG/PNG, GPU-accelerated"
 }'
 
-# Worker: refresh by re-creating periodically (every ~20s to stay ahead of TTL)
-# CREATE is idempotent — if mailbox still exists, returns success without resetting TTL.
-# Let the mailbox expire and recreate it to simulate a live heartbeat update cycle.
-nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "ttl": 30,
-  "public": true,
-  "name": "worker.health.worker42"
+# Worker: periodic heartbeat
+nats request '$mq9.AI.AGENT.REPORT' '{
+  "name": "worker-42",
+  "report_info": "running, processed: 1024 tasks"
 }'
 
-# Orchestrator: watch the public list for registrations and expirations
-nats sub '$mq9.AI.PUBLIC.LIST'
+# Orchestrator: list all registered workers
+nats request '$mq9.AI.AGENT.DISCOVER' '{}'
+
+# Worker at shutdown: unregister
+nats request '$mq9.AI.AGENT.UNREGISTER' '{"name": "worker-42"}'
 ```
 
-**Key mq9 features:** TTL auto-cleanup, public mailbox, `PUBLIC.LIST` for discovery and expiration tracking.
+**Key mq9 features:** Agent register/unregister, DISCOVER for live agent enumeration, REPORT for heartbeat.
 
 ---
 
-### 4. Alert Broadcasting
+## 4. Alert Broadcasting
 
-Any agent can detect an anomaly and broadcast an alert to all registered handlers. Handlers may be offline when the alert fires — they still receive it when they reconnect, because mq9 writes to storage first. `critical` priority ensures alert messages are delivered before any backlog of lower-priority messages when a handler catches up.
+Any agent can detect an anomaly and publish an alert to a shared mailbox. Handlers actively FETCH — even if temporarily offline, alerts are persisted and available on reconnect. `critical` priority ensures alerts are returned before any accumulated lower-priority backlog.
 
 ```bash
-# Alert sender: publish to a shared alert mailbox with highest priority
-nats pub '$mq9.AI.MAILBOX.MSG.alerts.critical' '{
-  "type": "anomaly",
-  "agent": "monitor-7",
-  "detail": "CPU > 95% for 5m",
-  "ts": 1712600100
-}'
+# Alert sender: publish to shared alert mailbox at highest priority
+nats request '$mq9.AI.MSG.SEND.alerts' \
+  --header 'mq9-priority:critical' \
+  '{
+    "type": "anomaly",
+    "agent": "monitor-7",
+    "detail": "CPU > 95% for 5m",
+    "ts": 1712600100
+  }'
 
-# Handler A: subscribe — receives alert immediately or when it reconnects
-nats sub '$mq9.AI.MAILBOX.MSG.alerts.*'
+# Handler A: fetch alerts (stateful, resumes from last ACK on reconnect)
+nats request '$mq9.AI.MSG.FETCH.alerts' \
+  '{"group_name": "alert-handlers", "deliver": "earliest"}'
 
-# Handler B: subscribes later and still gets the alert from storage
-nats sub '$mq9.AI.MAILBOX.MSG.alerts.*'
+# Handler A: ACK after processing
+nats request '$mq9.AI.MSG.ACK.alerts' \
+  '{"group_name": "alert-handlers", "mail_address": "alerts", "msg_id": 5}'
 ```
 
-**Key mq9 features:** store-first delivery (handlers receive alerts even if offline), critical priority, public mailbox.
+**Key mq9 features:** message persistence (handlers receive alerts even if temporarily offline), critical priority, FETCH+ACK consumption.
 
 ---
 
-### 5. Cloud-to-Edge Command Delivery
+## 5. Cloud-to-Edge Command Delivery
 
-A cloud orchestrator needs to deliver commands to edge agents that may be offline for hours due to intermittent connectivity. When the edge agent reconnects, it must receive all pending commands in the correct priority order — `critical` abort or reconfigure commands before routine `normal` tasks. No message broker bridging or retry logic is required on the cloud side.
+A cloud orchestrator delivers commands to edge agents that may be offline for hours due to intermittent connectivity. When the edge agent reconnects, it actively FETCHes all pending commands in priority order — `critical` abort or reconfigure commands before routine `normal` tasks. No retry logic or bridging required on the cloud side.
 
 ```bash
-# Cloud: publish commands to edge agent's private mailbox (mail_address shared at provisioning)
+# Cloud: publish commands to edge agent's private mailbox
 # Critical-priority reconfiguration
-nats pub '$mq9.AI.MAILBOX.MSG.edge.device.critical' '{
-  "cmd": "reconfigure",
-  "params": {"sampling_rate": 100}
-}'
+nats request '$mq9.AI.MSG.SEND.edge.agent' \
+  --header 'mq9-priority:critical' \
+  '{"cmd": "reconfigure", "params": {"sampling_rate": 100}}'
 
 # Default-priority (normal) routine task
-nats pub '$mq9.AI.MAILBOX.MSG.edge.device' '{
-  "cmd": "run_diagnostic",
-  "target": "sensor-bank-2"
-}'
+nats request '$mq9.AI.MSG.SEND.edge.agent' \
+  '{"cmd": "run_diagnostic", "target": "sensor-bank-2"}'
 
-# Edge agent: subscribe on reconnect — receives all stored commands in priority order
-nats sub '$mq9.AI.MAILBOX.MSG.edge.device.*'
+# Edge agent: on reconnect, fetch all pending commands (returned in priority order)
+nats request '$mq9.AI.MSG.FETCH.edge.agent' \
+  '{"group_name": "edge-agent", "deliver": "earliest", "config": {"num_msgs": 10}}'
+
+# Edge agent: ACK after processing
+nats request '$mq9.AI.MSG.ACK.edge.agent' \
+  '{"group_name": "edge-agent", "mail_address": "edge.agent", "msg_id": 2}'
 ```
 
-**Key mq9 features:** offline delivery (store-first), priority ordering on reconnect, private mailbox.
+**Key mq9 features:** message persistence, priority-ordered pull on reconnect, private mailbox.
 
 ---
 
-### 6. Human-in-the-Loop Approval Workflow
+## 6. Human-in-the-Loop Approval Workflow
 
-An agent generates a decision that requires human review before it proceeds — for example, before modifying a production database or sending a communication on behalf of a user. The human interacts using the exact same mq9 protocol as any other agent. No separate approval service, webhook infrastructure, or out-of-band communication channel is needed. The agent suspends and resumes based entirely on mailbox messages.
+An agent generates a decision requiring human review before proceeding — for example, modifying a production database or sending a communication on behalf of a user. Humans interact using the exact same mq9 protocol as any other agent. No separate approval service or webhook infrastructure needed.
 
 ```python
 import nats
@@ -156,8 +169,8 @@ async def run():
     reply_id = json.loads(reply.data)["mail_address"]
 
     # Agent: publish decision for human review
-    await nc.publish(
-        f"$mq9.AI.MAILBOX.MSG.approvals",
+    await nc.request(
+        "$mq9.AI.MSG.SEND.approvals",
         json.dumps({
             "action": "delete_dataset",
             "target": "ds-prod-2024",
@@ -165,77 +178,96 @@ async def run():
         }).encode()
     )
 
-    # Human (via any NATS client or UI): subscribes to approvals, reviews, publishes decision
-    # nats sub '$mq9.AI.MAILBOX.MSG.approvals.*'
-    # nats pub '$mq9.AI.MAILBOX.MSG.<reply_id>' '{"approved": true, "reviewer": "alice"}'
+    # Human (via any NATS client or UI): fetch pending approvals and publish decision
+    # nats request '$mq9.AI.MSG.FETCH.approvals' '{"deliver": "earliest"}'
+    # nats request '$mq9.AI.MSG.SEND.<reply_id>' '{"approved": true, "reviewer": "alice"}'
 
-    # Agent: subscribe to reply mailbox when ready to continue
-    sub = await nc.subscribe(f"$mq9.AI.MAILBOX.MSG.{reply_id}.*")
-    msg = await sub.next_msg(timeout=7200)
-    decision = json.loads(msg.data)
+    # Agent: FETCH approval result when ready
+    reply_resp = await nc.request(
+        f"$mq9.AI.MSG.FETCH.{reply_id}",
+        json.dumps({"deliver": "earliest", "config": {"max_wait_ms": 7200000}}).encode()
+    )
+    messages = json.loads(reply_resp.data).get("messages", [])
+    decision = json.loads(messages[0]["payload"]) if messages else {}
     print("Approval decision:", decision)
 
 asyncio.run(run())
 ```
 
-**Key mq9 features:** same protocol for human and agent interaction, async, store-first delivery.
+**Key mq9 features:** same protocol for human and agent interaction, async FETCH consumption, store-first delivery.
 
 ---
 
-### 7. Async Request-Reply
+## 7. Async Request-Reply
 
-Agent A needs a result from Agent B, but B may not be available immediately and A cannot afford to block. A creates a private reply mailbox, embeds the `mail_address` in the request as a `reply_to` field, and continues other work. B processes the request at its own pace and sends the result to A's reply mailbox. A subscribes to the reply mailbox whenever it is ready to consume the response.
+Agent A needs a result from Agent B, but B may not be available immediately and A cannot afford to block. A creates a private reply mailbox, embeds the `mail_address` in the request as a `reply_to` field, and continues other work. B processes the request at its own pace and sends the result to A's reply mailbox. A FETCHes the reply whenever ready.
 
 ```bash
 # Agent A: create private reply mailbox
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl": 600}'
-# Response: {"mail_address": "agent.a"}
+nats request '$mq9.AI.MAILBOX.CREATE' '{"ttl": 600}'
+# Response: {"mail_address": "reply.a1b2c3"}
 
 # Agent A: send request to Agent B's mailbox with reply_to field
-nats pub '$mq9.AI.MAILBOX.MSG.agent.b' '{
+nats request '$mq9.AI.MSG.SEND.agent.b' '{
   "request": "translate",
   "text": "Hello world",
   "lang": "fr",
-  "reply_to": "agent.a"
+  "reply_to": "reply.a1b2c3"
 }'
 
-# Agent A: continues other work here ...
+# Agent A: continues other work...
 
-# Agent B: processes request and sends result to reply mailbox
-nats pub '$mq9.AI.MAILBOX.MSG.agent.a' '{
-  "result": "Bonjour le monde"
-}'
+# Agent B: fetch its own pending requests
+nats request '$mq9.AI.MSG.FETCH.agent.b' \
+  '{"group_name": "b-worker", "deliver": "earliest"}'
 
-# Agent A: subscribes to reply mailbox when ready — result already stored
-nats sub '$mq9.AI.MAILBOX.MSG.agent.a.*'
+# Agent B: send result to A's reply mailbox
+nats request '$mq9.AI.MSG.SEND.reply.a1b2c3' '{"result": "Bonjour le monde"}'
+# ACK Agent B's own offset
+nats request '$mq9.AI.MSG.ACK.agent.b' \
+  '{"group_name": "b-worker", "mail_address": "agent.b", "msg_id": 1}'
+
+# Agent A: FETCH reply when ready — result already stored
+nats request '$mq9.AI.MSG.FETCH.reply.a1b2c3' \
+  '{"deliver": "earliest"}'
 ```
 
-**Key mq9 features:** private mailbox as reply address, store-first delivery, non-blocking async pattern.
+**Key mq9 features:** private mailbox as reply address, FETCH+ACK pull consumption, non-blocking async pattern.
 
 ---
 
-### 8. Agent Capability Discovery
+## 8. Agent Capability Discovery
 
-Agents announce their capabilities by creating public mailboxes with descriptive, structured names. Other agents subscribe to `PUBLIC.LIST` to discover what capabilities are available at any moment — without a central registry, service mesh, or configuration file. When a capability agent shuts down, its mailbox TTL expires and it disappears from the list automatically.
+Agents register their capabilities via REGISTER. Other agents use DISCOVER to find appropriate agents by keyword or semantic similarity — no central config file, no manual address book. When a capability agent shuts down and calls UNREGISTER, it disappears from DISCOVER results.
 
 ```bash
-# Capability agent: register itself by creating a named public mailbox
-nats req '$mq9.AI.MAILBOX.CREATE' '{
-  "ttl": 3600,
-  "public": true,
-  "name": "agent.codereview",
-  "desc": "Accepts code review requests; returns findings as JSON"
+# Capability agent: register at startup
+nats request '$mq9.AI.AGENT.REGISTER' '{
+  "name": "agent.code-review",
+  "payload": "Accepts code review requests for Rust/Go/Python; returns findings as JSON"
 }'
 
-# Another agent: subscribe to PUBLIC.LIST to discover available capabilities
-nats sub '$mq9.AI.PUBLIC.LIST'
-# Receives entries like: {"name": "agent.codereview", "desc": "...", "mail_address": "agent.codereview"}
+# Consumer agent: full-text search
+nats request '$mq9.AI.AGENT.DISCOVER' '{
+  "text": "code review",
+  "limit": 10
+}'
 
-# Consumer agent: send a task directly to the discovered capability
-nats pub '$mq9.AI.MAILBOX.MSG.agent.codereview' '{
+# Consumer agent: semantic vector search (understands natural language intent)
+nats request '$mq9.AI.AGENT.DISCOVER' '{
+  "semantic": "find an agent that can check my Rust code for bugs",
+  "limit": 5
+}'
+# Returns matching agent list with name, mail_address, payload, etc.
+
+# Consumer agent: send a task to the discovered agent's mailbox
+nats request '$mq9.AI.MSG.SEND.agent.code-review' '{
   "file": "src/main.rs",
   "context": "performance review"
 }'
+
+# Capability agent: unregister at shutdown
+nats request '$mq9.AI.AGENT.UNREGISTER' '{"name": "agent.code-review"}'
 ```
 
-**Key mq9 features:** public mailbox with descriptive name, `PUBLIC.LIST` for real-time discovery, decentralized capability registration.
+**Key mq9 features:** Agent register/discover, full-text + semantic vector search, decentralized capability registration.

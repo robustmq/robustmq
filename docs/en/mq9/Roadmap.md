@@ -1,6 +1,6 @@
 # mq9 Roadmap
 
-mq9's foundational mailbox capabilities are complete. This page describes what comes next — four phases that progressively move mq9 from message delivery infrastructure toward intelligent, context-aware Agent communication infrastructure.
+mq9's core communication layer and semantic discovery are fully in place. This page describes the next three phases — progressively moving mq9 from message delivery infrastructure toward intelligent, context-aware Agent communication infrastructure.
 
 The phases are not strictly sequential. Priorities will shift based on feedback from real-world use cases. The direction is fixed; the order is flexible.
 
@@ -8,41 +8,24 @@ The phases are not strictly sequential. Priorities will shift based on feedback 
 
 ## Where We Are Today
 
-The core communication layer is in place:
+Both the core communication layer and semantic discovery layer are in place:
 
-- **Mailbox lifecycle** — private and public mailboxes, TTL-driven expiration, idempotent CREATE
-- **Three-priority messaging** — `critical` / `urgent` / `normal`, store-first delivery, offline-tolerant
-- **Competitive consumption** — NATS queue groups, dynamic membership, crash-tolerant task queues
-- **Public discovery** — `PUBLIC.LIST` for decentralized capability announcement
+- **Mailbox lifecycle** — TTL-driven expiration, auto-destroyed with no manual cleanup
+- **Three-priority messaging** — `critical` / `urgent` / `normal`, message persistence, offline-tolerant
+- **Pull consumption + ACK** — FETCH to pull, ACK to advance offset, supports resume-from-offset
+- **Message attributes** — key deduplication, tags filtering, delayed delivery, per-message TTL
+- **Agent registry and discovery** — REGISTER / UNREGISTER / DISCOVER, with full-text and semantic vector search
 - **Six-language SDK** — Python, Go, JavaScript, Java, Rust, C# (Python fully implemented, others scaffolded)
 - **LangChain & LangGraph integration** — `langchain-mq9` toolkit with 6 tools
 - **MCP Server support** — AI ecosystem integration via JSON-RPC 2.0
 
 ---
 
-## Phase 1: Semantic Service Discovery
-
-**Goal:** Agents find each other by describing what they need, not by knowing a name in advance.
-
-Today, public mailbox discovery requires knowing (or guessing) the mailbox name. An Agent registers as `agent.code-review`, and consumers must know that string. This works for structured naming conventions, but breaks down as the Agent ecosystem grows and names become unpredictable.
-
-**What changes:**
-
-- Vectorize the `desc` field of public mailboxes at creation time
-- Add semantic search to `PUBLIC.LIST` — callers pass a natural-language query, the server returns the best-matching mailboxes ranked by similarity
-- `PUBLIC.LIST` evolves from a firehose of all public mailboxes into an intelligent capability registry
-
-**What this enables:**
-
-An Agent that needs "something that can review Python code" no longer needs to know the exact mailbox name. It queries `PUBLIC.LIST` with a description, gets back the top matches, and sends its task to the best one. mq9 becomes the natural service registry for AI Agent ecosystems — no Consul, no Etcd, no configuration file.
-
----
-
-## Phase 2: Semantic Routing
+## Phase 1: Semantic Routing
 
 **Goal:** Senders describe intent; the broker finds the recipient.
 
-Phase 1 is pull-based — consumers query and choose. Phase 2 is push-based — the sender describes what it needs done, and mq9 routes automatically to the most suitable recipient.
+DISCOVER today is pull-based — consumers query, choose a target address, and send explicitly. The next step is push-based — the sender describes what it needs done, and mq9 routes automatically to the most suitable registered Agent.
 
 **What changes:**
 
@@ -52,33 +35,32 @@ Phase 1 is pull-based — consumers query and choose. Phase 2 is push-based — 
 
 **What this enables:**
 
-An Agent that has a legal analysis task no longer needs to know which other Agent can handle legal questions. It publishes "analyze this contract for compliance issues" and mq9 routes the task to the most capable registered Agent. This evolves the broker from a "post office" into an "intelligent dispatcher."
+An Agent with a legal analysis task no longer needs to know which other Agent handles legal questions. It publishes "analyze this contract for compliance issues" and mq9 routes the task to the most capable registered Agent. The broker evolves from a "post office" into an "intelligent dispatcher."
 
-This direction is being explored — the implementation details depend on Phase 1's foundation and real-world routing workloads.
+This direction is under exploration — implementation details depend on real-world routing workload validation.
 
 ---
 
-## Phase 3: Intent-Based Policy
+## Phase 2: Security, Audit, and Access Control
 
 **Goal:** Infrastructure-level safety boundaries for AI Agent communication.
 
-Traditional message brokers are mindless relays — they do not understand message content and do not judge whether a message should be delivered. Application-layer security policies are the only defense. For AI Agents, this is insufficient: a compromised or misconfigured Agent can issue instructions like "delete the production database" or "transfer funds," and the broker faithfully delivers them.
+Traditional message brokers are mindless relays — they do not understand message content and do not judge whether a message should be delivered. For AI Agents, this is insufficient: a compromised or misconfigured Agent can issue instructions like "delete the production database" or "transfer funds," and the broker faithfully delivers them.
 
 **What changes:**
 
-- Policy rules are configurable per mailbox (or globally)
-- As messages transit through the policy engine, they are evaluated against the semantic content — not just headers or metadata
-- Messages that violate policy are blocked before delivery; the violation is recorded
+- **Access control** — per-`mail_address` send/subscribe permissions, supporting token or ACL rules beyond the current "address is the credential" model
+- **Content policy** — policy rules configurable per mailbox (or globally); messages are evaluated against semantic content as they transit the policy engine — not just headers or metadata; messages that violate policy are blocked before delivery
+- **Audit logging** — send, fetch, ACK, and delete events for every message can be recorded, satisfying traceability requirements for compliance scenarios
+- **Permission management** — tenant-level isolation; administrators can configure and revoke permissions for mailboxes and the Agent registry
 
 **The multi-protocol advantage:**
 
-When a message is blocked, RobustMQ does not need a separate system to record the event. The policy engine writes the blocked message to a built-in risk topic. Risk analysis systems can consume this via the Kafka protocol — same broker, same storage, no additional infrastructure, no data crossing system boundaries.
-
-This is a concrete example of RobustMQ's multi-protocol architecture applied to an AI security scenario: mq9 for Agent communication, Kafka for risk stream consumption, one deployment serving both.
+When a message is blocked, RobustMQ does not need a separate system to record the event. The policy engine writes blocked messages and audit events to a built-in risk topic. Risk analysis systems can consume this via the Kafka protocol — same broker, same storage, no additional infrastructure, no data crossing system boundaries.
 
 ---
 
-## Phase 4: Context Awareness (Exploratory)
+## Phase 3: Context Awareness (Exploratory)
 
 **Goal:** The broker carries conversation context; Agents stop retransmitting history.
 
@@ -94,13 +76,13 @@ Every interaction between AI Agents today includes redundant context retransmiss
 
 Agents no longer need to retransmit the full context in every interaction. Token consumption drops. Agent collaboration becomes more efficient. The infrastructure evolves from a "stateless pipeline" into a "stateful context network."
 
-This is the longest-horizon direction and furthest from implementation. The exact shape of session-awareness at the infrastructure layer is an open research problem. We believe the direction is correct; we do not have a definitive implementation plan.
+This is the longest-horizon direction. The exact shape of session-awareness at the infrastructure layer is an open research problem. We believe the direction is correct; there is no definitive implementation plan yet.
 
 ---
 
 ## SDK Completion
 
-Parallel to the four phases above, the six-language SDK will be brought to full implementation parity:
+In parallel with the phases above, the six-language SDK will be brought to full implementation parity:
 
 | Language | Current status | Target |
 |----------|---------------|--------|

@@ -154,6 +154,7 @@ const items = [
       { text: "Use Cases", link: "/en/mq9/Scenarios" },
       { text: "Quick Start", link: "/en/mq9/QuickStart" },
       { text: "SDK Integration", link: "/en/mq9/SDK" },
+      { text: "Protocol Design", link: "/en/mq9/Protocol" },
       { text: "LangChain Integration", link: "/en/mq9/LangChain" },
       { text: "MCP Server", link: "/en/mq9/MCP" },
       { text: "FAQ", link: "/en/mq9/FAQ" },
