@@ -40,7 +40,6 @@ pub fn rocksdb_data_fold(path: &str) -> String {
     result
 }
 
-
 pub fn storage_raft_snapshot_fold(path: &str) -> String {
     let mut result = String::with_capacity(path.len() + 6);
     result.push_str(path);
