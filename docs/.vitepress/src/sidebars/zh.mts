@@ -146,20 +146,8 @@ const items = [
   },
 
   {
-    text: "RobustMQ mq9",
-    collapsed: true,
-    items: [
-      { text: "概览", link: "/zh/mq9/Overview" },
-      { text: "核心功能", link: "/zh/mq9/Features" },
-      { text: "应用场景", link: "/zh/mq9/Scenarios" },
-      { text: "快速开始", link: "/zh/mq9/QuickStart" },
-      { text: "SDK 接入", link: "/zh/mq9/SDK" },
-      { text: "协议设计", link: "/zh/mq9/Protocol" },
-      { text: "LangChain 集成", link: "/zh/mq9/LangChain" },
-      { text: "MCP Server", link: "/zh/mq9/MCP" },
-      { text: "常见问题", link: "/zh/mq9/FAQ" },
-      { text: "发展规划", link: "/zh/mq9/Roadmap" },
-    ],
+    text: "ROBUSTMQ MQ9",
+    link: "https://mq9.robustmq.com/zh/docs/overview",
   },
 
   {
@@ -366,7 +354,5 @@ const items = [
 ]
 
 export const sidebar = {
-  '/zh/mq9/index': [],
-  '/zh/mq9/': items,
   '/zh/': items,
 };

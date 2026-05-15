@@ -5,7 +5,7 @@ export default function getNavs() {
     return [
 
         {text: "首页", link: "/zh/"},
-        {text: "mq9", link: "/zh/mq9/"},
+        {text: "mq9", link: "https://mq9.robustmq.com/"},
         {text: "博客", link: "/zh/Blogs/"},
         {text: "文档", link: "/zh/OverView/What-is-RobustMQ"},
         {

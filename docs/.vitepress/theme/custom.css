@@ -735,7 +735,9 @@ html body * .text[data-v-4f9c455b] {
 }
 
 /* ── Sidebar group titles ── */
-.VPSidebarItem.level-0 > .item > .text {
+#VPSidebarNav .VPSidebarItem.level-0 .text,
+#VPSidebarNav .VPSidebarItem.level-0 > .item > .text,
+#VPSidebarNav .VPSidebarItem.level-0 > .item .link > .text {
   font-size: 11px !important;
   font-weight: 700 !important;
   letter-spacing: 0.1em !important;

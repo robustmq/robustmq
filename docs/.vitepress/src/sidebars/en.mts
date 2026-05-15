@@ -146,20 +146,8 @@ const items = [
     ],
   },
   {
-    text: "RobustMQ mq9",
-    collapsed: true,
-    items: [
-      { text: "Overview", link: "/en/mq9/Overview" },
-      { text: "Features", link: "/en/mq9/Features" },
-      { text: "Use Cases", link: "/en/mq9/Scenarios" },
-      { text: "Quick Start", link: "/en/mq9/QuickStart" },
-      { text: "SDK Integration", link: "/en/mq9/SDK" },
-      { text: "Protocol Design", link: "/en/mq9/Protocol" },
-      { text: "LangChain Integration", link: "/en/mq9/LangChain" },
-      { text: "MCP Server", link: "/en/mq9/MCP" },
-      { text: "FAQ", link: "/en/mq9/FAQ" },
-      { text: "Roadmap", link: "/en/mq9/Roadmap" },
-    ],
+    text: "ROBUSTMQ MQ9",
+    link: "https://mq9.robustmq.com/docs/overview",
   },
 
   {
@@ -356,7 +344,5 @@ const items = [
 ]
 
 export const sidebar = {
-  '/en/mq9/index': [],
-  '/en/mq9/': items,
   '/en/': items,
 };
