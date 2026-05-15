@@ -341,4 +341,4 @@ NATS Core is the underlying protocol for mq9. mq9 builds on NATS Core pub/sub/re
 
 Both can be used together: regular NATS pub/sub for real-time scenarios, mq9 subjects for Agent communication that requires offline delivery guarantees.
 
-See [mq9 Protocol](/en/mq9/Protocol) for details.
+See [mq9 Protocol](https://mq9.robustmq.com/docs/protocol) for details.

@@ -68,7 +68,7 @@ RobustMQ defines the `$mq9.AI.*` namespace on top of the NATS protocol, purpose-
 
 mq9's design follows the same pattern as JetStream: no new protocol commands, all operations via standard NATS pub/sub/req-reply. The server activates persistence and priority scheduling for messages matching the `$mq9.AI.*` prefix.
 
-See [mq9 Overview](/en/mq9/Overview) for details.
+See [mq9 Overview](https://mq9.robustmq.com/docs/overview) for details.
 
 ---
 

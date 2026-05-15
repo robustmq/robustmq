@@ -204,4 +204,4 @@ async fn main() -> Result<(), async_nats::Error> {
 - [NATS Core 功能详解](./NatsCore.md) — 通配符、Queue Group、Header 等完整协议说明
 - [SDK 接入](./SDK.md) — 各语言 SDK 及官方文档链接
 - [JetStream](./JetStream.md) — 持久化消息流（开发中）
-- [mq9](../mq9/Overview.md) — 基于 NATS 的 AI Agent 通信协议
+- [mq9](https://mq9.robustmq.com/zh/docs/overview) — 基于 NATS 的 AI Agent 通信协议

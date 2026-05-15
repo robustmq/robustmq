@@ -68,7 +68,7 @@ RobustMQ 在 NATS 协议之上，定义了 `$mq9.AI.*` 命名空间，专为 AI 
 
 mq9 的设计参考了 JetStream 的扩展方式：不引入新的协议指令，所有操作通过标准 NATS pub/sub/req-reply 完成，服务端对 `$mq9.AI.*` 前缀的消息启用持久化和优先级调度。
 
-详见 [mq9 概览](/zh/mq9/Overview)。
+详见 [mq9 概览](https://mq9.robustmq.com/zh/docs/overview)。
 
 ---
 
