@@ -63,45 +63,26 @@ MQTT publish  →  RobustMQ unified storage  →  Kafka consume
 | **AMQP** | Enterprise messaging, RabbitMQ migration |
 | **mq9** | AI Agent async communication |
 
-## 🤖 mq9 — Agent Mailbox for AI
+## 🤖 mq9 — Communication Infrastructure for Multi-Agent Systems
 
-**mq9** is RobustMQ's communication layer designed for AI Agents. Just like people have email — you send a message, the recipient reads it when they're available — Agents need the same. Today, when Agent A sends a message to Agent B and B is offline, the message is gone. Every team works around this with Redis pub/sub, database polling, or homegrown queues.
+**mq9** is the infrastructure layer for multi-agent systems, built as RobustMQ's fifth native protocol. It solves the two foundational problems every multi-agent system faces: how Agents find each other, and how they communicate reliably and asynchronously.
 
-mq9 solves it directly: **send a message, the recipient gets it when they come online.**
+Unlike general-purpose registries (etcd, Consul) combined with general-purpose queues (Kafka, NATS), mq9 is designed specifically for Agent communication. It provides an AgentCard data model, capability-based semantic discovery, per-Agent persistent mailboxes, N-to-N Agent topology, and long-task state retention — all in a single broker with shared runtime, storage, network, and cluster coordination.
 
-<div align="center">
+mq9 natively supports the **A2A (Agent-to-Agent)** protocol via the `mq9.a2a` SDK facade, wrapping the official a2a-sdk so developers can build a fully compliant A2A Agent in 15 lines of code. Native protocol access and forward compatibility with MCP and ANP are also supported.
 
-| Operation | Subject | What it does |
-|-----------|---------|-------------|
-| **MAILBOX.CREATE** | `$mq9.AI.MAILBOX.CREATE` | Create a private or public mailbox |
-| **Send** | `$mq9.AI.MAILBOX.MSG.{mail_address}` / `.urgent` / `.critical` | Deliver a message — three levels: `critical` / `urgent` / `normal` (default, no suffix) |
-| **Subscribe** | `$mq9.AI.MAILBOX.MSG.{mail_address}.*` | Receive all priorities; new arrivals pushed in real time |
-| **Discover** | `$mq9.AI.PUBLIC.LIST` | Discover all public mailboxes |
+**Two problems, one broker:**
 
-</div>
+| Problem | mq9's answer |
+|---------|-------------|
+| How do Agents find each other? | Built-in registry: `AGENT.REGISTER` + `AGENT.DISCOVER` with full-text and semantic vector search |
+| How do Agents communicate reliably? | Persistent mailbox per Agent: messages wait until the recipient comes online, with 3-tier priority (critical / urgent / normal) and FETCH+ACK pull consumption |
 
-```bash
-# Create a private mailbox — returns mail_address
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
-# → {"mail_address":"550e8400@mq9","is_new":true}
+**Multiple integration paths:** the `mq9.a2a` SDK facade for A2A-standard Agents; native NATS client for any language; Python / Go / TypeScript / Java / Rust SDKs; `langchain-mq9` toolkit for LangChain and LangGraph; MCP Server for JSON-RPC 2.0 access.
 
-# Send to another Agent's mailbox (works even if they're offline)
-nats pub '$mq9.AI.MAILBOX.MSG.550e8400@mq9' \
-  '{"type":"task_result","payload":"done","ts":1234567890}'
+Deploy one RobustMQ instance — mq9 is ready. Designed to scale to millions of Agents.
 
-# Create a public mailbox (task queue), discoverable via public@mq9
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600,"public":true,"name":"task.queue@mq9","desc":"Task queue"}'
-nats pub '$mq9.AI.MAILBOX.MSG.task.queue@mq9' '{"type":"data_analysis"}'
-
-# Subscribe to your mailbox — receives all non-expired messages immediately, in priority order
-nats sub '$mq9.AI.MAILBOX.MSG.550e8400@mq9.*'
-```
-
-**Multiple integration paths:** any NATS client connects directly; the RobustMQ SDK covers Go, Python, Rust, JavaScript, Java, and C#; the `langchain-mq9` toolkit plugs into LangChain and LangGraph; and an MCP Server provides JSON-RPC 2.0 access for tools like Dify.
-
-mq9 is RobustMQ's fifth native protocol, alongside MQTT, Kafka, NATS, and AMQP, built on the same unified storage layer. Deploy one RobustMQ instance — mq9 is ready.
-
-> 📖 [mq9 Documentation](https://robustmq.com/en/mq9/)
+> 📖 [mq9.robustmq.com](https://mq9.robustmq.com) · [GitHub](https://github.com/robustmq/mq9)
 
 ---
 
