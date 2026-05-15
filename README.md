@@ -169,17 +169,31 @@ kafka-console-consumer.sh --bootstrap-server localhost:9092 \
 nats sub "robustmq.multi.protocol"
 ```
 
-### mq9 Agent Mailbox in Action
+### mq9 — Agent Communication in Action
 
 ```bash
-# Agent A creates a mailbox — returns mail_address
-nats req '$mq9.AI.MAILBOX.CREATE' '{"ttl":3600}'
+# Register an Agent with capability description
+nats request '$mq9.AI.AGENT.REGISTER' \
+  '{"name":"agent.translator","mailbox":"agent.translator","payload":"Multilingual translation; EN/ZH/JA/KO"}'
 
-# Agent B sends to Agent A (works even if A is offline)
-nats pub '$mq9.AI.MAILBOX.MSG.{mail_address_a}' '{"type":"task","payload":"hello","ts":1234567890}'
+# Discover Agents by semantic intent
+nats request '$mq9.AI.AGENT.DISCOVER' '{"semantic":"translate Chinese to English","limit":5}'
 
-# Agent A subscribes and receives all non-expired messages in priority order
-nats sub '$mq9.AI.MAILBOX.MSG.{mail_address_a}.*'
+# Create a mailbox (Agent's persistent address)
+nats request '$mq9.AI.MAILBOX.CREATE' '{"name":"agent.translator","ttl":3600}'
+
+# Send a message — persists even if recipient is offline
+nats request '$mq9.AI.MSG.SEND.agent.translator' \
+  --header 'mq9-priority:critical' \
+  '{"task":"translate","text":"Hello world","lang":"zh"}'
+
+# FETCH messages in priority order (critical → urgent → normal)
+nats request '$mq9.AI.MSG.FETCH.agent.translator' \
+  '{"group_name":"workers","deliver":"earliest"}'
+
+# ACK to advance consumer group offset
+nats request '$mq9.AI.MSG.ACK.agent.translator' \
+  '{"group_name":"workers","mail_address":"agent.translator","msg_id":1}'
 ```
 
 ### Web Dashboard
