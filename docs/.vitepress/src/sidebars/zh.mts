@@ -60,6 +60,8 @@ const items = [
             { text: "Storage Adapter", link: "/zh/Architect/StorageAdapter-Architecture" },
             { text: "Storage Engine", link: "/zh/Architect/StorageEngine-Architecture" },
             { text: "Connector", link: "/zh/Architect/Connector-Architecture" },
+            { text: "多协议架构", link: "/zh/Architect/MultiProtocol-Architecture" },
+            { text: "插件化存储", link: "/zh/Architect/PluggableStorage-Architecture" },
         ],
     },
     {

@@ -92,7 +92,7 @@ Deploy one RobustMQ instance — mq9 is ready. Designed to scale to millions of 
   <video src="https://robustmq.com/assets/demo.zRXM786t.mp4" controls width="100%"></video>
 </div>
 
-- 🤖 **mq9 — AI Agent communication**: Agent mailboxes with persistent store-first delivery, three-level priority (critical / urgent / normal), TTL auto-cleanup, and public mailbox discovery — async Agent-to-Agent messaging, no simultaneous online required
+- 🤖 **mq9 — Multi-Agent infrastructure**: Agent registry with full-text and semantic discovery, per-Agent persistent mailbox, 3-tier priority (critical / urgent / normal), FETCH+ACK pull consumption — registry and reliable async messaging in one broker, native A2A protocol support
 - 🦀 **Rust-native**: No GC, stable and predictable memory footprint, no periodic spikes — consistent from edge devices to cloud clusters
 - 🗄️ **Unified storage layer**: All protocols share one storage engine — data written once, consumed by any protocol, no duplication
 - 🔌 **Native multi-protocol**: MQTT 3.1/3.1.1/5.0, Kafka, NATS, AMQP, mq9 — natively implemented, full protocol semantics
