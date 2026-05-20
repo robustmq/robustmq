@@ -19,10 +19,7 @@ roles = ["meta", "broker", "engine"]
 grpc_port = 2228
 http_port = 8082
 meta_addrs = { 1 = "127.0.0.1:1228", 2 = "127.0.0.1:2228"}
-
-[rocksdb]
 data_path = "./data/broker-2/data"
-max_open_files = 10000
 
 [log]
 log_config = "./config/logger.toml"

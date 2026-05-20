@@ -106,6 +106,8 @@ pub async fn init_inner_topics(
         )
         .await?;
     }
+    // wait cache sync
+    sleep(Duration::from_secs(3)).await;
     Ok(())
 }
 
