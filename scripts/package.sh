@@ -61,7 +61,13 @@ ssh "${REMOTE_HOST}" "
   tar xzf ${ARCHIVE_NAME} 2>/dev/null && rm ${ARCHIVE_NAME}
   git add -A
   git diff --cached --quiet || git commit -m 'dev'
-  git push origin ${LOCAL_BRANCH}
+  PUSH_RETRY=0
+  until git push origin ${LOCAL_BRANCH}; do
+    PUSH_RETRY=\$((PUSH_RETRY + 1))
+    echo \"Push failed, retrying (\${PUSH_RETRY})...\"
+    sleep 3
+  done
+  echo \"Push succeeded after \${PUSH_RETRY} retries.\"
   echo \"Done.\"
 "
 echo "Remote extraction complete."
