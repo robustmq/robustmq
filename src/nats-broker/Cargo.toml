@@ -45,3 +45,4 @@ storage-adapter.workspace = true
 mq9-core.workspace = true
 thiserror.workspace = true
 a2a-types.workspace = true
+rule-engine.workspace = true

@@ -16,6 +16,7 @@ pub mod agent;
 pub mod create;
 pub mod delete;
 pub mod fetch;
+pub mod forward;
 pub mod process;
 pub mod query;
 pub mod send;

@@ -15,6 +15,7 @@
 use serde::{Deserialize, Serialize};
 
 pub mod agent;
+pub mod forward_rule;
 pub mod mail;
 
 /// Priority levels for mailbox messages.

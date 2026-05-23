@@ -186,9 +186,22 @@ pub async fn process_send(
         }
     }
 
-    let offsets = MessageStorage::new(ctx.storage_driver_manager.clone())
-        .write(&tenant, mail_address, vec![record])
-        .await?;
+    let storage = MessageStorage::new(ctx.storage_driver_manager.clone());
+
+    // The mailbox write consumes the record by value. Forks need a clone
+    // of the *pre-write* record so they see the same payload/tags/headers
+    // the consumer will see. The fork path is inline and runs only after
+    // the mailbox write succeeds.
+    let user_tags: Vec<String> = mq9_headers
+        .as_ref()
+        .map(|h| h.tags.clone())
+        .unwrap_or_default();
+    let forked_source = ctx
+        .cache_manager
+        .match_forward_rules(&tenant, mail_address, &user_tags, &priority)
+        .map(|rules| (record.clone(), rules));
+
+    let offsets = storage.write(&tenant, mail_address, vec![record]).await?;
 
     let offset = offsets.into_iter().next().ok_or_else(|| {
         NatsBrokerError::CommonError(format!(
@@ -196,6 +209,23 @@ pub async fn process_send(
             mail_address
         ))
     })?;
+
+    // Inline fork — direct awaited `MessageStorage::write` per matched rule.
+    // No channels, no worker pool. `on_failure` decides per-rule whether
+    // a fork failure should drop+log or fail the send. See forward.rs for
+    // the full rationale.
+    if let Some((src_record, rules)) = forked_source {
+        crate::mq9::forward::fork_write(
+            &storage,
+            &tenant,
+            mail_address,
+            offset,
+            &src_record,
+            &rules,
+        )
+        .await?;
+    }
+
     Ok(MsgSendReply {
         error: String::new(),
         msg_id: offset as i64,
