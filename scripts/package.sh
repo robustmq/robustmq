@@ -36,6 +36,11 @@ git -C "$PROJECT_ROOT" ls-files -z -- src/ Cargo.toml Cargo.lock config/ scripts
 
 echo "Packaged: $ARCHIVE ($(du -sh "$ARCHIVE" | cut -f1))"
 
+# Collect files deleted locally compared to origin/<branch> so we can remove
+# them on the remote after extraction.
+LOCAL_BRANCH=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD)
+DELETED_FILES=$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=D "origin/${LOCAL_BRANCH}" 2>/dev/null || true)
+
 echo "Uploading to ${REMOTE_HOST}:${REMOTE_DIR} ..."
 ARCHIVE_NAME="$(basename "$ARCHIVE")"
 scp "$ARCHIVE" "${REMOTE_HOST}:${REMOTE_DIR}"
@@ -43,8 +48,17 @@ echo "Upload complete: ${REMOTE_HOST}:${REMOTE_DIR}/${ARCHIVE_NAME}"
 rm "$ARCHIVE"
 echo "Local archive deleted."
 
-LOCAL_BRANCH=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD)
 echo "Local branch: ${LOCAL_BRANCH}"
+
+# Build a remote delete command for each locally-deleted file.
+REMOTE_DELETE_CMDS=""
+if [ -n "$DELETED_FILES" ]; then
+  echo "Files deleted locally (will remove on remote):"
+  while IFS= read -r f; do
+    echo "  - $f"
+    REMOTE_DELETE_CMDS="${REMOTE_DELETE_CMDS}  rm -f \"${REMOTE_DIR}/${f}\" && echo \"Deleted: ${f}\" || true"$'\n'
+  done <<< "$DELETED_FILES"
+fi
 
 echo "Syncing remote branch ..."
 ssh "${REMOTE_HOST}" "
@@ -59,6 +73,7 @@ ssh "${REMOTE_HOST}" "
   fi
   git pull origin ${LOCAL_BRANCH}
   tar xzf ${ARCHIVE_NAME} 2>/dev/null && rm ${ARCHIVE_NAME}
+${REMOTE_DELETE_CMDS}
   git add -A
   git diff --cached --quiet || git commit -m 'dev'
   PUSH_RETRY=0
