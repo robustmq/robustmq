@@ -31,8 +31,8 @@ VERSION=$(git -C "$PROJECT_ROOT" describe --tags --always --dirty 2>/dev/null ||
 TIMESTAMP=$(date +%Y%m%d%H%M%S)
 ARCHIVE="$OUTPUT_DIR/robustmq-${VERSION}-${TIMESTAMP}.tar.gz"
 
-git -C "$PROJECT_ROOT" ls-files -- src/ Cargo.toml Cargo.lock config/ scripts/ \
-    | tar czf "$ARCHIVE" -C "$PROJECT_ROOT" -T -
+git -C "$PROJECT_ROOT" ls-files -z -- src/ Cargo.toml Cargo.lock config/ scripts/ docs/ \
+    | tar czf "$ARCHIVE" -C "$PROJECT_ROOT" --null -T -
 
 echo "Packaged: $ARCHIVE ($(du -sh "$ARCHIVE" | cut -f1))"
 

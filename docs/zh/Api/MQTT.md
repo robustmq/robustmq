@@ -751,7 +751,7 @@
 ### 6. 用户管理
 
 #### 6.1 用户列表查询
-- **接口**: `GET /api/mqtt/user/list`
+- **接口**: `GET /api/cluster/user/list`
 - **描述**: 查询 MQTT 用户列表，支持按租户过滤、用户名模糊搜索
 - **请求参数**:
 ```json
@@ -794,7 +794,7 @@
 - `create_time`: 用户创建时间戳（秒）
 
 #### 6.2 创建用户
-- **接口**: `POST /api/mqtt/user/create`
+- **接口**: `POST /api/cluster/user/create`
 - **描述**: 创建新的 MQTT 用户
 - **请求参数**:
 ```json
@@ -809,7 +809,7 @@
 - **响应**: 成功返回 "success"
 
 #### 6.3 删除用户
-- **接口**: `POST /api/mqtt/user/delete`
+- **接口**: `POST /api/cluster/user/delete`
 - **描述**: 删除 MQTT 用户
 - **请求参数**:
 ```json
@@ -1122,15 +1122,14 @@
 ### 11. 消息管理
 
 #### 11.1 发送消息
-- **接口**: `POST /api/mqtt/message/send`
+- **接口**: `POST /api/cluster/message/send`
 - **描述**: 通过HTTP API发送MQTT消息到指定主题
 - **请求参数**:
 ```json
 {
   "tenant": "default",            // 必填，租户名称，长度 1-256
   "topic": "sensor/temperature",  // 必填，主题名称，长度 1-256
-  "payload": "25.5",              // 必填，消息内容，不超过 1MB
-  "retain": false                 // 可选，是否保留消息，默认false
+  "payload": "25.5"               // 必填，消息内容，不超过 1MB
 }
 ```
 
@@ -1151,7 +1150,7 @@
 - 消息默认过期时间为3600秒（1小时）
 
 #### 11.2 读取消息
-- **接口**: `POST /api/mqtt/message/read`
+- **接口**: `POST /api/cluster/message/read`
 - **描述**: 从指定主题读取消息
 - **请求参数**:
 ```json
@@ -1482,7 +1481,7 @@ curl -X POST http://localhost:8080/api/cluster/topic/delete \
 
 ### 创建用户
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/user/create \
+curl -X POST http://localhost:8080/api/cluster/user/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1546,12 +1545,12 @@ curl "http://localhost:8080/api/mqtt/monitor/data?data_type=topic_in_num&topic_n
 
 ### 发送消息
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/message/send \
+curl -X POST http://localhost:8080/api/cluster/message/send \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "topic": "sensor/temperature",
-    "payload": "25.5",
-    "retain": false
+    "payload": "25.5"
   }'
 ```
 

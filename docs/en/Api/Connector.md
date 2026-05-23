@@ -7,7 +7,7 @@
 ## API Endpoints
 
 ### 1. Connector List Query
-- **Endpoint**: `GET /api/mqtt/connector/list`
+- **Endpoint**: `GET /api/cluster/connector/list`
 - **Description**: Query connector list, supports filtering by tenant and fuzzy search by connector name
 - **Request Parameters**:
 
@@ -58,7 +58,7 @@
 ---
 
 ### 2. Connector Detail Query
-- **Endpoint**: `GET /api/mqtt/connector/detail`
+- **Endpoint**: `GET /api/cluster/connector/detail`
 - **Description**: Query detailed runtime status of a specific connector
 - **Request Parameters**:
 ```json
@@ -112,7 +112,7 @@ or
 ---
 
 ### 3. Create Connector
-- **Endpoint**: `POST /api/mqtt/connector/create`
+- **Endpoint**: `POST /api/cluster/connector/create`
 - **Description**: Create a new connector
 - **Request Parameters**:
 ```json
@@ -144,7 +144,7 @@ or
 ---
 
 ### 4. Delete Connector
-- **Endpoint**: `POST /api/mqtt/connector/delete`
+- **Endpoint**: `POST /api/cluster/connector/delete`
 - **Description**: Delete a connector
 - **Request Parameters**:
 ```json
@@ -808,22 +808,22 @@ Messages written to the dead letter queue are in JSON format as `DeadLetterRecor
 
 ### Query Connector List
 ```bash
-curl "http://localhost:8080/api/mqtt/connector/list?limit=10&page=1"
+curl "http://localhost:8080/api/cluster/connector/list?limit=10&page=1"
 ```
 
 ### Query Connector List by Tenant
 ```bash
-curl "http://localhost:8080/api/mqtt/connector/list?tenant=default&limit=10&page=1"
+curl "http://localhost:8080/api/cluster/connector/list?tenant=default&limit=10&page=1"
 ```
 
 ### Query Connector Detail
 ```bash
-curl "http://localhost:8080/api/mqtt/connector/detail?tenant=default&connector_name=kafka_bridge"
+curl "http://localhost:8080/api/cluster/connector/detail?tenant=default&connector_name=kafka_bridge"
 ```
 
 ### Create Kafka Connector
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -839,7 +839,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### Create Connector with Retry Strategy
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -857,7 +857,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### Create Connector with Dead Letter Queue
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -876,7 +876,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### Create Redis Connector
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -892,7 +892,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### Create Webhook Connector
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -908,7 +908,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### Create InfluxDB Connector (v2)
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -924,7 +924,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### Create AWS S3 Connector
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -940,7 +940,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### Delete Connector
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/delete \
+curl -X POST http://localhost:8080/api/cluster/connector/delete \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",

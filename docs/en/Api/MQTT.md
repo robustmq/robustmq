@@ -1122,15 +1122,14 @@
 ### 11. Message Management
 
 #### 11.1 Send Message
-- **Endpoint**: `POST /api/mqtt/message/send`
+- **Endpoint**: `POST /api/cluster/message/send`
 - **Description**: Send MQTT message to specified topic via HTTP API
 - **Request Parameters**:
 ```json
 {
   "tenant": "default",            // Required, tenant name, length 1-256
   "topic": "sensor/temperature",  // Required, topic name, length 1-256
-  "payload": "25.5",              // Required, message content, no more than 1MB
-  "retain": false                 // Optional, whether to retain message, default false
+  "payload": "25.5"               // Required, message content, no more than 1MB
 }
 ```
 
@@ -1151,7 +1150,7 @@
 - Default message expiry time is 3600 seconds (1 hour)
 
 #### 11.2 Read Messages
-- **Endpoint**: `POST /api/mqtt/message/read`
+- **Endpoint**: `POST /api/cluster/message/read`
 - **Description**: Read messages from specified topic
 - **Request Parameters**:
 ```json
@@ -1546,12 +1545,12 @@ curl "http://localhost:8080/api/mqtt/monitor/data?data_type=topic_in_num&topic_n
 
 ### Send Message
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/message/send \
+curl -X POST http://localhost:8080/api/cluster/message/send \
   -H "Content-Type: application/json" \
   -d '{
+    "tenant": "default",
     "topic": "sensor/temperature",
-    "payload": "25.5",
-    "retain": false
+    "payload": "25.5"
   }'
 ```
 

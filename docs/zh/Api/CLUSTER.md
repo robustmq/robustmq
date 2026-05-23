@@ -363,8 +363,8 @@
 
 ### 3. 获取集群状态
 
-- **接口**: `GET /api/cluster/status`
-- **描述**: 获取集群运行状态，包括版本、节点列表、各 Raft Group 的 Meta 状态等
+- **接口**: `GET /`
+- **描述**: 获取集群运行状态，包括版本、节点列表、各 Raft Group 的 Meta 状态等（该接口不在 `/api` 前缀下，直接访问根路径）
 
 - **响应示例**:
 ```json
@@ -668,7 +668,7 @@ curl -X GET http://localhost:8080/api/cluster/config/get
 
 ### 获取集群状态
 ```bash
-curl -X GET http://localhost:8080/api/cluster/status
+curl -X GET http://localhost:8080/
 ```
 
 ### 设置连接抖动检测配置
@@ -691,7 +691,7 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
 
 ### 4. 获取租户列表
 
-- **接口**: `GET /api/tenant/list`
+- **接口**: `GET /api/cluster/tenant/list`
 - **描述**: 获取集群中所有租户，支持分页、排序、过滤
 - **请求参数**（Query String）:
 
@@ -734,17 +734,17 @@ curl -X POST http://localhost:8080/api/cluster/config/set \
 - **curl 示例**:
 ```bash
 # 查询所有租户
-curl -X GET "http://localhost:8080/api/tenant/list"
+curl -X GET "http://localhost:8080/api/cluster/tenant/list"
 
 # 模糊查询租户名包含 "business" 的租户
-curl -X GET "http://localhost:8080/api/tenant/list?tenant_name=business"
+curl -X GET "http://localhost:8080/api/cluster/tenant/list?tenant_name=business"
 ```
 
 ---
 
 ### 5. 创建租户
 
-- **接口**: `POST /api/tenant/create`
+- **接口**: `POST /api/cluster/tenant/create`
 - **描述**: 创建一个新租户
 - **请求体**:
 
@@ -784,7 +784,7 @@ curl -X GET "http://localhost:8080/api/tenant/list?tenant_name=business"
 
 - **curl 示例**:
 ```bash
-curl -X POST http://localhost:8080/api/tenant/create \
+curl -X POST http://localhost:8080/api/cluster/tenant/create \
   -H "Content-Type: application/json" \
   -d '{"tenant_name": "business-a", "desc": "业务 A 租户"}'
 ```
@@ -793,7 +793,7 @@ curl -X POST http://localhost:8080/api/tenant/create \
 
 ### 6. 删除租户
 
-- **接口**: `POST /api/tenant/delete`
+- **接口**: `POST /api/cluster/tenant/delete`
 - **描述**: 删除指定租户。删除后，归属该租户的元数据将不再受该租户管控。
 - **请求体**:
 
@@ -819,7 +819,7 @@ curl -X POST http://localhost:8080/api/tenant/create \
 
 - **curl 示例**:
 ```bash
-curl -X POST http://localhost:8080/api/tenant/delete \
+curl -X POST http://localhost:8080/api/cluster/tenant/delete \
   -H "Content-Type: application/json" \
   -d '{"tenant_name": "business-a"}'
 ```
@@ -828,7 +828,7 @@ curl -X POST http://localhost:8080/api/tenant/delete \
 
 ### 7. 更新租户
 
-- **接口**: `POST /api/tenant/update`
+- **接口**: `POST /api/cluster/tenant/update`
 - **描述**: 更新租户的描述和资源配额。租户必须已存在。`config` 不传时保持原有配置不变。
 - **请求体**:
 
@@ -875,7 +875,7 @@ curl -X POST http://localhost:8080/api/tenant/delete \
 
 - **curl 示例**:
 ```bash
-curl -X POST http://localhost:8080/api/tenant/update \
+curl -X POST http://localhost:8080/api/cluster/tenant/update \
   -H "Content-Type: application/json" \
   -d '{"tenant_name": "business-a", "desc": "业务 A 租户（已更新）", "config": {"max_connections_per_node": 100000}}'
 ```
@@ -884,17 +884,21 @@ curl -X POST http://localhost:8080/api/tenant/update \
 
 ## 健康检查
 
-### 8. 集群存活检查
+### 8. 节点健康检查
 
-- **接口**: `GET /cluster/healthy`
-- **描述**: 检查服务是否存活，返回 `true` 表示正常
+- **接口**: `GET /health/node`
+- **描述**: 检查当前节点是否存活，可用于 K8s liveness probe。该接口不在 `/api` 前缀下。
 - **请求参数**: 无
 - **响应示例**:
 ```json
 {
   "code": 0,
-  "message": "success",
-  "data": true
+  "data": {
+    "status": "ok",
+    "check_type": "node",
+    "message": "node is alive"
+  },
+  "error": null
 }
 ```
 
@@ -1178,6 +1182,143 @@ curl -X POST http://localhost:8080/api/tenant/update \
 #### 17.3 删除租户
 - **接口**: `POST /api/cluster/tenant/delete`
 - **请求参数**: `{ "tenant_name": "my-tenant" }`
+
+---
+
+### 18. 消息管理
+
+#### 18.1 发送消息
+- **接口**: `POST /api/cluster/message/send`
+- **描述**: 向指定 Topic 发送一条消息。Topic 不存在时自动初始化。
+- **请求参数**:
+```json
+{
+  "tenant": "default",
+  "topic": "sensor/temperature",
+  "payload": "hello world"
+}
+```
+- `tenant`: 租户名，1–256 字符
+- `topic`: Topic 名，1–256 字符
+- `payload`: 消息内容，最大 1MB（1048576 字节）
+
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "data": {
+    "offsets": [42]
+  },
+  "error": null
+}
+```
+- `offsets`: 写入成功的 Offset 列表
+
+---
+
+#### 18.2 读取消息
+- **接口**: `POST /api/cluster/message/read`
+- **描述**: 从指定 Topic 按 Offset 读取消息，最多返回 100 条。Offset 自动对齐到有效范围（`start_offset`–`end_offset`）。
+- **请求参数**:
+```json
+{
+  "tenant": "default",
+  "topic": "sensor/temperature",
+  "offset": 0
+}
+```
+
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "data": {
+    "messages": [
+      {
+        "offset": 0,
+        "content": "hello world",
+        "timestamp": 1716451200000
+      }
+    ]
+  },
+  "error": null
+}
+```
+- `offset`: 消息的 Offset
+- `content`: 消息内容（UTF-8 字符串）
+- `timestamp`: 写入时间戳（毫秒）
+
+---
+
+### 19. 共享订阅组
+
+#### 19.1 共享订阅组列表
+- **接口**: `GET /api/cluster/share-group/list`
+- **描述**: 查询集群内的共享订阅组列表，支持按租户、组名过滤和分页。
+- **请求参数**（Query String）:
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 否 | 按租户名过滤 |
+| `group_name` | string | 否 | 按组名模糊匹配 |
+| `limit` | u32 | 否 | 每页数量，默认 20 |
+| `page` | u32 | 否 | 页码，从 1 开始 |
+| `sort_field` | string | 否 | 排序字段：`tenant`、`group_name` |
+| `sort_by` | string | 否 | 排序方向：`asc` \| `desc` |
+
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "data": {
+    "data": [
+      {
+        "tenant": "default",
+        "group_name": "my-group",
+        "subject": "sensor/+"
+      }
+    ],
+    "total_count": 1
+  },
+  "error": null
+}
+```
+
+---
+
+#### 19.2 共享订阅组详情
+- **接口**: `GET /api/cluster/share-group/detail`
+- **描述**: 获取指定共享订阅组的详细信息，包括成员列表、当前推送订阅者和推送线程运行状态。
+- **请求参数**（Query String）:
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `tenant` | string | 是 | 租户名 |
+| `group_name` | string | 是 | 共享订阅组名 |
+
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "data": {
+    "group": {
+      "tenant": "default",
+      "group_name": "my-group",
+      "subject": "sensor/+"
+    },
+    "members": [
+      { "client_id": "client-1", "sub_path": "sensor/+" }
+    ],
+    "push_subscribers": [],
+    "push_thread_info": {
+      "total_pushed": 1024,
+      "last_pull_time": 1716451200000
+    }
+  },
+  "error": null
+}
+```
+- `push_thread_info`: 仅 NATS 队列组场景下有值，MQTT 共享订阅场景为 `null`
 
 ---
 

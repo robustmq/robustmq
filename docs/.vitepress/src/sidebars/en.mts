@@ -252,6 +252,7 @@ const items = [
           { text: "Cluster API", link: "/en/Api/CLUSTER" },
           { text: "MQTT API", link: "/en/Api/MQTT" },
           { text: "Connector API", link: "/en/Api/Connector" },
+          { text: "MQ9 API", link: "/en/Api/MQ9" },
         ],
       },
       {

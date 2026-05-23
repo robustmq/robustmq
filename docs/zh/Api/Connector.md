@@ -7,7 +7,7 @@
 ## API 接口列表
 
 ### 1. 连接器列表查询
-- **接口**: `GET /api/mqtt/connector/list`
+- **接口**: `GET /api/cluster/connector/list`
 - **描述**: 查询连接器列表，支持按租户过滤和连接器名称模糊搜索
 - **请求参数**:
 
@@ -58,7 +58,7 @@
 ---
 
 ### 2. 连接器详情查询
-- **接口**: `GET /api/mqtt/connector/detail`
+- **接口**: `GET /api/cluster/connector/detail`
 - **描述**: 查询指定连接器的详细运行状态
 - **请求参数**:
 ```json
@@ -112,7 +112,7 @@
 ---
 
 ### 3. 创建连接器
-- **接口**: `POST /api/mqtt/connector/create`
+- **接口**: `POST /api/cluster/connector/create`
 - **描述**: 创建新的连接器
 - **请求参数**:
 ```json
@@ -144,7 +144,7 @@
 ---
 
 ### 4. 删除连接器
-- **接口**: `POST /api/mqtt/connector/delete`
+- **接口**: `POST /api/cluster/connector/delete`
 - **描述**: 删除连接器
 - **请求参数**:
 ```json
@@ -808,22 +808,22 @@
 
 ### 查询连接器列表
 ```bash
-curl "http://localhost:8080/api/mqtt/connector/list?limit=10&page=1"
+curl "http://localhost:8080/api/cluster/connector/list?limit=10&page=1"
 ```
 
 ### 按租户查询连接器列表
 ```bash
-curl "http://localhost:8080/api/mqtt/connector/list?tenant=default&limit=10&page=1"
+curl "http://localhost:8080/api/cluster/connector/list?tenant=default&limit=10&page=1"
 ```
 
 ### 查询连接器详情
 ```bash
-curl "http://localhost:8080/api/mqtt/connector/detail?tenant=default&connector_name=kafka_bridge"
+curl "http://localhost:8080/api/cluster/connector/detail?tenant=default&connector_name=kafka_bridge"
 ```
 
 ### 创建 Kafka 连接器
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -839,7 +839,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### 创建带重试策略的连接器
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -857,7 +857,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### 创建带死信队列的连接器
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -876,7 +876,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### 创建 Redis 连接器
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -892,7 +892,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### 创建 Webhook 连接器
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -908,7 +908,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### 创建 InfluxDB 连接器（v2）
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -924,7 +924,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### 创建 AWS S3 连接器
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/create \
+curl -X POST http://localhost:8080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -940,7 +940,7 @@ curl -X POST http://localhost:8080/api/mqtt/connector/create \
 
 ### 删除连接器
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/connector/delete \
+curl -X POST http://localhost:8080/api/cluster/connector/delete \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
