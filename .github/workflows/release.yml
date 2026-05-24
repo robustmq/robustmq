@@ -52,6 +52,8 @@ jobs:
             runner: macos-15-intel
           - platform: darwin-arm64
             runner: macos-14
+          - platform: windows-amd64
+            runner: windows-2022
 
     steps:
       - name: Checkout code
@@ -81,6 +83,18 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install protobuf cmake
+
+      - name: Install system dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install protoc cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+          echo "C:\Program Files\CMake\bin" >> $env:GITHUB_PATH
+          # Set OpenSSL env vars so openssl-sys can find the pre-installed OpenSSL
+          $opensslDir = "C:\Program Files\OpenSSL-Win64"
+          if (-not (Test-Path $opensslDir)) { $opensslDir = "C:\Program Files\OpenSSL" }
+          echo "OPENSSL_DIR=$opensslDir" >> $env:GITHUB_ENV
+          echo "OPENSSL_STATIC=1" >> $env:GITHUB_ENV
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -112,14 +126,30 @@ jobs:
           shared-key: "release-${{ matrix.platform }}"
           save-if: "true"
 
-      - name: Run make release
+      - name: Install jq (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install jq -y
+
+      - name: Run make release (Linux / macOS)
+        if: runner.os != 'Windows'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Building and releasing for ${{ matrix.platform }}, version from Cargo.toml"
           make release
 
+      - name: Run release script (Windows)
+        if: runner.os == 'Windows'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          echo "Building and releasing for ${{ matrix.platform }}, version from Cargo.toml"
+          ./scripts/release.sh
+
       - name: Summary
+        shell: bash
         run: |
           echo "## 🚀 Release - ${{ matrix.platform }}" >> $GITHUB_STEP_SUMMARY
           echo "✅ Package built and uploaded successfully" >> $GITHUB_STEP_SUMMARY

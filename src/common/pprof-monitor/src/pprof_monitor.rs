@@ -12,58 +12,70 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use axum::http::header;
-use axum::response::Response;
-use axum::{routing::get, Router};
-use bytes::Bytes;
-use pprof::ProfilerGuard;
-use std::{net::SocketAddr, sync::Arc};
-use tracing::{error, info};
+#[cfg(not(windows))]
+mod inner {
+    use axum::http::header;
+    use axum::response::Response;
+    use axum::{routing::get, Router};
+    use bytes::Bytes;
+    use pprof::ProfilerGuard;
+    use std::{net::SocketAddr, sync::Arc};
+    use tracing::{error, info};
 
-pub async fn start_pprof_monitor(port: u16, frequency: i32) -> Arc<ProfilerGuard<'static>> {
-    info!("Starting pprof HTTP server...");
-    let guard = Arc::new(ProfilerGuard::new(frequency).expect("Failed to start ProfilerGuard"));
-    let guard_clone = Arc::clone(&guard);
+    pub async fn start_pprof_monitor(port: u16, frequency: i32) -> Arc<ProfilerGuard<'static>> {
+        info!("Starting pprof HTTP server...");
+        let guard =
+            Arc::new(ProfilerGuard::new(frequency).expect("Failed to start ProfilerGuard"));
+        let guard_clone = Arc::clone(&guard);
 
-    let app = Router::new().route(
-        "/flamegraph",
-        get(move || generate_flamegraph(guard_clone.clone())),
-    );
+        let app = Router::new().route(
+            "/flamegraph",
+            get(move || generate_flamegraph(guard_clone.clone())),
+        );
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    let listener = match tokio::net::TcpListener::bind(addr).await {
-        Ok(listener) => {
-            info!(
-                "Pprof HTTP Server started successfully, listening port: {}",
-                port
-            );
-            listener
+        let addr = SocketAddr::from(([127, 0, 0, 1], port));
+        let listener = match tokio::net::TcpListener::bind(addr).await {
+            Ok(listener) => {
+                info!(
+                    "Pprof HTTP Server started successfully, listening port: {}",
+                    port
+                );
+                listener
+            }
+            Err(e) => {
+                error!("Pprof server failed to start on port {}: {}", port, e);
+                std::process::exit(1);
+            }
+        };
+        if let Err(e) = axum::serve(listener, app).await {
+            error!("pprof HTTP server failed: {}", e);
         }
-        Err(e) => {
-            error!("Pprof server failed to start on port {}: {}", port, e);
-            std::process::exit(1);
-        }
-    };
-    if let Err(e) = axum::serve(listener, app).await {
-        error!("pprof HTTP server failed: {}", e);
+        guard
     }
-    guard
+
+    async fn generate_flamegraph(guard: Arc<ProfilerGuard<'static>>) -> Response {
+        if let Ok(report) = guard.report().build() {
+            let mut buf = Vec::new();
+            if report.flamegraph(&mut buf).is_ok() {
+                return Response::builder()
+                    .header(header::CONTENT_TYPE, "image/svg+xml")
+                    .body(axum::body::Body::from(buf))
+                    .unwrap();
+            }
+        }
+        Response::builder()
+            .status(500)
+            .body(axum::body::Body::from(Bytes::from(
+                "Failed to generate flamegraph",
+            )))
+            .unwrap()
+    }
 }
 
-async fn generate_flamegraph(guard: Arc<ProfilerGuard<'static>>) -> Response {
-    if let Ok(report) = guard.report().build() {
-        let mut buf = Vec::new();
-        if report.flamegraph(&mut buf).is_ok() {
-            return Response::builder()
-                .header(header::CONTENT_TYPE, "image/svg+xml")
-                .body(axum::body::Body::from(buf))
-                .unwrap();
-        }
-    }
-    Response::builder()
-        .status(500)
-        .body(axum::body::Body::from(Bytes::from(
-            "Failed to generate flamegraph",
-        )))
-        .unwrap()
+#[cfg(not(windows))]
+pub use inner::start_pprof_monitor;
+
+#[cfg(windows)]
+pub async fn start_pprof_monitor(_port: u16, _frequency: i32) {
+    tracing::warn!("pprof is not supported on Windows, profiling disabled");
 }

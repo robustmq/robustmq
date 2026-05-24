@@ -180,6 +180,9 @@ detect_current_platform() {
         Linux)
             os_type="linux"
             ;;
+        MINGW*|MSYS*|CYGWIN*)
+            os_type="windows"
+            ;;
         *)
             log_error "Unsupported OS: $(uname -s)"
             return 1
@@ -275,6 +278,7 @@ This release includes pre-built binaries for multiple platforms:
 - **Linux ARM64** (\`robustmq-${version}-linux-arm64.tar.gz\`)
 - **macOS AMD64** (\`robustmq-${version}-darwin-amd64.tar.gz\`)
 - **macOS ARM64** (\`robustmq-${version}-darwin-arm64.tar.gz\`)
+- **Windows AMD64** (\`robustmq-${version}-windows-amd64.tar.gz\`)
 
 > **Note**: Platform-specific packages are uploaded incrementally. If your platform is not yet available, please check back shortly.
 

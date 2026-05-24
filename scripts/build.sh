@@ -139,6 +139,9 @@ detect_current_platform() {
         FreeBSD)
             os_type="freebsd"
             ;;
+        MINGW*|MSYS*|CYGWIN*)
+            os_type="windows"
+            ;;
         *)
             log_error "Unsupported OS: $(uname -s)"
             return 1
@@ -169,7 +172,9 @@ get_rust_target() {
         "darwin-amd64") echo "x86_64-apple-darwin" ;;
         "darwin-arm64") echo "aarch64-apple-darwin" ;;
         "freebsd-amd64") echo "x86_64-unknown-freebsd" ;;
-        *) 
+        "windows-amd64") echo "x86_64-pc-windows-msvc" ;;
+        "windows-arm64") echo "aarch64-pc-windows-msvc" ;;
+        *)
             log_error "Unsupported platform: $platform"
             return 1
             ;;
@@ -339,7 +344,23 @@ create_package() {
     mkdir -p "$package_dir"/{bin,libs,config,dist}
 
     # Copy bin directory from source code (scripts, startup files, etc.)
-    if [ -d "$PROJECT_ROOT/bin" ]; then
+    # On Windows the shell scripts in bin/ are not executable; skip them and
+    # leave a note explaining how to start the server directly.
+    if [[ "$platform" == windows-* ]]; then
+        cat > "$package_dir/bin/README.txt" << 'WINEOF'
+Windows users: the shell scripts in this directory are not supported on Windows.
+Start the server directly from the libs/ directory:
+
+  libs\broker-server.exe --config config\server.toml
+
+Management tool:
+  libs\cli-command.exe --help
+
+Benchmark tool:
+  libs\cli-bench.exe --help
+WINEOF
+        log_info "Skipped shell scripts in bin/ for Windows; added README.txt"
+    elif [ -d "$PROJECT_ROOT/bin" ]; then
         cp -r "$PROJECT_ROOT/bin"/* "$package_dir/bin/" 2>/dev/null || true
         log_info "Copied source bin directory"
     fi

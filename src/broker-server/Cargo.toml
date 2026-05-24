@@ -45,7 +45,6 @@ schema-register.workspace = true
 tracing.workspace = true
 serde_json.workspace = true
 storage-engine.workspace = true
-pprof.workspace = true
 network-server.workspace = true
 admin-server.workspace = true
 broker-core.workspace = true
@@ -62,3 +61,6 @@ common-healthy.workspace = true
 async-nats.workspace = true
 llm-engine.workspace = true
 search-engine.workspace = true
+
+[target.'cfg(not(windows))'.dependencies]
+pprof.workspace = true

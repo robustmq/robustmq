@@ -25,6 +25,7 @@ use mqtt_broker::{
 use nats_broker::core::cache::NatsCacheManager;
 use nats_broker::push::manager::NatsSubscribeManager;
 use network_server::common::connection_manager::ConnectionManager;
+#[cfg(not(windows))]
 use pprof::ProfilerGuard;
 use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::{metrics::mqtt::MQTTMetricsCache, rocksdb::RocksDBEngine};
@@ -43,6 +44,7 @@ pub struct HttpState {
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub rate_limiter: Arc<GlobalRateLimiterManager>,
     pub nats_context: Option<NatsContext>,
+    #[cfg(not(windows))]
     pub pprof_guard: Option<Arc<ProfilerGuard<'static>>>,
 }
 

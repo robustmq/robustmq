@@ -17,6 +17,7 @@ use admin_server::{
     state::{HttpState, MQTTContext, NatsContext, StorageEngineContext},
 };
 use common_base::role::is_engine_node;
+#[cfg(not(windows))]
 use pprof::ProfilerGuard;
 use std::sync::Arc;
 use tracing::error;
@@ -52,6 +53,7 @@ impl BrokerServer {
         let nats_subscribe_manager = self.nats_params.subscribe_manager.clone();
         let nats_tcp_port = self.config.nats_runtime.tcp_port;
 
+        #[cfg(not(windows))]
         let pprof_guard = if self.config.runtime.pprof_enable {
             match ProfilerGuard::new(100) {
                 Ok(guard) => Some(Arc::new(guard)),
@@ -98,6 +100,7 @@ impl BrokerServer {
                 subscribe_manager: nats_subscribe_manager,
                 nats_tcp_port,
             }),
+            #[cfg(not(windows))]
             pprof_guard,
         });
 
