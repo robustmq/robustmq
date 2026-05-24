@@ -18,23 +18,18 @@ use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
 /// Strategy applied when a fork write fails.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ForkFailureStrategy {
     /// Log the error, increment a metric, and continue. Mailbox write is unaffected.
     /// This is the default — keeps the agent send path latency-stable.
+    #[default]
     DropAndLog,
     /// Propagate the fork-write error to the caller. The mailbox write has already
     /// succeeded, so the caller will see a failure even though the original message
     /// is durable in the mailbox; on retry, the mailbox will contain a duplicate.
     /// Use only when the fork target is more important than send-path liveness.
     FailSend,
-}
-
-impl Default for ForkFailureStrategy {
-    fn default() -> Self {
-        ForkFailureStrategy::DropAndLog
-    }
 }
 
 /// Predicate that decides whether an incoming message should be forked.
