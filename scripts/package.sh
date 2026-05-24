@@ -31,24 +31,37 @@ VERSION=$(git -C "$PROJECT_ROOT" describe --tags --always --dirty 2>/dev/null ||
 TIMESTAMP=$(date +%Y%m%d%H%M%S)
 ARCHIVE="$OUTPUT_DIR/robustmq-${VERSION}-${TIMESTAMP}.tar.gz"
 
-git -C "$PROJECT_ROOT" ls-files -z -- src/ Cargo.toml Cargo.lock config/ scripts/ docs/ \
-    | tar czf "$ARCHIVE" -C "$PROJECT_ROOT" --null -T -
-
-echo "Packaged: $ARCHIVE ($(du -sh "$ARCHIVE" | cut -f1))"
-
-# Collect files deleted locally compared to origin/<branch> so we can remove
-# them on the remote after extraction.
 LOCAL_BRANCH=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD)
+
+# Only pack files that changed (added/modified) relative to origin/<branch>,
+# plus any untracked files. This avoids shipping the entire repo on every run.
+CHANGED_FILES=$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=ACM "origin/${LOCAL_BRANCH}" 2>/dev/null || true)
+UNTRACKED_FILES=$(git -C "$PROJECT_ROOT" ls-files --others --exclude-standard -- src/ Cargo.toml Cargo.lock config/ scripts/ docs/ 2>/dev/null || true)
 DELETED_FILES=$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=D "origin/${LOCAL_BRANCH}" 2>/dev/null || true)
 
-echo "Uploading to ${REMOTE_HOST}:${REMOTE_DIR} ..."
-ARCHIVE_NAME="$(basename "$ARCHIVE")"
-scp "$ARCHIVE" "${REMOTE_HOST}:${REMOTE_DIR}"
-echo "Upload complete: ${REMOTE_HOST}:${REMOTE_DIR}/${ARCHIVE_NAME}"
-rm "$ARCHIVE"
-echo "Local archive deleted."
+# Combine changed + untracked, exclude .tar.gz files
+ALL_FILES=$(printf '%s\n%s' "$CHANGED_FILES" "$UNTRACKED_FILES" | grep -v '\.tar\.gz$' | grep -v '^$' | sort -u)
+
+if [ -z "$ALL_FILES" ]; then
+  echo "No changed files to package."
+  SKIP_ARCHIVE=1
+else
+  SKIP_ARCHIVE=0
+  printf '%s\0' $ALL_FILES \
+    | tar czf "$ARCHIVE" -C "$PROJECT_ROOT" --null -T -
+  echo "Packaged: $ARCHIVE ($(du -sh "$ARCHIVE" | cut -f1)) — $(echo "$ALL_FILES" | wc -l | tr -d ' ') files"
+fi
 
 echo "Local branch: ${LOCAL_BRANCH}"
+
+ARCHIVE_NAME="$(basename "$ARCHIVE")"
+if [ "${SKIP_ARCHIVE}" -eq 0 ]; then
+  echo "Uploading to ${REMOTE_HOST}:${REMOTE_DIR} ..."
+  scp "$ARCHIVE" "${REMOTE_HOST}:${REMOTE_DIR}"
+  echo "Upload complete: ${REMOTE_HOST}:${REMOTE_DIR}/${ARCHIVE_NAME}"
+  rm "$ARCHIVE"
+  echo "Local archive deleted."
+fi
 
 # Build a remote delete command for each locally-deleted file.
 REMOTE_DELETE_CMDS=""
@@ -72,7 +85,9 @@ ssh "${REMOTE_HOST}" "
     git checkout ${LOCAL_BRANCH} || git checkout -b ${LOCAL_BRANCH} origin/${LOCAL_BRANCH}
   fi
   git pull origin ${LOCAL_BRANCH}
-  tar xzf ${ARCHIVE_NAME} 2>/dev/null && rm ${ARCHIVE_NAME}
+  if [ -f "${ARCHIVE_NAME}" ]; then
+    tar xzf ${ARCHIVE_NAME} && rm ${ARCHIVE_NAME}
+  fi
 ${REMOTE_DELETE_CMDS}
   git add -A
   git diff --cached --quiet || git commit -m 'dev'

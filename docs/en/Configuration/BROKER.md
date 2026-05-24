@@ -16,7 +16,7 @@ RobustMQ uses TOML format configuration files for system configuration. The main
 
 Configuration file settings can be overridden using environment variables. Naming convention:
 
-```
+```text
 ROBUST_MQ_SERVER_{SECTION}_{KEY}
 ```
 
@@ -52,7 +52,7 @@ http_port = 8080
 
 | Configuration | Type | Default | Description |
 |---------------|------|---------|-------------|
-| `cluster_name` | `string` | `"robust_mq_cluster_default"` | Cluster name, must be consistent across all nodes |
+| `cluster_name` | `string` | `"robust_mq_cluster_default"` | Cluster name, must be identical across all nodes |
 | `broker_id` | `u64` | `1` | Unique node identifier |
 | `broker_ip` | `string` | Auto-detect local IP | Node IP address |
 | `roles` | `array` | `["broker", "meta"]` | Node role list, options: `meta`, `broker`, `engine` |
@@ -84,6 +84,8 @@ tls_key = "./config/certs/key.pem"
 # server_worker_threads = 0
 # meta_worker_threads = 0
 # broker_worker_threads = 0
+# runtime_worker_threads = 1  # Legacy compat field, prefer per-runtime fields
+# pprof_enable = false
 ```
 
 | Configuration | Type | Default | Description |
@@ -93,6 +95,8 @@ tls_key = "./config/certs/key.pem"
 | `server_worker_threads` | `usize` | `0` (auto) | server-runtime worker threads, auto = `max(4, CPU / 2)` |
 | `meta_worker_threads` | `usize` | `0` (auto) | meta-runtime worker threads, auto = `max(4, CPU / 2)` |
 | `broker_worker_threads` | `usize` | `0` (auto) | broker-runtime worker threads, auto = `CPU cores` |
+| `runtime_worker_threads` | `usize` | `1` | Legacy global thread multiplier, used as fallback when per-runtime fields are 0 |
+| `pprof_enable` | `bool` | `false` | Enable built-in pprof profiling collection (no separate port required) |
 
 **Runtime Roles:**
 
@@ -102,34 +106,7 @@ tls_key = "./config/certs/key.pem"
 | `meta-runtime` | Raft state machines, RocksDB writes | `max(4, CPU/2)` |
 | `broker-runtime` | MQTT connection handling, message delivery hot path | `CPU cores` |
 
-> **Tuning tip:** Keep the default `0` for auto-detection. Use the `tokio_runtime_busy_ratio` metric in Grafana to guide adjustments: if a runtime's busy ratio consistently exceeds 80%, consider increasing its thread count.
-
----
-
-## 3. Network Configuration
-
-### [network]
-
-Network layer thread and queue configuration.
-
-```toml
-[network]
-accept_thread_num = 8
-handler_thread_num = 32
-response_thread_num = 8
-queue_size = 1000
-lock_max_try_mut_times = 30
-lock_try_mut_sleep_time_ms = 50
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `accept_thread_num` | `usize` | `8` | Thread count for accepting new connections |
-| `handler_thread_num` | `usize` | `32` | Request handler thread count |
-| `response_thread_num` | `usize` | `8` | Response sender thread count |
-| `queue_size` | `usize` | `1000` | Internal message queue size |
-| `lock_max_try_mut_times` | `u64` | `30` | Maximum lock acquisition retry count |
-| `lock_try_mut_sleep_time_ms` | `u64` | `50` | Lock retry interval (milliseconds) |
+> **Tuning tip:** Keep the default `0`. Use the `tokio_runtime_busy_ratio` metric in Grafana to guide adjustments: if a runtime's busy ratio consistently exceeds 80%, consider increasing its thread count.
 
 ---
 
@@ -144,13 +121,19 @@ Metadata service heartbeat and Raft configuration.
 heartbeat_timeout_ms = 30000
 heartbeat_check_time_ms = 1000
 raft_write_timeout_sec = 30
+offset_raft_group_num = 1
+data_raft_group_num = 1
+group_offset_expire_sec = 604800
 ```
 
 | Configuration | Type | Default | Description |
 |---------------|------|---------|-------------|
-| `heartbeat_timeout_ms` | `u64` | `30000` | Node heartbeat timeout (ms), node marked unavailable after timeout |
+| `heartbeat_timeout_ms` | `u64` | `30000` | Node heartbeat timeout (ms); node marked unavailable after timeout |
 | `heartbeat_check_time_ms` | `u64` | `1000` | Heartbeat check interval (ms) |
 | `raft_write_timeout_sec` | `u64` | `30` | Raft write operation timeout (seconds) |
+| `offset_raft_group_num` | `u32` | `1` | Number of Offset Raft groups |
+| `data_raft_group_num` | `u32` | `1` | Number of Data Raft groups |
+| `group_offset_expire_sec` | `u64` | `604800` | Consumer group offset expiry time (seconds), default 7 days |
 
 ---
 
@@ -185,6 +168,12 @@ tcp_port = 1778
 max_segment_size = 1073741824
 io_thread_num = 8
 data_path = []
+expire_scan_task_num = 10
+
+[storage_runtime.network]
+accept_thread_num = 2
+handler_thread_num = 16
+queue_size = 1000
 ```
 
 | Configuration | Type | Default | Description |
@@ -193,6 +182,49 @@ data_path = []
 | `max_segment_size` | `u32` | `1073741824` (1 GB) | Maximum segment file size (bytes) |
 | `io_thread_num` | `u32` | `8` | IO processing thread count |
 | `data_path` | `array` | `[]` | Data storage path list |
+| `expire_scan_task_num` | `usize` | `10` | Concurrent expired data scan tasks |
+
+**[storage_runtime.network] network thread configuration:**
+
+| Configuration | Type | Default | Description |
+|---------------|------|---------|-------------|
+| `accept_thread_num` | `usize` | `2` | Threads for accepting new connections |
+| `handler_thread_num` | `usize` | `16` | Request handler thread count |
+| `queue_size` | `usize` | `1000` | Internal processing queue size |
+
+---
+
+## 6a. Kafka Runtime Configuration
+
+### [kafka_runtime]
+
+Kafka protocol service configuration.
+
+```toml
+[kafka_runtime]
+tcp_port = 9095
+```
+
+| Configuration | Type | Default | Description |
+|---------------|------|---------|-------------|
+| `tcp_port` | `u32` | `9095` | Kafka protocol TCP listener port |
+
+---
+
+## 6b. AMQP Runtime Configuration
+
+### [amqp_runtime]
+
+AMQP protocol service configuration.
+
+```toml
+[amqp_runtime]
+tcp_port = 5672
+```
+
+| Configuration | Type | Default | Description |
+|---------------|------|---------|-------------|
+| `tcp_port` | `u32` | `5672` | AMQP protocol TCP listener port |
 
 ---
 
@@ -309,16 +341,31 @@ MQTT runtime basic parameters.
 [mqtt_runtime]
 default_user = "admin"
 default_password = "robustmq"
-max_connection_num = 1000000
 durable_sessions_enable = false
+secret_free_login = false
+is_self_protection_status = false
+
+[mqtt_runtime.network]
+accept_thread_num = 2
+handler_thread_num = 16
+queue_size = 1000
 ```
 
 | Configuration | Type | Default | Description |
 |---------------|------|---------|-------------|
 | `default_user` | `string` | `"admin"` | System default username |
 | `default_password` | `string` | `"robustmq"` | System default password |
-| `max_connection_num` | `usize` | `1000000` | Maximum connections per node |
 | `durable_sessions_enable` | `bool` | `false` | Whether to enable durable sessions (`false` for transient sessions, better performance) |
+| `secret_free_login` | `bool` | `false` | Whether to allow password-free login |
+| `is_self_protection_status` | `bool` | `false` | Whether to enable self-protection mode (reject new connections under overload) |
+
+**[mqtt_runtime.network] network thread configuration:**
+
+| Configuration | Type | Default | Description |
+|---------------|------|---------|-------------|
+| `accept_thread_num` | `usize` | `2` | Threads for accepting new connections |
+| `handler_thread_num` | `usize` | `16` | Request handler thread count |
+| `queue_size` | `usize` | `1000` | Internal processing queue size |
 
 ---
 
@@ -341,7 +388,7 @@ default_timeout = 2
 | `enable` | `bool` | `true` | Whether to enable Keep Alive heartbeat detection |
 | `default_time` | `u16` | `180` | Default heartbeat interval (seconds) |
 | `max_time` | `u16` | `3600` | Maximum heartbeat interval (seconds) |
-| `default_timeout` | `u16` | `2` | Disconnect after consecutive timeout count |
+| `default_timeout` | `u16` | `2` | Disconnect after this many consecutive timeouts |
 
 ---
 
@@ -356,7 +403,6 @@ MQTT protocol parameter configuration.
 max_session_expiry_interval = 1800
 default_session_expiry_interval = 30
 topic_alias_max = 65535
-max_qos_flight_message = 2
 max_packet_size = 10485760
 receive_max = 65535
 max_message_expiry_interval = 3600
@@ -368,7 +414,6 @@ client_pkid_persistent = false
 | `max_session_expiry_interval` | `u32` | `1800` | Maximum session expiry time (seconds) |
 | `default_session_expiry_interval` | `u32` | `30` | Default session expiry time (seconds) |
 | `topic_alias_max` | `u16` | `65535` | Maximum number of topic aliases |
-| `max_qos_flight_message` | `u8` | `2` | Maximum QoS in-flight messages |
 | `max_packet_size` | `u32` | `10485760` (10 MB) | Maximum MQTT packet size (bytes) |
 | `receive_max` | `u16` | `65535` | Maximum unacknowledged PUBLISH packets |
 | `max_message_expiry_interval` | `u64` | `3600` | Maximum message expiry time (seconds) |
@@ -385,14 +430,14 @@ Cluster and tenant level resource rate limiting configuration.
 ```toml
 [limit.cluster]
 max_connections_per_node = 10000000
-max_create_connection_rate_per_second = 100000
+max_connection_rate = 100000
 max_topics = 5000000
 max_sessions = 50000000
 max_publish_rate = 10000
 
 [limit.tenant]
 max_connections_per_node = 1000000
-max_create_connection_rate_per_second = 10000
+max_connection_rate = 10000
 max_topics = 500000
 max_sessions = 5000000
 max_publish_rate = 10000
@@ -401,66 +446,14 @@ max_publish_rate = 10000
 | Field | Type | Description |
 |-------|------|-------------|
 | `max_connections_per_node` | `u64` | Maximum connections per node |
-| `max_create_connection_rate_per_second` | `u32` | Maximum new connection rate per second |
+| `max_connection_rate` | `u32` | Maximum new connection rate per second |
 | `max_topics` | `u64` | Maximum number of topics |
 | `max_sessions` | `u64` | Maximum number of sessions |
 | `max_publish_rate` | `u32` | Maximum publish message rate per second |
 
 ---
 
-## 14. MQTT Security Configuration
-
-### [mqtt_security]
-
-MQTT cluster security dynamic configuration.
-
-```toml
-[mqtt_security]
-is_self_protection_status = false
-secret_free_login = false
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `is_self_protection_status` | `bool` | `false` | Whether to enable self-protection mode |
-| `secret_free_login` | `bool` | `false` | Whether to allow password-free login |
-
----
-
-## 15. MQTT Authentication & Authorization Configuration
-
-### [mqtt_auth_config]
-
-MQTT authentication (AuthN) and authorization (AuthZ) configuration.
-
-```toml
-[mqtt_auth_config.authn_config]
-authn_type = "password_based"
-
-[mqtt_auth_config.authn_config.password_based_config]
-# Password-based authentication configuration
-
-[mqtt_auth_config.authn_config.password_based_config.storage_config]
-storage_type = "placement"
-
-[mqtt_auth_config.authn_config.password_based_config.password_config]
-credential_type = "username"
-algorithm = "plain"
-salt_position = "disable"
-
-[mqtt_auth_config.authz_config.storage_config]
-storage_type = "placement"
-```
-
-**Authentication types (authn_type):** `password_based`, `JWT`
-
-**Password algorithms (algorithm):** `plain`, `md5`, `sha`, `sha256`, `sha512`, `bcrypt`, `pbkdf2`
-
-**Auth data storage types (storage_type):** `placement`, `mysql`, `postgresql`, `redis`, `http`, `file` (AuthZ only)
-
----
-
-## 16. MQTT Offline Message Configuration
+## 15. MQTT Offline Message Configuration
 
 ### [mqtt_offline_message]
 
@@ -481,7 +474,7 @@ max_messages_num = 0
 
 ---
 
-## 17. MQTT Flapping Detection Configuration
+## 16. MQTT Flapping Detection Configuration
 
 ### [mqtt_flapping_detect]
 
@@ -499,12 +492,12 @@ ban_time = 5
 |---------------|------|---------|-------------|
 | `enable` | `bool` | `false` | Whether to enable flapping detection |
 | `window_time` | `u32` | `1` | Detection time window (seconds) |
-| `max_client_connections` | `u64` | `15` | Maximum connection attempts within time window |
+| `max_client_connections` | `u64` | `15` | Maximum connection attempts within the time window |
 | `ban_time` | `u32` | `5` | Ban duration after triggering flapping (seconds) |
 
 ---
 
-## 18. MQTT Slow Subscribe Detection Configuration
+## 17. MQTT Slow Subscribe Detection Configuration
 
 ### [mqtt_slow_subscribe]
 
@@ -525,7 +518,7 @@ delay_type = "Whole"
 
 ---
 
-## 19. MQTT Schema Validation Configuration
+## 18. MQTT Schema Validation Configuration
 
 ### [mqtt_schema]
 
@@ -550,7 +543,7 @@ log_level = "info"
 
 **Validation strategies (strategy):**
 - `ALL`: Message must pass all bound Schema validations
-- `Any`: Message only needs to pass any Schema validation
+- `Any`: Message only needs to pass any one Schema validation
 
 **Failed operations (failed_operation):**
 - `Discard`: Discard messages that fail validation
@@ -559,7 +552,7 @@ log_level = "info"
 
 ---
 
-## 20. MQTT System Monitor Configuration
+## 19. MQTT System Monitor Configuration
 
 ### [mqtt_system_monitor]
 
@@ -570,6 +563,7 @@ System resource monitoring configuration.
 enable = false
 os_cpu_high_watermark = 70.0
 os_memory_high_watermark = 80.0
+system_topic_interval_ms = 60000
 ```
 
 | Configuration | Type | Default | Description |
@@ -577,10 +571,92 @@ os_memory_high_watermark = 80.0
 | `enable` | `bool` | `false` | Whether to enable system resource monitoring |
 | `os_cpu_high_watermark` | `f32` | `70.0` | CPU usage high watermark (%) |
 | `os_memory_high_watermark` | `f32` | `80.0` | Memory usage high watermark (%) |
+| `system_topic_interval_ms` | `u64` | `60000` | System topic metrics publish interval (milliseconds) |
 
 ---
 
-## 21. gRPC Client Configuration
+## 19b. Delay Task Configuration
+
+### [delay_task]
+
+Delayed message processing task queue configuration.
+
+```toml
+[delay_task]
+delay_task_queue_num = 100
+delay_task_handler_concurrency = 100
+```
+
+| Configuration | Type | Default | Description |
+|---------------|------|---------|-------------|
+| `delay_task_queue_num` | `usize` | `100` | Number of delay task queues |
+| `delay_task_handler_concurrency` | `usize` | `100` | Delay task handler concurrency |
+
+---
+
+## 19c. NATS Runtime Configuration
+
+### [nats_runtime]
+
+NATS/mq9 protocol service configuration.
+
+```toml
+[nats_runtime]
+tcp_port = 4222
+tls_port = 4223
+ws_port = 4080
+wss_port = 4443
+max_payload = 1048576
+auth_required = false
+ping_interval = 60
+ping_max = 3
+ping_send_chunk = 10000
+core_shard_num = 10
+push_thread_num = 1
+push_queue_thread_num = 10
+mq9_mailbox_default_ttl = 86400
+```
+
+| Configuration | Type | Default | Description |
+|---------------|------|---------|-------------|
+| `tcp_port` | `u32` | `4222` | NATS TCP listener port |
+| `tls_port` | `u32` | `4223` | NATS TLS listener port |
+| `ws_port` | `u32` | `4080` | NATS WebSocket listener port |
+| `wss_port` | `u32` | `4443` | NATS WebSocket Secure listener port |
+| `max_payload` | `u64` | `1048576` (1 MB) | Maximum payload size per message (bytes) |
+| `auth_required` | `bool` | `false` | Whether to require client authentication |
+| `ping_interval` | `u64` | `60` | Server-initiated PING interval (seconds) |
+| `ping_max` | `u64` | `3` | Maximum unanswered PINGs before connection is closed |
+| `ping_send_chunk` | `usize` | `10000` | Connections processed per batch when sending PINGs |
+| `core_shard_num` | `usize` | `10` | Number of internal core shards |
+| `push_thread_num` | `usize` | `1` | Direct-push thread count (one per bucket) |
+| `push_queue_thread_num` | `usize` | `10` | Queue-push thread count (one per queue-group bucket) |
+| `mq9_mailbox_default_ttl` | `u64` | `86400` | Default TTL for mq9 mailboxes when client does not specify one (seconds) |
+
+---
+
+## 19d. Broker Network Configuration
+
+### [broker_network]
+
+Broker internal general network thread configuration.
+
+```toml
+[broker_network]
+accept_thread_num = 2
+handler_thread_num = 16
+queue_size = 1000
+```
+
+| Configuration | Type | Default | Description |
+|---------------|------|---------|-------------|
+| `accept_thread_num` | `usize` | `2` | Threads for accepting new connections |
+| `handler_thread_num` | `usize` | `16` | Request handler thread count |
+| `queue_size` | `usize` | `1000` | Internal processing queue size |
+
+---
+
+## 20. gRPC Client Configuration
 
 ### [grpc_client]
 
@@ -597,7 +673,7 @@ channels_per_address = 4
 
 **Tuning Guide:**
 
-Each HTTP/2 Channel supports approximately 200 concurrent Streams (concurrent RPC requests). The default value of `4` supports approximately 800 concurrent gRPC requests, which covers the vast majority of production scenarios.
+Each HTTP/2 Channel supports approximately 200 concurrent Streams (concurrent RPC requests). The default value of `4` supports approximately 800 concurrent gRPC requests, covering the vast majority of production scenarios.
 
 | Scenario | Recommended Value |
 |----------|-------------------|
@@ -605,7 +681,7 @@ Each HTTP/2 Channel supports approximately 200 concurrent Streams (concurrent RP
 | High concurrency (tens of thousands of MQTT connections) | `8` ~ `16` |
 | Extreme concurrency / stress testing | `32` |
 
-> **Note:** Setting this value too high will cause a surge in open TCP file descriptors (each Channel occupies one fd). In environments with a low `ulimit -n`, this may trigger a `Too many open files` error.
+> **Note:** Setting this value too high causes a surge in open TCP file descriptors (each Channel occupies one fd). In environments with a low `ulimit -n`, this may trigger `Too many open files`.
 
 **Environment variable:**
 ```bash
@@ -614,7 +690,7 @@ export ROBUST_MQ_SERVER_GRPC_CLIENT_CHANNELS_PER_ADDRESS=8
 
 ---
 
-## 22. LLM Client Configuration
+## 21. LLM Client Configuration
 
 ### [llm_client]
 
@@ -627,6 +703,8 @@ model = "gpt-4o-mini"
 token = "your_api_token"
 # Optional: useful for OpenAI-compatible gateways or private deployments
 # base_url = "https://api.openai.com/v1/"
+# embedding = "text-embedding-3-small"
+# embedding_model_path = "./models/embedding"
 ```
 
 | Configuration | Type | Default | Description |
@@ -635,6 +713,8 @@ token = "your_api_token"
 | `model` | `string` | none | Model name, e.g. `gpt-4o-mini`, `claude-3-5-sonnet`, `gemini-2.0-flash` |
 | `token` | `string` | none | Access token. Required for all providers except `ollama` |
 | `base_url` | `string` | none | Custom API base URL (optional) |
+| `embedding` | `string` | none | Embedding model name (optional) |
+| `embedding_model_path` | `string` | none | Local embedding model file path (optional) |
 
 **`base_url` behavior (important):**
 
@@ -657,21 +737,8 @@ token = "your_api_token"
 
 **Allowed `platform` values:**
 
-- `open_ai`
-- `open_ai_resp`
-- `gemini`
-- `anthropic`
-- `fireworks`
-- `together`
-- `groq`
-- `mimo`
-- `nebius`
-- `xai`
-- `deep_seek`
-- `zai`
-- `big_model`
-- `cohere`
-- `ollama`
+- `open_ai`, `open_ai_resp`, `gemini`, `anthropic`, `fireworks`, `together`, `groq`
+- `mimo`, `nebius`, `xai`, `deep_seek`, `zai`, `big_model`, `cohere`, `ollama`
 
 **Environment variable example:**
 
@@ -679,12 +746,11 @@ token = "your_api_token"
 export ROBUST_MQ_SERVER_LLM_CLIENT_PLATFORM=open_ai
 export ROBUST_MQ_SERVER_LLM_CLIENT_MODEL=gpt-4o-mini
 export ROBUST_MQ_SERVER_LLM_CLIENT_TOKEN=your_api_token
-# export ROBUST_MQ_SERVER_LLM_CLIENT_BASE_URL=https://api.openai.com/v1/
 ```
 
 ---
 
-## 23. Monitoring Configuration
+## 22. Monitoring Configuration
 
 ### [prometheus]
 
@@ -743,18 +809,14 @@ tls_key = "./config/certs/key.pem"
 # meta_worker_threads = 0
 # broker_worker_threads = 0
 
-# ========== Network ==========
-[network]
-accept_thread_num = 8
-handler_thread_num = 32
-response_thread_num = 8
-queue_size = 2000
-
 # ========== Meta ==========
 [meta_runtime]
 heartbeat_timeout_ms = 30000
 heartbeat_check_time_ms = 1000
 raft_write_timeout_sec = 30
+offset_raft_group_num = 1
+data_raft_group_num = 1
+group_offset_expire_sec = 604800
 
 # ========== RocksDB ==========
 [rocksdb]
@@ -766,6 +828,37 @@ max_open_files = 20000
 tcp_port = 1778
 max_segment_size = 1073741824
 io_thread_num = 8
+expire_scan_task_num = 10
+
+[storage_runtime.network]
+accept_thread_num = 2
+handler_thread_num = 16
+queue_size = 1000
+
+# ========== Kafka Runtime ==========
+[kafka_runtime]
+tcp_port = 9095
+
+# ========== AMQP Runtime ==========
+[amqp_runtime]
+tcp_port = 5672
+
+# ========== NATS Runtime ==========
+[nats_runtime]
+tcp_port = 4222
+tls_port = 4223
+ws_port = 4080
+wss_port = 4443
+max_payload = 1048576
+auth_required = false
+ping_interval = 60
+ping_max = 3
+mq9_mailbox_default_ttl = 86400
+
+# ========== Delay Task ==========
+[delay_task]
+delay_task_queue_num = 100
+delay_task_handler_concurrency = 100
 
 # ========== Message Storage ==========
 [message_storage]
@@ -787,8 +880,14 @@ quic_port = 9083
 [mqtt_runtime]
 default_user = "admin"
 default_password = "your_secure_password"
-max_connection_num = 1000000
 durable_sessions_enable = false
+secret_free_login = false
+is_self_protection_status = false
+
+[mqtt_runtime.network]
+accept_thread_num = 2
+handler_thread_num = 16
+queue_size = 1000
 
 # ========== MQTT Keep Alive ==========
 [mqtt_keep_alive]
@@ -802,23 +901,10 @@ default_timeout = 2
 max_session_expiry_interval = 1800
 default_session_expiry_interval = 30
 topic_alias_max = 65535
-max_qos_flight_message = 2
 max_packet_size = 10485760
 receive_max = 65535
 max_message_expiry_interval = 3600
 client_pkid_persistent = false
-
-# ========== MQTT Security ==========
-[mqtt_security]
-is_self_protection_status = false
-secret_free_login = false
-
-# ========== MQTT Authentication ==========
-[mqtt_auth_config.authn_config]
-authn_type = "password_based"
-
-[mqtt_auth_config.authz_config.storage_config]
-storage_type = "placement"
 
 # ========== MQTT Offline Messages ==========
 [mqtt_offline_message]
@@ -852,6 +938,7 @@ log_level = "info"
 enable = false
 os_cpu_high_watermark = 70.0
 os_memory_high_watermark = 80.0
+system_topic_interval_ms = 60000
 
 # ========== Monitoring ==========
 [prometheus]
@@ -873,6 +960,8 @@ platform = "open_ai"
 model = "gpt-4o-mini"
 token = "your_api_token"
 # base_url = "https://api.openai.com/v1/"
+# embedding = "text-embedding-3-small"
+# embedding_model_path = "./models/embedding"
 
 # ========== Logging ==========
 [log]

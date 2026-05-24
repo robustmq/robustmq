@@ -86,6 +86,7 @@ impl AdminServer {
         let ip = format!("0.0.0.0:{port}");
         let route = Router::new()
             .merge(mcp_route())
+            .route("/", get(index))
             .route(DEBUG_PPROF_FLAMEGRAPH_PATH, get(pprof_flamegraph))
             .route(METRICS_PATH, get(|| async { dump_metrics() }))
             .nest("/api", self.api_route())
@@ -139,7 +140,7 @@ impl AdminServer {
             .route(TENANT_CREATE_PATH, post(tenant_create))
             .route(TENANT_UPDATE_PATH, post(tenant_update))
             .route(TENANT_DELETE_PATH, post(tenant_delete))
-            .route("/", get(index))
+            .route(CLUSTER_INFO, get(index))
     }
 
     fn engine_route(&self) -> Router<Arc<HttpState>> {

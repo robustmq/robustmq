@@ -363,8 +363,8 @@ All interfaces return a unified JSON response structure:
 
 ### 3. Get Cluster Status
 
-- **Endpoint**: `GET /`
-- **Description**: Returns cluster runtime status, including version, node list, and Raft group status for each internal group (`mqtt`, `offset`, `meta`). This endpoint is **not** under the `/api` prefix.
+- **Endpoint**: `GET /api/info` or `GET /`
+- **Description**: Returns cluster runtime status, including version, node list, and Raft group status for each internal group (`mqtt`, `offset`, `meta`).
 
 - **Response Example**:
 ```json
