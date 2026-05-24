@@ -58,8 +58,15 @@ pub async fn fork_write(
     rules: &[Mq9ForwardRule],
 ) -> Result<(), NatsBrokerError> {
     for rule in rules {
-        if let Err(err) =
-            fork_one(storage, tenant, source_addr, source_offset, source_record, rule).await
+        if let Err(err) = fork_one(
+            storage,
+            tenant,
+            source_addr,
+            source_offset,
+            source_record,
+            rule,
+        )
+        .await
         {
             match rule.target.on_failure {
                 ForkFailureStrategy::DropAndLog => {

@@ -170,11 +170,7 @@ mod tests {
         let m = Mq9ForwardMatcher::default();
         assert!(m.is_wildcard());
         assert!(m.matches("alice", &[], &Priority::Normal));
-        assert!(m.matches(
-            "any.address",
-            &["billing".to_string()],
-            &Priority::Critical
-        ));
+        assert!(m.matches("any.address", &["billing".to_string()], &Priority::Critical));
     }
 
     #[test]
@@ -223,25 +219,13 @@ mod tests {
             ..Default::default()
         };
         // hits every dimension
-        assert!(m.matches(
-            "agent.alice",
-            &["billing".to_string()],
-            &Priority::Critical
-        ));
+        assert!(m.matches("agent.alice", &["billing".to_string()], &Priority::Critical));
         // misses on priority
-        assert!(!m.matches(
-            "agent.alice",
-            &["billing".to_string()],
-            &Priority::Normal
-        ));
+        assert!(!m.matches("agent.alice", &["billing".to_string()], &Priority::Normal));
         // misses on tag
         assert!(!m.matches("agent.alice", &[], &Priority::Critical));
         // misses on address prefix
-        assert!(!m.matches(
-            "user.alice",
-            &["billing".to_string()],
-            &Priority::Critical
-        ));
+        assert!(!m.matches("user.alice", &["billing".to_string()], &Priority::Critical));
     }
 
     #[test]
@@ -259,6 +243,9 @@ mod tests {
 
     #[test]
     fn default_failure_strategy_is_drop_and_log() {
-        assert_eq!(ForkFailureStrategy::default(), ForkFailureStrategy::DropAndLog);
+        assert_eq!(
+            ForkFailureStrategy::default(),
+            ForkFailureStrategy::DropAndLog
+        );
     }
 }

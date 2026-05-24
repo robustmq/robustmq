@@ -103,10 +103,7 @@ impl NatsCacheManager {
     /// Insert or replace a forward rule. Rules are keyed by
     /// `(tenant, rule_name)`; same-name replaces in place.
     pub fn add_forward_rule(&self, rule: Mq9ForwardRule) {
-        let mut entry = self
-            .forward_rules
-            .entry(rule.tenant.clone())
-            .or_default();
+        let mut entry = self.forward_rules.entry(rule.tenant.clone()).or_default();
         if let Some(pos) = entry.iter().position(|r| r.rule_name == rule.rule_name) {
             entry[pos] = rule;
         } else {
