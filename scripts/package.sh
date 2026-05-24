@@ -48,7 +48,7 @@ if [ -z "$ALL_FILES" ]; then
 else
   SKIP_ARCHIVE=0
   printf '%s\0' $ALL_FILES \
-    | tar czf "$ARCHIVE" -C "$PROJECT_ROOT" --null -T -
+    | COPYFILE_DISABLE=1 tar czf "$ARCHIVE" -C "$PROJECT_ROOT" --null -T -
   echo "Packaged: $ARCHIVE ($(du -sh "$ARCHIVE" | cut -f1)) — $(echo "$ALL_FILES" | wc -l | tr -d ' ') files"
 fi
 
