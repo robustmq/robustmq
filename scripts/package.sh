@@ -86,8 +86,10 @@ ssh "${REMOTE_HOST}" "
   fi
   git pull origin ${LOCAL_BRANCH}
   if [ -f "${ARCHIVE_NAME}" ]; then
-    tar xzf ${ARCHIVE_NAME} && rm ${ARCHIVE_NAME}
+    tar xzf ${ARCHIVE_NAME} --warning=no-unknown-keyword && rm ${ARCHIVE_NAME}
   fi
+  # Remove any stale .tar.gz files from the repo root
+  find ${REMOTE_DIR} -maxdepth 1 -name '*.tar.gz' -delete
 ${REMOTE_DELETE_CMDS}
   git add -A
   git diff --cached --quiet || git commit -m 'dev'
@@ -101,3 +103,7 @@ ${REMOTE_DELETE_CMDS}
   echo \"Done.\"
 "
 echo "Remote extraction complete."
+
+# Clean up any leftover .tar.gz files in the local project root
+find "$PROJECT_ROOT" -maxdepth 1 -name '*.tar.gz' -delete
+echo "Local .tar.gz files cleaned up."
