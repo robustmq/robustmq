@@ -94,9 +94,21 @@ ${REMOTE_DELETE_CMDS}
   git add -A
   git diff --cached --quiet || git commit -m 'dev'
   PUSH_RETRY=0
-  until git push origin ${LOCAL_BRANCH}; do
+  MAX_PUSH_RETRIES=3
+  until git push origin ${LOCAL_BRANCH} 2>&1 | tee /tmp/push_output.txt; do
+    PUSH_OUTPUT=\$(cat /tmp/push_output.txt)
+    # Abort immediately on auth/permission errors — retrying won't help
+    if echo \"\${PUSH_OUTPUT}\" | grep -qiE 'refusing|403|permission|scope|authentication|not allowed'; then
+      echo \"Push permanently rejected (permission/auth error), aborting.\"
+      cat /tmp/push_output.txt
+      exit 1
+    fi
     PUSH_RETRY=\$((PUSH_RETRY + 1))
-    echo \"Push failed, retrying (\${PUSH_RETRY})...\"
+    if [ \${PUSH_RETRY} -ge \${MAX_PUSH_RETRIES} ]; then
+      echo \"Push failed after \${MAX_PUSH_RETRIES} retries, giving up.\"
+      exit 1
+    fi
+    echo \"Push failed, retrying (\${PUSH_RETRY}/\${MAX_PUSH_RETRIES})...\"
     sleep 3
   done
   echo \"Push succeeded after \${PUSH_RETRY} retries.\"
