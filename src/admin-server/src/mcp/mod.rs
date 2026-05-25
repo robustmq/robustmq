@@ -21,7 +21,7 @@ use crate::state::HttpState;
 use async_nats::Client;
 use axum::{
     extract::State,
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     routing::{get, post},
     Json, Router,
 };
@@ -58,9 +58,18 @@ pub fn mcp_route() -> Router<Arc<HttpState>> {
 
 /// Declare that /mcp requires no OAuth authentication.
 /// MCP clients check this endpoint to determine auth requirements.
-async fn oauth_protected_resource() -> Json<Value> {
+async fn oauth_protected_resource(headers: HeaderMap) -> Json<Value> {
+    let host = headers
+        .get("host")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("localhost:8080");
+    let proto = headers
+        .get("x-forwarded-proto")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("http");
+
     Json(json!({
-        "resource": "http://localhost:8080/mcp",
+        "resource": format!("{proto}://{host}/mcp"),
         "bearer_methods_supported": [],
         "resource_documentation": "https://github.com/robustmq/robustmq"
     }))
