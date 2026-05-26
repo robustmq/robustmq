@@ -69,7 +69,7 @@ else
   SKIP_ARCHIVE=0
   echo "Packaging $(echo "$ALL_FILES" | wc -l | tr -d ' ') files:"
   echo "$ALL_FILES" | sed 's/^/  /'
-  printf '%s\0' $ALL_FILES \
+  echo "$ALL_FILES" | tr '\n' '\0' \
     | COPYFILE_DISABLE=1 tar czf "$ARCHIVE" -C "$PROJECT_ROOT" --null -T -
   echo "Packaged: $ARCHIVE ($(du -sh "$ARCHIVE" | cut -f1))"
 fi
