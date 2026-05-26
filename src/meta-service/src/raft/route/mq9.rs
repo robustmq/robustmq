@@ -14,13 +14,16 @@
 
 use crate::core::error::MetaServiceError;
 use crate::storage::mq9::agent::Mq9AgentStorage;
+use crate::storage::mq9::forward_rule::Mq9ForwardRuleStorage;
 use crate::storage::mq9::mail::Mq9MailStorage;
 use bytes::Bytes;
 use metadata_struct::mq9::agent::MQ9Agent;
+use metadata_struct::mq9::forward_rule::Mq9ForwardRule;
 use metadata_struct::mq9::mail::MQ9Mail;
 use prost::Message as _;
 use protocol::meta::meta_service_mq9::{
-    CreateAgentRequest, CreateMailRequest, DeleteAgentRequest, DeleteMailRequest,
+    CreateAgentRequest, CreateForwardRuleRequest, CreateMailRequest, DeleteAgentRequest,
+    DeleteForwardRuleRequest, DeleteMailRequest, UpdateForwardRuleRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -98,6 +101,29 @@ impl DataRouteMq9 {
             }
         });
 
+        Ok(())
+    }
+
+    pub fn create_forward_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = CreateForwardRuleRequest::decode(value.as_ref())?;
+        let rule = Mq9ForwardRule::decode(&req.content)?;
+        let storage = Mq9ForwardRuleStorage::new(self.rocksdb_engine_handler.clone());
+        storage.save(&rule)?;
+        Ok(())
+    }
+
+    pub fn update_forward_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = UpdateForwardRuleRequest::decode(value.as_ref())?;
+        let rule = Mq9ForwardRule::decode(&req.content)?;
+        let storage = Mq9ForwardRuleStorage::new(self.rocksdb_engine_handler.clone());
+        storage.save(&rule)?;
+        Ok(())
+    }
+
+    pub fn delete_forward_rule(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = DeleteForwardRuleRequest::decode(value.as_ref())?;
+        let storage = Mq9ForwardRuleStorage::new(self.rocksdb_engine_handler.clone());
+        storage.delete(&req.tenant, &req.rule_name)?;
         Ok(())
     }
 }

@@ -35,7 +35,14 @@ use crate::{
         topic::{topic_create, topic_delete, topic_detail, topic_list},
         user::{user_create, user_delete, user_list},
     },
-    mq9::{agent::agent_list, mail::mail_list},
+    mq9::{
+        agent::agent_list,
+        forward_rule::{
+            forward_rule_create, forward_rule_delete, forward_rule_detail, forward_rule_list,
+            forward_rule_update,
+        },
+        mail::mail_list,
+    },
     mqtt::{
         client::client_list,
         monitor::monitor_data,
@@ -239,6 +246,11 @@ impl AdminServer {
         Router::new()
             .route(MQ9_MAIL_LIST_PATH, get(mail_list))
             .route(MQ9_AGENT_LIST_PATH, get(agent_list))
+            .route(MQ9_FORWARD_RULE_LIST_PATH, get(forward_rule_list))
+            .route(MQ9_FORWARD_RULE_DETAIL_PATH, get(forward_rule_detail))
+            .route(MQ9_FORWARD_RULE_CREATE_PATH, post(forward_rule_create))
+            .route(MQ9_FORWARD_RULE_UPDATE_PATH, post(forward_rule_update))
+            .route(MQ9_FORWARD_RULE_DELETE_PATH, post(forward_rule_delete))
     }
 
     fn kafka_route(&self) -> Router<Arc<HttpState>> {

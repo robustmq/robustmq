@@ -12,6 +12,11 @@ service Mq9Service {
   rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentReply) {}
   rpc ListAgent(ListAgentRequest) returns (stream ListAgentReply) {}
   rpc SearchAgent(SearchAgentRequest) returns (SearchAgentReply) {}
+
+  rpc CreateForwardRule(CreateForwardRuleRequest) returns (CreateForwardRuleReply) {}
+  rpc UpdateForwardRule(UpdateForwardRuleRequest) returns (UpdateForwardRuleReply) {}
+  rpc DeleteForwardRule(DeleteForwardRuleRequest) returns (DeleteForwardRuleReply) {}
+  rpc ListForwardRule(ListForwardRuleRequest) returns (stream ListForwardRuleReply) {}
 }
 
 message CreateMailRequest {
@@ -75,4 +80,36 @@ message AgentSearchItem {
 
 message SearchAgentReply {
   repeated AgentSearchItem items = 1;
+}
+
+message CreateForwardRuleRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string rule_name = 2 [(validate.rules).string.min_len = 1];
+  bytes content = 3 [(validate.rules).bytes.min_len = 1];
+}
+
+message CreateForwardRuleReply {}
+
+message UpdateForwardRuleRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string rule_name = 2 [(validate.rules).string.min_len = 1];
+  bytes content = 3 [(validate.rules).bytes.min_len = 1];
+}
+
+message UpdateForwardRuleReply {}
+
+message DeleteForwardRuleRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string rule_name = 2 [(validate.rules).string.min_len = 1];
+}
+
+message DeleteForwardRuleReply {}
+
+message ListForwardRuleRequest {
+  string tenant = 1;
+  string rule_name = 2;
+}
+
+message ListForwardRuleReply {
+  bytes rule = 1;
 }

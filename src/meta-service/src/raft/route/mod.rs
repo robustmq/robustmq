@@ -336,6 +336,21 @@ impl DataRoute {
                 self.route_mq9.delete_agent(storage_data.value.clone())?;
                 Ok(None)
             }
+            StorageDataType::Mq9CreateForwardRule => {
+                self.route_mq9
+                    .create_forward_rule(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::Mq9UpdateForwardRule => {
+                self.route_mq9
+                    .update_forward_rule(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::Mq9DeleteForwardRule => {
+                self.route_mq9
+                    .delete_forward_rule(storage_data.value.clone())?;
+                Ok(None)
+            }
         }
     }
 }

@@ -876,6 +876,59 @@ impl AdminHttpClient {
             .await
     }
 
+    /// Get mq9 forward rule list
+    pub async fn get_mq9_forward_rule_list<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<PageReplyData<R>, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.get_with_params(&api_path(MQ9_FORWARD_RULE_LIST_PATH), request)
+            .await
+    }
+
+    /// Get mq9 forward rule detail
+    pub async fn get_mq9_forward_rule_detail<T, R>(
+        &self,
+        request: &T,
+    ) -> Result<R, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.get_with_params(&api_path(MQ9_FORWARD_RULE_DETAIL_PATH), request)
+            .await
+    }
+
+    /// Create mq9 forward rule
+    pub async fn create_mq9_forward_rule<T>(&self, request: &T) -> Result<String, HttpClientError>
+    where
+        T: Serialize,
+    {
+        self.post_raw(&api_path(MQ9_FORWARD_RULE_CREATE_PATH), request)
+            .await
+    }
+
+    /// Update mq9 forward rule
+    pub async fn update_mq9_forward_rule<T>(&self, request: &T) -> Result<String, HttpClientError>
+    where
+        T: Serialize,
+    {
+        self.post_raw(&api_path(MQ9_FORWARD_RULE_UPDATE_PATH), request)
+            .await
+    }
+
+    /// Delete mq9 forward rule
+    pub async fn delete_mq9_forward_rule<T>(&self, request: &T) -> Result<String, HttpClientError>
+    where
+        T: Serialize,
+    {
+        self.post_raw(&api_path(MQ9_FORWARD_RULE_DELETE_PATH), request)
+            .await
+    }
+
     /// Get share group list
     pub async fn get_share_group_list<T, R>(
         &self,

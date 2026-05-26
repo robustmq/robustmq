@@ -14,6 +14,8 @@
 
 use crate::cluster::command::{ClusterActionType, ClusterCliCommandParam, ClusterCommand};
 use crate::engine::command::{EngineActionType, EngineCliCommandParam, EngineCommand};
+use crate::mq9::command::Mq9Command;
+use crate::mq9::params::{Mq9Action, Mq9Args};
 use crate::mqtt::command::{MqttBrokerCommand, MqttCliCommandParam};
 use crate::mqtt::params::{
     process_acl_args, process_auto_subscribe_args, process_blacklist_args, process_connection_args,
@@ -44,6 +46,7 @@ pub enum RobustMQCliCommand {
     Mqtt(MqttArgs),
     Cluster(ClusterArgs),
     Engine(EngineArgs),
+    Mq9(Mq9Args),
 }
 
 pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()
@@ -394,4 +397,11 @@ pub async fn handle_engine(args: EngineArgs) {
         action,
     };
     EngineCommand::new().start(params).await;
+}
+
+pub async fn handle_mq9(args: Mq9Args) {
+    let cmd = Mq9Command::new(args.server, args.page, args.limit);
+    match args.action {
+        Mq9Action::ForwardRule(rule_args) => cmd.forward_rule(rule_args.action).await,
+    }
 }

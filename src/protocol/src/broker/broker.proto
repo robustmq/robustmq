@@ -114,6 +114,7 @@ enum BrokerUpdateCacheResourceType {
   ShareGroupMember = 20;
   GroupOffset = 21;
   Mq9Agent = 22;
+  Mq9ForwardRule = 23;
 }
 
 enum BrokerUpdateCacheActionType {

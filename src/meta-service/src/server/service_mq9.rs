@@ -16,6 +16,10 @@ use crate::raft::manager::MultiRaftManager;
 use crate::server::services::mq9::agent::{
     create_agent_by_req, delete_agent_by_req, list_agent_by_req, search_agent_by_req,
 };
+use crate::server::services::mq9::forward_rule::{
+    create_forward_rule_by_req, delete_forward_rule_by_req, list_forward_rule_by_req,
+    update_forward_rule_by_req,
+};
 use crate::server::services::mq9::mail::{
     create_mail_by_req, delete_mail_by_req, list_mail_by_req,
 };
@@ -23,9 +27,12 @@ use node_call::NodeCallManager;
 use prost_validate::Validator;
 use protocol::meta::meta_service_mq9::mq9_service_server::Mq9Service;
 use protocol::meta::meta_service_mq9::{
-    CreateAgentReply, CreateAgentRequest, CreateMailReply, CreateMailRequest, DeleteAgentReply,
-    DeleteAgentRequest, DeleteMailReply, DeleteMailRequest, ListAgentReply, ListAgentRequest,
-    ListMailReply, ListMailRequest, SearchAgentReply, SearchAgentRequest,
+    CreateAgentReply, CreateAgentRequest, CreateForwardRuleReply, CreateForwardRuleRequest,
+    CreateMailReply, CreateMailRequest, DeleteAgentReply, DeleteAgentRequest,
+    DeleteForwardRuleReply, DeleteForwardRuleRequest, DeleteMailReply, DeleteMailRequest,
+    ListAgentReply, ListAgentRequest, ListForwardRuleReply, ListForwardRuleRequest, ListMailReply,
+    ListMailRequest, SearchAgentReply, SearchAgentRequest, UpdateForwardRuleReply,
+    UpdateForwardRuleRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -66,6 +73,8 @@ impl GrpcMq9Service {
 impl Mq9Service for GrpcMq9Service {
     type ListMailStream = Pin<Box<dyn Stream<Item = Result<ListMailReply, Status>> + Send>>;
     type ListAgentStream = Pin<Box<dyn Stream<Item = Result<ListAgentReply, Status>> + Send>>;
+    type ListForwardRuleStream =
+        Pin<Box<dyn Stream<Item = Result<ListForwardRuleReply, Status>> + Send>>;
 
     async fn create_mail(
         &self,
@@ -163,6 +172,67 @@ impl Mq9Service for GrpcMq9Service {
         self.validate_request(&req)?;
         search_agent_by_req(&req)
             .await
+            .map_err(Self::to_status)
+            .map(Response::new)
+    }
+
+    async fn create_forward_rule(
+        &self,
+        request: Request<CreateForwardRuleRequest>,
+    ) -> Result<Response<CreateForwardRuleReply>, Status> {
+        let req = request.into_inner();
+        self.validate_request(&req)?;
+        create_forward_rule_by_req(
+            &self.raft_manager,
+            &self.call_manager,
+            &self.rocksdb_engine_handler,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
+    }
+
+    async fn update_forward_rule(
+        &self,
+        request: Request<UpdateForwardRuleRequest>,
+    ) -> Result<Response<UpdateForwardRuleReply>, Status> {
+        let req = request.into_inner();
+        self.validate_request(&req)?;
+        update_forward_rule_by_req(
+            &self.raft_manager,
+            &self.call_manager,
+            &self.rocksdb_engine_handler,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
+    }
+
+    async fn delete_forward_rule(
+        &self,
+        request: Request<DeleteForwardRuleRequest>,
+    ) -> Result<Response<DeleteForwardRuleReply>, Status> {
+        let req = request.into_inner();
+        self.validate_request(&req)?;
+        delete_forward_rule_by_req(
+            &self.raft_manager,
+            &self.call_manager,
+            &self.rocksdb_engine_handler,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
+    }
+
+    async fn list_forward_rule(
+        &self,
+        request: Request<ListForwardRuleRequest>,
+    ) -> Result<Response<Self::ListForwardRuleStream>, Status> {
+        let req = request.into_inner();
+        list_forward_rule_by_req(&self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
     }

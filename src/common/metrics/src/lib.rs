@@ -18,6 +18,7 @@ pub mod core;
 pub mod grpc;
 pub mod http;
 pub mod meta;
+pub mod mq9;
 pub mod mqtt;
 pub mod network;
 pub mod rocksdb;

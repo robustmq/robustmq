@@ -14,7 +14,7 @@
 
 use clap::Parser;
 use cli_command::handler::{
-    handle_cluster, handle_engine, handle_mqtt, RobustMQCli, RobustMQCliCommand,
+    handle_cluster, handle_engine, handle_mq9, handle_mqtt, RobustMQCli, RobustMQCliCommand,
 };
 use common_base::version::logo::banner_print;
 
@@ -26,5 +26,6 @@ async fn main() {
         RobustMQCliCommand::Cluster(args) => handle_cluster(args).await,
         RobustMQCliCommand::Mqtt(args) => handle_mqtt(args).await,
         RobustMQCliCommand::Engine(args) => handle_engine(args).await,
+        RobustMQCliCommand::Mq9(args) => handle_mq9(args).await,
     }
 }

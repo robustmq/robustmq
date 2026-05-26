@@ -133,6 +133,11 @@ pub const CLUSTER_SHARE_GROUP_DETAIL_PATH: &str = "/cluster/share-group/detail";
 
 pub const MQ9_MAIL_LIST_PATH: &str = "/mq9/mail/list";
 pub const MQ9_AGENT_LIST_PATH: &str = "/mq9/agent/list";
+pub const MQ9_FORWARD_RULE_LIST_PATH: &str = "/mq9/forward-rule/list";
+pub const MQ9_FORWARD_RULE_DETAIL_PATH: &str = "/mq9/forward-rule/detail";
+pub const MQ9_FORWARD_RULE_CREATE_PATH: &str = "/mq9/forward-rule/create";
+pub const MQ9_FORWARD_RULE_UPDATE_PATH: &str = "/mq9/forward-rule/update";
+pub const MQ9_FORWARD_RULE_DELETE_PATH: &str = "/mq9/forward-rule/delete";
 
 // ── MCP ───────────────────────────────────────────────────────────────────────
 

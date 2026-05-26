@@ -7354,6 +7354,7 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
+ "common-metrics",
  "common-security",
  "dashmap 6.1.0",
  "delay-message",

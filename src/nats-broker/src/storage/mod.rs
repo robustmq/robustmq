@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod agent;
+pub mod forward_rule;
 pub mod mail;
 pub mod message;
 pub mod subscribe;

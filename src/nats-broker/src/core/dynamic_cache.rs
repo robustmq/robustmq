@@ -19,6 +19,7 @@ use common_base::error::common::CommonError;
 use common_base::utils::serialize;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mq9::agent::MQ9Agent;
+use metadata_struct::mq9::forward_rule::Mq9ForwardRule;
 use metadata_struct::mq9::mail::MQ9Mail;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use protocol::broker::broker::{
@@ -80,6 +81,18 @@ pub async fn update_nats_cache_metadata(
                 }
                 BrokerUpdateCacheActionType::Delete => {
                     cache_manager.remove_agent(&agent.tenant, &agent.name);
+                }
+            }
+        }
+
+        BrokerUpdateCacheResourceType::Mq9ForwardRule => {
+            let rule: Mq9ForwardRule = serialize::deserialize(&record.data)?;
+            match record.action_type() {
+                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                    cache_manager.add_forward_rule(rule);
+                }
+                BrokerUpdateCacheActionType::Delete => {
+                    cache_manager.remove_forward_rule(&rule.tenant, &rule.rule_name);
                 }
             }
         }

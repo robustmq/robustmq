@@ -33,9 +33,13 @@
 use crate::core::error::NatsBrokerError;
 use crate::storage::message::MessageStorage;
 use bytes::Bytes;
+use common_metrics::mq9::forward::{
+    record_forward_match, record_forward_write_failure, record_forward_write_success,
+};
 use metadata_struct::adapter::adapter_record::{AdapterWriteRecord, RecordHeader};
 use metadata_struct::mq9::forward_rule::{ForkFailureStrategy, Mq9ForwardRule};
 use rule_engine::apply_rule_engine;
+use std::time::Instant;
 use tracing::{error, warn};
 
 /// Provenance header / tag names attached to every forked record so consumers
@@ -58,6 +62,8 @@ pub async fn fork_write(
     rules: &[Mq9ForwardRule],
 ) -> Result<(), NatsBrokerError> {
     for rule in rules {
+        record_forward_match(tenant, &rule.rule_name, 1);
+
         if let Err(err) = fork_one(
             storage,
             tenant,
@@ -104,16 +110,21 @@ async fn fork_one(
     source_record: &AdapterWriteRecord,
     rule: &Mq9ForwardRule,
 ) -> Result<(), NatsBrokerError> {
+    let started = Instant::now();
+    let elapsed_ms = |start: Instant| start.elapsed().as_secs_f64() * 1000.0;
+
     // 1. Optional ETL transform on payload bytes.
     let payload: Bytes = if let Some(etl) = &rule.etl_rule {
-        apply_rule_engine(etl, &source_record.data)
-            .await
-            .map_err(|e| {
-                NatsBrokerError::CommonError(format!(
+        match apply_rule_engine(etl, &source_record.data).await {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                record_forward_write_failure(tenant, &rule.rule_name, "etl", elapsed_ms(started));
+                return Err(NatsBrokerError::CommonError(format!(
                     "fork rule {} etl failed: {}",
                     rule.rule_name, e
-                ))
-            })?
+                )));
+            }
+        }
     } else {
         source_record.data.clone()
     };
@@ -167,12 +178,24 @@ async fn fork_one(
     // 4. Inline durable write. No channels, no spawn — if this `await`
     //    blocks, the caller blocks too, which is exactly the contract we
     //    documented in the design doc.
-    storage
+    match storage
         .write(tenant, &rule.target.topic_name, vec![forked])
         .await
-        .map_err(NatsBrokerError::from)?;
-
-    Ok(())
+    {
+        Ok(_) => {
+            record_forward_write_success(tenant, &rule.rule_name, elapsed_ms(started));
+            Ok(())
+        }
+        Err(e) => {
+            record_forward_write_failure(
+                tenant,
+                &rule.rule_name,
+                "storage_write",
+                elapsed_ms(started),
+            );
+            Err(NatsBrokerError::from(e))
+        }
+    }
 }
 
 #[cfg(test)]

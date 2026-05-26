@@ -396,6 +396,21 @@ pub fn storage_key_mq9_agent_prefix() -> String {
 }
 
 #[inline]
+pub fn storage_key_mq9_forward_rule(tenant: &str, rule_name: &str) -> String {
+    format!("{}mq9/forward_rule/{}/{}", PREFIX_META, tenant, rule_name)
+}
+
+#[inline]
+pub fn storage_key_mq9_forward_rule_tenant_prefix(tenant: &str) -> String {
+    format!("{}mq9/forward_rule/{}/", PREFIX_META, tenant)
+}
+
+#[inline]
+pub fn storage_key_mq9_forward_rule_prefix() -> String {
+    format!("{}mq9/forward_rule/", PREFIX_META)
+}
+
+#[inline]
 pub fn storage_key_cluster_delete_topic(topic_id: &str) -> String {
     format!("{}cluster/delete-topic/{}", PREFIX_META, topic_id)
 }

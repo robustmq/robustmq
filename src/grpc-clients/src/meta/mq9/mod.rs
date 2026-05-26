@@ -14,9 +14,12 @@
 
 use protocol::meta::meta_service_mq9::mq9_service_client::Mq9ServiceClient;
 use protocol::meta::meta_service_mq9::{
-    CreateAgentReply, CreateAgentRequest, CreateMailReply, CreateMailRequest, DeleteAgentReply,
-    DeleteAgentRequest, DeleteMailReply, DeleteMailRequest, ListAgentReply, ListAgentRequest,
-    ListMailReply, ListMailRequest, SearchAgentReply, SearchAgentRequest,
+    CreateAgentReply, CreateAgentRequest, CreateForwardRuleReply, CreateForwardRuleRequest,
+    CreateMailReply, CreateMailRequest, DeleteAgentReply, DeleteAgentRequest,
+    DeleteForwardRuleReply, DeleteForwardRuleRequest, DeleteMailReply, DeleteMailRequest,
+    ListAgentReply, ListAgentRequest, ListForwardRuleReply, ListForwardRuleRequest, ListMailReply,
+    ListMailRequest, SearchAgentReply, SearchAgentRequest, UpdateForwardRuleReply,
+    UpdateForwardRuleRequest,
 };
 use tonic::transport::Channel;
 use tonic::Streaming;
@@ -92,5 +95,45 @@ impl_retriable_request!(
     search_agent,
     "Mq9Service",
     "SearchAgent",
+    true
+);
+
+impl_retriable_request!(
+    CreateForwardRuleRequest,
+    Mq9ServiceClient<Channel>,
+    CreateForwardRuleReply,
+    create_forward_rule,
+    "Mq9Service",
+    "CreateForwardRule",
+    true
+);
+
+impl_retriable_request!(
+    UpdateForwardRuleRequest,
+    Mq9ServiceClient<Channel>,
+    UpdateForwardRuleReply,
+    update_forward_rule,
+    "Mq9Service",
+    "UpdateForwardRule",
+    true
+);
+
+impl_retriable_request!(
+    DeleteForwardRuleRequest,
+    Mq9ServiceClient<Channel>,
+    DeleteForwardRuleReply,
+    delete_forward_rule,
+    "Mq9Service",
+    "DeleteForwardRule",
+    true
+);
+
+impl_retriable_request!(
+    ListForwardRuleRequest,
+    Mq9ServiceClient<Channel>,
+    Streaming<ListForwardRuleReply>,
+    list_forward_rule,
+    "Mq9Service",
+    "ListForwardRule",
     true
 );

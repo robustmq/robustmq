@@ -20,6 +20,7 @@ use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mq9::agent::MQ9Agent;
+use metadata_struct::mq9::forward_rule::Mq9ForwardRule;
 use metadata_struct::mq9::mail::MQ9Mail;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::session::MqttSession;
@@ -654,6 +655,45 @@ pub async fn send_notify_by_delete_mq9_agent(
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::Mq9Agent,
         serialize::serialize(&agent)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_create_mq9_forward_rule(
+    call_manager: &Arc<NodeCallManager>,
+    rule: Mq9ForwardRule,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Create,
+        BrokerUpdateCacheResourceType::Mq9ForwardRule,
+        serialize::serialize(&rule)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_update_mq9_forward_rule(
+    call_manager: &Arc<NodeCallManager>,
+    rule: Mq9ForwardRule,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Update,
+        BrokerUpdateCacheResourceType::Mq9ForwardRule,
+        serialize::serialize(&rule)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_mq9_forward_rule(
+    call_manager: &Arc<NodeCallManager>,
+    rule: Mq9ForwardRule,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::Mq9ForwardRule,
+        serialize::serialize(&rule)?,
     )
     .await
 }

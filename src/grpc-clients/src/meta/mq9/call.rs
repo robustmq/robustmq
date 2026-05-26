@@ -14,9 +14,12 @@
 
 use common_base::error::common::CommonError;
 use protocol::meta::meta_service_mq9::{
-    CreateAgentReply, CreateAgentRequest, CreateMailReply, CreateMailRequest, DeleteAgentReply,
-    DeleteAgentRequest, DeleteMailReply, DeleteMailRequest, ListAgentReply, ListAgentRequest,
-    ListMailReply, ListMailRequest, SearchAgentReply, SearchAgentRequest,
+    CreateAgentReply, CreateAgentRequest, CreateForwardRuleReply, CreateForwardRuleRequest,
+    CreateMailReply, CreateMailRequest, DeleteAgentReply, DeleteAgentRequest,
+    DeleteForwardRuleReply, DeleteForwardRuleRequest, DeleteMailReply, DeleteMailRequest,
+    ListAgentReply, ListAgentRequest, ListForwardRuleReply, ListForwardRuleRequest, ListMailReply,
+    ListMailRequest, SearchAgentReply, SearchAgentRequest, UpdateForwardRuleReply,
+    UpdateForwardRuleRequest,
 };
 use tonic::Streaming;
 
@@ -68,4 +71,24 @@ generate_mq9_service_call!(
     placement_search_mq9_agent,
     SearchAgentRequest,
     SearchAgentReply
+);
+generate_mq9_service_call!(
+    placement_create_mq9_forward_rule,
+    CreateForwardRuleRequest,
+    CreateForwardRuleReply
+);
+generate_mq9_service_call!(
+    placement_update_mq9_forward_rule,
+    UpdateForwardRuleRequest,
+    UpdateForwardRuleReply
+);
+generate_mq9_service_call!(
+    placement_delete_mq9_forward_rule,
+    DeleteForwardRuleRequest,
+    DeleteForwardRuleReply
+);
+generate_mq9_service_call!(
+    placement_list_mq9_forward_rule,
+    ListForwardRuleRequest,
+    Streaming<ListForwardRuleReply>
 );

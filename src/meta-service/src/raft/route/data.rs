@@ -101,6 +101,9 @@ pub enum StorageDataType {
     Mq9DeleteMail,
     Mq9CreateAgent,
     Mq9DeleteAgent,
+    Mq9CreateForwardRule,
+    Mq9UpdateForwardRule,
+    Mq9DeleteForwardRule,
 }
 
 impl fmt::Display for StorageDataType {
@@ -178,6 +181,9 @@ impl fmt::Display for StorageDataType {
             StorageDataType::Mq9DeleteMail => write!(f, "Mq9DeleteMail"),
             StorageDataType::Mq9CreateAgent => write!(f, "Mq9CreateAgent"),
             StorageDataType::Mq9DeleteAgent => write!(f, "Mq9DeleteAgent"),
+            StorageDataType::Mq9CreateForwardRule => write!(f, "Mq9CreateForwardRule"),
+            StorageDataType::Mq9UpdateForwardRule => write!(f, "Mq9UpdateForwardRule"),
+            StorageDataType::Mq9DeleteForwardRule => write!(f, "Mq9DeleteForwardRule"),
         }
     }
 }
