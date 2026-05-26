@@ -764,7 +764,37 @@ export ROBUST_MQ_SERVER_LLM_CLIENT_TOKEN=your_api_token
 
 ---
 
-## 22. 监控配置
+## 22. Admin HTTP API 鉴权配置
+
+### [admin]
+
+Admin HTTP API 的登录认证配置。详细说明请参考 [API 鉴权文档](../Api/AUTH.md)。
+
+```toml
+[admin]
+username = "admin"
+password = "admin"
+jwt_secret = "robustmq-change-me-in-production"
+token_ttl_hours = 8
+```
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `username` | `string` | `"admin"` | 管理员用户名 |
+| `password` | `string` | `"admin"` | 管理员密码，生产环境务必修改 |
+| `jwt_secret` | `string` | `"robustmq-change-me-in-production"` | JWT 签名密钥（HMAC-SHA256），生产环境务必修改为随机字符串（建议 32 位以上） |
+| `token_ttl_hours` | `u64` | `8` | Token 有效期（小时） |
+
+> ⚠️ **安全提示**：`password` 和 `jwt_secret` 使用默认值存在安全风险，生产部署前请务必修改。
+
+**鉴权规则：**
+- 来自 `127.0.0.1` / `::1` 的本地请求：**无需 token**，直接放行
+- 来自其他 IP 的远程请求：需携带 `Authorization: Bearer <token>`
+- `/api/v1/login`、`/health/*`、`/metrics` 路径：始终公开，无需鉴权
+
+---
+
+## 23. 监控配置
 
 ### [prometheus]
 
@@ -976,6 +1006,13 @@ token = "your_api_token"
 # base_url = "https://api.openai.com/v1/"
 # embedding = "text-embedding-3-small"
 # embedding_model_path = "./models/embedding"
+
+# ========== Admin 鉴权 ==========
+[admin]
+username = "admin"
+password = "your_secure_password"
+jwt_secret = "your-random-jwt-secret-32-chars-min"
+token_ttl_hours = 8
 
 # ========== 日志 ==========
 [log]

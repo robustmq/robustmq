@@ -172,6 +172,12 @@
         "max_sessions": 5000000,
         "max_publish_rate": 10000
       }
+    },
+    "admin": {
+      "username": "admin",
+      "password": "admin",
+      "jwt_secret": "robustmq-change-me-in-production",
+      "token_ttl_hours": 8
     }
   },
   "error": null
@@ -922,7 +928,7 @@ curl -X POST http://localhost:8080/api/cluster/tenant/update \
   }
 }
 ```
-  - **503 Service Unavailable** — 端口未就绪:
+- **503 Service Unavailable** — 端口未就绪:
 ```json
 {
   "code": 0,

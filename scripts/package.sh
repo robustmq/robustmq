@@ -33,14 +33,24 @@ ARCHIVE="$OUTPUT_DIR/robustmq-${VERSION}-${TIMESTAMP}.tar.gz"
 
 LOCAL_BRANCH=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD)
 
-# Only pack files that changed (added/modified) relative to origin/<branch>,
-# plus any untracked files. This avoids shipping the entire repo on every run.
-CHANGED_FILES=$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=ACM "origin/${LOCAL_BRANCH}" 2>/dev/null || true)
-UNTRACKED_FILES=$(git -C "$PROJECT_ROOT" ls-files --others --exclude-standard -- src/ Cargo.toml Cargo.lock config/ scripts/ docs/ 2>/dev/null || true)
-DELETED_FILES=$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=D "origin/${LOCAL_BRANCH}" 2>/dev/null || true)
+# Collect all files that differ from origin/<branch> — covering three cases:
+#   1. Committed locally but not yet pushed  (HEAD vs origin)
+#   2. Modified in working tree but not committed  (working tree vs HEAD)
+#   3. Untracked new files
+COMMITTED_FILES=$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=ACM "origin/${LOCAL_BRANCH}" HEAD 2>/dev/null || true)
+WORKDIR_FILES=$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=ACM HEAD 2>/dev/null || true)
+UNTRACKED_FILES=$(git -C "$PROJECT_ROOT" ls-files --others --exclude-standard -- src/ Cargo.toml Cargo.lock config/ scripts/ docs/ bin/ 2>/dev/null || true)
 
-# Combine changed + untracked, exclude .tar.gz files
-ALL_FILES=$(printf '%s\n%s' "$CHANGED_FILES" "$UNTRACKED_FILES" | grep -v '\.tar\.gz$' | grep -v '^$' | sort -u)
+# DELETED_FILES: only files that truly no longer exist on disk but are on origin.
+DELETED_FILES=""
+while IFS= read -r f; do
+  [ -n "$f" ] && [ ! -e "$PROJECT_ROOT/$f" ] && DELETED_FILES="${DELETED_FILES}${f}"$'\n'
+done < <(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=D "origin/${LOCAL_BRANCH}" HEAD 2>/dev/null || true)
+DELETED_FILES="${DELETED_FILES%$'\n'}"
+
+# Combine all three sources, deduplicate, exclude .tar.gz
+ALL_FILES=$(printf '%s\n%s\n%s' "$COMMITTED_FILES" "$WORKDIR_FILES" "$UNTRACKED_FILES" \
+  | grep -v '\.tar\.gz$' | grep -v '^$' | sort -u)
 
 if [ -z "$ALL_FILES" ]; then
   echo "No changed files to package."

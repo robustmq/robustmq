@@ -750,7 +750,37 @@ export ROBUST_MQ_SERVER_LLM_CLIENT_TOKEN=your_api_token
 
 ---
 
-## 22. Monitoring Configuration
+## 22. Admin HTTP API Authentication
+
+### [admin]
+
+Authentication configuration for the Admin HTTP API. See [API Authentication](../Api/AUTH.md) for details.
+
+```toml
+[admin]
+username = "admin"
+password = "admin"
+jwt_secret = "robustmq-change-me-in-production"
+token_ttl_hours = 8
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `username` | `string` | `"admin"` | Admin username |
+| `password` | `string` | `"admin"` | Admin password — **change this in production** |
+| `jwt_secret` | `string` | `"robustmq-change-me-in-production"` | HMAC-SHA256 secret used to sign JWT tokens — use a random string of 32+ chars in production |
+| `token_ttl_hours` | `u64` | `8` | Token validity period in hours |
+
+> ⚠️ **Security notice**: The default `password` and `jwt_secret` values are insecure. Always change them before deploying to production.
+
+**Auth rules:**
+- Requests from `127.0.0.1` / `::1` (loopback): **no token required**, allowed through directly
+- Requests from any other IP: must include `Authorization: Bearer <token>`
+- `/api/v1/login`, `/health/*`, `/metrics`: always public, no auth required
+
+---
+
+## 23. Monitoring Configuration
 
 ### [prometheus]
 
@@ -962,6 +992,13 @@ token = "your_api_token"
 # base_url = "https://api.openai.com/v1/"
 # embedding = "text-embedding-3-small"
 # embedding_model_path = "./models/embedding"
+
+# ========== Admin Authentication ==========
+[admin]
+username = "admin"
+password = "your_secure_password"
+jwt_secret = "your-random-jwt-secret-32-chars-min"
+token_ttl_hours = 8
 
 # ========== Logging ==========
 [log]
