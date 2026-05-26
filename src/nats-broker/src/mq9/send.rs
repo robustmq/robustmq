@@ -21,10 +21,12 @@ use crate::nats::subscribe::subject_message_tag;
 use crate::storage::message::MessageStorage;
 use bytes::Bytes;
 use common_base::tools::now_second;
+use common_metrics::mq9::forward::record_send_duration;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::mq9::Priority;
 use metadata_struct::storage::record::{StorageRecordProtocolData, StorageRecordProtocolDataMq9};
 use mq9_core::protocol::MsgSendReply;
+use std::time::Instant;
 use storage_adapter::priority::storage_priority_tag;
 
 const HEADER_MSG_KEY: &str = "mq9-key";
@@ -112,6 +114,9 @@ pub async fn process_send(
     reply_to: Option<&str>,
     payload: &Bytes,
 ) -> Result<MsgSendReply, NatsBrokerError> {
+    let send_start = Instant::now();
+    let elapsed_ms = |start: Instant| start.elapsed().as_secs_f64() * 1000.0;
+
     let tenant = get_tenant();
 
     if ctx.cache_manager.get_mail(&tenant, mail_address).is_none() {
@@ -179,6 +184,7 @@ pub async fn process_send(
                 delay_secs,
             )
             .await?;
+            record_send_duration(false, elapsed_ms(send_start));
             return Ok(MsgSendReply {
                 error: String::new(),
                 msg_id: -1,
@@ -214,6 +220,7 @@ pub async fn process_send(
     // No channels, no worker pool. `on_failure` decides per-rule whether
     // a fork failure should drop+log or fail the send. See forward.rs for
     // the full rationale.
+    let took_fork = forked_source.is_some();
     if let Some((src_record, rules)) = forked_source {
         crate::mq9::forward::fork_write(
             &storage,
@@ -226,6 +233,7 @@ pub async fn process_send(
         .await?;
     }
 
+    record_send_duration(took_fork, elapsed_ms(send_start));
     Ok(MsgSendReply {
         error: String::new(),
         msg_id: offset as i64,

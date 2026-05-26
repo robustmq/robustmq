@@ -12,12 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Metrics for the Mq9 inline forward / fork-write pipeline.
-//!
-//! Every metric is keyed by `(tenant, rule_name)` so an operator can
-//! attribute traffic to the exact rule that produced it. Failure metrics
-//! add a `reason` label so the most common error modes (etl, storage,
-//! timeout, …) can be spotted at a glance.
+//! Metrics for the Mq9 forward / fork-write pipeline.
 
 use crate::{
     counter_metric_inc_by, histogram_metric_observe, register_counter_metric,
@@ -36,6 +31,11 @@ pub struct ForwardRuleFailureLabel {
     pub tenant: String,
     pub rule_name: String,
     pub reason: String,
+}
+
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
+pub struct Mq9SendLabel {
+    pub forked: String,
 }
 
 register_counter_metric!(
@@ -66,7 +66,13 @@ register_histogram_metric_ms_with_default_buckets!(
     ForwardRuleLabel
 );
 
-/// Increment the match counter — one increment per (rule, message) pair.
+register_histogram_metric_ms_with_default_buckets!(
+    MQ9_SEND_DURATION_MS,
+    "mq9_send_duration_ms",
+    "Duration of process_send in milliseconds, labelled by whether the send triggered a fork",
+    Mq9SendLabel
+);
+
 pub fn record_forward_match(tenant: &str, rule_name: &str, count: u64) {
     let label = ForwardRuleLabel {
         tenant: tenant.to_string(),
@@ -75,7 +81,6 @@ pub fn record_forward_match(tenant: &str, rule_name: &str, count: u64) {
     counter_metric_inc_by!(MQ9_FORWARD_MATCH_TOTAL, label, count);
 }
 
-/// Increment the success counter and observe the write duration.
 pub fn record_forward_write_success(tenant: &str, rule_name: &str, duration_ms: f64) {
     let label = ForwardRuleLabel {
         tenant: tenant.to_string(),
@@ -85,8 +90,6 @@ pub fn record_forward_write_success(tenant: &str, rule_name: &str, duration_ms: 
     histogram_metric_observe!(MQ9_FORWARD_WRITE_DURATION_MS, duration_ms, label);
 }
 
-/// Increment the failure counter; also observe the duration so latency on
-/// the failure path is visible.
 pub fn record_forward_write_failure(
     tenant: &str,
     rule_name: &str,
@@ -105,4 +108,11 @@ pub fn record_forward_write_failure(
         rule_name: rule_name.to_string(),
     };
     histogram_metric_observe!(MQ9_FORWARD_WRITE_DURATION_MS, duration_ms, dur_label);
+}
+
+pub fn record_send_duration(forked: bool, duration_ms: f64) {
+    let label = Mq9SendLabel {
+        forked: if forked { "true" } else { "false" }.to_string(),
+    };
+    histogram_metric_observe!(MQ9_SEND_DURATION_MS, duration_ms, label);
 }
