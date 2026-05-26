@@ -107,7 +107,7 @@ ssh "${REMOTE_HOST}" "
     git checkout ${LOCAL_BRANCH} || git checkout -b ${LOCAL_BRANCH} origin/${LOCAL_BRANCH}
   fi
   git pull origin ${LOCAL_BRANCH}
-  if [ -f "${ARCHIVE_NAME}" ]; then
+  if [ -f \"${ARCHIVE_NAME}\" ]; then
     tar xzf ${ARCHIVE_NAME} --warning=no-unknown-keyword && rm ${ARCHIVE_NAME}
   fi
   # Remove any stale .tar.gz files from the repo root
@@ -141,3 +141,21 @@ echo "Remote extraction complete."
 # Clean up any leftover .tar.gz files in the local project root
 find "$PROJECT_ROOT" -maxdepth 1 -name '*.tar.gz' -delete
 echo "Local .tar.gz files cleaned up."
+
+# Local commit: only stage the files that were successfully packaged,
+# so unpackaged files remain visible as unstaged for easy comparison.
+if [ "${SKIP_ARCHIVE}" -eq 0 ] && [ -n "$ALL_FILES" ]; then
+  echo "Committing packaged files locally..."
+  while IFS= read -r f; do
+    [ -n "$f" ] && git -C "$PROJECT_ROOT" add "$f" 2>/dev/null || true
+  done <<< "$ALL_FILES"
+  # Also stage any explicitly deleted files
+  if [ -n "$DELETED_FILES" ]; then
+    while IFS= read -r f; do
+      [ -n "$f" ] && git -C "$PROJECT_ROOT" rm --cached "$f" 2>/dev/null || true
+    done <<< "$DELETED_FILES"
+  fi
+  git -C "$PROJECT_ROOT" diff --cached --quiet || \
+    git -C "$PROJECT_ROOT" commit -m 'dev'
+  echo "Local commit done. Unpackaged files remain unstaged."
+fi
