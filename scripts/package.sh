@@ -52,14 +52,26 @@ DELETED_FILES="${DELETED_FILES%$'\n'}"
 ALL_FILES=$(printf '%s\n%s\n%s' "$COMMITTED_FILES" "$WORKDIR_FILES" "$UNTRACKED_FILES" \
   | grep -v '\.tar\.gz$' | grep -v '^$' | sort -u)
 
+# Debug: show what each source found
+echo "--- File sources ---"
+echo "[committed vs origin] $(echo "$COMMITTED_FILES" | grep -c . || echo 0) files"
+echo "$COMMITTED_FILES" | grep -v '^$' | sed 's/^/  + /' || true
+echo "[workdir vs HEAD]     $(echo "$WORKDIR_FILES" | grep -c . || echo 0) files"
+echo "$WORKDIR_FILES" | grep -v '^$' | sed 's/^/  ~ /' || true
+echo "[untracked]           $(echo "$UNTRACKED_FILES" | grep -c . || echo 0) files"
+echo "$UNTRACKED_FILES" | grep -v '^$' | sed 's/^/  ? /' || true
+echo "--------------------"
+
 if [ -z "$ALL_FILES" ]; then
   echo "No changed files to package."
   SKIP_ARCHIVE=1
 else
   SKIP_ARCHIVE=0
+  echo "Packaging $(echo "$ALL_FILES" | wc -l | tr -d ' ') files:"
+  echo "$ALL_FILES" | sed 's/^/  /'
   printf '%s\0' $ALL_FILES \
     | COPYFILE_DISABLE=1 tar czf "$ARCHIVE" -C "$PROJECT_ROOT" --null -T -
-  echo "Packaged: $ARCHIVE ($(du -sh "$ARCHIVE" | cut -f1)) — $(echo "$ALL_FILES" | wc -l | tr -d ' ') files"
+  echo "Packaged: $ARCHIVE ($(du -sh "$ARCHIVE" | cut -f1))"
 fi
 
 echo "Local branch: ${LOCAL_BRANCH}"
