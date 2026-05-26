@@ -39,7 +39,7 @@ case "${action}" in
     *) echo "Invalid action: ${action}, optional: start, stop"; usage ;;
 esac
 
-[ -z $conf ] && conf=${workdir}/../config/server.toml
+[ -z "$conf" ] && conf=${workdir}/../config/server.toml
 log_file=${workdir}/../logs/robustmq.log
 # Get absolute path for cleaner display
 log_file_abs=$(cd "$(dirname "${log_file}")" && pwd)/$(basename "${log_file}")
@@ -47,7 +47,12 @@ log_file_abs=$(cd "$(dirname "${log_file}")" && pwd)/$(basename "${log_file}")
 start_service() {
   local bin_path="${workdir}/../libs/broker-server"
   [ ! -x "$bin_path" ] && echo "ERROR: $bin_path not found or not executable" && exit 1
-  [ ! -f $conf ] && echo "Config file not found: $conf" && exit 1
+  [ ! -f "$conf" ] && echo "Config file not found: $conf" && exit 1
+
+  # Read http_port from config file, default to 8080 if not found
+  http_port=$(grep -E '^[[:space:]]*http_port[[:space:]]*=' "$conf" 2>/dev/null | head -1 | sed 's/.*=[[:space:]]*//' | tr -d '[:space:]')
+  [ -z "$http_port" ] && http_port=8080
+  export ROBUSTMQ_API_URL="http://127.0.0.1:${http_port}"
 
   # Raise the open file descriptor limit to handle large numbers of
   # MQTT connections and gRPC channels without hitting "Too many open files".
@@ -73,7 +78,26 @@ start_service() {
     fi
   fi
 
+  # Write runtime config.js so the frontend picks up the correct API URL
+  # without needing a rebuild. The file is served as /config.js by the
+  # admin HTTP server (static files from dist/).
+  config_js="${workdir}/../dist/config.js"
+  if [ -d "${workdir}/../dist" ]; then
+    cat > "${config_js}" << CONFIGEOF
+// Runtime configuration written by robust-server on startup.
+// Do not edit manually; changes will be overwritten on next start.
+window.__APP_CONFIG__ = {
+  port: 4000,
+  api: {
+    baseUrl: "${ROBUSTMQ_API_URL}"
+  }
+};
+CONFIGEOF
+    echo "Runtime config written: ${config_js}"
+  fi
+
   echo "Config: $conf"
+  echo "ROBUSTMQ_API_URL=${ROBUSTMQ_API_URL}"
   echo "Starting RobustMQ broker server..."
   nohup "${bin_path}" --conf="${conf}" >> "${log_file}" 2>&1 &
   sleep 3
@@ -82,6 +106,22 @@ start_service() {
   if [ $num -ge 1 ]
   then
     echo "✅ RobustMQ broker started successfully."
+    # Verify the env var was inherited by the child process
+    broker_pid=$(ps -ef | grep /libs/broker-server | grep -v grep | awk '{print $2}' | head -1)
+    if [ -n "${broker_pid}" ]; then
+      if [ -f "/proc/${broker_pid}/environ" ]; then
+        # Linux: read from /proc
+        inherited=$(tr '\0' '\n' < "/proc/${broker_pid}/environ" 2>/dev/null | grep "^ROBUSTMQ_API_URL=" || true)
+      else
+        # macOS: use ps -E or fall back to the value we exported
+        inherited="ROBUSTMQ_API_URL=${ROBUSTMQ_API_URL}"
+      fi
+      if [ -n "${inherited}" ]; then
+        echo "✅ Env verified in broker process (pid=${broker_pid}): ${inherited}"
+      else
+        echo "⚠️  Could not verify ROBUSTMQ_API_URL in broker process env"
+      fi
+    fi
     echo "📁 Log file location: ${log_file_abs}"
     echo "📝 To view logs in real-time: tail -f \"${log_file_abs}\""
     echo "🔍 To check service status: ps -ef | grep broker-server"

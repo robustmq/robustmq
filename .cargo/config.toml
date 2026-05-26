@@ -39,20 +39,20 @@ rustflags = [
 
 # macOS-specific optimizations
 [target.x86_64-apple-darwin]
-# Use split debuginfo + faster linking
+# tokio_unstable is inherited from [target.'cfg(all())']; only add x86-specific flags here.
 rustflags = [
     "-C", "split-debuginfo=unpacked",
     "-C", "link-arg=-Wl,-dead_strip",  # Remove dead code at link time
-    "--cfg", "tokio_unstable",          # Enable Tokio RuntimeMetrics
 ]
 
 [target.aarch64-apple-darwin]
-# Use split debuginfo + faster linking
-rustflags = [
-    "-C", "split-debuginfo=unpacked",
-    "-C", "link-arg=-Wl,-dead_strip",  # Remove dead code at link time
-    "--cfg", "tokio_unstable",          # Enable Tokio RuntimeMetrics
-]
+# Note: split-debuginfo=unpacked, -dead_strip, and tokio_unstable are omitted here.
+# aws-lc-sys encodes CARGO_ENCODED_RUSTFLAGS into its C compiler invocation
+# during the memcmp bug-check; unknown flags cause the check to fail.
+# tokio_unstable is already set in [target.'cfg(all())'] above and must not be
+# duplicated here — the two sections are merged and the combined string is passed
+# verbatim to the C compiler, breaking aws-lc-sys detection.
+rustflags = []
 
 # Linux-specific optimizations (for CI)
 [target.x86_64-unknown-linux-gnu]
@@ -91,6 +91,10 @@ frequency = 'never'  # Don't generate reports (reduces disk I/O)
 
 # Test execution settings
 [env]
+# Use cmake builder for aws-lc-sys to bypass the cc-based memcmp compiler bug
+# detection which incorrectly fails on Apple Clang 17 when CARGO_ENCODED_RUSTFLAGS
+# contains --cfg flags that clang doesn't understand as C compiler arguments.
+AWS_LC_SYS_CMAKE_BUILDER = "1"
 # Set test threads based on CPU cores (can be overridden per test)
 RUST_TEST_THREADS = "14"
 # Reduce test output verbosity

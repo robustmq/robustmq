@@ -299,7 +299,9 @@ impl MqttBrokerCommand {
                 select! {
                     _ = signal::ctrl_c() => {
                         println!(" Ctrl+C detected,  Please press ENTER to end the program. ");
-                        cli.disconnect(disconnect_opts).unwrap();
+                        if let Err(e) = cli.disconnect(disconnect_opts) {
+                            println!("Warning: disconnect error: {e:?}");
+                        }
                         break;
                     }
 
@@ -325,7 +327,9 @@ impl MqttBrokerCommand {
                                     }
                                     if retained {
                                         println!("published retained message");
-                                        cli.disconnect(disconnect_opts).unwrap(); // only one message retained
+                                        if let Err(e) = cli.disconnect(disconnect_opts) {
+                                            println!("Warning: disconnect error: {e:?}");
+                                        }
                                         break;
                                     }
                             }
@@ -377,7 +381,9 @@ impl MqttBrokerCommand {
              let disconnect_opts = DisconnectOptionsBuilder::new()
              .reason_code(ReasonCode::DisconnectWithWillMessage)
              .finalize();
-             cli.disconnect(disconnect_opts).unwrap();
+             if let Err(e) = cli.disconnect(disconnect_opts) {
+                 println!("Warning: disconnect error: {e:?}");
+             }
             }}
         });
         while let Some(msg) = rx.iter().next() {
@@ -388,11 +394,13 @@ impl MqttBrokerCommand {
                         .get_string_pair_at(PropertyCode::UserProperty, 0);
                     if let Some(raw) = raw {
                         if raw.0 == "retain_push_flag" && raw.1 == "true" {
-                            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                            let payload = String::from_utf8(msg.payload().to_vec())
+                                .unwrap_or_else(|_| "-".to_owned());
                             println!("Retain message: {payload}");
                         }
                     }
-                    let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+                    let payload = String::from_utf8(msg.payload().to_vec())
+                        .unwrap_or_else(|_| "-".to_owned());
                     println!("payload: {payload}");
                 }
                 None => {
@@ -776,11 +784,15 @@ impl MqttBrokerCommand {
                 ]);
 
                 for client in page_data.data {
-                    let network_conn =  client.network_connection.unwrap();
+                    let protocol = client
+                        .network_connection
+                        .and_then(|nc| nc.protocol)
+                        .map(|p| p.to_str().to_owned())
+                        .unwrap_or_else(|| "-".to_owned());
                     table.add_row(row![
-                        client.connection_id,
                         client.client_id,
-                        network_conn.protocol.unwrap().to_str(),
+                        client.connection_id,
+                        protocol,
                         client.mqtt_connection.create_time,
                     ]);
                 }

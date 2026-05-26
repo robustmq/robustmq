@@ -110,3 +110,10 @@ tcp_port = 4222
 tls_port = 4223
 ws_port  = 4080
 wss_port = 4443
+
+[admin]
+username = "admin"
+password = "admin"
+# Change jwt_secret to a random string in production!
+jwt_secret = "robustmq-change-me-in-production"
+token_ttl_hours = 8

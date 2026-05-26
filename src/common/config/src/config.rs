@@ -205,6 +205,10 @@ pub struct BrokerConfig {
     // Shared broker network config (handler pool + request channel)
     #[serde(default = "default_network")]
     pub broker_network: Network,
+
+    // Admin HTTP API authentication
+    #[serde(default)]
+    pub admin: AdminConfig,
 }
 
 impl Default for BrokerConfig {
@@ -254,6 +258,7 @@ impl Default for BrokerConfig {
 
             // Shared broker network config
             broker_network: default_network(),
+            admin: AdminConfig::default(),
         }
     }
 }
@@ -851,6 +856,53 @@ impl Default for NatsRuntime {
             push_thread_num: default_nats_push_thread_num(),
             push_queue_thread_num: default_nats_push_queue_thread_num(),
             mq9_mailbox_default_ttl: default_nats_mq9_mailbox_ttl(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AdminConfig {
+    /// Admin username for Dashboard / CLI login. Defaults to "admin".
+    #[serde(default = "default_admin_username")]
+    pub username: String,
+
+    /// Admin password (plain-text in config; should be changed in production).
+    #[serde(default = "default_admin_password")]
+    pub password: String,
+
+    /// HMAC-SHA256 secret used to sign JWT tokens.
+    /// Change this to a random string in production.
+    #[serde(default = "default_admin_jwt_secret")]
+    pub jwt_secret: String,
+
+    /// JWT token validity in hours. Defaults to 8.
+    #[serde(default = "default_admin_token_ttl_hours")]
+    pub token_ttl_hours: u64,
+}
+
+fn default_admin_username() -> String {
+    "admin".to_string()
+}
+
+fn default_admin_password() -> String {
+    "admin".to_string()
+}
+
+fn default_admin_jwt_secret() -> String {
+    "robustmq-change-me-in-production".to_string()
+}
+
+fn default_admin_token_ttl_hours() -> u64 {
+    8
+}
+
+impl Default for AdminConfig {
+    fn default() -> Self {
+        Self {
+            username: default_admin_username(),
+            password: default_admin_password(),
+            jwt_secret: default_admin_jwt_secret(),
+            token_ttl_hours: default_admin_token_ttl_hours(),
         }
     }
 }

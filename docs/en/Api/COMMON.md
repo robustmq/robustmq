@@ -12,6 +12,7 @@ RobustMQ Admin Server is an HTTP management interface service, providing compreh
 
 ## API Documentation Navigation
 
+- 🔐 **[Authentication](AUTH.md)** - Login endpoint, JWT token usage and configuration
 - 📋 **[Cluster Management API](CLUSTER.md)** - Cluster configuration and status management
 - 🔧 **[MQTT Broker API](MQTT.md)** - All MQTT broker related management interfaces
 - 🔌 **[Connector API](Connector.md)** - Connector management interfaces
@@ -179,7 +180,7 @@ Most list query interfaces support the following common parameters:
 ### Cluster Status Query
 - **Endpoint**: `GET /api/status`
 - **Description**: Get complete cluster status information, including RobustMQ version, cluster name, start time, broker node list, and Meta cluster Raft state
-- **Request Parameters**: 
+- **Request Parameters**:
 ```json
 {}
 ```
@@ -416,4 +417,4 @@ The service outputs detailed log information during runtime, including:
 
 ---
 
-*Last Updated: 2026-03-21*
+Last Updated: 2026-03-21

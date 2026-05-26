@@ -57,8 +57,9 @@ pub fn connect_server5(
     let conn_opts = build_v5_conn_pros(props, username, password, ws, ssl);
     match cli.connect(conn_opts) {
         Ok(response) => {
-            let resp = response.connect_response().unwrap();
-            println!("able to connect: {:?}", resp.server_uri);
+            if let Some(resp) = response.connect_response() {
+                println!("able to connect: {:?}", resp.server_uri);
+            }
         }
         Err(e) => {
             println!("Unable to connect: {e:?}");
@@ -70,22 +71,24 @@ pub fn connect_server5(
 
 pub fn build_v5_pros() -> Properties {
     let mut props = Properties::new();
-    props
-        .push_u32(PropertyCode::SessionExpiryInterval, 3)
-        .unwrap();
-    props.push_u16(PropertyCode::ReceiveMaximum, 128).unwrap();
-    props
-        .push_u32(PropertyCode::MaximumPacketSize, 2048)
-        .unwrap();
-    props
-        .push_u16(PropertyCode::TopicAliasMaximum, 128)
-        .unwrap();
-    props
-        .push_val(PropertyCode::RequestResponseInformation, 0)
-        .unwrap();
-    props
-        .push_val(PropertyCode::RequestProblemInformation, 1)
-        .unwrap();
+    if let Err(e) = props.push_u32(PropertyCode::SessionExpiryInterval, 3) {
+        println!("Warning: failed to set SessionExpiryInterval: {e:?}");
+    }
+    if let Err(e) = props.push_u16(PropertyCode::ReceiveMaximum, 128) {
+        println!("Warning: failed to set ReceiveMaximum: {e:?}");
+    }
+    if let Err(e) = props.push_u32(PropertyCode::MaximumPacketSize, 2048) {
+        println!("Warning: failed to set MaximumPacketSize: {e:?}");
+    }
+    if let Err(e) = props.push_u16(PropertyCode::TopicAliasMaximum, 128) {
+        println!("Warning: failed to set TopicAliasMaximum: {e:?}");
+    }
+    if let Err(e) = props.push_val(PropertyCode::RequestResponseInformation, 0) {
+        println!("Warning: failed to set RequestResponseInformation: {e:?}");
+    }
+    if let Err(e) = props.push_val(PropertyCode::RequestProblemInformation, 1) {
+        println!("Warning: failed to set RequestProblemInformation: {e:?}");
+    }
     props
 }
 
@@ -113,15 +116,23 @@ pub fn build_v5_conn_pros(
         ConnectOptionsBuilder::new_v5()
     };
     if ssl {
-        let ssl_opts = SslOptionsBuilder::new()
-            .trust_store(format!(
-                "{}/../config/example/certs/ca.pem",
-                env!("CARGO_MANIFEST_DIR")
-            ))
-            .unwrap()
-            .verify(false)
-            .disable_default_trust_store(false)
-            .finalize();
+        let trust_store_path = format!(
+            "{}/../config/example/certs/ca.pem",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let ssl_opts = match SslOptionsBuilder::new().trust_store(&trust_store_path) {
+            Ok(builder) => builder
+                .verify(false)
+                .disable_default_trust_store(false)
+                .finalize(),
+            Err(e) => {
+                println!("Warning: failed to set SSL trust store '{trust_store_path}': {e:?}");
+                SslOptionsBuilder::new()
+                    .verify(false)
+                    .disable_default_trust_store(false)
+                    .finalize()
+            }
+        };
         conn_opts.ssl_options(ssl_opts);
     }
     conn_opts

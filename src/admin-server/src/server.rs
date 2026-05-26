@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::auth::{auth_middleware, auth_router};
 use crate::cluster::index;
 use crate::cluster::offset::{commit_offset, get_offset_by_group, get_offset_by_timestamp};
 use crate::debug::pprof_flamegraph;
@@ -84,12 +85,18 @@ impl AdminServer {
 
     pub async fn start(&self, port: u32, state: Arc<HttpState>) -> Result<(), std::io::Error> {
         let ip = format!("0.0.0.0:{port}");
+        let protected_api = self.api_route().layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware,
+        ));
+
         let route = Router::new()
             .merge(mcp_route())
             .route("/", get(index))
             .route(DEBUG_PPROF_FLAMEGRAPH_PATH, get(pprof_flamegraph))
             .route(METRICS_PATH, get(|| async { dump_metrics() }))
-            .nest("/api", self.api_route())
+            .merge(auth_router())
+            .nest("/api", protected_api)
             .merge(self.static_route())
             .with_state(state.clone())
             .layer(middleware::from_fn_with_state(state, rate_limit_middleware))
