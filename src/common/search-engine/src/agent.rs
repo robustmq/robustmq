@@ -159,14 +159,17 @@ pub async fn search_agents_by_text(
     query: &str,
     limit: usize,
     offset: usize,
+    tenant: Option<&str>,
 ) -> SearchResult<Vec<AgentSearchResult>> {
     let table = open_table(TABLE_NAME).await?;
+    let filter = tenant.map(|t| format!("tenant = '{}'", t));
     let batches = full_text_search(
         &table,
         query,
         limit,
         offset,
         Some(&["agent_id", "name", "description", "agent_info"]),
+        filter.as_deref(),
     )
     .await?;
     Ok(extract_results(batches))

@@ -126,6 +126,7 @@ pub async fn full_text_search(
     limit: usize,
     offset: usize,
     columns: Option<&[&str]>,
+    filter: Option<&str>,
 ) -> SearchResult<Vec<RecordBatch>> {
     let mut q = table
         .query()
@@ -137,6 +138,9 @@ pub async fn full_text_search(
     }
     if let Some(cols) = columns {
         q = q.select(Select::columns(cols));
+    }
+    if let Some(f) = filter {
+        q = q.only_if(f);
     }
 
     match q.execute().await {
@@ -231,7 +235,7 @@ mod tests {
         assert!(!results.is_empty());
 
         create_fts_index(&table, &["text"]).await.unwrap();
-        let fts = full_text_search(&table, "message queue", 3, 0, Some(&["id", "text"]))
+        let fts = full_text_search(&table, "message queue", 3, 0, Some(&["id", "text"]), None)
             .await
             .unwrap();
         assert!(!fts.is_empty());

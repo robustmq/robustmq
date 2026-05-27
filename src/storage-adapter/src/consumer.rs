@@ -317,17 +317,18 @@ impl GroupConsumer {
                 Ok(offsets)
             }
             StartOffsetStrategy::ByStartTime(timestamp) => {
-                let adapter_strategy = AdapterOffsetStrategy::Latest;
+                let adapter_strategy = AdapterOffsetStrategy::Earliest;
                 let target = self
                     .driver
                     .get_offset_by_timestamp(tenant, topic_name, timestamp, adapter_strategy)
                     .await?;
+                // No `.min(end_offset)` clamp: read_by_tag filters tag entries by offset itself,
+                // and clamping target to end_offset would pin the consumer to the last record
+                // when get_offset_by_timestamp falls back to a value past the shard end.
                 let offsets = storage_list
                     .into_values()
                     .map(|detail| {
-                        let offset = target
-                            .max(detail.offset.start_offset)
-                            .min(detail.offset.end_offset);
+                        let offset = target.max(detail.offset.start_offset);
                         (detail.shard_name, offset)
                     })
                     .collect();

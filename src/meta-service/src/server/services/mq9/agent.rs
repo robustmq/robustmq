@@ -112,7 +112,7 @@ pub async fn search_agent_by_req(
             .await
             .map_err(|e| MetaServiceError::CommonError(e.to_string()))?
     } else if !req.text.is_empty() {
-        search_engine::agent::search_agents_by_text(&req.text, limit, offset)
+        search_engine::agent::search_agents_by_text(&req.text, limit, offset, tenant)
             .await
             .map_err(|e| MetaServiceError::CommonError(e.to_string()))?
     } else {

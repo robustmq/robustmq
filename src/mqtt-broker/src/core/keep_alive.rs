@@ -91,50 +91,105 @@ impl ClientKeepAlive {
         let expire_connection = self.get_expire_connection().await;
 
         for connect_id in expire_connection {
-            if let Some(connection) = self.cache_manager.get_connection(connect_id) {
-                if let Some(network) = self.connection_manager.get_connect(connect_id) {
-                    let protocol = network.protocol.clone().unwrap();
-                    let resp = build_distinct_packet(
-                        &self.cache_manager,
-                        connect_id,
-                        &protocol.to_mqtt(),
-                        Some(DisconnectReasonCode::NormalDisconnection),
-                        None,
-                        Some("keep alive timeout".to_string()),
+            let Some(connection) = self.cache_manager.get_connection(connect_id) else {
+                continue;
+            };
+
+            if let Some(network) = self.connection_manager.get_connect(connect_id) {
+                let protocol = network.protocol.clone().unwrap();
+                let resp = build_distinct_packet(
+                    &self.cache_manager,
+                    connect_id,
+                    &protocol.to_mqtt(),
+                    Some(DisconnectReasonCode::NormalDisconnection),
+                    None,
+                    Some("keep alive timeout".to_string()),
+                );
+
+                let wrap = MqttPacketWrapper {
+                    protocol_version: protocol.to_u8(),
+                    packet: resp,
+                };
+
+                let context = TrySendDistinctPacketContext {
+                    cache_manager: self.cache_manager.clone(),
+                    client_pool: self.client_pool.clone(),
+                    session_batcher: self.session_batcher.clone(),
+                    connection_manager: self.connection_manager.clone(),
+                    subscribe_manager: self.subscribe_manager.clone(),
+                    network: network.clone(),
+                    connection: connection.clone(),
+                    wrap,
+                    protocol: protocol.to_mqtt(),
+                    connect_id,
+                };
+
+                if let Err(e) = close_connect(&context).await {
+                    if !matches!(e, MqttBrokerError::SessionDoesNotExist) {
+                        warn!(
+                            connect_id = context.connect_id,
+                            client_id = %context.connection.client_id,
+                            protocol = ?context.protocol,
+                            error = %e,
+                            "Heartbeat timeout: failed to actively disconnect connection"
+                        );
+                    }
+                } else {
+                    info!(
+                        "Heartbeat timeout, active disconnection {} successful",
+                        context.connect_id
                     );
+                }
+            } else {
+                // TCP layer is already gone (zombie connection): skip the DISCONNECT
+                // packet send and the network-side close, but still purge the cached
+                // connection / session / subscriptions / heartbeat, otherwise the entry
+                // sticks around forever.
+                let protocol = self
+                    .cache_manager
+                    .heartbeat_data
+                    .get(&connection.client_id)
+                    .map(|r| r.protocol.clone())
+                    .unwrap_or(MqttProtocol::Mqtt5);
 
-                    let wrap = MqttPacketWrapper {
-                        protocol_version: protocol.to_u8(),
-                        packet: resp,
-                    };
-
-                    let context = TrySendDistinctPacketContext {
-                        cache_manager: self.cache_manager.clone(),
-                        client_pool: self.client_pool.clone(),
-                        session_batcher: self.session_batcher.clone(),
-                        connection_manager: self.connection_manager.clone(),
-                        subscribe_manager: self.subscribe_manager.clone(),
-                        network: network.clone(),
-                        connection: connection.clone(),
-                        wrap,
-                        protocol: protocol.to_mqtt(),
-                        connect_id,
-                    };
-
-                    if let Err(e) = close_connect(&context).await {
-                        if !matches!(e, MqttBrokerError::SessionDoesNotExist) {
-                            warn!(
-                                connect_id = context.connect_id,
-                                client_id = %context.connection.client_id,
-                                protocol = ?context.protocol,
-                                error = %e,
-                                "Heartbeat timeout: failed to actively disconnect connection"
+                match build_server_disconnect_conn_context(
+                    &self.cache_manager,
+                    &self.client_pool,
+                    &self.session_batcher,
+                    &self.connection_manager,
+                    &self.subscribe_manager,
+                    connect_id,
+                    &protocol,
+                ) {
+                    Ok(ctx) => {
+                        if let Err(e) = disconnect_connection(ctx).await {
+                            if !matches!(e, MqttBrokerError::SessionDoesNotExist) {
+                                warn!(
+                                    connect_id,
+                                    client_id = %connection.client_id,
+                                    error = %e,
+                                    "Heartbeat timeout: failed to purge zombie connection"
+                                );
+                            }
+                        } else {
+                            record_mqtt_connection_expired();
+                            info!(
+                                "Heartbeat timeout, purged zombie connection {} (network already closed)",
+                                connect_id
                             );
                         }
-                    } else {
-                        info!(
-                            "Heartbeat timeout, active disconnection {} successful",
-                            context.connect_id
+                    }
+                    Err(MqttBrokerError::SessionDoesNotExist) => {
+                        // No session means there's nothing left to clean except the
+                        // connection cache entry itself.
+                        self.cache_manager.remove_connection(connect_id);
+                    }
+                    Err(e) => {
+                        warn!(
+                            connect_id,
+                            client_id = %connection.client_id,
+                            error = %e,
+                            "Heartbeat timeout: failed to build disconnect context for zombie connection"
                         );
                     }
                 }
