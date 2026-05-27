@@ -13,149 +13,218 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Package RobustMQ source code (src, config, scripts, Cargo files) into a tar.gz archive,
-# then upload it to the remote server.
+# Package RobustMQ changed files into a tar.gz and sync to remote server.
 # Usage: ./scripts/package.sh [output_dir]
-# Default output dir is the project root.
 
+set -euo pipefail
+
+# ── Configuration ─────────────────────────────────────────────────────────────
 REMOTE_HOST="root@117.72.92.117"
 REMOTE_DIR="/root/robustmq"
 
-set -euo pipefail
-# todo
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
 OUTPUT_DIR="${1:-$PROJECT_ROOT}"
+
+# ── Logging helpers ────────────────────────────────────────────────────────────
+info()  { echo "[INFO]  $*"; }
+warn()  { echo "[WARN]  $*" >&2; }
+error() { echo "[ERROR] $*" >&2; }
+
+# ── Version / archive name ─────────────────────────────────────────────────────
 VERSION=$(git -C "$PROJECT_ROOT" describe --tags --always --dirty 2>/dev/null || echo "dev")
-TIMESTAMP=$(date +%Y%m%d%H%M%S)
+TIMESTAMP=$(date +%Y%m%d%H%M%S)_$$
 ARCHIVE="$OUTPUT_DIR/robustmq-${VERSION}-${TIMESTAMP}.tar.gz"
 
+# Always remove the local archive on exit (success, failure, or signal)
+trap 'rm -f "$ARCHIVE"' EXIT
+
+# ── Branch detection ───────────────────────────────────────────────────────────
 LOCAL_BRANCH=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD)
+info "Local branch: ${LOCAL_BRANCH}"
 
-# Collect all files that differ from origin/<branch> — covering three cases:
-#   1. Committed locally but not yet pushed  (HEAD vs origin)
-#   2. Modified in working tree but not committed  (working tree vs HEAD)
-#   3. Untracked new files
-COMMITTED_FILES=$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=ACM "origin/${LOCAL_BRANCH}" HEAD 2>/dev/null || true)
-WORKDIR_FILES=$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=ACM HEAD 2>/dev/null || true)
-UNTRACKED_FILES=$(git -C "$PROJECT_ROOT" ls-files --others --exclude-standard -- src/ Cargo.toml Cargo.lock config/ scripts/ docs/ bin/ 2>/dev/null || true)
+# ── Collect changed files ──────────────────────────────────────────────────────
+# 1. Committed locally but not yet pushed
+COMMITTED_FILES=$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=ACM \
+  "origin/${LOCAL_BRANCH}" HEAD 2>/dev/null || true)
 
-# DELETED_FILES: only files that truly no longer exist on disk but are on origin.
+# 2. Modified in working tree but not committed
+WORKDIR_FILES=$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=ACM \
+  HEAD 2>/dev/null || true)
+
+# 3. Untracked new files (entire repo, respects .gitignore)
+UNTRACKED_FILES=$(git -C "$PROJECT_ROOT" ls-files --others --exclude-standard \
+  2>/dev/null || true)
+
+# 4. Files deleted locally that exist on origin → remove on remote
+_DELETED_RAW=$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=D \
+  "origin/${LOCAL_BRANCH}" HEAD 2>/dev/null || true)
+# Keep only files that are truly gone from disk
 DELETED_FILES=""
 while IFS= read -r f; do
-  [ -n "$f" ] && [ ! -e "$PROJECT_ROOT/$f" ] && DELETED_FILES="${DELETED_FILES}${f}"$'\n'
-done < <(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=D "origin/${LOCAL_BRANCH}" HEAD 2>/dev/null || true)
+  [[ -n "$f" && ! -e "$PROJECT_ROOT/$f" ]] && DELETED_FILES="${DELETED_FILES}${f}"$'\n'
+done <<< "$_DELETED_RAW"
 DELETED_FILES="${DELETED_FILES%$'\n'}"
 
-# Combine all three sources, deduplicate, exclude .tar.gz
-ALL_FILES=$(printf '%s\n%s\n%s' "$COMMITTED_FILES" "$WORKDIR_FILES" "$UNTRACKED_FILES" \
-  | grep -v '\.tar\.gz$' | grep -v '^$' | sort -u)
+# Combine, deduplicate, exclude archives
+count_lines() { echo "${1}" | grep -c '[^[:space:]]' 2>/dev/null || echo 0; }
 
-# Debug: show what each source found
+ALL_FILES=$(printf '%s\n%s\n%s' \
+    "$COMMITTED_FILES" "$WORKDIR_FILES" "$UNTRACKED_FILES" \
+  | grep -v '\.tar\.gz$' \
+  | grep '[^[:space:]]' \
+  | sort -u || true)
+
+# ── Debug summary ──────────────────────────────────────────────────────────────
 echo "--- File sources ---"
-echo "[committed vs origin] $(echo "$COMMITTED_FILES" | grep -c . || echo 0) files"
-echo "$COMMITTED_FILES" | grep -v '^$' | sed 's/^/  + /' || true
-echo "[workdir vs HEAD]     $(echo "$WORKDIR_FILES" | grep -c . || echo 0) files"
-echo "$WORKDIR_FILES" | grep -v '^$' | sed 's/^/  ~ /' || true
-echo "[untracked]           $(echo "$UNTRACKED_FILES" | grep -c . || echo 0) files"
-echo "$UNTRACKED_FILES" | grep -v '^$' | sed 's/^/  ? /' || true
+info "[committed vs origin] $(count_lines "$COMMITTED_FILES") file(s)"
+echo "$COMMITTED_FILES" | grep '[^[:space:]]' | sed 's/^/  + /' || true
+info "[workdir vs HEAD]     $(count_lines "$WORKDIR_FILES") file(s)"
+echo "$WORKDIR_FILES"   | grep '[^[:space:]]' | sed 's/^/  ~ /' || true
+info "[untracked]           $(count_lines "$UNTRACKED_FILES") file(s)"
+echo "$UNTRACKED_FILES" | grep '[^[:space:]]' | sed 's/^/  ? /' || true
+info "[deleted locally]     $(count_lines "$DELETED_FILES") file(s)"
+echo "$DELETED_FILES"   | grep '[^[:space:]]' | sed 's/^/  - /' || true
 echo "--------------------"
 
-if [ -z "$ALL_FILES" ]; then
-  echo "No changed files to package."
+# ── Build archive ──────────────────────────────────────────────────────────────
+if [[ -z "$ALL_FILES" ]]; then
+  info "No changed files to package."
   SKIP_ARCHIVE=1
 else
   SKIP_ARCHIVE=0
-  echo "Packaging $(echo "$ALL_FILES" | wc -l | tr -d ' ') files:"
+  FILE_COUNT=$(echo "$ALL_FILES" | grep -c '[^[:space:]]')
+  info "Packaging ${FILE_COUNT} file(s):"
   echo "$ALL_FILES" | sed 's/^/  /'
   echo "$ALL_FILES" | tr '\n' '\0' \
     | COPYFILE_DISABLE=1 tar czf "$ARCHIVE" -C "$PROJECT_ROOT" --null -T -
-  echo "Packaged: $ARCHIVE ($(du -sh "$ARCHIVE" | cut -f1))"
+  info "Archive created: $ARCHIVE ($(du -sh "$ARCHIVE" | cut -f1))"
 fi
 
-echo "Local branch: ${LOCAL_BRANCH}"
-
+# ── Upload archive ─────────────────────────────────────────────────────────────
 ARCHIVE_NAME="$(basename "$ARCHIVE")"
-if [ "${SKIP_ARCHIVE}" -eq 0 ]; then
-  echo "Uploading to ${REMOTE_HOST}:${REMOTE_DIR} ..."
-  scp "$ARCHIVE" "${REMOTE_HOST}:${REMOTE_DIR}"
-  echo "Upload complete: ${REMOTE_HOST}:${REMOTE_DIR}/${ARCHIVE_NAME}"
-  rm "$ARCHIVE"
-  echo "Local archive deleted."
+if [[ "${SKIP_ARCHIVE}" -eq 0 ]]; then
+  info "Uploading to ${REMOTE_HOST}:${REMOTE_DIR} ..."
+  scp "$ARCHIVE" "${REMOTE_HOST}:${REMOTE_DIR}/"
+  info "Upload complete: ${REMOTE_HOST}:${REMOTE_DIR}/${ARCHIVE_NAME}"
 fi
 
-# Build a remote delete command for each locally-deleted file.
-REMOTE_DELETE_CMDS=""
-if [ -n "$DELETED_FILES" ]; then
-  echo "Files deleted locally (will remove on remote):"
+# ── Build remote delete commands (passed via env to avoid injection) ────────────
+# Serialize deleted file list as newline-separated; the remote side reads $DELETED_LIST
+DELETED_LIST="$DELETED_FILES"
+
+# ── Remote: pull → extract → commit → push ────────────────────────────────────
+info "Syncing remote ..."
+ssh "${REMOTE_HOST}" \
+  REMOTE_DIR="${REMOTE_DIR}" \
+  LOCAL_BRANCH="${LOCAL_BRANCH}" \
+  ARCHIVE_NAME="${ARCHIVE_NAME}" \
+  SKIP_ARCHIVE="${SKIP_ARCHIVE}" \
+  DELETED_LIST="${DELETED_LIST}" \
+  'bash -s' <<'REMOTE_SCRIPT'
+set -euo pipefail
+
+info()  { echo "[INFO]  $*"; }
+error() { echo "[ERROR] $*" >&2; }
+
+cd "${REMOTE_DIR}"
+
+# Switch branch if needed
+REMOTE_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+info "Remote branch: ${REMOTE_BRANCH}"
+if [[ "${REMOTE_BRANCH}" != "${LOCAL_BRANCH}" ]]; then
+  info "Switching to branch ${LOCAL_BRANCH} ..."
+  git fetch origin
+  git checkout "${LOCAL_BRANCH}" 2>/dev/null \
+    || git checkout -b "${LOCAL_BRANCH}" "origin/${LOCAL_BRANCH}"
+fi
+
+# Pull latest before extracting so conflicts are resolved in order
+info "Pulling origin/${LOCAL_BRANCH} ..."
+git pull origin "${LOCAL_BRANCH}"
+
+# Extract the uploaded archive (overwrites pulled content with local changes)
+if [[ "${SKIP_ARCHIVE}" -eq 0 && -f "${ARCHIVE_NAME}" ]]; then
+  info "Extracting ${ARCHIVE_NAME} ..."
+  tar xzf "${ARCHIVE_NAME}" --warning=no-unknown-keyword
+  rm -f "${ARCHIVE_NAME}"
+fi
+
+# Remove stale archives
+find "${REMOTE_DIR}" -maxdepth 1 -name '*.tar.gz' -delete
+
+# Remove files deleted locally
+if [[ -n "${DELETED_LIST}" ]]; then
+  info "Removing locally-deleted files on remote ..."
   while IFS= read -r f; do
-    echo "  - $f"
-    REMOTE_DELETE_CMDS="${REMOTE_DELETE_CMDS}  rm -f \"${REMOTE_DIR}/${f}\" && echo \"Deleted: ${f}\" || true"$'\n'
-  done <<< "$DELETED_FILES"
+    [[ -z "$f" ]] && continue
+    target="${REMOTE_DIR}/${f}"
+    if rm -f -- "$target"; then
+      info "  Deleted: ${f}"
+    fi
+  done <<< "${DELETED_LIST}"
 fi
 
-echo "Syncing remote branch ..."
-ssh "${REMOTE_HOST}" "
-  set -e
-  cd ${REMOTE_DIR}
-  REMOTE_BRANCH=\$(git rev-parse --abbrev-ref HEAD)
-  echo \"Remote branch: \${REMOTE_BRANCH}\"
-  if [ \"\${REMOTE_BRANCH}\" != \"${LOCAL_BRANCH}\" ]; then
-    echo \"Switching remote branch to ${LOCAL_BRANCH} ...\"
-    git fetch origin
-    git checkout ${LOCAL_BRANCH} || git checkout -b ${LOCAL_BRANCH} origin/${LOCAL_BRANCH}
-  fi
-  git pull origin ${LOCAL_BRANCH}
-  if [ -f \"${ARCHIVE_NAME}\" ]; then
-    tar xzf ${ARCHIVE_NAME} --warning=no-unknown-keyword && rm ${ARCHIVE_NAME}
-  fi
-  # Remove any stale .tar.gz files from the repo root
-  find ${REMOTE_DIR} -maxdepth 1 -name '*.tar.gz' -delete
-${REMOTE_DELETE_CMDS}
-  git add -A
-  git diff --cached --quiet || git commit -m 'dev'
-  PUSH_RETRY=0
-  MAX_PUSH_RETRIES=3
-  until git push origin ${LOCAL_BRANCH} 2>&1 | tee /tmp/push_output.txt; do
-    PUSH_OUTPUT=\$(cat /tmp/push_output.txt)
-    # Abort immediately on auth/permission errors — retrying won't help
-    if echo \"\${PUSH_OUTPUT}\" | grep -qiE 'refusing|403|permission|scope|authentication|not allowed'; then
-      echo \"Push permanently rejected (permission/auth error), aborting.\"
+# Commit and push
+git add -A
+if git diff --cached --quiet; then
+  info "Nothing to commit on remote."
+else
+  git commit -m 'dev'
+
+  # Push with exponential backoff
+  MAX_RETRIES=3
+  RETRY=0
+  DELAY=2
+  until git push origin "${LOCAL_BRANCH}" 2>&1 | tee /tmp/push_output.txt; do
+    PUSH_OUTPUT=$(cat /tmp/push_output.txt)
+    if echo "${PUSH_OUTPUT}" | grep -qiE 'refusing|403|permission|scope|authentication|not allowed'; then
+      error "Push permanently rejected (auth/permission error). Aborting."
       cat /tmp/push_output.txt
       exit 1
     fi
-    PUSH_RETRY=\$((PUSH_RETRY + 1))
-    if [ \${PUSH_RETRY} -ge \${MAX_PUSH_RETRIES} ]; then
-      echo \"Push failed after \${MAX_PUSH_RETRIES} retries, giving up.\"
+    RETRY=$((RETRY + 1))
+    if [[ ${RETRY} -ge ${MAX_RETRIES} ]]; then
+      error "Push failed after ${MAX_RETRIES} retries. Giving up."
       exit 1
     fi
-    echo \"Push failed, retrying (\${PUSH_RETRY}/\${MAX_PUSH_RETRIES})...\"
-    sleep 3
+    info "Push failed, retrying in ${DELAY}s (${RETRY}/${MAX_RETRIES}) ..."
+    sleep "${DELAY}"
+    DELAY=$((DELAY * 2))
   done
-  echo \"Push succeeded after \${PUSH_RETRY} retries.\"
-  echo \"Done.\"
-"
-echo "Remote extraction complete."
 
-# Clean up any leftover .tar.gz files in the local project root
-find "$PROJECT_ROOT" -maxdepth 1 -name '*.tar.gz' -delete
-echo "Local .tar.gz files cleaned up."
+  if [[ ${RETRY} -eq 0 ]]; then
+    info "Push succeeded."
+  else
+    info "Push succeeded after ${RETRY} retry/retries."
+  fi
+fi
 
-# Local commit: only stage the files that were successfully packaged,
-# so unpackaged files remain visible as unstaged for easy comparison.
-if [ "${SKIP_ARCHIVE}" -eq 0 ] && [ -n "$ALL_FILES" ]; then
-  echo "Committing packaged files locally..."
+info "Remote sync done."
+REMOTE_SCRIPT
+
+info "Remote sync complete."
+
+# ── Local commit: stage exactly the packaged files ────────────────────────────
+if [[ "${SKIP_ARCHIVE}" -eq 0 && -n "$ALL_FILES" ]]; then
+  info "Committing packaged files locally ..."
   while IFS= read -r f; do
-    [ -n "$f" ] && git -C "$PROJECT_ROOT" add "$f" 2>/dev/null || true
+    [[ -n "$f" ]] && git -C "$PROJECT_ROOT" add -- "$f" 2>/dev/null || true
   done <<< "$ALL_FILES"
-  # Also stage any explicitly deleted files
-  if [ -n "$DELETED_FILES" ]; then
+
+  if [[ -n "$DELETED_FILES" ]]; then
     while IFS= read -r f; do
-      [ -n "$f" ] && git -C "$PROJECT_ROOT" rm --cached "$f" 2>/dev/null || true
+      [[ -n "$f" ]] && git -C "$PROJECT_ROOT" rm --cached -- "$f" 2>/dev/null || true
     done <<< "$DELETED_FILES"
   fi
-  git -C "$PROJECT_ROOT" diff --cached --quiet || \
+
+  if git -C "$PROJECT_ROOT" diff --cached --quiet; then
+    info "Nothing to commit locally."
+  else
     git -C "$PROJECT_ROOT" commit -m 'dev'
-  echo "Local commit done. Unpackaged files remain unstaged."
+    info "Local commit done. Unpackaged files remain unstaged."
+  fi
 fi
+
+# Trap handles archive cleanup — no explicit rm needed here
+info "All done."
