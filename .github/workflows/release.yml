@@ -97,7 +97,7 @@ jobs:
           echo "OPENSSL_STATIC=1" >> $env:GITHUB_ENV
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9
           run_install: false
