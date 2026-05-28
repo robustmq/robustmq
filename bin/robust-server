@@ -49,10 +49,27 @@ start_service() {
   [ ! -x "$bin_path" ] && echo "ERROR: $bin_path not found or not executable" && exit 1
   [ ! -f "$conf" ] && echo "Config file not found: $conf" && exit 1
 
-  # Read http_port from config file, default to 8080 if not found
+  # Read http_port from config file, default to 58080 if not found
   http_port=$(grep -E '^[[:space:]]*http_port[[:space:]]*=' "$conf" 2>/dev/null | head -1 | sed 's/.*=[[:space:]]*//' | tr -d '[:space:]')
-  [ -z "$http_port" ] && http_port=8080
-  export ROBUSTMQ_API_URL="http://127.0.0.1:${http_port}"
+  [ -z "$http_port" ] && http_port=58080
+
+  # Read broker_ip from config file.
+  # If not configured, detect the first non-loopback IPv4 of the host.
+  broker_ip=$(grep -E '^[[:space:]]*broker_ip[[:space:]]*=' "$conf" 2>/dev/null | head -1 | sed 's/.*=[[:space:]]*//' | tr -d '[:space:]"')
+  if [ -z "$broker_ip" ]; then
+    if command -v hostname >/dev/null 2>&1 && hostname -I >/dev/null 2>&1; then
+      broker_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+    fi
+    if [ -z "$broker_ip" ] && command -v ip >/dev/null 2>&1; then
+      broker_ip=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1)
+    fi
+    if [ -z "$broker_ip" ] && command -v ifconfig >/dev/null 2>&1; then
+      broker_ip=$(ifconfig 2>/dev/null | awk '/inet / && $2 != "127.0.0.1" {print $2; exit}')
+    fi
+    [ -z "$broker_ip" ] && broker_ip=127.0.0.1
+  fi
+
+  export ROBUSTMQ_API_URL="http://${broker_ip}:${http_port}"
 
   # Raise the open file descriptor limit to handle large numbers of
   # MQTT connections and gRPC channels without hitting "Too many open files".
