@@ -59,8 +59,6 @@ bytes.workspace = true
 dashmap.workspace = true
 rule-engine.workspace = true
 
-# rdkafka: see common/base/Cargo.toml for rationale.
-# Use cmake-build only on Windows.
 [target.'cfg(not(windows))'.dependencies]
 rdkafka = { workspace = true }
 

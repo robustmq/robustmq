@@ -60,11 +60,6 @@ chrono-tz.workspace = true
 bytes.workspace = true
 dashmap.workspace = true
 
-# rdkafka:
-#   Linux / macOS use librdkafka's default `configure`-based build.
-#   Windows MSVC has no POSIX configure, so we enable cmake-build there.
-#   Linux/macOS could use cmake-build too but it would require libcurl-dev,
-#   libsasl2-dev, libssl-dev, libzstd-dev to be installed on the build host.
 [target.'cfg(not(windows))'.dependencies]
 rdkafka = { workspace = true }
 
