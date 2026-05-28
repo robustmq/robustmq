@@ -30,6 +30,8 @@ doc: ## Generate documentation
 build: ## Build current platform package (basic build without frontend)
 	@echo "Building current platform package..."
 	./scripts/build.sh
+	@echo "$(VERSION)" > config/version.ini
+	@echo "📝 Wrote version $(VERSION) to config/version.ini"
 
 .PHONY: build-full
 build-full: ## Build complete package with frontend (auto-clone frontend repo, build web UI, create tarball)
@@ -40,6 +42,8 @@ build-full: ## Build complete package with frontend (auto-clone frontend repo, b
 	@echo "  • Compile Rust binaries in release mode"
 	@echo "  • Create package: build/robustmq-{version}-{platform}.tar.gz"
 	./scripts/build.sh --with-frontend
+	@echo "$(VERSION)" > config/version.ini
+	@echo "📝 Wrote version $(VERSION) to config/version.ini"
 
 .PHONY: build-version
 build-version: ## Build package with specific version (usage: make build-version VERSION=v0.1.30)
