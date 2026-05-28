@@ -90,9 +90,12 @@ impl AdminServer {
             auth_middleware,
         ));
 
+        // Note: `/` is intentionally not registered here — it is left to the
+        // static fallback so the SPA's index.html (login page) is served.
+        // The cluster info JSON previously exposed on `/` is still available
+        // at `/api/info`.
         let route = Router::new()
             .merge(mcp_route())
-            .route("/", get(index))
             .route(DEBUG_PPROF_FLAMEGRAPH_PATH, get(pprof_flamegraph))
             .route(METRICS_PATH, get(|| async { dump_metrics() }))
             .merge(auth_router())
