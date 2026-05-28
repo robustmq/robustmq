@@ -27,7 +27,7 @@ start_server(){
     fi
 
     # you can run the following command to query cluster status
-    # cargo run --package cmd --bin cli-command status --server 127.0.0.1:8080
+    # cargo run --package cmd --bin cli-command status --server 127.0.0.1:58080
 }
 
 start_server

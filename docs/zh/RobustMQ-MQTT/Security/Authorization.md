@@ -114,7 +114,7 @@ robust-ctl mqtt acl delete \
 #### 创建 ACL 规则
 
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/acl/create \
+curl -X POST http://localhost:58080/api/mqtt/acl/create \
   -H "Content-Type: application/json" \
   -d '{
     "resource_type": "User",
@@ -130,16 +130,16 @@ curl -X POST http://localhost:8080/api/mqtt/acl/create \
 
 ```bash
 # 查询所有 ACL 规则
-curl "http://localhost:8080/api/mqtt/acl/list?limit=10&page=1"
+curl "http://localhost:58080/api/mqtt/acl/list?limit=10&page=1"
 
 # 查询特定用户的 ACL 规则（使用过滤参数）
-curl "http://localhost:8080/api/mqtt/acl/list?limit=10&page=1&filter_field=resource_name&filter_values=testuser&exact_match=true"
+curl "http://localhost:58080/api/mqtt/acl/list?limit=10&page=1&filter_field=resource_name&filter_values=testuser&exact_match=true"
 ```
 
 #### 删除 ACL 规则
 
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/acl/delete \
+curl -X POST http://localhost:58080/api/mqtt/acl/delete \
   -H "Content-Type: application/json" \
   -d '{
     "resource_type": "User",

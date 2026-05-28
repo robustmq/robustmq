@@ -44,7 +44,7 @@ broker_id = 1
 broker_ip = "127.0.0.1"
 roles = ["broker", "meta"]
 grpc_port = 1228
-http_port = 8080
+http_port = 58080
 
 [meta_addrs]
 1 = "127.0.0.1:1228"
@@ -57,7 +57,7 @@ http_port = 8080
 | `broker_ip` | `string` | 自动获取本机 IP | 节点 IP 地址 |
 | `roles` | `array` | `["broker", "meta"]` | 节点角色列表，可选值：`meta`、`broker`、`engine` |
 | `grpc_port` | `u32` | `1228` | gRPC 服务端口 |
-| `http_port` | `u32` | `8080` | HTTP API 服务端口 |
+| `http_port` | `u32` | `58080` | HTTP API 服务端口 |
 | `meta_addrs` | `table` | `{1 = "127.0.0.1:1228"}` | Meta 节点地址映射，键为节点 ID，值为 `IP:端口` |
 
 ### 部署模式
@@ -838,7 +838,7 @@ cluster_name = "production-cluster"
 broker_id = 1
 roles = ["meta", "broker", "engine"]
 grpc_port = 1228
-http_port = 8080
+http_port = 58080
 
 [meta_addrs]
 1 = "192.168.1.10:1228"

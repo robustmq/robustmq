@@ -808,22 +808,22 @@ Messages written to the dead letter queue are in JSON format as `DeadLetterRecor
 
 ### Query Connector List
 ```bash
-curl "http://localhost:8080/api/cluster/connector/list?limit=10&page=1"
+curl "http://localhost:58080/api/cluster/connector/list?limit=10&page=1"
 ```
 
 ### Query Connector List by Tenant
 ```bash
-curl "http://localhost:8080/api/cluster/connector/list?tenant=default&limit=10&page=1"
+curl "http://localhost:58080/api/cluster/connector/list?tenant=default&limit=10&page=1"
 ```
 
 ### Query Connector Detail
 ```bash
-curl "http://localhost:8080/api/cluster/connector/detail?tenant=default&connector_name=kafka_bridge"
+curl "http://localhost:58080/api/cluster/connector/detail?tenant=default&connector_name=kafka_bridge"
 ```
 
 ### Create Kafka Connector
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -839,7 +839,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### Create Connector with Retry Strategy
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -857,7 +857,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### Create Connector with Dead Letter Queue
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -876,7 +876,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### Create Redis Connector
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -892,7 +892,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### Create Webhook Connector
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -908,7 +908,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### Create InfluxDB Connector (v2)
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -924,7 +924,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### Create AWS S3 Connector
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -940,7 +940,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### Delete Connector
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/delete \
+curl -X POST http://localhost:58080/api/cluster/connector/delete \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",

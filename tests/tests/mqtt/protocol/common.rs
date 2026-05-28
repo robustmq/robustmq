@@ -38,7 +38,7 @@ pub fn protocol_versions() -> Vec<u32> {
 }
 
 pub async fn create_test_env() -> AdminHttpClient {
-    AdminHttpClient::new("http://127.0.0.1:8080")
+    AdminHttpClient::new("http://127.0.0.1:58080")
 }
 
 pub async fn session_list_by_admin(client_id: &str) -> PageReplyData<Vec<SessionListRow>> {

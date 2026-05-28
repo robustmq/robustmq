@@ -1441,27 +1441,27 @@
 
 ### Query Cluster Overview
 ```bash
-curl -X GET http://localhost:8080/api/mqtt/overview
+curl -X GET http://localhost:58080/api/mqtt/overview
 ```
 
 ### Query Clients for a Specific Tenant
 ```bash
-curl "http://localhost:8080/api/mqtt/client/list?tenant=default&limit=10&page=1"
+curl "http://localhost:58080/api/mqtt/client/list?tenant=default&limit=10&page=1"
 ```
 
 ### Query Sessions for a Specific Tenant
 ```bash
-curl "http://localhost:8080/api/mqtt/session/list?tenant=default&limit=20&page=1"
+curl "http://localhost:58080/api/mqtt/session/list?tenant=default&limit=20&page=1"
 ```
 
 ### Query Subscription List (Specific Tenant)
 ```bash
-curl "http://localhost:8080/api/mqtt/subscribe/list?tenant=default&limit=20&page=1"
+curl "http://localhost:58080/api/mqtt/subscribe/list?tenant=default&limit=20&page=1"
 ```
 
 ### Create Tenant
 ```bash
-curl -X POST http://localhost:8080/api/cluster/tenant/create \
+curl -X POST http://localhost:58080/api/cluster/tenant/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant_name": "production",
@@ -1471,7 +1471,7 @@ curl -X POST http://localhost:8080/api/cluster/tenant/create \
 
 ### Delete Topic
 ```bash
-curl -X POST http://localhost:8080/api/cluster/topic/delete \
+curl -X POST http://localhost:58080/api/cluster/topic/delete \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1481,7 +1481,7 @@ curl -X POST http://localhost:8080/api/cluster/topic/delete \
 
 ### Create User
 ```bash
-curl -X POST http://localhost:8080/api/cluster/user/create \
+curl -X POST http://localhost:58080/api/cluster/user/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1493,7 +1493,7 @@ curl -X POST http://localhost:8080/api/cluster/user/create \
 
 ### Create ACL Rule
 ```bash
-curl -X POST http://localhost:8080/api/cluster/acl/create \
+curl -X POST http://localhost:58080/api/cluster/acl/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1509,7 +1509,7 @@ curl -X POST http://localhost:8080/api/cluster/acl/create \
 
 ### Create Blacklist Entry (Wildcard Match)
 ```bash
-curl -X POST http://localhost:8080/api/cluster/blacklist/create \
+curl -X POST http://localhost:58080/api/cluster/blacklist/create \
   -H "Content-Type: application/json" \
   -d '{
     "name": "bl-bad-client-match",
@@ -1523,7 +1523,7 @@ curl -X POST http://localhost:8080/api/cluster/blacklist/create \
 
 ### Create Schema
 ```bash
-curl -X POST http://localhost:8080/api/cluster/schema/create \
+curl -X POST http://localhost:58080/api/cluster/schema/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1537,15 +1537,15 @@ curl -X POST http://localhost:8080/api/cluster/schema/create \
 ### Query Monitor Data
 ```bash
 # Query connection count monitoring data
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connection_num"
+curl "http://localhost:58080/api/mqtt/monitor/data?data_type=connection_num"
 
 # Query message received count for a specific topic
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=topic_in_num&topic_name=sensor/temperature"
+curl "http://localhost:58080/api/mqtt/monitor/data?data_type=topic_in_num&topic_name=sensor/temperature"
 ```
 
 ### Send Message
 ```bash
-curl -X POST http://localhost:8080/api/cluster/message/send \
+curl -X POST http://localhost:58080/api/cluster/message/send \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",

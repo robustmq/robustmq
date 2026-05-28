@@ -37,7 +37,7 @@ scrape_configs:
   # RobustMQ services - All-in-one deployment
   - job_name: 'robustmq-all-in-one'
     static_configs:
-      - targets: ['robustmq:8080']
+      - targets: ['robustmq:58080']
     metrics_path: '/metrics'
     scrape_interval: 10s
     scrape_timeout: 5s
@@ -60,7 +60,7 @@ scrape_configs:
 
   - job_name: 'robustmq-broker'
     static_configs:
-      - targets: ['mqtt-broker:8080']
+      - targets: ['mqtt-broker:58080']
     metrics_path: '/metrics'
     scrape_interval: 10s
     scrape_timeout: 5s

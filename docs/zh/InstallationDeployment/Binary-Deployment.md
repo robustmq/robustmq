@@ -47,10 +47,10 @@ robust-ctl cluster healthy
 robust-ctl mqtt overview
 ```
 
-`--server` 默认指向 `127.0.0.1:8080`，如需连接其他地址：
+`--server` 默认指向 `127.0.0.1:58080`，如需连接其他地址：
 
 ```bash
-robust-ctl cluster status --server 192.168.1.10:8080
+robust-ctl cluster status --server 192.168.1.10:58080
 ```
 
 **MQTT 收发测试**
@@ -139,13 +139,13 @@ robust-server start config/cluster/server-3.toml
 
 ```bash
 # 查看集群状态（连接任意节点）
-robust-ctl cluster status --server 10.0.0.1:8080
+robust-ctl cluster status --server 10.0.0.1:58080
 
 # 查看集群健康状态
-robust-ctl cluster healthy --server 10.0.0.1:8080
+robust-ctl cluster healthy --server 10.0.0.1:58080
 
 # 查看 MQTT 概览
-robust-ctl mqtt overview --server 10.0.0.1:8080
+robust-ctl mqtt overview --server 10.0.0.1:58080
 ```
 
 **MQTT 跨节点收发测试**
@@ -172,4 +172,4 @@ robust-server stop
 |-|--------|--------|--------|
 | **MQTT TCP** | 1883 | 2883 | 3883 |
 | **gRPC** | 1128 | 1228 | 1328 |
-| **HTTP API** | 8080 | 8082 | 8083 |
+| **HTTP API** | 58080 | 8082 | 8083 |

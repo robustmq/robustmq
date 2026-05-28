@@ -325,7 +325,7 @@ This release includes pre-built binaries for multiple platforms:
 
 **Access Web UI** (if frontend is included):
 \`\`\`
-http://localhost:8080
+http://localhost:58080
 \`\`\`
 
 **Management Tools**:

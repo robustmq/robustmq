@@ -32,7 +32,7 @@ services:
       - "9092:9092"    # Kafka
       - "1228:1228"    # gRPC
       - "5672:5672"    # AMQP
-      - "8080:8080"    # Admin
+      - "58080:58080"  # Admin HTTP API
     volumes:
       - robustmq_data:/robustmq/data
       - robustmq_logs:/robustmq/logs
@@ -45,7 +45,7 @@ services:
       - RUST_LOG=info
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:58080/api/status"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -87,7 +87,7 @@ services:
       - "1885:1885"   # MQTT SSL
       - "8083:8083"   # MQTT WebSocket
       - "8085:8085"   # MQTT WebSocket SSL
-      - "8080:8080"   # HTTP API
+      - "58080:58080" # HTTP API
     volumes:
       - mqtt_data:/robustmq/data
       - mqtt_logs:/robustmq/logs

@@ -120,7 +120,7 @@ robust-ctl mqtt blacklist delete \
 #### Add Blacklist
 
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
+curl -X POST http://localhost:58080/api/mqtt/blacklist/create \
   -H "Content-Type: application/json" \
   -d '{
     "blacklist_type": "User",
@@ -134,16 +134,16 @@ curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
 
 ```bash
 # Query all blacklists
-curl "http://localhost:8080/api/mqtt/blacklist/list?limit=10&page=1"
+curl "http://localhost:58080/api/mqtt/blacklist/list?limit=10&page=1"
 
 # Query specific type blacklist (using filter parameters)
-curl "http://localhost:8080/api/mqtt/blacklist/list?limit=10&page=1&filter_field=blacklist_type&filter_values=User&exact_match=true"
+curl "http://localhost:58080/api/mqtt/blacklist/list?limit=10&page=1&filter_field=blacklist_type&filter_values=User&exact_match=true"
 ```
 
 #### Delete Blacklist
 
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/blacklist/delete \
+curl -X POST http://localhost:58080/api/mqtt/blacklist/delete \
   -H "Content-Type: application/json" \
   -d '{
     "blacklist_type": "User",
@@ -180,7 +180,7 @@ RobustMQ uses an efficient memory caching mechanism:
 
 ```bash
 # Monitor blacklist performance metrics
-curl http://localhost:8080/metrics | grep -E "blacklist_(check|cache)"
+curl http://localhost:58080/metrics | grep -E "blacklist_(check|cache)"
 
 # Example metrics:
 # mqtt_blacklist_check_duration_seconds{type="user"} 0.001

@@ -44,7 +44,7 @@ All interfaces return a unified JSON response structure:
     "broker_ip": "192.168.1.100",
     "roles": ["broker", "meta"],
     "grpc_port": 1228,
-    "http_port": 8080,
+    "http_port": 58080,
     "meta_addrs": {
       "1": "127.0.0.1:1228"
     },
@@ -666,17 +666,17 @@ Optional configuration; `null` when not set.
 
 ### Get Cluster Configuration
 ```bash
-curl -X GET http://localhost:8080/api/cluster/config/get
+curl -X GET http://localhost:58080/api/cluster/config/get
 ```
 
 ### Get Cluster Status
 ```bash
-curl -X GET http://localhost:8080/
+curl -X GET http://localhost:58080/
 ```
 
 ### Set Flapping Detection Configuration
 ```bash
-curl -X POST http://localhost:8080/api/cluster/config/set \
+curl -X POST http://localhost:58080/api/cluster/config/set \
   -H "Content-Type: application/json" \
   -d '{
     "config_type": "MqttFlappingDetect",
@@ -732,10 +732,10 @@ A **Tenant** is the core multi-tenancy concept in RobustMQ, providing logical is
 - **curl Example**:
 ```bash
 # List all tenants
-curl -X GET "http://localhost:8080/api/cluster/tenant/list"
+curl -X GET "http://localhost:58080/api/cluster/tenant/list"
 
 # Fuzzy search tenants with "business" in the name
-curl -X GET "http://localhost:8080/api/cluster/tenant/list?tenant_name=business"
+curl -X GET "http://localhost:58080/api/cluster/tenant/list?tenant_name=business"
 ```
 
 ---
@@ -782,7 +782,7 @@ curl -X GET "http://localhost:8080/api/cluster/tenant/list?tenant_name=business"
 
 - **curl Example**:
 ```bash
-curl -X POST http://localhost:8080/api/cluster/tenant/create \
+curl -X POST http://localhost:58080/api/cluster/tenant/create \
   -H "Content-Type: application/json" \
   -d '{"tenant_name": "business-a", "desc": "Business A tenant"}'
 ```
@@ -817,7 +817,7 @@ curl -X POST http://localhost:8080/api/cluster/tenant/create \
 
 - **curl Example**:
 ```bash
-curl -X POST http://localhost:8080/api/cluster/tenant/delete \
+curl -X POST http://localhost:58080/api/cluster/tenant/delete \
   -H "Content-Type: application/json" \
   -d '{"tenant_name": "business-a"}'
 ```
@@ -873,7 +873,7 @@ curl -X POST http://localhost:8080/api/cluster/tenant/delete \
 
 - **curl Example**:
 ```bash
-curl -X POST http://localhost:8080/api/cluster/tenant/update \
+curl -X POST http://localhost:58080/api/cluster/tenant/update \
   -H "Content-Type: application/json" \
   -d '{"tenant_name": "business-a", "desc": "Business A tenant (updated)", "config": {"max_connections_per_node": 100000}}'
 ```

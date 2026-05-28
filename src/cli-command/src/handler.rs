@@ -59,7 +59,7 @@ pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling:
 #[command(author="RobustMQ", about="MQTT management commands", long_about = None)]
 #[command(next_line_help = true)]
 pub struct MqttArgs {
-    #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
+    #[arg(short, long, default_value_t = String::from("127.0.0.1:58080"))]
     server: String,
     #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
     output: OutputFormat,
@@ -96,7 +96,7 @@ pub enum MQTTAction {
 #[command(author="RobustMQ", about="Cluster management commands", long_about = None)]
 #[command(next_line_help = true)]
 pub struct ClusterArgs {
-    #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
+    #[arg(short, long, default_value_t = String::from("127.0.0.1:58080"))]
     server: String,
     #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
     output: OutputFormat,
@@ -171,7 +171,7 @@ pub struct ClusterConfigSetArgs {
 #[command(author="RobustMQ", about="Storage engine management commands", long_about = None)]
 #[command(next_line_help = true)]
 pub struct EngineArgs {
-    #[arg(short, long, default_value_t = String::from("127.0.0.1:8080"))]
+    #[arg(short, long, default_value_t = String::from("127.0.0.1:58080"))]
     server: String,
     #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
     output: OutputFormat,

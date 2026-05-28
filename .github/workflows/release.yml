@@ -70,6 +70,18 @@ jobs:
           sudo apt-get clean
           df -h
 
+      - name: Configure 8GB swap (linux-arm64 only, prevent OOM during link)
+        if: matrix.platform == 'linux-arm64'
+        run: |
+          sudo swapoff -a || true
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          echo "vm.swappiness=10" | sudo tee -a /etc/sysctl.conf
+          sudo sysctl -p
+          free -h
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -135,6 +147,13 @@ jobs:
         if: runner.os != 'Windows'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Limit cargo parallelism on linux-arm64 (only 4 cores / 8GB RAM)
+          # Other platforms have more resources; let cargo decide.
+          CARGO_BUILD_JOBS: ${{ matrix.platform == 'linux-arm64' && '2' || '' }}
+          # On linux-arm64 disable full LTO + multiply codegen-units to avoid OOM
+          # during single-threaded LTO link phase (peak memory > 10GB otherwise).
+          CARGO_PROFILE_RELEASE_LTO: ${{ matrix.platform == 'linux-arm64' && 'false' || 'true' }}
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: ${{ matrix.platform == 'linux-arm64' && '16' || '1' }}
         run: |
           echo "Building and releasing for ${{ matrix.platform }}, version from Cargo.toml"
           make release

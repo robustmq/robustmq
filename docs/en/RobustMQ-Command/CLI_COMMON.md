@@ -16,7 +16,7 @@ robust-ctl <domain> [options] <subcommand>
 
 All domains support:
 
-- `--server,-s`: admin API address, default `127.0.0.1:8080`
+- `--server,-s`: admin API address, default `127.0.0.1:58080`
 - `--output`: `table` (default) or `json`
 
 List-like commands support:

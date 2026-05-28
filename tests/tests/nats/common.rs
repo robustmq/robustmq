@@ -16,7 +16,7 @@ use admin_server::client::AdminHttpClient;
 use async_nats::Client;
 
 pub const NATS_ADDR: &str = "nats://127.0.0.1:4222";
-pub const ADMIN_ADDR: &str = "http://127.0.0.1:8080";
+pub const ADMIN_ADDR: &str = "http://127.0.0.1:58080";
 pub const DEFAULT_TENANT: &str = "default";
 
 pub async fn nats_connect() -> Client {

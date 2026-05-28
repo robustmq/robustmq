@@ -20,6 +20,8 @@
 
 ## 2. 模型抽象(三个核心维度)
 
+![ISR 三维度抽象](./diagrams/06-dimensions.png)
+
 | 维度 | 持有 | 说明 |
 |---|---|---|
 | **Shard** | 逻辑日志 + **HW** + **LEO** + log_start_offset | 一根连续 offset 轴。HW(committed 水位)/LEO(写入水位)在此维度,跨 segment 连续 |
@@ -31,6 +33,8 @@
 ---
 
 ## 3. 协议三大支柱
+
+![ISR 协议三大支柱](./diagrams/07-pillars.png)
 
 ISR 协议的所有复杂度都围绕三件事:
 
@@ -101,6 +105,8 @@ follower 启动/leader 切换/收到 FencedLeaderEpoch 时:
 
 ## 6. 与现有代码的关系(改动点速览)
 
+![代码改动象限](./diagrams/09-change-matrix.png)
+
 ### 6.1 复用(不动)
 
 - `EngineSegment` 现有字段 `replicas / leader / leader_epoch / isr / status`
@@ -132,7 +138,7 @@ follower 启动/leader 切换/收到 FencedLeaderEpoch 时:
 
 ### 6.4 新增模块
 
-```
+```text
 storage-engine/src/isr/
 ├── log.rs           # ReplicaLog trait + 三引擎实现
 ├── state.rs         # ShardReplicaState + SegmentReplicaState + FollowerProgress
@@ -146,6 +152,8 @@ storage-engine/src/isr/
 ---
 
 ## 7. 写入路径(broker 转发模型)
+
+![写入路径 broker 转发模型](./diagrams/08-write-forward.png)
 
 本协议的"client"是 broker(主要来自 storage-adapter / mqtt-broker 等),不是面向终端的接口。写入路径采用 **broker 转发**:
 

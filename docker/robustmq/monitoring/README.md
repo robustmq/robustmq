@@ -32,7 +32,7 @@ docker-compose --profile monitoring up -d prometheus grafana
 
 ### Access URLs
 
-- **RobustMQ Admin**: http://localhost:8080
+- **RobustMQ Admin**: http://localhost:58080
 - **Prometheus**: http://localhost:9090
 - **Grafana**: http://localhost:3000 (admin/admin)
 

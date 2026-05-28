@@ -561,7 +561,7 @@ done
 
 ```bash
 # 检查 RobustMQ 服务状态
-curl -f http://localhost:8080/health || echo "RobustMQ 服务可能未启动"
+curl -f http://localhost:58080/health || echo "RobustMQ 服务可能未启动"
 
 # 清理测试主题（如果需要）
 mqttx pub -h localhost -p 1883 -t 'robustmq/test/cleanup' -m '' -r

@@ -906,12 +906,12 @@ mod tests {
 
     #[test]
     fn test_build_url() {
-        let client = AdminHttpClient::new("http://localhost:8080");
+        let client = AdminHttpClient::new("http://localhost:58080");
 
         // Test with leading slash
         assert_eq!(
             client.build_url(&api_path(MQTT_OVERVIEW_PATH)).unwrap(),
-            "http://localhost:8080/api/mqtt/overview"
+            "http://localhost:58080/api/mqtt/overview"
         );
 
         // Test without leading slash
@@ -919,14 +919,14 @@ mod tests {
             client
                 .build_url(&api_path(MQTT_OVERVIEW_PATH)[1..])
                 .unwrap(),
-            "http://localhost:8080/api/mqtt/overview"
+            "http://localhost:58080/api/mqtt/overview"
         );
 
         // Test with trailing slash in base URL
-        let client2 = AdminHttpClient::new("http://localhost:8080/");
+        let client2 = AdminHttpClient::new("http://localhost:58080/");
         assert_eq!(
             client2.build_url(&api_path(MQTT_OVERVIEW_PATH)).unwrap(),
-            "http://localhost:8080/api/mqtt/overview"
+            "http://localhost:58080/api/mqtt/overview"
         );
     }
 
@@ -939,12 +939,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_client_creation() {
-        let client = AdminHttpClient::new("http://localhost:8080");
-        assert_eq!(client.base_url, "http://localhost:8080");
+        let client = AdminHttpClient::new("http://localhost:58080");
+        assert_eq!(client.base_url, "http://localhost:58080");
 
         let client_with_timeout =
-            AdminHttpClient::with_timeout("http://localhost:8080", Duration::from_secs(10));
-        assert_eq!(client_with_timeout.base_url, "http://localhost:8080");
+            AdminHttpClient::with_timeout("http://localhost:58080", Duration::from_secs(10));
+        assert_eq!(client_with_timeout.base_url, "http://localhost:58080");
     }
 
     #[tokio::test]

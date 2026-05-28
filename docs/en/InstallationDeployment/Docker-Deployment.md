@@ -65,4 +65,4 @@ If the subscriber receives the message, the service is running correctly.
 | MQTT TCP | 1883 |
 | MQTT WebSocket | 8083 |
 | Placement Center gRPC | 1228 |
-| HTTP API | 8080 |
+| HTTP API | 58080 |

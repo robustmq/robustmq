@@ -27,7 +27,7 @@ mod tests {
     use tokio::time::sleep;
 
     async fn create_test_env() -> AdminHttpClient {
-        AdminHttpClient::new("http://127.0.0.1:8080")
+        AdminHttpClient::new("http://127.0.0.1:58080")
     }
 
     #[tokio::test]

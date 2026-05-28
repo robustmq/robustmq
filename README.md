@@ -198,7 +198,7 @@ nats request '$mq9.AI.MSG.ACK.agent.translator' \
 
 ### Web Dashboard
 
-Access `http://localhost:8080` for cluster monitoring and management.
+Access `http://localhost:58080` for cluster monitoring and management.
 
 <div align="center">
   <img src="docs/images/web-ui.jpg" alt="Web UI" width="45%" style="margin-right: 2%;">
@@ -208,7 +208,7 @@ Access `http://localhost:8080` for cluster monitoring and management.
 ### Try Online Demo
 
 - **MQTT Server**: `117.72.92.117:1883` (admin/robustmq)
-- **Web Dashboard**: http://demo.robustmq.com:8080
+- **Web Dashboard**: http://demo.robustmq.com:58080
 
 📚 **Full installation and usage guide: [Documentation](https://robustmq.com/)**
 

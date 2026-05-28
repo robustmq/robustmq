@@ -1441,27 +1441,27 @@
 
 ### 查询集群概览
 ```bash
-curl -X GET http://localhost:8080/api/mqtt/overview
+curl -X GET http://localhost:58080/api/mqtt/overview
 ```
 
 ### 查询指定租户的客户端
 ```bash
-curl "http://localhost:8080/api/mqtt/client/list?tenant=default&limit=10&page=1"
+curl "http://localhost:58080/api/mqtt/client/list?tenant=default&limit=10&page=1"
 ```
 
 ### 查询指定租户的会话
 ```bash
-curl "http://localhost:8080/api/mqtt/session/list?tenant=default&limit=20&page=1"
+curl "http://localhost:58080/api/mqtt/session/list?tenant=default&limit=20&page=1"
 ```
 
 ### 查询订阅列表（指定租户）
 ```bash
-curl "http://localhost:8080/api/mqtt/subscribe/list?tenant=default&limit=20&page=1"
+curl "http://localhost:58080/api/mqtt/subscribe/list?tenant=default&limit=20&page=1"
 ```
 
 ### 创建租户
 ```bash
-curl -X POST http://localhost:8080/api/cluster/tenant/create \
+curl -X POST http://localhost:58080/api/cluster/tenant/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant_name": "production",
@@ -1471,7 +1471,7 @@ curl -X POST http://localhost:8080/api/cluster/tenant/create \
 
 ### 删除主题
 ```bash
-curl -X POST http://localhost:8080/api/cluster/topic/delete \
+curl -X POST http://localhost:58080/api/cluster/topic/delete \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1481,7 +1481,7 @@ curl -X POST http://localhost:8080/api/cluster/topic/delete \
 
 ### 创建用户
 ```bash
-curl -X POST http://localhost:8080/api/cluster/user/create \
+curl -X POST http://localhost:58080/api/cluster/user/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1493,7 +1493,7 @@ curl -X POST http://localhost:8080/api/cluster/user/create \
 
 ### 创建ACL规则
 ```bash
-curl -X POST http://localhost:8080/api/cluster/acl/create \
+curl -X POST http://localhost:58080/api/cluster/acl/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1509,7 +1509,7 @@ curl -X POST http://localhost:8080/api/cluster/acl/create \
 
 ### 创建黑名单（通配符匹配）
 ```bash
-curl -X POST http://localhost:8080/api/cluster/blacklist/create \
+curl -X POST http://localhost:58080/api/cluster/blacklist/create \
   -H "Content-Type: application/json" \
   -d '{
     "name": "bl-bad-client-match",
@@ -1523,7 +1523,7 @@ curl -X POST http://localhost:8080/api/cluster/blacklist/create \
 
 ### 创建Schema
 ```bash
-curl -X POST http://localhost:8080/api/cluster/schema/create \
+curl -X POST http://localhost:58080/api/cluster/schema/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -1537,15 +1537,15 @@ curl -X POST http://localhost:8080/api/cluster/schema/create \
 ### 查询监控数据
 ```bash
 # 查询连接数监控数据
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=connection_num"
+curl "http://localhost:58080/api/mqtt/monitor/data?data_type=connection_num"
 
 # 查询指定主题的消息接收数
-curl "http://localhost:8080/api/mqtt/monitor/data?data_type=topic_in_num&topic_name=sensor/temperature"
+curl "http://localhost:58080/api/mqtt/monitor/data?data_type=topic_in_num&topic_name=sensor/temperature"
 ```
 
 ### 发送消息
 ```bash
-curl -X POST http://localhost:8080/api/cluster/message/send \
+curl -X POST http://localhost:58080/api/cluster/message/send \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",

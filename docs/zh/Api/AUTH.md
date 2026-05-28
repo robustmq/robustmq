@@ -86,21 +86,21 @@ Authorization: Bearer <token>
 
 ```bash
 # 1. 登录获取 token（远程访问时）
-TOKEN=$(curl -s -X POST http://<host>:8080/api/v1/login \
+TOKEN=$(curl -s -X POST http://<host>:58080/api/v1/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"<your-password>"}' \
   | jq -r '.data.token')
 
 # 2. 携带 token 访问接口
 curl -H "Authorization: Bearer $TOKEN" \
-  http://<host>:8080/api/mqtt/overview
+  http://<host>:58080/api/mqtt/overview
 ```
 
 **本地访问（免 token）：**
 
 ```bash
 # 本地直接访问，无需任何 token
-curl http://127.0.0.1:8080/api/mqtt/overview
+curl http://127.0.0.1:58080/api/mqtt/overview
 ```
 
 ---
@@ -139,16 +139,16 @@ Dashboard 内置登录页面，输入用户名/密码后自动调用 `/api/v1/lo
 
 ```bash
 # 本地机器（服务器上直接运行）：无需 token
-curl http://127.0.0.1:8080/api/cluster/config/get
+curl http://127.0.0.1:58080/api/cluster/config/get
 
 # 远程机器：先登录获取 token
-TOKEN=$(curl -s -X POST http://<host>:8080/api/v1/login \
+TOKEN=$(curl -s -X POST http://<host>:58080/api/v1/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"<your-password>"}' \
   | jq -r '.data.token')
 
 curl -H "Authorization: Bearer $TOKEN" \
-  http://<host>:8080/api/cluster/config/get
+  http://<host>:58080/api/cluster/config/get
 ```
 
 ### CLI 工具（cli-command）

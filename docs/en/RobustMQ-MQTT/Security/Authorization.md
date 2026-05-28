@@ -114,7 +114,7 @@ robust-ctl mqtt acl delete \
 #### Create ACL Rules
 
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/acl/create \
+curl -X POST http://localhost:58080/api/mqtt/acl/create \
   -H "Content-Type: application/json" \
   -d '{
     "resource_type": "User",
@@ -130,16 +130,16 @@ curl -X POST http://localhost:8080/api/mqtt/acl/create \
 
 ```bash
 # Query all ACL rules
-curl "http://localhost:8080/api/mqtt/acl/list?limit=10&page=1"
+curl "http://localhost:58080/api/mqtt/acl/list?limit=10&page=1"
 
 # Query ACL rules for specific user (using filter parameters)
-curl "http://localhost:8080/api/mqtt/acl/list?limit=10&page=1&filter_field=resource_name&filter_values=testuser&exact_match=true"
+curl "http://localhost:58080/api/mqtt/acl/list?limit=10&page=1&filter_field=resource_name&filter_values=testuser&exact_match=true"
 ```
 
 #### Delete ACL Rules
 
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/acl/delete \
+curl -X POST http://localhost:58080/api/mqtt/acl/delete \
   -H "Content-Type: application/json" \
   -d '{
     "resource_type": "User",

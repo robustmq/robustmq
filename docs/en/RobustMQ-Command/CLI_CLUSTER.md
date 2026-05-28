@@ -55,7 +55,7 @@ List all tenants.
 ```bash
 robust-ctl cluster tenant list
 robust-ctl cluster --output json tenant list
-robust-ctl cluster --server 192.168.10.15:8080 tenant list
+robust-ctl cluster --server 192.168.10.15:58080 tenant list
 ```
 
 Sample output (table mode):

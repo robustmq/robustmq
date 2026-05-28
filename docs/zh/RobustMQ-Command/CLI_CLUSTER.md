@@ -28,7 +28,7 @@ robust-ctl cluster status
 ```bash
 robust-ctl cluster status
 robust-ctl cluster --output json status
-robust-ctl cluster --server 192.168.10.15:8080 status
+robust-ctl cluster --server 192.168.10.15:58080 status
 ```
 
 ### 3.2 healthy
@@ -105,7 +105,7 @@ robust-ctl cluster tenant list
 ```bash
 robust-ctl cluster tenant list
 robust-ctl cluster --output json tenant list
-robust-ctl cluster --server 192.168.10.15:8080 tenant list
+robust-ctl cluster --server 192.168.10.15:58080 tenant list
 ```
 
 输出示例（table 模式）：

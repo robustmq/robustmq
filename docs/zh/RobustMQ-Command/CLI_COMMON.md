@@ -16,12 +16,12 @@ robust-ctl <domain> [domain-options] <subcommand>
 
 ### 2.1 连接参数
 
-- `--server, -s`：管理 API 地址，默认 `127.0.0.1:8080`
+- `--server, -s`：管理 API 地址，默认 `127.0.0.1:58080`
 
 示例：
 
 ```bash
-robust-ctl mqtt --server 10.10.10.8:8080 user list
+robust-ctl mqtt --server 10.10.10.8:58080 user list
 ```
 
 ### 2.2 输出格式

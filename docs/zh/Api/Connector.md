@@ -808,22 +808,22 @@
 
 ### 查询连接器列表
 ```bash
-curl "http://localhost:8080/api/cluster/connector/list?limit=10&page=1"
+curl "http://localhost:58080/api/cluster/connector/list?limit=10&page=1"
 ```
 
 ### 按租户查询连接器列表
 ```bash
-curl "http://localhost:8080/api/cluster/connector/list?tenant=default&limit=10&page=1"
+curl "http://localhost:58080/api/cluster/connector/list?tenant=default&limit=10&page=1"
 ```
 
 ### 查询连接器详情
 ```bash
-curl "http://localhost:8080/api/cluster/connector/detail?tenant=default&connector_name=kafka_bridge"
+curl "http://localhost:58080/api/cluster/connector/detail?tenant=default&connector_name=kafka_bridge"
 ```
 
 ### 创建 Kafka 连接器
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -839,7 +839,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### 创建带重试策略的连接器
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -857,7 +857,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### 创建带死信队列的连接器
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -876,7 +876,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### 创建 Redis 连接器
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -892,7 +892,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### 创建 Webhook 连接器
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -908,7 +908,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### 创建 InfluxDB 连接器（v2）
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -924,7 +924,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### 创建 AWS S3 连接器
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/create \
+curl -X POST http://localhost:58080/api/cluster/connector/create \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",
@@ -940,7 +940,7 @@ curl -X POST http://localhost:8080/api/cluster/connector/create \
 
 ### 删除连接器
 ```bash
-curl -X POST http://localhost:8080/api/cluster/connector/delete \
+curl -X POST http://localhost:58080/api/cluster/connector/delete \
   -H "Content-Type: application/json" \
   -d '{
     "tenant": "default",

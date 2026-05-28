@@ -4,7 +4,7 @@
 
 RobustMQ Admin Server is an HTTP management interface service, providing comprehensive management capabilities for RobustMQ clusters.
 
-- **Base URL**: `http://localhost:8080`
+- **Base URL**: `http://localhost:58080`
 - **API Prefix**: `/api` (all management interfaces use this prefix)
 - **Request Method**: Use `GET` for list/detail queries, `POST` for create/delete operations
 - **Data Format**: JSON
@@ -354,13 +354,13 @@ The `meta` field contains the Raft consensus state information of the Meta clust
 ### Basic Request Example
 ```bash
 # Get service version
-curl -X GET http://localhost:8080/
+curl -X GET http://localhost:58080/
 
 # Get cluster status
-curl -X GET http://localhost:8080/api/status
+curl -X GET http://localhost:58080/api/status
 
 # List query with pagination
-curl "http://localhost:8080/api/cluster/user/list?limit=10&page=1&sort_field=username&sort_by=asc"
+curl "http://localhost:58080/api/cluster/user/list?limit=10&page=1&sort_field=username&sort_by=asc"
 ```
 
 ### Error Handling Example
@@ -406,7 +406,7 @@ cargo run --bin admin-server
 ### Test Connection
 ```bash
 # Test if service is running normally
-curl -X GET http://localhost:8080/
+curl -X GET http://localhost:58080/
 ```
 
 ### Log Viewing

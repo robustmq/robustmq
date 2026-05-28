@@ -49,7 +49,7 @@ pub fn default_broker_ip() -> Option<String> {
 }
 
 pub fn default_http_port() -> u32 {
-    8080
+    58080
 }
 
 pub fn default_meta_addrs() -> Table {

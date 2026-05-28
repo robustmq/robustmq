@@ -120,7 +120,7 @@ robust-ctl mqtt blacklist delete \
 #### 添加黑名单
 
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
+curl -X POST http://localhost:58080/api/mqtt/blacklist/create \
   -H "Content-Type: application/json" \
   -d '{
     "blacklist_type": "User",
@@ -134,16 +134,16 @@ curl -X POST http://localhost:8080/api/mqtt/blacklist/create \
 
 ```bash
 # 查询所有黑名单
-curl "http://localhost:8080/api/mqtt/blacklist/list?limit=10&page=1"
+curl "http://localhost:58080/api/mqtt/blacklist/list?limit=10&page=1"
 
 # 查询特定类型黑名单（使用过滤参数）
-curl "http://localhost:8080/api/mqtt/blacklist/list?limit=10&page=1&filter_field=blacklist_type&filter_values=User&exact_match=true"
+curl "http://localhost:58080/api/mqtt/blacklist/list?limit=10&page=1&filter_field=blacklist_type&filter_values=User&exact_match=true"
 ```
 
 #### 删除黑名单
 
 ```bash
-curl -X POST http://localhost:8080/api/mqtt/blacklist/delete \
+curl -X POST http://localhost:58080/api/mqtt/blacklist/delete \
   -H "Content-Type: application/json" \
   -d '{
     "blacklist_type": "User",

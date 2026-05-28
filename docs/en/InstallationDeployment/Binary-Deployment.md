@@ -47,10 +47,10 @@ robust-ctl cluster healthy
 robust-ctl mqtt overview
 ```
 
-`--server` defaults to `127.0.0.1:8080`. To target a different address:
+`--server` defaults to `127.0.0.1:58080`. To target a different address:
 
 ```bash
-robust-ctl cluster status --server 192.168.1.10:8080
+robust-ctl cluster status --server 192.168.1.10:58080
 ```
 
 **MQTT pub/sub test**
@@ -139,13 +139,13 @@ robust-server start config/cluster/server-3.toml
 
 ```bash
 # Cluster status (connect to any node)
-robust-ctl cluster status --server 10.0.0.1:8080
+robust-ctl cluster status --server 10.0.0.1:58080
 
 # Cluster health
-robust-ctl cluster healthy --server 10.0.0.1:8080
+robust-ctl cluster healthy --server 10.0.0.1:58080
 
 # MQTT overview
-robust-ctl mqtt overview --server 10.0.0.1:8080
+robust-ctl mqtt overview --server 10.0.0.1:58080
 ```
 
 **Cross-node MQTT test**
@@ -172,4 +172,4 @@ robust-server stop
 |-|--------|--------|--------|
 | **MQTT TCP** | 1883 | 2883 | 3883 |
 | **gRPC** | 1128 | 1228 | 1328 |
-| **HTTP API** | 8080 | 8082 | 8083 |
+| **HTTP API** | 58080 | 8082 | 8083 |

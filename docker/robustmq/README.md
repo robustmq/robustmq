@@ -29,7 +29,7 @@ docker compose --profile monitoring up -d
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| RobustMQ HTTP API | http://localhost:8080 | — |
+| RobustMQ HTTP API | http://localhost:58080 | — |
 | Prometheus | http://localhost:9090 | — |
 | Grafana | http://localhost:3000 | admin / admin |
 

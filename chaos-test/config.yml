@@ -20,21 +20,21 @@ cluster:
     config: "config/server.toml"
     data_dir: "data"
     mqtt_port: 1883
-    http_port: 8080             # broker HTTP admin/metrics port (server.toml http_port)
+    http_port: 58080            # broker HTTP admin/metrics port (server.toml http_port)
   multi:
     nodes:
       - config: "config/cluster/server-1.toml"
         data_dir: "data/broker-1"
         mqtt_port: 1883
-        http_port: 8080
+        http_port: 58080
       - config: "config/cluster/server-2.toml"
         data_dir: "data/broker-2"
         mqtt_port: 2883
-        http_port: 8082
+        http_port: 58082
       - config: "config/cluster/server-3.toml"
         data_dir: "data/broker-3"
         mqtt_port: 3883
-        http_port: 8083
+        http_port: 58083
 
 mqtt:
   username: "admin"             # must match server.toml [mqtt_runtime] default_user

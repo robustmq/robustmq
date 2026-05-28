@@ -62,7 +62,7 @@ async fn oauth_protected_resource(headers: HeaderMap) -> Json<Value> {
     let host = headers
         .get("host")
         .and_then(|value| value.to_str().ok())
-        .unwrap_or("localhost:8080");
+        .unwrap_or("localhost:58080");
     let proto = headers
         .get("x-forwarded-proto")
         .and_then(|value| value.to_str().ok())

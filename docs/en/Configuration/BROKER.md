@@ -44,7 +44,7 @@ broker_id = 1
 broker_ip = "127.0.0.1"
 roles = ["broker", "meta"]
 grpc_port = 1228
-http_port = 8080
+http_port = 58080
 
 [meta_addrs]
 1 = "127.0.0.1:1228"
@@ -57,7 +57,7 @@ http_port = 8080
 | `broker_ip` | `string` | Auto-detect local IP | Node IP address |
 | `roles` | `array` | `["broker", "meta"]` | Node role list, options: `meta`, `broker`, `engine` |
 | `grpc_port` | `u32` | `1228` | gRPC service port |
-| `http_port` | `u32` | `8080` | HTTP API service port |
+| `http_port` | `u32` | `58080` | HTTP API service port |
 | `meta_addrs` | `table` | `{1 = "127.0.0.1:1228"}` | Meta node address mapping, key is node ID, value is `IP:port` |
 
 ### Deployment Modes
@@ -824,7 +824,7 @@ cluster_name = "production-cluster"
 broker_id = 1
 roles = ["meta", "broker", "engine"]
 grpc_port = 1228
-http_port = 8080
+http_port = 58080
 
 [meta_addrs]
 1 = "192.168.1.10:1228"
