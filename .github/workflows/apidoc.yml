@@ -43,6 +43,10 @@ jobs:
       with:
         # Read version from rust-toolchain.toml
         toolchain: stable
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake pkg-config libssl-dev libsasl2-dev libcurl4-openssl-dev libzstd-dev
     - name: Setup sccache
       uses: ./.github/actions/setup-sccache
     - run: cargo doc --workspace --no-deps --document-private-items

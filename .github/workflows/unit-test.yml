@@ -59,7 +59,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler cmake
+          sudo apt-get install -y protobuf-compiler cmake pkg-config libssl-dev libsasl2-dev libcurl4-openssl-dev libzstd-dev
           protoc --version
           cmake --version
 
