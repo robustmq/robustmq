@@ -34,7 +34,6 @@ chrono.workspace = true
 tracing.workspace = true
 
 # External connectors
-rdkafka.workspace = true
 elasticsearch.workspace = true
 redis.workspace = true
 mongodb.workspace = true
@@ -59,6 +58,14 @@ governor.workspace = true
 bytes.workspace = true
 dashmap.workspace = true
 rule-engine.workspace = true
+
+# rdkafka: see common/base/Cargo.toml for rationale.
+# Use cmake-build only on Windows.
+[target.'cfg(not(windows))'.dependencies]
+rdkafka = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+rdkafka = { workspace = true, features = ["cmake-build"] }
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -201,7 +201,7 @@ memmap2 = "0.9.10"
 # ====================
 # Message Queue & Streaming
 # ====================
-rdkafka = { version = "0.39.0", features = ["cmake-build"] }
+rdkafka = "0.39.0"
 kafka-protocol = "0.17.0"
 pulsar = { version = "6.7.2", default-features = false, features = [
     "tokio-runtime",

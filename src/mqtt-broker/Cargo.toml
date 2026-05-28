@@ -53,7 +53,6 @@ storage-engine.workspace = true
 quinn.workspace = true
 rustls-pki-types.workspace = true
 rustls.workspace = true
-rdkafka.workspace = true
 sysinfo.workspace = true
 system-info.workspace = true
 chrono.workspace = true
@@ -89,6 +88,14 @@ r2d2.workspace = true
 r2d2_mysql.workspace = true
 r2d2_postgres.workspace = true
 redis.workspace = true
+
+# rdkafka: see common/base/Cargo.toml for rationale.
+# Use cmake-build only on Windows.
+[target.'cfg(not(windows))'.dependencies]
+rdkafka = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+rdkafka = { workspace = true, features = ["cmake-build"] }
 
 
 [dev-dependencies]
