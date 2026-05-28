@@ -14,12 +14,15 @@
 
 pub mod acl;
 pub mod admin;
+pub mod api_versions;
 pub mod auth;
 pub mod config;
 pub mod consumer_group;
 pub mod consumer_group_next;
 pub mod core;
 pub mod delegation_token;
+pub mod find_coordinator;
+pub mod metadata;
 pub mod quota;
 pub mod share_group;
 pub mod telemetry;

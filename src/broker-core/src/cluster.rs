@@ -22,7 +22,7 @@ use grpc_clients::meta::common::call::{
     register_node, set_resource_config, unregister_node,
 };
 use grpc_clients::pool::ClientPool;
-use metadata_struct::meta::extend::{MqttNodeExtend, NatsNodeExtend, NodeExtend};
+use metadata_struct::meta::extend::{KafkaNodeExtend, MqttNodeExtend, NatsNodeExtend, NodeExtend};
 use metadata_struct::meta::node::BrokerNode;
 use protocol::meta::meta_service_common::{
     ClusterStatusRequest, DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest,
@@ -93,6 +93,9 @@ impl ClusterStorage {
                 tls_addr: format!("{}:{}", local_ip, config.nats_runtime.tls_port),
                 ws_addr: format!("{}:{}", local_ip, config.nats_runtime.ws_port),
                 wss_addr: format!("{}:{}", local_ip, config.nats_runtime.wss_port),
+            },
+            kafka: KafkaNodeExtend {
+                tcp_addr: format!("{}:{}", local_ip, config.kafka_runtime.tcp_port),
             },
         };
 

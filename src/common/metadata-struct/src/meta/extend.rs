@@ -19,6 +19,8 @@ use serde::{Deserialize, Serialize};
 pub struct NodeExtend {
     pub mqtt: MqttNodeExtend,
     pub nats: NatsNodeExtend,
+    #[serde(default)]
+    pub kafka: KafkaNodeExtend,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
@@ -47,4 +49,9 @@ pub struct NatsNodeExtend {
     pub tls_addr: String,
     pub ws_addr: String,
     pub wss_addr: String,
+}
+
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+pub struct KafkaNodeExtend {
+    pub tcp_addr: String,
 }

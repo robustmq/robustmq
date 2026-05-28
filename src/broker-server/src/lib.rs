@@ -513,6 +513,7 @@ impl BrokerServer {
 
         let kafka_cmd = Some(kafka_broker::handler::command::create_command_with_storage(
             self.kafka_params.storage_driver_manager.clone(),
+            self.broker_cache.clone(),
         ));
         let amqp_cmd = Some(amqp_broker::handler::command::create_command_with_state(
             self.connection_manager.clone(),
