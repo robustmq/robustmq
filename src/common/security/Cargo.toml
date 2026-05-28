@@ -21,7 +21,6 @@ license.workspace = true
 [dependencies]
 tokio.workspace = true
 serde_json.workspace = true
-pprof.workspace = true
 axum.workspace = true
 bytes.workspace = true
 metadata-struct.workspace = true

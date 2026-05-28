@@ -143,17 +143,21 @@ jobs:
         shell: pwsh
         run: choco install jq -y
 
-      - name: Run make release (Linux / macOS)
-        if: runner.os != 'Windows'
+      - name: Run make release (linux-arm64; reduced parallelism + no LTO to avoid OOM)
+        if: matrix.platform == 'linux-arm64'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Limit cargo parallelism on linux-arm64 (only 4 cores / 8GB RAM)
-          # Other platforms have more resources; let cargo decide.
-          CARGO_BUILD_JOBS: ${{ matrix.platform == 'linux-arm64' && '2' || '' }}
-          # On linux-arm64 disable full LTO + multiply codegen-units to avoid OOM
-          # during single-threaded LTO link phase (peak memory > 10GB otherwise).
-          CARGO_PROFILE_RELEASE_LTO: ${{ matrix.platform == 'linux-arm64' && 'false' || 'true' }}
-          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: ${{ matrix.platform == 'linux-arm64' && '16' || '1' }}
+          CARGO_BUILD_JOBS: '2'
+          CARGO_PROFILE_RELEASE_LTO: 'false'
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: '16'
+        run: |
+          echo "Building and releasing for ${{ matrix.platform }} (memory-constrained)"
+          make release
+
+      - name: Run make release (Linux / macOS, other targets)
+        if: runner.os != 'Windows' && matrix.platform != 'linux-arm64'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Building and releasing for ${{ matrix.platform }}, version from Cargo.toml"
           make release

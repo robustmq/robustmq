@@ -19,6 +19,7 @@ use bytes::Bytes;
 
 use crate::state::HttpState;
 
+#[cfg(not(windows))]
 pub async fn pprof_flamegraph(State(state): State<Arc<HttpState>>) -> Response {
     let Some(guard) = &state.pprof_guard else {
         return Response::builder()
@@ -44,6 +45,17 @@ pub async fn pprof_flamegraph(State(state): State<Arc<HttpState>>) -> Response {
         .status(500)
         .body(axum::body::Body::from(Bytes::from(
             "Failed to generate flamegraph",
+        )))
+        .unwrap()
+}
+
+#[cfg(windows)]
+pub async fn pprof_flamegraph(State(_state): State<Arc<HttpState>>) -> Response {
+    Response::builder()
+        .status(200)
+        .header(header::CONTENT_TYPE, "text/plain")
+        .body(axum::body::Body::from(Bytes::from(
+            "pprof flamegraph is not supported on Windows.",
         )))
         .unwrap()
 }
