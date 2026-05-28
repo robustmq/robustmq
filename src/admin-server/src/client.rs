@@ -580,7 +580,7 @@ impl AdminHttpClient {
 
     /// Get cluster status / info
     pub async fn get_status(&self) -> Result<String, HttpClientError> {
-        self.get_raw(&api_path("")).await
+        self.get_raw(&api_path(CLUSTER_INFO)).await
     }
 
     /// Set cluster configuration

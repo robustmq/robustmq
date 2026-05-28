@@ -28,6 +28,68 @@ use crate::mqtt::params::{
 use crate::output::OutputFormat;
 use clap::{Parser, Subcommand};
 use std::collections::HashMap;
+use std::path::PathBuf;
+
+const DEFAULT_HTTP_PORT: u32 = 58080;
+
+/// Resolve the admin API server address with the following precedence:
+///   1. `--server` flag passed by the user
+///   2. `ROBUSTMQ_API_URL` env var (strips scheme if present)
+///   3. `http_port` from `config/server.toml` (relative to current dir or
+///      the binary's `../config/server.toml` when shipped in a release tarball)
+///   4. fallback `127.0.0.1:58080`
+fn resolve_server_addr(explicit: Option<String>) -> String {
+    if let Some(s) = explicit.filter(|s| !s.is_empty()) {
+        return s;
+    }
+    if let Ok(url) = std::env::var("ROBUSTMQ_API_URL") {
+        let trimmed = url
+            .trim()
+            .trim_start_matches("http://")
+            .trim_start_matches("https://")
+            .trim_end_matches('/');
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+    if let Some(port) = read_http_port_from_config() {
+        return format!("127.0.0.1:{port}");
+    }
+    format!("127.0.0.1:{DEFAULT_HTTP_PORT}")
+}
+
+fn read_http_port_from_config() -> Option<u32> {
+    for path in candidate_config_paths() {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            for line in content.lines() {
+                let line = line.trim();
+                if let Some(rest) = line.strip_prefix("http_port") {
+                    let value = rest
+                        .trim_start_matches([' ', '\t', '='])
+                        .split('#')
+                        .next()
+                        .unwrap_or("")
+                        .trim();
+                    if let Ok(port) = value.parse::<u32>() {
+                        return Some(port);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+fn candidate_config_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    paths.push(PathBuf::from("config/server.toml"));
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent().and_then(|p| p.parent()) {
+            paths.push(parent.join("config/server.toml"));
+        }
+    }
+    paths
+}
 
 #[derive(Parser)]
 #[command(name = "robust-ctl")]
@@ -59,8 +121,10 @@ pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling:
 #[command(author="RobustMQ", about="MQTT management commands", long_about = None)]
 #[command(next_line_help = true)]
 pub struct MqttArgs {
-    #[arg(short, long, default_value_t = String::from("127.0.0.1:58080"))]
-    server: String,
+    /// Admin API endpoint. If omitted, falls back to ROBUSTMQ_API_URL env var,
+    /// then `http_port` from config/server.toml, then 127.0.0.1:58080.
+    #[arg(short, long)]
+    server: Option<String>,
     #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
     output: OutputFormat,
     #[arg(long, default_value_t = 1)]
@@ -96,8 +160,10 @@ pub enum MQTTAction {
 #[command(author="RobustMQ", about="Cluster management commands", long_about = None)]
 #[command(next_line_help = true)]
 pub struct ClusterArgs {
-    #[arg(short, long, default_value_t = String::from("127.0.0.1:58080"))]
-    server: String,
+    /// Admin API endpoint. If omitted, falls back to ROBUSTMQ_API_URL env var,
+    /// then `http_port` from config/server.toml, then 127.0.0.1:58080.
+    #[arg(short, long)]
+    server: Option<String>,
     #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
     output: OutputFormat,
     #[clap(subcommand)]
@@ -171,8 +237,10 @@ pub struct ClusterConfigSetArgs {
 #[command(author="RobustMQ", about="Storage engine management commands", long_about = None)]
 #[command(next_line_help = true)]
 pub struct EngineArgs {
-    #[arg(short, long, default_value_t = String::from("127.0.0.1:58080"))]
-    server: String,
+    /// Admin API endpoint. If omitted, falls back to ROBUSTMQ_API_URL env var,
+    /// then `http_port` from config/server.toml, then 127.0.0.1:58080.
+    #[arg(short, long)]
+    server: Option<String>,
     #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
     output: OutputFormat,
     #[arg(long, default_value_t = 1)]
@@ -262,7 +330,7 @@ pub enum EngineOffsetAction {
 
 pub async fn handle_mqtt(args: MqttArgs) {
     let params = MqttCliCommandParam {
-        server: args.server,
+        server: resolve_server_addr(args.server),
         output: args.output,
         page: args.page,
         limit: args.limit,
@@ -327,7 +395,7 @@ pub async fn handle_cluster(args: ClusterArgs) {
     };
 
     let params = ClusterCliCommandParam {
-        server: args.server,
+        server: resolve_server_addr(args.server),
         output: args.output,
         action,
     };
@@ -387,7 +455,7 @@ pub async fn handle_engine(args: EngineArgs) {
     };
 
     let params = EngineCliCommandParam {
-        server: args.server,
+        server: resolve_server_addr(args.server),
         output: args.output,
         page: args.page,
         limit: args.limit,
