@@ -87,8 +87,6 @@ jobs:
         with:
           shared-key: "integration-tests"
           cache-on-failure: true
-          # Clean cache to prevent disk space issues
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Check disk space
         run: |
@@ -97,20 +95,6 @@ jobs:
           echo "=========================================="
           df -h
           echo "=========================================="
-
-      - name: Clean target directory to save space
-        run: |
-          # Remove old test artifacts and incremental compilation cache
-          if [ -d "target/debug" ]; then
-            echo "Cleaning target/debug directory..."
-            # Keep only essential files, remove test artifacts
-            find target/debug -maxdepth 1 -type f -name "*.d" -delete || true
-            find target/debug -maxdepth 1 -type f -name "*.rlib" -delete || true
-            # Clean old incremental cache (keep recent ones)
-            find target/debug/incremental -type d -mtime +1 -exec rm -rf {} + 2>/dev/null || true
-            echo "Cleanup complete"
-            df -h
-          fi
 
       - name: Run integration tests with broker
         run: |
