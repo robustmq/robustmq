@@ -32,6 +32,7 @@ pub async fn create_shard(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
     shard_name: &str,
+    topic_name: &str,
     shard_config: EngineShardConfig,
     desc: &str,
 ) -> Result<EngineShard, MetaServiceError> {
@@ -40,13 +41,14 @@ pub async fn create_shard(
     }
 
     info!(
-        "Creating shard: name={}, replica_num={}, max_segment_size={:?},desc={}",
-        shard_name, shard_config.replica_num, shard_config.max_segment_size, desc
+        "Creating shard: name={}, topic_name={}, replica_num={}, max_segment_size={:?},desc={}",
+        shard_name, topic_name, shard_config.replica_num, shard_config.max_segment_size, desc
     );
 
     let new_shard = EngineShard {
         shard_uid: unique_id(),
         shard_name: shard_name.to_string(),
+        topic_name: topic_name.to_string(),
         start_segment_seq: 0,
         active_segment_seq: 0,
         last_segment_seq: 0,

@@ -294,6 +294,7 @@ mod tests {
         let shard = EngineShard {
             shard_uid: "test-shard-uid".to_string(),
             shard_name: segment_iden.shard_name.clone(),
+            topic_name: "".to_string(),
             start_segment_seq: segment_iden.segment,
             active_segment_seq: segment_iden.segment,
             last_segment_seq: segment_iden.segment,

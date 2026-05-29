@@ -59,6 +59,8 @@ mod tests {
         let create_result = client
             .create_shard(&ShardCreateReq {
                 shard_name: shard_name.clone(),
+                topic_name: None,
+                desc: None,
                 config,
             })
             .await
@@ -141,6 +143,8 @@ mod tests {
         let create_result = client
             .create_shard(&ShardCreateReq {
                 shard_name: shard_name.clone(),
+                topic_name: None,
+                desc: None,
                 config,
             })
             .await
@@ -214,6 +218,8 @@ mod tests {
         let create_result = client
             .create_shard(&ShardCreateReq {
                 shard_name: shard_name.clone(),
+                topic_name: None,
+                desc: None,
                 config,
             })
             .await
@@ -315,6 +321,8 @@ mod tests {
         let create_result = client
             .create_shard(&ShardCreateReq {
                 shard_name: shard_name.clone(),
+                topic_name: None,
+                desc: None,
                 config,
             })
             .await

@@ -71,6 +71,7 @@ impl StorageDriverManager {
             driver
                 .create_shard(&AdapterShardInfo {
                     shard_name: shard_name.to_string(),
+                    topic_name: topic_name.to_string(),
                     config: config.clone(),
                     desc: format!("topic name:{}", topic_name),
                 })

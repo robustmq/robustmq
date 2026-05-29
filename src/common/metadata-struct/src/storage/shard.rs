@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 pub struct EngineShard {
     pub shard_uid: String,
     pub shard_name: String,
+    pub topic_name: String,
     pub start_segment_seq: u32,
     pub active_segment_seq: u32,
     pub last_segment_seq: u32,
@@ -33,10 +34,16 @@ pub struct EngineShard {
 }
 
 impl EngineShard {
-    pub fn new(shard_name: String, config: EngineShardConfig, desc: String) -> Self {
+    pub fn new(
+        shard_name: String,
+        topic_name: String,
+        config: EngineShardConfig,
+        desc: String,
+    ) -> Self {
         EngineShard {
             shard_uid: unique_id(),
             shard_name,
+            topic_name,
             start_segment_seq: 0,
             active_segment_seq: 0,
             last_segment_seq: 0,

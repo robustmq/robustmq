@@ -127,6 +127,7 @@ impl EngineCommand {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
         let request = ShardListReq {
             shard_name,
+            topic_name: None,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
@@ -178,7 +179,12 @@ impl EngineCommand {
         config: String,
     ) {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
-        let request = ShardCreateReq { shard_name, config };
+        let request = ShardCreateReq {
+            shard_name,
+            topic_name: None,
+            desc: None,
+            config,
+        };
         match admin_client.create_shard(&request).await {
             Ok(raw) => println!("{raw}"),
             Err(e) => error_info(e.to_string()),

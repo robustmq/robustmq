@@ -85,6 +85,7 @@ pub async fn create_shard_by_req(
         raft_manager,
         call_manager,
         &req.shard_name,
+        &req.topic_name,
         shard_config,
         &req.desc,
     )

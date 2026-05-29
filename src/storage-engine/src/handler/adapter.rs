@@ -145,6 +145,7 @@ impl StorageEngineHandler {
 
             results.push(AdapterShardDetail {
                 shard_name: shard.shard_name.clone(),
+                topic_name: shard.topic_name.clone(),
                 config: shard.config.clone(),
                 desc: shard.desc.clone(),
                 extend: AdapterShardDetailExtend::StorageEngine(shard),

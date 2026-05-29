@@ -157,6 +157,7 @@ mod tests {
         EngineShard {
             shard_uid: "test-uid".to_string(),
             shard_name: "test-shard".to_string(),
+            topic_name: "".to_string(),
             start_segment_seq: 0,
             active_segment_seq: 0,
             last_segment_seq: 0,

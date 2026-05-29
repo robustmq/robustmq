@@ -34,6 +34,7 @@ use std::sync::Arc;
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ShardListReq {
     pub shard_name: Option<String>,
+    pub topic_name: Option<String>,
     pub limit: Option<u32>,
     pub page: Option<u32>,
     pub sort_field: Option<String>,
@@ -46,6 +47,8 @@ pub struct ShardListReq {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ShardCreateReq {
     pub shard_name: String,
+    pub topic_name: Option<String>,
+    pub desc: Option<String>,
     pub config: String,
 }
 
@@ -60,8 +63,12 @@ pub struct ShardListRow {
 }
 
 impl Queryable for ShardListRow {
-    fn get_field_str(&self, _field: &str) -> Option<String> {
-        None
+    fn get_field_str(&self, field: &str) -> Option<String> {
+        match field {
+            "shard_name" => Some(self.shard_info.shard_name.clone()),
+            "topic_name" => Some(self.shard_info.topic_name.clone()),
+            _ => None,
+        }
     }
 }
 
@@ -91,8 +98,12 @@ pub async fn shard_list(
         }
     };
 
+    let topic_filter = params.topic_name.as_deref().unwrap_or("").to_lowercase();
     let shards: Vec<ShardListRow> = result
         .into_iter()
+        .filter(|shard| {
+            topic_filter.is_empty() || shard.topic_name.to_lowercase().contains(&topic_filter)
+        })
         .map(|shard| ShardListRow { shard_info: shard })
         .collect();
 
@@ -127,8 +138,9 @@ pub async fn shard_create(
 
     let shard_info = AdapterShardInfo {
         shard_name: params.shard_name.clone(),
+        topic_name: params.topic_name.unwrap_or_default(),
         config,
-        desc: "".to_string(),
+        desc: params.desc.unwrap_or_default(),
     };
 
     if let Err(e) = state

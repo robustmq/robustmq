@@ -48,7 +48,8 @@ message ListShardReply {
 message CreateShardRequest {
   string shard_name = 1;
   bytes shard_config = 2;
-  string desc =3;
+  string desc = 3;
+  string topic_name = 4;
 }
 
 message CreateShardReply {

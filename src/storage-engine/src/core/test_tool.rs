@@ -84,6 +84,7 @@ pub async fn test_init_segment(
     let shard = EngineShard {
         shard_uid: unique_id(),
         shard_name: segment_iden.shard_name.clone(),
+        topic_name: "".to_string(),
         start_segment_seq: 0,
         active_segment_seq: 0,
         last_segment_seq: 0,

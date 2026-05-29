@@ -104,6 +104,7 @@ pub async fn create_shard_to_place(
     let conf: &common_config::config::BrokerConfig = broker_config();
     let request = CreateShardRequest {
         shard_name: shard_name.to_string(),
+        topic_name: shard.topic_name.to_string(),
         shard_config: shard.config.encode()?,
         desc: shard.desc.to_string(),
     };
