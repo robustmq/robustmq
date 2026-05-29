@@ -78,9 +78,59 @@ impl RaftGroup {
         })
     }
 
-    pub async fn start(&self) -> Result<(), CommonError> {
+    /// Only check initialization status; log and return — join/bootstrap is
+    /// handled once at the MultiRaftManager level.
+    pub async fn start_nodes(&self) -> Result<(), CommonError> {
         for (shard_name, raft) in &self.raft_group {
-            MultiRaftManager::init_raft_node(shard_name, raft).await?;
+            match raft.is_initialized().await {
+                Ok(true) => {
+                    info!("[{}] Already initialized, rejoining cluster", shard_name);
+                }
+                Ok(false) => {
+                    info!(
+                        "[{}] Not yet initialized, waiting for bootstrap or join",
+                        shard_name
+                    );
+                }
+                Err(e) => {
+                    return Err(CommonError::CommonError(format!(
+                        "[{}] Failed to check initialization status: {}",
+                        shard_name, e
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Bootstrap every shard in this group as a single-node cluster.
+    pub async fn bootstrap_single_node(
+        &self,
+        node_id: u64,
+        rpc_addr: &str,
+    ) -> Result<(), CommonError> {
+        use crate::raft::type_config::Node;
+        use std::collections::BTreeMap;
+
+        for (shard_name, raft) in &self.raft_group {
+            if raft.is_initialized().await.unwrap_or(true) {
+                continue;
+            }
+            let mut nodes = BTreeMap::new();
+            nodes.insert(
+                node_id,
+                Node {
+                    rpc_addr: rpc_addr.to_string(),
+                    node_id,
+                },
+            );
+            raft.initialize(nodes).await.map_err(|e| {
+                CommonError::CommonError(format!(
+                    "[{}] Failed to bootstrap single-node cluster: {}",
+                    shard_name, e
+                ))
+            })?;
+            info!("[{}] Single-node cluster bootstrapped", shard_name);
         }
         Ok(())
     }

@@ -14,16 +14,16 @@
 
 use common_base::error::common::CommonError;
 use protocol::meta::meta_service_common::{
-    AddLearnerReply, AddLearnerRequest, AddShareGroupMemberReply, AddShareGroupMemberRequest,
-    AppendReply, AppendRequest, BindSchemaReply, BindSchemaRequest, ChangeMembershipReply,
-    ChangeMembershipRequest, ClusterStatusReply, ClusterStatusRequest, CreateSchemaReply,
-    CreateSchemaRequest, CreateShareGroupReply, CreateShareGroupRequest, CreateTenantReply,
-    CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
+    AddShareGroupMemberReply, AddShareGroupMemberRequest, AppendReply, AppendRequest,
+    BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
+    CreateSchemaReply, CreateSchemaRequest, CreateShareGroupReply, CreateShareGroupRequest,
+    CreateTenantReply, CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
     DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
     DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest, DeleteShareGroupReply,
     DeleteShareGroupRequest, DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest,
     GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
     GetRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
+    JoinClusterReply, JoinClusterRequest, LeaveClusterReply, LeaveClusterRequest,
     ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest,
     ListShareGroupMemberReply, ListShareGroupMemberRequest, ListShareGroupReply,
     ListShareGroupRequest, ListTenantReply, ListTenantRequest, NodeListReply, NodeListRequest,
@@ -33,6 +33,7 @@ use protocol::meta::meta_service_common::{
     UpdateSchemaReply, UpdateSchemaRequest, UpdateTenantReply, UpdateTenantRequest, VoteReply,
     VoteRequest,
 };
+
 use tonic::Streaming;
 
 use crate::pool::ClientPool;
@@ -195,16 +196,16 @@ generate_meta_service_call!(
     Snapshot
 );
 generate_meta_service_call!(
-    placement_openraft_add_learner,
-    AddLearnerRequest,
-    AddLearnerReply,
-    AddLearner
+    join_cluster,
+    JoinClusterRequest,
+    JoinClusterReply,
+    JoinCluster
 );
 generate_meta_service_call!(
-    placement_openraft_change_membership,
-    ChangeMembershipRequest,
-    ChangeMembershipReply,
-    ChangeMembership
+    leave_cluster,
+    LeaveClusterRequest,
+    LeaveClusterReply,
+    LeaveCluster
 );
 
 // ShareGroup

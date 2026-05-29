@@ -79,6 +79,7 @@ where
     let method = Req::method_name();
     let mut times = 0;
     let mut tried_addrs = HashSet::new();
+    let mut last_err: Option<CommonError> = None;
     loop {
         let index = times % addrs.len();
         times += 1;
@@ -92,8 +93,11 @@ where
             addr.to_string()
         };
         if tried_addrs.contains(&target_addr) {
-            if times > retry_times() {
-                return Err(CommonError::CommonError("Not found leader".to_string()));
+            // Every address has been tried at least once and configured retries
+            // are exhausted — give up.
+            if tried_addrs.len() >= addrs.len() && times > retry_times() {
+                return Err(last_err
+                    .unwrap_or_else(|| CommonError::CommonError("Not found leader".to_string())));
             }
             continue;
         }
@@ -123,11 +127,22 @@ where
                         }
                     }
                 } else {
-                    return Err(err);
+                    // Connection/transport error (e.g. node down). Clear any cached
+                    // leader pointing at the dead node so the next iteration falls
+                    // back to the address list and tries a surviving node.
+                    if Req::IS_WRITE_REQUEST {
+                        client_pool.remove_leader_addr(method);
+                    }
+                    tried_addrs.insert(target_addr);
+                    last_err = Some(err);
                 }
 
-                if times > retry_times() {
-                    return Err(CommonError::CommonError("Not found leader".to_string()));
+                // Keep going until every address has been tried at least once,
+                // then respect the configured retry budget.
+                if tried_addrs.len() >= addrs.len() && times > retry_times() {
+                    return Err(last_err.unwrap_or_else(|| {
+                        CommonError::CommonError("Not found leader".to_string())
+                    }));
                 }
                 sleep(Duration::from_secs(retry_sleep_time(times))).await;
             }

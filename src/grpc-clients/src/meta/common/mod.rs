@@ -14,16 +14,16 @@
 
 use protocol::meta::meta_service_common::meta_service_service_client::MetaServiceServiceClient;
 use protocol::meta::meta_service_common::{
-    AddLearnerReply, AddLearnerRequest, AddShareGroupMemberReply, AddShareGroupMemberRequest,
-    AppendReply, AppendRequest, BindSchemaReply, BindSchemaRequest, ChangeMembershipReply,
-    ChangeMembershipRequest, ClusterStatusReply, ClusterStatusRequest, CreateSchemaReply,
-    CreateSchemaRequest, CreateShareGroupReply, CreateShareGroupRequest, CreateTenantReply,
-    CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
+    AddShareGroupMemberReply, AddShareGroupMemberRequest, AppendReply, AppendRequest,
+    BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
+    CreateSchemaReply, CreateSchemaRequest, CreateShareGroupReply, CreateShareGroupRequest,
+    CreateTenantReply, CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
     DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
     DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest, DeleteShareGroupReply,
     DeleteShareGroupRequest, DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest,
     GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
     GetRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
+    JoinClusterReply, JoinClusterRequest, LeaveClusterReply, LeaveClusterRequest,
     ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest,
     ListShareGroupMemberReply, ListShareGroupMemberRequest, ListShareGroupReply,
     ListShareGroupRequest, ListTenantReply, ListTenantRequest, NodeListReply, NodeListRequest,
@@ -331,22 +331,22 @@ impl_retriable_request!(
 );
 
 impl_retriable_request!(
-    AddLearnerRequest,
+    JoinClusterRequest,
     MetaServiceServiceClient<Channel>,
-    AddLearnerReply,
-    add_learner,
+    JoinClusterReply,
+    join_cluster,
     "PlacementService",
-    "AddLearner",
+    "JoinCluster",
     true
 );
 
 impl_retriable_request!(
-    ChangeMembershipRequest,
+    LeaveClusterRequest,
     MetaServiceServiceClient<Channel>,
-    ChangeMembershipReply,
-    change_membership,
+    LeaveClusterReply,
+    leave_cluster,
     "PlacementService",
-    "ChangeMembership",
+    "LeaveCluster",
     true
 );
 

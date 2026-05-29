@@ -126,6 +126,10 @@ impl ClientPool {
             .insert(method, leader_addr);
     }
 
+    pub fn remove_leader_addr(&self, method: &str) {
+        self.meta_service_leader_addr_caches.remove(method);
+    }
+
     pub fn clear_leader_cache(&self) {
         self.meta_service_leader_addr_caches.clear();
     }

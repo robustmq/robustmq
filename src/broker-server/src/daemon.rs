@@ -231,7 +231,15 @@ impl BrokerServer {
             }
 
             sleep(Duration::from_secs(5)).await;
-            // Stop Phase 9: Meta Service
+
+            // Stop Phase 9: Leave Raft cluster gracefully before stopping meta service
+            if common_base::role::is_meta_node(&self.config.roles) {
+                if let Err(e) = self.meta_params.raft_manager.leave_cluster().await {
+                    error!("Failed to leave Raft cluster gracefully: {}", e);
+                }
+            }
+
+            // Stop Phase 10: Meta Service
             if let Some(sx) = meta_stop {
                 if let Err(e) = sx.send(true) {
                     error!("meta stop signal, error message:{}", e);

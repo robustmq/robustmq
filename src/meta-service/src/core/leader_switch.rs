@@ -30,7 +30,7 @@ use crate::{
 use bytes::Bytes;
 use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 pub async fn trigger_leader_switch(
     meta_cache: Arc<MetaCacheManager>,
@@ -123,9 +123,12 @@ pub async fn segment_leader_switch(
             .find(|rep| rep.node_id != remove_id)
             .map(|rep| rep.node_id)
         else {
-            error!(
-                "segment {}/{} has no available replica to elect as leader, skipping",
-                segment.shard_name, segment.segment_seq
+            // Single-replica segment whose only replica was on the removed node.
+            // No other node holds the data, so leader cannot be switched — expected
+            // for replica_num=1, not an error.
+            warn!(
+                "segment {}/{} has no surviving replica (all replicas were on removed node {}), skipping leader switch",
+                segment.shard_name, segment.segment_seq, remove_id
             );
             continue;
         };

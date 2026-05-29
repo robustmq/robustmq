@@ -19,18 +19,19 @@ use crate::core::error::MetaServiceError;
 use crate::raft::group::RaftGroup;
 use crate::raft::route::data::StorageData;
 use crate::raft::route::DataRoute;
-use crate::raft::type_config::Node;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use common_metrics::meta::raft::{init_raft_shards, record_raft_apply_lag};
+use grpc_clients::meta::common::call::{join_cluster, leave_cluster};
 use grpc_clients::pool::ClientPool;
 use openraft::raft::ClientWriteResponse;
 use openraft::{Config, Raft};
-use std::collections::BTreeMap;
+use protocol::meta::meta_service_common::{JoinClusterRequest, LeaveClusterRequest};
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::net::TcpStream;
 use tokio::sync::{broadcast, RwLock};
-use tracing::info;
+use tracing::{info, warn};
 
 pub const DEFAULT_RAFT_WRITE_TIMEOUT_SEC: u64 = 30;
 pub const SLOW_RAFT_WRITE_WARN_THRESHOLD_MS: f64 = 5.0;
@@ -141,11 +142,108 @@ impl MultiRaftManager {
 
     pub async fn start(&self) -> Result<(), CommonError> {
         info!("Starting Multi-Raft");
-        self.metadata.start().await?;
-        self.offset.start().await?;
-        self.data.start().await?;
+
+        // Each shard bootstrap themselves as single-node if no peer is reachable,
+        // or waits to receive log replication from the Leader.
+        // The join request (add_learner + change_membership) is sent once here,
+        // not per-shard, to avoid duplicate joins.
+        let conf = broker_config();
+        let self_id: u64 = conf.broker_id;
+        let self_addr = conf
+            .meta_addrs
+            .get(&self_id.to_string())
+            .map(|a| a.to_string().replace('"', ""))
+            .ok_or_else(|| {
+                CommonError::CommonError(format!(
+                    "broker_id {} not found in meta_addrs — cannot determine own Raft address",
+                    self_id
+                ))
+            })?;
+
+        let peers: Vec<(u64, String)> = conf
+            .meta_addrs
+            .iter()
+            .filter_map(|(id_str, addr)| {
+                let id: u64 = id_str.parse().ok()?;
+                if id == self_id {
+                    return None;
+                }
+                Some((id, addr.to_string().replace('"', "")))
+            })
+            .collect();
+
+        // Disable election on all shards before starting — prevents a restarting node
+        // with stale high-term vote from disrupting the cluster.
+        // Election is re-enabled after join/bootstrap completes.
+        for (_, raft) in self.all_shards() {
+            raft.runtime_config().elect(false);
+        }
+
+        // Start all shard raft nodes (logs initialization status, does not initialize).
+        self.metadata.start_nodes().await?;
+        self.offset.start_nodes().await?;
+        self.data.start_nodes().await?;
+
+        let reachable_peer = Self::find_reachable_peer(&peers).await;
+
+        match reachable_peer {
+            Some((peer_id, ref peer_addr)) => {
+                // Always join when a peer is reachable:
+                // - First boot: join the existing cluster
+                // - Restart: re-join to reset log/vote state (add_learner is idempotent)
+                info!(
+                    "Reachable peer found: node {} at {}. Sending join request.",
+                    peer_id, peer_addr
+                );
+                let req = JoinClusterRequest {
+                    node_id: self_id,
+                    rpc_addr: self_addr.clone(),
+                };
+                join_cluster(
+                    &ClientPool::new(conf.runtime.channels_per_address),
+                    &[peer_addr.as_str()],
+                    req,
+                )
+                .await
+                .map_err(|e| {
+                    CommonError::CommonError(format!(
+                        "Failed to join cluster via peer {}: {}",
+                        peer_addr, e
+                    ))
+                })?;
+                info!("Successfully joined cluster via peer {}", peer_addr);
+            }
+            None => {
+                // No reachable peers — bootstrap as single-node, or already sole node on restart.
+                info!(
+                    "No reachable peers, bootstrapping as single-node cluster (node {})",
+                    self_id
+                );
+                self.metadata
+                    .bootstrap_single_node(self_id, &self_addr)
+                    .await?;
+                self.offset
+                    .bootstrap_single_node(self_id, &self_addr)
+                    .await?;
+                self.data.bootstrap_single_node(self_id, &self_addr).await?;
+            }
+        }
+
+        // Re-enable election now that the node has a consistent state.
+        for (_, raft) in self.all_shards() {
+            raft.runtime_config().elect(true);
+        }
+
         info!("Multi-Raft started");
         Ok(())
+    }
+
+    /// Iterate over all (shard_name, raft_node) pairs across every group.
+    pub fn all_shards(&self) -> impl Iterator<Item = (&String, &Raft<TypeConfig>)> {
+        self.metadata
+            .all_nodes()
+            .chain(self.offset.all_nodes())
+            .chain(self.data.all_nodes())
     }
 
     pub fn is_metadata_leader(&self) -> bool {
@@ -244,6 +342,57 @@ impl MultiRaftManager {
         }
     }
 
+    /// Remove self from the Raft cluster by sending a LeaveCluster request to the Leader.
+    /// The Leader executes change_membership to remove this node from all shards.
+    pub async fn leave_cluster(&self) -> Result<(), CommonError> {
+        let conf = broker_config();
+        let self_id = conf.broker_id;
+
+        // Find the current Leader address from any shard's metrics.
+        let leader_addr = self.all_shards().find_map(|(_, raft)| {
+            let m = raft.metrics().borrow().clone();
+            let leader_id = m.current_leader?;
+            let nodes: Vec<(u64, String)> = m
+                .membership_config
+                .membership()
+                .nodes()
+                .map(|(id, node)| (*id, node.rpc_addr.clone()))
+                .collect();
+            nodes
+                .into_iter()
+                .find(|(id, _)| *id == leader_id)
+                .map(|(_, addr)| addr)
+        });
+
+        let leader_addr = match leader_addr {
+            Some(addr) => addr,
+            None => {
+                warn!("No leader found, cannot send leave request gracefully");
+                return Ok(());
+            }
+        };
+
+        info!(
+            "Sending leave request for node {} to Leader at {}",
+            self_id, leader_addr
+        );
+
+        let req = LeaveClusterRequest { node_id: self_id };
+        if let Err(e) = leave_cluster(
+            &ClientPool::new(conf.runtime.channels_per_address),
+            &[leader_addr.as_str()],
+            req,
+        )
+        .await
+        {
+            warn!("Failed to leave cluster gracefully: {}", e);
+        } else {
+            info!("Node {} successfully left the cluster", self_id);
+        }
+
+        Ok(())
+    }
+
     pub async fn shutdown(&self) -> Result<(), CommonError> {
         let mut stop = self.stop.write().await;
         *stop = true;
@@ -266,44 +415,28 @@ impl MultiRaftManager {
         Ok(())
     }
 
-    pub async fn init_raft_node(
-        shard_name: &str,
-        raft_node: &Raft<TypeConfig>,
-    ) -> Result<(), CommonError> {
-        let conf = broker_config();
-        let mut nodes = BTreeMap::new();
-        for (node_id, addr) in conf.meta_addrs.clone() {
-            let addr = addr.to_string().replace("\"", "");
-            let node = Node {
-                rpc_addr: addr.clone(),
-                node_id: node_id.parse().unwrap(),
-            };
-            nodes.insert(node.node_id, node);
-        }
-
-        match raft_node.is_initialized().await {
-            Ok(false) => {
-                info!("[{}] Initializing with {} nodes", shard_name, nodes.len());
-                raft_node.initialize(nodes.clone()).await.map_err(|e| {
-                    CommonError::CommonError(format!(
-                        "[{}] Failed to initialize Raft cluster: {}",
-                        shard_name, e
-                    ))
-                })?;
-                info!("[{}] Initialized", shard_name);
-            }
-            Ok(true) => {
-                info!("[{}] Already initialized", shard_name);
-            }
-            Err(e) => {
-                return Err(CommonError::CommonError(format!(
-                    "[{}] Failed to check initialization status: {}",
-                    shard_name, e
-                )));
+    /// Try each peer address with a short TCP connect timeout.
+    /// Returns the first reachable (node_id, addr) pair, or None.
+    async fn find_reachable_peer(peers: &[(u64, String)]) -> Option<(u64, String)> {
+        for (id, addr) in peers {
+            match tokio::time::timeout(
+                Duration::from_millis(500),
+                TcpStream::connect(addr.as_str()),
+            )
+            .await
+            {
+                Ok(Ok(_)) => {
+                    return Some((*id, addr.clone()));
+                }
+                Ok(Err(e)) => {
+                    warn!("Peer {} at {} not reachable: {}", id, addr, e);
+                }
+                Err(_) => {
+                    warn!("Peer {} at {} connection timed out", id, addr);
+                }
             }
         }
-
-        Ok(())
+        None
     }
 
     pub async fn create_raft_node(

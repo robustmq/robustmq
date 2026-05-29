@@ -137,7 +137,9 @@ pub enum StorageEngineError {
     #[error("Sending a request to node {0} failed to get a connection, possibly to create a connection.")]
     NoAvailableConn(u64),
 
-    #[error("Node {0} not found in broker cache, it may have not registered or already been removed.")]
+    #[error(
+        "Node {0} not found in broker cache, it may have not registered or already been removed."
+    )]
     NodeNotFound(u64),
 
     #[error("MemoryStorage Storage type of storage does not support this X operation.")]

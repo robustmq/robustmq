@@ -19,8 +19,8 @@ use crate::raft::manager::MultiRaftManager;
 use crate::{core::error::MetaServiceError, raft::type_config::Node};
 use bincode::{deserialize, serialize};
 use protocol::meta::meta_service_common::{
-    AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, ChangeMembershipReply,
-    ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
+    AppendReply, AppendRequest, JoinClusterReply, JoinClusterRequest, LeaveClusterReply,
+    LeaveClusterRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
 use tracing::warn;
 
@@ -110,40 +110,117 @@ pub async fn snapshot_by_req(
     result
 }
 
-pub async fn add_learner_by_req(
+/// Handle a join request from a new node.
+///
+/// For every Raft state machine, the joining node is first added as a learner
+/// (which triggers log replication), then promoted to a full voter via
+/// change_membership.  Both steps are blocking so the caller knows the cluster
+/// has accepted the new member before this returns.
+pub async fn join_cluster_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    req: &AddLearnerRequest,
-) -> Result<AddLearnerReply, MetaServiceError> {
+    req: &JoinClusterRequest,
+) -> Result<JoinClusterReply, MetaServiceError> {
     let node_id = req.node_id;
-    let node = req
-        .node
-        .clone()
-        .ok_or(MetaServiceError::RequestParamsNotEmpty("node".to_string()))?;
-
     let raft_node_data = Node {
-        rpc_addr: node.rpc_addr,
-        node_id: node.node_id,
+        rpc_addr: req.rpc_addr.clone(),
+        node_id,
     };
 
-    let blocking = req.blocking;
-    let raft_node = raft_manager.get_raft_node(&req.machine)?;
-    let res = raft_node
-        .add_learner(node_id, raft_node_data, blocking)
-        .await?;
-    let value = serialize(&res)?;
+    let shards: Vec<(String, _)> = raft_manager
+        .all_shards()
+        .map(|(name, raft)| (name.clone(), raft))
+        .collect();
 
-    Ok(AddLearnerReply { value })
+    for (machine, raft_node) in &shards {
+        // Step 1: add as learner (blocking = true waits until log is caught up)
+        raft_node
+            .add_learner(node_id, raft_node_data.clone(), true)
+            .await
+            .map_err(|e| {
+                MetaServiceError::CommonError(format!(
+                    "[{}] add_learner failed for node {}: {}",
+                    machine, node_id, e
+                ))
+            })?;
+
+        // Step 2: promote to voter
+        let current_members: Vec<u64> = raft_node
+            .metrics()
+            .borrow()
+            .membership_config
+            .membership()
+            .voter_ids()
+            .collect();
+
+        let mut new_members = current_members;
+        if !new_members.contains(&node_id) {
+            new_members.push(node_id);
+        }
+
+        raft_node
+            .change_membership(new_members, true)
+            .await
+            .map_err(|e| {
+                MetaServiceError::CommonError(format!(
+                    "[{}] change_membership failed for node {}: {}",
+                    machine, node_id, e
+                ))
+            })?;
+    }
+
+    tracing::info!(
+        "Node {} ({}) successfully joined the cluster",
+        node_id,
+        req.rpc_addr
+    );
+
+    Ok(JoinClusterReply {})
 }
 
-pub async fn change_membership_by_req(
+/// Handle a leave request from a node that is shutting down.
+/// Must be called on the Leader — removes the node from membership of all shards.
+pub async fn leave_cluster_by_req(
     raft_manager: &Arc<MultiRaftManager>,
-    req: &ChangeMembershipRequest,
-) -> Result<ChangeMembershipReply, MetaServiceError> {
-    let members = req.members.clone();
-    let retain = req.retain;
-    let raft_node = raft_manager.get_raft_node(&req.machine)?;
-    let res = raft_node.change_membership(members, retain).await?;
-    let value = serialize(&res)?;
+    req: &LeaveClusterRequest,
+) -> Result<LeaveClusterReply, MetaServiceError> {
+    let node_id = req.node_id;
 
-    Ok(ChangeMembershipReply { value })
+    for (machine, raft_node) in raft_manager.all_shards() {
+        let current_members: Vec<u64> = raft_node
+            .metrics()
+            .borrow()
+            .membership_config
+            .membership()
+            .voter_ids()
+            .collect();
+
+        let new_members: Vec<u64> = current_members
+            .into_iter()
+            .filter(|&id| id != node_id)
+            .collect();
+
+        if new_members.is_empty() {
+            tracing::info!(
+                "[{}] Node {} is the last member, skipping leave",
+                machine,
+                node_id
+            );
+            continue;
+        }
+
+        raft_node
+            .change_membership(new_members, false)
+            .await
+            .map_err(|e| {
+                MetaServiceError::CommonError(format!(
+                    "[{}] change_membership failed while removing node {}: {}",
+                    machine, node_id, e
+                ))
+            })?;
+
+        tracing::info!("[{}] Node {} removed from membership", machine, node_id);
+    }
+
+    tracing::info!("Node {} successfully left the cluster", node_id);
+    Ok(LeaveClusterReply {})
 }

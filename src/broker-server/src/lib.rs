@@ -396,7 +396,6 @@ impl BrokerServer {
             );
             std::process::exit(1);
         }
-        
 
         // Phase 2: Meta (Raft) service
         let meta_stop_send = self.start_meta_service();

@@ -16,7 +16,7 @@ use crate::core::cache::MetaCacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::services::{
-    add_learner_by_req, append_by_req, change_membership_by_req, snapshot_by_req, vote_by_req,
+    append_by_req, join_cluster_by_req, leave_cluster_by_req, snapshot_by_req, vote_by_req,
 };
 use crate::server::services::common::inner::{
     cluster_status_by_req, delete_resource_config_by_req, get_offset_data_by_req,
@@ -42,16 +42,16 @@ use node_call::NodeCallManager;
 use prost_validate::Validator;
 use protocol::meta::meta_service_common::meta_service_service_server::MetaServiceService;
 use protocol::meta::meta_service_common::{
-    AddLearnerReply, AddLearnerRequest, AddShareGroupMemberReply, AddShareGroupMemberRequest,
-    AppendReply, AppendRequest, BindSchemaReply, BindSchemaRequest, ChangeMembershipReply,
-    ChangeMembershipRequest, ClusterStatusReply, ClusterStatusRequest, CreateSchemaReply,
-    CreateSchemaRequest, CreateShareGroupReply, CreateShareGroupRequest, CreateTenantReply,
-    CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
+    AddShareGroupMemberReply, AddShareGroupMemberRequest, AppendReply, AppendRequest,
+    BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
+    CreateSchemaReply, CreateSchemaRequest, CreateShareGroupReply, CreateShareGroupRequest,
+    CreateTenantReply, CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
     DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
     DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest, DeleteShareGroupReply,
     DeleteShareGroupRequest, DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest,
     GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
     GetRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
+    JoinClusterReply, JoinClusterRequest, LeaveClusterReply, LeaveClusterRequest,
     ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest,
     ListShareGroupMemberReply, ListShareGroupMemberRequest, ListShareGroupReply,
     ListShareGroupRequest, ListTenantReply, ListTenantRequest, NodeListReply, NodeListRequest,
@@ -542,27 +542,23 @@ impl MetaServiceService for GrpcPlacementService {
             .map(Response::new)
     }
 
-    async fn add_learner(
+    async fn join_cluster(
         &self,
-        request: Request<AddLearnerRequest>,
-    ) -> Result<Response<AddLearnerReply>, Status> {
+        request: Request<JoinClusterRequest>,
+    ) -> Result<Response<JoinClusterReply>, Status> {
         let req = request.into_inner();
-        self.validate_request(&req)?;
-
-        add_learner_by_req(&self.raft_manager, &req)
+        join_cluster_by_req(&self.raft_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)
     }
 
-    async fn change_membership(
+    async fn leave_cluster(
         &self,
-        request: Request<ChangeMembershipRequest>,
-    ) -> Result<Response<ChangeMembershipReply>, Status> {
+        request: Request<LeaveClusterRequest>,
+    ) -> Result<Response<LeaveClusterReply>, Status> {
         let req = request.into_inner();
-        self.validate_request(&req)?;
-
-        change_membership_by_req(&self.raft_manager, &req)
+        leave_cluster_by_req(&self.raft_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)
