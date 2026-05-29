@@ -104,6 +104,7 @@ impl ClusterStorage {
             node_ip: local_ip.clone(),
             node_id: config.broker_id,
             grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
+            http_addr: format!("{}:{}", local_ip, config.http_port),
             engine_addr: format!("{}:{}", local_ip, config.storage_runtime.tcp_port),
             extend,
             start_time: cache_manager.get_start_time(),

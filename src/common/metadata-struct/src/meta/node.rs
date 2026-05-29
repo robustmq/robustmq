@@ -24,6 +24,7 @@ pub struct BrokerNode {
     pub node_id: u64,
     pub node_ip: String,
     pub grpc_addr: String,
+    pub http_addr: String,
     pub engine_addr: String,
     pub start_time: u64,
     pub register_time: u64,

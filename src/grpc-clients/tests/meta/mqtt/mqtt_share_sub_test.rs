@@ -50,6 +50,7 @@ mod tests {
             node_ip: node_ip.clone(),
             node_id,
             grpc_addr: "127.0.0.1:1228".to_string(),
+            http_addr: "127.0.0.1:1800".to_string(),
             extend: NodeExtend::default(),
             register_time: now_second(),
             start_time: now_second(),

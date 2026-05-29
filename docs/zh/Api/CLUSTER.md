@@ -31,10 +31,29 @@
 ### 1. 获取集群配置
 
 - **接口**: `GET /api/cluster/config/get`
-- **描述**: 获取当前集群的完整 `BrokerConfig` 配置信息
-- **请求参数**: 无
+- **描述**: 获取指定 Broker 节点的完整 `BrokerConfig` 配置信息。通过 `broker_id` 参数路由到对应节点，不传则返回当前节点的配置。
 
-- **响应示例**:
+**请求参数**（Query 参数）:
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `broker_id` | uint64 | 否 | 目标 Broker 节点 ID。不传则返回当前节点配置 |
+
+**行为说明**:
+- 不传 `broker_id`：直接返回当前节点的本地配置
+- 传入 `broker_id`：从 Broker 节点缓存中查找该节点的 `http_addr`，然后转发请求到对应节点，返回其配置
+- 若 `broker_id` 不存在或节点未注册 `http_addr`，返回错误
+
+**请求示例**:
+```http
+# 获取当前节点配置
+GET /api/cluster/config/get
+
+# 获取 broker_id=2 的节点配置
+GET /api/cluster/config/get?broker_id=2
+```
+
+**响应示例**:
 ```json
 {
   "code": 0,

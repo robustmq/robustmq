@@ -31,10 +31,29 @@ All interfaces return a unified JSON response structure:
 ### 1. Get Cluster Configuration
 
 - **Endpoint**: `GET /api/cluster/config/get`
-- **Description**: Get the complete `BrokerConfig` configuration of the current cluster
-- **Request Parameters**: None
+- **Description**: Get the complete `BrokerConfig` of a specific Broker node. Requests are routed to the target node via `broker_id`. If omitted, the local node's configuration is returned.
 
-- **Response Example**:
+**Request Parameters** (Query):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `broker_id` | uint64 | No | Target Broker node ID. If not provided, returns the local node's config |
+
+**Behavior**:
+- Without `broker_id`: returns the local node's configuration directly
+- With `broker_id`: looks up the node's `http_addr` from the broker cache, forwards the request to that node, and returns its configuration
+- Returns an error if `broker_id` does not exist or the node has no registered `http_addr`
+
+**Request Examples**:
+```http
+# Get local node config
+GET /api/cluster/config/get
+
+# Get config for broker_id=2
+GET /api/cluster/config/get?broker_id=2
+```
+
+**Response Example**:
 ```json
 {
   "code": 0,

@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::client::AdminHttpClient;
 use crate::state::HttpState;
-use axum::{extract::State, Json};
+use axum::{
+    extract::{Query, State},
+    Json,
+};
 use broker_core::dynamic_config::{
     save_cluster_dynamic_config, update_cluster_dynamic_config, ClusterDynamicConfig,
 };
@@ -23,7 +27,9 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ClusterConfigGetReq {}
+pub struct ClusterConfigGetReq {
+    pub broker_id: Option<u64>,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ClusterConfigSetReq {
@@ -66,7 +72,38 @@ pub async fn cluster_config_set(
     success_response("success")
 }
 
-pub async fn cluster_config_get(State(state): State<Arc<HttpState>>) -> String {
-    let broker_config = state.broker_cache.get_cluster_config();
-    success_response(broker_config)
+pub async fn cluster_config_get(
+    State(state): State<Arc<HttpState>>,
+    Query(params): Query<ClusterConfigGetReq>,
+) -> String {
+    let broker_id = match params.broker_id {
+        Some(id) => id,
+        None => return success_response(state.broker_cache.get_cluster_config()),
+    };
+
+    let node = match state
+        .broker_cache
+        .node_lists
+        .get(&broker_id)
+        .map(|n| n.clone())
+    {
+        Some(n) => n,
+        None => return error_response(format!("Broker node {} not found", broker_id)),
+    };
+
+    if node.http_addr.is_empty() {
+        return error_response(format!(
+            "Broker node {} has no http_addr registered",
+            broker_id
+        ));
+    }
+
+    let client = AdminHttpClient::new(format!("http://{}", node.http_addr));
+    match client.get_cluster_config().await {
+        Ok(raw) => raw,
+        Err(e) => error_response(format!(
+            "Failed to fetch config from broker {}: {}",
+            broker_id, e
+        )),
+    }
 }

@@ -293,6 +293,7 @@ pub struct EngineShardConfig {
     pub replica_fetch_max_bytes: u64,      // 单次 fetch 最大字节数,默认 1 MiB
     pub replica_fetch_wait_max_ms: u64,    // long-poll 最大等待,默认 500
     pub replica_fetch_min_bytes: u64,      // long-poll 累积多少字节就立即返回,默认 1
+    pub replica_hw_checkpoint_interval_ms: u64,  // HW 异步 checkpoint 间隔,默认 5000(见 §6.4)
 
     // unclean leader election 协议禁用,字段保留供运维 override 时强制错误
     pub unclean_leader_election_enable: bool,  // 协议要求始终 false
@@ -468,6 +469,8 @@ memory / rocksdb / filesegment 三个引擎共享 ISR 控制面，差异仅在�
 pub trait ReplicaLog: Send + Sync {
     /// follower 收到 leader 的 records 后落本地。要求 base_offset == latest_offset(...)。
     /// 不连续返回 OutOfOrder,触发 truncate 流程。
+    /// **必须在返回前保证持久化**(LEO 推进等价于"已 ack 给上游/leader 数据已落");
+    /// 否则崩溃后 LEO 回退会让 leader 视角与 follower 视角的"已复制"边界错位。
     async fn append_at(
         &self,
         shard: &str,
@@ -493,6 +496,9 @@ pub trait ReplicaLog: Send + Sync {
     ) -> Result<u64, StorageEngineError>;
 
     /// 截断到指定 offset(含),用于 follower 在 leader 切换时丢弃未提交日志。
+    /// **必须在返回前保证持久化**(rocksdb sync_wal / filesegment fsync):
+    /// 否则崩溃后本地 log 比 LeaderEpochCache 长,违反"cache 覆盖整个本地 log"的 invariant,
+    /// 重启后 OffsetsForLeaderEpoch 流程会基于不一致状态做错误决策。
     async fn truncate_to(
         &self,
         shard: &str,
@@ -503,6 +509,7 @@ pub trait ReplicaLog: Send + Sync {
     /// 清空 (shard, segment_seq) 的全部本地数据。
     /// 用于 follower 检测到本地数据完全无效(leader 返回 `end_offset_leader_epoch=-1`,即整段被 retention)时,丢弃本地从头重拉。
     /// 不同于 `truncate_to(start_offset)`:`clear` 允许内部直接删除文件 / range,实现更快。
+    /// **必须在返回前保证持久化**,同 truncate_to 的要求。
     async fn clear(
         &self,
         shard: &str,
@@ -658,7 +665,13 @@ release(shard_lock)
 > - **业务建议**:对正确性敏感场景必须 `acks=all` + 幂等 producer(避免 timeout 重试重复)
 > - **`RequestTimedOut` 的常见诱因**:ISR 缩到不包含某些慢 follower 之前,leader 等不到足够 follower 的 LEO 推进 → 等待 `replica.lag.time.max.ms` 才会 shrink ISR → 用户层超时短于此时会先收到 RequestTimedOut
 >
-> 锁的粒度是 **shard 级别**(而非 segment 级别),因为 active_segment_seq 是 shard 上的状态,而且写入只会进 active segment。filesegment 跨 segment 切换时也持此锁。
+> **锁结构总览**:
+> - **`ShardReplicaState.write_lock`**(shard 级):leader 写入路径(§5.2)持有,覆盖 `active_segment_seq` 选择 + LEO 推进 + LeaderEpochCache 兜底校验。同一 shard 同一时刻只有一个写者。
+> - **`SegmentReplicaState.state_lock`**(segment 级):LeaderAndIsr 通知处理(§8.1)、fetcher 落盘(§6.3 processPartitionData)、fetch handler 校验 + HW 推进(§6.2)持有。每个 segment 一把,互不阻塞。
+> - **两锁的关系**:
+>   - leader 角色下:写入路径**先**拿 write_lock,内部对 active segment 操作不再单独拿 state_lock(role 校验通过即代表当前是 LeaderActive,state_lock 只对 role 转换敏感)。但 §8.1 通知到达要改 role 时,会先拿 write_lock 等当前写入完,再拿 state_lock 改 role —— 顺序:`write_lock → state_lock`,所有路径统一这个顺序避免死锁。
+>   - follower 角色下:无 write_lock 路径(follower 不接受外部 producer 写入),fetcher 落盘只拿 state_lock 即可。
+> - **filesegment 跨 segment 切换**:在 write_lock 内完成 seal_up_N + 切到 N+1;新 segment 的 state_lock 在 §8.0 raft 通知到达时创建。
 
 ### 5.3 HW 推进与单调性(I6, I7)
 
@@ -744,6 +757,52 @@ T4: leader 自己也收到 SegmentLeaderAndIsr → 更新本地 isr_cache
 - 期间已等待的 acks=all 请求**不会被立即唤醒**,要么等 F 追上、要么等同步完成再用 new_isr 重算、要么 timeout
 
 代价:ISR shrink 真正生效的延迟 ≈ AlterPartition RPC + raft 提案 + 广播 = 一个 round trip。设计上接受。
+
+### 5.6 leader 卸任时 acks=all 等待者的处理(对齐 Kafka DelayedProduce)
+
+acks=all 写入在 §5.2 step 9 挂起等 `hw_watcher`,**此时本地 LEO 已推进、数据已落 ReplicaLog**。leader 卸任(收到通知自己不再是 leader)时,这些等待者需要明确收尾,**不能默默挂死,也不能假装 commit 成功**。
+
+**精确流程**(§8.1 case 2 的 `cancel_inflight_producer_requests` 展开):
+
+```text
+fn cancel_inflight_producer_requests():
+    // 1. 列出所有 acks=all 等待者(挂在 hw_watcher 上)
+    let waiters = self.pending_acks_all.drain();
+
+    // 2. 对每个等待者:
+    for waiter in waiters {
+        // a. 数据已落本地 log(LEO 已推),无法回滚 — 对齐 Kafka 行为
+        //    本地 LEO 不动,数据保留;新 leader 上任后会通过 §9 truncate 决定去留
+        // b. 返回 NotLeaderForPartition 给上游
+        waiter.respond(Err(NotLeaderForPartition {
+            current_leader_epoch: notification.leader_epoch,
+            new_leader: notification.leader,
+        }));
+    }
+
+    // 3. acks=1 waiters: 通常已经在 step 5 落盘后立刻返回 OK(无需在这里处理)
+    //    若有少量还在锁外应答路径上,同样返回 NotLeaderForPartition
+```
+
+**为什么不返回 RequestTimedOut**:
+- `RequestTimedOut` 语义是"不知道成功还是失败"(§5.2 注解);此处明确知道**当前 broker 不再是 leader**,应直接告知上游切换目标
+- 上游(`storage-adapter` 等)收到 `NotLeaderForPartition` 后:刷新 metadata → 重新路由到新 leader → 重试
+- 重试可能产生重复(本地已落盘且可能被新 leader 接受) — 与 Kafka 同样语义,靠幂等 producer 解决(§18.1)
+
+**数据归属判定**:
+- 这部分"已 append 但未 commit"的本地数据,**不属于已 committed**(还没推 HW)
+- 新 leader 上任后通过 KIP-101 流程:
+  - 如果数据恰好已经被其他 ISR 成员 fetch 走 → 新 leader 上有,本副本作为 follower 重新加入时不 truncate
+  - 如果只有本副本有 → 新 leader 上没有,本副本作为 follower 走 OffsetsForLeaderEpoch truncate 掉
+- 任一情况下都不会让"未 commit 的数据被消费者读到"(违反 I8 的反向);也不会让"已 commit 的数据丢失"(违反 I8)
+
+**LeaderDemoting 状态的作用**:
+- `LeaderActive → LeaderDemoting`:进入 `cancel_inflight_producer_requests` 主体期间的中间态
+- 在此状态下:**拒绝新写入**(返回 NotLeaderForPartition);**等待已在 `hw_watcher` 上的等待者全部应答完毕**
+- 全部应答完后转 `FollowerInitializing` 走 §8.1 case 2 主体
+- 这一步在 state_lock 内完成,期间不释放锁 — 保证不会有新的 acks=all 写入挤进来
+
+**与 Kafka 的对齐**:Kafka `ReplicaManager` 在 `makeFollower` 时调用 `completeDelayedOperationsWhenNotPartitionLeader` → `delayedProducePurgatory.checkAndComplete(key)`,DelayedProduce 的 `tryComplete` 检查 partition 已不是 leader → 返回 `NOT_LEADER_OR_FOLLOWER` 完成。语义等价。
 
 ### 写入时序（acks=all）
 
@@ -877,12 +936,28 @@ if data_available >= req.min_bytes:
 ```text
 match resp {
     Ok { records, leader_hw, leader_log_start, leader_leo, leader_epoch } => {
+        // 顺序关键(对齐 KIP-101):先 epoch_cache.assign,后 append_at
+        // 反过来会让本地 log 比 epoch_cache 长,崩溃后 OffsetsForLeaderEpoch 答错
+        //
+        // 跨 epoch 检测:遍历 records 的 batch headers
+        //   每个 batch 含 partition_leader_epoch 字段
+        //   找出本批中首次出现的、> leader_epoch_cache.latest_epoch() 的 epoch
+        //   对每个这样的 (new_epoch, batch_base_offset) 调用:
+        //     leader_epoch_cache.assign(new_epoch, batch_base_offset)
+        //   全部 assign 完后一次 fsync(本批的所有新 epoch 一次性持久化)
+        for (new_epoch, batch_base_offset) in detect_new_epochs(&records, leader_epoch_cache.latest_epoch()) {
+            leader_epoch_cache.assign(new_epoch, batch_base_offset);
+        }
+        leader_epoch_cache.fsync()?;
+
+        // 再 append(append_at 内部已 fsync,见 §4 trait 注解)
         replica_log.append_at(shard, segment_seq, shard.local_leo, records).await?;
-        // 若 records 跨 epoch(batch header 含 partition_leader_epoch),
-        // 用 leader_epoch_cache.assign(new_epoch, base_offset_of_batch) 并 fsync
+
         // 推进 follower 本地 shard HW(单调):
         shard.local_hw = max(shard.local_hw, min(shard.local_leo + records.len(), leader_hw));
-        // 同时校对 leader_epoch:若 != self.leader_epoch 说明本地缓存陈旧,刷新
+        // 同时校对 leader_epoch:若 leader_epoch != self.leader_epoch
+        //   - 大于 → 刷新本地 leader_epoch(可能 LeaderAndIsr 尚未到达,先按 leader 报的来)
+        //   - 小于 → 异常(leader 端缓存陈旧),按现状继续但记录 WARN
     }
 
     Err(NotLeaderForPartition) | Err(NotReady) => {
@@ -933,7 +1008,34 @@ match resp {
 
 **memory/rocksdb 不会遇到 `SegmentSealedUp`**(segment 永远 = 0,不会封口)。
 
-### 6.4 last_caught_up_ts 的精确语义(避免 flapping)
+### 6.4 HW / LEO 持久化策略(checkpoint cadence)
+
+HW 与 LEO 是 ISR 协议的两个核心运行时数值,持久化策略不同。
+
+**LEO 持久化(强同步)**:
+- 每次 `ReplicaLog::append_at` 成功返回前必须保证记录已落盘(rocksdb 的 WAL flush / filesegment 的 fsync)
+- LEO 本身不需要单独 checkpoint,**进程重启时从 `ReplicaLog::latest_offset` 直接重建**(§8.-1 步骤 1)。
+- 这是协议正确性的最低线:LEO 回退 = 已 ack 给上游的数据丢失。
+
+**HW 持久化(异步 checkpoint,可滞后)**:
+- 推进 HW 时**不**强制 fsync。HW 的内存值由 `hw_watcher` 唤醒等待者后立即生效。
+- 后台任务每 `replica_hw_checkpoint_interval_ms`(默认 **5000 ms**,对齐 Kafka `replica.high.watermark.checkpoint.interval.ms`)把 `shard.local_hw` 写到 commitlog 的 shard offset checkpoint。
+- **崩溃后 HW 回退是允许的**(最多回退一个 checkpoint interval 的距离),由 KIP-101 路径兜底:
+  - 若 broker 重启后变 leader:`local_hw` 比真实 HW 低 → 不影响正确性(committed 数据靠 log 本身保存,不靠 HW 数值;HW 只是消费者可见上限,会在下一轮 fetch 推进时重新涨到正确值)
+  - 若变 follower:走 §9 OffsetsForLeaderEpoch truncate 到 leader 端真实位置;`local_hw` 滞后不会让 follower 错误地保留 uncommitted 数据(truncate 用的是 leader epoch 端点,不是本地 HW)
+- **关键 invariant**:`local_hw <= local_leo` 永远成立。重启后若读到 `persisted_hw > local_leo`(checkpoint 写完但 ReplicaLog 没写完就崩了),修正为 `local_hw = local_leo`。
+
+**log_start_offset 持久化(同步)**:
+- retention 推进 `log_start_offset` 时**必须**先持久化到 checkpoint 再删数据,否则崩溃后 `log_start_offset` 回退但数据已删 → fetch 读到 `log_start_offset` 之后的 hole。
+- 顺序:`update_checkpoint(new_log_start) → fsync → physical_delete([old_log_start, new_log_start))`
+
+**为什么 HW 可以异步而 log_start_offset 必须同步**:
+- HW 滞后:消费者短期少看到一些数据,但**数据本身没丢**;ISR 协议的其他 invariant 仍成立(I8 靠 log + LeaderEpochCache 而非 HW 数值)
+- log_start_offset 滞后但删除已执行:**数据真的没了**,后续 fetch 拿到 hole 无法恢复 → 违反 I8
+
+> 这正是 KIP-101 的核心价值:让 HW 持久化可以异步,从而避免每次 HW 推进都 fsync 的性能损耗;同时通过 LeaderEpochCache + OffsetsForLeaderEpoch 保证安全性。
+
+### 6.5 last_caught_up_ts 的精确语义(避免 flapping)
 
 leader 维护 `follower_progress[node_id]: FollowerProgress`(完整结构见 §3.4)。本节聚焦 `last_caught_up_ts` 的更新规则。
 
@@ -963,11 +1065,11 @@ in_isr && lag_ms > replica_lag_time_max_ms → 踢出
 
 → **不会因为 long-poll 阻塞误判**,也**不会因为短时大量写入误判**(只要 follower 能追上某一时刻的 leader_leo)。
 
-### 6.5 Follower fetch 流程图
+### 6.6 Follower fetch 流程图
 
 ![Follower fetch 循环](./diagrams/03-fetch-flow.png)
 
-### 6.6 FetchRequest / FetchResponse
+### 6.7 FetchRequest / FetchResponse
 
 ```protobuf
 message StorageEngineFetchRequest {
@@ -1186,6 +1288,13 @@ broker 进程启动到能正常服务的完整序列:
      (P1-1:不能直接信 checkpoint 中的 local_leo,checkpoint 可能落后于 ReplicaLog)
    - 从本地 commitlog checkpoint 读 `shard.local_hw` 和 `log_start_offset`
      (允许 hw <= leo,但不允许 hw > leo;若 hw > leo 触发 hw = leo 修正)
+   - **LeaderEpochCache 与 ReplicaLog 一致性修复**(关键,对应 §6.3 与 §9.2 中
+     "cache assign / cache truncate" 与 "log append / log truncate" 之间崩溃的窗口):
+     1) 若 cache 中存在 `entry.start_offset > local_leo`(虚假声明的未来 epoch):
+        删除所有此类 entry,保留 `start_offset <= local_leo` 的部分
+     2) 若 cache 中存在 `entry.start_offset < log_start_offset`(已被 retention 的旧 epoch):
+        删除这些 entry(防止 OffsetsForLeaderEpoch 答出已删除的 offset)
+     3) 修复后立即 fsync cache,作为 step 2 之前的恢复闭环
 
 2. 所有 segment 进入 `Initializing` 状态
    - role 暂时未知
@@ -1288,8 +1397,61 @@ pub enum SegmentStatus {
 
 控制面流程见 §8.0。本节定义**数据面收到通知后的精确状态机**(I11)。
 
+#### 并发模型与串行化(关键)
+
+LeaderAndIsr 通知与 fetcher / producer 写入并发到达,需要明确串行点:
+
+**SegmentReplicaState 持有一把单 segment 的 `state_lock`(异步 Mutex)**。下列操作**必须**在此 lock 内执行:
+- 通知处理 `on_receive_leader_and_isr` 的全部主体(role 转换 + LeaderEpochCache assign + isr_cache 更新)
+- producer 写入 §5.2 step 2-7(角色校验 + epoch 校验 + append + LEO 推进)
+- fetcher 收到 fetch response 后的 `processPartitionData`(append_at + 更新本地 hw + 跨 epoch 时 `leader_epoch_cache.assign`)
+
+不在此 lock 内的操作:
+- fetcher 发出 fetch RPC 等待 response 的网络 wait(否则会阻塞 LeaderAndIsr 处理 ~max_wait_ms)
+- 消费者 read(不修改副本状态,只读取 `local_hw / log`)
+
+**Fetcher 生命周期与通知的协调**(对齐 Kafka `partitionMapLock` 模型):
+
+```text
+fetcher loop {
+    let snapshot = state_lock.lock(|s| {
+        if s.role != FollowerActive: return None;       // 已被 stop
+        Some((s.target_leader, s.leader_epoch, replica_log.latest_offset(...)))
+    });
+    if snapshot.is_none() { exit; }                     // 退出循环
+
+    let resp = leader_client.fetch(snapshot.unwrap()).await;  // 锁外 long-poll
+
+    state_lock.lock(|s| {
+        if s.role != FollowerActive { return; }         // 通知已切换角色,丢弃本批
+        // 即使 leader_epoch 已变(被通知刷新),也必须 return 而不是继续 append。
+        // 否则 append 的 base_offset 可能与新角色不匹配。
+        if s.leader_epoch != snapshot.leader_epoch { return; }
+        process_partition_data(resp);                   // append + 推 local_hw
+    });
+}
+```
+
+`stop_fetcher_if_any()` 的精确语义:
+1. 在 state_lock 内把 `role` 改为目标状态(`LeaderInitializing` / `FollowerInitializing` / unregistered)
+2. **不等**当前正在跑的 fetcher 任务结束 — fetcher 下一轮拿 lock 时会自己看到 role 变化退出
+3. 不需要"取消"网络请求 — response 回来后落不到 ReplicaLog(被 role 检查拦下)
+
+**为什么不取消 in-flight fetch response**:
+- 取消语义复杂(中途中断 read response stream 可能让连接半关闭)
+- 让 response 自然回来 + 二次校验 role,代价只是浪费一次网络 round trip
+- 这是 Kafka 同样的设计(`processPartitionData` 不在 `partitionMapLock` 内,但 fetcher 下一轮自然停)
+
+**通知处理本身的串行**:
+- 同一 segment 的多个 LeaderAndIsr 通知按到达顺序串行(state_lock)
+- 不同 segment 的通知并行(各自的 state_lock)
+- `segment_epoch <= local.segment_epoch` 检查在 state_lock 内做,防止两个乱序到达的通知交替应用
+
+#### 状态转换主体
+
 ```text
 on_receive_leader_and_isr(notification):
+  acquire state_lock(shard, segment_seq):
     // 校验通知本身
     if notification.segment_epoch <= local.segment_epoch:
         ignore  // 乱序到达,旧通知
@@ -1306,6 +1468,16 @@ on_receive_leader_and_isr(notification):
         let current_leo = replica_log.latest_offset(shard, segment_seq)?
         leader_epoch_cache.assign(notification.leader_epoch, current_leo)
         leader_epoch_cache.fsync()                  // 必须 fsync!
+        // 注:用 LEO 作为新 epoch 的 start_offset 是对齐 Kafka 行为
+        //   (Partition.scala makeLeader: leaderEpochStartOffset = leaderLog.logEndOffset)
+        // 隐含含义:LEO 之前的本地数据(可能包含旧 epoch 中未 commit 即将被新 leader
+        //   truncate 的"脏尾巴")暂时归在新 leader 的"前置历史"中。后续其他 follower
+        //   通过 OffsetsForLeaderEpoch 来本副本同步时:
+        //   - 若 follower 本地 LEO 与本 leader 在某个 epoch 的端点一致 → 不 truncate
+        //   - 若 follower 本地分歧 → follower 自己 truncate 自己的部分
+        //   即:本 leader 不主动清理这些"脏尾巴",由协议自然消化(KIP-101)。
+        // ⚠️ 这正是 KIP-101 的精髓:新 leader 不需要也不能主动判断"哪些本地数据未 commit"
+        //   (那是 §13.1 早期 Kafka 用本地 HW truncate 的错误路径,会丢真正已 commit 的数据)。
 
         // 准备 leader 端状态
         self.leader_epoch = notification.leader_epoch
@@ -1374,7 +1546,12 @@ on_receive_leader_and_isr(notification):
         cancel_inflight_producer_requests()
         // 可保留本地数据用于运维诊断,但不再参与协议
         unregister_replica_state(shard, segment_seq)
+  release state_lock
 ```
+
+> **leader → leader 同 epoch 通知**(ISR 变化但 leader 不变):走 case 1 简化路径,只更新 `isr_cache` 和 `segment_epoch`,**不**重新 assign LeaderEpochCache,**不**取消 inflight 写入。
+>
+> **leader 上任过程中能否被新通知打断**:不能。case 1 全程持 state_lock,后续通知必须等当前转换完成。若 LeaderEpochCache fsync 慢导致 lock 持有过久,后续通知排队等待 — 这是可接受的(MTBF 远大于 fsync 延迟)。
 
 **关键 invariant 体现**:
 - 不变式 I11 在 case 1 的 `leader_epoch_cache.fsync()` 之前 role 一直是 `LeaderInitializing`,期间所有写入返回 `NotReady`
@@ -1888,6 +2065,18 @@ src/meta-service/src/server/                   // 新增 AlterPartition grpc han
 - follower 在收到 SegmentSealedUp 后保留旧 fetcher state 直到 N+1 通知到达,避免重复创建
 - 调大 `replica_lag_time_max_ms` 给跨 segment 切换留余量
 - memory/rocksdb 永远不会遇到此场景(单 segment)
+
+**新 segment 的 ISR / epoch 是独立的**(关键模型澄清):
+- N+1 是新副本单元,自己的 `leader_epoch / segment_epoch / isr / LeaderEpochCache`,都从 0 / 初始值开始
+- follower 进入 N+1 时按 §8.1 case 2 走一遍完整流程(OffsetsForLeaderEpoch 查询 + truncate);此时 N+1 本地是空的,truncate 为 no-op,fetch_offset = 0
+- follower 在 N+1 上的 `last_caught_up_ts` 由 N+1 的 leader 独立跟踪,**与 N 无关**
+- N+1 选副本时可能与 N 不同(节点拓扑变化),允许"follower 在 N 中是 ISR 成员,在 N+1 中不在 replicas":此时该 follower 不为 N+1 启动 fetcher,只继续读 N 的历史数据
+- 已 sealed 的 N 上仍可能有 follower 追尾巴(N 还没完全同步完就 seal 了);**N 的 ISR 在 seal 时冻结,不再做 shrink/expand**(seal up 后不允许变 ISR);N 的 leader 仍会响应 fetch 但不再有写入
+
+**已 sealed segment 的 ISR 是否要继续维护**:
+- 不再做 shrink/expand:seal 后不再有新数据,落后的 follower 追完即可,没追上的也不影响 N 的可读性
+- 但仍允许 follower 通过 fetch 拉取 N 的剩余数据(follower N 的 fetcher 可能尚未拉完所有数据就收到 SegmentSealedUp,需要继续直到 fetch_offset == leader.local_leo)
+- 实现上:N 的 leader 进程把 N 标 `SegmentStatus::SealUp`,继续接 fetch 但不接 write
 
 ### 12.10 meta-service Raft Leader 切换期间
 
