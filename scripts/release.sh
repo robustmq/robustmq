@@ -571,9 +571,11 @@ upload_package() {
             log_error "Check your GITHUB_TOKEN permissions."
             return 1
         elif [ "$http_code" -eq 404 ]; then
+            # When multiple matrix jobs upload to a release that was just created,
+            # GitHub's upload endpoint may briefly return 404 while the release
+            # propagates internally. Treat it as transient and retry.
             last_error="Release not found (HTTP 404)"
-            log_error "$last_error: $(echo "$response_body" | jq -r '.message // .error // "Unknown error"' 2>/dev/null || echo "$response_body")"
-            return 1
+            log_warning "$last_error: $(echo "$response_body" | jq -r '.message // .error // "Unknown error"' 2>/dev/null || echo "$response_body") — likely upload endpoint not yet synced, retrying..."
         elif [ "$http_code" -ge 400 ] && [ "$http_code" -lt 500 ]; then
             # Other 4xx errors: retry a limited number of times in case of transient issues
             last_error="Client error (HTTP $http_code)"

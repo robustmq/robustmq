@@ -40,7 +40,6 @@ mongodb.workspace = true
 pulsar.workspace = true
 lapin.workspace = true
 reqwest.workspace = true
-paho-mqtt.workspace = true
 clickhouse.workspace = true
 scylla.workspace = true
 opendal.workspace = true
@@ -61,9 +60,11 @@ rule-engine.workspace = true
 
 [target.'cfg(not(windows))'.dependencies]
 rdkafka = { workspace = true }
+paho-mqtt = { workspace = true, features = ["ssl"] }
 
 [target.'cfg(windows)'.dependencies]
 rdkafka = { workspace = true, features = ["cmake-build"] }
+paho-mqtt = { workspace = true }
 
 [dev-dependencies]
 tempfile.workspace = true

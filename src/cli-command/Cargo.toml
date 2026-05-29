@@ -25,10 +25,15 @@ common-config.workspace = true
 serde_json.workspace = true
 prettytable-rs.workspace = true
 tokio.workspace = true
-paho-mqtt.workspace = true
 admin-server.workspace = true
 clap.workspace = true
 clap-cargo.workspace = true
 serde.workspace = true
 chrono.workspace = true
 metadata-struct.workspace = true
+
+[target.'cfg(not(windows))'.dependencies]
+paho-mqtt = { workspace = true, features = ["ssl"] }
+
+[target.'cfg(windows)'.dependencies]
+paho-mqtt = { workspace = true }
