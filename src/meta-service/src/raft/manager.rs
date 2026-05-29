@@ -143,10 +143,6 @@ impl MultiRaftManager {
     pub async fn start(&self) -> Result<(), CommonError> {
         info!("Starting Multi-Raft");
 
-        // Each shard bootstrap themselves as single-node if no peer is reachable,
-        // or waits to receive log replication from the Leader.
-        // The join request (add_learner + change_membership) is sent once here,
-        // not per-shard, to avoid duplicate joins.
         let conf = broker_config();
         let self_id: u64 = conf.broker_id;
         let self_addr = conf
@@ -155,7 +151,7 @@ impl MultiRaftManager {
             .map(|a| a.to_string().replace('"', ""))
             .ok_or_else(|| {
                 CommonError::CommonError(format!(
-                    "broker_id {} not found in meta_addrs — cannot determine own Raft address",
+                    "broker_id {} not found in meta_addrs",
                     self_id
                 ))
             })?;
@@ -172,29 +168,32 @@ impl MultiRaftManager {
             })
             .collect();
 
-        // Disable election on all shards before starting — prevents a restarting node
-        // with stale high-term vote from disrupting the cluster.
-        // Election is re-enabled after join/bootstrap completes.
-        for (_, raft) in self.all_shards() {
-            raft.runtime_config().elect(false);
-        }
-
-        // Start all shard raft nodes (logs initialization status, does not initialize).
         self.metadata.start_nodes().await?;
         self.offset.start_nodes().await?;
         self.data.start_nodes().await?;
 
-        let reachable_peer = Self::find_reachable_peer(&peers).await;
+        // Already-initialized node: let openraft recover the cluster from local
+        // state. Do not bootstrap or join — that would conflict with the existing
+        // membership and break recovery on restart.
+        let already_member = match self.all_shards().next() {
+            Some((_, raft)) => raft.is_initialized().await.unwrap_or(false),
+            None => false,
+        };
 
-        match reachable_peer {
+        if already_member {
+            info!("Node {} recovering existing cluster from local state", self_id);
+            info!("Multi-Raft started");
+            return Ok(());
+        }
+
+        // Fresh node: disable election while bootstrapping or joining.
+        for (_, raft) in self.all_shards() {
+            raft.runtime_config().elect(false);
+        }
+
+        match Self::find_reachable_peer(&peers).await {
             Some((peer_id, ref peer_addr)) => {
-                // Always join when a peer is reachable:
-                // - First boot: join the existing cluster
-                // - Restart: re-join to reset log/vote state (add_learner is idempotent)
-                info!(
-                    "Reachable peer found: node {} at {}. Sending join request.",
-                    peer_id, peer_addr
-                );
+                info!("Joining cluster via peer {} at {}", peer_id, peer_addr);
                 let req = JoinClusterRequest {
                     node_id: self_id,
                     rpc_addr: self_addr.clone(),
@@ -214,11 +213,7 @@ impl MultiRaftManager {
                 info!("Successfully joined cluster via peer {}", peer_addr);
             }
             None => {
-                // No reachable peers — bootstrap as single-node, or already sole node on restart.
-                info!(
-                    "No reachable peers, bootstrapping as single-node cluster (node {})",
-                    self_id
-                );
+                info!("No reachable peers, bootstrapping single-node cluster (node {})", self_id);
                 self.metadata
                     .bootstrap_single_node(self_id, &self_addr)
                     .await?;
@@ -229,7 +224,6 @@ impl MultiRaftManager {
             }
         }
 
-        // Re-enable election now that the node has a consistent state.
         for (_, raft) in self.all_shards() {
             raft.runtime_config().elect(true);
         }
