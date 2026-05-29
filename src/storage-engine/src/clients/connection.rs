@@ -69,7 +69,10 @@ impl NodeConnection {
         let mut times = 0;
         loop {
             if times >= MAX_RETRY_TIMES {
-                return Err(StorageEngineError::NoAvailableConn(self.node_id));
+                return Err(StorageEngineError::SendRequestError(
+                    self.node_id,
+                    format!("exceeded max retry times ({})", MAX_RETRY_TIMES),
+                ));
             }
 
             match self.try_send_with_connection(&req_packet).await {
@@ -173,7 +176,7 @@ impl NodeConnection {
             .node_lists
             .get(&self.node_id)
         else {
-            return Err(StorageEngineError::NoAvailableConn(self.node_id));
+            return Err(StorageEngineError::NodeNotFound(self.node_id));
         };
         let addr = node.engine_addr.clone();
         let socket = TcpStream::connect(&addr).await?;

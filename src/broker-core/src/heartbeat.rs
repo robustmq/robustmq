@@ -69,6 +69,12 @@ pub async fn report_heartbeat(
     cache_manager: &Arc<NodeCacheManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
+    let config = broker_config();
+    info!(
+        "Heartbeat task started for node {}, reporting every 3s",
+        config.broker_id
+    );
+
     let ac_fn = async || -> ResultCommonError {
         let cluster_storage = ClusterStorage::new(client_pool.clone());
         let config = broker_config();
