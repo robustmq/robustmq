@@ -731,17 +731,76 @@ A 组和 B 组可完全并行。C 组需要 B 组先有 trait,可以与 A 组并
 
 ---
 
+### T16:metadata reconcile 兜底(防广播丢失死循环,§12.18)
+
+**目标**:关闭"LeaderAndIsr 广播 best-effort 丢失 → leader 永久停在旧 epoch → follower 永远 UnknownLeaderEpoch 退避"的死循环窗口。meta push 为低延迟主路径,broker pull reconcile 为正确性兜底。
+
+**前置**:T3(LeaderAndIsr 处理)、T8(fetch handler 拿得到 `req.current_leader_epoch`)、T13a(角色状态机)
+
+**改动**:
+- meta-service 新增只读 grpc `ReconcileSegmentMetadata(ReconcileRequest) -> ReconcileReply`(见 isr.md §11.2):
+  - 入参带 broker 本地 `known_segment_epoch`;meta 直接读状态机当前值,仅当 `meta.segment_epoch > known` 才返回完整 `EngineSegment`(`has_update=true`)
+  - **不走 raft 写**(只读对账)
+- broker 端两条触发路径:
+  - **被动**:fetch handler(T8)收到 `req.current_leader_epoch > self.leader_epoch` → 触发本 segment reconcile,带去重 + `reconcile_min_interval_ms`(默认 1000)限频
+  - **主动**:后台周期任务每 `metadata_reconcile_interval_ms`(默认 30_000)对本地所有 segment 比对 segment_epoch
+- reconcile 拿到 `has_update=true` 后,按 §8.1 三个 case 处理(**复用 T13a 的状态机入口**),幂等:`segment_epoch <= local` 丢弃
+- 新增配置 `metadata_reconcile_interval_ms / reconcile_min_interval_ms`(T1 已在 EngineShardConfig 预留)
+
+**不做**:
+- 不改 meta push 主路径(广播仍是 best-effort,reconcile 只补正确性)
+
+**验收**:
+- 集成测试(**§12.18 回归**):人为丢弃一次 leader_epoch 升级的 LeaderAndIsr 广播 → 验证 leader 通过 reconcile 在 `metadata_reconcile_interval_ms` 内追上,follower 不再 UnknownLeaderEpoch
+- 单测:被动 reconcile 限频(高频 fetch 不打爆 reconcile)
+- 单测:reconcile 幂等(`segment_epoch <= local` 不触发状态机重入)
+
+**预估**:中(~450 行)
+
+---
+
+### T17:空 ISR(Unavailable)半自动恢复(§12.19)
+
+**目标**:把"空 ISR → 永久 Unavailable → 等运维瞎猜"升级为"数据安全可证明的半自动恢复"。**不引入完整 ELR**。
+
+**前置**:T2(leader switch / Unavailable 标记)、T9(LEO 维护)、T13a
+
+**改动**:
+- T2 的 `segment_leader_switch` None 分支:进入 Unavailable 时把"去掉 failed 之前的 ISR"写入 `EngineSegment.last_known_isr`(T1 字段已预留)
+- 数据面新增 `QueryReplicaState` RPC(meta → broker,走 storage-engine 通道,见 isr.md §11.1):返回该副本本地 `(segment_leo, latest_leader_epoch, log_start_offset, available)`
+- meta-service 新增**恢复协调器**:
+  - 心跳模块感知 `last_known_isr` 成员上线 → 把 segment 加入"待恢复"队列(不立即选)
+  - 对每个待恢复 segment:向已上线的 `last_known_isr` 成员发 `QueryReplicaState`,等待至多 `unavailable_recovery_wait_ms`(默认 30_000)
+  - 选 LEO 最大(并列时 latest_leader_epoch 最大)且 `available=true` 的成员为新 leader:
+    `leader_epoch += 1 / segment_epoch += 1 / isr = {new_leader} / status = Write / 清空 last_known_isr`,广播 LeaderAndIsr
+  - 其余成员作为 follower 走 T13c KIP-101 truncation 对齐
+- 运维 API(**显式人工 unclean**):当 `last_known_isr` 全部永久丢失时,运维确认后可强制指定非 ISR 副本上任,**强制审计日志**
+
+**不做**:
+- 不引入持续维护的 ELR 集合(§18.7,仅用缩空时的一次性快照)
+- 不自动从非 `last_known_isr` 副本选 leader(那是 unclean,必须人工)
+
+**验收**:
+- 集成测试(**§12.19 回归**):3 副本全挂 → segment Unavailable + last_known_isr 记录正确 → 成员陆续恢复 → 验证选中 LEO 最大者、不丢已 committed 数据
+- 单测:多成员先后恢复,先回来的 LEO 较小 → 不被选中(等窗口内 LEO 更大者)
+- 单测:`last_known_isr` 全失联 → 不自动选 leader,需人工 API
+- 单测:恢复后 isr={new_leader},其余 follower 通过 truncation 对齐
+
+**预估**:中大(~650 行)
+
+---
+
 ### T14:故障演练用例集
 
 **目标**:把 isr.md §12 的全部场景写成自动化回归测试。
 
-**前置**:T11c, T13c
+**前置**:T11c, T13c, T16, T17
 
 **改动**:
 - `tests/isr/` 新建:
   - 每个场景一个测试文件,模拟触发 + 验证避免机制有效
   - 用 `tokio::time` mock 时间,网络分区用 mocked transport
-- 至少覆盖 §12.1 ~ §12.16 全部 16 个场景
+- 覆盖 §12.1 ~ §12.19 全部 19 个场景(含 §12.17 启动竞态、§12.18 广播丢失死循环、§12.19 空 ISR 恢复)
 
 **预估**:大(~1500 行测试代码)
 
@@ -785,7 +844,9 @@ A 组和 B 组可完全并行。C 组需要 B 组先有 trait,可以与 A 组并
 | T13a | LeaderAndIsr role 状态机(§8.1) + 并发串行化 + acks=all 售后 | E | T0, T3, T7, T11a | 大 | T3+T13a |
 | T13b | Fetcher 管理与 role 切换协作 | E | T9, T13a | 中 | — |
 | T13c | OffsetsForLeaderEpoch 替换占位 truncation(I9 闭环) | E | T10, T13a, T13b | 大 | T7+T10+T13c |
-| T14 | §12 全场景故障演练用例集 | — | T11c, T13c | 大 | — |
+| T16 | metadata reconcile 兜底(防广播丢失死循环,§12.18) | E | T3, T8, T13a | 中 | — |
+| T17 | 空 ISR(Unavailable)半自动恢复(§12.19) | E | T2, T9, T13a | 中大 | — |
+| T14 | §12 全场景故障演练用例集 | — | T11c, T13c, T16, T17 | 大 | — |
 | T15 | filesegment 引擎接入(可选) | — | T10, T13c | 大 | — |
 
 ### 里程碑
@@ -795,15 +856,17 @@ A 组和 B 组可完全并行。C 组需要 B 组先有 trait,可以与 A 组并
 | M1:元数据就位 | T1+T2 | meta-service 已能接受 ISR 变更请求(虽然还没人发) | 数据面什么都做不了 |
 | M2:本地存储就位 | T4+T5+T6+T7+T0 | 单进程能读写本地副本日志 + 持久化 LeaderEpochCache + 启动恢复闭环 | 没有跨节点复制 |
 | M3:首次能见副本同步 | M1+M2+T3+T8+T9+T13a+T13b | 三节点 follower 能追上 leader,leader 切换 role 切换正确,启动恢复正确 | 没 truncation(脏日志会停留),没 acks=all,ISR 永远=replicas |
-| M4:协议正确性闭环 | M3+T10+T11(全)+T12+T13c | **完整协议**:KIP-101 truncation、acks=all、ISR 自动收缩、segment_epoch CAS、AlterPartition 重试 全部生效 | 没 §12 全套故障演练验证 |
-| M5:production-ready | M4+T14 | §12.x 17 个异常场景全部回归通过 | filesegment 未接入 |
+| M4:协议正确性闭环 | M3+T10+T11(全)+T12+T13c+T16+T17 | **完整协议**:KIP-101 truncation、acks=all、ISR 自动收缩、segment_epoch CAS、AlterPartition 重试、广播丢失 reconcile 兜底(§12.18)、空 ISR 半自动恢复(§12.19) 全部生效 | 没 §12 全套故障演练验证 |
+| M5:production-ready | M4+T14 | §12.x 19 个异常场景全部回归通过 | filesegment 未接入 |
 | M6:全引擎 | M5+T15 | filesegment 也走 ISR 协议 | — |
 
 **关键路径**(决定最早能跑到 M4 的依赖链):
 - 基础设施:T1 → T6 → T7 → **T0**(启动恢复必须在数据面跑起来前到位)
 - 控制面链:T1 → T2 → T12
 - 数据面链:T4 → T6 → T7 → T8 → T9 → T10 → T13c
-- 收口:T0 + T3+T13a → T11a → T11b/c → T13c
+- 收口:T0 + T3+T13a → T11a → T11b/c → T13c → T16/T17(健壮性兜底,可与 T13c 并行)
+
+> T16/T17 不在最长依赖链上(可与 D 组/T13c 并行开发),但**必须进 M4** —— 缺 T16 则广播丢失会死循环,缺 T17 则空 ISR 永久不可用,这两个都是生产环境真实会遇到的,不是可选项。
 
 **最强建议**:
 - **T0 必须早做**(在 M2 内完成)。如果 T13a 实现完后才发现启动恢复有 gap,会被迫返工 cache 修复逻辑分散在两处。

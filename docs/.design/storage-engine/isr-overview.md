@@ -447,7 +447,7 @@ AlterPartition 路径:
 | Incremental Fetch / KIP-227 | 字段预留(session_id=0 表 full),实现不做 |
 | Rack awareness | 协议外调度优化 |
 | Observer replicas / KIP-392 | 不在范围 |
-| ELR / KIP-966 | ISR 空直接 Unavailable,不引入"次优 leader 池" |
+| 完整 ELR / KIP-966 | 不做持续维护的 ELR 集合。但空 ISR 恢复用 `last_known_isr` 快照 + 按 LEO 择优(§12.19,ELR 思想最小子集) |
 
 完整清单见 [isr.md §16](./isr.md)。
 
@@ -462,8 +462,8 @@ AlterPartition 路径:
 | **M1 元数据就位** | `EngineSegment` 加字段 + raft `UpdateSegmentIsr` op + `register_node` 返回 broker_epoch | 单测覆盖陈旧 epoch 拒绝 + segment_epoch CAS |
 | **M2 本地存储就位** | `ReplicaLog` trait + memory/rocksdb 实现 + `LeaderEpochCache` 持久化 | append/truncate/重启重建单测 |
 | **M3 副本同步跑通** | M1+M2 + 写入 epoch 校验 + long-poll fetch + OffsetsForLeaderEpoch | 单 leader + 2 follower,follower 能追上;注入 GC 暂停不被误踢 |
-| **M4 协议闭环** | M3 + ISR shrink/expand + AlterPartition + SegmentLeaderAndIsr 响应 + KIP-101 truncation 完整路径 | **故障演练:验证 §12.2 不丢数据**(核心回归用例) |
-| **M5 故障演练** | M4 + §12 各场景的混沌测试 | 全部 17 个场景在测试环境下行为符合预期 |
+| **M4 协议闭环** | M3 + ISR shrink/expand + AlterPartition + SegmentLeaderAndIsr 响应 + KIP-101 truncation + reconcile 兜底(§12.18) + 空 ISR 半自动恢复(§12.19) | **故障演练:验证 §12.2 不丢数据**(核心回归用例) |
+| **M5 故障演练** | M4 + §12 各场景的混沌测试 | 全部 19 个场景在测试环境下行为符合预期 |
 | **M6 filesegment 接入** | M5 + filesegment 实现 ReplicaLog + segment seal 时 fetcher 切换 | filesegment 全场景演练 |
 
 **关键约束**:任何里程碑都**不得放宽 §0 不变式**。例如 M3 上线时如果 M4 的 ISR 维护还没做,允许 ISR 始终 = replicas(不收缩),但已实现部分必须严格走 epoch 路径,**不允许临时用本地 HW truncate**。

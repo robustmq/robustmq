@@ -20,7 +20,7 @@
   - `segment_epoch` 在 leader / isr / replicas 任一变化时递增
   - `broker_epoch` 在 broker 进程重启注册时递增(区分同一 broker_id 的不同进程实例,见 §3.5)
   - 三者一旦递增不可回退
-  - **持久化要求**:三者**均由 meta-service raft 状态机持久化**(走 raft log + snapshot)。`broker_epoch` 不在 broker 本地持久化(broker 重启就一定要拿新值);`leader_epoch / segment_epoch` 在 meta raft 上唯一权威,broker 端的本地缓存(`ReplicaState`)只用于运行期校验,broker 重启后从 LeaderAndIsr 重建。
+  - **持久化要求**:三者**均由 meta-service raft 状态机持久化**(走 raft log + snapshot)。`broker_epoch` 不在 broker 本地持久化(broker 重启就一定要拿新值);`leader_epoch / segment_epoch` 在 meta raft 上唯一权威,broker 端的本地缓存(`SegmentReplicaState`,见 §3.4)只用于运行期校验,broker 重启后从 LeaderAndIsr 重建。
   - **raft snapshot 注意**:打 snapshot 时三类 epoch 当前值必须包含在 snapshot 中;raft 节点从 snapshot 恢复后,广播给 broker 的 LeaderAndIsr 必须沿用 snapshot 中的 epoch,**不可回到 0**(否则会被 I3 的 fence 误判为 stale)。
 - **(I3) ISR 变更需多重 fence**:meta-service 接受 ISR 变更前必须校验:
   - `req.leader_epoch == current.leader_epoch`(防 zombie leader)
@@ -30,13 +30,13 @@
 
 ### 写入与 Committed 语义
 
-- **(I4) 写入原子性**:任何 append 必须通过 leader。leader 写入必须在同一 segment 锁内原子完成:
-  1. 校验自身 role == Leader 且状态为 Active(非 Initializing,见 I11)
+- **(I4) 写入原子性**:任何 append 必须通过 leader。leader 写入必须在同一 shard 写锁内原子完成:
+  1. 校验自身 role == LeaderActive(非 Initializing / Demoting,见 I11)
   2. 校验 `current_leader_epoch == meta.leader_epoch`
   3. 若 producer 携带 epoch(可选),校验 `producer.epoch == meta.leader_epoch`
   4. `append_at` 落本地
-  5. 若是新 epoch 首批写入,同步更新并持久化 `LeaderEpochCache`
-  6. 推进 `local_leo`
+  5. 推进 `local_leo`
+  - 注意:`LeaderEpochCache.assign` **不在写入路径做**,而是在 leader 上任时一次性完成(见 I11、§8.1 case 1)。写入路径只做**兜底校验** `LeaderEpochCache.latest_epoch() == self.leader_epoch`,不匹配即 InternalError(正常路径永不触发,详见 §5.2 step 6)。
 - **(I5) Committed 定义**:HW(High Watermark)是 **shard 维度**(对齐 memory/rocksdb 物理本质和现有 `ShardOffsetState.high_watermark_offset`)。一条记录 `offset < shard.HW` 即 committed。HW 由 active segment 的 leader 单方计算,见 I6。
 - **(I6) HW 计算与单调性**:`new_hw_candidate = min(LEO over eligible_isr_members of active segment)`,实际推进时强制 `shard.HW = max(current_shard.HW, new_hw_candidate)`,**同一 broker 实例视角下 HW 永不倒退**。HW 推进时只计入 ISR 中 `last_known_leader_epoch == self.leader_epoch` 的 follower(leader 自己 LEO 直接用 `shard.local_leo`)。**边缘 case**:若 `|ISR| > 1` 但**除 leader 外的所有 follower 都 epoch 陈旧**,`new_hw_candidate = current_shard.HW`(即不推进),避免 leader 自己 LEO 把还没复制完的数据假装成 committed(详细伪代码见 §5.3)。
   > 注:leader 切换时,**全局**视角下 HW 数字可以瞬间变小(新 leader 继承 follower 期本地 HW,该值滞后于旧 leader 一个 RTT)。但 **committed 数据本身不丢失**(`offset < 旧 HW` 的所有 record 都在新 leader 上;Kafka 同行为)。"HW 单调"约束的是单个 broker 实例,不是跨 leader 切换。
@@ -86,7 +86,7 @@
 - **`min.insync.replicas`**:acks=all 的 committed 语义保证
 - **HW 单调性**:`hw = max(current_hw, new_hw)`,防止 ISR 扩展时 HW 倒退使消费者看到的数据消失
 
-本协议的 12 条不变式(§0)是上述 KIP 的提炼结果,**作为 RobustMQ 的初始协议直接落地**,不存在"先做简化版后续升级"的过渡形态。
+本协议的 16 条不变式(§0)是上述 KIP 的提炼结果,**作为 RobustMQ 的初始协议直接落地**,不存在"先做简化版后续升级"的过渡形态。
 
 协议固定行为:
 
@@ -164,6 +164,8 @@ pub struct EngineSegment {
     pub leader_broker_epoch: u64,      // 当前 leader 上任时的 broker_epoch (见 §3.5)
                                        // meta 用它 fence 旧进程的 zombie ISR 请求
     pub log_start_offset: u64,         // retention 后该 segment 在 leader 上可读起点
+    pub last_known_isr: Vec<u64>,      // ISR 缩到空之前的最后一个非空 ISR 集合(§12.19)
+                                       // 仅在 status==Unavailable 时有意义:作为安全恢复的候选 leader 集
 }
 ```
 
@@ -221,7 +223,7 @@ impl EngineSegment {
 
 ### 3.2 LeaderEpochCache（持久化，关键）
 
-**这是 KIP-101 的核心数据结构，协议强制要求**（不变式 #7、#8）。
+**这是 KIP-101 的核心数据结构，协议强制要求**（不变式 I9、I10）。
 
 ```rust
 // storage-engine/src/isr/leader_epoch.rs（新建）
@@ -274,7 +276,11 @@ impl LeaderEpochCache {
 - rocksdb：单独 column family 或 key 前缀 `/leader_epoch/{shard}/{segment_seq}/`
 - filesegment：sidecar 文件 `{segment_file}.leader-epoch-checkpoint`（同 Kafka）
 
-每次 leader 切换、本地 append 新数据时检查并写入。**未持久化的 LeaderEpochCache 等于没有 ISR 安全性**。
+写入时机有两处(**不在普通 producer 写入路径**):
+- **leader 上任**:`assign(new_leader_epoch, current_leo)` + fsync(§8.1 case 1,I11)
+- **follower 落盘跨 epoch records**:解析 batch header 的 `partition_leader_epoch`,对每个新 epoch `assign(epoch, batch_base_offset)`,**先 assign+fsync 后 append**(§6.3)
+
+**未持久化的 LeaderEpochCache 等于没有 ISR 安全性**。
 
 ### 3.3 `EngineShardConfig` 扩展
 
@@ -294,6 +300,13 @@ pub struct EngineShardConfig {
     pub replica_fetch_wait_max_ms: u64,    // long-poll 最大等待,默认 500
     pub replica_fetch_min_bytes: u64,      // long-poll 累积多少字节就立即返回,默认 1
     pub replica_hw_checkpoint_interval_ms: u64,  // HW 异步 checkpoint 间隔,默认 5000(见 §6.4)
+
+    // metadata reconcile 兜底(防 LeaderAndIsr 广播丢失导致死循环,见 §12.18)
+    pub metadata_reconcile_interval_ms: u64,     // broker 周期主动对账 segment_epoch,默认 30_000
+    pub reconcile_min_interval_ms: u64,          // 单 segment 被动 reconcile 限频,默认 1_000
+
+    // 空 ISR(Unavailable)恢复等待窗口(见 §12.19)
+    pub unavailable_recovery_wait_ms: u64,       // 等 last_known_isr 多数成员上报 LEO,默认 30_000
 
     // unclean leader election 协议禁用,字段保留供运维 override 时强制错误
     pub unclean_leader_election_enable: bool,  // 协议要求始终 false
@@ -396,13 +409,26 @@ pub struct FollowerProgress {
 - 代码现状 `ShardOffsetState.high_watermark_offset` 已经是 shard 维度,对齐
 - 对应 Kafka:HW 在 partition 维度(我们的 partition = shard),不是在 log segment 维度
 
-**状态转换**:
-- `Initializing → LeaderInitializing | FollowerInitializing`:启动后收到第一个 LeaderAndIsr
+**状态转换**(收到 LeaderAndIsr 通知时按 §8.1 三个 case 转换;通知里"我是不是 leader"决定方向):
+
+进入 `LeaderInitializing`(收到"选我为 leader"的通知):
+- `Initializing → LeaderInitializing`:启动后第一个通知就选我为 leader(§8.-1 + §8.1 case 1)
+- `FollowerActive | FollowerInitializing → LeaderInitializing`:follower 被提升为新 leader
+- `LeaderActive → LeaderInitializing`:**仅当 leader_epoch 递增**(连任但换了 epoch,极少见);若 leader 不变且 epoch 不变,走下方"leader 连任简化路径",**不**经过 LeaderInitializing
+
+进入 `FollowerInitializing`(收到"我不再是 leader / 继续是 follower"的通知):
+- `Initializing → FollowerInitializing`:启动后第一个通知就是 follower(§8.-1 + §8.1 case 2)
+- `FollowerActive → FollowerInitializing`:follower 的 leader 变了,需重新 truncate
+- `LeaderActive → LeaderDemoting → FollowerInitializing`:leader 降级(见下)
+
+其余转换:
 - `LeaderInitializing → LeaderActive`:LeaderEpochCache 持久化完成
 - `FollowerInitializing → FollowerActive`:`OffsetsForLeaderEpoch` + truncate 完成
-- `LeaderActive → LeaderDemoting`:收到 LeaderAndIsr 通知自己不再是 leader
-- `LeaderDemoting → FollowerInitializing`:取消所有 inflight 写入,唤醒 acks=all 等待者后
-- `FollowerActive → LeaderInitializing`:收到 LeaderAndIsr 通知自己当选为新 leader
+- `LeaderActive → LeaderDemoting`:收到通知自己不再是 leader,进入卸任收尾
+- `LeaderDemoting → FollowerInitializing`:取消所有 inflight 写入、唤醒 acks=all 等待者返 NotLeaderForPartition 后(见 §5.6)
+
+**leader 连任简化路径**(leader 不变、leader_epoch 不变,仅 ISR / segment_epoch 变化):
+- 保持 `LeaderActive`,只更新 `isr_cache / segment_epoch`,**不**重新 assign LeaderEpochCache,**不**取消 inflight 写入(见 §8.1 case 1 注解)
 
 ### 3.5 Broker Epoch 注册机制
 
@@ -621,7 +647,7 @@ T4: producer 的写入到达 B1
 **整段必须在同一把 segment 锁内完成**,中途不得释放锁(否则 LeaderAndIsr 通知到达可能让 role 切换发生在 append 之后):
 
 ```text
-acquire(shard_lock):
+acquire(write_lock):  // ShardReplicaState.write_lock,shard 级
 
   1. 路由:active_segment_seq = shard.active_segment_seq
      active_segment = local_cache.get_segment(shard, active_segment_seq)
@@ -637,15 +663,16 @@ acquire(shard_lock):
   4. acks=all 校验:|ISR| >= min_in_sync_replicas → 否则 NotEnoughReplicas
   5. ReplicaLog::append_at(shard, active_segment_seq, shard.local_leo, records) 落本地
   6. (LeaderEpochCache 已在 §8.1 case 1 leader 上任时 assign 过,**写入路径不再 assign**)
-     - 兜底校验:若 LeaderEpochCache.latest_epoch() < self.leader_epoch
-       表示 leader 上任时 assign 失败/cache 损坏 → panic 或返回 InternalError
-       (正常路径下永远不会触发,触发即代表 §12.13 / §12.8 类故障)
+     - 兜底校验:若 LeaderEpochCache.latest_epoch() != self.leader_epoch → 返回 InternalError
+       - `<`:leader 上任时 assign 失败/cache 损坏(§12.13 / §12.8 类故障)
+       - `>`:本地 cache 比当前认知的 leader_epoch 还新,说明 role/epoch 状态机错乱
+       (正常路径下 cache.latest_epoch() 恒等于 self.leader_epoch,触发即代表故障)
   7. shard.local_leo += records.len()
   8. [hook §18.1] on_append_with_pid(req.producer_id, req.producer_epoch,
                                      req.base_sequence, base_offset = shard.local_leo - N)
        默认 no-op;未来 idempotent producer 在此更新 ProducerStateEntry
 
-release(shard_lock)
+release(write_lock)
 
 9. 按 acks 语义应答(锁外):
    acks=0:  立即返回 OK(fire-and-forget)
@@ -863,7 +890,7 @@ loop {
 **leader 端的精确校验顺序**(I15):
 
 ```text
-acquire(segment_lock):
+acquire(state_lock):  // SegmentReplicaState.state_lock,segment 级
   // 1) 角色校验
   if self.role != LeaderActive:
       release lock; return NotLeaderForPartition  // 含 LeaderInitializing
@@ -872,6 +899,12 @@ acquire(segment_lock):
   if req.current_leader_epoch < self.leader_epoch:
       return FencedLeaderEpoch   { current_leader_epoch: self.leader_epoch }
   if req.current_leader_epoch > self.leader_epoch:
+      // follower 比 leader 新:说明 meta 已经把更高的 leader_epoch 推给了 follower,
+      // 但推给本 leader 的 LeaderAndIsr 还没到 / 丢了(§12.17 best-effort)。
+      // 兜底:触发 leader 端主动 reconcile —— 异步向 meta 拉取本 segment 的权威元数据。
+      //   trigger_metadata_reconcile(shard, segment_seq);  // 幂等,带去重/限频
+      // 然后仍返回 UnknownLeaderEpoch 让 follower 退避;待 reconcile 拿到新 epoch 后
+      // 本 broker 会按 §8.1 转换角色,下一轮 fetch 即可正常。详见 §12.18。
       return UnknownLeaderEpoch  // follower 比 leader 新,极罕见,follower 退避
 
   // 3) fetch_offset 范围校验
@@ -974,7 +1007,12 @@ match resp {
 
     Err(UnknownLeaderEpoch) => {
         // follower 比 leader 还新(leader 刚启动尚未拉到最新 meta)
-        // 退避等待,不 truncate。等 LeaderAndIsr 推到 leader 再继续
+        // 退避等待,不 truncate。正常情况下 meta 会广播 LeaderAndIsr 让 leader 追上。
+        // 但广播是 best-effort(§12.17),可能丢失 → 必须有 leader 端主动兜底,
+        // 否则陷入"follower 永远退避 / leader 永远停在旧 epoch"的死循环(§12.18)。
+        // follower 侧动作:除退避外,在 fetch 请求里始终携带 current_leader_epoch,
+        //   leader 收到 fetch 时若发现 req.current_leader_epoch > self.leader_epoch,
+        //   会触发 leader 端主动 reconcile(见 §6.2 leader 端处理 + §12.18)。
     }
 
     Err(StaleBrokerEpoch) => {
@@ -1214,7 +1252,7 @@ pub enum EngineDataType {
 }
 ```
 
-**raft 状态机校验逻辑(I3,三重 fence)**:
+**raft 状态机校验逻辑(I3,五重 fence)**:
 
 ```text
 let current = state.get_segment(shard, segment_seq);
@@ -1252,7 +1290,7 @@ state.write(current)
 // 触发广播 SegmentLeaderAndIsr (§7.4)
 ```
 
-**三类 fence 的职责区分**:
+**三类 epoch fence 的职责区分**(五重校验中的 fence 2/3/4;fence 1 是 leader 身份校验、fence 5 是 ISR 业务合法性):
 - `leader_epoch`:防同一 node_id 不同 leader 任期的请求(任期间崩溃重启)
 - `broker_epoch`:防同一 node_id 同一 leader 任期但不同进程实例的请求(进程崩溃极快重启)
 - `segment_epoch`:防同一 leader 同一进程同一任期内,并发的两个 ISR 变更请求互相覆盖
@@ -1365,15 +1403,26 @@ segment_leader_switch(failed_node_id):
         let mut new_segment = segment.clone();
         new_segment.status = SegmentStatus::Unavailable;
         new_segment.segment_epoch += 1;
-        // 不动 leader / leader_epoch,等运维介入或等 ISR 恢复
+        // 关键(§12.19):记录缩到空之前的最后一个非空 ISR 作为恢复候选集。
+        //   segment.isr 此刻是"去掉 failed 之前"的 ISR(还含 failed_node_id),
+        //   它就是最后一个非空 in-sync 集合 → 恢复时只能从这里面选新 leader。
+        new_segment.last_known_isr = segment.isr.clone();
+        // 不动 leader / leader_epoch。后续由 §12.19 恢复流程在 last_known_isr
+        // 成员恢复后,按 LEO 择优重新选 leader(半自动,数据安全可证明)。
 
         sync_save_segment_info(raft_manager, &new_segment).await?;
         send_notify_by_set_segment(call_manager, new_segment).await?;
-        log::warn!("segment {}/{} ISR empty, marked Unavailable",
-                   segment.shard_name, segment.segment_seq);
+        log::warn!("segment {}/{} ISR empty, marked Unavailable, last_known_isr={:?}",
+                   segment.shard_name, segment.segment_seq, new_segment.last_known_isr);
       }
     }
 ```
+
+> **Unavailable segment 的恢复触发**(§12.19 的控制面实现):
+> - meta 心跳模块感知到 `last_known_isr` 中的成员重新上线时,把该 segment 加入"待恢复"队列(不立即选 leader)
+> - 恢复协调器对每个待恢复 segment:向已上线的 `last_known_isr` 成员发 `QueryReplicaState`(§11)收集各自 `(segment_leo, latest_leader_epoch)`,等待至多 `unavailable_recovery_wait_ms`
+> - 选 LEO 最大者(并列时 leader_epoch 历史最长)为新 leader,`leader_epoch += 1 / segment_epoch += 1 / isr = {new_leader} / status = Write`,清空 `last_known_isr`,广播 LeaderAndIsr
+> - 注意:`segment_leader_switch` 只处理 `leader == failed_node_id` 的 segment,**不会**命中 Unavailable 的 segment(它 leader 字段没动);Unavailable 的重新激活是**独立的恢复协调器路径**,不走故障切换扫描
 
 **`SegmentStatus` 需要新增 `Unavailable` 状态**:
 
@@ -1477,7 +1526,7 @@ on_receive_leader_and_isr(notification):
         //   - 若 follower 本地分歧 → follower 自己 truncate 自己的部分
         //   即:本 leader 不主动清理这些"脏尾巴",由协议自然消化(KIP-101)。
         // ⚠️ 这正是 KIP-101 的精髓:新 leader 不需要也不能主动判断"哪些本地数据未 commit"
-        //   (那是 §13.1 早期 Kafka 用本地 HW truncate 的错误路径,会丢真正已 commit 的数据)。
+        //   (那是 §13 表格中 KIP-101 行所述的早期 Kafka 用本地 HW truncate 的错误路径,会丢真正已 commit 的数据)。
 
         // 准备 leader 端状态
         self.leader_epoch = notification.leader_epoch
@@ -1501,11 +1550,17 @@ on_receive_leader_and_isr(notification):
 
     case notification.leader != self.node_id and self.node_id in notification.replicas:
         // === 我成为(继续)follower,可能换了 leader ===
+
+        // 若上一刻还是 leader,先经 LeaderDemoting 收尾(§5.6):
+        //   取消 inflight producer 请求、唤醒所有 acks=all 等待者返 NotLeaderForPartition。
+        //   这一步在 state_lock 内完成,保证不会有新的 acks=all 写入挤进来。
+        if self.role == LeaderActive:
+            self.role = LeaderDemoting
+            cancel_inflight_producer_requests()   // 逐个返 NotLeaderForPartition,数据已落盘不回滚
+
         self.role = FollowerInitializing
         // 停掉旧 fetcher(可能在追旧 leader)
         stop_fetcher_if_any()
-        // 取消等待中的 acks=all 请求(如果上一刻还是 leader)
-        cancel_inflight_producer_requests()
 
         self.leader_epoch = notification.leader_epoch
         self.segment_epoch = notification.segment_epoch
@@ -1528,7 +1583,10 @@ on_receive_leader_and_isr(notification):
             }
             epoch => {
                 // K4:用 leader 返回的 end_offset_leader_epoch 修剪本地 LeaderEpochCache
-                let truncate_point = min(shard.local_leo, end_offset);
+                // 注意:truncate 是针对单个 segment,用该 segment 的本地 LEO
+                // (filesegment 多 segment 下 shard.local_leo 是跨 segment 全局值,不能用)
+                let segment_leo = replica_log.latest_offset(shard, segment_seq);
+                let truncate_point = min(segment_leo, end_offset);
                 replica_log.truncate_to(shard, segment_seq, truncate_point);
                 leader_epoch_cache.truncate_from_end_by_epoch(epoch, end_offset);
                 truncate_point
@@ -1566,7 +1624,7 @@ on_receive_leader_and_isr(notification):
 
 ## 9. Log Truncation（KIP-101，协议强制路径）
 
-> ⚠️ **协议禁止用"truncate 到本地 HW"**。这是 Kafka 2017 年前的设计缺陷,会丢已 committed 数据(见 §13.1)。  
+> ⚠️ **协议禁止用"truncate 到本地 HW"**。这是 Kafka 2017 年前的设计缺陷,会丢已 committed 数据(见 §13 KIP-101 行)。  
 > 唯一允许的 truncate 路径:**`OffsetsForLeaderEpoch`** RPC + 持久化 `LeaderEpochCache`。
 
 ### 9.1 触发时机
@@ -1808,10 +1866,28 @@ pub enum StorageEnginePacket {
     IsrFetchResp(IsrFetchResp),
     OffsetsForLeaderEpochReq(OffsetsForLeaderEpochReq),
     OffsetsForLeaderEpochResp(OffsetsForLeaderEpochResp),
+    // 空 ISR 恢复(§12.19):meta → broker 问该副本本地 LEO / epoch 历史
+    QueryReplicaStateReq(QueryReplicaStateReq),
+    QueryReplicaStateResp(QueryReplicaStateResp),
 }
 ```
 
-注:`AlterPartition` 不走 storage-engine 通道,走 broker → meta-service 的 grpc(对应 §7.3 的 raft op `UpdateSegmentIsr`)。
+`QueryReplicaState` 定义(meta → broker,走 storage-engine 通道,因为要问数据面的本地 LEO):
+
+```protobuf
+message QueryReplicaStateReq {
+  string shard_name = 1;
+  uint32 segment_seq = 2;
+}
+message QueryReplicaStateResp {
+  uint64 segment_leo = 1;         // 该副本本地该 segment 的 LEO
+  uint32 latest_leader_epoch = 2; // 本地 LeaderEpochCache 最新 epoch(衡量历史完整度)
+  uint64 log_start_offset = 3;    // 本地可读起点
+  bool   available = 4;           // 本地数据是否完好(cache/log 一致性自检通过)
+}
+```
+
+注:`AlterPartition` 不走 storage-engine 通道,走 broker → meta-service 的 grpc(对应 §7.3 的 raft op `UpdateSegmentIsr`)。`ReconcileSegmentMetadata`(§12.18 兜底)也走 broker → meta grpc,见 §11.2。
 
 ### 11.2 meta-service 端(M8)broker → meta 的请求路径
 
@@ -1844,7 +1920,7 @@ message AlterPartitionRequest {
 
 message AlterPartitionReply {
   uint32 error_code = 1;     // 0 / FencedLeaderEpoch / StaleBrokerEpoch /
-                             // InvalidUpdateVersion / NotLeaderForPartition
+                             // InvalidUpdateVersion / NotLeaderForPartition / InvalidIsr
   uint32 new_segment_epoch = 2;  // 成功时返回新值,失败时为当前值
 }
 ```
@@ -1853,16 +1929,38 @@ message AlterPartitionReply {
 
 | error_code | 含义 | 重试动作 |
 |---|---|---|
-| `0` | 成功 | 用 `new_segment_epoch` 更新本地 `ReplicaState.segment_epoch`,继续正常服务 |
+| `0` | 成功 | 用 `new_segment_epoch` 更新本地 `SegmentReplicaState.segment_epoch`,继续正常服务 |
 | `FencedLeaderEpoch` | 自己已经不是 leader | **停止重试**,降级为 follower(等待 meta 广播新 LeaderAndIsr),丢弃 inflight ISR 变更 |
 | `StaleBrokerEpoch` | broker 已被 fence(可能 zombie) | **停止重试并自杀**,触发进程重启拿新 broker_epoch |
 | `InvalidUpdateVersion` | `expected_segment_epoch` 不匹配 | **不重试当前请求**,而是先从 meta 拉最新 ISR + segment_epoch(走 LeaderAndIsr 同步),再基于新值重新计算是否仍需变更;若仍需变更则用新 `expected_segment_epoch` 发起新请求 |
 | `NotLeaderForPartition` | meta 视角下 segment 还没归我 | **退避 50ms 重试**,最多 3 次;仍失败则等待 LeaderAndIsr 广播 |
+| `InvalidIsr` | 提交的 `new_isr` 业务非法(不含 leader / 非 replicas 子集 / 为空,见 §7.3 fence 5) | **停止重试 + 告警**:这是 leader 端计算 new_isr 的逻辑 bug,不是可恢复的瞬时错误。记录 ERROR 日志,不再用同样的 new_isr 重发 |
 | 网络超时 / `RequestTimedOut` | 不知道成功还是失败 | **不能立刻重试**(可能已成功),先**主动从 meta 读取当前 segment ISR**:若 ISR 已是目标值则视为成功;否则用最新 segment_epoch 重新发起。`broker_epoch` 在重试时保持不变;只有进程重启后才会变 |
 
 **节流**:
 - 单 segment 同一时刻只允许一个 in-flight AlterPartition,新的请求合并到 pending 队列
 - 连续触发 ISR shrink 时,500ms 内最多一次(避免 flap)
+
+**ReconcileSegmentMetadata**(§12.18 广播丢失兜底,broker → meta 拉取权威元数据):
+
+```protobuf
+rpc ReconcileSegmentMetadata(ReconcileRequest) returns (ReconcileReply);
+
+message ReconcileRequest {
+  string shard_name = 1;
+  uint32 segment_seq = 2;
+  uint32 known_segment_epoch = 3;  // broker 本地认知的 segment_epoch
+}
+message ReconcileReply {
+  // 仅当 meta 端 segment_epoch > known_segment_epoch 时返回完整 segment;
+  // 否则 has_update=false,broker 不动(避免无谓的状态机重入)
+  bool has_update = 1;
+  EngineSegment segment = 2;       // has_update=true 时填充,等价于补收一次 LeaderAndIsr
+}
+```
+
+- broker 收到 `has_update=true` 后,按 §8.1 三个 case 处理(幂等:`segment.segment_epoch <= local` 直接丢)
+- 这是只读对账 RPC,**不**走 raft 写;meta 直接读状态机当前值返回
 
 ### 11.3 模块布局
 
@@ -1960,7 +2058,7 @@ src/meta-service/src/server/                   // 新增 AlterPartition grpc han
 - C truncate_to(5),丢掉本地 offset=5,6 的脏数据
 - C 重新 fetch 5,6 拿 B 的正确内容
 
-→ 这是为什么 §9 必须用 `OffsetsForLeaderEpoch`(不变式 #7)。
+→ 这是为什么 §9 必须用 `OffsetsForLeaderEpoch`(不变式 I9)。
 
 ### 12.3 ISR 缩到 0
 
@@ -2195,6 +2293,66 @@ src/meta-service/src/server/                   // 新增 AlterPartition grpc han
   3. 按 §8.1 三个 case 处理
 - meta 端:广播 LeaderAndIsr 是 best-effort,允许 broker 丢失;丢失的会在下一次状态变更时补回来。但**缓存机制**减少状态不同步窗口。
 
+### 12.18 LeaderAndIsr 广播丢失导致 leader 永久落后(UnknownLeaderEpoch 死循环)
+
+**触发**:
+- meta 把 segment 的 leader_epoch 从 E 升到 E+1(例如一次 ISR 变更或 leader 切换),广播 SegmentLeaderAndIsr
+- 新 leader epoch 对应的 broker(或某个 follower)**先**收到了广播,认知 = E+1
+- 但**老 leader / 当前服务 fetch 的那个 broker 没收到**这条广播(§12.17 说明:广播是 best-effort,可能丢)
+- 之后**一直没有新的状态变更**触发补发
+
+**风险(若无兜底,这是真死循环)**:
+- follower(认知 E+1)发 fetch,`current_leader_epoch=E+1`
+- leader(认知 E)校验 `req.current_leader_epoch > self.leader_epoch` → 返回 `UnknownLeaderEpoch`
+- follower 退避等待"meta 把 E+1 推给 leader"——但广播已经丢了,不会再来
+- leader 自己不知道有 E+1,也不主动拉 → **follower 永远退避,leader 永远停在 E,HW 永不推进**
+
+**避免(leader 端主动 reconcile,关闭死循环窗口)**:
+- **不能只依赖 meta 的 best-effort push**,必须有 broker 端的 pull 兜底(对齐 Kafka:broker 通过 metadata 周期 reconcile 兜住 controller push 丢失)。
+- 触发条件(满足任一即触发,带去重 + 限频):
+  1. **被动触发**:leader 端 fetch handler 收到 `req.current_leader_epoch > self.leader_epoch`(§6.2)——这是最直接的信号:有 follower 已经看到更新的 epoch
+  2. **主动触发**:broker 后台周期任务(例如每 `metadata_reconcile_interval_ms`,默认 30s)对本地所有 segment 与 meta 做一次轻量对账(只比 `segment_epoch`,不同才拉全量)
+- reconcile 动作:
+  - broker 向 meta 拉取 `(shard, segment_seq)` 的权威 `EngineSegment`(leader / leader_epoch / segment_epoch / isr)
+  - 若 meta 返回的 `segment_epoch > local.segment_epoch`,按 §8.1 三个 case 处理(等价于补收了一次 LeaderAndIsr)
+  - reconcile 必须**幂等**:同一 segment 并发的多个 reconcile 请求合并;`segment_epoch <= local` 的结果直接丢弃
+- 限频:单 segment 的被动触发 reconcile 在 `reconcile_min_interval_ms`(默认 1s)内最多一次,防止 follower 高频 fetch 打爆 reconcile
+
+> **职责边界**:meta push(LeaderAndIsr 广播)是**低延迟主路径**,broker pull(reconcile)是**正确性兜底**。push 丢失只影响收敛延迟,不影响最终一致性。这与 Kafka KRaft 下 broker 的 metadata 追赶机制同构。
+
+### 12.19 空 ISR(Unavailable)后的恢复路径
+
+**触发**:
+- segment 的 ISR 因连续故障缩到空(或仅剩的成员也挂了)
+- 按 I14(不做 unclean leader election),meta 把 segment 标 `Unavailable`,**不**从非 ISR 副本选 leader
+- 之后原 ISR 中的某些节点陆续恢复
+
+**核心难点(为什么不能简单自动恢复)**:
+- Unavailable 时 leader / leader_epoch 都没动,meta **不持有** LEO/HW(§3.4:LEO/HW 是数据面运行时值,不在 meta 持久化)
+- meta 无法仅凭节点"活过来了"就判断"它的本地数据是否包含全部已 committed 数据"
+- 多个原 ISR 成员先后恢复,**先回来的不一定数据最全**——盲选先回来的等于 unclean election,会丢数据
+- 这正是 Kafka 在不开 unclean 时长期不可用的痛点,KIP-966 ELR 才系统解决。**本方案不实现 ELR**(§16),因此这里给一条**安全的半自动恢复路径**,而不是假装能全自动。
+
+**避免 / 恢复机制**:
+
+1. **meta 持久化"最后已知 ISR"**(轻量,代价仅一个字段):
+   - segment 进入 Unavailable 时,meta 在 `EngineSegment` 上记录 `last_known_isr: Vec<u64>`(缩到空之前的最后一个非空 ISR 集合)
+   - 这是恢复时的**候选 leader 集合**——只有 `last_known_isr` 里的成员才有资格当选(它们曾经 in-sync,持有当时全部 committed 数据)
+
+2. **恢复时按 LEO 择优,而非"先到先得"**:
+   - meta 感知到 `last_known_isr` 中的成员恢复(心跳),**不立即选**
+   - meta 向这些已恢复成员发起一次 `QueryReplicaState`(新增轻量 RPC),收集它们各自的 `(segment_leo, leader_epoch_cache 最新 epoch)`
+   - 等待窗口 `unavailable_recovery_wait_ms`(默认 30s):尽量等 `last_known_isr` 多数成员上报
+   - 选 **LEO 最大**(并列时 leader_epoch 历史最完整)的成员为新 leader,`leader_epoch += 1`,`segment_epoch += 1`,`isr = {new_leader}`,状态从 `Unavailable` 回到 `Write`,广播 LeaderAndIsr
+   - 其余恢复成员作为 follower,走 §9 KIP-101 truncation 与新 leader 对齐
+
+3. **安全性边界**:
+   - 只要**至少一个** `last_known_isr` 成员恢复且数据完整,该路径**不丢已 committed 数据**(被选中者持有当时全部 committed 数据,因为它在缩空前的最后 ISR 里)
+   - 若 `last_known_isr` 成员**全部永久丢失**(磁盘损坏),则**必须人工介入**:运维显式确认"接受可能丢数据",手动指定一个非 ISR 副本强制上任(等价于一次性人工 unclean)。协议不自动做这件事,但提供运维 API + 强制审计日志
+   - **不允许**自动从非 `last_known_isr` 副本选 leader
+
+> 这条路径把"空 ISR 恢复"从"悬空判据 + 等运维"升级为"半自动 + 数据安全可证明",且不需要引入完整的 ELR 机制。代价:meta 上一个 `last_known_isr` 字段 + 一个 `QueryReplicaState` RPC + 一个恢复等待窗口配置。
+
 ---
 
 ## 13. Kafka 历史教训与本方案对应
@@ -2220,6 +2378,8 @@ Kafka 自 2011 年开始,ISR 协议经过多次重大修正。本方案选择 **
 | `min.insync.replicas` 与 acks=all 语义不一致 | 文档/语义澄清 | 早期默认 1 | §3.3 默认 1 但生产环境鼓励 ≥ 2,§5.4 明确语义 |
 | 大量 follower 同时 fetch 同一 leader 导致 leader CPU 打满 | KIP-227 (incremental fetch) | 全量元数据每次都传 | 协议外性能优化,不属于 ISR 正确性范围;见 §16 |
 | 副本 fetcher 数量过多压垮 follower | KIP-219 (throttling) | 无限制 | 协议固定:单 fetcher / segment;吞吐控制不在 ISR 范围 |
+| Controller push 元数据丢失 → broker 永久落后(epoch 不一致死循环) | KRaft broker metadata 追赶 | 纯依赖 push,无 pull 兜底 | §12.18:meta push 为主路径 + broker pull reconcile 兜底(被动 fetch 信号 + 周期对账) |
+| 空 ISR + unclean=false → 分区永久不可用,恢复靠人工瞎猜 | KIP-966 ELR(本方案不实现) | 无 last-known-ISR 记录,恢复时无安全候选集 | §12.19:meta 持久化 `last_known_isr` + 恢复时按 LEO 择优(半自动,数据安全可证明,不引入完整 ELR) |
 
 **本方案对 KIP-966 ELR、KIP-405 Tiered Storage、KIP-392 Observer 等较新特性都明确不实现(见 §16)**。但已做的部分(尤其 KIP-101 / KIP-320 / KIP-497 思想 / KIP-679)是 ISR 正确性的最低线,**不可降级,不留妥协路径**。
 
@@ -2279,7 +2439,7 @@ Kafka 自 2011 年开始,ISR 协议经过多次重大修正。本方案选择 **
 | Quota / throttling | 不做 | 流控不在 ISR 协议范围。 |
 | Observer replicas (KIP-392) | 不做 | 协议固定:所有 replicas 都是 ISR 候选,无静默副本概念。 |
 | Tiered Storage (KIP-405) | 不做 | 不在本方案范围。 |
-| ELR (KIP-966 Eligible Leader Replicas) | 不做 | Kafka 较新特性,ISR 协议本身不依赖。 |
+| 完整 ELR (KIP-966 Eligible Leader Replicas) | 不做 | 不引入 ELR 集合的持续维护(每次 ISR 变更同步更新 ELR、HW 推进考虑 ELR 等)。**但** §12.19 用 `last_known_isr`(仅在缩到空那一刻快照)+ 按 LEO 择优,提供了一条轻量的安全恢复路径——这是 ELR 思想的最小子集,不是完整 ELR。 |
 | Unclean leader election | 不做 | ISR 空时拒写,标记 Unavailable。`unclean_leader_election_enable` 配置项保留但硬编 false。 |
 | Incremental Fetch (KIP-227) | 不做 | 协议固定:每次 fetch 是 full request,leader 不缓存 fetch session。 |
 | Consumer 从 follower 读 (KIP-392) | 不做 | 协议固定:consumer 只读 leader,follower 不暴露读接口。简化 ISR 边界。 |
@@ -2372,9 +2532,13 @@ pub struct ProducerStateEntry {
 
 非 ISR 候选的纯观察者副本。**预留**:`EngineSegment.replicas` 加 `is_observer: bool` 字段(默认 false),`isr / replicas` 选举逻辑跳过 observer。
 
-### 18.7 ELR(Eligible Leader Replicas,KIP-966)
+### 18.7 完整 ELR(Eligible Leader Replicas,KIP-966)
 
-ISR 空时的可选 leader 候选。**预留**:`EngineSegment` 加 `eligible_leader_replicas: Vec<u64>` 字段(默认空),meta 选 leader 时优先 ISR,空时再考虑 ELR(若实现)。
+§12.19 已用 `last_known_isr`(缩到空那一刻的快照)实现了 ELR 思想的**最小子集**——只在 Unavailable 恢复时用一次。完整 ELR 是**持续维护**的更强机制:
+
+- 每次 ISR shrink 时,被踢出的、但 LEO 仍 == HW 的副本进入 ELR(而非简单丢弃)
+- HW 推进 / leader 选举都把 ELR 纳入考量,使得"ISR 缩小但 ELR 非空"时仍能安全选 leader,缩短不可用窗口
+- **预留**:`EngineSegment` 加 `eligible_leader_replicas: Vec<u64>` 字段(默认空)。若未来实现,把 §12.19 的"一次性快照"升级为"持续维护的 ELR 集合",恢复路径不变。
 
 ### 18.8 Producer 携带 `current_leader_epoch`
 
