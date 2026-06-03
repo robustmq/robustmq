@@ -385,6 +385,9 @@ impl BrokerServer {
     }
 
     pub fn start(&self) {
+        // Register the shutdown-signal handler first so signals during startup are captured.
+        daemon::register_shutdown_listener();
+
         // Phase 1: Network-facing servers
         self.start_grpc_server();
         self.start_admin_server();

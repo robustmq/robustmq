@@ -16,14 +16,14 @@
 kind = "console"
 targets = [
     { path = "", level = "info" },
-    { path = "openraft", level = "warn" },
+    { path = "openraft", level = "info" },
 ]
 
 [server]
 kind = "rolling_file"
 targets = [
     { path = "", level = "info" },
-    { path = "openraft", level = "warn" },
+    { path = "openraft", level = "info" },
 ]
 rotation = "daily"
 directory = "./data/logs"

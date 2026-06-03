@@ -134,6 +134,22 @@ pub(crate) fn snapshot_name(snapshot_id: &str) -> String {
     )
 }
 
+/// Create a fresh empty file for receiving a snapshot streamed from the Leader.
+/// The snapshot directory is created if missing (e.g. on a brand-new node).
+pub(crate) async fn create_receiving_snapshot_file(machine: &str) -> std::io::Result<File> {
+    let conf = broker_config();
+    let dir = storage_raft_snapshot_fold(&conf.data_path);
+    tokio::fs::create_dir_all(&dir).await?;
+    let path = format!("{}/{}.recv.bin", dir, machine);
+    tokio::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .read(true)
+        .truncate(true)
+        .open(&path)
+        .await
+}
+
 pub(crate) fn snapshot_meta(snapshot_id: &str) -> String {
     let conf = broker_config();
     format!(

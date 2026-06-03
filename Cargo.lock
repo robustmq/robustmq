@@ -1529,6 +1529,7 @@ dependencies = [
  "delay-task",
  "grpc-clients",
  "kafka-broker",
+ "libc",
  "llm-engine",
  "meta-service",
  "metadata-struct",

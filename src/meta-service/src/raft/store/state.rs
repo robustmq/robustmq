@@ -16,6 +16,7 @@ use crate::raft::manager::RaftStateMachineName;
 use crate::raft::route::AppResponseData;
 use crate::raft::route::DataRoute;
 use crate::raft::snapshot::build::build_snapshot;
+use crate::raft::snapshot::create_receiving_snapshot_file;
 use crate::raft::snapshot::recover::{get_current_snapshot, recover_snapshot};
 use crate::raft::store::keys::{key_last_applied, key_last_membership};
 use crate::raft::type_config::Entry;
@@ -235,15 +236,12 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
     async fn begin_receiving_snapshot(
         &mut self,
     ) -> Result<Box<SnapshotData>, StorageError<NodeId>> {
-        let data = get_current_snapshot(&self.machine)
+        // Receiver side: return a fresh empty file for openraft to stream into.
+        // Must NOT read the local snapshot (a new node has none).
+        let file = create_receiving_snapshot_file(&self.machine)
             .await
             .map_err(|e| sto_read(&e))?;
-        match data {
-            Some(da) => Ok(da.snapshot),
-            None => Err(sto_read(&CommonError::CommonError(
-                "No current snapshot available".to_string(),
-            ))),
-        }
+        Ok(Box::new(file))
     }
 
     async fn install_snapshot(
@@ -273,21 +271,11 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
     async fn get_current_snapshot(
         &mut self,
     ) -> Result<Option<Snapshot<TypeConfig>>, StorageError<NodeId>> {
-        let data = get_current_snapshot(&self.machine)
+        // Return the stored snapshot as-is (used to bring lagging followers up to
+        // date). Must NOT be dropped by comparing with last_applied.
+        get_current_snapshot(&self.machine)
             .await
-            .map_err(|e| sto_read(&e))?;
-
-        if let Some(snapshot) = data {
-            if let Some(id) = self.data.last_applied_log_id {
-                if let Some(snapshot_id) = snapshot.meta.last_log_id {
-                    if snapshot_id >= id {
-                        return Ok(Some(snapshot));
-                    }
-                }
-            }
-        }
-
-        Ok(None)
+            .map_err(|e| sto_read(&e))
     }
 }
 

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashSet;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
@@ -22,7 +21,7 @@ use regex::Regex;
 use tokio::time::sleep;
 
 use crate::pool::ClientPool;
-use crate::{retry_sleep_time, retry_times};
+use crate::retry_times;
 
 pub(crate) trait RetriableRequest: Clone {
     type Client;
@@ -77,30 +76,29 @@ where
     }
 
     let method = Req::method_name();
+    // A few quick retries to ride out transient failures (leader briefly busy,
+    // a peer still starting up) without exceeding callers' own timeouts — e.g.
+    // heartbeat wraps this in a 3s timeout, so total retry time must stay well
+    // under that. Callers needing longer recovery (e.g. node re-registration)
+    // retry at their own layer.
+    const MIN_ATTEMPTS: usize = 3;
+    const RETRY_INTERVAL_MS: u64 = 100;
     let mut times = 0;
-    let mut tried_addrs = HashSet::new();
-    let mut last_err: Option<CommonError> = None;
     loop {
         let index = times % addrs.len();
         times += 1;
-        let addr = addrs[index].as_ref();
+        // For write requests, always prefer the cached leader if present; only
+        // fall back to round-robin when there is no cached leader. We do NOT
+        // give up on the leader just because one attempt failed — it may be
+        // briefly unavailable (committing a membership change, restarting, etc.).
         let target_addr = if Req::IS_WRITE_REQUEST {
             client_pool
                 .get_leader_addr(method)
-                .map(|leader| leader.value().to_string())
-                .unwrap_or_else(|| addr.to_string())
+                .map(|l| l.value().to_string())
+                .unwrap_or_else(|| addrs[index].as_ref().to_string())
         } else {
-            addr.to_string()
+            addrs[index].as_ref().to_string()
         };
-        if tried_addrs.contains(&target_addr) {
-            // Every address has been tried at least once and configured retries
-            // are exhausted — give up.
-            if tried_addrs.len() >= addrs.len() && times > retry_times() {
-                return Err(last_err
-                    .unwrap_or_else(|| CommonError::CommonError("Not found leader".to_string())));
-            }
-            continue;
-        }
 
         let mut client = Req::get_client(client_pool, &target_addr);
 
@@ -110,41 +108,19 @@ where
                 let err: CommonError = e.into();
 
                 if err.to_string().contains("forward request to") {
-                    tried_addrs.insert(target_addr);
-
+                    // Not the leader — follow the redirect and cache the real leader.
                     if let Some(leader_addr) = get_forward_addr(&err) {
                         client_pool.set_leader_addr(method.to_string(), leader_addr.clone());
-
-                        if !tried_addrs.contains(&leader_addr) {
-                            let mut leader_client = Req::get_client(client_pool, &leader_addr);
-
-                            match Req::call_once(&mut leader_client, request.clone()).await {
-                                Ok(data) => return Ok(data),
-                                Err(_) => {
-                                    tried_addrs.insert(leader_addr);
-                                }
-                            }
+                        let mut leader_client = Req::get_client(client_pool, &leader_addr);
+                        if let Ok(data) = Req::call_once(&mut leader_client, request.clone()).await {
+                            return Ok(data);
                         }
                     }
-                } else {
-                    // Connection/transport error (e.g. node down). Clear any cached
-                    // leader pointing at the dead node so the next iteration falls
-                    // back to the address list and tries a surviving node.
-                    if Req::IS_WRITE_REQUEST {
-                        client_pool.remove_leader_addr(method);
-                    }
-                    tried_addrs.insert(target_addr);
-                    last_err = Some(err);
                 }
-
-                // Keep going until every address has been tried at least once,
-                // then respect the configured retry budget.
-                if tried_addrs.len() >= addrs.len() && times > retry_times() {
-                    return Err(last_err.unwrap_or_else(|| {
-                        CommonError::CommonError("Not found leader".to_string())
-                    }));
+                if times >= MIN_ATTEMPTS.max(retry_times()) {
+                    return Err(err);
                 }
-                sleep(Duration::from_secs(retry_sleep_time(times))).await;
+                sleep(Duration::from_millis(RETRY_INTERVAL_MS)).await;
             }
         }
     }

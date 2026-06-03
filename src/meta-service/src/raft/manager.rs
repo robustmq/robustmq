@@ -21,12 +21,12 @@ use crate::raft::route::data::StorageData;
 use crate::raft::route::DataRoute;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
-use common_metrics::meta::raft::{init_raft_shards, record_raft_apply_lag};
-use grpc_clients::meta::common::call::{join_cluster, leave_cluster};
+use common_metrics::meta::raft::{init_raft_shards_metrics, record_raft_apply_lag};
+use grpc_clients::meta::common::call::join_cluster;
 use grpc_clients::pool::ClientPool;
 use openraft::raft::ClientWriteResponse;
 use openraft::{Config, Raft};
-use protocol::meta::meta_service_common::{JoinClusterRequest, LeaveClusterRequest};
+use protocol::meta::meta_service_common::JoinClusterRequest;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
@@ -102,7 +102,7 @@ impl MultiRaftManager {
             "Initializing Multi-Raft: metadata=1, offset={}, data={}",
             meta_rt.offset_raft_group_num, meta_rt.data_raft_group_num
         );
-        init_raft_shards(meta_rt.offset_raft_group_num, meta_rt.data_raft_group_num);
+        init_raft_shards_metrics(meta_rt.offset_raft_group_num, meta_rt.data_raft_group_num);
 
         let metadata = RaftGroup::new(
             "metadata",
@@ -169,29 +169,21 @@ impl MultiRaftManager {
         self.offset.start_nodes().await?;
         self.data.start_nodes().await?;
 
-        // Already-initialized node: let openraft recover the cluster from local
-        // state. Do not bootstrap or join — that would conflict with the existing
-        // membership and break recovery on restart.
-        let already_member = match self.all_shards().next() {
+        // A node with persisted state just restarts — openraft re-establishes
+        // replication on its own, no add_learner/change_membership needed.
+        let initialized = match self.all_shards().next() {
             Some((_, raft)) => raft.is_initialized().await.unwrap_or(false),
             None => false,
         };
 
-        if already_member {
-            info!(
-                "Node {} recovering existing cluster from local state",
-                self_id
-            );
+        if initialized {
+            info!("Node {} has persisted state, recovering existing cluster", self_id);
             info!("Multi-Raft started");
             return Ok(());
         }
 
-        // Fresh node: disable election while bootstrapping or joining.
-        for (_, raft) in self.all_shards() {
-            raft.runtime_config().elect(false);
-        }
-
         match Self::find_reachable_peer(&peers).await {
+            // Fresh node, a peer is reachable: join the existing cluster.
             Some((peer_id, ref peer_addr)) => {
                 info!("Joining cluster via peer {} at {}", peer_id, peer_addr);
                 let req = JoinClusterRequest {
@@ -212,6 +204,7 @@ impl MultiRaftManager {
                 })?;
                 info!("Successfully joined cluster via peer {}", peer_addr);
             }
+            // Fresh node, no peer reachable: first node, bootstrap single-node.
             None => {
                 info!(
                     "No reachable peers, bootstrapping single-node cluster (node {})",
@@ -225,10 +218,6 @@ impl MultiRaftManager {
                     .await?;
                 self.data.bootstrap_single_node(self_id, &self_addr).await?;
             }
-        }
-
-        for (_, raft) in self.all_shards() {
-            raft.runtime_config().elect(true);
         }
 
         info!("Multi-Raft started");
@@ -337,57 +326,6 @@ impl MultiRaftManager {
                 }
             }
         }
-    }
-
-    /// Remove self from the Raft cluster by sending a LeaveCluster request to the Leader.
-    /// The Leader executes change_membership to remove this node from all shards.
-    pub async fn leave_cluster(&self) -> Result<(), CommonError> {
-        let conf = broker_config();
-        let self_id = conf.broker_id;
-
-        // Find the current Leader address from any shard's metrics.
-        let leader_addr = self.all_shards().find_map(|(_, raft)| {
-            let m = raft.metrics().borrow().clone();
-            let leader_id = m.current_leader?;
-            let nodes: Vec<(u64, String)> = m
-                .membership_config
-                .membership()
-                .nodes()
-                .map(|(id, node)| (*id, node.rpc_addr.clone()))
-                .collect();
-            nodes
-                .into_iter()
-                .find(|(id, _)| *id == leader_id)
-                .map(|(_, addr)| addr)
-        });
-
-        let leader_addr = match leader_addr {
-            Some(addr) => addr,
-            None => {
-                warn!("No leader found, cannot send leave request gracefully");
-                return Ok(());
-            }
-        };
-
-        info!(
-            "Sending leave request for node {} to Leader at {}",
-            self_id, leader_addr
-        );
-
-        let req = LeaveClusterRequest { node_id: self_id };
-        if let Err(e) = leave_cluster(
-            &ClientPool::new(conf.runtime.channels_per_address),
-            &[leader_addr.as_str()],
-            req,
-        )
-        .await
-        {
-            warn!("Failed to leave cluster gracefully: {}", e);
-        } else {
-            info!("Node {} successfully left the cluster", self_id);
-        }
-
-        Ok(())
     }
 
     pub async fn shutdown(&self) -> Result<(), CommonError> {

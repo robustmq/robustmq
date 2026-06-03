@@ -185,13 +185,13 @@ pub fn record_rpc_duration(machine: &str, rpc_type: &str, duration_ms: f64) {
 /// Only registers the static `metadata_0` shard; dynamic shard counts are registered
 /// via `init_raft_shards` once the config is available.
 pub fn init() {
-    init_raft_shards(1, 1);
+    init_raft_shards_metrics(1, 1);
 }
 
 /// Pre-register Raft metrics for all shards based on configured shard counts.
 /// Call this from MultiRaftManager::new() after reading config.
 /// Shard names: metadata_0, offset_0..offset_{n-1}, data_0..data_{n-1}
-pub fn init_raft_shards(offset_group_num: u32, data_group_num: u32) {
+pub fn init_raft_shards_metrics(offset_group_num: u32, data_group_num: u32) {
     let mut shards: Vec<String> = Vec::new();
     shards.push("metadata_0".to_string());
     for i in 0..offset_group_num {

@@ -21,12 +21,52 @@ use delay_message::manager::start_delay_message_manager_thread;
 use delay_task::start_delay_task_manager_thread;
 use network_server::command::CommandRegistry;
 use network_server::common::handler::handler_process;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use system_info::{start_system_info_collection, start_tokio_runtime_info_collection};
-use tokio::{signal, sync::broadcast, time::sleep};
+use tokio::{sync::broadcast, time::sleep};
 use tracing::{error, info};
 
 use crate::BrokerServer;
+
+static SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+extern "C" fn handle_term_signal(_sig: libc::c_int) {
+    SHUTDOWN_REQUESTED.store(true, Ordering::SeqCst);
+}
+
+/// Register an OS-level SIGINT/SIGTERM handler via libc `sigaction`.
+///
+/// Uses libc rather than `tokio::signal` because with multiple Tokio runtimes
+/// the per-runtime signal driver does not reliably receive process signals.
+/// The handler only flips an atomic flag; `awaiting_stop` polls it.
+pub(crate) fn register_shutdown_listener() {
+    #[cfg(unix)]
+    unsafe {
+        let mut action: libc::sigaction = std::mem::zeroed();
+        action.sa_sigaction = handle_term_signal as extern "C" fn(libc::c_int) as usize;
+        libc::sigemptyset(&mut action.sa_mask);
+        action.sa_flags = 0;
+        if libc::sigaction(libc::SIGINT, &action, std::ptr::null_mut()) != 0 {
+            error!("failed to register SIGINT handler");
+        }
+        if libc::sigaction(libc::SIGTERM, &action, std::ptr::null_mut()) != 0 {
+            error!("failed to register SIGTERM handler");
+        }
+    }
+
+    // Watchdog: force-exit if graceful shutdown does not finish in time,
+    // guaranteeing the process always terminates.
+    std::thread::spawn(|| {
+        while !SHUTDOWN_REQUESTED.load(Ordering::SeqCst) {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        info!("Shutdown requested, graceful shutdown has up to 20s before force-exit");
+        std::thread::sleep(Duration::from_secs(20));
+        error!("Graceful shutdown did not finish in 20s, forcing exit");
+        std::process::exit(0);
+    });
+}
 
 impl BrokerServer {
     pub fn start_broker_handler_pool(
@@ -174,9 +214,12 @@ impl BrokerServer {
         self.server_runtime.block_on(async {
             self.broker_cache.set_status(NodeStatus::Running).await;
 
-            signal::ctrl_c().await.expect("failed to listen for event");
+            // Wait for the termination signal (set by the libc handler).
+            while !SHUTDOWN_REQUESTED.load(Ordering::SeqCst) {
+                sleep(Duration::from_millis(100)).await;
+            }
 
-            info!("When ctrl + c is received, the service starts to stop");
+            info!("Termination signal received, the service starts to stop");
 
             self.broker_cache.set_status(NodeStatus::Stopping).await;
 
@@ -232,14 +275,9 @@ impl BrokerServer {
 
             sleep(Duration::from_secs(5)).await;
 
-            // Stop Phase 9: Leave Raft cluster gracefully before stopping meta service
-            if common_base::role::is_meta_node(&self.config.roles) {
-                if let Err(e) = self.meta_params.raft_manager.leave_cluster().await {
-                    error!("Failed to leave Raft cluster gracefully: {}", e);
-                }
-            }
-
-            // Stop Phase 10: Meta Service
+            // Stop Phase 9: Meta Service.
+            // A restarting node keeps its Raft membership; per openraft, a node
+            // that simply restarts needs no membership change.
             if let Some(sx) = meta_stop {
                 if let Err(e) = sx.send(true) {
                     error!("meta stop signal, error message:{}", e);
