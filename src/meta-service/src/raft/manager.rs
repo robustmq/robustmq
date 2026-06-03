@@ -150,10 +150,7 @@ impl MultiRaftManager {
             .get(&self_id.to_string())
             .map(|a| a.to_string().replace('"', ""))
             .ok_or_else(|| {
-                CommonError::CommonError(format!(
-                    "broker_id {} not found in meta_addrs",
-                    self_id
-                ))
+                CommonError::CommonError(format!("broker_id {} not found in meta_addrs", self_id))
             })?;
 
         let peers: Vec<(u64, String)> = conf
@@ -181,7 +178,10 @@ impl MultiRaftManager {
         };
 
         if already_member {
-            info!("Node {} recovering existing cluster from local state", self_id);
+            info!(
+                "Node {} recovering existing cluster from local state",
+                self_id
+            );
             info!("Multi-Raft started");
             return Ok(());
         }
@@ -213,7 +213,10 @@ impl MultiRaftManager {
                 info!("Successfully joined cluster via peer {}", peer_addr);
             }
             None => {
-                info!("No reachable peers, bootstrapping single-node cluster (node {})", self_id);
+                info!(
+                    "No reachable peers, bootstrapping single-node cluster (node {})",
+                    self_id
+                );
                 self.metadata
                     .bootstrap_single_node(self_id, &self_addr)
                     .await?;

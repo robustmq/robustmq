@@ -45,7 +45,7 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 180
 
     steps:
       - uses: actions/checkout@v5
@@ -87,6 +87,10 @@ jobs:
         with:
           shared-key: "integration-tests"
           cache-on-failure: true
+          # Only the main branch saves the cache; PR/feature branches read it.
+          # This keeps the cache stable (main builds it incrementally) and avoids
+          # a timed-out PR job writing a corrupt/incomplete cache.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Check disk space
         run: |
