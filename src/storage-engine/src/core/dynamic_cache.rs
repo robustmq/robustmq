@@ -125,6 +125,9 @@ async fn parse_segment(
             };
 
             let segment_iden = SegmentIdentity::new(&segment.shard_name, segment.segment_seq);
+            if is_stale_segment_notification(cache_manager, &segment_iden, &segment) {
+                return Ok(());
+            }
             cache_manager.set_segment(&segment);
 
             let conf = broker_config();
@@ -148,9 +151,12 @@ async fn parse_segment(
 
         BrokerUpdateCacheActionType::Update => {
             let segment = EngineSegment::decode(data)?;
+            let segment_iden = SegmentIdentity::new(&segment.shard_name, segment.segment_seq);
+            if is_stale_segment_notification(cache_manager, &segment_iden, &segment) {
+                return Ok(());
+            }
             cache_manager.set_segment(&segment);
             let conf = broker_config();
-            let segment_iden = SegmentIdentity::new(&segment.shard_name, segment.segment_seq);
             if conf.broker_id == segment.leader {
                 cache_manager.add_leader_segment(&segment_iden);
             } else {
@@ -164,6 +170,28 @@ async fn parse_segment(
         }
     }
     Ok(())
+}
+
+/// Drop an out-of-order segment notification: keep the local copy if it already
+/// has a segment_epoch greater than the incoming one. A bump notification with a
+/// higher epoch is always accepted.
+fn is_stale_segment_notification(
+    cache_manager: &Arc<StorageCacheManager>,
+    segment_iden: &SegmentIdentity,
+    incoming: &EngineSegment,
+) -> bool {
+    if let Some(local) = cache_manager.get_segment(segment_iden) {
+        if local.segment_epoch > incoming.segment_epoch {
+            warn!(
+                "Dropping stale segment notification for {}: local segment_epoch {} > incoming {}",
+                segment_iden.name(),
+                local.segment_epoch,
+                incoming.segment_epoch
+            );
+            return true;
+        }
+    }
+    false
 }
 
 async fn parse_segment_meta(
@@ -211,4 +239,39 @@ async fn parse_segment_meta(
         BrokerUpdateCacheActionType::Delete => {}
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_stale_segment_notification;
+    use crate::core::cache::StorageCacheManager;
+    use crate::filesegment::SegmentIdentity;
+    use broker_core::cache::NodeCacheManager;
+    use common_config::config::BrokerConfig;
+    use metadata_struct::storage::segment::EngineSegment;
+    use std::sync::Arc;
+
+    fn segment(epoch: u32) -> EngineSegment {
+        EngineSegment {
+            shard_name: "s1".to_string(),
+            segment_seq: 0,
+            segment_epoch: epoch,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn segment_epoch_monotonic_filter() {
+        let cache = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
+            BrokerConfig::default(),
+        ))));
+        let iden = SegmentIdentity::new("s1", 0);
+
+        assert!(!is_stale_segment_notification(&cache, &iden, &segment(0)));
+        cache.set_segment(&segment(2));
+
+        assert!(is_stale_segment_notification(&cache, &iden, &segment(1)));
+        assert!(!is_stale_segment_notification(&cache, &iden, &segment(2)));
+        assert!(!is_stale_segment_notification(&cache, &iden, &segment(3)));
+    }
 }

@@ -21,12 +21,13 @@ use crate::core::segment_meta::{
 };
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
+use crate::raft::route::engine::IsrUpdateOutcome;
 use crate::storage::common::node::NodeStorage;
 use bytes::Bytes;
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
-use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentStatus};
+use metadata_struct::storage::segment::{segment_name, EngineSegment, Replica, SegmentStatus};
 use metadata_struct::storage::shard::EngineShard;
 use node_call::NodeCallManager;
 use prost::Message as _;
@@ -243,8 +244,9 @@ pub async fn sync_save_segment_info(
     Ok(())
 }
 
-/// Propose an ISR update through Raft (atomic epoch fences + CAS run in the
-/// state machine). Returns the new segment_epoch.
+/// Propose an ISR update through Raft (the five fences + CAS run atomically in
+/// the state machine). Returns the new segment_epoch, or the corresponding error
+/// if a fence rejected it.
 pub async fn sync_update_segment_isr(
     raft_manager: &Arc<MultiRaftManager>,
     req: &UpdateSegmentIsrRequest,
@@ -262,11 +264,43 @@ pub async fn sync_update_segment_isr(
         .data
         .value
         .ok_or(MetaServiceError::ExecutionResultIsEmpty)?;
-    let bytes: [u8; 4] = value
-        .as_ref()
-        .try_into()
-        .map_err(|_| MetaServiceError::ExecutionResultIsEmpty)?;
-    Ok(u32::from_le_bytes(bytes))
+
+    match IsrUpdateOutcome::decode(&value)? {
+        IsrUpdateOutcome::Applied(epoch) => Ok(epoch),
+        IsrUpdateOutcome::SegmentNotFound => Err(MetaServiceError::SegmentDoesNotExist(
+            segment_name(&req.shard_name, req.segment),
+        )),
+        IsrUpdateOutcome::NotLeader => Err(MetaServiceError::NotLeaderForPartition(
+            req.shard_name.clone(),
+            req.segment,
+            req.requester_node_id,
+            0,
+        )),
+        IsrUpdateOutcome::FencedLeaderEpoch => Err(MetaServiceError::FencedLeaderEpoch(
+            req.shard_name.clone(),
+            req.segment,
+            req.leader_epoch,
+            0,
+        )),
+        IsrUpdateOutcome::StaleBrokerEpoch => Err(MetaServiceError::StaleBrokerEpoch(
+            req.shard_name.clone(),
+            req.segment,
+            req.requester_broker_epoch,
+            0,
+        )),
+        IsrUpdateOutcome::InvalidUpdateVersion => Err(MetaServiceError::InvalidUpdateVersion(
+            req.shard_name.clone(),
+            req.segment,
+            req.expected_segment_epoch,
+            0,
+        )),
+        IsrUpdateOutcome::InvalidIsr => Err(MetaServiceError::InvalidIsr(
+            req.shard_name.clone(),
+            req.segment,
+            req.new_isr.clone(),
+            "rejected by state machine".to_string(),
+        )),
+    }
 }
 
 async fn sync_delete_segment_info(

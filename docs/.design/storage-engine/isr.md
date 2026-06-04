@@ -1295,6 +1295,12 @@ state.write(current)
 - `broker_epoch`:防同一 node_id 同一 leader 任期但不同进程实例的请求(进程崩溃极快重启)
 - `segment_epoch`:防同一 leader 同一进程同一任期内,并发的两个 ISR 变更请求互相覆盖
 
+**实现状态(A 组 T1-T3)与两处已知偏差**:
+
+- 五重 fence 全部在 raft apply(状态机)内对 `current` 原子复查,apply **永不返回业务 Err**(否则 openraft 视为致命存储错误、整集群停摆),拒绝结果经返回值 `IsrUpdateOutcome` 状态码传回发起端。server 层另做一份轻量预检(快速失败,不浪费 raft 往返),apply 内复查为权威。
+- **偏差 1(fence 3 弱化)**:实现只校验 `req.broker_epoch == node_registry[node]`,未同时校验 `req.leader_broker_epoch == segment.leader_broker_epoch`。仍能 fence 真·僵尸进程,但无法区分"当前 leader 进程"与"registry 最新进程"。补全需 proto 请求新增 `leader_broker_epoch` 字段,留后续 task。
+- **偏差 2(广播读 cache)**:ISR 变更后广播的 segment 取自 cache 重读而非 apply 返回的权威值,与并发 leader-switch 之间无原子性。靠 broker 端 `segment_epoch` 过滤 + 周期 reconcile(§12.18)兜底。
+
 ### 7.4 SegmentLeaderAndIsr 广播
 
 meta-service 已有 `core/notify.rs::send_notify_by_segment_*` 系列调用。新增 ISR 变更通知(leader 切换通知复用现有路径):

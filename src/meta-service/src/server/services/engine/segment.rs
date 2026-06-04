@@ -14,6 +14,7 @@
 
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
+use crate::core::notify::send_notify_by_set_segment;
 use crate::core::segment::{
     create_segment, seal_up_segment, sync_update_segment_isr, update_segment_status,
 };
@@ -222,6 +223,7 @@ pub async fn seal_up_segment_req(
 pub async fn update_segment_isr_by_req(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
     req: &UpdateSegmentIsrRequest,
 ) -> Result<UpdateSegmentIsrReply, MetaServiceError> {
     validate_shard_exists(cache_manager, &req.shard_name)?;
@@ -263,6 +265,11 @@ pub async fn update_segment_isr_by_req(
     }
 
     let new_segment_epoch = sync_update_segment_isr(raft_manager, req).await?;
+
+    if let Some(updated) = cache_manager.get_segment(&req.shard_name, req.segment) {
+        send_notify_by_set_segment(call_manager, updated).await?;
+    }
+
     Ok(UpdateSegmentIsrReply { new_segment_epoch })
 }
 

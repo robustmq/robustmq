@@ -245,10 +245,15 @@ impl EngineService for GrpcEngineService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        update_segment_isr_by_req(&self.cache_manager, &self.raft_manager, &req)
-            .await
-            .map_err(Self::to_status)
-            .map(Response::new)
+        update_segment_isr_by_req(
+            &self.cache_manager,
+            &self.raft_manager,
+            &self.call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
     }
 
     async fn list_segment_meta(
