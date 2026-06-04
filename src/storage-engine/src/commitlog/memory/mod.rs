@@ -16,4 +16,5 @@ pub mod engine;
 pub mod expire;
 pub mod index;
 pub mod read;
+pub mod replica;
 pub mod write;

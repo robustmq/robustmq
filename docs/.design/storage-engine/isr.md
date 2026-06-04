@@ -48,7 +48,7 @@
 - **(I9) Truncation 必须基于 Leader Epoch**:任何 follower 在加入 / 重启 / leader 切换 / 收到 FencedLeaderEpoch 后,必须先通过 `OffsetsForLeaderEpoch` 询问 leader 的 epoch 历史,再 truncate。**禁止使用本地 HW 或本地 LEO 作为 truncate 点**。
 - **(I10) LeaderEpochCache 必须持久化**(rocksdb / filesegment);memory 引擎因无持久化,follower 重启等价于全新副本,必须从 leader_log_start 全量重拉(§9.5)。
 - **(I11) Leader 上任原子性**:broker 收到 `SegmentLeaderAndIsr` 后,在转为 Active leader 之前必须完成:
-  1. `LeaderEpochCache.assign(new_epoch, current_leo)` 并 fsync 持久化
+  1. `LeaderEpochCache.assign(new_epoch, current_leo)` 持久化(同步 put,不主动 fsync)
   2. 重置 `follower_progress`
   3. 拒绝所有携带旧 `leader_epoch` 的在途 producer 写入和 follower fetch
   - 在第 1 步持久化完成前的 broker 状态为 `Initializing`,拒绝所有写入
@@ -248,9 +248,9 @@ impl LeaderEpochCache {
     pub fn latest_epoch(&self) -> u32;
 
     /// follower 询问"我有到 my_epoch 的日志,该 epoch 的 end_offset 是多少"
-    /// 返回:my_epoch 在本地的下一个 epoch 的 start_offset - 1,
-    ///       如果 my_epoch 是当前最大,返回当前 LEO
-    pub fn end_offset_for(&self, my_epoch: u32) -> u64;
+    /// 返回:my_epoch 的下一个 epoch 的 start_offset;
+    ///       `None` 表示 my_epoch 是当前最大,调用方用本地 LEO 替换(cache 不持有 LEO)
+    pub fn end_offset_for(&self, my_epoch: u32) -> Option<u64>;
 
     /// 用于 truncate 后修剪:删除 offset > end_offset 的所有条目
     pub fn truncate_from_end(&mut self, end_offset: u64);
@@ -265,22 +265,24 @@ impl LeaderEpochCache {
 
     /// 清空全部 entries。用于 §6.3 / §9.2 step 4 的 retention 强制重建场景
     pub fn clear(&mut self);
-
-    /// 强制刷盘(rocksdb / filesegment)。memory 实现 no-op
-    pub fn fsync(&self) -> Result<(), StorageEngineError>;
 }
 ```
 
 **持久化策略**（三引擎差异）：
 - memory：**无法持久化**（进程重启就丢），因此 memory 引擎的 follower 在 leader 重启后必须**整段重新同步**。这是 memory 引擎的固有限制（数据本身就不持久化）。
-- rocksdb：单独 column family 或 key 前缀 `/leader_epoch/{shard}/{segment_seq}/`
+- rocksdb：storage CF,key `…/segment/{shard}/{seg:010}/leader-epoch/{epoch:010}` → value=完整 entry
 - filesegment：sidecar 文件 `{segment_file}.leader-epoch-checkpoint`（同 Kafka）
 
 写入时机有两处(**不在普通 producer 写入路径**):
-- **leader 上任**:`assign(new_leader_epoch, current_leo)` + fsync(§8.1 case 1,I11)
-- **follower 落盘跨 epoch records**:解析 batch header 的 `partition_leader_epoch`,对每个新 epoch `assign(epoch, batch_base_offset)`,**先 assign+fsync 后 append**(§6.3)
+- **leader 上任**:`assign(new_leader_epoch, current_leo)`(§8.1 case 1,I11)
+- **follower 落盘跨 epoch records**:解析 batch header 的 `partition_leader_epoch`,对每个新 epoch `assign(epoch, batch_base_offset)`,**先 assign 后 append**(§6.3)
 
-**未持久化的 LeaderEpochCache 等于没有 ISR 安全性**。
+**持久化策略(对齐 record 数据)**:`assign` 每次同步 put 进 rocksdb,但**不主动 fsync** —— 持久性靠副本冗余(min.insync.replicas)+ 引擎后台刷盘,与 record 数据一致。单节点重启若丢失最近未刷盘的 epoch 条目,follower 重新走一次 OffsetsForLeaderEpoch 对齐即可,已 committed 数据在多副本中不丢。
+
+**实现状态(B 组 T7)与一处待补**:
+- `LeaderEpochCache` 已实现 + rocksdb 持久化(key 见上)。无 `fsync` 方法。
+- `end_offset_for(my_epoch)` 返回 `Option<u64>`:`None` 表示 my_epoch 是 latest,调用方用本地 LEO 替换(cache 不持有 LEO)。
+- **待补(留 C 组 leader-side OffsetsForLeaderEpoch handler)**:§9.2 case 5(请求 epoch 落在已知范围但 cache 有洞)要求响应的 `end_offset_leader_epoch` 是"≤ my_epoch 的最大已知 epoch"而非 my_epoch 本身。当前 `end_offset_for` 只返回 offset、不返回该 epoch,且未做 §12.8 cache 损坏 ERROR 日志。leader handler 实现时需在此基础上补齐"返回匹配到的 epoch"。
 
 ### 3.3 `EngineShardConfig` 扩展
 
@@ -494,9 +496,9 @@ memory / rocksdb / filesegment 三个引擎共享 ISR 控制面，差异仅在�
 #[async_trait]
 pub trait ReplicaLog: Send + Sync {
     /// follower 收到 leader 的 records 后落本地。要求 base_offset == latest_offset(...)。
-    /// 不连续返回 OutOfOrder,触发 truncate 流程。
-    /// **必须在返回前保证持久化**(LEO 推进等价于"已 ack 给上游/leader 数据已落");
-    /// 否则崩溃后 LEO 回退会让 leader 视角与 follower 视角的"已复制"边界错位。
+    /// 不连续返回 OutOfOrder,触发 truncate 流程。offset 取自 record 自带的
+    /// metadata.offset(leader 分配),不由 base_offset 递推。
+    /// 持久性靠副本冗余 + 引擎后台刷盘,不做 per-write fsync(见下方持久化说明)。
     async fn append_at(
         &self,
         shard: &str,
@@ -522,9 +524,7 @@ pub trait ReplicaLog: Send + Sync {
     ) -> Result<u64, StorageEngineError>;
 
     /// 截断到指定 offset(含),用于 follower 在 leader 切换时丢弃未提交日志。
-    /// **必须在返回前保证持久化**(rocksdb sync_wal / filesegment fsync):
-    /// 否则崩溃后本地 log 比 LeaderEpochCache 长,违反"cache 覆盖整个本地 log"的 invariant,
-    /// 重启后 OffsetsForLeaderEpoch 流程会基于不一致状态做错误决策。
+    /// 先降 LEO 再删记录(WAL 按写入顺序 replay,崩溃后 LEO 不会越过 log 末尾)。
     async fn truncate_to(
         &self,
         shard: &str,
@@ -535,7 +535,6 @@ pub trait ReplicaLog: Send + Sync {
     /// 清空 (shard, segment_seq) 的全部本地数据。
     /// 用于 follower 检测到本地数据完全无效(leader 返回 `end_offset_leader_epoch=-1`,即整段被 retention)时,丢弃本地从头重拉。
     /// 不同于 `truncate_to(start_offset)`:`clear` 允许内部直接删除文件 / range,实现更快。
-    /// **必须在返回前保证持久化**,同 truncate_to 的要求。
     async fn clear(
         &self,
         shard: &str,
@@ -552,10 +551,16 @@ pub trait ReplicaLog: Send + Sync {
 }
 ```
 
+**持久化与 key 统一(实现关键)**:
+
+- **副本共享同一份存储/同一套 key**:同一 `(shard, segment_seq, offset)` 的记录,在 leader 和任何 follower 上是**同一个物理 key / 同一份数据**,leader 切换无需搬数据或改 key。ReplicaLog **不另开**副本专用存储,而是就地复用 producer/consumer 路径的存储。
+- **持久性靠副本冗余**:append/truncate/clear **不做 per-write fsync**,写入只到引擎 memtable/WAL,落盘交后台 + 副本冗余(min.insync.replicas),对齐 Kafka 默认。
+- **append offset 来自 record**:follower 按 `record.metadata.offset`(leader 分配)入 key,只用 `base_offset == latest_offset` 做跨 batch 连续性校验(不连续触发 truncation)。
+
 **三个引擎的实现要点**：
 
-- **memory**：`segment_seq` 参数对当前实现来说恒为 0，存储仍然是 `DashMap<offset, Record>`，`segment_seq` 仅传入接口供未来扩展。`truncate_to`：遍历 `>offset` 的 key 删除。
-- **rocksdb**：key 编码加入 `segment_seq` 段：`/record/{namespace}/{shard}/{segment_seq:08}/record/{offset:20}`（兼容现有 key 设计，老数据按 `segment_seq=0` 解读）。`truncate_to`：range delete 前缀 `(shard, segment_seq, offset+1)`。
+- **memory**：`segment_seq` 恒为 0。**复用 `ShardState.data: DashMap<offset, Record>`**(producer/consumer 同一份),LEO 复用 `commit_log_offset` 的 offset cache。重启即丢(§9.5)。
+- **rocksdb**：record key 统一为 `record/{shard}/{segment_seq:010}/{offset:020}`(producer/consumer/replica 共用);LEO 单独存 `record-leo/{shard}/{segment_seq:010}`(兄弟前缀,record range-delete 不波及)。`truncate_to`：先写 LEO,再 range delete `(shard, segment_seq, offset+1..)`。
 - **filesegment**：`segment_seq` 直接对应文件名；`append_at` 写当前 active segment 文件；`truncate_to` 截断文件尾或删除尾部 segment。
 
 > 关键：`segment_seq` 在签名里是显式参数。memory/rocksdb 传 0；filesegment 传当前 active 或 follower 正在追的 segment。**ISR 控制面只调 trait，不知道也不关心引擎类型**。
@@ -977,13 +982,12 @@ match resp {
         //   找出本批中首次出现的、> leader_epoch_cache.latest_epoch() 的 epoch
         //   对每个这样的 (new_epoch, batch_base_offset) 调用:
         //     leader_epoch_cache.assign(new_epoch, batch_base_offset)
-        //   全部 assign 完后一次 fsync(本批的所有新 epoch 一次性持久化)
+        //   assign 每次同步 put 进存储(不主动 fsync,见 §3.2/§4 持久化说明)
         for (new_epoch, batch_base_offset) in detect_new_epochs(&records, leader_epoch_cache.latest_epoch()) {
             leader_epoch_cache.assign(new_epoch, batch_base_offset);
         }
-        leader_epoch_cache.fsync()?;
 
-        // 再 append(append_at 内部已 fsync,见 §4 trait 注解)
+        // 先 assign(epoch cache)后 append(log),保持 cache ⊇ log
         replica_log.append_at(shard, segment_seq, shard.local_leo, records).await?;
 
         // 推进 follower 本地 shard HW(单调):
@@ -1050,10 +1054,10 @@ match resp {
 
 HW 与 LEO 是 ISR 协议的两个核心运行时数值,持久化策略不同。
 
-**LEO 持久化(强同步)**:
-- 每次 `ReplicaLog::append_at` 成功返回前必须保证记录已落盘(rocksdb 的 WAL flush / filesegment 的 fsync)
+**LEO 持久化(靠副本冗余,不做 per-write fsync)**:
+- `ReplicaLog::append_at` 写入只到引擎 memtable/WAL,**不强制 fsync**,落盘交后台 + 副本冗余(min.insync.replicas),对齐 Kafka 默认 `flush.ms` 行为。
 - LEO 本身不需要单独 checkpoint,**进程重启时从 `ReplicaLog::latest_offset` 直接重建**(§8.-1 步骤 1)。
-- 这是协议正确性的最低线:LEO 回退 = 已 ack 给上游的数据丢失。
+- 单节点崩溃可能丢失最近未刷盘的写(LEO 回退),由 `min.insync.replicas >= 2` 兜底:已 committed 数据在多副本中至少一份存活,不会全部同时丢。
 
 **HW 持久化(异步 checkpoint,可滞后)**:
 - 推进 HW 时**不**强制 fsync。HW 的内存值由 `hw_watcher` 唤醒等待者后立即生效。

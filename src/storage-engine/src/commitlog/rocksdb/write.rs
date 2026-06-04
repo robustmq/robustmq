@@ -100,7 +100,7 @@ impl RocksDBStorageEngine {
             let engine_record = convert_adapter_record_to_storage(msg.clone(), shard_name, offset);
 
             // save message (now storing StorageEngineRecord)
-            let shard_record_key = shard_record_key(shard_name, offset);
+            let shard_record_key = shard_record_key(shard_name, 0, offset);
             let serialized_msg = serialize::serialize(&engine_record)?;
             batch.put_cf(&cf, shard_record_key.as_bytes(), &serialized_msg);
 
@@ -185,7 +185,7 @@ impl RocksDBStorageEngine {
         let mut batch = WriteBatch::default();
 
         for &offset in offsets {
-            let record_key = shard_record_key(shard, offset);
+            let record_key = shard_record_key(shard, 0, offset);
             let Some(record) = self
                 .rocksdb_engine_handler
                 .read::<metadata_struct::storage::record::StorageRecord>(

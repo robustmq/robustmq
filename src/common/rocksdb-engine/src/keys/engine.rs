@@ -63,6 +63,14 @@ pub fn index_position_key(shard: &str, segment: u32, offset: u64) -> String {
     format!("{}position/{:020}", segment_base(shard, segment), offset)
 }
 
+pub fn leader_epoch_entry_key(shard: &str, segment: u32, epoch: u32) -> String {
+    format!("{}leader-epoch/{:010}", segment_base(shard, segment), epoch)
+}
+
+pub fn leader_epoch_prefix(shard: &str, segment: u32) -> String {
+    format!("{}leader-epoch/", segment_base(shard, segment))
+}
+
 pub fn index_position_key_prefix(shard: &str, segment: u32) -> String {
     format!("{}position/", segment_base(shard, segment))
 }

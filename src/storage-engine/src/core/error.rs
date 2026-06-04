@@ -147,6 +147,12 @@ pub enum StorageEngineError {
 
     #[error("RocksDBStorage Storage type of storage does not support this X operation.")]
     NotSupportRocksDBStorageType(String),
+
+    #[error("Segment {0} append at offset {1} is out of order, expected {2}")]
+    OutOfOrder(String, u64, u64),
+
+    #[error("Segment {0} offset {1} is out of range [{2}, {3})")]
+    OffsetOutOfRange(String, u64, u64, u64),
 }
 
 pub fn get_journal_server_code(e: &StorageEngineError) -> String {
@@ -206,6 +212,8 @@ pub fn get_journal_server_code(e: &StorageEngineError) -> String {
         StorageEngineError::ConnectionIsOccupied(_) => "ConnectionIsOccupied".to_string(),
         StorageEngineError::NoAvailableConn(_) => "NoAvailableConn".to_string(),
         StorageEngineError::NodeNotFound(_) => "NodeNotFound".to_string(),
+        StorageEngineError::OutOfOrder(_, _, _) => "OutOfOrder".to_string(),
+        StorageEngineError::OffsetOutOfRange(_, _, _, _) => "OffsetOutOfRange".to_string(),
     }
 }
 

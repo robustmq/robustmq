@@ -71,4 +71,21 @@ impl MemoryStorageEngine {
             .or_insert_with(|| Arc::new(ShardState::new(capacity)))
             .clone()
     }
+
+    pub fn leo(&self, shard: &str) -> u64 {
+        self.cache_manager
+            .get_offset_state(shard)
+            .map(|s| s.latest_offset)
+            .unwrap_or(0)
+    }
+
+    pub fn set_leo(&self, shard: &str, leo: u64) {
+        let mut state = self
+            .cache_manager
+            .get_offset_state(shard)
+            .unwrap_or_default();
+        state.latest_offset = leo;
+        self.cache_manager
+            .save_offset_state(shard.to_string(), state);
+    }
 }

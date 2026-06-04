@@ -13,27 +13,23 @@
 // limitations under the License.
 
 use super::PREFIX_STORAGE;
-use std::fmt::Write;
 
 #[inline(always)]
-pub fn shard_record_key(shard: &str, record_offset: u64) -> String {
-    let mut key = String::with_capacity(32 + shard.len());
-    key.push_str(PREFIX_STORAGE);
-    key.push_str("record/");
-    key.push_str(shard);
-    key.push('/');
-    let _ = write!(key, "{:020}", record_offset);
-    key
+pub fn shard_record_key(shard: &str, segment_seq: u32, record_offset: u64) -> String {
+    format!(
+        "{}record/{}/{:010}/{:020}",
+        PREFIX_STORAGE, shard, segment_seq, record_offset
+    )
 }
 
 #[inline(always)]
-pub fn shard_record_key_prefix(shard: &str) -> String {
-    let mut key = String::with_capacity(18 + shard.len());
-    key.push_str(PREFIX_STORAGE);
-    key.push_str("record/");
-    key.push_str(shard);
-    key.push('/');
-    key
+pub fn shard_record_key_prefix(shard: &str, segment_seq: u32) -> String {
+    format!("{}record/{}/{:010}/", PREFIX_STORAGE, shard, segment_seq)
+}
+
+#[inline(always)]
+pub fn shard_segment_leo_key(shard: &str, segment_seq: u32) -> String {
+    format!("{}record-leo/{}/{:010}", PREFIX_STORAGE, shard, segment_seq)
 }
 
 #[inline(always)]
@@ -105,10 +101,13 @@ mod tests {
     fn test_all_key_formats() {
         let cases: [(_, &'static str); 13] = [
             (
-                shard_record_key("shard1", 123),
-                "/storage/record/shard1/00000000000000000123",
+                shard_record_key("shard1", 0, 123),
+                "/storage/record/shard1/0000000000/00000000000000000123",
             ),
-            (shard_record_key_prefix("shard1"), "/storage/record/shard1/"),
+            (
+                shard_record_key_prefix("shard1", 0),
+                "/storage/record/shard1/0000000000/",
+            ),
             (
                 key_index_key("shard1", "mykey"),
                 "/storage/index/key/shard1/mykey",

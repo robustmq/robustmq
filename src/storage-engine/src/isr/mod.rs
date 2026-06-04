@@ -13,3 +13,5 @@
 // limitations under the License.
 
 pub mod fetch;
+pub mod leader_epoch;
+pub mod log;

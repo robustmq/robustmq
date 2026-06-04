@@ -109,7 +109,7 @@ impl RocksDBStorageEngine {
         while current_offset < new_earliest_offset {
             let batch_end = (current_offset + BATCH_SIZE).min(new_earliest_offset);
             let keys: Vec<String> = (current_offset..batch_end)
-                .map(|off| shard_record_key(&shard.shard_name, off))
+                .map(|off| shard_record_key(&shard.shard_name, 0, off))
                 .collect();
 
             let records = self
