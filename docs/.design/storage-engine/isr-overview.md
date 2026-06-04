@@ -84,7 +84,7 @@ ISR 协议本质上在回答三个问题。所有复杂度都围绕这三件事�
 |---|---|---|---|
 | `leader_epoch` | leader 切换 | meta raft,segment 上 | KIP-101 truncation 基准 |
 | `segment_epoch` | ISR / leader / replicas 任一变化 | meta raft,segment 上 | ISR 变更 CAS |
-| `broker_epoch` | broker 进程注册 | meta raft,node_registry 上 | fence zombie 进程 |
+| `broker_epoch` | broker 进程注册 | meta rocksdb,`clusters/node_epoch/{node_id}` | fence zombie 进程 |
 
 每一类请求要带相关 epoch,接收方校验。任何不带 epoch 的路径都是 zombie 攻击面。
 
@@ -123,30 +123,25 @@ follower 启动 / leader 切换 / 收到 FencedLeaderEpoch:
 
 ## 4. 怎么实现(模块清单 + 代码改动)
 
-### 4.1 新增模块(全部在 `storage-engine/src/isr/`)
+### 4.1 模块(全部在 `storage-engine/src/isr/`)
 
 ```
 storage-engine/src/isr/
-├── log.rs                       # ReplicaLog trait + 三引擎实现适配
-├── leader_epoch.rs              # LeaderEpochCache + 持久化
-├── state.rs                     # ShardReplicaState / SegmentReplicaState
-├── append.rs                    # 写入路径(epoch 校验 + append + acks=all 等 HW)
-├── fetch.rs                     # follower fetcher 任务 + leader fetch handler
-├── offsets_for_leader_epoch.rs  # KIP-101 truncation RPC handler + caller
-├── alter_partition.rs           # ISR shrink/expand 后台 + AlterPartition RPC client
-└── manager.rs                   # LeaderAndIsr 通知响应、启动恢复、生命周期管理
+# 已实现:
+├── log.rs                       # ReplicaLog trait(三引擎共享)
+├── leader_epoch.rs              # LeaderEpochCache(rocksdb 持久化,无 fsync)
+├── state.rs                     # ReplicaRole / SegmentReplicaState / ShardReplicaState / ReplicaStateRegistry
+├── fetch.rs                     # leader fetch handler(fetch_one_shard 五重 fence + handle_fetch 批量)
+├── fetcher.rs                   # follower 固定线程池 ReplicaFetcherThread(多 segment 按 leader 批量)
+├── startup.rs                   # 启动恢复(recover_leader_epoch_cache / recover_hw)
+# 计划:
+├── fetcher_manager.rs           # (T13b) N 线程实例化 + leader%N 路由 + role 接线
+├── (truncation)                 # (T10) OffsetsForLeaderEpoch + KIP-101 truncate,接进 fetcher
+├── (isr maintenance)            # (T12) ISR shrink/expand 后台 + UpdateSegmentIsr client
+└── (notification handler)       # (T13a) SegmentLeaderAndIsr → role 状态机
 ```
 
-**模块依赖关系**:
-
-```
-                manager (LeaderAndIsr 路由 + 状态机)
-                │
-                ├── append      → state, log, leader_epoch
-                ├── fetch       → state, log, leader_epoch
-                ├── offsets_..  → state, log, leader_epoch
-                └── alter_part  → state(读 follower_progress)
-```
+> 原设计的 `append.rs / offsets_for_leader_epoch.rs / alter_partition.rs / manager.rs` 命名已不采用:写入路径在 commitlog 引擎内;truncation/ISR维护/通知处理按上表归入对应 task。
 
 ### 4.2 现有代码改动(分类清楚)
 
@@ -166,7 +161,7 @@ storage-engine/src/isr/
 | `metadata-struct/src/storage/shard.rs` | `EngineShardConfig` 加 ISR 配置(`min_in_sync_replicas / replica_lag_time_max_ms / replica_fetch_*` / `replica_hw_checkpoint_interval_ms`) |
 | `protocol/src/meta/common.proto` | `RegisterNodeReply` 加 `broker_epoch` |
 | `protocol/src/storage/codec.rs` | `StorageEnginePacket` 加 `FetchReq/Resp` + `OffsetsForLeaderEpochReq/Resp` |
-| `protocol/src/meta/storage.proto` | 新增 `AlterPartition` gRPC |
+| `protocol/src/meta/storage.proto` | 新增 `UpdateSegmentIsr` gRPC |
 
 **重写(现有实现有 bug)**:
 
@@ -175,7 +170,7 @@ storage-engine/src/isr/
 | `meta-service/src/core/leader_switch.rs::segment_leader_switch` | **从 `replicas` 选 leader 是 unclean,会丢数据** | 从 `isr` 选,ISR 空标 `Unavailable`(I14) |
 | `metadata-struct/src/storage/segment.rs::EngineSegment::allow_read` | **只允许 `Write`,SealUp 后完全不能读** | 允许 `Write / PreSealUp / SealUp / Unavailable` |
 | `storage-engine/src/core/segment.rs::segment_validator` | 跟随上面改 | 同步 |
-| `meta-service/src/core/cluster.rs::register_node_by_req` | 不返回 broker_epoch | 维护 `node_registry`,分配并返回 broker_epoch |
+| `meta-service/src/core/cluster.rs::register_node_by_req` | 不返回 broker_epoch | 经 `NodeStorage::next_broker_epoch`(rocksdb)分配并返回 broker_epoch |
 
 ### 4.3 关键数据结构(看 isr.md §3 详细定义)
 
@@ -183,30 +178,29 @@ storage-engine/src/isr/
 // ReplicaLog trait — 三引擎共享的本地存储抽象(isr.md §4)
 #[async_trait]
 pub trait ReplicaLog: Send + Sync {
-    async fn append_at(&self, shard, segment_seq, base_offset, records);    // 必须 fsync
+    async fn append_at(&self, shard, segment_seq, base_offset, records);    // 同步写,不 fsync;base==leo 校验
     async fn read_from(&self, shard, segment_seq, offset, max_bytes);
-    fn latest_offset(&self, shard, segment_seq) -> u64;
-    async fn truncate_to(&self, shard, segment_seq, offset);                // 必须 fsync
+    fn latest_offset(&self, shard, segment_seq) -> u64;                     // = LEO
+    async fn truncate_to(&self, shard, segment_seq, offset);                // 先降 LEO 再删
     async fn clear(&self, shard, segment_seq);                              // retention 后强制全量重拉用
     fn log_start_offset(&self, shard, segment_seq) -> u64;
 }
 
-// 三层运行时状态(isr.md §3.4)
-pub struct ShardReplicaState {       // shard 级,持有 HW / LEO / log_start
+// 运行时状态(isr.md §3.4,以下为实际实现 state.rs)
+pub struct ShardReplicaState {       // shard 级
     pub local_leo:    AtomicU64,
-    pub local_hw:     AtomicU64,
-    pub log_start:    AtomicU64,
-    pub hw_watcher:   watch::Sender<u64>,  // 唤醒 acks=all 等待者
-    pub write_lock:   AsyncMutex<()>,      // shard 级写入锁
+    pub local_hw:     AtomicU64,           // HW 推进当前 no-op(留 T11)
+    pub log_start_offset: AtomicU64,
+    pub hw_watcher:   watch::Sender<u64>,  // 已建,接收端 T11 接
+    // 注:无 write_lock —— follower 复制单 fetcher 线程串行,leader 写入锁在 commitlog 引擎
 }
 
 pub struct SegmentReplicaState {     // segment 级,持有副本身份
-    pub role:              ReplicaRole,
-    pub leader_epoch:      u32,
-    pub segment_epoch:     u32,
-    pub isr_cache:         Vec<u64>,
+    pub role:          RwLock<ReplicaRole>,
+    pub leader_epoch:  AtomicU32,
+    pub segment_epoch: AtomicU32,
     pub follower_progress: DashMap<NodeId, FollowerProgress>,
-    pub state_lock:        AsyncMutex<()>, // segment 级状态锁
+    // 注:isr_cache / state_lock 未实现(role 状态机留 T13a;isr 权威在 meta)
 }
 
 pub struct FollowerProgress {
@@ -230,7 +224,9 @@ pub struct FollowerProgress {
 
 **禁止在锁内做 long-poll wait / RPC**:fetcher 的 long-poll wait 在锁外,response 回来后再拿锁二次校验 role/epoch。
 
-### 4.5 fetcher 与 LeaderAndIsr 的并发协调(Kafka `partitionMapLock` 模型)
+### 4.5 fetcher 与 LeaderAndIsr 的并发协调
+
+> **实现(T9)**:fetcher 不是 per-follower 一个任务,而是**固定线程池** `ReplicaFetcherThread`(进程配置 `num_replica_fetchers`,segment 按 `leader_node % N` 分配,每线程持有一批 segment 按 leader 批量拉)。下面的"fetcher loop / state_lock / exit"是**单 segment 视角**的目标协调模型(role 状态机 T13a 接线):`stop_fetcher` 映射为从线程 `remove_segment`,"response 落不到 ReplicaLog" 映射为该 segment 已被移除时 `apply_shard_resp` 查不到直接丢弃。
 
 最容易写错的地方之一。规则:
 
@@ -263,7 +259,7 @@ fetcher loop {
 | **I6** | HW 单调,`new_hw = max(old, min(...))` | 消费者已读数据"消失" |
 | **I8** | Committed 数据永不丢 | 客户端的根本承诺破坏 |
 | **I9** | Truncation 只能走 `OffsetsForLeaderEpoch`,**禁止用本地 HW** | KIP-101 经典丢数据 |
-| **I11** | Leader 上任先 fsync LeaderEpochCache 才转 Active | 上任崩溃 → 日志分歧 |
+| **I11** | Leader 上任先持久化 LeaderEpochCache(同步写,无 fsync)才转 Active | 上任崩溃 → 日志分歧 |
 | **I12** | ISR 扩展条件是 `leo >= leader.leo`(不是 `>= hw`)(KIP-679) | 刚加入 ISR 就拉低 HW |
 
 ---
@@ -285,7 +281,7 @@ broker B (leader),在 shard.write_lock 内:
    ├── 校验 self.leader_epoch == meta.leader_epoch
    ├── 若请求带 epoch:校验 req.epoch == self.leader_epoch
    ├── acks=all:校验 |ISR| >= min_in_sync_replicas
-   ├── ReplicaLog::append_at  (内部 fsync)
+   ├── ReplicaLog::append_at  (同步写,不 fsync)
    ├── 兜底校验 LeaderEpochCache.latest_epoch() >= self.leader_epoch
    ├── shard.local_leo += N
    └── (释放锁)
@@ -307,7 +303,7 @@ broker B (leader),在 shard.write_lock 内:
         B.shard.local_hw = max(B.shard.local_hw, new_hw)
         若推进 → hw_watcher.send → 唤醒 acks=all 等待者
    ↓ B → C: records + leader_hw + leader_log_start + leader_leo + leader_epoch
-   C: 检测跨 epoch → LeaderEpochCache.assign + fsync(先 cache 后 log!)
+   C: 检测跨 epoch → LeaderEpochCache.assign(先 cache 后 log!)
       → ReplicaLog::append_at(records)
       → C.shard.local_hw = max(local_hw, min(local_leo, leader_hw))
 ```
@@ -328,7 +324,7 @@ meta-service: segment_leader_switch(failed=B1)
         segment.leader              = new_leader
         segment.leader_epoch        += 1
         segment.segment_epoch       += 1
-        segment.leader_broker_epoch = node_registry[new_leader]
+        segment.leader_broker_epoch = NodeStorage::get_broker_epoch(new_leader)
         segment.isr                 -= {B1}
    raft 写入 + 广播 SegmentLeaderAndIsr
    ↓
@@ -337,7 +333,7 @@ broker B2 (新 leader),在 state_lock 内:
    ├── cancel_inflight_producer_requests → 返 NotLeaderForPartition
    ├── stop_fetcher_if_any                (改 role,下一轮 fetcher 自己退)
    ├── current_leo = ReplicaLog::latest_offset
-   ├── LeaderEpochCache.assign(new_epoch, current_leo) + fsync ← I11 关键
+   ├── LeaderEpochCache.assign(new_epoch, current_leo) ← I11 关键(同步写)
    ├── isr_cache = notification.isr
    ├── shard.local_hw = max(current, persisted_hw_from_checkpoint)   ← 不要设成 LEO
    ├── reset_follower_progress
@@ -356,7 +352,6 @@ broker B3 (继续 follower,但 leader 变了):
    │       ReplicaLog::truncate_to(truncate_point)
    │       LeaderEpochCache::truncate_from_end_by_epoch(epoch, resp_offset)
    │       fetch_offset = truncate_point
-   ├── LeaderEpochCache::fsync
    ├── start_fetcher(target=B2, fetch_offset)
    └── role = FollowerActive
 
@@ -367,14 +362,14 @@ broker B3 (继续 follower,但 leader 变了):
 
 ## 7. 持久化策略(三个不同 cadence,别搞混)
 
-| 数据 | 持久化时机 | fsync? | 崩溃后果 |
+| 数据 | 持久化时机 | fsync? | 崩溃兜底 |
 |---|---|---|---|
-| **LEO**(通过 ReplicaLog 数据) | 每次 `append_at` 返回前 | **是** | LEO 回退 = 已 ack 数据丢失,不允许 |
-| **LeaderEpochCache** | 每次 `assign` / `truncate_*` 后 | **是** | cache 与 log 不一致 → OffsetsForLeaderEpoch 答错 → 丢数据 |
-| **HW** | 后台每 5 秒 checkpoint(对齐 Kafka) | 异步 | 允许回退一个 interval,KIP-101 路径兜底 |
-| **log_start_offset** | retention 推进前先 checkpoint 再删数据 | **是** | 先删后写 → 启动后读到 hole |
+| **LEO**(通过 ReplicaLog 数据) | 每次 `append_at`(同步写 memtable/WAL) | **否** | 靠副本冗余(min.insync.replicas)+ 引擎后台刷盘;单节点丢未刷盘写,多副本不全丢 |
+| **LeaderEpochCache** | 每次 `assign` / `truncate_*`(同步 put rocksdb) | **否** | 同上;丢失 epoch 条目时 follower 重走 OffsetsForLeaderEpoch 对齐 |
+| **HW** | 后台 checkpoint(默认 5s) | 异步 | 允许回退一个 interval |
+| **log_start_offset** | retention 推进:先 checkpoint 后删数据(顺序保证) | 异步 | 先删后写才会读到 hole,故顺序固定 |
 
-关键认知:**HW 可以异步**是 KIP-101 的核心红利 — 不用每次 HW 推进都 fsync,因为 LeaderEpochCache 路径会兜底安全性。
+关键认知:**不做 per-write fsync**,持久性来自副本冗余 + 引擎后台刷盘(对齐 Kafka 默认 `flush.ms`)。truncate/clear **先降 LEO 再删数据**,WAL 按写入顺序 replay,崩溃后 LEO 不会越过 log 末尾。
 
 启动恢复时(`§8.-1`):
 
@@ -389,7 +384,7 @@ broker B3 (继续 follower,但 leader 变了):
 
 ## 8. ISR 维护(后台任务)
 
-只有 leader 触发 ISR 变更(对齐 Kafka KIP-497 `AlterPartition`)。
+只有 leader 触发 ISR 变更(对齐 Kafka KIP-497 `UpdateSegmentIsr`)。
 
 ```
 leader 每 N 秒扫 follower_progress (只看自己 LeaderActive 的 segment):
@@ -401,13 +396,13 @@ leader 每 N 秒扫 follower_progress (只看自己 LeaderActive 的 segment):
      if in_isr and node != self:
         lag_ms = now - prog.last_caught_up_ts
         if lag_ms > replica_lag_time_max_ms:
-           AlterPartition(new_isr = isr - {node})
+           UpdateSegmentIsr(new_isr = isr - {node})
 
      # expand
      if not in_isr and expand_eligible(prog):  # I12: leo>=leader.leo + epoch 匹配 + broker_epoch 未 fence + 反 flapping
-        AlterPartition(new_isr = isr + {node})
+        UpdateSegmentIsr(new_isr = isr + {node})
 
-AlterPartition 路径:
+UpdateSegmentIsr 路径:
   broker → meta gRPC → meta raft op UpdateSegmentIsr → 多重 fence:
      - leader_epoch 匹配
      - broker_epoch 匹配(防 zombie 进程)
@@ -416,7 +411,7 @@ AlterPartition 路径:
    通过 → segment_epoch += 1,广播 SegmentLeaderAndIsr
 ```
 
-**节流**:单 segment 同时只能一个 in-flight AlterPartition,500ms 内最多一次。
+**节流**:单 segment 同时只能一个 in-flight UpdateSegmentIsr,500ms 内最多一次。
 
 ---
 
@@ -431,7 +426,7 @@ AlterPartition 路径:
 | 跨 segment 切换 | 永不发生 | 永不发生 | 新 segment 独立副本拓扑 |
 | 副本重平衡 | 不支持(整 shard 重建) | 不支持 | seal up 后切新 segment 时可换节点 |
 
-**协议代码与引擎解耦**:所有差异封闭在 `ReplicaLog` trait 实现里。ISR 控制面(`fetch.rs / append.rs / manager.rs`)只调 trait,**不感知**引擎类型。
+**协议代码与引擎解耦**:所有差异封闭在 `ReplicaLog` trait 实现里。ISR 控制面(`fetch.rs / fetcher.rs` 等)只调 trait,**不感知**引擎类型。
 
 ---
 
@@ -462,7 +457,7 @@ AlterPartition 路径:
 | **M1 元数据就位** | `EngineSegment` 加字段 + raft `UpdateSegmentIsr` op + `register_node` 返回 broker_epoch | 单测覆盖陈旧 epoch 拒绝 + segment_epoch CAS |
 | **M2 本地存储就位** | `ReplicaLog` trait + memory/rocksdb 实现 + `LeaderEpochCache` 持久化 | append/truncate/重启重建单测 |
 | **M3 副本同步跑通** | M1+M2 + 写入 epoch 校验 + long-poll fetch + OffsetsForLeaderEpoch | 单 leader + 2 follower,follower 能追上;注入 GC 暂停不被误踢 |
-| **M4 协议闭环** | M3 + ISR shrink/expand + AlterPartition + SegmentLeaderAndIsr 响应 + KIP-101 truncation + reconcile 兜底(§12.18) + 空 ISR 半自动恢复(§12.19) | **故障演练:验证 §12.2 不丢数据**(核心回归用例) |
+| **M4 协议闭环** | M3 + ISR shrink/expand + UpdateSegmentIsr + SegmentLeaderAndIsr 响应 + KIP-101 truncation + reconcile 兜底(§12.18) + 空 ISR 半自动恢复(§12.19) | **故障演练:验证 §12.2 不丢数据**(核心回归用例) |
 | **M5 故障演练** | M4 + §12 各场景的混沌测试 | 全部 19 个场景在测试环境下行为符合预期 |
 | **M6 filesegment 接入** | M5 + filesegment 实现 ReplicaLog + segment seal 时 fetcher 切换 | filesegment 全场景演练 |
 
@@ -483,7 +478,7 @@ AlterPartition 路径:
 3. **HW 推进只算 epoch 匹配的 follower**
    leader 切换后,旧 follower 还没切换到新 epoch 就 fetch 进来,**不算它**。否则它的旧 LEO 会拉低 HW(I6 补强)。
 
-4. **Leader 上任要 fsync LeaderEpochCache 才能接写**
+4. **Leader 上任要先持久化 LeaderEpochCache(同步写,无 fsync)才能接写**
    `LeaderInitializing` 状态期间所有写都拒(I11)。否则上任后立刻崩溃,新 epoch 没持久化,follower 用 OffsetsForLeaderEpoch 来问,leader 答不出来 → 日志分歧。
 
 5. **ISR 扩展条件是 `leo >= leader.leo`,不是 `>= hw`**(KIP-679 / I12)
@@ -492,7 +487,7 @@ AlterPartition 路径:
 6. **写入路径的 epoch 校验和 append 必须在同一把锁内**
    否则 LeaderAndIsr 通知插进来会让 zombie leader 漏网。锁内顺序:`校验 role → 校验 epoch → append → 更新 LEO`(I4)。
 
-7. **跨 epoch records 的处理顺序:先 cache.assign + fsync,后 log.append_at**
+7. **跨 epoch records 的处理顺序:先 cache.assign,后 log.append_at**
    反过来会让本地 log 比 epoch cache 长,崩溃后 OffsetsForLeaderEpoch 答错。同理 truncate:先 log truncate,后 cache truncate。
 
 ---

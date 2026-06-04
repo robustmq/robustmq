@@ -15,11 +15,6 @@
 use crate::core::error::StorageEngineError;
 use crate::isr::leader_epoch::LeaderEpochCache;
 
-/// Trim the LeaderEpochCache to `[log_start, leo]` on startup. The local log is
-/// authoritative: a crash between `assign` and `append` can leave the cache
-/// claiming epochs past the log end, and retention can leave entries below the
-/// log start; both make OffsetsForLeaderEpoch answer wrong (§8.-1 / §6.3 / §9.2).
-/// `local_leo` must be the real LEO from `ReplicaLog::latest_offset`.
 pub fn recover_leader_epoch_cache(
     cache: &mut LeaderEpochCache,
     local_leo: u64,
@@ -30,7 +25,6 @@ pub fn recover_leader_epoch_cache(
     Ok(())
 }
 
-/// Clamp a (possibly-lagging) HW checkpoint to the real LEO on startup.
 pub fn recover_hw(persisted_hw: u64, local_leo: u64) -> u64 {
     persisted_hw.min(local_leo)
 }
@@ -46,29 +40,17 @@ mod tests {
     }
 
     #[test]
-    fn drops_epochs_above_leo() {
-        let mut c = cache();
-        c.assign(1, 0).unwrap();
-        c.assign(2, 3).unwrap();
-        c.assign(3, 9).unwrap();
-
-        recover_leader_epoch_cache(&mut c, 5, 0).unwrap();
-
-        assert_eq!(c.latest_epoch(), 2);
-        assert_eq!(c.end_offset_for(2), None);
-    }
-
-    #[test]
-    fn drops_epochs_below_log_start() {
+    fn recover_trims_both_ends() {
         let mut c = cache();
         c.assign(1, 0).unwrap();
         c.assign(2, 5).unwrap();
-        c.assign(3, 10).unwrap();
+        c.assign(3, 9).unwrap();
 
-        recover_leader_epoch_cache(&mut c, 10, 7).unwrap();
+        recover_leader_epoch_cache(&mut c, 8, 3).unwrap();
 
+        assert_eq!(c.latest_epoch(), 2);
         assert_eq!(c.end_offset_for(1), Some(5));
-        assert_eq!(c.latest_epoch(), 3);
+        assert_eq!(c.end_offset_for(2), None);
     }
 
     #[test]

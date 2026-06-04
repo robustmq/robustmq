@@ -38,7 +38,9 @@ use super::default::{
     default_schema_log_level, default_schema_strategy, default_session_expiry_interval,
     default_slow_subscribe_delay_type, default_slow_subscribe_record_time,
     default_storage_expire_scan_task_num, default_storage_io_thread_num,
-    default_storage_max_segment_size, default_storage_offset_enable_cache,
+    default_storage_max_segment_size, default_storage_num_replica_fetchers,
+    default_storage_offset_enable_cache, default_storage_replica_fetch_backoff_ms,
+    default_storage_replica_fetch_max_wait_ms, default_storage_replica_fetch_min_bytes,
     default_storage_tcp_port, default_system_monitor_cpu_watermark,
     default_system_monitor_memory_watermark, default_system_monitor_topic_interval_ms,
     default_tls_cert, default_tls_key, default_topic_alias_max,
@@ -705,6 +707,14 @@ pub struct StorageRuntime {
     pub offset_enable_cache: bool,
     #[serde(default = "default_storage_expire_scan_task_num")]
     pub expire_scan_task_num: usize,
+    #[serde(default = "default_storage_num_replica_fetchers")]
+    pub num_replica_fetchers: u32,
+    #[serde(default = "default_storage_replica_fetch_min_bytes")]
+    pub replica_fetch_min_bytes: u64,
+    #[serde(default = "default_storage_replica_fetch_max_wait_ms")]
+    pub replica_fetch_max_wait_ms: u64,
+    #[serde(default = "default_storage_replica_fetch_backoff_ms")]
+    pub replica_fetch_backoff_ms: u64,
     #[serde(default = "default_network")]
     pub network: Network,
 }

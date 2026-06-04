@@ -202,6 +202,10 @@ pub fn default_engine_runtime() -> StorageRuntime {
         io_thread_num: 8,
         offset_enable_cache: true,
         expire_scan_task_num: 16,
+        num_replica_fetchers: 4,
+        replica_fetch_min_bytes: 1,
+        replica_fetch_max_wait_ms: 500,
+        replica_fetch_backoff_ms: 1000,
         network: default_network(),
     }
 }
@@ -369,6 +373,18 @@ pub fn default_storage_offset_enable_cache() -> bool {
 }
 pub fn default_storage_expire_scan_task_num() -> usize {
     16
+}
+pub fn default_storage_num_replica_fetchers() -> u32 {
+    4
+}
+pub fn default_storage_replica_fetch_min_bytes() -> u64 {
+    1
+}
+pub fn default_storage_replica_fetch_max_wait_ms() -> u64 {
+    500
+}
+pub fn default_storage_replica_fetch_backoff_ms() -> u64 {
+    1000
 }
 
 // ClusterLimit

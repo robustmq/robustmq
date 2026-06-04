@@ -16,6 +16,7 @@ use crate::core::offset_index::SegmentOffsetIndex;
 use crate::core::shard::ShardOffsetState;
 use crate::filesegment::segment_file::SegmentFile;
 use crate::filesegment::SegmentIdentity;
+use crate::isr::state::SegmentReplicaState;
 use broker_core::cache::NodeCacheManager;
 use common_base::tools::now_second;
 use dashmap::DashMap;
@@ -23,6 +24,7 @@ use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
 use std::sync::Arc;
+use tokio::sync::watch;
 
 #[derive(Clone)]
 pub struct StorageCacheManager {
@@ -52,6 +54,12 @@ pub struct StorageCacheManager {
 
     // (shard_name, ShardOffsetState)
     pub shard_offset_state: DashMap<String, ShardOffsetState>,
+
+    // ISR segment-level replica state ((shard, segment_seq) -> role/epoch/follower_progress)
+    pub segment_replica_states: DashMap<(String, u32), Arc<SegmentReplicaState>>,
+
+    // ISR per-shard HW watcher (wakes acks=all waiters; wired in T11)
+    pub hw_watchers: DashMap<String, watch::Sender<u64>>,
 }
 
 impl StorageCacheManager {
@@ -74,7 +82,36 @@ impl StorageCacheManager {
             segment_file_writer,
             is_next_segment,
             shard_offset_state,
+            segment_replica_states: DashMap::with_capacity(8),
+            hw_watchers: DashMap::with_capacity(8),
         }
+    }
+
+    // ISR segment replica state
+    pub fn get_or_create_segment_replica(
+        &self,
+        shard: &str,
+        segment_seq: u32,
+    ) -> Arc<SegmentReplicaState> {
+        self.segment_replica_states
+            .entry((shard.to_string(), segment_seq))
+            .or_insert_with(|| Arc::new(SegmentReplicaState::new(shard.to_string(), segment_seq)))
+            .clone()
+    }
+
+    pub fn get_segment_replica(
+        &self,
+        shard: &str,
+        segment_seq: u32,
+    ) -> Option<Arc<SegmentReplicaState>> {
+        self.segment_replica_states
+            .get(&(shard.to_string(), segment_seq))
+            .map(|s| s.clone())
+    }
+
+    pub fn remove_segment_replica(&self, shard: &str, segment_seq: u32) {
+        self.segment_replica_states
+            .remove(&(shard.to_string(), segment_seq));
     }
 
     // Shard

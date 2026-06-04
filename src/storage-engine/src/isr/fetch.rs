@@ -16,7 +16,7 @@ use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::isr::log::ReplicaLog;
-use crate::isr::state::{ReplicaRole, ReplicaStateRegistry};
+use crate::isr::state::ReplicaRole;
 use common_base::tools::now_second;
 use common_config::storage::StorageType;
 use metadata_struct::storage::record::StorageRecord;
@@ -25,21 +25,19 @@ use protocol::storage::protocol::{
 };
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::time::sleep;
 
 pub struct FetchEngines {
     pub memory: Arc<MemoryStorageEngine>,
     pub rocksdb: Arc<RocksDBStorageEngine>,
 }
 
-/// Batched fetch across shards: long-poll returns once any shard has
-/// >= min_bytes, else waits max_wait_ms and collects once more (§6.2).
 pub async fn handle_fetch(
-    registry: &Arc<ReplicaStateRegistry>,
     engines: &FetchEngines,
     cache_manager: &Arc<StorageCacheManager>,
     req: &FetchReqBody,
 ) -> FetchRespBody {
-    let resp = collect(registry, engines, cache_manager, req).await;
+    let resp = collect(engines, cache_manager, req).await;
 
     let has_data = resp
         .shards
@@ -49,13 +47,11 @@ pub async fn handle_fetch(
         return resp;
     }
 
-    // T9/T11 will wake this on append; for now just wait out the window.
-    tokio::time::sleep(Duration::from_millis(req.max_wait_ms)).await;
-    collect(registry, engines, cache_manager, req).await
+    sleep(Duration::from_millis(req.max_wait_ms)).await;
+    collect(engines, cache_manager, req).await
 }
 
 async fn collect(
-    registry: &Arc<ReplicaStateRegistry>,
     engines: &FetchEngines,
     cache_manager: &Arc<StorageCacheManager>,
     req: &FetchReqBody,
@@ -69,7 +65,7 @@ async fn collect(
         let shard_resp = match storage_type {
             Some(StorageType::EngineMemory) => {
                 fetch_one_shard(
-                    registry,
+                    cache_manager,
                     engines.memory.as_ref(),
                     req.replica_id,
                     req.replica_broker_epoch,
@@ -79,7 +75,7 @@ async fn collect(
             }
             Some(StorageType::EngineRocksDB) => {
                 fetch_one_shard(
-                    registry,
+                    cache_manager,
                     engines.rocksdb.as_ref(),
                     req.replica_id,
                     req.replica_broker_epoch,
@@ -103,11 +99,8 @@ fn records_bytes(records: &[Vec<u8>]) -> u64 {
     records.iter().map(|r| r.len() as u64).sum()
 }
 
-/// Leader-side fetch for one shard with the full five-fence sequence (§6.2).
-/// Rejections are carried in `error_code`, not returned as errors. HW advance
-/// (step 5) lands in T11b; `last_caught_up_ts` precise semantics land in T9.
 pub async fn fetch_one_shard<L: ReplicaLog>(
-    registry: &Arc<ReplicaStateRegistry>,
+    cache_manager: &Arc<StorageCacheManager>,
     log: &L,
     replica_id: u64,
     replica_broker_epoch: u64,
@@ -119,7 +112,7 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
         ..Default::default()
     };
 
-    let Some(state) = registry.get_segment(&req.shard_name, req.segment_seq) else {
+    let Some(state) = cache_manager.get_segment_replica(&req.shard_name, req.segment_seq) else {
         resp.error_code = FetchErrorCode::NotLeaderForPartition.as_u32();
         return resp;
     };
@@ -152,30 +145,26 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
         .unwrap_or(0);
     resp.leader_leo = leo;
     resp.leader_log_start = log_start;
-    resp.leader_hw = registry
-        .get_or_create_shard(&req.shard_name)
-        .local_hw
-        .load(std::sync::atomic::Ordering::SeqCst);
+    resp.leader_hw = cache_manager
+        .get_offset_state(&req.shard_name)
+        .map(|s| s.high_watermark_offset)
+        .unwrap_or(0);
 
     if req.fetch_offset < log_start || req.fetch_offset > leo {
         resp.error_code = FetchErrorCode::OffsetOutOfRange.as_u32();
         return resp;
     }
 
-    let now = now_second();
-    {
-        let mut progress = state.follower_progress.entry(replica_id).or_default();
-        if replica_broker_epoch < progress.broker_epoch {
-            resp.error_code = FetchErrorCode::StaleBrokerEpoch.as_u32();
-            return resp;
-        }
-        progress.broker_epoch = replica_broker_epoch;
-        progress.last_known_leader_epoch = req.current_leader_epoch;
-        progress.leo = req.fetch_offset;
-        progress.last_fetch_ts = now;
-        if req.fetch_offset >= leo {
-            progress.last_caught_up_ts = now;
-        }
+    if !state.update_follower_progress(
+        replica_id,
+        replica_broker_epoch,
+        req.current_leader_epoch,
+        req.fetch_offset,
+        leo,
+        now_second(),
+    ) {
+        resp.error_code = FetchErrorCode::StaleBrokerEpoch.as_u32();
+        return resp;
     }
 
     match log
@@ -200,8 +189,8 @@ fn encode_records(records: &[StorageRecord]) -> Vec<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commitlog::memory::engine::MemoryStorageEngine;
     use crate::core::test_tool::test_build_memory_engine;
-    use crate::isr::state::ReplicaStateRegistry;
     use bytes::Bytes;
     use metadata_struct::storage::record::StorageRecord;
 
@@ -226,13 +215,9 @@ mod tests {
         }
     }
 
-    async fn setup_leader() -> (
-        Arc<ReplicaStateRegistry>,
-        crate::commitlog::memory::engine::MemoryStorageEngine,
-    ) {
-        let reg = Arc::new(ReplicaStateRegistry::new());
+    async fn setup_leader() -> MemoryStorageEngine {
         let engine = test_build_memory_engine();
-        let state = reg.get_or_create_segment("s", 0);
+        let state = engine.cache_manager.get_or_create_segment_replica("s", 0);
         state.set_role(ReplicaRole::LeaderActive);
         state.set_leader_epoch(3);
         engine
@@ -244,73 +229,59 @@ mod tests {
             )
             .await
             .unwrap();
-        (reg, engine)
+        engine
     }
 
     #[tokio::test]
-    async fn leader_returns_records_from_offset() {
-        let (reg, engine) = setup_leader().await;
-        let resp = fetch_one_shard(&reg, &engine, 2, 1, &shard_req(3, 1)).await;
+    async fn leader_serves_records_and_empty_tail() {
+        let engine = setup_leader().await;
+        let cm = &engine.cache_manager;
+
+        let resp = fetch_one_shard(cm, &engine, 2, 1, &shard_req(3, 1)).await;
         assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
         assert_eq!(resp.records.len(), 2);
         assert_eq!(resp.leader_leo, 3);
-    }
 
-    #[tokio::test]
-    async fn rejects_non_leader() {
-        let reg = Arc::new(ReplicaStateRegistry::new());
-        let engine = test_build_memory_engine();
-        reg.get_or_create_segment("s", 0);
-        let resp = fetch_one_shard(&reg, &engine, 2, 1, &shard_req(3, 0)).await;
-        assert_eq!(
-            resp.error_code,
-            FetchErrorCode::NotLeaderForPartition.as_u32()
-        );
-    }
-
-    #[tokio::test]
-    async fn rejects_stale_leader_epoch() {
-        let (reg, engine) = setup_leader().await;
-        let resp = fetch_one_shard(&reg, &engine, 2, 1, &shard_req(2, 1)).await;
-        assert_eq!(resp.error_code, FetchErrorCode::FencedLeaderEpoch.as_u32());
-    }
-
-    #[tokio::test]
-    async fn follower_ahead_returns_unknown_epoch() {
-        let (reg, engine) = setup_leader().await;
-        let resp = fetch_one_shard(&reg, &engine, 2, 1, &shard_req(9, 1)).await;
-        assert_eq!(resp.error_code, FetchErrorCode::UnknownLeaderEpoch.as_u32());
-    }
-
-    #[tokio::test]
-    async fn rejects_offset_out_of_range() {
-        let (reg, engine) = setup_leader().await;
-        let resp = fetch_one_shard(&reg, &engine, 2, 1, &shard_req(3, 99)).await;
-        assert_eq!(resp.error_code, FetchErrorCode::OffsetOutOfRange.as_u32());
-    }
-
-    #[tokio::test]
-    async fn rejects_stale_broker_epoch() {
-        let (reg, engine) = setup_leader().await;
-        fetch_one_shard(&reg, &engine, 2, 5, &shard_req(3, 1)).await;
-        let resp = fetch_one_shard(&reg, &engine, 2, 3, &shard_req(3, 1)).await;
-        assert_eq!(resp.error_code, FetchErrorCode::StaleBrokerEpoch.as_u32());
-    }
-
-    #[tokio::test]
-    async fn empty_tail_at_leo() {
-        let (reg, engine) = setup_leader().await;
-        let resp = fetch_one_shard(&reg, &engine, 2, 1, &shard_req(3, 3)).await;
+        let resp = fetch_one_shard(cm, &engine, 2, 1, &shard_req(3, 3)).await;
         assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
         assert!(resp.records.is_empty());
     }
 
     #[tokio::test]
+    async fn fences_reject() {
+        let engine = setup_leader().await;
+        let cm = &engine.cache_manager;
+        let code = |r: FetchShardResp| r.error_code;
+
+        let mut missing = shard_req(3, 0);
+        missing.shard_name = "missing".to_string();
+        assert_eq!(
+            code(fetch_one_shard(cm, &engine, 2, 1, &missing).await),
+            FetchErrorCode::NotLeaderForPartition.as_u32()
+        );
+        assert_eq!(
+            code(fetch_one_shard(cm, &engine, 2, 1, &shard_req(2, 1)).await),
+            FetchErrorCode::FencedLeaderEpoch.as_u32()
+        );
+        assert_eq!(
+            code(fetch_one_shard(cm, &engine, 2, 1, &shard_req(9, 1)).await),
+            FetchErrorCode::UnknownLeaderEpoch.as_u32()
+        );
+        assert_eq!(
+            code(fetch_one_shard(cm, &engine, 2, 1, &shard_req(3, 99)).await),
+            FetchErrorCode::OffsetOutOfRange.as_u32()
+        );
+        fetch_one_shard(cm, &engine, 2, 5, &shard_req(3, 1)).await;
+        assert_eq!(
+            code(fetch_one_shard(cm, &engine, 2, 3, &shard_req(3, 1)).await),
+            FetchErrorCode::StaleBrokerEpoch.as_u32()
+        );
+    }
+
+    #[tokio::test]
     async fn batched_fetch_returns_per_segment() {
-        use crate::isr::state::ReplicaRole;
         use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
 
-        let reg = Arc::new(ReplicaStateRegistry::new());
         let mem = Arc::new(test_build_memory_engine());
         let engines = FetchEngines {
             memory: mem.clone(),
@@ -326,7 +297,7 @@ mod tests {
                 },
                 ..Default::default()
             });
-            let st = reg.get_or_create_segment(shard, 0);
+            let st = mem.cache_manager.get_or_create_segment_replica(shard, 0);
             st.set_role(ReplicaRole::LeaderActive);
             st.set_leader_epoch(1);
         }
@@ -356,7 +327,7 @@ mod tests {
                 },
             ],
         };
-        let resp = handle_fetch(&reg, &engines, &mem.cache_manager, &req).await;
+        let resp = handle_fetch(&engines, &mem.cache_manager, &req).await;
         assert_eq!(resp.shards.len(), 2);
         assert_eq!(resp.shards[0].records.len(), 2);
         assert!(resp.shards[1].records.is_empty());
