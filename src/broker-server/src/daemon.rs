@@ -46,7 +46,7 @@ pub(crate) fn register_shutdown_listener() {
         let mut action: libc::sigaction = std::mem::zeroed();
         action.sa_sigaction = handle_term_signal as extern "C" fn(libc::c_int) as usize;
         libc::sigemptyset(&mut action.sa_mask);
-        action.sa_flags = 0;
+        action.sa_flags = libc::SA_RESTART;
         if libc::sigaction(libc::SIGINT, &action, std::ptr::null_mut()) != 0 {
             error!("failed to register SIGINT handler");
         }
@@ -273,7 +273,13 @@ impl BrokerServer {
                 }
             }
 
-            sleep(Duration::from_secs(5)).await;
+            let drain_start = tokio::time::Instant::now();
+            while self.task_supervisor.has_running() {
+                if drain_start.elapsed() >= Duration::from_secs(5) {
+                    break;
+                }
+                sleep(Duration::from_millis(100)).await;
+            }
 
             // Stop Phase 9: Meta Service.
             // A restarting node keeps its Raft membership; per openraft, a node

@@ -37,8 +37,6 @@ pub async fn recover_snapshot(
     db: &Arc<DB>,
     snapshot: Snapshot<TypeConfig>,
 ) -> StorageResult<()> {
-    let row_db = db.clone();
-    let row_machine = machine.clone();
     let snapshot_id = snapshot.meta.snapshot_id.clone();
 
     info!(
@@ -46,24 +44,28 @@ pub async fn recover_snapshot(
         machine, snapshot_id
     );
 
-    tokio::spawn(async move {
-        let res = match row_machine {
-            RaftStateMachineName::METADATA => recover_snapshot_by_metadata(&row_db, snapshot).await,
-            RaftStateMachineName::OFFSET => recover_snapshot_by_offset(&row_db, snapshot).await,
-            RaftStateMachineName::DATA => recover_snapshot_by_mqtt(&row_db, snapshot).await,
-        };
-        if let Err(e) = res {
-            error!(
-                "[{}] Failed to recover snapshot from snapshot_id={}: {:?}",
-                row_machine, snapshot_id, e
-            );
-        } else {
-            info!(
-                "[{}] Snapshot recovery completed successfully for snapshot_id={}",
-                row_machine, snapshot_id
-            );
-        }
-    });
+    // Recover synchronously: openraft treats `install_snapshot` returning Ok as
+    // "the state machine now reflects this snapshot" and will advance
+    // last_applied / purge logs accordingly. If we spawned the import in a
+    // detached task and returned early, openraft could purge logs that the
+    // (not-yet-written) snapshot data has not replaced — losing committed state.
+    let res = match machine {
+        RaftStateMachineName::METADATA => recover_snapshot_by_metadata(db, snapshot).await,
+        RaftStateMachineName::OFFSET => recover_snapshot_by_offset(db, snapshot).await,
+        RaftStateMachineName::DATA => recover_snapshot_by_mqtt(db, snapshot).await,
+    };
+    if let Err(e) = res {
+        error!(
+            "[{}] Failed to recover snapshot from snapshot_id={}: {:?}",
+            machine, snapshot_id, e
+        );
+        return Err(e);
+    }
+
+    info!(
+        "[{}] Snapshot recovery completed successfully for snapshot_id={}",
+        machine, snapshot_id
+    );
 
     Ok(())
 }

@@ -86,7 +86,12 @@ pub async fn monitoring_leader_transition(
                 }
 
                 Err(changed_err) => {
-                    error!("Error while watching metrics_rx: {}; quitting monitoring_leader_transition() loop",changed_err);}
+                    // The Raft metrics channel closed (the Raft instance was
+                    // dropped, e.g. on shutdown). Exit the loop instead of
+                    // spinning on a permanently-errored channel.
+                    error!("Error while watching metrics_rx: {}; quitting monitoring_leader_transition() loop", changed_err);
+                    break;
+                }
                 }
             }
         }

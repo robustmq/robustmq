@@ -165,6 +165,13 @@ impl TaskSupervisor {
         false
     }
 
+    /// Whether any supervised task is still in the `Running` state.
+    pub fn has_running(&self) -> bool {
+        self.task_status
+            .iter()
+            .any(|entry| *entry.value() == TaskState::Running)
+    }
+
     async fn set_state(&self, kind: String, state: TaskState) {
         self.task_status.insert(kind, state);
     }

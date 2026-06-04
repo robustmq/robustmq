@@ -16,7 +16,7 @@
 use common_base::{error::common::CommonError, utils::serialize};
 use rocksdb::{
     BlockBasedOptions, BoundColumnFamily, Cache, ColumnFamilyDescriptor, DBCompactionStyle,
-    DBCompressionType, Options, SliceTransform, DB,
+    DBCompressionType, Options, ReadOptions, SliceTransform, DB,
 };
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -175,13 +175,25 @@ impl RocksDBEngine {
         Ok(output)
     }
 
-    // Search data by prefix
+    /// ReadOptions with `total_order_seek` enabled — required for correct
+    /// prefix/range scans because this DB uses a 10-byte fixed-prefix extractor
+    /// while metadata keys are longer (e.g. `/meta/tenant/<name>`). Without it a
+    /// seek iterator is bounded to the seek key's prefix-bloom domain and can
+    /// skip matching keys in other memtable/SST blocks.
+    fn total_order_read_opts() -> ReadOptions {
+        let mut opts = ReadOptions::default();
+        opts.set_total_order_seek(true);
+        opts
+    }
+
     pub fn read_prefix(
         &self,
         cf: Arc<BoundColumnFamily<'_>>,
         search_key: &str,
     ) -> Result<Vec<(String, Vec<u8>)>, CommonError> {
-        let mut iter = self.db.raw_iterator_cf(&cf);
+        let mut iter = self
+            .db
+            .raw_iterator_cf_opt(&cf, Self::total_order_read_opts());
         iter.seek(search_key);
 
         let mut result = Vec::with_capacity(64); // Pre-allocate capacity
@@ -213,7 +225,10 @@ impl RocksDBEngine {
     ) -> Result<Vec<(String, Vec<u8>)>, CommonError> {
         let mut result = Vec::with_capacity(64); // Pre-allocate capacity
 
-        for item in self.db.iterator_cf(&cf, *mode) {
+        for item in self
+            .db
+            .iterator_cf_opt(&cf, Self::total_order_read_opts(), *mode)
+        {
             let (k, value) = item?;
             let key = String::from_utf8(k.to_vec())?;
             result.push((key, value.to_vec()));
@@ -226,7 +241,9 @@ impl RocksDBEngine {
         &self,
         cf: Arc<BoundColumnFamily<'_>>,
     ) -> Result<Vec<(String, Vec<u8>)>, CommonError> {
-        let mut iter = self.db.raw_iterator_cf(&cf);
+        let mut iter = self
+            .db
+            .raw_iterator_cf_opt(&cf, Self::total_order_read_opts());
         iter.seek_to_first();
 
         let mut result = Vec::with_capacity(128); // Pre-allocate for "all" data

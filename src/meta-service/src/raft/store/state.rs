@@ -162,6 +162,7 @@ impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
 
         build_snapshot(
             &machine_name,
+            &self.machine,
             &self.db,
             &self.data.last_applied_log_id,
             &self.data.last_membership,
@@ -265,6 +266,15 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
         )
         .await?;
 
+        // After importing the snapshot data, the state machine now reflects the
+        // snapshot's coverage. Persist last_applied / last_membership so that on
+        // the next restart `applied_state()` matches the installed snapshot and
+        // openraft's `last_applied <= snapshot_last_log_id` invariant holds.
+        self.data.last_applied_log_id = meta.last_log_id;
+        self.data.last_membership = meta.last_membership.clone();
+        self.set_last_applied_(meta.last_log_id)?;
+        self.set_last_membership_(&self.data.last_membership)?;
+
         Ok(())
     }
 
@@ -273,7 +283,19 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
     ) -> Result<Option<Snapshot<TypeConfig>>, StorageError<NodeId>> {
         // Return the stored snapshot as-is (used to bring lagging followers up to
         // date). Must NOT be dropped by comparing with last_applied.
-        get_current_snapshot(&self.machine)
+        //
+        // Use the parsed group name (e.g. "data"), matching how build_snapshot /
+        // install_snapshot store it — self.machine is the shard name ("data_0"),
+        // and using it directly would look up a non-existent "data_0.*" snapshot
+        // id and wrongly return None (which crashes RaftCore with
+        // "Read Snapshot(None): snapshot not found").
+        let machine_name = self.machine.parse::<RaftStateMachineName>().map_err(|e| {
+            sto_read(&CommonError::CommonError(format!(
+                "Invalid machine name {}: {}",
+                self.machine, e
+            )))
+        })?;
+        get_current_snapshot(machine_name.as_str())
             .await
             .map_err(|e| sto_read(&e))
     }

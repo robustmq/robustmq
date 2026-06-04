@@ -23,7 +23,7 @@ use openraft::{
     AnyError, Entry, LogId, LogState, OptionalSend, RaftLogReader, StorageError, StorageIOError,
     Vote,
 };
-use rocksdb::{BoundColumnFamily, Direction, IteratorMode, WriteBatch, DB};
+use rocksdb::{BoundColumnFamily, Direction, IteratorMode, ReadOptions, WriteBatch, DB};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::fmt::Debug;
 use std::ops::RangeBounds;
@@ -158,8 +158,15 @@ impl RaftLogReader<TypeConfig> for LogStore {
 
         let mut entries = Vec::new();
 
-        for item in self.db.iterator_cf(
+        // total_order_seek: 17-byte log keys exceed the DB's 10-byte fixed-prefix
+        // extractor, so without it the iterator is bounded to the seek key's
+        // prefix domain and silently skips entries — the log appears empty.
+        let mut read_opts = ReadOptions::default();
+        read_opts.set_total_order_seek(true);
+
+        for item in self.db.iterator_cf_opt(
             &self.store(),
+            read_opts,
             IteratorMode::From(&start, Direction::Forward),
         ) {
             let (key, val) = item.map_err(|e| sto_read_logs(&e))?;
@@ -188,10 +195,18 @@ impl RaftLogStorage<TypeConfig> for LogStore {
     async fn get_log_state(&mut self) -> StorageResult<LogState<TypeConfig>> {
         let start_key = key_raft_log(&self.machine, u64::MAX);
 
+        // total_order_seek (see try_get_log_entries). The reverse seek key's
+        // prefix ends in 0xFF, which no real entry shares, so without it the
+        // iterator returns nothing and get_log_state reports last_log_id=None
+        // even though logs exist — making openraft think the log was lost.
+        let mut read_opts = ReadOptions::default();
+        read_opts.set_total_order_seek(true);
+
         let last = self
             .db
-            .iterator_cf(
+            .iterator_cf_opt(
                 &self.store(),
+                read_opts,
                 IteratorMode::From(&start_key, Direction::Reverse),
             )
             .find_map(|res| {
@@ -336,6 +351,54 @@ mod tests {
         }
         log_store.db.write(batch).map_err(|e| sto_write_logs(&e))?;
         Ok(())
+    }
+
+    // Regression test for the prefix-extractor / total_order_seek bug: with the
+    // production RocksDBEngine options (10-byte fixed-prefix extractor), reopen
+    // the DB and prove get_log_state still finds the logs. Without
+    // total_order_seek the reverse seek returned last_log_id=None, which made
+    // openraft purge past the snapshot and panic on restart.
+    #[tokio::test]
+    async fn test_get_log_state_survives_reopen_with_prefix_extractor() {
+        use rocksdb_engine::rocksdb::RocksDBEngine;
+        use rocksdb_engine::storage::family::column_family_list;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_str().unwrap().to_string();
+
+        // Append logs 1..=50, then drop the engine (simulating shutdown).
+        {
+            let engine = Arc::new(RocksDBEngine::new(&path, 100000, column_family_list()));
+            let mut log_store = LogStore {
+                machine: "metadata_0".to_string(),
+                db: engine.db.clone(),
+            };
+            let entries: Vec<_> = (1..=50).map(|i| create_entry(1, 1, i)).collect();
+            append_entries(&mut log_store, entries).await.unwrap();
+
+            let st = log_store.get_log_state().await.unwrap();
+            assert_eq!(st.last_log_id.map(|l| l.index), Some(50));
+        }
+
+        // Reopen the engine (simulating restart) and verify the log is still
+        // readable — this is exactly the path that returned None before the fix.
+        {
+            let engine = Arc::new(RocksDBEngine::new(&path, 100000, column_family_list()));
+            let mut log_store = LogStore {
+                machine: "metadata_0".to_string(),
+                db: engine.db.clone(),
+            };
+            let st = log_store.get_log_state().await.unwrap();
+            assert_eq!(
+                st.last_log_id.map(|l| l.index),
+                Some(50),
+                "get_log_state must find the last log id after reopen"
+            );
+            assert_eq!(
+                log_store.try_get_log_entries(1..=50).await.unwrap().len(),
+                50
+            );
+        }
     }
 
     #[tokio::test]

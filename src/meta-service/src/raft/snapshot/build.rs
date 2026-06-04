@@ -15,13 +15,16 @@
 use super::{save_last_snapshot_id, save_snapshot_meta, snapshot_name};
 use crate::core::error::MetaServiceError;
 use crate::raft::manager::RaftStateMachineName;
+use crate::raft::store::keys::key_last_applied;
 use crate::raft::type_config::{Node, NodeId, StorageResult, TypeConfig};
+use bincode::deserialize;
 use common_base::tools::now_nanos;
 use common_config::broker::broker_config;
 use openraft::{LogId, Snapshot, SnapshotMeta, StorageError, StorageIOError, StoredMembership};
 use rocksdb::{IteratorMode, DB};
 use rocksdb_engine::storage::family::{
     storage_raft_snapshot_fold, DB_COLUMN_FAMILY_META_DATA, DB_COLUMN_FAMILY_META_METADATA,
+    DB_COLUMN_FAMILY_META_RAFT,
 };
 use std::io::{ErrorKind, Write};
 use std::sync::Arc;
@@ -34,6 +37,7 @@ fn sto_read(e: &(impl std::error::Error + 'static)) -> StorageError<NodeId> {
 
 pub async fn build_snapshot(
     machine: &RaftStateMachineName,
+    shard: &str,
     db: &Arc<DB>,
     last_applied_log_id: &Option<LogId<NodeId>>,
     last_membership: &StoredMembership<NodeId, Node>,
@@ -44,12 +48,19 @@ pub async fn build_snapshot(
         machine, snapshot_id
     );
 
+    // Take the point-in-time snapshot first, then read `last_applied` from that
+    // same view so the snapshot's `last_log_id` matches the data it dumps. Using
+    // the in-memory clone (which `apply` keeps advancing) would let the meta lag
+    // the data and trip `purge_upto <= snapshot_last_log_id` on restart.
+    let snapshot_db = db.snapshot();
+    let snapshot_last_applied =
+        read_last_applied_from_snapshot(db, &snapshot_db, shard).unwrap_or(*last_applied_log_id);
+
     let meta = SnapshotMeta {
-        last_log_id: *last_applied_log_id,
+        last_log_id: snapshot_last_applied,
         last_membership: last_membership.clone(),
         snapshot_id: snapshot_id.clone(),
     };
-    let snapshot_db = db.snapshot();
     let snapshot_name_path = snapshot_name(&snapshot_id);
 
     let res = match machine {
@@ -111,6 +122,25 @@ pub async fn build_snapshot(
         meta,
         snapshot: Box::new(res),
     })
+}
+
+/// Read the state machine's `last_applied` log id from a RocksDB point-in-time
+/// snapshot view, so it is consistent with the data dumped from the same view.
+/// Returns `None` if the key cannot be read/decoded (treated as "unknown").
+fn read_last_applied_from_snapshot(
+    db: &Arc<DB>,
+    snapshot_db: &rocksdb::Snapshot<'_>,
+    machine: &str,
+) -> Option<Option<LogId<NodeId>>> {
+    let cf = db.cf_handle(DB_COLUMN_FAMILY_META_RAFT)?;
+    match snapshot_db.get_cf(&cf, key_last_applied(machine)) {
+        Ok(Some(v)) => match deserialize::<LogId<NodeId>>(&v) {
+            Ok(log_id) => Some(Some(log_id)),
+            Err(_) => None,
+        },
+        Ok(None) => Some(None),
+        Err(_) => None,
+    }
 }
 
 async fn build_snapshot_by_metadata(

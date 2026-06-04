@@ -112,7 +112,8 @@ where
                     if let Some(leader_addr) = get_forward_addr(&err) {
                         client_pool.set_leader_addr(method.to_string(), leader_addr.clone());
                         let mut leader_client = Req::get_client(client_pool, &leader_addr);
-                        if let Ok(data) = Req::call_once(&mut leader_client, request.clone()).await {
+                        if let Ok(data) = Req::call_once(&mut leader_client, request.clone()).await
+                        {
                             return Ok(data);
                         }
                     }

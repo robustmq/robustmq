@@ -25,7 +25,7 @@ use common_metrics::meta::raft::{init_raft_shards_metrics, record_raft_apply_lag
 use grpc_clients::meta::common::call::join_cluster;
 use grpc_clients::pool::ClientPool;
 use openraft::raft::ClientWriteResponse;
-use openraft::{Config, Raft};
+use openraft::{Config, Raft, SnapshotPolicy};
 use protocol::meta::meta_service_common::JoinClusterRequest;
 use std::sync::Arc;
 use std::time::Duration;
@@ -177,7 +177,10 @@ impl MultiRaftManager {
         };
 
         if initialized {
-            info!("Node {} has persisted state, recovering existing cluster", self_id);
+            info!(
+                "Node {} has persisted state, recovering existing cluster",
+                self_id
+            );
             info!("Multi-Raft started");
             return Ok(());
         }
@@ -384,6 +387,14 @@ impl MultiRaftManager {
             heartbeat_interval: 500,
             election_timeout_min: 1500,
             election_timeout_max: 3000,
+            // Build a snapshot every 100 applied logs and keep a small log tail
+            // afterwards. Without an active snapshot policy, openraft purges logs
+            // while the persisted snapshot lags behind last_applied, so on restart
+            // purge_upto ends up greater than snapshot_last_log_id and RaftCore
+            // panics ("invalid state"). A modest threshold keeps snapshot and
+            // applied state in sync across restarts.
+            snapshot_policy: SnapshotPolicy::LogsSinceLast(100),
+            max_in_snapshot_log_to_keep: 1000,
             ..Default::default()
         };
 
