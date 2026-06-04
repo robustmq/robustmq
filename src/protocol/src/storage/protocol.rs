@@ -25,6 +25,7 @@ pub enum ApiKey {
     Unimplemented,
     Read,
     Write,
+    Fetch,
 }
 
 impl Default for ApiKey {
@@ -446,6 +447,143 @@ impl ReadResp {
 
     pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+// ISR follower fetch (isr.md §6.7). Batched across shards: a broker follows
+// thousands of shards, each pulling its one active segment.
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct FetchShardReq {
+    pub shard_name: String,
+    pub segment_seq: u32,
+    pub fetch_offset: u64,
+    pub current_leader_epoch: u32,
+    pub max_bytes: u64,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct FetchReqBody {
+    pub replica_id: u64,
+    pub replica_broker_epoch: u64,
+    pub min_bytes: u64,
+    pub max_wait_ms: u64,
+    pub shards: Vec<FetchShardReq>,
+}
+
+impl FetchReqBody {
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct FetchReq {
+    pub header: ReqHeader,
+    pub body: FetchReqBody,
+}
+
+impl FetchReq {
+    pub fn new(body: FetchReqBody) -> Self {
+        Self {
+            header: ReqHeader::new(ApiKey::Fetch),
+            body,
+        }
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct FetchShardResp {
+    pub shard_name: String,
+    pub segment_seq: u32,
+    pub records: Vec<Vec<u8>>,
+    pub leader_hw: u64,
+    pub leader_log_start: u64,
+    pub leader_leo: u64,
+    pub leader_epoch: u32,
+    pub error_code: u32,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct FetchRespBody {
+    pub shards: Vec<FetchShardResp>,
+}
+
+impl FetchRespBody {
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct FetchResp {
+    pub header: RespHeader,
+    pub body: FetchRespBody,
+}
+
+impl FetchResp {
+    pub fn new(body: FetchRespBody) -> Self {
+        Self {
+            header: RespHeader::new(ApiKey::Fetch),
+            body,
+        }
+    }
+
+    pub fn with_error(error: StorageEngineNetworkError) -> Self {
+        Self {
+            header: RespHeader::with_error(ApiKey::Fetch, error),
+            body: FetchRespBody::default(),
+        }
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+/// Per-shard fetch result code (isr.md §6.2); rejections are normal under
+/// leader change / retention.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FetchErrorCode {
+    None = 0,
+    NotLeaderForPartition = 1,
+    FencedLeaderEpoch = 2,
+    UnknownLeaderEpoch = 3,
+    OffsetOutOfRange = 4,
+    StaleBrokerEpoch = 5,
+}
+
+impl FetchErrorCode {
+    pub fn as_u32(self) -> u32 {
+        self as u32
     }
 }
 

@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::protocol::{ApiKey, ReadReq, ReadResp, WriteReq, WriteResp};
+use super::protocol::{
+    ApiKey, FetchReq, FetchResp, ReadReq, ReadResp, WriteReq, WriteResp,
+};
 use super::StorageError;
 use bytes::{BufMut, BytesMut};
 use std::fmt;
@@ -27,6 +29,8 @@ pub enum StorageEnginePacket {
     WriteResp(WriteResp),
     ReadReq(ReadReq),
     ReadResp(ReadResp),
+    FetchReq(FetchReq),
+    FetchResp(FetchResp),
 }
 
 impl fmt::Display for StorageEnginePacket {
@@ -36,6 +40,8 @@ impl fmt::Display for StorageEnginePacket {
             StorageEnginePacket::WriteResp(_) => write!(f, "WriteResp"),
             StorageEnginePacket::ReadReq(_) => write!(f, "ReadReq"),
             StorageEnginePacket::ReadResp(_) => write!(f, "ReadResp"),
+            StorageEnginePacket::FetchReq(_) => write!(f, "FetchReq"),
+            StorageEnginePacket::FetchResp(_) => write!(f, "FetchResp"),
         }
     }
 }
@@ -78,6 +84,15 @@ impl StorageEngineCodec {
                 req_type = 1;
             }
             StorageEnginePacket::ReadResp(data) => {
+                header_byte = data.header.encode();
+                body_byte = data.body.encode();
+            }
+            StorageEnginePacket::FetchReq(data) => {
+                header_byte = data.header.encode();
+                body_byte = data.body.encode();
+                req_type = 1;
+            }
+            StorageEnginePacket::FetchResp(data) => {
                 header_byte = data.header.encode();
                 body_byte = data.body.encode();
             }
@@ -174,6 +189,7 @@ impl StorageEngineCodec {
                     Ok(header) => match header.api_key {
                         ApiKey::Write => decode_write_req(&body_bytes, header),
                         ApiKey::Read => decode_read_req(&body_bytes, header),
+                        ApiKey::Fetch => decode_fetch_req(&body_bytes, header),
                         _ => Err(StorageError::NotAvailableRequestType(req_type)),
                     },
                     Err(e) => Err(StorageError::DecodeHeaderError(e.to_string())),
@@ -185,6 +201,7 @@ impl StorageEngineCodec {
                     Ok(header) => match header.api_key {
                         ApiKey::Write => decode_write_resp(&body_bytes, header),
                         ApiKey::Read => decode_read_resp(&body_bytes, header),
+                        ApiKey::Fetch => decode_fetch_resp(&body_bytes, header),
                         _ => Err(StorageError::NotAvailableRequestType(req_type)),
                     },
                     Err(e) => Err(StorageError::DecodeHeaderError(e.to_string())),
@@ -282,6 +299,40 @@ fn decode_read_resp(
     }
 }
 
+fn decode_fetch_req(
+    body_bytes: &[u8],
+    header: super::protocol::ReqHeader,
+) -> Result<Option<StorageEnginePacket>, StorageError> {
+    use super::protocol::FetchReqBody;
+    match FetchReqBody::decode(body_bytes) {
+        Ok(body) => Ok(Some(StorageEnginePacket::FetchReq(FetchReq {
+            header,
+            body,
+        }))),
+        Err(e) => Err(StorageError::DecodeBodyError(
+            "fetch_req".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn decode_fetch_resp(
+    body_bytes: &[u8],
+    header: super::protocol::RespHeader,
+) -> Result<Option<StorageEnginePacket>, StorageError> {
+    use super::protocol::FetchRespBody;
+    match FetchRespBody::decode(body_bytes) {
+        Ok(body) => Ok(Some(StorageEnginePacket::FetchResp(FetchResp {
+            header,
+            body,
+        }))),
+        Err(e) => Err(StorageError::DecodeBodyError(
+            "fetch_resp".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{StorageEngineCodec, StorageEnginePacket};
@@ -299,6 +350,62 @@ mod tests {
         codec.encode_data(source.clone(), &mut dst).unwrap();
         let target = codec.decode_data(&mut dst).unwrap().unwrap();
 
+        assert_eq!(source, target);
+    }
+
+    #[test]
+    fn fetch_req_codec_test() {
+        let body = FetchReqBody {
+            replica_id: 2,
+            replica_broker_epoch: 7,
+            min_bytes: 1,
+            max_wait_ms: 500,
+            shards: vec![
+                FetchShardReq {
+                    shard_name: "s1".to_string(),
+                    segment_seq: 0,
+                    fetch_offset: 42,
+                    current_leader_epoch: 3,
+                    max_bytes: 1024,
+                },
+                FetchShardReq {
+                    shard_name: "s2".to_string(),
+                    segment_seq: 1,
+                    fetch_offset: 0,
+                    current_leader_epoch: 1,
+                    max_bytes: 2048,
+                },
+            ],
+        };
+        let source = StorageEnginePacket::FetchReq(FetchReq::new(body));
+
+        let mut codec = StorageEngineCodec::new();
+        let mut dst = bytes::BytesMut::new();
+        codec.encode_data(source.clone(), &mut dst).unwrap();
+        let target = codec.decode_data(&mut dst).unwrap().unwrap();
+        assert_eq!(source, target);
+    }
+
+    #[test]
+    fn fetch_resp_codec_test() {
+        let body = FetchRespBody {
+            shards: vec![FetchShardResp {
+                shard_name: "s1".to_string(),
+                segment_seq: 0,
+                records: vec![vec![1, 2, 3], vec![4, 5]],
+                leader_hw: 10,
+                leader_log_start: 0,
+                leader_leo: 12,
+                leader_epoch: 3,
+                error_code: 0,
+            }],
+        };
+        let source = StorageEnginePacket::FetchResp(FetchResp::new(body));
+
+        let mut codec = StorageEngineCodec::new();
+        let mut dst = bytes::BytesMut::new();
+        codec.encode_data(source.clone(), &mut dst).unwrap();
+        let target = codec.decode_data(&mut dst).unwrap().unwrap();
         assert_eq!(source, target);
     }
 
