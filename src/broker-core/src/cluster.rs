@@ -26,8 +26,8 @@ use metadata_struct::meta::extend::{KafkaNodeExtend, MqttNodeExtend, NatsNodeExt
 use metadata_struct::meta::node::BrokerNode;
 use protocol::meta::meta_service_common::{
     ClusterStatusRequest, DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest,
-    LeaveClusterRequest, NodeListRequest, RegisterNodeRequest, SetRequest, SetResourceConfigRequest,
-    UnRegisterNodeRequest,
+    LeaveClusterRequest, NodeListRequest, RegisterNodeRequest, SetRequest,
+    SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use std::sync::Arc;
 
