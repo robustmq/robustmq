@@ -106,6 +106,7 @@ pub async fn update_cache(
             if let Err(e) = update_storage_cache_metadata(
                 &storage_params.cache_manager,
                 &storage_params.rocksdb_engine_handler,
+                &storage_params.fetcher_manager,
                 record,
             )
             .await

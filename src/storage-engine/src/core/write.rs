@@ -28,13 +28,13 @@ use crate::{
 };
 use common_base::utils::serialize::serialize;
 use common_config::{broker::broker_config, storage::StorageType};
-
-const ACKS_ALL: i8 = -1;
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
 };
 use protocol::storage::codec::StorageEnginePacket;
 use std::sync::Arc;
+
+const ACKS_ALL: i8 = -1;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn batch_write(

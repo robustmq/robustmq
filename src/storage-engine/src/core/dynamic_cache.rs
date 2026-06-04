@@ -19,6 +19,7 @@ use crate::{
     filesegment::{
         segment_file::open_segment_write, segment_offset::SegmentOffset, SegmentIdentity,
     },
+    isr::fetcher_manager::ReplicaFetcherManager,
     isr::role::apply_leader_and_isr,
 };
 use common_config::{broker::broker_config, storage::StorageType};
@@ -35,6 +36,7 @@ use tracing::warn;
 pub async fn update_storage_cache_metadata(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    fetcher_manager: &Arc<ReplicaFetcherManager>,
     record: &UpdateCacheRecord,
 ) -> Result<(), StorageEngineError> {
     match record.resource_type() {
@@ -52,6 +54,7 @@ pub async fn update_storage_cache_metadata(
             parse_segment(
                 cache_manager,
                 rocksdb_engine_handler,
+                fetcher_manager,
                 record.action_type(),
                 &record.data,
             )
@@ -109,6 +112,7 @@ async fn parse_shard(
 async fn parse_segment(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    fetcher_manager: &Arc<ReplicaFetcherManager>,
     action_type: BrokerUpdateCacheActionType,
     data: &[u8],
 ) -> Result<(), StorageEngineError> {
@@ -135,7 +139,13 @@ async fn parse_segment(
             if conf.broker_id == segment.leader {
                 cache_manager.add_leader_segment(&segment_iden);
             }
-            apply_leader_and_isr(cache_manager, rocksdb_engine_handler, &segment).await?;
+            apply_leader_and_isr(
+                cache_manager,
+                rocksdb_engine_handler,
+                fetcher_manager,
+                &segment,
+            )
+            .await?;
 
             if shard.config.storage_type == StorageType::EngineSegment {
                 let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
@@ -164,7 +174,13 @@ async fn parse_segment(
             } else {
                 cache_manager.remove_leader_segment(&segment_iden);
             }
-            apply_leader_and_isr(cache_manager, rocksdb_engine_handler, &segment).await?;
+            apply_leader_and_isr(
+                cache_manager,
+                rocksdb_engine_handler,
+                fetcher_manager,
+                &segment,
+            )
+            .await?;
         }
         BrokerUpdateCacheActionType::Delete => {
             let segment = EngineSegment::decode(data)?;

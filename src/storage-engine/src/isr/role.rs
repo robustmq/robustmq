@@ -14,6 +14,8 @@
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
+use crate::isr::fetcher::SegmentFetchState;
+use crate::isr::fetcher_manager::ReplicaFetcherManager;
 use crate::isr::leader_epoch::LeaderEpochCache;
 use crate::isr::state::ReplicaRole;
 use common_config::broker::broker_config;
@@ -24,6 +26,7 @@ use std::sync::Arc;
 pub async fn apply_leader_and_isr(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    fetcher_manager: &Arc<ReplicaFetcherManager>,
     segment: &EngineSegment,
 ) -> Result<ReplicaRole, StorageEngineError> {
     let broker_id = broker_config().broker_id;
@@ -35,11 +38,13 @@ pub async fn apply_leader_and_isr(
 
     if !segment.is_replica() {
         state.set_role(ReplicaRole::Initializing);
+        fetcher_manager.remove_segment(shard, segment_seq);
         return Ok(ReplicaRole::Initializing);
     }
 
     if segment.leader == broker_id {
         state.set_role(ReplicaRole::LeaderInitializing);
+        fetcher_manager.remove_segment(shard, segment_seq);
 
         let leo = cache_manager
             .get_offset_state(shard)
@@ -59,6 +64,18 @@ pub async fn apply_leader_and_isr(
         state.set_leader_epoch(segment.leader_epoch);
         state.set_segment_epoch(segment.segment_epoch);
         state.set_role(ReplicaRole::FollowerActive);
+
+        let max_bytes = broker_config().storage_runtime.max_segment_size as u64;
+        let cache = LeaderEpochCache::load(rocksdb_engine_handler.clone(), shard, segment_seq)?;
+        fetcher_manager.remove_segment(shard, segment_seq);
+        fetcher_manager.assign_segment(SegmentFetchState {
+            shard: shard.clone(),
+            segment_seq,
+            leader_node_id: segment.leader,
+            current_leader_epoch: segment.leader_epoch,
+            max_bytes,
+            cache,
+        });
         Ok(ReplicaRole::FollowerActive)
     }
 }
@@ -66,8 +83,30 @@ pub async fn apply_leader_and_isr(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::clients::manager::ClientConnectionManager;
+    use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
     use crate::core::test_tool::test_build_memory_engine;
+    use crate::isr::fetcher_manager::build_engine_fetcher_manager;
     use metadata_struct::storage::segment::Replica;
+
+    fn manager(
+        cm: &Arc<StorageCacheManager>,
+        db: &Arc<RocksDBEngine>,
+    ) -> Arc<ReplicaFetcherManager> {
+        let memory = Arc::new(crate::commitlog::memory::engine::MemoryStorageEngine::new(
+            db.clone(),
+            cm.clone(),
+            Default::default(),
+        ));
+        let rocksdb = Arc::new(RocksDBStorageEngine::new(cm.clone(), db.clone()));
+        let client = Arc::new(ClientConnectionManager::new(cm.clone(), 1));
+        Arc::new(build_engine_fetcher_manager(
+            cm.clone(),
+            memory,
+            rocksdb,
+            client,
+        ))
+    }
 
     fn segment(leader: u64, replicas: &[u64], leader_epoch: u32) -> EngineSegment {
         EngineSegment {
@@ -94,7 +133,7 @@ mod tests {
         let cm = engine.cache_manager.clone();
         let db = rocksdb_engine::test::test_rocksdb_instance();
 
-        let role = apply_leader_and_isr(&cm, &db, &segment(1, &[1, 2], 3))
+        let role = apply_leader_and_isr(&cm, &db, &manager(&cm, &db), &segment(1, &[1, 2], 3))
             .await
             .unwrap();
         assert_eq!(role, ReplicaRole::LeaderActive);
@@ -112,7 +151,7 @@ mod tests {
         let cm = engine.cache_manager.clone();
         let db = rocksdb_engine::test::test_rocksdb_instance();
 
-        let role = apply_leader_and_isr(&cm, &db, &segment(2, &[1, 2], 3))
+        let role = apply_leader_and_isr(&cm, &db, &manager(&cm, &db), &segment(2, &[1, 2], 3))
             .await
             .unwrap();
         assert_eq!(role, ReplicaRole::FollowerActive);
@@ -125,7 +164,7 @@ mod tests {
         let cm = engine.cache_manager.clone();
         let db = rocksdb_engine::test::test_rocksdb_instance();
 
-        let role = apply_leader_and_isr(&cm, &db, &segment(2, &[2, 3], 3))
+        let role = apply_leader_and_isr(&cm, &db, &manager(&cm, &db), &segment(2, &[2, 3], 3))
             .await
             .unwrap();
         assert_eq!(role, ReplicaRole::Initializing);

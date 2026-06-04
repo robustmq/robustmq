@@ -35,6 +35,17 @@ pub trait FetchTransport: Send + Sync {
     ) -> Result<FetchRespBody, StorageEngineError>;
 }
 
+#[async_trait]
+impl FetchTransport for Arc<dyn FetchTransport> {
+    async fn fetch(
+        &self,
+        leader_node_id: u64,
+        req: FetchReqBody,
+    ) -> Result<FetchRespBody, StorageEngineError> {
+        (**self).fetch(leader_node_id, req).await
+    }
+}
+
 pub struct SegmentFetchState {
     pub shard: String,
     pub segment_seq: u32,

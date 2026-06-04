@@ -16,6 +16,7 @@ use crate::clients::manager::ClientConnectionManager;
 use crate::clients::packet::build_fetch_req;
 use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
+use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::isr::fetcher::{
     fetcher_index, FetchTransport, ReplicaFetcherThread, SegmentFetchState, SegmentMap,
@@ -23,17 +24,42 @@ use crate::isr::fetcher::{
 use crate::isr::log::ReplicaLog;
 use async_trait::async_trait;
 use broker_core::cache::NodeCacheManager;
+use common_config::storage::StorageType;
 use dashmap::DashMap;
 use metadata_struct::storage::record::StorageRecord;
 use protocol::storage::codec::StorageEnginePacket;
 use protocol::storage::protocol::{FetchReqBody, FetchRespBody};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
+use tokio::task::JoinHandle;
 
 #[derive(Clone)]
-pub enum EngineReplicaLog {
-    Memory(Arc<MemoryStorageEngine>),
-    RocksDB(Arc<RocksDBStorageEngine>),
+pub struct EngineReplicaLog {
+    memory: Arc<MemoryStorageEngine>,
+    rocksdb: Arc<RocksDBStorageEngine>,
+    cache_manager: Arc<StorageCacheManager>,
+}
+
+impl EngineReplicaLog {
+    pub fn new(
+        memory: Arc<MemoryStorageEngine>,
+        rocksdb: Arc<RocksDBStorageEngine>,
+        cache_manager: Arc<StorageCacheManager>,
+    ) -> Self {
+        EngineReplicaLog {
+            memory,
+            rocksdb,
+            cache_manager,
+        }
+    }
+
+    fn is_rocksdb(&self, shard: &str) -> bool {
+        self.cache_manager
+            .shards
+            .get(shard)
+            .map(|s| s.config.storage_type == StorageType::EngineRocksDB)
+            .unwrap_or(false)
+    }
 }
 
 #[async_trait]
@@ -45,13 +71,14 @@ impl ReplicaLog for EngineReplicaLog {
         base_offset: u64,
         records: Vec<StorageRecord>,
     ) -> Result<(), StorageEngineError> {
-        match self {
-            EngineReplicaLog::Memory(e) => {
-                e.append_at(shard, segment_seq, base_offset, records).await
-            }
-            EngineReplicaLog::RocksDB(e) => {
-                e.append_at(shard, segment_seq, base_offset, records).await
-            }
+        if self.is_rocksdb(shard) {
+            self.rocksdb
+                .append_at(shard, segment_seq, base_offset, records)
+                .await
+        } else {
+            self.memory
+                .append_at(shard, segment_seq, base_offset, records)
+                .await
         }
     }
 
@@ -62,18 +89,22 @@ impl ReplicaLog for EngineReplicaLog {
         offset: u64,
         max_bytes: u64,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        match self {
-            EngineReplicaLog::Memory(e) => e.read_from(shard, segment_seq, offset, max_bytes).await,
-            EngineReplicaLog::RocksDB(e) => {
-                e.read_from(shard, segment_seq, offset, max_bytes).await
-            }
+        if self.is_rocksdb(shard) {
+            self.rocksdb
+                .read_from(shard, segment_seq, offset, max_bytes)
+                .await
+        } else {
+            self.memory
+                .read_from(shard, segment_seq, offset, max_bytes)
+                .await
         }
     }
 
     fn latest_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
-        match self {
-            EngineReplicaLog::Memory(e) => e.latest_offset(shard, segment_seq),
-            EngineReplicaLog::RocksDB(e) => e.latest_offset(shard, segment_seq),
+        if self.is_rocksdb(shard) {
+            self.rocksdb.latest_offset(shard, segment_seq)
+        } else {
+            self.memory.latest_offset(shard, segment_seq)
         }
     }
 
@@ -83,29 +114,30 @@ impl ReplicaLog for EngineReplicaLog {
         segment_seq: u32,
         offset: u64,
     ) -> Result<(), StorageEngineError> {
-        match self {
-            EngineReplicaLog::Memory(e) => e.truncate_to(shard, segment_seq, offset).await,
-            EngineReplicaLog::RocksDB(e) => e.truncate_to(shard, segment_seq, offset).await,
+        if self.is_rocksdb(shard) {
+            self.rocksdb.truncate_to(shard, segment_seq, offset).await
+        } else {
+            self.memory.truncate_to(shard, segment_seq, offset).await
         }
     }
 
     async fn clear(&self, shard: &str, segment_seq: u32) -> Result<(), StorageEngineError> {
-        match self {
-            EngineReplicaLog::Memory(e) => e.clear(shard, segment_seq).await,
-            EngineReplicaLog::RocksDB(e) => e.clear(shard, segment_seq).await,
+        if self.is_rocksdb(shard) {
+            self.rocksdb.clear(shard, segment_seq).await
+        } else {
+            self.memory.clear(shard, segment_seq).await
         }
     }
 
     fn log_start_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
-        match self {
-            EngineReplicaLog::Memory(e) => e.log_start_offset(shard, segment_seq),
-            EngineReplicaLog::RocksDB(e) => e.log_start_offset(shard, segment_seq),
+        if self.is_rocksdb(shard) {
+            self.rocksdb.log_start_offset(shard, segment_seq)
+        } else {
+            self.memory.log_start_offset(shard, segment_seq)
         }
     }
 }
 
-/// Sends fetch requests to a leader over the storage RPC connection pool, keyed
-/// by `leader_node_id`. The follower side of T8b's `handle_fetch`.
 #[derive(Clone)]
 pub struct PacketFetchTransport {
     client: Arc<ClientConnectionManager>,
@@ -134,51 +166,78 @@ impl FetchTransport for PacketFetchTransport {
     }
 }
 
-/// A fixed pool of `num_replica_fetchers` fetcher threads. A segment is routed
-/// to one thread by `leader_node_id % N`, so all segments sharing a leader land
-/// on the same thread and batch into one request. The thread count is fixed
-/// regardless of shard count, so thousands of shards never explode into
-/// thousands of tasks.
-pub struct ReplicaFetcherManager {
-    segment_maps: Vec<SegmentMap>,
+struct FetcherSlot {
+    segments: SegmentMap,
     stop: broadcast::Sender<bool>,
+    handle: Mutex<Option<JoinHandle<()>>>,
+}
+
+pub struct ReplicaFetcherManager {
+    slots: Vec<FetcherSlot>,
+    transport: Arc<dyn FetchTransport>,
+    log: Arc<dyn ReplicaLog>,
+    broker_cache: Arc<NodeCacheManager>,
 }
 
 impl ReplicaFetcherManager {
-    /// Spawn the pool. `transport` and `log` are cloned into each thread (both
-    /// are cheap `Arc`-backed handles). Each thread shares one `SegmentMap` with
-    /// the manager, which adds/removes segments directly on role changes.
-    pub fn spawn<T, L>(
+    pub fn new(
         num_fetchers: u32,
-        transport: T,
-        log: L,
+        transport: Arc<dyn FetchTransport>,
+        log: Arc<dyn ReplicaLog>,
         broker_cache: Arc<NodeCacheManager>,
-    ) -> Self
-    where
-        T: FetchTransport + Clone + 'static,
-        L: ReplicaLog + Clone + 'static,
-    {
+    ) -> Self {
         let n = num_fetchers.max(1);
-        let (stop, _) = broadcast::channel(1);
-        let mut segment_maps = Vec::with_capacity(n as usize);
-        for _ in 0..n {
-            let segments: SegmentMap = Arc::new(DashMap::new());
-            segment_maps.push(segments.clone());
-            let mut thread = ReplicaFetcherThread::new(
-                transport.clone(),
-                log.clone(),
-                broker_cache.clone(),
-                segments,
-            );
-            let stop_rx = stop.subscribe();
-            tokio::spawn(async move { thread.run(stop_rx).await });
+        let slots = (0..n)
+            .map(|_| FetcherSlot {
+                segments: Arc::new(DashMap::new()),
+                stop: broadcast::channel(1).0,
+                handle: Mutex::new(None),
+            })
+            .collect();
+        ReplicaFetcherManager {
+            slots,
+            transport,
+            log,
+            broker_cache,
         }
-        ReplicaFetcherManager { segment_maps, stop }
+    }
+
+    pub fn start(&self) {
+        for idx in 0..self.slots.len() {
+            self.spawn_thread(idx);
+        }
+    }
+
+    fn spawn_thread(&self, idx: usize) {
+        let slot = &self.slots[idx];
+        let mut thread = ReplicaFetcherThread::new(
+            self.transport.clone(),
+            self.log.clone(),
+            self.broker_cache.clone(),
+            slot.segments.clone(),
+        );
+        let stop_rx = slot.stop.subscribe();
+        let handle = tokio::spawn(async move { thread.run(stop_rx).await });
+        *slot.handle.lock().unwrap() = Some(handle);
+    }
+
+    pub fn stop_thread(&self, idx: usize) {
+        if let Some(slot) = self.slots.get(idx) {
+            let _ = slot.stop.send(true);
+            slot.handle.lock().unwrap().take();
+        }
+    }
+
+    pub fn restart_thread(&self, idx: usize) {
+        self.stop_thread(idx);
+        if idx < self.slots.len() {
+            self.spawn_thread(idx);
+        }
     }
 
     fn map_for(&self, leader_node_id: u64) -> &SegmentMap {
-        let idx = fetcher_index(leader_node_id, self.segment_maps.len() as u32);
-        &self.segment_maps[idx as usize]
+        let idx = fetcher_index(leader_node_id, self.slots.len() as u32);
+        &self.slots[idx as usize].segments
     }
 
     pub fn assign_segment(&self, state: SegmentFetchState) {
@@ -186,18 +245,39 @@ impl ReplicaFetcherManager {
             .insert((state.shard.clone(), state.segment_seq), state);
     }
 
-    pub fn remove_segment(&self, shard: &str, segment_seq: u32, leader_node_id: u64) {
-        self.map_for(leader_node_id)
-            .remove(&(shard.to_string(), segment_seq));
+    pub fn remove_segment(&self, shard: &str, segment_seq: u32) {
+        let key = (shard.to_string(), segment_seq);
+        for slot in &self.slots {
+            slot.segments.remove(&key);
+        }
     }
 
     pub fn thread_count(&self) -> usize {
-        self.segment_maps.len()
+        self.slots.len()
     }
 
     pub fn shutdown(&self) {
-        let _ = self.stop.send(true);
+        for idx in 0..self.slots.len() {
+            self.stop_thread(idx);
+        }
     }
+}
+
+pub fn build_engine_fetcher_manager(
+    cache_manager: Arc<StorageCacheManager>,
+    memory: Arc<MemoryStorageEngine>,
+    rocksdb: Arc<RocksDBStorageEngine>,
+    client: Arc<ClientConnectionManager>,
+) -> ReplicaFetcherManager {
+    let num_fetchers = cache_manager
+        .broker_cache
+        .get_cluster_config()
+        .storage_runtime
+        .num_replica_fetchers;
+    let broker_cache = cache_manager.broker_cache.clone();
+    let transport: Arc<dyn FetchTransport> = Arc::new(PacketFetchTransport::new(client));
+    let log: Arc<dyn ReplicaLog> = Arc::new(EngineReplicaLog::new(memory, rocksdb, cache_manager));
+    ReplicaFetcherManager::new(num_fetchers, transport, log, broker_cache)
 }
 
 #[cfg(test)]
@@ -279,17 +359,27 @@ mod tests {
         }
     }
 
+    fn follower_log(memory: Arc<MemoryStorageEngine>) -> EngineReplicaLog {
+        let cache_manager = memory.cache_manager.clone();
+        let rocksdb = Arc::new(RocksDBStorageEngine::new(
+            cache_manager.clone(),
+            test_rocksdb_instance(),
+        ));
+        EngineReplicaLog::new(memory, rocksdb, cache_manager)
+    }
+
     #[tokio::test]
     async fn manager_fixed_thread_count_and_routing() {
         let leader = leader_with(&[]).await;
-        let follower = EngineReplicaLog::Memory(Arc::new(test_build_memory_engine()));
+        let follower = follower_log(Arc::new(test_build_memory_engine()));
         let broker_cache = leader.engine.cache_manager.broker_cache.clone();
-        let mgr = ReplicaFetcherManager::spawn(4, leader, follower, broker_cache);
+        let mgr = ReplicaFetcherManager::new(4, Arc::new(leader), Arc::new(follower), broker_cache);
+        mgr.start();
         assert_eq!(mgr.thread_count(), 4);
         for leader_node in 0u64..100 {
             assert!(Arc::ptr_eq(
                 mgr.map_for(leader_node),
-                &mgr.segment_maps[(leader_node % 4) as usize]
+                &mgr.slots[(leader_node % 4) as usize].segments
             ));
         }
         mgr.shutdown();
@@ -304,7 +394,7 @@ mod tests {
         .await;
 
         let follower_engine = Arc::new(test_build_memory_engine());
-        let follower = EngineReplicaLog::Memory(follower_engine.clone());
+        let follower = follower_log(follower_engine.clone());
         let broker_cache = follower_engine.cache_manager.broker_cache.clone();
         let mut config = broker_cache.get_cluster_config();
         config.broker_id = 2;
@@ -313,7 +403,8 @@ mod tests {
         broker_cache.set_cluster_config(config);
         broker_cache.set_broker_epoch(1);
 
-        let mgr = ReplicaFetcherManager::spawn(2, leader, follower, broker_cache);
+        let mgr = ReplicaFetcherManager::new(2, Arc::new(leader), Arc::new(follower), broker_cache);
+        mgr.start();
         mgr.assign_segment(seg_state("s1", 7));
         mgr.assign_segment(seg_state("s2", 7));
 
@@ -329,5 +420,64 @@ mod tests {
 
         assert_eq!(follower_engine.latest_offset("s1", 0).unwrap(), 2);
         assert_eq!(follower_engine.latest_offset("s2", 0).unwrap(), 1);
+    }
+
+    fn follower_manager(
+        leader: InProcLeader,
+        follower_engine: Arc<MemoryStorageEngine>,
+    ) -> ReplicaFetcherManager {
+        let follower = follower_log(follower_engine.clone());
+        let broker_cache = follower_engine.cache_manager.broker_cache.clone();
+        let mut config = broker_cache.get_cluster_config();
+        config.broker_id = 2;
+        config.storage_runtime.replica_fetch_max_wait_ms = 0;
+        config.storage_runtime.replica_fetch_backoff_ms = 5;
+        broker_cache.set_cluster_config(config);
+        broker_cache.set_broker_epoch(1);
+        ReplicaFetcherManager::new(2, Arc::new(leader), Arc::new(follower), broker_cache)
+    }
+
+    async fn wait_offset(engine: &Arc<MemoryStorageEngine>, shard: &str, want: u64) -> bool {
+        for _ in 0..50 {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            if engine.latest_offset(shard, 0).unwrap() == want {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[tokio::test]
+    async fn restart_thread_keeps_assigned_segments() {
+        let leader = leader_with(&[("s1", vec![record(0, "a")])]).await;
+        let follower_engine = Arc::new(test_build_memory_engine());
+        let mgr = follower_manager(leader, follower_engine.clone());
+        mgr.start();
+
+        mgr.assign_segment(seg_state("s1", 7));
+        assert!(wait_offset(&follower_engine, "s1", 1).await);
+
+        mgr.restart_thread(fetcher_index(7, 2) as usize);
+
+        mgr.assign_segment(seg_state("s2", 7));
+        assert!(wait_offset(&follower_engine, "s1", 1).await);
+        mgr.shutdown();
+    }
+
+    #[tokio::test]
+    async fn stop_thread_halts_only_one_thread() {
+        let leader = leader_with(&[("s1", vec![record(0, "a")])]).await;
+        let follower_engine = Arc::new(test_build_memory_engine());
+        let mgr = follower_manager(leader, follower_engine.clone());
+        mgr.start();
+
+        mgr.stop_thread(fetcher_index(7, 2) as usize);
+        mgr.assign_segment(seg_state("s1", 7));
+
+        assert!(!wait_offset(&follower_engine, "s1", 1).await);
+
+        mgr.restart_thread(fetcher_index(7, 2) as usize);
+        assert!(wait_offset(&follower_engine, "s1", 1).await);
+        mgr.shutdown();
     }
 }

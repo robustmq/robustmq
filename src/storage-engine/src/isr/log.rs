@@ -15,6 +15,7 @@
 use crate::core::error::StorageEngineError;
 use async_trait::async_trait;
 use metadata_struct::storage::record::StorageRecord;
+use std::sync::Arc;
 
 /// Local-log abstraction shared by the memory / rocksdb / filesegment engines.
 /// The ISR control plane (append / fetch / truncation) only talks to this trait
@@ -71,4 +72,52 @@ pub trait ReplicaLog: Send + Sync {
     /// offset to this after retention. memory/rocksdb return 0 (or the actual
     /// post-retention start); filesegment returns the current file's start.
     fn log_start_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError>;
+}
+
+#[async_trait]
+impl ReplicaLog for Arc<dyn ReplicaLog> {
+    async fn append_at(
+        &self,
+        shard: &str,
+        segment_seq: u32,
+        base_offset: u64,
+        records: Vec<StorageRecord>,
+    ) -> Result<(), StorageEngineError> {
+        (**self)
+            .append_at(shard, segment_seq, base_offset, records)
+            .await
+    }
+
+    async fn read_from(
+        &self,
+        shard: &str,
+        segment_seq: u32,
+        offset: u64,
+        max_bytes: u64,
+    ) -> Result<Vec<StorageRecord>, StorageEngineError> {
+        (**self)
+            .read_from(shard, segment_seq, offset, max_bytes)
+            .await
+    }
+
+    fn latest_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
+        (**self).latest_offset(shard, segment_seq)
+    }
+
+    async fn truncate_to(
+        &self,
+        shard: &str,
+        segment_seq: u32,
+        offset: u64,
+    ) -> Result<(), StorageEngineError> {
+        (**self).truncate_to(shard, segment_seq, offset).await
+    }
+
+    async fn clear(&self, shard: &str, segment_seq: u32) -> Result<(), StorageEngineError> {
+        (**self).clear(shard, segment_seq).await
+    }
+
+    fn log_start_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
+        (**self).log_start_offset(shard, segment_seq)
+    }
 }

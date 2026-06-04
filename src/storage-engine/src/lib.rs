@@ -20,6 +20,7 @@ use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::filesegment::expire::start_segment_expire_thread;
 use crate::filesegment::write::WriteManager;
 use crate::handler::adapter::StorageEngineHandler;
+use crate::isr::fetcher_manager::ReplicaFetcherManager;
 use crate::server::Server;
 use common_base::task::{TaskKind, TaskSupervisor};
 use core::cache::StorageCacheManager;
@@ -52,6 +53,7 @@ pub struct StorageEngineParams {
     pub storage_engine_handler: Arc<StorageEngineHandler>,
     pub global_limit_manager: Arc<GlobalRateLimiterManager>,
     pub task_supervisor: Arc<TaskSupervisor>,
+    pub fetcher_manager: Arc<ReplicaFetcherManager>,
 }
 
 pub struct StorageEngineServer {
@@ -62,6 +64,7 @@ pub struct StorageEngineServer {
     client_connection_manager: Arc<ClientConnectionManager>,
     rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     memory_storage_engine: Arc<MemoryStorageEngine>,
+    fetcher_manager: Arc<ReplicaFetcherManager>,
     server: Arc<Server>,
     task_supervisor: Arc<TaskSupervisor>,
 }
@@ -96,6 +99,7 @@ impl StorageEngineServer {
             client_connection_manager: params.client_connection_manager,
             rocksdb_storage_engine: params.rocksdb_storage_engine,
             memory_storage_engine: params.memory_storage_engine,
+            fetcher_manager: params.fetcher_manager,
             stop,
             server,
             task_supervisor,
@@ -103,6 +107,8 @@ impl StorageEngineServer {
     }
 
     pub async fn start(&self) -> Result<(), std::io::Error> {
+        self.fetcher_manager.start();
+
         self.start_daemon_thread();
 
         self.start_tcp_server().await?;

@@ -30,6 +30,7 @@ use storage_engine::{
     core::cache::StorageCacheManager,
     filesegment::write::WriteManager,
     handler::adapter::{StorageEngineHandler, StorageEngineHandlerParams},
+    isr::fetcher_manager::build_engine_fetcher_manager,
     StorageEngineParams, StorageEngineServer,
 };
 use tokio::sync::broadcast;
@@ -63,6 +64,12 @@ pub fn build_storage_engine_params(
     ));
     let client_connection_manager =
         Arc::new(ClientConnectionManager::new(cache_manager.clone(), 4));
+    let fetcher_manager = Arc::new(build_engine_fetcher_manager(
+        cache_manager.clone(),
+        memory_storage_engine.clone(),
+        rocksdb_storage_engine.clone(),
+        client_connection_manager.clone(),
+    ));
     let storage_engine_handler = Arc::new(StorageEngineHandler::new(StorageEngineHandlerParams {
         cache_manager: cache_manager.clone(),
         client_pool: client_pool.clone(),
@@ -85,6 +92,7 @@ pub fn build_storage_engine_params(
         write_manager,
         storage_engine_handler,
         global_limit_manager,
+        fetcher_manager,
     }
 }
 
