@@ -111,6 +111,7 @@ pub async fn test_init_segment(
         leader_epoch: 0,
         status: SegmentStatus::Write,
         isr: vec![1],
+        ..Default::default()
     };
 
     create_local_segment(&cache_manager, &segment)

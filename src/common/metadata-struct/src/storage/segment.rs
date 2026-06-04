@@ -27,11 +27,31 @@ pub struct EngineSegment {
     pub leader: u64,
     pub isr: Vec<u64>,
     pub status: SegmentStatus,
+
+    // ISR protocol
+    #[serde(default)]
+    pub segment_epoch: u32,
+    #[serde(default)]
+    pub leader_broker_epoch: u64,
+    #[serde(default)]
+    pub log_start_offset: u64,
+    #[serde(default)]
+    pub last_known_isr: Vec<u64>,
 }
 
 impl EngineSegment {
     pub fn allow_read(&self) -> bool {
-        self.status == SegmentStatus::Write
+        matches!(
+            self.status,
+            SegmentStatus::Write
+                | SegmentStatus::PreSealUp
+                | SegmentStatus::SealUp
+                | SegmentStatus::Unavailable
+        )
+    }
+
+    pub fn allow_write(&self) -> bool {
+        matches!(self.status, SegmentStatus::Write | SegmentStatus::PreSealUp)
     }
 
     pub fn get_fold(&self, node_id: u64) -> Option<String> {
@@ -79,6 +99,8 @@ pub enum SegmentStatus {
     SealUp,
     PreDelete,
     Deleting,
+    // Keep last: bincode encodes variants by index.
+    Unavailable,
 }
 
 impl fmt::Display for SegmentStatus {
@@ -89,6 +111,7 @@ impl fmt::Display for SegmentStatus {
             SegmentStatus::SealUp => write!(f, "SealUp"),
             SegmentStatus::PreDelete => write!(f, "PreDelete"),
             SegmentStatus::Deleting => write!(f, "Deleting"),
+            SegmentStatus::Unavailable => write!(f, "Unavailable"),
         }
     }
 }
@@ -99,8 +122,10 @@ pub fn str_to_segment_status(status: &str) -> Result<SegmentStatus, CommonError>
         "PreSealUp" => Ok(SegmentStatus::PreSealUp),
         "SealUp" => Ok(SegmentStatus::SealUp),
         "PreDelete" => Ok(SegmentStatus::PreDelete),
+        "Deleting" => Ok(SegmentStatus::Deleting),
+        "Unavailable" => Ok(SegmentStatus::Unavailable),
         _ => Err(CommonError::CommonError(format!(
-            "Invalid segment status '{}'. Valid values are: Write, PreSealUp, SealUp, PreDelete",
+            "Invalid segment status '{}'. Valid values are: Write, PreSealUp, SealUp, PreDelete, Deleting, Unavailable",
             status
         ))),
     }
@@ -109,4 +134,75 @@ pub fn str_to_segment_status(status: &str) -> Result<SegmentStatus, CommonError>
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct SegmentConfig {
     pub max_segment_size: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn allow_read_write_matrix() {
+        let mut seg = EngineSegment::default();
+
+        for (status, read, write) in [
+            (SegmentStatus::Write, true, true),
+            (SegmentStatus::PreSealUp, true, true),
+            (SegmentStatus::SealUp, true, false),
+            (SegmentStatus::Unavailable, true, false),
+            (SegmentStatus::PreDelete, false, false),
+            (SegmentStatus::Deleting, false, false),
+        ] {
+            seg.status = status.clone();
+            assert_eq!(seg.allow_read(), read, "allow_read for {status}");
+            assert_eq!(seg.allow_write(), write, "allow_write for {status}");
+        }
+    }
+
+    #[test]
+    fn segment_status_string_roundtrip() {
+        for status in [
+            SegmentStatus::Write,
+            SegmentStatus::PreSealUp,
+            SegmentStatus::SealUp,
+            SegmentStatus::PreDelete,
+            SegmentStatus::Deleting,
+            SegmentStatus::Unavailable,
+        ] {
+            let s = status.to_string();
+            assert_eq!(str_to_segment_status(&s).unwrap(), status);
+        }
+        assert!(str_to_segment_status("Nope").is_err());
+    }
+
+    #[test]
+    fn new_isr_fields_default_to_zero() {
+        let seg = EngineSegment::default();
+        assert_eq!(seg.segment_epoch, 0);
+        assert_eq!(seg.leader_broker_epoch, 0);
+        assert_eq!(seg.log_start_offset, 0);
+        assert!(seg.last_known_isr.is_empty());
+    }
+
+    #[test]
+    fn encode_decode_roundtrip_with_isr_fields() {
+        let seg = EngineSegment {
+            shard_name: "s1".to_string(),
+            segment_seq: 2,
+            leader: 7,
+            leader_epoch: 3,
+            isr: vec![7, 8, 9],
+            status: SegmentStatus::Unavailable,
+            segment_epoch: 11,
+            leader_broker_epoch: 42,
+            log_start_offset: 100,
+            last_known_isr: vec![7, 8],
+            ..Default::default()
+        };
+        let decoded = EngineSegment::decode(&seg.encode().unwrap()).unwrap();
+        assert_eq!(decoded.segment_epoch, 11);
+        assert_eq!(decoded.leader_broker_epoch, 42);
+        assert_eq!(decoded.log_start_offset, 100);
+        assert_eq!(decoded.last_known_isr, vec![7, 8]);
+        assert_eq!(decoded.status, SegmentStatus::Unavailable);
+    }
 }

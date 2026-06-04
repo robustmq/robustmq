@@ -24,6 +24,12 @@ pub fn key_node_prefix() -> String {
     format!("{}clusters/node/", PREFIX_META)
 }
 
+/// Per-node broker_epoch counter, kept separate from the node record.
+#[inline]
+pub fn key_node_epoch(node_id: u64) -> String {
+    format!("{}clusters/node_epoch/{}", PREFIX_META, node_id)
+}
+
 #[inline]
 pub fn key_resource_config(resource_key: &str) -> String {
     format!("{}config/{}", PREFIX_META, resource_key)

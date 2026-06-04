@@ -52,14 +52,14 @@ impl DataRouteCluster {
         }
     }
 
-    // Node
-    pub async fn add_node(&self, value: Bytes) -> Result<(), MetaServiceError> {
+    pub async fn add_node(&self, value: Bytes) -> Result<u64, MetaServiceError> {
         let req = RegisterNodeRequest::decode(value.as_ref())?;
         let node = BrokerNode::decode(&req.node)?;
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
+        let broker_epoch = node_storage.next_broker_epoch(node.node_id)?;
         node_storage.save(&node)?;
         self.cluster_cache.add_broker_node(node);
-        Ok(())
+        Ok(broker_epoch)
     }
 
     pub async fn delete_node(&self, value: Bytes) -> Result<(), MetaServiceError> {
@@ -234,13 +234,17 @@ mod tests {
         ));
         let cluster_cache = Arc::new(MetaCacheManager::new(rocksdb_engine.clone()));
         let route = DataRouteCluster::new(rocksdb_engine.clone(), cluster_cache);
-        route.add_node(data).await.unwrap();
+        let epoch1 = route.add_node(data.clone()).await.unwrap();
+        assert_eq!(epoch1, 1);
+        let epoch2 = route.add_node(data).await.unwrap();
+        assert_eq!(epoch2, 2);
 
         let node_storage = NodeStorage::new(rocksdb_engine.clone());
         let node = node_storage.get(node_id).unwrap();
         let broker_node = node.unwrap();
         assert_eq!(broker_node.node_id, node_id);
         assert_eq!(broker_node.node_ip, node_ip);
+        assert_eq!(node_storage.get_broker_epoch(node_id).unwrap(), 2);
 
         let _ = node_storage.delete(node_id);
         let res = node_storage.get(node_id).unwrap();

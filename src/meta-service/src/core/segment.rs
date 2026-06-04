@@ -179,6 +179,8 @@ async fn build_segment(
         leader,
         replicas,
         isr,
+        // ISR fields default to 0/empty; T2 sets leader_broker_epoch on assignment.
+        ..Default::default()
     })
 }
 

@@ -177,6 +177,7 @@ mod tests {
             leader: 1,
             replicas: Vec::new(),
             isr: Vec::new(),
+            ..Default::default()
         }
     }
 

@@ -25,6 +25,7 @@ use metadata_struct::{
     },
     tenant::Tenant,
 };
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -60,6 +61,9 @@ pub struct NodeCacheManager {
 
     // (cluster_name, Status)
     pub status: Arc<RwLock<NodeStatus>>,
+
+    // broker_epoch from meta at register time; 0 = not registered.
+    pub broker_epoch: AtomicU64,
 }
 impl NodeCacheManager {
     pub fn new(cluster: BrokerConfig) -> Self {
@@ -76,7 +80,16 @@ impl NodeCacheManager {
             session_tenant_index: DashMap::with_capacity(8),
             topic_list: DashMap::new(),
             topic_tenant_index: DashMap::with_capacity(8),
+            broker_epoch: AtomicU64::new(0),
         }
+    }
+
+    pub fn set_broker_epoch(&self, broker_epoch: u64) {
+        self.broker_epoch.store(broker_epoch, Ordering::SeqCst);
+    }
+
+    pub fn get_broker_epoch(&self) -> u64 {
+        self.broker_epoch.load(Ordering::SeqCst)
     }
 
     // Tenant

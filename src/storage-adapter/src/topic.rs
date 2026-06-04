@@ -73,6 +73,7 @@ pub async fn create_topic_full(
         max_segment_size: topic.config.max_segment_size,
         max_record_num: topic.config.max_record_num,
         retention_sec: topic.config.retention_sec,
+        ..Default::default()
     };
     storage_driver_manager
         .create_storage_resource(&topic.tenant, &topic.topic_name, &shard_config)
@@ -128,6 +129,7 @@ async fn init_single_inner_topic(
             max_segment_size: topic.config.max_segment_size,
             max_record_num: topic.config.max_record_num,
             retention_sec: topic.config.retention_sec,
+            ..Default::default()
         };
         storage_driver_manager
             .create_storage_resource(DEFAULT_TENANT, topic_name, &shard_config)

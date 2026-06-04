@@ -14,7 +14,7 @@
 
 use common_base::error::common::CommonError;
 use metadata_struct::meta::node::BrokerNode;
-use rocksdb_engine::keys::meta::{key_node, key_node_prefix};
+use rocksdb_engine::keys::meta::{key_node, key_node_epoch, key_node_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
     engine_delete_by_meta_metadata, engine_get_by_meta_metadata,
@@ -52,6 +52,25 @@ impl NodeStorage {
             return Ok(Some(data.data));
         }
         Ok(None)
+    }
+
+    pub fn next_broker_epoch(&self, node_id: u64) -> Result<u64, CommonError> {
+        let key = key_node_epoch(node_id);
+        let current = engine_get_by_meta_metadata::<u64>(&self.rocksdb_engine_handler, &key)?
+            .map(|w| w.data)
+            .unwrap_or(0);
+        let next = current + 1;
+        engine_save_by_meta_metadata(&self.rocksdb_engine_handler, &key, next)?;
+        Ok(next)
+    }
+
+    pub fn get_broker_epoch(&self, node_id: u64) -> Result<u64, CommonError> {
+        let key = key_node_epoch(node_id);
+        Ok(
+            engine_get_by_meta_metadata::<u64>(&self.rocksdb_engine_handler, &key)?
+                .map(|w| w.data)
+                .unwrap_or(0),
+        )
     }
 
     pub fn list(&self) -> Result<Vec<BrokerNode>, CommonError> {
@@ -113,5 +132,27 @@ mod tests {
     fn test_delete_non_existent() {
         let kv = setup_kv_storage();
         kv.delete(1).unwrap();
+    }
+
+    #[test]
+    fn test_broker_epoch_strictly_increases() {
+        let kv = setup_kv_storage();
+        assert_eq!(kv.get_broker_epoch(1).unwrap(), 0);
+        assert_eq!(kv.next_broker_epoch(1).unwrap(), 1);
+        assert_eq!(kv.next_broker_epoch(1).unwrap(), 2);
+        assert_eq!(kv.next_broker_epoch(1).unwrap(), 3);
+        assert_eq!(kv.get_broker_epoch(1).unwrap(), 3);
+        assert_eq!(kv.next_broker_epoch(2).unwrap(), 1);
+        assert_eq!(kv.get_broker_epoch(1).unwrap(), 3);
+    }
+
+    #[test]
+    fn test_broker_epoch_survives_node_deletion() {
+        let kv = setup_kv_storage();
+        let node = get_test_node();
+        kv.save(&node).unwrap();
+        assert_eq!(kv.next_broker_epoch(node.node_id).unwrap(), 1);
+        kv.delete(node.node_id).unwrap();
+        assert_eq!(kv.next_broker_epoch(node.node_id).unwrap(), 2);
     }
 }

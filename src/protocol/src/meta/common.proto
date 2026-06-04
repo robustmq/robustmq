@@ -125,7 +125,12 @@ message RegisterNodeRequest {
   bytes node = 1 [(validate.rules).bytes.min_len = 1];
 }
 
-message RegisterNodeReply {}
+message RegisterNodeReply {
+  // The broker_epoch assigned by meta for this process instance (ISR protocol,
+  // see docs/.design/storage-engine/isr.md §3.5). Strictly increases on every
+  // re-registration of the same node_id; used to fence zombie processes.
+  uint64 broker_epoch = 1;
+}
 
 message UnRegisterNodeRequest {
   uint64 node_id = 3 [(validate.rules).uint64.gte = 0];

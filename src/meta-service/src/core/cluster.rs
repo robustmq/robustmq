@@ -36,9 +36,9 @@ pub async fn register_node_by_req(
 ) -> Result<RegisterNodeReply, MetaServiceError> {
     let node = BrokerNode::decode(&req.node)?;
     meta_cache.report_broker_heart(node.node_id);
-    sync_save_node(raft_manager, &node).await?;
+    let broker_epoch = sync_save_node(raft_manager, &node).await?;
     send_notify_by_add_node(mqtt_call_manager, node.clone()).await?;
-    Ok(RegisterNodeReply::default())
+    Ok(RegisterNodeReply { broker_epoch })
 }
 
 pub async fn un_register_node_by_req(
@@ -84,7 +84,7 @@ pub async fn remove_node(
 async fn sync_save_node(
     raft_manager: &Arc<MultiRaftManager>,
     node: &BrokerNode,
-) -> Result<(), MetaServiceError> {
+) -> Result<u64, MetaServiceError> {
     let request = RegisterNodeRequest {
         node: node.encode()?,
     };
@@ -92,10 +92,21 @@ async fn sync_save_node(
         StorageDataType::ClusterAddNode,
         Bytes::copy_from_slice(&RegisterNodeRequest::encode_to_vec(&request)),
     );
-    if raft_manager.write_metadata(data).await?.is_some() {
-        return Ok(());
-    }
-    Err(MetaServiceError::ExecutionResultIsEmpty)
+    let response = raft_manager
+        .write_metadata(data)
+        .await?
+        .ok_or(MetaServiceError::ExecutionResultIsEmpty)?;
+    let epoch_bytes = response
+        .data
+        .value
+        .ok_or(MetaServiceError::ExecutionResultIsEmpty)?;
+    let bytes: [u8; 8] = epoch_bytes.as_ref().try_into().map_err(|_| {
+        MetaServiceError::CommonError(format!(
+            "register_node returned malformed broker_epoch ({} bytes, expected 8)",
+            epoch_bytes.len()
+        ))
+    })?;
+    Ok(u64::from_le_bytes(bytes))
 }
 
 async fn sync_delete_node(

@@ -83,11 +83,12 @@ impl ClusterStorage {
         Ok(())
     }
 
+    /// Returns the node plus the broker_epoch meta assigned.
     pub async fn register_node(
         &self,
         cache_manager: &Arc<NodeCacheManager>,
         config: &BrokerConfig,
-    ) -> Result<BrokerNode, CommonError> {
+    ) -> Result<(BrokerNode, u64), CommonError> {
         let local_ip = config.broker_ip.clone().unwrap_or_else(get_local_ip);
         let extend = NodeExtend {
             mqtt: MqttNodeExtend {
@@ -125,13 +126,13 @@ impl ClusterStorage {
         let req = RegisterNodeRequest {
             node: node.encode()?,
         };
-        register_node(
+        let reply = register_node(
             &self.client_pool,
             &config.get_meta_service_addr(),
             req.clone(),
         )
         .await?;
-        Ok(node)
+        Ok((node, reply.broker_epoch))
     }
 
     pub async fn unregister_node(&self, config: &BrokerConfig) -> Result<(), CommonError> {

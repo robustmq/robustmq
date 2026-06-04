@@ -33,7 +33,8 @@ pub async fn register_node(
 ) -> ResultCommonError {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let config = broker_config();
-    let node = cluster_storage.register_node(cache_manager, config).await?;
+    let (node, broker_epoch) = cluster_storage.register_node(cache_manager, config).await?;
+    cache_manager.set_broker_epoch(broker_epoch);
     cache_manager.add_node(node);
     Ok(())
 }
