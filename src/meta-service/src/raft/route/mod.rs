@@ -189,6 +189,11 @@ impl DataRoute {
                 Ok(None)
             }
 
+            StorageDataType::StorageEngineUpdateSegmentIsr => Ok(Some(
+                self.route_journal
+                    .update_segment_isr(storage_data.value.clone())
+                    .await?,
+            )),
             StorageDataType::StorageEngineSetSegmentMetadata => Ok(Some(
                 self.route_journal
                     .set_segment_meta(storage_data.value.clone())

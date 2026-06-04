@@ -164,4 +164,20 @@ pub enum MetaServiceError {
 
     #[error("{0} has raft stopped")]
     RaftNodeHasStopped(String),
+
+    // ISR update fences
+    #[error("UpdateSegmentIsr on {0}/{1}: requester {2} is not the current leader {3}")]
+    NotLeaderForPartition(String, u32, u64, u64),
+
+    #[error("UpdateSegmentIsr on {0}/{1}: leader_epoch {2} != current {3}")]
+    FencedLeaderEpoch(String, u32, u32, u32),
+
+    #[error("UpdateSegmentIsr on {0}/{1}: broker_epoch {2} != registered {3}")]
+    StaleBrokerEpoch(String, u32, u64, u64),
+
+    #[error("UpdateSegmentIsr on {0}/{1}: expected_segment_epoch {2} != current {3}")]
+    InvalidUpdateVersion(String, u32, u32, u32),
+
+    #[error("UpdateSegmentIsr on {0}/{1}: invalid new_isr {2:?} ({3})")]
+    InvalidIsr(String, u32, Vec<u64>, String),
 }

@@ -21,6 +21,7 @@ use crate::core::segment_meta::{
 };
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
+use crate::storage::common::node::NodeStorage;
 use bytes::Bytes;
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
@@ -28,48 +29,58 @@ use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentStatus};
 use metadata_struct::storage::shard::EngineShard;
 use node_call::NodeCallManager;
+use prost::Message as _;
+use protocol::meta::meta_service_journal::UpdateSegmentIsrRequest;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tracing::{info, warn};
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_segment(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard_info: &EngineShard,
     segment_seq: u32,
     start_offset: u64,
 ) -> Result<EngineSegment, MetaServiceError> {
-    let segment = if let Some(segment) =
-        cache_manager.get_segment(&shard_info.shard_name, segment_seq)
-    {
-        segment
-    } else {
-        info!(
-            "Creating new segment: shard={}, segment={}, start_offset={}",
-            shard_info.shard_name, segment_seq, start_offset
-        );
+    let segment =
+        if let Some(segment) = cache_manager.get_segment(&shard_info.shard_name, segment_seq) {
+            segment
+        } else {
+            info!(
+                "Creating new segment: shard={}, segment={}, start_offset={}",
+                shard_info.shard_name, segment_seq, start_offset
+            );
 
-        let segment: EngineSegment = build_segment(shard_info, cache_manager, segment_seq).await?;
-
-        sync_save_segment_info(raft_manager, &segment).await?;
-        send_notify_by_set_segment(call_manager, segment.clone()).await?;
-        if shard_info.config.storage_type == StorageType::EngineSegment {
-            create_segment_metadata(
+            let segment: EngineSegment = build_segment(
+                shard_info,
                 cache_manager,
-                raft_manager,
-                call_manager,
-                client_pool,
-                &segment,
-                start_offset as i64,
+                rocksdb_engine_handler,
+                segment_seq,
             )
             .await?;
-        }
 
-        segment
-    };
+            sync_save_segment_info(raft_manager, &segment).await?;
+            send_notify_by_set_segment(call_manager, segment.clone()).await?;
+            if shard_info.config.storage_type == StorageType::EngineSegment {
+                create_segment_metadata(
+                    cache_manager,
+                    raft_manager,
+                    call_manager,
+                    client_pool,
+                    &segment,
+                    start_offset as i64,
+                )
+                .await?;
+            }
+
+            segment
+        };
     Ok(segment)
 }
 
@@ -131,6 +142,7 @@ pub async fn delete_segment_by_real(
 async fn build_segment(
     shard_info: &EngineShard,
     cache_manager: &Arc<MetaCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_no: u32,
 ) -> Result<EngineSegment, MetaServiceError> {
     if let Some(segment) = cache_manager.get_segment(&shard_info.shard_name, segment_no) {
@@ -171,6 +183,9 @@ async fn build_segment(
     let leader = calc_leader_node(&replicas)?;
     let isr: Vec<u64> = replicas.iter().map(|rep| rep.node_id).collect();
 
+    let node_storage = NodeStorage::new(rocksdb_engine_handler.clone());
+    let leader_broker_epoch = node_storage.get_broker_epoch(leader)?;
+
     Ok(EngineSegment {
         shard_name: shard_info.shard_name.clone(),
         leader_epoch: 0,
@@ -179,7 +194,7 @@ async fn build_segment(
         leader,
         replicas,
         isr,
-        // ISR fields default to 0/empty; T2 sets leader_broker_epoch on assignment.
+        leader_broker_epoch,
         ..Default::default()
     })
 }
@@ -226,6 +241,32 @@ pub async fn sync_save_segment_info(
         .ok_or(MetaServiceError::ExecutionResultIsEmpty)?;
 
     Ok(())
+}
+
+/// Propose an ISR update through Raft (atomic epoch fences + CAS run in the
+/// state machine). Returns the new segment_epoch.
+pub async fn sync_update_segment_isr(
+    raft_manager: &Arc<MultiRaftManager>,
+    req: &UpdateSegmentIsrRequest,
+) -> Result<u32, MetaServiceError> {
+    let data = StorageData::new(
+        StorageDataType::StorageEngineUpdateSegmentIsr,
+        Bytes::copy_from_slice(&req.encode_to_vec()),
+    );
+
+    let response = raft_manager
+        .write_metadata(data)
+        .await?
+        .ok_or(MetaServiceError::ExecutionResultIsEmpty)?;
+    let value = response
+        .data
+        .value
+        .ok_or(MetaServiceError::ExecutionResultIsEmpty)?;
+    let bytes: [u8; 4] = value
+        .as_ref()
+        .try_into()
+        .map_err(|_| MetaServiceError::ExecutionResultIsEmpty)?;
+    Ok(u32::from_le_bytes(bytes))
 }
 
 async fn sync_delete_segment_info(

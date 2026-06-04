@@ -17,7 +17,7 @@ use crate::core::error::MetaServiceError;
 use crate::raft::manager::MultiRaftManager;
 use crate::server::services::engine::segment::{
     create_segment_by_req, delete_segment_by_req, list_segment_by_req, list_segment_meta_by_req,
-    seal_up_segment_req, update_start_time_by_segment_meta_by_req,
+    seal_up_segment_req, update_segment_isr_by_req, update_start_time_by_segment_meta_by_req,
 };
 use crate::server::services::engine::shard::{
     create_shard_by_req, delete_shard_by_req, list_shard_by_req,
@@ -31,7 +31,8 @@ use protocol::meta::meta_service_journal::{
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
     ListShardReply, ListShardRequest, SealUpSegmentReply, SealUpSegmentRequest,
-    UpdateStartTimeBySegmentMetaReply, UpdateStartTimeBySegmentMetaRequest,
+    UpdateSegmentIsrReply, UpdateSegmentIsrRequest, UpdateStartTimeBySegmentMetaReply,
+    UpdateStartTimeBySegmentMetaRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -140,6 +141,7 @@ impl EngineService for GrpcEngineService {
             &self.raft_manager,
             &self.call_manager,
             &self.client_pool,
+            &self.rocksdb_engine_handler,
             &req,
         )
         .await
@@ -191,6 +193,7 @@ impl EngineService for GrpcEngineService {
             &self.raft_manager,
             &self.call_manager,
             &self.client_pool,
+            &self.rocksdb_engine_handler,
             &req,
         )
         .await
@@ -233,6 +236,19 @@ impl EngineService for GrpcEngineService {
         .await
         .map_err(Self::to_status)
         .map(Response::new)
+    }
+
+    async fn update_segment_isr(
+        &self,
+        request: Request<UpdateSegmentIsrRequest>,
+    ) -> Result<Response<UpdateSegmentIsrReply>, Status> {
+        let req = request.into_inner();
+        self.validate_request(&req)?;
+
+        update_segment_isr_by_req(&self.cache_manager, &self.raft_manager, &req)
+            .await
+            .map_err(Self::to_status)
+            .map(Response::new)
     }
 
     async fn list_segment_meta(

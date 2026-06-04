@@ -67,6 +67,7 @@ pub enum StorageDataType {
     StorageEngineDeleteSegment,
     StorageEngineSetSegmentMetadata,
     StorageEngineDeleteSegmentMetadata,
+    StorageEngineUpdateSegmentIsr,
 
     // mqtt
     MqttSetUser,
@@ -134,6 +135,9 @@ impl fmt::Display for StorageDataType {
             }
             StorageDataType::StorageEngineDeleteSegmentMetadata => {
                 write!(f, "StorageEngineDeleteSegmentMetadata")
+            }
+            StorageDataType::StorageEngineUpdateSegmentIsr => {
+                write!(f, "StorageEngineUpdateSegmentIsr")
             }
 
             StorageDataType::MqttSetUser => write!(f, "MqttSetUser"),

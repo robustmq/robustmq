@@ -32,6 +32,8 @@ service EngineService {
 
   rpc SealUpSegment(SealUpSegmentRequest) returns (SealUpSegmentReply) {}
 
+  rpc UpdateSegmentIsr(UpdateSegmentIsrRequest) returns (UpdateSegmentIsrReply) {}
+
   rpc ListSegmentMeta(ListSegmentMetaRequest) returns (stream ListSegmentMetaReply) {}
 
   rpc UpdateStartTimeBySegmentMeta(UpdateStartTimeBySegmentMetaRequest) returns (UpdateStartTimeBySegmentMetaReply) {}
@@ -98,6 +100,20 @@ message SealUpSegmentRequest {
 }
 
 message SealUpSegmentReply {}
+
+message UpdateSegmentIsrRequest {
+  string shard_name = 1;
+  uint32 segment = 2;
+  repeated uint64 new_isr = 3;
+  uint64 requester_node_id = 4;
+  uint64 requester_broker_epoch = 5;
+  uint32 leader_epoch = 6;
+  uint32 expected_segment_epoch = 7;
+}
+
+message UpdateSegmentIsrReply {
+  uint32 new_segment_epoch = 1;
+}
 
 message ListSegmentMetaRequest {
   string shard_name = 3;

@@ -14,7 +14,9 @@
 
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
-use crate::core::segment::{create_segment, seal_up_segment, update_segment_status};
+use crate::core::segment::{
+    create_segment, seal_up_segment, sync_update_segment_isr, update_segment_status,
+};
 use crate::core::segment_meta::{
     update_last_offset_by_segment_metadata, update_start_timestamp_by_segment_metadata,
 };
@@ -28,8 +30,8 @@ use node_call::NodeCallManager;
 use protocol::meta::meta_service_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, DeleteSegmentReply, DeleteSegmentRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
-    SealUpSegmentReply, SealUpSegmentRequest, UpdateStartTimeBySegmentMetaReply,
-    UpdateStartTimeBySegmentMetaRequest,
+    SealUpSegmentReply, SealUpSegmentRequest, UpdateSegmentIsrReply, UpdateSegmentIsrRequest,
+    UpdateStartTimeBySegmentMetaReply, UpdateStartTimeBySegmentMetaRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -102,6 +104,7 @@ pub async fn create_segment_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateNextSegmentRequest,
 ) -> Result<CreateNextSegmentReply, MetaServiceError> {
     let shard = cache_manager
@@ -126,6 +129,7 @@ pub async fn create_segment_by_req(
         raft_manager,
         call_manager,
         client_pool,
+        rocksdb_engine_handler,
         &shard,
         next_segment,
         (req.current_segment_end_offset + 1) as u64,
@@ -213,6 +217,53 @@ pub async fn seal_up_segment_req(
     .await?;
 
     Ok(SealUpSegmentReply::default())
+}
+
+pub async fn update_segment_isr_by_req(
+    cache_manager: &Arc<MetaCacheManager>,
+    raft_manager: &Arc<MultiRaftManager>,
+    req: &UpdateSegmentIsrRequest,
+) -> Result<UpdateSegmentIsrReply, MetaServiceError> {
+    validate_shard_exists(cache_manager, &req.shard_name)?;
+    let segment = validate_segment_exists(cache_manager, &req.shard_name, req.segment)?;
+
+    if req.requester_node_id != segment.leader {
+        return Err(MetaServiceError::NotLeaderForPartition(
+            req.shard_name.clone(),
+            req.segment,
+            req.requester_node_id,
+            segment.leader,
+        ));
+    }
+
+    if req.new_isr.is_empty() {
+        return Err(MetaServiceError::InvalidIsr(
+            req.shard_name.clone(),
+            req.segment,
+            req.new_isr.clone(),
+            "ISR must not be empty".to_string(),
+        ));
+    }
+    if !req.new_isr.contains(&segment.leader) {
+        return Err(MetaServiceError::InvalidIsr(
+            req.shard_name.clone(),
+            req.segment,
+            req.new_isr.clone(),
+            "ISR must contain the leader".to_string(),
+        ));
+    }
+    let replica_ids: Vec<u64> = segment.replicas.iter().map(|r| r.node_id).collect();
+    if !req.new_isr.iter().all(|n| replica_ids.contains(n)) {
+        return Err(MetaServiceError::InvalidIsr(
+            req.shard_name.clone(),
+            req.segment,
+            req.new_isr.clone(),
+            "ISR must be a subset of replicas".to_string(),
+        ));
+    }
+
+    let new_segment_epoch = sync_update_segment_isr(raft_manager, req).await?;
+    Ok(UpdateSegmentIsrReply { new_segment_epoch })
 }
 
 pub async fn list_segment_meta_by_req(

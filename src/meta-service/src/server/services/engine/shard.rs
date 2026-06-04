@@ -68,6 +68,7 @@ pub async fn create_shard_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateShardRequest,
 ) -> Result<CreateShardReply, MetaServiceError> {
     let num = cache_manager.node_list.len() as u32;
@@ -96,6 +97,7 @@ pub async fn create_shard_by_req(
         raft_manager,
         call_manager,
         client_pool,
+        rocksdb_engine_handler,
         &shard,
         0,
         0,

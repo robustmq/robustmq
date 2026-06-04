@@ -14,13 +14,16 @@
 
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
+use crate::storage::common::node::NodeStorage;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
 use crate::storage::journal::shard::ShardStorage;
 use bytes::Bytes;
-use metadata_struct::storage::segment::EngineSegment;
+use metadata_struct::storage::segment::{segment_name, EngineSegment};
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
+use prost::Message as _;
+use protocol::meta::meta_service_journal::UpdateSegmentIsrRequest;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
@@ -70,6 +73,57 @@ impl DataRouteJournal {
         Ok(value)
     }
 
+    /// State-machine apply for an ISR update. Re-checks the epoch fences (which
+    /// must be atomic with the write) and CAS-bumps segment_epoch. Business
+    /// checks (leader identity, ISR validity) are done by the server layer.
+    /// Returns the new segment_epoch.
+    pub async fn update_segment_isr(&self, value: Bytes) -> Result<Bytes, MetaServiceError> {
+        let req = UpdateSegmentIsrRequest::decode(value.as_ref())?;
+        let storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
+
+        let mut current = storage.get(&req.shard_name, req.segment)?.ok_or_else(|| {
+            MetaServiceError::SegmentDoesNotExist(segment_name(&req.shard_name, req.segment))
+        })?;
+
+        if req.leader_epoch != current.leader_epoch {
+            return Err(MetaServiceError::FencedLeaderEpoch(
+                req.shard_name,
+                req.segment,
+                req.leader_epoch,
+                current.leader_epoch,
+            ));
+        }
+
+        let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
+        let known_broker_epoch = node_storage.get_broker_epoch(req.requester_node_id)?;
+        if req.requester_broker_epoch != known_broker_epoch {
+            return Err(MetaServiceError::StaleBrokerEpoch(
+                req.shard_name,
+                req.segment,
+                req.requester_broker_epoch,
+                known_broker_epoch,
+            ));
+        }
+
+        if req.expected_segment_epoch != current.segment_epoch {
+            return Err(MetaServiceError::InvalidUpdateVersion(
+                req.shard_name,
+                req.segment,
+                req.expected_segment_epoch,
+                current.segment_epoch,
+            ));
+        }
+
+        current.isr = req.new_isr;
+        current.segment_epoch += 1;
+        let new_segment_epoch = current.segment_epoch;
+
+        storage.save(current.clone())?;
+        self.cache_manager.set_segment(current);
+
+        Ok(Bytes::copy_from_slice(&new_segment_epoch.to_le_bytes()))
+    }
+
     pub async fn delete_segment(&self, value: Bytes) -> Result<(), MetaServiceError> {
         let segment = EngineSegment::decode(&value)?;
 
@@ -99,5 +153,126 @@ impl DataRouteJournal {
         self.cache_manager
             .remove_segment_meta(&meta.shard_name, meta.segment_seq);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use common_base::utils::file_utils::test_temp_dir;
+    use metadata_struct::storage::segment::{Replica, SegmentStatus};
+    use rocksdb_engine::storage::family::column_family_list;
+
+    fn setup() -> DataRouteJournal {
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(
+            &test_temp_dir(),
+            100_000,
+            column_family_list(),
+        ));
+        let cache = Arc::new(MetaCacheManager::new(rocksdb_engine.clone()));
+        DataRouteJournal::new(rocksdb_engine, cache)
+    }
+
+    fn seed_segment(journal: &DataRouteJournal, leader: u64, replicas: Vec<u64>) -> EngineSegment {
+        let segment = EngineSegment {
+            shard_name: "s1".to_string(),
+            segment_seq: 0,
+            leader,
+            leader_epoch: 3,
+            segment_epoch: 0,
+            isr: replicas.clone(),
+            replicas: replicas
+                .into_iter()
+                .map(|node_id| Replica {
+                    replica_seq: 0,
+                    node_id,
+                    fold: String::new(),
+                })
+                .collect(),
+            status: SegmentStatus::Write,
+            ..Default::default()
+        };
+        let storage = SegmentStorage::new(journal.rocksdb_engine_handler.clone());
+        storage.save(segment.clone()).unwrap();
+        segment
+    }
+
+    fn req(seg: &EngineSegment, new_isr: Vec<u64>) -> UpdateSegmentIsrRequest {
+        UpdateSegmentIsrRequest {
+            shard_name: seg.shard_name.clone(),
+            segment: seg.segment_seq,
+            new_isr,
+            requester_node_id: seg.leader,
+            requester_broker_epoch: 0,
+            leader_epoch: seg.leader_epoch,
+            expected_segment_epoch: seg.segment_epoch,
+        }
+    }
+
+    async fn apply(
+        journal: &DataRouteJournal,
+        r: &UpdateSegmentIsrRequest,
+    ) -> Result<u32, MetaServiceError> {
+        let out = journal
+            .update_segment_isr(Bytes::from(r.encode_to_vec()))
+            .await?;
+        let bytes: [u8; 4] = out.as_ref().try_into().unwrap();
+        Ok(u32::from_le_bytes(bytes))
+    }
+
+    #[tokio::test]
+    async fn success_shrinks_isr_and_bumps_epoch() {
+        let j = setup();
+        let node_storage = NodeStorage::new(j.rocksdb_engine_handler.clone());
+        node_storage.next_broker_epoch(1).unwrap();
+        let seg = seed_segment(&j, 1, vec![1, 2, 3]);
+
+        let mut r = req(&seg, vec![1, 2]);
+        r.requester_broker_epoch = 1;
+        let new_epoch = apply(&j, &r).await.unwrap();
+
+        assert_eq!(new_epoch, 1);
+        let stored = SegmentStorage::new(j.rocksdb_engine_handler.clone())
+            .get("s1", 0)
+            .unwrap()
+            .unwrap();
+        assert_eq!(stored.isr, vec![1, 2]);
+        assert_eq!(stored.segment_epoch, 1);
+    }
+
+    #[tokio::test]
+    async fn epoch_fences_reject_stale_updates() {
+        let j = setup();
+        let seg = seed_segment(&j, 1, vec![1, 2, 3]);
+
+        let with = |f: &dyn Fn(&mut UpdateSegmentIsrRequest)| {
+            let mut r = req(&seg, vec![1, 2]);
+            f(&mut r);
+            r
+        };
+
+        assert!(matches!(
+            apply(&j, &with(&|r| r.leader_epoch = 99)).await,
+            Err(MetaServiceError::FencedLeaderEpoch(..))
+        ));
+        assert!(matches!(
+            apply(&j, &with(&|r| r.requester_broker_epoch = 7)).await,
+            Err(MetaServiceError::StaleBrokerEpoch(..))
+        ));
+        assert!(matches!(
+            apply(&j, &with(&|r| r.expected_segment_epoch = 42)).await,
+            Err(MetaServiceError::InvalidUpdateVersion(..))
+        ));
+    }
+
+    #[tokio::test]
+    async fn concurrent_update_only_matching_cas_wins() {
+        let j = setup();
+        let seg = seed_segment(&j, 1, vec![1, 2, 3]);
+        apply(&j, &req(&seg, vec![1, 2])).await.unwrap();
+        assert!(matches!(
+            apply(&j, &req(&seg, vec![1, 3])).await,
+            Err(MetaServiceError::InvalidUpdateVersion(..))
+        ));
     }
 }
