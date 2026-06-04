@@ -134,7 +134,7 @@ pub async fn segment_leader_switch(
             Some(id) => node_storage.get_broker_epoch(id)?,
             None => 0,
         };
-        let new_segment =
+        let new_segment: EngineSegment =
             compute_segment_after_leader_failure(&segment, remove_id, new_leader_broker_epoch);
 
         if new_segment.status == SegmentStatus::Unavailable {

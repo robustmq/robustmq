@@ -19,6 +19,7 @@ use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
 use crate::filesegment::write::WriteManager;
 use crate::handler::data::{read_data_req, write_data_req};
+use crate::isr::fetch::{handle_fetch, FetchEngines};
 use async_trait::async_trait;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
@@ -26,7 +27,7 @@ use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
 use protocol::storage::codec::StorageEnginePacket;
 use protocol::storage::protocol::{
-    ApiKey, ReadRespBody, RespHeader, StorageEngineNetworkError, WriteRespBody,
+    ApiKey, FetchResp, ReadRespBody, RespHeader, StorageEngineNetworkError, WriteRespBody,
 };
 use protocol::{robust::RobustMQPacket, storage::protocol::WriteResp};
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -161,6 +162,21 @@ impl Command for StorageEngineHandlerCommand {
                     RobustMQPacket::StorageEngine(StorageEnginePacket::ReadResp(resp)),
                 );
 
+                return Some(response);
+            }
+
+            StorageEnginePacket::FetchReq(request) => {
+                let engines = FetchEngines {
+                    memory: self.memory_storage_engine.clone(),
+                    rocksdb: self.rocksdb_storage_engine.clone(),
+                };
+                let body = handle_fetch(&engines, &self.cache_manager, &request.body).await;
+                let resp = FetchResp::new(body);
+
+                let response = ResponsePackage::new(
+                    tcp_connection.connection_id,
+                    RobustMQPacket::StorageEngine(StorageEnginePacket::FetchResp(resp)),
+                );
                 return Some(response);
             }
 

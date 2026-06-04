@@ -19,6 +19,7 @@ use async_trait::async_trait;
 use broker_core::cache::NodeCacheManager;
 use metadata_struct::storage::record::StorageRecord;
 use protocol::storage::protocol::{FetchErrorCode, FetchReqBody, FetchRespBody, FetchShardReq};
+use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -43,34 +44,29 @@ pub struct SegmentFetchState {
     pub cache: LeaderEpochCache,
 }
 
+
+pub type SegmentMap = Arc<DashMap<(String, u32), SegmentFetchState>>;
+
 pub struct ReplicaFetcherThread<T: FetchTransport, L: ReplicaLog> {
     transport: T,
     log: L,
     broker_cache: Arc<NodeCacheManager>,
-    segments: HashMap<(String, u32), SegmentFetchState>,
+    segments: SegmentMap,
 }
 
 impl<T: FetchTransport, L: ReplicaLog> ReplicaFetcherThread<T, L> {
-    pub fn new(transport: T, log: L, broker_cache: Arc<NodeCacheManager>) -> Self {
+    pub fn new(
+        transport: T,
+        log: L,
+        broker_cache: Arc<NodeCacheManager>,
+        segments: SegmentMap,
+    ) -> Self {
         ReplicaFetcherThread {
             transport,
             log,
             broker_cache,
-            segments: HashMap::new(),
+            segments,
         }
-    }
-
-    pub fn add_segment(&mut self, state: SegmentFetchState) {
-        self.segments
-            .insert((state.shard.clone(), state.segment_seq), state);
-    }
-
-    pub fn remove_segment(&mut self, shard: &str, segment_seq: u32) {
-        self.segments.remove(&(shard.to_string(), segment_seq));
-    }
-
-    pub fn segment_count(&self) -> usize {
-        self.segments.len()
     }
 
     pub async fn run(&mut self, mut stop: broadcast::Receiver<bool>) {
@@ -97,7 +93,8 @@ impl<T: FetchTransport, L: ReplicaLog> ReplicaFetcherThread<T, L> {
 
     pub async fn fetch_round(&mut self) -> bool {
         let mut by_leader: HashMap<u64, Vec<FetchShardReq>> = HashMap::new();
-        for state in self.segments.values() {
+        for entry in self.segments.iter() {
+            let state = entry.value();
             let fetch_offset = match self.log.latest_offset(&state.shard, state.segment_seq) {
                 Ok(v) => v,
                 Err(e) => {
@@ -158,17 +155,19 @@ impl<T: FetchTransport, L: ReplicaLog> ReplicaFetcherThread<T, L> {
         resp: protocol::storage::protocol::FetchShardResp,
     ) -> Result<bool, StorageEngineError> {
         let key = (resp.shard_name.clone(), resp.segment_seq);
-        let Some(state) = self.segments.get_mut(&key) else {
+        if !self.segments.contains_key(&key) {
             return Ok(false);
-        };
-        let shard = state.shard.as_str();
-        let segment_seq = state.segment_seq;
+        }
+        let shard = &resp.shard_name;
+        let segment_seq = resp.segment_seq;
         let fetch_offset = self.log.latest_offset(shard, segment_seq)?;
 
         if resp.error_code == FetchErrorCode::OffsetOutOfRange.as_u32() {
             if fetch_offset < resp.leader_log_start {
                 self.log.clear(shard, segment_seq).await?;
-                state.cache.clear()?;
+                if let Some(mut state) = self.segments.get_mut(&key) {
+                    state.cache.clear()?;
+                }
             }
             return Ok(false);
         }
@@ -176,8 +175,10 @@ impl<T: FetchTransport, L: ReplicaLog> ReplicaFetcherThread<T, L> {
             return Ok(false);
         }
 
-        if resp.leader_epoch > state.cache.latest_epoch() {
-            state.cache.assign(resp.leader_epoch, fetch_offset)?;
+        if let Some(mut state) = self.segments.get_mut(&key) {
+            if resp.leader_epoch > state.cache.latest_epoch() {
+                state.cache.assign(resp.leader_epoch, fetch_offset)?;
+            }
         }
 
         let records = decode_records(&resp.records)?;
@@ -285,7 +286,10 @@ mod tests {
     fn thread(
         leader: InProcLeader,
         follower: MemoryStorageEngine,
-    ) -> ReplicaFetcherThread<InProcLeader, MemoryStorageEngine> {
+    ) -> (
+        ReplicaFetcherThread<InProcLeader, MemoryStorageEngine>,
+        SegmentMap,
+    ) {
         let broker_cache = follower.cache_manager.broker_cache.clone();
         let mut config = broker_cache.get_cluster_config();
         config.broker_id = 2;
@@ -293,7 +297,13 @@ mod tests {
         config.storage_runtime.replica_fetch_backoff_ms = 10;
         broker_cache.set_cluster_config(config);
         broker_cache.set_broker_epoch(1);
-        ReplicaFetcherThread::new(leader, follower, broker_cache)
+        let segments: SegmentMap = Arc::new(DashMap::new());
+        let th = ReplicaFetcherThread::new(leader, follower, broker_cache, segments.clone());
+        (th, segments)
+    }
+
+    fn add(segments: &SegmentMap, state: SegmentFetchState) {
+        segments.insert((state.shard.clone(), state.segment_seq), state);
     }
 
     #[tokio::test]
@@ -305,10 +315,10 @@ mod tests {
         ])
         .await;
         let follower = test_build_memory_engine();
-        let mut th = thread(leader, follower);
-        th.add_segment(seg_state("s1", 7));
-        th.add_segment(seg_state("s2", 7));
-        th.add_segment(seg_state("s3", 7));
+        let (mut th, segments) = thread(leader, follower);
+        add(&segments, seg_state("s1", 7));
+        add(&segments, seg_state("s2", 7));
+        add(&segments, seg_state("s3", 7));
 
         let progressed = th.fetch_round().await;
         assert!(progressed);
@@ -323,8 +333,8 @@ mod tests {
             leader_with_shards(&[("s1", vec![record(0, "a"), record(1, "b"), record(2, "c")])])
                 .await;
         let follower = test_build_memory_engine();
-        let mut th = thread(leader, follower);
-        th.add_segment(seg_state("s1", 7));
+        let (mut th, segments) = thread(leader, follower);
+        add(&segments, seg_state("s1", 7));
 
         let (stop_tx, stop_rx) = broadcast::channel(1);
         let stopper = tokio::spawn(async move {
@@ -342,11 +352,11 @@ mod tests {
         let leader =
             leader_with_shards(&[("s1", vec![record(0, "a")]), ("s2", vec![record(0, "b")])]).await;
         let follower = test_build_memory_engine();
-        let mut th = thread(leader, follower);
-        th.add_segment(seg_state("s1", 7));
-        th.add_segment(seg_state("s2", 7));
-        th.remove_segment("s2", 0);
-        assert_eq!(th.segment_count(), 1);
+        let (mut th, segments) = thread(leader, follower);
+        add(&segments, seg_state("s1", 7));
+        add(&segments, seg_state("s2", 7));
+        segments.remove(&("s2".to_string(), 0));
+        assert_eq!(segments.len(), 1);
 
         th.fetch_round().await;
         assert_eq!(th.log.latest_offset("s1", 0).unwrap(), 1);
